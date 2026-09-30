@@ -260,7 +260,7 @@ Completed:
 
 Not yet usable end to end: no real provider exists until Task 0.7.
 
-### Task 0.7 — First Remote Provider ⏳ Code done, live check pending (2026-10-01)
+### Task 0.7 — First Remote Provider ✅ Done (2026-10-01) — verified live with Gemini; Claude live check pending credits
 
 Implement one remote LLM provider.
 
@@ -277,6 +277,19 @@ Completed:
 - Tests: 11 unit tests with a fake client (48/48 total pass, typecheck passes), plus `pnpm test:live`, which calls the real API and is skipped in the normal test run
 
 Live check result: the key authenticates, but the Anthropic account has no API credits (`HTTP 400: Your credit balance is too low`). The error surfaces correctly as a clear, non-retried `bad_request`. Remaining step: add credits in the Anthropic Console, then run `pnpm test:live`.
+
+Gemini added as a second provider (ADR-031):
+
+- `services/llm-gateway/src/providers/gemini.ts`: `createGeminiAdapter()` with the official `@google/genai` SDK (2.24); maps the assistant role to Gemini's `model` role, disables SDK retries, and maps Google errors to gateway kinds (an invalid key, which Google reports as HTTP 400, becomes `auth`; blocked replies are reported with their reason)
+- `providers/index.ts`: `createProviderAdapter()` picks the adapter from configuration — the only code that knows every provider
+- Configuration: `ZENO_LLM_PROVIDER` (`claude` default, or `gemini`); only the selected provider's key (`ANTHROPIC_API_KEY` or `GEMINI_API_KEY`) is required; default models `claude-sonnet-5` / `gemini-3.5-flash`
+- Install scripts for `@google/genai` and `protobufjs` are denied in `pnpm-workspace.yaml` (not needed)
+- `pnpm test:live` now tests whichever provider is configured
+- Tests: 12 Gemini unit tests, 2 new config tests (61/61 pass, 1 live test skipped, typecheck passes)
+
+Gemini live check: passed (2026-10-01) with `gemini-3.5-flash` on the free tier. Verified through Core → Gateway → Gemini, including multi-turn memory within the session ("What is my name?" → "Your name is Keshab.") and a clear error for an unknown model.
+
+Latency (measured): with default thinking, replies took 2.5–12 s. The adapter now sets thinking to MINIMAL, which brings typical replies to about 1.3–2.2 s with correct answers. Occasionally a first request after a pause takes ~20 s on the free tier; this is on Google's side and stays within the 30 s timeout. Free-tier limit: 5 requests per minute for this model. Quota errors are trimmed to Google's first line.
 
 ### Task 0.8 — TTS
 

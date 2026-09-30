@@ -1,9 +1,16 @@
 const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
-
 export type LogLevel = (typeof LOG_LEVELS)[number];
+
+/** Supported LLM providers, with the env variable holding each one's key and its default model. */
+const PROVIDERS = {
+  claude: { keyVar: "ANTHROPIC_API_KEY", defaultModel: "claude-sonnet-5" },
+  gemini: { keyVar: "GEMINI_API_KEY", defaultModel: "gemini-3.5-flash" },
+} as const;
+export type LlmProvider = keyof typeof PROVIDERS;
 
 export interface Config {
   llm: {
+    provider: LlmProvider;
     apiKey: string;
     model: string;
     timeoutMs: number;
@@ -57,15 +64,24 @@ export function loadConfig(env: Env = process.env): Config {
     return value;
   };
 
-  const logLevel = read("ZENO_LOG_LEVEL", "info");
-  if (!LOG_LEVELS.includes(logLevel as LogLevel)) {
-    problems.push(`ZENO_LOG_LEVEL must be one of ${LOG_LEVELS.join(", ")}, got "${logLevel}"`);
-  }
+  const oneOf = <T extends string>(name: string, allowed: readonly T[], fallback: T): T => {
+    const value = read(name, fallback);
+    if (!allowed.includes(value as T)) {
+      problems.push(`${name} must be one of ${allowed.join(", ")}, got "${value}"`);
+      return fallback;
+    }
+    return value as T;
+  };
+
+  const provider = oneOf("ZENO_LLM_PROVIDER", Object.keys(PROVIDERS) as LlmProvider[], "claude");
+  const { keyVar, defaultModel } = PROVIDERS[provider];
 
   const config: Config = {
     llm: {
-      apiKey: read("ANTHROPIC_API_KEY"),
-      model: read("ZENO_LLM_MODEL", "claude-sonnet-5"),
+      provider,
+      // Only the selected provider's key is required.
+      apiKey: read(keyVar),
+      model: read("ZENO_LLM_MODEL", defaultModel),
       timeoutMs: positiveInt("ZENO_LLM_TIMEOUT_MS", 30_000),
     },
     audio: {
@@ -77,7 +93,7 @@ export function loadConfig(env: Env = process.env): Config {
       language: read("ZENO_STT_LANGUAGE", "en"),
     },
     log: {
-      level: logLevel as LogLevel,
+      level: oneOf("ZENO_LOG_LEVEL", LOG_LEVELS, "info"),
     },
   };
 

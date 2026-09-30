@@ -458,6 +458,27 @@ Enables natural follow-up questions without introducing persistent memory, which
 
 ---
 
+## ADR-031 — Gemini as a Second LLM Provider
+
+### Decision
+
+Gemini (Google, via the official `@google/genai` SDK) is supported alongside Claude, behind the same LLM Gateway.
+
+`ZENO_LLM_PROVIDER` selects the provider (`claude` by default, or `gemini`). Only the selected provider's key is required. Default Gemini model: `gemini-3.5-flash`.
+
+### Reason
+
+Proves the gateway is provider-independent (ADR-002) and gives a working path while one provider is unavailable (e.g. no credits).
+
+Voice processing (Whisper, Kokoro) is local and exchanges only text with the Core, so it is unaffected by the provider choice (ADR-003).
+
+### Notes
+
+- On Google's free tier, prompts may be used to improve Google products. Since ZENO sends what the user says, the paid tier is preferable for private use.
+- ADR-028 still holds: Claude remains the default provider.
+
+---
+
 ## Final Architectural Principle
 
 > Preserve the future without prematurely implementing it.

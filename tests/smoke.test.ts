@@ -10,13 +10,13 @@ function startZeno(env: Record<string, string>) {
 }
 
 test("ZENO starts with valid configuration", () => {
-  const result = startZeno({ ANTHROPIC_API_KEY: "test-key" });
+  const result = startZeno({ ZENO_LLM_PROVIDER: "claude", ANTHROPIC_API_KEY: "test-key" });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /ZENO Phase 0: started/);
 });
 
 test("ZENO exits with a clear error when configuration is invalid", () => {
-  const result = startZeno({ ANTHROPIC_API_KEY: "" });
+  const result = startZeno({ ZENO_LLM_PROVIDER: "claude", ANTHROPIC_API_KEY: "" });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Invalid configuration:/);
   assert.match(result.stderr, /ANTHROPIC_API_KEY is required/);

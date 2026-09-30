@@ -2,3 +2,8 @@ packages:
   - apps/*
   - services/*
   - packages/*
+# Dependency install scripts are denied unless needed. Neither of these is:
+# @google/genai's are no-ops for consumers; protobufjs's only prints version warnings.
+allowBuilds:
+  '@google/genai': false
+  protobufjs: false
