@@ -24,7 +24,7 @@ The product architecture and development philosophy have been defined.
 
 The implementation priority is now Phase 0.
 
-Progress: Tasks 0.1 (Repository Foundation), 0.2 (Configuration) and 0.3 (Audio Input) are complete. Next: Task 0.4 (Whisper Adapter).
+Progress: Tasks 0.1–0.4 (Repository Foundation, Configuration, Audio Input, Whisper Adapter) are complete. Next: Task 0.5 (ZENO Core).
 
 ---
 
@@ -241,7 +241,7 @@ The immediate goal is:
 
 ## 12. Next Action
 
-Phase 0 technical decisions are made. Tasks 0.1–0.3 are complete. The next task is Task 0.4 — Whisper Adapter.
+Phase 0 technical decisions are made. Tasks 0.1–0.4 are complete. The next task is Task 0.5 — ZENO Core.
 
 The next implementation task should be selected from TASK.md.
 

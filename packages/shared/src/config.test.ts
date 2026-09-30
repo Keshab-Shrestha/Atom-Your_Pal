@@ -9,6 +9,7 @@ test("applies defaults when only the API key is set", () => {
   assert.deepEqual(config, {
     llm: { apiKey: KEY, model: "claude-sonnet-5", timeoutMs: 30_000 },
     audio: { inputDevice: ":default", sampleRate: 16_000 },
+    stt: { modelPath: "models/ggml-base.en.bin", language: "en" },
     log: { level: "info" },
   });
 });

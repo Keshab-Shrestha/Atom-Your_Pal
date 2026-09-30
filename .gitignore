@@ -3,6 +3,9 @@ dist/
 *.log
 .DS_Store
 
+# Downloaded model files (large, reproducible)
+models/
+
 # Secrets: never commit
 .env
 .env.*

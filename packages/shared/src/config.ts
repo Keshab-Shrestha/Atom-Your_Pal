@@ -12,6 +12,10 @@ export interface Config {
     inputDevice: string;
     sampleRate: number;
   };
+  stt: {
+    modelPath: string;
+    language: string;
+  };
   log: {
     level: LogLevel;
   };
@@ -67,6 +71,10 @@ export function loadConfig(env: Env = process.env): Config {
     audio: {
       inputDevice: read("ZENO_AUDIO_INPUT_DEVICE", ":default"),
       sampleRate: positiveInt("ZENO_AUDIO_SAMPLE_RATE", 16_000),
+    },
+    stt: {
+      modelPath: read("ZENO_STT_MODEL", "models/ggml-base.en.bin"),
+      language: read("ZENO_STT_LANGUAGE", "en"),
     },
     log: {
       level: logLevel as LogLevel,

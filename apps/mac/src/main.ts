@@ -1,5 +1,6 @@
 import { ConfigError, loadConfig, type Config } from "@zeno/shared";
 import { AudioError, listAudioDevices, peakLevel, startRecording, type Recording } from "./audio.ts";
+import { SttError, createWhisperStt } from "./stt.ts";
 
 let config: Config;
 try {
@@ -17,9 +18,11 @@ console.log(`Microphone: ${config.audio.inputDevice}`);
 console.log("Press Space to start/stop recording, d to list microphones, q to quit.");
 
 let recording: Recording | null = null;
+const stt = createWhisperStt({ modelPath: config.stt.modelPath, language: config.stt.language });
 
 function report(error: unknown) {
   if (error instanceof AudioError) console.error(`Audio error: ${error.message}`);
+  else if (error instanceof SttError) console.error(`Speech-to-text error: ${error.message}`);
   else console.error(error);
 }
 
@@ -40,7 +43,11 @@ async function toggleRecording() {
   try {
     const clip = await current.stop();
     const peak = Math.round(peakLevel(clip.pcm) * 100);
-    console.log(`Recorded ${(clip.durationMs / 1000).toFixed(1)} s (peak level ${peak}%)`);
+    console.log(`Recorded ${(clip.durationMs / 1000).toFixed(1)} s (peak level ${peak}%). Transcribing…`);
+    const started = Date.now();
+    const text = await stt.transcribe(clip);
+    const took = ((Date.now() - started) / 1000).toFixed(1);
+    console.log(text ? `You said: "${text}" (${took} s)` : `No speech recognized (${took} s)`);
   } catch (error) {
     report(error);
   }
