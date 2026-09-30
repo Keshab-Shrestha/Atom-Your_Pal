@@ -207,7 +207,7 @@ Setup on a new machine: `brew install whisper-cpp` and download the model into `
 
 Known limitations: base.en misspells unusual names (e.g. "Zeno" → "Zino"). A larger model or a vocabulary prompt can fix this later if it matters.
 
-### Task 0.5 — ZENO Core
+### Task 0.5 — ZENO Core ✅ Done (2026-10-01)
 
 Create the central request/response boundary.
 
@@ -219,6 +219,19 @@ Responsibilities:
 - return a response
 
 Keep it small.
+
+Completed:
+
+- `packages/contracts/src/index.ts`: shared types only — `ZenoInput` (normalized input with `source`), `RequestContext`, `ZenoResponse`, `Message`, and the `LanguageModel` interface the LLM Gateway will implement
+- `services/core/src/core.ts`: `createCore({ model })` returns a `Core` with `handle(input)`, `history()` and `reset()`
+  - establishes a `RequestContext` per request (request id, session id, source, time)
+  - routes to the language model (the only route in Phase 0), sending a short system prompt written for spoken replies plus the session history
+  - keeps session-only history (ADR-030), bounded to the last 20 exchanges; failed requests are not recorded
+  - rejects empty input, empty replies, and a second request while one is in flight; a reply arriving after `reset()` is not added to the new session
+- The Core depends only on `@zeno/contracts`; it knows nothing about Claude, Whisper or audio
+- Tests: 8 tests with a fake model (30/30 total pass, typecheck passes)
+
+Not yet wired into `apps/mac`: the Core needs a real model, which arrives with the LLM Gateway (Tasks 0.6–0.7). The full chain is connected in Task 0.9.
 
 ### Task 0.6 — LLM Gateway
 

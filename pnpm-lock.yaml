@@ -179,7 +179,15 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
 
+  packages/contracts: {}
+
   packages/shared: {}
+
+  services/core:
+    dependencies:
+      '@zeno/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
 
 packages:
 

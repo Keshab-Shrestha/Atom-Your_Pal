@@ -24,7 +24,7 @@ The product architecture and development philosophy have been defined.
 
 The implementation priority is now Phase 0.
 
-Progress: Tasks 0.1–0.4 (Repository Foundation, Configuration, Audio Input, Whisper Adapter) are complete. Next: Task 0.5 (ZENO Core).
+Progress: Tasks 0.1–0.5 (Repository Foundation, Configuration, Audio Input, Whisper Adapter, ZENO Core) are complete. Next: Task 0.6 (LLM Gateway).
 
 ---
 
@@ -241,7 +241,7 @@ The immediate goal is:
 
 ## 12. Next Action
 
-Phase 0 technical decisions are made. Tasks 0.1–0.4 are complete. The next task is Task 0.5 — ZENO Core.
+Phase 0 technical decisions are made. Tasks 0.1–0.5 are complete. The next task is Task 0.6 — LLM Gateway.
 
 The next implementation task should be selected from TASK.md.
 
