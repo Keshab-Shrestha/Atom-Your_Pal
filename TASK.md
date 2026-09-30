@@ -155,7 +155,7 @@ Completed:
 
 Known limitations: logging configuration is only the level setting; the logger itself is built when first needed.
 
-### Task 0.3 — Audio Input
+### Task 0.3 — Audio Input ✅ Done (2026-10-01)
 
 Implement microphone input.
 
@@ -165,6 +165,18 @@ Requirements:
 - capture audio
 - provide audio data to the speech layer
 - handle device errors
+
+Completed:
+
+- `apps/mac/src/audio.ts`: `startRecording()` captures the microphone through ffmpeg (AVFoundation) as mono 16-bit PCM at the configured sample rate (16 kHz, what Whisper expects); `stop()` returns an `AudioClip` (`pcm`, `sampleRate`, `durationMs`) for the speech layer
+- `listAudioDevices()` detects microphones; `peakLevel()` reports input level
+- Errors are `AudioError`s with actionable messages: ffmpeg missing (install hint), device unavailable (ffmpeg's error + permission hint), no audio captured. Failures during recording are reported immediately, not only on stop
+- If ffmpeg does not exit after an interrupt, it is killed after 2 s (some devices, e.g. Continuity microphones, can stall)
+- Default input device changed from `:0` to `:default` (the macOS default input), since device indexes change when devices connect
+- `pnpm start` is interactive: Space starts/stops recording (push-to-talk as a toggle, see ADR-027), `d` lists microphones, `q` quits
+- Tests: 8 unit tests with a fake ffmpeg process (15/15 total pass, typecheck passes). Verified by hand against the real microphone: recording, device listing and an invalid-device error
+
+Known limitations: push-to-talk is a key toggle, because a terminal cannot detect a held key. True hold-to-talk needs the native Mac app.
 
 ### Task 0.4 — Whisper Adapter
 

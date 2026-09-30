@@ -65,7 +65,7 @@ export function loadConfig(env: Env = process.env): Config {
       timeoutMs: positiveInt("ZENO_LLM_TIMEOUT_MS", 30_000),
     },
     audio: {
-      inputDevice: read("ZENO_AUDIO_INPUT_DEVICE", ":0"),
+      inputDevice: read("ZENO_AUDIO_INPUT_DEVICE", ":default"),
       sampleRate: positiveInt("ZENO_AUDIO_SAMPLE_RATE", 16_000),
     },
     log: {
