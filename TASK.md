@@ -131,7 +131,7 @@ Completed:
 
 Known limitations: configuration mechanism is only `.env` loading; Task 0.2 adds validated configuration.
 
-### Task 0.2 — Configuration
+### Task 0.2 — Configuration ✅ Done (2026-10-01)
 
 Implement centralized configuration.
 
@@ -143,6 +143,17 @@ Requirements:
 - logging configuration
 
 Do not hard-code credentials.
+
+Completed:
+
+- `packages/shared/src/config.ts`: `loadConfig()` reads environment variables into one typed `Config` (`llm`, `audio`, `log`)
+- Only `ANTHROPIC_API_KEY` is required; defaults: model `claude-sonnet-5`, timeout 30 s, input device `:0`, 16 kHz, log level `info`
+- Invalid values are validated and all problems are reported at once in one `ConfigError`; secret values never appear in errors
+- `apps/mac` loads configuration at startup and exits with code 1 and a clear message if it is invalid
+- `.env.example` documents every variable
+- Tests: 5 unit tests for configuration, 2 startup tests (valid / invalid configuration); 7/7 pass, typecheck passes
+
+Known limitations: logging configuration is only the level setting; the logger itself is built when first needed.
 
 ### Task 0.3 — Audio Input
 

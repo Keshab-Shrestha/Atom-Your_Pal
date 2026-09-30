@@ -1,0 +1,8 @@
+{
+  "name": "@zeno/mac",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@zeno/shared": "workspace:*"
+  }
+}

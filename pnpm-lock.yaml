@@ -173,6 +173,14 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  apps/mac:
+    dependencies:
+      '@zeno/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+
+  packages/shared: {}
+
 packages:
 
   '@types/node@22.20.4':

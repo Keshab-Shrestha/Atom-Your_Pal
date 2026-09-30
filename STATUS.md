@@ -24,7 +24,7 @@ The product architecture and development philosophy have been defined.
 
 The implementation priority is now Phase 0.
 
-Progress: Task 0.1 (Repository Foundation) is complete. Next: Task 0.2 (Configuration).
+Progress: Tasks 0.1 (Repository Foundation) and 0.2 (Configuration) are complete. Next: Task 0.3 (Audio Input).
 
 ---
 
@@ -241,7 +241,7 @@ The immediate goal is:
 
 ## 12. Next Action
 
-Phase 0 technical decisions are made. Task 0.1 is complete. The next task is Task 0.2 — Configuration.
+Phase 0 technical decisions are made. Tasks 0.1 and 0.2 are complete. The next task is Task 0.3 — Audio Input.
 
 The next implementation task should be selected from TASK.md.
 
