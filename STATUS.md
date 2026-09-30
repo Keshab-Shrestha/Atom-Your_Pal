@@ -24,7 +24,7 @@ The product architecture and development philosophy have been defined.
 
 The implementation priority is now Phase 0.
 
-Progress: Tasks 0.1–0.7 are complete. Task 0.7 is verified live with Gemini (ADR-031); the Claude adapter is built and unit-tested, and its live check is pending Anthropic API credits. Next: Task 0.8 (TTS).
+Progress: Tasks 0.1–0.8 are complete. Task 0.7 is verified live with Gemini (ADR-031); the Claude adapter is built and unit-tested, and its live check is pending Anthropic API credits. Task 0.8 (Kokoro TTS) speaks locally with instant interruption. Next: Task 0.9 (Connect Voice Loop).
 
 ---
 
@@ -241,7 +241,7 @@ The immediate goal is:
 
 ## 12. Next Action
 
-Phase 0 technical decisions are made. Tasks 0.1–0.7 are complete (Claude's live check still needs credits). The next task is Task 0.8 — TTS (Kokoro).
+Phase 0 technical decisions are made. Tasks 0.1–0.8 are complete (Claude's live check still needs credits). The next task is Task 0.9 — Connect Voice Loop.
 
 The next implementation task should be selected from TASK.md.
 

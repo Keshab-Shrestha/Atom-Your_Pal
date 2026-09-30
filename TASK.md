@@ -291,7 +291,7 @@ Gemini live check: passed (2026-10-01) with `gemini-3.5-flash` on the free tier.
 
 Latency (measured): with default thinking, replies took 2.5–12 s. The adapter now sets thinking to MINIMAL, which brings typical replies to about 1.3–2.2 s with correct answers. Occasionally a first request after a pause takes ~20 s on the free tier; this is on Google's side and stays within the 30 s timeout. Free-tier limit: 5 requests per minute for this model. Quota errors are trimmed to Google's first line.
 
-### Task 0.8 — TTS
+### Task 0.8 — TTS ✅ Done (2026-10-01)
 
 Implement text-to-speech.
 
@@ -306,6 +306,20 @@ Audio
 ```
 
 Keep TTS implementation replaceable.
+
+Done (2026-10-01):
+
+- `apps/mac/src/tts.ts`: `TextToSpeech` boundary (`warmUp()`, `speak(text, signal)`); the rest of ZENO depends only on this
+- Kokoro-82M (ADR-029) through `kokoro-js`, running in a worker thread (`tts-worker.ts`). Synthesis is CPU-bound and froze the main thread for up to 2.4 s per sentence; in the worker the longest main-thread stall measured 18 ms
+- Replies are spoken sentence by sentence into one continuous audio stream: playback starts once the first sentence is ready, and later sentences are synthesized while earlier ones play (synthesis runs at about 0.45× real time)
+- Playback: raw samples piped to `ffmpeg -f audiotoolbox` (the macOS default output). `afplay` was tried first but adds ~1.5 s of latency per file and leaves gaps between sentences
+- Interruption: aborting stops playback immediately (measured: returns within 2 ms of the abort). Starting a recording stops ZENO speaking
+- Model: `q8` (~90 MB) by default, kept in `models/huggingface/` (git-ignored); downloaded on first run, then works offline. Voice and precision set by `ZENO_TTS_VOICE` (default `af_heart`) and `ZENO_TTS_DTYPE` (`q8` or `fp32`)
+- `pnpm start` loads the voice in the background at startup (~0.4 s once downloaded); press `t` to hear a test sentence
+- Install scripts for `onnxruntime-node` and `sharp` are denied (not needed on macOS arm64)
+- Tests: 10 unit tests (fake synthesizer and audio output), 2 real-Kokoro tests that run when the model is present; 75/75 pass (plus 1 skipped live-provider test), typecheck passes
+
+Measured on this Mac: first sound 2.3–2.5 s after the text arrives for a 17-word first sentence; a 12.1 s reply finished in 14.7 s.
 
 ### Task 0.9 — Connect Voice Loop
 

@@ -12,6 +12,7 @@ test("applies defaults when only the Anthropic key is set", () => {
     llm: { provider: "claude", apiKey: CLAUDE_KEY, model: "claude-sonnet-5", timeoutMs: 30_000 },
     audio: { inputDevice: ":default", sampleRate: 16_000 },
     stt: { modelPath: "models/ggml-base.en.bin", language: "en" },
+    tts: { voice: "af_heart", dtype: "q8" },
     log: { level: "info" },
   });
 });
@@ -38,8 +39,11 @@ test("reads overrides from the environment", () => {
     ZENO_AUDIO_INPUT_DEVICE: ":1",
     ZENO_AUDIO_SAMPLE_RATE: "48000",
     ZENO_STT_MODEL: "models/other.bin",
+    ZENO_TTS_VOICE: "bf_emma",
+    ZENO_TTS_DTYPE: "fp32",
     ZENO_LOG_LEVEL: "debug",
   });
+  assert.deepEqual(config.tts, { voice: "bf_emma", dtype: "fp32" });
   assert.equal(config.llm.model, "some-model");
   assert.equal(config.llm.timeoutMs, 5000);
   assert.equal(config.audio.inputDevice, ":1");

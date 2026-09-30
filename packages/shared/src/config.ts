@@ -8,6 +8,9 @@ const PROVIDERS = {
 } as const;
 export type LlmProvider = keyof typeof PROVIDERS;
 
+const TTS_DTYPES = ["q8", "fp32", "fp16", "q4", "q4f16"] as const;
+export type TtsDtype = (typeof TTS_DTYPES)[number];
+
 export interface Config {
   llm: {
     provider: LlmProvider;
@@ -22,6 +25,10 @@ export interface Config {
   stt: {
     modelPath: string;
     language: string;
+  };
+  tts: {
+    voice: string;
+    dtype: TtsDtype;
   };
   log: {
     level: LogLevel;
@@ -91,6 +98,10 @@ export function loadConfig(env: Env = process.env): Config {
     stt: {
       modelPath: read("ZENO_STT_MODEL", "models/ggml-base.en.bin"),
       language: read("ZENO_STT_LANGUAGE", "en"),
+    },
+    tts: {
+      voice: read("ZENO_TTS_VOICE", "af_heart"),
+      dtype: oneOf("ZENO_TTS_DTYPE", TTS_DTYPES, "q8"),
     },
     log: {
       level: oneOf("ZENO_LOG_LEVEL", LOG_LEVELS, "info"),

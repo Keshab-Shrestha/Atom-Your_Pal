@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@zeno/shared": "workspace:*"
+    "@huggingface/transformers": "3.8.1",
+    "@zeno/shared": "workspace:*",
+    "kokoro-js": "^1.2.1"
   }
 }
