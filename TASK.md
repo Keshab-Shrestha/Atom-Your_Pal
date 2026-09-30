@@ -260,13 +260,23 @@ Completed:
 
 Not yet usable end to end: no real provider exists until Task 0.7.
 
-### Task 0.7 — First Remote Provider
+### Task 0.7 — First Remote Provider ⏳ Code done, live check pending (2026-10-01)
 
 Implement one remote LLM provider.
 
 The provider must be behind the LLM Gateway.
 
 Credentials must remain outside source code.
+
+Completed:
+
+- `services/llm-gateway/src/providers/claude.ts`: `createClaudeAdapter({ apiKey, model })` implements `ProviderAdapter` with the official `@anthropic-ai/sdk` (0.129). All Anthropic-specific code lives in this one file
+- The SDK's own retries are disabled; timeout and retry are handled once, by the gateway. The gateway's abort signal cancels the HTTP request
+- Anthropic errors map to gateway error kinds: 401/403 → `auth` (hint: check `ANTHROPIC_API_KEY`), 429 → `rate_limit`, 5xx/529 → `unavailable`, other 4xx → `bad_request` (404 hints at `ZENO_LLM_MODEL`), network failure → `unavailable`. Only Anthropic's human-readable message is kept, never headers or request details
+- The key is read from `.env` (git-ignored, now `chmod 600`) and never logged
+- Tests: 11 unit tests with a fake client (48/48 total pass, typecheck passes), plus `pnpm test:live`, which calls the real API and is skipped in the normal test run
+
+Live check result: the key authenticates, but the Anthropic account has no API credits (`HTTP 400: Your credit balance is too low`). The error surfaces correctly as a clear, non-retried `bad_request`. Remaining step: add credits in the Anthropic Console, then run `pnpm test:live`.
 
 ### Task 0.8 — TTS
 

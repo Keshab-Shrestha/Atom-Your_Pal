@@ -24,7 +24,7 @@ The product architecture and development philosophy have been defined.
 
 The implementation priority is now Phase 0.
 
-Progress: Tasks 0.1–0.6 (Repository Foundation, Configuration, Audio Input, Whisper Adapter, ZENO Core, LLM Gateway) are complete. Next: Task 0.7 (First Remote Provider).
+Progress: Tasks 0.1–0.6 (Repository Foundation, Configuration, Audio Input, Whisper Adapter, ZENO Core, LLM Gateway) are complete. Task 0.7 (Claude provider) is built and unit-tested; its live check is blocked until the Anthropic account has API credits.
 
 ---
 
@@ -241,7 +241,7 @@ The immediate goal is:
 
 ## 12. Next Action
 
-Phase 0 technical decisions are made. Tasks 0.1–0.6 are complete. The next task is Task 0.7 — First Remote Provider.
+Phase 0 technical decisions are made. Tasks 0.1–0.6 are complete. Task 0.7 needs one live check (`pnpm test:live`) once the Anthropic account has credits; then Task 0.8 — TTS.
 
 The next implementation task should be selected from TASK.md.
 
