@@ -189,6 +189,12 @@ importers:
         specifier: workspace:*
         version: link:../../packages/contracts
 
+  services/llm-gateway:
+    dependencies:
+      '@zeno/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+
 packages:
 
   '@types/node@22.20.4':

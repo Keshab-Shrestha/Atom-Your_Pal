@@ -1,0 +1,9 @@
+{
+  "name": "@zeno/llm-gateway",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@zeno/contracts": "workspace:*"
+  }
+}

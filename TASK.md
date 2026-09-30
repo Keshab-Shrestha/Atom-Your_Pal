@@ -233,7 +233,7 @@ Completed:
 
 Not yet wired into `apps/mac`: the Core needs a real model, which arrives with the LLM Gateway (Tasks 0.6–0.7). The full chain is connected in Task 0.9.
 
-### Task 0.6 — LLM Gateway
+### Task 0.6 — LLM Gateway ✅ Done (2026-10-01)
 
 Create provider-independent LLM access.
 
@@ -248,6 +248,17 @@ Provider Adapter
 ```
 
 The Core should not contain provider-specific API calls.
+
+Completed:
+
+- `services/llm-gateway/src/gateway.ts`: `createGateway({ provider, timeoutMs })` implements the Core's `LanguageModel` interface on top of any `ProviderAdapter`
+- `ProviderAdapter` is the contract every provider implements (`name`, `complete(request, signal)`); all provider-specific code stays inside adapters
+- Timeout: each call is aborted after `ZENO_LLM_TIMEOUT_MS` (default 30 s); timeouts are not retried
+- Retry: one extra attempt, with a short delay, for transient failures (rate limits, network/provider outages); auth and bad-request errors fail immediately
+- Errors: adapters throw `ProviderError` with a provider-independent kind (`auth`, `rate_limit`, `unavailable`, `timeout`, `bad_request`, `unknown`); only `GatewayError` leaves the gateway, and its message is scrubbed of anything that looks like an API key or bearer token
+- Tests: 7 tests with a fake provider (37/37 total pass, typecheck passes)
+
+Not yet usable end to end: no real provider exists until Task 0.7.
 
 ### Task 0.7 — First Remote Provider
 
