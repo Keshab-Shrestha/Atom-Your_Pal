@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import type { ChildProcess } from "node:child_process";
-import { AudioError, describeFailure, parseAudioDevices, peakLevel, startRecording } from "./audio.ts";
+import { AudioError, defaultInputDevice, describeFailure, parseAudioDevices, peakLevel, startRecording } from "./audio.ts";
 
 const SETTINGS = { inputDevice: ":default", sampleRate: 16_000 };
 
@@ -135,4 +135,32 @@ test("peak level of 16-bit PCM", () => {
   pcm.writeInt16LE(200, 4);
   assert.equal(peakLevel(pcm), 0.5);
   assert.equal(peakLevel(Buffer.alloc(0)), 0);
+});
+
+test("finds the microphone macOS uses by default", async () => {
+  const json = JSON.stringify({
+    SPAudioDataType: [
+      {
+        _items: [
+          { _name: "Webcam internal mic", coreaudio_device_input: 1 },
+          { _name: "External Microphone", coreaudio_default_audio_input_device: "spaudio_yes" },
+          { _name: "Mac mini Speakers", coreaudio_default_audio_output_device: "spaudio_yes" },
+        ],
+      },
+    ],
+  });
+  assert.equal(await defaultInputDevice(async () => json), "External Microphone");
+  assert.equal(await defaultInputDevice(async () => "not json"), undefined);
+  assert.equal(await defaultInputDevice(async () => { throw new Error("missing"); }), undefined);
+});
+
+test("reports the level of each block of audio as it arrives", () => {
+  const fake = new FakeProcess();
+  const levels: number[] = [];
+  startRecording(SETTINGS, { spawn: () => fake as never, onLevel: (peak) => levels.push(peak) });
+  const block = Buffer.alloc(8);
+  block.writeInt16LE(16_384, 2); // half of full scale
+  fake.stdout.emit("data", block);
+  fake.stdout.emit("data", Buffer.alloc(8));
+  assert.deepEqual(levels, [0.5, 0]);
 });

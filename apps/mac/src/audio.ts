@@ -20,6 +20,8 @@ export interface Recording {
 export interface RecorderOptions {
   /** Called once when the first audio arrives, i.e. the microphone is actually capturing. */
   onReady?: () => void;
+  /** Called for each block of audio with its peak level (0–1), for silence detection and meters. */
+  onLevel?: (peak: number) => void;
   /** Called if capture fails before stop() is requested (e.g. ffmpeg missing, device unavailable). */
   onFailure?: (error: AudioError) => void;
   spawn?: (command: string, args: string[]) => ChildProcess;
@@ -42,7 +44,7 @@ const BYTES_PER_SAMPLE = 2;
  * Capture continues until stop() is called.
  */
 export function startRecording(settings: AudioSettings, options: RecorderOptions = {}): Recording {
-  const { spawn = nodeSpawn, command = "ffmpeg", stopTimeoutMs = 2000, onFailure, onReady } = options;
+  const { spawn = nodeSpawn, command = "ffmpeg", stopTimeoutMs = 2000, onFailure, onReady, onLevel } = options;
 
   const child = spawn(command, [
     "-hide_banner",
@@ -63,6 +65,7 @@ export function startRecording(settings: AudioSettings, options: RecorderOptions
   child.stdout?.on("data", (chunk: Buffer) => {
     if (chunks.length === 0) onReady?.();
     chunks.push(chunk);
+    onLevel?.(peakLevel(chunk.subarray(0, chunk.length - (chunk.length % BYTES_PER_SAMPLE))));
   });
   child.stderr?.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
 
@@ -161,4 +164,32 @@ export function peakLevel(pcm: Buffer): number {
     peak = Math.max(peak, Math.abs(pcm.readInt16LE(i)));
   }
   return peak / 32768;
+}
+
+/**
+ * Name of the microphone macOS currently uses as its default input, or undefined if unknown.
+ * The default changes when devices are plugged in (e.g. headphones on the audio jack), which
+ * silently changes what ZENO hears when ZENO_AUDIO_INPUT_DEVICE is ":default".
+ */
+export async function defaultInputDevice(
+  run: (command: string, args: string[]) => Promise<string> = runForOutput,
+): Promise<string | undefined> {
+  try {
+    const data = JSON.parse(await run("system_profiler", ["SPAudioDataType", "-json"]));
+    const devices: Array<Record<string, unknown>> = data?.SPAudioDataType?.[0]?._items ?? [];
+    const device = devices.find((d) => d.coreaudio_default_audio_input_device === "spaudio_yes");
+    return typeof device?._name === "string" ? device._name : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function runForOutput(command: string, args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = nodeSpawn(command, args);
+    let out = "";
+    child.stdout.on("data", (chunk: Buffer) => (out += chunk.toString()));
+    child.once("error", reject);
+    child.once("close", (code) => (code === 0 ? resolve(out) : reject(new Error(`${command} exited with ${code}`))));
+  });
 }

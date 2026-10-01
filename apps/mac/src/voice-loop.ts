@@ -31,17 +31,23 @@ export interface VoiceLoopEvents {
   onTurnComplete?(timings: TurnTimings): void;
   onNotice?(message: string): void;
   onError?(stage: LoopStage, error: unknown): void;
+  /** The microphone has delivered only near-silence for a while during listening (once per turn). */
+  onMicSilent?(): void;
 }
 
 export interface VoiceLoopOptions {
   /** Starts the microphone; the loop calls `onReady`/`onFailure` handlers it passes in. */
-  record(handlers: { onReady: () => void; onFailure: (error: AudioError) => void }): Recording;
+  record(handlers: { onReady: () => void; onFailure: (error: AudioError) => void; onLevel: (peak: number) => void }): Recording;
   stt: SpeechToText;
   core: CoreLike;
   tts: TextToSpeech;
   events?: VoiceLoopEvents;
   /** Clips shorter than this are treated as accidental presses. */
   minClipMs?: number;
+  /** Warn if the microphone stays below `silencePeak` this long after it starts capturing. */
+  silenceWarnMs?: number;
+  /** Peak level (0–1) below which audio counts as silence: 0.003 ≈ -50 dB, far below speech. */
+  silencePeak?: number;
   now?: () => number;
 }
 
@@ -61,10 +67,22 @@ export interface VoiceLoop {
  * One turn at a time; every turn can be interrupted at any stage.
  */
 export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
-  const { record, stt, core, tts, events = {}, minClipMs = 300, now = Date.now } = options;
+  const {
+    record,
+    stt,
+    core,
+    tts,
+    events = {},
+    minClipMs = 300,
+    silenceWarnMs = 2500,
+    silencePeak = 0.003,
+    now = Date.now,
+  } = options;
   let state: LoopState = "idle";
   let recording: Recording | null = null;
   let micReady = false; // the current recording has started capturing
+  let loudest = 0; // peak level heard in the current recording
+  let silenceTimer: ReturnType<typeof setTimeout> | undefined;
   let turn: AbortController | null = null;
 
   const setState = (next: LoopState) => {
@@ -79,6 +97,13 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
         if (recording !== current) return;
         micReady = true;
         events.onMicReady?.();
+        clearTimeout(silenceTimer);
+        silenceTimer = setTimeout(() => {
+          if (recording === current && loudest < silencePeak) events.onMicSilent?.();
+        }, silenceWarnMs);
+      },
+      onLevel: (peak) => {
+        if (recording === current) loudest = Math.max(loudest, peak);
       },
       onFailure: (error) => {
         if (recording !== current) return;
@@ -89,10 +114,12 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
     });
     recording = current;
     micReady = false;
+    loudest = 0;
     setState("listening");
   }
 
   function abandonTurn() {
+    clearTimeout(silenceTimer);
     turn?.abort();
     turn = null;
     if (recording) {
@@ -169,6 +196,7 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
       if (state === "listening" && recording) {
         const current = recording;
         recording = null;
+        clearTimeout(silenceTimer);
         void answer(current, micReady);
         return;
       }

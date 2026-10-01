@@ -1,7 +1,7 @@
 import { createCore, CoreError } from "@zeno/core";
 import { createGateway, createProviderAdapter, GatewayError } from "@zeno/llm-gateway";
 import { ConfigError, createLogger, loadConfig, type Config, type Logger } from "@zeno/shared";
-import { AudioError, listAudioDevices, startRecording } from "./audio.ts";
+import { AudioError, defaultInputDevice, listAudioDevices, startRecording } from "./audio.ts";
 import { SttError, createWhisperStt } from "./stt.ts";
 import { TtsError, createKokoroSynthesizer, createSpeaker } from "./tts.ts";
 import { createVoiceLoop, type LoopStage, type LoopState } from "./voice-loop.ts";
@@ -35,6 +35,16 @@ const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 console.log(`ZENO Phase 0: started (log level: ${config.log.level})`);
 console.log(`Model: ${config.llm.provider} / ${config.llm.model}`);
 console.log(`Microphone: ${config.audio.inputDevice}   Voice: ${config.tts.voice} (Kokoro ${config.tts.dtype})`);
+
+/** The microphone actually in use: with ":default" this follows macOS, which changes when devices are plugged in. */
+async function micName(): Promise<string> {
+  if (config.audio.inputDevice !== ":default") return config.audio.inputDevice;
+  const name = await defaultInputDevice();
+  return name ? `macOS default: ${name}` : "macOS default";
+}
+void micName().then((name) => {
+  if (config.audio.inputDevice === ":default") console.log(`Using microphone: ${name.replace("macOS default: ", "")}`);
+});
 console.log("Space: talk / send / interrupt   Esc: cancel   r: new conversation   t: test voice   d: microphones   q: quit");
 
 // --- Assemble the pipeline: Microphone → Whisper → Core → LLM Gateway → provider → Kokoro → speaker
@@ -89,6 +99,16 @@ const loop = createVoiceLoop({
       if (label) console.log(label);
     },
     onMicReady: () => console.log("● Listening… speak now, press Space to send"),
+    onMicSilent: () => {
+      void micName().then((name) => {
+        log.warn("mic.silent", { microphone: name });
+        console.log(
+          `  The microphone (${name}) is hearing nothing. If you are speaking, ZENO is listening to the wrong ` +
+            `device: press d to list microphones, then set ZENO_AUDIO_INPUT_DEVICE in .env to one by name ` +
+            `(e.g. ":Webcam internal mic") and restart.`,
+        );
+      });
+    },
     onTranscript: (text) => console.log(`You:  ${text}`),
     onReply: (text) => console.log(`ZENO: ${text}`),
     onTurnComplete: (t) => {
@@ -168,7 +188,10 @@ process.stdin.on("data", (data: Buffer) => {
     console.log("New conversation.");
   } else if (key === "t") testVoice();
   else if (key === "d") {
-    void listAudioDevices().then((devices) => console.log(`Microphones: ${devices.join(", ") || "none found"}`));
+    void Promise.all([listAudioDevices(), micName()]).then(([devices, name]) => {
+      console.log(`Microphones: ${devices.join(", ") || "none found"}`);
+      console.log(`In use: ${name}. To choose one, set ZENO_AUDIO_INPUT_DEVICE in .env to its name with a colon, e.g. ":${devices.at(-1) ?? "name"}", then restart.`);
+    });
   }
 });
 process.stdin.on("end", quit);

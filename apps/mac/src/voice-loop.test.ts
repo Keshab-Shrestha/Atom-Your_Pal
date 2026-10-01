@@ -16,11 +16,13 @@ function gate<T>() {
   return { promise, resolve, reject };
 }
 
-function harness(over: Partial<{ stt: SpeechToText; core: CoreLike; tts: TextToSpeech; clipMs: number; autoReady: boolean }> = {}) {
+function harness(
+  over: Partial<{ stt: SpeechToText; core: CoreLike; tts: TextToSpeech; clipMs: number; autoReady: boolean; silenceWarnMs: number }> = {},
+) {
   const log: string[] = [];
   const states: LoopState[] = [];
   const errors: { stage: LoopStage; error: unknown }[] = [];
-  const recordings: { stopped: boolean; fail: (e: AudioError) => void; ready: () => void }[] = [];
+  const recordings: { stopped: boolean; fail: (e: AudioError) => void; ready: () => void; level: (peak: number) => void }[] = [];
   const signals: AbortSignal[] = [];
 
   const stt: SpeechToText = over.stt ?? { transcribe: async () => "what time is it" };
@@ -40,8 +42,8 @@ function harness(over: Partial<{ stt: SpeechToText; core: CoreLike; tts: TextToS
   };
 
   const loop = createVoiceLoop({
-    record: ({ onFailure, onReady }) => {
-      const r = { stopped: false, fail: onFailure, ready: onReady };
+    record: ({ onFailure, onReady, onLevel }) => {
+      const r = { stopped: false, fail: onFailure, ready: onReady, level: onLevel };
       recordings.push(r);
       const recording: Recording = {
         stop: async () => {
@@ -54,7 +56,9 @@ function harness(over: Partial<{ stt: SpeechToText; core: CoreLike; tts: TextToS
     stt,
     core,
     tts,
+    silenceWarnMs: over.silenceWarnMs ?? 60_000, // effectively off unless a test sets it
     events: {
+      onMicSilent: () => log.push("mic-silent"),
       onState: (s) => states.push(s),
       onMicReady: () => (over.autoReady === false ? log.push("mic-ready") : undefined),
       onTranscript: (t) => log.push(`you:${t}`),
@@ -209,4 +213,27 @@ test("reports when the microphone is actually capturing, only for the current re
   assert.deepEqual(h.log, []);
   h.recordings[1].ready();
   assert.deepEqual(h.log, ["mic-ready"]);
+});
+
+test("warns once while listening if the microphone hears only silence", async () => {
+  const h = harness({ silenceWarnMs: 20 });
+  h.loop.press();
+  h.recordings[0].level(0.0005); // about -66 dB: a muted or wrong microphone
+  await tick(40);
+  assert.deepEqual(h.log, ["mic-silent"]);
+  assert.equal(h.loop.state, "listening"); // a warning only; the user can still send
+});
+
+test("no silence warning when the microphone hears sound, or after sending", async () => {
+  const heard = harness({ silenceWarnMs: 20 });
+  heard.loop.press();
+  heard.recordings[0].level(0.05); // speech-level sound
+  await tick(40);
+  assert.equal(heard.log.includes("mic-silent"), false);
+
+  const sent = harness({ silenceWarnMs: 20 });
+  sent.loop.press();
+  sent.loop.press(); // sent before the warning would fire
+  await tick(40);
+  assert.equal(sent.log.includes("mic-silent"), false);
 });
