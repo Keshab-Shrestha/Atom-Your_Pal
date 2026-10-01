@@ -1,12 +1,14 @@
-import { spawn as nodeSpawn, type ChildProcessByStdio } from "node:child_process";
+import { fork, spawn as nodeSpawn, type ChildProcess, type ChildProcessByStdio } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import type { Readable, Writable } from "node:stream";
 import { resolve } from "node:path";
-import { Worker } from "node:worker_threads";
 
 /** Text-to-speech boundary. The rest of ZENO depends on this, not on Kokoro or ffmpeg. */
 export interface TextToSpeech {
   /** Loads models ahead of time so the first reply is not delayed. Safe to call more than once. */
   warmUp(): Promise<void>;
+  /** Stops speaking and releases the speech engine; used when ZENO quits. */
+  close(): void;
   /** Speaks the text aloud. Resolves when playback ends; aborting stops it immediately. */
   speak(text: string, signal?: AbortSignal, hooks?: SpeakHooks): Promise<void>;
 }
@@ -33,6 +35,8 @@ export interface SpeechAudio {
 export interface Synthesizer {
   load(): Promise<void>;
   synthesize(text: string): Promise<SpeechAudio>;
+  /** Releases the engine immediately (safe mid-synthesis). Optional. */
+  close?(): void;
 }
 
 /** A continuous audio output for one utterance: chunks written to it play back to back, without gaps. */
@@ -60,11 +64,16 @@ export function createSpeaker(synthesizer: Synthesizer, openSink: OpenSink = ope
     });
     return loading;
   };
+  const active = new Set<() => void>();
 
   return {
     warmUp,
+    close() {
+      for (const stop of active) stop();
+      synthesizer.close?.();
+    },
     async speak(text, signal = new AbortController().signal, hooks = {}) {
-      const sentences = splitFirstClause(splitSentences(text));
+      const sentences = splitFirstClause(splitSentences(toSpeakable(text)));
       if (sentences.length === 0 || signal.aborted) return;
       await warmUp();
 
@@ -76,6 +85,7 @@ export function createSpeaker(synthesizer: Synthesizer, openSink: OpenSink = ope
         onAbort();
       };
       signal.addEventListener("abort", stop, { once: true });
+      active.add(stop);
       try {
         for (const sentence of sentences) {
           const synthesis = synthesizer.synthesize(sentence);
@@ -91,6 +101,7 @@ export function createSpeaker(synthesizer: Synthesizer, openSink: OpenSink = ope
         }
         await sink?.finish();
       } finally {
+        active.delete(stop);
         signal.removeEventListener("abort", stop);
         if (signal.aborted) sink?.stop();
       }
@@ -109,6 +120,31 @@ export function splitFirstClause(sentences: string[], longerThan = 60, minClause
   const cut = first.search(/[,;:]\s/);
   if (cut < minClause || first.length - cut < minClause) return sentences;
   return [first.slice(0, cut + 1), first.slice(cut + 2), ...rest];
+}
+
+/**
+ * Models are told to answer in plain sentences, but sometimes reply with markdown or emoji anyway.
+ * Strip what would otherwise be read aloud as symbols; list items and headings become sentences.
+ */
+export function toSpeakable(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, " ") // code blocks cannot be spoken usefully
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1") // [label](url) → label
+    .replace(/https?:\/\/(?:www\.)?([^\/\s]+)\S*/g, "$1") // URL → its domain
+    .split(/\n+/)
+    .map((line) =>
+      line
+        .replace(/^\s*(?:#{1,6}\s+|[-*+•]\s+|\d+[.)]\s+|>\s*)/, "") // headings, bullets, numbers, quotes
+        .replace(/(\*\*|__|\*|`|~~)/g, "") // emphasis and inline code markers
+        .replace(/[\p{Extended_Pictographic}\p{Regional_Indicator}\u200D\uFE0F]/gu, "") // emoji, incl. flags
+        .trim(),
+    )
+    .filter(Boolean)
+    .map((line) => (/[.!?:;,]$/.test(line) ? line : `${line}.`)) // each line ends as a sentence
+    .join(" ")
+    .replace(/\s+([.,!?])/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /** Splits text into sentences for incremental speech; very short fragments are merged. */
@@ -147,13 +183,23 @@ export interface KokoroOptions {
 
 export function createKokoroSynthesizer(options: KokoroOptions): Synthesizer {
   const { voice, dtype = "q8", speed = 1, cacheDir = resolve("models/huggingface") } = options;
-  let worker: Worker | null = null;
+  let child: ChildProcess | null = null;
   let loading: Promise<void> | null = null;
   let nextId = 0;
   const pending = new Map<number, { resolve: (a: SpeechAudio) => void; reject: (e: Error) => void }>();
 
-  // The worker only keeps ZENO running while it has work to do.
-  const updateRef = () => (pending.size > 0 ? worker?.ref() : worker?.unref());
+  // The child keeps ZENO running only while it has work to do.
+  const updateRef = () => {
+    if (!child) return;
+    const ipc = child.channel as { ref(): void; unref(): void } | undefined;
+    if (pending.size > 0) {
+      child.ref();
+      ipc?.ref();
+    } else {
+      child.unref();
+      ipc?.unref();
+    }
+  };
 
   const failAll = (error: Error) => {
     for (const { reject } of pending.values()) reject(error);
@@ -163,17 +209,22 @@ export function createKokoroSynthesizer(options: KokoroOptions): Synthesizer {
   return {
     load() {
       loading ??= new Promise<void>((resolveLoad, rejectLoad) => {
-        const w = new Worker(new URL("./tts-worker.ts", import.meta.url), {
-          workerData: { modelId: KOKORO_MODEL_ID, voice, dtype, speed, cacheDir },
+        const proc = fork(fileURLToPath(new URL("./tts-worker.ts", import.meta.url)), [], {
+          serialization: "advanced", // sends Float32Array audio without converting it to JSON
+          stdio: ["ignore", "ignore", "pipe", "ipc"],
         });
-        worker = w;
-        w.on("message", (message: WorkerMessage) => {
+        child = proc;
+        let stderr = "";
+        proc.stderr?.on("data", (chunk: Buffer) => (stderr = (stderr + chunk.toString()).slice(-2000)));
+        (proc.stderr as unknown as { unref?(): void } | null)?.unref?.(); // only the IPC channel decides whether ZENO stays alive
+        proc.on("message", (message: WorkerMessage) => {
           if (message.type === "ready") {
-            w.unref();
+            updateRef();
             resolveLoad();
           } else if (message.type === "load-error") {
             loading = null; // allow a retry
-            void w.terminate();
+            child = null;
+            proc.kill("SIGKILL");
             rejectLoad(
               new TtsError(
                 message.known
@@ -190,23 +241,34 @@ export function createKokoroSynthesizer(options: KokoroOptions): Synthesizer {
             else request.reject(new TtsError(`Speech synthesis failed: ${message.message}`));
           }
         });
-        w.on("error", (error) => {
-          loading = null;
-          worker = null;
-          const tts = new TtsError(`Kokoro worker crashed: ${error.message}`);
-          failAll(tts);
-          rejectLoad(tts);
+        proc.on("exit", (code, signal) => {
+          if (child !== proc) return; // intentionally stopped
+          child = null;
+          loading = null; // the next request starts a fresh process
+          const detail = stderr.trim().split("\n").filter(Boolean).pop();
+          const error = new TtsError(`Kokoro stopped unexpectedly (${signal ?? `exit code ${code}`})${detail ? `: ${detail}` : ""}`);
+          failAll(error);
+          rejectLoad(error);
         });
+        proc.send({ type: "init", modelId: KOKORO_MODEL_ID, voice, dtype, speed, cacheDir });
       });
       return loading;
     },
-    synthesize(text) {
-      if (!worker) return Promise.reject(new TtsError("Kokoro is not loaded"));
+    async synthesize(text) {
+      if (!child) await this.load(); // restarts Kokoro if it crashed
+      const proc = child!;
       const id = nextId++;
       const result = new Promise<SpeechAudio>((resolveAudio, reject) => pending.set(id, { resolve: resolveAudio, reject }));
       updateRef();
-      worker.postMessage({ id, text });
+      proc.send({ type: "synthesize", id, text });
       return result;
+    },
+    close() {
+      const proc = child;
+      child = null;
+      loading = null;
+      failAll(new TtsError("Kokoro was shut down"));
+      proc?.kill("SIGKILL"); // safe at any time: it is a separate process
     },
   };
 }

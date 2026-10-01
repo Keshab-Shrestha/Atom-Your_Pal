@@ -32,6 +32,7 @@ function harness(over: Partial<{ stt: SpeechToText; core: CoreLike; tts: TextToS
   };
   const tts: TextToSpeech = over.tts ?? {
     warmUp: async () => {},
+    close: () => {},
     speak: async (text, _signal, hooks) => {
       hooks?.onStart?.();
       log.push(`speak:${text}`);
@@ -127,6 +128,7 @@ test("pressing while ZENO is speaking stops the speech and starts listening", as
   const h = harness({
     tts: {
       warmUp: async () => {},
+      close: () => {},
       speak: (_t, signal) => new Promise<void>((resolve) => signal?.addEventListener("abort", () => ((stopped = true), resolve()))),
     },
   });
@@ -156,7 +158,7 @@ test("errors are reported with the stage that failed, then the loop is ready aga
   const cases: [Partial<Parameters<typeof harness>[0]>, LoopStage][] = [
     [{ stt: { transcribe: async () => Promise.reject(new Error("whisper broke")) } }, "transcription"],
     [{ core: { handle: async () => Promise.reject(new Error("rate limited")) } }, "model"],
-    [{ tts: { warmUp: async () => {}, speak: async () => Promise.reject(new Error("no audio device")) } }, "speech"],
+    [{ tts: { warmUp: async () => {}, close: () => {}, speak: async () => Promise.reject(new Error("no audio device")) } }, "speech"],
   ];
   for (const [over, stage] of cases) {
     const h = harness(over);

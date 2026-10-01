@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import type { ChildProcess } from "node:child_process";
-import { AudioError, parseAudioDevices, peakLevel, startRecording } from "./audio.ts";
+import { AudioError, describeFailure, parseAudioDevices, peakLevel, startRecording } from "./audio.ts";
 
 const SETTINGS = { inputDevice: ":default", sampleRate: 16_000 };
 
@@ -79,19 +79,31 @@ test("missing ffmpeg is reported immediately with an install hint", async () => 
   await assert.rejects(recording.stop(), /ffmpeg not found/);
 });
 
-test("device failure before stop is reported with ffmpeg's error", async () => {
+test("device failure before stop is reported with what to do", async () => {
   const fake = new FakeProcess();
   const failures: AudioError[] = [];
   startRecording(SETTINGS, { spawn: fakeSpawn(fake), onFailure: (e) => failures.push(e) });
-  fake.stderr.write("Error opening input: Input/output error\n");
+  fake.stderr.write("[in#0 @ 0x1] Error opening input: Input/output error\n");
   await new Promise(setImmediate);
   fake.emit("close", 1);
 
   assert.equal(failures.length, 1);
   assert.ok(failures[0] instanceof AudioError);
-  assert.match(failures[0].message, /Microphone ":default" failed \(exit code 1\)/);
-  assert.match(failures[0].message, /Input\/output error/);
+  assert.match(failures[0].message, /Microphone ":default" is not available/);
+  assert.match(failures[0].message, /press d to list microphones, then set ZENO_AUDIO_INPUT_DEVICE/);
 });
+
+test("describeFailure recognises common causes and keeps unknown details", () => {
+  assert.match(
+    describeFailure(":0", 1, "[AVFoundation indev @ 0x1] Failed to create AV capture input device: Not authorized to use microphone"),
+    /not allowed to use the microphone\. Allow your terminal app in System Settings → Privacy & Security → Microphone/,
+  );
+  assert.match(describeFailure(":9", 251, "[in#0 @ 0xb] Error opening input: Input/output error\nError opening input file :9."), /Microphone ":9" is not available/);
+  const unknown = describeFailure(":1", 1, "[aist#0:0 @ 0x2] something odd happened\n");
+  assert.match(unknown, /Microphone ":1" stopped \(exit code 1\): something odd happened\./);
+  assert.doesNotMatch(unknown, /0x2/); // ffmpeg's internal addresses are noise
+});
+
 
 test("stopping with no audio is an error", async () => {
   const fake = new FakeProcess();

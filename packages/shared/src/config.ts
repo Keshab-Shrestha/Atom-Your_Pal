@@ -32,6 +32,7 @@ export interface Config {
   };
   log: {
     level: LogLevel;
+    file: string;
   };
 }
 
@@ -105,6 +106,7 @@ export function loadConfig(env: Env = process.env): Config {
     },
     log: {
       level: oneOf("ZENO_LOG_LEVEL", LOG_LEVELS, "info"),
+      file: read("ZENO_LOG_FILE", "logs/zeno.log"),
     },
   };
 

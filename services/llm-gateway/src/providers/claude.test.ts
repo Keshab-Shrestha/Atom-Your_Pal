@@ -102,3 +102,22 @@ test("through the gateway, an aborted call is reported as a timeout", async () =
   const gateway = createGateway({ provider: createClaudeAdapter({ apiKey: "k", model: "m", client }), timeoutMs: 20 });
   await assert.rejects(gateway.complete(request), (e: unknown) => e instanceof GatewayError && e.kind === "timeout");
 });
+
+test("refusals, empty, and unreadable replies are explained, never passed on as empty", async () => {
+  const kinds: Array<[unknown, string, RegExp]> = [
+    [{ content: [], stop_reason: "refusal" }, "bad_request", /declined to answer this \(reason: refusal\)/],
+    [{ content: [{ type: "text", text: "  " }], stop_reason: "max_tokens" }, "bad_request", /cut off/],
+    [{ content: [{ type: "tool_use" }], stop_reason: "tool_use" }, "bad_request", /returned no text \(reason: tool_use\)/],
+    [{ stop_reason: "end_turn" }, "unknown", /Claude sent a reply ZENO could not read/],
+    [undefined, "unknown", /could not read/],
+  ];
+  for (const [result, kind, message] of kinds) {
+    const adapter = createClaudeAdapter({ apiKey: "k", model: "m", client: fakeClient(() => result).client });
+    await assert.rejects(adapter.complete(request, new AbortController().signal), (e: unknown) => {
+      assert.ok(e instanceof ProviderError, String(e));
+      assert.equal(e.kind, kind);
+      assert.match(e.message, message);
+      return true;
+    });
+  }
+});

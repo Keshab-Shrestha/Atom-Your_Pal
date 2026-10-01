@@ -50,9 +50,13 @@ export function createWhisperStt(options: WhisperOptions): SpeechToText {
   return {
     async transcribe(clip) {
       if (!fileExists(modelPath)) {
+        const name = basename(modelPath);
         throw new SttError(
-          `Whisper model not found at "${modelPath}". Download it with: ` +
-            `curl -L -o ${modelPath} https://huggingface.co/ggerganov/whisper.cpp/resolve/main/${basename(modelPath)}`,
+          /^ggml-[\w.-]+\.bin$/.test(name)
+            ? `Whisper model not found at "${modelPath}". Download it with: ` +
+                `curl -L -o ${modelPath} https://huggingface.co/ggerganov/whisper.cpp/resolve/main/${name}`
+            : `Whisper model not found at "${modelPath}". Set ZENO_STT_MODEL in .env to a whisper.cpp model ` +
+                `file such as models/ggml-base.en.bin (download links: https://huggingface.co/ggerganov/whisper.cpp).`,
         );
       }
 

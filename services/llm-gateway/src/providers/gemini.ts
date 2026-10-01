@@ -1,6 +1,6 @@
 import { ApiError, GoogleGenAI, ThinkingLevel } from "@google/genai";
 import type { ModelRequest, ModelResponse } from "@zeno/contracts";
-import { ProviderError, type ErrorKind, type ProviderAdapter } from "../gateway.ts";
+import { emptyReplyReason, ProviderError, type ErrorKind, type ProviderAdapter } from "../gateway.ts";
 
 interface GeminiResult {
   text?: string;
@@ -82,10 +82,13 @@ export function createGeminiAdapter(options: GeminiOptions): ProviderAdapter {
         throw toProviderError(error, model);
       }
 
-      const text = (result.text ?? "").trim();
+      if (!result || typeof result !== "object") {
+        throw new ProviderError("unknown", "Gemini sent a reply ZENO could not read. Try again.");
+      }
+      const text = (typeof result.text === "string" ? result.text : "").trim();
       if (!text) {
         const reason = result.promptFeedback?.blockReason ?? result.candidates?.[0]?.finishReason;
-        if (reason && reason !== "STOP") throw new ProviderError("bad_request", `No reply (reason: ${reason})`);
+        throw new ProviderError("bad_request", emptyReplyReason("gemini", reason));
       }
       return { text };
     },

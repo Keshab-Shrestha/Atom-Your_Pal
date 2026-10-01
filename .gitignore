@@ -10,3 +10,6 @@ models/
 .env
 .env.*
 !.env.example
+
+# Runtime logs
+logs/

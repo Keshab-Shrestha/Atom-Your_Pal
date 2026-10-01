@@ -13,7 +13,7 @@ test("applies defaults when only the Anthropic key is set", () => {
     audio: { inputDevice: ":default", sampleRate: 16_000 },
     stt: { modelPath: "models/ggml-base.en.bin", language: "en" },
     tts: { voice: "af_heart", dtype: "q8" },
-    log: { level: "info" },
+    log: { level: "info", file: "logs/zeno.log" },
   });
 });
 

@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ModelRequest, ModelResponse } from "@zeno/contracts";
-import { ProviderError, type ErrorKind, type ProviderAdapter } from "../gateway.ts";
+import { emptyReplyReason, ProviderError, type ErrorKind, type ProviderAdapter } from "../gateway.ts";
 
 /** The subset of the Anthropic client this adapter uses (lets tests supply a fake). */
 export interface ClaudeClient {
@@ -46,11 +46,15 @@ export function createClaudeAdapter(options: ClaudeOptions): ProviderAdapter {
         if (signal.aborted) throw error; // the gateway reports its own timeout
         throw toProviderError(error, model);
       }
+      if (!message || !Array.isArray(message.content)) {
+        throw new ProviderError("unknown", "Claude sent a reply ZENO could not read (no content). Try again.");
+      }
       const text = message.content
         .filter((block) => block.type === "text" && typeof block.text === "string")
         .map((block) => block.text)
         .join("")
         .trim();
+      if (!text) throw new ProviderError("bad_request", emptyReplyReason("claude", message.stop_reason));
       return { text };
     },
   };

@@ -109,10 +109,23 @@ export function startRecording(settings: AudioSettings, options: RecorderOptions
   };
 }
 
-function describeFailure(device: string, code: number | null, stderr: string): string {
-  const detail = stderr.trim().split("\n").slice(-3).join(" | ");
+/**
+ * Turns ffmpeg's output into a message that says what to do. The common causes are recognised;
+ * anything else keeps ffmpeg's last line so nothing is hidden.
+ */
+export function describeFailure(device: string, code: number | null, stderr: string): string {
+  const lines = stderr.trim().split("\n").map((l) => l.replace(/^\[[^\]]+\]\s*/, "").trim()).filter(Boolean);
+  const all = lines.join(" ");
+  const pick = 'Run "pnpm start" and press d to list microphones, then set ZENO_AUDIO_INPUT_DEVICE in .env (for example ":1").';
+  if (/not authorized|permission|denied|TCC/i.test(all)) {
+    return `ZENO is not allowed to use the microphone. Allow your terminal app in System Settings → Privacy & Security → Microphone, then restart it.`;
+  }
+  if (/Input\/output error|Invalid device index|not find|No such/i.test(all)) {
+    return `Microphone "${device}" is not available (it may be unplugged or the number may be wrong). ${pick}`;
+  }
   const exit = code === null ? "" : ` (exit code ${code})`;
-  return `Microphone "${device}" failed${exit}.${detail ? ` ffmpeg: ${detail}.` : ""} Check the device name and microphone permission.`;
+  const last = lines.at(-1);
+  return `Microphone "${device}" stopped${exit}${last ? `: ${last}` : ""}. Check that it is connected; if the problem continues, ${pick.charAt(0).toLowerCase()}${pick.slice(1)}`;
 }
 
 /** Parses the audio input device names from `ffmpeg -f avfoundation -list_devices true -i ""` output. */

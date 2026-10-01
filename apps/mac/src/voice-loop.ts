@@ -4,7 +4,7 @@ import type { TextToSpeech } from "./tts.ts";
 
 /** The parts of ZENO Core the voice loop uses. */
 export interface CoreLike {
-  handle(input: { text: string; source: "voice" }, signal?: AbortSignal): Promise<{ text: string }>;
+  handle(input: { text: string; source: "voice" }, signal?: AbortSignal): Promise<{ text: string; requestId?: string }>;
 }
 
 export type LoopState = "idle" | "listening" | "transcribing" | "thinking" | "speaking";
@@ -12,6 +12,10 @@ export type LoopStage = "microphone" | "transcription" | "model" | "speech";
 
 /** Milliseconds spent in each stage of one turn. */
 export interface TurnTimings {
+  /** The Core's id for this request, to match log lines. */
+  requestId?: string;
+  /** Length of the recorded speech. */
+  speechMs: number;
   transcription: number;
   model: number;
   /** From the reply arriving until audio started playing. */
@@ -133,7 +137,7 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
       let firstSound: number | undefined;
       await tts.speak(reply.text, signal, { onStart: () => (firstSound = now() - started) });
       if (signal.aborted) return;
-      events.onTurnComplete?.({ transcription, model, firstSound });
+      events.onTurnComplete?.({ requestId: reply.requestId, speechMs: clip.durationMs, transcription, model, firstSound });
     } catch (error) {
       if (!signal.aborted) events.onError?.(stage, error);
     } finally {

@@ -357,7 +357,7 @@ Measured end to end (live test): transcription 0.26–0.43 s, model 1.4 s, first
 
 Not verified by me: a person speaking into the real microphone in `pnpm start`. The app was driven with real key presses and the microphone opened and captured, but the default input could not hear the test audio (output goes to headphones). To verify: `pnpm start`, press Space, speak, press Space.
 
-### Task 0.10 — Error Handling
+### Task 0.10 — Error Handling ✅ Done (2026-10-01)
 
 Handle:
 
@@ -370,6 +370,29 @@ Handle:
 - configuration failure
 
 Errors should be observable.
+
+Done (2026-10-01). Each case was triggered for real and its message checked; every message names what failed and what to do, and ZENO is ready for the next turn afterwards:
+
+| Case | How it was triggered | What ZENO says now |
+|---|---|---|
+| Microphone failure | device `:9` | the microphone is not available; press `d` to list microphones and set `ZENO_AUDIO_INPUT_DEVICE` (was raw ffmpeg output) |
+| Microphone permission | unit test (cannot revoke safely) | allow the terminal app in System Settings → Privacy & Security → Microphone |
+| Transcription failure | missing model file | the model is not found, with a download command for standard model names, or how to set `ZENO_STT_MODEL` (was a broken link for unknown names) |
+| Provider failure | bad key, unreachable host, Claude without credits | auth / unavailable / bad request, naming the setting to check; unavailable is retried once |
+| Timeout | 50 ms limit | no reply within the limit; `ZENO_LLM_TIMEOUT_MS` sets it |
+| Malformed response | fake replies: empty, refused, cut off, unreadable | declined / cut off / no text, with the reason code (was a raw JavaScript error such as "Cannot read properties of null") |
+| TTS failure | unknown voice | lists the available voices; Kokoro restarts by itself if it crashes |
+| Configuration failure | provider `openai` | lists each bad setting and exits before starting |
+
+Also fixed:
+
+- Quitting (q or Ctrl+C) while ZENO was speaking crashed the app (ONNX runtime abort, exit 134). Kokoro now runs in its own process, which is killed cleanly; a Kokoro crash can no longer take ZENO down
+- Replies with markdown or emoji are cleaned before speaking, so symbols are not read aloud
+- An unexpected bug is logged and explained instead of printing a bare stack trace
+
+Observable: `packages/shared/src/log.ts` writes a structured log (JSON Lines) to `logs/zeno.log` (`ZENO_LOG_FILE`, git-ignored): app start and quit, voice ready, each turn's request ID and stage timings, and each failure's stage, error kind and message. Following SECURITY.md §21, it records what happened, never what was said; checked by searching the log after a live conversation.
+
+Tests: 100/100 unit tests pass (2 live tests skipped in the normal run), typecheck passes, both live tests pass (`pnpm test:live`).
 
 ### Task 0.11 — End-to-End Test
 

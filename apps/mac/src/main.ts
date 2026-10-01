@@ -1,6 +1,6 @@
 import { createCore, CoreError } from "@zeno/core";
 import { createGateway, createProviderAdapter, GatewayError } from "@zeno/llm-gateway";
-import { ConfigError, loadConfig, type Config } from "@zeno/shared";
+import { ConfigError, createLogger, loadConfig, type Config, type Logger } from "@zeno/shared";
 import { AudioError, listAudioDevices, startRecording } from "./audio.ts";
 import { SttError, createWhisperStt } from "./stt.ts";
 import { TtsError, createKokoroSynthesizer, createSpeaker } from "./tts.ts";
@@ -18,6 +18,18 @@ try {
 }
 
 const debug = config.log.level === "debug";
+const log: Logger = createLogger({ level: config.log.level, file: config.log.file });
+log.info("app.start", { provider: config.llm.provider, model: config.llm.model, voice: config.tts.voice, microphone: config.audio.inputDevice });
+
+// Last line of defence: an unexpected bug is logged and explained instead of a bare stack trace.
+const crash = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  log.error("app.crash", { message, stack: error instanceof Error ? error.stack : undefined });
+  console.error(`ZENO stopped because of an unexpected error: ${message}\nDetails are in ${config.log.file}.`);
+  process.exit(1);
+};
+process.on("uncaughtException", crash);
+process.on("unhandledRejection", crash);
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 
 console.log(`ZENO Phase 0: started (log level: ${config.log.level})`);
@@ -44,6 +56,16 @@ const STAGE_LABEL: Record<LoopStage, string> = {
   speech: "Text-to-speech",
 };
 
+/** Machine-readable error details for the log (messages are already free of credentials). */
+function errorFields(error: unknown) {
+  return {
+    error: error instanceof Error ? error.name : typeof error,
+    kind: error instanceof GatewayError ? error.kind : undefined,
+    retryable: error instanceof GatewayError ? error.retryable : undefined,
+    message: error instanceof Error ? error.message : String(error),
+  };
+}
+
 function describe(error: unknown): string {
   if (error instanceof GatewayError) return `${error.message}${error.retryable ? " (try again in a moment)" : ""}`;
   if (error instanceof AudioError || error instanceof SttError || error instanceof TtsError || error instanceof CoreError) {
@@ -66,13 +88,26 @@ const loop = createVoiceLoop({
     onTranscript: (text) => console.log(`You:  ${text}`),
     onReply: (text) => console.log(`ZENO: ${text}`),
     onTurnComplete: (t) => {
+      log.info("turn.complete", {
+        requestId: t.requestId,
+        speechMs: t.speechMs,
+        transcriptionMs: t.transcription,
+        modelMs: t.model,
+        firstSoundMs: t.firstSound,
+      });
       if (debug) {
         const sound = t.firstSound === undefined ? "" : `, first sound ${seconds(t.firstSound)}`;
         console.log(`(transcription ${seconds(t.transcription)}, model ${seconds(t.model)}${sound})`);
       }
     },
-    onNotice: (message) => console.log(message),
-    onError: (stage, error) => console.error(`${STAGE_LABEL[stage]} error: ${describe(error)}`),
+    onNotice: (message) => {
+      log.info("turn.skipped", { reason: message });
+      console.log(message);
+    },
+    onError: (stage, error) => {
+      log.error("turn.failed", { stage, ...errorFields(error) });
+      console.error(`${STAGE_LABEL[stage]} error: ${describe(error)}`);
+    },
   },
 });
 
@@ -80,8 +115,14 @@ const loop = createVoiceLoop({
 if (process.stdin.isTTY) {
   const started = Date.now();
   tts.warmUp().then(
-    () => console.log(`Voice ready (${seconds(Date.now() - started)}). Press Space and speak.`),
-    (error) => console.error(`Text-to-speech error: ${describe(error)}`),
+    () => {
+      log.info("tts.ready", { ms: Date.now() - started });
+      console.log(`Voice ready (${seconds(Date.now() - started)}). Press Space and speak.`);
+    },
+    (error) => {
+      log.error("tts.load_failed", errorFields(error));
+      console.error(`Text-to-speech error: ${describe(error)}`);
+    },
   );
 }
 
@@ -98,8 +139,10 @@ function testVoice() {
 }
 
 function quit() {
+  log.info("app.quit");
   testSpeech?.abort();
   loop.cancel();
+  tts.close();
   // Give the microphone and audio player a moment to release before exiting.
   setTimeout(() => process.exit(0), 100);
 }

@@ -4,7 +4,7 @@ import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import type { ChildProcessByStdio } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
-import { createSpeaker, openFfmpegSink, splitFirstClause, splitSentences, type AudioSink, type SpeechAudio, type Synthesizer } from "./tts.ts";
+import { createSpeaker, openFfmpegSink, splitFirstClause, splitSentences, toSpeakable, type AudioSink, type SpeechAudio, type Synthesizer } from "./tts.ts";
 
 const tag = (text: string) => new Float32Array([text.length]);
 
@@ -194,4 +194,37 @@ test("splitFirstClause splits only a long opening sentence, at its first comma",
     "Yes, that is right and it is a really long sentence without another pause in it.",
   ]); // clause before the comma too short to sound natural alone
   assert.deepEqual(splitFirstClause([]), []);
+});
+
+test("close stops speech in progress and releases the synthesizer", async () => {
+  const log: string[] = [];
+  const synth = { ...fakeSynth(log), close: () => log.push("close") };
+  const speaker = createSpeaker(synth, fakeSink(log).open);
+  const done = speaker.speak("First sentence here. Second one here.");
+  await new Promise((r) => setTimeout(r, 30)); // playing
+  speaker.close();
+  await done;
+  assert.deepEqual(log.slice(-2), ["stop", "close"]);
+});
+
+test("toSpeakable removes markdown and emoji so they are not read aloud", () => {
+  assert.equal(toSpeakable("Plain sentences stay as they are. Really!"), "Plain sentences stay as they are. Really!");
+  assert.equal(
+    toSpeakable("## Options\nHere are **three** ideas:\n- Fried rice\n- Spinach *omelette*\n1. Soup 🍲"),
+    "Options. Here are three ideas: Fried rice. Spinach omelette. Soup.",
+  );
+  assert.equal(toSpeakable("See [the docs](https://example.com/x) or https://www.nhk.or.jp/news/123 for `details`."), "See the docs or nhk.or.jp for details.");
+  assert.equal(toSpeakable("Run this:\n```\nrm -rf /\n```\nThen you are done 👍"), "Run this: Then you are done.");
+  assert.equal(toSpeakable("Great job 👏👏"), "Great job.");
+  assert.equal(toSpeakable("🎉"), "");
+});
+
+test("speak strips markdown before synthesizing", async () => {
+  const log: string[] = [];
+  const sink = fakeSink(log);
+  const done = createSpeaker(fakeSynth(log), sink.open).speak("**Tokyo** is the capital 🇯🇵");
+  await new Promise((r) => setTimeout(r, 20));
+  sink.endPlayback();
+  await done;
+  assert.ok(log.includes("synth:Tokyo is the capital."), log.join(" | "));
 });

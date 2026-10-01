@@ -97,3 +97,12 @@ test("real whisper.cpp transcribes synthesized speech", { skip: !canRunReal && "
   const text = await stt.transcribe({ pcm, sampleRate: 16_000, durationMs: 0 });
   assert.match(text.toLowerCase(), /weather like today/);
 });
+
+test("a model path that is not a standard whisper.cpp file name gets a setting hint, not a broken link", async () => {
+  const stt = createWhisperStt({ modelPath: "models/nope.bin", language: "en", fileExists: () => false });
+  await assert.rejects(stt.transcribe({ pcm: Buffer.alloc(3200), sampleRate: 16_000, durationMs: 100 }), (error: Error) => {
+    assert.match(error.message, /Set ZENO_STT_MODEL in \.env to a whisper\.cpp model file such as models\/ggml-base\.en\.bin/);
+    assert.doesNotMatch(error.message, /resolve\/main\/nope\.bin/);
+    return true;
+  });
+});

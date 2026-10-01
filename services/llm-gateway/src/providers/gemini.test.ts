@@ -165,3 +165,22 @@ test("a used-up daily quota says when it resets and what to do", async () => {
     return true;
   });
 });
+
+test("empty, cut-off, and unreadable replies are explained, never passed on as empty", async () => {
+  const kinds: Array<[unknown, string, RegExp]> = [
+    [{ text: "", candidates: [{ finishReason: "STOP" }] }, "bad_request", /returned no text \(reason: STOP\)/],
+    [{ text: undefined, candidates: [{ finishReason: "MAX_TOKENS" }] }, "bad_request", /cut off.*Try asking for a shorter answer/],
+    [{ text: undefined, promptFeedback: { blockReason: "PROHIBITED_CONTENT" } }, "bad_request", /declined to answer this/],
+    [{}, "bad_request", /returned no text \(reason: none\)/],
+    [null, "unknown", /Gemini sent a reply ZENO could not read/],
+  ];
+  for (const [result, kind, message] of kinds) {
+    const adapter = createGeminiAdapter({ apiKey: "k", model: "m", client: fakeClient(() => result).client });
+    await assert.rejects(adapter.complete(request, signal()), (e: unknown) => {
+      assert.ok(e instanceof ProviderError, String(e));
+      assert.equal(e.kind, kind);
+      assert.match(e.message, message);
+      return true;
+    });
+  }
+});

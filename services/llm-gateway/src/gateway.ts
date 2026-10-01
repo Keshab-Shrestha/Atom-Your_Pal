@@ -32,6 +32,21 @@ export class ProviderError extends Error {
   }
 }
 
+/**
+ * Explains why a provider sent no text, in words a user can act on. Both providers report a
+ * reason code; the common ones are translated, anything else is passed on as-is.
+ */
+export function emptyReplyReason(provider: string, reason: string | null | undefined): string {
+  const code = reason ?? "none";
+  if (/^(SAFETY|PROHIBITED_CONTENT|BLOCKLIST|SPII|IMAGE_SAFETY|refusal|OTHER)$/i.test(code)) {
+    return `The model declined to answer this (reason: ${code}). Try asking differently.`;
+  }
+  if (/^(MAX_TOKENS|max_tokens)$/.test(code)) {
+    return `The reply was cut off before any text was produced (reason: ${code}). Try asking for a shorter answer.`;
+  }
+  return `The model returned no text (reason: ${code}). Try again.`;
+}
+
 /** The only error type that leaves the gateway. Messages never contain credentials. */
 export class GatewayError extends Error {
   readonly kind: ErrorKind;
