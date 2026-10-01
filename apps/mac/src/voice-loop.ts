@@ -22,6 +22,14 @@ export interface TurnTimings {
   firstSound?: number;
 }
 
+/**
+ * Why a turn ended without a request. Not a failure: each interface words it for its own controls.
+ * - `too_short`: the clip was shorter than `minClipMs` (an accidental press)
+ * - `mic_starting`: sent before the microphone was capturing, so nothing was recorded
+ * - `no_speech`: Whisper heard no words; `loudest` is the peak level heard, e.g. "-38 dB" or "silence"
+ */
+export type LoopNotice = { kind: "too_short" } | { kind: "mic_starting" } | { kind: "no_speech"; loudest: string };
+
 export interface VoiceLoopEvents {
   onState?(state: LoopState): void;
   /** The microphone is capturing: speech from now on is recorded. */
@@ -29,7 +37,9 @@ export interface VoiceLoopEvents {
   onTranscript?(text: string): void;
   onReply?(text: string): void;
   onTurnComplete?(timings: TurnTimings): void;
-  onNotice?(message: string): void;
+  onNotice?(notice: LoopNotice): void;
+  /** Peak level (0–1) of each chunk of microphone audio, for the current recording only. */
+  onLevel?(peak: number): void;
   onError?(stage: LoopStage, error: unknown): void;
   /** The microphone has delivered only near-silence for a while during listening (once per turn). */
   onMicSilent?(): void;
@@ -54,7 +64,7 @@ export interface VoiceLoopOptions {
 export interface VoiceLoop {
   readonly state: LoopState;
   /**
-   * The talk button (Space). Idle: start listening. Listening: stop and answer.
+   * The talk button (Space in the terminal). Idle: start listening. Listening: stop and answer.
    * Transcribing, thinking or speaking: interrupt and start listening again.
    */
   press(): void;
@@ -101,13 +111,17 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
         silenceTimer = setTimeout(() => {
           if (recording === current && loudest < silencePeak) events.onMicSilent?.();
         }, silenceWarnMs);
+        silenceTimer.unref?.(); // only a warning: never keeps the process alive
       },
       onLevel: (peak) => {
-        if (recording === current) loudest = Math.max(loudest, peak);
+        if (recording !== current) return;
+        loudest = Math.max(loudest, peak);
+        events.onLevel?.(peak);
       },
       onFailure: (error) => {
         if (recording !== current) return;
         recording = null;
+        clearTimeout(silenceTimer);
         setState("idle");
         events.onError?.("microphone", error);
       },
@@ -139,13 +153,13 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
       if (!captured) {
         // Sent before the microphone was capturing: nothing was recorded, which is not a fault.
         await current.stop().catch(() => {});
-        if (!signal.aborted) events.onNotice?.(`The microphone was still starting. Wait for "Listening… speak now", then speak.`);
+        if (!signal.aborted) events.onNotice?.({ kind: "mic_starting" });
         return;
       }
       const clip: AudioClip = await current.stop();
       if (signal.aborted) return;
       if (clip.durationMs < minClipMs) {
-        events.onNotice?.("Too short. Press Space, speak, then press Space again to send.");
+        events.onNotice?.({ kind: "too_short" });
         return;
       }
 
@@ -155,10 +169,7 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
       const transcription = now() - started;
       if (signal.aborted) return;
       if (!text) {
-        events.onNotice?.(
-          `No speech recognized (loudest sound ${decibels(peakLevel(clip.pcm))}). Speak close to the microphone; ` +
-            `if this keeps happening, press d to check which microphone ZENO is using.`,
-        );
+        events.onNotice?.({ kind: "no_speech", loudest: decibels(peakLevel(clip.pcm)) });
         return;
       }
       events.onTranscript?.(text);

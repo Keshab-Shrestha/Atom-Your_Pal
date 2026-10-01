@@ -54,7 +54,7 @@ test("live: spoken questions are answered aloud, with conversation memory", { sk
       onTranscript: (text) => (turn.heard = text),
       onReply: (text) => (turn.reply = text),
       onTurnComplete: (timings) => ((turn.timings = timings), finish()),
-      onNotice: (message) => ((turn.error = message), finish()),
+      onNotice: (notice) => ((turn.error = `notice: ${notice.kind}`), finish()),
       onError: (stage, error) => ((turn.error = `${stage}: ${(error as Error).message}`), finish()),
     },
   });

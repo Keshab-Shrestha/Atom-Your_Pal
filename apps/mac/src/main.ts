@@ -1,197 +1,98 @@
-import { createCore, CoreError } from "@zeno/core";
-import { createGateway, createProviderAdapter, GatewayError } from "@zeno/llm-gateway";
-import { ConfigError, createLogger, loadConfig, type Config, type Logger } from "@zeno/shared";
-import { AudioError, defaultInputDevice, listAudioDevices, startRecording } from "./audio.ts";
-import { SttError, createWhisperStt } from "./stt.ts";
-import { TtsError, createKokoroSynthesizer, createSpeaker } from "./tts.ts";
-import { createVoiceLoop, type LoopStage, type LoopState } from "./voice-loop.ts";
+// ZENO on the Mac. Two interfaces over the same voice loop:
+//   pnpm start                    terminal: Space to talk (terminal.ts)
+//   node apps/mac/src/main.ts --island   driven by ZENO Island over stdin / stdout (island.ts)
 
-let config: Config;
-try {
-  config = loadConfig();
-} catch (error) {
-  if (error instanceof ConfigError) {
-    console.error(error.message);
-    process.exit(1);
+import { GatewayError } from "@zeno/llm-gateway";
+import { ConfigError, createLogger, loadConfig, type Config } from "@zeno/shared";
+import { encodeEvent, type ErrorStage } from "./island-protocol.ts";
+import { runIsland } from "./island.ts";
+import { createRuntime, describe, withLogging } from "./runtime.ts";
+import { runTerminal } from "./terminal.ts";
+
+const island = process.argv.includes("--island");
+
+/** Exit code for a configuration error: the island shows it and does not restart (docs/island-protocol.md). */
+const EXIT_CONFIG = 78;
+
+if (island) {
+  // stdout carries only protocol events: send any stray console output (ours or a library's) to stderr.
+  console.log = console.info = console.debug = console.error;
+}
+
+/** Island mode: report a fatal error as an event, then exit once it has been written. */
+function islandFatal(stage: ErrorStage, message: string, code: number): void {
+  process.stdout.write(encodeEvent({ type: "error", stage, message }), () => process.exit(code));
+  setTimeout(() => process.exit(code), 500).unref(); // in case the island is no longer reading
+}
+
+function readConfig(): Config | null {
+  try {
+    return loadConfig();
+  } catch (error) {
+    if (!(error instanceof ConfigError)) throw error;
+    if (island) islandFatal("config", error.message, EXIT_CONFIG);
+    else {
+      console.error(error.message);
+      process.exit(1);
+    }
+    return null;
   }
-  throw error;
 }
 
-const debug = config.log.level === "debug";
-const log: Logger = createLogger({ level: config.log.level, file: config.log.file });
-log.info("app.start", { provider: config.llm.provider, model: config.llm.model, voice: config.tts.voice, microphone: config.audio.inputDevice });
+const config = readConfig();
+if (config) start(config);
 
-// Last line of defence: an unexpected bug is logged and explained instead of a bare stack trace.
-const crash = (error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  log.error("app.crash", { message, stack: error instanceof Error ? error.stack : undefined });
-  console.error(`ZENO stopped because of an unexpected error: ${message}\nDetails are in ${config.log.file}.`);
-  process.exit(1);
-};
-process.on("uncaughtException", crash);
-process.on("unhandledRejection", crash);
-const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
+function start(config: Config) {
+  const log = createLogger({ level: config.log.level, file: config.log.file });
+  log.info("app.start", {
+    mode: island ? "island" : "terminal",
+    provider: config.llm.provider,
+    model: config.llm.model,
+    voice: config.tts.voice,
+    microphone: config.audio.inputDevice,
+  });
 
-console.log(`ZENO Phase 0: started (log level: ${config.log.level})`);
-console.log(`Model: ${config.llm.provider} / ${config.llm.model}`);
-console.log(`Microphone: ${config.audio.inputDevice}   Voice: ${config.tts.voice} (Kokoro ${config.tts.dtype})`);
-
-/** The microphone actually in use: with ":default" this follows macOS, which changes when devices are plugged in. */
-async function micName(): Promise<string> {
-  if (config.audio.inputDevice !== ":default") return config.audio.inputDevice;
-  const name = await defaultInputDevice();
-  return name ? `macOS default: ${name}` : "macOS default";
-}
-void micName().then((name) => {
-  if (config.audio.inputDevice === ":default") console.log(`Using microphone: ${name.replace("macOS default: ", "")}`);
-});
-console.log("Space: talk / send / interrupt   Esc: cancel   r: new conversation   t: test voice   d: microphones   q: quit");
-
-// --- Assemble the pipeline: Microphone → Whisper → Core → LLM Gateway → provider → Kokoro → speaker
-const stt = createWhisperStt({
-  modelPath: config.stt.modelPath,
-  language: config.stt.language,
-  vocabulary: config.stt.vocabulary,
-});
-const gateway = createGateway({ provider: createProviderAdapter(config.llm), timeoutMs: config.llm.timeoutMs });
-const core = createCore({ model: gateway });
-const tts = createSpeaker(createKokoroSynthesizer({ voice: config.tts.voice, dtype: config.tts.dtype }));
-
-const STATE_LABEL: Partial<Record<LoopState, string>> = {
-  listening: "Opening microphone…",
-  transcribing: "… transcribing",
-  thinking: "… thinking",
-};
-
-const STAGE_LABEL: Record<LoopStage, string> = {
-  microphone: "Microphone",
-  transcription: "Speech-to-text",
-  model: "Model",
-  speech: "Text-to-speech",
-};
-
-/** Machine-readable error details for the log (messages are already free of credentials). */
-function errorFields(error: unknown) {
-  return {
-    error: error instanceof Error ? error.name : typeof error,
-    kind: error instanceof GatewayError ? error.kind : undefined,
-    retryable: error instanceof GatewayError ? error.retryable : undefined,
-    message: error instanceof Error ? error.message : String(error),
+  // Last line of defence: an unexpected bug is logged and explained instead of a bare stack trace.
+  const crash = (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    log.error("app.crash", { message, stack: error instanceof Error ? error.stack : undefined });
+    const text = `ZENO stopped because of an unexpected error: ${message}. Details are in ${config.log.file}.`;
+    if (island) islandFatal("runtime", text, 1);
+    else {
+      console.error(text);
+      process.exit(1);
+    }
   };
-}
+  process.on("uncaughtException", crash);
+  process.on("unhandledRejection", crash);
 
-function describe(error: unknown): string {
-  if (error instanceof GatewayError) return `${error.message}${error.retryable ? " (try again in a moment)" : ""}`;
-  if (error instanceof AudioError || error instanceof SttError || error instanceof TtsError || error instanceof CoreError) {
-    return error.message;
+  const runtime = createRuntime(config, log);
+  // Give the microphone and audio player a moment to release, and pending output to flush, before exiting.
+  const exit = () => setTimeout(() => process.stdout.write("", () => process.exit(0)), 100);
+
+  if (!island) {
+    runTerminal(runtime, exit);
+    return;
   }
-  return error instanceof Error ? error.message : String(error);
+
+  const session = runIsland({
+    input: process.stdin,
+    write: (line) => process.stdout.write(line),
+    record: runtime.record,
+    stt: runtime.stt,
+    core: runtime.core,
+    tts: runtime.tts,
+    info: { provider: config.llm.provider, model: config.llm.model, microphone: config.audio.inputDevice },
+    micName: runtime.micName,
+    describe,
+    errorDetails: (error) => (error instanceof GatewayError ? { kind: error.kind, retryable: error.retryable } : {}),
+    wrapEvents: (events) => withLogging(log, runtime.micName, events),
+    log,
+    onQuit: exit,
+  });
+  process.on("SIGTERM", () => session.quit());
+  // The island has gone away (broken pipe): nobody is listening, so stop.
+  process.stdout.on("error", () => session.quit());
+  // Printed last: once this appears, the runtime is set up and handles SIGTERM cleanly.
+  console.error(`ZENO runtime (island mode): ${config.llm.provider} / ${config.llm.model}, microphone ${config.audio.inputDevice}`);
 }
-
-const loop = createVoiceLoop({
-  record: (handlers) => startRecording(config.audio, handlers),
-  stt,
-  core,
-  tts,
-  events: {
-    onState: (state) => {
-      const label = STATE_LABEL[state];
-      if (label) console.log(label);
-    },
-    onMicReady: () => console.log("● Listening… speak now, press Space to send"),
-    onMicSilent: () => {
-      void micName().then((name) => {
-        log.warn("mic.silent", { microphone: name });
-        console.log(
-          `  The microphone (${name}) is hearing nothing. If you are speaking, ZENO is listening to the wrong ` +
-            `device: press d to list microphones, then set ZENO_AUDIO_INPUT_DEVICE in .env to one by name ` +
-            `(e.g. ":Webcam internal mic") and restart.`,
-        );
-      });
-    },
-    onTranscript: (text) => console.log(`You:  ${text}`),
-    onReply: (text) => console.log(`ZENO: ${text}`),
-    onTurnComplete: (t) => {
-      log.info("turn.complete", {
-        requestId: t.requestId,
-        speechMs: t.speechMs,
-        transcriptionMs: t.transcription,
-        modelMs: t.model,
-        firstSoundMs: t.firstSound,
-      });
-      if (debug) {
-        const sound = t.firstSound === undefined ? "" : `, first sound ${seconds(t.firstSound)}`;
-        console.log(`(transcription ${seconds(t.transcription)}, model ${seconds(t.model)}${sound})`);
-      }
-    },
-    onNotice: (message) => {
-      log.info("turn.skipped", { reason: message });
-      console.log(message);
-    },
-    onError: (stage, error) => {
-      log.error("turn.failed", { stage, ...errorFields(error) });
-      console.error(`${STAGE_LABEL[stage]} error: ${describe(error)}`);
-    },
-  },
-});
-
-// Load the voice in the background so the first spoken reply is not delayed.
-if (process.stdin.isTTY) {
-  const started = Date.now();
-  tts.warmUp().then(
-    () => {
-      log.info("tts.ready", { ms: Date.now() - started });
-      console.log(`Voice ready (${seconds(Date.now() - started)}). Press Space and speak.`);
-    },
-    (error) => {
-      log.error("tts.load_failed", errorFields(error));
-      console.error(`Text-to-speech error: ${describe(error)}`);
-    },
-  );
-}
-
-let testSpeech: AbortController | null = null;
-function testVoice() {
-  if (loop.state !== "idle") return;
-  testSpeech?.abort();
-  const controller = new AbortController();
-  testSpeech = controller;
-  console.log("Speaking a test sentence…");
-  tts
-    .speak("Hello, I am ZENO. This is my local voice, running entirely on your Mac.", controller.signal)
-    .catch((error) => console.error(`Text-to-speech error: ${describe(error)}`));
-}
-
-function quit() {
-  log.info("app.quit");
-  testSpeech?.abort();
-  loop.cancel();
-  tts.close();
-  // Give the microphone and audio player a moment to release before exiting.
-  setTimeout(() => process.exit(0), 100);
-}
-
-if (process.stdin.isTTY) process.stdin.setRawMode(true);
-process.stdin.on("data", (data: Buffer) => {
-  const key = data.toString();
-  if (key === "q" || key === "\u0003") quit();
-  else if (key === " ") {
-    testSpeech?.abort();
-    loop.press();
-  } else if (key === "\u001b") {
-    testSpeech?.abort();
-    if (loop.state !== "idle") console.log("Cancelled.");
-    loop.cancel();
-  } else if (key === "r") {
-    loop.cancel();
-    core.reset();
-    console.log("New conversation.");
-  } else if (key === "t") testVoice();
-  else if (key === "d") {
-    void Promise.all([listAudioDevices(), micName()]).then(([devices, name]) => {
-      console.log(`Microphones: ${devices.join(", ") || "none found"}`);
-      console.log(`In use: ${name}. To choose one, set ZENO_AUDIO_INPUT_DEVICE in .env to its name with a colon, e.g. ":${devices.at(-1) ?? "name"}", then restart.`);
-    });
-  }
-});
-process.stdin.on("end", quit);

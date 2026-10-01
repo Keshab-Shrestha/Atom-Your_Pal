@@ -132,6 +132,18 @@ Tests: protocol encoding and decoding; a fake island drives a full turn with fak
 
 Verification: a script drives a real turn through stdin and stdout.
 
+Status: **Done (2026-10-02).**
+
+- `docs/island-protocol.md`: transport, lifecycle, exit codes (78 = configuration error, do not restart), 5 commands, 11 events, error stages, example, privacy
+- `main.ts` split into `runtime.ts` (shared pipeline, logging), `terminal.ts` (`pnpm start`, unchanged behaviour) and `island.ts` (`--island`); protocol in `island-protocol.ts`
+- Voice loop: notices are now structured (`too_short`, `mic_starting`, `no_speech`), so each interface words them for its own controls; microphone levels are passed on (real microphone: about 84 chunks per second, throttled to 20 events per second carrying the loudest peak)
+- In island mode, stdout carries only events: all other console output is redirected to stderr
+- Fixed while testing: a SIGTERM during startup could kill the runtime before cleanup (the readiness line is now printed after the handlers are installed); the silence-warning timer kept a cancelled session alive for 60 s
+- Tests: 137 (135 pass, 2 live skipped): 10 protocol, 15 island-mode with fake parts over the real wire format, 3 new smoke tests that start the real program in island mode (config error → exit 78, stdout only events, SIGTERM exits cleanly)
+- Live, driven by a script through stdin / stdout with the real microphone, Whisper, Gemini and Kokoro: a full turn (`ready` 0.75 s after start, transcription 0.9 s, first sound 1.2 s after the reply); interrupting mid-reply with `talk.start`; cancel; reset; quit with exit 0. The log contained timings only, no words
+
+Note: `gemini-3.6-flash` had used its free daily quota, so the live turns used `gemini-3.5-flash-lite` (`ZENO_LLM_MODEL`), which took 5.7–11.6 s to reply. The 429 error itself arrived correctly as `{"stage":"model","kind":"rate_limit","retryable":true}`.
+
 ---
 
 ### Task 0.5.3 — Island App Skeleton
@@ -271,6 +283,6 @@ Never:
 
 ## 9. Current Priority
 
-Phase 0.5 — Desktop Island. Task 0.5.1 is done. Next task: 0.5.2 (Island Protocol and Runtime Mode).
+Phase 0.5 — Desktop Island. Tasks 0.5.1–0.5.2 are done. Next task: 0.5.3 (Island App Skeleton).
 
 Everything else waits.

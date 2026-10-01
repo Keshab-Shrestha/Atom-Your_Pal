@@ -64,7 +64,8 @@ function harness(
       onTranscript: (t) => log.push(`you:${t}`),
       onReply: (t) => log.push(`zeno:${t}`),
       onTurnComplete: () => log.push("done"),
-      onNotice: (m) => log.push(`notice:${m}`),
+      onNotice: (n) => log.push(`notice:${n.kind === "no_speech" ? `no_speech(${n.loudest})` : n.kind}`),
+      onLevel: (p) => log.push(`level:${p}`),
       onError: (stage, error) => errors.push({ stage, error }),
     },
   });
@@ -97,7 +98,7 @@ test("a very short clip is ignored with a notice", async () => {
   h.loop.press();
   h.loop.press();
   await tick(5);
-  assert.match(h.log.join(), /notice:Too short/);
+  assert.deepEqual(h.log, ["notice:too_short"]);
   assert.equal(h.loop.state, "idle");
 });
 
@@ -107,8 +108,7 @@ test("silence produces a notice with the level heard, not a request", async () =
   h.loop.press();
   h.loop.press();
   await tick(5);
-  assert.equal(h.log.length, 1);
-  assert.match(h.log[0], /^notice:No speech recognized \(loudest sound silence\)\. Speak close to the microphone; .*press d/);
+  assert.deepEqual(h.log, ["notice:no_speech(silence)"]);
   assert.equal(asked, false);
 });
 
@@ -118,7 +118,7 @@ test("sending before the microphone has started says to wait, and is not an erro
   h.loop.press(); // pressed again before any audio arrived
   await tick(5);
   assert.deepEqual(h.errors, []);
-  assert.deepEqual(h.log, [`notice:The microphone was still starting. Wait for "Listening… speak now", then speak.`]);
+  assert.deepEqual(h.log, ["notice:mic_starting"]);
   assert.equal(h.recordings[0].stopped, true); // microphone released
   assert.equal(h.loop.state, "idle");
 });
@@ -220,7 +220,7 @@ test("warns once while listening if the microphone hears only silence", async ()
   h.loop.press();
   h.recordings[0].level(0.0005); // about -66 dB: a muted or wrong microphone
   await tick(40);
-  assert.deepEqual(h.log, ["mic-silent"]);
+  assert.deepEqual(h.log, ["level:0.0005", "mic-silent"]);
   assert.equal(h.loop.state, "listening"); // a warning only; the user can still send
 });
 
@@ -236,4 +236,14 @@ test("no silence warning when the microphone hears sound, or after sending", asy
   sent.loop.press(); // sent before the warning would fire
   await tick(40);
   assert.equal(sent.log.includes("mic-silent"), false);
+});
+
+test("reports microphone levels for the current recording only", () => {
+  const h = harness();
+  h.loop.press();
+  h.loop.cancel();
+  h.loop.press();
+  h.recordings[0].level(0.9); // the cancelled recording
+  h.recordings[1].level(0.2);
+  assert.deepEqual(h.log, ["level:0.2"]);
 });

@@ -26,7 +26,7 @@ The implementation priority is now Phase 0.
 
 Progress: **Phase 0 is complete (2026-10-02).** All tasks 0.1–0.11 are done; the voice loop was verified by the user speaking into the real microphone and by the live test suite (history: `docs/phase-0-tasks.md`). Open items from Phase 0: Claude live check (needs Anthropic credits); Gemini free-tier quota (about 20 requests per day).
 
-**Current phase: Phase 0.5 — Desktop Island** (ADR-033 to ADR-036), planned 2026-10-02. Task 0.5.1 is done: the project now lives at `~/Developer/zeno`, outside iCloud. Next: Task 0.5.2 (Island Protocol and Runtime Mode).
+**Current phase: Phase 0.5 — Desktop Island** (ADR-033 to ADR-036), planned 2026-10-02. Task 0.5.1 is done: the project now lives at `~/Developer/zeno`, outside iCloud. Task 0.5.2 is done: the runtime can be driven over JSON lines (`main.ts --island`, `docs/island-protocol.md`). Next: Task 0.5.3 (Island App Skeleton).
 
 ---
 
@@ -252,9 +252,9 @@ The immediate goal is:
 
 Phase 0 is complete. Phase 0.5 (Desktop Island) is planned in TASK.md.
 
-Task 0.5.1 (Move the Project Out of iCloud) is done. The project is at `~/Developer/zeno`.
+Tasks 0.5.1 (Move the Project Out of iCloud) and 0.5.2 (Island Protocol and Runtime Mode) are done.
 
-The next task is Task 0.5.2 — Island Protocol and Runtime Mode.
+The next task is Task 0.5.3 — Island App Skeleton.
 
 Do not start Phase 1 (Memory) until Phase 0.5 has been verified.
 
