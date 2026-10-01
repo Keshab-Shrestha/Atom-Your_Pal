@@ -25,6 +25,8 @@ export interface Config {
   stt: {
     modelPath: string;
     language: string;
+    /** Words Whisper should expect (names, places, jargon); passed as its initial prompt. */
+    vocabulary: string;
   };
   tts: {
     voice: string;
@@ -97,8 +99,9 @@ export function loadConfig(env: Env = process.env): Config {
       sampleRate: positiveInt("ZENO_AUDIO_SAMPLE_RATE", 16_000),
     },
     stt: {
-      modelPath: read("ZENO_STT_MODEL", "models/ggml-base.en.bin"),
+      modelPath: read("ZENO_STT_MODEL", "models/ggml-small.en.bin"),
       language: read("ZENO_STT_LANGUAGE", "en"),
+      vocabulary: read("ZENO_STT_VOCABULARY", "ZENO"),
     },
     tts: {
       voice: read("ZENO_TTS_VOICE", "af_heart"),

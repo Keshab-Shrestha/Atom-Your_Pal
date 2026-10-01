@@ -38,7 +38,11 @@ console.log(`Microphone: ${config.audio.inputDevice}   Voice: ${config.tts.voice
 console.log("Space: talk / send / interrupt   Esc: cancel   r: new conversation   t: test voice   d: microphones   q: quit");
 
 // --- Assemble the pipeline: Microphone → Whisper → Core → LLM Gateway → provider → Kokoro → speaker
-const stt = createWhisperStt({ modelPath: config.stt.modelPath, language: config.stt.language });
+const stt = createWhisperStt({
+  modelPath: config.stt.modelPath,
+  language: config.stt.language,
+  vocabulary: config.stt.vocabulary,
+});
 const gateway = createGateway({ provider: createProviderAdapter(config.llm), timeoutMs: config.llm.timeoutMs });
 const core = createCore({ model: gateway });
 const tts = createSpeaker(createKokoroSynthesizer({ voice: config.tts.voice, dtype: config.tts.dtype }));

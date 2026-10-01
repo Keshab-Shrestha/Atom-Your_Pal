@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { SttError, cleanTranscript, createWhisperStt, toWav } from "./stt.ts";
+import { SttError, cleanTranscript, createWhisperStt, promptArgs, toWav } from "./stt.ts";
 
 const clip = { pcm: Buffer.alloc(3200), sampleRate: 16_000, durationMs: 100 };
 
@@ -105,4 +105,21 @@ test("a model path that is not a standard whisper.cpp file name gets a setting h
     assert.doesNotMatch(error.message, /resolve\/main\/nope\.bin/);
     return true;
   });
+});
+
+test("vocabulary becomes Whisper's initial prompt; none means no prompt", async () => {
+  assert.deepEqual(promptArgs(""), []);
+  assert.deepEqual(promptArgs(" , "), []);
+  assert.deepEqual(promptArgs("ZENO, Keshab ,Kathmandu"), ["--prompt", "ZENO, Keshab, Kathmandu."]);
+
+  const calls: string[][] = [];
+  const stt = createWhisperStt({
+    modelPath: "model.bin",
+    vocabulary: "ZENO, Keshab",
+    fileExists: () => true,
+    execFile: fakeExec({ stdout: "Hi ZENO" }, calls),
+  });
+  await stt.transcribe(clip);
+  const args = calls[0];
+  assert.equal(args[args.indexOf("--prompt") + 1], "ZENO, Keshab.");
 });

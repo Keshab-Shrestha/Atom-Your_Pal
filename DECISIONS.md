@@ -480,6 +480,33 @@ Voice processing (Whisper, Kokoro) is local and exchanges only text with the Cor
 
 ---
 
+## ADR-032 — Whisper small.en with a Vocabulary Prompt
+
+### Decision
+
+The default speech-to-text model is `ggml-small.en.bin` (was `ggml-base.en.bin`). Whisper also gets an initial prompt built from `ZENO_STT_VOCABULARY`, a comma-separated list of names and places to expect (default: `ZENO`).
+
+### Reason
+
+The user found transcription noticeably wrong in real use, while speed was good. Benchmark on 2026-10-02 (8 spoken commands, 4 voices, recorded at the Mac mini's measured microphone level with room noise; details in `docs/stt-benchmark.md`):
+
+| Model | Word errors | Time per command |
+|---|---|---|
+| base.en (previous) | 9.8% | ~270 ms |
+| base.en + vocabulary | 4.9% | ~260 ms |
+| small.en + vocabulary (chosen) | 2.4% | ~560 ms |
+| large-v3-turbo q5 + vocabulary | 1.2% | ~1,380 ms |
+
+small.en with the vocabulary prompt has about a quarter of the previous errors for about 0.3 s more per turn. large-v3-turbo was the most accurate but adds over a second, which matters more in a voice loop.
+
+### Notes
+
+- base.en remains available: set `ZENO_STT_MODEL=models/ggml-base.en.bin` for speed.
+- The vocabulary prompt mainly fixes names (e.g. "Cartman do" → "Kathmandu"). Listing too many words can bias Whisper toward them; keep it to names actually used.
+- Measured with synthetic voices; re-check with the user's own recordings when available.
+
+---
+
 ## Final Architectural Principle
 
 > Preserve the future without prematurely implementing it.

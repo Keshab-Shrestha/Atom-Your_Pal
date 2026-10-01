@@ -43,7 +43,11 @@ test("live: spoken questions are answered aloud, with conversation memory", { sk
       queueMicrotask(() => hooks.onReady()); // a real microphone reports ready once audio flows
       return { stop: async () => clip };
     },
-    stt: createWhisperStt({ modelPath: config.stt.modelPath, language: config.stt.language }),
+    stt: createWhisperStt({
+      modelPath: config.stt.modelPath,
+      language: config.stt.language,
+      vocabulary: config.stt.vocabulary,
+    }),
     core,
     tts,
     events: {

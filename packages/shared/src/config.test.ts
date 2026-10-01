@@ -11,7 +11,7 @@ test("applies defaults when only the Anthropic key is set", () => {
   assert.deepEqual(config, {
     llm: { provider: "claude", apiKey: CLAUDE_KEY, model: "claude-sonnet-5", timeoutMs: 30_000 },
     audio: { inputDevice: ":default", sampleRate: 16_000 },
-    stt: { modelPath: "models/ggml-base.en.bin", language: "en" },
+    stt: { modelPath: "models/ggml-small.en.bin", language: "en", vocabulary: "ZENO" },
     tts: { voice: "af_heart", dtype: "q8" },
     log: { level: "info", file: "logs/zeno.log" },
   });

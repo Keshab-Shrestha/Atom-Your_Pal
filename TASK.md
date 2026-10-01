@@ -207,6 +207,8 @@ Setup on a new machine: `brew install whisper-cpp` and download the model into `
 
 Known limitations: base.en misspells unusual names (e.g. "Zeno" → "Zino"). A larger model or a vocabulary prompt can fix this later if it matters.
 
+Update 2026-10-02 (ADR-032): default changed to `ggml-small.en.bin` (466 MB) with a vocabulary prompt (`ZENO_STT_VOCABULARY`). Word errors fell from 9.8% to 2.4% for about 0.3 s more per turn; see `docs/stt-benchmark.md`.
+
 ### Task 0.5 — ZENO Core ✅ Done (2026-10-01)
 
 Create the central request/response boundary.

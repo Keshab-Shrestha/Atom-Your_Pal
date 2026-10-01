@@ -30,6 +30,11 @@ export interface WhisperOptions {
   modelPath: string;
   /** Spoken language, or "auto". */
   language?: string;
+  /**
+   * Words to expect, comma-separated (names, places, jargon). Whisper gets them as its initial prompt,
+   * which roughly halved errors on names in our tests (docs/stt-benchmark.md).
+   */
+  vocabulary?: string;
   timeoutMs?: number;
   command?: string;
   execFile?: ExecFile;
@@ -41,6 +46,7 @@ export function createWhisperStt(options: WhisperOptions): SpeechToText {
   const {
     modelPath,
     language = "en",
+    vocabulary = "",
     timeoutMs = 60_000,
     command = "whisper-cli",
     execFile = nodeExecFile as unknown as ExecFile,
@@ -67,7 +73,7 @@ export function createWhisperStt(options: WhisperOptions): SpeechToText {
         const stdout = await new Promise<string>((resolve, reject) => {
           execFile(
             command,
-            ["-m", modelPath, "-f", wavPath, "-l", language, "-nt", "-np"],
+            ["-m", modelPath, "-f", wavPath, "-l", language, "-nt", "-np", ...promptArgs(vocabulary)],
             { timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024 },
             (error, out, stderr) => {
               if (!error) return resolve(out);
@@ -114,4 +120,13 @@ export function toWav(clip: AudioClip): Buffer {
   header.write("data", 36);
   header.writeUInt32LE(clip.pcm.length, 40);
   return Buffer.concat([header, clip.pcm]);
+}
+
+/** Turns a vocabulary list into Whisper's initial-prompt arguments; empty when there is nothing to add. */
+export function promptArgs(vocabulary: string): string[] {
+  const words = vocabulary
+    .split(",")
+    .map((word) => word.trim())
+    .filter(Boolean);
+  return words.length === 0 ? [] : ["--prompt", `${words.join(", ")}.`];
 }
