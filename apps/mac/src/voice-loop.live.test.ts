@@ -39,7 +39,10 @@ test("live: spoken questions are answered aloud, with conversation memory", { sk
   let turn: { heard: string; reply: string; timings?: TurnTimings; error?: unknown };
   let finish = () => {};
   const loop = createVoiceLoop({
-    record: () => ({ stop: async () => clip }),
+    record: (hooks) => {
+      queueMicrotask(() => hooks.onReady()); // a real microphone reports ready once audio flows
+      return { stop: async () => clip };
+    },
     stt: createWhisperStt({ modelPath: config.stt.modelPath, language: config.stt.language }),
     core,
     tts,
@@ -57,6 +60,7 @@ test("live: spoken questions are answered aloud, with conversation memory", { sk
     turn = { heard: "", reply: "" };
     const done = new Promise<void>((resolve) => (finish = resolve));
     loop.press();
+    await new Promise((resolve) => setImmediate(resolve)); // wait for "listening", as a person would
     loop.press();
     await done;
     assert.equal(turn.error, undefined);

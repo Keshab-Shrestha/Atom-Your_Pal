@@ -16,7 +16,7 @@ function gate<T>() {
   return { promise, resolve, reject };
 }
 
-function harness(over: Partial<{ stt: SpeechToText; core: CoreLike; tts: TextToSpeech; clipMs: number }> = {}) {
+function harness(over: Partial<{ stt: SpeechToText; core: CoreLike; tts: TextToSpeech; clipMs: number; autoReady: boolean }> = {}) {
   const log: string[] = [];
   const states: LoopState[] = [];
   const errors: { stage: LoopStage; error: unknown }[] = [];
@@ -56,7 +56,7 @@ function harness(over: Partial<{ stt: SpeechToText; core: CoreLike; tts: TextToS
     tts,
     events: {
       onState: (s) => states.push(s),
-      onMicReady: () => log.push("mic-ready"),
+      onMicReady: () => (over.autoReady === false ? log.push("mic-ready") : undefined),
       onTranscript: (t) => log.push(`you:${t}`),
       onReply: (t) => log.push(`zeno:${t}`),
       onTurnComplete: () => log.push("done"),
@@ -64,6 +64,15 @@ function harness(over: Partial<{ stt: SpeechToText; core: CoreLike; tts: TextToS
       onError: (stage, error) => errors.push({ stage, error }),
     },
   });
+  // Real recordings report "ready" once the microphone delivers audio; by default the fake does so
+  // right after each press that starts listening, so tests can press-speak-press as a user would.
+  const autoReady = over.autoReady ?? true;
+  const press = loop.press.bind(loop);
+  loop.press = () => {
+    const before = recordings.length;
+    press();
+    if (autoReady && recordings.length > before) recordings.at(-1)!.ready();
+  };
   return { loop, log, states, errors, recordings, signals };
 }
 
@@ -88,14 +97,26 @@ test("a very short clip is ignored with a notice", async () => {
   assert.equal(h.loop.state, "idle");
 });
 
-test("silence produces a notice, not a request", async () => {
+test("silence produces a notice with the level heard, not a request", async () => {
   let asked = false;
   const h = harness({ stt: { transcribe: async () => "" }, core: { handle: async () => ((asked = true), { text: "x" }) } });
   h.loop.press();
   h.loop.press();
   await tick(5);
-  assert.deepEqual(h.log, ["notice:No speech recognized."]);
+  assert.equal(h.log.length, 1);
+  assert.match(h.log[0], /^notice:No speech recognized \(loudest sound silence\)\. Speak close to the microphone; .*press d/);
   assert.equal(asked, false);
+});
+
+test("sending before the microphone has started says to wait, and is not an error", async () => {
+  const h = harness({ autoReady: false });
+  h.loop.press();
+  h.loop.press(); // pressed again before any audio arrived
+  await tick(5);
+  assert.deepEqual(h.errors, []);
+  assert.deepEqual(h.log, [`notice:The microphone was still starting. Wait for "Listening… speak now", then speak.`]);
+  assert.equal(h.recordings[0].stopped, true); // microphone released
+  assert.equal(h.loop.state, "idle");
 });
 
 test("pressing while ZENO is thinking cancels the request and starts listening", async () => {
@@ -180,7 +201,7 @@ test("a microphone failure while listening is reported and returns to idle", () 
 });
 
 test("reports when the microphone is actually capturing, only for the current recording", () => {
-  const h = harness();
+  const h = harness({ autoReady: false });
   h.loop.press();
   h.loop.cancel();
   h.loop.press();

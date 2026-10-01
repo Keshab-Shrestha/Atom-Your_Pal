@@ -1,4 +1,4 @@
-import type { AudioClip, AudioError, Recording } from "./audio.ts";
+import { peakLevel, type AudioClip, type AudioError, type Recording } from "./audio.ts";
 import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
 
@@ -64,6 +64,7 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
   const { record, stt, core, tts, events = {}, minClipMs = 300, now = Date.now } = options;
   let state: LoopState = "idle";
   let recording: Recording | null = null;
+  let micReady = false; // the current recording has started capturing
   let turn: AbortController | null = null;
 
   const setState = (next: LoopState) => {
@@ -75,7 +76,9 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
   function startListening() {
     const current = record({
       onReady: () => {
-        if (recording === current) events.onMicReady?.();
+        if (recording !== current) return;
+        micReady = true;
+        events.onMicReady?.();
       },
       onFailure: (error) => {
         if (recording !== current) return;
@@ -85,6 +88,7 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
       },
     });
     recording = current;
+    micReady = false;
     setState("listening");
   }
 
@@ -98,13 +102,19 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
     }
   }
 
-  async function answer(current: Recording) {
+  async function answer(current: Recording, captured: boolean) {
     const controller = new AbortController();
     turn = controller;
     const { signal } = controller;
     let stage: LoopStage = "microphone";
     setState("transcribing");
     try {
+      if (!captured) {
+        // Sent before the microphone was capturing: nothing was recorded, which is not a fault.
+        await current.stop().catch(() => {});
+        if (!signal.aborted) events.onNotice?.(`The microphone was still starting. Wait for "Listening… speak now", then speak.`);
+        return;
+      }
       const clip: AudioClip = await current.stop();
       if (signal.aborted) return;
       if (clip.durationMs < minClipMs) {
@@ -118,7 +128,10 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
       const transcription = now() - started;
       if (signal.aborted) return;
       if (!text) {
-        events.onNotice?.("No speech recognized.");
+        events.onNotice?.(
+          `No speech recognized (loudest sound ${decibels(peakLevel(clip.pcm))}). Speak close to the microphone; ` +
+            `if this keeps happening, press d to check which microphone ZENO is using.`,
+        );
         return;
       }
       events.onTranscript?.(text);
@@ -156,7 +169,7 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
       if (state === "listening" && recording) {
         const current = recording;
         recording = null;
-        void answer(current);
+        void answer(current, micReady);
         return;
       }
       // Idle, or interrupting a turn in progress: talking over ZENO starts a new turn.
@@ -169,4 +182,9 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
       setState("idle");
     },
   };
+}
+
+/** Peak level as dBFS for messages: 0 dB is full scale; speech close to a microphone is usually above -20 dB. */
+function decibels(peak: number): string {
+  return peak <= 0 ? "silence" : `${Math.round(20 * Math.log10(peak))} dB`;
 }
