@@ -107,3 +107,31 @@ test("redactSecrets covers common credential formats", () => {
   assert.equal(redactSecrets("Authorization: Bearer abc.def.ghi-12345"), "Authorization: Bearer [REDACTED]");
   assert.equal(redactSecrets("nothing secret here"), "nothing secret here");
 });
+
+test("the caller can cancel: the provider call is aborted and nothing is retried", async () => {
+  let aborted = false;
+  const { provider, calls } = adapter(
+    (_n, signal) =>
+      new Promise((_resolve, reject) => {
+        signal.addEventListener("abort", () => {
+          aborted = true;
+          reject(new ProviderError("unavailable", "socket closed"));
+        });
+      }),
+  );
+  const gateway = createGateway({ provider, timeoutMs: 10_000, ...noSleep });
+  const controller = new AbortController();
+  const pending = gateway.complete(request, controller.signal);
+  setTimeout(() => controller.abort(), 5);
+  await assert.rejects(pending, (e: unknown) => e instanceof GatewayError && e.kind === "cancelled" && !e.retryable);
+  assert.equal(aborted, true);
+  assert.equal(calls.length, 1); // "unavailable" would normally be retried
+});
+
+test("an already-cancelled request never reaches the provider", async () => {
+  const { provider, calls } = adapter(async () => ({ text: "hi" }));
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(createGateway({ provider, timeoutMs: 1000 }).complete(request, controller.signal), /cancelled/);
+  assert.equal(calls.length, 0);
+});

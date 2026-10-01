@@ -4,7 +4,7 @@ import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import type { ChildProcessByStdio } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
-import { createSpeaker, openFfmpegSink, splitSentences, type AudioSink, type SpeechAudio, type Synthesizer } from "./tts.ts";
+import { createSpeaker, openFfmpegSink, splitFirstClause, splitSentences, type AudioSink, type SpeechAudio, type Synthesizer } from "./tts.ts";
 
 const tag = (text: string) => new Float32Array([text.length]);
 
@@ -180,4 +180,18 @@ test("ffmpeg sink reports a failed exit", async () => {
   await new Promise((r) => setTimeout(r, 5));
   child.emit("close", 1);
   await assert.rejects(sink.finish(), /ffmpeg exit code 1\): Could not open audio device/);
+});
+
+test("splitFirstClause splits only a long opening sentence, at its first comma", () => {
+  const long = "Roughly fourteen million people live in Tokyo, though the greater metro area has about thirty-seven million.";
+  assert.deepEqual(splitFirstClause([long, "And your name is Keshab!"]), [
+    "Roughly fourteen million people live in Tokyo,",
+    "though the greater metro area has about thirty-seven million.",
+    "And your name is Keshab!",
+  ]);
+  assert.deepEqual(splitFirstClause(["Hello Keshab, nice to meet you."]), ["Hello Keshab, nice to meet you."]); // short: kept
+  assert.deepEqual(splitFirstClause(["Yes, that is right and it is a really long sentence without another pause in it."]), [
+    "Yes, that is right and it is a really long sentence without another pause in it.",
+  ]); // clause before the comma too short to sound natural alone
+  assert.deepEqual(splitFirstClause([]), []);
 });

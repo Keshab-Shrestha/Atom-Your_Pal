@@ -19,7 +19,7 @@ test("applies defaults when only the Anthropic key is set", () => {
 
 test("gemini uses its own key and default model", () => {
   const config = loadConfig({ ZENO_LLM_PROVIDER: "gemini", GEMINI_API_KEY: GEMINI_KEY, ANTHROPIC_API_KEY: CLAUDE_KEY });
-  assert.deepEqual(config.llm, { provider: "gemini", apiKey: GEMINI_KEY, model: "gemini-3.5-flash", timeoutMs: 30_000 });
+  assert.deepEqual(config.llm, { provider: "gemini", apiKey: GEMINI_KEY, model: "gemini-3.6-flash", timeoutMs: 30_000 });
 });
 
 test("only the selected provider's key is required", () => {

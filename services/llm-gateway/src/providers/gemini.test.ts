@@ -126,3 +126,42 @@ test("through the gateway, an aborted call is reported as a timeout", async () =
   const gateway = createGateway({ provider: createGeminiAdapter({ apiKey: "k", model: "m", client }), timeoutMs: 20 });
   await assert.rejects(gateway.complete(request), (e: unknown) => e instanceof GatewayError && e.kind === "timeout");
 });
+
+test("a model that rejects MINIMAL thinking is retried at LOW, and LOW is remembered", async () => {
+  const levels: string[] = [];
+  const client: GeminiClient = {
+    models: {
+      async generateContent(params) {
+        const level = params.config.thinkingConfig!.thinkingLevel;
+        levels.push(level);
+        if (level === ThinkingLevel.MINIMAL) {
+          throw apiError(400, "Thinking level MINIMAL is not supported for this model. Please retry with other thinking level.");
+        }
+        return { text: "ok" };
+      },
+    },
+  };
+  const adapter = createGeminiAdapter({ apiKey: "k", model: "m", client });
+  assert.deepEqual(await adapter.complete(request, signal()), { text: "ok" });
+  assert.deepEqual(await adapter.complete(request, signal()), { text: "ok" });
+  assert.deepEqual(levels, ["MINIMAL", "LOW", "LOW"]);
+});
+
+test("a used-up daily quota says when it resets and what to do", async () => {
+  const daily = new ApiError({
+    status: 429,
+    message: JSON.stringify({
+      error: { code: 429, message: "You exceeded your current quota.", details: [{ violations: [{ quotaId: "GenerateRequestsPerDayPerProjectPerModel-FreeTier" }] }] },
+    }),
+  });
+  const { client } = fakeClient(() => {
+    throw daily;
+  });
+  await assert.rejects(createGeminiAdapter({ apiKey: "k", model: "gemini-x", client }).complete(request, signal()), (e: unknown) => {
+    assert.ok(e instanceof ProviderError);
+    assert.equal(e.kind, "rate_limit");
+    assert.match(e.message, /today's request quota for gemini-x is used up \(resets at midnight Pacific time\)/);
+    assert.match(e.message, /ZENO_LLM_MODEL/);
+    return true;
+  });
+});

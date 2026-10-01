@@ -23,8 +23,11 @@ export interface CoreOptions {
 
 export interface Core {
   readonly sessionId: string;
-  /** Receives one input, establishes context, routes it and returns the response. */
-  handle(input: ZenoInput): Promise<ZenoResponse>;
+  /**
+   * Receives one input, establishes context, routes it and returns the response.
+   * Aborting `signal` cancels the request; a cancelled exchange is not added to history.
+   */
+  handle(input: ZenoInput, signal?: AbortSignal): Promise<ZenoResponse>;
   /** The current session's conversation, oldest first. */
   history(): readonly Message[];
   /** Forgets the conversation and starts a new session. */
@@ -46,7 +49,7 @@ export function createCore(options: CoreOptions): Core {
       return sessionId;
     },
 
-    async handle(input) {
+    async handle(input, signal) {
       const text = input.text.trim();
       if (!text) throw new CoreError("Empty request");
       if (busy) throw new CoreError("Still answering the previous request");
@@ -57,7 +60,8 @@ export function createCore(options: CoreOptions): Core {
 
       busy = true;
       try {
-        const reply = await model.complete({ system: systemPrompt, messages: [...turns, userTurn], context });
+        const reply = await model.complete({ system: systemPrompt, messages: [...turns, userTurn], context }, signal);
+        if (signal?.aborted) throw new CoreError("Request cancelled");
         const replyText = reply.text.trim();
         if (!replyText) throw new CoreError("The model returned an empty reply");
 

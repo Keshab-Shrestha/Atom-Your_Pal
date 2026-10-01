@@ -17,6 +17,7 @@ export type ErrorKind =
   | "unavailable" // network failure or provider outage: retryable
   | "timeout" // no reply within the configured time
   | "bad_request" // the request itself was rejected
+  | "cancelled" // the caller cancelled the request
   | "unknown";
 
 const RETRYABLE: ReadonlySet<ErrorKind> = new Set(["rate_limit", "unavailable"]);
@@ -62,28 +63,35 @@ export interface GatewayOptions {
 export function createGateway(options: GatewayOptions): LanguageModel {
   const { provider, timeoutMs, maxRetries = 1, retryDelayMs = 500, sleep = defaultSleep } = options;
 
-  async function attempt(request: ModelRequest): Promise<ModelResponse> {
+  const cancelled = () => new GatewayError("cancelled", provider.name, "Request cancelled");
+
+  async function attempt(request: ModelRequest, caller?: AbortSignal): Promise<ModelResponse> {
     const controller = new AbortController();
     let timedOut = false;
     const timer = setTimeout(() => {
       timedOut = true;
       controller.abort();
     }, timeoutMs);
+    const cancel = () => controller.abort();
+    caller?.addEventListener("abort", cancel, { once: true });
     try {
       return await provider.complete(request, controller.signal);
     } catch (error) {
+      if (caller?.aborted) throw cancelled();
       if (timedOut) throw new GatewayError("timeout", provider.name, `No reply within ${timeoutMs} ms`);
       throw toGatewayError(error, provider.name);
     } finally {
       clearTimeout(timer);
+      caller?.removeEventListener("abort", cancel);
     }
   }
 
   return {
-    async complete(request) {
+    async complete(request, signal) {
       for (let tries = 0; ; tries++) {
+        if (signal?.aborted) throw cancelled();
         try {
-          return await attempt(request);
+          return await attempt(request, signal);
         } catch (error) {
           const gatewayError = error as GatewayError;
           if (!gatewayError.retryable || tries >= maxRetries) throw gatewayError;

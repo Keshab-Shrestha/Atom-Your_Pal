@@ -1,0 +1,74 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createCore } from "@zeno/core";
+import { createGateway, createProviderAdapter } from "@zeno/llm-gateway";
+import { loadConfig } from "@zeno/shared";
+import type { AudioClip } from "./audio.ts";
+import { createWhisperStt } from "./stt.ts";
+import { createKokoroSynthesizer, createSpeaker } from "./tts.ts";
+import { createVoiceLoop, type TurnTimings } from "./voice-loop.ts";
+
+// The whole voice loop with real components: speech (made with macOS `say` instead of the microphone)
+// → Whisper → Core → gateway → the configured provider → Kokoro → your speakers.
+// Costs two provider requests and plays audio. Run with: pnpm test:live
+const enabled = process.env.ZENO_LIVE_TESTS === "1";
+
+function speech(text: string): AudioClip {
+  const dir = mkdtempSync(join(tmpdir(), "zeno-e2e-"));
+  try {
+    execFileSync("say", ["-o", join(dir, "q.aiff"), text]);
+    execFileSync("ffmpeg", ["-loglevel", "error", "-i", join(dir, "q.aiff"), "-ac", "1", "-ar", "16000", "-f", "s16le", join(dir, "q.pcm")]);
+    const pcm = readFileSync(join(dir, "q.pcm"));
+    return { pcm, sampleRate: 16_000, durationMs: Math.round((pcm.length / 2 / 16_000) * 1000) };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test("live: spoken questions are answered aloud, with conversation memory", { skip: !enabled && "set ZENO_LIVE_TESTS=1 (pnpm test:live)", timeout: 120_000 }, async (t) => {
+  const config = loadConfig();
+  const tts = createSpeaker(createKokoroSynthesizer({ voice: config.tts.voice, dtype: config.tts.dtype }));
+  await tts.warmUp();
+  const core = createCore({ model: createGateway({ provider: createProviderAdapter(config.llm), timeoutMs: config.llm.timeoutMs }) });
+
+  let clip: AudioClip;
+  let turn: { heard: string; reply: string; timings?: TurnTimings; error?: unknown };
+  let finish = () => {};
+  const loop = createVoiceLoop({
+    record: () => ({ stop: async () => clip }),
+    stt: createWhisperStt({ modelPath: config.stt.modelPath, language: config.stt.language }),
+    core,
+    tts,
+    events: {
+      onTranscript: (text) => (turn.heard = text),
+      onReply: (text) => (turn.reply = text),
+      onTurnComplete: (timings) => ((turn.timings = timings), finish()),
+      onNotice: (message) => ((turn.error = message), finish()),
+      onError: (stage, error) => ((turn.error = `${stage}: ${(error as Error).message}`), finish()),
+    },
+  });
+
+  async function ask(question: string) {
+    clip = speech(question);
+    turn = { heard: "", reply: "" };
+    const done = new Promise<void>((resolve) => (finish = resolve));
+    loop.press();
+    loop.press();
+    await done;
+    assert.equal(turn.error, undefined);
+    const ms = turn.timings!;
+    t.diagnostic(`heard "${turn.heard}" → "${turn.reply}" (stt ${ms.transcription} ms, model ${ms.model} ms, first sound ${ms.firstSound} ms)`);
+    return turn;
+  }
+
+  const first = await ask("Hi, my name is Keshab. What is the capital of Japan?");
+  assert.match(first.heard, /capital of Japan/i);
+  assert.match(first.reply, /Tokyo/i);
+
+  const second = await ask("What is my name?");
+  assert.match(second.reply, /Kesh/i); // remembered from the first turn (Whisper may spell it "Kesheb")
+});

@@ -321,7 +321,7 @@ Done (2026-10-01):
 
 Measured on this Mac: first sound 2.3–2.5 s after the text arrives for a 17-word first sentence; a 12.1 s reply finished in 14.7 s.
 
-### Task 0.9 — Connect Voice Loop
+### Task 0.9 — Connect Voice Loop ✅ Done (2026-10-01)
 
 Connect:
 
@@ -340,6 +340,22 @@ TTS
  ↓
 Speaker
 ```
+
+Done (2026-10-01):
+
+- `apps/mac/src/voice-loop.ts`: one turn at a time (idle → listening → transcribing → thinking → speaking); `main.ts` only assembles the parts and prints events
+- Controls: Space talks, sends, and interrupts; Esc cancels; `r` starts a new conversation; `t` tests the voice; `q` quits
+- Interruption at every stage: pressing Space while ZENO is thinking cancels the model request (cancellation now runs through Core → gateway → provider, and is never retried); while speaking it stops the audio at once
+- "Listening" is shown only once the microphone is actually capturing, so the start of speech is not lost
+- Silence and accidental short presses give a notice instead of a request; every error names the stage that failed and the loop is ready again
+- Speech starts sooner: a long first sentence is split at its first comma (first sound 3.2 s → 1.6 s after the reply in one measured case)
+- `LOG_LEVEL=debug` prints per-stage timings
+- Gemini: default model changed to `gemini-3.6-flash` (ADR-031 updated). On the test day, `gemini-3.5-flash` took about 9.5 s per reply on Google's side, and its free daily quota (20 requests) ran out; 3.6 Flash measured 1.4–1.6 s. Models that reject minimal thinking (3.7/3.8 Flash) now fall back to low automatically, and a used-up daily quota explains when it resets and what to do
+- Tests: 12 voice-loop unit tests with fakes; `voice-loop.live.test.ts` runs the real chain (speech made with `say` → Whisper → Gemini → Kokoro → speakers) with a two-turn memory check. 90/90 unit tests pass, typecheck passes, both live tests pass
+
+Measured end to end (live test): transcription 0.26–0.43 s, model 1.4 s, first sound 0.9 s after the reply, about 2.7 s from the end of speech to ZENO's first word.
+
+Not verified by me: a person speaking into the real microphone in `pnpm start`. The app was driven with real key presses and the microphone opened and captured, but the default input could not hear the test audio (output goes to headphones). To verify: `pnpm start`, press Space, speak, press Space.
 
 ### Task 0.10 — Error Handling
 

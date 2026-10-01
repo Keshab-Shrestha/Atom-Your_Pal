@@ -8,7 +8,12 @@ export interface TextToSpeech {
   /** Loads models ahead of time so the first reply is not delayed. Safe to call more than once. */
   warmUp(): Promise<void>;
   /** Speaks the text aloud. Resolves when playback ends; aborting stops it immediately. */
-  speak(text: string, signal?: AbortSignal): Promise<void>;
+  speak(text: string, signal?: AbortSignal, hooks?: SpeakHooks): Promise<void>;
+}
+
+export interface SpeakHooks {
+  /** Called when audio starts playing. */
+  onStart?: () => void;
 }
 
 export class TtsError extends Error {
@@ -58,8 +63,8 @@ export function createSpeaker(synthesizer: Synthesizer, openSink: OpenSink = ope
 
   return {
     warmUp,
-    async speak(text, signal = new AbortController().signal) {
-      const sentences = splitSentences(text);
+    async speak(text, signal = new AbortController().signal, hooks = {}) {
+      const sentences = splitFirstClause(splitSentences(text));
       if (sentences.length === 0 || signal.aborted) return;
       await warmUp();
 
@@ -78,7 +83,10 @@ export function createSpeaker(synthesizer: Synthesizer, openSink: OpenSink = ope
           // Return as soon as we are aborted, without waiting for the sentence being synthesized.
           const audio = await Promise.race([synthesis, aborted]);
           if (!audio || signal.aborted) return;
-          sink ??= openSink(audio.sampleRate);
+          if (!sink) {
+            sink = openSink(audio.sampleRate);
+            hooks.onStart?.();
+          }
           sink.write(audio.samples);
         }
         await sink?.finish();
@@ -88,6 +96,19 @@ export function createSpeaker(synthesizer: Synthesizer, openSink: OpenSink = ope
       }
     },
   };
+}
+
+/**
+ * Time to first sound grows with the length of the first chunk (synthesis runs at ~0.45× real time),
+ * so a long opening sentence is split at its first comma: speech starts sooner, and the rest is
+ * synthesized while the opening plays.
+ */
+export function splitFirstClause(sentences: string[], longerThan = 60, minClause = 15): string[] {
+  const [first, ...rest] = sentences;
+  if (!first || first.length <= longerThan) return sentences;
+  const cut = first.search(/[,;:]\s/);
+  if (cut < minClause || first.length - cut < minClause) return sentences;
+  return [first.slice(0, cut + 1), first.slice(cut + 2), ...rest];
 }
 
 /** Splits text into sentences for incremental speech; very short fragments are merged. */

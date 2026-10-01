@@ -464,7 +464,7 @@ Enables natural follow-up questions without introducing persistent memory, which
 
 Gemini (Google, via the official `@google/genai` SDK) is supported alongside Claude, behind the same LLM Gateway.
 
-`ZENO_LLM_PROVIDER` selects the provider (`claude` by default, or `gemini`). Only the selected provider's key is required. Default Gemini model: `gemini-3.5-flash`.
+`ZENO_LLM_PROVIDER` selects the provider (`claude` by default, or `gemini`). Only the selected provider's key is required. Default Gemini model: `gemini-3.6-flash` (changed from `gemini-3.5-flash` on 2026-10-01: measured 1.4–1.6 s per spoken reply versus ~9.5 s for 3.5 Flash that day).
 
 ### Reason
 
@@ -476,6 +476,7 @@ Voice processing (Whisper, Kokoro) is local and exchanges only text with the Cor
 
 - On Google's free tier, prompts may be used to improve Google products. Since ZENO sends what the user says, the paid tier is preferable for private use.
 - ADR-028 still holds: Claude remains the default provider.
+- Free-tier limits are per model: about 20 requests per day and 5 per minute (measured 2026-10-01). Enough for testing, not for daily use; daily use needs billing enabled or Claude.
 
 ---
 

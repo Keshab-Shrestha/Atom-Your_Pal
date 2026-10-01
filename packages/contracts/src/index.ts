@@ -44,5 +44,6 @@ export interface ModelResponse {
  * the Core never talks to a provider directly (ADR: all model access goes through the gateway).
  */
 export interface LanguageModel {
-  complete(request: ModelRequest): Promise<ModelResponse>;
+  /** `signal` cancels the request (e.g. the user started speaking again). */
+  complete(request: ModelRequest, signal?: AbortSignal): Promise<ModelResponse>;
 }

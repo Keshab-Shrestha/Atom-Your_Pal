@@ -111,3 +111,22 @@ test("a reply that arrives after reset is not added to the new session", async (
   await pending;
   assert.deepEqual(core.history(), []);
 });
+
+test("passes the cancel signal to the model; a cancelled exchange is not recorded", async () => {
+  let seen: AbortSignal | undefined;
+  const model: LanguageModel = {
+    async complete(_request, signal) {
+      seen = signal;
+      return { text: "late reply" };
+    },
+  };
+  const core = createCore({ model, newId: ids() });
+  const controller = new AbortController();
+  const pending = core.handle({ text: "hello", source: "voice" }, controller.signal);
+  controller.abort();
+  await assert.rejects(pending, /cancelled/);
+  assert.equal(seen, controller.signal);
+  assert.deepEqual(core.history(), []);
+  // and the Core is free for the next request
+  assert.equal((await core.handle({ text: "again", source: "voice" })).text, "late reply");
+});

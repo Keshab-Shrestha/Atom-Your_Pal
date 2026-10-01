@@ -4,7 +4,7 @@ export type LogLevel = (typeof LOG_LEVELS)[number];
 /** Supported LLM providers, with the env variable holding each one's key and its default model. */
 const PROVIDERS = {
   claude: { keyVar: "ANTHROPIC_API_KEY", defaultModel: "claude-sonnet-5" },
-  gemini: { keyVar: "GEMINI_API_KEY", defaultModel: "gemini-3.5-flash" },
+  gemini: { keyVar: "GEMINI_API_KEY", defaultModel: "gemini-3.6-flash" },
 } as const;
 export type LlmProvider = keyof typeof PROVIDERS;
 

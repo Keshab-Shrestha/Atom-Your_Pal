@@ -31,7 +31,8 @@ export interface GeminiOptions {
   maxTokens?: number;
   /**
    * How much the model reasons before answering. Defaults to MINIMAL: measured on gemini-3.5-flash,
-   * default thinking took 2.5–12 s per spoken reply, MINIMAL about 1.5 s.
+   * default thinking took 2.5–12 s per spoken reply, MINIMAL about 1.5 s. Models that reject MINIMAL
+   * (e.g. gemini-3.7-flash) are automatically retried at LOW.
    */
   thinkingLevel?: ThinkingLevel;
   client?: GeminiClient;
@@ -42,7 +43,8 @@ export interface GeminiOptions {
  * Retries and timeouts are the gateway's job, so the SDK's own retries are disabled.
  */
 export function createGeminiAdapter(options: GeminiOptions): ProviderAdapter {
-  const { apiKey, model, maxTokens, thinkingLevel = ThinkingLevel.MINIMAL } = options;
+  const { apiKey, model, maxTokens } = options;
+  let thinkingLevel = options.thinkingLevel ?? ThinkingLevel.MINIMAL;
   const client: GeminiClient =
     options.client ??
     (new GoogleGenAI({ apiKey, httpOptions: { retryOptions: { attempts: 1 } } }) as unknown as GeminiClient);
@@ -50,9 +52,8 @@ export function createGeminiAdapter(options: GeminiOptions): ProviderAdapter {
   return {
     name: "gemini",
     async complete(request: ModelRequest, signal: AbortSignal): Promise<ModelResponse> {
-      let result: GeminiResult;
-      try {
-        result = await client.models.generateContent({
+      const call = () =>
+        client.models.generateContent({
           model,
           // Gemini calls the assistant role "model".
           contents: request.messages.map((m) => ({
@@ -66,6 +67,16 @@ export function createGeminiAdapter(options: GeminiOptions): ProviderAdapter {
             ...(maxTokens ? { maxOutputTokens: maxTokens } : {}),
           },
         });
+
+      let result: GeminiResult;
+      try {
+        try {
+          result = await call();
+        } catch (error) {
+          if (!(thinkingLevel === ThinkingLevel.MINIMAL && isUnsupportedThinkingLevel(error))) throw error;
+          thinkingLevel = ThinkingLevel.LOW; // remembered for later requests
+          result = await call();
+        }
       } catch (error) {
         if (signal.aborted) throw error; // the gateway reports its own timeout
         throw toProviderError(error, model);
@@ -81,8 +92,19 @@ export function createGeminiAdapter(options: GeminiOptions): ProviderAdapter {
   };
 }
 
+function isUnsupportedThinkingLevel(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 400 && /thinking level .* is not supported/i.test(error.message);
+}
+
 function toProviderError(error: unknown, model: string): ProviderError {
   if (error instanceof ApiError) {
+    if (error.status === 429 && /PerDay/.test(error.message)) {
+      return new ProviderError(
+        "rate_limit",
+        `HTTP 429: today's request quota for ${model} is used up (resets at midnight Pacific time). ` +
+          "Each model has its own quota: try another with ZENO_LLM_MODEL, or enable billing in Google AI Studio.",
+      );
+    }
     const detail = apiMessage(error.message);
     const kind = classify(error.status, detail);
     const hint = kind === "auth" ? " Check GEMINI_API_KEY in .env." : error.status === 404 ? ` Check ZENO_LLM_MODEL ("${model}").` : "";
