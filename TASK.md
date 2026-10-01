@@ -104,6 +104,17 @@ Requirements:
 
 Verification: `git log` and `git status` match; tests, type check and `pnpm start` work from the new path.
 
+Status: **Done (2026-10-02).**
+
+- Copied with `rsync`, excluding `node_modules`: 162 files, identical SHA-256 checksums, no `dataless` files in the source
+- Same commit (`043c98c`), clean `git status`, `git fsck` passes; `.env` kept its owner-only permissions (`-rw-------`)
+- `pnpm install --frozen-lockfile`: 93 packages in 4.6 s
+- Type check passes (0.8 s); 106 unit tests pass; live Kokoro test passes
+- `pnpm start` launches, loads the voice in 0.4 s, quits cleanly; the log now writes to `~/Developer/zeno/logs/`
+- Nothing outside the project referred to the old path
+
+Remaining for the user: open the new folder in editors and terminals, then delete `~/Documents/zeno`.
+
 ---
 
 ### Task 0.5.2 — Island Protocol and Runtime Mode
@@ -260,6 +271,6 @@ Never:
 
 ## 9. Current Priority
 
-Phase 0.5 — Desktop Island. Next task: 0.5.1 (Move the Project Out of iCloud).
+Phase 0.5 — Desktop Island. Task 0.5.1 is done. Next task: 0.5.2 (Island Protocol and Runtime Mode).
 
 Everything else waits.
