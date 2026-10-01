@@ -1,6 +1,6 @@
 # ZENO Project Status
 
-Last updated: 2026-10-01
+Last updated: 2026-10-02
 
 ---
 
@@ -24,7 +24,7 @@ The product architecture and development philosophy have been defined.
 
 The implementation priority is now Phase 0.
 
-Progress: Tasks 0.1–0.8 are complete. Task 0.7 is verified live with Gemini (ADR-031); the Claude adapter is built and unit-tested, and its live check is pending Anthropic API credits. Task 0.8 (Kokoro TTS) speaks locally with instant interruption. Task 0.9 connects the full voice loop (about 2.7 s from the end of speech to ZENO's first word). Task 0.10 gives every failure a clear message and a structured log (`logs/zeno.log`). Next: Task 0.11 (End-to-End Test).
+Progress: **Phase 0 is complete (2026-10-02).** All tasks 0.1–0.11 are done. The voice loop (microphone → Whisper small.en → Core → LLM Gateway → Gemini → Kokoro → speaker) was verified by the user speaking into the real microphone and by the live test suite. Typical turn: 0.3–0.6 s transcription, 1.4–2.4 s model, about 1 s to first sound. Open items: Claude live check (needs Anthropic credits); Gemini free-tier quota (about 20 requests per day). Next: choose and plan the next phase (proposed: a desktop island with global push-to-talk, before Phase 1 — Memory). Not started.
 
 ---
 

@@ -396,7 +396,7 @@ Observable: `packages/shared/src/log.ts` writes a structured log (JSON Lines) to
 
 Tests: 100/100 unit tests pass (2 live tests skipped in the normal run), typecheck passes, both live tests pass (`pnpm test:live`).
 
-### Task 0.11 — End-to-End Test
+### Task 0.11 — End-to-End Test ✅ Done (2026-10-02)
 
 Verify the complete Phase 0 path.
 
@@ -409,6 +409,38 @@ The system must:
 - receive a response
 - synthesize the response
 - produce audible output
+
+Done (2026-10-02). Verified two ways:
+
+- By the user, speaking into the real microphone with `pnpm start` (Gemini 3.6 Flash). Four turns completed on 2026-10-02 00:34 JST; the user judged the speed very good and, after the fixes below, was satisfied with transcription and the microphone. Timings from `logs/zeno.log`:
+
+| Turn | Speech | Transcription | Model | First sound |
+|---|---|---|---|---|
+| 1 | 4.9 s | 0.64 s | 1.36 s | 1.21 s |
+| 2 | 2.8 s | 0.40 s | 2.38 s | 0.94 s |
+| 3 | 1.7 s | 0.41 s | 1.68 s | 1.16 s |
+| 4 | 1.9 s | 0.28 s | 1.62 s | 1.02 s |
+
+- Automatically, by `pnpm test:live`: real Whisper, Core, gateway, Gemini and Kokoro on recorded speech, two turns with conversation memory ("What is my name?" → "Your name is Kesheb."). Last full pass 2026-10-02 00:46 JST.
+
+Interrupting ZENO mid-reply is covered by unit tests and was checked with the real speaker in Task 0.8; the user did not report on it separately.
+
+Issues found during the test and fixed:
+
+| Issue | Fix |
+|---|---|
+| Transcription misheard names ("Kathmandu" → "Cartman do") | Whisper small.en plus a vocabulary prompt; word errors 9.8% → 2.4% (ADR-032) |
+| Pressing Space before the microphone started gave a misleading error | Says to wait for "Listening… speak now" |
+| ZENO stopped hearing the user mid-conversation: macOS switched its default input to a silent device | ZENO shows the microphone in use, warns within 2.5 s of listening to silence, and accepts devices by name (`ZENO_AUDIO_INPUT_DEVICE=:Webcam internal mic`) |
+| The project's files became iCloud placeholders (iCloud storage full), freezing git and the type check | Files downloaded by the user; moving the project out of `~/Documents` is recommended |
+
+Known limitations:
+
+- Gemini's free tier allows about 20 requests per day per model; daily use needs billing or Claude credits (ADR-031). The live voice test was blocked by this quota on 2026-10-02 08:05 JST
+- The Claude live check is still pending Anthropic credits
+- Push-to-talk works only while the terminal window is focused
+
+Tests: 106 unit tests pass (2 live tests skipped in the normal run), type check passes.
 
 ---
 
@@ -466,8 +498,4 @@ Never:
 
 ## 9. Current Priority
 
-The only priority is:
-
-Establish a reliable Phase 0 voice loop.
-
-Everything else waits.
+Phase 0 is complete (2026-10-02). The next phase has not started; see STATUS.md.
