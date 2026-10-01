@@ -507,6 +507,125 @@ small.en with the vocabulary prompt has about a quarter of the previous errors f
 
 ---
 
+## ADR-033 — Desktop Island Before Memory (Phase 0.5)
+
+### Decision
+
+A short phase, **Phase 0.5 — Desktop Island**, comes between Phase 0 (Voice Foundation) and Phase 1 (Memory).
+
+It gives ZENO a permanent place on the Mac: a small panel hidden above the top-centre of the screen that appears on hover or while talking, and a push-to-talk key that works in any app.
+
+The voice loop, Core and LLM Gateway from Phase 0 are reused unchanged. The phase adds a user interface and an input trigger, not new intelligence.
+
+### Reason
+
+After Phase 0, ZENO works only while its terminal window is focused, which makes it hard to use day to day.
+
+Every later phase (memory, Mac tools, computer control) needs a place where the user talks to ZENO and sees what it is doing. Building that place first means later phases are tested the way they will be used.
+
+### References
+
+Ideas were taken from three open-source Mac apps. Each was read for its approach. No code is copied from GPL projects.
+
+| Project | License | What ZENO takes |
+|---|---|---|
+| Vorssaint Utils | GPLv3, plus a trademark policy | Ideas only: a panel fully hidden above the screen edge, revealed by hovering after a short delay; dark rounded cards |
+| Clicky (farzaa/clicky) | MIT | Push-to-talk on a held modifier pair (Ctrl+Option) through a listen-only event tap; the panel appears only while talking |
+| Coucou (louis-cfm/coucou) | MIT code; name, character, icon and sounds are not licensed | How the panel window is built: borderless, above the menu bar, on every Space and over full-screen apps, never taking keyboard focus |
+
+Not taken: Clicky's cloud speech services and analytics (ZENO keeps voice local, ADR-003); Coucou's Claude Code features and assets; Vorssaint's utilities.
+
+### Alternatives Considered
+
+- Go straight to Phase 1 (Memory) and keep the terminal: rejected. The terminal-only input is the main obstacle to daily use.
+- Fold the island into a later phase: rejected. Later phases would be built and tested without the interface they will run in.
+
+---
+
+## ADR-034 — Native Swift Island, Node Runtime as Its Child Process
+
+### Decision
+
+The island is a native macOS app written in Swift (AppKit with SwiftUI views), in `apps/mac/island/`. Its job is display and input only.
+
+The ZENO runtime stays in TypeScript (`apps/mac/src/`, ADR-026). The island app starts it as a child process (`node apps/mac/src/main.ts --island`). The two exchange JSON messages, one per line, over the child's standard input and output. The message format is in `docs/island-protocol.md`.
+
+- The island sends commands: start talking, send, cancel, new conversation.
+- The runtime sends events: state, microphone level, transcript, reply, notices and errors.
+
+The island restarts the runtime if it exits unexpectedly, and stops it when the island quits.
+
+`pnpm start` (the terminal interface) keeps working, for development and as a fallback.
+
+### Reason
+
+- Only native AppKit can reliably place a window above the menu bar, on every Space and over full-screen apps, without taking focus. It can also read global keys and mouse position directly.
+- Keeping the runtime in TypeScript reuses all of Phase 0 and its tests. Whisper, Kokoro, the Core and the gateway do not change.
+- Standard input and output is the simplest private channel. It needs no socket file and no port, and no other process can connect to it.
+- Because the island app starts the runtime, macOS attributes the microphone to the island app. Its bundle declares the microphone usage, so the user sees one permission request from "ZENO".
+
+### Alternatives Considered
+
+- **Tauri or Electron with a web UI:** reuses TypeScript for the interface, but placing a window above the menu bar and reading global keys still needs native code. It also adds a large dependency (CLAUDE.md §18).
+- **Rewrite the runtime in Swift:** discards working, tested Phase 0 code and the portable voice stack (ADR-029).
+- **Local socket (as Coucou does):** suits separate processes that start independently. ZENO's island always starts the runtime itself, so a socket would only add a file to secure.
+- **DynamicNotchKit (used by FluidVoice):** built for the notch area and cannot hide the panel fully off-screen. The Mac mini has no notch.
+
+---
+
+## ADR-035 — Global Push-to-Talk: Hold Ctrl+Option
+
+### Decision
+
+In the island app, the user holds **Ctrl+Option** to talk and releases to send. This works in any app.
+
+- Press both keys: start listening. Interrupt ZENO if it is thinking or speaking.
+- Release either key: send what was said.
+- If any other key is pressed while both are held, the user was typing a shortcut (for example Ctrl+Option+Arrow). The recording is discarded and nothing is sent.
+- Esc while listening cancels.
+
+Keys are read with a **listen-only** event tap. It never blocks, changes or records keystrokes; ZENO only looks for the modifier pair. This needs the macOS **Input Monitoring** permission once. Without it, the island explains how to grant it, and hover plus click still work.
+
+The key pair can be made configurable later. Ctrl+Option is the default.
+
+This extends ADR-027. In the terminal interface, Space still toggles recording, because a terminal cannot detect a held key.
+
+### Reason
+
+Holding a key is the most natural push-to-talk and needs no wake word or always-on listening (ADR-027 still holds). A modifier pair rarely collides with typing, and the any-other-key rule handles the shortcuts that use it.
+
+### Alternatives Considered
+
+- A single function key (e.g. F5): easy to press by accident and awkward on compact keyboards.
+- A toggle shortcut (press to start, press to send): works without holding, but is slower and less natural for short questions.
+- `NSEvent` global monitor: needs the broader Accessibility permission instead of Input Monitoring.
+
+---
+
+## ADR-036 — Island Placement: Hidden Above the Screen, Revealed on Hover
+
+### Decision
+
+The island lives at the top-centre of the main display (the one with the menu bar).
+
+- **Idle:** fully hidden above the top edge. Nothing on screen.
+- **Hover:** when the pointer rests at the top edge near the centre for a short delay (default 0.25 s), a compact pill slides down. It hides again shortly after the pointer leaves.
+- **While talking:** the pill appears by itself when push-to-talk starts. It stays through listening, thinking and speaking, then hides a few seconds after ZENO finishes.
+- **Click:** the pill expands to show the current conversation and a "new conversation" button.
+
+It does not depend on a camera notch, so it looks the same on the Mac mini and on notched MacBooks.
+
+### Reason
+
+Users can find it at a fixed spot without it taking space or attention when idle. Hover detection uses mouse-position events, which need no permission.
+
+### Alternatives Considered
+
+- Always-visible pill or menu bar icon: permanent clutter. A menu bar item may be added later for settings.
+- Floating near the cursor (as Clicky does): useful for pointing at things on screen, which belongs to Phase 3 (Computer Control).
+
+---
+
 ## Final Architectural Principle
 
 > Preserve the future without prematurely implementing it.

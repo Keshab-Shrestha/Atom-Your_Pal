@@ -87,7 +87,8 @@ Modules may become separate services later only when scale requires it.
 
 | Folder | Responsibility | Phase |
 |---|---|---|
-| `apps/mac/` | Mac node: microphone, speaker, local STT and TTS, voice loop entry point | 0 |
+| `apps/mac/` | Mac node: microphone, speaker, local STT and TTS, voice loop entry point (`src/`, TypeScript) | 0 |
+| `apps/mac/island/` | ZENO Island: the native Swift app (panel, hover reveal, Ctrl+Option push-to-talk) that runs the Mac node as its child process | 0.5 |
 | `apps/ios/` | iPhone node | 7 |
 | `apps/windows/` | Windows node | 8 |
 | `apps/web/` | Web interface | Later |
@@ -152,6 +153,23 @@ apps/mac  →  services/core  →  services/llm-gateway  →  provider adapter
 ```
 
 The exact language/framework may change.
+
+---
+
+## 5a. Phase 0.5 Placement
+
+Phase 0.5 adds one folder and one document:
+
+```text
+zeno/
+├── apps/mac/island/          Swift Package: island app, its tests, and the script that builds ZENO.app
+├── apps/mac/src/             gains island mode (JSON lines over stdin / stdout); voice loop unchanged
+└── docs/island-protocol.md   the commands and events between the island and the runtime
+```
+
+`apps/mac/island/` is a sub-folder of the Mac node, not a new top-level folder: the island is the Mac node's interface (ADR-034).
+
+Build output (`.build/`, `ZENO.app`) is git-ignored.
 
 ---
 

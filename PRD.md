@@ -355,6 +355,20 @@ The system must:
 
 ---
 
+## 13a. Phase 0.5 Product — Desktop Island
+
+Phase 0.5 makes the Phase 0 loop usable day to day (ADR-033).
+
+The user can:
+
+- hold Ctrl+Option in any app, speak, and release to send
+- see ZENO's state (listening, thinking, speaking), the transcript and the reply in a small panel at the top-centre of the screen
+- reveal the panel by hovering at the top edge, and expand it to read the conversation
+
+When idle, nothing is on screen. ZENO's intelligence is unchanged from Phase 0.
+
+---
+
 ## 14. Non-Goals for Phase 0
 
 Phase 0 does not include:

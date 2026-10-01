@@ -32,6 +32,23 @@ Speaker
 
 ---
 
+## Phase 0.5 — Desktop Island
+
+Give ZENO a permanent place on the Mac (ADR-033).
+
+- a panel hidden above the top-centre of the screen, revealed by hovering
+- hold Ctrl+Option in any app to talk
+- live status and replies in the panel
+- the Phase 0 voice loop, unchanged, as the runtime behind it
+
+```text
+ZENO Island (Swift)
+ ↕ JSON lines over stdin / stdout
+ZENO runtime (Phase 0 voice loop)
+```
+
+---
+
 ## Phase 1 — Memory
 
 Introduce persistent memory.

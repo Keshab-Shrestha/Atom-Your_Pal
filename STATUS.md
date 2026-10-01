@@ -24,31 +24,31 @@ The product architecture and development philosophy have been defined.
 
 The implementation priority is now Phase 0.
 
-Progress: **Phase 0 is complete (2026-10-02).** All tasks 0.1–0.11 are done. The voice loop (microphone → Whisper small.en → Core → LLM Gateway → Gemini → Kokoro → speaker) was verified by the user speaking into the real microphone and by the live test suite. Typical turn: 0.3–0.6 s transcription, 1.4–2.4 s model, about 1 s to first sound. Open items: Claude live check (needs Anthropic credits); Gemini free-tier quota (about 20 requests per day). Next: choose and plan the next phase (proposed: a desktop island with global push-to-talk, before Phase 1 — Memory). Not started.
+Progress: **Phase 0 is complete (2026-10-02).** All tasks 0.1–0.11 are done; the voice loop was verified by the user speaking into the real microphone and by the live test suite (history: `docs/phase-0-tasks.md`). Open items from Phase 0: Claude live check (needs Anthropic credits); Gemini free-tier quota (about 20 requests per day).
+
+**Current phase: Phase 0.5 — Desktop Island** (ADR-033 to ADR-036), planned 2026-10-02. No task started yet. Next: Task 0.5.1 (Move the Project Out of iCloud).
 
 ---
 
 ## 3. Current Phase
 
-### Phase 0 — Voice Foundation
+### Phase 0.5 — Desktop Island
 
 Target:
 
 ```text
-Microphone
+Ctrl+Option held (any app)  /  pointer at top edge
     ↓
-Whisper.cpp
+ZENO Island (Swift, apps/mac/island)
+    ↕ JSON lines over stdin / stdout
+ZENO runtime (Phase 0, apps/mac/src)
     ↓
-ZENO Core
-    ↓
-LLM Gateway
-    ↓
-Remote LLM
-    ↓
-TTS
-    ↓
-Speaker
+Microphone → Whisper → Core → LLM Gateway → LLM → Kokoro → Speaker
 ```
+
+### Completed
+
+- Phase 0 — Voice Foundation (2026-10-02)
 
 ---
 
@@ -85,27 +85,25 @@ They do not necessarily mean all corresponding software modules currently exist.
 
 ---
 
-## 5. Phase 0 Required Components
+## 5. Phase 0.5 Required Components
 
-The immediate implementation requires:
+The current phase requires:
 
-- microphone input
-- Whisper.cpp adapter
-- ZENO Core
-- LLM Gateway
-- one remote provider
-- TTS adapter
-- audio output
-- configuration
-- logging
-- error handling
-- tests
+- a runtime mode driven by JSON lines over stdin / stdout
+- the island app (Swift), which starts and supervises the runtime
+- the hidden panel with hover reveal
+- global push-to-talk (Ctrl+Option)
+- live status, transcript and reply in the panel
+- an expanded conversation view
+- permission guidance (microphone, Input Monitoring)
+
+Phase 0 components (microphone, Whisper, Core, LLM Gateway, providers, Kokoro, configuration, logging, error handling, tests) are built and reused unchanged.
 
 ---
 
 ## 6. Explicitly Deferred
 
-The following remain future work:
+The following remain future work (Phase 0.5 deferrals are listed in TASK.md):
 
 - persistent memory
 - RAG
@@ -159,11 +157,20 @@ Phase 0 technical choices (ADR-026 to ADR-030):
 - Kokoro-82M on ONNX (local) for TTS
 - Session-only conversation history, nothing saved to disk
 
+Later Phase 0 changes: Gemini as a second provider (ADR-031); Whisper small.en with a vocabulary prompt (ADR-032).
+
+Phase 0.5 decisions (ADR-033 to ADR-036):
+
+- A desktop island comes before Memory
+- Native Swift app for the island; the Node runtime runs as its child process, talking JSON lines over stdin / stdout
+- Hold Ctrl+Option to talk, from any app (listen-only key reading, Input Monitoring permission)
+- Hidden above the top-centre of the screen; revealed on hover and while talking
+
 ---
 
-## 8. Phase 0 Definition of Done
+## 8. Phase 0 Definition of Done (met 2026-10-02)
 
-Phase 0 is complete when:
+Phase 0 was complete when:
 
 ```text
 User speaks
@@ -189,9 +196,11 @@ The complete loop must be tested and observable.
 
 ---
 
-## 9. Immediate Development Order
+## 9. Development Order
 
-Recommended sequence:
+Phase 0.5 order: Tasks 0.5.1 to 0.5.8 in TASK.md, one at a time.
+
+Phase 0 order, completed:
 
 ```text
 0.1 Repository Foundation
@@ -241,11 +250,11 @@ The immediate goal is:
 
 ## 12. Next Action
 
-Phase 0 technical decisions are made. Tasks 0.1–0.10 are complete (Claude's live check still needs credits). The next task is Task 0.11 — End-to-End Test.
+Phase 0 is complete. Phase 0.5 (Desktop Island) is planned in TASK.md.
 
-The next implementation task should be selected from TASK.md.
+The next task is Task 0.5.1 — Move the Project Out of iCloud.
 
-Do not start future phases until Phase 0 has been verified.
+Do not start Phase 1 (Memory) until Phase 0.5 has been verified.
 
 ---
 

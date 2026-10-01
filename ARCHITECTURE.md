@@ -80,6 +80,28 @@ Audio Output
 
 ---
 
+### Phase 0.5: Desktop Island
+
+Phase 0.5 adds an interface process in front of the same pipeline (ADR-033 to ADR-036):
+
+```text
+ZENO Island (Swift app)                      ZENO runtime (Node)
+  hover reveal, Ctrl+Option, panel UI          voice loop → Core → LLM Gateway
+        │  commands: talk.start, talk.send…         ▲
+        └──────── stdin (JSON lines) ───────────────┘
+        ┌──────── stdout (JSON lines) ──────────────┐
+        ▼  events: state, mic.level, reply…         │
+```
+
+- The island is display and input only. It holds no conversation state and makes no model calls.
+- The runtime is the Phase 0 program in island mode. The Core does not know which interface drives it.
+- The island starts the runtime as its child process, restarts it if it exits, and stops it on quit.
+- The message format is defined in `docs/island-protocol.md` and is the boundary between the two.
+
+This is an interface for the Mac node only. It is not the future device protocol (`packages/protocol/`, Phase 7+).
+
+---
+
 ## 4. Input Layer
 
 Input sources may eventually include:

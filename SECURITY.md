@@ -245,6 +245,18 @@ Unknown devices should not automatically become trusted.
 
 ---
 
+### Desktop island (Phase 0.5)
+
+The island reads the keyboard and the pointer position system-wide, so its limits are explicit (ADR-035, ADR-036):
+
+- Keys are read with a listen-only event tap. It cannot block or change keystrokes.
+- Only the Ctrl and Option state and "some other key was pressed" are used. Key codes are not stored, logged or sent anywhere.
+- The pointer position is used only to decide whether to show the panel. It is not stored or logged.
+- The runtime is reachable only through the island's private stdin / stdout. It opens no port or socket.
+- Permissions requested: Microphone and Input Monitoring. Not Accessibility, Screen Recording or Full Disk Access.
+
+---
+
 ## 16. Cloud Security
 
 The cloud should not automatically receive unrestricted control of local devices.
