@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-02
 
+Next after Task 0.5.9: voice computer control through Cua, then pointing (ADR-054, Tasks 0.6.1–0.6.4).
+
 ---
 
 ## 1. Product

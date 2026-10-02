@@ -84,7 +84,7 @@ Do not implement these during Phase 0.5 unless a task explicitly requires them:
 - a menu bar icon
 - AI cleanup of dictated text, per-app dictation modes, dictation history
 - wake word or voice activity detection (ADR-027)
-- screen capture or pointing at things on screen (Phase 3)
+- screen capture or pointing at things on screen (Phase 3; queued as Tasks 0.6.1–0.6.4 by ADR-054, after Task 0.5.9)
 - multiple displays beyond "the display with the menu bar"
 - copying code from FluidVoice or Vorssaint (GPL-3.0; designs only, ADR-039)
 
@@ -301,6 +301,24 @@ Verify Phase 0.5 as the user will use it.
 - Check hover reveal, the expanded view, and recovery when the runtime is killed
 
 Record timings from `logs/zeno.log` and the user's verdict.
+
+---
+
+### Task 0.6.1 — Tool Calling in the Core (ADR-054) — queued
+
+Waits for Task 0.5.9. Core can offer tools to the model, run the ones it picks through `services/tool-engine/`, and feed results back. One harmless test tool (the time). Tests with a fake model. No computer control yet.
+
+### Task 0.6.2 — The Computer Tool (ADR-054) — queued
+
+A `computer` tool in `services/tool-engine/` that starts `cua-driver mcp`, lists windows, reads an app, and acts on elements. Approval rules in code (send, buy, delete, submit, account change), no password fields, stop on Esc / ⌃⌥Z, every action logged. Needs Keshab to run `cua-driver permissions grant`. Tested on a harmless app first (TextEdit, Notes).
+
+### Task 0.6.3 — Wisp Shows the Work (ADR-054) — queued
+
+New island events for computer steps and approval requests; the bubble shows each step; approve or refuse from the bubble. Protocol version stays 1 (new fields only).
+
+### Task 0.6.4 — Pointing (ADR-054) — queued
+
+The model names a place on screen; Wisp flies there and the bubble labels it. Screenshot stays on the Mac, sent only when useful. Needs Screen Recording.
 
 ---
 

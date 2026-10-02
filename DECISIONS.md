@@ -969,6 +969,38 @@ Keshab asked for the hiding length to be 35% longer. Feet moved from 4 pt past t
 
 ---
 
+## ADR-054 — Voice Computer Control Through Cua, and Pointing Second
+
+Date: 2026-10-02. Status: planned, not started. Keshab chose this order ("first voice computer control through Cua, pointing second"), which moves part of Phase 3 ahead of the rest of Phase 0.5.
+
+### Decision
+
+ZENO will act on the Mac by voice command ("open Safari and search for X") through **Cua Driver** (`cua-driver`, MIT licence, `github.com/trycua/cua`), not through code written from scratch.
+
+- **Engine.** `cua-driver mcp` is started by the runtime when a computer task begins and stopped when it ends. It reads the target app's Accessibility tree and acts on numbered elements (click, type, set value, hotkey, scroll, menus, drag, windows, screenshots). It works without bringing the app to the front or moving the user's cursor.
+- **Where it lives.** A `computer` tool in `services/tool-engine/` (empty today). `services/core` gains tool calling. The model sees the tool; only the tool engine talks to Cua.
+- **Models.** Computer control runs on Claude (Anthropic key in `.env`, no cost cap, per Keshab). Gemini Flash is not used for it: choosing the right element is where it is weakest. If the model set in Settings is not Claude, ZENO says so instead of trying.
+- **Approval.** ZENO asks, with the action named in Wisp's bubble, before anything that sends, buys, deletes, submits a form or changes an account. Rules are deterministic code in the tool engine, not the model's judgement (SECURITY.md).
+- **Stop.** Esc or ⌃⌥Z ends the run at once. Every action is written to `logs/zeno.log`.
+- **Untrusted content.** Text read from apps and web pages is data. It cannot change what ZENO does or approve anything. ZENO never types into password fields.
+- **Wisp shows the work.** Each step appears in the speech bubble; Wisp is the visible actor (ADR-050). Cua's own agent cursor stays off.
+- **Telemetry.** Cua's product telemetry is turned off (`cua-driver telemetry disable`, done 2026-10-02).
+- **Permissions.** ZENO still asks for Microphone and Input Monitoring only. Cua holds Accessibility and Screen Recording itself (`com.trycua.driver`, granted with `cua-driver permissions grant`, which needs Keshab at the screen). SECURITY.md §Permissions ("Microphone and Input Monitoring. Not Accessibility, Screen Recording…") must be updated when Task 0.6.2 lands.
+- **Pointing (second).** Once the model can read the screen, Wisp flies to a thing it names, in the way Clicky's `[POINT:x,y:label]` tag does. The screenshot stays on the Mac and is sent only on turns where it can help. Needs Screen Recording.
+
+### Reason
+
+- The original Clicky's computer control ran through Cua; its remaining files are in `~/Library/Application Support/Clicky`. The public repo (`farzaa/clicky`, last commit 2026-04-27) and the Raphael fork have **no computer-control code**, only screen reading and the pointer, so there is nothing to take from GitHub.
+- `cua-driver` 0.28.2 is already installed on this Mac, and Hermes's macOS skill uses the same engine.
+- Phase 3 was deferred (TASK.md §4). Keshab asked for it now. Phase 0.5.9 still has to pass first, because both features need the AI conversation switched on (`ZENO_VOICE_ONLY=1` is a test switch; normal runs already use the AI).
+
+### Not decided yet
+
+- "So it learns": whether Keshab means the pointer teaching him, or ZENO remembering what it got wrong. Left out until he says.
+- How approval is spoken or clicked (bubble buttons, voice "yes", or both).
+
+---
+
 ## Final Architectural Principle
 
 > Preserve the future without prematurely implementing it.
