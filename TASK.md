@@ -316,9 +316,17 @@ Task 0.5.9 passed (Keshab: works, it replied). Core can offer tools to the model
 
 ---
 
-### Task 0.6.2 — The Computer Tool (ADR-054) — queued
+### Task 0.6.2 — The Computer Tool (ADR-054) — built; tested live on TextEdit; approval prompt waits for 0.6.3
 
 A `computer` tool in `services/tool-engine/` that starts `cua-driver mcp`, lists windows, reads an app, and acts on elements. Approval rules in code (send, buy, delete, submit, account change), no password fields, stop on Esc / ⌃⌥Z, every action logged. Needs Keshab to run `cua-driver permissions grant`. Tested on a harmless app first (TextEdit, Notes).
+
+**Done (2026-10-02):** `services/tool-engine/src/computer/`: `cua-client.ts` (talks to `cua-driver mcp` over stdio; starts on first use, restarts after a crash, stops when idle or closed; always standard mode, telemetry off, and the unrestricted and manifest overrides stripped; cancel is passed on to Cua), `policy.ts` (blocked apps, risky labels, risky keys, secret fields), `tool.ts` (one `computer` tool, actions `list_apps look open click type key scroll`). Off unless `ZENO_COMPUTER=1`; until Task 0.6.3, every action that needs approval is declined and logged. 45 new tests (233 total, 231 pass, 2 skipped).
+
+**Rules enforced in code, not by the model:** terminals, password managers, System Settings, Activity Monitor, Hermes, Claude, Cua and ZENO's own island are never controlled or even listed; the model may only act on numbered elements from its last `look`; Send/Delete/Buy/Pay/Quit-type buttons, Return, Delete, Cmd+Q, Spotlight and Force Quit ask first; passwords, PINs, one-time codes and card fields are never typed into; the menu bar is left out of a look; logs carry the action and app only, never typed text or screen content.
+
+**Live, real `cua-driver` 0.28.2, TextEdit on a scratch file:** reads the window, types into it (confirmed by reading it back), refuses Terminal, refuses an invented element number. Real Gemini (Flash and Flash-Lite): Flash added "buy milk" to the note (after two failed clicks and a retry, 22 s); Flash-Lite, asked to press Delete, was asked-and-declined and told the user it was not done, and nothing was deleted. Two bugs found live and fixed: a text area's content ("buy milk, send…") tripped the "send" rule, and typed text goes in at the cursor, which the tool description now says.
+
+**Not done:** the real approval prompt in Wisp (Task 0.6.3); clicking by voice end to end through the island; the Flash free quota ran out mid-testing (429), so reliability on longer tasks is unmeasured; Claude is untested on this tool.
 
 ### Task 0.6.3 — Wisp Shows the Work (ADR-054) — queued
 

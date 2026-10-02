@@ -2,7 +2,7 @@
 // Microphone → Whisper → ZENO Core → LLM Gateway → provider → Kokoro → speaker.
 
 import { createCore, CoreError, type Core } from "@zeno/core";
-import { createToolEngine, timeTool } from "@zeno/tool-engine";
+import { createComputerTool, createCuaTransport, createToolEngine, timeTool } from "@zeno/tool-engine";
 import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError } from "@zeno/llm-gateway";
 import { createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import { AudioError, defaultInputDevice, startRecording } from "./audio.ts";
@@ -50,7 +50,23 @@ export function createRuntime(
   const core: Core = process.env.ZENO_VOICE_ONLY === "1" ? createEchoCore() : createCore({
           model,
           tools: createToolEngine({
-            tools: [timeTool()],
+            tools: [
+              timeTool(),
+              // ADR-054, Task 0.6.2: off unless ZENO_COMPUTER=1. Until Task 0.6.3 gives the island a way to ask
+              // the user, every action that needs approval is declined.
+              ...(process.env.ZENO_COMPUTER === "1"
+                ? [
+                    createComputerTool({
+                      cua: createCuaTransport(),
+                      approve: async (request) => {
+                        log.info("computer.approval_declined", { summary: request.summary });
+                        return false;
+                      },
+                      onAction: (event) => log.info("computer.action", { ...event }),
+                    }),
+                  ]
+                : []),
+            ],
             onCall: (e) => log.info("tool.call", e),
           }),
         });

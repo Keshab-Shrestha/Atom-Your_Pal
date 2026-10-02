@@ -1,0 +1,116 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
+import { createCuaTransport, cuaEnvironment } from "./cua-client.ts";
+
+const fixture = fileURLToPath(new URL("./fake-cua.fixture.mjs", import.meta.url));
+const make = (extra: Parameters<typeof createCuaTransport>[0] = {}) =>
+  createCuaTransport({ command: process.execPath, args: [fixture], ...extra });
+
+test("calls a tool and returns its text, data and error flag", async () => {
+  const cua = make();
+  try {
+    const r = await cua.call("echo", { text: "hi" });
+    assert.deepEqual(r, { text: "hi", data: { args: { text: "hi" } }, isError: false, refusal: undefined });
+  } finally {
+    await cua.close();
+  }
+});
+
+test("a refusal comes back with its code", async () => {
+  const cua = make();
+  try {
+    const r = await cua.call("refuse", {});
+    assert.equal(r.isError, true);
+    assert.deepEqual(r.refusal, { code: "denied", message: "not allowed" });
+  } finally {
+    await cua.close();
+  }
+});
+
+test("starts Cua in standard mode with telemetry off, whatever the caller's environment says", async () => {
+  const cua = make({ env: { ...process.env, CUA_DRIVER_PERMISSION_MODE: "unrestricted", CUA_DRIVER_DANGEROUSLY_BYPASS_APPROVALS: "1", CUA_TELEMETRY_ENABLED: "true" } });
+  try {
+    const r = await cua.call("env", {});
+    assert.deepEqual(r.data, { mode: "standard", bypass: null, telemetry: "false", telemetryRs: "0" });
+  } finally {
+    await cua.close();
+  }
+});
+
+test("cuaEnvironment also strips the capability-manifest overrides", () => {
+  const env = cuaEnvironment({ CUA_DRIVER_CAPABILITY_MANIFEST_FILE: "/x", CUA_DRIVER_CAPABILITY_MANIFEST_APPROVED: "1", PATH: "/bin" });
+  assert.equal(env.CUA_DRIVER_CAPABILITY_MANIFEST_FILE, undefined);
+  assert.equal(env.CUA_DRIVER_CAPABILITY_MANIFEST_APPROVED, undefined);
+  assert.equal(env.PATH, "/bin");
+});
+
+test("if Cua dies mid-call the call fails, and the next call starts it again", async () => {
+  const cua = make();
+  try {
+    const before = (await cua.call("pid", {})).data.pid;
+    await assert.rejects(cua.call("crash", {}), /stopped unexpectedly/);
+    const after = (await cua.call("pid", {})).data.pid;
+    assert.notEqual(after, before);
+  } finally {
+    await cua.close();
+  }
+});
+
+test("cancelling rejects at once and tells Cua", async () => {
+  const cua = make();
+  try {
+    const ac = new AbortController();
+    const slow = cua.call("slow", {}, ac.signal);
+    setTimeout(() => ac.abort(), 30);
+    await assert.rejects(slow, /Cancelled/);
+    await new Promise((r) => setTimeout(r, 50));
+    assert.equal((await cua.call("cancelled", {})).data.cancelled, 1);
+  } finally {
+    await cua.close();
+  }
+});
+
+test("an already-cancelled call never reaches Cua", async () => {
+  const cua = make();
+  const ac = new AbortController();
+  ac.abort();
+  await assert.rejects(cua.call("echo", { text: "x" }, ac.signal), /Cancelled/);
+  await cua.close();
+});
+
+test("a call that gets no answer times out", async () => {
+  const cua = make({ callTimeoutMs: 80 });
+  try {
+    await assert.rejects(cua.call("slow", {}), /did not answer within/);
+  } finally {
+    await cua.close();
+  }
+});
+
+test("Cua is stopped when idle and started again on the next call", async () => {
+  const cua = make({ idleMs: 60 });
+  try {
+    const first = (await cua.call("pid", {})).data.pid;
+    await new Promise((r) => setTimeout(r, 200));
+    assert.throws(() => process.kill(first, 0), /ESRCH/);
+    const second = (await cua.call("pid", {})).data.pid;
+    assert.notEqual(second, first);
+  } finally {
+    await cua.close();
+  }
+});
+
+test("a missing Cua binary gives a plain error", async () => {
+  const cua = createCuaTransport({ command: "/nonexistent/cua-driver" });
+  await assert.rejects(cua.call("echo", {}), /Could not start Cua Driver/);
+  await cua.close();
+});
+
+test("close stops the process", async () => {
+  const cua = make();
+  const pid = (await cua.call("pid", {})).data.pid;
+  await cua.close();
+  await new Promise((r) => setTimeout(r, 50));
+  assert.throws(() => process.kill(pid, 0), /ESRCH/);
+});

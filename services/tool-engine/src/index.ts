@@ -1,2 +1,4 @@
 export { createToolEngine, type Tool, type ToolEngineOptions } from "./engine.ts";
 export { timeTool } from "./tools/time.ts";
+export { createComputerTool, type ApprovalRequest, type ComputerAction, type ComputerToolOptions } from "./computer/tool.ts";
+export { createCuaTransport, type CuaTransport } from "./computer/cua-client.ts";
