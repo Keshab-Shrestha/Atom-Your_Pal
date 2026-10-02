@@ -108,6 +108,10 @@ public struct IslandStatus: Sendable, Equatable {
         switch phase {
         case .loading(let detail): set(.starting, "Loading speech", detail)
         case .listening: set(.listening, "Dictating", "Let go to type")
+        case .listeningHandsFree:
+            let words = preview // a tap that turns a hold into hands-free keeps the words already shown
+            set(.listening, "Dictating", "Tap again to finish")
+            preview = words
         case .transcribing: set(.transcribing, "Transcribing", "")
         case .cancelled: set(.ready, "Ready", modelName)
         case .done(let outcome):
@@ -129,7 +133,16 @@ public struct IslandStatus: Sendable, Equatable {
         if needsAttention && !persistent { set(.ready, "Ready", modelName) }
     }
 
+    /// The words heard so far while dictating (the live preview). Empty outside listening.
+    public private(set) var preview = ""
+
+    /// Shows the words heard so far. Ignored unless listening, so a late result cannot reappear after the end.
+    public mutating func setPreview(_ text: String) {
+        if kind == .listening { preview = text }
+    }
+
     private mutating func set(_ kind: Kind, _ title: String, _ detail: String, persistent: Bool = false) {
+        self.preview = ""
         self.kind = kind
         self.title = title
         self.detail = detail

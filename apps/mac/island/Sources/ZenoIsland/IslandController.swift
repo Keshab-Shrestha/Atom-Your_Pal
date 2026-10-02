@@ -13,6 +13,11 @@ final class IslandController {
     /// Wisp, shown while the Pet setting is on (ADR-042).
     let pet: PetController
     private let panel = IslandPanel()
+    /// Wisp's speech bubble (ADR-050): while Wisp is shown and the island is closed, status appears here, not at the left edge.
+    private let bubble: BubbleController
+    /// The bubble stays up until this time (uptime) after a turn, so the outcome can be read.
+    private var bubbleUntil = 0.0
+    private var bubbleTimer: Timer?
     /// Talk was started by its shortcut and not yet sent or cancelled: show the island at once.
     private var talking = false
     /// Dictation (ADR-047): hold, speak, let go, and the text is typed into the app in front.
@@ -44,6 +49,7 @@ final class IslandController {
     init(settings: IslandSettings, log: @escaping (String, [String: Any]) -> Void, trace: @escaping (String) -> Void = { _ in }) {
         self.trace = trace
         model = IslandModel(settings: settings)
+        bubble = BubbleController(model: model)
         shortcuts = ShortcutEngine(settings: settings, recorder: model.recorder, log: log)
         pet = PetController(settings: settings, trace: trace)
         dictation = DictationController(vocabularyURL: IslandController.vocabularyURL)
@@ -63,9 +69,19 @@ final class IslandController {
             self.model.meter.add(Double(peak))
         }
         dictation.playSound = { [weak self] sound in self?.playTone(sound) }
+        dictation.options = { [weak self] in self?.model.settings.dictationOptions ?? DictationOptions() }
+        dictation.onPreview = { [weak self] text in
+            guard let self else { return }
+            self.model.status.setPreview(text)
+        }
         dictation.conversationBusy = { [weak self] in self.map { $0.talking || $0.model.status.isBusy && !$0.dictating } ?? false }
         shortcuts.trace = trace
-        model.petChanged = { [weak self] enabled in self?.pet.setEnabled(enabled) }
+        model.petChanged = { [weak self] enabled in
+            guard let self else { return }
+            self.pet.setEnabled(enabled)
+            self.statusChanged() // the status moves between Wisp's bubble and the island
+        }
+        pet.onMove = { [weak self] feet in self?.bubble.follow(feet) }
         pet.onHide = { [weak model] in model?.setPet(false) } // right-click → Hide Wisp
     }
 
@@ -103,13 +119,16 @@ final class IslandController {
         shortcuts.start()
         pet.setEnabled(model.settings.petEnabled)
         dictation.warmUp()
-        if let files = ProcessInfo.processInfo.environment["ZENO_DICTATION_FILE"] { dictation.selfTest(files: files.split(separator: ",").map(String.init)) }
+        if ProcessInfo.processInfo.environment["ZENO_BUBBLE_DEMO"] != nil { playBubbleDemo() }
+                if let files = ProcessInfo.processInfo.environment["ZENO_DICTATION_FILE"] { dictation.selfTest(files: files.split(separator: ",").map(String.init)) }
     }
 
     func stop() {
         shortcuts.stop()
         dictation.stop()
         pet.stop()
+        bubbleTimer?.invalidate()
+        bubble.stop()
         for monitor in monitors { NSEvent.removeMonitor(monitor) }
         monitors = []
         for observer in observers {
@@ -157,8 +176,9 @@ final class IslandController {
             trace("status \(model.status.title) — \(model.status.detail)")
             snapshotSoon()
         }
-        updateHeld()
         if model.status.needsAttention { linger(afterProblem) }
+        updateHeld()
+        updateBubble()
         evaluate()
     }
 
@@ -188,7 +208,7 @@ final class IslandController {
         case .holdEnded(.dictate):
             dictation.holdEnded()
         case .holdCancelled(.dictate):
-            dictation.cancel()
+            dictation.holdCancelled()
         default:
             break
         }
@@ -199,7 +219,9 @@ final class IslandController {
     /// Kept out during a turn, while talking or dictating by shortcut and while expanded.
     private func updateHeld() {
         shortcuts.setBusy(model.status.isBusy || talking || dictating)
-        let held = model.status.isBusy || model.expanded || talking || dictating
+        // With Wisp out, a turn shows in its bubble and the card at the edge stays put.
+        let working = model.status.isBusy || talking || dictating
+        let held = model.expanded || (working && !bubbleMode)
         if hover.held != held {
             hover.held = held
             trace("held \(held)")
@@ -207,7 +229,39 @@ final class IslandController {
     }
 
     private func linger(_ seconds: Double) {
-        hover.linger(until: ProcessInfo.processInfo.systemUptime + seconds)
+        let until = ProcessInfo.processInfo.systemUptime + seconds
+        if bubbleMode {
+            bubbleUntil = max(bubbleUntil, until)
+        } else {
+            hover.linger(until: until)
+        }
+    }
+
+    /// Wisp is on screen and the island is closed: status goes in Wisp's bubble.
+    private var bubbleMode: Bool { pet.isShown && !model.expanded }
+
+    /// Shows or hides the bubble: up while a turn is in progress, and for a moment after.
+    private func updateBubble() {
+        let now = ProcessInfo.processInfo.systemUptime
+        let wanted = bubbleMode && (model.status.isBusy || talking || dictating || now < bubbleUntil)
+        if wanted {
+            if !bubble.isVisible { trace("bubble show") }
+            bubble.show(at: pet.feetPoint)
+            bubbleTimer?.invalidate()
+            bubbleTimer = nil
+            // Once nothing is happening, re-check when the linger ends.
+            if !(model.status.isBusy || talking || dictating), bubbleUntil > now {
+                let timer = Timer(timeInterval: bubbleUntil - now + 0.02, repeats: false) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.updateBubble() }
+                }
+                RunLoop.main.add(timer, forMode: .common)
+                bubbleTimer = timer
+            }
+        } else if bubble.isVisible {
+            trace("bubble hide")
+            bubble.hide()
+            if bubbleMode { model.status.acknowledge() } // seen: a notice goes back to Ready, as when the island hides
+        }
     }
 
     // MARK: - Dictation
@@ -216,7 +270,7 @@ final class IslandController {
     private func dictationPhase(_ phase: DictationPhase) {
         model.status.apply(phase)
         switch phase {
-        case .loading, .listening, .transcribing:
+        case .loading, .listening, .listeningHandsFree, .transcribing:
             dictating = true
         case .done(let outcome):
             dictating = false
@@ -225,6 +279,23 @@ final class IslandController {
             dictating = false
         }
         statusChanged()
+        syncWidth()
+    }
+
+    /// The card is wider while dictating with the live preview, so the words fit. Not while expanded.
+    private func syncWidth() {
+        guard !model.expanded else { return }
+        if bubbleMode, presentation != .compact { presentation = .compact }
+        let wanted: IslandGeometry.Presentation = model.status.kind == .listening && model.settings.livePreview && dictating && !bubbleMode ? .wide : .compact
+        guard wanted != presentation else { return }
+        presentation = wanted
+        guard shown else { return }
+        let target = geometry.frame(presentation, visible: true)
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.2
+            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.25, 1)
+            panel.animator().setFrame(target, display: true)
+        }
     }
 
     /// Where the user's spelling fixes live: `vocabulary.txt` in ZENO's folder under Application Support.
@@ -278,6 +349,7 @@ final class IslandController {
         presentation = expanded ? .expanded : .compact
         panel.acceptsKeyFocus = expanded
         updateHeld()
+        updateBubble()
 
         let target = geometry.frame(presentation, visible: true)
         if !shown {
@@ -343,6 +415,24 @@ final class IslandController {
                 self.model.meter.reset()
             }
         })
+    }
+
+    // MARK: - Development demo
+
+    /// Development only (`ZENO_BUBBLE_DEMO=1`): plays a dictation's phases through the real controller, with no
+    /// microphone and no keys, so the bubble's window can be measured on the real screen.
+    private func playBubbleDemo() {
+        let steps: [(Double, @MainActor () -> Void)] = [
+            (4, { [self] in model.meter.reset(); dictationPhase(.listening) }),
+            (6, { [self] in model.status.setPreview("send the deck before the call"); trace("demo preview") }),
+            (9, { [self] in dictationPhase(.listeningHandsFree) }),
+            (12, { [self] in dictationPhase(.transcribing) }),
+            (14, { [self] in dictationPhase(.done(.typed(words: 6))) }),
+        ]
+        for (delay, step) in steps {
+            let timer = Timer(timeInterval: delay, repeats: false) { _ in MainActor.assumeIsolated { step() } }
+            RunLoop.main.add(timer, forMode: .common)
+        }
     }
 
     // MARK: - Development snapshots

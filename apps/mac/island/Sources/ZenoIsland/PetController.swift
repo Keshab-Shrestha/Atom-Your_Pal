@@ -29,6 +29,10 @@ final class PetController {
 
     /// Hide Wisp (the right-click menu): the app turns the Pet setting off.
     var onHide: () -> Void = {}
+    /// Wisp moved (walking, dragged, or settling): its feet in screen coordinates. The speech bubble follows.
+    var onMove: (CGPoint) -> Void = { _ in }
+    /// The point on the ground under Wisp now.
+    var feetPoint: CGPoint { feet }
 
     private let settings: IslandSettings
     private let window: NSPanel
@@ -184,6 +188,7 @@ final class PetController {
         if origin == lastFrameOrigin { return }
         lastFrameOrigin = origin
         window.setFrameOrigin(origin)
+        onMove(feet)
     }
 
     /// Wisp's body in screen coordinates: where a press grabs it.

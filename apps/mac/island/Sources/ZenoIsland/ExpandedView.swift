@@ -410,6 +410,7 @@ struct SettingsTab: View {
             VStack(alignment: .leading, spacing: 14) {
                 ModelSection(model: model)
                 ShortcutSection(model: model)
+                DictationSection(model: model)
                 Card("Extras") {
                     Row(title: "Pet", detail: "Wisp floats along the bottom of the screen") {
                         Toggle("", isOn: Binding(get: { model.settings.petEnabled }, set: { model.setPet($0) }))
@@ -423,6 +424,41 @@ struct SettingsTab: View {
                 }
             }
             .padding(12)
+        }
+    }
+}
+
+/// How dictation starts and what it shows and removes (ADR-050).
+struct DictationSection: View {
+    let model: IslandModel
+
+    var body: some View {
+        Card("Dictation") {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Start and stop").font(.system(size: 12, weight: .semibold))
+                FlowLayout(spacing: 5) {
+                    ForEach(DictationMode.allCases) { mode in
+                        ModelChip(name: mode.title, selected: model.settings.dictationMode == mode, pending: false, enabled: true) {
+                            model.settings.dictationMode = mode
+                        }
+                    }
+                }
+                Text(model.settings.dictationMode.detail)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 11)
+            .padding(.vertical, 9)
+            RowDivider()
+            Row(title: "Live preview", detail: "Show your words above Wisp while you speak") {
+                Toggle("", isOn: Binding(get: { model.settings.livePreview }, set: { model.settings.livePreview = $0 }))
+                    .labelsHidden().toggleStyle(.switch).controlSize(.mini)
+            }
+            RowDivider()
+            Row(title: "Remove “um” and “uh”", detail: "Leaves out hesitation sounds in the typed text") {
+                Toggle("", isOn: Binding(get: { model.settings.removeFillers }, set: { model.settings.removeFillers = $0 }))
+                    .labelsHidden().toggleStyle(.switch).controlSize(.mini)
+            }
         }
     }
 }

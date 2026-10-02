@@ -52,7 +52,9 @@ enum IslandGallery {
             model.tab = tab
             write(model, size: expanded, name: "2-\(tab.rawValue.lowercased())", to: directory)
         }
+        // The Settings tab is taller than the window and scrolls: render it tall once, so the lower cards can be reviewed.
         model.tab = .settings
+        write(model, size: CGSize(width: expanded.width, height: 900), name: "2-settings-full", to: directory)
         model.recorder.start(.talk)
         write(model, size: expanded, name: "3-recording-shortcut", to: directory)
         model.recorder.stop()
@@ -60,6 +62,50 @@ enum IslandGallery {
         model.conversation = Conversation()
         write(model, size: expanded, name: "4-empty-conversation", to: directory)
         writePet(to: directory)
+        writeBubbles(to: directory)
+    }
+
+    /// Wisp's speech bubble in the states that matter: dictating with words, hands-free, thinking, a notice, and flipped below Wisp.
+    private static func writeBubbles(to directory: URL) {
+        let suite = "zeno.gallery.bubble.\(ProcessInfo.processInfo.processIdentifier)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        func scene(_ title: String, below: Bool = false, _ setup: (IslandModel) -> Void) -> some View {
+            let model = IslandModel(settings: IslandSettings(defaults: defaults))
+            setup(model)
+            let state = BubbleState(visible: true, tailX: BubbleLayout.size.width / 2, tailOnTop: below)
+            let wisp = WispView(mood: model.status.kind == .listening ? .listening : .thinking, time: 0.4, facing: 1, size: 72)
+            return VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+                VStack(spacing: below ? -2 : -14) {
+                    if below { wisp }
+                    BubbleView(model: model, state: state, snapshot: true)
+                    if !below { wisp }
+                }
+                .frame(width: BubbleLayout.size.width + 24)
+            }
+        }
+        let sheet = HStack(alignment: .top, spacing: 26) {
+            VStack(spacing: 22) {
+                scene("Dictating, live words") { m in
+                    m.status.apply(DictationPhase.listening)
+                    m.status.setPreview("…send the deck before the call")
+                    for v in [0.2, 0.6, 0.9, 0.5, 0.8, 0.3, 0.7] { m.meter.add(v) }
+                }
+                scene("Hands-free") { m in
+                    m.status.apply(DictationPhase.listeningHandsFree)
+                    for v in [0.3, 0.7, 0.4, 0.9, 0.6] { m.meter.add(v) }
+                }
+            }
+            VStack(spacing: 22) {
+                scene("Transcribing") { m in m.status.apply(DictationPhase.listening); m.status.apply(DictationPhase.transcribing) }
+                scene("Typed") { m in m.status.apply(DictationPhase.done(.typed(words: 12))) }
+                scene("Near the top: flips below Wisp", below: true) { m in m.status.apply(DictationPhase.done(.copied(reason: "A password field is focused. Paste it yourself"))) }
+            }
+        }
+        .padding(24)
+        .background(LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.26, green: 0.31, blue: 0.45)], startPoint: .top, endPoint: .bottom))
+        save(sheet, name: "6-wisp-bubble", to: directory)
     }
 
     /// Wisp in every mood, each at three moments, on a desktop-like strip above a Dock-coloured bar.

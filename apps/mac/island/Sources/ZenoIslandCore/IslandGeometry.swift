@@ -4,6 +4,8 @@ import CoreGraphics
 public struct IslandMetrics: Sendable, Equatable {
     /// The card shown on hover and while talking.
     public var compact = CGSize(width: 232, height: 52)
+    /// The same card, wider, while dictating with the live preview: room for the words being heard.
+    public var wide = CGSize(width: 340, height: 52)
     /// The expanded view opened by clicking the card (Tasks 0.5.6–0.5.7).
     public var expanded = CGSize(width: 380, height: 460)
     /// Gap between the card and the left edge of the display when shown.
@@ -26,7 +28,7 @@ public struct IslandMetrics: Sendable, Equatable {
 /// AppKit coordinates: origin at the bottom left, y grows upward.
 public struct IslandGeometry: Sendable, Equatable {
     public enum Presentation: Sendable, Equatable {
-        case compact, expanded
+        case compact, wide, expanded
     }
 
     /// The full frame of the display with the menu bar.
@@ -43,7 +45,12 @@ public struct IslandGeometry: Sendable, Equatable {
     }
 
     public func size(_ presentation: Presentation) -> CGSize {
-        let base = presentation == .compact ? metrics.compact : metrics.expanded
+        let base: CGSize
+        switch presentation {
+        case .compact: base = metrics.compact
+        case .wide: base = metrics.wide
+        case .expanded: base = metrics.expanded
+        }
         let room = CGSize(
             width: screen.width - metrics.edgeInset - metrics.screenMargin,
             height: menuBarBottom - metrics.topGap - screen.minY - metrics.screenMargin)

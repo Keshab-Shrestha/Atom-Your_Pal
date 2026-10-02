@@ -18,6 +18,10 @@ final class DictationController {
     var playSound: (Sound) -> Void = { _ in }
     /// ZENO is in the middle of a conversation turn: dictation must not take the microphone.
     var conversationBusy: () -> Bool = { false }
+    /// The dictation settings, read at the start of each dictation (so a change applies at once).
+    var options: () -> DictationOptions = { DictationOptions() }
+    /// The words heard so far, cleaned up, while listening (the live preview).
+    var onPreview: (String) -> Void = { _ in }
 
     enum Sound { case start, stop }
 
@@ -26,11 +30,18 @@ final class DictationController {
     private let inserter = TextInserter()
     private let vocabularyURL: URL
 
-    private enum State { case idle, listening(since: Double, target: TextInserter.Target), working }
+    private enum State {
+        case idle
+        /// `handsFree`: a tap started it (or turned a hold into one), so letting go of the keys does nothing and the next tap finishes it.
+        case listening(since: Double, target: TextInserter.Target, handsFree: Bool, options: DictationOptions)
+        case working
+    }
     private var state = State.idle
     private var modelLoading: Task<Void, Never>?
     private var modelError: String?
     private var work: Task<Void, Never>?
+    /// Reads the growing recording while listening (live preview, and the hands-free time limits).
+    private var watcher: Task<Void, Never>?
 
     /// Shortest recording that counts as speech rather than a slip of the fingers.
     private let tooShort = DictationAudio.tooShortSeconds
@@ -81,7 +92,7 @@ final class DictationController {
                 guard let samples = Self.readWAV(path) else { self.log("dictation.selftest", ["file": path, "error": "unreadable"]); continue }
                 let started = ProcessInfo.processInfo.systemUptime
                 do {
-                    let text = await self.model.polish(SpokenPunctuation.apply(to: try await self.model.transcribe(samples)))
+                    let text = await self.clean(try await self.model.transcribe(samples), removeFillers: self.options().removeFillers)
                     self.log("dictation.selftest", ["file": (path as NSString).lastPathComponent,
                                                     "ms": Int((ProcessInfo.processInfo.systemUptime - started) * 1000), "text": text])
                 } catch {
@@ -111,6 +122,11 @@ final class DictationController {
     // MARK: - The shortcut
 
     func holdBegan() {
+        // A tap while a hands-free dictation is listening finishes it.
+        if case .listening(let since, let target, true, _) = state {
+            finishListening(since: since, target: target)
+            return
+        }
         guard case .idle = state else { onPhase(.done(.busy)); return }
         if conversationBusy() { onPhase(.done(.busy)); return }
 
@@ -136,23 +152,53 @@ final class DictationController {
             onPhase(.done(.failed(title: "Microphone problem", message: "\(error)")))
             return
         }
-        state = .listening(since: ProcessInfo.processInfo.systemUptime, target: inserter.currentTarget())
+        let current = options()
+        let handsFree = DictationActivation.startsHandsFree(current.mode)
+        state = .listening(since: ProcessInfo.processInfo.systemUptime, target: inserter.currentTarget(), handsFree: handsFree, options: current)
         playSound(.start)
-        onPhase(.listening)
-        log("dictation.start", ["app": inserter.currentTarget().name])
+        onPhase(handsFree ? .listeningHandsFree : .listening)
+        log("dictation.start", ["app": inserter.currentTarget().name, "mode": current.mode.rawValue])
+        startWatching()
     }
 
     func holdEnded() {
-        guard case .listening(let since, let target) = state else { return }
+        guard case .listening(let since, let target, let handsFree, let options) = state else { return }
         let heldFor = ProcessInfo.processInfo.systemUptime - since
+        switch DictationActivation.released(mode: options.mode, heldFor: heldFor, handsFree: handsFree) {
+        case .stop:
+            finishListening(since: since, target: target)
+        case .latch:
+            // A quick tap: keep listening, hands-free, until the next tap.
+            state = .listening(since: since, target: target, handsFree: true, options: options)
+            onPhase(.listeningHandsFree)
+            log("dictation.latched", ["heldMs": Int(heldFor * 1000)])
+        case .ignore:
+            break
+        }
+    }
+
+    /// Stops the microphone and sends the recording to be typed.
+    private func finishListening(since: Double, target: TextInserter.Target) {
+        guard case .listening(_, _, _, let options) = state else { return }
+        let heldFor = ProcessInfo.processInfo.systemUptime - since
+        watcher?.cancel()
+        watcher = nil
         let samples = capture.stop()
         playSound(.stop)
         state = .working
-        finish(samples, heldFor: heldFor, target: target)
+        finish(samples, heldFor: heldFor, target: target, options: options)
     }
 
-    /// The hold was spoiled (another key) or Esc: throw the recording away.
+    /// The hold was spoiled by another key: throw the recording away. A hands-free dictation is not affected,
+    /// because the only hold that can be spoiled then is the tap that finishes it.
+    func holdCancelled() {
+        if case .listening(_, _, let handsFree, _) = state, !handsFree { cancel() }
+    }
+
+    /// Esc: throw the recording away.
     func cancel() {
+        watcher?.cancel()
+        watcher = nil
         switch state {
         case .listening:
             capture.cancel()
@@ -172,7 +218,60 @@ final class DictationController {
 
     // MARK: - Finishing
 
-    private func finish(_ samples: [Float], heldFor: Double, target: TextInserter.Target) {
+    /// The text as it is typed: fillers out (if on), spoken punctuation turned into marks, then the user's spelling fixes.
+    private func clean(_ raw: String, removeFillers: Bool) async -> String {
+        let text = removeFillers ? FillerWords.remove(from: raw) : raw
+        return await model.polish(SpokenPunctuation.apply(to: text))
+    }
+
+    // MARK: - Watching while listening
+
+    /// While listening: every `DictationPreview.interval` seconds, reads what has been said so far and shows it
+    /// (if the live preview is on), and applies the hands-free limits (a forgotten tap, or a tap and then silence).
+    private func startWatching() {
+        watcher?.cancel()
+        guard case .listening(let since, let target, _, let options) = state else { return }
+        watcher = Task { [weak self] in
+            var lastDecoded = 0
+            var sawSpeech = false
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(Int(DictationPreview.interval * 1000)))
+                guard let self, !Task.isCancelled, case .listening(_, _, let handsFree, _) = self.state else { return }
+                let window = Int(DictationPreview.windowSeconds * Double(DictationAudio.sampleRate))
+                let (total, clip) = self.capture.snapshot(maxSamples: window)
+                let elapsed = ProcessInfo.processInfo.systemUptime - since
+
+                if handsFree {
+                    if elapsed >= DictationActivation.longestHandsFree {
+                        self.log("dictation.limit", ["stage": "longest", "seconds": Int(elapsed)])
+                        self.finishListening(since: since, target: target)
+                        return
+                    }
+                    if !sawSpeech {
+                        sawSpeech = DictationAudio.hasSpeech(clip)
+                        if !sawSpeech && elapsed >= DictationActivation.silentHandsFree {
+                            self.log("dictation.limit", ["stage": "silent", "seconds": Int(elapsed)])
+                            self.capture.cancel()
+                            self.state = .idle
+                            self.watcher = nil
+                            self.end(.noSpeech, ["seconds": Int(elapsed), "reason": "silent hands-free"])
+                            return
+                        }
+                    }
+                }
+
+                guard options.livePreview, DictationPreview.shouldDecode(total: total, lastDecoded: lastDecoded),
+                      DictationAudio.hasSpeech(clip) else { continue }
+                lastDecoded = total
+                guard let raw = try? await self.model.transcribe(clip), !Task.isCancelled,
+                      case .listening = self.state else { continue }
+                let shown = DictationPreview.display(await self.clean(raw, removeFillers: options.removeFillers))
+                if case .listening = self.state, !Task.isCancelled { self.onPreview(shown) }
+            }
+        }
+    }
+
+    private func finish(_ samples: [Float], heldFor: Double, target: TextInserter.Target, options: DictationOptions) {
         let seconds = DictationAudio.seconds(samples)
         if seconds < tooShort {
             end(.tooShort, ["seconds": seconds])
@@ -199,7 +298,7 @@ final class DictationController {
                 self.onPhase(.transcribing)
             }
             do {
-                let text = await self.model.polish(SpokenPunctuation.apply(to: try await self.model.transcribe(samples)))
+                let text = await self.clean(try await self.model.transcribe(samples), removeFillers: options.removeFillers)
                 let transcribeMs = Int((ProcessInfo.processInfo.systemUptime - started) * 1000)
                 if Task.isCancelled { return }
                 guard !text.isEmpty else { self.end(.noSpeech, ["seconds": seconds, "reason": "empty transcript"]); return }
@@ -244,6 +343,7 @@ final class DictationController {
     }
 
     func stop() {
+        watcher?.cancel()
         work?.cancel()
         capture.cancel()
         capture.cleanup()

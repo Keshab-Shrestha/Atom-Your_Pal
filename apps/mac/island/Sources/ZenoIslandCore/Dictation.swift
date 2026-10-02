@@ -169,7 +169,10 @@ public enum DictationOutcome: Sendable, Equatable {
 public enum DictationPhase: Sendable, Equatable {
     /// The speech model is loading (first start after launch).
     case loading(detail: String)
+    /// Listening while the keys are held.
     case listening
+    /// Listening hands-free (a tap started it): the next tap finishes it.
+    case listeningHandsFree
     case transcribing
     case done(DictationOutcome)
     /// Cancelled (Esc, or the shortcut was spoiled by another key): back to Ready.

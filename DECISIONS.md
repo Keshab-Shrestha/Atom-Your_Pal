@@ -846,13 +846,38 @@ All typed. Key release to text typed: about 0.6 s before the paste no longer wai
 - **Accidental taps:** four taps of 0.05–0.18 s were correctly dropped as too short.
 - **Model copies:** ZENO's Parakeet v3 files are APFS clones of FluidVoice's, so they share disk space.
 - **English only:** Parakeet v3 cannot read Japanese, Hindi or Nepali (tested: it wrote romaji, or nothing). A Whisper large-v3-turbo path was designed and measured (Japanese near-exact, Hindi usable), then dropped at Keshab's request: ZENO keeps Parakeet v3 only, like FluidVoice. Parakeet v2 was tried and also dropped.
-- **Not built:** other languages, a live preview while speaking, a way to edit the spelling list in Settings, toggle mode.
+- **Not built:** other languages (Keshab chose to keep Parakeet v3 only), a way to edit the spelling list in Settings. Toggle mode, the live preview and filler removal are in ADR-050.
 
 ### Alternatives Considered
 
 - **Whisper through the runtime (ADR-041):** about 1 s to transcribe and a start that lost the first words. Kept as the voice-conversation engine only.
 - **Keeping the microphone recording all the time to catch the first words:** rejected for privacy; a prepared device starts fast enough.
 - **Parakeet in a separate helper process:** more moving parts for no gain, since the app is already Swift.
+
+## ADR-050 — Dictation Modes, Live Preview and Wisp's Speech Bubble
+
+Date: 2026-10-02. Extends ADR-047 and ADR-042. Keshab asked for FluidVoice's features in ZENO's own code (it is GPL-3.0, so nothing is copied) and for Wisp to hold the island.
+
+### Decision
+
+- **Start and stop modes** (Settings → Dictation, `DictationMode`): *Hold* (hold, speak, let go), *Tap* (tap to start, tap to finish) and *Hold or tap*, the default. In Hold or tap, a press shorter than 0.4 s starts a hands-free dictation and the next tap finishes it; a longer press is hold-to-talk. Esc cancels in every mode. A hands-free dictation stops by itself after 5 minutes, and is dropped after 20 s if nothing but silence was heard.
+- **Live preview:** while listening, every 0.6 s the growing recording (its last 15 s, Parakeet's limit) is read again and the newest words are shown, once there is 1 s of speech and 0.4 s of new audio. Parakeet reads whole clips, so this is the only way to preview without a streaming model. The typed text always comes from one final pass over the whole recording.
+- **Filler words:** "um", "uh", "erm", "hmm" and similar are dropped before spoken punctuation is applied. A filler that ends a sentence hands its full stop to the word before; one that opens the text hands over its capital. Whole words only.
+- **Wisp's speech bubble:** while Wisp is on screen and the island is closed, status (state, live words, level meter, outcome) appears in a bubble above Wisp, wherever it is parked, instead of at the left edge. The bubble is centred on Wisp, slides sideways to stay on its display while its tail keeps pointing at Wisp, and flips below Wisp near the top of the display. It is a separate click-through window above Wisp, so it never takes focus or blocks clicks. With Wisp hidden, or while the expanded island is open, the left-edge card works as before. The island's own Esc, shortcuts and expanded view are unchanged.
+
+### Reason
+
+A tap-to-toggle mode removes the need to hold two keys through a long paragraph. The preview shows the microphone is live and the words are right before they are typed. The bubble keeps the feedback next to the character Keshab can drag anywhere, so it cannot land where he does not look.
+
+### Alternatives Considered
+
+- **A pill above the Dock, or keeping the left edge:** shown as mock-ups; Keshab picked the bubble.
+- **A streaming model for the preview:** more models and more memory for a feature that only shows words.
+- **Typing the preview text live into the field:** rejected; corrections would fight the app's undo and the caret.
+
+### Verification
+
+Unit tests cover the tap and hold rules, filler removal, preview timing and text, the saved settings and the bubble placement (227 Swift tests). On the real screen, with a scripted dictation and no microphone or keys, the bubble window appeared above Wisp (layer above Wisp's), slid to stay inside the display with its tail on Wisp, followed a state change and disappeared after the outcome; the left-edge card stayed out. Not yet checked by hand: a real dictation with the live preview, the tap rules on the real keys, and the bubble while Wisp is dragged.
 
 ---
 

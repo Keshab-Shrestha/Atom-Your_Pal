@@ -186,6 +186,14 @@ final class DictationCapture: @unchecked Sendable {
     /// Stops and throws away what was heard.
     func cancel() { _ = stop() }
 
+    /// What has been heard so far without stopping: how many samples there are in all, and the last
+    /// `maxSamples` of them. Used for the live preview.
+    func snapshot(maxSamples: Int) -> (total: Int, clip: [Float]) {
+        lock.lock()
+        defer { lock.unlock() }
+        return (samples.count, Array(samples.suffix(maxSamples)))
+    }
+
     /// Releases the device for good (quitting).
     func cleanup() { teardown() }
 

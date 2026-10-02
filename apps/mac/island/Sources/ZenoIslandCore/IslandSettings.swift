@@ -50,10 +50,37 @@ public final class IslandSettings {
         didSet { save(soundsEnabled, Self.soundsKey) }
     }
 
+    static let dictationModeKey = "zeno.dictation.mode"
+    static let livePreviewKey = "zeno.dictation.livePreview"
+    static let removeFillersKey = "zeno.dictation.removeFillers"
+
+    /// How dictation starts and stops (ADR-050). Default: hold to talk, or tap to start and tap to finish.
+    public var dictationMode: DictationMode {
+        didSet { defaults.set(dictationMode.rawValue, forKey: Self.dictationModeKey); revision += 1 }
+    }
+
+    /// Show the words on screen while speaking. Default on.
+    public var livePreview: Bool {
+        didSet { save(livePreview, Self.livePreviewKey) }
+    }
+
+    /// Drop "um" and "uh" from dictated text. Default on.
+    public var removeFillers: Bool {
+        didSet { save(removeFillers, Self.removeFillersKey) }
+    }
+
+    /// The dictation settings as one value.
+    public var dictationOptions: DictationOptions {
+        DictationOptions(mode: dictationMode, livePreview: livePreview, removeFillers: removeFillers)
+    }
+
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         petEnabled = defaults.object(forKey: Self.petKey) as? Bool ?? true
         soundsEnabled = defaults.object(forKey: Self.soundsKey) as? Bool ?? true
+        dictationMode = (defaults.string(forKey: Self.dictationModeKey)).flatMap(DictationMode.init(rawValue:)) ?? .automatic
+        livePreview = defaults.object(forKey: Self.livePreviewKey) as? Bool ?? true
+        removeFillers = defaults.object(forKey: Self.removeFillersKey) as? Bool ?? true
         petSpot = Self.loadSpot(defaults)
         for action in ShortcutAction.allCases {
             switch Self.load(defaults, action) {

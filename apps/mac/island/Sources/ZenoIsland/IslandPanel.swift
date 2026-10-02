@@ -88,6 +88,29 @@ struct CompactView: View {
     private let hovering = State(initialValue: false)
 
     var body: some View {
+        StatusRow(model: model)
+        .padding(.leading, 11)
+        .padding(.trailing, 14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .background(.white.opacity(hovering.wrappedValue ? 0.05 : 0))
+        .contentShape(Rectangle())
+        .onHover { hovering.wrappedValue = $0 }
+        .onTapGesture { model.setExpanded(true) }
+        .animation(.easeOut(duration: 0.18), value: model.status.showsLevel)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(model.status.detail.isEmpty ? "ZENO: \(model.status.title)" : "ZENO: \(model.status.title). \(model.status.detail)")
+        .accessibilityHint("Opens the conversation, status and settings")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { model.setExpanded(true) }
+    }
+}
+
+/// The state glyph, title, detail (or the words heard so far while dictating) and level meter.
+/// Shared by the compact card and Wisp's speech bubble.
+struct StatusRow: View {
+    let model: IslandModel
+
+    var body: some View {
         HStack(spacing: 11) {
             StateGlyph(kind: model.status.kind)
                 .frame(width: 30, height: 30)
@@ -96,7 +119,12 @@ struct CompactView: View {
                 Text(model.status.title)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white)
-                if !model.status.detail.isEmpty {
+                if !model.status.preview.isEmpty {
+                    Text(model.status.preview)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .truncationMode(.head)
+                } else if !model.status.detail.isEmpty {
                     Text(model.status.detail)
                         .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(0.62))
@@ -114,19 +142,7 @@ struct CompactView: View {
                     .transition(.opacity)
             }
         }
-        .padding(.leading, 11)
-        .padding(.trailing, 14)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background(.white.opacity(hovering.wrappedValue ? 0.05 : 0))
-        .contentShape(Rectangle())
-        .onHover { hovering.wrappedValue = $0 }
-        .onTapGesture { model.setExpanded(true) }
         .animation(.easeOut(duration: 0.18), value: model.status.showsLevel)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(model.status.detail.isEmpty ? "ZENO: \(model.status.title)" : "ZENO: \(model.status.title). \(model.status.detail)")
-        .accessibilityHint("Opens the conversation, status and settings")
-        .accessibilityAddTraits(.isButton)
-        .accessibilityAction { model.setExpanded(true) }
     }
 }
 

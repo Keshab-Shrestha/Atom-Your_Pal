@@ -123,7 +123,7 @@ public enum ShortcutAction: String, Sendable, CaseIterable, Identifiable, Codabl
     public var detail: String {
         switch self {
         case .talk: "Hold, speak, let go to send"
-        case .dictate: "Hold, speak, let go to type the text"
+        case .dictate: "Hold to speak, or tap to start and stop"
         case .toggleIsland: "Press to open or close"
         case .cancel: "Press while ZENO listens or speaks"
         }
