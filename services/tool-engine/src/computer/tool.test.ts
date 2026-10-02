@@ -18,6 +18,8 @@ const elements = [
   { element_index: 7, element_token: "s1:7", role: "AXButton", label: "Broken", frame: { x: Number.NaN, y: 0, w: 10, h: 10 } },
   { element_index: 8, element_token: "s1:8", role: "AXGroup", label: "Hidden", frame: { x: 10, y: 10, w: 0, h: 0 } },
   { element_index: 9, element_token: "s1:9", role: "AXButton", label: "Far", frame: { x: 9e9, y: 5, w: 10, h: 10 } },
+  { element_index: 10, element_token: "s1:10", role: "AXSlider", label: "Volume", value: "5" },
+  { element_index: 11, element_token: "s1:11", role: "AXPopUpButton", label: "Delete files after" },
 ];
 const ok = (text: string, data: Record<string, any> = {}): CuaResult => ({ text, data, isError: false, refusal: undefined });
 
@@ -420,4 +422,184 @@ test("point is logged with the app and no label", async () => {
 test("the schema offers point", () => {
   const { tool } = setup();
   assert.match(JSON.stringify(tool.spec.inputSchema), /point/);
+});
+
+// ---- Task 0.6.5: what Cua says about an action, look_after, and set_value
+
+const verdict = (effect: string, extra: Record<string, unknown> = {}) => ({ click: () => ok("clicked", { effect, ...extra }) });
+
+test("a confirmed action says so, and an unconfirmed one tells the model to look", async () => {
+  const s = setup({ handlers: verdict("confirmed") });
+  await sees(s);
+  assert.match((await s.run({ action: "click", element: 2 })).text, /confirmed/i);
+  const u = setup({ handlers: verdict("unverifiable") });
+  await sees(u);
+  const r = await u.run({ action: "click", element: 2 });
+  assert.equal(r.ok, true);
+  assert.match(r.text, /could not confirm|not confirmed/i);
+  assert.match(r.text, /look/i);
+});
+
+test("a click that probably did nothing is reported as such, and asking twice for the same thing ends the attempt", async () => {
+  const s = setup({ handlers: verdict("suspected_noop", { escalation: { recommended: "foreground", reason: "no change seen" } }) });
+  await sees(s);
+  const first = await s.run({ action: "click", element: 2 });
+  assert.equal(first.ok, true); // delivered, so it is a result, not an error
+  assert.match(first.text, /probably did nothing/i);
+  assert.match(first.text, /look/i);
+  assert.doesNotMatch(first.text, /foreground|delivery_mode|escalat/i); // the model never sees Cua's ladder
+  await sees(s);
+  const second = await s.run({ action: "click", element: 2 });
+  assert.match(second.text, /twice|stop/i);
+  assert.match(second.text, /tell the user/i);
+});
+
+test("a different outcome in between resets the no-effect count", async () => {
+  let effect = "suspected_noop";
+  const s = setup({ handlers: { click: () => ok("clicked", { effect }) } });
+  await sees(s);
+  await s.run({ action: "click", element: 2 });
+  effect = "confirmed";
+  await s.run({ action: "click", element: 2 });
+  effect = "suspected_noop";
+  const again = await s.run({ action: "click", element: 2 });
+  assert.doesNotMatch(again.text, /twice/i);
+});
+
+test("a result with no verdict (an older driver) reads as before", async () => {
+  const s = setup({ handlers: { click: () => ok("clicked") } });
+  await sees(s);
+  const r = await s.run({ action: "click", element: 2 });
+  assert.equal(r.ok, true);
+  assert.doesNotMatch(r.text, /confirm|nothing/i);
+});
+
+test("type, key and scroll report the verdict too", async () => {
+  const s = setup({ handlers: { type_text: () => ok("t", { effect: "suspected_noop" }), press_key: () => ok("k", { effect: "unverifiable" }), scroll: () => ok("s", { effect: "confirmed" }) } });
+  await sees(s);
+  assert.match((await s.run({ action: "type", element: 1, text: "hi" })).text, /probably did nothing/i);
+  assert.match((await s.run({ action: "key", keys: ["tab"] })).text, /could not confirm|not confirmed/i);
+  assert.match((await s.run({ action: "scroll", direction: "down" })).text, /confirmed/i);
+});
+
+test("look_after returns the new screen in the same reply and keeps working from it", async () => {
+  const s = setup();
+  await sees(s);
+  const before = s.calls.filter((c) => c.name === "get_window_state").length;
+  const r = await s.run({ action: "click", element: 2, look_after: true });
+  assert.equal(r.ok, true);
+  assert.equal(s.calls.filter((c) => c.name === "get_window_state").length, before + 1);
+  assert.match(r.text, /Clicked \[2\]/);
+  assert.match(r.text, /TextEdit — window/); // the look, appended
+  assert.match(r.text, /\[1\] AXTextArea/);
+  const next = await s.run({ action: "click", element: 2 }); // the new look's numbers are live
+  assert.equal(next.ok, true);
+});
+
+test("without look_after there is no extra look", async () => {
+  const s = setup();
+  await sees(s);
+  const before = s.calls.filter((c) => c.name === "get_window_state").length;
+  await s.run({ action: "click", element: 2 });
+  assert.equal(s.calls.filter((c) => c.name === "get_window_state").length, before);
+});
+
+test("look_after is not done when the action was refused or declined", async () => {
+  const s = setup({ approve: () => false });
+  await sees(s);
+  const before = s.calls.filter((c) => c.name === "get_window_state").length;
+  const r = await s.run({ action: "click", element: 3, look_after: true }); // Send, declined
+  assert.equal(r.ok, false);
+  assert.equal(s.calls.filter((c) => c.name === "get_window_state").length, before);
+});
+
+test("a look_after that cannot read the window still reports the action", async () => {
+  const s = setup();
+  await sees(s);
+  s.calls.length = 0;
+  let reads = 0;
+  const t = setup({ handlers: { get_window_state: (a) => (++reads > 1 ? { text: "gone", data: {}, isError: true, refusal: { code: "window_not_found", message: "gone" } } : ok("state", { pid: a.pid, window_id: a.window_id, app_name: "TextEdit", window_title: "x", snapshot_id: "s1", elements, tree_markdown: "" })) } });
+  await sees(t);
+  const r = await t.run({ action: "click", element: 2, look_after: true });
+  assert.equal(r.ok, true);
+  assert.match(r.text, /Clicked \[2\]/);
+  assert.match(r.text, /could not read|look again/i);
+});
+
+test("typing then look_after still counts as just typed, so Return after it does not ask", async () => {
+  const s = setup({ approve: () => false });
+  await sees(s);
+  await s.run({ action: "type", element: 1, text: "hello", look_after: true });
+  const r = await s.run({ action: "key", keys: ["return"] });
+  assert.equal(r.ok, true);
+  assert.equal(s.asked.length, 0);
+  // and without the typing, the same Return does ask
+  const fresh = setup({ approve: () => false });
+  await sees(fresh);
+  assert.equal((await fresh.run({ action: "key", keys: ["return"] })).ok, false);
+  assert.equal(fresh.asked.length, 1);
+});
+
+test("set_value sets a slider by its element and says what it set", async () => {
+  const s = setup({ handlers: { set_value: () => ok("set", { effect: "confirmed" }) } });
+  await sees(s);
+  const r = await s.run({ action: "set_value", element: 10, text: "60" });
+  assert.equal(r.ok, true);
+  assert.match(r.text, /Set \[10\]/);
+  assert.match(r.text, /60/);
+  const call = s.calls.find((c) => c.name === "set_value")!;
+  assert.deepEqual(call.args, { pid: 11, window_id: 7, element_token: "s1:10", value: "60" });
+});
+
+test("set_value needs a look, an element from it and a value", async () => {
+  const s = setup();
+  assert.equal((await s.run({ action: "set_value", element: 10, text: "60" })).ok, false); // no look yet
+  await sees(s);
+  assert.match((await s.run({ action: "set_value", element: 99, text: "60" })).text, /no element 99/i);
+  assert.match((await s.run({ action: "set_value", element: 10 })).text, /"text" is required|value/i);
+  assert.equal(s.calls.some((c) => c.name === "set_value"), false);
+});
+
+test("set_value never writes into a password field", async () => {
+  const s = setup();
+  await sees(s);
+  const r = await s.run({ action: "set_value", element: 4, text: "hunter2" });
+  assert.equal(r.ok, false);
+  assert.match(r.text, /never types into/i);
+  assert.equal(s.calls.some((c) => c.name === "set_value"), false);
+});
+
+test("set_value on a risky control asks first, like a click", async () => {
+  const s = setup({ approve: () => false });
+  await sees(s);
+  const r = await s.run({ action: "set_value", element: 11, text: "Immediately" }); // "Delete files after"
+  assert.equal(r.ok, false);
+  assert.equal(s.asked.length, 1);
+  assert.equal(s.calls.some((c) => c.name === "set_value"), false);
+});
+
+test("set_value into a text area counts as typing, but into a slider does not", async () => {
+  const typed = setup({ approve: () => false, handlers: { set_value: () => ok("set", { effect: "confirmed" }) } });
+  await sees(typed);
+  await typed.run({ action: "set_value", element: 1, text: "hello" });
+  assert.equal((await typed.run({ action: "key", keys: ["return"] })).ok, true);
+  const slid = setup({ approve: () => false, handlers: { set_value: () => ok("set", { effect: "confirmed" }) } });
+  await sees(slid);
+  await slid.run({ action: "set_value", element: 10, text: "60" });
+  assert.equal((await slid.run({ action: "key", keys: ["return"] })).ok, false);
+});
+
+test("set_value is refused in a blocked app and does not appear for the model as a raw Cua tool", async () => {
+  const s = setup();
+  assert.equal((await s.run({ action: "look", app: "Terminal" })).ok, false);
+  const r = await s.run({ action: "set_value", element: 10, text: "1" });
+  assert.equal(r.ok, false);
+  assert.equal(s.calls.some((c) => c.name === "set_value"), false);
+});
+
+test("the schema offers look_after and describes set_value", () => {
+  const { tool } = setup();
+  const props = (tool.spec.inputSchema as any).properties;
+  assert.ok(props.look_after);
+  assert.match(props.action.description, /set_value/);
 });

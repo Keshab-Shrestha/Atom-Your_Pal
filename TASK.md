@@ -357,6 +357,21 @@ The model names a place on screen; Wisp flies there and the bubble labels it. No
 
 **Not done:** pointing by voice through the island (the live checks fed the same event by hand); the Allow/Decline card, still unseen; Claude untested on this tool; a window moving between the `look` and the `point` shows the old place.
 
+### Task 0.6.5 — Fewer Steps, Clearer Results (ADR-054) — built; verified on the real driver; not measured with a real model
+
+Ideas taken from how Hermes drives the same Cua driver, to cut model round trips and wasted retries. Fewer steps is the main cost lever for any pay-per-token model.
+
+**Done (2026-10-03):** in `services/tool-engine/src/computer/tool.ts`:
+
+- `look_after: true` on `click`, `type`, `key`, `scroll` and `set_value` returns the new screen in the same reply, so the model needs one call where it needed two. Not done for a refused or declined action. If the window cannot be read again, the action is still reported and the model is told to look. It keeps the "just typed" memory, so the Return rule is unchanged.
+- Cua's verdict on each input is passed on in plain words: confirmed, could not confirm (look to check), or probably did nothing (look before trying anything else). The same no-effect result twice in a row tells the model to stop and tell the user. A result with no verdict reads as before. Cua's own retry ladder (pixel, foreground) is never shown to the model.
+- `set_value` (element number plus the value in `text`) sets sliders, steppers and menu choices directly. It refuses password fields, asks for approval on the same risky labels as a click, and counts as typing only for text roles.
+- Tests: 20 new in `tool.test.ts` (56 → 76 in that file).
+
+**Verified on the real driver:** TextEdit `set_value` returned "(confirmed)", `look_after` returned the new window state in the same reply, and the file was restored to its original text.
+
+**Not done:** a measurement of steps saved with a real model (the Gemini free quota was spent; Claude has no credit); the driver's health check (`cua-driver` `health_report`) as a ZENO command; the plan question (using a Claude subscription for the model), which is a separate decision.
+
 ---
 
 ## 6. Definition of Done

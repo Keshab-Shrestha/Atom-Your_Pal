@@ -74,7 +74,13 @@ function withoutMenuBar(elements: Element[]): Element[] {
   return kept;
 }
 
-const ACTIONS = ["list_apps", "look", "open", "click", "type", "key", "scroll", "point"] as const;
+const ACTIONS = ["list_apps", "look", "open", "click", "type", "key", "scroll", "set_value", "point"] as const;
+
+/** Actions that change something in an app, so `look_after` makes sense for them. */
+const INPUT_ACTIONS = new Set(["click", "type", "key", "scroll", "set_value"]);
+
+/** Roles that take typed text, so a value set into one counts as typing. */
+const TEXT_ROLE = /text|combo|search/i;
 
 /** An element's place on screen, or nothing if it has none worth flying to (missing, not a number, empty, or off in space). */
 function usableFrame(f: Element["frame"]): { x: number; y: number; w: number; h: number } | undefined {
@@ -133,6 +139,20 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     return `${app.name} — window "${win.title ?? ""}"\n${shown.join("\n")}${more}`;
   }
 
+  /** The new screen, appended to an action's reply so the model needs no extra step. The "just typed" memory survives it. */
+  async function lookAfter(signal?: AbortSignal): Promise<string> {
+    const keep = target?.justTyped ?? false;
+    const app = target?.app ?? "";
+    try {
+      const seen = await look(app, signal);
+      if (target) target.justTyped = keep;
+      return `\n\n${seen}`;
+    } catch (error) {
+      if (error instanceof Refused || (error as Error)?.name !== "AbortError") return "\n\nZENO could not read the window again. Look again.";
+      throw error;
+    }
+  }
+
   function need(): Target {
     if (!target) throw new Refused("Look at an app first (action \"look\"), then act on its numbered elements.");
     return target;
@@ -186,12 +206,31 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     lastRefusal = undefined;
   }
 
+  // Cua says whether an input worked: confirmed (it read the result back), unverifiable, or suspected_noop. The model gets
+  // that in plain words, never Cua's own retry ladder (foreground input is not something ZENO offers).
+  let lastNoop: string | undefined;
+  function verdict(r: { data: Record<string, unknown> }, key: string): string {
+    const effect = r.data.effect;
+    if (effect === "suspected_noop") {
+      const twice = lastNoop === key;
+      lastNoop = key;
+      return twice
+        ? " That has had no effect twice. Stop now: do not try it a third time or another way; tell the user it did not work."
+        : " It probably did nothing. Look again to check before trying anything else.";
+    }
+    lastNoop = undefined;
+    if (effect === "confirmed") return " (confirmed)";
+    if (effect === "unverifiable") return " ZENO could not confirm it worked; look to check.";
+    return "";
+  }
+
   async function run(input: Record<string, unknown>, signal?: AbortSignal): Promise<string> {
     const action = String(input.action);
     const appName = typeof input.app === "string" ? input.app : target?.app;
     onStep?.({ action, ...(appName ? { app: appName } : {}) });
     try {
-      const out = await perform(action, input, signal);
+      let out = await perform(action, input, signal);
+      if (input.look_after === true && INPUT_ACTIONS.has(action) && target) out += await lookAfter(signal);
       log({ action, ...(appName ? { app: appName } : {}), ok: true });
       return out;
     } catch (error) {
@@ -223,7 +262,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const r = await cua.call("click", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, delivery_mode: "background" }, signal);
         checkResult(r, "Click", t.app);
         t.justTyped = false;
-        return `Clicked [${el.element_index}]${el.label ? ` "${el.label}"` : ""}. ${r.text}`.trim();
+        return `Clicked [${el.element_index}]${el.label ? ` "${el.label}"` : ""}.${verdict(r, `click:${el.element_index}`)}`;
       }
       case "type": {
         const t = need();
@@ -234,7 +273,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const r = await cua.call("type_text", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, text: input.text, delivery_mode: "background" }, signal);
         checkResult(r, "Typing", t.app);
         t.justTyped = true;
-        return `Typed ${input.text.length} characters into [${el.element_index}].`;
+        return `Typed ${input.text.length} characters into [${el.element_index}].${verdict(r, `type:${el.element_index}`)}`;
       }
       case "key": {
         const t = need();
@@ -247,7 +286,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const r = await cua.call(mods.length ? "hotkey" : "press_key", mods.length ? { pid: t.pid, window_id: t.windowId, keys, delivery_mode: "background" } : { pid: t.pid, window_id: t.windowId, key, delivery_mode: "background" }, signal);
         checkResult(r, "Key press", t.app);
         t.justTyped = false;
-        return `Pressed ${keys.join("+")}.`;
+        return `Pressed ${keys.join("+")}.${verdict(r, `key:${keys.join("+")}`)}`;
       }
       case "point": {
         // Shows the user a place on screen. It changes nothing in any app, so it never asks.
@@ -268,7 +307,21 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const r = await cua.call("scroll", { pid: t.pid, window_id: t.windowId, direction, amount: 5, by: "line", ...(el ? { element_token: el.element_token } : {}), delivery_mode: "background" }, signal);
         checkResult(r, "Scroll", t.app);
         t.justTyped = false;
-        return `Scrolled ${direction}.`;
+        return `Scrolled ${direction}.${verdict(r, `scroll:${direction}:${input.element ?? ""}`)}`;
+      }
+      case "set_value": {
+        // Sets a slider, stepper or menu choice directly (AXValue), instead of clicking toward it. Same rules as typing and clicking.
+        const t = need();
+        const el = pick(t, input.element);
+        const secret = secretField(el);
+        if (secret) throw new Refused(`ZENO never types into ${secret}. Ask the user to type it themselves.`);
+        if (typeof input.text !== "string" || !input.text) throw new Refused('"text" is required: the value to set.');
+        const why = labelApproval(el.label, el.role);
+        if (why) await ask(`Change ${why} in ${t.app}`, "it may send, buy, delete or change something", signal);
+        const r = await cua.call("set_value", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, value: input.text }, signal);
+        checkResult(r, "Setting the value", t.app);
+        t.justTyped = TEXT_ROLE.test(el.role ?? "");
+        return `Set [${el.element_index}]${el.label ? ` "${el.label}"` : ""} to ${JSON.stringify(input.text.slice(0, 80))}.${verdict(r, `set_value:${el.element_index}`)}`;
       }
       default:
         throw new Refused(`"${action}" is not an action. Use one of: ${ACTIONS.join(", ")}.`);
@@ -282,6 +335,9 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         "Controls apps on the user's Mac in the background. First `look` at an app to get its numbered elements, then `click`, " +
         "`type` or `key` using those numbers; look again after anything that changes the window. Typed text goes in at the cursor, " +
         "not at the end. Use `open` to start an app. " +
+        "Use `set_value` to set a slider, stepper or choice to a value in one step (text holds the value), instead of clicking toward it. " +
+        "Add `look_after: true` to a click, type, key, scroll or set_value to get the new screen in the same reply. " +
+        "Each reply says whether the action was confirmed; if it says it probably did nothing, look before trying again. " +
         "Use `point` with an element number (and a short label) to show the user where something is: Wisp flies to it. " +
         "Point when the user asks where something is or how to do it, instead of doing it for them. " +
         "ZENO asks the user before sending, buying, deleting or changing anything, and never types passwords. " +
@@ -292,7 +348,8 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
           action: { type: "string", description: `One of: ${ACTIONS.join(", ")}` },
           app: { type: "string", description: "App name for look and open, e.g. TextEdit" },
           element: { type: "number", description: "Element number from the last look" },
-          text: { type: "string", description: "Text to type" },
+          text: { type: "string", description: "Text to type, or the value for set_value" },
+          look_after: { type: "boolean", description: "After a click, type, key, scroll or set_value: also return the new screen" },
           keys: { type: "array", description: 'Keys to press, last one is the key, e.g. ["cmd","c"] or ["tab"]' },
           direction: { type: "string", description: "up, down, left or right" },
         },
