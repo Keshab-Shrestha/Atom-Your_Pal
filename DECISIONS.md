@@ -865,6 +865,10 @@ Date: 2026-10-02. Extends ADR-047 and ADR-042. Keshab asked for FluidVoice's fea
 - **Filler words:** "um", "uh", "erm", "hmm" and similar are dropped before spoken punctuation is applied. A filler that ends a sentence hands its full stop to the word before; one that opens the text hands over its capital. Whole words only.
 - **Wisp's speech bubble:** while Wisp is on screen and the island is closed, status (state, live words, level meter, outcome) appears in a bubble above Wisp, wherever it is parked, instead of at the left edge. The bubble is centred on Wisp, slides sideways to stay on its display while its tail keeps pointing at Wisp, and flips below Wisp near the top of the display. It is a separate click-through window above Wisp, so it never takes focus or blocks clicks. With Wisp hidden, or while the expanded island is open, the left-edge card works as before. The island's own Esc, shortcuts and expanded view are unchanged.
 
+### Scope closed
+
+Keshab liked these features and told us to let the rest of the FluidVoice list go (2026-10-02): dictation history, paste-last-dictation, the paste-landed check, AI cleanup, rewrite mode and per-app tone are **not planned**. Dictation is finished unless he asks for something new.
+
 ### Reason
 
 A tap-to-toggle mode removes the need to hold two keys through a long paragraph. The preview shows the microphone is live and the words are right before they are typed. The bubble keeps the feedback next to the character Keshab can drag anywhere, so it cannot land where he does not look.
