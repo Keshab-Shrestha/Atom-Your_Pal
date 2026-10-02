@@ -82,7 +82,7 @@ Audio Output
 
 ### Phase 0.5: Desktop Island
 
-Phase 0.5 adds an interface process in front of the same pipeline (ADR-033 to ADR-036):
+Phase 0.5 adds an interface process in front of the same pipeline (ADR-033 to ADR-038):
 
 ```text
 ZENO Island (Swift app)                      ZENO runtime (Node)

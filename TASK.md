@@ -38,10 +38,10 @@ Do not automatically continue to another task.
 
 Phase 0 (Voice Foundation) is complete. Its task history is in `docs/phase-0-tasks.md`.
 
-Phase 0.5 gives ZENO a permanent place on the Mac (ADR-033 to ADR-036):
+Phase 0.5 gives ZENO a permanent place on the Mac (ADR-033 to ADR-038):
 
 ```text
-Ctrl+Option held (any app)        pointer at top edge
+Ctrl+Option held (any app)        pointer at left edge
             ↓                              ↓
       ZENO Island (Swift app, apps/mac/island)
             ↓  commands        ↑  events
@@ -57,12 +57,13 @@ Ctrl+Option held (any app)        pointer at top edge
 
 The system must support:
 
-- a panel hidden above the top-centre of the main display
-- revealing it by hovering at the top edge, and hiding it again
+- a dark glass island hidden past the left edge of the main display, below the menu bar
+- revealing it by hovering at that edge, and hiding it again
 - holding Ctrl+Option in any app to talk, releasing to send
 - live status in the panel: listening (with level), transcribing, thinking, speaking
 - the transcript and reply shown in the panel
-- an expanded view of the current conversation, with "new conversation"
+- an expanded view with the current conversation ("new conversation"), status details, and settings
+- choosing the AI provider and model from the island
 - clear guidance when a permission (microphone, Input Monitoring) is missing
 - the island starting, restarting and stopping the runtime
 - the terminal interface (`pnpm start`) still working
@@ -77,7 +78,7 @@ Do not implement these during Phase 0.5 unless a task explicitly requires them:
 
 - everything deferred in Phase 0 (persistent memory, tools, computer control, other devices, cloud)
 - launch at login, auto-update, signing and notarization, a DMG installer
-- a settings window (settings stay in `.env`)
+- a separate settings window (the island's Settings tab covers provider and model; everything else stays in `.env`)
 - configurable hotkeys (Ctrl+Option is fixed for now)
 - a menu bar icon
 - wake word or voice activity detection (ADR-027)
@@ -172,29 +173,34 @@ Result:
 
 ---
 
-### Task 0.5.4 — The Panel: Placement and Hover Reveal ✅ Built (2026-10-02), awaiting Keshab's look
+### Task 0.5.4 — The Panel: Placement and Hover Reveal ✅ Done (2026-10-02), placement replaced by 0.5.4b
 
-The island window, with placeholder content.
-
-- Borderless, non-activating panel at the top-centre of the display with the menu bar
-- Above the menu bar, on every Space, over full-screen apps, never takes keyboard focus
-- Idle: fully above the top edge
-- Hover at the top edge near the centre for 0.25 s: slides down; pointer leaves: slides up after a short delay
-- Follows display changes (resolution, menu bar display)
-
-Tests: Swift unit tests for the reveal and hide timing and the frame calculations (hidden, shown, expanded).
-
-Verification: on the Mac mini, including over a full-screen app and on a second Space.
+The first version of the island window, at the top-centre (ADR-036). Kept here as history: its window, hover timing and supervisor wiring are reused by 0.5.4b, which moves it to the left edge (ADR-037).
 
 Result:
 
-- `IslandGeometry` (frames and hover zones), `HoverController` (reveal and hide timing, no timers inside, so it is unit-tested with plain numbers) and `IslandStatus` (the pill's one line) in `ZenoIslandCore`; `IslandPanel` and `IslandController` in the app. Placeholder content: a black pill with a status dot and "Ready" / "Listening" / "Thinking"…
-- Pill 200 × 36 pt; hover strip 320 pt wide at the very top edge; reveal after 0.25 s, slide 0.22 s, hide 0.5 s after the pointer leaves (fade instead of slide with Reduce Motion). Panel at window level 26, above the menu bar (24)
-- Verified on the Mac mini by moving the real pointer and reading the window server's window list (no screenshots available to the agent): hidden at idle; shown 0.25 s after resting at the top-centre; stays while over the pill; hides 0.5 s after leaving; no reveal when passing through quickly, at the top edge away from the centre, or at the top of the second display; clicking the pill leaves the front app in front; works over a full-screen app's Space and after leaving it
+- `IslandGeometry` (frames and hover zones), `HoverController` (reveal and hide timing, no timers inside, so it is unit-tested with plain numbers) and `IslandStatus` (the pill's one line) in `ZenoIslandCore`; `IslandPanel` and `IslandController` in the app
+- Verified on the Mac mini by moving the real pointer and reading the window server's window list: hidden at idle; shown 0.25 s after resting at the edge; stays while over it; hides 0.5 s after leaving; no reveal when passing quickly or away from the strip; clicking it leaves the front app in front; works over a full-screen app's Space
 - Cost: no CPU while the pointer is still; about 2 % of one core while it moves constantly; 33–41 MB
-- 49 Swift tests (16 new). `pnpm island:test` passes the swift-testing plugin path explicitly: with only the Command Line Tools, SwiftPM otherwise fails to rebuild changed test files ("plugin for module 'TestingMacros' not found")
-- Fixed during testing: `isFloatingPanel = true` resets the window level, so it was below the menu bar; it is now set before the level
-- Not yet checked: how it looks (Keshab), changing display resolution, a notched MacBook
+- `pnpm island:test` passes the swift-testing plugin path explicitly: with only the Command Line Tools, SwiftPM otherwise fails to rebuild changed test files ("plugin for module 'TestingMacros' not found")
+- Fixed during testing: `isFloatingPanel = true` resets the window level; it is now set before the level
+- Keshab's review: move it out of the crowded top-centre, and give it real content and settings (ADR-037, ADR-038)
+
+---
+
+### Task 0.5.4b — Left-Edge Island with Live State (ADR-037, ADR-038)
+
+Move the island to the left edge below the menu bar and give the compact view its real content.
+
+- Placement: hidden past the left edge of the main display; hover band at the left edge just below the menu bar; slides in from the left; never covers the menu bar
+- Look: dark glass (system glass material on macOS 26+, dark blur otherwise), rounded corners, soft shadow
+- Compact view: ZENO's live state with an icon and a microphone level meter driven by `mic.level` (Ready, Listening, Transcribing, Thinking, Speaking, Restarting, problems in plain words)
+- Stays shown for a whole turn (`held` while not idle) and hides a few seconds after ZENO returns to idle, unless hovered
+- Follows display changes (resolution, menu bar height, display arrangement)
+
+Tests: Swift unit tests for the new frames and hover band (including menu bar height and a display arrangement with another display on the left), the level meter's smoothing, and the state-to-label mapping.
+
+Verification: on the Mac mini with the real pointer: reveal, hide, no reveal at the top-left corner or in the menu bar, the Apple menu still clickable, full-screen app; Keshab's look.
 
 ---
 
@@ -212,26 +218,26 @@ Verification: talking from another app (e.g. Safari) with ZENO not focused; typi
 
 ---
 
-### Task 0.5.6 — Live Status and Replies
+### Task 0.5.6 — Expanded View: Conversation and Status
 
-Show what ZENO is doing.
+- Click the compact card: it expands from the same corner into a larger glass card with tabs
+- **Conversation:** the session's turns (transcript and reply), "New conversation" (`conversation.reset`)
+- **Status:** provider and model, microphone, last turn's timings, last error with its fix
+- Click outside, Esc, or moving away: collapses
 
-- Compact pill: listening with a live level meter, transcribing, thinking, speaking
-- The transcript and reply text, truncated in the compact pill
-- Notices and errors in plain words, with the fix where there is one (e.g. microphone silent)
-- Stays visible for the whole turn; hides a few seconds after speaking ends unless hovered
-
-Verification: full turns with the real microphone; each state and the main errors seen on screen.
+Verification: a multi-turn conversation is readable; reset clears it and ZENO forgets it; Status matches `logs/zeno.log`.
 
 ---
 
-### Task 0.5.7 — Expanded Conversation View
+### Task 0.5.7 — Settings: AI Provider and Model
 
-- Click the pill: expands to show the current conversation (session-only, ADR-030)
-- "New conversation" button (`conversation.reset`)
-- Click outside or move away: collapses
+- Runtime: `info` event (provider, model, providers with a key present, models offered for each); `model.set` command switches the LLM adapter without restarting; the choice is saved to `config/island.json` (not in git) and applied at next start over `.env`
+- Island: Settings tab to choose provider and model; providers without a key are shown but not selectable, with a note to add the key to `.env`
+- API keys never leave `.env` and never reach the island
 
-Verification: a multi-turn conversation is readable; reset clears it and ZENO forgets it.
+Tests: Node tests for `model.set` (valid, unknown provider, no key, unknown model) and the settings file; Swift tests for decoding `info`.
+
+Verification: switch from Gemini to Claude and back from the island in the middle of a conversation; the next turn uses the new model (seen in the log); the choice survives a restart.
 
 ---
 
@@ -242,7 +248,7 @@ Verify Phase 0.5 as the user will use it.
 - With the terminal closed, start `ZENO.app`
 - From another app: hold Ctrl+Option, ask a question, release; see status and reply; hear the answer
 - Ask a follow-up; interrupt ZENO mid-reply; cancel with a shortcut
-- Check hover reveal, the expanded view, and recovery when the runtime is killed
+- Check hover reveal, the expanded view, switching the model, and recovery when the runtime is killed
 
 Record timings from `logs/zeno.log` and the user's verdict.
 
@@ -302,6 +308,6 @@ Never:
 
 ## 9. Current Priority
 
-Phase 0.5 — Desktop Island. Tasks 0.5.1–0.5.4 are done (0.5.4 awaits Keshab's look at the panel). Next task: 0.5.5 (Global Push-to-Talk).
+Phase 0.5 — Desktop Island. Tasks 0.5.1–0.5.4 are done. Keshab redirected the island (ADR-037, ADR-038). Current task: 0.5.4b (Left-Edge Island with Live State).
 
 Everything else waits.

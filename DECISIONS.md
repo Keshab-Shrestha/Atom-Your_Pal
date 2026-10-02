@@ -604,6 +604,8 @@ Holding a key is the most natural push-to-talk and needs no wake word or always-
 
 ## ADR-036 — Island Placement: Hidden Above the Screen, Revealed on Hover
 
+> **Placement superseded by ADR-037** (2026-10-02): the island moved from the top-centre to the left edge, below the menu bar. The behaviour below (hidden when idle, revealed on hover, shown while talking, expanded on click) still holds.
+
 ### Decision
 
 The island lives at the top-centre of the main display (the one with the menu bar).
@@ -623,6 +625,80 @@ Users can find it at a fixed spot without it taking space or attention when idle
 
 - Always-visible pill or menu bar icon: permanent clutter. A menu bar item may be added later for settings.
 - Floating near the cursor (as Clicky does): useful for pointing at things on screen, which belongs to Phase 3 (Computer Control).
+
+---
+
+## ADR-037 — Island Placement: Left Edge, Below the Menu Bar
+
+Supersedes the placement in ADR-036.
+
+### Decision
+
+The island lives at the **left edge of the main display, just below the menu bar**, instead of the top-centre.
+
+- **Idle:** fully hidden past the left edge. Nothing on screen.
+- **Hover:** when the pointer is pushed against the left edge in the band just below the menu bar for a short delay (0.25 s), the island slides in from the left. It hides shortly after the pointer leaves.
+- **While talking, click and expand:** as in ADR-036. The expanded view grows downward and rightward from the same corner.
+- It never covers the menu bar, so the Apple menu and the app menus stay reachable.
+
+### Reason
+
+- The top-centre is crowded: notch utilities, Dynamic-Island-style apps (FluidVoice is installed on this Mac), the camera notch on MacBooks, and macOS's own full-screen menu bar reveal all use it.
+- The top-left corner itself belongs to the Apple menu, and screen corners are where macOS hot corners trigger. The band below the menu bar is free on this Mac: no hot corner at the top-left, Dock at the bottom, Stage Manager off.
+- A screen edge is easy to hit: the pointer stops there, so a fast flick reaches it without aiming.
+
+### Collisions avoided
+
+- **Menu bar:** the hover band starts below it; the island is placed below `visibleFrame.maxY`.
+- **Hot corner:** the band ends well short of the top corner.
+- **Stage Manager and a left-hand Dock** also use the left edge. Both are off here. If either is on, the band is short (a few centimetres), so it overlaps them little; the reveal delay prevents reveals while passing.
+- **Displays to the left:** with a display on the left of the main one, the pointer crosses instead of stopping at the edge. The island then only reveals on hover at the left edge of the whole desktop; this Mac's second display is on the right.
+
+### Alternatives Considered
+
+- **Top-left corner, covering the Apple menu while shown:** blocks the most-used menu exactly when the island is open.
+- **Inside the menu bar, after the app menus:** the position changes with every app's menus, and many menu bar utilities live nearby.
+- **Keep the top-centre:** collides with the apps above.
+
+---
+
+## ADR-038 — What the Island Shows and Controls
+
+### Decision
+
+The island has two sizes.
+
+**Compact (on hover and while talking):** a dark glass card showing ZENO's live state with a microphone level meter: *Ready*, *Listening* (with the meter), *Transcribing*, *Thinking*, *Speaking*, or a problem in plain words. Nothing else, so it reads at a glance.
+
+**Expanded (click the compact card):** a larger card with three tabs.
+
+- **Conversation:** the current session's turns (session-only, ADR-030) and "New conversation".
+- **Status:** the AI provider and model, the microphone, the last turn's timings (transcription, model, first sound), and the last error with its fix.
+- **Settings:** choose the **AI provider and model** (Claude or Gemini, and which model). Only providers whose API key is present in `.env` can be chosen. The keys are never shown, sent to the island or written by it.
+
+Choosing a model applies at once: the runtime switches its LLM adapter, and the conversation continues. The choice is saved in a small settings file (`config/island.json`, not in git) and used the next time ZENO starts, overriding `ZENO_LLM_PROVIDER` / `ZENO_LLM_MODEL` from `.env`.
+
+**Look:** dark glass. It is translucent and blurs what is behind it, with rounded corners. It uses the system glass material on macOS 26+ and a dark blur on older systems.
+
+### Reason
+
+- A bare "Ready" pill is not a feature. The compact view stays focused on the one thing that matters while talking (is ZENO hearing me, and what is it doing). The detail lives one click away.
+- The model is the setting changed most often: Gemini's free tier runs out daily, and Claude needs credits. Switching should not mean editing `.env` and restarting.
+- Keeping keys in `.env` only means the island never handles secrets (SECURITY.md).
+
+### Protocol
+
+`docs/island-protocol.md` gains:
+
+- an `info` event with the provider, the model, which providers are available (key present), and the models offered for each
+- a `model.set` command (provider, model), answered by a new `info` event or an `error`
+
+### Alternatives Considered
+
+- **Show more in the compact view (model, microphone, timings):** too much to read at a glance. These details are kept in the Status tab instead.
+- **Settings window or menu bar icon:** a separate place to look. The island is already where the user looks.
+- **Microphone, voice and app-behaviour settings now:** not chosen for this phase; they can join the Settings tab later.
+- **Editing `.env` from the island:** would put the island next to secrets.
 
 ---
 

@@ -362,8 +362,8 @@ Phase 0.5 makes the Phase 0 loop usable day to day (ADR-033).
 The user can:
 
 - hold Ctrl+Option in any app, speak, and release to send
-- see ZENO's state (listening, thinking, speaking), the transcript and the reply in a small panel at the top-centre of the screen
-- reveal the panel by hovering at the top edge, and expand it to read the conversation
+- see ZENO's state (listening with a level meter, thinking, speaking) in a small dark glass island at the left edge of the screen, below the menu bar
+- reveal the island by pushing the pointer against that edge, and click it to read the conversation, see status details, and choose the AI provider and model
 
 When idle, nothing is on screen. ZENO's intelligence is unchanged from Phase 0.
 

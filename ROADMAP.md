@@ -36,7 +36,7 @@ Speaker
 
 Give ZENO a permanent place on the Mac (ADR-033).
 
-- a panel hidden above the top-centre of the screen, revealed by hovering
+- a dark glass island hidden past the left edge, below the menu bar, revealed by hovering; it shows live state and, expanded, the conversation, status and model settings
 - hold Ctrl+Option in any app to talk
 - live status and replies in the panel
 - the Phase 0 voice loop, unchanged, as the runtime behind it

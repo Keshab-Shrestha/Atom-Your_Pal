@@ -247,7 +247,7 @@ Unknown devices should not automatically become trusted.
 
 ### Desktop island (Phase 0.5)
 
-The island reads the keyboard and the pointer position system-wide, so its limits are explicit (ADR-035, ADR-036):
+The island reads the keyboard and the pointer position system-wide, so its limits are explicit (ADR-035, ADR-036, ADR-037):
 
 - Keys are read with a listen-only event tap. It cannot block or change keystrokes.
 - Only the Ctrl and Option state and "some other key was pressed" are used. Key codes are not stored, logged or sent anywhere.

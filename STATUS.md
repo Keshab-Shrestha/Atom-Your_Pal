@@ -26,7 +26,7 @@ The implementation priority is now Phase 0.
 
 Progress: **Phase 0 is complete (2026-10-02).** All tasks 0.1–0.11 are done; the voice loop was verified by the user speaking into the real microphone and by the live test suite (history: `docs/phase-0-tasks.md`). Open items from Phase 0: Claude live check (needs Anthropic credits); Gemini free-tier quota (about 20 requests per day).
 
-**Current phase: Phase 0.5 — Desktop Island** (ADR-033 to ADR-036), planned 2026-10-02. Task 0.5.1 is done: the project now lives at `~/Developer/zeno`, outside iCloud. Task 0.5.2 is done: the runtime can be driven over JSON lines (`main.ts --island`, `docs/island-protocol.md`). Task 0.5.3 is done: `ZENO.app` (`pnpm island:build`) runs as a background app and supervises the runtime: starts it, restarts it after a crash, stops it on quit. Task 0.5.4 is built: a black pill hidden above the top-centre slides down when the pointer rests at the top edge, shows ZENO's status, and slides back up when the pointer leaves; it works over full-screen apps and never takes focus. Awaiting Keshab's look. Next: Task 0.5.5 (Global Push-to-Talk).
+**Current phase: Phase 0.5 — Desktop Island** (ADR-033 to ADR-038), planned 2026-10-02. Task 0.5.1 is done: the project now lives at `~/Developer/zeno`, outside iCloud. Task 0.5.2 is done: the runtime can be driven over JSON lines (`main.ts --island`, `docs/island-protocol.md`). Task 0.5.3 is done: `ZENO.app` (`pnpm island:build`) runs as a background app and supervises the runtime: starts it, restarts it after a crash, stops it on quit. Task 0.5.4 is done: a panel hidden above the top-centre that slides down on hover. Keshab then redirected the design: the top-centre is crowded by other apps, so the island moves to the left edge below the menu bar (ADR-037), and it gets real content: a live state with a level meter, and an expanded view with Conversation, Status and Settings (AI provider and model) in dark glass (ADR-038). Current: Task 0.5.4b (Left-Edge Island with Live State).
 
 ---
 
@@ -37,7 +37,7 @@ Progress: **Phase 0 is complete (2026-10-02).** All tasks 0.1–0.11 are done; t
 Target:
 
 ```text
-Ctrl+Option held (any app)  /  pointer at top edge
+Ctrl+Option held (any app)  /  pointer at left edge
     ↓
 ZENO Island (Swift, apps/mac/island)
     ↕ JSON lines over stdin / stdout
@@ -159,12 +159,13 @@ Phase 0 technical choices (ADR-026 to ADR-030):
 
 Later Phase 0 changes: Gemini as a second provider (ADR-031); Whisper small.en with a vocabulary prompt (ADR-032).
 
-Phase 0.5 decisions (ADR-033 to ADR-036):
+Phase 0.5 decisions (ADR-033 to ADR-038):
 
 - A desktop island comes before Memory
 - Native Swift app for the island; the Node runtime runs as its child process, talking JSON lines over stdin / stdout
 - Hold Ctrl+Option to talk, from any app (listen-only key reading, Input Monitoring permission)
-- Hidden above the top-centre of the screen; revealed on hover and while talking
+- Hidden past the left edge, below the menu bar (moved from the top-centre, ADR-037); revealed on hover and while talking
+- Compact view: live state and level meter; expanded: Conversation, Status, Settings (provider and model); dark glass (ADR-038)
 
 ---
 
@@ -252,9 +253,9 @@ The immediate goal is:
 
 Phase 0 is complete. Phase 0.5 (Desktop Island) is planned in TASK.md.
 
-Tasks 0.5.1 (Move the Project Out of iCloud), 0.5.2 (Island Protocol and Runtime Mode), 0.5.3 (Island App Skeleton) and 0.5.4 (The Panel: Placement and Hover Reveal) are done; 0.5.4 awaits Keshab's look at the panel.
+Tasks 0.5.1–0.5.4 are done. After seeing the first panel, Keshab moved the island to the left edge and asked for real content and settings (ADR-037, ADR-038).
 
-The next task is Task 0.5.5 — Global Push-to-Talk (Ctrl+Option).
+The next task is Task 0.5.4b — Left-Edge Island with Live State.
 
 Do not start Phase 1 (Memory) until Phase 0.5 has been verified.
 
