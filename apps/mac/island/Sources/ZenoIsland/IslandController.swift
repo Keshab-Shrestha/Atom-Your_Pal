@@ -45,8 +45,9 @@ final class IslandController {
 
     /// Slide duration; with Reduce Motion the island fades instead.
     private let slideDuration = 0.24
-    /// How long the island stays out after a turn ends, so the outcome can be seen.
-    private let afterTurn = 2.5
+    /// How long the island or bubble stays out after a turn or dictation ends, so the outcome can be seen
+    /// (Settings → Bubble → Stays).
+    private var afterTurn: Double { model.settings.bubbleStay.seconds }
     /// How long a notice or problem stays out.
     private let afterProblem = 6.0
 
@@ -59,7 +60,7 @@ final class IslandController {
         dictation = DictationController(vocabularyURL: IslandController.vocabularyURL)
         dictation.log = log
         model.shortcuts = shortcuts
-        geometry = IslandController.currentGeometry()
+        geometry = IslandController.currentGeometry(panel: settings.panelSize)
         hosting = NSHostingView(rootView: IslandView(model: model))
         hosting.sizingOptions = [] // the controller sets the size; SwiftUI must not resize the window
         panel.contentView = hosting
@@ -127,10 +128,12 @@ final class IslandController {
             MainActor.assumeIsolated { self?.spaceChanged() }
         })
         shortcuts.start()
+        watchSettings()
         pet.setEnabled(model.settings.petEnabled)
         dictation.warmUp()
         if ProcessInfo.processInfo.environment["ZENO_BUBBLE_DEMO"] != nil { playBubbleDemo() }
         if ProcessInfo.processInfo.environment["ZENO_PANEL_DEMO"] != nil { playPanelDemo() }
+        if ProcessInfo.processInfo.environment["ZENO_LOOK_DEMO"] != nil { playLookDemo() }
                 if let files = ProcessInfo.processInfo.environment["ZENO_DICTATION_FILE"] { dictation.selfTest(files: files.split(separator: ",").map(String.init)) }
     }
 
@@ -285,7 +288,7 @@ final class IslandController {
             dictating = true
         case .done(let outcome):
             dictating = false
-            linger(model.status.needsAttention ? afterProblem : (outcome == .busy ? afterProblem : 1.8))
+            linger(model.status.needsAttention ? afterProblem : (outcome == .busy ? afterProblem : afterTurn))
         case .cancelled:
             dictating = false
         }
@@ -592,6 +595,41 @@ final class IslandController {
         }
     }
 
+    /// Development only (`ZENO_LOOK_DEMO`): changes the look settings while the app runs, so the real windows can
+    /// be measured, then puts the user's own values back.
+    private func playLookDemo() {
+        let settings = model.settings
+        let saved = (settings.wispSize, settings.wispGlow, settings.bubbleSize, settings.bubbleOpacity, settings.panelSize, settings.panelBackground, settings.bubbleStay)
+        func note(_ label: String) {
+            trace("look \(label) | wisp=\(Int(settings.wispSize.points)) | panel frame=\(Int(panel.frame.width))x\(Int(panel.frame.height)) visible=\(panel.isVisible) expanded=\(model.expanded) | bubble=\(bubble.isVisible)")
+        }
+        let steps: [(Double, @MainActor () -> Void)] = [
+            (3, { note("start") }),
+            (4, { settings.wispSize = .huge }),
+            (5.5, { note("wisp huge") }),
+            (6, { settings.bubbleSize = .large; settings.bubbleOpacity = .solid; settings.wispGlow = .bright }),
+            (6.5, { [self] in model.meter.reset(); dictationPhase(.listening) }),
+            (8, { note("bubble large while listening") }),
+            (9, { [self] in dictationPhase(.cancelled) }),
+            (10, { settings.wispSize = .small; settings.bubbleSize = .normal }),
+            (11, { note("wisp small") }),
+            (12, { settings.panelSize = .large; settings.panelBackground = .solid }),
+            (12.5, { [self] in wispClicked(1) }),
+            (14.5, { note("panel large") }),
+            (15, { settings.panelSize = .compact }),
+            (16.5, { note("panel compact while open") }),
+            (17, { [self] in setExpanded(false) }),
+            (18.5, { [self] in
+                (settings.wispSize, settings.wispGlow, settings.bubbleSize, settings.bubbleOpacity, settings.panelSize, settings.panelBackground, settings.bubbleStay) = saved
+                note("restored")
+            }),
+        ]
+        for (delay, step) in steps {
+            let timer = Timer(timeInterval: delay, repeats: false) { _ in MainActor.assumeIsolated { step() } }
+            RunLoop.main.add(timer, forMode: .common)
+        }
+    }
+
     // MARK: - Development snapshots
 
     private func snapshotSoon() {
@@ -618,12 +656,14 @@ final class IslandController {
 
     // MARK: - Displays and Spaces
 
-    private static func currentGeometry() -> IslandGeometry {
+    private static func currentGeometry(panel: PanelSize = .normal) -> IslandGeometry {
+        var metrics = IslandMetrics()
+        metrics.expanded = panel.size
         // The first screen is always the one with the menu bar.
         guard let screen = NSScreen.screens.first else {
-            return IslandGeometry(screen: CGRect(x: 0, y: 0, width: 1440, height: 900))
+            return IslandGeometry(screen: CGRect(x: 0, y: 0, width: 1440, height: 900), metrics: metrics)
         }
-        return IslandGeometry(screen: screen.frame, menuBarBottom: menuBarBottom(of: screen))
+        return IslandGeometry(screen: screen.frame, menuBarBottom: menuBarBottom(of: screen), metrics: metrics)
     }
 
     /// The bottom of the menu bar. `visibleFrame` also excludes a Dock on the left or right, so only its top is used.
@@ -636,8 +676,35 @@ final class IslandController {
         return fromVisible
     }
 
+    /// Re-applies the look settings whenever one changes (the bubble and the panel; Wisp reads its own each frame).
+    private func watchSettings() {
+        withObservationTracking {
+            _ = model.settings.revision
+        } onChange: { [weak self] in
+            // `onChange` fires just before the value changes, on whichever thread changed it: look again next turn.
+            Task { @MainActor [weak self] in
+                self?.applyLook()
+                self?.watchSettings()
+            }
+        }
+    }
+
+    private func applyLook() {
+        bubble.lookChanged()
+        let next = IslandController.currentGeometry(panel: model.settings.panelSize)
+        guard next != geometry else { return }
+        geometry = next
+        trace("panel size \(Int(next.metrics.expanded.width))x\(Int(next.metrics.expanded.height))")
+        guard model.expanded, panel.isVisible else { return }
+        let target = anchored ? wispPanelFrame() : geometry.frame(.expanded, visible: true)
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.2
+            panel.animator().setFrame(target, display: true)
+        }
+    }
+
     private func screensChanged() {
-        let next = IslandController.currentGeometry()
+        let next = IslandController.currentGeometry(panel: model.settings.panelSize)
         guard next != geometry else { return }
         geometry = next
         trace("screens changed: \(next.screen) menuBarBottom=\(next.menuBarBottom)")

@@ -63,8 +63,8 @@ struct IslandView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background {
-            if snapshot {
-                RoundedRectangle(cornerRadius: radius, style: .continuous).fill(Color(white: 0.11).opacity(0.94))
+            if snapshot || model.settings.panelBackground == .solid {
+                RoundedRectangle(cornerRadius: radius, style: .continuous).fill(Color(white: 0.11).opacity(snapshot ? 0.94 : 0.98))
             } else {
                 GlassBackground(cornerRadius: radius)
             }

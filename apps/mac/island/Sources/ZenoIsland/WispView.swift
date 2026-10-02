@@ -18,6 +18,8 @@ struct WispView: View {
     /// +1 facing right, -1 facing left: the eyes look the way Wisp floats.
     var facing: Double = 1
     var size: CGFloat = 64
+    /// Multiplies the halo's opacity (Settings → Wisp → Glow). 1 is the original look.
+    var glow: Double = 1
 
     private static let body = Color(red: 0.79, green: 0.93, blue: 1.0)      // #c9ecff
     private static let glow = Color(red: 0.56, green: 0.83, blue: 1.0)      // #8fd3ff
@@ -125,7 +127,7 @@ struct WispView: View {
         halo.scaleBy(x: haloScale, y: haloScale)
         halo.translateBy(x: -32, y: -32)
         halo.addFilter(.blur(radius: 2.5))
-        halo.fill(Self.outer, with: .color((mood == .worried ? Self.worry : Self.glow).opacity(glowOpacity)))
+        halo.fill(Self.outer, with: .color((mood == .worried ? Self.worry : Self.glow).opacity(min(1, glowOpacity * glow))))
 
         figure.fill(Self.inner, with: .color(Self.body))
         // A soft highlight, top left.

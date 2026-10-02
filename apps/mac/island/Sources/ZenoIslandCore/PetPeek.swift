@@ -47,8 +47,8 @@ public enum PeekLayout {
     }
 
     /// Where Wisp's feet go to hide, at the height it was at. `revealed` slides the head further out.
-    public static func feet(for peek: Peek, y: CGFloat, revealed: Bool = false) -> CGPoint {
-        let depth = inset + (revealed ? revealExtra : 0)
+    public static func feet(for peek: Peek, y: CGFloat, revealed: Bool = false, scale: CGFloat = 1) -> CGPoint {
+        let depth = (inset + (revealed ? revealExtra : 0)) * scale
         let x = peek.edge == .left ? peek.display.minX + depth : peek.display.maxX - depth
         return CGPoint(x: x, y: y)
     }

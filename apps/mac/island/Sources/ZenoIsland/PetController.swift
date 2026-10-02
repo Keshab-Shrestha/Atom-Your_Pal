@@ -16,11 +16,15 @@ import ZenoIslandCore
 ///   setting is on.
 @MainActor
 final class PetController {
-    /// Wisp's drawn size in points (the window is 1.5× this: see `WispView`).
+    /// Wisp's original drawn size in points; the Size setting scales it (the window is 1.5× the drawn size: see `WispView`).
     static let size: CGFloat = 56
-    private static let side = size * 1.5
+    /// Wisp's drawn size now (Settings → Wisp → Size).
+    private var size: CGFloat { settings.wispSize.points }
+    private var side: CGFloat { size * 1.5 }
     /// From the bottom of the window up to Wisp's feet.
-    private static let groundInset = WispView.groundInset(for: size)
+    private var groundInset: CGFloat { WispView.groundInset(for: size) }
+    /// How much bigger or smaller than the original Wisp is: what is placed around its body scales with it.
+    private var unit: CGFloat { size / Self.size }
     /// Keeps the walkway off the very edges of the screen.
     private static let margin: CGFloat = 24
     /// How far above the Dock's top edge Wisp's feet rest.
@@ -87,7 +91,7 @@ final class PetController {
         self.settings = settings
         self.trace = trace
         retreat = PetRetreat(timeout: settings.wispHideAfter.seconds, now: PetController.now)
-        let side = Self.side
+        let side = settings.wispSize.points * 1.5
         window = PetPanel(contentRect: NSRect(x: 0, y: 0, width: side, height: side), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
         window.isOpaque = false
         window.backgroundColor = .clear
@@ -97,7 +101,8 @@ final class PetController {
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
         window.isReleasedWhenClosed = false
         content = PetContentView(frame: NSRect(x: 0, y: 0, width: side, height: side))
-        let hosting = NSHostingView(rootView: PetStage(state: state, size: Self.size))
+        state.size = settings.wispSize.points
+        let hosting = NSHostingView(rootView: PetStage(state: state))
         hosting.frame = content.bounds
         hosting.autoresizingMask = [.width, .height]
         content.addSubview(hosting)
@@ -169,6 +174,20 @@ final class PetController {
         wake()
     }
 
+    /// Wisp's size, glow, pace and sleepiness from the settings, applied as soon as they change.
+    private func applyLook() {
+        let next = PetBrain.Tuning(wander: settings.wispWander, nap: settings.wispNap)
+        if brain.tuning != next { brain.tuning = next }
+        state.glow = settings.wispGlow.strength
+        let drawn = settings.wispSize.points
+        guard state.size != drawn else { return }
+        state.size = drawn
+        window.setContentSize(NSSize(width: side, height: side))
+        place() // the walkway is shorter by Wisp's width
+        lastFrameOrigin = CGPoint(x: CGFloat.nan, y: CGFloat.nan)
+        trace("pet size \(Int(drawn))")
+    }
+
     /// Restarts the idle timer, and brings Wisp out if it was hiding.
     private func wake() {
         retreat.wake(at: Self.now)
@@ -217,6 +236,7 @@ final class PetController {
         lastTick = now
 
         retreat.timeout = settings.wispHideAfter.seconds
+        applyLook()
         let over = dragging || bodyRect().contains(NSEvent.mouseLocation)
         pointerOver = over
         // Hiding or holding the panel: the brain does not wander, so Wisp comes back to where it was.
@@ -234,7 +254,7 @@ final class PetController {
 
         if !dragging {
             let normal = standingFeet()
-            let target = peek.map { PeekLayout.feet(for: $0, y: normal.y, revealed: pointerOver) } ?? normal
+            let target = peek.map { PeekLayout.feet(for: $0, y: normal.y, revealed: pointerOver, scale: unit) } ?? normal
             let wantedTurn = peek.map(PeekLayout.rotation(for:)) ?? 0
             rotation += (wantedTurn - rotation) * Double(1 - exp(-12 * dt))
             if abs(wantedTurn - rotation) < 0.3 { rotation = wantedTurn }
@@ -265,7 +285,7 @@ final class PetController {
     }
 
     private func move(to feet: CGPoint) {
-        let origin = CGPoint(x: (feet.x - Self.side / 2).rounded(), y: (feet.y - Self.groundInset).rounded())
+        let origin = CGPoint(x: (feet.x - side / 2).rounded(), y: (feet.y - groundInset).rounded())
         if origin == lastFrameOrigin { return }
         lastFrameOrigin = origin
         window.setFrameOrigin(origin)
@@ -275,8 +295,9 @@ final class PetController {
     /// Wisp's body in screen coordinates: where a press grabs it.
     private func bodyRect() -> CGRect {
         // Turned on its side, Wisp is wider than tall, and centred a little higher.
-        if abs(rotation) > 45 { return CGRect(x: feet.x - 27, y: feet.y + 3, width: 54, height: 44) }
-        return CGRect(x: feet.x - 22, y: feet.y - 4, width: 44, height: 54)
+        let u = unit
+        if abs(rotation) > 45 { return CGRect(x: feet.x - 27 * u, y: feet.y + 3 * u, width: 54 * u, height: 44 * u) }
+        return CGRect(x: feet.x - 22 * u, y: feet.y - 4 * u, width: 44 * u, height: 54 * u)
     }
 
     /// Where Wisp's feet are when it is out: its place on the Dock walkway, or its parked spot.
@@ -293,14 +314,14 @@ final class PetController {
         let visible = screen.visibleFrame
         walkMinX = visible.minX + Self.margin
         walkY = visible.minY + Self.dockLift
-        let width = max(visible.width - Self.margin * 2 - Self.size, 0)
+        let width = max(visible.width - Self.margin * 2 - size, 0)
         brain.resize(width: Double(width))
         trace("pet walkway x=\(Int(walkMinX)) y=\(Int(walkY)) width=\(Int(width))")
     }
 
     /// Where Wisp's feet are when it is walking: the brain's position along the walkway.
     private func walkwayFeet() -> CGPoint {
-        CGPoint(x: walkMinX + CGFloat(brain.x) + Self.size / 2, y: walkY)
+        CGPoint(x: walkMinX + CGFloat(brain.x) + size / 2, y: walkY)
     }
 
     private func parkedFeet() -> CGPoint {
@@ -376,7 +397,7 @@ final class PetController {
         let now = Self.now
         if isOnWalkway(feet) {
             // Put down on the Dock: it settles to the walkway and wanders from there.
-            brain.drop(homeX: Double(feet.x - Self.size / 2 - walkMinX), at: now)
+            brain.drop(homeX: Double(feet.x - size / 2 - walkMinX), at: now)
             settings.petSpot = nil
             settling = true
             trace("pet dropped on the Dock")
@@ -407,8 +428,8 @@ final class PetController {
     private func clamped(_ point: CGPoint, near mouse: CGPoint) -> CGPoint {
         let screens = NSScreen.screens
         guard let frame = (screens.first { $0.frame.contains(mouse) } ?? screens.first)?.frame else { return point }
-        let half = Self.size / 2
-        let top = frame.maxY - (Self.side - Self.groundInset)
+        let half = size / 2
+        let top = frame.maxY - (side - groundInset)
         return CGPoint(
             x: min(max(point.x, frame.minX + half), frame.maxX - half),
             y: min(max(point.y, frame.minY + 2), top)
@@ -424,15 +445,17 @@ final class PetState {
     var time = 0.0
     /// Degrees clockwise: 0 upright, ±90 while hiding at an edge.
     var rotation = 0.0
+    /// Drawn size and halo strength from the settings.
+    var size: CGFloat = 56
+    var glow = 1.0
 }
 
 /// Draws Wisp for the current state.
 struct PetStage: View {
     let state: PetState
-    let size: CGFloat
 
     var body: some View {
-        WispView(mood: state.mood, time: state.time, facing: state.facing, size: size)
+        WispView(mood: state.mood, time: state.time, facing: state.facing, size: state.size, glow: state.glow)
             .rotationEffect(.degrees(state.rotation))
     }
 }

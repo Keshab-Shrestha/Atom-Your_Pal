@@ -29,6 +29,8 @@ public struct PetBrain: Sendable {
         public var napAfter: Double = 180
         /// The shortest float: closer targets are skipped, so Wisp never shuffles in place.
         public var minimumTrip: Double = 60
+        /// False: Wisp rests where it is instead of floating along the Dock.
+        public var wanders = true
 
         public init() {}
     }
@@ -40,7 +42,8 @@ public struct PetBrain: Sendable {
     public private(set) var x: Double
     /// +1 facing right, -1 facing left.
     public private(set) var facing: Double = 1
-    public let tuning: Tuning
+    /// Changes take effect on the next step (the settings can change while Wisp runs).
+    public var tuning: Tuning
 
     private var width: Double
     private var target: Double?
@@ -146,7 +149,7 @@ public struct PetBrain: Sendable {
         }
 
         switch mood {
-        case .resting where pinned && now >= restUntil:
+        case .resting where (pinned || !tuning.wanders) && now >= restUntil:
             restUntil = now + tuning.restSeconds.lowerBound // parked: rests where it is
         case .resting where now >= restUntil:
             target = pickTarget()

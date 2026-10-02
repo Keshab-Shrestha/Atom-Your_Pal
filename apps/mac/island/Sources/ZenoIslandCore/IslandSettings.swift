@@ -17,6 +17,15 @@ public final class IslandSettings {
     static let soundsKey = "zeno.soundsEnabled"
     static let petSpotKey = "zeno.petSpot"
     static let wispHideKey = "zeno.wispHideAfter"
+    static let wispSizeKey = "zeno.wisp.size"
+    static let wispGlowKey = "zeno.wisp.glow"
+    static let wispWanderKey = "zeno.wisp.wander"
+    static let wispNapKey = "zeno.wisp.nap"
+    static let bubbleStayKey = "zeno.bubble.stay"
+    static let bubbleSizeKey = "zeno.bubble.size"
+    static let bubbleOpacityKey = "zeno.bubble.opacity"
+    static let panelSizeKey = "zeno.panel.size"
+    static let panelBackgroundKey = "zeno.panel.background"
 
     @ObservationIgnored private let defaults: UserDefaults
     /// Mirrors what is stored, so views observe changes.
@@ -50,6 +59,21 @@ public final class IslandSettings {
     public var wispHideAfter: WispHideTimeout {
         didSet { defaults.set(wispHideAfter.rawValue, forKey: Self.wispHideKey); revision += 1 }
     }
+
+    /// How big Wisp is. Default medium (the original size).
+    public var wispSize: WispSize { didSet { store(wispSize.rawValue, Self.wispSizeKey) } }
+    /// The halo's strength. Default normal.
+    public var wispGlow: WispGlow { didSet { store(wispGlow.rawValue, Self.wispGlowKey) } }
+    /// How much Wisp floats about. Default normal.
+    public var wispWander: WispWander { didSet { store(wispWander.rawValue, Self.wispWanderKey) } }
+    /// How long until Wisp naps. Default 3 minutes.
+    public var wispNap: WispNap { didSet { store(wispNap.rawValue, Self.wispNapKey) } }
+    /// How long the speech bubble stays after something finishes. Default 2 seconds.
+    public var bubbleStay: BubbleStay { didSet { store(bubbleStay.rawValue, Self.bubbleStayKey) } }
+    public var bubbleSize: BubbleSize { didSet { store(bubbleSize.rawValue, Self.bubbleSizeKey) } }
+    public var bubbleOpacity: BubbleOpacity { didSet { store(bubbleOpacity.rawValue, Self.bubbleOpacityKey) } }
+    public var panelSize: PanelSize { didSet { store(panelSize.rawValue, Self.panelSizeKey) } }
+    public var panelBackground: PanelBackground { didSet { store(panelBackground.rawValue, Self.panelBackgroundKey) } }
 
     /// Start and stop sounds. Default on.
     public var soundsEnabled: Bool {
@@ -85,6 +109,15 @@ public final class IslandSettings {
         petEnabled = defaults.object(forKey: Self.petKey) as? Bool ?? true
         soundsEnabled = defaults.object(forKey: Self.soundsKey) as? Bool ?? true
         wispHideAfter = (defaults.object(forKey: Self.wispHideKey) as? Int).flatMap(WispHideTimeout.init(rawValue:)) ?? .minute1
+        wispSize = Self.choice(defaults, Self.wispSizeKey, .medium)
+        wispGlow = Self.choice(defaults, Self.wispGlowKey, .normal)
+        wispWander = Self.choice(defaults, Self.wispWanderKey, .normal)
+        wispNap = Self.choice(defaults, Self.wispNapKey, .minutes3)
+        bubbleStay = Self.choice(defaults, Self.bubbleStayKey, .seconds2)
+        bubbleSize = Self.choice(defaults, Self.bubbleSizeKey, .normal)
+        bubbleOpacity = Self.choice(defaults, Self.bubbleOpacityKey, .normal)
+        panelSize = Self.choice(defaults, Self.panelSizeKey, .normal)
+        panelBackground = Self.choice(defaults, Self.panelBackgroundKey, .glass)
         dictationMode = (defaults.string(forKey: Self.dictationModeKey)).flatMap(DictationMode.init(rawValue:)) ?? .automatic
         livePreview = defaults.object(forKey: Self.livePreviewKey) as? Bool ?? true
         removeFillers = defaults.object(forKey: Self.removeFillersKey) as? Bool ?? true
@@ -152,6 +185,25 @@ public final class IslandSettings {
         }
         overrides.removeAll()
         revision += 1
+    }
+
+    private func store(_ value: Int, _ key: String) {
+        defaults.set(value, forKey: key)
+        revision += 1
+    }
+
+    /// A stored choice, or `fallback` if there is none or it is not one of the cases (an older or edited value).
+    private static func choice<C: RawRepresentable>(_ defaults: UserDefaults, _ key: String, _ fallback: C) -> C where C.RawValue == Int {
+        (defaults.object(forKey: key) as? Int).flatMap(C.init(rawValue:)) ?? fallback
+    }
+
+    /// Puts every look and behaviour setting (Wisp, bubble, panel) back to its default. Shortcuts, dictation,
+    /// the model and the on/off switches are left alone.
+    public func resetLook() {
+        wispSize = .medium; wispGlow = .normal; wispWander = .normal; wispNap = .minutes3
+        wispHideAfter = .minute1
+        bubbleStay = .seconds2; bubbleSize = .normal; bubbleOpacity = .normal
+        panelSize = .normal; panelBackground = .glass
     }
 
     private func save(_ value: Bool, _ key: String) {

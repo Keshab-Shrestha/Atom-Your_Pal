@@ -913,6 +913,36 @@ Unit tests cover the edge choice (nearer edge, neighbouring displays, neighbour 
 
 ---
 
+## ADR-052 — More Control in Settings: Wisp, Speech Bubble, Panel
+
+Date: 2026-10-02. Extends ADR-051 and ADR-040.
+
+### Decision
+
+Settings gets three new cards, each a few rows of chips (never sliders: a few named choices read faster and are easier to test). Every change applies at once, with no restart, including while the panel is open. Defaults are exactly the old look.
+
+- **Wisp:** Show Wisp; Size (Small 44, Medium 56, Large 72, Huge 92 pt); Glow (Off, Soft, Normal, Bright); Movement (Stay put, Calm, Normal, Lively); Falls asleep after (Never, 1, 3, 10 min); Tuck away after (existing).
+- **Speech bubble:** Stays (1, 2, 4, 8 s after something finishes); Size (Small, Normal, Large); Background (Clear, Normal, Solid).
+- **Panel:** Size (Compact 340×400, Normal 380×460, Large 440×580); Background (Glass, Solid).
+- **Extras:** Sounds, and "Reset look and behaviour", which puts Wisp, bubble and panel back to defaults and leaves shortcuts, dictation, model and the on/off switches alone.
+
+Everything around Wisp scales with its size: the click target, how far its head sticks out when tucked, and how high the bubble sits. Gesture choices ("which gestures it makes") are not built: Wisp has no peace-sign or pointing pose, because the redraw from the figurine image was dropped (see Reason).
+
+### Reason
+
+Keshab asked for more control in Settings. A new look for Wisp from a pasted figurine photo was also asked for, and then dropped by him ("lets not do image to 3js"), so the character's drawing is unchanged.
+
+### Alternatives Considered
+
+- **Sliders:** rejected; they need a number to mean something, and each of these has three or four useful values.
+- **A separate Appearance window:** rejected; settings live inside the panel (ADR-040).
+
+### Verification
+
+241 → 252 unit tests: defaults equal the old look, choices survive a restart, an unknown stored value falls back to the default, changes count as changes, reset leaves the rest alone, Stay-put Wisp never moves and never naps with Never, Lively covers more ground than Calm, nap time follows the setting, tucking depth scales with size. On the real screen a demo changed settings while ZENO ran: Wisp's window went 84 → 138 → 66 pt as Medium → Huge → Small; the bubble became 432×96 pt (Large) with the tail clearing a huge Wisp's head; the panel resized in place from 380×460 to 440×580 to 340×400 while open. Keshab was also seen changing Wisp's size from the panel while the app ran. Not checked by eye: how each size looks side by side, and Clear and Solid backgrounds over a busy wallpaper.
+
+---
+
 ## Final Architectural Principle
 
 > Preserve the future without prematurely implementing it.

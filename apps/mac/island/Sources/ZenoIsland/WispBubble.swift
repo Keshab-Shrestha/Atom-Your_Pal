@@ -10,6 +10,8 @@ final class BubbleState {
     var tailX: CGFloat = BubbleLayout.size.width / 2
     /// The bubble is below Wisp, so the tail is on top.
     var tailOnTop = false
+    /// Settings → Bubble → Size: the bubble is drawn at its normal size and scaled.
+    var scale: CGFloat = 1
 
     init(visible: Bool = false, tailX: CGFloat = BubbleLayout.size.width / 2, tailOnTop: Bool = false) {
         self.visible = visible
@@ -68,7 +70,7 @@ struct BubbleView: View {
             .background {
                 ZStack {
                     if !snapshot { shape.fill(.ultraThinMaterial) }
-                    shape.fill(Color(white: 0.06).opacity(snapshot ? 0.94 : 0.66))
+                    shape.fill(Color(white: 0.06).opacity(snapshot ? 0.94 : model.settings.bubbleOpacity.fill))
                 }
             }
             .overlay { shape.stroke(.white.opacity(0.16), lineWidth: 0.5) }
@@ -79,6 +81,8 @@ struct BubbleView: View {
             .scaleEffect(state.visible || reduceMotion ? 1 : 0.72, anchor: UnitPoint(x: state.tailX / size.width, y: state.tailOnTop ? 0 : 1))
             .opacity(state.visible ? 1 : 0)
             .animation(reduceMotion ? .easeOut(duration: 0.15) : .spring(response: 0.34, dampingFraction: 0.78), value: state.visible)
+            .scaleEffect(state.scale, anchor: .topLeading)
+            .frame(width: size.width * state.scale, height: size.height * state.scale, alignment: .topLeading)
             .padding(BubbleController.shadowInset)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(model.status.detail.isEmpty ? "ZENO: \(model.status.title)" : "ZENO: \(model.status.title). \(model.status.detail)")
@@ -92,6 +96,7 @@ final class BubbleController {
     static let shadowInset: CGFloat = 12
 
     let state = BubbleState()
+    private let model: IslandModel
     private let panel: NSPanel
     private var feet = CGPoint.zero
     private var hiding: Task<Void, Never>?
@@ -99,6 +104,7 @@ final class BubbleController {
     var isVisible: Bool { state.visible }
 
     init(model: IslandModel) {
+        self.model = model
         let size = CGSize(width: BubbleLayout.size.width + 2 * Self.shadowInset, height: BubbleLayout.size.height + 2 * Self.shadowInset)
         panel = NSPanel(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
         panel.isOpaque = false
@@ -140,6 +146,11 @@ final class BubbleController {
         }
     }
 
+    /// A bubble setting changed: place the bubble again.
+    func lookChanged() {
+        if panel.isVisible { reposition() }
+    }
+
     /// Wisp moved.
     func follow(_ feet: CGPoint) {
         self.feet = feet
@@ -162,9 +173,16 @@ final class BubbleController {
 
     private func reposition() {
         guard let bounds = Self.displayBounds(containing: feet) else { return }
-        let placement = BubbleLayout.place(feet: feet, in: bounds)
+        let settings = model.settings
+        let scale = settings.bubbleSize.scale
+        let wisp = settings.wispSize.scale // a bigger Wisp stands taller: the bubble clears its head
+        let size = CGSize(width: BubbleLayout.size.width * scale, height: BubbleLayout.size.height * scale)
+        let placement = BubbleLayout.place(feet: feet, bodyHeight: 54 * wisp, size: size, in: bounds)
         let tailOnTop = placement.side == .below
-        if state.tailX != placement.tailX { state.tailX = placement.tailX }
+        // The tail is drawn in the bubble's own (unscaled) coordinates.
+        let tailX = placement.tailX / scale
+        if state.scale != scale { state.scale = scale }
+        if state.tailX != tailX { state.tailX = tailX }
         if state.tailOnTop != tailOnTop { state.tailOnTop = tailOnTop }
         let frame = placement.frame.insetBy(dx: -Self.shadowInset, dy: -Self.shadowInset)
         if panel.frame != frame { panel.setFrame(frame, display: false) }

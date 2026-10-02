@@ -54,7 +54,7 @@ enum IslandGallery {
         }
         // The Settings tab is taller than the window and scrolls: render it tall once, so the lower cards can be reviewed.
         model.tab = .settings
-        write(model, size: CGSize(width: expanded.width, height: 1150), name: "2-settings-full", to: directory)
+        write(model, size: CGSize(width: expanded.width, height: 2000), name: "2-settings-full", to: directory)
         model.recorder.start(.talk)
         write(model, size: expanded, name: "3-recording-shortcut", to: directory)
         model.recorder.stop()

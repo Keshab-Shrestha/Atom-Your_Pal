@@ -411,40 +411,121 @@ struct SettingsTab: View {
                 ModelSection(model: model)
                 ShortcutSection(model: model)
                 DictationSection(model: model)
+                WispSection(model: model)
+                BubbleSection(model: model)
+                PanelSection(model: model)
                 Card("Extras") {
-                    Row(title: "Wisp", detail: "Shows ZENO's status and opens this panel when clicked") {
-                        Toggle("", isOn: Binding(get: { model.settings.petEnabled }, set: { model.setPet($0) }))
-                            .labelsHidden().toggleStyle(.switch).controlSize(.mini)
-                    }
-                    if model.settings.petEnabled {
-                        RowDivider()
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Tuck away after").font(.system(size: 12, weight: .semibold))
-                            FlowLayout(spacing: 5) {
-                                ForEach(WispHideTimeout.allCases) { timeout in
-                                    ModelChip(name: timeout.title, selected: model.settings.wispHideAfter == timeout, pending: false, enabled: true) {
-                                        model.settings.wispHideAfter = timeout
-                                    }
-                                }
-                            }
-                            Text(model.settings.wispHideAfter == .never
-                                 ? "Wisp stays where you put it"
-                                 : "With nothing to do, Wisp slides to a side edge and only its head shows. It comes back when you point at it or ZENO has something to show")
-                                .font(.system(size: 10.5))
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .padding(.horizontal, 11)
-                        .padding(.vertical, 9)
-                    }
-                    RowDivider()
                     Row(title: "Sounds", detail: "A soft tone when listening starts and stops") {
                         Toggle("", isOn: Binding(get: { model.settings.soundsEnabled }, set: { model.settings.soundsEnabled = $0 }))
                             .labelsHidden().toggleStyle(.switch).controlSize(.mini)
                     }
+                    RowDivider()
+                    Row(title: "Reset look and behaviour", detail: "Wisp, bubble and panel go back to their defaults. Shortcuts and dictation stay") {
+                        Button("Reset") { model.settings.resetLook() }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 11, weight: .medium))
+                            .padding(.horizontal, 10).padding(.vertical, 4)
+                            .background(Capsule().fill(.white.opacity(0.1)))
+                    }
                 }
             }
             .padding(12)
+        }
+    }
+}
+
+/// A setting with a few named choices, as a row of chips with a title and a one-line explanation.
+struct ChoiceRow<Choice: SettingsChoice>: View {
+    let title: String
+    var detail: String? = nil
+    let selection: Choice
+    let set: (Choice) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.system(size: 12, weight: .semibold))
+            FlowLayout(spacing: 5) {
+                ForEach(Array(Choice.allCases), id: \.self) { choice in
+                    ModelChip(name: choice.title, selected: selection == choice, pending: false, enabled: true) { set(choice) }
+                }
+            }
+            if let detail, !detail.isEmpty {
+                Text(detail)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 9)
+    }
+}
+
+/// Wisp: whether it shows, how it looks, how it moves and when it tucks away (ADR-042, ADR-051, ADR-052).
+struct WispSection: View {
+    let model: IslandModel
+
+    var body: some View {
+        let settings = model.settings
+        Card("Wisp") {
+            Row(title: "Show Wisp", detail: "Shows ZENO's status and opens this panel when clicked") {
+                Toggle("", isOn: Binding(get: { settings.petEnabled }, set: { model.setPet($0) }))
+                    .labelsHidden().toggleStyle(.switch).controlSize(.mini)
+            }
+            if settings.petEnabled {
+                RowDivider()
+                ChoiceRow(title: "Size", selection: settings.wispSize) { settings.wispSize = $0 }
+                RowDivider()
+                ChoiceRow(title: "Glow", detail: "The soft halo around Wisp", selection: settings.wispGlow) { settings.wispGlow = $0 }
+                RowDivider()
+                ChoiceRow(title: "Movement",
+                          detail: settings.wispWander == .stayPut ? "Wisp rests where it stands" : "How fast Wisp floats along the Dock when idle",
+                          selection: settings.wispWander) { settings.wispWander = $0 }
+                RowDivider()
+                ChoiceRow(title: "Falls asleep after", detail: "With nothing happening, Wisp naps until you use ZENO",
+                          selection: settings.wispNap) { settings.wispNap = $0 }
+                RowDivider()
+                ChoiceRow(title: "Tuck away after",
+                          detail: settings.wispHideAfter == .never
+                              ? "Wisp stays where you put it"
+                              : "With nothing to do, Wisp slides to a side edge and only its head shows. It comes back when you point at it or ZENO has something to show",
+                          selection: settings.wispHideAfter) { settings.wispHideAfter = $0 }
+            }
+        }
+    }
+}
+
+/// The speech bubble over Wisp (ADR-050, ADR-052).
+struct BubbleSection: View {
+    let model: IslandModel
+
+    var body: some View {
+        let settings = model.settings
+        Card("Speech bubble") {
+            ChoiceRow(title: "Stays", detail: "How long the bubble stays after a dictation or an answer ends",
+                      selection: settings.bubbleStay) { settings.bubbleStay = $0 }
+            RowDivider()
+            ChoiceRow(title: "Size", selection: settings.bubbleSize) { settings.bubbleSize = $0 }
+            RowDivider()
+            ChoiceRow(title: "Background", detail: "How much you see of what is behind the bubble",
+                      selection: settings.bubbleOpacity) { settings.bubbleOpacity = $0 }
+        }
+    }
+}
+
+/// The features panel that opens from Wisp (ADR-051, ADR-052).
+struct PanelSection: View {
+    let model: IslandModel
+
+    var body: some View {
+        let settings = model.settings
+        Card("Panel") {
+            ChoiceRow(title: "Size", detail: "Takes effect at once, even while the panel is open",
+                      selection: settings.panelSize) { settings.panelSize = $0 }
+            RowDivider()
+            ChoiceRow(title: "Background", detail: "Glass shows a blur of what is behind; Solid is a plain dark fill",
+                      selection: settings.panelBackground) { settings.panelBackground = $0 }
         }
     }
 }
