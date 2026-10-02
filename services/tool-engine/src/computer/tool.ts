@@ -23,6 +23,11 @@ export interface ComputerToolOptions {
   approve: (request: ApprovalRequest, signal?: AbortSignal) => Promise<boolean>;
   /** One call per action, for the log. Receives no typed text and no screen content. */
   onAction?: (event: ComputerAction) => void;
+  /**
+   * Wisp flies to this place on screen and the bubble shows the label (the `point` action). Returns false if there is no
+   * island to show it. Coordinates are screen points, origin at the top-left of the main display, as Cua reports them.
+   */
+  onPoint?: (target: { x: number; y: number; w: number; h: number; label: string }) => boolean | void;
   /** Called as an action begins, so the user can see what ZENO is doing. Carries the action and app only. */
   onStep?: (step: { action: string; app?: string }) => void;
   maxElements?: number;
@@ -36,6 +41,7 @@ interface Element {
   value?: string;
   enabled?: boolean;
   depth?: number;
+  frame?: { x?: number; y?: number; w?: number; h?: number };
 }
 
 interface Target {
@@ -68,7 +74,17 @@ function withoutMenuBar(elements: Element[]): Element[] {
   return kept;
 }
 
-const ACTIONS = ["list_apps", "look", "open", "click", "type", "key", "scroll"] as const;
+const ACTIONS = ["list_apps", "look", "open", "click", "type", "key", "scroll", "point"] as const;
+
+/** An element's place on screen, or nothing if it has none worth flying to (missing, not a number, empty, or off in space). */
+function usableFrame(f: Element["frame"]): { x: number; y: number; w: number; h: number } | undefined {
+  if (!f) return undefined;
+  const { x, y, w, h } = f;
+  if (![x, y, w, h].every((n) => typeof n === "number" && Number.isFinite(n))) return undefined;
+  if ((w as number) < 1 || (h as number) < 1) return undefined;
+  if (Math.abs(x as number) > 100_000 || Math.abs(y as number) > 100_000) return undefined; // not a real screen position
+  return { x: x as number, y: y as number, w: w as number, h: h as number };
+}
 
 /**
  * The one computer-control tool the model sees (ADR-054). It exposes a small set of actions on top of Cua Driver,
@@ -76,7 +92,7 @@ const ACTIONS = ["list_apps", "look", "open", "click", "type", "key", "scroll"] 
  * secret fields, and only elements from the latest `look`. The model chooses actions; it never touches Cua directly.
  */
 export function createComputerTool(options: ComputerToolOptions): Tool {
-  const { cua, approve, onAction, onStep, maxElements = 150 } = options;
+  const { cua, approve, onAction, onStep, onPoint, maxElements = 150 } = options;
   let target: Target | undefined;
 
   const log = (e: ComputerAction) => onAction?.(e);
@@ -233,6 +249,17 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         t.justTyped = false;
         return `Pressed ${keys.join("+")}.`;
       }
+      case "point": {
+        // Shows the user a place on screen. It changes nothing in any app, so it never asks.
+        const t = need();
+        const el = pick(t, input.element);
+        const box = usableFrame(el.frame);
+        if (!box) throw new Refused(`ZENO cannot show where [${el.element_index}] is: it has no place on screen. Describe it in words instead.`);
+        if (!onPoint) throw new Refused("Pointing is not available right now. Describe where it is in words instead.");
+        const label = (typeof input.text === "string" && input.text.trim() ? input.text : el.label ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
+        if (onPoint({ ...box, label }) === false) throw new Refused("Pointing is not available right now. Describe where it is in words instead.");
+        return `Pointed at [${el.element_index}]${label ? ` (${label})` : ""}. The user can see it now; do not point again unless asked.`;
+      }
       case "scroll": {
         const t = need();
         const direction = String(input.direction ?? "down");
@@ -255,6 +282,8 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         "Controls apps on the user's Mac in the background. First `look` at an app to get its numbered elements, then `click`, " +
         "`type` or `key` using those numbers; look again after anything that changes the window. Typed text goes in at the cursor, " +
         "not at the end. Use `open` to start an app. " +
+        "Use `point` with an element number (and a short label) to show the user where something is: Wisp flies to it. " +
+        "Point when the user asks where something is or how to do it, instead of doing it for them. " +
         "ZENO asks the user before sending, buying, deleting or changing anything, and never types passwords. " +
         "If the user declines, stop and say so.",
       inputSchema: {

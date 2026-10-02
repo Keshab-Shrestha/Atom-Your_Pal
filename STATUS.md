@@ -1,8 +1,8 @@
 # ZENO Project Status
 
-Last updated: 2026-10-02
+Last updated: 2026-10-03
 
-Next after Task 0.5.9: voice computer control through Cua, then pointing (ADR-054, Tasks 0.6.1–0.6.4).
+Voice computer control through Cua (ADR-054, Tasks 0.6.1–0.6.4) is built: tool calling, the `computer` tool (including `point`), and Wisp showing the work with an Allow/Decline card and flying to what the model points at. Still unseen by hand: the approval card and pointing by voice. Next after Task 0.5.9: Task 0.5.9 itself, then Phase 0.6 hand checks.
 
 ---
 

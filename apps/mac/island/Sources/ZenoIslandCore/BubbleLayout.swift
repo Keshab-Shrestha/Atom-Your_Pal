@@ -37,8 +37,10 @@ public enum BubbleLayout {
     ///   - feet: the point on the ground under Wisp.
     ///   - bodyHeight: how tall Wisp stands above `feet`.
     ///   - bounds: the area the bubble must stay inside (the display, below the menu bar).
+    ///   - prefer: the side to use if it fits; otherwise the usual choice.
     public static func place(feet: CGPoint, bodyHeight: CGFloat = 54, gap: CGFloat = 4,
-                             size: CGSize = BubbleLayout.size, in bounds: CGRect, margin: CGFloat = 8) -> BubblePlacement {
+                             size: CGSize = BubbleLayout.size, in bounds: CGRect, margin: CGFloat = 8,
+                             prefer: BubblePlacement.Side? = nil) -> BubblePlacement {
         let width = min(size.width, max(0, bounds.width - 2 * margin))
         let left = bounds.minX + margin
         let right = bounds.maxX - margin - width
@@ -50,7 +52,9 @@ public enum BubbleLayout {
         let belowFits = belowY >= bounds.minY + margin
         let side: BubblePlacement.Side
         let y: CGFloat
-        if aboveFits || !belowFits {
+        // A preferred side wins when it fits (pointing: the bubble must not cover what Wisp points at).
+        let useAbove = prefer == .above && aboveFits ? true : prefer == .below && belowFits ? false : (aboveFits || !belowFits)
+        if useAbove {
             side = .above
             y = min(aboveY, bounds.maxY - margin - size.height)
         } else {

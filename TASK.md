@@ -341,9 +341,21 @@ Three new island events (`computer.step`, `approval.request`, `approval.closed`)
 
 **Not done:** the card has not been seen on the real screen, and Esc and the Allow click have not been tried by hand with `ZENO_COMPUTER=1`. Gemini Flash's daily free quota ran out partway through, so no run finished with an approved action and a final spoken answer.
 
-### Task 0.6.4 — Pointing (ADR-054) — queued
+### Task 0.6.4 — Pointing (ADR-054) — built; flown on the real screen; not yet heard by voice
 
-The model names a place on screen; Wisp flies there and the bubble labels it. Screenshot stays on the Mac, sent only when useful. Needs Screen Recording.
+The model names a place on screen; Wisp flies there and the bubble labels it. No screenshot is sent anywhere: the place comes from the numbered elements the last `look` already returned (Cua's own positions), so pointing needs nothing beyond the permissions computer control already has.
+
+**Done (2026-10-03):**
+
+- `computer` tool gains a `point` action (`element` from the last look, plus an optional spoken `label`). It refuses before any `look`, an element that is not in the last look, and an element with no position. It is never an approval case: it only shows, it does not act.
+- `computer.point` event (`x y w h label`, Cua's coordinates) goes runtime → bridge → island. Documented in `docs/island-protocol.md`; bad numbers are a decode error, never a crash.
+- Swift Core: `PointPlacement` (top-left/y-down to AppKit, any number of displays, stands on the element's top edge, hangs under it near the top of a display, never covers it; a place on no display is not flown to), `BubbleLayout` takes a preferred side, `PointingState` (ends on a new turn, reset, error or runtime stop).
+- Island: Wisp flies to the spot slowly enough to follow, faces the way it travels, stays about 7 s after arriving, then goes home. The user taking Wisp by hand ends it. The bubble shows the label with "ZENO is pointing".
+- Tests: 56 in the computer tool (+11), 3 in the bridge, 25 Swift (+5 suites in `PointingTests.swift`). Full run: typecheck clean, 276 TypeScript (274 pass, 2 skipped), 295 Swift.
+
+**Verified on the real screen:** with `ZENO_POINT_DEMO` (development hook), Wisp flew to a button on the second display, to the middle of the main display and to the menu bar clock; bubble readable each time, clock uncovered, Wisp back home afterwards. With the real model against Brave, "point at the address bar" gave `look → point` in 5.8 s and the event the island got placed Wisp 15 px under the address bar with the bubble below it.
+
+**Not done:** pointing by voice through the island (the live checks fed the same event by hand); the Allow/Decline card, still unseen; Claude untested on this tool; a window moving between the `look` and the `point` shows the old place.
 
 ---
 

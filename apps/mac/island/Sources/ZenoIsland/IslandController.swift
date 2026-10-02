@@ -96,6 +96,7 @@ final class IslandController {
             self.approvalCard.follow(feet)
             self.followWisp()
         }
+        pet.onArrive = { [weak self] in self?.arrivedAtPoint() }
         pet.onClick = { [weak self] count in self?.wispClicked(count) }
         pet.onHide = { [weak model] in model?.setPet(false) } // right-click → Hide Wisp
     }
@@ -139,6 +140,7 @@ final class IslandController {
         if ProcessInfo.processInfo.environment["ZENO_PANEL_DEMO"] != nil { playPanelDemo() }
         if ProcessInfo.processInfo.environment["ZENO_LOOK_DEMO"] != nil { playLookDemo() }
         if ProcessInfo.processInfo.environment["ZENO_HIDE_DEMO"] != nil { playHideDemo() }
+        if let spots = ProcessInfo.processInfo.environment["ZENO_POINT_DEMO"] { playPointDemo(spots) }
         if let files = ProcessInfo.processInfo.environment["ZENO_DICTATION_FILE"] { dictation.selfTest(files: files.split(separator: ",").map(String.init)) }
     }
 
@@ -149,6 +151,7 @@ final class IslandController {
         bubbleTimer?.invalidate()
         bubble.stop()
         approvalCard.stop()
+        pointTimer?.invalidate()
         for monitor in monitors { NSEvent.removeMonitor(monitor) }
         monitors = []
         for observer in observers {
@@ -164,7 +167,7 @@ final class IslandController {
 
     func apply(_ status: RuntimeSupervisor.Status) {
         model.status.apply(status)
-        if case .running = status {} else { model.approval.runtimeStopped() } // whatever it asked is not waiting any more
+        if case .running = status {} else { model.approval.runtimeStopped(); model.pointing.runtimeStopped() } // whatever it asked or showed is over
         statusChanged()
     }
 
@@ -180,6 +183,7 @@ final class IslandController {
         default:
             break
         }
+        if case .computerPoint(let target) = event { startPointing(target) }
         let wasBusy = model.status.isBusy
         model.status.apply(event)
         if case .state(.idle) = event, wasBusy {
@@ -264,8 +268,9 @@ final class IslandController {
     /// Shows or hides the bubble: up while a turn is in progress, and for a moment after.
     private func updateBubble() {
         updateApproval()
+        updatePointing()
         let now = ProcessInfo.processInfo.systemUptime
-        let wanted = bubbleMode && model.approval.pending == nil && (model.status.isBusy || talking || dictating || now < bubbleUntil)
+        let wanted = bubbleMode && model.approval.pending == nil && (model.status.isBusy || talking || dictating || now < bubbleUntil || model.pointing.target != nil)
         if wanted {
             if !bubble.isVisible { trace("bubble show") }
             bubble.show(at: pet.feetPoint)
@@ -299,6 +304,60 @@ final class IslandController {
             trace("approval hide")
             approvalCard.hide()
         }
+    }
+
+    // MARK: - Pointing (ADR-054, Task 0.6.4)
+
+    /// How long Wisp stays at the place once it gets there, so the user has time to look.
+    private static let pointDwell: Double = 7
+    private var pointTimer: Timer?
+
+    /// The model named a place: Wisp flies there, the bubble goes on the side that leaves the place clear.
+    private func startPointing(_ target: PointTarget) {
+        guard pet.isShown else { // no Wisp: nothing to fly. The bubble line still says what it is.
+            trace("point without Wisp: \(target.label)")
+            return
+        }
+        let areas = NSScreen.screens.map { ScreenArea(frame: $0.frame, visible: $0.visibleFrame) }
+        let scale = model.settings.wispSize.scale
+        let bubbleScale = model.settings.bubbleSize.scale
+        guard let flight = PointPlacement.flight(to: target, screens: areas, wispHeight: 54 * scale, wispHalfWidth: 22 * scale,
+                                                 bubbleHeight: BubbleLayout.size.height * bubbleScale) else {
+            trace("point off every display, not flown to")
+            model.pointing.clear()
+            return
+        }
+        pointTimer?.invalidate()
+        pointTimer = nil
+        bubble.preferredSide = flight.bubbleSide
+        pet.point(at: flight.feet)
+        trace("point \(target.label) side=\(flight.bubbleSide == .above ? "above" : "below")")
+    }
+
+    /// Wisp got there: the dwell starts now.
+    private func arrivedAtPoint() {
+        pointTimer?.invalidate()
+        let timer = Timer(timeInterval: Self.pointDwell, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.finishPointing() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        pointTimer = timer
+    }
+
+    private func finishPointing() {
+        pointTimer?.invalidate()
+        pointTimer = nil
+        model.pointing.clear()
+        statusChanged()
+    }
+
+    /// Keeps Wisp and the bubble in step with the pointing state: it ended (a new turn, a reset, the dwell) → go back.
+    private func updatePointing() {
+        guard model.pointing.target == nil, pet.isPointing || bubble.preferredSide != nil else { return }
+        pointTimer?.invalidate()
+        pointTimer = nil
+        pet.endPointing()
+        bubble.preferredSide = nil
     }
 
     private static func bottomCentre() -> CGPoint {
@@ -619,6 +678,26 @@ final class IslandController {
         ]
         for (delay, step) in steps {
             let timer = Timer(timeInterval: delay, repeats: false) { _ in MainActor.assumeIsolated { step() } }
+            RunLoop.main.add(timer, forMode: .common)
+        }
+    }
+
+    /// Development only (`ZENO_POINT_DEMO="x,y,w,h,label;x,y,w,h,label"`): plays each place through the real event path,
+    /// 11 s apart, as the runtime would send them (Cua's coordinates: points, origin top-left of the main display).
+    private func playPointDemo(_ spots: String) {
+        for (index, spot) in spots.split(separator: ";").enumerated() {
+            let parts = spot.split(separator: ",", maxSplits: 4).map(String.init)
+            guard parts.count == 5, let x = Double(parts[0]), let y = Double(parts[1]), let w = Double(parts[2]), let h = Double(parts[3]) else { continue }
+            let target = PointTarget(x: x, y: y, w: w, h: h, label: parts[4])
+            let timer = Timer(timeInterval: 3 + Double(index) * 11, repeats: false) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.trace("demo point \(target.label)")
+                    self.apply(.state(.thinking))
+                    self.apply(.computerPoint(target))
+                    self.apply(.state(.idle))
+                }
+            }
             RunLoop.main.add(timer, forMode: .common)
         }
     }

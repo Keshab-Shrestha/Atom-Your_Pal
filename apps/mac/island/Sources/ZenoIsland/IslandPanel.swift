@@ -116,10 +116,14 @@ struct StatusRow: View {
                 .frame(width: 30, height: 30)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text(model.status.title)
+                Text(model.pointing.target.map(PointingState.line(for:)) ?? model.status.title)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white)
-                if !model.status.preview.isEmpty {
+                if model.pointing.target != nil {
+                    Text("ZENO is pointing")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.62))
+                } else if !model.status.preview.isEmpty {
                     Text(model.status.preview)
                         .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(0.85))

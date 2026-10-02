@@ -14,6 +14,10 @@ const elements = [
   { element_index: 3, element_token: "s1:3", role: "AXButton", label: "Send" },
   { element_index: 4, element_token: "s1:4", role: "AXSecureTextField", label: "Password" },
   { element_index: 5, element_token: "s1:5", role: "AXTextField", label: "Search" },
+  { element_index: 6, element_token: "s1:6", role: "AXButton", label: "Settings", frame: { x: 2133, y: 85, w: 90, h: 24 } },
+  { element_index: 7, element_token: "s1:7", role: "AXButton", label: "Broken", frame: { x: Number.NaN, y: 0, w: 10, h: 10 } },
+  { element_index: 8, element_token: "s1:8", role: "AXGroup", label: "Hidden", frame: { x: 10, y: 10, w: 0, h: 0 } },
+  { element_index: 9, element_token: "s1:9", role: "AXButton", label: "Far", frame: { x: 9e9, y: 5, w: 10, h: 10 } },
 ];
 const ok = (text: string, data: Record<string, any> = {}): CuaResult => ({ text, data, isError: false, refusal: undefined });
 
@@ -33,7 +37,7 @@ function fakeCua(handlers: Record<string, (args: any) => CuaResult> = {}) {
   return { cua, calls };
 }
 
-function setup(opts: { approve?: (r: ApprovalRequest) => boolean | Promise<boolean>; handlers?: Record<string, (a: any) => CuaResult> } = {}) {
+function setup(opts: { point?: (p: { x: number; y: number; w: number; h: number; label: string }) => void; approve?: (r: ApprovalRequest) => boolean | Promise<boolean>; handlers?: Record<string, (a: any) => CuaResult> } = {}) {
   const { cua, calls } = fakeCua(opts.handlers);
   const asked: ApprovalRequest[] = [];
   const logs: any[] = [];
@@ -44,6 +48,7 @@ function setup(opts: { approve?: (r: ApprovalRequest) => boolean | Promise<boole
       return opts.approve ? opts.approve(r) : false;
     },
     onAction: (e) => logs.push(e),
+    ...(opts.point ? { onPoint: opts.point } : {}),
   });
   const run = (input: Record<string, unknown>, signal?: AbortSignal) => Promise.resolve(tool.run(input, signal)).then((text) => ({ ok: true as const, text }), (e: Error) => ({ ok: false as const, text: e.message }));
   return { tool, run, calls, asked, logs };
@@ -336,4 +341,83 @@ test("an unknown refusal still passes Cua's own message along", async () => {
   await sees(s);
   const r = await s.run({ action: "key", keys: ["a"] });
   assert.match(r.text, /new thing happened/);
+});
+
+// ---- Pointing (ADR-054, Task 0.6.4)
+
+type Pointed = { x: number; y: number; w: number; h: number; label: string };
+
+test("point sends the element's place on screen and a label to Wisp, and clicks nothing", async () => {
+  const pointed: Pointed[] = [];
+  const s = setup({ point: (p) => pointed.push(p) });
+  await sees(s);
+  const r = await s.run({ action: "point", element: 6, text: "the settings button" });
+  assert.equal(r.ok, true);
+  assert.deepEqual(pointed, [{ x: 2133, y: 85, w: 90, h: 24, label: "the settings button" }]);
+  assert.deepEqual(s.calls.map((c) => c.name), ["list_apps", "list_windows", "get_window_state"], "nothing was clicked or typed");
+  assert.equal(s.asked.length, 0, "pointing never asks");
+  assert.match(r.text, /Pointed/);
+});
+
+test("point labels from the element when the model gives no label", async () => {
+  const pointed: Pointed[] = [];
+  const s = setup({ point: (p) => pointed.push(p) });
+  await sees(s);
+  await s.run({ action: "point", element: 6 });
+  assert.equal(pointed[0].label, "Settings");
+});
+
+test("point cuts a long label and strips line breaks", async () => {
+  const pointed: Pointed[] = [];
+  const s = setup({ point: (p) => pointed.push(p) });
+  await sees(s);
+  await s.run({ action: "point", element: 6, text: `line one\nline two ${"x".repeat(200)}` });
+  assert.ok(pointed[0].label.length <= 60);
+  assert.doesNotMatch(pointed[0].label, /\n/);
+});
+
+test("point at an element the last look did not show is refused", async () => {
+  const s = setup({ point: () => assert.fail("must not point") });
+  await sees(s);
+  const r = await s.run({ action: "point", element: 99 });
+  assert.equal(r.ok, false);
+  assert.match(r.text, /no element 99/i);
+});
+
+test("point before any look is refused", async () => {
+  const s = setup({ point: () => assert.fail("must not point") });
+  const r = await s.run({ action: "point", element: 1 });
+  assert.equal(r.ok, false);
+  assert.match(r.text, /look/i);
+});
+
+test("point at an element with no usable place on screen says so and does not point", async () => {
+  for (const element of [1, 7, 8, 9]) { // no frame, NaN, zero size, absurdly far
+    const s = setup({ point: () => assert.fail("must not point") });
+    await sees(s);
+    const r = await s.run({ action: "point", element });
+    assert.equal(r.ok, false, `element ${element}`);
+    assert.match(r.text, /cannot show where/i, `element ${element}`);
+  }
+});
+
+test("point without an island to show it says pointing is unavailable", async () => {
+  const s = setup();
+  await sees(s);
+  const r = await s.run({ action: "point", element: 6 });
+  assert.equal(r.ok, false);
+  assert.match(r.text, /pointing is not available/i);
+});
+
+test("point is logged with the app and no label", async () => {
+  const s = setup({ point: () => {} });
+  await sees(s);
+  await s.run({ action: "point", element: 6, text: "secret thing" });
+  const entry = s.logs.at(-1);
+  assert.deepEqual(entry, { action: "point", app: "TextEdit", ok: true });
+});
+
+test("the schema offers point", () => {
+  const { tool } = setup();
+  assert.match(JSON.stringify(tool.spec.inputSchema), /point/);
 });

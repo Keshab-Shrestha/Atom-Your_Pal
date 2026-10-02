@@ -46,6 +46,10 @@ final class PetController {
     var anchorFeet: CGPoint { dragging ? feet : standingFeet() }
     /// Wisp is tucked against an edge.
     var isHidden: Bool { peek != nil }
+    /// Wisp reached the place it was sent to point at (once per flight).
+    var onArrive: () -> Void = {}
+    /// Wisp is out pointing at something: it flew there and stays until `endPointing`.
+    var isPointing: Bool { pointFeet != nil }
 
     private let settings: IslandSettings
     private let window: NSPanel
@@ -58,6 +62,10 @@ final class PetController {
     private var rotation = 0.0
     /// Standing still while the features panel is open.
     private var frozen = false
+    /// Where Wisp stands to point (ADR-054), or nil. Overrides the walkway and a parked spot, never the user's hand.
+    private var pointFeet: CGPoint?
+    private var pointArrived = false
+    private var pointFacing = 1.0
     private var lastKind = IslandStatus.Kind.starting
     private let state = PetState()
     private var brain = PetBrain(width: 800, now: PetController.now)
@@ -167,6 +175,24 @@ final class PetController {
         wake()
     }
 
+    /// Flies to `feet` (ADR-054) and stays there, out of hiding and awake, until `endPointing`.
+    func point(at feet: CGPoint) {
+        pointFeet = feet
+        pointArrived = false
+        settling = true
+        poke() // out of hiding and awake
+        trace("pet flying to \(Int(feet.x)),\(Int(feet.y))")
+    }
+
+    /// Back to where Wisp was: its place on the Dock, or its parked spot.
+    func endPointing() {
+        guard pointFeet != nil else { return }
+        pointFeet = nil
+        pointArrived = false
+        settling = true
+        trace("pet going back from pointing")
+    }
+
     /// Wisp stands still while the features panel is open, and its idle timer restarts when it closes.
     func setFrozen(_ frozen: Bool) {
         guard frozen != self.frozen else { return }
@@ -245,16 +271,16 @@ final class PetController {
         if peek != nil, !mood.isReacting { mood = .resting } // hiding: awake, eyes open, not a nap with z's turned sideways
         if mood == .napping, peek != nil { mood = .resting }
         state.mood = mood
-        state.facing = brain.facing
+        state.facing = pointFeet != nil ? pointFacing : brain.facing
         state.time = now
 
         if over, peek == nil { retreat.wake(at: now) } // never hides from under the pointer
-        if peek == nil, retreat.isDue(at: now, blocked: dragging || frozen || mood.isReacting) { tuckAway() }
+        if peek == nil, retreat.isDue(at: now, blocked: dragging || frozen || mood.isReacting || pointFeet != nil) { tuckAway() }
         if peek != nil, retreat.timeout == 0 { wake() } // the setting was switched to Never
 
         if !dragging {
             let normal = standingFeet()
-            let target = peek.map { PeekLayout.feet(for: $0, y: normal.y, revealed: pointerOver, scale: unit) } ?? normal
+            let target = pointFeet ?? peek.map { PeekLayout.feet(for: $0, y: normal.y, revealed: pointerOver, scale: unit) } ?? normal
             let wantedTurn = peek.map { PeekLayout.rotation(for: $0, lean: settings.wispLean) } ?? 0
             rotation += (wantedTurn - rotation) * Double(1 - exp(-12 * dt))
             if abs(wantedTurn - rotation) < 0.3 { rotation = wantedTurn }
@@ -265,17 +291,24 @@ final class PetController {
             if settling || peek != nil {
                 // An ease-out toward the target: quick at first, gentle at the end. While hiding it also
                 // eases the head out and back as the pointer comes and goes.
-                let k = 1 - exp(-14 * dt)
+                // A flight to point is slower, so the eye can follow it to the place.
+                let k = 1 - exp(-(pointFeet != nil ? 5 : 14) * dt)
                 feet.x += (target.x - feet.x) * k
                 feet.y += (target.y - feet.y) * k
                 if abs(target.x - feet.x) < 0.5, abs(target.y - feet.y) < 0.5 {
                     feet = target
                     settling = false
                 }
+                if pointFeet != nil, abs(target.x - feet.x) > 1 { pointFacing = target.x > feet.x ? 1 : -1 }
             } else {
                 feet = target
             }
             move(to: feet)
+            if pointFeet != nil, !pointArrived, !settling {
+                pointArrived = true
+                trace("pet arrived")
+                onArrive()
+            }
         }
 
         // Only listen to the pointer while it is over Wisp (or Wisp is being dragged).
@@ -368,6 +401,7 @@ final class PetController {
         guard pressed else { return }
         let mouse = NSEvent.mouseLocation
         if !dragging {
+            pointFeet = nil // the user took Wisp: it stops pointing
             guard hypot(mouse.x - pressStart.x, mouse.y - pressStart.y) >= Self.dragThreshold else { return }
             dragging = true
             settling = false

@@ -55,6 +55,7 @@ export type IslandEvent =
   | { type: "notice"; kind: NoticeKind; message: string }
   | { type: "conversation.reset" }
   | { type: "computer.step"; text: string }
+  | { type: "computer.point"; x: number; y: number; w: number; h: number; label: string }
   | { type: "approval.request"; id: string; summary: string; reason: string }
   | { type: "approval.closed"; id: string }
   | InfoEvent

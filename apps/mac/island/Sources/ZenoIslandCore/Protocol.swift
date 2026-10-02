@@ -150,6 +150,8 @@ public enum IslandEvent: Sendable, Equatable {
     case conversationReset
     /// ZENO is about to do something on the Mac, in plain words (ADR-054).
     case computerStep(String)
+    /// ZENO shows the user a place on screen: Wisp flies there and the bubble says what it is (ADR-054).
+    case computerPoint(PointTarget)
     /// ZENO is waiting for the user to allow or decline an action.
     case approvalRequest(ApprovalRequest)
     /// That request is no longer waiting: answered, declined, timed out or cancelled.
@@ -173,6 +175,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .notice(let kind, _): "notice:\(kind)"
         case .conversationReset: "conversation.reset"
         case .computerStep: "computer.step"
+        case .computerPoint: "computer.point"
         case .approvalRequest: "approval.request"
         case .approvalClosed: "approval.closed"
         case .info: "info"
@@ -243,6 +246,10 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .conversationReset
     case "computer.step":
         return .computerStep(try f.string("text"))
+    case "computer.point":
+        let w = try f.double("w"), h = try f.double("h")
+        guard w > 0, h > 0 else { throw ProtocolError.invalidValue(event: "computer.point", field: w > 0 ? "h" : "w") }
+        return .computerPoint(PointTarget(x: try f.double("x"), y: try f.double("y"), w: w, h: h, label: try f.string("label")))
     case "approval.request":
         return .approvalRequest(ApprovalRequest(id: try f.string("id"), summary: try f.string("summary"), reason: try f.string("reason")))
     case "approval.closed":

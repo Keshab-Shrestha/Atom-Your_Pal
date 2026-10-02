@@ -116,3 +116,31 @@ test("stepText covers every action and tolerates a missing app", () => {
   assert.equal(stepText({ action: "nonsense" }), "Using the computer");
   assert.ok(stepText({ action: "look", app: "x".repeat(300) }).length < 80);
 });
+
+test("a point goes to the island as whole numbers with a one-line label", () => {
+  const { bridge, events } = setup();
+  bridge.point({ x: 100.6, y: 20.2, w: 90.5, h: 24, label: "the settings\nbutton" });
+  assert.deepEqual(events, [{ type: "computer.point", x: 101, y: 20, w: 91, h: 24, label: "the settings button" }]);
+});
+
+test("a long label is cut for the bubble", () => {
+  const { bridge, events } = setup();
+  bridge.point({ x: 1, y: 2, w: 3, h: 4, label: "x".repeat(300) });
+  const e = events[0] as Extract<IslandEvent, { type: "computer.point" }>;
+  assert.ok(e.label.length <= 48);
+});
+
+test("with no island attached a point is dropped, and says so", () => {
+  const bridge = createComputerBridge();
+  assert.equal(bridge.point({ x: 1, y: 2, w: 3, h: 4, label: "a" }), false);
+});
+
+test("with an island attached a point reports that it was sent", () => {
+  const { bridge } = setup();
+  assert.equal(bridge.point({ x: 1, y: 2, w: 3, h: 4, label: "a" }), true);
+});
+
+test("pointing shows as a step in the bubble", () => {
+  assert.equal(stepText({ action: "point", app: "Brave Browser" }), "Pointing in Brave Browser");
+  assert.equal(stepText({ action: "point" }), "Pointing at something");
+});

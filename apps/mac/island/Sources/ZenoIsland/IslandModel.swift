@@ -22,6 +22,8 @@ final class IslandModel {
     var status = IslandStatus()
     /// What ZENO is waiting for the user to allow (ADR-054).
     var approval = ApprovalState()
+    /// The place ZENO is showing the user, if any (ADR-054).
+    var pointing = PointingState()
     var meter = LevelMeter(bars: 14)
     var conversation = Conversation()
     /// The model in use and the choices, from the runtime's `info` event.
@@ -84,6 +86,7 @@ final class IslandModel {
     func apply(_ event: IslandEvent) {
         conversation.apply(event)
         approval.apply(event)
+        pointing.apply(event)
         switch event {
         case .info(let info):
             modelInfo = info

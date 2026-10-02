@@ -67,6 +67,7 @@ export function createRuntime(
                         return computer.approve(request, signal);
                       },
                       onStep: (step) => computer.step(step),
+                      onPoint: (target) => computer.point(target),
                       onAction: (event) => log.info("computer.action", { ...event }),
                     }),
                   ]

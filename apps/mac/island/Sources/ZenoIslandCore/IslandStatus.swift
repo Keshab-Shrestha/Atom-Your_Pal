@@ -97,6 +97,8 @@ public struct IslandStatus: Sendable, Equatable {
         case .computerStep(let text):
             // Only while a turn is running: a late step after the turn ended must not light the island again.
             if isBusy { set(.acting, "Using your Mac", IslandStatus.short(text)) }
+        case .computerPoint:
+            if isBusy { set(.acting, "Using your Mac", "Pointing") }
         case .approvalRequest(let request):
             set(.asking, "Needs your OK", IslandStatus.short(request.summary))
         case .approvalClosed:

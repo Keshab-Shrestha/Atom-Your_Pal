@@ -9,6 +9,8 @@ export interface ComputerBridge {
   attach(send: (event: IslandEvent) => void): void;
   /** Passed to the computer tool as `approve`. Resolves true only if the user answers yes. */
   approve(request: { summary: string; reason: string }, signal?: AbortSignal): Promise<boolean>;
+  /** Passed to the computer tool as `onPoint`. False if there is no island to show it. */
+  point(target: { x: number; y: number; w: number; h: number; label: string }): boolean;
   /** Passed to the computer tool as `onStep`. */
   step(step: { action: string; app?: string }): void;
   /** The island's `approval.answer`. An unknown or finished id does nothing. */
@@ -39,6 +41,7 @@ export function stepText(step: { action: string; app?: string }): string {
     case "type": return app ? `Typing in ${app}` : "Typing";
     case "key": return app ? `Pressing a key in ${app}` : "Pressing a key";
     case "scroll": return app ? `Scrolling in ${app}` : "Scrolling";
+    case "point": return app ? `Pointing in ${app}` : "Pointing at something";
     default: return "Using the computer";
   }
 }
@@ -74,6 +77,12 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
         signal?.addEventListener("abort", onAbort, { once: true });
         sendEvent!({ type: "approval.request", id, summary: oneLine(request.summary, 140), reason: oneLine(request.reason, 140) });
       });
+    },
+    point(target) {
+      if (!sendEvent) return false;
+      const whole = (n: number) => Math.round(n);
+      sendEvent({ type: "computer.point", x: whole(target.x), y: whole(target.y), w: whole(target.w), h: whole(target.h), label: oneLine(target.label, 48) });
+      return true;
     },
     step(step) {
       sendEvent?.({ type: "computer.step", text: stepText(step) });
