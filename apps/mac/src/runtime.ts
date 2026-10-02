@@ -12,6 +12,9 @@ import { createModelSettings, writeSavedChoice, type ModelSettings } from "./mod
 import { TtsError, createKokoroSynthesizer, createSpeaker, type TextToSpeech } from "./tts.ts";
 import type { VoiceLoopEvents, VoiceLoopOptions } from "./voice-loop.ts";
 
+/** One request on the plan provider can take several tool turns, each a model call; this is its whole-request limit. */
+const PLAN_TIMEOUT_MS = 120_000;
+
 export interface Runtime {
   config: Config;
   log: Logger;
@@ -44,38 +47,48 @@ export function createRuntime(
     language: config.stt.language,
     vocabulary: config.stt.vocabulary,
   });
-  const createModel = (choice: LlmChoice, apiKey: string) =>
-    createGateway({ provider: createProviderAdapter({ ...choice, apiKey }), timeoutMs: config.llm.timeoutMs });
   const computer = createComputerBridge();
+  // The tools ZENO can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
+  // needs them; the other providers get them from the Core.
+  const toolEngine = createToolEngine({
+    tools: [
+      timeTool(),
+      // ADR-054: off unless ZENO_COMPUTER=1. Steps and approvals go through the bridge to the island;
+      // with no island, or no answer, an approval is a refusal.
+      ...(process.env.ZENO_COMPUTER === "1"
+        ? [
+            createComputerTool({
+              cua: createCuaTransport(),
+              approve: (request, signal) => {
+                log.info("computer.approval_asked");
+                return computer.approve(request, signal);
+              },
+              onStep: (step) => computer.step(step),
+              onPoint: (target) => computer.point(target),
+              onAction: (event) => log.info("computer.action", { ...event }),
+            }),
+          ]
+        : []),
+    ],
+    onCall: (e) => log.info("tool.call", e),
+  });
+  const createModel = (choice: LlmChoice, apiKey: string) =>
+    createGateway({
+      provider: createProviderAdapter({
+        ...choice,
+        apiKey,
+        tools: toolEngine,
+        // Plan use goes in the log so it is visible how much of the plan a day of ZENO takes. No keys, no text.
+        onUsage: (usage) => log.info("plan.usage", { ...usage }),
+      }),
+      // Claude Code starts its own process and may take several tool turns, so it gets longer than one API call.
+      timeoutMs: choice.provider === "claude-plan" ? Math.max(config.llm.timeoutMs, PLAN_TIMEOUT_MS) : config.llm.timeoutMs,
+    });
   const initial = { provider: config.llm.provider, model: config.llm.model };
   const model = createSwitchableModel(createModel(initial, config.llm.apiKey));
   // ZENO_VOICE_ONLY=1: test speech in and out without the AI. ZENO reads back what Whisper heard, and no
   // request is made to any model. (Typed as `Core` so every caller treats it the same.)
-  const core: Core = process.env.ZENO_VOICE_ONLY === "1" ? createEchoCore() : createCore({
-          model,
-          tools: createToolEngine({
-            tools: [
-              timeTool(),
-              // ADR-054: off unless ZENO_COMPUTER=1. Steps and approvals go through the bridge to the island;
-              // with no island, or no answer, an approval is a refusal.
-              ...(process.env.ZENO_COMPUTER === "1"
-                ? [
-                    createComputerTool({
-                      cua: createCuaTransport(),
-                      approve: (request, signal) => {
-                        log.info("computer.approval_asked");
-                        return computer.approve(request, signal);
-                      },
-                      onStep: (step) => computer.step(step),
-                      onPoint: (target) => computer.point(target),
-                      onAction: (event) => log.info("computer.action", { ...event }),
-                    }),
-                  ]
-                : []),
-            ],
-            onCall: (e) => log.info("tool.call", e),
-          }),
-        });
+  const core: Core = process.env.ZENO_VOICE_ONLY === "1" ? createEchoCore() : createCore({ model, tools: toolEngine });
   const settingsPath = options.settingsPath;
   const settings = createModelSettings({
     initial,

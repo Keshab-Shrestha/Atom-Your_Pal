@@ -1003,6 +1003,24 @@ ZENO will act on the Mac by voice command ("open Safari and search for X") throu
 - "So it learns": whether Keshab means the pointer teaching him, or ZENO remembering what it got wrong. Left out until he says.
 - How approval is spoken or clicked (bubble buttons, voice "yes", or both).
 
+## ADR-055 — Claude on the User's Own Plan, Through the Claude Agent SDK
+
+**Status:** Accepted (2026-10-03)
+
+**Context.** Computer control makes several model calls per task. Through the API that bills per token; Keshab already pays for a Claude plan and wants to use it. Anthropic's docs (Legal and compliance; Agent SDK overview) say third-party apps may not offer claude.ai login or plan rate limits to their users, may not collect or store claude.ai credentials, and that this does not prevent a user signing in to the unmodified Claude Code binary with their own plan. The OpenClicky project does exactly that: its Node bridge runs the SDK, which runs the user's own `claude`.
+
+**Decision.** Add a provider "Claude (my plan)" (`claude-plan`) next to "Claude" (API key) and "Gemini".
+
+- It runs `@anthropic-ai/claude-agent-sdk`, which starts the user's own signed-in `claude` program. ZENO never reads, stores, copies or sends a login or token. It has no key: it is available when `claude` is found (`ZENO_CLAUDE_PATH`, `~/.local/bin`, Homebrew, PATH).
+- **Single user only.** It is for one person on their own Mac. If ZENO is ever shared, this provider must be removed or replaced by API keys.
+- **It must never silently bill per token.** `claude` starts with every `ANTHROPIC_*` variable, cloud-provider switch (`CLAUDE_CODE_USE_*`), OAuth variable and other providers' keys removed. A run stops at once if Claude Code reports an API key as its credential (`apiKeySource` other than `none`/`oauth`), and when it reports it is using "extra usage" beyond the plan.
+- **Nothing of Claude Code's own.** No built-in tools (`tools: []`), no settings files, and `strictMcpConfig: true`, so the account's claude.ai connectors (Drive, Supabase) are not loaded: they cost about 40 000 tokens a request and would let Claude reach other services.
+- **ZENO keeps the safety.** Claude Code runs the tool loop, but ZENO's own `computer` tool is given to it as an in-process server (`createSdkMcpServer`), so each call goes back through ZENO's tool engine: approvals, blocked apps, secret-field refusal and logging are unchanged, and the island still shows steps and the approval card. Only that tool is allowed (`allowedTools`).
+- A failure after a tool has acted is never marked retryable, because a retry would do the task twice.
+- Plan use (5-hour and 7-day, and whether extra usage is on) goes in the log as `plan.usage`, so what ZENO costs the plan is visible.
+
+**Consequences.** Each request starts a `claude` process, which is slower than a direct API call. Plan limits are shared with the user's own Claude use. The Hermes project has reports of this kind of setup being billed as extra usage anyway, so the guards above are tested (fake SDK) and the first live runs were checked against the plan's own usage report. If Anthropic changes the terms, the provider can be removed without touching the rest of ZENO.
+
 ---
 
 ## Final Architectural Principle

@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+
 const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
@@ -5,6 +8,9 @@ export type LogLevel = (typeof LOG_LEVELS)[number];
  * Supported LLM providers: display name, the env variable holding the key, the default model, and the
  * models offered in ZENO Island's settings (id → display name), newest first.
  */
+/** Claude on the user's own Claude plan (no API key; the signed-in `claude` program does the work). */
+export const CLAUDE_PLAN = "claude-plan";
+
 export const PROVIDERS = {
   claude: {
     name: "Claude",
@@ -14,6 +20,17 @@ export const PROVIDERS = {
       { id: "claude-opus-5-5", name: "Claude Opus 5.5" },
       { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" },
       { id: "claude-sonnet-5", name: "Claude Sonnet 5" },
+      { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },
+    ],
+  },
+  "claude-plan": {
+    // Its "key" is the path of the `claude` program (ZENO_CLAUDE_PATH, or found automatically), not a secret.
+    name: "Claude (my plan)",
+    keyVar: "ZENO_CLAUDE_PATH",
+    defaultModel: "claude-sonnet-5-5",
+    models: [
+      { id: "claude-opus-5-5", name: "Claude Opus 5.5" },
+      { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" },
       { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },
     ],
   },
@@ -35,6 +52,22 @@ export type LlmProvider = keyof typeof PROVIDERS;
 
 type Env = Record<string, string | undefined>;
 
+/**
+ * The signed-in `claude` program that "Claude (my plan)" runs. ZENO_CLAUDE_PATH wins and is never second-guessed:
+ * if it is wrong the answer is "not found", not some other copy. Otherwise the usual install places, then PATH.
+ */
+export function findClaudeProgram(
+  env: Env = process.env,
+  exists: (path: string) => boolean = (path) => existsSync(path),
+  home: string = homedir(),
+): string | undefined {
+  const explicit = env.ZENO_CLAUDE_PATH?.trim();
+  if (explicit) return exists(explicit) ? explicit : undefined;
+  const places = [`${home}/.local/bin/claude`, "/opt/homebrew/bin/claude", "/usr/local/bin/claude"];
+  for (const dir of (env.PATH ?? "").split(":").filter(Boolean)) places.push(`${dir}/claude`);
+  return places.find(exists);
+}
+
 export const LLM_PROVIDER_IDS = Object.keys(PROVIDERS) as LlmProvider[];
 
 export function isLlmProvider(value: string): value is LlmProvider {
@@ -44,9 +77,15 @@ export function isLlmProvider(value: string): value is LlmProvider {
 /** The API key of every provider that has one in the environment. Secrets: never log or send these. */
 export type ProviderKeys = Partial<Record<LlmProvider, string>>;
 
-export function readProviderKeys(env: Env = process.env): ProviderKeys {
+export function readProviderKeys(env: Env = process.env, findClaude: (env: Env) => string | undefined = findClaudeProgram): ProviderKeys {
   const keys: ProviderKeys = {};
   for (const id of LLM_PROVIDER_IDS) {
+    if (id === CLAUDE_PLAN) {
+      // No key: this provider is available when the signed-in `claude` program is. Its "key" is that program's path.
+      const found = findClaude(env);
+      if (found) keys[id] = found;
+      continue;
+    }
     const value = env[PROVIDERS[id].keyVar]?.trim();
     if (value) keys[id] = value;
   }
@@ -146,8 +185,8 @@ export function loadConfig(env: Env = process.env, options: LoadConfigOptions = 
   const config: Config = {
     llm: {
       provider,
-      // Only the selected provider's key is required.
-      apiKey: read(keyVar),
+      // Only the selected provider's key is required. Claude on the user's plan has no key: it uses the signed-in `claude`.
+      apiKey: provider === CLAUDE_PLAN ? (findClaudeProgram(env) ?? "") : read(keyVar),
       model,
       timeoutMs: positiveInt("ZENO_LLM_TIMEOUT_MS", 30_000),
     },

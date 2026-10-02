@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ConfigError, loadConfig, readProviderKeys } from "./config.ts";
+import { ConfigError, findClaudeProgram, loadConfig, readProviderKeys } from "./config.ts";
 
 // Placeholder values, not real credentials.
 const CLAUDE_KEY = "test-claude-key-0000";
@@ -74,7 +74,7 @@ test("reports every problem at once", () => {
     (error: unknown) => {
       assert.ok(error instanceof ConfigError);
       assert.equal(error.problems.length, 5);
-      assert.match(error.message, /ZENO_LLM_PROVIDER must be one of claude, gemini, got "openai"/);
+      assert.match(error.message, /ZENO_LLM_PROVIDER must be one of claude, claude-plan, gemini, got "openai"/);
       assert.match(error.message, /ANTHROPIC_API_KEY is required/);
       assert.match(error.message, /ZENO_LLM_TIMEOUT_MS must be a positive integer, got "soon"/);
       assert.match(error.message, /ZENO_AUDIO_SAMPLE_RATE must be a positive integer, got "-1"/);
@@ -96,11 +96,12 @@ test("never includes API keys in error messages", () => {
 });
 
 test("reads the key of every provider present, ignoring blank ones", () => {
-  assert.deepEqual(readProviderKeys({ ANTHROPIC_API_KEY: ` ${CLAUDE_KEY} `, GEMINI_API_KEY: GEMINI_KEY }), {
+  const noClaudeProgram = () => undefined;
+  assert.deepEqual(readProviderKeys({ ANTHROPIC_API_KEY: ` ${CLAUDE_KEY} `, GEMINI_API_KEY: GEMINI_KEY }, noClaudeProgram), {
     claude: CLAUDE_KEY,
     gemini: GEMINI_KEY,
   });
-  assert.deepEqual(readProviderKeys({ ANTHROPIC_API_KEY: "  " }), {});
+  assert.deepEqual(readProviderKeys({ ANTHROPIC_API_KEY: "  " }, noClaudeProgram), {});
 });
 
 test("an explicit model choice overrides ZENO_LLM_PROVIDER / ZENO_LLM_MODEL and requires that provider's key", () => {
@@ -108,4 +109,32 @@ test("an explicit model choice overrides ZENO_LLM_PROVIDER / ZENO_LLM_MODEL and 
   const config = loadConfig(env, { llm: { provider: "gemini", model: "gemini-3.8-flash" } });
   assert.deepEqual(config.llm, { provider: "gemini", apiKey: GEMINI_KEY, model: "gemini-3.8-flash", timeoutMs: 30_000 });
   assert.throws(() => loadConfig({ ANTHROPIC_API_KEY: CLAUDE_KEY }, { llm: { provider: "gemini", model: "gemini-3.8-flash" } }), /GEMINI_API_KEY is required/);
+});
+
+// ---- Claude on the user's plan: no key, the signed-in `claude` program instead
+
+
+test("the claude program is found from ZENO_CLAUDE_PATH first, then the usual places, then PATH", () => {
+  const has = (...paths: string[]) => (p: string) => paths.includes(p);
+  assert.equal(findClaudeProgram({ ZENO_CLAUDE_PATH: "/x/claude" }, has("/x/claude", "/h/.local/bin/claude"), "/h"), "/x/claude");
+  assert.equal(findClaudeProgram({}, has("/h/.local/bin/claude", "/opt/homebrew/bin/claude"), "/h"), "/h/.local/bin/claude");
+  assert.equal(findClaudeProgram({}, has("/opt/homebrew/bin/claude"), "/h"), "/opt/homebrew/bin/claude");
+  assert.equal(findClaudeProgram({ PATH: "/a:/b" }, has("/b/claude"), "/h"), "/b/claude");
+  assert.equal(findClaudeProgram({}, has(), "/h"), undefined);
+  assert.equal(findClaudeProgram({ ZENO_CLAUDE_PATH: "/gone/claude" }, has("/h/.local/bin/claude"), "/h"), undefined, "a wrong explicit path is not silently replaced");
+});
+
+test("claude-plan counts as available when the program exists, with the path in its key slot", () => {
+  const keys = readProviderKeys({ ZENO_CLAUDE_PATH: process.execPath });
+  assert.equal(keys["claude-plan"], process.execPath);
+  assert.equal(keys.claude, undefined);
+  assert.equal(readProviderKeys({ ZENO_CLAUDE_PATH: "/definitely/not/here" })["claude-plan"], undefined);
+});
+
+test("choosing claude-plan needs no API key", () => {
+  const config = loadConfig({}, { llm: { provider: "claude-plan", model: "claude-sonnet-5-5" } });
+  assert.equal(config.llm.provider, "claude-plan");
+  assert.equal(config.llm.model, "claude-sonnet-5-5");
+  assert.doesNotThrow(() => loadConfig({ ZENO_LLM_PROVIDER: "claude-plan" }));
+  assert.equal(loadConfig({ ZENO_LLM_PROVIDER: "claude-plan", ANTHROPIC_API_KEY: "sk-ant-nope-nope-nope" }).llm.apiKey.includes("sk-ant"), false, "the API key is never used for the plan provider");
 });

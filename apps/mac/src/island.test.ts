@@ -1,3 +1,4 @@
+import type { ProviderKeys } from "@zeno/shared";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
@@ -322,7 +323,7 @@ const CLAUDE_KEY = "test-claude-key-0000";
 const GEMINI_KEY = "test-gemini-key-0000";
 
 /** The real Core and switchable model with fake gateways that record which model answered what. */
-function modelHarness(keys: { claude?: string; gemini?: string } = { claude: CLAUDE_KEY, gemini: GEMINI_KEY }) {
+function modelHarness(keys: ProviderKeys = { claude: CLAUDE_KEY, gemini: GEMINI_KEY }) {
   const path = join(mkdtempSync(join(tmpdir(), "zeno-island-")), "config", "island.json");
   const requests: { model: string; request: ModelRequest }[] = [];
   const logs: string[] = [];
@@ -367,10 +368,11 @@ test("ready is followed by info with the model and the choices", async () => {
     info.providers.map((p) => ({ id: p.id, name: p.name, available: p.available })),
     [
       { id: "claude", name: "Claude", available: false },
+      { id: "claude-plan", name: "Claude (my plan)", available: false },
       { id: "gemini", name: "Gemini", available: true },
     ],
   );
-  assert.ok(info.providers[1].models.some((m) => m.id === "gemini-3.5-flash-lite" && m.name === "Gemini 3.5 Flash-Lite"));
+  assert.ok(info.providers[2]!.models.some((m) => m.id === "gemini-3.5-flash-lite" && m.name === "Gemini 3.5 Flash-Lite"));
 });
 
 test("model.set switches the next request, keeps the conversation, saves the choice and sends info", async () => {
@@ -420,7 +422,7 @@ test("model.set refusals are settings errors with the fix, and nothing changes",
     { type: "model.set", provider: "gemini", model: "gemini-9-ultra" },
   );
   assert.deepEqual(h.events(), [
-    { type: "error", stage: "settings", message: 'Unknown AI provider "openai". Choose Claude or Gemini.' },
+    { type: "error", stage: "settings", message: 'Unknown AI provider "openai". Choose Claude or Claude (my plan) or Gemini.' },
     { type: "error", stage: "settings", message: "Add ANTHROPIC_API_KEY to .env to use Claude, then restart ZENO." },
     { type: "error", stage: "settings", message: '"gemini-9-ultra" is not a Gemini model ZENO offers. Choose one from the list.' },
   ]);

@@ -4,7 +4,7 @@ import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createSwitchableModel, type SwitchableModel } from "@zeno/llm-gateway";
-import { loadConfig, readProviderKeys, type LlmChoice } from "@zeno/shared";
+import { loadConfig, readProviderKeys, type LlmChoice, type ProviderKeys } from "@zeno/shared";
 import {
   DEFAULT_SETTINGS_PATH,
   createModelSettings,
@@ -17,14 +17,14 @@ import {
 // Placeholder values, not real credentials.
 const CLAUDE_KEY = "test-claude-key-0000";
 const GEMINI_KEY = "test-gemini-key-0000";
-const BOTH = { claude: CLAUDE_KEY, gemini: GEMINI_KEY };
+const BOTH: ProviderKeys = { claude: CLAUDE_KEY, gemini: GEMINI_KEY };
 
 const tempDir = () => mkdtempSync(join(tmpdir(), "zeno-settings-"));
 const noKeys = (text: string) => !text.includes(CLAUDE_KEY) && !text.includes(GEMINI_KEY);
 
 type Model = Parameters<SwitchableModel["replace"]>[0];
 
-function settingsHarness(over: { initial?: LlmChoice; keys?: typeof BOTH | { gemini: string }; save?: (c: LlmChoice) => void } = {}) {
+function settingsHarness(over: { initial?: LlmChoice; keys?: ProviderKeys; save?: (c: LlmChoice) => void } = {}) {
   const built: { choice: LlmChoice; apiKey: string }[] = [];
   const saved: LlmChoice[] = [];
   const logs: string[] = [];
@@ -58,10 +58,11 @@ test("info lists both providers, their availability and models, and never the ke
     info.providers.map((p) => [p.id, p.name, p.available, p.models.length]),
     [
       ["claude", "Claude", false, 4],
+      ["claude-plan", "Claude (my plan)", false, 3],
       ["gemini", "Gemini", true, 6],
     ],
   );
-  assert.deepEqual(info.providers[0].models[0], { id: "claude-opus-5-5", name: "Claude Opus 5.5" });
+  assert.deepEqual(info.providers[0]!.models[0], { id: "claude-opus-5-5", name: "Claude Opus 5.5" });
   assert.ok(noKeys(JSON.stringify(settingsHarness().settings.info())));
 });
 
@@ -91,7 +92,7 @@ test("a valid choice replaces the model, is saved and logged without keys", asyn
 test("refused choices explain the fix and change nothing", async () => {
   const h = settingsHarness({ keys: { gemini: GEMINI_KEY } });
   const cases: [string, string, RegExp][] = [
-    ["openai", "gpt-9", /Unknown AI provider "openai"\. Choose Claude or Gemini\./],
+    ["openai", "gpt-9", /Unknown AI provider "openai"\. Choose Claude or Claude \(my plan\) or Gemini\./],
     ["claude", "claude-opus-5-5", /^Add ANTHROPIC_API_KEY to \.env to use Claude/],
     ["gemini", "gemini-9-ultra", /"gemini-9-ultra" is not a Gemini model ZENO offers/],
     ["gemini", "claude-opus-5-5", /not a Gemini model/],
@@ -165,7 +166,7 @@ test("at startup a valid saved choice overrides ZENO_LLM_PROVIDER / ZENO_LLM_MOD
   const path = join(tempDir(), "island.json");
   writeSavedChoice(path, { provider: "claude", model: "claude-opus-5-5" });
   const env = { ZENO_LLM_PROVIDER: "gemini", ZENO_LLM_MODEL: "gemini-3.5-flash", GEMINI_API_KEY: GEMINI_KEY, ANTHROPIC_API_KEY: CLAUDE_KEY };
-  const keys = readProviderKeys(env);
+  const keys = readProviderKeys(env, () => undefined);
   assert.deepEqual(keys, BOTH);
   const config = loadConfig(env, { llm: readSavedChoice(path, keys).choice });
   assert.deepEqual(config.llm, { provider: "claude", apiKey: CLAUDE_KEY, model: "claude-opus-5-5", timeoutMs: 30_000 });
@@ -188,4 +189,42 @@ test("the settings file location can be changed with ZENO_ISLAND_SETTINGS", () =
   assert.equal(settingsPath({}), DEFAULT_SETTINGS_PATH);
   assert.equal(settingsPath({ ZENO_ISLAND_SETTINGS: " " }), "config/island.json");
   assert.equal(settingsPath({ ZENO_ISLAND_SETTINGS: "/tmp/x.json" }), "/tmp/x.json");
+});
+
+// ---- Claude on the user's plan
+
+const PLAN: ProviderKeys = { gemini: GEMINI_KEY, "claude-plan": "/Users/k/.local/bin/claude" };
+
+test("the plan provider is offered when the claude program is found, and its path is not secret but is not sent either", () => {
+  const { settings } = settingsHarness({ keys: PLAN });
+  const entry = settings.info().providers.find((p) => p.id === "claude-plan")!;
+  assert.equal(entry.available, true);
+  assert.equal(entry.name, "Claude (my plan)");
+  assert.ok(!JSON.stringify(settings.info()).includes("/Users/k/.local/bin/claude"));
+});
+
+test("switching to the plan provider builds it with the program's path", async () => {
+  const h = settingsHarness({ keys: PLAN });
+  assert.deepEqual(h.settings.setModel("claude-plan", "claude-sonnet-5-5"), { ok: true });
+  assert.deepEqual(h.built, [{ choice: { provider: "claude-plan", model: "claude-sonnet-5-5" }, apiKey: "/Users/k/.local/bin/claude" }]);
+  assert.deepEqual(h.saved, [{ provider: "claude-plan", model: "claude-sonnet-5-5" }]);
+});
+
+test("without the claude program the plan provider says to install it and sign in, not to add a key to .env", () => {
+  const h = settingsHarness({ keys: { gemini: GEMINI_KEY } });
+  const result = h.settings.setModel("claude-plan", "claude-sonnet-5-5");
+  assert.ok("error" in result);
+  assert.match((result as { error: string }).error, /claude auth login/);
+  assert.doesNotMatch((result as { error: string }).error, /\.env/);
+  assert.equal(h.built.length, 0);
+});
+
+test("a saved choice of the plan provider is ignored with a clear warning when claude is not there, and kept when it is", () => {
+  const dir = tempDir();
+  const path = join(dir, "island.json");
+  writeSavedChoice(path, { provider: "claude-plan", model: "claude-sonnet-5-5" });
+  const missing = readSavedChoice(path, { gemini: GEMINI_KEY });
+  assert.equal(missing.choice, undefined);
+  assert.match(missing.warning ?? "", /claude auth login/);
+  assert.deepEqual(readSavedChoice(path, PLAN).choice, { provider: "claude-plan", model: "claude-sonnet-5-5" });
 });

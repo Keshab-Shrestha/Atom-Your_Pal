@@ -6,7 +6,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { SwitchableModel } from "@zeno/llm-gateway";
-import { LLM_PROVIDER_IDS, PROVIDERS, isLlmProvider, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
+import { CLAUDE_PLAN, LLM_PROVIDER_IDS, PROVIDERS, isLlmProvider, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import type { InfoEvent } from "./island-protocol.ts";
 
 /** Where the settings file lives, relative to the project root (the working directory, like logs/). */
@@ -14,6 +14,12 @@ export const DEFAULT_SETTINGS_PATH = "config/island.json";
 
 export function settingsPath(env: Record<string, string | undefined> = process.env): string {
   return env.ZENO_ISLAND_SETTINGS?.trim() || DEFAULT_SETTINGS_PATH;
+}
+
+/** What is missing for a provider, as a clause: an API key to add, or for the plan provider the `claude` program to sign in. */
+export function missingKeyAdvice(provider: keyof typeof PROVIDERS): string {
+  if (provider === CLAUDE_PLAN) return "the signed-in `claude` program was not found (install Claude Code and run `claude auth login`)";
+  return `${PROVIDERS[provider].keyVar} is not in .env`;
 }
 
 const shorten = (text: string) => (text.length > 40 ? `${text.slice(0, 40)}…` : text);
@@ -39,8 +45,7 @@ export function readSavedChoice(path: string, keys: ProviderKeys): { choice?: Ll
     return { warning: `Ignoring ${path}: unknown provider "${shorten(llm.provider)}". Using the model from .env.` };
   }
   if (!keys[llm.provider]) {
-    const { name, keyVar } = PROVIDERS[llm.provider];
-    return { warning: `Ignoring ${path}: it chooses ${name}, but ${keyVar} is not in .env. Using the model from .env.` };
+    return { warning: `Ignoring ${path}: it chooses ${PROVIDERS[llm.provider].name}, but ${missingKeyAdvice(llm.provider)}. Using the model from .env.` };
   }
   return { choice: { provider: llm.provider, model: llm.model.trim() } };
 }
@@ -117,7 +122,14 @@ export function createModelSettings(options: ModelSettingsOptions): ModelSetting
       }
       const { name, keyVar } = PROVIDERS[provider];
       const apiKey = keys[provider];
-      if (!apiKey) return { error: `Add ${keyVar} to .env to use ${name}, then restart ZENO.` };
+      if (!apiKey) {
+        return {
+          error:
+            provider === CLAUDE_PLAN
+              ? `Install Claude Code and run \`claude auth login\` to use ${name}, then restart ZENO.`
+              : `Add ${keyVar} to .env to use ${name}, then restart ZENO.`,
+        };
+      }
       if (!offeredModels(provider, initial).some((m) => m.id === modelId)) {
         return { error: `"${shorten(modelId)}" is not a ${name} model ZENO offers. Choose one from the list.` };
       }

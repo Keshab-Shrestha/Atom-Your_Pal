@@ -581,7 +581,11 @@ struct ModelSection: View {
                             Text(provider.name).font(.system(size: 12, weight: .semibold))
                             Spacer()
                             if !provider.available {
-                                Text("No API key in .env")
+                                Text(provider.id == "claude-plan" ? "Claude Code not found or not signed in" : "No API key in .env")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.secondary)
+                            } else if provider.id == "claude-plan" {
+                                Text("Runs on your Claude plan")
                                     .font(.system(size: 10))
                                     .foregroundStyle(.secondary)
                             }
