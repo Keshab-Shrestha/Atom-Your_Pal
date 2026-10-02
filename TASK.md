@@ -188,7 +188,7 @@ Result:
 
 ---
 
-### Task 0.5.4b — Left-Edge Island with Live State (ADR-037, ADR-038)
+### Task 0.5.4b — Left-Edge Island with Live State (ADR-037, ADR-038) ✅ Built (2026-10-02), awaiting Keshab's look
 
 Move the island to the left edge below the menu bar and give the compact view its real content.
 
@@ -201,6 +201,19 @@ Move the island to the left edge below the menu bar and give the compact view it
 Tests: Swift unit tests for the new frames and hover band (including menu bar height and a display arrangement with another display on the left), the level meter's smoothing, and the state-to-label mapping.
 
 Verification: on the Mac mini with the real pointer: reveal, hide, no reveal at the top-left corner or in the menu bar, the Apple menu still clickable, full-screen app; Keshab's look.
+
+Result:
+
+- `IslandGeometry` places the card 8 pt in from the left edge and 8 pt below the menu bar (the real menu bar height, read from the display); hidden, it sits entirely past the left edge. The hover band is the left edge from the bottom of the menu bar down 140 pt
+- `IslandStatus` turns runtime events into a title and detail ("Ready — Gemini 3.6 Flash", "Listening", "Thinking — Gemini 3.6 Flash", "Model limit reached — Gemini's daily free limit is used up"); `LevelMeter` turns `mic.level` into a decibel-scaled waveform that rises at once and falls gently
+- `HoverController` gained `linger`: the island stays out 2.5 s after a turn, 6 s after a notice or problem; settings problems stay until fixed
+- Look: `NSGlassEffectView` (macOS 26+) with a dark tint, otherwise a dark blur; state icon in a tinted circle; waveform while listening
+- 63 Swift tests pass (30 new or rewritten: geometry, hover band, linger, wording, model names, meter)
+- Verified on the Mac mini (real pointer, window server's window list): hidden at idle; shown at (8, 38) 0.25 s after resting in the band; hides 0.5 s after leaving; no reveal in the top-left corner, at the left edge inside the menu bar, further down the left edge, 10 pt in from the edge, on a quick flick, or at the second display's left edge (11 clean runs). One early run revealed at the menu bar edge; the trace showed a pointer position the test had not set (moved by hand during the run), inside the band
+- The Apple menu opens with the island shown, and the island slides away as the pointer reaches the menu bar
+- A scripted runtime played a full turn and a model error: the island came out on Listening, stayed through Thinking and Speaking, hid 2.5 s after the turn, came out for the error and stayed 6 s
+- Real runtime: "Ready — Gemini 3.6 Flash"; 58 MB
+- Not checked: the glass's look (no screen capture permission for the agent; vision unavailable), a left-hand Dock, Stage Manager
 
 ---
 
@@ -308,6 +321,6 @@ Never:
 
 ## 9. Current Priority
 
-Phase 0.5 — Desktop Island. Tasks 0.5.1–0.5.4 are done. Keshab redirected the island (ADR-037, ADR-038). Current task: 0.5.4b (Left-Edge Island with Live State).
+Phase 0.5 — Desktop Island. Tasks 0.5.1–0.5.4 are done. Keshab redirected the island (ADR-037, ADR-038). Task 0.5.4b is built and awaits Keshab's look. Next task: 0.5.5 (Global Push-to-Talk).
 
 Everything else waits.

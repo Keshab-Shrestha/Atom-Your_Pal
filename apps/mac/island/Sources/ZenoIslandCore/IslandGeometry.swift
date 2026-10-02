@@ -1,70 +1,83 @@
 import CoreGraphics
 
-/// Sizes and distances for the island (ADR-036). Points, not pixels.
+/// Sizes and distances for the island (ADR-037, ADR-038). Points, not pixels.
 public struct IslandMetrics: Sendable, Equatable {
-    /// The pill shown on hover and while talking.
-    public var compact = CGSize(width: 200, height: 36)
-    /// The conversation view opened by clicking the pill (Task 0.5.7).
-    public var expanded = CGSize(width: 420, height: 300)
-    /// Width of the hover strip at the top edge, centred on the display.
-    public var triggerWidth: CGFloat = 320
-    /// How close to the top edge the pointer must be (the pointer stops at the edge, so this is small).
+    /// The card shown on hover and while talking.
+    public var compact = CGSize(width: 232, height: 52)
+    /// The expanded view opened by clicking the card (Tasks 0.5.6–0.5.7).
+    public var expanded = CGSize(width: 380, height: 460)
+    /// Gap between the card and the left edge of the display when shown.
+    public var edgeInset: CGFloat = 8
+    /// Gap between the menu bar and the top of the card.
+    public var topGap: CGFloat = 8
+    /// The hover band: this tall, starting at the bottom of the menu bar.
+    public var triggerHeight: CGFloat = 140
+    /// How close to the left edge the pointer must be (it stops at the edge, so this is small).
     public var triggerDepth: CGFloat = 2
-    /// How far the pointer may stray from the shown panel before it starts to hide.
-    public var keepMargin: CGFloat = 28
-    /// Smallest gap kept between the panel and the display's left and right edges.
-    public var sideMargin: CGFloat = 8
+    /// How far the pointer may stray from the shown card before it starts to hide.
+    public var keepMargin: CGFloat = 24
+    /// Smallest gap kept to the bottom and right of the display, for small displays.
+    public var screenMargin: CGFloat = 8
 
     public init() {}
 }
 
-/// Where the island sits on a display. AppKit coordinates: origin at the bottom left, y grows upward,
-/// so the top edge of a display is `frame.maxY`.
+/// Where the island sits on a display: at the left edge, just below the menu bar (ADR-037).
+/// AppKit coordinates: origin at the bottom left, y grows upward.
 public struct IslandGeometry: Sendable, Equatable {
     public enum Presentation: Sendable, Equatable {
         case compact, expanded
     }
 
-    /// The full frame of the display with the menu bar (not `visibleFrame`: the island covers the menu bar).
+    /// The full frame of the display with the menu bar.
     public let screen: CGRect
-    /// Space taken at the top by a camera housing (`NSScreen.safeAreaInsets.top`); 0 without a notch.
-    /// The panel grows by this much so its content sits below the notch.
-    public let topInset: CGFloat
+    /// The bottom of the menu bar (`NSScreen.visibleFrame.maxY`). Equal to `screen.maxY` when the
+    /// menu bar hides itself.
+    public let menuBarBottom: CGFloat
     public let metrics: IslandMetrics
 
-    public init(screen: CGRect, topInset: CGFloat = 0, metrics: IslandMetrics = IslandMetrics()) {
+    public init(screen: CGRect, menuBarBottom: CGFloat? = nil, metrics: IslandMetrics = IslandMetrics()) {
         self.screen = screen
-        self.topInset = max(0, topInset)
+        self.menuBarBottom = min(screen.maxY, max(screen.minY, menuBarBottom ?? screen.maxY))
         self.metrics = metrics
     }
 
     public func size(_ presentation: Presentation) -> CGSize {
         let base = presentation == .compact ? metrics.compact : metrics.expanded
-        let width = min(base.width, max(0, screen.width - 2 * metrics.sideMargin))
-        return CGSize(width: width, height: base.height + topInset)
+        let room = CGSize(
+            width: screen.width - metrics.edgeInset - metrics.screenMargin,
+            height: menuBarBottom - metrics.topGap - screen.minY - metrics.screenMargin)
+        return CGSize(width: max(0, min(base.width, room.width)), height: max(0, min(base.height, room.height)))
     }
 
-    /// The panel's frame. Hidden: directly above the top edge, entirely off the display. Shown: hanging
-    /// from the top edge. Both are centred, so sliding between them is a straight vertical move.
+    /// The card's top edge: a small gap below the menu bar.
+    var top: CGFloat { menuBarBottom - metrics.topGap }
+
+    /// The card's frame. Hidden: entirely past the left edge, at the same height. Shown: a small gap
+    /// in from the left edge. Sliding between them is a straight horizontal move.
     public func frame(_ presentation: Presentation, visible: Bool) -> CGRect {
         let size = size(presentation)
-        let x = (screen.midX - size.width / 2).rounded()
-        let y = visible ? screen.maxY - size.height : screen.maxY
-        return CGRect(x: x, y: y, width: size.width, height: size.height)
+        let x = visible ? screen.minX + metrics.edgeInset : screen.minX - size.width
+        return CGRect(x: x, y: top - size.height, width: size.width, height: size.height)
     }
 
-    /// The hover strip: the pointer pressed against the top edge, near the centre.
+    /// The hover band: the pointer pressed against the left edge, just below the menu bar.
+    /// It starts below the menu bar, so the Apple menu and the top-left corner (a hot corner) never trigger it.
     public func inTrigger(_ point: CGPoint) -> Bool {
-        abs(point.x - screen.midX) <= metrics.triggerWidth / 2
-            && point.y >= screen.maxY - metrics.triggerDepth
-            && point.y <= screen.maxY + 1
+        point.x <= screen.minX + metrics.triggerDepth
+            && point.x >= screen.minX - 1
+            && point.y < menuBarBottom
+            && point.y >= menuBarBottom - metrics.triggerHeight
     }
 
-    /// While the panel is shown, the pointer keeps it open anywhere over it, a margin around it, or
-    /// the hover strip.
+    /// While the card is shown, the pointer keeps it open anywhere over it, a margin around it, or the
+    /// strip between it and the left edge. The menu bar above it is not included.
     public func inKeepZone(_ point: CGPoint, _ presentation: Presentation) -> Bool {
-        let zone = frame(presentation, visible: true).insetBy(dx: -metrics.keepMargin, dy: -metrics.keepMargin)
-        let insideZone = point.x >= zone.minX && point.x <= zone.maxX && point.y >= zone.minY && point.y <= screen.maxY + 1
-        return insideZone || inTrigger(point)
+        let card = frame(presentation, visible: true)
+        let inZone = point.x >= screen.minX - 1
+            && point.x <= card.maxX + metrics.keepMargin
+            && point.y >= card.minY - metrics.keepMargin
+            && point.y < menuBarBottom
+        return inZone || inTrigger(point)
     }
 }

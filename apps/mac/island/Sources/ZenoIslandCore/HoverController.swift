@@ -1,5 +1,5 @@
 /// Decides when the island is shown, from where the pointer is and how long it has been there
-/// (ADR-036). It holds no timers: the app calls `update` on every pointer move and again at
+/// (ADR-036, ADR-037). It holds no timers: the app calls `update` on every pointer move and again at
 /// `recheckAt`, so the timing is testable with plain numbers.
 public struct HoverController: Sendable, Equatable {
     public enum Phase: Sendable, Equatable {
@@ -29,15 +29,29 @@ public struct HoverController: Sendable, Equatable {
     /// Seconds after the pointer leaves before the panel hides.
     public var hideDelay: Double
     public private(set) var phase: Phase = .hidden
-    /// Kept visible regardless of the pointer: while talking (Task 0.5.5) or expanded (Task 0.5.7).
+    /// Kept visible regardless of the pointer: during a turn, or while expanded.
     /// When released, the panel hides `hideDelay` after the next update with the pointer away.
     public var held = false {
         didSet { if held { phase = .shown } }
     }
+    /// Kept visible until this time regardless of the pointer (after a turn ends, or to show a problem).
+    public private(set) var lingerUntil: Double?
 
     public init(revealDelay: Double = 0.25, hideDelay: Double = 0.5) {
         self.revealDelay = revealDelay
         self.hideDelay = hideDelay
+    }
+
+    /// Shows the panel now and keeps it shown until `time`, then hides as usual unless the pointer is near.
+    public mutating func linger(until time: Double) {
+        lingerUntil = max(lingerUntil ?? time, time)
+        phase = .shown
+    }
+
+    /// Hides at the next update unless held or the pointer is over the panel (e.g. after a click outside).
+    public mutating func dismiss() {
+        lingerUntil = nil
+        if phase == .shown { phase = .leaving(since: -Double.infinity) }
     }
 
     public var visible: Bool {
@@ -55,6 +69,13 @@ public struct HoverController: Sendable, Equatable {
         if held {
             phase = .shown
             return Output(visible: true, recheckAt: nil)
+        }
+        if let until = lingerUntil {
+            if now < until {
+                phase = .shown
+                return Output(visible: true, recheckAt: until)
+            }
+            lingerUntil = nil // ended: continue as if shown by hover
         }
         switch phase {
         case .hidden:

@@ -203,7 +203,7 @@ pnpm island:open    # build and launch it
 pnpm island:test    # Swift tests
 ```
 
-`ZENO.app` records where the project folder and Node.js are; rebuild it if either moves. The island is being moved to the left edge (Task 0.5.4b). Talking from the island arrives with Task 0.5.5.
+`ZENO.app` records where the project folder and Node.js are; rebuild it if either moves. Push the pointer against the left edge of the screen, just below the menu bar, and the island slides in showing ZENO's state and model; move away and it slides back. Talking from the island arrives with Task 0.5.5.
 
 ---
 
