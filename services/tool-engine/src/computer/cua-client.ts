@@ -107,7 +107,8 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
         child = undefined;
         ready = undefined;
         const e = new Error(`Could not start Cua Driver (${error.message}). Is it installed?`);
-        started ? failAll(e.message) : reject(e);
+        if (!started) reject(e);
+        failAll(e.message); // also clears the pending initialize request's timer, which would otherwise hold the process open
       });
       proc.on("exit", () => {
         if (child === proc) child = undefined;
@@ -142,12 +143,14 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
     return ready;
   }
 
-  function stopNow(): Promise<void> {
+  async function stopNow(): Promise<void> {
+    // Cua may still be starting: wait for it, so a process that is about to appear is stopped too.
+    if (!child && ready) await ready.catch(() => undefined);
     const proc = child;
     child = undefined;
     ready = undefined;
-    if (!proc || proc.exitCode !== null) return Promise.resolve();
-    return new Promise((resolve) => {
+    if (!proc || proc.exitCode !== null) return;
+    await new Promise<void>((resolve) => {
       proc.once("exit", () => resolve());
       proc.stdin.end();
       proc.kill("SIGTERM");
@@ -162,20 +165,29 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
 
   async function callOnce(name: string, callArgs: Record<string, unknown>, signal?: AbortSignal): Promise<CuaResult> {
     if (signal?.aborted) throw new Error("Cancelled before it ran.");
-    const proc = await start();
-    touch();
-    const id = nextId + 1;
-    const work = request(proc, "tools/call", { name, arguments: callArgs }, callTimeoutMs);
+    // Listen for the cancel from the start, so one that arrives while Cua is still starting is not missed.
+    let proc: Proc | undefined;
+    let requestId: number | undefined;
     let onAbort: (() => void) | undefined;
     const cancelled = new Promise<never>((_, reject) => {
       onAbort = () => {
-        send(proc, { jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId: id, reason: "ZENO cancelled" } });
-        pending.delete(id);
+        if (proc && requestId !== undefined) {
+          send(proc, { jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId, reason: "ZENO cancelled" } });
+          pending.get(requestId)?.reject(new Error("Cancelled.")); // also clears the call's timeout timer
+          pending.delete(requestId);
+        }
         reject(new Error("Cancelled."));
       };
       signal?.addEventListener("abort", onAbort, { once: true });
     });
+    cancelled.catch(() => {}); // it is raced below; a cancel after the call ended has no one waiting
+    let work: Promise<any> | undefined;
     try {
+      proc = await Promise.race([start(), cancelled]);
+      touch();
+      requestId = nextId + 1;
+      work = request(proc, "tools/call", { name, arguments: callArgs }, callTimeoutMs);
+      work.catch(() => {}); // a late answer or timeout after cancelling is not an error to report
       const result = await Promise.race([work, cancelled]);
       const structured = (result?.structuredContent ?? {}) as Record<string, any>;
       return {
@@ -186,7 +198,6 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
       };
     } finally {
       if (onAbort) signal?.removeEventListener("abort", onAbort);
-      work.catch(() => {}); // a late answer or timeout after cancelling is not an error to report
       touch();
     }
   }

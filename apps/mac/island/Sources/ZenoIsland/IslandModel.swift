@@ -20,6 +20,8 @@ final class IslandModel {
     }
 
     var status = IslandStatus()
+    /// What ZENO is waiting for the user to allow (ADR-054).
+    var approval = ApprovalState()
     var meter = LevelMeter(bars: 14)
     var conversation = Conversation()
     /// The model in use and the choices, from the runtime's `info` event.
@@ -68,6 +70,12 @@ final class IslandModel {
         send(.modelSet(provider: provider, model: model))
     }
 
+    /// The user clicked Allow or Decline on the approval card.
+    func answerApproval(_ approved: Bool) {
+        guard let command = approval.answer(approved: approved) else { return }
+        send(command)
+    }
+
     func newConversation() {
         send(.conversationReset)
     }
@@ -75,6 +83,7 @@ final class IslandModel {
     /// Keeps the conversation and model list in step with the runtime. The status is applied by the controller.
     func apply(_ event: IslandEvent) {
         conversation.apply(event)
+        approval.apply(event)
         switch event {
         case .info(let info):
             modelInfo = info

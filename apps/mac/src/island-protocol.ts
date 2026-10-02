@@ -14,6 +14,7 @@ export type IslandCommand =
   | { type: "talk.cancel" }
   | { type: "conversation.reset" }
   | { type: "model.set"; provider: string; model: string }
+  | { type: "approval.answer"; id: string; approved: boolean }
   | { type: "quit" };
 
 export type ErrorStage =
@@ -53,10 +54,13 @@ export type IslandEvent =
     }
   | { type: "notice"; kind: NoticeKind; message: string }
   | { type: "conversation.reset" }
+  | { type: "computer.step"; text: string }
+  | { type: "approval.request"; id: string; summary: string; reason: string }
+  | { type: "approval.closed"; id: string }
   | InfoEvent
   | { type: "error"; stage: ErrorStage; message: string; kind?: string; retryable?: boolean };
 
-const COMMANDS = new Set<IslandCommand["type"]>(["talk.start", "talk.send", "talk.cancel", "conversation.reset", "model.set", "quit"]);
+const COMMANDS = new Set<IslandCommand["type"]>(["talk.start", "talk.send", "talk.cancel", "conversation.reset", "model.set", "approval.answer", "quit"]);
 
 export type ParsedLine = { command: IslandCommand } | { error: string } | { blank: true };
 
@@ -80,6 +84,12 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof provider !== "string") return { error: 'model.set needs a "provider" string.' };
     if (typeof model !== "string") return { error: 'model.set needs a "model" string.' };
     return { command: { type, provider, model } };
+  }
+  if (type === "approval.answer") {
+    const { id, approved } = value as { id?: unknown; approved?: unknown };
+    if (typeof id !== "string" || id === "") return { error: 'approval.answer needs an "id" string.' };
+    if (typeof approved !== "boolean") return { error: 'approval.answer needs "approved" to be true or false.' };
+    return { command: { type, id, approved } };
   }
   return { command: { type } as IslandCommand }; // extra fields are ignored (forward compatibility)
 }

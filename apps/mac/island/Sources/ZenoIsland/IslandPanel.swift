@@ -157,7 +157,7 @@ struct StateGlyph: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(tint)
                 .contentTransition(.symbolEffect(.replace))
-                .symbolEffect(.pulse, options: .repeating, isActive: kind == .thinking || kind == .transcribing || kind == .starting)
+                .symbolEffect(.pulse, options: .repeating, isActive: kind == .thinking || kind == .transcribing || kind == .starting || kind == .acting)
         }
         .animation(.easeOut(duration: 0.2), value: kind)
     }
@@ -172,6 +172,8 @@ struct StateGlyph: View {
         case .speaking: "speaker.wave.2.fill"
         case .notice: "hand.raised.fill"
         case .problem: "exclamationmark.triangle.fill"
+        case .acting: "cursorarrow.motionlines"
+        case .asking: "hand.raised.fill"
         }
     }
 
@@ -184,6 +186,8 @@ struct StateGlyph: View {
         case .speaking: Color(red: 0.36, green: 0.70, blue: 1.0)
         case .notice: Color(red: 1.0, green: 0.80, blue: 0.35)
         case .problem: Color(red: 1.0, green: 0.58, blue: 0.28)
+        case .acting: Color(red: 0.36, green: 0.82, blue: 0.80)
+        case .asking: Color(red: 1.0, green: 0.80, blue: 0.35)
         }
     }
 }

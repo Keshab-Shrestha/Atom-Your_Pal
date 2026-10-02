@@ -60,12 +60,28 @@ test("if Cua dies mid-call the call fails, and the next call starts it again", a
 test("cancelling rejects at once and tells Cua", async () => {
   const cua = make();
   try {
+    await cua.call("echo", { text: "warm up" }); // started, so the cancel below is for a call that is in flight
     const ac = new AbortController();
     const slow = cua.call("slow", {}, ac.signal);
     setTimeout(() => ac.abort(), 30);
     await assert.rejects(slow, /Cancelled/);
     await new Promise((r) => setTimeout(r, 50));
     assert.equal((await cua.call("cancelled", {})).data.cancelled, 1);
+  } finally {
+    await cua.close();
+  }
+});
+
+test("cancelling while Cua is still starting is not missed", async () => {
+  // Cua takes a moment to start. Cancel during that moment: the call must reject now, not after the 30 s timeout.
+  const cua = make({ callTimeoutMs: 20_000 });
+  try {
+    const ac = new AbortController();
+    const started = Date.now();
+    const slow = cua.call("slow", {}, ac.signal);
+    setTimeout(() => ac.abort(), 5); // after the call began, long before the fake Cua has finished starting
+    await assert.rejects(slow, /Cancelled/);
+    assert.ok(Date.now() - started < 5000, "rejected promptly");
   } finally {
     await cua.close();
   }

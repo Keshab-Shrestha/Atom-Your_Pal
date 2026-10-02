@@ -79,7 +79,7 @@ public struct PetBrain: Sendable {
     public mutating func update(status: IslandStatus.Kind, at now: Double) {
         let reaction: Mood? = switch status {
         case .listening: .listening
-        case .transcribing, .thinking: .thinking
+        case .transcribing, .thinking, .acting, .asking: .thinking
         case .speaking: .speaking
         case .problem: .worried
         case .starting, .ready, .notice: nil

@@ -23,6 +23,8 @@ export interface ComputerToolOptions {
   approve: (request: ApprovalRequest, signal?: AbortSignal) => Promise<boolean>;
   /** One call per action, for the log. Receives no typed text and no screen content. */
   onAction?: (event: ComputerAction) => void;
+  /** Called as an action begins, so the user can see what ZENO is doing. Carries the action and app only. */
+  onStep?: (step: { action: string; app?: string }) => void;
   maxElements?: number;
 }
 
@@ -74,7 +76,7 @@ const ACTIONS = ["list_apps", "look", "open", "click", "type", "key", "scroll"] 
  * secret fields, and only elements from the latest `look`. The model chooses actions; it never touches Cua directly.
  */
 export function createComputerTool(options: ComputerToolOptions): Tool {
-  const { cua, approve, onAction, maxElements = 150 } = options;
+  const { cua, approve, onAction, onStep, maxElements = 150 } = options;
   let target: Target | undefined;
 
   const log = (e: ComputerAction) => onAction?.(e);
@@ -141,6 +143,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
   async function run(input: Record<string, unknown>, signal?: AbortSignal): Promise<string> {
     const action = String(input.action);
     const appName = typeof input.app === "string" ? input.app : target?.app;
+    onStep?.({ action, ...(appName ? { app: appName } : {}) });
     try {
       const out = await perform(action, input, signal);
       log({ action, ...(appName ? { app: appName } : {}), ok: true });

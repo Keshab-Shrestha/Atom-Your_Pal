@@ -328,9 +328,18 @@ A `computer` tool in `services/tool-engine/` that starts `cua-driver mcp`, lists
 
 **Not done:** the real approval prompt in Wisp (Task 0.6.3); clicking by voice end to end through the island; the Flash free quota ran out mid-testing (429), so reliability on longer tasks is unmeasured; Claude is untested on this tool.
 
-### Task 0.6.3 — Wisp Shows the Work (ADR-054) — queued
+### Task 0.6.3 — Wisp Shows the Work (ADR-054) — built; not yet seen on the real screen
 
-New island events for computer steps and approval requests; the bubble shows each step; approve or refuse from the bubble. Protocol version stays 1 (new fields only).
+Three new island events (`computer.step`, `approval.request`, `approval.closed`) and one command (`approval.answer`); protocol version stays 1. Specified in `docs/island-protocol.md` first.
+
+**Done (2026-10-03):**
+- **Runtime:** `apps/mac/src/computer-bridge.ts` sends steps and asks the user. No island, no answer in 60 s, Esc (`talk.cancel`), a new `talk.start`, a reset or quit all count as "no". An answer for an unknown or finished id is ignored, so an old prompt can never approve a later action. Wording is cut to one short line; steps carry the app and kind of action only, never typed text.
+- **Island (Swift):** the bubble reads "Using your Mac / Typing in TextEdit" while ZENO acts; an amber card (`ApprovalPanel.swift`) replaces it when ZENO asks, with Decline and Allow, the tail pointing at Wisp (below Wisp near the top of the screen). It brings Wisp out of hiding. Without Wisp it stands at the bottom of the main display. The card never takes focus. A request is cleared when the turn ends, the conversation resets, an error arrives, or the runtime stops.
+- **Tests:** 252 TypeScript (250 pass, 2 skipped) and 271 Swift, none failing. Layout checked on the gallery render (`8-computer-control.png`: four panels, no clipping, tails correct).
+- **Live, real Cua and Gemini:** steps streamed in order; a Delete key press raised an approval request on the wire; the answer closed it. A model that gives up after too many tries ends cleanly with "used too many steps".
+- **Fixed on the way:** a cancel that arrived while Cua was still starting was missed, so the call hung until its 30 s timeout; and a failed start left a timer that held the process open for 15 s.
+
+**Not done:** the card has not been seen on the real screen, and Esc and the Allow click have not been tried by hand with `ZENO_COMPUTER=1`. Gemini Flash's daily free quota ran out partway through, so no run finished with an approved action and a final spoken answer.
 
 ### Task 0.6.4 — Pointing (ADR-054) — queued
 

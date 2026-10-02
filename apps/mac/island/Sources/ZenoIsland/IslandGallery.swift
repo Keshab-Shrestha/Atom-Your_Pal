@@ -63,6 +63,7 @@ enum IslandGallery {
         write(model, size: expanded, name: "4-empty-conversation", to: directory)
         writePet(to: directory)
         writeBubbles(to: directory)
+        writeApproval(to: directory)
         writePeek(to: directory)
     }
 
@@ -107,6 +108,53 @@ enum IslandGallery {
         .padding(20)
         .background(Color(white: 0.08))
         save(sheet, name: "7-wisp-peek", to: directory)
+    }
+
+    /// Computer control (ADR-054): the bubble while ZENO works on the Mac, and the card that asks before a risky action.
+    private static func writeApproval(to directory: URL) {
+        let suite = "zeno.gallery.approval.\(ProcessInfo.processInfo.processIdentifier)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        func working(_ title: String, _ lines: [String]) -> some View {
+            let model = IslandModel(settings: IslandSettings(defaults: defaults))
+            for line in lines { if let event = try? decodeEvent(line) { model.status.apply(event); model.apply(event) } }
+            let state = BubbleState(visible: true, tailX: BubbleLayout.size.width / 2, tailOnTop: false)
+            return VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+                VStack(spacing: -14) {
+                    BubbleView(model: model, state: state, snapshot: true)
+                    WispView(mood: .thinking, time: 0.4, facing: 1, size: 72)
+                }
+                .frame(width: BubbleLayout.size.width + 24)
+            }
+        }
+        func asking(_ title: String, summary: String, reason: String, below: Bool = false) -> some View {
+            let card = ApprovalCardState(request: ApprovalRequest(id: "a1", summary: summary, reason: reason), visible: true, tailOnTop: below)
+            let wisp = WispView(mood: .thinking, time: 0.4, facing: 1, size: 72)
+            return VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+                VStack(spacing: below ? -2 : -14) {
+                    if below { wisp }
+                    ApprovalView(state: card, onAnswer: { _ in }, snapshot: true)
+                    if !below { wisp }
+                }
+                .frame(width: ApprovalController.size.width + 24)
+            }
+        }
+        let step = #"{"type":"computer.step","text":"Typing in TextEdit"}"#
+        let sheet = HStack(alignment: .top, spacing: 26) {
+            VStack(spacing: 22) {
+                working("Working on the Mac", [#"{"type":"state","state":"thinking"}"#, step])
+                asking("Asks before sending", summary: #"Click "Send" in Mail"#, reason: "it may send, buy, delete or change something")
+            }
+            VStack(spacing: 22) {
+                asking("Long wording is held to two lines", summary: #"Click "Delete this project and all of the files inside it permanently" in Finder"#, reason: "it may send, buy, delete or change something")
+                asking("Near the top: below Wisp", summary: "Press delete in TextEdit", reason: "it uses the Delete key", below: true)
+            }
+        }
+        .padding(24)
+        .background(LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.26, green: 0.31, blue: 0.45)], startPoint: .top, endPoint: .bottom))
+        save(sheet, name: "8-computer-control", to: directory)
     }
 
     /// Wisp's speech bubble in the states that matter: dictating with words, hands-free, thinking, a notice, and flipped below Wisp.

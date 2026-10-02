@@ -109,3 +109,11 @@ test("model.set without a provider or model string is a protocol error", () => {
     assert.match(parsed.error, expected);
   }
 });
+
+test("approval.answer needs an id and a real boolean", () => {
+  assert.deepEqual(parseCommand('{"type":"approval.answer","id":"a1","approved":true}'), { command: { type: "approval.answer", id: "a1", approved: true } });
+  assert.deepEqual(parseCommand('{"type":"approval.answer","id":"a1","approved":false}'), { command: { type: "approval.answer", id: "a1", approved: false } });
+  for (const bad of ['{"type":"approval.answer","approved":true}', '{"type":"approval.answer","id":"","approved":true}', '{"type":"approval.answer","id":"a1"}', '{"type":"approval.answer","id":"a1","approved":"yes"}', '{"type":"approval.answer","id":"a1","approved":1}', '{"type":"approval.answer","id":7,"approved":true}']) {
+    assert.ok("error" in parseCommand(bad), bad);
+  }
+});

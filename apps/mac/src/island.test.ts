@@ -13,6 +13,7 @@ import { createModelSettings, writeSavedChoice } from "./model-settings.ts";
 import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
 import type { CoreLike } from "./voice-loop.ts";
+import { createComputerBridge } from "./computer-bridge.ts";
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 const clip = (durationMs = 1500): AudioClip => ({ pcm: Buffer.alloc(4), sampleRate: 16_000, durationMs });
@@ -30,6 +31,7 @@ function islandHarness(
     warmUp: () => Promise<void>;
     silenceWarnMs: number;
     settings: IslandOptions["settings"];
+    computer: IslandOptions["computer"];
   }> = {},
 ) {
   const input = new PassThrough();
@@ -73,6 +75,7 @@ function islandHarness(
     tts,
     info: { provider: "fake", model: "fake-1", microphone: ":default" },
     settings: over.settings,
+    computer: over.computer,
     micName: async () => "macOS default: Test Mic",
     describe: (error) => (error instanceof Error ? error.message : String(error)),
     errorDetails: (error) => ((error as { kind?: string }).kind ? { kind: (error as { kind: string }).kind, retryable: true } : {}),
@@ -450,4 +453,48 @@ test("no event ever carries an API key", async () => {
   assert.ok(!wire.includes(CLAUDE_KEY) && !wire.includes(GEMINI_KEY));
   assert.ok(!h.logs.join("").includes(CLAUDE_KEY) && !h.logs.join("").includes(GEMINI_KEY));
   assert.ok(!readFileSync(h.path, "utf8").includes(CLAUDE_KEY));
+});
+
+test("computer control: a request reaches the island, and its answer reaches the tool", async () => {
+  const bridge = createComputerBridge({ timeoutMs: 5000, newId: () => "a1" });
+  const h = islandHarness({ computer: bridge });
+  await tick(2);
+  h.clear();
+  const answer = bridge.approve({ summary: 'Click "Send" in Mail', reason: "it may send" });
+  bridge.step({ action: "click", app: "Mail" });
+  assert.deepEqual(h.events().map((e) => e.type), ["approval.request", "computer.step"]);
+  await h.send({ type: "approval.answer", id: "a1", approved: true });
+  assert.equal(await answer, true);
+  assert.equal(h.events().filter((e) => e.type === "approval.closed").length, 1);
+});
+
+test("computer control: Esc (talk.cancel), a new talk, a reset and quit all decline a waiting request", async () => {
+  for (const command of [{ type: "talk.cancel" }, { type: "talk.start" }, { type: "conversation.reset" }, { type: "quit" }]) {
+    const bridge = createComputerBridge({ timeoutMs: 5000, newId: () => "a1" });
+    const h = islandHarness({ computer: bridge });
+    await tick(2);
+    const answer = bridge.approve({ summary: "Delete", reason: "it deletes" });
+    await h.send(command);
+    assert.equal(await answer, false, command.type);
+  }
+});
+
+test("computer control: a bad approval.answer is a protocol error and approves nothing", async () => {
+  const bridge = createComputerBridge({ timeoutMs: 5000, newId: () => "a1" });
+  const h = islandHarness({ computer: bridge });
+  await tick(2);
+  h.clear();
+  const answer = bridge.approve({ summary: "Delete", reason: "it deletes" });
+  await h.send('{"type":"approval.answer","id":"a1","approved":"true"}');
+  assert.ok(h.events().some((e) => e.type === "error" && e.stage === "protocol"));
+  bridge.answer("a1", false);
+  assert.equal(await answer, false);
+});
+
+test("without computer control, approval.answer is quietly ignored", async () => {
+  const h = islandHarness();
+  await tick(2);
+  h.clear();
+  await h.send({ type: "approval.answer", id: "a1", approved: true });
+  assert.deepEqual(h.events(), []);
 });

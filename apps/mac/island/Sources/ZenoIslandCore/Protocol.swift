@@ -13,6 +13,8 @@ public enum IslandCommand: Sendable, Equatable {
     case talkStart, talkSend, talkCancel, conversationReset, quit
     /// Switch the AI model (ADR-040). Answered with `info`, or an `error` with stage `settings`.
     case modelSet(provider: String, model: String)
+    /// The user's answer to an `approval.request` (ADR-054).
+    case approvalAnswer(id: String, approved: Bool)
 
     /// The command's `type` field. Safe for logs: never includes values.
     public var type: String {
@@ -23,17 +25,22 @@ public enum IslandCommand: Sendable, Equatable {
         case .conversationReset: "conversation.reset"
         case .quit: "quit"
         case .modelSet: "model.set"
+        case .approvalAnswer: "approval.answer"
         }
     }
 
     /// One JSON line, ending with a newline. Values are escaped by JSONSerialization.
     public var line: String {
-        var fields = ["type": type]
+        var fields: [String: Any] = ["type": type]
         if case .modelSet(let provider, let model) = self {
             fields["provider"] = provider
             fields["model"] = model
         }
-        // A dictionary of strings is always valid JSON, so this cannot fail.
+        if case .approvalAnswer(let id, let approved) = self {
+            fields["id"] = id
+            fields["approved"] = approved // a real JSON boolean: the runtime refuses the strings "true" and "yes"
+        }
+        // A dictionary of strings and booleans is always valid JSON, so this cannot fail.
         guard let data = try? JSONSerialization.data(withJSONObject: fields, options: [.sortedKeys, .withoutEscapingSlashes]),
               let json = String(data: data, encoding: .utf8)
         else { preconditionFailure("command \(type) could not be encoded") }
@@ -104,6 +111,22 @@ public struct TurnTimings: Sendable, Equatable {
     public var requestId: String?
 }
 
+/// Something ZENO will not do until the user says yes (ADR-054). Wording comes from the runtime and carries
+/// the app and the action, never typed text or screen content.
+public struct ApprovalRequest: Sendable, Equatable {
+    public var id: String
+    /// What ZENO is about to do, e.g. `Click "Send" in Mail`.
+    public var summary: String
+    /// Why it asks.
+    public var reason: String
+
+    public init(id: String, summary: String, reason: String) {
+        self.id = id
+        self.summary = summary
+        self.reason = reason
+    }
+}
+
 public struct RuntimeError: Sendable, Equatable {
     /// microphone, transcription, model, speech, config, protocol, settings or runtime.
     public var stage: String
@@ -125,6 +148,12 @@ public enum IslandEvent: Sendable, Equatable {
     case turnComplete(TurnTimings)
     case notice(kind: String, message: String)
     case conversationReset
+    /// ZENO is about to do something on the Mac, in plain words (ADR-054).
+    case computerStep(String)
+    /// ZENO is waiting for the user to allow or decline an action.
+    case approvalRequest(ApprovalRequest)
+    /// That request is no longer waiting: answered, declined, timed out or cancelled.
+    case approvalClosed(id: String)
     case info(ModelInfo)
     case error(RuntimeError)
     /// A newer runtime sent an event this island does not know; ignored for forward compatibility.
@@ -143,6 +172,9 @@ public enum IslandEvent: Sendable, Equatable {
         case .turnComplete: "turn.complete"
         case .notice(let kind, _): "notice:\(kind)"
         case .conversationReset: "conversation.reset"
+        case .computerStep: "computer.step"
+        case .approvalRequest: "approval.request"
+        case .approvalClosed: "approval.closed"
         case .info: "info"
         case .error(let e): "error:\(e.stage)"
         case .unknown(let type): "unknown:\(type)"
@@ -209,6 +241,12 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .notice(kind: try f.string("kind"), message: try f.string("message"))
     case "conversation.reset":
         return .conversationReset
+    case "computer.step":
+        return .computerStep(try f.string("text"))
+    case "approval.request":
+        return .approvalRequest(ApprovalRequest(id: try f.string("id"), summary: try f.string("summary"), reason: try f.string("reason")))
+    case "approval.closed":
+        return .approvalClosed(id: try f.string("id"))
     case "info":
         return .info(ModelInfo(
             provider: try f.string("provider"),

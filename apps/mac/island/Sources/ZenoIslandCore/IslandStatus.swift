@@ -4,6 +4,10 @@
 public struct IslandStatus: Sendable, Equatable {
     public enum Kind: Sendable, Equatable {
         case starting, ready, listening, transcribing, thinking, speaking, notice, problem
+        /// ZENO is working on the Mac (ADR-054).
+        case acting
+        /// ZENO is waiting for the user to allow or decline an action.
+        case asking
     }
 
     /// An error as the Status tab shows it: a title and the runtime's full message (with its fix).
@@ -46,7 +50,7 @@ public struct IslandStatus: Sendable, Equatable {
     /// ZENO is in the middle of a turn: the island stays shown.
     public var isBusy: Bool {
         switch kind {
-        case .listening, .transcribing, .thinking, .speaking: true
+        case .listening, .transcribing, .thinking, .speaking, .acting, .asking: true
         default: false
         }
     }
@@ -90,6 +94,14 @@ public struct IslandStatus: Sendable, Equatable {
             case .thinking: set(.thinking, "Thinking", modelName)
             case .speaking: set(.speaking, "Speaking", "")
             }
+        case .computerStep(let text):
+            // Only while a turn is running: a late step after the turn ended must not light the island again.
+            if isBusy { set(.acting, "Using your Mac", IslandStatus.short(text)) }
+        case .approvalRequest(let request):
+            set(.asking, "Needs your OK", IslandStatus.short(request.summary))
+        case .approvalClosed:
+            // Back to working, unless the turn has already moved on.
+            if kind == .asking { set(.thinking, "Thinking", modelName) }
         case .micSilent:
             if kind == .listening { detail = "Can't hear you. Check the microphone" }
         case .notice(let noticeKind, _):

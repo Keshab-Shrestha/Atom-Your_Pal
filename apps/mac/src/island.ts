@@ -5,6 +5,7 @@ import { createInterface } from "node:readline";
 import type { Readable } from "node:stream";
 import type { Logger } from "@zeno/shared";
 import { PROTOCOL_VERSION, createLevelThrottle, encodeEvent, parseCommand, type IslandCommand, type IslandEvent } from "./island-protocol.ts";
+import type { ComputerBridge } from "./computer-bridge.ts";
 import type { ModelSettings } from "./model-settings.ts";
 import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
@@ -23,6 +24,8 @@ export interface IslandOptions {
   info: { provider: string; model: string; microphone: string };
   /** The AI model choice: sent as `info` after `ready`, changed by `model.set`. Without it, `model.set` is refused. */
   settings?: Pick<ModelSettings, "info" | "setModel">;
+  /** Computer control (ADR-054): shows what ZENO is doing and asks before risky actions. Absent when it is off. */
+  computer?: Pick<ComputerBridge, "attach" | "answer" | "cancelAll">;
   micName(): Promise<string>;
   /** Plain-language error text for the user. */
   describe(error: unknown): string;
@@ -64,6 +67,7 @@ export function runIsland(options: IslandOptions): IslandSession {
   const send = (event: IslandEvent) => {
     if (!quitting || event.type === "error") options.write(encodeEvent(event));
   };
+  options.computer?.attach(send);
   const level = createLevelThrottle((peak) => send({ type: "mic.level", peak }), options.levelIntervalMs);
 
   const loop = createVoiceLoop({
@@ -99,6 +103,7 @@ export function runIsland(options: IslandOptions): IslandSession {
   function handle(command: IslandCommand) {
     switch (command.type) {
       case "talk.start":
+        options.computer?.cancelAll(); // a new request ends whatever was waiting for an answer
         // While listening this is a repeat (e.g. a key event delivered twice): keep the current recording.
         if (loop.state !== "listening") loop.press();
         return;
@@ -106,9 +111,14 @@ export function runIsland(options: IslandOptions): IslandSession {
         if (loop.state === "listening") loop.press();
         return;
       case "talk.cancel":
+        options.computer?.cancelAll(); // Esc: anything waiting for the user is a no
         loop.cancel();
         return;
+      case "approval.answer":
+        options.computer?.answer(command.id, command.approved);
+        return;
       case "conversation.reset":
+        options.computer?.cancelAll();
         loop.cancel();
         core.reset();
         send({ type: "conversation.reset" });
@@ -157,6 +167,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     if (quitting) return;
     quitting = true;
     options.log?.info("app.quit");
+    options.computer?.cancelAll();
     loop.cancel();
     tts.close();
     lines.close();

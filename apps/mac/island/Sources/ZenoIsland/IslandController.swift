@@ -15,6 +15,8 @@ final class IslandController {
     private let panel = IslandPanel()
     /// Wisp's speech bubble (ADR-050): while Wisp is shown and the island is closed, status appears here, not at the left edge.
     private let bubble: BubbleController
+    /// Asks the user before a risky action (ADR-054): replaces the bubble while a request is waiting.
+    private let approvalCard = ApprovalController()
     /// The bubble stays up until this time (uptime) after a turn, so the outcome can be read.
     private var bubbleUntil = 0.0
     private var bubbleTimer: Timer?
@@ -55,6 +57,7 @@ final class IslandController {
         self.trace = trace
         model = IslandModel(settings: settings)
         bubble = BubbleController(model: model)
+        approvalCard.onAnswer = { [weak model] approved in model?.answerApproval(approved) }
         shortcuts = ShortcutEngine(settings: settings, recorder: model.recorder, log: log)
         pet = PetController(settings: settings, trace: trace)
         dictation = DictationController(vocabularyURL: IslandController.vocabularyURL)
@@ -90,6 +93,7 @@ final class IslandController {
         pet.onMove = { [weak self] feet in
             guard let self else { return }
             self.bubble.follow(feet)
+            self.approvalCard.follow(feet)
             self.followWisp()
         }
         pet.onClick = { [weak self] count in self?.wispClicked(count) }
@@ -144,6 +148,7 @@ final class IslandController {
         pet.stop()
         bubbleTimer?.invalidate()
         bubble.stop()
+        approvalCard.stop()
         for monitor in monitors { NSEvent.removeMonitor(monitor) }
         monitors = []
         for observer in observers {
@@ -159,6 +164,7 @@ final class IslandController {
 
     func apply(_ status: RuntimeSupervisor.Status) {
         model.status.apply(status)
+        if case .running = status {} else { model.approval.runtimeStopped() } // whatever it asked is not waiting any more
         statusChanged()
     }
 
@@ -257,8 +263,9 @@ final class IslandController {
 
     /// Shows or hides the bubble: up while a turn is in progress, and for a moment after.
     private func updateBubble() {
+        updateApproval()
         let now = ProcessInfo.processInfo.systemUptime
-        let wanted = bubbleMode && (model.status.isBusy || talking || dictating || now < bubbleUntil)
+        let wanted = bubbleMode && model.approval.pending == nil && (model.status.isBusy || talking || dictating || now < bubbleUntil)
         if wanted {
             if !bubble.isVisible { trace("bubble show") }
             bubble.show(at: pet.feetPoint)
@@ -277,6 +284,26 @@ final class IslandController {
             bubble.hide()
             if bubbleMode { model.status.acknowledge() } // seen: a notice goes back to Ready, as when the island hides
         }
+    }
+
+    /// The approval card (ADR-054): over Wisp while a request waits, wherever Wisp is. The bubble steps aside for it.
+    /// Without Wisp it stands at the bottom of the main display, so a request is never missed.
+    private func updateApproval() {
+        if let request = model.approval.pending {
+            if !approvalCard.isVisible { trace("approval show") }
+            pet.poke() // brings Wisp out of hiding and wakes it: the question is for the user
+            let feet = pet.isShown ? pet.feetPoint : Self.bottomCentre()
+            let height = 54 * model.settings.wispSize.scale
+            approvalCard.show(request, at: feet, wispHeight: pet.isShown ? height : 0)
+        } else if approvalCard.isVisible {
+            trace("approval hide")
+            approvalCard.hide()
+        }
+    }
+
+    private static func bottomCentre() -> CGPoint {
+        let frame = NSScreen.screens.first?.visibleFrame ?? .zero
+        return CGPoint(x: frame.midX, y: frame.minY + 24)
     }
 
     // MARK: - Dictation

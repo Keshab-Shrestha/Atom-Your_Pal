@@ -226,6 +226,15 @@ test("every action is logged, and logs never contain typed text", async () => {
   assert.ok(s.logs.some((l) => l.action === "type" && l.app === "TextEdit"));
 });
 
+test("onStep is told about each action as it begins, with no text or screen content", async () => {
+  const steps: any[] = [];
+  const { cua } = fakeCua();
+  const tool = createComputerTool({ cua, approve: async () => false, onStep: (s) => steps.push(s) });
+  await Promise.resolve(tool.run({ action: "look", app: "TextEdit" })).catch(() => {});
+  await Promise.resolve(tool.run({ action: "type", element: 1, text: "my secret note" })).catch(() => {});
+  assert.deepEqual(steps, [{ action: "look", app: "TextEdit" }, { action: "type", app: "TextEdit" }]);
+});
+
 test("long element lists are cut to a sensible size", async () => {
   const many = Array.from({ length: 400 }, (_, i) => ({ element_index: i, element_token: `s1:${i}`, role: "AXButton", label: `B${i}` }));
   const s = setup({ handlers: { get_window_state: () => ok("s", { pid: 11, window_id: 7, snapshot_id: "s1", elements: many }) } });

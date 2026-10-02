@@ -2,6 +2,7 @@
 // Microphone → Whisper → ZENO Core → LLM Gateway → provider → Kokoro → speaker.
 
 import { createCore, CoreError, type Core } from "@zeno/core";
+import { createComputerBridge, type ComputerBridge } from "./computer-bridge.ts";
 import { createComputerTool, createCuaTransport, createToolEngine, timeTool } from "@zeno/tool-engine";
 import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError } from "@zeno/llm-gateway";
 import { createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
@@ -22,6 +23,8 @@ export interface Runtime {
   record: VoiceLoopOptions["record"];
   /** The microphone actually in use: with ":default" this follows macOS, which changes when devices are plugged in. */
   micName(): Promise<string>;
+  /** Computer control's link to the island (steps and approvals). Used only when ZENO_COMPUTER=1. */
+  computer: ComputerBridge;
 }
 
 export interface RuntimeOptions {
@@ -43,6 +46,7 @@ export function createRuntime(
   });
   const createModel = (choice: LlmChoice, apiKey: string) =>
     createGateway({ provider: createProviderAdapter({ ...choice, apiKey }), timeoutMs: config.llm.timeoutMs });
+  const computer = createComputerBridge();
   const initial = { provider: config.llm.provider, model: config.llm.model };
   const model = createSwitchableModel(createModel(initial, config.llm.apiKey));
   // ZENO_VOICE_ONLY=1: test speech in and out without the AI. ZENO reads back what Whisper heard, and no
@@ -52,16 +56,17 @@ export function createRuntime(
           tools: createToolEngine({
             tools: [
               timeTool(),
-              // ADR-054, Task 0.6.2: off unless ZENO_COMPUTER=1. Until Task 0.6.3 gives the island a way to ask
-              // the user, every action that needs approval is declined.
+              // ADR-054: off unless ZENO_COMPUTER=1. Steps and approvals go through the bridge to the island;
+              // with no island, or no answer, an approval is a refusal.
               ...(process.env.ZENO_COMPUTER === "1"
                 ? [
                     createComputerTool({
                       cua: createCuaTransport(),
-                      approve: async (request) => {
-                        log.info("computer.approval_declined", { summary: request.summary });
-                        return false;
+                      approve: (request, signal) => {
+                        log.info("computer.approval_asked");
+                        return computer.approve(request, signal);
                       },
+                      onStep: (step) => computer.step(step),
                       onAction: (event) => log.info("computer.action", { ...event }),
                     }),
                   ]
@@ -89,6 +94,7 @@ export function createRuntime(
     settings,
     stt,
     tts,
+    computer,
     record: (handlers) => startRecording(config.audio, handlers),
     async micName() {
       if (config.audio.inputDevice !== ":default") return config.audio.inputDevice;

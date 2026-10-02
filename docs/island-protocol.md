@@ -59,6 +59,7 @@ The island (`RestartPolicy`, `RuntimeSupervisor` in `apps/mac/island/`) waits 1,
 | `{"type":"talk.cancel"}` | Abandon the current turn (recording, request or speech) and return to idle. Nothing is sent. Ignored when idle |
 | `{"type":"conversation.reset"}` | Cancel any turn and forget the conversation. Answered with a `conversation.reset` event |
 | `{"type":"model.set","provider":"gemini","model":"gemini-3.6-flash"}` | Switch the AI model for the next request (ADR-040). Takes effect at once, without restarting; a request already in flight finishes with the old model. The conversation is kept. Saved to `config/island.json` and used at the next start. Answered with an `info` event, or an `error` with stage `settings` (unknown provider, no API key for it, a model not offered for that provider) and nothing changes. The runtime keeps running |
+| `{"type":"approval.answer","id":"a1","approved":true}` | The user's answer to an `approval.request` (ADR-054). `approved` must be a boolean. An unknown or already-closed `id` is ignored. Any other command that ends the turn (`talk.cancel`, `talk.start`, `conversation.reset`) counts as "no" |
 | `{"type":"quit"}` | Release the microphone, stop speech and exit with code 0 |
 
 Holding Ctrl+Option maps to `talk.start` on press and `talk.send` on release. Pressing another key while holding, or Esc, maps to `talk.cancel` (ADR-035).
@@ -80,9 +81,14 @@ Holding Ctrl+Option maps to `talk.start` on press and `talk.send` on release. Pr
 | `notice` | `kind`, `message` | The turn ended without a request. Not a failure. `kind` is `too_short`, `mic_starting` or `no_speech`; `message` says what to do, worded for the island's controls |
 | `conversation.reset` | — | The conversation was forgotten |
 | `info` | `provider`, `model`, `providers` | The model in use and the choices. Sent right after `ready` and after every successful `model.set`. `providers` is a list of `{ "id", "name", "available", "models" }`: `available` is `false` when the provider's API key is missing from `.env`; `models` is a list of `{ "id", "name" }` offered for that provider (the current model is always included). API keys are never sent |
+| `computer.step` | `text` | ZENO is about to do something on the Mac (computer control, ADR-054), in plain words such as "Typing in TextEdit". Sent only while a turn is running. Contains the app name and the kind of action, never typed text or screen content |
+| `approval.request` | `id`, `summary`, `reason` | ZENO will not do this until the user says yes: `summary` is the action ("Click \"Send\" in Mail"), `reason` is why it asks. One request at a time. The island must show it with Allow and Decline and answer with `approval.answer`. The runtime declines by itself after 60 s |
+| `approval.closed` | `id` | That request is no longer waiting (answered, declined, timed out, or the turn was cancelled). The island removes the prompt |
 | `error` | `stage`, `message`, `kind`, `retryable` | Something failed. `kind` and `retryable` are present for model errors only |
 
 `state` returns to `idle` after every turn, including turns that end in `notice` or `error`.
+
+Computer control is off unless the runtime was started with `ZENO_COMPUTER=1`; without it none of the three computer events is ever sent. With the island closed or no `approval.answer` coming, an approval is a refusal, never a yes.
 
 Fields not listed are ignored by both sides, and an unknown event or command type is ignored by the island and answered with a `protocol` error by the runtime. This keeps an older island working with a newer runtime.
 
