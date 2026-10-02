@@ -45,11 +45,15 @@ actor DictationModel {
         vocabulary = DictationVocabulary.builtIn.merging(user)
     }
 
-    /// Transcribes one recording (16 kHz mono) and applies the vocabulary. Short clips are padded first.
+    /// Transcribes one recording (16 kHz mono). Short clips are padded first. The text is as the model wrote it;
+    /// `polish` applies the user's spelling fixes.
     func transcribe(_ samples: [Float]) async throws -> String {
         guard let manager else { throw ModelError.notLoaded }
         var state = TdtDecoderState.make()
         let result = try await manager.transcribe(DictationAudio.padded(samples), decoderState: &state)
-        return vocabulary.apply(to: result.text.trimmingCharacters(in: .whitespacesAndNewlines))
+        return result.text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
+
+    /// The user's spelling fixes (and the built-in ones), whichever engine wrote the text.
+    func polish(_ text: String) -> String { vocabulary.apply(to: text) }
 }

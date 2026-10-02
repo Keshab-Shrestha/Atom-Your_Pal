@@ -103,6 +103,7 @@ final class IslandController {
         shortcuts.start()
         pet.setEnabled(model.settings.petEnabled)
         dictation.warmUp()
+        if let files = ProcessInfo.processInfo.environment["ZENO_DICTATION_FILE"] { dictation.selfTest(files: files.split(separator: ",").map(String.init)) }
     }
 
     func stop() {

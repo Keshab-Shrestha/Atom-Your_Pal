@@ -829,6 +829,7 @@ Dictation runs entirely in the Swift app, with no round trip to the Node runtime
 - **Shortcut:** hold **Right ⌘ + Right ⌥**, the same keys as FluidVoice (Keshab's choice). Dictation arms after 80 ms, Talk after 200 ms, so the first words are kept.
 - **Text:** one pass over the whole recording. Clips under 1 s are padded with silence; clips with no speech are dropped before the model sees them. A spelling list (`~/Library/Application Support/ZENO/vocabulary.txt`, plus a built-in "zino" → "ZENO") fixes names after transcription.
 - **Insertion:** remember the app in front when dictation starts; wait until ⌘ ⌥ ⌃ ⇧ are physically up (otherwise the paste becomes another shortcut); write into the field through Accessibility and check it changed; otherwise paste with ⌘V and restore the clipboard. A password field, or no Accessibility permission, leaves the text on the clipboard and the island says why.
+- **Spoken punctuation (English):** "comma", "question mark", "new line", "new paragraph", "full stop" and the like become marks; "period" counts only as the last word.
 - **Independent of the conversation:** dictation needs no model key and no network, and works while the conversation feature is off. It refuses to start while a conversation turn is in progress.
 
 ### Reason
@@ -837,14 +838,15 @@ FluidVoice's own log of Keshab's sessions showed about 65 ms to start, 56 ms to 
 
 ### Results (Keshab's own use, 8 dictations)
 
-All typed. Key release to text typed: about 0.6 s including the 0.5 s clipboard restore wait; transcription 67–337 ms. Keshab: "the dictations has gotten very better... satisfactory for now". Not yet measured against FluidVoice on the same sentences.
+All typed. Key release to text typed: about 0.6 s before the paste no longer waits for the clipboard restore (it now happens in the background); transcription 67–337 ms. Keshab: "the dictations has gotten very better... satisfactory for now". Not yet measured against FluidVoice on the same sentences.
 
 ### Known issues
 
 - **Clipping:** all 8 recordings reached full scale. The webcam microphone has no gain control in macOS, so the level cannot be lowered there. Parakeet coped, but quieter input would be safer.
 - **Accidental taps:** four taps of 0.05–0.18 s were correctly dropped as too short.
-- **Model download:** ZENO keeps its own copy of the Parakeet model (about 470 MB); FluidVoice's copy is not shared.
-- **Not built:** spoken punctuation ("comma", "new line"), a live preview while speaking, a way to edit the spelling list in Settings, toggle mode.
+- **Model copies:** ZENO's Parakeet v3 files are APFS clones of FluidVoice's, so they share disk space.
+- **English only:** Parakeet v3 cannot read Japanese, Hindi or Nepali (tested: it wrote romaji, or nothing). A Whisper large-v3-turbo path was designed and measured (Japanese near-exact, Hindi usable), then dropped at Keshab's request: ZENO keeps Parakeet v3 only, like FluidVoice. Parakeet v2 was tried and also dropped.
+- **Not built:** other languages, a live preview while speaking, a way to edit the spelling list in Settings, toggle mode.
 
 ### Alternatives Considered
 

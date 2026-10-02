@@ -51,7 +51,7 @@ final class TextInserter {
             return .copied(reason: "A password field is focused. Paste it yourself")
         }
         if let element, insertDirectly(text, into: element) { return .typed }
-        await paste(text)
+        paste(text)
         return .typed
     }
 
@@ -113,18 +113,21 @@ final class TextInserter {
 
     // MARK: - Pasting
 
-    /// Puts `text` on the clipboard, presses ⌘V, then puts the old clipboard back unless something else changed it.
-    /// The text is marked transient so clipboard managers ignore it.
-    private func paste(_ text: String) async {
+    /// Puts `text` on the clipboard and presses ⌘V. The old clipboard goes back half a second later, in the
+    /// background (the app reads the clipboard a moment after the key press), unless something else changed it
+    /// meanwhile. The text is marked transient so clipboard managers ignore it. Dictation does not wait for the restore.
+    private func paste(_ text: String) {
         let board = NSPasteboard.general
         let saved = Self.snapshot(board)
         place(text, on: board)
         let ours = board.changeCount
 
         pressCommandV()
-        try? await Task.sleep(for: .milliseconds(500))
 
-        if board.changeCount == ours { Self.restore(saved, to: board) }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(500))
+            if board.changeCount == ours { Self.restore(saved, to: board) }
+        }
     }
 
     private func copy(_ text: String) {

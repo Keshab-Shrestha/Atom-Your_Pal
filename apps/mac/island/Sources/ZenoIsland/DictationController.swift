@@ -71,6 +71,34 @@ final class DictationController {
         }
     }
 
+    /// Test hook (`ZENO_DICTATION_FILE=a.wav,b.wav`): runs recordings through the same recognition path as a real
+    /// dictation, without the microphone or typing, and logs `dictation.selftest` for each.
+    func selfTest(files: [String]) {
+        Task { [weak self] in
+            guard let self else { return }
+            await self.modelLoading?.value
+            for path in files {
+                guard let samples = Self.readWAV(path) else { self.log("dictation.selftest", ["file": path, "error": "unreadable"]); continue }
+                let started = ProcessInfo.processInfo.systemUptime
+                do {
+                    let text = await self.model.polish(SpokenPunctuation.apply(to: try await self.model.transcribe(samples)))
+                    self.log("dictation.selftest", ["file": (path as NSString).lastPathComponent,
+                                                    "ms": Int((ProcessInfo.processInfo.systemUptime - started) * 1000), "text": text])
+                } catch {
+                    self.log("dictation.selftest", ["file": path, "error": "\(error)"])
+                }
+            }
+        }
+    }
+
+    /// 16 kHz mono 16-bit WAV with a 44-byte header (what ffmpeg writes for `-ar 16000 -ac 1`).
+    private static func readWAV(_ path: String) -> [Float]? {
+        guard let data = FileManager.default.contents(atPath: path), data.count > 44 else { return nil }
+        return data.dropFirst(44).withUnsafeBytes { raw in
+            raw.bindMemory(to: Int16.self).map { Float(Int16(littleEndian: $0)) / 32768 }
+        }
+    }
+
     /// Reads the user's spelling fixes (`vocabulary.txt`), if there is a file. Called at launch and before each dictation,
     /// so an edit takes effect at once.
     private func loadVocabulary() {
@@ -171,7 +199,7 @@ final class DictationController {
                 self.onPhase(.transcribing)
             }
             do {
-                let text = try await self.model.transcribe(samples)
+                let text = await self.model.polish(SpokenPunctuation.apply(to: try await self.model.transcribe(samples)))
                 let transcribeMs = Int((ProcessInfo.processInfo.systemUptime - started) * 1000)
                 if Task.isCancelled { return }
                 guard !text.isEmpty else { self.end(.noSpeech, ["seconds": seconds, "reason": "empty transcript"]); return }
