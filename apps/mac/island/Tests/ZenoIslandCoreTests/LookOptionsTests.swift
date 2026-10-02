@@ -123,12 +123,12 @@ struct LookOptionsTests {
     }
 
     @Test func hidingDepthScalesWithWispsSize() {
-        // The feet sit past the edge in proportion to size, so the same share of a bigger Wisp stays hidden.
+        // The feet sit inside the edge in proportion to size, so the same share of a bigger Wisp stays hidden.
         let peek = Peek(edge: .left, display: CGRect(x: 0, y: 0, width: 1440, height: 900))
         let scale: CGFloat = 92.0 / 56
         let normal = PeekLayout.feet(for: peek, y: 50)
         let big = PeekLayout.feet(for: peek, y: 50, scale: scale)
-        #expect(big.x < normal.x)
+        #expect(big.x > normal.x)
         #expect(abs(big.x - normal.x * scale) < 0.001)
     }
 }

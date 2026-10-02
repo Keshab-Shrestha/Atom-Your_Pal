@@ -21,11 +21,14 @@ public struct Peek: Sendable, Equatable {
 }
 
 public enum PeekLayout {
-    /// How far Wisp's feet are from the display edge while hiding. Negative: its feet are past the edge, so
-    /// the body is cut off by the edge and only the head, one eye and a raised hand show (ADR-053).
-    public static let inset: CGFloat = -4
+    /// How far Wisp's feet are inside the display edge while hiding. The body is wider than this, so the edge
+    /// still cuts it off and the head, both eyes and a hand show; 6 pt puts the head about 35% further out than
+    /// the first version (feet 4 pt past the edge), which was too short (ADR-053).
+    public static let inset: CGFloat = 6
     /// How much further the head slides out while the pointer is over it: a nudge, not a retreat from hiding.
-    public static let revealExtra: CGFloat = 10
+    /// The body already touches the edge, so every point of nudge opens a gap of that size between Wisp and the
+    /// hand that holds the edge. 4 pt is a visible nudge that still looks attached; 9 pt looked detached.
+    public static let revealExtra: CGFloat = 4
 
     /// The edge to hide at: the nearer of the display's two side edges, skipping an edge that touches another
     /// display at Wisp's height (the body would show up on that display). Nil when neither edge is free:

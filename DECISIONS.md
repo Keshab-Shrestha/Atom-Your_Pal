@@ -959,9 +959,13 @@ When Wisp tucks away it no longer lies on its side. It stays on its feet, which 
 
 Keshab: the 90° turn should be 35–50° and read as a "hide" posture, taking inspiration from the figurine reference sheet he pasted. The sheet has no peeking pose, only standing, looking-down, sleeping and jumping, so the lean and the hand are my reading of "peeking round a corner", not a copy of any pose in it.
 
+### Follow-up (same day): 35% longer
+
+Keshab asked for the hiding length to be 35% longer. Feet moved from 4 pt past the edge to 6 pt inside it, so the head sticks out 29 → 39 pt at the Normal lean (+34.5%, measured on the render; 26 → 36 and 31.5 → 41.5 at Slight and Deep). The hover nudge is 4 pt: anything larger pulled the body off the edge and left the hand holding on alone. The 35% applies to the resting pose; the hover nudge is not 35% longer.
+
 ### Verification
 
-252 → 255 unit tests (lean stays in 35–50°, the pose follows the lean, feet sit just past the edge on both sides). Gallery render and real-screen pixels (second display's right edge, three leans): head tipped into the display, body cut off, hand at the edge, leans visibly different. Vision estimates of the real angles ran about 10° under the setting (15/25/35° against 35/42/50°) but are ±5° on a blurry crop; not measured another way.
+252 → 256 unit tests (lean stays in 35–50°, the pose follows the lean, feet sit just past the edge on both sides). Gallery render and real-screen pixels (second display's right edge, three leans): head tipped into the display, body cut off, hand at the edge, leans visibly different. Vision estimates of the real angles ran about 10° under the setting (15/25/35° against 35/42/50°) but are ±5° on a blurry crop; not measured another way.
 
 ---
 

@@ -125,12 +125,20 @@ struct PetPeekTests {
         #expect(PeekLayout.amount(rotation: 90) == 1)      // never more than full
     }
 
-    @Test func feetSitJustPastTheEdgeSoTheBodyIsCutOff() {
+    @Test func hoveringNeverPullsWispOffTheEdge() {
+        // Wisp's body reaches about 17 pt each side of its feet at the default size.
         let peek = Peek(edge: .left, display: main)
-        #expect(PeekLayout.feet(for: peek, y: 50).x < 0)
+        #expect(PeekLayout.feet(for: peek, y: 50, revealed: true).x <= 17)
+        #expect(PeekLayout.feet(for: peek, y: 50, revealed: true).x > PeekLayout.feet(for: peek, y: 50).x)
+    }
+
+    @Test func feetSitJustInsideTheEdgeSoTheBodyIsCutOff() {
+        let peek = Peek(edge: .left, display: main)
+        // Close enough that half of Wisp (about 22 pt wide each side of the feet) is still beyond the edge.
+        #expect(PeekLayout.feet(for: peek, y: 50).x > 0 && PeekLayout.feet(for: peek, y: 50).x < 22)
         // Pointing at it slides the head further in, but never out of the hiding place.
         #expect(PeekLayout.feet(for: peek, y: 50, revealed: true).x > PeekLayout.feet(for: peek, y: 50).x)
         let right = Peek(edge: .right, display: main)
-        #expect(PeekLayout.feet(for: right, y: 50).x > 1440)
+        #expect(PeekLayout.feet(for: right, y: 50).x < 1440 && PeekLayout.feet(for: right, y: 50).x > 1440 - 22)
     }
 }
