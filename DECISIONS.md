@@ -702,6 +702,108 @@ Choosing a model applies at once: the runtime switches its LLM adapter, and the 
 
 ---
 
+## ADR-039 — Learning From FluidVoice and Vorssaint Without Copying Code
+
+### Decision
+
+ZENO's dictation follows the design of FluidVoice, and its settings and shortcuts follow the design of Vorssaint. ZENO **re-implements these designs in its own code**: no source files, functions or assets are copied from either project.
+
+- Studying their source to learn how something works is allowed. Notes live outside the repository.
+- Code is written from the design description, not from their code.
+
+### Reason
+
+Both projects are GPL-3.0. Copying their code would make ZENO GPL-3.0 too, which Keshab chose not to do (2026-10-02). Their designs are not covered by the licence: the same behaviour and look can be built independently.
+
+---
+
+## ADR-040 — Settings Live in the Island; Shortcuts Are Configurable
+
+Extends ADR-038; replaces "configurable hotkeys deferred" in TASK.md.
+
+### Decision
+
+Clicking the island expands it into a panel with **Conversation**, **Status** and **Settings**. Settings is where everything the user changes lives:
+
+- **AI:** provider and model (switched live)
+- **Shortcuts:** each action has its own changeable shortcut, recorded in place
+  - **Talk to ZENO:** hold to talk, release to send (default: hold Ctrl+Option)
+  - **Dictate:** hold to dictate, release to type the text into the current app (default: hold Right Option)
+  - **Show or hide the island** (default: Ctrl+Option+Z)
+  - **Cancel:** stop listening or speaking (default: Esc, only active while ZENO is listening or speaking)
+- **Pet:** on or off
+- **Sounds:** start and stop sounds on or off
+
+**Storage:** the island's own settings are in `UserDefaults` (domain `dev.zeno.island`), one key per setting, with defaults registered at launch. Runtime settings (provider, model) are saved by the runtime in `config/island.json` (ADR-038). API keys stay in `.env` only.
+
+**Text fields and the recorder:** the expanded island may take keyboard focus without activating ZENO (a non-activating panel that becomes key only after a click). The app you were using stays active. Hover never takes focus.
+
+**Shortcut engine:**
+
+- Chorded shortcuts with a normal key (e.g. Ctrl+Option+Z): Carbon `RegisterEventHotKey`, which needs no permission
+- Modifier-only and hold shortcuts (Ctrl+Option held, Right Option held): a listen-only `CGEventTap` on modifier changes and key presses, which needs Input Monitoring. A modifier-only shortcut fires only on a clean press: any other key while held cancels it
+- While the recorder is recording, ZENO's own shortcuts are paused
+
+**Signing:** macOS ties permissions (Input Monitoring, Accessibility, Microphone) to the app's signature. An ad-hoc signature changes with every build, so permissions would be asked for again after each rebuild. ZENO is signed with a local self-signed certificate ("ZENO Local Signing") created once on this Mac.
+
+### Reason
+
+Keshab wants settings in the island and changeable shortcuts (2026-10-02). Vorssaint shows that a non-activating panel can still accept keys after a click, which makes settings inside the island practical.
+
+### Alternatives Considered
+
+- **A separate settings window:** another place to look; Keshab asked for settings in the island.
+- **A shortcut package (e.g. KeyboardShortcuts):** an extra dependency, and it does not support hold or modifier-only shortcuts.
+
+---
+
+## ADR-041 — Dictation: Speak, and the Text Is Typed Into the Current App
+
+### Decision
+
+A second voice mode next to "Talk to ZENO": **Dictate**. Hold the dictation shortcut, speak, release: the transcript is inserted into the app and text field you were in. No AI reply and no speech.
+
+- **Transcription:** the runtime's Whisper (Phase 0), unchanged. The island shows Listening with the waveform, then Transcribing.
+- **Insertion (in the Swift app):** the clipboard is saved, the text is put on it (marked as transient, so clipboard managers ignore it), Cmd+V is sent to the app, and after half a second the original clipboard is restored unless something else changed it in the meantime. This needs Accessibility permission.
+- **Secure input** (password fields): nothing is pasted; the text is left on the clipboard and the island says so.
+- **Silence check:** a short clip with no speech is dropped instead of transcribed, so an accidental tap does not type text Whisper made up.
+- Spoken punctuation and filler words are left for a later task.
+
+**Protocol:** `dictation.start` / `dictation.stop` / `dictation.cancel` commands; a `dictation.text` event with the transcript; the island reports whether the text was inserted.
+
+### Reason
+
+Keshab uses FluidVoice and wants the same in ZENO (2026-10-02). The runtime already transcribes well; what is new is putting the text where the user is typing, which belongs in the signed Swift app.
+
+### Alternatives Considered
+
+- **Typing the text as key presses:** slower for long text and breaks with some keyboard layouts; kept as a fallback for apps where pasting fails.
+- **Accessibility API insertion:** not supported by many apps.
+
+---
+
+## ADR-042 — A Pet That Walks Along the Bottom of the Screen
+
+### Decision
+
+An optional animated character walks along the bottom of the main display, just above the Dock, and reacts to ZENO:
+
+- **Idle:** walks back and forth, sometimes stops; naps after a few minutes with no activity
+- **Listening:** stops and perks up
+- **Thinking:** thinking dots
+- **Speaking:** talks (mouth moves)
+- **Problem:** looks worried
+
+It is drawn in code (SwiftUI shapes), so no image assets. It lives in its own transparent, click-through window that never takes focus. It can be turned off in Settings.
+
+The character is chosen by Keshab from drawn options.
+
+### Reason
+
+Keshab asked for a pet that plays on the screen (2026-10-02). It makes ZENO's state visible without looking at the island.
+
+---
+
 ## Final Architectural Principle
 
 > Preserve the future without prematurely implementing it.

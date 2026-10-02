@@ -38,10 +38,10 @@ Do not automatically continue to another task.
 
 Phase 0 (Voice Foundation) is complete. Its task history is in `docs/phase-0-tasks.md`.
 
-Phase 0.5 gives ZENO a permanent place on the Mac (ADR-033 to ADR-038):
+Phase 0.5 gives ZENO a permanent place on the Mac (ADR-033 to ADR-042):
 
 ```text
-Ctrl+Option held (any app)        pointer at left edge
+shortcuts (any app, changeable)   pointer at left edge
             ↓                              ↓
       ZENO Island (Swift app, apps/mac/island)
             ↓  commands        ↑  events
@@ -59,16 +59,18 @@ The system must support:
 
 - a dark glass island hidden past the left edge of the main display, below the menu bar
 - revealing it by hovering at that edge, and hiding it again
-- holding Ctrl+Option in any app to talk, releasing to send
+- holding a shortcut in any app to talk, releasing to send (default Ctrl+Option)
+- dictation: holding another shortcut, speaking, and the text is typed into the current app (ADR-041)
 - live status in the panel: listening (with level), transcribing, thinking, speaking
 - the transcript and reply shown in the panel
 - an expanded view with the current conversation ("new conversation"), status details, and settings
-- choosing the AI provider and model from the island
-- clear guidance when a permission (microphone, Input Monitoring) is missing
+- settings in the island: AI provider and model, every shortcut, pet, sounds (ADR-040)
+- a pet that walks along the bottom of the screen and reacts to ZENO (ADR-042)
+- clear guidance when a permission (microphone, Input Monitoring, Accessibility) is missing
 - the island starting, restarting and stopping the runtime
 - the terminal interface (`pnpm start`) still working
 
-Done means: with the terminal closed, the user can hold Ctrl+Option in another app, ask a question, see the status and reply in the island, and hear ZENO answer.
+Done means: with the terminal closed, the user can hold the talk shortcut in another app, ask a question, see the status and reply in the island, and hear ZENO answer; dictate into another app; and change shortcuts and the model from the island.
 
 ---
 
@@ -77,14 +79,14 @@ Done means: with the terminal closed, the user can hold Ctrl+Option in another a
 Do not implement these during Phase 0.5 unless a task explicitly requires them:
 
 - everything deferred in Phase 0 (persistent memory, tools, computer control, other devices, cloud)
-- launch at login, auto-update, signing and notarization, a DMG installer
-- a separate settings window (the island's Settings tab covers provider and model; everything else stays in `.env`)
-- configurable hotkeys (Ctrl+Option is fixed for now)
+- launch at login, auto-update, notarization, a DMG installer (a local signing certificate is needed for permissions, ADR-040)
+- a separate settings window (settings live in the island)
 - a menu bar icon
+- AI cleanup of dictated text, per-app dictation modes, dictation history
 - wake word or voice activity detection (ADR-027)
 - screen capture or pointing at things on screen (Phase 3)
 - multiple displays beyond "the display with the menu bar"
-- custom sounds, characters or animations beyond simple transitions
+- copying code from FluidVoice or Vorssaint (GPL-3.0; designs only, ADR-039)
 
 ---
 
@@ -188,7 +190,7 @@ Result:
 
 ---
 
-### Task 0.5.4b — Left-Edge Island with Live State (ADR-037, ADR-038) ✅ Built (2026-10-02), awaiting Keshab's look
+### Task 0.5.4b — Left-Edge Island with Live State (ADR-037, ADR-038) ✅ Done (2026-10-02)
 
 Move the island to the left edge below the menu bar and give the compact view its real content.
 
@@ -217,51 +219,77 @@ Result:
 
 ---
 
-### Task 0.5.5 — Global Push-to-Talk (Ctrl+Option)
+### Task 0.5.5 — Expanded Island With Settings (ADR-038, ADR-040)
 
-- Listen-only event tap for modifier changes and key presses
-- Holding Ctrl+Option: `talk.start`, and the island appears; releasing: `talk.send`
-- Any other key while held: `talk.cancel` (a shortcut, not a question)
-- Esc while listening: `talk.cancel`
-- Without Input Monitoring permission: the island explains how to grant it and offers to open System Settings; hover and click still work
+Click the compact card: it expands from the same corner into a larger glass panel with tabs.
 
-Tests: Swift unit tests for the key state machine (press, release, chord, Esc, repeated events).
-
-Verification: talking from another app (e.g. Safari) with ZENO not focused; typing Ctrl+Option+Arrow does not send.
-
----
-
-### Task 0.5.6 — Expanded View: Conversation and Status
-
-- Click the compact card: it expands from the same corner into a larger glass card with tabs
 - **Conversation:** the session's turns (transcript and reply), "New conversation" (`conversation.reset`)
 - **Status:** provider and model, microphone, last turn's timings, last error with its fix
-- Click outside, Esc, or moving away: collapses
+- **Settings:**
+  - AI provider and model, switched live
+  - Shortcuts: one row per action with a recorder (click, press the new keys; Esc cancels, Delete clears; conflicts with another action are refused)
+  - Pet on or off; sounds on or off (stored now, used by later tasks)
+- Runtime: `info` event (provider, model, providers with a key present, models offered for each); `model.set` command switches the LLM adapter without restarting; the choice is saved to `config/island.json` (not in git) and applied at next start over `.env`; API keys never reach the island
+- The expanded panel can take key focus without activating ZENO; click outside, Esc or the collapse button closes it
 
-Verification: a multi-turn conversation is readable; reset clears it and ZENO forgets it; Status matches `logs/zeno.log`.
+Tests: Node tests for `model.set` (valid, unknown provider, no key, unknown model) and the settings file; Swift tests for decoding `info`, shortcut storage and display (⌃⌥⇧⌘ order), conflict detection.
 
----
-
-### Task 0.5.7 — Settings: AI Provider and Model
-
-- Runtime: `info` event (provider, model, providers with a key present, models offered for each); `model.set` command switches the LLM adapter without restarting; the choice is saved to `config/island.json` (not in git) and applied at next start over `.env`
-- Island: Settings tab to choose provider and model; providers without a key are shown but not selectable, with a note to add the key to `.env`
-- API keys never leave `.env` and never reach the island
-
-Tests: Node tests for `model.set` (valid, unknown provider, no key, unknown model) and the settings file; Swift tests for decoding `info`.
-
-Verification: switch from Gemini to Claude and back from the island in the middle of a conversation; the next turn uses the new model (seen in the log); the choice survives a restart.
+Verification: open the panel from another app without that app losing focus; switch Gemini → Claude → Gemini in the middle of a conversation, the next turn uses the new model (log), the choice survives a restart; record a new shortcut and see it saved.
 
 ---
 
-### Task 0.5.8 — End-to-End Island Test
+### Task 0.5.6 — Shortcuts Work Everywhere (ADR-040)
+
+- Local signing certificate "ZENO Local Signing" so permissions survive rebuilds; `build-app.sh` signs with it
+- Shortcut engine: Carbon hot keys for chords; listen-only event tap for hold and modifier-only shortcuts (clean press only)
+- Talk: hold → `talk.start` and the island comes out; release → `talk.send`; another key while held → `talk.cancel`
+- Show or hide the island; Cancel while listening or speaking
+- Shortcuts follow changes in Settings at once and pause while recording
+- Without Input Monitoring: the island explains and opens System Settings; re-checks when granted
+
+Tests: Swift unit tests for the key state machine (press, release, chord, clean press, Esc, repeats) and the shortcut model.
+
+Verification: talking from another app (e.g. Safari) with ZENO not focused; typing Ctrl+Option+Arrow does not talk; a changed shortcut works without restarting.
+
+---
+
+### Task 0.5.7 — Dictation (ADR-041)
+
+- Runtime: `dictation.start` / `stop` / `cancel`; transcribes without the model or speech; silence check for short clips; `dictation.text` event
+- Island: hold the dictation shortcut → Listening with waveform → Transcribing → text pasted into the app that was focused when dictation started; clipboard saved and restored
+- Accessibility permission guidance; secure input fields: text left on the clipboard, island says so
+- Start and stop sounds (if on in Settings)
+
+Tests: Node tests for dictation mode and the silence check; Swift tests for the clipboard save/restore rules.
+
+Verification: dictate into TextEdit, Safari's address bar and Notes; clipboard content is unchanged afterwards; an accidental tap types nothing; a password field gets nothing pasted.
+
+---
+
+### Task 0.5.8 — The Pet (ADR-042)
+
+- Character chosen by Keshab, drawn in SwiftUI shapes
+- Transparent, click-through window along the bottom of the main display above the Dock; follows Dock size and display changes
+- Walks, stops, naps after inactivity; perks up when listening; thinking dots; talks while speaking; worried on a problem
+- On/off from Settings; Reduce Motion: no walking, gentle state changes only
+- Pauses its animation when nothing changes on screen, so it costs almost nothing
+
+Tests: Swift unit tests for the pet's behaviour state machine (state per ZENO state, walking bounds, nap timer).
+
+Verification: watch it through a full turn; it never blocks clicks; CPU use while walking and while idle.
+
+---
+
+### Task 0.5.9 — End-to-End Island Test
 
 Verify Phase 0.5 as the user will use it.
 
 - With the terminal closed, start `ZENO.app`
-- From another app: hold Ctrl+Option, ask a question, release; see status and reply; hear the answer
+- From another app: hold the talk shortcut, ask a question, release; see status and reply; hear the answer; the pet reacts
 - Ask a follow-up; interrupt ZENO mid-reply; cancel with a shortcut
-- Check hover reveal, the expanded view, switching the model, and recovery when the runtime is killed
+- Dictate into another app
+- Change a shortcut and the model in Settings, and use them
+- Check hover reveal, the expanded view, and recovery when the runtime is killed
 
 Record timings from `logs/zeno.log` and the user's verdict.
 
@@ -321,6 +349,6 @@ Never:
 
 ## 9. Current Priority
 
-Phase 0.5 — Desktop Island. Tasks 0.5.1–0.5.4 are done. Keshab redirected the island (ADR-037, ADR-038). Task 0.5.4b is built and awaits Keshab's look. Next task: 0.5.5 (Global Push-to-Talk).
+Phase 0.5 — Desktop Island. Tasks 0.5.1–0.5.4b are done. Keshab asked for settings in the island, changeable shortcuts, dictation and a pet (ADR-039 to ADR-042). Current task: 0.5.5 (Expanded Island With Settings).
 
 Everything else waits.
