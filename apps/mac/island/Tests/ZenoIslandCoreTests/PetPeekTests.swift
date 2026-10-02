@@ -49,8 +49,8 @@ struct PetPeekTests {
         // Pointing at the head slides it out further, at the same edge and height.
         #expect(PeekLayout.feet(for: left, y: 120, revealed: true) == CGPoint(x: PeekLayout.inset + PeekLayout.revealExtra, y: 120))
         #expect(PeekLayout.feet(for: right, y: 120, revealed: true) == CGPoint(x: 1440 - PeekLayout.inset - PeekLayout.revealExtra, y: 120))
-        #expect(PeekLayout.rotation(for: left) == 90)   // the head points right, into the display
-        #expect(PeekLayout.rotation(for: right) == -90) // the head points left
+        #expect(PeekLayout.rotation(for: left) == 42)   // the head tips right, into the display
+        #expect(PeekLayout.rotation(for: right) == -42) // the head tips left
     }
 
     @Test func retreatsAfterTheTimeout() {
@@ -106,5 +106,31 @@ struct PetPeekTests {
         // At the right edge it slides left and still sits on the display.
         let edge = BubbleLayout.place(feet: CGPoint(x: 1430, y: 80), gap: 6, size: size, in: bounds)
         #expect(edge.frame.maxX <= bounds.maxX - 8)
+    }
+
+    @Test func leanStaysInsideTheRequestedRange() {
+        let left = Peek(edge: .left, display: main)
+        for lean in WispLean.allCases {
+            let degrees = abs(PeekLayout.rotation(for: left, lean: lean))
+            #expect(degrees >= 35 && degrees <= 50)
+        }
+        #expect(PeekLayout.rotation(for: left, lean: .slight) < PeekLayout.rotation(for: left, lean: .deep))
+    }
+
+    @Test func theHidingPoseFollowsTheLean() {
+        #expect(PeekLayout.amount(rotation: 0) == 0)
+        #expect(PeekLayout.amount(rotation: 42) == 1)      // fully into the pose at the left edge
+        #expect(PeekLayout.amount(rotation: -42) == -1)    // mirrored at the right edge
+        #expect(PeekLayout.amount(rotation: 15) == 0.5)    // halfway while leaning in
+        #expect(PeekLayout.amount(rotation: 90) == 1)      // never more than full
+    }
+
+    @Test func feetSitJustPastTheEdgeSoTheBodyIsCutOff() {
+        let peek = Peek(edge: .left, display: main)
+        #expect(PeekLayout.feet(for: peek, y: 50).x < 0)
+        // Pointing at it slides the head further in, but never out of the hiding place.
+        #expect(PeekLayout.feet(for: peek, y: 50, revealed: true).x > PeekLayout.feet(for: peek, y: 50).x)
+        let right = Peek(edge: .right, display: main)
+        #expect(PeekLayout.feet(for: right, y: 50).x > 1440)
     }
 }

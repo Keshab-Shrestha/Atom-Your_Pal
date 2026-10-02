@@ -66,31 +66,43 @@ enum IslandGallery {
         writePeek(to: directory)
     }
 
-    /// Wisp tucked against the left and right edges (ADR-051): turned on its side, head showing past the edge.
+    /// Wisp hiding at a display edge (ADR-053): leaning 35-50 degrees from its feet, the body cut off by the edge.
     private static func writePeek(to directory: URL) {
-        func edge(_ title: String, left: Bool, revealed: Bool) -> some View {
-            let feetX: CGFloat = 100
-            let inset = PeekLayout.inset + (revealed ? PeekLayout.revealExtra : 0)
-            let centreX: CGFloat = left ? inset : 200 - inset
+        let side: CGFloat = 170
+        let unit: CGFloat = 56
+        let view: CGFloat = unit * 1.5
+        func edge(_ title: String, left: Bool, lean: WispLean, revealed: Bool) -> some View {
+            let peek = Peek(edge: left ? .left : .right, display: CGRect(x: 0, y: 0, width: side, height: side))
+            let feet = PeekLayout.feet(for: peek, y: 24, revealed: revealed)
+            let degrees = PeekLayout.rotation(for: peek, lean: lean)
+            // The view's centre, so that the feet land on `feet` (ground inset measured from the bottom).
+            let centre = CGPoint(x: feet.x, y: side - feet.y - view / 2 + WispView.groundInset(for: unit))
             return VStack(alignment: .leading, spacing: 6) {
                 Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
                 ZStack(alignment: .topLeading) {
                     LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.26, green: 0.31, blue: 0.45)], startPoint: .top, endPoint: .bottom)
-                    WispView(mood: .resting, time: 0.4, facing: left ? 1 : -1, size: PetController.size)
-                        .rotationEffect(.degrees(left ? 90 : -90))
-                        .position(x: centreX, y: feetX)
-                    Rectangle().fill(.white.opacity(0.35)).frame(width: 1.5, height: 200).offset(x: left ? 0 : 198.5)
+                    WispView(mood: .resting, time: 0.4, facing: left ? 1 : -1, size: unit, hide: PeekLayout.amount(rotation: degrees), tilt: degrees, edgeGap: -Double(PeekLayout.inset + (revealed ? PeekLayout.revealExtra : 0)) * 64 / Double(unit))
+                        .rotationEffect(.degrees(degrees), anchor: UnitPoint(x: 0.5, y: WispView.feetFraction))
+                        .position(x: centre.x, y: centre.y)
+                    Rectangle().fill(.white.opacity(0.35)).frame(width: 1.5, height: side).offset(x: left ? 0 : side - 1.5)
                 }
-                .frame(width: 200, height: 200)
+                .frame(width: side, height: side)
                 .clipped()
                 .overlay(Text("display edge").font(.system(size: 9)).foregroundStyle(.white.opacity(0.5)).padding(5), alignment: left ? .bottomLeading : .bottomTrailing)
                 .accessibilityHidden(true)
             }
         }
-        let sheet = HStack(alignment: .top, spacing: 18) {
-            edge("Left edge", left: true, revealed: false)
-            edge("Left, pointer over it", left: true, revealed: true)
-            edge("Right edge", left: false, revealed: false)
+        let sheet = VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 14) {
+                edge("Left, slight (35°)", left: true, lean: .slight, revealed: false)
+                edge("Left, normal (42°)", left: true, lean: .normal, revealed: false)
+                edge("Left, deep (50°)", left: true, lean: .deep, revealed: false)
+            }
+            HStack(alignment: .top, spacing: 14) {
+                edge("Left, pointer over it", left: true, lean: .normal, revealed: true)
+                edge("Right, normal (42°)", left: false, lean: .normal, revealed: false)
+                edge("Right, pointer over it", left: false, lean: .normal, revealed: true)
+            }
         }
         .padding(20)
         .background(Color(white: 0.08))

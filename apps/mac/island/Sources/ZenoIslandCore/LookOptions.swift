@@ -174,3 +174,18 @@ public enum PanelBackground: Int, SettingsChoice {
 
     public var title: String { self == .glass ? "Glass" : "Solid" }
 }
+
+/// How far Wisp leans while it hides at a screen edge (ADR-053): its head tips toward the display, the rest of
+/// it stays behind the edge.
+public enum WispLean: Int, SettingsChoice {
+    case slight = 35, normal = 42, deep = 50
+
+    public var degrees: Double { Double(rawValue) }
+    public var title: String {
+        switch self {
+        case .slight: "Slight"
+        case .normal: "Normal"
+        case .deep: "Deep"
+        }
+    }
+}

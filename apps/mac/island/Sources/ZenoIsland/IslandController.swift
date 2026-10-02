@@ -134,7 +134,8 @@ final class IslandController {
         if ProcessInfo.processInfo.environment["ZENO_BUBBLE_DEMO"] != nil { playBubbleDemo() }
         if ProcessInfo.processInfo.environment["ZENO_PANEL_DEMO"] != nil { playPanelDemo() }
         if ProcessInfo.processInfo.environment["ZENO_LOOK_DEMO"] != nil { playLookDemo() }
-                if let files = ProcessInfo.processInfo.environment["ZENO_DICTATION_FILE"] { dictation.selfTest(files: files.split(separator: ",").map(String.init)) }
+        if ProcessInfo.processInfo.environment["ZENO_HIDE_DEMO"] != nil { playHideDemo() }
+        if let files = ProcessInfo.processInfo.environment["ZENO_DICTATION_FILE"] { dictation.selfTest(files: files.split(separator: ",").map(String.init)) }
     }
 
     func stop() {
@@ -588,6 +589,22 @@ final class IslandController {
             (22, { note("still open") }),
             (23, { [self] in setExpanded(false); note("closing") }),
             (24.5, { note("closed again") }),
+        ]
+        for (delay, step) in steps {
+            let timer = Timer(timeInterval: delay, repeats: false) { _ in MainActor.assumeIsolated { step() } }
+            RunLoop.main.add(timer, forMode: .common)
+        }
+    }
+
+    /// Development only (`ZENO_HIDE_DEMO`): Wisp hides, then shows each lean, then the user's own lean comes back.
+    private func playHideDemo() {
+        let settings = model.settings
+        let saved = settings.wispLean
+        let steps: [(Double, @MainActor () -> Void)] = [
+            (2, { [self] in pet.tuckAway() }),
+            (5, { settings.wispLean = .slight }),
+            (8, { settings.wispLean = .deep }),
+            (11, { settings.wispLean = saved }),
         ]
         for (delay, step) in steps {
             let timer = Timer(timeInterval: delay, repeats: false) { _ in MainActor.assumeIsolated { step() } }

@@ -943,6 +943,28 @@ Keshab asked for more control in Settings. A new look for Wisp from a pasted fig
 
 ---
 
+## ADR-053 — Wisp Hides Leaning 35–50° With a Hand on the Edge
+
+Date: 2026-10-02. Replaces the 90° sideways pose from ADR-051.
+
+### Decision
+
+When Wisp tucks away it no longer lies on its side. It stays on its feet, which sit 4 pt past the display edge, and leans from the feet toward the display. The body is cut off by the edge, so what shows is the head, both eyes glancing into the display, and a small three-finger hand lying over the edge. Pointing at Wisp slides it further out.
+
+- **Hiding lean** is a new Settings → Wisp row: Slight 35°, Normal 42° (default), Deep 50°.
+- The hand is drawn level with the edge whatever the lean (it counter-rotates), and the eyes and mouth shift toward the display as Wisp leans in.
+- The click target now follows the leaning head, not a sideways body.
+
+### Reason
+
+Keshab: the 90° turn should be 35–50° and read as a "hide" posture, taking inspiration from the figurine reference sheet he pasted. The sheet has no peeking pose, only standing, looking-down, sleeping and jumping, so the lean and the hand are my reading of "peeking round a corner", not a copy of any pose in it.
+
+### Verification
+
+252 → 255 unit tests (lean stays in 35–50°, the pose follows the lean, feet sit just past the edge on both sides). Gallery render and real-screen pixels (second display's right edge, three leans): head tipped into the display, body cut off, hand at the edge, leans visibly different. Vision estimates of the real angles ran about 10° under the setting (15/25/35° against 35/42/50°) but are ±5° on a blurry crop; not measured another way.
+
+---
+
 ## Final Architectural Principle
 
 > Preserve the future without prematurely implementing it.

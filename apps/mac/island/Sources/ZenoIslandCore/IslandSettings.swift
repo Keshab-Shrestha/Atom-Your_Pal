@@ -18,6 +18,7 @@ public final class IslandSettings {
     static let petSpotKey = "zeno.petSpot"
     static let wispHideKey = "zeno.wispHideAfter"
     static let wispSizeKey = "zeno.wisp.size"
+    static let wispLeanKey = "zeno.wisp.lean"
     static let wispGlowKey = "zeno.wisp.glow"
     static let wispWanderKey = "zeno.wisp.wander"
     static let wispNapKey = "zeno.wisp.nap"
@@ -62,6 +63,8 @@ public final class IslandSettings {
 
     /// How big Wisp is. Default medium (the original size).
     public var wispSize: WispSize { didSet { store(wispSize.rawValue, Self.wispSizeKey) } }
+    /// How far Wisp leans while hiding at an edge. Default normal (42 degrees).
+    public var wispLean: WispLean { didSet { store(wispLean.rawValue, Self.wispLeanKey) } }
     /// The halo's strength. Default normal.
     public var wispGlow: WispGlow { didSet { store(wispGlow.rawValue, Self.wispGlowKey) } }
     /// How much Wisp floats about. Default normal.
@@ -110,6 +113,7 @@ public final class IslandSettings {
         soundsEnabled = defaults.object(forKey: Self.soundsKey) as? Bool ?? true
         wispHideAfter = (defaults.object(forKey: Self.wispHideKey) as? Int).flatMap(WispHideTimeout.init(rawValue:)) ?? .minute1
         wispSize = Self.choice(defaults, Self.wispSizeKey, .medium)
+        wispLean = Self.choice(defaults, Self.wispLeanKey, .normal)
         wispGlow = Self.choice(defaults, Self.wispGlowKey, .normal)
         wispWander = Self.choice(defaults, Self.wispWanderKey, .normal)
         wispNap = Self.choice(defaults, Self.wispNapKey, .minutes3)
@@ -201,7 +205,7 @@ public final class IslandSettings {
     /// the model and the on/off switches are left alone.
     public func resetLook() {
         wispSize = .medium; wispGlow = .normal; wispWander = .normal; wispNap = .minutes3
-        wispHideAfter = .minute1
+        wispHideAfter = .minute1; wispLean = .normal
         bubbleStay = .seconds2; bubbleSize = .normal; bubbleOpacity = .normal
         panelSize = .normal; panelBackground = .glass
     }

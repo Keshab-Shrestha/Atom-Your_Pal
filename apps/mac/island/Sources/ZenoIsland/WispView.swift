@@ -9,6 +9,8 @@ import ZenoIslandCore
 struct WispView: View {
     /// The margin around the drawing for a given size.
     static func margin(for size: CGFloat) -> CGFloat { size / 4 }
+    /// Where Wisp's feet are as a fraction of the view's height, from the top (the pivot for leaning).
+    static let feetFraction: CGFloat = (1.0 / 4 + 61.0 / 64) / 1.5
     /// Where Wisp's feet are, as a fraction of the view's height measured from the bottom.
     static func groundInset(for size: CGFloat) -> CGFloat { size * 1.5 - (margin(for: size) + size * 61 / 64) }
 
@@ -20,6 +22,12 @@ struct WispView: View {
     var size: CGFloat = 64
     /// Multiplies the halo's opacity (Settings → Wisp → Glow). 1 is the original look.
     var glow: Double = 1
+    /// The hiding pose (ADR-053): 0 standing, 1 hiding at the left edge, -1 at the right edge. In between while
+    /// Wisp leans in. The eyes glance toward the display and a hand grips the edge.
+    var hide: Double = 0
+    /// Degrees Wisp is leaned (clockwise) and how far inward of its feet the display edge lies, in design points.
+    var tilt: Double = 0
+    var edgeGap: Double = 4.5
 
     private static let body = Color(red: 0.79, green: 0.93, blue: 1.0)      // #c9ecff
     private static let glow = Color(red: 0.56, green: 0.83, blue: 1.0)      // #8fd3ff
@@ -100,6 +108,43 @@ struct WispView: View {
         return phase > 0.955 ? 0.12 : 1
     }
 
+    // MARK: - Hiding pose
+
+    private var hideAmount: Double { min(1, abs(hide)) }
+    /// +1 when the display is to Wisp's right (hiding at the left edge), -1 at the right edge.
+    private var hideSide: Double { hide < 0 ? -1 : 1 }
+
+    /// A little hand that holds on to the display's edge: its fingers lie over the edge into the display, one
+    /// above the other, while the arm and the rest of Wisp stay behind it. Drawn upright (against the lean) so the
+    /// fingers stay level with the edge however far Wisp tips.
+    private func drawEdgeHand(in context: inout GraphicsContext, bob: Double) {
+        guard hideAmount > 0.05 else { return }
+        var hand = context
+        // Undo the lean around the feet, so the hand lies in screen space.
+        hand.translateBy(x: 32, y: 57)
+        hand.rotate(by: .radians(-tilt * .pi / 180))
+        hand.translateBy(x: -32, y: -57)
+        // The edge is a vertical line `edgeGap` design points inward of the feet. Drawn for the left edge, mirrored
+        // for the right.
+        let edge = 32 + edgeGap
+        if hideSide < 0 {
+            hand.translateBy(x: 64, y: 0)
+            hand.scaleBy(x: -1, y: 1)
+        }
+        let a = hideAmount
+        hand.opacity = a
+        let x = edge // after mirroring, "into the display" is +x at both edges
+        let top = 45.0 + bob * 0.3
+        // Arm, behind the edge (the display edge hides most of it), then three fingers lying over the edge.
+        hand.fill(Path(roundedRect: CGRect(x: x - 9, y: top, width: 10, height: 10.4), cornerRadius: 4), with: .color(Self.body))
+        for i in 0..<3 {
+            let y = top + Double(i) * 3.6
+            let finger = CGRect(x: x - 2, y: y, width: 9 - Double(i == 1 ? 0 : 1), height: 3.4)
+            hand.fill(Path(roundedRect: finger, cornerRadius: 1.7), with: .color(Self.body))
+            hand.stroke(Path(roundedRect: finger, cornerRadius: 1.7), with: .color(Self.glow.opacity(0.75)), lineWidth: 0.7)
+        }
+    }
+
     // MARK: - Drawing
 
     private func draw(in context: inout GraphicsContext) {
@@ -137,12 +182,13 @@ struct WispView: View {
         )
 
         drawFace(in: &figure)
+        drawEdgeHand(in: &context, bob: bob)
         drawExtras(in: context, bob: bob)
     }
 
     private func drawFace(in context: inout GraphicsContext) {
         // Eyes look a little toward the direction of travel, or up toward the thinking dots.
-        let look = mood == .floating ? facing * 1.5 : (mood == .thinking ? 1.2 : 0)
+        let look = mood == .floating ? facing * 1.5 : (mood == .thinking ? 1.2 : 0) + hideSide * hideAmount * 2.6
         let eyes = [25.0 + look, 39.0 + look]
         let eyeY = 30.0
 
@@ -176,7 +222,7 @@ struct WispView: View {
         }
 
         // Mouth.
-        let mouthX = 32 + (mood == .floating ? facing * 1.5 : 0)
+        let mouthX = 32 + (mood == .floating ? facing * 1.5 : 0) + hideSide * hideAmount * 2.2
         switch mood {
         case .speaking:
             // Opens and closes about 5.5 times a second.

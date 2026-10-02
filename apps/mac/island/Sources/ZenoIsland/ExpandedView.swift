@@ -486,6 +486,9 @@ struct WispSection: View {
                 ChoiceRow(title: "Falls asleep after", detail: "With nothing happening, Wisp naps until you use ZENO",
                           selection: settings.wispNap) { settings.wispNap = $0 }
                 RowDivider()
+                ChoiceRow(title: "Hiding lean", detail: "How far Wisp tips toward the screen when it hides at an edge (\(Int(settings.wispLean.degrees))°)",
+                          selection: settings.wispLean) { settings.wispLean = $0 }
+                RowDivider()
                 ChoiceRow(title: "Tuck away after",
                           detail: settings.wispHideAfter == .never
                               ? "Wisp stays where you put it"

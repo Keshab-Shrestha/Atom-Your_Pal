@@ -255,10 +255,13 @@ final class PetController {
         if !dragging {
             let normal = standingFeet()
             let target = peek.map { PeekLayout.feet(for: $0, y: normal.y, revealed: pointerOver, scale: unit) } ?? normal
-            let wantedTurn = peek.map(PeekLayout.rotation(for:)) ?? 0
+            let wantedTurn = peek.map { PeekLayout.rotation(for: $0, lean: settings.wispLean) } ?? 0
             rotation += (wantedTurn - rotation) * Double(1 - exp(-12 * dt))
             if abs(wantedTurn - rotation) < 0.3 { rotation = wantedTurn }
             state.rotation = rotation
+            state.hide = PeekLayout.amount(rotation: rotation)
+            state.tilt = rotation
+            state.edgeGap = -Double((PeekLayout.inset + (pointerOver ? PeekLayout.revealExtra : 0)) * unit) * 64 / Double(state.size)
             if settling || peek != nil {
                 // An ease-out toward the target: quick at first, gentle at the end. While hiding it also
                 // eases the head out and back as the pointer comes and goes.
@@ -294,9 +297,12 @@ final class PetController {
 
     /// Wisp's body in screen coordinates: where a press grabs it.
     private func bodyRect() -> CGRect {
-        // Turned on its side, Wisp is wider than tall, and centred a little higher.
         let u = unit
-        if abs(rotation) > 45 { return CGRect(x: feet.x - 27 * u, y: feet.y + 3 * u, width: 54 * u, height: 44 * u) }
+        // Hiding: only the head, tipped toward the display, is on screen.
+        if abs(rotation) > 10 {
+            let side: CGFloat = rotation > 0 ? 1 : -1
+            return CGRect(x: feet.x + side * 20 * u - 24 * u, y: feet.y + 6 * u, width: 48 * u, height: 46 * u)
+        }
         return CGRect(x: feet.x - 22 * u, y: feet.y - 4 * u, width: 44 * u, height: 54 * u)
     }
 
@@ -448,6 +454,10 @@ final class PetState {
     /// Drawn size and halo strength from the settings.
     var size: CGFloat = 56
     var glow = 1.0
+    /// The hiding pose: 0 standing, ±1 hiding (the sign is the edge).
+    var hide = 0.0
+    var tilt = 0.0
+    var edgeGap = 4.5
 }
 
 /// Draws Wisp for the current state.
@@ -455,8 +465,9 @@ struct PetStage: View {
     let state: PetState
 
     var body: some View {
-        WispView(mood: state.mood, time: state.time, facing: state.facing, size: state.size, glow: state.glow)
-            .rotationEffect(.degrees(state.rotation))
+        WispView(mood: state.mood, time: state.time, facing: state.facing, size: state.size, glow: state.glow, hide: state.hide, tilt: state.tilt, edgeGap: state.edgeGap)
+            // Leans from the feet, so the body stays behind the edge while the head tips into the display.
+            .rotationEffect(.degrees(state.rotation), anchor: UnitPoint(x: 0.5, y: WispView.feetFraction))
     }
 }
 

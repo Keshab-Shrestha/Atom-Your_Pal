@@ -21,9 +21,9 @@ public struct Peek: Sendable, Equatable {
 }
 
 public enum PeekLayout {
-    /// How far Wisp's feet are from the display edge while hiding. Wisp turns on its side, so its head
-    /// sticks out about 36 pt past the edge and the rest of the body is off the display.
-    public static let inset: CGFloat = 8
+    /// How far Wisp's feet are from the display edge while hiding. Negative: its feet are past the edge, so
+    /// the body is cut off by the edge and only the head, one eye and a raised hand show (ADR-053).
+    public static let inset: CGFloat = -4
     /// How much further the head slides out while the pointer is over it: a nudge, not a retreat from hiding.
     public static let revealExtra: CGFloat = 10
 
@@ -53,9 +53,15 @@ public enum PeekLayout {
         return CGPoint(x: x, y: y)
     }
 
-    /// How far Wisp is turned while hiding, in degrees clockwise: the head points away from the edge.
-    public static func rotation(for peek: Peek) -> Double {
-        peek.edge == .left ? 90 : -90
+    /// How far Wisp leans while hiding, in degrees clockwise (negative: anticlockwise): the head tips toward the display.
+    public static func rotation(for peek: Peek, lean: WispLean = .normal) -> Double {
+        peek.edge == .left ? lean.degrees : -lean.degrees
+    }
+
+    /// 0 standing, ±1 fully hiding: how far into the hiding pose Wisp is, from how far it has leaned so far.
+    /// Positive at the left edge (looking right, into the display), negative at the right edge.
+    public static func amount(rotation: Double) -> Double {
+        max(-1, min(1, rotation / 30))
     }
 }
 

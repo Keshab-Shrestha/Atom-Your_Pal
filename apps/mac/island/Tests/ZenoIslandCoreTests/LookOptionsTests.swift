@@ -17,6 +17,7 @@ struct LookOptionsTests {
         #expect(settings.wispSize == .medium)
         #expect(settings.wispSize.points == 56)
         #expect(settings.wispGlow == .normal)
+        #expect(settings.wispLean.degrees == 42)
         #expect(settings.wispWander == .normal)
         #expect(settings.wispNap.seconds == 180)
         #expect(settings.bubbleStay == .seconds2)
@@ -29,12 +30,14 @@ struct LookOptionsTests {
         let (settings, defaults, name) = fresh()
         defer { UserDefaults().removePersistentDomain(forName: name) }
         settings.wispSize = .huge
+        settings.wispLean = .deep
         settings.wispGlow = .bright
         settings.bubbleStay = .seconds8
         settings.panelSize = .large
         settings.panelBackground = .solid
         let again = IslandSettings(defaults: defaults)
         #expect(again.wispSize == .huge)
+        #expect(again.wispLean == .deep)
         #expect(again.wispGlow == .bright)
         #expect(again.bubbleStay == .seconds8)
         #expect(again.panelSize == .large)
@@ -77,6 +80,7 @@ struct LookOptionsTests {
 
     @Test func everyChoiceHasAUniqueTitle() {
         func unique<C: SettingsChoice>(_: C.Type) -> Bool { Set(C.allCases.map(\.title)).count == C.allCases.count }
+        #expect(unique(WispLean.self))
         #expect(unique(WispSize.self) && unique(WispGlow.self) && unique(WispWander.self) && unique(WispNap.self))
         #expect(unique(BubbleStay.self) && unique(BubbleSize.self) && unique(BubbleOpacity.self))
         #expect(unique(PanelSize.self) && unique(PanelBackground.self))
@@ -119,9 +123,12 @@ struct LookOptionsTests {
     }
 
     @Test func hidingDepthScalesWithWispsSize() {
+        // The feet sit past the edge in proportion to size, so the same share of a bigger Wisp stays hidden.
         let peek = Peek(edge: .left, display: CGRect(x: 0, y: 0, width: 1440, height: 900))
+        let scale: CGFloat = 92.0 / 56
         let normal = PeekLayout.feet(for: peek, y: 50)
-        let big = PeekLayout.feet(for: peek, y: 50, scale: 92.0 / 56)
-        #expect(big.x > normal.x)
+        let big = PeekLayout.feet(for: peek, y: 50, scale: scale)
+        #expect(big.x < normal.x)
+        #expect(abs(big.x - normal.x * scale) < 0.001)
     }
 }
