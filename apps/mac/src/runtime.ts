@@ -44,7 +44,9 @@ export function createRuntime(
     createGateway({ provider: createProviderAdapter({ ...choice, apiKey }), timeoutMs: config.llm.timeoutMs });
   const initial = { provider: config.llm.provider, model: config.llm.model };
   const model = createSwitchableModel(createModel(initial, config.llm.apiKey));
-  const core = createCore({ model });
+  // ZENO_VOICE_ONLY=1: test speech in and out without the AI. ZENO reads back what Whisper heard, and no
+  // request is made to any model. (Typed as `Core` so every caller treats it the same.)
+  const core: Core = process.env.ZENO_VOICE_ONLY === "1" ? createEchoCore() : createCore({ model });
   const settingsPath = options.settingsPath;
   const settings = createModelSettings({
     initial,
@@ -124,4 +126,13 @@ export function withLogging(log: Logger, micName: () => Promise<string>, events:
       events.onError?.(stage, error);
     },
   };
+}
+
+/** A stand-in for ZENO Core that replies with the words it was given, for testing the voice parts alone. */
+function createEchoCore(): Core {
+  return {
+    async handle(input: { text: string }) {
+      return { text: `I heard: ${input.text}`, requestId: "voice-only" };
+    },
+  } as unknown as Core;
 }
