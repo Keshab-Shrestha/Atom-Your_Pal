@@ -1,11 +1,21 @@
 import { ApiError, GoogleGenAI, ThinkingLevel } from "@google/genai";
-import type { ModelRequest, ModelResponse } from "@zeno/contracts";
+import { randomUUID } from "node:crypto";
+import type { Message, ModelRequest, ModelResponse, ToolCall } from "@zeno/contracts";
 import { emptyReplyReason, ProviderError, type ErrorKind, type ProviderAdapter } from "../gateway.ts";
+
+/** One piece of a Gemini turn: text, a function call (with its thought signature), or a function result. */
+interface GeminiPart {
+  text?: string;
+  thought?: boolean;
+  thoughtSignature?: string;
+  functionCall?: { id?: string; name?: string; args?: Record<string, unknown> };
+  functionResponse?: { id?: string; name: string; response: Record<string, unknown> };
+}
 
 interface GeminiResult {
   text?: string;
   promptFeedback?: { blockReason?: string };
-  candidates?: Array<{ finishReason?: string }>;
+  candidates?: Array<{ finishReason?: string; content?: { parts?: GeminiPart[] } }>;
 }
 
 /** The subset of the Google GenAI client this adapter uses (lets tests supply a fake). */
@@ -13,10 +23,11 @@ export interface GeminiClient {
   models: {
     generateContent(params: {
       model: string;
-      contents: Array<{ role: "user" | "model"; parts: Array<{ text: string }> }>;
+      contents: Array<{ role: "user" | "model"; parts: GeminiPart[] }>;
       config: {
         systemInstruction: string;
         abortSignal: AbortSignal;
+        tools?: Array<{ functionDeclarations: Array<{ name: string; description: string; parametersJsonSchema: unknown }> }>;
         maxOutputTokens?: number;
         thinkingConfig?: { thinkingLevel: ThinkingLevel };
       };
@@ -55,15 +66,23 @@ export function createGeminiAdapter(options: GeminiOptions): ProviderAdapter {
       const call = () =>
         client.models.generateContent({
           model,
-          // Tools are not offered to Gemini yet (ADR-054: computer control runs on Claude); it just answers.
-      // Gemini calls the assistant role "model".
-          contents: request.messages.map((m) => ({
-            role: m.role === "assistant" ? "model" : "user",
-            parts: [{ text: m.content }],
-          })),
+          contents: toGeminiContents(request.messages),
           config: {
             systemInstruction: request.system,
             abortSignal: signal,
+            ...(request.tools?.length
+              ? {
+                  tools: [
+                    {
+                      functionDeclarations: request.tools.map((t) => ({
+                        name: t.name,
+                        description: t.description,
+                        parametersJsonSchema: t.inputSchema,
+                      })),
+                    },
+                  ],
+                }
+              : {}),
             thinkingConfig: { thinkingLevel },
             ...(maxTokens ? { maxOutputTokens: maxTokens } : {}),
           },
@@ -86,7 +105,24 @@ export function createGeminiAdapter(options: GeminiOptions): ProviderAdapter {
       if (!result || typeof result !== "object") {
         throw new ProviderError("unknown", "Gemini sent a reply ZENO could not read. Try again.");
       }
-      const text = (typeof result.text === "string" ? result.text : "").trim();
+      const parts = result.candidates?.[0]?.content?.parts ?? [];
+      const toolCalls: ToolCall[] = parts
+        .filter((p) => p.functionCall && typeof p.functionCall.name === "string")
+        .map((p) => ({
+          id: p.functionCall!.id ?? randomUUID(), // Gemini does not always send an id
+          name: p.functionCall!.name as string,
+          input: p.functionCall!.args ?? {},
+          ...(p.thoughtSignature ? { signature: p.thoughtSignature } : {}),
+        }));
+      // With function calls present, `result.text` makes the SDK warn about non-text parts, so read the parts.
+      const text = (
+        toolCalls.length
+          ? parts.filter((p) => typeof p.text === "string" && !p.thought).map((p) => p.text).join("")
+          : typeof result.text === "string"
+            ? result.text
+            : ""
+      ).trim();
+      if (toolCalls.length) return { text, toolCalls };
       if (!text) {
         const reason = result.promptFeedback?.blockReason ?? result.candidates?.[0]?.finishReason;
         throw new ProviderError("bad_request", emptyReplyReason("gemini", reason));
@@ -94,6 +130,39 @@ export function createGeminiAdapter(options: GeminiOptions): ProviderAdapter {
       return { text };
     },
   };
+}
+
+/**
+ * Plain turns become text parts. A turn with tool calls becomes "model" function-call parts (each with the
+ * thought signature Gemini 3 requires back); tool results become "user" function-response parts. Gemini wants
+ * the function's name on a result, which the Core's results do not carry, so it is looked up from the call.
+ */
+function toGeminiContents(messages: Message[]): Array<{ role: "user" | "model"; parts: GeminiPart[] }> {
+  const names = new Map<string, string>();
+  for (const m of messages) for (const c of m.toolCalls ?? []) names.set(c.id, c.name);
+  return messages.map((m) => {
+    if (m.toolCalls?.length) {
+      const parts: GeminiPart[] = [];
+      if (m.content) parts.push({ text: m.content });
+      for (const c of m.toolCalls) {
+        parts.push({ functionCall: { id: c.id, name: c.name, args: c.input }, ...(c.signature ? { thoughtSignature: c.signature } : {}) });
+      }
+      return { role: "model" as const, parts };
+    }
+    if (m.toolResults?.length) {
+      return {
+        role: "user" as const,
+        parts: m.toolResults.map((r) => ({
+          functionResponse: {
+            id: r.callId,
+            name: names.get(r.callId) ?? "unknown",
+            response: r.isError ? { error: r.content } : { output: r.content },
+          },
+        })),
+      };
+    }
+    return { role: m.role === "assistant" ? ("model" as const) : ("user" as const), parts: [{ text: m.content }] };
+  });
 }
 
 function isUnsupportedThinkingLevel(error: unknown): boolean {

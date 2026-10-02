@@ -21,6 +21,8 @@ export interface ToolCall {
   id: string;
   name: string;
   input: Record<string, unknown>;
+  /** A provider's own token for this call (Gemini's thought signature). Passed back unchanged, never read. */
+  signature?: string;
 }
 
 /** What running a tool produced, in words for the model. Failures are results too (`isError`). */

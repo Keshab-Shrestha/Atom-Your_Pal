@@ -304,13 +304,15 @@ Record timings from `logs/zeno.log` and the user's verdict.
 
 ---
 
-### Task 0.6.1 — Tool Calling in the Core (ADR-054) — built; live check with Claude still open
+### Task 0.6.1 — Tool Calling in the Core (ADR-054) — ✅ Done (2026-10-02), live with Gemini
 
 Task 0.5.9 passed (Keshab: works, it replied). Core can offer tools to the model, run the ones it picks through `services/tool-engine/`, and feed results back. One harmless test tool (the time). Tests with a fake model. No computer control yet.
 
 **Done (2026-10-02):** `ToolSpec`/`ToolCall`/`ToolResult`/`ToolRunner` in contracts; the Core runs tool rounds (max 8, one call at a time, cancel-safe, history keeps only the question and final answer); the Claude adapter sends and reads `tool_use`/`tool_result` blocks; `services/tool-engine` validates every call against the tool's schema and turns failures into results; one tool, `current_time`, wired into the runtime and logged as `tool.call`. Gemini is not offered tools (ADR-054). 183 tests, 181 pass, 2 live tests skipped, typecheck clean.
 
-**Open:** a real call to a model. The Anthropic key in `.env` was refused with "credit balance is too low", and Keshab chose on 2026-10-02 to skip the pay-per-use plan for now. So the model-asks-for-the-tool path has run only against fakes and the Anthropic request shape in tests. It closes when a model with tool calling answers "what time is it in Tokyo?" through the real runtime. Choices: add tool calling to the Gemini adapter (free key), or top up Anthropic later.
+**Gemini added (same day):** the Gemini adapter offers tools as function declarations, reads function calls (keeping Gemini 3's thought signature and passing it back unchanged, via an opaque `signature` on `ToolCall`), and sends results with the function name. 4 new adapter tests.
+
+**Live check, real Gemini key:** asked "What day and time is it in Tokyo right now?" — the model called `current_time`, the engine ran it (14–66 ms), and the reply gave the right time (Saturday 3 October, 12:14 AM). `gemini-3.5-flash-lite` (your saved choice) took 1.8 s, `gemini-3.5-flash` 2.5 s. One first run took 47.8 s (cause not found; it did not repeat in two more runs). A follow-up question used no tool and history kept only the plain turns. Not yet tested by voice through the island app, and Claude's side has run only against fakes (no API credit).
 
 ---
 

@@ -184,3 +184,67 @@ test("empty, cut-off, and unreadable replies are explained, never passed on as e
     });
   }
 });
+
+// ---- tools (ADR-054, Task 0.6.1) ----
+
+const timeSpec = { name: "current_time", description: "time", inputSchema: { type: "object" as const } };
+
+test("offers tools to Gemini as function declarations", async () => {
+  const { client, calls } = fakeClient(() => ({ text: "ok" }));
+  await createGeminiAdapter({ apiKey: "k", model: "m", client }).complete({ ...request, tools: [timeSpec] }, signal());
+  assert.deepEqual((calls[0] as { config: { tools: unknown } }).config.tools, [
+    { functionDeclarations: [{ name: "current_time", description: "time", parametersJsonSchema: { type: "object" } }] },
+  ]);
+});
+
+test("sends no tools field when there are none", async () => {
+  const { client, calls } = fakeClient(() => ({ text: "ok" }));
+  await createGeminiAdapter({ apiKey: "k", model: "m", client }).complete(request, signal());
+  assert.equal("tools" in (calls[0] as { config: object }).config, false);
+});
+
+test("reads function calls with their id and thought signature, even with no text", async () => {
+  const { client } = fakeClient(() => ({
+    candidates: [{ content: { parts: [{ functionCall: { id: "f1", name: "current_time", args: { timezone: "Asia/Tokyo" } }, thoughtSignature: "SIG" }] } }],
+  }));
+  const reply = await createGeminiAdapter({ apiKey: "k", model: "m", client }).complete(request, signal());
+  assert.deepEqual(reply, { text: "", toolCalls: [{ id: "f1", name: "current_time", input: { timezone: "Asia/Tokyo" }, signature: "SIG" }] });
+});
+
+test("makes up an id when Gemini sends none, and ignores thought text", async () => {
+  const { client } = fakeClient(() => ({
+    candidates: [{ content: { parts: [{ text: "hidden", thought: true }, { text: "Checking." }, { functionCall: { name: "current_time" } }] } }],
+  }));
+  const reply = await createGeminiAdapter({ apiKey: "k", model: "m", client }).complete(request, signal());
+  assert.equal(reply.text, "Checking.");
+  assert.equal(reply.toolCalls?.length, 1);
+  assert.match(reply.toolCalls![0].id, /^[0-9a-f-]{36}$/);
+  assert.deepEqual(reply.toolCalls![0].input, {});
+});
+
+test("sends tool calls (with signature) and results (with the function name) back", async () => {
+  const { client, calls } = fakeClient(() => ({ text: "It is 9." }));
+  await createGeminiAdapter({ apiKey: "k", model: "m", client }).complete(
+    {
+      ...request,
+      messages: [
+        { role: "user", content: "time?" },
+        { role: "assistant", content: "", toolCalls: [{ id: "f1", name: "current_time", input: {}, signature: "SIG" }] },
+        { role: "user", content: "", toolResults: [{ callId: "f1", content: "09:00" }, { callId: "f1", content: "bad", isError: true }] },
+      ],
+      tools: [timeSpec],
+    },
+    signal(),
+  );
+  assert.deepEqual((calls[0] as { contents: unknown }).contents, [
+    { role: "user", parts: [{ text: "time?" }] },
+    { role: "model", parts: [{ functionCall: { id: "f1", name: "current_time", args: {} }, thoughtSignature: "SIG" }] },
+    {
+      role: "user",
+      parts: [
+        { functionResponse: { id: "f1", name: "current_time", response: { output: "09:00" } } },
+        { functionResponse: { id: "f1", name: "current_time", response: { error: "bad" } } },
+      ],
+    },
+  ]);
+});
