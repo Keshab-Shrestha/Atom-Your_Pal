@@ -4,7 +4,7 @@ import Testing
 /// Key codes used below.
 private enum K {
     static let leftControl: UInt16 = 59, leftOption: UInt16 = 58, rightOption: UInt16 = 61, leftShift: UInt16 = 56
-    static let leftCommand: UInt16 = 55, fn: UInt16 = 63
+    static let leftCommand: UInt16 = 55, rightCommand: UInt16 = 54, fn: UInt16 = 63
     static let z: UInt16 = 6, a: UInt16 = 0, leftArrow: UInt16 = 123, space: UInt16 = 49
 }
 
@@ -170,10 +170,108 @@ struct HoldToTalkTests {
     }
 }
 
+/// Dictate on Right ⌥ alone: a choice the user can make in Settings (the default is Right ⌘ + Right ⌥).
+private let rightOptionAlone: [ShortcutAction: KeyCombo] = {
+    var all = defaults()
+    all[.dictate] = KeyCombo(modifiers: .option, rightSideOnly: true)
+    return all
+}()
+
+@Suite("Shortcut matcher: Right ⌘ + Right ⌥ dictates")
+struct DictationShortcutTests {
+    @Test func bothRightKeysDictateInEitherOrder() {
+        var kb = Keyboard()
+        kb.flags(K.rightCommand, [.command])
+        kb.flags(K.rightOption, [.command, .option])
+        kb.wait(0.5)
+        kb.flags(K.rightOption, [.command])
+        kb.flags(K.rightCommand, [])
+        #expect(kb.fired == [.holdBegan(.dictate), .holdEnded(.dictate)])
+
+        var other = Keyboard()
+        other.flags(K.rightOption, [.option])
+        other.flags(K.rightCommand, [.command, .option])
+        other.wait(0.5)
+        other.flags(K.rightCommand, [.option])
+        other.flags(K.rightOption, [])
+        #expect(other.fired == [.holdBegan(.dictate), .holdEnded(.dictate)])
+    }
+
+    @Test func oneKeyAloneDoesNothing() {
+        var kb = Keyboard()
+        kb.flags(K.rightCommand, [.command])
+        kb.wait(1)
+        kb.flags(K.rightCommand, [])
+        kb.flags(K.rightOption, [.option])
+        kb.wait(1)
+        kb.flags(K.rightOption, [])
+        #expect(kb.fired.isEmpty)
+    }
+
+    @Test func leftCommandWithRightOptionDoesNotDictate() {
+        var kb = Keyboard()
+        kb.flags(K.leftCommand, [.command])
+        kb.flags(K.rightOption, [.command, .option])
+        kb.wait(0.5)
+        #expect(kb.fired.isEmpty)
+    }
+
+    @Test func anotherKeyCancels() {
+        // ⌘⌥ + another key is a different shortcut (e.g. ⌘⌥Esc): dictation must not type.
+        var kb = Keyboard()
+        kb.flags(K.rightCommand, [.command])
+        kb.flags(K.rightOption, [.command, .option])
+        kb.wait(0.5)
+        kb.down(K.z, [.command, .option])
+        kb.flags(K.rightOption, [.command])
+        kb.flags(K.rightCommand, [])
+        #expect(kb.fired == [.holdBegan(.dictate), .holdCancelled(.dictate)])
+    }
+
+    @Test func aKeyBeforeTheHoldStartsPreventsIt() {
+        var kb = Keyboard()
+        kb.flags(K.rightCommand, [.command])
+        kb.down(K.z, [.command]) // ⌘Z
+        kb.flags(K.rightOption, [.command, .option])
+        kb.wait(1)
+        #expect(kb.fired.isEmpty)
+    }
+
+    @Test func dictationStartsSoonerThanTalk() {
+        // The first words must not be lost, so dictation arms quickly; Talk keeps the longer delay.
+        var matcher = ShortcutMatcher(armDelay: 0.2, armDelays: [.dictate: 0.08])
+        _ = matcher.setShortcuts(defaults())
+        _ = matcher.handle(.flagsChanged(keyCode: K.rightCommand, modifiers: [.command]), at: 0)
+        _ = matcher.handle(.flagsChanged(keyCode: K.rightOption, modifiers: [.command, .option]), at: 0)
+        #expect(matcher.nextDeadline == 0.08)
+        #expect(matcher.tick(at: 0.05).isEmpty)
+        #expect(matcher.tick(at: 0.09) == [.holdBegan(.dictate)])
+
+        var talk = ShortcutMatcher(armDelay: 0.2, armDelays: [.dictate: 0.08])
+        _ = talk.setShortcuts(defaults())
+        _ = talk.handle(.flagsChanged(keyCode: K.leftControl, modifiers: [.control]), at: 0)
+        _ = talk.handle(.flagsChanged(keyCode: K.leftOption, modifiers: [.control, .option]), at: 0)
+        #expect(talk.nextDeadline == 0.2)
+    }
+
+    @Test func talkAndDictateDoNotInterfere() {
+        var kb = Keyboard()
+        kb.holdControlOption()
+        kb.wait(0.5)
+        kb.releaseAll()
+        kb.flags(K.rightCommand, [.command])
+        kb.flags(K.rightOption, [.command, .option])
+        kb.wait(0.5)
+        kb.flags(K.rightOption, [.command])
+        kb.flags(K.rightCommand, [])
+        #expect(kb.fired == [.holdBegan(.talk), .holdEnded(.talk), .holdBegan(.dictate), .holdEnded(.dictate)])
+    }
+}
+
 @Suite("Shortcut matcher: sides, fn and changes")
 struct MatcherSideTests {
     @Test func rightOptionDictates() {
-        var kb = Keyboard()
+        var kb = Keyboard(rightOptionAlone)
         kb.flags(K.rightOption, [.option])
         kb.wait(0.5)
         kb.flags(K.rightOption, [])
@@ -181,7 +279,7 @@ struct MatcherSideTests {
     }
 
     @Test func leftOptionDoesNotDictate() {
-        var kb = Keyboard()
+        var kb = Keyboard(rightOptionAlone)
         kb.flags(K.leftOption, [.option])
         kb.wait(0.5)
         kb.flags(K.leftOption, [])
@@ -189,7 +287,7 @@ struct MatcherSideTests {
     }
 
     @Test func bothOptionsDoNotDictate() {
-        var kb = Keyboard()
+        var kb = Keyboard(rightOptionAlone)
         kb.flags(K.rightOption, [.option])
         kb.flags(K.leftOption, [.option]) // flags unchanged, another ⌥ key down
         kb.wait(0.5)
@@ -197,7 +295,7 @@ struct MatcherSideTests {
     }
 
     @Test func rightOptionThenControlIsTalkNotDictate() {
-        var kb = Keyboard()
+        var kb = Keyboard(rightOptionAlone)
         kb.flags(K.rightOption, [.option])
         kb.wait(0.05)
         kb.flags(K.leftControl, [.control, .option])
@@ -208,7 +306,7 @@ struct MatcherSideTests {
 
     @Test func rightOptionTypingASpecialCharacterCancels() {
         // Right ⌥ + E types an accent: dictation must not run.
-        var kb = Keyboard()
+        var kb = Keyboard(rightOptionAlone)
         kb.flags(K.rightOption, [.option])
         kb.wait(0.05)
         kb.down(14, [.option])

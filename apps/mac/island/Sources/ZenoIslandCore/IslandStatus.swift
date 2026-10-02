@@ -103,6 +103,27 @@ public struct IslandStatus: Sendable, Equatable {
         }
     }
 
+    /// A dictation's progress (ADR-047). Same states as a conversation turn, with its own wording.
+    public mutating func apply(_ phase: DictationPhase) {
+        switch phase {
+        case .loading(let detail): set(.starting, "Loading speech", detail)
+        case .listening: set(.listening, "Dictating", "Let go to type")
+        case .transcribing: set(.transcribing, "Transcribing", "")
+        case .cancelled: set(.ready, "Ready", modelName)
+        case .done(let outcome):
+            switch outcome {
+            case .typed(let words): set(.ready, "Typed", words == 1 ? "1 word" : "\(words) words")
+            case .copied(let reason): set(.notice, "Copied to clipboard", IslandStatus.short(reason))
+            case .noSpeech: set(.notice, IslandStatus.noticeTitle("no_speech"), IslandStatus.noticeDetail("no_speech"))
+            case .tooShort: set(.notice, IslandStatus.noticeTitle("too_short"), IslandStatus.noticeDetail("too_short"))
+            case .busy: set(.notice, "Busy", "Try again in a moment")
+            case .failed(let title, let message):
+                lastProblem = Problem(title: title, message: message)
+                set(.problem, title, IslandStatus.short(message))
+            }
+        }
+    }
+
     /// Back to Ready once a notice or problem has been seen (when the island hides).
     public mutating func acknowledge() {
         if needsAttention && !persistent { set(.ready, "Ready", modelName) }

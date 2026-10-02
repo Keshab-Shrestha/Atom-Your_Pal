@@ -51,6 +51,8 @@ public struct ShortcutMatcher: Sendable {
 
     /// How long exactly a modifier-only hold's modifiers must be down before it starts.
     public var armDelay: Double
+    /// Holds that start sooner or later than `armDelay`: dictation starts quickly so the first words are kept.
+    public var armDelays: [ShortcutAction: Double]
 
     public private(set) var shortcuts: [ShortcutAction: KeyCombo] = [:]
 
@@ -65,9 +67,12 @@ public struct ShortcutMatcher: Sendable {
     /// A keyed hold in progress (e.g. fn+Space held), ended by releasing its key.
     private var activeKeyHold: (action: ShortcutAction, keyCode: UInt16)?
 
-    public init(armDelay: Double = 0.2) {
+    public init(armDelay: Double = 0.2, armDelays: [ShortcutAction: Double] = [:]) {
         self.armDelay = armDelay
+        self.armDelays = armDelays
     }
+
+    private func delay(for action: ShortcutAction) -> Double { armDelays[action] ?? armDelay }
 
     /// Whether a shortcut needs the key-level tracking done here, rather than a system hot key:
     /// modifier-only shortcuts, and fn, which system hot keys cannot include.
@@ -77,7 +82,7 @@ public struct ShortcutMatcher: Sendable {
 
     /// When `tick` must be called next, if a hold is waiting to start.
     public var nextDeadline: Double? {
-        pending.map { $0.since + armDelay }
+        pending.map { $0.since + delay(for: $0.action) }
     }
 
     /// Whether a hold is in progress.
@@ -140,7 +145,7 @@ public struct ShortcutMatcher: Sendable {
 
     /// Starts a waiting hold once `armDelay` has passed.
     public mutating func tick(at now: Double) -> [ShortcutTrigger] {
-        guard let waiting = pending, now >= waiting.since + armDelay, !dirty, activeModifierHold == nil else { return [] }
+        guard let waiting = pending, now >= waiting.since + delay(for: waiting.action), !dirty, activeModifierHold == nil else { return [] }
         pending = nil
         activeModifierHold = waiting.action
         return [.holdBegan(waiting.action)]

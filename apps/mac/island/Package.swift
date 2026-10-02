@@ -9,9 +9,17 @@ let package = Package(
     products: [
         .executable(name: "ZenoIsland", targets: ["ZenoIsland"]),
     ],
+    dependencies: [
+        // On-device speech recognition (Parakeet on the Neural Engine), Apache-2.0. Pinned: it is pre-1.0 and
+        // its API moves between minor versions. Only the app target uses it; the testable core does not.
+        .package(url: "https://github.com/FluidInference/FluidAudio.git", exact: "0.17.5"),
+    ],
     targets: [
         .target(name: "ZenoIslandCore"),
-        .executableTarget(name: "ZenoIsland", dependencies: ["ZenoIslandCore"]),
+        .executableTarget(
+            name: "ZenoIsland",
+            dependencies: ["ZenoIslandCore", .product(name: "FluidAudio", package: "FluidAudio")]
+        ),
         .testTarget(name: "ZenoIslandCoreTests", dependencies: ["ZenoIslandCore"]),
     ]
 )

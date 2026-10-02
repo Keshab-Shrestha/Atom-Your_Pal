@@ -15,6 +15,10 @@ final class IslandController {
     private let panel = IslandPanel()
     /// Talk was started by its shortcut and not yet sent or cancelled: show the island at once.
     private var talking = false
+    /// Dictation (ADR-047): hold, speak, let go, and the text is typed into the app in front.
+    let dictation: DictationController
+    /// A dictation is in progress (listening or transcribing): the island stays out.
+    private var dictating = false
     private let hosting: NSHostingView<IslandView>
     private var hover = HoverController()
     private var geometry: IslandGeometry
@@ -42,6 +46,8 @@ final class IslandController {
         model = IslandModel(settings: settings)
         shortcuts = ShortcutEngine(settings: settings, recorder: model.recorder, log: log)
         pet = PetController(settings: settings, trace: trace)
+        dictation = DictationController(vocabularyURL: IslandController.vocabularyURL)
+        dictation.log = log
         model.shortcuts = shortcuts
         geometry = IslandController.currentGeometry()
         hosting = NSHostingView(rootView: IslandView(model: model))
@@ -51,6 +57,13 @@ final class IslandController {
         model.setExpanded = { [weak self] expanded in self?.setExpanded(expanded) }
         panel.onCancel = { [weak self] in self?.setExpanded(false) }
         shortcuts.onTrigger = { [weak self] trigger in self?.shortcut(trigger) }
+        dictation.onPhase = { [weak self] phase in self?.dictationPhase(phase) }
+        dictation.onLevel = { [weak self] peak in
+            guard let self, self.model.status.showsLevel else { return }
+            self.model.meter.add(Double(peak))
+        }
+        dictation.playSound = { [weak self] sound in self?.playTone(sound) }
+        dictation.conversationBusy = { [weak self] in self.map { $0.talking || $0.model.status.isBusy && !$0.dictating } ?? false }
         shortcuts.trace = trace
         model.petChanged = { [weak self] enabled in self?.pet.setEnabled(enabled) }
         pet.onHide = { [weak model] in model?.setPet(false) } // right-click → Hide Wisp
@@ -89,10 +102,12 @@ final class IslandController {
         })
         shortcuts.start()
         pet.setEnabled(model.settings.petEnabled)
+        dictation.warmUp()
     }
 
     func stop() {
         shortcuts.stop()
+        dictation.stop()
         pet.stop()
         for monitor in monitors { NSEvent.removeMonitor(monitor) }
         monitors = []
@@ -165,9 +180,14 @@ final class IslandController {
             setExpanded(!model.expanded)
         case .pressed(.cancel):
             talking = false
-            model.send(.talkCancel)
-        case .holdBegan(.dictate), .holdEnded(.dictate), .holdCancelled(.dictate):
-            break // dictation is Task 0.5.7
+            if dictation.isActive { dictation.cancel() } else { model.send(.talkCancel) }
+        case .holdBegan(.dictate):
+            model.meter.reset()
+            dictation.holdBegan()
+        case .holdEnded(.dictate):
+            dictation.holdEnded()
+        case .holdCancelled(.dictate):
+            dictation.cancel()
         default:
             break
         }
@@ -175,10 +195,10 @@ final class IslandController {
         evaluate()
     }
 
-    /// Kept out during a turn, while talking by shortcut and while expanded.
+    /// Kept out during a turn, while talking or dictating by shortcut and while expanded.
     private func updateHeld() {
-        shortcuts.setBusy(model.status.isBusy || talking)
-        let held = model.status.isBusy || model.expanded || talking
+        shortcuts.setBusy(model.status.isBusy || talking || dictating)
+        let held = model.status.isBusy || model.expanded || talking || dictating
         if hover.held != held {
             hover.held = held
             trace("held \(held)")
@@ -187,6 +207,33 @@ final class IslandController {
 
     private func linger(_ seconds: Double) {
         hover.linger(until: ProcessInfo.processInfo.systemUptime + seconds)
+    }
+
+    // MARK: - Dictation
+
+    /// Shows a dictation's progress on the island, and keeps it out while one is in progress.
+    private func dictationPhase(_ phase: DictationPhase) {
+        model.status.apply(phase)
+        switch phase {
+        case .loading, .listening, .transcribing:
+            dictating = true
+        case .done(let outcome):
+            dictating = false
+            linger(model.status.needsAttention ? afterProblem : (outcome == .busy ? afterProblem : 1.8))
+        case .cancelled:
+            dictating = false
+        }
+        statusChanged()
+    }
+
+    /// Where the user's spelling fixes live: `vocabulary.txt` in ZENO's folder under Application Support.
+    static var vocabularyURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/ZENO/vocabulary.txt")
+    }
+
+    private func playTone(_ sound: DictationController.Sound) {
+        guard model.settings.soundsEnabled else { return }
+        NSSound(named: sound == .start ? "Tink" : "Pop")?.play()
     }
 
     // MARK: - Pointer

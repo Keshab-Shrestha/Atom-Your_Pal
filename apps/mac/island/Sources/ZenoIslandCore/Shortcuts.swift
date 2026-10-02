@@ -135,7 +135,7 @@ public enum ShortcutAction: String, Sendable, CaseIterable, Identifiable, Codabl
     public var defaultCombo: KeyCombo {
         switch self {
         case .talk: KeyCombo(modifiers: [.control, .option])
-        case .dictate: KeyCombo(modifiers: .option, rightSideOnly: true)
+        case .dictate: KeyCombo(modifiers: [.command, .option], rightSideOnly: true)
         case .toggleIsland: KeyCombo(modifiers: [.control, .option], keyCode: KeyCodes.z, keyName: "Z")
         case .cancel: KeyCombo(modifiers: [], keyCode: KeyCodes.escape, keyName: "Esc")
         }

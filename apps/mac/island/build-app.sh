@@ -56,7 +56,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
-  <key>NSMicrophoneUsageDescription</key><string>ZENO listens only while you hold its talk key, to hear your question. Speech is transcribed on this Mac.</string>
+  <key>NSMicrophoneUsageDescription</key><string>ZENO listens only while you hold its talk or dictate key, to hear you. Speech is transcribed on this Mac and never recorded.</string>
   <key>ZenoProjectRoot</key><string>$root</string>
   <key>ZenoNodePath</key><string>$node</string>
 </dict>

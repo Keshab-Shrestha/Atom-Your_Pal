@@ -23,7 +23,8 @@ final class ShortcutEngine {
     @ObservationIgnored private let settings: IslandSettings
     @ObservationIgnored private let recorder: ShortcutRecorder
     @ObservationIgnored private let log: (String, [String: Any]) -> Void
-    @ObservationIgnored private var matcher = ShortcutMatcher()
+    /// Dictation starts after 80 ms, not Talk's 200 ms: the first words must not be lost (ADR-047).
+    @ObservationIgnored private var matcher = ShortcutMatcher(armDelays: [.dictate: 0.08])
     @ObservationIgnored private var tap: CFMachPort?
     @ObservationIgnored private var tapSource: CFRunLoopSource?
     @ObservationIgnored private var tick: Timer?

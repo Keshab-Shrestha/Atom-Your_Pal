@@ -816,6 +816,44 @@ Keshab could see Wisp but wanted to place it himself, anywhere, so he never miss
 
 ---
 
+## ADR-047 — Dictation Runs Inside the App: Parakeet, a Prepared Microphone, No Runtime
+
+Date: 2026-10-02. Replaces the "Transcription" and "Protocol" parts of ADR-041; its insertion rules still stand.
+
+### Decision
+
+Dictation runs entirely in the Swift app, with no round trip to the Node runtime:
+
+- **Engine:** Parakeet TDT v3 on the Apple Neural Engine, through FluidAudio (Apache-2.0, pinned to 0.17.5). It is loaded at launch, so a dictation never waits for it. Whisper stays the engine for the voice conversation.
+- **Microphone:** a Core Audio input is *prepared* at launch (nothing is recorded, the microphone indicator is off) and started when the shortcut is held. Measured on this Mac: first samples after about 60 ms, against about 165 ms with AVAudioEngine and 200–550 ms starting ffmpeg. Nothing from before the key press is kept.
+- **Shortcut:** hold **Right ⌘ + Right ⌥**, the same keys as FluidVoice (Keshab's choice). Dictation arms after 80 ms, Talk after 200 ms, so the first words are kept.
+- **Text:** one pass over the whole recording. Clips under 1 s are padded with silence; clips with no speech are dropped before the model sees them. A spelling list (`~/Library/Application Support/ZENO/vocabulary.txt`, plus a built-in "zino" → "ZENO") fixes names after transcription.
+- **Insertion:** remember the app in front when dictation starts; wait until ⌘ ⌥ ⌃ ⇧ are physically up (otherwise the paste becomes another shortcut); write into the field through Accessibility and check it changed; otherwise paste with ⌘V and restore the clipboard. A password field, or no Accessibility permission, leaves the text on the clipboard and the island says why.
+- **Independent of the conversation:** dictation needs no model key and no network, and works while the conversation feature is off. It refuses to start while a conversation turn is in progress.
+
+### Reason
+
+FluidVoice's own log of Keshab's sessions showed about 65 ms to start, 56 ms to transcribe and 103 ms from release to text. The three causes were a prepared microphone, a model kept loaded and Parakeet; ZENO copied none of its code (GPL-3.0), only these ideas (`docs/dictation-research.md`).
+
+### Results (Keshab's own use, 8 dictations)
+
+All typed. Key release to text typed: about 0.6 s including the 0.5 s clipboard restore wait; transcription 67–337 ms. Keshab: "the dictations has gotten very better... satisfactory for now". Not yet measured against FluidVoice on the same sentences.
+
+### Known issues
+
+- **Clipping:** all 8 recordings reached full scale. The webcam microphone has no gain control in macOS, so the level cannot be lowered there. Parakeet coped, but quieter input would be safer.
+- **Accidental taps:** four taps of 0.05–0.18 s were correctly dropped as too short.
+- **Model download:** ZENO keeps its own copy of the Parakeet model (about 470 MB); FluidVoice's copy is not shared.
+- **Not built:** spoken punctuation ("comma", "new line"), a live preview while speaking, a way to edit the spelling list in Settings, toggle mode.
+
+### Alternatives Considered
+
+- **Whisper through the runtime (ADR-041):** about 1 s to transcribe and a start that lost the first words. Kept as the voice-conversation engine only.
+- **Keeping the microphone recording all the time to catch the first words:** rejected for privacy; a prepared device starts fast enough.
+- **Parakeet in a separate helper process:** more moving parts for no gain, since the app is already Swift.
+
+---
+
 ## Final Architectural Principle
 
 > Preserve the future without prematurely implementing it.

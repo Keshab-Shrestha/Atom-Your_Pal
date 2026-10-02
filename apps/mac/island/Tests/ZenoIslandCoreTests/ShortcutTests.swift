@@ -51,7 +51,7 @@ struct ShortcutTests {
         #expect(ShortcutAction.talk.detail == "Hold, speak, let go to send")
         #expect(ShortcutAction.allCases.filter(\.isHold) == [.talk, .dictate])
         #expect(ShortcutAction.talk.defaultCombo == controlOption)
-        #expect(ShortcutAction.dictate.defaultCombo.display == "Right ⌥")
+        #expect(ShortcutAction.dictate.defaultCombo.display == "Right ⌥⌘") // macOS order: ⌥ before ⌘
         #expect(ShortcutAction.toggleIsland.defaultCombo.display == "⌃⌥Z")
         #expect(ShortcutAction.cancel.defaultCombo.display == "Esc")
     }

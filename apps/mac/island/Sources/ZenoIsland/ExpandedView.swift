@@ -563,9 +563,9 @@ struct ShortcutSection: View {
 
     private var footer: String {
         if model.recorder.isRecording {
-            return "Press the new keys. For a hold shortcut, hold the modifiers (e.g. ⌃⌥ or Right ⌥) and let go. Esc cancels, Delete turns it off."
+            return "Press the new keys. For a hold shortcut, hold the modifiers (e.g. ⌃⌥ or Right ⌘⌥) and let go. Esc cancels, Delete turns it off."
         }
-        return "Click a shortcut to change it. Shortcuts work in every app; Cancel only while ZENO listens or speaks. Dictate arrives in the next update."
+        return "Click a shortcut to change it. Shortcuts work in every app; Cancel only while ZENO listens, speaks or dictates."
     }
 }
 
