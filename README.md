@@ -203,7 +203,7 @@ pnpm island:open    # build and launch it
 pnpm island:test    # Swift tests
 ```
 
-`ZENO.app` records where the project folder and Node.js are; rebuild it if either moves. It is still a skeleton: it runs ZENO in the background but shows nothing on screen until Task 0.5.4.
+`ZENO.app` records where the project folder and Node.js are; rebuild it if either moves. Rest the pointer at the top edge of the screen, near the centre, and the island slides down showing ZENO's status; move away and it slides back up. Talking from the island arrives with Task 0.5.5.
 
 ---
 

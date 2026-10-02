@@ -26,7 +26,7 @@ The implementation priority is now Phase 0.
 
 Progress: **Phase 0 is complete (2026-10-02).** All tasks 0.1–0.11 are done; the voice loop was verified by the user speaking into the real microphone and by the live test suite (history: `docs/phase-0-tasks.md`). Open items from Phase 0: Claude live check (needs Anthropic credits); Gemini free-tier quota (about 20 requests per day).
 
-**Current phase: Phase 0.5 — Desktop Island** (ADR-033 to ADR-036), planned 2026-10-02. Task 0.5.1 is done: the project now lives at `~/Developer/zeno`, outside iCloud. Task 0.5.2 is done: the runtime can be driven over JSON lines (`main.ts --island`, `docs/island-protocol.md`). Task 0.5.3 is done: `ZENO.app` (`pnpm island:build`) runs as a background app and supervises the runtime: starts it, restarts it after a crash, stops it on quit. It shows nothing on screen yet. Next: Task 0.5.4 (The Panel: Placement and Hover Reveal).
+**Current phase: Phase 0.5 — Desktop Island** (ADR-033 to ADR-036), planned 2026-10-02. Task 0.5.1 is done: the project now lives at `~/Developer/zeno`, outside iCloud. Task 0.5.2 is done: the runtime can be driven over JSON lines (`main.ts --island`, `docs/island-protocol.md`). Task 0.5.3 is done: `ZENO.app` (`pnpm island:build`) runs as a background app and supervises the runtime: starts it, restarts it after a crash, stops it on quit. Task 0.5.4 is built: a black pill hidden above the top-centre slides down when the pointer rests at the top edge, shows ZENO's status, and slides back up when the pointer leaves; it works over full-screen apps and never takes focus. Awaiting Keshab's look. Next: Task 0.5.5 (Global Push-to-Talk).
 
 ---
 
@@ -252,9 +252,9 @@ The immediate goal is:
 
 Phase 0 is complete. Phase 0.5 (Desktop Island) is planned in TASK.md.
 
-Tasks 0.5.1 (Move the Project Out of iCloud), 0.5.2 (Island Protocol and Runtime Mode) and 0.5.3 (Island App Skeleton) are done.
+Tasks 0.5.1 (Move the Project Out of iCloud), 0.5.2 (Island Protocol and Runtime Mode), 0.5.3 (Island App Skeleton) and 0.5.4 (The Panel: Placement and Hover Reveal) are done; 0.5.4 awaits Keshab's look at the panel.
 
-The next task is Task 0.5.4 — The Panel: Placement and Hover Reveal.
+The next task is Task 0.5.5 — Global Push-to-Talk (Ctrl+Option).
 
 Do not start Phase 1 (Memory) until Phase 0.5 has been verified.
 

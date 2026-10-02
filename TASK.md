@@ -172,7 +172,7 @@ Result:
 
 ---
 
-### Task 0.5.4 — The Panel: Placement and Hover Reveal
+### Task 0.5.4 — The Panel: Placement and Hover Reveal ✅ Built (2026-10-02), awaiting Keshab's look
 
 The island window, with placeholder content.
 
@@ -185,6 +185,16 @@ The island window, with placeholder content.
 Tests: Swift unit tests for the reveal and hide timing and the frame calculations (hidden, shown, expanded).
 
 Verification: on the Mac mini, including over a full-screen app and on a second Space.
+
+Result:
+
+- `IslandGeometry` (frames and hover zones), `HoverController` (reveal and hide timing, no timers inside, so it is unit-tested with plain numbers) and `IslandStatus` (the pill's one line) in `ZenoIslandCore`; `IslandPanel` and `IslandController` in the app. Placeholder content: a black pill with a status dot and "Ready" / "Listening" / "Thinking"…
+- Pill 200 × 36 pt; hover strip 320 pt wide at the very top edge; reveal after 0.25 s, slide 0.22 s, hide 0.5 s after the pointer leaves (fade instead of slide with Reduce Motion). Panel at window level 26, above the menu bar (24)
+- Verified on the Mac mini by moving the real pointer and reading the window server's window list (no screenshots available to the agent): hidden at idle; shown 0.25 s after resting at the top-centre; stays while over the pill; hides 0.5 s after leaving; no reveal when passing through quickly, at the top edge away from the centre, or at the top of the second display; clicking the pill leaves the front app in front; works over a full-screen app's Space and after leaving it
+- Cost: no CPU while the pointer is still; about 2 % of one core while it moves constantly; 33–41 MB
+- 49 Swift tests (16 new). `pnpm island:test` passes the swift-testing plugin path explicitly: with only the Command Line Tools, SwiftPM otherwise fails to rebuild changed test files ("plugin for module 'TestingMacros' not found")
+- Fixed during testing: `isFloatingPanel = true` resets the window level, so it was below the menu bar; it is now set before the level
+- Not yet checked: how it looks (Keshab), changing display resolution, a notched MacBook
 
 ---
 
@@ -292,6 +302,6 @@ Never:
 
 ## 9. Current Priority
 
-Phase 0.5 — Desktop Island. Tasks 0.5.1–0.5.3 are done. Next task: 0.5.4 (The Panel: Placement and Hover Reveal).
+Phase 0.5 — Desktop Island. Tasks 0.5.1–0.5.4 are done (0.5.4 awaits Keshab's look at the panel). Next task: 0.5.5 (Global Push-to-Talk).
 
 Everything else waits.

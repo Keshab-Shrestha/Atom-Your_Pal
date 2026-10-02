@@ -15,6 +15,7 @@ func onMain(_ work: @escaping @MainActor () -> Void) {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var supervisor: RuntimeSupervisor?
+    private var island: IslandController?
     private var log = IslandLog(url: AppDelegate.fallbackLogURL)
     private var signalSources: [DispatchSourceSignal] = []
     /// Prints event names and status changes to stderr when ZENO_ISLAND_TRACE=1 (development only).
@@ -48,12 +49,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         log.info("island.start", ["version": version, "pid": Int(ProcessInfo.processInfo.processIdentifier)])
 
         let trace = self.trace
+        let island = IslandController(trace: { message in
+            if trace { FileHandle.standardError.write(Data("\(message)\n".utf8)) }
+        })
+        self.island = island
+        island.start()
+
         supervisor = RuntimeSupervisor(
             launch: launch,
             queue: DispatchQueue(label: "dev.zeno.island.runtime"),
             log: log,
-            onEvent: { event in
+            onEvent: { [weak self] event in
                 if trace, event.name != "mic.level" { FileHandle.standardError.write(Data("event \(event.name)\n".utf8)) }
+                onMain { self?.island?.apply(event) }
             },
             onStatus: { [weak self] status in
                 onMain { self?.statusChanged(status) }
@@ -62,6 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        island?.stop()
         guard let supervisor else {
             log.flush()
             return .terminateNow
@@ -78,6 +87,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func statusChanged(_ status: RuntimeSupervisor.Status) {
         if trace { FileHandle.standardError.write(Data("status \(status)\n".utf8)) }
+        island?.apply(status)
         switch status {
         case .configError(let message):
             // Until the panel exists (Task 0.5.4) an alert is the only way to explain this.
