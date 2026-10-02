@@ -270,7 +270,9 @@ Verification: dictate into TextEdit, Safari's address bar and Notes; clipboard c
 
 ---
 
-### Task 0.5.8 — The Pet (ADR-042)
+### Task 0.5.8 — The Pet (ADR-042) — built; live look pending (2026-10-02)
+
+Wisp is drawn in code (`WispView`), driven by a tested `PetBrain` (wander, rest, nap after 3 min, react to listening/thinking/speaking/problem; 16 tests), in a click-through strip on top of the Dock that follows the Pet setting. On screen it floats at 38 pt/s and rests between trips (seen in the trace log); about 7% CPU while shown. Still to check by eye: how it looks on the real desktop, and each reaction during a real turn.
 
 - Character: Wisp (ADR-042), drawn in SwiftUI shapes; floats and bobs instead of walking
 - Transparent, click-through window along the bottom of the main display above the Dock; follows Dock size and display changes

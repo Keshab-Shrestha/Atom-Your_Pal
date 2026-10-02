@@ -412,7 +412,7 @@ struct SettingsTab: View {
                 ShortcutSection(model: model)
                 Card("Extras") {
                     Row(title: "Pet", detail: "Wisp floats along the bottom of the screen") {
-                        Toggle("", isOn: Binding(get: { model.settings.petEnabled }, set: { model.settings.petEnabled = $0 }))
+                        Toggle("", isOn: Binding(get: { model.settings.petEnabled }, set: { model.setPet($0) }))
                             .labelsHidden().toggleStyle(.switch).controlSize(.mini)
                     }
                     RowDivider()

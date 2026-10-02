@@ -59,13 +59,35 @@ enum IslandGallery {
         model.tab = .conversation
         model.conversation = Conversation()
         write(model, size: expanded, name: "4-empty-conversation", to: directory)
+        writePet(to: directory)
     }
 
-    private static func write(_ model: IslandModel, size: CGSize, name: String, to directory: URL) {
-        let view = IslandView(model: model, snapshot: true)
-            .frame(width: size.width, height: size.height)
-            .padding(16)
-            .background(Color(red: 0.36, green: 0.42, blue: 0.52)) // a desktop-like backdrop
+    /// Wisp in every mood, each at three moments, on a desktop-like strip above a Dock-coloured bar.
+    private static func writePet(to directory: URL) {
+        let moods: [(PetBrain.Mood, String)] = [
+            (.resting, "Resting"), (.floating, "Floating"), (.listening, "Listening"), (.thinking, "Thinking"),
+            (.speaking, "Speaking"), (.worried, "Problem"), (.napping, "Napping"),
+        ]
+        let moments = [0.15, 0.55, 1.35]
+        let sheet = VStack(alignment: .leading, spacing: 10) {
+            ForEach(Array(moods.enumerated()), id: \.offset) { _, entry in
+                HStack(spacing: 18) {
+                    Text(entry.1)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 80, alignment: .leading)
+                    ForEach(Array(moments.enumerated()), id: \.offset) { i, t in
+                        WispView(mood: entry.0, time: t, facing: i == 2 ? -1 : 1, size: 96)
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .background(LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.24, green: 0.29, blue: 0.42)], startPoint: .top, endPoint: .bottom))
+        save(sheet, name: "5-wisp-moods", to: directory)
+    }
+
+    private static func save(_ view: some View, name: String, to directory: URL) {
         let renderer = ImageRenderer(content: view)
         renderer.scale = 2
         guard let image = renderer.nsImage, let tiff = image.tiffRepresentation,
@@ -74,5 +96,13 @@ enum IslandGallery {
             return
         }
         try? png.write(to: directory.appendingPathComponent("\(name).png"))
+    }
+
+    private static func write(_ model: IslandModel, size: CGSize, name: String, to directory: URL) {
+        let view = IslandView(model: model, snapshot: true)
+            .frame(width: size.width, height: size.height)
+            .padding(16)
+            .background(Color(red: 0.36, green: 0.42, blue: 0.52)) // a desktop-like backdrop
+        save(view, name: name, to: directory)
     }
 }

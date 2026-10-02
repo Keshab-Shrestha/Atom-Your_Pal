@@ -255,7 +255,7 @@ Phase 0 is complete. Phase 0.5 (Desktop Island) is planned in TASK.md.
 
 Tasks 0.5.1–0.5.4b are done: the island lives at the left edge and shows ZENO's live state. Keshab then asked for settings inside the island, changeable shortcuts, FluidVoice-style dictation and a pet (ADR-039 to ADR-042). Designs from FluidVoice and Vorssaint are re-implemented, never copied (both GPL-3.0).
 
-Task 0.5.5 (expanded island with settings) is done. Task 0.5.6 (shortcuts in every app) is coded and partly checked live; hand checks remain. Voice testing is paused at Keshab's request, so Task 0.5.7 (Dictation) waits and the next task is Task 0.5.8 — The Pet (Wisp).
+Task 0.5.5 (expanded island with settings) is done. Task 0.5.6 (shortcuts in every app) is coded and partly checked live; hand checks remain. Voice testing is paused at Keshab's request, so Task 0.5.7 (Dictation) waits and Task 0.5.8 (Wisp) is built and waits for Keshab's look on the real desktop.
 
 Do not start Phase 1 (Memory) until Phase 0.5 has been verified.
 

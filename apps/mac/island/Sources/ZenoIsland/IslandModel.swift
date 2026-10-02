@@ -34,6 +34,15 @@ final class IslandModel {
 
     let settings: IslandSettings
     let recorder: ShortcutRecorder
+    /// Shows or hides Wisp. Set by the controller.
+    @ObservationIgnored var petChanged: (Bool) -> Void = { _ in }
+
+    /// Turns the pet on or off: saves the setting and shows or hides Wisp at once.
+    func setPet(_ enabled: Bool) {
+        settings.petEnabled = enabled
+        petChanged(enabled)
+    }
+
     /// Listens for shortcuts in every app. Set by the controller.
     @ObservationIgnored weak var shortcuts: ShortcutEngine?
 

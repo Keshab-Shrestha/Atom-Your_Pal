@@ -10,6 +10,8 @@ import ZenoIslandCore
 final class IslandController {
     let model: IslandModel
     let shortcuts: ShortcutEngine
+    /// Wisp, shown while the Pet setting is on (ADR-042).
+    let pet: PetController
     private let panel = IslandPanel()
     /// Talk was started by its shortcut and not yet sent or cancelled: show the island at once.
     private var talking = false
@@ -39,6 +41,7 @@ final class IslandController {
         self.trace = trace
         model = IslandModel(settings: settings)
         shortcuts = ShortcutEngine(settings: settings, recorder: model.recorder, log: log)
+        pet = PetController(trace: trace)
         model.shortcuts = shortcuts
         geometry = IslandController.currentGeometry()
         hosting = NSHostingView(rootView: IslandView(model: model))
@@ -49,6 +52,7 @@ final class IslandController {
         panel.onCancel = { [weak self] in self?.setExpanded(false) }
         shortcuts.onTrigger = { [weak self] trigger in self?.shortcut(trigger) }
         shortcuts.trace = trace
+        model.petChanged = { [weak self] enabled in self?.pet.setEnabled(enabled) }
     }
 
     func start() {
@@ -83,10 +87,12 @@ final class IslandController {
             MainActor.assumeIsolated { self?.spaceChanged() }
         })
         shortcuts.start()
+        pet.setEnabled(model.settings.petEnabled)
     }
 
     func stop() {
         shortcuts.stop()
+        pet.stop()
         for monitor in monitors { NSEvent.removeMonitor(monitor) }
         monitors = []
         for observer in observers {
@@ -128,6 +134,7 @@ final class IslandController {
 
     /// Keeps the island out during a turn, and brings it out for a notice or problem.
     private func statusChanged() {
+        pet.update(model.status.kind)
         if model.status.title != lastTitle {
             lastTitle = model.status.title
             trace("status \(model.status.title) — \(model.status.detail)")
@@ -142,6 +149,7 @@ final class IslandController {
 
     private func shortcut(_ trigger: ShortcutTrigger) {
         trace("shortcut \(trigger)")
+        pet.poke()
         switch trigger {
         case .holdBegan(.talk):
             talking = true
@@ -213,6 +221,7 @@ final class IslandController {
     // MARK: - Expanding
 
     private func setExpanded(_ expanded: Bool) {
+        pet.poke()
         guard expanded != model.expanded else { return }
         trace(expanded ? "expand" : "collapse")
         if !expanded { model.recorder.stop() }
