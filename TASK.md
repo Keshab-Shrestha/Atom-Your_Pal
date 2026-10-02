@@ -268,7 +268,7 @@ Verification: dictate into TextEdit, Safari's address bar and Notes; clipboard c
 
 ### Task 0.5.8 — The Pet (ADR-042)
 
-- Character chosen by Keshab, drawn in SwiftUI shapes
+- Character: Wisp (ADR-042), drawn in SwiftUI shapes; floats and bobs instead of walking
 - Transparent, click-through window along the bottom of the main display above the Dock; follows Dock size and display changes
 - Walks, stops, naps after inactivity; perks up when listening; thinking dots; talks while speaking; worried on a problem
 - On/off from Settings; Reduce Motion: no walking, gentle state changes only

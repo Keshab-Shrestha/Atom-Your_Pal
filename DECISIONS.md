@@ -796,7 +796,7 @@ An optional animated character walks along the bottom of the main display, just 
 
 It is drawn in code (SwiftUI shapes), so no image assets. It lives in its own transparent, click-through window that never takes focus. It can be turned off in Settings.
 
-The character is chosen by Keshab from drawn options.
+The character is **Wisp**, chosen by Keshab (2026-10-02) from three drawn options (Wisp, a robot, a cat): a soft, glowing, pale-blue spirit with a rounded body and a wavy hem. It floats and bobs rather than walking with legs; its glow pulses faster while listening; it blinks, closes its eyes and shows floating "z"s when napping, shows thinking dots, and opens its mouth with small sound waves while speaking.
 
 ### Reason
 

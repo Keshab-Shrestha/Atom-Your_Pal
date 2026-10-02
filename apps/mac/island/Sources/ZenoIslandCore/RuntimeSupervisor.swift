@@ -78,13 +78,13 @@ public final class RuntimeSupervisor: @unchecked Sendable {
     public func send(_ command: IslandCommand) {
         queue.async { [self] in
             guard let input, !stopping else {
-                log.warn("island.command_dropped", ["command": command.rawValue])
+                log.warn("island.command_dropped", ["command": command.type])
                 return
             }
             do {
                 try input.write(contentsOf: Data(command.line.utf8))
             } catch {
-                log.warn("island.command_failed", ["command": command.rawValue, "message": error.localizedDescription])
+                log.warn("island.command_failed", ["command": command.type, "message": error.localizedDescription])
             }
         }
     }

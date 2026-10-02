@@ -1,9 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { PassThrough } from "node:stream";
+import { createCore } from "@zeno/core";
+import { createSwitchableModel, type SwitchableModel } from "@zeno/llm-gateway";
 import type { AudioClip, AudioError, Recording } from "./audio.ts";
 import type { IslandEvent } from "./island-protocol.ts";
 import { runIsland, type IslandOptions } from "./island.ts";
+import { createModelSettings, writeSavedChoice } from "./model-settings.ts";
 import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
 import type { CoreLike } from "./voice-loop.ts";
@@ -23,6 +29,7 @@ function islandHarness(
     clipMs: number;
     warmUp: () => Promise<void>;
     silenceWarnMs: number;
+    settings: IslandOptions["settings"];
   }> = {},
 ) {
   const input = new PassThrough();
@@ -65,6 +72,7 @@ function islandHarness(
     core,
     tts,
     info: { provider: "fake", model: "fake-1", microphone: ":default" },
+    settings: over.settings,
     micName: async () => "macOS default: Test Mic",
     describe: (error) => (error instanceof Error ? error.message : String(error)),
     errorDetails: (error) => ((error as { kind?: string }).kind ? { kind: (error as { kind: string }).kind, retryable: true } : {}),
@@ -300,4 +308,146 @@ test("the island closing stdin ends the session", async () => {
   assert.equal(h.counts().quits, 1);
   h.session.quit(); // a second quit (e.g. SIGTERM) does nothing more
   assert.equal(h.counts().quits, 1);
+});
+
+// --- model.set and info (ADR-038, ADR-040) ---
+
+type ModelRequest = Parameters<SwitchableModel["complete"]>[0];
+
+// Placeholder values, not real credentials.
+const CLAUDE_KEY = "test-claude-key-0000";
+const GEMINI_KEY = "test-gemini-key-0000";
+
+/** The real Core and switchable model with fake gateways that record which model answered what. */
+function modelHarness(keys: { claude?: string; gemini?: string } = { claude: CLAUDE_KEY, gemini: GEMINI_KEY }) {
+  const path = join(mkdtempSync(join(tmpdir(), "zeno-island-")), "config", "island.json");
+  const requests: { model: string; request: ModelRequest }[] = [];
+  const logs: string[] = [];
+  const fakeGateway = (name: string) => ({
+    complete: async (request: ModelRequest) => {
+      requests.push({ model: name, request });
+      return { text: `${name} says hi` };
+    },
+  });
+  const model = createSwitchableModel(fakeGateway("gemini-3.6-flash"));
+  const core = createCore({ model });
+  const settings = createModelSettings({
+    initial: { provider: "gemini", model: "gemini-3.6-flash" },
+    keys,
+    model,
+    createModel: (choice, apiKey) => {
+      assert.equal(apiKey, keys[choice.provider]);
+      return fakeGateway(choice.model);
+    },
+    save: (choice) => writeSavedChoice(path, choice),
+    log: { info: (event, fields) => logs.push(JSON.stringify({ event, ...fields })), warn: (event, fields) => logs.push(JSON.stringify({ event, ...fields })) },
+  });
+  const h = islandHarness({ core, settings });
+  return { ...h, core, requests, path, logs };
+}
+
+const turn = async (h: ReturnType<typeof islandHarness>) => {
+  await h.send({ type: "talk.start" }, { type: "talk.send" });
+  await tick(5);
+};
+
+test("ready is followed by info with the model and the choices", async () => {
+  const h = modelHarness({ gemini: GEMINI_KEY });
+  await tick(2);
+  const [ready, info] = h.events();
+  assert.deepEqual(ready, { type: "ready", protocol: 1, provider: "gemini", model: "gemini-3.6-flash", microphone: ":default", voice: true });
+  assert.equal(info.type, "info");
+  if (info.type !== "info") return;
+  assert.equal(info.provider, "gemini");
+  assert.equal(info.model, "gemini-3.6-flash");
+  assert.deepEqual(
+    info.providers.map((p) => ({ id: p.id, name: p.name, available: p.available })),
+    [
+      { id: "claude", name: "Claude", available: false },
+      { id: "gemini", name: "Gemini", available: true },
+    ],
+  );
+  assert.ok(info.providers[1].models.some((m) => m.id === "gemini-3.5-flash-lite" && m.name === "Gemini 3.5 Flash-Lite"));
+});
+
+test("model.set switches the next request, keeps the conversation, saves the choice and sends info", async () => {
+  const h = modelHarness();
+  await tick(2);
+  await turn(h);
+  h.clear();
+  await h.send({ type: "model.set", provider: "claude", model: "claude-opus-5-5" });
+  const info = h.events();
+  assert.equal(info.length, 1);
+  assert.equal(info[0].type, "info");
+  assert.deepEqual(info[0].type === "info" && [info[0].provider, info[0].model], ["claude", "claude-opus-5-5"]);
+  assert.deepEqual(JSON.parse(readFileSync(h.path, "utf8")), { llm: { provider: "claude", model: "claude-opus-5-5" } });
+  assert.ok(h.logs.includes(JSON.stringify({ event: "model.set", provider: "claude", model: "claude-opus-5-5" })));
+
+  await turn(h);
+  assert.deepEqual(
+    h.requests.map((r) => r.model),
+    ["gemini-3.6-flash", "claude-opus-5-5"],
+  );
+  // The new model sees the earlier exchange.
+  assert.deepEqual(
+    h.requests[1].request.messages.map((m) => m.content),
+    ["what is the capital of Japan", "gemini-3.6-flash says hi", "what is the capital of Japan"],
+  );
+  assert.equal(h.core.history().length, 4);
+});
+
+test("model.set during a turn applies to the next request; the turn in flight finishes on the old model", async () => {
+  const h = modelHarness();
+  await tick(2);
+  await h.send({ type: "talk.start" });
+  await h.send({ type: "model.set", provider: "gemini", model: "gemini-3.8-flash" });
+  assert.equal(h.session.loop.state, "listening"); // the turn was not interrupted
+  await h.send({ type: "talk.send" });
+  await tick(5);
+  assert.deepEqual(h.requests.map((r) => r.model), ["gemini-3.8-flash"]);
+});
+
+test("model.set refusals are settings errors with the fix, and nothing changes", async () => {
+  const h = modelHarness({ gemini: GEMINI_KEY });
+  await tick(2);
+  h.clear();
+  await h.send(
+    { type: "model.set", provider: "openai", model: "gpt-9" },
+    { type: "model.set", provider: "claude", model: "claude-opus-5-5" },
+    { type: "model.set", provider: "gemini", model: "gemini-9-ultra" },
+  );
+  assert.deepEqual(h.events(), [
+    { type: "error", stage: "settings", message: 'Unknown AI provider "openai". Choose Claude or Gemini.' },
+    { type: "error", stage: "settings", message: "Add ANTHROPIC_API_KEY to .env to use Claude, then restart ZENO." },
+    { type: "error", stage: "settings", message: '"gemini-9-ultra" is not a Gemini model ZENO offers. Choose one from the list.' },
+  ]);
+  assert.equal(existsSync(h.path), false);
+  await turn(h);
+  assert.deepEqual(h.requests.map((r) => r.model), ["gemini-3.6-flash"]);
+  assert.equal(h.session.loop.state, "idle"); // the runtime keeps running
+});
+
+test("a malformed model.set is a protocol error", async () => {
+  const h = modelHarness();
+  await tick(2);
+  h.clear();
+  await h.send({ type: "model.set", provider: "claude" });
+  assert.deepEqual(h.events(), [{ type: "error", stage: "protocol", message: 'model.set needs a "model" string.' }]);
+});
+
+test("no event ever carries an API key", async () => {
+  const h = modelHarness();
+  await tick(2);
+  await turn(h);
+  await h.send(
+    { type: "model.set", provider: "claude", model: "claude-sonnet-5-5" },
+    { type: "model.set", provider: "gemini", model: "nope" },
+    { type: "model.set", provider: "nope", model: "nope" },
+  );
+  await turn(h);
+  const wire = JSON.stringify(h.events());
+  assert.ok(wire.includes('"info"') && wire.includes('"settings"'));
+  assert.ok(!wire.includes(CLAUDE_KEY) && !wire.includes(GEMINI_KEY));
+  assert.ok(!h.logs.join("").includes(CLAUDE_KEY) && !h.logs.join("").includes(GEMINI_KEY));
+  assert.ok(!readFileSync(h.path, "utf8").includes(CLAUDE_KEY));
 });

@@ -13,10 +13,27 @@ export type IslandCommand =
   | { type: "talk.send" }
   | { type: "talk.cancel" }
   | { type: "conversation.reset" }
+  | { type: "model.set"; provider: string; model: string }
   | { type: "quit" };
 
-export type ErrorStage = "microphone" | "transcription" | "model" | "speech" | "config" | "protocol" | "runtime";
+export type ErrorStage =
+  | "microphone"
+  | "transcription"
+  | "model"
+  | "speech"
+  | "config"
+  | "protocol"
+  | "settings"
+  | "runtime";
 export type NoticeKind = "too_short" | "mic_starting" | "no_speech";
+
+/** The model in use and the choices offered (docs/island-protocol.md, "Model choice"). Never carries API keys. */
+export interface InfoEvent {
+  type: "info";
+  provider: string;
+  model: string;
+  providers: { id: string; name: string; available: boolean; models: { id: string; name: string }[] }[];
+}
 
 export type IslandEvent =
   | { type: "ready"; protocol: number; provider: string; model: string; microphone: string; voice: boolean }
@@ -36,9 +53,10 @@ export type IslandEvent =
     }
   | { type: "notice"; kind: NoticeKind; message: string }
   | { type: "conversation.reset" }
+  | InfoEvent
   | { type: "error"; stage: ErrorStage; message: string; kind?: string; retryable?: boolean };
 
-const COMMANDS = new Set<IslandCommand["type"]>(["talk.start", "talk.send", "talk.cancel", "conversation.reset", "quit"]);
+const COMMANDS = new Set<IslandCommand["type"]>(["talk.start", "talk.send", "talk.cancel", "conversation.reset", "model.set", "quit"]);
 
 export type ParsedLine = { command: IslandCommand } | { error: string } | { blank: true };
 
@@ -57,6 +75,12 @@ export function parseCommand(line: string): ParsedLine {
   const type = (value as { type?: unknown }).type;
   if (typeof type !== "string") return { error: 'Command has no "type".' };
   if (!COMMANDS.has(type as IslandCommand["type"])) return { error: `Unknown command "${type.slice(0, 40)}".` };
+  if (type === "model.set") {
+    const { provider, model } = value as { provider?: unknown; model?: unknown };
+    if (typeof provider !== "string") return { error: 'model.set needs a "provider" string.' };
+    if (typeof model !== "string") return { error: 'model.set needs a "model" string.' };
+    return { command: { type, provider, model } };
+  }
   return { command: { type } as IslandCommand }; // extra fields are ignored (forward compatibility)
 }
 

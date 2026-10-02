@@ -87,3 +87,25 @@ test("level throttle rounds to three decimals and resets between recordings", ()
   throttle.push(0.01); // new recording: sent at once, without the old peak
   assert.deepEqual(sent, [0.123, 0.01]);
 });
+
+test("parses model.set with its provider and model", () => {
+  assert.deepEqual(parseCommand('{"type":"model.set","provider":"gemini","model":"gemini-3.6-flash","extra":1}'), {
+    command: { type: "model.set", provider: "gemini", model: "gemini-3.6-flash" },
+  });
+});
+
+test("model.set without a provider or model string is a protocol error", () => {
+  const cases: [object, RegExp][] = [
+    [{ type: "model.set" }, /"provider" string/],
+    [{ type: "model.set", model: "gemini-3.6-flash" }, /"provider" string/],
+    [{ type: "model.set", provider: "gemini" }, /"model" string/],
+    [{ type: "model.set", provider: 1, model: "gemini-3.6-flash" }, /"provider" string/],
+    [{ type: "model.set", provider: "gemini", model: null }, /"model" string/],
+    [{ type: "model.set", provider: "gemini", model: ["gemini-3.6-flash"] }, /"model" string/],
+  ];
+  for (const [command, expected] of cases) {
+    const parsed = parseCommand(JSON.stringify(command));
+    assert.ok("error" in parsed, JSON.stringify(command));
+    assert.match(parsed.error, expected);
+  }
+});

@@ -5,6 +5,7 @@ import { createInterface } from "node:readline";
 import type { Readable } from "node:stream";
 import type { Logger } from "@zeno/shared";
 import { PROTOCOL_VERSION, createLevelThrottle, encodeEvent, parseCommand, type IslandCommand, type IslandEvent } from "./island-protocol.ts";
+import type { ModelSettings } from "./model-settings.ts";
 import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
 import { createVoiceLoop, type CoreLike, type LoopNotice, type VoiceLoop, type VoiceLoopEvents, type VoiceLoopOptions } from "./voice-loop.ts";
@@ -20,6 +21,8 @@ export interface IslandOptions {
   tts: TextToSpeech;
   /** Reported in the `ready` event. */
   info: { provider: string; model: string; microphone: string };
+  /** The AI model choice: sent as `info` after `ready`, changed by `model.set`. Without it, `model.set` is refused. */
+  settings?: Pick<ModelSettings, "info" | "setModel">;
   micName(): Promise<string>;
   /** Plain-language error text for the user. */
   describe(error: unknown): string;
@@ -110,10 +113,29 @@ export function runIsland(options: IslandOptions): IslandSession {
         core.reset();
         send({ type: "conversation.reset" });
         return;
+      case "model.set": {
+        // Applies to the next request; a turn in progress finishes with the old model.
+        if (!options.settings) {
+          send({ type: "error", stage: "settings", message: "This runtime cannot switch models." });
+          return;
+        }
+        const result = options.settings.setModel(command.provider, command.model);
+        if ("error" in result) {
+          options.log?.warn("model.set_refused", { reason: result.error });
+          send({ type: "error", stage: "settings", message: result.error });
+          return;
+        }
+        sendInfo();
+        return;
+      }
       case "quit":
         quit();
         return;
     }
+  }
+
+  function sendInfo() {
+    if (options.settings) send({ type: "info", ...options.settings.info() });
   }
 
   const lines = createInterface({ input: options.input, crlfDelay: Infinity });
@@ -156,7 +178,13 @@ export function runIsland(options: IslandOptions): IslandSession {
         return false;
       },
     )
-    .then((voice) => send({ type: "ready", protocol: PROTOCOL_VERSION, ...options.info, voice }));
+    .then((voice) => {
+      // The model may have been switched before the voice finished loading: report the one in use.
+      const model = options.settings?.info();
+      const llm = model ? { provider: model.provider, model: model.model } : {};
+      send({ type: "ready", protocol: PROTOCOL_VERSION, ...options.info, ...llm, voice });
+      sendInfo();
+    });
 
   return { loop, quit };
 }

@@ -5,12 +5,17 @@ import Testing
 @Suite("Protocol")
 struct ProtocolTests {
     @Test func commandsAreOneJSONLine() throws {
-        for command in IslandCommand.allCases {
+        let commands: [(IslandCommand, String)] = [
+            (.talkStart, "talk.start"), (.talkSend, "talk.send"), (.talkCancel, "talk.cancel"),
+            (.conversationReset, "conversation.reset"), (.quit, "quit"),
+        ]
+        for (command, type) in commands {
             let line = command.line
             #expect(line.hasSuffix("\n"))
             #expect(!line.dropLast().contains("\n"))
             let object = try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: String]
-            #expect(object == ["type": command.rawValue])
+            #expect(object == ["type": type])
+            #expect(command.type == type)
         }
         #expect(IslandCommand.talkStart.line == "{\"type\":\"talk.start\"}\n")
     }

@@ -2,10 +2,11 @@
 // Microphone → Whisper → ZENO Core → LLM Gateway → provider → Kokoro → speaker.
 
 import { createCore, CoreError, type Core } from "@zeno/core";
-import { createGateway, createProviderAdapter, GatewayError } from "@zeno/llm-gateway";
-import { createLogger, type Config, type Logger } from "@zeno/shared";
+import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError } from "@zeno/llm-gateway";
+import { createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import { AudioError, defaultInputDevice, startRecording } from "./audio.ts";
 import { SttError, createWhisperStt, type SpeechToText } from "./stt.ts";
+import { createModelSettings, writeSavedChoice, type ModelSettings } from "./model-settings.ts";
 import { TtsError, createKokoroSynthesizer, createSpeaker, type TextToSpeech } from "./tts.ts";
 import type { VoiceLoopEvents, VoiceLoopOptions } from "./voice-loop.ts";
 
@@ -13,6 +14,8 @@ export interface Runtime {
   config: Config;
   log: Logger;
   core: Core;
+  /** The AI provider and model in use, switchable while running (island `model.set`). */
+  settings: ModelSettings;
   stt: SpeechToText;
   tts: TextToSpeech;
   record: VoiceLoopOptions["record"];
@@ -20,19 +23,45 @@ export interface Runtime {
   micName(): Promise<string>;
 }
 
-export function createRuntime(config: Config, log: Logger = createLogger({ level: config.log.level, file: config.log.file })): Runtime {
+export interface RuntimeOptions {
+  /** Every provider key in .env, so the model can be switched to any of them. Default: the configured one only. */
+  keys?: ProviderKeys;
+  /** Where a model switch is saved (config/island.json). */
+  settingsPath?: string;
+}
+
+export function createRuntime(
+  config: Config,
+  log: Logger = createLogger({ level: config.log.level, file: config.log.file }),
+  options: RuntimeOptions = {},
+): Runtime {
   const stt = createWhisperStt({
     modelPath: config.stt.modelPath,
     language: config.stt.language,
     vocabulary: config.stt.vocabulary,
   });
-  const gateway = createGateway({ provider: createProviderAdapter(config.llm), timeoutMs: config.llm.timeoutMs });
-  const core = createCore({ model: gateway });
+  const createModel = (choice: LlmChoice, apiKey: string) =>
+    createGateway({ provider: createProviderAdapter({ ...choice, apiKey }), timeoutMs: config.llm.timeoutMs });
+  const initial = { provider: config.llm.provider, model: config.llm.model };
+  const model = createSwitchableModel(createModel(initial, config.llm.apiKey));
+  const core = createCore({ model });
+  const settingsPath = options.settingsPath;
+  const settings = createModelSettings({
+    initial,
+    keys: { ...options.keys, [config.llm.provider]: config.llm.apiKey },
+    model,
+    createModel,
+    save: (choice) => {
+      if (settingsPath) writeSavedChoice(settingsPath, choice);
+    },
+    log,
+  });
   const tts = createSpeaker(createKokoroSynthesizer({ voice: config.tts.voice, dtype: config.tts.dtype }));
   return {
     config,
     log,
     core,
+    settings,
     stt,
     tts,
     record: (handlers) => startRecording(config.audio, handlers),

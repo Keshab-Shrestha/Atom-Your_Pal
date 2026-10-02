@@ -4,10 +4,11 @@ import ZenoIslandCore
 
 /// Places the island at the left edge of the display with the menu bar, below the menu bar (ADR-037),
 /// and slides it in and out as the pointer reaches that edge. Pointer tracking uses mouse-moved events,
-/// which need no permission.
+/// which need no permission. Clicking the card expands it in place (ADR-038); a click elsewhere, Esc or
+/// the collapse button folds it back.
 @MainActor
 final class IslandController {
-    let model = IslandModel()
+    let model: IslandModel
     private let panel = IslandPanel()
     private let hosting: NSHostingView<IslandView>
     private var hover = HoverController()
@@ -31,13 +32,16 @@ final class IslandController {
     /// How long a notice or problem stays out.
     private let afterProblem = 6.0
 
-    init(trace: @escaping (String) -> Void = { _ in }) {
+    init(settings: IslandSettings, trace: @escaping (String) -> Void = { _ in }) {
         self.trace = trace
+        model = IslandModel(settings: settings)
         geometry = IslandController.currentGeometry()
         hosting = NSHostingView(rootView: IslandView(model: model))
         hosting.sizingOptions = [] // the controller sets the size; SwiftUI must not resize the window
         panel.contentView = hosting
         panel.setFrame(geometry.frame(presentation, visible: false), display: false)
+        model.setExpanded = { [weak self] expanded in self?.setExpanded(expanded) }
+        panel.onCancel = { [weak self] in self?.setExpanded(false) }
     }
 
     func start() {
@@ -50,6 +54,18 @@ final class IslandController {
             MainActor.assumeIsolated { self?.evaluate() }
             return event
         }) { monitors.append(local) }
+
+        // A click in another app folds the expanded island back.
+        if let outside = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown], handler: { [weak self] _ in
+            MainActor.assumeIsolated { self?.clickedOutside() }
+        }) { monitors.append(outside) }
+        // While a shortcut is being recorded, its keys go to the recorder and nowhere else.
+        // Local monitors run on the main thread, so the event never leaves it.
+        if let keys = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp, .flagsChanged], handler: { [weak self] event in
+            nonisolated(unsafe) let event = event
+            let used = MainActor.assumeIsolated { self?.model.recorder.handle(event) ?? false }
+            return used ? nil : event
+        }) { monitors.append(keys) }
 
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
@@ -81,6 +97,7 @@ final class IslandController {
     }
 
     func apply(_ event: IslandEvent) {
+        if case .micLevel = event {} else { model.apply(event) }
         switch event {
         case .micLevel(let peak):
             // 20 updates a second: only the meter changes, and only while it is shown.
@@ -107,13 +124,18 @@ final class IslandController {
             trace("status \(model.status.title) — \(model.status.detail)")
             snapshotSoon()
         }
-        let busy = model.status.isBusy
-        if hover.held != busy {
-            hover.held = busy
-            trace("held \(busy)")
-        }
+        updateHeld()
         if model.status.needsAttention { linger(afterProblem) }
         evaluate()
+    }
+
+    /// Kept out during a turn and while expanded.
+    private func updateHeld() {
+        let held = model.status.isBusy || model.expanded
+        if hover.held != held {
+            hover.held = held
+            trace("held \(held)")
+        }
     }
 
     private func linger(_ seconds: Double) {
@@ -148,6 +170,46 @@ final class IslandController {
         }
         RunLoop.main.add(timer, forMode: .common)
         recheck = timer
+    }
+
+    // MARK: - Expanding
+
+    private func setExpanded(_ expanded: Bool) {
+        guard expanded != model.expanded else { return }
+        trace(expanded ? "expand" : "collapse")
+        if !expanded { model.recorder.stop() }
+        model.expanded = expanded
+        presentation = expanded ? .expanded : .compact
+        panel.acceptsKeyFocus = expanded
+        updateHeld()
+
+        let target = geometry.frame(presentation, visible: true)
+        if !shown {
+            shown = true
+            panel.setFrame(target, display: false)
+            panel.orderFrontRegardless()
+        } else {
+            let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = reduceMotion ? 0 : 0.28
+                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.25, 1)
+                panel.animator().setFrame(target, display: true)
+            }
+        }
+        if expanded {
+            // Key, so the recorder and Esc get keys, without activating ZENO: the app you were in stays active.
+            panel.makeKey()
+        } else {
+            panel.resignKey()
+            hover.dismiss() // hide soon unless the pointer is over the card
+        }
+        evaluate()
+    }
+
+    private func clickedOutside() {
+        guard model.expanded else { return }
+        // Global monitors only see clicks in other apps, so this was not on the island.
+        setExpanded(false)
     }
 
     // MARK: - Showing and hiding

@@ -3,9 +3,10 @@
 //   node apps/mac/src/main.ts --island   driven by ZENO Island over stdin / stdout (island.ts)
 
 import { GatewayError } from "@zeno/llm-gateway";
-import { ConfigError, createLogger, loadConfig, type Config } from "@zeno/shared";
+import { ConfigError, createLogger, loadConfig, readProviderKeys, type Config } from "@zeno/shared";
 import { encodeEvent, type ErrorStage } from "./island-protocol.ts";
 import { runIsland } from "./island.ts";
+import { readSavedChoice, settingsPath } from "./model-settings.ts";
 import { createRuntime, describe, withLogging } from "./runtime.ts";
 import { runTerminal } from "./terminal.ts";
 
@@ -25,9 +26,15 @@ function islandFatal(stage: ErrorStage, message: string, code: number): void {
   setTimeout(() => process.exit(code), 500).unref(); // in case the island is no longer reading
 }
 
+// The model chosen in ZENO Island (config/island.json) overrides ZENO_LLM_PROVIDER / ZENO_LLM_MODEL in
+// both modes. Keys of every provider are kept so the island can switch; they never leave this process.
+const keys = readProviderKeys();
+const savedPath = settingsPath();
+const saved = readSavedChoice(savedPath, keys);
+
 function readConfig(): Config | null {
   try {
-    return loadConfig();
+    return loadConfig(process.env, { llm: saved.choice });
   } catch (error) {
     if (!(error instanceof ConfigError)) throw error;
     if (island) islandFatal("config", error.message, EXIT_CONFIG);
@@ -50,7 +57,12 @@ function start(config: Config) {
     model: config.llm.model,
     voice: config.tts.voice,
     microphone: config.audio.inputDevice,
+    settings: saved.choice ? savedPath : undefined,
   });
+  if (saved.warning) {
+    log.warn("settings.ignored", { message: saved.warning });
+    console.error(saved.warning); // stderr in both modes: stdout is reserved for protocol events in island mode
+  }
 
   // Last line of defence: an unexpected bug is logged and explained instead of a bare stack trace.
   const crash = (error: unknown) => {
@@ -66,7 +78,7 @@ function start(config: Config) {
   process.on("uncaughtException", crash);
   process.on("unhandledRejection", crash);
 
-  const runtime = createRuntime(config, log);
+  const runtime = createRuntime(config, log, { keys, settingsPath: savedPath });
   // Give the microphone and audio player a moment to release, and pending output to flush, before exiting.
   const exit = () => setTimeout(() => process.stdout.write("", () => process.exit(0)), 100);
 
@@ -83,6 +95,7 @@ function start(config: Config) {
     core: runtime.core,
     tts: runtime.tts,
     info: { provider: config.llm.provider, model: config.llm.model, microphone: config.audio.inputDevice },
+    settings: runtime.settings,
     micName: runtime.micName,
     describe,
     errorDetails: (error) => (error instanceof GatewayError ? { kind: error.kind, retryable: error.retryable } : {}),

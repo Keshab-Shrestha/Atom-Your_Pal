@@ -2,9 +2,16 @@ import AppKit
 import SwiftUI
 import ZenoIslandCore
 
-/// The island window: borderless, never takes keyboard focus, on every Space and over full-screen apps.
+/// The island window: borderless, on every Space and over full-screen apps. Compact, it never takes
+/// keyboard focus. Expanded, it can become key after a click (for the shortcut recorder) without
+/// activating ZENO, so the app you were using stays active (ADR-040).
 /// It is positioned by `IslandController`; it does not move itself.
 final class IslandPanel: NSPanel {
+    /// Set by the controller while expanded.
+    var acceptsKeyFocus = false
+    /// Called for Esc while the panel is key.
+    var onCancel: () -> Void = {}
+
     init() {
         super.init(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
         isFloatingPanel = true // must come before `level`: setting it resets the level to .floating
@@ -25,28 +32,60 @@ final class IslandPanel: NSPanel {
 
     static let islandLevel = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.mainMenuWindow)) + 2)
 
-    override var canBecomeKey: Bool { false }
+    override var canBecomeKey: Bool { acceptsKeyFocus }
     override var canBecomeMain: Bool { false }
 
     /// The hidden position is past the left edge of the display; do not let AppKit pull it back on screen.
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
+
+    override func cancelOperation(_ sender: Any?) { onCancel() }
 }
 
-/// What the island shows. Observed by `IslandView`.
-@MainActor @Observable
-final class IslandModel {
-    var status = IslandStatus()
-    var meter = LevelMeter(bars: 14)
-}
-
-/// The compact island (ADR-038): dark glass card with ZENO's state, a short detail line and, while
-/// listening, a live waveform from the microphone level.
+/// The island's content on dark glass: the compact card, or the expanded view after a click (ADR-038).
 struct IslandView: View {
     let model: IslandModel
     /// For development snapshots (`ZENO_ISLAND_SNAPSHOTS`): a plain dark fill instead of the glass,
     /// which only the window server can draw.
     var snapshot = false
     static let cornerRadius: CGFloat = 16
+    static let expandedCornerRadius: CGFloat = 22
+
+    var body: some View {
+        let radius = model.expanded ? IslandView.expandedCornerRadius : IslandView.cornerRadius
+        ZStack(alignment: .topLeading) {
+            if model.expanded {
+                ExpandedView(model: model)
+                    .transition(.opacity)
+            } else {
+                CompactView(model: model)
+                    .transition(.opacity)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background {
+            if snapshot {
+                RoundedRectangle(cornerRadius: radius, style: .continuous).fill(Color(white: 0.11).opacity(0.94))
+            } else {
+                GlassBackground(cornerRadius: radius)
+            }
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .strokeBorder(.white.opacity(0.12), lineWidth: 0.5)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        .environment(\.colorScheme, .dark)
+        .environment(\.islandSnapshot, snapshot)
+        .animation(.easeOut(duration: 0.16), value: model.expanded)
+    }
+}
+
+/// The compact card (ADR-038): ZENO's state, a short detail line and, while listening, a live waveform.
+/// Clicking it opens the expanded view.
+struct CompactView: View {
+    let model: IslandModel
+    /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
+    private let hovering = State(initialValue: false)
 
     var body: some View {
         HStack(spacing: 11) {
@@ -78,21 +117,16 @@ struct IslandView: View {
         .padding(.leading, 11)
         .padding(.trailing, 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .background(.white.opacity(hovering.wrappedValue ? 0.05 : 0))
+        .contentShape(Rectangle())
+        .onHover { hovering.wrappedValue = $0 }
+        .onTapGesture { model.setExpanded(true) }
         .animation(.easeOut(duration: 0.18), value: model.status.showsLevel)
-        .background {
-            if snapshot {
-                RoundedRectangle(cornerRadius: IslandView.cornerRadius, style: .continuous).fill(Color(white: 0.11).opacity(0.9))
-            } else {
-                GlassBackground(cornerRadius: IslandView.cornerRadius)
-            }
-        }
-        .overlay(
-            RoundedRectangle(cornerRadius: IslandView.cornerRadius, style: .continuous)
-                .strokeBorder(.white.opacity(0.12), lineWidth: 0.5)
-        )
-        .environment(\.colorScheme, .dark)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(model.status.detail.isEmpty ? "ZENO: \(model.status.title)" : "ZENO: \(model.status.title). \(model.status.detail)")
+        .accessibilityHint("Opens the conversation, status and settings")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { model.setExpanded(true) }
     }
 }
 

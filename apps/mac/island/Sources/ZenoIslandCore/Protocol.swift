@@ -9,15 +9,82 @@ public enum LoopState: String, Sendable, Equatable {
 }
 
 /// Commands the island sends to the runtime.
-public enum IslandCommand: String, Sendable, CaseIterable {
-    case talkStart = "talk.start"
-    case talkSend = "talk.send"
-    case talkCancel = "talk.cancel"
-    case conversationReset = "conversation.reset"
-    case quit
+public enum IslandCommand: Sendable, Equatable {
+    case talkStart, talkSend, talkCancel, conversationReset, quit
+    /// Switch the AI model (ADR-040). Answered with `info`, or an `error` with stage `settings`.
+    case modelSet(provider: String, model: String)
 
-    /// One JSON line, ending with a newline.
-    public var line: String { "{\"type\":\"\(rawValue)\"}\n" }
+    /// The command's `type` field. Safe for logs: never includes values.
+    public var type: String {
+        switch self {
+        case .talkStart: "talk.start"
+        case .talkSend: "talk.send"
+        case .talkCancel: "talk.cancel"
+        case .conversationReset: "conversation.reset"
+        case .quit: "quit"
+        case .modelSet: "model.set"
+        }
+    }
+
+    /// One JSON line, ending with a newline. Values are escaped by JSONSerialization.
+    public var line: String {
+        var fields = ["type": type]
+        if case .modelSet(let provider, let model) = self {
+            fields["provider"] = provider
+            fields["model"] = model
+        }
+        // A dictionary of strings is always valid JSON, so this cannot fail.
+        guard let data = try? JSONSerialization.data(withJSONObject: fields, options: [.sortedKeys, .withoutEscapingSlashes]),
+              let json = String(data: data, encoding: .utf8)
+        else { preconditionFailure("command \(type) could not be encoded") }
+        return json + "\n"
+    }
+}
+
+public struct ModelOption: Sendable, Equatable, Identifiable {
+    public var id: String
+    public var name: String
+
+    public init(id: String, name: String) {
+        self.id = id
+        self.name = name
+    }
+}
+
+public struct ProviderOption: Sendable, Equatable, Identifiable {
+    public var id: String
+    public var name: String
+    /// False when the provider's API key is missing from `.env`.
+    public var available: Bool
+    public var models: [ModelOption]
+
+    public init(id: String, name: String, available: Bool, models: [ModelOption]) {
+        self.id = id
+        self.name = name
+        self.available = available
+        self.models = models
+    }
+}
+
+/// The model in use and the choices, from the `info` event.
+public struct ModelInfo: Sendable, Equatable {
+    public var provider: String
+    public var model: String
+    public var providers: [ProviderOption]
+
+    public init(provider: String, model: String, providers: [ProviderOption]) {
+        self.provider = provider
+        self.model = model
+        self.providers = providers
+    }
+
+    public var currentProvider: ProviderOption? { providers.first { $0.id == provider } }
+
+    /// The model's name from the list, else one derived from its id.
+    public var currentModelName: String {
+        currentProvider?.models.first { $0.id == model }?.name
+            ?? IslandStatus.displayName(provider: provider, model: model)
+    }
 }
 
 public struct ReadyInfo: Sendable, Equatable {
@@ -38,7 +105,7 @@ public struct TurnTimings: Sendable, Equatable {
 }
 
 public struct RuntimeError: Sendable, Equatable {
-    /// microphone, transcription, model, speech, config, protocol or runtime.
+    /// microphone, transcription, model, speech, config, protocol, settings or runtime.
     public var stage: String
     /// Plain language, free of credentials.
     public var message: String
@@ -58,6 +125,7 @@ public enum IslandEvent: Sendable, Equatable {
     case turnComplete(TurnTimings)
     case notice(kind: String, message: String)
     case conversationReset
+    case info(ModelInfo)
     case error(RuntimeError)
     /// A newer runtime sent an event this island does not know; ignored for forward compatibility.
     case unknown(type: String)
@@ -75,6 +143,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .turnComplete: "turn.complete"
         case .notice(let kind, _): "notice:\(kind)"
         case .conversationReset: "conversation.reset"
+        case .info: "info"
         case .error(let e): "error:\(e.stage)"
         case .unknown(let type): "unknown:\(type)"
         }
@@ -140,6 +209,11 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .notice(kind: try f.string("kind"), message: try f.string("message"))
     case "conversation.reset":
         return .conversationReset
+    case "info":
+        return .info(ModelInfo(
+            provider: try f.string("provider"),
+            model: try f.string("model"),
+            providers: try f.providers()))
     case "error":
         return .error(RuntimeError(
             stage: try f.string("stage"),
@@ -187,6 +261,26 @@ private struct Fields {
             throw ProtocolError.invalidValue(event: event, field: key)
         }
         return n.boolValue
+    }
+
+    /// The `providers` list of an `info` event; any malformed entry makes the whole list invalid.
+    func providers() throws -> [ProviderOption] {
+        guard let value = values["providers"] else { throw ProtocolError.missingField(event: event, field: "providers") }
+        let invalid = ProtocolError.invalidValue(event: event, field: "providers")
+        guard let entries = value as? [Any] else { throw invalid }
+        return try entries.map { entry in
+            guard let p = entry as? [String: Any],
+                  let id = p["id"] as? String,
+                  let name = p["name"] as? String,
+                  let available = p["available"] as? NSNumber, CFGetTypeID(available) == CFBooleanGetTypeID(),
+                  let models = p["models"] as? [Any]
+            else { throw invalid }
+            return ProviderOption(id: id, name: name, available: available.boolValue, models: try models.map { model in
+                guard let m = model as? [String: Any], let id = m["id"] as? String, let name = m["name"] as? String
+                else { throw invalid }
+                return ModelOption(id: id, name: name)
+            })
+        }
     }
 
     func optionalBool(_ key: String) -> Bool? {

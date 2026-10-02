@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ConfigError, loadConfig } from "./config.ts";
+import { ConfigError, loadConfig, readProviderKeys } from "./config.ts";
 
 // Placeholder values, not real credentials.
 const CLAUDE_KEY = "test-claude-key-0000";
@@ -93,4 +93,19 @@ test("never includes API keys in error messages", () => {
       return true;
     },
   );
+});
+
+test("reads the key of every provider present, ignoring blank ones", () => {
+  assert.deepEqual(readProviderKeys({ ANTHROPIC_API_KEY: ` ${CLAUDE_KEY} `, GEMINI_API_KEY: GEMINI_KEY }), {
+    claude: CLAUDE_KEY,
+    gemini: GEMINI_KEY,
+  });
+  assert.deepEqual(readProviderKeys({ ANTHROPIC_API_KEY: "  " }), {});
+});
+
+test("an explicit model choice overrides ZENO_LLM_PROVIDER / ZENO_LLM_MODEL and requires that provider's key", () => {
+  const env = { ZENO_LLM_PROVIDER: "claude", ZENO_LLM_MODEL: "claude-sonnet-5", ANTHROPIC_API_KEY: CLAUDE_KEY, GEMINI_API_KEY: GEMINI_KEY };
+  const config = loadConfig(env, { llm: { provider: "gemini", model: "gemini-3.8-flash" } });
+  assert.deepEqual(config.llm, { provider: "gemini", apiKey: GEMINI_KEY, model: "gemini-3.8-flash", timeoutMs: 30_000 });
+  assert.throws(() => loadConfig({ ANTHROPIC_API_KEY: CLAUDE_KEY }, { llm: { provider: "gemini", model: "gemini-3.8-flash" } }), /GEMINI_API_KEY is required/);
 });

@@ -17,3 +17,6 @@ logs/
 # Swift build output (ZENO Island)
 .build/
 apps/mac/island/build/
+
+# ZENO Island settings (written by the runtime on model.set)
+config/island.json

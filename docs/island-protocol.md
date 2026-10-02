@@ -58,6 +58,7 @@ The island (`RestartPolicy`, `RuntimeSupervisor` in `apps/mac/island/`) waits 1,
 | `{"type":"talk.send"}` | Stop listening and answer what was said. Ignored unless listening |
 | `{"type":"talk.cancel"}` | Abandon the current turn (recording, request or speech) and return to idle. Nothing is sent. Ignored when idle |
 | `{"type":"conversation.reset"}` | Cancel any turn and forget the conversation. Answered with a `conversation.reset` event |
+| `{"type":"model.set","provider":"gemini","model":"gemini-3.6-flash"}` | Switch the AI model for the next request (ADR-040). Takes effect at once, without restarting; a request already in flight finishes with the old model. The conversation is kept. Saved to `config/island.json` and used at the next start. Answered with an `info` event, or an `error` with stage `settings` (unknown provider, no API key for it, a model not offered for that provider) and nothing changes. The runtime keeps running |
 | `{"type":"quit"}` | Release the microphone, stop speech and exit with code 0 |
 
 Holding Ctrl+Option maps to `talk.start` on press and `talk.send` on release. Pressing another key while holding, or Esc, maps to `talk.cancel` (ADR-035).
@@ -78,9 +79,22 @@ Holding Ctrl+Option maps to `talk.start` on press and `talk.send` on release. Pr
 | `turn.complete` | `speechMs`, `transcriptionMs`, `modelMs`, `firstSoundMs`, `requestId` | The reply finished playing. Timings in milliseconds; `firstSoundMs` and `requestId` may be missing |
 | `notice` | `kind`, `message` | The turn ended without a request. Not a failure. `kind` is `too_short`, `mic_starting` or `no_speech`; `message` says what to do, worded for the island's controls |
 | `conversation.reset` | — | The conversation was forgotten |
+| `info` | `provider`, `model`, `providers` | The model in use and the choices. Sent right after `ready` and after every successful `model.set`. `providers` is a list of `{ "id", "name", "available", "models" }`: `available` is `false` when the provider's API key is missing from `.env`; `models` is a list of `{ "id", "name" }` offered for that provider (the current model is always included). API keys are never sent |
 | `error` | `stage`, `message`, `kind`, `retryable` | Something failed. `kind` and `retryable` are present for model errors only |
 
 `state` returns to `idle` after every turn, including turns that end in `notice` or `error`.
+
+Fields not listed are ignored by both sides, and an unknown event or command type is ignored by the island and answered with a `protocol` error by the runtime. This keeps an older island working with a newer runtime.
+
+### Model choice
+
+The runtime picks its model in this order: `config/island.json` (written by `model.set`) if its provider has an API key, else `ZENO_LLM_PROVIDER` / `ZENO_LLM_MODEL` from `.env`. `config/island.json` is local and not in git:
+
+```json
+{ "llm": { "provider": "gemini", "model": "gemini-3.6-flash" } }
+```
+
+A missing or broken file is ignored (logged as a warning), never fatal.
 
 ### Error stages
 
@@ -92,6 +106,7 @@ Holding Ctrl+Option maps to `talk.start` on press and `talk.send` on release. Pr
 | `speech` | Kokoro or audio playback failed |
 | `config` | Configuration is invalid. The runtime exits with code 78 |
 | `protocol` | A command was malformed or unknown. Nothing else happens |
+| `settings` | A settings change (`model.set`) was refused. Nothing changes; the runtime keeps running |
 | `runtime` | An unexpected bug. The runtime exits |
 
 `message` is plain language, already free of credentials, and says how to fix the problem where possible.

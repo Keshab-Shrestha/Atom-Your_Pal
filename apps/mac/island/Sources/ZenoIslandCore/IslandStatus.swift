@@ -1,8 +1,21 @@
 /// What the compact island shows, derived from the runtime's status and events (ADR-038):
 /// a state with a title, a short detail line, and whether the level meter is live.
+/// Also keeps what the Status tab shows: provider, model, microphone, last timings and last problem.
 public struct IslandStatus: Sendable, Equatable {
     public enum Kind: Sendable, Equatable {
         case starting, ready, listening, transcribing, thinking, speaking, notice, problem
+    }
+
+    /// An error as the Status tab shows it: a title and the runtime's full message (with its fix).
+    public struct Problem: Sendable, Equatable {
+        public var title: String
+        /// The full message, not shortened.
+        public var message: String
+
+        public init(title: String, message: String) {
+            self.title = title
+            self.message = message
+        }
     }
 
     public private(set) var kind = Kind.starting
@@ -11,6 +24,17 @@ public struct IslandStatus: Sendable, Equatable {
     public private(set) var detail = "Loading voice"
     /// The model in use, e.g. "Gemini 3.6 Flash", from the `ready` event.
     public private(set) var modelName = ""
+    /// The microphone in use, from `ready`.
+    public private(set) var microphone = ""
+    /// The provider and model ids, from `ready` and `info`.
+    public private(set) var provider = ""
+    public private(set) var model = ""
+    /// False if the voice failed to load, from `ready`.
+    public private(set) var voiceLoaded = false
+    /// The last completed turn's timings.
+    public private(set) var lastTimings: TurnTimings?
+    /// The last error, kept until a later error replaces it.
+    public private(set) var lastProblem: Problem?
     /// The problem lasts until ZENO itself recovers (stopped, settings), so seeing it does not clear it.
     private var persistent = false
 
@@ -44,7 +68,18 @@ public struct IslandStatus: Sendable, Equatable {
         switch event {
         case .ready(let info):
             modelName = IslandStatus.displayName(provider: info.provider, model: info.model)
+            provider = info.provider
+            model = info.model
+            microphone = info.microphone
+            voiceLoaded = info.voice
             set(.ready, "Ready", modelName)
+        case .info(let info):
+            modelName = info.currentModelName
+            provider = info.provider
+            model = info.model
+            if kind == .ready { detail = modelName }
+        case .turnComplete(let timings):
+            lastTimings = timings
         case .state(let state):
             switch state {
             case .idle:
@@ -60,7 +95,9 @@ public struct IslandStatus: Sendable, Equatable {
         case .notice(let noticeKind, _):
             set(.notice, IslandStatus.noticeTitle(noticeKind), IslandStatus.noticeDetail(noticeKind))
         case .error(let error):
-            set(.problem, IslandStatus.errorTitle(error), IslandStatus.short(error.message))
+            let title = IslandStatus.errorTitle(error)
+            lastProblem = Problem(title: title, message: error.message)
+            set(.problem, title, IslandStatus.short(error.message))
         default:
             break
         }
@@ -111,6 +148,7 @@ public struct IslandStatus: Sendable, Equatable {
             case "model": "Model error"
             case "speech": "Couldn't speak"
             case "config": "Check settings"
+            case "settings": "Can't switch model"
             default: "Something went wrong"
             }
         }

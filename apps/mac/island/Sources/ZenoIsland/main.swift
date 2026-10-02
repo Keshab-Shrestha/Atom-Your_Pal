@@ -26,6 +26,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         .appendingPathComponent("Library/Logs/ZENO/island.log")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if let gallery = ProcessInfo.processInfo.environment["ZENO_ISLAND_GALLERY"] {
+            IslandGallery.render(to: URL(fileURLWithPath: gallery))
+            NSApp.terminate(nil)
+            return
+        }
         handleTerminationSignals()
         if anotherInstanceIsRunning() {
             log.info("island.already_running")
@@ -49,7 +54,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         log.info("island.start", ["version": version, "pid": Int(ProcessInfo.processInfo.processIdentifier)])
 
         let trace = self.trace
-        let island = IslandController(trace: { message in
+        let settings = IslandSettings()
+        for action in settings.unreadableShortcuts {
+            log.warn("settings.shortcut_unreadable", ["action": action.rawValue])
+        }
+        let island = IslandController(settings: settings, trace: { message in
             if trace { FileHandle.standardError.write(Data("\(message)\n".utf8)) }
         })
         self.island = island
@@ -66,6 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onStatus: { [weak self] status in
                 onMain { self?.statusChanged(status) }
             })
+        island.model.send = { [weak self] command in self?.supervisor?.send(command) }
         supervisor?.start()
     }
 
