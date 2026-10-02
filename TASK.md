@@ -270,12 +270,13 @@ Verification: dictate into TextEdit, Safari's address bar and Notes; clipboard c
 
 ---
 
-### Task 0.5.8 — The Pet (ADR-042) — built; live look pending (2026-10-02)
+### Task 0.5.8 — The Pet (ADR-042) — built; seen on screen and moveable (2026-10-02)
 
-Wisp is drawn in code (`WispView`), driven by a tested `PetBrain` (wander, rest, nap after 3 min, react to listening/thinking/speaking/problem; 16 tests), in a click-through strip on top of the Dock that follows the Pet setting. On screen it floats at 38 pt/s and rests between trips (seen in the trace log); about 7% CPU while shown. Still to check by eye: how it looks on the real desktop, and each reaction during a real turn.
+Wisp is drawn in code (`WispView`), driven by a tested `PetBrain` (wander, rest, nap after 3 min, react to listening/thinking/speaking/problem; 16 tests), in a small window that follows Wisp (ADR-043). By default it wanders along the top of the Dock on the primary display; Keshab can drag it anywhere on any display, where it stays parked (remembered across launches) until dropped back on the Dock, double-clicked or sent home from the right-click menu. Clicks pass through everything but Wisp's body. 26 behaviour tests, 3 for the saved spot. On screen it floats at 38 pt/s and rests between trips (seen in the trace log); about 7% CPU while shown. Seen working by Keshab (drag, park, restart keeps the spot). Still to check by eye: each reaction during a real turn, and the right-click menu and double-click.
 
 - Character: Wisp (ADR-042), drawn in SwiftUI shapes; floats and bobs instead of walking
-- Transparent, click-through window along the bottom of the main display above the Dock; follows Dock size and display changes
+- Small transparent window that follows Wisp; clicks pass through except over its body; never takes focus
+- Drag to move it anywhere (dangles while held); parked where dropped; a parked Wisp whose display is unplugged comes home; right-click: Back to the Dock / Hide Wisp
 - Walks, stops, naps after inactivity; perks up when listening; thinking dots; talks while speaking; worried on a problem
 - On/off from Settings; Reduce Motion: no walking, gentle state changes only
 - Pauses its animation when nothing changes on screen, so it costs almost nothing

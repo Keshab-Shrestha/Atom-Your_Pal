@@ -802,6 +802,18 @@ The character is **Wisp**, chosen by Keshab (2026-10-02) from three drawn option
 
 Keshab asked for a pet that plays on the screen (2026-10-02). It makes ZENO's state visible without looking at the island.
 
+### Update (2026-10-02): Wisp can be moved anywhere (ADR-043)
+
+Keshab could see Wisp but wanted to place it himself, anywhere, so he never misses it (a hold-to-talk with no visible sign left him unsure anything was listening).
+
+- **Drag it anywhere, on any display.** It dangles from its head while held and puts its feet down where it is dropped.
+- **Parked:** dropped anywhere except the Dock walkway, it stays exactly there (it still reacts, blinks and naps) and the spot is remembered across launches (`zeno.petSpot`).
+- **Walkway:** dropped within 44 pt of the Dock walkway on the primary display, it wanders again from that spot.
+- **Home:** double-click, or right-click → "Back to the Dock", sends it back to the walkway. Right-click → "Hide Wisp" turns the pet off.
+- **A display that is unplugged:** a parked Wisp whose display is gone comes home, so it is never lost off-screen.
+- **Still never in the way:** the window is only as big as Wisp and listens to the mouse only while the pointer is over its body. Clicks anywhere else pass through to the app underneath. It never takes focus.
+- **Reactions while held:** a reaction that starts while Wisp is held shows when it is put down.
+
 ---
 
 ## Final Architectural Principle

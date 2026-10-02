@@ -5,14 +5,16 @@
 /// - No activity for `napAfter`: stops and naps until ZENO is used again.
 /// - Listening, thinking, speaking: stops where it is and reacts.
 /// - Problem: stops and looks worried until the problem clears.
+/// - Picked up by the user: dangles in their hand. Put down on the Dock walkway it wanders again; put down
+///   anywhere else it is "parked": it stays exactly there (resting, napping, reacting) until sent home.
 public struct PetBrain: Sendable {
     public enum Mood: Sendable, Equatable {
-        case floating, resting, napping, listening, thinking, speaking, worried
+        case floating, resting, napping, listening, thinking, speaking, worried, carried
 
-        /// Moods tied to a ZENO turn or problem: Wisp holds still for them.
+        /// Moods that hold Wisp still: a ZENO turn, a problem, or being carried.
         public var isReacting: Bool {
             switch self {
-            case .listening, .thinking, .speaking, .worried: true
+            case .listening, .thinking, .speaking, .worried, .carried: true
             default: false
             }
         }
@@ -32,6 +34,8 @@ public struct PetBrain: Sendable {
     }
 
     public private(set) var mood = Mood.resting
+    /// Parked by the user somewhere other than the Dock walkway: never wanders. `x` is not used while parked.
+    public private(set) var pinned = false
     /// Centre of Wisp along the walkway, 0...width.
     public private(set) var x: Double
     /// +1 facing right, -1 facing left.
@@ -40,6 +44,8 @@ public struct PetBrain: Sendable {
 
     private var width: Double
     private var target: Double?
+    /// The mood ZENO's current state asks for, shown again when Wisp is put down.
+    private var statusMood: Mood?
     private var restUntil: Double
     private var lastActivity: Double
     private var lastStep: Double
@@ -75,6 +81,11 @@ public struct PetBrain: Sendable {
         case .problem: .worried
         case .starting, .ready, .notice: nil
         }
+        statusMood = reaction
+        if mood == .carried { // in the user's hand: the reaction shows once put down
+            lastActivity = now
+            return
+        }
         if let reaction {
             mood = reaction
             target = nil
@@ -86,6 +97,33 @@ public struct PetBrain: Sendable {
             lastActivity = now
             rest(at: now)
         }
+    }
+
+    /// The user picked Wisp up.
+    public mutating func grab(at now: Double) {
+        mood = .carried
+        target = nil
+        lastActivity = now
+    }
+
+    /// The user put Wisp down. `homeX` is its place on the Dock walkway if it was put down there (it wanders
+    /// from that spot); nil if it was put down anywhere else (it stays parked).
+    public mutating func drop(homeX: Double?, at now: Double) {
+        lastActivity = now
+        pinned = homeX == nil
+        if let homeX { x = min(max(homeX, 0), width) }
+        if let statusMood {
+            mood = statusMood
+        } else {
+            rest(at: now)
+        }
+    }
+
+    /// Send a parked Wisp back to wandering the Dock walkway (it starts from wherever `x` is).
+    public mutating func goHome(at now: Double) {
+        pinned = false
+        poke(at: now)
+        if mood == .resting { rest(at: now) }
     }
 
     /// Something happened that should wake Wisp (a shortcut, opening the island) without a state change.
@@ -108,6 +146,8 @@ public struct PetBrain: Sendable {
         }
 
         switch mood {
+        case .resting where pinned && now >= restUntil:
+            restUntil = now + tuning.restSeconds.lowerBound // parked: rests where it is
         case .resting where now >= restUntil:
             target = pickTarget()
             mood = target == nil ? .resting : .floating

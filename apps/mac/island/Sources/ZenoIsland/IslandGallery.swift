@@ -66,7 +66,7 @@ enum IslandGallery {
     private static func writePet(to directory: URL) {
         let moods: [(PetBrain.Mood, String)] = [
             (.resting, "Resting"), (.floating, "Floating"), (.listening, "Listening"), (.thinking, "Thinking"),
-            (.speaking, "Speaking"), (.worried, "Problem"), (.napping, "Napping"),
+            (.speaking, "Speaking"), (.worried, "Problem"), (.napping, "Napping"), (.carried, "Carried"),
         ]
         let moments = [0.15, 0.55, 1.35]
         let sheet = VStack(alignment: .leading, spacing: 10) {

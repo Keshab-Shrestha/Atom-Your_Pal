@@ -41,7 +41,7 @@ final class IslandController {
         self.trace = trace
         model = IslandModel(settings: settings)
         shortcuts = ShortcutEngine(settings: settings, recorder: model.recorder, log: log)
-        pet = PetController(trace: trace)
+        pet = PetController(settings: settings, trace: trace)
         model.shortcuts = shortcuts
         geometry = IslandController.currentGeometry()
         hosting = NSHostingView(rootView: IslandView(model: model))
@@ -53,6 +53,7 @@ final class IslandController {
         shortcuts.onTrigger = { [weak self] trigger in self?.shortcut(trigger) }
         shortcuts.trace = trace
         model.petChanged = { [weak self] enabled in self?.pet.setEnabled(enabled) }
+        pet.onHide = { [weak model] in model?.setPet(false) } // right-click → Hide Wisp
     }
 
     func start() {

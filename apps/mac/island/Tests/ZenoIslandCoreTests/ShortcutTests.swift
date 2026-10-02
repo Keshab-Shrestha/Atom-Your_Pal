@@ -156,7 +156,26 @@ final class IslandSettingsTests {
         }
         #expect(settings.shortcuts.count == ShortcutAction.allCases.count)
         #expect(settings.petEnabled && settings.soundsEnabled)
+        #expect(settings.petSpot == nil)
         #expect(settings.revision == 0)
+    }
+
+    @Test func remembersWhereWispWasParked() {
+        let first = IslandSettings(defaults: defaults)
+        first.petSpot = PetSpot(x: 1234.5, y: 410)
+        #expect(IslandSettings(defaults: defaults).petSpot == PetSpot(x: 1234.5, y: 410))
+        first.petSpot = nil
+        #expect(IslandSettings(defaults: defaults).petSpot == nil)
+    }
+
+    @Test func ignoresAnUnreadablePetSpot() {
+        let store = defaults
+        store.set("not a point", forKey: IslandSettings.petSpotKey)
+        #expect(IslandSettings(defaults: store).petSpot == nil)
+        store.set([1.0, 2.0, 3.0], forKey: IslandSettings.petSpotKey)
+        #expect(IslandSettings(defaults: store).petSpot == nil)
+        store.set([Double.nan, 2.0], forKey: IslandSettings.petSpotKey)
+        #expect(IslandSettings(defaults: store).petSpot == nil)
     }
 
     @Test func setsClearsAndResets() {

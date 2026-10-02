@@ -15,6 +15,7 @@ public final class IslandSettings {
     static func shortcutKey(_ action: ShortcutAction) -> String { "zeno.shortcut.\(action.rawValue)" }
     static let petKey = "zeno.petEnabled"
     static let soundsKey = "zeno.soundsEnabled"
+    static let petSpotKey = "zeno.petSpot"
 
     @ObservationIgnored private let defaults: UserDefaults
     /// Mirrors what is stored, so views observe changes.
@@ -31,6 +32,19 @@ public final class IslandSettings {
         didSet { save(petEnabled, Self.petKey) }
     }
 
+    /// Where the user parked Wisp: the point on the ground under it, in screen coordinates (x centred).
+    /// Nil = not parked; Wisp wanders the Dock walkway.
+    public var petSpot: PetSpot? {
+        didSet {
+            if let petSpot {
+                defaults.set([petSpot.x, petSpot.y], forKey: Self.petSpotKey)
+            } else {
+                defaults.removeObject(forKey: Self.petSpotKey)
+            }
+            revision += 1
+        }
+    }
+
     /// Start and stop sounds. Default on.
     public var soundsEnabled: Bool {
         didSet { save(soundsEnabled, Self.soundsKey) }
@@ -40,6 +54,7 @@ public final class IslandSettings {
         self.defaults = defaults
         petEnabled = defaults.object(forKey: Self.petKey) as? Bool ?? true
         soundsEnabled = defaults.object(forKey: Self.soundsKey) as? Bool ?? true
+        petSpot = Self.loadSpot(defaults)
         for action in ShortcutAction.allCases {
             switch Self.load(defaults, action) {
             case .some(.some(let override)): overrides[action] = override
@@ -47,6 +62,8 @@ public final class IslandSettings {
             case nil: break
             }
         }
+        // `petSpot` is optional, so assigning it above counted as a change (its didSet ran): loading is not one.
+        revision = 0
     }
 
     /// The shortcut for `action`: the user's choice, else the default. Nil = cleared by the user.
@@ -106,6 +123,13 @@ public final class IslandSettings {
     private func save(_ value: Bool, _ key: String) {
         defaults.set(value, forKey: key)
         revision += 1
+    }
+
+    /// A stored spot, or nil if there is none or it is unreadable (two finite numbers).
+    private static func loadSpot(_ defaults: UserDefaults) -> PetSpot? {
+        guard let values = defaults.array(forKey: petSpotKey) as? [Double], values.count == 2,
+              values.allSatisfy(\.isFinite) else { return nil }
+        return PetSpot(x: values[0], y: values[1])
     }
 
     /// The stored override: nil = never set; `.some(nil)` = unreadable, so the default applies.

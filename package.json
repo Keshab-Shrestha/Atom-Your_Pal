@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "node --env-file-if-exists=.env apps/mac/src/main.ts",
+    "voice:check": "node --env-file-if-exists=.env apps/mac/src/voice-check.ts",
     "test": "node --test \"**/*.test.ts\"",
     "test:live": "ZENO_LIVE_TESTS=1 node --env-file-if-exists=.env --test \"**/*.live.test.ts\"",
     "typecheck": "tsc",

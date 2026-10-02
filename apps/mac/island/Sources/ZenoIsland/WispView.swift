@@ -4,8 +4,14 @@ import ZenoIslandCore
 /// Wisp, drawn in SwiftUI shapes (ADR-042): a soft glowing spirit with a wavy hem. Every motion is a pure
 /// function of `time`, so one `TimelineView` drives it and the gallery can render any moment exactly.
 ///
-/// Drawn in a 64×64 design space (the original sketch), scaled to `size`.
+/// Drawn in a 64×64 design space (the original sketch), scaled to `size`, with a margin of `size / 4` on every
+/// side so the dots, z's and sound waves are never clipped. The view is therefore `size * 1.5` square.
 struct WispView: View {
+    /// The margin around the drawing for a given size.
+    static func margin(for size: CGFloat) -> CGFloat { size / 4 }
+    /// Where Wisp's feet are, as a fraction of the view's height measured from the bottom.
+    static func groundInset(for size: CGFloat) -> CGFloat { size * 1.5 - (margin(for: size) + size * 61 / 64) }
+
     var mood: PetBrain.Mood
     /// Seconds, from any steady clock.
     var time: Double
@@ -21,12 +27,13 @@ struct WispView: View {
     private static let worry = Color(red: 1.0, green: 0.72, blue: 0.45)
 
     var body: some View {
-        Canvas { context, canvasSize in
-            let scale = canvasSize.width / 64
+        Canvas { context, _ in
+            let scale = size / 64
+            context.translateBy(x: Self.margin(for: size), y: Self.margin(for: size))
             context.scaleBy(x: scale, y: scale)
             draw(in: &context)
         }
-        .frame(width: size, height: size)
+        .frame(width: size * 1.5, height: size * 1.5)
         .accessibilityLabel("ZENO's pet, Wisp")
     }
 
@@ -35,7 +42,7 @@ struct WispView: View {
     /// Vertical float offset in design points (negative is up).
     private var bob: Double {
         switch mood {
-        case .napping: 0
+        case .napping, .carried: 0
         case .listening: -4 + sin(time * 2 * .pi / 0.9) * 0.6 // perked up, small hover
         case .floating: sin(time * 2 * .pi / 1.4) * 2.2
         default: sin(time * 2 * .pi / 2.2) * 1.6
@@ -49,17 +56,25 @@ struct WispView: View {
             let b = (1 - cos(time * 2 * .pi / 3.2)) / 2
             return (1 + 0.03 * b, 1 - 0.06 * b)
         case .listening: return (0.98, 1.04)
+        case .carried: return (0.97, 1.05)
         default: return (1, 1)
         }
     }
 
     /// Lean into the direction of travel.
-    private var lean: Double { mood == .floating ? facing * 0.08 : 0 }
+    private var lean: Double {
+        switch mood {
+        case .floating: facing * 0.08
+        case .carried: sin(time * 2 * .pi / 0.9) * 0.14 // dangles from the user's hand
+        default: 0
+        }
+    }
 
     /// The halo's opacity: a slow pulse, faster while listening and thinking.
     private var glowOpacity: Double {
         let period: Double = switch mood {
         case .listening: 0.6
+        case .carried: 0.8
         case .thinking: 1.0
         case .napping: 4.0
         default: 2.0
@@ -86,19 +101,23 @@ struct WispView: View {
     // MARK: - Drawing
 
     private func draw(in context: inout GraphicsContext) {
-        // Ground shadow: shrinks as Wisp rises.
+        // Ground shadow: shrinks as Wisp rises. None while carried: there is no ground in the user's hand.
         let lift = -bob
         let shadowWidth = 28 - lift * 1.2
-        context.fill(
-            Path(ellipseIn: CGRect(x: 32 - shadowWidth / 2, y: 59, width: shadowWidth, height: 4)),
-            with: .color(.black.opacity(0.22 - lift * 0.015))
-        )
+        if mood != .carried {
+            context.fill(
+                Path(ellipseIn: CGRect(x: 32 - shadowWidth / 2, y: 59, width: shadowWidth, height: 4)),
+                with: .color(.black.opacity(0.22 - lift * 0.015))
+            )
+        }
 
         var figure = context
-        figure.translateBy(x: 32, y: 57 + bob)
+        // Carried: hangs from the top of its head (the grip point), so it swings from there.
+        let pivotY = mood == .carried ? 8.0 : 57.0
+        figure.translateBy(x: 32, y: pivotY + bob)
         figure.rotate(by: .radians(lean))
         figure.scaleBy(x: squash.x, y: squash.y)
-        figure.translateBy(x: -32, y: -57)
+        figure.translateBy(x: -32, y: -pivotY)
 
         // Halo.
         var halo = figure
@@ -129,7 +148,7 @@ struct WispView: View {
         case .napping:
             for x in eyes { context.stroke(arc(x: x, y: 31, width: 6, dip: 2), with: .color(Self.ink), style: .init(lineWidth: 2, lineCap: .round)) }
         default:
-            let height = 8 * (mood == .listening ? 1.1 : 1) * eyeOpen
+            let height = 8 * (mood == .listening ? 1.1 : (mood == .carried ? 1.2 : 1)) * (mood == .carried ? 1 : eyeOpen)
             for x in eyes {
                 context.fill(Path(ellipseIn: CGRect(x: x - 3, y: eyeY - height / 2, width: 6, height: height)), with: .color(Self.ink))
                 if mood == .thinking {
@@ -163,6 +182,9 @@ struct WispView: View {
             context.fill(Path(ellipseIn: CGRect(x: mouthX - 3, y: 40 - 3 * open, width: 6, height: 6 * open)), with: .color(Self.ink))
         case .listening:
             context.fill(Path(ellipseIn: CGRect(x: mouthX - 1.6, y: 38.5, width: 3.2, height: 3)), with: .color(Self.ink))
+        case .carried:
+            // A small surprised "o".
+            context.fill(Path(ellipseIn: CGRect(x: mouthX - 2.2, y: 38.5, width: 4.4, height: 5)), with: .color(Self.ink))
         case .worried:
             context.stroke(arc(x: mouthX, y: 41, width: 6, dip: -2), with: .color(Self.ink), style: .init(lineWidth: 2, lineCap: .round))
         case .napping:
