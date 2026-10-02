@@ -13,3 +13,7 @@ models/
 
 # Runtime logs
 logs/
+
+# Swift build output (ZENO Island)
+.build/
+apps/mac/island/build/

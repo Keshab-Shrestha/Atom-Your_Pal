@@ -195,6 +195,16 @@ Phase 0 establishes the fundamental ZENO request/response loop. It is complete (
 
 Phase 0.5 (current) puts that loop behind a desktop island: a panel hidden above the top-centre of the screen, revealed by hovering, with push-to-talk by holding Ctrl+Option in any app. See ROADMAP.md and TASK.md.
 
+The island app is built from `apps/mac/island/` (Swift; needs the Xcode Command Line Tools):
+
+```sh
+pnpm island:build   # makes apps/mac/island/build/ZENO.app
+pnpm island:open    # build and launch it
+pnpm island:test    # Swift tests
+```
+
+`ZENO.app` records where the project folder and Node.js are; rebuild it if either moves. It is still a skeleton: it runs ZENO in the background but shows nothing on screen until Task 0.5.4.
+
 ---
 
 ## 7. Phase 0 Goals

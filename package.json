@@ -10,7 +10,10 @@
     "start": "node --env-file-if-exists=.env apps/mac/src/main.ts",
     "test": "node --test \"**/*.test.ts\"",
     "test:live": "ZENO_LIVE_TESTS=1 node --env-file-if-exists=.env --test \"**/*.live.test.ts\"",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "island:build": "apps/mac/island/build-app.sh",
+    "island:open": "apps/mac/island/build-app.sh --open",
+    "island:test": "cd apps/mac/island && swift test"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",

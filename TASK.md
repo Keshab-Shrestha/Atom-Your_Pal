@@ -146,7 +146,7 @@ Note: `gemini-3.6-flash` had used its free daily quota, so the live turns used `
 
 ---
 
-### Task 0.5.3 — Island App Skeleton
+### Task 0.5.3 — Island App Skeleton ✅ Done (2026-10-02)
 
 Create the Swift app in `apps/mac/island/` (Swift Package, macOS 14+).
 
@@ -160,6 +160,15 @@ Create the Swift app in `apps/mac/island/` (Swift Package, macOS 14+).
 Tests: Swift unit tests for the event decoder and the restart policy.
 
 Verification: launching `ZENO.app` starts the runtime (seen in `logs/zeno.log`); quitting stops it.
+
+Result:
+
+- `apps/mac/island/`: Swift package with `ZenoIslandCore` (protocol, line splitting, restart policy, Node/project lookup, supervisor, log) and the `ZenoIsland` app. `pnpm island:build` makes `apps/mac/island/build/ZENO.app` (344 KB, ad hoc signed, `LSUIElement`), recording the project folder and Node path; `pnpm island:test` runs 33 Swift tests, including the supervisor against real child processes
+- Launched with `open`: background app, no Dock icon; runtime started as its child and ready in 0.6–1.1 s
+- Runtime killed: restarted after 1 s, ready again in 1.7 s. Restarts back off 1 → 2 → 5 → 10 → 30 s and stop after 5 quick failures; a configuration error (exit 78) is shown in an alert and not restarted
+- Quit, SIGTERM and SIGINT stop the runtime and its voice worker in 0.1–0.3 s; force-killing the app ends the runtime too (it exits when its input closes). A second launch defers to the running one
+- Fixed during testing: quitting by signal hung the app, because the wait for the runtime ran inside a main-queue block. Callbacks now reach the main thread through the run loop
+- Node: the build prefers Homebrew's (`/opt/homebrew/bin/node`, v26) over one inside another tool's folder; at least v22.18 is required (runs TypeScript directly). Starting from Finder, `/opt/homebrew/bin` is added to `PATH` so ffmpeg and whisper-cli are found
 
 ---
 
@@ -283,6 +292,6 @@ Never:
 
 ## 9. Current Priority
 
-Phase 0.5 — Desktop Island. Tasks 0.5.1–0.5.2 are done. Next task: 0.5.3 (Island App Skeleton).
+Phase 0.5 — Desktop Island. Tasks 0.5.1–0.5.3 are done. Next task: 0.5.4 (The Panel: Placement and Hover Reveal).
 
 Everything else waits.

@@ -42,9 +42,11 @@ The working directory is the project root, so `.env`, `models/` and `logs/` reso
 
 | Code | Meaning | Island should |
 |---|---|---|
-| 0 | Normal exit | Do nothing |
+| 0 | Normal exit | Do nothing if the island asked it to quit; otherwise restart |
 | 78 | Configuration error (e.g. missing API key). An `error` event with stage `config` is sent first | Show the message; do not restart until the user fixes it |
 | Other | Unexpected failure. An `error` event with stage `runtime` is sent first when possible | Restart, with increasing delay |
+
+The island (`RestartPolicy`, `RuntimeSupervisor` in `apps/mac/island/`) waits 1, 2, 5, 10, then 30 s between restarts. A run of 30 s or more resets the delays. After 5 restarts in a row that each failed quickly, it stops and explains. On quit it sends `quit`, closes stdin, then sends SIGTERM after 3 s and SIGKILL after 5 s if the runtime is still running.
 
 ---
 
