@@ -9,7 +9,10 @@ import ZenoIslandCore
 @MainActor
 final class IslandController {
     let model: IslandModel
+    let shortcuts: ShortcutEngine
     private let panel = IslandPanel()
+    /// Talk was started by its shortcut and not yet sent or cancelled: show the island at once.
+    private var talking = false
     private let hosting: NSHostingView<IslandView>
     private var hover = HoverController()
     private var geometry: IslandGeometry
@@ -32,9 +35,11 @@ final class IslandController {
     /// How long a notice or problem stays out.
     private let afterProblem = 6.0
 
-    init(settings: IslandSettings, trace: @escaping (String) -> Void = { _ in }) {
+    init(settings: IslandSettings, log: @escaping (String, [String: Any]) -> Void, trace: @escaping (String) -> Void = { _ in }) {
         self.trace = trace
         model = IslandModel(settings: settings)
+        shortcuts = ShortcutEngine(settings: settings, recorder: model.recorder, log: log)
+        model.shortcuts = shortcuts
         geometry = IslandController.currentGeometry()
         hosting = NSHostingView(rootView: IslandView(model: model))
         hosting.sizingOptions = [] // the controller sets the size; SwiftUI must not resize the window
@@ -42,6 +47,8 @@ final class IslandController {
         panel.setFrame(geometry.frame(presentation, visible: false), display: false)
         model.setExpanded = { [weak self] expanded in self?.setExpanded(expanded) }
         panel.onCancel = { [weak self] in self?.setExpanded(false) }
+        shortcuts.onTrigger = { [weak self] trigger in self?.shortcut(trigger) }
+        shortcuts.trace = trace
     }
 
     func start() {
@@ -75,9 +82,11 @@ final class IslandController {
         observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.spaceChanged() }
         })
+        shortcuts.start()
     }
 
     func stop() {
+        shortcuts.stop()
         for monitor in monitors { NSEvent.removeMonitor(monitor) }
         monitors = []
         for observer in observers {
@@ -129,9 +138,38 @@ final class IslandController {
         evaluate()
     }
 
-    /// Kept out during a turn and while expanded.
+    // MARK: - Shortcuts
+
+    private func shortcut(_ trigger: ShortcutTrigger) {
+        trace("shortcut \(trigger)")
+        switch trigger {
+        case .holdBegan(.talk):
+            talking = true
+            model.send(.talkStart)
+        case .holdEnded(.talk):
+            talking = false
+            model.send(.talkSend)
+        case .holdCancelled(.talk):
+            talking = false
+            model.send(.talkCancel)
+        case .pressed(.toggleIsland):
+            setExpanded(!model.expanded)
+        case .pressed(.cancel):
+            talking = false
+            model.send(.talkCancel)
+        case .holdBegan(.dictate), .holdEnded(.dictate), .holdCancelled(.dictate):
+            break // dictation is Task 0.5.7
+        default:
+            break
+        }
+        updateHeld()
+        evaluate()
+    }
+
+    /// Kept out during a turn, while talking by shortcut and while expanded.
     private func updateHeld() {
-        let held = model.status.isBusy || model.expanded
+        shortcuts.setBusy(model.status.isBusy || talking)
+        let held = model.status.isBusy || model.expanded || talking
         if hover.held != held {
             hover.held = held
             trace("held \(held)")

@@ -537,6 +537,21 @@ struct ShortcutSection: View {
                     }
                 }
             }
+            if let engine = model.shortcuts, !engine.canTrackKeys {
+                RowDivider()
+                VStack(alignment: .leading, spacing: 7) {
+                    Label("Hold shortcuts need Input Monitoring", systemImage: "keyboard.badge.ellipsis")
+                        .font(.system(size: 11.5, weight: .semibold))
+                        .foregroundStyle(.orange)
+                    Text("macOS asks before an app can see which keys are held. ZENO only watches for its own shortcuts, never what you type.")
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button("Allow in System Settings…") { engine.requestKeyAccess() }
+                        .controlSize(.small)
+                }
+                .padding(11)
+            }
             RowDivider()
             Text(footer)
                 .font(.system(size: 10))
@@ -550,7 +565,7 @@ struct ShortcutSection: View {
         if model.recorder.isRecording {
             return "Press the new keys. For a hold shortcut, hold the modifiers (e.g. ⌃⌥ or Right ⌥) and let go. Esc cancels, Delete turns it off."
         }
-        return "Click a shortcut to change it. Shortcuts start working in other apps in the next update."
+        return "Click a shortcut to change it. Shortcuts work in every app; Cancel only while ZENO listens or speaks. Dictate arrives in the next update."
     }
 }
 

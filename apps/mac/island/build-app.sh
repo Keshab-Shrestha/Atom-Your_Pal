@@ -63,11 +63,24 @@ cat > "$app/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-codesign --force --sign - --identifier dev.zeno.island "$app" >/dev/null 2>&1 || echo "warning: ad hoc signing failed" >&2
+identity="ZENO Local Signing"
+keychain="$HOME/Library/Keychains/zeno-signing.keychain-db"
+secret="$HOME/.config/zeno/signing-keychain-password"
+if [ -f "$keychain" ] && [ -f "$secret" ]; then
+  # Stable signature: permissions survive rebuilds (ADR-040).
+  security unlock-keychain -p "$(cat "$secret")" "$keychain"
+  codesign --force --sign "$identity" --keychain "$keychain" --identifier dev.zeno.island "$app" \
+    || { echo "Signing with \"$identity\" failed" >&2; exit 1; }
+  signed="$identity"
+else
+  codesign --force --sign - --identifier dev.zeno.island "$app" >/dev/null 2>&1 || echo "warning: ad hoc signing failed" >&2
+  signed="ad hoc (permissions are asked for again after each rebuild; run make-signing-identity.sh once to fix)"
+fi
 
 echo "Built $app"
 echo "  project: $root"
 echo "  node:    $node ($("$node" --version))"
+echo "  signed:  $signed"
 
 if [ "${1:-}" = "--open" ]; then
   open "$app"

@@ -1,5 +1,5 @@
 // ZENO Island: a background app (no Dock icon, no main window) that runs the ZENO runtime.
-// Task 0.5.3 is the skeleton: it starts, supervises and stops the runtime. The panel arrives in 0.5.4.
+// It starts, supervises and stops the runtime, shows the island and listens for ZENO's shortcuts.
 import AppKit
 import ZenoIslandCore
 
@@ -58,7 +58,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for action in settings.unreadableShortcuts {
             log.warn("settings.shortcut_unreadable", ["action": action.rawValue])
         }
-        let island = IslandController(settings: settings, trace: { message in
+        let log = self.log
+        let island = IslandController(settings: settings, log: { event, fields in log.info(event, fields) }, trace: { message in
             if trace { FileHandle.standardError.write(Data("\(message)\n".utf8)) }
         })
         self.island = island

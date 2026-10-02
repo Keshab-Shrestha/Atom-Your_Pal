@@ -34,6 +34,8 @@ final class IslandModel {
 
     let settings: IslandSettings
     let recorder: ShortcutRecorder
+    /// Listens for shortcuts in every app. Set by the controller.
+    @ObservationIgnored weak var shortcuts: ShortcutEngine?
 
     /// Sends a command to the runtime. Set by the app.
     @ObservationIgnored var send: (IslandCommand) -> Void = { _ in }

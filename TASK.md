@@ -219,7 +219,9 @@ Result:
 
 ---
 
-### Task 0.5.5 — Expanded Island With Settings (ADR-038, ADR-040)
+### Task 0.5.5 — Expanded Island With Settings (ADR-038, ADR-040) ✅ Done (2026-10-02)
+
+Verified: Swift and Node tests; each tab rendered and reviewed with sample data (`ZENO_ISLAND_GALLERY`). Live model switching is still to be tried with the real runtime.
 
 Click the compact card: it expands from the same corner into a larger glass panel with tabs.
 
@@ -238,7 +240,9 @@ Verification: open the panel from another app without that app losing focus; swi
 
 ---
 
-### Task 0.5.6 — Shortcuts Work Everywhere (ADR-040)
+### Task 0.5.6 — Shortcuts Work Everywhere (ADR-040) — code done; live check partial (2026-10-02)
+
+Checked live against a fake runtime with posted key events: hold ⌃⌥ sends `talk.start` then `talk.send`; a quick tap does nothing; ⌃⌥← does not talk; another key while held sends `talk.cancel`; ⌃⌥Z opens and closes the island; Right ⌥ starts Dictate. Still to check by hand: Esc only while busy, Right ⌥+letter typing an accent, a changed shortcut working at once, the Input Monitoring prompt from a fresh install. Signing: `make-signing-identity.sh` creates "ZENO Local Signing" in its own keychain (`~/Library/Keychains/zeno-signing.keychain-db`) so `build-app.sh` signs without a password prompt.
 
 - Local signing certificate "ZENO Local Signing" so permissions survive rebuilds; `build-app.sh` signs with it
 - Shortcut engine: Carbon hot keys for chords; listen-only event tap for hold and modifier-only shortcuts (clean press only)
@@ -349,6 +353,6 @@ Never:
 
 ## 9. Current Priority
 
-Phase 0.5 — Desktop Island. Tasks 0.5.1–0.5.4b are done. Keshab asked for settings in the island, changeable shortcuts, dictation and a pet (ADR-039 to ADR-042). Current task: 0.5.5 (Expanded Island With Settings).
+Phase 0.5 — Desktop Island. Tasks 0.5.1–0.5.4b are done. Keshab asked for settings in the island, changeable shortcuts, dictation and a pet (ADR-039 to ADR-042). Current task: 0.5.8 (The Pet); 0.5.6 awaits its remaining hand checks and 0.5.7 (Dictation) waits for voice testing.
 
 Everything else waits.
