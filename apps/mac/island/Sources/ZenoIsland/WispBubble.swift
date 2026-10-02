@@ -152,12 +152,16 @@ final class BubbleController {
         panel.orderOut(nil)
     }
 
-    private func reposition() {
+    /// The area a window next to Wisp must stay inside: the display `point` is on, below its menu bar.
+    static func displayBounds(containing point: CGPoint) -> CGRect? {
         let screens = NSScreen.screens
-        guard let screen = screens.first(where: { $0.frame.insetBy(dx: -1, dy: -1).contains(feet) }) ?? screens.first else { return }
-        // Inside the display, below its menu bar.
-        let bounds = CGRect(x: screen.frame.minX, y: screen.frame.minY, width: screen.frame.width,
-                            height: screen.visibleFrame.maxY - screen.frame.minY)
+        guard let screen = screens.first(where: { $0.frame.insetBy(dx: -1, dy: -1).contains(point) }) ?? screens.first else { return nil }
+        return CGRect(x: screen.frame.minX, y: screen.frame.minY, width: screen.frame.width,
+                      height: screen.visibleFrame.maxY - screen.frame.minY)
+    }
+
+    private func reposition() {
+        guard let bounds = Self.displayBounds(containing: feet) else { return }
         let placement = BubbleLayout.place(feet: feet, in: bounds)
         let tailOnTop = placement.side == .below
         if state.tailX != placement.tailX { state.tailX = placement.tailX }

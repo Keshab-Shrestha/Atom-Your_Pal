@@ -885,6 +885,34 @@ Unit tests cover the tap and hold rules, filler removal, preview timing and text
 
 ---
 
+## ADR-051 — Wisp Holds the Island: Click to Open, Tuck Away When Idle
+
+Date: 2026-10-02. Extends ADR-050 and ADR-043; replaces the left-edge card whenever Wisp is on.
+
+### Decision
+
+- **No more card at the left edge while Wisp is on.** The left edge is where other apps put their own hover panels, and the island collided with them. With Wisp on, the island never slides out of the left edge: status shows in Wisp's speech bubble (ADR-050) and the features panel opens beside Wisp. With Wisp switched off in Settings, the left-edge card works exactly as before.
+- **Click or double-click Wisp to open the features panel** (Conversation, Status, Settings). It opens above Wisp, or below it near the top of the display, slides sideways to stay on screen, and follows Wisp if it is dragged. It grows out of Wisp and folds back into it. Another click on Wisp closes it; a double-click always leaves it open. Esc, a click in another app, the collapse button and ⌃⌥Z close or toggle it as before. Wisp stands still while the panel is open.
+- **Double-click no longer sends Wisp home.** That moved to the right-click menu ("Back to the Dock"), which also gets "Tuck away".
+- **Tuck away after a timeout** (Settings → Extras → Wisp → "Tuck away after": Never, 15 s, 30 s, 1 min, 5 min; default 1 min). After that long with no click, hover, shortcut or change in ZENO's state, Wisp slides to the nearer side edge of its display, at the height it was at, turned on its side so only its head shows past the edge. It never hides while dragged, reacting, holding the panel open, or under the pointer.
+- **Coming back out:** pointing at the head slides it out a little more; a click opens the panel (Wisp stands up where it was). A shortcut, a dictation or anything ZENO has to show brings it out at once, with its bubble.
+- **Two displays:** an edge that touches another display at Wisp's height is skipped, so Wisp is never half on the wrong screen. If neither edge is free it stays where it is.
+
+### Reason
+
+Keshab: the island collided with apps that use the display's edge, so Wisp should hold it, and Wisp should step out of the way when idle.
+
+### Alternatives Considered
+
+- **Keeping the edge card as a fallback while Wisp is on:** rejected; that is the collision this removes.
+- **Hiding Wisp completely when idle:** rejected; a visible head shows ZENO is alive and gives something to point at.
+
+### Verification
+
+Unit tests cover the edge choice (nearer edge, neighbouring displays, neighbour above or at a different height), the idle timer (timeout, never, blocked), the click rules and the panel's placement (241 Swift tests). On the real screen, with two displays: Wisp tucked at the left edge, its window moved from x=1600 to x=-34 and its head stayed inside the display, the nearer right edge being skipped because it touches the second display; a dictation brought it back out with the bubble; real clicks on Wisp opened and closed the panel. Not yet checked by hand: the look of the tuck and the panel's grow-out animation, the panel following a dragged Wisp, and the hover nudge.
+
+---
+
 ## Final Architectural Principle
 
 > Preserve the future without prematurely implementing it.

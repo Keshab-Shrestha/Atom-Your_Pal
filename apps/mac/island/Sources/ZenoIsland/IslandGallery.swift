@@ -54,7 +54,7 @@ enum IslandGallery {
         }
         // The Settings tab is taller than the window and scrolls: render it tall once, so the lower cards can be reviewed.
         model.tab = .settings
-        write(model, size: CGSize(width: expanded.width, height: 900), name: "2-settings-full", to: directory)
+        write(model, size: CGSize(width: expanded.width, height: 1150), name: "2-settings-full", to: directory)
         model.recorder.start(.talk)
         write(model, size: expanded, name: "3-recording-shortcut", to: directory)
         model.recorder.stop()
@@ -63,6 +63,38 @@ enum IslandGallery {
         write(model, size: expanded, name: "4-empty-conversation", to: directory)
         writePet(to: directory)
         writeBubbles(to: directory)
+        writePeek(to: directory)
+    }
+
+    /// Wisp tucked against the left and right edges (ADR-051): turned on its side, head showing past the edge.
+    private static func writePeek(to directory: URL) {
+        func edge(_ title: String, left: Bool, revealed: Bool) -> some View {
+            let feetX: CGFloat = 100
+            let inset = PeekLayout.inset + (revealed ? PeekLayout.revealExtra : 0)
+            let centreX: CGFloat = left ? inset : 200 - inset
+            return VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+                ZStack(alignment: .topLeading) {
+                    LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.26, green: 0.31, blue: 0.45)], startPoint: .top, endPoint: .bottom)
+                    WispView(mood: .resting, time: 0.4, facing: left ? 1 : -1, size: PetController.size)
+                        .rotationEffect(.degrees(left ? 90 : -90))
+                        .position(x: centreX, y: feetX)
+                    Rectangle().fill(.white.opacity(0.35)).frame(width: 1.5, height: 200).offset(x: left ? 0 : 198.5)
+                }
+                .frame(width: 200, height: 200)
+                .clipped()
+                .overlay(Text("display edge").font(.system(size: 9)).foregroundStyle(.white.opacity(0.5)).padding(5), alignment: left ? .bottomLeading : .bottomTrailing)
+                .accessibilityHidden(true)
+            }
+        }
+        let sheet = HStack(alignment: .top, spacing: 18) {
+            edge("Left edge", left: true, revealed: false)
+            edge("Left, pointer over it", left: true, revealed: true)
+            edge("Right edge", left: false, revealed: false)
+        }
+        .padding(20)
+        .background(Color(white: 0.08))
+        save(sheet, name: "7-wisp-peek", to: directory)
     }
 
     /// Wisp's speech bubble in the states that matter: dictating with words, hands-free, thinking, a notice, and flipped below Wisp.

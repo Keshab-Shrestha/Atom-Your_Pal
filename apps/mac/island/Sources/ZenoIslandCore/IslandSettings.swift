@@ -16,6 +16,7 @@ public final class IslandSettings {
     static let petKey = "zeno.petEnabled"
     static let soundsKey = "zeno.soundsEnabled"
     static let petSpotKey = "zeno.petSpot"
+    static let wispHideKey = "zeno.wispHideAfter"
 
     @ObservationIgnored private let defaults: UserDefaults
     /// Mirrors what is stored, so views observe changes.
@@ -43,6 +44,11 @@ public final class IslandSettings {
             }
             revision += 1
         }
+    }
+
+    /// How long Wisp sits idle before it tucks itself against a side edge (ADR-051). Default one minute.
+    public var wispHideAfter: WispHideTimeout {
+        didSet { defaults.set(wispHideAfter.rawValue, forKey: Self.wispHideKey); revision += 1 }
     }
 
     /// Start and stop sounds. Default on.
@@ -78,6 +84,7 @@ public final class IslandSettings {
         self.defaults = defaults
         petEnabled = defaults.object(forKey: Self.petKey) as? Bool ?? true
         soundsEnabled = defaults.object(forKey: Self.soundsKey) as? Bool ?? true
+        wispHideAfter = (defaults.object(forKey: Self.wispHideKey) as? Int).flatMap(WispHideTimeout.init(rawValue:)) ?? .minute1
         dictationMode = (defaults.string(forKey: Self.dictationModeKey)).flatMap(DictationMode.init(rawValue:)) ?? .automatic
         livePreview = defaults.object(forKey: Self.livePreviewKey) as? Bool ?? true
         removeFillers = defaults.object(forKey: Self.removeFillersKey) as? Bool ?? true

@@ -6,7 +6,10 @@ import ZenoIslandCore
 ///
 /// - By default Wisp wanders the "walkway" along the top of the Dock on the primary display.
 /// - Drag it anywhere, on any display: it stays there ("parked", remembered across launches). Drop it back on
-///   the Dock walkway and it wanders again. Double-click, or right-click → "Back to the Dock", sends it home.
+///   the Dock walkway and it wanders again. Right-click → "Back to the Dock" sends it home.
+/// - A click or double-click opens the features panel beside it (ADR-051); Wisp stands still while it is open.
+/// - After the idle timeout it tucks against a side edge, turned so only its head shows (ADR-051), and comes
+///   back when the pointer reaches it or ZENO has something to show.
 /// - Clicks pass straight through everything except Wisp's body: the window only listens while the pointer is
 ///   over Wisp, so the transparent margin never blocks the app underneath.
 /// - It never takes focus. It joins every Space and shows over full-screen apps. Shown only while the Pet
@@ -31,12 +34,27 @@ final class PetController {
     var onHide: () -> Void = {}
     /// Wisp moved (walking, dragged, or settling): its feet in screen coordinates. The speech bubble follows.
     var onMove: (CGPoint) -> Void = { _ in }
+    /// Wisp was pressed and let go without being dragged: the click count (2 for a double-click).
+    var onClick: (Int) -> Void = { _ in }
     /// The point on the ground under Wisp now.
     var feetPoint: CGPoint { feet }
+    /// Where Wisp stands, or will stand once it has come out of hiding: the features panel is placed from this.
+    var anchorFeet: CGPoint { dragging ? feet : standingFeet() }
+    /// Wisp is tucked against an edge.
+    var isHidden: Bool { peek != nil }
 
     private let settings: IslandSettings
     private let window: NSPanel
     private let content: PetContentView
+    /// When Wisp is due to tuck away.
+    private var retreat: PetRetreat
+    /// Where Wisp is hiding, if it is.
+    private var peek: Peek?
+    /// How far Wisp is turned now, in degrees: eases toward the hiding angle and back.
+    private var rotation = 0.0
+    /// Standing still while the features panel is open.
+    private var frozen = false
+    private var lastKind = IslandStatus.Kind.starting
     private let state = PetState()
     private var brain = PetBrain(width: 800, now: PetController.now)
     private var timer: Timer?
@@ -59,14 +77,18 @@ final class PetController {
     private var dragging = false
     private var grabOffset = CGSize.zero
     private var pressStart = CGPoint.zero
+    private var pressCount = 1
+    /// The pointer is over Wisp (read by the next frame).
+    private var pointerOver = false
 
     static var now: Double { ProcessInfo.processInfo.systemUptime }
 
     init(settings: IslandSettings, trace: @escaping (String) -> Void = { _ in }) {
         self.settings = settings
         self.trace = trace
+        retreat = PetRetreat(timeout: settings.wispHideAfter.seconds, now: PetController.now)
         let side = Self.side
-        window = NSPanel(contentRect: NSRect(x: 0, y: 0, width: side, height: side), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
+        window = PetPanel(contentRect: NSRect(x: 0, y: 0, width: side, height: side), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = false
@@ -85,6 +107,8 @@ final class PetController {
         content.onUp = { [weak self] in self?.pointerUp() }
         content.onHome = { [weak self] in self?.sendHome() }
         content.onHide = { [weak self] in self?.onHide() }
+        content.onTuck = { [weak self] in self?.tuckAway() }
+        content.isTucked = { [weak self] in self?.peek != nil }
         content.isParked = { [weak self] in self?.brain.pinned ?? false }
     }
 
@@ -96,6 +120,10 @@ final class PetController {
         if enabled {
             let now = Self.now
             brain = PetBrain(width: 800, now: now)
+            retreat.wake(at: now)
+            peek = nil
+            rotation = 0
+            frozen = false
             place()
             if let spot = settings.petSpot, screenContains(CGPoint(x: spot.x, y: spot.y)) {
                 brain.drop(homeX: nil, at: now)
@@ -122,11 +150,48 @@ final class PetController {
     /// ZENO's state changed.
     func update(_ kind: IslandStatus.Kind) {
         brain.update(status: kind, at: Self.now)
+        if kind != lastKind {
+            lastKind = kind
+            wake() // ZENO has something to show: Wisp comes out of hiding to show it
+        }
     }
 
-    /// Something the user did (a shortcut, opening the island): wakes a napping Wisp.
+    /// Something the user did (a shortcut, opening the panel): wakes a napping Wisp and brings it out of hiding.
     func poke() {
         brain.poke(at: Self.now)
+        wake()
+    }
+
+    /// Wisp stands still while the features panel is open, and its idle timer restarts when it closes.
+    func setFrozen(_ frozen: Bool) {
+        guard frozen != self.frozen else { return }
+        self.frozen = frozen
+        wake()
+    }
+
+    /// Restarts the idle timer, and brings Wisp out if it was hiding.
+    private func wake() {
+        retreat.wake(at: Self.now)
+        guard peek != nil else { return }
+        peek = nil
+        settling = true
+        trace("pet out of hiding")
+    }
+
+    /// Development only: a snapshot of where Wisp is, for the live demo.
+    var debugState: String { "feet=\(Int(feet.x)),\(Int(feet.y)) hidden=\(peek != nil) edge=\(peek.map { $0.edge == .left ? "left" : "right" } ?? "-") turn=\(Int(rotation)) frozen=\(frozen)" }
+
+    /// Tucks Wisp against the nearest free edge now (the right-click menu), or does nothing if neither is free.
+    func tuckAway() {
+        guard peek == nil, window.isVisible, !dragging, !frozen else { return } // not while the panel is open
+        let displays = NSScreen.screens.map(\.frame)
+        guard let chosen = PeekLayout.choose(feet: standingFeet(), displays: displays) else {
+            trace("pet cannot hide: both edges touch another display")
+            return
+        }
+        peek = chosen
+        settling = true
+        trace("pet hiding at the \(chosen.edge == .left ? "left" : "right") edge")
     }
 
     func stop() {
@@ -151,15 +216,32 @@ final class PetController {
         let dt = CGFloat(min(max(now - lastTick, 0), 0.1))
         lastTick = now
 
-        let mood = brain.step(to: now)
+        retreat.timeout = settings.wispHideAfter.seconds
+        let over = dragging || bodyRect().contains(NSEvent.mouseLocation)
+        pointerOver = over
+        // Hiding or holding the panel: the brain does not wander, so Wisp comes back to where it was.
+        var mood = frozen || peek != nil ? brain.mood : brain.step(to: now)
+        if frozen, mood == .floating { mood = .resting }
+        if peek != nil, !mood.isReacting { mood = .resting } // hiding: awake, eyes open, not a nap with z's turned sideways
+        if mood == .napping, peek != nil { mood = .resting }
         state.mood = mood
         state.facing = brain.facing
         state.time = now
 
+        if over, peek == nil { retreat.wake(at: now) } // never hides from under the pointer
+        if peek == nil, retreat.isDue(at: now, blocked: dragging || frozen || mood.isReacting) { tuckAway() }
+        if peek != nil, retreat.timeout == 0 { wake() } // the setting was switched to Never
+
         if !dragging {
-            let target = brain.pinned ? parkedFeet() : walkwayFeet()
-            if settling {
-                // An ease-out toward the target: quick at first, gentle at the end.
+            let normal = standingFeet()
+            let target = peek.map { PeekLayout.feet(for: $0, y: normal.y, revealed: pointerOver) } ?? normal
+            let wantedTurn = peek.map(PeekLayout.rotation(for:)) ?? 0
+            rotation += (wantedTurn - rotation) * Double(1 - exp(-12 * dt))
+            if abs(wantedTurn - rotation) < 0.3 { rotation = wantedTurn }
+            state.rotation = rotation
+            if settling || peek != nil {
+                // An ease-out toward the target: quick at first, gentle at the end. While hiding it also
+                // eases the head out and back as the pointer comes and goes.
                 let k = 1 - exp(-14 * dt)
                 feet.x += (target.x - feet.x) * k
                 feet.y += (target.y - feet.y) * k
@@ -174,7 +256,6 @@ final class PetController {
         }
 
         // Only listen to the pointer while it is over Wisp (or Wisp is being dragged).
-        let over = dragging || bodyRect().contains(NSEvent.mouseLocation)
         if window.ignoresMouseEvents == over { window.ignoresMouseEvents = !over }
 
         if now - lastTrace >= 1 {
@@ -193,7 +274,14 @@ final class PetController {
 
     /// Wisp's body in screen coordinates: where a press grabs it.
     private func bodyRect() -> CGRect {
-        CGRect(x: feet.x - 22, y: feet.y - 4, width: 44, height: 54)
+        // Turned on its side, Wisp is wider than tall, and centred a little higher.
+        if abs(rotation) > 45 { return CGRect(x: feet.x - 27, y: feet.y + 3, width: 54, height: 44) }
+        return CGRect(x: feet.x - 22, y: feet.y - 4, width: 44, height: 54)
+    }
+
+    /// Where Wisp's feet are when it is out: its place on the Dock walkway, or its parked spot.
+    private func standingFeet() -> CGPoint {
+        brain.pinned ? parkedFeet() : walkwayFeet()
     }
 
     // MARK: - The walkway
@@ -243,10 +331,7 @@ final class PetController {
 
     private func pointerDown(_ event: NSEvent) {
         poke()
-        if event.clickCount >= 2 {
-            sendHome()
-            return
-        }
+        pressCount = event.clickCount
         pressed = true
         pressStart = NSEvent.mouseLocation
         grabOffset = CGSize(width: NSEvent.mouseLocation.x - feet.x, height: NSEvent.mouseLocation.y - feet.y)
@@ -268,8 +353,13 @@ final class PetController {
     }
 
     private func pointerUp() {
+        let wasClick = pressed && !dragging
         pressed = false
-        if dragging { drop() }
+        if dragging {
+            drop()
+        } else if wasClick {
+            onClick(pressCount) // pressed and let go without moving: open (or close) the features panel
+        }
     }
 
     private func endDrag() {
@@ -332,6 +422,8 @@ final class PetState {
     var mood = PetBrain.Mood.resting
     var facing = 1.0
     var time = 0.0
+    /// Degrees clockwise: 0 upright, ±90 while hiding at an edge.
+    var rotation = 0.0
 }
 
 /// Draws Wisp for the current state.
@@ -341,6 +433,7 @@ struct PetStage: View {
 
     var body: some View {
         WispView(mood: state.mood, time: state.time, facing: state.facing, size: size)
+            .rotationEffect(.degrees(state.rotation))
     }
 }
 
@@ -351,7 +444,9 @@ final class PetContentView: NSView {
     var onUp: () -> Void = {}
     var onHome: () -> Void = {}
     var onHide: () -> Void = {}
+    var onTuck: () -> Void = {}
     var isParked: () -> Bool = { false }
+    var isTucked: () -> Bool = { false }
 
     override func hitTest(_ point: NSPoint) -> NSView? { frame.contains(point) ? self : nil }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
@@ -365,6 +460,10 @@ final class PetContentView: NSView {
         home.target = self
         home.isEnabled = isParked()
         menu.addItem(home)
+        let tuck = NSMenuItem(title: "Tuck away", action: #selector(tuckAway), keyEquivalent: "")
+        tuck.target = self
+        tuck.isEnabled = !isTucked()
+        menu.addItem(tuck)
         let hide = NSMenuItem(title: "Hide Wisp", action: #selector(hideWisp), keyEquivalent: "")
         hide.target = self
         menu.addItem(hide)
@@ -372,5 +471,11 @@ final class PetContentView: NSView {
     }
 
     @objc private func goHome() { onHome() }
+    @objc private func tuckAway() { onTuck() }
     @objc private func hideWisp() { onHide() }
+}
+
+/// Wisp's window. Hiding puts most of Wisp past the edge of the display, so AppKit must not pull it back on.
+final class PetPanel: NSPanel {
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
 }

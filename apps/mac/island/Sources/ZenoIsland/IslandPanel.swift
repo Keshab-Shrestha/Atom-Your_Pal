@@ -51,9 +51,9 @@ struct IslandView: View {
     static let expandedCornerRadius: CGFloat = 22
 
     var body: some View {
-        let radius = model.expanded ? IslandView.expandedCornerRadius : IslandView.cornerRadius
+        let radius = model.showsExpanded ? IslandView.expandedCornerRadius : IslandView.cornerRadius
         ZStack(alignment: .topLeading) {
-            if model.expanded {
+            if model.showsExpanded {
                 ExpandedView(model: model)
                     .transition(.opacity)
             } else {
@@ -76,7 +76,7 @@ struct IslandView: View {
         .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         .environment(\.colorScheme, .dark)
         .environment(\.islandSnapshot, snapshot)
-        .animation(.easeOut(duration: 0.16), value: model.expanded)
+        .animation(.easeOut(duration: 0.16), value: model.showsExpanded)
     }
 }
 

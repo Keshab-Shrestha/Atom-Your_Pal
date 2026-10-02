@@ -412,9 +412,30 @@ struct SettingsTab: View {
                 ShortcutSection(model: model)
                 DictationSection(model: model)
                 Card("Extras") {
-                    Row(title: "Pet", detail: "Wisp floats along the bottom of the screen") {
+                    Row(title: "Wisp", detail: "Shows ZENO's status and opens this panel when clicked") {
                         Toggle("", isOn: Binding(get: { model.settings.petEnabled }, set: { model.setPet($0) }))
                             .labelsHidden().toggleStyle(.switch).controlSize(.mini)
+                    }
+                    if model.settings.petEnabled {
+                        RowDivider()
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Tuck away after").font(.system(size: 12, weight: .semibold))
+                            FlowLayout(spacing: 5) {
+                                ForEach(WispHideTimeout.allCases) { timeout in
+                                    ModelChip(name: timeout.title, selected: model.settings.wispHideAfter == timeout, pending: false, enabled: true) {
+                                        model.settings.wispHideAfter = timeout
+                                    }
+                                }
+                            }
+                            Text(model.settings.wispHideAfter == .never
+                                 ? "Wisp stays where you put it"
+                                 : "With nothing to do, Wisp slides to a side edge and only its head shows. It comes back when you point at it or ZENO has something to show")
+                                .font(.system(size: 10.5))
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 9)
                     }
                     RowDivider()
                     Row(title: "Sounds", detail: "A soft tone when listening starts and stops") {

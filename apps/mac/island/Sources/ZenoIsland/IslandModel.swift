@@ -30,7 +30,12 @@ final class IslandModel {
     var modelError: String?
 
     var expanded = false
+    /// The panel is fading out after being closed: it still draws the expanded view until it is gone.
+    var closing = false
     var tab = Tab.conversation
+
+    /// Draw the expanded view (open, or fading out).
+    var showsExpanded: Bool { expanded || closing }
 
     let settings: IslandSettings
     let recorder: ShortcutRecorder

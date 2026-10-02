@@ -32,6 +32,10 @@ final class IslandController {
     private var monitors: [Any] = []
     private var observers: [NSObjectProtocol] = []
     private var recheck: Timer?
+    /// The features panel is open (or fading out) beside Wisp rather than at the left edge (ADR-051).
+    private var anchored = false
+    /// Counts opens and closes, so a fade that finished late cannot hide a panel that was opened again.
+    private var panelGeneration = 0
     private var lastTrigger = false
     private var lastTitle = ""
     /// Development only: when set, a PNG of the island is written here each time its title changes.
@@ -79,9 +83,15 @@ final class IslandController {
         model.petChanged = { [weak self] enabled in
             guard let self else { return }
             self.pet.setEnabled(enabled)
+            if !enabled, self.anchored, self.model.expanded { self.moveToLeftEdge() } // Wisp is gone: the panel goes back to the edge
             self.statusChanged() // the status moves between Wisp's bubble and the island
         }
-        pet.onMove = { [weak self] feet in self?.bubble.follow(feet) }
+        pet.onMove = { [weak self] feet in
+            guard let self else { return }
+            self.bubble.follow(feet)
+            self.followWisp()
+        }
+        pet.onClick = { [weak self] count in self?.wispClicked(count) }
         pet.onHide = { [weak model] in model?.setPet(false) } // right-click → Hide Wisp
     }
 
@@ -120,6 +130,7 @@ final class IslandController {
         pet.setEnabled(model.settings.petEnabled)
         dictation.warmUp()
         if ProcessInfo.processInfo.environment["ZENO_BUBBLE_DEMO"] != nil { playBubbleDemo() }
+        if ProcessInfo.processInfo.environment["ZENO_PANEL_DEMO"] != nil { playPanelDemo() }
                 if let files = ProcessInfo.processInfo.environment["ZENO_DICTATION_FILE"] { dictation.selfTest(files: files.split(separator: ",").map(String.init)) }
     }
 
@@ -311,6 +322,12 @@ final class IslandController {
     // MARK: - Pointer
 
     private func evaluate() {
+        // With Wisp out, the left edge is left alone (ADR-051): Wisp carries status and opens the panel, so the
+        // edge never collides with other apps that live there. Only an old edge card still on screen is put away.
+        if pet.isShown {
+            if shown, !model.expanded, !model.closing { setShown(false) }
+            return
+        }
         let point = NSEvent.mouseLocation
         let trigger = geometry.inTrigger(point)
         if trigger != lastTrigger {
@@ -345,6 +362,71 @@ final class IslandController {
         guard expanded != model.expanded else { return }
         trace(expanded ? "expand" : "collapse")
         if !expanded { model.recorder.stop() }
+        if expanded ? pet.isShown : anchored {
+            setExpandedBesideWisp(expanded)
+        } else {
+            setExpandedAtEdge(expanded)
+        }
+    }
+
+    /// The features panel opens above (or below) Wisp, and fades away when closed.
+    private func setExpandedBesideWisp(_ expanded: Bool) {
+        panelGeneration += 1
+        let generation = panelGeneration
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        model.expanded = expanded
+        model.closing = !expanded
+        presentation = expanded ? .expanded : .compact
+        panel.acceptsKeyFocus = expanded
+        pet.setFrozen(expanded)
+        updateHeld()
+        updateBubble()
+
+        if expanded {
+            anchored = true
+            let target = wispPanelFrame()
+            if !shown || !panel.isVisible {
+                // Grows out of Wisp: starts a little smaller, nearer Wisp, and transparent.
+                panel.setFrame(reduceMotion ? target : Self.shrunk(target, toward: pet.anchorFeet), display: false)
+                panel.alphaValue = 0
+                panel.orderFrontRegardless()
+            }
+            shown = true
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = reduceMotion ? 0.12 : 0.26
+                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.25, 1)
+                if !reduceMotion { panel.animator().setFrame(target, display: true) }
+                panel.animator().alphaValue = 1
+            }
+            panel.makeKey() // key, without activating ZENO: the app you were in stays active
+        } else {
+            panel.resignKey()
+            let target = Self.shrunk(panel.frame, toward: pet.anchorFeet)
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = reduceMotion ? 0.1 : 0.18
+                context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+                if !reduceMotion { panel.animator().setFrame(target, display: true) }
+                panel.animator().alphaValue = 0
+            }, completionHandler: { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self, generation == self.panelGeneration else { return }
+                    self.panel.orderOut(nil)
+                    self.panel.alphaValue = 1
+                    self.shown = false
+                    self.anchored = false
+                    self.model.closing = false
+                    self.model.status.acknowledge()
+                    self.model.meter.reset()
+                    self.updateHeld()
+                    self.updateBubble()
+                    self.evaluate()
+                }
+            })
+        }
+    }
+
+    /// The old behaviour, with no Wisp: the card at the left edge grows into the panel and folds back.
+    private func setExpandedAtEdge(_ expanded: Bool) {
         model.expanded = expanded
         presentation = expanded ? .expanded : .compact
         panel.acceptsKeyFocus = expanded
@@ -374,9 +456,57 @@ final class IslandController {
         evaluate()
     }
 
+    /// Wisp was switched off while its panel was open: the panel goes to the left edge, where it opens without Wisp.
+    private func moveToLeftEdge() {
+        anchored = false
+        pet.setFrozen(false)
+        let target = geometry.frame(.expanded, visible: true)
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.28
+            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.25, 1)
+            panel.animator().setFrame(target, display: true)
+        }
+    }
+
+    /// A press on Wisp that was not a drag: opens the features panel, or closes it (ADR-051).
+    private func wispClicked(_ count: Int) {
+        trace("wisp click \(count)")
+        switch PetClickAction.forPress(clickCount: count, panelOpen: model.expanded) {
+        case .open: setExpanded(true)
+        case .close: setExpanded(false)
+        case .none: break
+        }
+    }
+
+    /// Where the features panel goes: beside Wisp, on Wisp's display, inside it.
+    private func wispPanelFrame() -> CGRect {
+        let feet = pet.anchorFeet
+        guard let bounds = BubbleController.displayBounds(containing: feet) else { return geometry.frame(.expanded, visible: true) }
+        let base = geometry.metrics.expanded
+        let size = CGSize(width: min(base.width, bounds.width - 16), height: min(base.height, bounds.height - 16))
+        return BubbleLayout.place(feet: feet, gap: 8, size: size, in: bounds).frame
+    }
+
+    /// The panel keeps its place beside Wisp while Wisp is dragged.
+    private func followWisp() {
+        guard anchored, model.expanded, panel.isVisible else { return }
+        let target = wispPanelFrame()
+        if panel.frame != target { panel.setFrame(target, display: true) }
+    }
+
+    /// `frame` made a little smaller around its edge nearest `point`: how the panel grows out of, and folds back into, Wisp.
+    private static func shrunk(_ frame: CGRect, toward point: CGPoint) -> CGRect {
+        let scale: CGFloat = 0.82
+        let size = CGSize(width: frame.width * scale, height: frame.height * scale)
+        let fx = frame.width > 0 ? min(max((point.x - frame.minX) / frame.width, 0), 1) : 0.5
+        let fy = frame.height > 0 ? min(max((point.y - frame.minY) / frame.height, 0), 1) : 0.5
+        return CGRect(x: frame.minX + (frame.width - size.width) * fx, y: frame.minY + (frame.height - size.height) * fy,
+                      width: size.width, height: size.height)
+    }
+
     private func clickedOutside() {
-        guard model.expanded else { return }
-        // Global monitors only see clicks in other apps, so this was not on the island.
+        guard model.expanded, !model.closing else { return }
+        // Global monitors only see clicks in other apps, so this was not on the island or Wisp.
         setExpanded(false)
     }
 
@@ -435,6 +565,33 @@ final class IslandController {
         }
     }
 
+    /// Development only (`ZENO_PANEL_DEMO=1`): tucks Wisp away, brings it back with a click, opens and closes the
+    /// features panel, and runs a dictation while Wisp is hiding, all through the real controller (no pointer, no keys).
+    private func playPanelDemo() {
+        func note(_ label: String) { trace("demo \(label) | \(pet.debugState) | panel shown=\(shown) expanded=\(model.expanded) anchored=\(anchored)") }
+        let steps: [(Double, @MainActor () -> Void)] = [
+            (3, { note("start") }),
+            (4, { [self] in pet.tuckAway(); note("tuck") }),
+            (6, { note("tucked") }),
+            (7, { [self] in model.meter.reset(); dictationPhase(.listening); note("dictation starts while hidden") }),
+            (9, { note("dictating") }),
+            (10, { [self] in dictationPhase(.cancelled); note("dictation over") }),
+            (13, { [self] in pet.tuckAway(); note("tuck again") }),
+            (15, { [self] in wispClicked(1); note("click 1 opens") }),
+            (17, { note("panel open") }),
+            (18, { [self] in wispClicked(1); wispClicked(1); note("click closes") }),
+            (19.5, { note("closed") }),
+            (20, { [self] in wispClicked(1); wispClicked(2); note("double-click opens and stays") }),
+            (22, { note("still open") }),
+            (23, { [self] in setExpanded(false); note("closing") }),
+            (24.5, { note("closed again") }),
+        ]
+        for (delay, step) in steps {
+            let timer = Timer(timeInterval: delay, repeats: false) { _ in MainActor.assumeIsolated { step() } }
+            RunLoop.main.add(timer, forMode: .common)
+        }
+    }
+
     // MARK: - Development snapshots
 
     private func snapshotSoon() {
@@ -484,7 +641,11 @@ final class IslandController {
         guard next != geometry else { return }
         geometry = next
         trace("screens changed: \(next.screen) menuBarBottom=\(next.menuBarBottom)")
-        panel.setFrame(next.frame(presentation, visible: shown), display: shown)
+        if anchored, model.expanded {
+            panel.setFrame(wispPanelFrame(), display: true)
+        } else {
+            panel.setFrame(next.frame(presentation, visible: shown), display: shown)
+        }
         evaluate()
     }
 
