@@ -28,6 +28,28 @@ test("a refusal comes back with its code", async () => {
   }
 });
 
+test("a refusal in the real driver's flat shape still comes back with its code", async () => {
+  const cua = make();
+  try {
+    const r = await cua.call("refuse_flat", {});
+    assert.equal(r.isError, true);
+    assert.deepEqual(r.refusal, { code: "same_pid_keyboard_ambiguity", message: "pid 9 owns 1 other window" });
+  } finally {
+    await cua.close();
+  }
+});
+
+test("an error with no code has no refusal", async () => {
+  const cua = make();
+  try {
+    const r = await cua.call("error_plain", {});
+    assert.equal(r.isError, true);
+    assert.equal(r.refusal, undefined);
+  } finally {
+    await cua.close();
+  }
+});
+
 test("starts Cua in standard mode with telemetry off, whatever the caller's environment says", async () => {
   const cua = make({ env: { ...process.env, CUA_DRIVER_PERMISSION_MODE: "unrestricted", CUA_DRIVER_DANGEROUSLY_BYPASS_APPROVALS: "1", CUA_TELEMETRY_ENABLED: "true" } });
   try {

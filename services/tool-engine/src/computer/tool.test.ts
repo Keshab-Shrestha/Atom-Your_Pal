@@ -268,3 +268,72 @@ test("the menu bar and everything under it is left out of a look, and numbers st
 test("the description says typed text goes in at the cursor", () => {
   assert.match(setup().tool.spec.description, /at the cursor/i);
 });
+
+const refused = (code: string, message: string): CuaResult => ({ text: message, data: {}, isError: true, refusal: { code, message } });
+const AMBIGUOUS = refused("same_pid_keyboard_ambiguity", "pid 942 owns 1 other eligible top-level window(s); process-scoped key events cannot be proven to reach window 7");
+
+test("a two-window app refusing the keyboard becomes a plain, final message, with no Cua jargon", async () => {
+  const s = setup({ handlers: { press_key: () => AMBIGUOUS } });
+  await sees(s);
+  const r = await s.run({ action: "key", keys: ["m"] });
+  assert.equal(r.ok, false);
+  assert.match(r.text, /TextEdit has more than one window open/);
+  assert.match(r.text, /Do not retry/i);
+  assert.match(r.text, /tell the user/i);
+  assert.doesNotMatch(r.text, /pid|process-scoped|top-level|same_pid/);
+});
+
+test("typing into a two-window app gets the same plain message", async () => {
+  const s = setup({ handlers: { type_text: () => AMBIGUOUS } });
+  await sees(s);
+  const r = await s.run({ action: "type", element: 5, text: "x" });
+  assert.match(r.text, /more than one window/);
+  assert.doesNotMatch(r.text, /pid|process-scoped/);
+});
+
+test("clicks are not blocked by the keyboard rule: the click still goes through", async () => {
+  const s = setup({ handlers: { press_key: () => AMBIGUOUS } });
+  await sees(s);
+  assert.equal((await s.run({ action: "click", element: 2 })).ok, true);
+});
+
+test("the same refusal twice in a row tells the model to stop now", async () => {
+  const s = setup({ handlers: { press_key: () => AMBIGUOUS } });
+  await sees(s);
+  const first = await s.run({ action: "key", keys: ["m"] });
+  const second = await s.run({ action: "key", keys: ["k"] });
+  assert.doesNotMatch(first.text, /twice/i);
+  assert.match(second.text, /twice/i);
+  assert.match(second.text, /stop/i);
+});
+
+test("a success in between resets the repeat count", async () => {
+  const s = setup({ handlers: { press_key: () => AMBIGUOUS } });
+  await sees(s);
+  await s.run({ action: "key", keys: ["m"] });
+  await s.run({ action: "click", element: 2 });
+  const again = await s.run({ action: "key", keys: ["m"] });
+  assert.doesNotMatch(again.text, /twice/i);
+});
+
+test("other known refusals are explained in plain words too", async () => {
+  for (const [code, pattern] of [
+    ["minimized_or_hidden_window", /minimi[sz]ed or hidden/],
+    ["window_not_found", /window/],
+    ["off_space_or_ax_unresolved", /another desktop|Space/i],
+  ] as const) {
+    const s = setup({ handlers: { press_key: () => refused(code, `raw ${code} detail`) } });
+    await sees(s);
+    const r = await s.run({ action: "key", keys: ["a"] });
+    assert.match(r.text, pattern, code);
+    assert.doesNotMatch(r.text, /raw /, code);
+    assert.match(r.text, /tell the user/i, code);
+  }
+});
+
+test("an unknown refusal still passes Cua's own message along", async () => {
+  const s = setup({ handlers: { press_key: () => refused("something_new", "new thing happened") } });
+  await sees(s);
+  const r = await s.run({ action: "key", keys: ["a"] });
+  assert.match(r.text, /new thing happened/);
+});

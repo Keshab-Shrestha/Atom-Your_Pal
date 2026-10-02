@@ -42,6 +42,10 @@ export interface Core {
  * ZENO Core: the central request/response boundary.
  * Phase 0 has a single route (the language model) and session-only history (ADR-030).
  */
+const OUT_OF_STEPS =
+  "You have run out of steps for this request, so you cannot use any more tools. In one or two short spoken sentences, " +
+  "tell the user what you did and what stopped you, and what they could do. Do not say you will try again.";
+
 export function createCore(options: CoreOptions): Core {
   const {
     model,
@@ -79,7 +83,15 @@ export function createCore(options: CoreOptions): Core {
         let reply = await model.complete({ system: systemPrompt, messages, context, ...(specs.length ? { tools: specs } : {}) }, signal);
         for (let round = 0; tools && reply.toolCalls?.length; round++) {
           if (signal?.aborted) throw new CoreError("Request cancelled");
-          if (round >= maxToolRounds) throw new CoreError("ZENO used too many steps on this request and stopped");
+          if (round >= maxToolRounds) {
+            // Out of steps. Do not just fail: ask once, with no tools, for a short account of where it got stuck,
+            // so the user hears why ("Brave has two windows open") and not a bare error.
+            const wrapUp = await model.complete({ system: `${systemPrompt}\n\n${OUT_OF_STEPS}`, messages, context }, signal);
+            if (signal?.aborted) throw new CoreError("Request cancelled");
+            if (!wrapUp.text.trim() || wrapUp.toolCalls?.length) throw new CoreError("ZENO used too many steps on this request and stopped");
+            reply = { text: wrapUp.text };
+            break;
+          }
           const calls = reply.toolCalls;
           const results = [];
           for (const call of calls) results.push(await tools.run(call, signal)); // one at a time, in order

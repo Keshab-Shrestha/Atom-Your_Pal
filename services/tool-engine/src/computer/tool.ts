@@ -103,7 +103,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     const win = wins.find((w) => w.is_on_screen) ?? wins[0];
     if (!win) throw new Refused(`${app.name} has no window yet. Wait a moment and look again.`);
     const state = await cua.call("get_window_state", { pid: app.pid, window_id: win.window_id }, signal);
-    if (state.isError) throw new Refused(`Could not read ${app.name}: ${state.refusal?.message ?? state.text}`);
+    if (state.isError) refuse(state.refusal?.code, app.name, `Could not read ${app.name}: ${state.refusal?.message ?? state.text}`);
     const elements = withoutMenuBar((state.data.elements ?? []) as Element[]);
     target = { pid: app.pid, windowId: win.window_id, app: app.name, bundleId: app.bundle_id, elements: new Map(elements.map((e) => [e.element_index, e])), justTyped: false };
     const shown = elements.slice(0, maxElements).map((e) => {
@@ -135,9 +135,39 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     if (!yes) throw new Refused(`The user did not approve: ${summary}. Do not try again or find another way; tell the user it was not done.`);
   }
 
-  function checkResult(r: { isError: boolean; text: string; refusal?: { code: string; message: string } }, what: string) {
+  // Cua's refusals are written for developers. The model only needs to know what to tell the user, and that
+  // retrying will not help: a weak model that sees raw text keeps trying until it runs out of steps.
+  const FINAL = "Do not retry or look for another way; tell the user this in one short sentence.";
+  function explain(code: string | undefined, app: string): string | undefined {
+    switch (code) {
+      case "same_pid_keyboard_ambiguity":
+        return `${app} has more than one window open, so ZENO cannot type or press keys there without risking the wrong window. Ask the user to close the other ${app} windows. Clicking still works. ${FINAL}`;
+      case "minimized_or_hidden_window":
+        return `The ${app} window is minimized or hidden. Ask the user to bring it back. ${FINAL}`;
+      case "off_space_or_ax_unresolved":
+        return `The ${app} window is on another desktop (Space) or ZENO cannot read it. Ask the user to switch to it. ${FINAL}`;
+      case "window_not_found":
+      case "owner_pid_mismatch":
+        return `ZENO lost track of the ${app} window. Look again; if that fails, ${FINAL.toLowerCase()}`;
+      default:
+        return undefined;
+    }
+  }
+
+  let lastRefusal: string | undefined;
+  /** Throws the plain explanation for a refusal, and a firmer one the second time in a row. */
+  function refuse(code: string | undefined, app: string, fallback: string): never {
+    const plain = explain(code, app);
+    const twice = code !== undefined && code === lastRefusal;
+    lastRefusal = code;
+    if (plain) throw new Refused(twice ? `This has failed twice for the same reason. Stop now. ${plain}` : plain);
+    throw new Refused(fallback);
+  }
+
+  function checkResult(r: { isError: boolean; text: string; refusal?: { code: string; message: string } }, what: string, app: string) {
     if (r.refusal?.code === "stale_element_token") throw new Refused("The window changed since the last look. Look again, then retry.");
-    if (r.isError) throw new Refused(`${what} failed: ${r.refusal?.message ?? r.text}`);
+    if (r.isError) refuse(r.refusal?.code, app, `${what} failed: ${r.refusal?.message ?? r.text}`);
+    lastRefusal = undefined;
   }
 
   async function run(input: Record<string, unknown>, signal?: AbortSignal): Promise<string> {
@@ -166,7 +196,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const app = await findApp(String(input.app ?? ""), signal);
         if (!app.bundle_id) throw new Refused(`Cannot open ${app.name}.`);
         const r = await cua.call("launch_app", { bundle_id: app.bundle_id }, signal);
-        checkResult(r, `Opening ${app.name}`);
+        checkResult(r, `Opening ${app.name}`, app.name);
         return `Opened ${app.name} in the background. Use action "look" to read it.`;
       }
       case "click": {
@@ -175,7 +205,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const why = labelApproval(el.label, el.role);
         if (why) await ask(`Click ${why} in ${t.app}`, "it may send, buy, delete or change something", signal);
         const r = await cua.call("click", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, delivery_mode: "background" }, signal);
-        checkResult(r, "Click");
+        checkResult(r, "Click", t.app);
         t.justTyped = false;
         return `Clicked [${el.element_index}]${el.label ? ` "${el.label}"` : ""}. ${r.text}`.trim();
       }
@@ -186,7 +216,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         if (secret) throw new Refused(`ZENO never types into ${secret}. Ask the user to type it themselves.`);
         if (typeof input.text !== "string" || !input.text) throw new Refused('"text" is required.');
         const r = await cua.call("type_text", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, text: input.text, delivery_mode: "background" }, signal);
-        checkResult(r, "Typing");
+        checkResult(r, "Typing", t.app);
         t.justTyped = true;
         return `Typed ${input.text.length} characters into [${el.element_index}].`;
       }
@@ -199,7 +229,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const key = keys[keys.length - 1];
         const mods = keys.slice(0, -1);
         const r = await cua.call(mods.length ? "hotkey" : "press_key", mods.length ? { pid: t.pid, window_id: t.windowId, keys, delivery_mode: "background" } : { pid: t.pid, window_id: t.windowId, key, delivery_mode: "background" }, signal);
-        checkResult(r, "Key press");
+        checkResult(r, "Key press", t.app);
         t.justTyped = false;
         return `Pressed ${keys.join("+")}.`;
       }
@@ -209,7 +239,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         if (!["up", "down", "left", "right"].includes(direction)) throw new Refused("direction must be up, down, left or right.");
         const el = input.element === undefined ? undefined : pick(t, input.element);
         const r = await cua.call("scroll", { pid: t.pid, window_id: t.windowId, direction, amount: 5, by: "line", ...(el ? { element_token: el.element_token } : {}), delivery_mode: "background" }, signal);
-        checkResult(r, "Scroll");
+        checkResult(r, "Scroll", t.app);
         t.justTyped = false;
         return `Scrolled ${direction}.`;
       }

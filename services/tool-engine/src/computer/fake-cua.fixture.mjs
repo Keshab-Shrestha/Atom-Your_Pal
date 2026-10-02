@@ -15,6 +15,9 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   if (name === "env") return ok("env", { mode: process.env.CUA_DRIVER_PERMISSION_MODE, bypass: process.env.CUA_DRIVER_DANGEROUSLY_BYPASS_APPROVALS ?? null, telemetry: process.env.CUA_TELEMETRY_ENABLED, telemetryRs: process.env.CUA_DRIVER_RS_TELEMETRY_ENABLED });
   if (name === "cancelled") return ok("n", { cancelled });
   if (name === "refuse") return out({ id: m.id, result: { isError: true, content: [{ type: "text", text: "not allowed" }], structuredContent: { status: "refused", refusal: { code: "denied", message: "not allowed" } } } });
+  // The real driver's shape (seen live): the code sits at the top level of the result, with no `refusal` object.
+  if (name === "refuse_flat") return out({ id: m.id, result: { isError: true, content: [{ type: "text", text: "Background input refused (same_pid_keyboard_ambiguity): pid 9 owns 1 other window" }], structuredContent: { code: "same_pid_keyboard_ambiguity", effect: "refused", pid: 9, window_id: 3, reason: "pid 9 owns 1 other window", escalation: { reason: "pid 9 owns 1 other window", recommended: "accessibility" } } } });
+  if (name === "error_plain") return out({ id: m.id, result: { isError: true, content: [{ type: "text", text: "something broke" }], structuredContent: {} } });
   if (name === "crash") process.exit(1);
   // "slow": never answers
 });

@@ -29,6 +29,13 @@ export interface CuaTransportOptions {
  * these are overwritten, and the unrestricted-mode and capability-manifest overrides are removed, so nothing
  * that is set around ZENO can widen what Cua may do.
  */
+/** The driver reports a refusal in one of two shapes: a `refusal` object, or `code` + `reason` at the top level (what it really sends). */
+function refusalOf(data: Record<string, any>): { code: string; message: string } | undefined {
+  if (data.refusal && typeof data.refusal.code === "string") return { code: data.refusal.code, message: String(data.refusal.message ?? "") };
+  if (typeof data.code === "string" && data.effect === "refused") return { code: data.code, message: String(data.reason ?? data.escalation?.reason ?? "") };
+  return undefined;
+}
+
 export function cuaEnvironment(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const env = { ...base };
   delete env.CUA_DRIVER_DANGEROUSLY_BYPASS_APPROVALS;
@@ -194,7 +201,7 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
         text: (result?.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n"),
         data: structured,
         isError: Boolean(result?.isError),
-        refusal: structured.refusal,
+        refusal: refusalOf(structured),
       };
     } finally {
       if (onAbort) signal?.removeEventListener("abort", onAbort);

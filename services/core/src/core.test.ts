@@ -216,7 +216,29 @@ test("several tool calls in one turn run in order", async () => {
   assert.deepEqual(order, ["start a", "end a", "start b", "end b"]);
 });
 
-test("stops a model that keeps asking for tools", async () => {
+test("a model that keeps asking for tools is stopped, then asked once, without tools, to tell the user where it got stuck", async () => {
+  const loop = () => ({ text: "", toolCalls: [{ id: "t", name: "current_time", input: {} }] });
+  const seen: Array<{ tools: unknown; system: string }> = [];
+  const wrapUp = (req: any) => {
+    seen.push({ tools: req.tools, system: req.system });
+    return { text: "I could not finish: Brave has two windows open." };
+  };
+  const { model } = scriptedModel([loop, loop, loop, loop, wrapUp]);
+  const { tools, calls } = fakeTools();
+  const core = createCore({ model, tools, maxToolRounds: 3 });
+  const reply = await core.handle({ text: "go", source: "text" });
+  assert.equal(reply.text, "I could not finish: Brave has two windows open.");
+  assert.equal(calls.length, 3, "no tool ran after the limit");
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0].tools, undefined, "the wrap-up call offers no tools");
+  assert.match(seen[0].system, /out of steps/i);
+  assert.equal(core.history().length, 2);
+  // The core is usable again afterwards.
+  const next = scriptedModel([() => ({ text: "ok" })]);
+  assert.equal((await createCore({ model: next.model, tools }).handle({ text: "hi", source: "text" })).text, "ok");
+});
+
+test("if the wrap-up gives no words, the request still fails plainly", async () => {
   const loop = () => ({ text: "", toolCalls: [{ id: "t", name: "current_time", input: {} }] });
   const { model } = scriptedModel(Array.from({ length: 10 }, () => loop));
   const { tools, calls } = fakeTools();
@@ -224,9 +246,6 @@ test("stops a model that keeps asking for tools", async () => {
   await assert.rejects(core.handle({ text: "go", source: "text" }), /too many steps/);
   assert.equal(calls.length, 3);
   assert.deepEqual(core.history(), []);
-  // The core is usable again afterwards.
-  const next = scriptedModel([() => ({ text: "ok" })]);
-  assert.equal((await createCore({ model: next.model, tools }).handle({ text: "hi", source: "text" })).text, "ok");
 });
 
 test("cancelling between tool steps stops the request and keeps no history", async () => {
