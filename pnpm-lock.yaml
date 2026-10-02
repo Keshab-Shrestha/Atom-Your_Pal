@@ -187,6 +187,9 @@ importers:
       '@zeno/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@zeno/tool-engine':
+        specifier: workspace:*
+        version: link:../../services/tool-engine
       kokoro-js:
         specifier: ^1.2.1
         version: 1.2.1
@@ -215,6 +218,12 @@ importers:
       '@zeno/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+
+  services/tool-engine:
+    dependencies:
+      '@zeno/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
 
 packages:
 

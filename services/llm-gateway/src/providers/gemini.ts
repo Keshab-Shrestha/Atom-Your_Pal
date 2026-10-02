@@ -55,7 +55,8 @@ export function createGeminiAdapter(options: GeminiOptions): ProviderAdapter {
       const call = () =>
         client.models.generateContent({
           model,
-          // Gemini calls the assistant role "model".
+          // Tools are not offered to Gemini yet (ADR-054: computer control runs on Claude); it just answers.
+      // Gemini calls the assistant role "model".
           contents: request.messages.map((m) => ({
             role: m.role === "assistant" ? "model" : "user",
             parts: [{ text: m.content }],

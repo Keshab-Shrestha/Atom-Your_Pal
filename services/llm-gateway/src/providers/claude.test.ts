@@ -121,3 +121,57 @@ test("refusals, empty, and unreadable replies are explained, never passed on as 
     });
   }
 });
+
+// ---- tools (ADR-054, Task 0.6.1) ----
+
+const timeSpec = { name: "current_time", description: "time", inputSchema: { type: "object" as const } };
+
+test("offers tools to Claude as name, description and input_schema", async () => {
+  const { client, calls } = fakeClient(() => ({ content: [{ type: "text", text: "ok" }] }));
+  await createClaudeAdapter({ apiKey: "k", model: "m", client }).complete({ ...request, tools: [timeSpec] }, new AbortController().signal);
+  assert.deepEqual((calls[0].body as { tools: unknown }).tools, [
+    { name: "current_time", description: "time", input_schema: { type: "object" } },
+  ]);
+});
+
+test("sends no tools field when there are none", async () => {
+  const { client, calls } = fakeClient(() => ({ content: [{ type: "text", text: "ok" }] }));
+  await createClaudeAdapter({ apiKey: "k", model: "m", client }).complete(request, new AbortController().signal);
+  assert.equal("tools" in (calls[0].body as object), false);
+});
+
+test("reads tool_use blocks as tool calls, even with no text", async () => {
+  const { client } = fakeClient(() => ({
+    content: [{ type: "tool_use", id: "toolu_1", name: "current_time", input: { timezone: "Asia/Tokyo" } }],
+    stop_reason: "tool_use",
+  }));
+  const reply = await createClaudeAdapter({ apiKey: "k", model: "m", client }).complete(request, new AbortController().signal);
+  assert.deepEqual(reply, { text: "", toolCalls: [{ id: "toolu_1", name: "current_time", input: { timezone: "Asia/Tokyo" } }] });
+});
+
+test("sends tool calls and results back as Anthropic content blocks", async () => {
+  const { client, calls } = fakeClient(() => ({ content: [{ type: "text", text: "It is 9." }] }));
+  await createClaudeAdapter({ apiKey: "k", model: "m", client }).complete(
+    {
+      ...request,
+      messages: [
+        { role: "user", content: "time?" },
+        { role: "assistant", content: "Checking.", toolCalls: [{ id: "t1", name: "current_time", input: {} }] },
+        { role: "user", content: "", toolResults: [{ callId: "t1", content: "failed", isError: true }] },
+      ],
+      tools: [timeSpec],
+    },
+    new AbortController().signal,
+  );
+  assert.deepEqual((calls[0].body as { messages: unknown }).messages, [
+    { role: "user", content: "time?" },
+    {
+      role: "assistant",
+      content: [
+        { type: "text", text: "Checking." },
+        { type: "tool_use", id: "t1", name: "current_time", input: {} },
+      ],
+    },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "failed", is_error: true }] },
+  ]);
+});

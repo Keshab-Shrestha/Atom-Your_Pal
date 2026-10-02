@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { ModelRequest, ModelResponse } from "@zeno/contracts";
+import type { Message, ModelRequest, ModelResponse, ToolCall } from "@zeno/contracts";
 import { emptyReplyReason, ProviderError, type ErrorKind, type ProviderAdapter } from "../gateway.ts";
 
 /** The subset of the Anthropic client this adapter uses (lets tests supply a fake). */
@@ -8,7 +8,10 @@ export interface ClaudeClient {
     create(
       body: Anthropic.MessageCreateParamsNonStreaming,
       options?: { signal?: AbortSignal },
-    ): Promise<{ content: Array<{ type: string; text?: string }>; stop_reason?: string | null }>;
+    ): Promise<{
+      content: Array<{ type: string; text?: string; id?: string; name?: string; input?: unknown }>;
+      stop_reason?: string | null;
+    }>;
   };
 }
 
@@ -38,7 +41,10 @@ export function createClaudeAdapter(options: ClaudeOptions): ProviderAdapter {
             model,
             max_tokens: maxTokens,
             system: request.system,
-            messages: request.messages.map((m) => ({ role: m.role, content: m.content })),
+            messages: request.messages.map(toClaudeMessage),
+            ...(request.tools?.length
+              ? { tools: request.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.inputSchema })) }
+              : {}),
           },
           { signal },
         );
@@ -54,10 +60,40 @@ export function createClaudeAdapter(options: ClaudeOptions): ProviderAdapter {
         .map((block) => block.text)
         .join("")
         .trim();
+      const toolCalls: ToolCall[] = message.content
+        .filter((block) => block.type === "tool_use" && typeof block.id === "string" && typeof block.name === "string")
+        .map((block) => ({
+          id: block.id as string,
+          name: block.name as string,
+          input: block.input && typeof block.input === "object" ? (block.input as Record<string, unknown>) : {},
+        }));
+      if (toolCalls.length) return { text, toolCalls };
       if (!text) throw new ProviderError("bad_request", emptyReplyReason("claude", message.stop_reason));
       return { text };
     },
   };
+}
+
+/** Plain turns stay plain strings; turns with tool calls or results become Anthropic content blocks. */
+function toClaudeMessage(m: Message): Anthropic.MessageParam {
+  if (m.toolCalls?.length) {
+    const blocks: Anthropic.ContentBlockParam[] = [];
+    if (m.content) blocks.push({ type: "text", text: m.content });
+    for (const c of m.toolCalls) blocks.push({ type: "tool_use", id: c.id, name: c.name, input: c.input });
+    return { role: "assistant", content: blocks };
+  }
+  if (m.toolResults?.length) {
+    return {
+      role: "user",
+      content: m.toolResults.map((r) => ({
+        type: "tool_result" as const,
+        tool_use_id: r.callId,
+        content: r.content,
+        ...(r.isError ? { is_error: true } : {}),
+      })),
+    };
+  }
+  return { role: m.role, content: m.content };
 }
 
 function toProviderError(error: unknown, model: string): ProviderError {

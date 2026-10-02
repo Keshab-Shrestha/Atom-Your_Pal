@@ -304,9 +304,15 @@ Record timings from `logs/zeno.log` and the user's verdict.
 
 ---
 
-### Task 0.6.1 — Tool Calling in the Core (ADR-054) — queued
+### Task 0.6.1 — Tool Calling in the Core (ADR-054) — built; live check with Claude still open
 
-Waits for Task 0.5.9. Core can offer tools to the model, run the ones it picks through `services/tool-engine/`, and feed results back. One harmless test tool (the time). Tests with a fake model. No computer control yet.
+Task 0.5.9 passed (Keshab: works, it replied). Core can offer tools to the model, run the ones it picks through `services/tool-engine/`, and feed results back. One harmless test tool (the time). Tests with a fake model. No computer control yet.
+
+**Done (2026-10-02):** `ToolSpec`/`ToolCall`/`ToolResult`/`ToolRunner` in contracts; the Core runs tool rounds (max 8, one call at a time, cancel-safe, history keeps only the question and final answer); the Claude adapter sends and reads `tool_use`/`tool_result` blocks; `services/tool-engine` validates every call against the tool's schema and turns failures into results; one tool, `current_time`, wired into the runtime and logged as `tool.call`. Gemini is not offered tools (ADR-054). 183 tests, 181 pass, 2 live tests skipped, typecheck clean.
+
+**Open:** a real call to Claude. The key in `.env` was refused with "credit balance is too low", so the model-asks-for-the-tool path has run only against fakes and the Anthropic request shape in tests. Keshab to top up the Anthropic balance (or give another key); then `node --env-file=.env` on a one-question script, and Tokyo time by voice, closes it.
+
+---
 
 ### Task 0.6.2 — The Computer Tool (ADR-054) — queued
 

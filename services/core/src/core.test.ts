@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { LanguageModel, ModelRequest } from "@zeno/contracts";
+import type { LanguageModel, ModelRequest, ModelResponse, ToolRunner } from "@zeno/contracts";
 import { CoreError, DEFAULT_SYSTEM_PROMPT, createCore } from "./core.ts";
 
 function fakeModel(reply: (req: ModelRequest) => string | Promise<string> = (r) => `echo: ${r.messages.at(-1)!.content}`) {
@@ -129,4 +129,124 @@ test("passes the cancel signal to the model; a cancelled exchange is not recorde
   assert.deepEqual(core.history(), []);
   // and the Core is free for the next request
   assert.equal((await core.handle({ text: "again", source: "voice" })).text, "late reply");
+});
+
+// ---- tool calling (ADR-054, Task 0.6.1) ----
+
+function scriptedModel(steps: Array<(req: ModelRequest) => ModelResponse>) {
+  const requests: ModelRequest[] = [];
+  const model: LanguageModel = {
+    async complete(request) {
+      requests.push(structuredClone(request));
+      const step = steps[requests.length - 1];
+      if (!step) throw new Error("model called more often than scripted");
+      return step(request);
+    },
+  };
+  return { model, requests };
+}
+
+function fakeTools(run: ToolRunner["run"] = async (call) => ({ callId: call.id, content: "12:00" })) {
+  const calls: string[] = [];
+  const tools: ToolRunner = {
+    specs: () => [{ name: "current_time", description: "time", inputSchema: { type: "object" } }],
+    async run(call, signal) {
+      calls.push(call.name);
+      return run(call, signal);
+    },
+  };
+  return { tools, calls };
+}
+
+test("runs the tool the model asks for, then returns its final answer", async () => {
+  const { model, requests } = scriptedModel([
+    () => ({ text: "", toolCalls: [{ id: "t1", name: "current_time", input: {} }] }),
+    () => ({ text: "It is noon." }),
+  ]);
+  const { tools, calls } = fakeTools();
+  const core = createCore({ model, tools });
+
+  const response = await core.handle({ text: "What time is it?", source: "voice" });
+
+  assert.equal(response.text, "It is noon.");
+  assert.deepEqual(calls, ["current_time"]);
+  assert.equal(requests[0].tools?.[0].name, "current_time");
+  const second = requests[1].messages;
+  assert.deepEqual(second[1], { role: "assistant", content: "", toolCalls: [{ id: "t1", name: "current_time", input: {} }] });
+  assert.deepEqual(second[2], { role: "user", content: "", toolResults: [{ callId: "t1", content: "12:00" }] });
+});
+
+test("session history keeps only the question and the final answer", async () => {
+  const { model } = scriptedModel([
+    () => ({ text: "", toolCalls: [{ id: "t1", name: "current_time", input: {} }] }),
+    () => ({ text: "It is noon." }),
+  ]);
+  const core = createCore({ model, tools: fakeTools().tools });
+  await core.handle({ text: "What time is it?", source: "voice" });
+  assert.deepEqual(core.history(), [
+    { role: "user", content: "What time is it?" },
+    { role: "assistant", content: "It is noon." },
+  ]);
+});
+
+test("a failing tool is reported to the model, which can still answer", async () => {
+  const { model, requests } = scriptedModel([
+    () => ({ text: "", toolCalls: [{ id: "t1", name: "current_time", input: {} }] }),
+    () => ({ text: "I could not check the time." }),
+  ]);
+  const { tools } = fakeTools(async (call) => ({ callId: call.id, content: "failed", isError: true }));
+  const response = await createCore({ model, tools }).handle({ text: "time?", source: "text" });
+  assert.equal(response.text, "I could not check the time.");
+  assert.equal(requests[1].messages[2].toolResults?.[0].isError, true);
+});
+
+test("several tool calls in one turn run in order", async () => {
+  const order: string[] = [];
+  const { model } = scriptedModel([
+    () => ({ text: "", toolCalls: [{ id: "a", name: "current_time", input: {} }, { id: "b", name: "current_time", input: {} }] }),
+    () => ({ text: "done" }),
+  ]);
+  const { tools } = fakeTools(async (call) => {
+    order.push(`start ${call.id}`);
+    await new Promise((r) => setTimeout(r, call.id === "a" ? 10 : 0));
+    order.push(`end ${call.id}`);
+    return { callId: call.id, content: "x" };
+  });
+  await createCore({ model, tools }).handle({ text: "go", source: "text" });
+  assert.deepEqual(order, ["start a", "end a", "start b", "end b"]);
+});
+
+test("stops a model that keeps asking for tools", async () => {
+  const loop = () => ({ text: "", toolCalls: [{ id: "t", name: "current_time", input: {} }] });
+  const { model } = scriptedModel(Array.from({ length: 10 }, () => loop));
+  const { tools, calls } = fakeTools();
+  const core = createCore({ model, tools, maxToolRounds: 3 });
+  await assert.rejects(core.handle({ text: "go", source: "text" }), /too many steps/);
+  assert.equal(calls.length, 3);
+  assert.deepEqual(core.history(), []);
+  // The core is usable again afterwards.
+  const next = scriptedModel([() => ({ text: "ok" })]);
+  assert.equal((await createCore({ model: next.model, tools }).handle({ text: "hi", source: "text" })).text, "ok");
+});
+
+test("cancelling between tool steps stops the request and keeps no history", async () => {
+  const ac = new AbortController();
+  const { model, requests } = scriptedModel([
+    () => ({ text: "", toolCalls: [{ id: "t1", name: "current_time", input: {} }] }),
+    () => ({ text: "never" }),
+  ]);
+  const { tools } = fakeTools(async (call) => {
+    ac.abort();
+    return { callId: call.id, content: "x" };
+  });
+  const core = createCore({ model, tools });
+  await assert.rejects(core.handle({ text: "go", source: "text" }, ac.signal), /cancelled/);
+  assert.equal(requests.length, 1);
+  assert.deepEqual(core.history(), []);
+});
+
+test("without tools the request offers none and tool calls are not run", async () => {
+  const { model, requests } = fakeModel();
+  await createCore({ model }).handle({ text: "hi", source: "text" });
+  assert.equal("tools" in requests[0], false);
 });

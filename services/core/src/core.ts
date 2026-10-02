@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { LanguageModel, Message, RequestContext, ZenoInput, ZenoResponse } from "@zeno/contracts";
+import type { LanguageModel, Message, RequestContext, ToolRunner, ZenoInput, ZenoResponse } from "@zeno/contracts";
 
 export const DEFAULT_SYSTEM_PROMPT =
   "You are ZENO, a voice assistant. Your replies are spoken aloud, so answer in short, " +
@@ -14,6 +14,10 @@ export class CoreError extends Error {
 
 export interface CoreOptions {
   model: LanguageModel;
+  /** Tools the model may use. Without it, ZENO only talks. */
+  tools?: ToolRunner;
+  /** Most tool rounds in one request, so a confused model cannot loop forever. */
+  maxToolRounds?: number;
   systemPrompt?: string;
   /** Maximum user+assistant turn pairs kept in session history (bounds prompt size). */
   maxTurns?: number;
@@ -39,7 +43,15 @@ export interface Core {
  * Phase 0 has a single route (the language model) and session-only history (ADR-030).
  */
 export function createCore(options: CoreOptions): Core {
-  const { model, systemPrompt = DEFAULT_SYSTEM_PROMPT, maxTurns = 20, newId = randomUUID, now = () => new Date() } = options;
+  const {
+    model,
+    tools,
+    maxToolRounds = 8,
+    systemPrompt = DEFAULT_SYSTEM_PROMPT,
+    maxTurns = 20,
+    newId = randomUUID,
+    now = () => new Date(),
+  } = options;
   let sessionId = newId();
   let turns: Message[] = [];
   let busy = false;
@@ -60,7 +72,21 @@ export function createCore(options: CoreOptions): Core {
 
       busy = true;
       try {
-        const reply = await model.complete({ system: systemPrompt, messages: [...turns, userTurn], context }, signal);
+        // Tool rounds live only in this request's `messages`; session history keeps just the user turn and
+        // the final answer, so a trimmed history can never hold half a tool exchange.
+        const messages: Message[] = [...turns, userTurn];
+        const specs = tools?.specs() ?? [];
+        let reply = await model.complete({ system: systemPrompt, messages, context, ...(specs.length ? { tools: specs } : {}) }, signal);
+        for (let round = 0; tools && reply.toolCalls?.length; round++) {
+          if (signal?.aborted) throw new CoreError("Request cancelled");
+          if (round >= maxToolRounds) throw new CoreError("ZENO used too many steps on this request and stopped");
+          const calls = reply.toolCalls;
+          const results = [];
+          for (const call of calls) results.push(await tools.run(call, signal)); // one at a time, in order
+          if (signal?.aborted) throw new CoreError("Request cancelled");
+          messages.push({ role: "assistant", content: reply.text, toolCalls: calls }, { role: "user", content: "", toolResults: results });
+          reply = await model.complete({ system: systemPrompt, messages, context, tools: specs }, signal);
+        }
         if (signal?.aborted) throw new CoreError("Request cancelled");
         const replyText = reply.text.trim();
         if (!replyText) throw new CoreError("The model returned an empty reply");

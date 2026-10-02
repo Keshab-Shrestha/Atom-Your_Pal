@@ -7,6 +7,7 @@
     "@zeno/core": "workspace:*",
     "@zeno/llm-gateway": "workspace:*",
     "@zeno/shared": "workspace:*",
+    "@zeno/tool-engine": "workspace:*",
     "kokoro-js": "^1.2.1"
   }
 }

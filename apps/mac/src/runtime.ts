@@ -2,6 +2,7 @@
 // Microphone → Whisper → ZENO Core → LLM Gateway → provider → Kokoro → speaker.
 
 import { createCore, CoreError, type Core } from "@zeno/core";
+import { createToolEngine, timeTool } from "@zeno/tool-engine";
 import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError } from "@zeno/llm-gateway";
 import { createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import { AudioError, defaultInputDevice, startRecording } from "./audio.ts";
@@ -46,7 +47,13 @@ export function createRuntime(
   const model = createSwitchableModel(createModel(initial, config.llm.apiKey));
   // ZENO_VOICE_ONLY=1: test speech in and out without the AI. ZENO reads back what Whisper heard, and no
   // request is made to any model. (Typed as `Core` so every caller treats it the same.)
-  const core: Core = process.env.ZENO_VOICE_ONLY === "1" ? createEchoCore() : createCore({ model });
+  const core: Core = process.env.ZENO_VOICE_ONLY === "1" ? createEchoCore() : createCore({
+          model,
+          tools: createToolEngine({
+            tools: [timeTool()],
+            onCall: (e) => log.info("tool.call", e),
+          }),
+        });
   const settingsPath = options.settingsPath;
   const settings = createModelSettings({
     initial,

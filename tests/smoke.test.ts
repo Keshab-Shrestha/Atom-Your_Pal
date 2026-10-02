@@ -60,7 +60,15 @@ test("island mode: SIGTERM exits cleanly", async () => {
     env: { ...process.env, ZENO_LLM_PROVIDER: "claude", ANTHROPIC_API_KEY: "test-key" },
     stdio: ["pipe", "pipe", "pipe"],
   });
-  await new Promise((resolve) => child.stderr.once("data", resolve)); // started
+  // Wait for the startup line, which is printed once SIGTERM is handled. Earlier stderr lines (such as a
+  // warning about a saved model choice) can come first and must not count as "started".
+  let seen = "";
+  await new Promise<void>((resolve) =>
+    child.stderr.on("data", (chunk) => {
+      seen += chunk;
+      if (seen.includes("island mode")) resolve();
+    }),
+  );
   child.kill("SIGTERM");
   const code = await new Promise((resolve) => child.on("exit", resolve));
   assert.equal(code, 0);
