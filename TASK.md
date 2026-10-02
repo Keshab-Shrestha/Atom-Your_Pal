@@ -372,7 +372,7 @@ Ideas taken from how Hermes drives the same Cua driver, to cut model round trips
 
 **Not done:** a measurement of steps saved with a real model (the Gemini free quota was spent; Claude has no credit); the driver's health check (`cua-driver` `health_report`) as a ZENO command; the plan question (using a Claude subscription for the model), which is a separate decision.
 
-### Task 0.6.6 — Claude on the User's Plan (ADR-055) — built; tested; live-checked on the plan; not yet driven by voice
+### Task 0.6.6 — Claude on the User's Plan (ADR-055) — built; tested; driven by voice once (Allow path); Decline card not yet tried by voice
 
 A fourth model choice, "Claude (my plan)", that runs the user's own signed-in `claude` through the Claude Agent SDK instead of per-token API calls. See ADR-055 for the rules.
 
@@ -386,7 +386,9 @@ A fourth model choice, "Claude (my plan)", that runs the user's own signed-in `c
 
 **Checked live (2026-10-03):** `model.set` through the island protocol switched to it and saved it. A TextEdit request that needs approval ("press return") ran with the approval hook answering: declined, the Return key was not pressed and Claude said so (6.4 s); allowed, it was pressed (9.4 s). Plan use stayed at 38% (5-hour) and 67% (7-day) with extra usage off, `apiKeySource` none.
 
-**Not done:** a spoken request through the island with the real Allow/Decline card; a run of several tasks to see how much plan a normal use takes; the Claude usage page was not checked by ZENO (only the SDK's own report).
+**Voice check (2026-10-03):** picked Claude Haiku 4.5 (my plan) in the island and said "In TextEdit, press the return key once." The amber approval card appeared, Allow was tapped, Return was pressed (17.6 s, `plan.usage` 45% / 68%, extra usage off). Haiku tried a key before looking; ZENO refused that and it then looked first.
+
+**Not done:** the Decline path by voice; a run of several tasks to see how much plan a normal use takes; the Claude usage page was not checked by ZENO (only the SDK's own report).
 
 ---
 
