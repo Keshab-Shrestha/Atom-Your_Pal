@@ -310,7 +310,7 @@ Task 0.5.9 passed (Keshab: works, it replied). Core can offer tools to the model
 
 **Done (2026-10-02):** `ToolSpec`/`ToolCall`/`ToolResult`/`ToolRunner` in contracts; the Core runs tool rounds (max 8, one call at a time, cancel-safe, history keeps only the question and final answer); the Claude adapter sends and reads `tool_use`/`tool_result` blocks; `services/tool-engine` validates every call against the tool's schema and turns failures into results; one tool, `current_time`, wired into the runtime and logged as `tool.call`. Gemini is not offered tools (ADR-054). 183 tests, 181 pass, 2 live tests skipped, typecheck clean.
 
-**Open:** a real call to Claude. The key in `.env` was refused with "credit balance is too low", so the model-asks-for-the-tool path has run only against fakes and the Anthropic request shape in tests. Keshab to top up the Anthropic balance (or give another key); then `node --env-file=.env` on a one-question script, and Tokyo time by voice, closes it.
+**Open:** a real call to a model. The Anthropic key in `.env` was refused with "credit balance is too low", and Keshab chose on 2026-10-02 to skip the pay-per-use plan for now. So the model-asks-for-the-tool path has run only against fakes and the Anthropic request shape in tests. It closes when a model with tool calling answers "what time is it in Tokyo?" through the real runtime. Choices: add tool calling to the Gemini adapter (free key), or top up Anthropic later.
 
 ---
 
