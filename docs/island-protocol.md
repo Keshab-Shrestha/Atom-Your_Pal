@@ -64,6 +64,7 @@ The island (`RestartPolicy`, `RuntimeSupervisor` in `apps/mac/island/`) waits 1,
 | `{"type":"memory.forget","id":3}` | Delete one memory for good. `id` must be a whole number. Answered with a `memory` event (an unknown id changes nothing) |
 | `{"type":"memory.clear"}` | Delete every memory for good. Conversation notes are kept. Answered with a `memory` event |
 | `{"type":"episode.forget","id":4}` | Delete one conversation note (ADR-059). Answered with a `memory` event |
+| `{"type":"text.send","text":"…"}` | A typed request (up to 4000 characters): answered and spoken like a voice turn, with `transcript` (the text), `reply`, `turn.complete` (`speechMs` and `transcriptionMs` 0). Interrupts a turn in progress, like talking does |
 | `{"type":"episode.clear"}` | Delete every conversation note. Facts are kept. Answered with a `memory` event |
 | `{"type":"quit"}` | Release the microphone, stop speech and exit with code 0 |
 

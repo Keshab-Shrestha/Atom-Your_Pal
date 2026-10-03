@@ -466,6 +466,11 @@ Live in text (Claude plan): the calendar call waited on macOS's permission dialo
 
 - `weather` tool on Open-Meteo; home from the time zone. Tests: 3 new. Live: "What's the weather like?" → Tokyo now and the next days; "Will it rain in Osaka tomorrow?" → 53%, bring an umbrella. Both took ~18 s at first: Open-Meteo's TLS handshake is ~6 s from here, and Claude Code had thinking on. Fixed by caching places and forecasts, refreshing home's every 30 min, and turning thinking off for the plan: weather 6.3 s, greeting 4.6 s, sums 4.2 s.
 
+### Task 1.6 — Speed and typing
+
+- Claude plan thinking off (unless `ZENO_THINKING=1`); weather cached and home pre-fetched. Measured: greeting 4.6 s, weather 6.3 s (was 19.4 s), timer 5.5 s, arithmetic 4.2 s.
+- Type to ZENO: a composer at the bottom of the Conversation tab; Return sends; the reply is shown and spoken. Protocol `text.send`. Checked over the real pipe: "What is 6 times 7?" → "Six times seven is forty-two." in 4.8 s, first sound 1.2 s later.
+
 **Not done (1.3):** Keshab allows Calendar and Reminders when macOS asks (first time ZENO is asked about his schedule), then tries "What's on tomorrow?" and "Remind me to … at …".
 
 ---
