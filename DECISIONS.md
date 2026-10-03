@@ -1138,3 +1138,28 @@ When a timer ends, the runtime chimes (Glass) and says "Your pasta timer is done
 ## Final Architectural Principle
 
 > Preserve the future without prematurely implementing it.
+
+---
+
+## ADR-063 — Talk Hears Through Parakeet, Like Dictation
+
+Date: 2026-10-04.
+
+### Decision
+
+Holding the Talk keys now records with the app's prepared microphone and transcribes with Parakeet, the same path as dictation (ADR-047). The words are sent to the runtime as a typed request (`text.send`), so the answer, speech, memory and tools are unchanged.
+
+- The island shows Listening and the level meter exactly as before; the runtime then sends transcript, thinking, reply and speaking.
+- Talking over ZENO stops its speech when the keys go down (`talk.cancel`); the runtime's resulting "idle" is not shown while listening.
+- Too short or silent: "Didn't catch that", nothing is sent.
+- **Fallback:** if Parakeet is not loaded yet, the microphone permission is missing or a dictation is running, Talk uses the runtime's microphone and Whisper as before. `ZENO_TALK_ENGINE=whisper` always uses the old path.
+
+### Reason
+
+The runtime path started ffmpeg on each press (first words could be lost: the "mic_starting" notice) and Whisper took 0.8–1.1 s to transcribe (logs, last 8 turns). Parakeet transcribes in 60–340 ms and the prepared microphone starts in ~60 ms, so a spoken question reaches the model about a second sooner, and the first word is kept. Keshab rated dictation highly; Talk now hears the same way.
+
+### Consequences
+
+- English only, like dictation (Keshab chose Parakeet only).
+- The spelling list (`vocabulary.txt`) and filler removal now also apply to questions.
+- `turn.complete` for these turns has `speechMs` and `transcriptionMs` 0; the island logs `talk.end` with `transcribeMs`.

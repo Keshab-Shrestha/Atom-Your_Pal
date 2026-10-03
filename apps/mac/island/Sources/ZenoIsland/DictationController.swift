@@ -25,6 +25,14 @@ final class DictationController {
 
     enum Sound { case start, stop }
 
+    /// Talk through the prepared microphone and Parakeet (ADR-063): the words go to ZENO instead of being typed.
+    var onTalk: (TalkPhase) -> Void = { _ in }
+    enum TalkPhase: Equatable { case listening, heard(String), nothing, failed(String), cancelled }
+    private var talkSince: Double?
+    private var talkWork: Task<Void, Never>?
+    /// Parakeet finished loading (`model.isLoaded` is async; this is for synchronous checks).
+    private var modelReady = false
+
     private let capture = DictationCapture()
     private let model = DictationModel()
     private let inserter = TextInserter()
@@ -75,7 +83,7 @@ final class DictationController {
             do {
                 try await model.load()
                 let seconds = ProcessInfo.processInfo.systemUptime - started
-                await MainActor.run { self.modelError = nil; self.log("dictation.model_ready", ["seconds": (seconds * 10).rounded() / 10]) }
+                await MainActor.run { self.modelError = nil; self.modelReady = true; self.log("dictation.model_ready", ["seconds": (seconds * 10).rounded() / 10]) }
             } catch {
                 await MainActor.run { self.modelError = "\(error)"; self.log("dictation.model_failed", ["message": "\(error)"]) }
             }
@@ -127,7 +135,7 @@ final class DictationController {
             finishListening(since: since, target: target)
             return
         }
-        guard case .idle = state else { onPhase(.done(.busy)); return }
+        guard case .idle = state, talkSince == nil, talkWork == nil else { onPhase(.done(.busy)); return }
         if conversationBusy() { onPhase(.done(.busy)); return }
 
         switch DictationCapture.permission {
@@ -214,6 +222,71 @@ final class DictationController {
         case .idle:
             break
         }
+    }
+
+    // MARK: - Talk (ADR-063)
+
+    /// Starts listening for a question. False when this path cannot be used right now (model not loaded, no microphone
+    /// permission, dictating): the caller falls back to the runtime's own microphone and Whisper.
+    func talkBegan() -> Bool {
+        guard modelReady, case .idle = state, talkSince == nil, DictationCapture.permission == .authorized else { return false }
+        talkWork?.cancel()
+        talkWork = nil
+        loadVocabulary()
+        do {
+            try capture.start()
+        } catch {
+            log("talk.start_failed", ["message": "\(error)"])
+            return false
+        }
+        talkSince = ProcessInfo.processInfo.systemUptime
+        onTalk(.listening)
+        log("talk.start", [:])
+        return true
+    }
+
+    /// The keys came up: transcribe what was said and hand it over.
+    func talkEnded() {
+        guard let since = talkSince else { return }
+        talkSince = nil
+        let samples = capture.stop()
+        let seconds = DictationAudio.seconds(samples)
+        let held = Int((ProcessInfo.processInfo.systemUptime - since) * 1000)
+        guard seconds >= tooShort, DictationAudio.hasSpeech(samples) else {
+            log("talk.end", ["outcome": "no_speech", "heldMs": held])
+            onTalk(.nothing)
+            return
+        }
+        let removeFillers = options().removeFillers
+        talkWork = Task { [weak self] in
+            guard let self else { return }
+            let started = ProcessInfo.processInfo.systemUptime
+            do {
+                let text = await self.clean(try await self.model.transcribe(samples), removeFillers: removeFillers)
+                if Task.isCancelled { return }
+                self.talkWork = nil
+                self.log("talk.end", ["outcome": text.isEmpty ? "no_speech" : "heard", "heldMs": held,
+                                      "transcribeMs": Int((ProcessInfo.processInfo.systemUptime - started) * 1000),
+                                      "clipped": DictationAudio.clipped(samples)])
+                self.onTalk(text.isEmpty ? .nothing : .heard(text))
+            } catch {
+                if Task.isCancelled { return }
+                self.talkWork = nil
+                self.log("talk.end", ["outcome": "failed", "message": "\(error)"])
+                self.onTalk(.failed("\(error)"))
+            }
+        }
+    }
+
+    /// Esc, or the hold was spoiled: nothing is sent.
+    func talkCancelled() {
+        guard talkSince != nil || talkWork != nil else { return }
+        if talkSince != nil { capture.cancel() }
+        talkSince = nil
+        talkWork?.cancel()
+        talkWork = nil
+        log("talk.cancelled", [:])
+        onTalk(.cancelled)
     }
 
     // MARK: - Finishing

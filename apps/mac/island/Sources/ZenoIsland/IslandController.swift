@@ -24,6 +24,12 @@ final class IslandController {
     private let pointLabel = PointLabelController()
     /// Talk was started by its shortcut and not yet sent or cancelled.
     private var talking = false
+    /// This Talk is going through the app's own microphone and Parakeet (ADR-063), not the runtime's.
+    private var talkingLocally = false
+    /// Listening or transcribing locally: the runtime's "idle" (from stopping its turn) must not hide it.
+    private var localListening = false
+    /// `ZENO_TALK_ENGINE=whisper` keeps the old path: the runtime records and Whisper transcribes.
+    private let talkLocally = ProcessInfo.processInfo.environment["ZENO_TALK_ENGINE"] != "whisper"
     /// Dictation (ADR-047): hold, speak, let go, and the text is typed into the app in front.
     let dictation: DictationController
     /// A dictation is in progress (listening or transcribing).
@@ -83,6 +89,7 @@ final class IslandController {
         dictation.playSound = { [weak self] sound in self?.playTone(sound) }
         dictation.options = { [weak self] in self?.model.settings.dictationOptions ?? DictationOptions() }
         dictation.onPreview = { [weak self] text in self?.model.status.setPreview(text) }
+        dictation.onTalk = { [weak self] phase in self?.talkPhase(phase) }
         dictation.conversationBusy = { [weak self] in self.map { $0.talking || $0.model.status.isBusy && !$0.dictating } ?? false }
         shortcuts.trace = trace
         model.petChanged = { [weak self] enabled in
@@ -169,6 +176,7 @@ final class IslandController {
     }
 
     func apply(_ event: IslandEvent) {
+        if localListening, case .state(.idle) = event { return } // the turn we interrupted, ending
         if case .micLevel = event {} else { model.apply(event) }
         switch event {
         case .micLevel(let peak):
@@ -212,13 +220,20 @@ final class IslandController {
         switch trigger {
         case .holdBegan(.talk):
             talking = true
-            model.send(.talkStart)
+            let interrupting = model.status.isBusy
+            if talkLocally, dictation.talkBegan() {
+                talkingLocally = true
+                if interrupting { model.send(.talkCancel) } // stop ZENO speaking: the microphone is open
+            } else {
+                talkingLocally = false
+                model.send(.talkStart)
+            }
         case .holdEnded(.talk):
             talking = false
-            model.send(.talkSend)
+            if talkingLocally { dictation.talkEnded() } else { model.send(.talkSend) }
         case .holdCancelled(.talk):
             talking = false
-            model.send(.talkCancel)
+            if talkingLocally { dictation.talkCancelled() } else { model.send(.talkCancel) }
         case .pressed(.toggleIsland):
             setExpanded(!model.expanded)
         case .pressed(.cancel):
@@ -240,6 +255,7 @@ final class IslandController {
     /// Esc or the strip's Stop: ends the turn, declines anything waiting, and the strip says "Stopped".
     private func stopWork() {
         talking = false
+        dictation.talkCancelled()
         model.send(.talkCancel)
         if model.work.isShown(at: Self.now), model.work.outcome == .working { model.work.stopped(now: Self.now) }
         trace("stop")
@@ -425,6 +441,32 @@ final class IslandController {
         pointTimer = nil
         pointArrived = false
         pet.endPointing()
+    }
+
+    // MARK: - Talk through Parakeet (ADR-063)
+
+    /// Shown exactly like the runtime's own states, so the island looks the same whichever path heard the words.
+    private func talkPhase(_ phase: DictationController.TalkPhase) {
+        switch phase {
+        case .listening:
+            localListening = false
+            apply(.state(.listening))
+            localListening = true
+        case .heard(let text):
+            localListening = false
+            model.ask(text) // the runtime answers with transcript, thinking, reply, speaking
+        case .nothing:
+            localListening = false
+            apply(.notice(kind: "no_speech", message: "Didn't catch that. Hold the keys while you speak, then let go."))
+            apply(.state(.idle))
+        case .failed(let message):
+            localListening = false
+            apply(.notice(kind: "no_speech", message: "Couldn't transcribe: \(message)"))
+            apply(.state(.idle))
+        case .cancelled:
+            localListening = false
+            apply(.state(.idle))
+        }
     }
 
     // MARK: - Dictation
