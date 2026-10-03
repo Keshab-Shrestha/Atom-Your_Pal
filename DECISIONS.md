@@ -1077,6 +1077,24 @@ ZENO will act on the Mac by voice command ("open Safari and search for X") throu
 
 ---
 
+## ADR-059 — Conversation Notes and Offering to Remember (Phase 1)
+
+**Status:** Accepted (2026-10-04). Extends ADR-058.
+
+**Context.** After Task 1.1 ZENO kept facts it was told to keep, but "New conversation" or a restart still lost the thread ("what were we planning?"), and facts mentioned in passing were lost unless the user said "remember".
+
+**Decision.**
+- **Notes, not transcripts.** After each reply, the same model writes ZENO's own note about the conversation in the background: at most two sentences (what the user wanted, what was decided, what is open). One note per session, rewritten as the conversation goes on. The conversation itself is never stored (ADR-015 holds). A note of NOTHING (only a greeting or a one-off question) is not kept.
+- **Off the reply path.** The note is written after the reply is returned, never delaying it. Updates queue one at a time; a newer conversation replaces a queued update; failures are logged (`episode.failed`), never shown. The summary request carries no tools, so it can never act.
+- **Used when asked about.** The newest three notes from other sessions go into the system prompt, marked "use them if the user refers back; do not bring them up unprompted". The newest 50 are kept; older ones are deleted.
+- **Offer, never assume.** When memory is on, the prompt tells ZENO to offer to remember a lasting personal fact mentioned in passing, and to keep it only if the user agrees. Secrets are still refused.
+- **Visible and deletable.** Settings → Memory shows "Recent conversations" with × per note and Clear. Clearing facts keeps notes and the reverse. `ZENO_EPISODES=0` turns notes off.
+- The base prompt now asks for one to three sentences and at most one question: live tests gave 80–150 spoken words for simple requests.
+
+**Consequences.** One extra short model request per reply (Claude plan or provider quota). Notes are written by the model and may be imperfect; the user sees and deletes them.
+
+---
+
 ## Final Architectural Principle
 
 > Preserve the future without prematurely implementing it.

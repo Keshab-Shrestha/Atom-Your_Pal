@@ -510,6 +510,7 @@ function fakeMemory() {
     { id: 2, text: "Keshab drinks green tea.", createdAt: "2026-10-04T01:00:00.000Z", source: "voice" as const },
     { id: 1, text: "Keshab's sister is Asha.", createdAt: "2026-10-03T01:00:00.000Z", source: "text" as const },
   ];
+  let episodes = [{ id: 7, summary: "The user planned a trip to Osaka.", endedAt: "2026-10-04T03:00:00.000Z", exchanges: 3 }];
   const listeners = new Set<() => void>();
   return {
     memory: {
@@ -523,6 +524,17 @@ function fakeMemory() {
       clear: () => {
         const n = items.length;
         items = [];
+        return n;
+      },
+      episodes: () => episodes,
+      forgetEpisode: (id: number) => {
+        const before = episodes.length;
+        episodes = episodes.filter((e) => e.id !== id);
+        return episodes.length < before;
+      },
+      clearEpisodes: () => {
+        const n = episodes.length;
+        episodes = [];
         return n;
       },
       onChange: (listener: () => void) => {
@@ -566,14 +578,17 @@ test("after memory.list, changes ZENO makes by itself are sent; forget and clear
   await h.send({ type: "memory.forget", id: 99 }); // unknown id: nothing changes, the list is sent again
   assert.equal((h.events().at(-1) as Extract<IslandEvent, { type: "memory" }>).count, 2);
   await h.send({ type: "memory.clear" });
-  assert.deepEqual(h.events().at(-1), { type: "memory", enabled: true, count: 0, memories: [] });
+  const cleared = h.events().at(-1) as Extract<IslandEvent, { type: "memory" }>;
+  assert.deepEqual([cleared.count, cleared.memories, cleared.episodes.length], [0, [], 1], "clearing facts keeps conversation notes");
+  await h.send({ type: "episode.forget", id: 7 });
+  assert.deepEqual((h.events().at(-1) as Extract<IslandEvent, { type: "memory" }>).episodes, []);
 });
 
 test("memory commands with memory off answer enabled: false; a bad id is a protocol error", async () => {
   const h = islandHarness();
   await tick(5); // let ready go first
   await h.send({ type: "memory.list" });
-  assert.deepEqual(h.events().at(-1), { type: "memory", enabled: false, count: 0, memories: [] });
+  assert.deepEqual(h.events().at(-1), { type: "memory", enabled: false, count: 0, memories: [], episodes: [] });
   h.clear();
   await h.send({ type: "memory.forget", id: "2" }, { type: "memory.forget", id: 1.5 }, { type: "memory.forget" });
   assert.deepEqual(h.types(), ["error", "error", "error"]);

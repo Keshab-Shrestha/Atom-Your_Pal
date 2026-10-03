@@ -3,7 +3,9 @@ import type { LanguageModel, Message, RequestContext, ToolRunner, ZenoInput, Zen
 
 export const DEFAULT_SYSTEM_PROMPT =
   "You are ZENO, a voice assistant. Your replies are spoken aloud, so answer in short, " +
-  "natural sentences. Do not use markdown, lists, headings or emoji.";
+  "natural sentences. Do not use markdown, lists, headings or emoji. Keep most replies to one to three sentences, " +
+  "like a person talking; give more only when the user asks for detail or steps, and then still keep it brief. " +
+  "Ask at most one question per reply.";
 
 export class CoreError extends Error {
   constructor(message: string) {
@@ -24,6 +26,11 @@ export interface CoreOptions {
    * prompt for this request only. A failing provider is ignored: the request goes on without it.
    */
   context?: (input: ZenoInput, context: RequestContext) => string | undefined;
+  /**
+   * Called after every exchange that is kept in history, with the whole session so far (ADR-059: conversation
+   * summaries). Must not throw or block; errors are ignored.
+   */
+  onExchange?: (sessionId: string, turns: readonly Message[]) => void;
   /** Maximum user+assistant turn pairs kept in session history (bounds prompt size). */
   maxTurns?: number;
   newId?: () => string;
@@ -58,6 +65,7 @@ export function createCore(options: CoreOptions): Core {
     maxToolRounds = 8,
     systemPrompt: basePrompt = DEFAULT_SYSTEM_PROMPT,
     context: contextFor,
+    onExchange,
     maxTurns = 20,
     newId = randomUUID,
     now = () => new Date(),
@@ -120,6 +128,11 @@ export function createCore(options: CoreOptions): Core {
         if (sessionId === sessionAtStart) {
           const assistantTurn: Message = { role: "assistant", content: replyText };
           turns = [...turns, userTurn, assistantTurn].slice(-maxTurns * 2);
+          try {
+            onExchange?.(sessionId, turns);
+          } catch {
+            // a summary is a help, never a reason to fail a reply
+          }
         }
         return { requestId: context.requestId, text: replyText };
       } finally {

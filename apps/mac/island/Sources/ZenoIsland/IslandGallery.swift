@@ -100,6 +100,8 @@ enum IslandGallery {
                 MemoryItem(id: 3, text: "Keshab takes his coffee black, no sugar.", createdAt: now.addingTimeInterval(-300), source: "voice"),
                 MemoryItem(id: 2, text: "Keshab's sister is called Asha and she lives in Osaka.", createdAt: now.addingTimeInterval(-86_400 * 2), source: "voice"),
                 MemoryItem(id: 1, text: "Keshab prefers replies in short sentences.", createdAt: now.addingTimeInterval(-86_400 * 9), source: "text"),
+            ], episodes: [
+                EpisodeItem(id: 2, summary: "The user is planning a November weekend in Kyoto, avoiding crowds; Fushimi Inari at 7 am on Saturday. Dates still open.", endedAt: now.addingTimeInterval(-3_600 * 3), exchanges: 4),
             ])
             panels.append(frozen(IslandView(model: model, snapshot: true).frame(width: size.width, height: size.height)))
             model.memory = MemoryList(enabled: true, count: 0, memories: [])

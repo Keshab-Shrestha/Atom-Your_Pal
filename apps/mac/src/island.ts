@@ -11,6 +11,7 @@ import {
   parseCommand,
   type IslandCommand,
   type IslandEvent,
+  type EpisodeItem,
   type MemoryItem,
 } from "./island-protocol.ts";
 import type { ComputerBridge } from "./computer-bridge.ts";
@@ -55,6 +56,10 @@ export interface IslandMemory {
   count(): number;
   forget(id: number): boolean;
   clear(): number;
+  /** Conversation summaries (ADR-059), newest first. */
+  episodes(): EpisodeItem[];
+  forgetEpisode(id: number): boolean;
+  clearEpisodes(): number;
   /** Called after ZENO keeps or forgets something by itself (the remember / forget tools). Returns an unsubscribe. */
   onChange(listener: () => void): () => void;
 }
@@ -171,6 +176,16 @@ export function runIsland(options: IslandOptions): IslandSession {
         sendMemory();
         return;
       }
+      case "episode.forget":
+        if (options.memory?.forgetEpisode(command.id)) options.log?.info("episode.change", { action: "forget", id: command.id, by: "settings" });
+        sendMemory();
+        return;
+      case "episode.clear": {
+        const removed = options.memory?.clearEpisodes() ?? 0;
+        if (removed) options.log?.info("episode.change", { action: "clear", removed, by: "settings" });
+        sendMemory();
+        return;
+      }
       case "quit":
         quit();
         return;
@@ -179,7 +194,11 @@ export function runIsland(options: IslandOptions): IslandSession {
 
   function sendMemory() {
     const memory = options.memory;
-    send(memory ? { type: "memory", enabled: true, count: memory.count(), memories: memory.list() } : { type: "memory", enabled: false, count: 0, memories: [] });
+    send(
+      memory
+        ? { type: "memory", enabled: true, count: memory.count(), memories: memory.list(), episodes: memory.episodes() }
+        : { type: "memory", enabled: false, count: 0, memories: [], episodes: [] },
+    );
   }
   let memoryWatched = false;
   const stopMemoryUpdates = options.memory?.onChange(() => {

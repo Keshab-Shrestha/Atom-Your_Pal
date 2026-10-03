@@ -6,8 +6,19 @@ import { createComputerBridge, type ComputerBridge } from "./computer-bridge.ts"
 import { createComputerTool, createCuaTransport, createToolEngine, timeTool } from "@zeno/tool-engine";
 import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError } from "@zeno/llm-gateway";
 import { createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
-import { createMemoryTools, DEFAULT_MAX_MEMORIES, memoryContext, openMemoryStore, type MemoryStore } from "@zeno/memory";
-import type { InputSource } from "@zeno/contracts";
+import {
+  createEpisodeRecorder,
+  createMemoryTools,
+  DEFAULT_MAX_EPISODES,
+  DEFAULT_MAX_MEMORIES,
+  episodeContext,
+  MEMORY_GUIDANCE,
+  memoryContext,
+  openMemoryStore,
+  type EpisodeRecorder,
+  type MemoryStore,
+} from "@zeno/memory";
+import type { InputSource, Message } from "@zeno/contracts";
 import type { IslandMemory } from "./island.ts";
 import { AudioError, defaultInputDevice, startRecording } from "./audio.ts";
 import { SttError, createWhisperStt, type SpeechToText } from "./stt.ts";
@@ -66,6 +77,9 @@ export function createRuntime(
     count: () => memory.count(),
     forget: (id) => memory.remove(id),
     clear: () => memory.clear(),
+    episodes: () => memory.episodes(DEFAULT_MAX_EPISODES).map((e) => ({ id: e.id, summary: e.summary, endedAt: e.endedAt.toISOString(), exchanges: e.exchanges })),
+    forgetEpisode: (id) => memory.removeEpisode(id),
+    clearEpisodes: () => memory.clearEpisodes(),
     onChange: (listener) => {
       memoryListeners.add(listener);
       return () => memoryListeners.delete(listener);
@@ -119,6 +133,19 @@ export function createRuntime(
     });
   const initial = { provider: config.llm.provider, model: config.llm.model };
   const model = createSwitchableModel(createModel(initial, config.llm.apiKey));
+  // ADR-059: a short summary of each conversation, written in the background with the same model (no tools).
+  const episodes: EpisodeRecorder | undefined =
+    memory && process.env.ZENO_EPISODES !== "0"
+      ? createEpisodeRecorder({
+          store: memory,
+          model,
+          onSaved: (e) => {
+            log.info("episode.saved", e);
+            for (const listener of memoryListeners) listener();
+          },
+          onError: (error) => log.warn("episode.failed", { ...errorFields(error) }),
+        })
+      : undefined;
   // ZENO_VOICE_ONLY=1: test speech in and out without the AI. ZENO reads back what Whisper heard, and no
   // request is made to any model. (Typed as `Core` so every caller treats it the same.)
   const core: Core = process.env.ZENO_VOICE_ONLY === "1" ? createEchoCore() : createCore({
@@ -127,10 +154,17 @@ export function createRuntime(
         context: (input, context) => {
           current = { source: input.source, requestId: context.requestId };
           if (!memory) return undefined;
-          const block = memoryContext(input.text, { store: memory });
-          log.debug("memory.context", { requestId: context.requestId, kept: memory.count(), used: block ? block.split("\n").length - 1 : 0 });
-          return block;
+          const facts = memoryContext(input.text, { store: memory });
+          const past = episodes ? episodeContext(memory, context.sessionId) : undefined;
+          log.debug("memory.context", {
+            requestId: context.requestId,
+            kept: memory.count(),
+            used: facts ? facts.split("\n").length - 1 : 0,
+            episodes: past ? past.split("\n").length - 1 : 0,
+          });
+          return [MEMORY_GUIDANCE, facts, past].filter(Boolean).join("\n\n");
         },
+        ...(episodes ? { onExchange: (sessionId: string, turns: readonly Message[]) => episodes.update(sessionId, turns) } : {}),
       });
   const settingsPath = options.settingsPath;
   const settings = createModelSettings({

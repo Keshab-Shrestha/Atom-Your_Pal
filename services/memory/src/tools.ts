@@ -91,6 +91,13 @@ export function createMemoryTools(options: MemoryToolOptions): MemoryTool[] {
   ];
 }
 
+/** Always in the prompt when memory is on, so ZENO knows it can keep things and offers to (ADR-059). */
+export const MEMORY_GUIDANCE =
+  "You can keep facts about the user between conversations with the remember tool. When the user mentions a lasting " +
+  "personal fact or preference in passing (family, home, work, diet, routines, how they like things done), briefly offer " +
+  "to remember it at the end of your reply, and keep it only if they agree. Never offer for one-off details, and never " +
+  "keep passwords, PINs or other secrets. Do not offer again for something already kept.";
+
 export interface MemoryContextOptions {
   store: MemoryStore;
   /** Most memories put in front of the model per request. */

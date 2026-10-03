@@ -194,4 +194,19 @@ struct MemoryProtocolTests {
             try decodeEvent(#"{"type":"memory","enabled":true,"count":1,"memories":[{"id":true,"text":"x"}]}"#)
         }
     }
+
+    @Test func episodesAreDecodedAndOptional() throws {
+        let line = #"{"type":"memory","enabled":true,"count":0,"memories":[],"episodes":[{"id":4,"summary":"The user planned Kyoto.","endedAt":"2026-10-04T01:02:03.456Z","exchanges":3}]}"#
+        guard case .memory(let list) = try decodeEvent(line) else { Issue.record("not memory"); return }
+        #expect(list.episodes == [EpisodeItem(id: 4, summary: "The user planned Kyoto.", endedAt: Date(timeIntervalSince1970: 1_791_075_723.456), exchanges: 3)])
+        // An older runtime sends no episodes at all.
+        guard case .memory(let old) = try decodeEvent(#"{"type":"memory","enabled":true,"count":0,"memories":[]}"#) else { return }
+        #expect(old.episodes.isEmpty)
+        #expect(throws: ProtocolError.invalidValue(event: "memory", field: "episodes")) {
+            try decodeEvent(#"{"type":"memory","enabled":true,"count":0,"memories":[],"episodes":[{"id":1}]}"#)
+        }
+        let forget = try object(.episodeForget(id: 4))
+        #expect(forget["type"] as? String == "episode.forget" && (forget["id"] as? NSNumber)?.intValue == 4)
+        #expect(try object(.episodeClear) as? [String: String] == ["type": "episode.clear"])
+    }
 }

@@ -18,6 +18,8 @@ export type IslandCommand =
   | { type: "memory.list" }
   | { type: "memory.forget"; id: number }
   | { type: "memory.clear" }
+  | { type: "episode.forget"; id: number }
+  | { type: "episode.clear" }
   | { type: "quit" };
 
 export type ErrorStage =
@@ -48,6 +50,15 @@ export interface MemoryItem {
   source: "voice" | "text";
 }
 
+/** One conversation summary (ADR-059). Travels only over the private pipe; never logged. */
+export interface EpisodeItem {
+  id: number;
+  summary: string;
+  /** ISO 8601: when the conversation was last summarised. */
+  endedAt: string;
+  exchanges: number;
+}
+
 export type IslandEvent =
   | { type: "ready"; protocol: number; provider: string; model: string; microphone: string; voice: boolean }
   | { type: "state"; state: LoopState }
@@ -71,7 +82,7 @@ export type IslandEvent =
   | { type: "approval.request"; id: string; summary: string; reason: string }
   | { type: "approval.closed"; id: string }
   | InfoEvent
-  | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[] }
+  | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[] }
   | { type: "error"; stage: ErrorStage; message: string; kind?: string; retryable?: boolean };
 
 const COMMANDS = new Set<IslandCommand["type"]>([
@@ -84,6 +95,8 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "memory.list",
   "memory.forget",
   "memory.clear",
+  "episode.forget",
+  "episode.clear",
   "quit",
 ]);
 
@@ -116,9 +129,9 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof approved !== "boolean") return { error: 'approval.answer needs "approved" to be true or false.' };
     return { command: { type, id, approved } };
   }
-  if (type === "memory.forget") {
+  if (type === "memory.forget" || type === "episode.forget") {
     const { id } = value as { id?: unknown };
-    if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: 'memory.forget needs an "id" that is a whole number.' };
+    if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     return { command: { type, id } };
   }
   return { command: { type } as IslandCommand }; // extra fields are ignored (forward compatibility)

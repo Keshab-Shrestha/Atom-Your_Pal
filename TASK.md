@@ -441,6 +441,15 @@ Also checked: a damaged `data/memory.db` turns memory off with `memory.unavailab
 
 **Not done:** Keshab turns it on, logs out and in.
 
+### Task 1.2 — Conversation Notes and Offering to Remember (ADR-059) — built; tested; checked live in text
+
+- After each reply, a background request writes ZENO's two-sentence note about the conversation (`episodes` table, one per session, newest 50 kept). The newest three from other sessions are in the system prompt. Settings → Memory → "Recent conversations" lists them with × and Clear. `ZENO_EPISODES=0` turns it off.
+- ZENO offers to remember lasting personal facts mentioned in passing and keeps them only on a yes.
+- Base prompt: one to three sentences, at most one question.
+- Tests: TS 345 pass, 2 skipped (6 new for episodes and the recorder, 1 for the Core hook); Swift 311 pass. Live on Claude Haiku 4.5: a Kyoto trip plan was noted; after "New conversation", "What were we planning last time?" got the plan back. "I'm vegetarian" got an offer; "yes" kept it. A trivia question was not noted as a plan.
+
+**Not done:** by voice through the island; the notes card on the real screen.
+
 ---
 
 ## 6. Definition of Done

@@ -305,3 +305,19 @@ test("context: tool rounds keep the same system prompt", async () => {
   assert.equal(requests.length, 2);
   for (const r of requests) assert.ok(r.system.endsWith("Known: X"));
 });
+
+test("onExchange: called with the whole session after each kept exchange; a throwing hook never fails the reply", async () => {
+  const { model } = fakeModel();
+  const seen: [string, number][] = [];
+  const core = createCore({
+    model,
+    onExchange: (sessionId, turns) => {
+      seen.push([sessionId, turns.length]);
+      throw new Error("summary broke");
+    },
+  });
+  await core.handle({ text: "one", source: "text" });
+  await core.handle({ text: "two", source: "text" });
+  assert.deepEqual(seen.map(([, n]) => n), [2, 4]);
+  assert.equal(seen[0][0], core.sessionId);
+});

@@ -24,6 +24,20 @@ export interface Memory {
   createdAt: Date;
 }
 
+/** A short summary of one past conversation (ADR-059), so a new conversation can pick up where the last left off. */
+export interface Episode {
+  id: number;
+  /** The Core session it summarises; one episode per session, updated as the conversation goes on. */
+  sessionId: string;
+  summary: string;
+  /** User+assistant exchanges summarised. */
+  exchanges: number;
+  endedAt: Date;
+}
+
+export const MAX_EPISODE_CHARS = 400;
+export const DEFAULT_MAX_EPISODES = 50;
+
 export interface Provenance {
   source: InputSource;
   requestId?: string;
@@ -49,6 +63,14 @@ export interface MemoryStore {
   count(): number;
   /** Deletes every memory of this owner. Returns how many were deleted. */
   clear(): number;
+  /** Saves (or updates) the summary of one conversation; the oldest beyond the limit are deleted. */
+  saveEpisode(sessionId: string, summary: string, exchanges: number): Episode;
+  /** The newest episodes first. */
+  episodes(limit?: number): Episode[];
+  removeEpisode(id: number): boolean;
+  /** Deletes every episode of this owner. Returns how many were deleted. */
+  clearEpisodes(): number;
+  episodeCount(): number;
   close(): void;
 }
 
@@ -57,6 +79,7 @@ export interface MemoryStoreOptions {
   path: string;
   owner?: string;
   maxMemories?: number;
+  maxEpisodes?: number;
   now?: () => Date;
 }
 
@@ -69,6 +92,22 @@ interface Row {
   request_id: string | null;
   created_at: string;
 }
+
+interface EpisodeRow {
+  id: number;
+  session_id: string;
+  summary: string;
+  exchanges: number;
+  ended_at: string;
+}
+
+const toEpisode = (row: EpisodeRow): Episode => ({
+  id: row.id,
+  sessionId: row.session_id,
+  summary: row.summary,
+  exchanges: row.exchanges,
+  endedAt: new Date(row.ended_at),
+});
 
 const toMemory = (row: Row): Memory => ({
   id: row.id,
@@ -105,7 +144,7 @@ const STOP_WORDS = new Set([
 ]);
 
 export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
-  const { path, owner = LOCAL_OWNER, maxMemories = DEFAULT_MAX_MEMORIES, now = () => new Date() } = options;
+  const { path, owner = LOCAL_OWNER, maxMemories = DEFAULT_MAX_MEMORIES, maxEpisodes = DEFAULT_MAX_EPISODES, now = () => new Date() } = options;
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
   db.exec(`
@@ -127,7 +166,28 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
     CREATE TRIGGER IF NOT EXISTS memories_ad AFTER DELETE ON memories BEGIN
       INSERT INTO memories_fts(memories_fts, rowid, text) VALUES ('delete', old.id, old.text);
     END;
+    CREATE TABLE IF NOT EXISTS episodes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner TEXT NOT NULL,
+      session_id TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      exchanges INTEGER NOT NULL,
+      ended_at TEXT NOT NULL,
+      UNIQUE (owner, session_id)
+    );
   `);
+  const upsertEpisode = db.prepare(`
+    INSERT INTO episodes (owner, session_id, summary, exchanges, ended_at) VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT (owner, session_id) DO UPDATE SET summary = excluded.summary, exchanges = excluded.exchanges, ended_at = excluded.ended_at
+  `);
+  const episodeBySession = db.prepare("SELECT * FROM episodes WHERE owner = ? AND session_id = ?");
+  const newestEpisodes = db.prepare("SELECT * FROM episodes WHERE owner = ? ORDER BY ended_at DESC, id DESC LIMIT ?");
+  const pruneEpisodes = db.prepare(
+    "DELETE FROM episodes WHERE owner = ? AND id NOT IN (SELECT id FROM episodes WHERE owner = ? ORDER BY ended_at DESC, id DESC LIMIT ?)",
+  );
+  const deleteEpisode = db.prepare("DELETE FROM episodes WHERE owner = ? AND id = ?");
+  const clearAllEpisodes = db.prepare("DELETE FROM episodes WHERE owner = ?");
+  const countEpisodes = db.prepare("SELECT count(*) AS n FROM episodes WHERE owner = ?");
 
   const insert = db.prepare("INSERT INTO memories (text, owner, scope, source, request_id, created_at) VALUES (?, ?, 'personal', ?, ?, ?)");
   const byText = db.prepare("SELECT * FROM memories WHERE owner = ? AND lower(text) = lower(?)");
@@ -181,6 +241,30 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
 
     clear() {
       return Number(clearer.run(owner).changes);
+    },
+
+    saveEpisode(sessionId, raw, exchanges) {
+      const summary = normalizeMemoryText(raw).slice(0, MAX_EPISODE_CHARS);
+      if (!summary) throw new MemoryError("An empty summary is not kept.");
+      upsertEpisode.run(owner, sessionId, summary, exchanges, now().toISOString());
+      pruneEpisodes.run(owner, owner, maxEpisodes);
+      return toEpisode(episodeBySession.get(owner, sessionId) as unknown as EpisodeRow);
+    },
+
+    episodes(limit = 10) {
+      return (newestEpisodes.all(owner, limit) as unknown as EpisodeRow[]).map(toEpisode);
+    },
+
+    removeEpisode(id) {
+      return Number(deleteEpisode.run(owner, id).changes) > 0;
+    },
+
+    clearEpisodes() {
+      return Number(clearAllEpisodes.run(owner).changes);
+    },
+
+    episodeCount() {
+      return Number((countEpisodes.get(owner) as { n: number }).n);
     },
 
     close() {

@@ -146,3 +146,105 @@ test("clear deletes every memory of this owner only", () => {
   assert.deepEqual(store.search("one two"), []);
   assert.equal(store.clear(), 0);
 });
+
+// --- episodes (ADR-059) ---
+
+import { createEpisodeRecorder, episodeContext, SUMMARY_PROMPT } from "./index.ts";
+import type { LanguageModel, Message, ModelRequest } from "@zeno/contracts";
+
+const convo = (n: number): Message[] =>
+  Array.from({ length: n }, (_, i) => [
+    { role: "user" as const, content: `question ${i + 1}` },
+    { role: "assistant" as const, content: `answer ${i + 1}` },
+  ]).flat();
+
+test("an episode per session is updated in place; the oldest are pruned", () => {
+  const store = openMemoryStore({ path: ":memory:", maxEpisodes: 2, now: clock() });
+  store.saveEpisode("s1", "The user planned a trip.", 1);
+  const updated = store.saveEpisode("s1", "The user planned a trip to Osaka in May.", 3);
+  assert.equal(store.episodeCount(), 1);
+  assert.equal(updated.summary, "The user planned a trip to Osaka in May.");
+  assert.equal(updated.exchanges, 3);
+  store.saveEpisode("s2", "Second.", 1);
+  store.saveEpisode("s3", "Third.", 1);
+  assert.deepEqual(store.episodes().map((e) => e.sessionId), ["s3", "s2"]);
+  assert.throws(() => store.saveEpisode("s4", "   ", 1), MemoryError);
+  assert.equal(store.saveEpisode("s5", "x".repeat(900), 1).summary.length, 400);
+  assert.equal(store.clearEpisodes(), 2);
+});
+
+test("episodes and memories are deleted separately", () => {
+  const store = openMemoryStore({ path: ":memory:" });
+  store.add("A fact.", voice);
+  const e = store.saveEpisode("s1", "A conversation.", 1);
+  store.clear();
+  assert.equal(store.episodeCount(), 1);
+  assert.equal(store.removeEpisode(e.id), true);
+  assert.equal(store.removeEpisode(e.id), false);
+});
+
+function fakeSummariser(reply: (req: ModelRequest) => string | Promise<string>) {
+  const requests: ModelRequest[] = [];
+  const model: LanguageModel = {
+    async complete(request) {
+      requests.push(request);
+      return { text: await reply(request) };
+    },
+  };
+  return { model, requests };
+}
+
+test("recorder: summarises in the background with no tools, keeps only the newest, skips NOTHING", async () => {
+  const store = openMemoryStore({ path: ":memory:" });
+  let release!: () => void;
+  const gate = new Promise<void>((r) => (release = r));
+  const { model, requests } = fakeSummariser(async (req) => {
+    if (requests.length === 1) await gate; // the first summary is slow
+    return `Summary of ${req.messages[0].content.split("\n").length - 1} lines`;
+  });
+  const saved: unknown[] = [];
+  const recorder = createEpisodeRecorder({ store, model, onSaved: (e) => saved.push(e) });
+  recorder.update("s1", convo(1));
+  await new Promise((r) => setTimeout(r, 1)); // the first summary is now running
+  recorder.update("s1", convo(2)); // queued
+  recorder.update("s1", convo(3)); // replaces the queued one
+  release();
+  await recorder.idle();
+  assert.equal(requests.length, 2, "the middle update was superseded");
+  for (const r of requests) {
+    assert.equal(r.system, SUMMARY_PROMPT);
+    assert.equal(r.tools, undefined, "the summariser can never use tools");
+  }
+  assert.equal(store.episodes()[0].summary, "Summary of 6 lines");
+  assert.equal(store.episodes()[0].exchanges, 3);
+  assert.equal(saved.length, 2);
+  assert.ok(!JSON.stringify(saved).includes("Summary"), "the log gets ids and counts only");
+
+  const quiet = createEpisodeRecorder({ store: openMemoryStore({ path: ":memory:" }), model: fakeSummariser(() => "NOTHING").model });
+  quiet.update("s9", convo(1));
+  await quiet.idle();
+});
+
+test("recorder: a failing model is reported, never thrown; an empty session is skipped", async () => {
+  const store = openMemoryStore({ path: ":memory:" });
+  const errors: unknown[] = [];
+  const model: LanguageModel = { complete: async () => Promise.reject(new Error("quota")) };
+  const recorder = createEpisodeRecorder({ store, model, onError: (e) => errors.push(e) });
+  recorder.update("s1", []);
+  recorder.update("s1", convo(1));
+  await recorder.idle();
+  assert.equal(errors.length, 1);
+  assert.equal(store.episodeCount(), 0);
+});
+
+test("episode context: newest few, oldest first, never the current session", () => {
+  const store = openMemoryStore({ path: ":memory:", now: clock() });
+  assert.equal(episodeContext(store, "now"), undefined);
+  for (const s of ["a", "b", "c", "d", "now"]) store.saveEpisode(s, `Talked about ${s}.`, 1);
+  const block = episodeContext(store, "now", 3)!;
+  const lines = block.split("\n").slice(1);
+  assert.equal(lines.length, 3);
+  assert.match(lines[0], /Talked about b\./);
+  assert.match(lines[2], /Talked about d\./);
+  assert.ok(!block.includes("about now"));
+});

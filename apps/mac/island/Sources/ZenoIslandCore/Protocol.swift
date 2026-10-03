@@ -18,6 +18,9 @@ public enum IslandCommand: Sendable, Equatable {
     /// Memory (ADR-058): ask for the list (and its changes from then on), forget one, or forget everything.
     case memoryList, memoryClear
     case memoryForget(id: Int)
+    /// Conversation notes (ADR-059): forget one, or all.
+    case episodeForget(id: Int)
+    case episodeClear
 
     /// The command's `type` field. Safe for logs: never includes values.
     public var type: String {
@@ -32,6 +35,8 @@ public enum IslandCommand: Sendable, Equatable {
         case .memoryList: "memory.list"
         case .memoryClear: "memory.clear"
         case .memoryForget: "memory.forget"
+        case .episodeForget: "episode.forget"
+        case .episodeClear: "episode.clear"
         }
     }
 
@@ -48,6 +53,9 @@ public enum IslandCommand: Sendable, Equatable {
         }
         if case .memoryForget(let id) = self {
             fields["id"] = id // a JSON number: the runtime refuses "2"
+        }
+        if case .episodeForget(let id) = self {
+            fields["id"] = id
         }
         // A dictionary of strings and booleans is always valid JSON, so this cannot fail.
         guard let data = try? JSONSerialization.data(withJSONObject: fields, options: [.sortedKeys, .withoutEscapingSlashes]),
@@ -119,6 +127,21 @@ public struct MemoryItem: Sendable, Equatable, Identifiable {
     }
 }
 
+/// ZENO's note about one past conversation (ADR-059). Never written to a log.
+public struct EpisodeItem: Sendable, Equatable, Identifiable {
+    public var id: Int
+    public var summary: String
+    public var endedAt: Date?
+    public var exchanges: Int
+
+    public init(id: Int, summary: String, endedAt: Date?, exchanges: Int) {
+        self.id = id
+        self.summary = summary
+        self.endedAt = endedAt
+        self.exchanges = exchanges
+    }
+}
+
 /// What ZENO keeps, from the `memory` event.
 public struct MemoryList: Sendable, Equatable {
     /// False when memory is off in the runtime (`ZENO_MEMORY=0`, or the file could not be opened).
@@ -126,11 +149,14 @@ public struct MemoryList: Sendable, Equatable {
     public var count: Int
     /// Newest first.
     public var memories: [MemoryItem]
+    /// Notes from recent conversations, newest first. Empty from an older runtime.
+    public var episodes: [EpisodeItem]
 
-    public init(enabled: Bool, count: Int, memories: [MemoryItem]) {
+    public init(enabled: Bool, count: Int, memories: [MemoryItem], episodes: [EpisodeItem] = []) {
         self.enabled = enabled
         self.count = count
         self.memories = memories
+        self.episodes = episodes
     }
 }
 
@@ -303,7 +329,7 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
             model: try f.string("model"),
             providers: try f.providers()))
     case "memory":
-        return .memory(MemoryList(enabled: try f.bool("enabled"), count: try f.int("count"), memories: try f.memories()))
+        return .memory(MemoryList(enabled: try f.bool("enabled"), count: try f.int("count"), memories: try f.memories(), episodes: try f.episodes()))
     case "error":
         return .error(RuntimeError(
             stage: try f.string("stage"),
@@ -387,6 +413,23 @@ private struct Fields {
             else { throw invalid }
             let date = (m["createdAt"] as? String).flatMap { iso.date(from: $0) }
             return MemoryItem(id: id.intValue, text: text, createdAt: date, source: m["source"] as? String ?? "voice")
+        }
+    }
+
+    /// The optional `episodes` list of a `memory` event (absent from older runtimes).
+    func episodes() throws -> [EpisodeItem] {
+        guard let value = values["episodes"] else { return [] }
+        let invalid = ProtocolError.invalidValue(event: event, field: "episodes")
+        guard let entries = value as? [Any] else { throw invalid }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return try entries.map { entry in
+            guard let e = entry as? [String: Any],
+                  let id = e["id"] as? NSNumber, CFGetTypeID(id) != CFBooleanGetTypeID(),
+                  let summary = e["summary"] as? String
+            else { throw invalid }
+            let exchanges = (e["exchanges"] as? NSNumber)?.intValue ?? 0
+            return EpisodeItem(id: id.intValue, summary: summary, endedAt: (e["endedAt"] as? String).flatMap { iso.date(from: $0) }, exchanges: exchanges)
         }
     }
 

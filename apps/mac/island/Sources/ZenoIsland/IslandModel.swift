@@ -126,6 +126,11 @@ final class IslandModel {
         send(.memoryForget(id: id))
     }
     func forgetAllMemory() { send(.memoryClear) }
+    func forgetEpisode(_ id: Int) {
+        memory?.episodes.removeAll { $0.id == id }
+        send(.episodeForget(id: id))
+    }
+    func forgetAllEpisodes() { send(.episodeClear) }
 
     /// Keeps the conversation and model list in step with the runtime. The status is applied by the controller.
     func apply(_ event: IslandEvent) {
