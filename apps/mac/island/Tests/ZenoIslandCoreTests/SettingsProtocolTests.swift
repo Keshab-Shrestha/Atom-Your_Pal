@@ -225,3 +225,11 @@ struct MemoryProtocolTests {
         #expect(status.kind == .thinking)
     }
 }
+
+@Suite struct TextSendTests {
+    @Test func textSendEncodesTheTextEscaped() throws {
+        let line = IslandCommand.textSend("say \"hi\"\nplease").line
+        let object = try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: String]
+        #expect(object == ["type": "text.send", "text": "say \"hi\"\nplease"])
+    }
+}

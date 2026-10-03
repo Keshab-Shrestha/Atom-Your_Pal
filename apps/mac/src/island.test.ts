@@ -620,3 +620,20 @@ test("a timer ending is shown and spoken, in that order, then ZENO is idle again
   ]);
   assert.deepEqual(h.spoken, ["Your pasta timer is done.", "Your 1 minute and 30 seconds timer is done."]);
 });
+
+// --- typed requests ---
+
+test("text.send: answered and spoken like a voice turn, without the microphone; empty text is refused", async () => {
+  const h = islandHarness();
+  await h.send({ type: "text.send", text: "  what time is it " });
+  await new Promise((r) => setTimeout(r, 10));
+  const events = h.events();
+  assert.ok(events.some((e) => e.type === "transcript" && e.text === "what time is it"));
+  assert.ok(events.some((e) => e.type === "reply" && e.text === "reply to what time is it"));
+  assert.deepEqual(h.spoken, ["reply to what time is it"]);
+  const done = events.find((e) => e.type === "turn.complete") as Extract<IslandEvent, { type: "turn.complete" }>;
+  assert.equal(done.speechMs, 0);
+  assert.ok(!events.some((e) => e.type === "state" && e.state === "listening"));
+  await h.send({ type: "text.send", text: "   " });
+  assert.match(String((h.events().at(-1) as { message?: string }).message), /non-empty "text"/);
+});

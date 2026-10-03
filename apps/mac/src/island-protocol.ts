@@ -18,6 +18,7 @@ export type IslandCommand =
   | { type: "memory.list" }
   | { type: "memory.forget"; id: number }
   | { type: "memory.clear" }
+  | { type: "text.send"; text: string }
   | { type: "episode.forget"; id: number }
   | { type: "episode.clear" }
   | { type: "quit" };
@@ -96,6 +97,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "memory.list",
   "memory.forget",
   "memory.clear",
+  "text.send",
   "episode.forget",
   "episode.clear",
   "quit",
@@ -129,6 +131,12 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof id !== "string" || id === "") return { error: 'approval.answer needs an "id" string.' };
     if (typeof approved !== "boolean") return { error: 'approval.answer needs "approved" to be true or false.' };
     return { command: { type, id, approved } };
+  }
+  if (type === "text.send") {
+    const { text } = value as { text?: unknown };
+    if (typeof text !== "string" || !text.trim()) return { error: 'text.send needs a non-empty "text".' };
+    if (text.length > 4000) return { error: "text.send: the text is longer than 4000 characters." };
+    return { command: { type, text } };
   }
   if (type === "memory.forget" || type === "episode.forget") {
     const { id } = value as { id?: unknown };

@@ -348,6 +348,48 @@ struct PillButton: View {
 
 // MARK: - Conversation
 
+/// Type to ZENO: Return sends, the reply is spoken and shown like a voice turn.
+struct Composer: View {
+    let model: IslandModel
+    private let draft = State(initialValue: "")
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(spacing: 6) {
+            TextField("Type to ZENO…", text: draft.projectedValue)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12.5))
+                .foregroundStyle(theme.text.color)
+                .onSubmit(send)
+                .accessibilityLabel("Message to ZENO")
+            Button(action: send) {
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 10.5, weight: .bold))
+                    .foregroundStyle(empty ? theme.text3.color : theme.onAccent.color)
+                    .frame(width: 22, height: 22)
+                    .background(Circle().fill(empty ? theme.fill2.color : theme.accent.color))
+            }
+            .buttonStyle(.plain)
+            .disabled(empty)
+            .accessibilityLabel("Send")
+            .help("Send (Return)")
+        }
+        .padding(.leading, 11)
+        .padding(.trailing, 5)
+        .padding(.vertical, 5)
+        .background(RoundedRectangle(cornerRadius: 15, style: .continuous).fill(theme.fill1.color))
+        .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).strokeBorder(theme.separator.color, lineWidth: 0.5))
+    }
+
+    private var empty: Bool { draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    private func send() {
+        guard !empty else { return }
+        model.ask(draft.wrappedValue)
+        draft.wrappedValue = ""
+    }
+}
+
 struct ConversationTab: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
@@ -370,8 +412,9 @@ struct ConversationTab: View {
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer()
+                Composer(model: model)
             }
-            .padding(24)
+            .padding(EdgeInsets(top: 24, leading: 12, bottom: 12, trailing: 12))
             .frame(maxWidth: .infinity)
         } else {
             VStack(spacing: 0) {
@@ -390,6 +433,7 @@ struct ConversationTab: View {
                     }
                 }
                 Rectangle().fill(theme.separator.color).frame(height: 0.5)
+                Composer(model: model).padding(.horizontal, 12).padding(.top, 9)
                 HStack(spacing: 8) {
                     if let combo = model.settings.shortcut(for: .talk) {
                         HStack(spacing: 5) {
@@ -411,7 +455,7 @@ struct ConversationTab: View {
         guard let combo = model.settings.shortcut(for: .talk) else {
             return "Set a Talk shortcut in Settings to start talking."
         }
-        return "Hold \(combo.display), ask anything, then let go."
+        return "Hold \(combo.display), ask anything, then let go. Or type below."
     }
 }
 

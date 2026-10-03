@@ -21,6 +21,8 @@ public enum IslandCommand: Sendable, Equatable {
     /// Conversation notes (ADR-059): forget one, or all.
     case episodeForget(id: Int)
     case episodeClear
+    /// A typed request: answered and spoken like a voice turn.
+    case textSend(String)
 
     /// The command's `type` field. Safe for logs: never includes values.
     public var type: String {
@@ -37,6 +39,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .memoryForget: "memory.forget"
         case .episodeForget: "episode.forget"
         case .episodeClear: "episode.clear"
+        case .textSend: "text.send"
         }
     }
 
@@ -56,6 +59,9 @@ public enum IslandCommand: Sendable, Equatable {
         }
         if case .episodeForget(let id) = self {
             fields["id"] = id
+        }
+        if case .textSend(let text) = self {
+            fields["text"] = text
         }
         // A dictionary of strings and booleans is always valid JSON, so this cannot fail.
         guard let data = try? JSONSerialization.data(withJSONObject: fields, options: [.sortedKeys, .withoutEscapingSlashes]),

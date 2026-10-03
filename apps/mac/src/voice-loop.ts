@@ -4,7 +4,7 @@ import type { TextToSpeech } from "./tts.ts";
 
 /** The parts of ZENO Core the voice loop uses. */
 export interface CoreLike {
-  handle(input: { text: string; source: "voice" }, signal?: AbortSignal): Promise<{ text: string; requestId?: string }>;
+  handle(input: { text: string; source: "voice" | "text" }, signal?: AbortSignal): Promise<{ text: string; requestId?: string }>;
 }
 
 export type LoopState = "idle" | "listening" | "transcribing" | "thinking" | "speaking";
@@ -68,6 +68,8 @@ export interface VoiceLoop {
    * Transcribing, thinking or speaking: interrupt and start listening again.
    */
   press(): void;
+  /** A typed request: answered and spoken like a voice turn, without the microphone. */
+  ask(text: string): void;
   /** Abandons the current turn (recording, request or speech) and returns to idle. */
   cancel(): void;
 }
@@ -173,22 +175,50 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
         return;
       }
       events.onTranscript?.(text);
-
       stage = "model";
-      setState("thinking");
-      started = now();
-      const reply = await core.handle({ text, source: "voice" }, signal);
-      const model = now() - started;
-      if (signal.aborted) return;
-      events.onReply?.(reply.text);
+      await reply(text, "voice", signal, { speechMs: clip.durationMs, transcription }, (s) => (stage = s));
+    } catch (error) {
+      if (!signal.aborted) events.onError?.(stage, error);
+    } finally {
+      if (turn === controller) {
+        turn = null;
+        setState("idle");
+      }
+    }
+  }
 
-      stage = "speech";
-      setState("speaking");
-      started = now();
-      let firstSound: number | undefined;
-      await tts.speak(reply.text, signal, { onStart: () => (firstSound = now() - started) });
-      if (signal.aborted) return;
-      events.onTurnComplete?.({ requestId: reply.requestId, speechMs: clip.durationMs, transcription, model, firstSound });
+  /** From the model on: ask, show, speak, report. Shared by voice and typed turns. */
+  async function reply(
+    text: string,
+    source: "voice" | "text",
+    signal: AbortSignal,
+    heard: { speechMs: number; transcription: number },
+    onStage: (stage: LoopStage) => void,
+  ) {
+    setState("thinking");
+    let started = now();
+    const answer = await core.handle({ text, source }, signal);
+    const model = now() - started;
+    if (signal.aborted) return;
+    events.onReply?.(answer.text);
+
+    onStage("speech");
+    setState("speaking");
+    started = now();
+    let firstSound: number | undefined;
+    await tts.speak(answer.text, signal, { onStart: () => (firstSound = now() - started) });
+    if (signal.aborted) return;
+    events.onTurnComplete?.({ requestId: answer.requestId, ...heard, model, firstSound });
+  }
+
+  async function typed(text: string) {
+    const controller = new AbortController();
+    turn = controller;
+    const { signal } = controller;
+    let stage: LoopStage = "model";
+    try {
+      events.onTranscript?.(text);
+      await reply(text, "text", signal, { speechMs: 0, transcription: 0 }, (s) => (stage = s));
     } catch (error) {
       if (!signal.aborted) events.onError?.(stage, error);
     } finally {
@@ -202,6 +232,12 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
   return {
     get state() {
       return state;
+    },
+    ask(text: string) {
+      const clean = text.trim();
+      if (!clean) return;
+      abandonTurn(); // typing over ZENO, like talking over it, starts a new turn
+      void typed(clean);
     },
     press() {
       if (state === "listening" && recording) {

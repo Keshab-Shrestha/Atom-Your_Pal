@@ -132,6 +132,13 @@ final class IslandModel {
     }
     func forgetAllEpisodes() { send(.episodeClear) }
 
+    /// A typed request from the Conversation tab. Ignored when empty or too long for the runtime.
+    func ask(_ text: String) {
+        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty, clean.count <= 4000 else { return }
+        send(.textSend(clean))
+    }
+
     /// Keeps the conversation and model list in step with the runtime. The status is applied by the controller.
     func apply(_ event: IslandEvent) {
         conversation.apply(event)

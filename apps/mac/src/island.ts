@@ -143,6 +143,10 @@ export function runIsland(options: IslandOptions): IslandSession {
         options.computer?.cancelAll(); // Esc: anything waiting for the user is a no
         loop.cancel();
         return;
+      case "text.send":
+        options.computer?.cancelAll();
+        loop.ask(command.text);
+        return;
       case "approval.answer":
         options.computer?.answer(command.id, command.approved);
         return;
