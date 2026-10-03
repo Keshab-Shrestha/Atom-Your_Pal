@@ -1,0 +1,219 @@
+<style>
+html,body{width:1440px;background:#07080C}
+.bd{position:relative;width:1440px;padding:72px 80px 90px;
+  background:radial-gradient(900px 600px at 85% 0%,rgba(142,162,255,.16),transparent 70%),radial-gradient(800px 500px at 0% 6%,rgba(111,231,255,.10),transparent 70%),#07080C}
+.top{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:56px}
+.eyebrow{font:600 12px var(--text);letter-spacing:1.6px;text-transform:uppercase;color:var(--t2)}
+h1{font:700 52px/1 var(--disp);letter-spacing:-2px;margin-top:12px;background:linear-gradient(100deg,#fff 30%,#C9D3FF 60%,#B69CFF);-webkit-background-clip:text;background-clip:text;color:transparent;padding-bottom:4px}
+.lede{font-size:15px;line-height:1.5;color:var(--t2);max-width:520px;margin-top:12px}
+.sh{display:flex;align-items:baseline;gap:14px;margin:0 0 22px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}
+.sh .n{font:600 12px var(--text);color:var(--peri);letter-spacing:.6px}
+.sh h2{font:600 26px var(--disp);letter-spacing:-.7px}
+.sh .d{font-size:13px;color:var(--t2);margin-left:auto}
+section{margin-bottom:64px}
+/* moods */
+.moods{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.mood{height:296px;border-radius:20px;position:relative;overflow:hidden;background:radial-gradient(120% 90% at 50% 110%,rgba(255,255,255,.035),transparent 60%),#0D0F15;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.mood .stage{position:absolute;left:0;right:0;top:42px;height:160px;display:grid;place-items:center}
+.mood .cap{position:absolute;left:18px;right:18px;bottom:16px}
+.mood .cap b{display:block;font:600 15px var(--disp);letter-spacing:-.3px}
+.mood .cap span{display:block;font-size:12px;line-height:1.4;color:var(--t2);margin-top:3px}
+.mood .tag{position:absolute;top:14px;left:16px;font:600 10.5px var(--text);color:var(--t3);letter-spacing:.4px}
+.mood.edge .stage{padding-right:58px;top:52px}
+.mood.edge{overflow:hidden}
+/* panels */
+.panels{display:flex;gap:30px;justify-content:space-between;align-items:flex-start}
+.pl{display:flex;flex-direction:column;gap:12px}
+.pl .lab{font:600 13px var(--text);color:var(--t2)}
+.pl .lab b{color:#fff;font-weight:600;margin-right:6px}
+.stage-bg{padding:0;border-radius:28px}
+/* strips */
+.strips{display:flex;gap:48px;align-items:flex-start}.scol{display:flex;flex-direction:column;gap:26px}
+.sl{display:flex;flex-direction:column;gap:12px}
+.sl .lab{font:600 13px var(--text);color:var(--t2)}
+.stripnote{font-size:13px;line-height:1.55;color:var(--t2);max-width:420px}
+.stripnote b{color:#fff;font-weight:600}
+.place{position:relative;height:250px;border-radius:16px;overflow:hidden;background:radial-gradient(70% 70% at 70% 100%,rgba(255,138,160,.25),transparent 70%),radial-gradient(60% 70% at 20% 30%,rgba(110,90,255,.3),transparent 70%),#10132A;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.pl-mb{position:absolute;left:0;right:0;top:0;height:12px;background:rgba(255,255,255,.12)}
+.pl-icon{position:absolute;right:42px;top:3px;width:6px;height:6px;border-radius:50%;background:var(--orb)}
+.pl-strip{position:absolute;left:calc(50% - 70px);width:140px;bottom:78px;height:26px;border-radius:9px;background:rgba(13,15,21,.9);box-shadow:0 0 0 1px rgba(255,184,107,.8),0 0 14px rgba(255,170,100,.35)}
+.pl-walk{position:absolute;left:12%;right:12%;bottom:48px;border-top:1px dashed rgba(166,247,255,.45)}
+.pl-orb{position:absolute;left:66%;bottom:50px}
+.pl-dock{position:absolute;left:calc(50% - 110px);width:220px;bottom:8px;height:30px;border-radius:10px;background:rgba(255,255,255,.16);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.3)}
+.place span{position:absolute;font:600 11px var(--text);color:var(--t2)}
+.pl-l1{left:0;right:0;text-align:center;bottom:112px}.pl-l2{left:12%;bottom:54px}.pl-l3{left:calc(50% + 118px);bottom:16px}
+/* cards row */
+.row3{display:flex;gap:28px;align-items:flex-start}
+.bubs{display:grid;grid-template-columns:1fr 1fr;gap:30px 36px;align-items:end}
+.bx{display:flex;align-items:center;gap:22px}
+.bx .lab{font:600 12px var(--text);color:var(--t3);margin-bottom:10px}
+/* menubar icons */
+.mbrow{display:flex;gap:16px}
+.mbc{flex:1;border-radius:16px;background:#0D0F15;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);padding:16px 14px 14px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.mbc .real{height:28px;width:100%;border-radius:7px;display:flex;align-items:center;justify-content:center;background:linear-gradient(90deg,rgba(40,34,90,.9),rgba(26,48,92,.9));box-shadow:inset 0 0 0 .5px rgba(255,255,255,.1)}
+.mbc .real.light{background:rgba(236,236,238,.96)}
+.mbc .big{height:96px;display:grid;place-items:center}
+.mbc b{font:600 13px var(--text)}
+.mbc span{font-size:11.5px;color:var(--t2);text-align:center;line-height:1.35}
+/* tokens */
+.tok{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:16px}
+.tc{border-radius:18px;background:#0D0F15;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);padding:18px}
+.tc h4{font:600 12px var(--text);color:var(--t2);letter-spacing:.4px;margin-bottom:14px;text-transform:uppercase}
+.sws{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 10px}
+.swc i{display:block;height:44px;border-radius:10px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.2)}
+.swc b{display:block;font:600 11.5px var(--text);margin-top:6px}
+.swc span{display:block;font:500 10.5px ui-monospace,Menlo,monospace;color:var(--t2);margin-top:1px}
+.ts>div{display:flex;align-items:baseline;justify-content:space-between;padding:6px 0;border-bottom:.5px solid rgba(255,255,255,.07)}
+.ts>div:last-child{border:0}
+.ts span{font:500 10.5px ui-monospace,Menlo,monospace;color:var(--t2)}
+.rad{display:flex;gap:10px;align-items:flex-end;margin-bottom:16px}
+.rad div{text-align:center;font:500 11px ui-monospace,Menlo,monospace;color:var(--t2)}
+.rad i{display:block;margin:0 auto 6px;border:1.5px solid rgba(142,162,255,.85);background:rgba(142,162,255,.08)}
+.sp{display:flex;align-items:flex-end;gap:8px;margin-bottom:16px}
+.sp div{text-align:center;font:500 11px ui-monospace,Menlo,monospace;color:var(--t2)}
+.sp i{display:block;margin:0 auto 6px;background:linear-gradient(#6FE7FF,#8EA2FF);border-radius:2px;height:10px}
+.mo>div{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:.5px solid rgba(255,255,255,.07);font-size:12.5px}
+.mo>div:last-child{border:0}
+.mo span{font:500 10.5px ui-monospace,Menlo,monospace;color:var(--t2)}
+.mo svg{flex:none;margin-right:10px}
+.mo .nm{flex:1}
+</style>
+<div class="bd" id="bd">
+  <div class="top">
+    <div>
+      <div class="eyebrow">ZENO · Makeover · Direction B</div>
+      <h1>Luminous Orb</h1>
+      <div class="lede">Wisp becomes a living marble of light. Chrome is near-black deep glass that borrows the orb's colour: a faint aurora in each header, and the orb gradient only where it matters — selection, the primary action, live sound.</div>
+    </div>
+    <div id="hero" style="width:200px;height:170px;display:grid;place-items:center"></div>
+  </div>
+
+  <section>
+    <div class="sh"><span class="n">A</span><h2>Wisp mood sheet</h2><span class="d">120 pt artboards · the glow and the light inside carry the mood, the eyes carry intent</span></div>
+    <div class="moods" id="moods"></div>
+  </section>
+
+  <section>
+    <div class="sh"><span class="n">B</span><h2>Panel</h2><span class="d">380 pt wide, hugs content up to 560 pt · one panel, three tabs, settings drill in</span></div>
+    <div class="panels" id="p1"></div>
+    <div class="panels" id="p2" style="margin-top:44px"></div>
+  </section>
+
+  <section>
+    <div class="sh"><span class="n">C</span><h2>Work strip</h2><span class="d">420 pt · bottom centre, above the Dock and Wisp's walkway · the edge light names the state</span></div>
+    <div class="strips" id="strips"></div>
+  </section>
+
+  <section>
+    <div class="row3" style="gap:70px">
+      <div>
+        <div class="sh"><span class="n">D</span><h2>Status card</h2><span class="d">When Wisp is off</span></div>
+        <div style="display:flex;flex-direction:column;gap:18px" id="cards"></div>
+      </div>
+      <div style="flex:1">
+        <div class="sh"><span class="n">E</span><h2>Dictation bubble &amp; label pill</h2><span class="d">Hugs its content</span></div>
+        <div class="bubs" id="bubs"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sh"><span class="n">F</span><h2>Menu-bar icon</h2><span class="d">18 pt real size on dark and light menu bars · 4× below</span></div>
+    <div class="mbrow" id="mbi"></div>
+  </section>
+
+  <section style="margin-bottom:0">
+    <div class="sh"><span class="n">G</span><h2>Tokens</h2><span class="d">Named for the SwiftUI theme file</span></div>
+    <div class="tok" id="tok"></div>
+  </section>
+</div>
+<script>
+document.getElementById('hero').innerHTML = orb('speaking', 92);
+
+const M = [
+  ['resting', 'Resting', 'Calm halo, still light. Eyes level, a soft floor glow.'],
+  ['floating', 'Floating', 'Tilts into travel and leaves a short light trail.'],
+  ['listening', 'Listening', 'Surface ripples with the voice level; halo brightens.'],
+  ['thinking', 'Thinking', 'Aurora swirls slowly inside; eyes look up.'],
+  ['speaking', 'Speaking', 'Rings emanate on each syllable; smiling eyes.'],
+  ['problem', 'Problem', 'Shifts to amber-coral, dims and sinks; worried eyes.'],
+  ['napping', 'Napping', 'Dims to a slow 4 s pulse; eyes become closed lines.'],
+  ['carried', 'Carried', 'Squashes like jelly where it is held; wobbles on drop.'],
+  ['hiding', 'Hiding', 'Peeks in from a screen edge, a little light paw on the edge.'],
+  ['pointing', 'Pointing', 'Stretches a tip toward the target; label pill only.'],
+];
+document.getElementById('moods').innerHTML = M.map(([m, t, d], i) => `<div class="mood ${m === 'hiding' ? 'edge' : ''}">
+  <span class="tag">${String(i + 1).padStart(2, '0')}</span>
+  <div class="stage">${m === 'pointing' ? `<div style="position:relative;margin-right:76px;margin-top:22px">${orb(m, 120, { point: -45 })}<span style="position:absolute;left:104px;top:-44px">${pill('Send button')}</span></div>` : orb(m, 120)}</div>
+  <div class="cap"><b>${t}</b><span>${d}</span></div></div>`).join('');
+
+const L = (n, t, html) => `<div class="pl"><div class="lab"><b>${n}</b>${t}</div>${html}</div>`;
+document.getElementById('p1').innerHTML =
+  L('B1', 'Conversation · Ready', panelConversation()) +
+  L('B2', 'Status', panelStatus()) +
+  L('B3', 'Settings · main page', panelSettings());
+document.getElementById('p2').innerHTML =
+  L('B4', 'Settings › Wisp', panelWisp()) +
+  L('B5', 'Settings › Shortcuts (recording)', panelShortcuts()) +
+  L('B6', 'Settings › Dictation & bubble', panelDictation());
+
+const S = (t, k) => `<div class="sl"><div class="lab">${t}</div>${strip(k)}</div>`;
+document.getElementById('strips').innerHTML =
+  `<div class="scol">` + S('C1 · Working — step + Stop', 'step') + S('C3 · Done', 'done') + S('C4 · Stopped', 'stopped') + S('C5 · Couldn\'t finish', 'fail') + `</div>` +
+  `<div class="sl">${'<div class="lab">C2 · Asking — grows to show the question</div>'}${strip('ask')}
+   <div class="stripnote" style="margin-top:14px"><b>Edge light</b> is a 1 pt gradient stroke plus a soft outer glow: <b>orb</b> while working, <b>amber</b> while asking, <b>mint</b> done, <b>neutral</b> stopped, <b>coral</b> failed. The strip resizes with a spring (response .42, damping .82); the result lingers 2.5 s then fades.</div></div>` +
+  `<div class="sl" style="flex:1"><div class="lab">Placement</div>
+    <div class="place">
+      <div class="pl-mb"></div><div class="pl-icon"></div>
+      <div class="pl-strip"></div><div class="pl-walk"></div><div class="pl-orb">${orb('resting', 16, { floor: false })}</div><div class="pl-dock"></div>
+      <span class="pl-l1">Work strip · 420 pt · 12 pt above walkway</span><span class="pl-l2">Wisp walkway</span><span class="pl-l3">Dock</span>
+    </div>
+    <div class="stripnote" style="margin-top:14px">The strip never takes focus. <b>Stop</b> and ${'<kbd>esc</kbd>'} always work; ${'<kbd>⏎</kbd>'} is never bound to Allow so a stray Return can't approve.</div>
+  </div>`;
+
+document.getElementById('cards').innerHTML = ['listening', 'thinking', 'problem'].map(k => statusCard(k)).join('');
+
+const BX = (lab, w, html, mood = 'listening') => `<div><div class="bx"><div style="flex:none">${orb(mood, 46, { floor: false })}</div>${html}</div><div class="lab" style="margin:8px 0 0 68px;font:600 11.5px var(--text);color:var(--t3)">${lab}</div></div>`;
+document.getElementById('bubs').innerHTML =
+  BX('E1 · Dictating — live words + meter', 0, bubble('dictating'), 'listening') +
+  BX('E2 · Transcribing', 0, bubble('transcribing'), 'thinking') +
+  BX('E3 · Typed', 0, bubble('typed'), 'resting') +
+  BX('E4 · Copied — a password field is focused', 0, bubble('copied'), 'resting') +
+  `<div style="grid-column:span 2;margin-top:10px;display:flex;gap:56px;align-items:flex-start">
+     <div><div class="bx" style="gap:22px">${orb('pointing', 46, { point: 0, floor: false })}${pill('Control Centre')}</div><div class="lab" style="margin:8px 0 0 0;font:600 11.5px var(--text);color:var(--t3)">E5 · Pointing pill — target on the right</div></div>
+     <div><div class="bx" style="gap:22px">${pill('Send button')}${orb('pointing', 46, { point: 180, floor: false })}</div><div class="lab" style="margin:8px 0 0 0;font:600 11.5px var(--text);color:var(--t3)">E6 · Mirrored — label on the roomier side</div></div>
+   </div>`;
+
+const MBI = [['idle', 'Idle', 'Outline orb, template ink'], ['listening', 'Listening', 'Filled orb + live dashed ring'], ['thinking', 'Thinking', 'Orb + orbiting arc'], ['speaking', 'Speaking', 'Orb + two sound arcs'], ['working', 'Working', 'Orb + cursor'], ['attention', 'Needs attention', 'Amber orb + badge'], ['problem', 'Problem', 'Coral outline, worried mouth']];
+document.getElementById('mbi').innerHTML = MBI.map(([k, t, d]) => {
+  return `<div class="mbc"><div class="real">${mbIcon(k, 18)}</div><div class="real light">${mbIcon(k, 18, true)}</div><div class="big">${mbIcon(k, 72)}</div><b>${t}</b><span>${d}</span></div>`;
+}).join('');
+
+const sw2 = (n, v, bg) => `<div class="swc"><i style="background:${bg || v}"></i><b>${n}</b><span>${v}</span></div>`;
+const springs = [['spring.snappy', 'resp .28 · damp .86', 'Tabs, toggles, segmented'], ['spring.panel', 'resp .42 · damp .82', 'Panel, strip resize'], ['spring.jelly', 'resp .55 · damp .48', 'Carried squash, drop wobble'], ['float.bob', '3.2 s ease-in-out · ±3 pt', 'Idle hover'], ['pulse.nap', '4 s · glow 28→45 %', 'Napping'], ['rings.speak', '1.1 s · scale 1→1.8 · fade', 'Per syllable']];
+document.getElementById('tok').innerHTML = `
+ <div class="tc"><h4>Colour</h4><div class="sws">
+   ${sw2('glass.base', '#0B0D12')}${sw2('glass.fill', 'base · 82 %', 'repeating-conic-gradient(#2a2d36 0 25%,#1a1c22 0 50%) 0 0/10px 10px')}${sw2('text.secondary', 'white 68 %', 'rgba(255,255,255,.68)')}${sw2('stroke.hair', 'white 9 %', 'rgba(255,255,255,.09)')}
+   ${sw2('orb.cyan', '#6FE7FF')}${sw2('orb.peri', '#8EA2FF')}${sw2('orb.violet', '#B69CFF')}${sw2('orb.gradient', '115° c→p→v', 'var(--orb)')}
+   ${sw2('state.amber', '#FFB86B')}${sw2('state.coral', '#FF7A6B')}${sw2('state.mint', '#62E6B4')}${sw2('aurora.wash', 'radial 30 %', 'radial-gradient(70% 100% at 20% 0%,rgba(111,231,255,.5),transparent),radial-gradient(70% 100% at 90% 0%,rgba(182,156,255,.5),transparent),#0B0D12')}
+ </div></div>
+ <div class="tc"><h4>Type · SF Pro</h4><div class="ts">
+   <div><span style="font:700 34px var(--disp);letter-spacing:-1.3px;color:#fff">Display</span><span>34 / bold / −1.3</span></div>
+   <div><span style="font:600 18px var(--disp);letter-spacing:-.45px;color:#fff">Panel title</span><span>18 / semibold / −0.45</span></div>
+   <div><span style="font:600 15px var(--disp);letter-spacing:-.3px;color:#fff">Strip question</span><span>15 / semibold / −0.3</span></div>
+   <div><span style="font:400 14px var(--text);letter-spacing:-.15px;color:#fff">Message body</span><span>14 / regular / −0.15</span></div>
+   <div><span style="font:400 13.5px var(--text);color:#fff">Row label</span><span>13.5 / regular / −0.1</span></div>
+   <div><span style="font:500 12.5px var(--text);color:var(--t2)">Secondary</span><span>12.5 / medium / 68 %</span></div>
+   <div><span style="font:500 10.5px var(--text);color:var(--t3)">Meta · timings</span><span>10.5 / medium / 60 %</span></div>
+ </div></div>
+ <div class="tc"><h4>Radii · concentric</h4>
+   <div class="rad">${[['key', 5, 20], ['ctl', 8, 28], ['card', 12, 36], ['strip', 20, 44], ['panel', 22, 48]].map(([n, r, s]) => `<div><i style="border-radius:${r}px;width:${s}px;height:${s}px"></i>${n}<br>${r}</div>`).join('')}</div>
+   <h4 style="margin-top:22px">Spacing · 4 pt grid</h4>
+   <div class="sp">${[4, 8, 12, 16, 24, 32].map(v => `<div><i style="width:${v}px;height:${v}px"></i>${v}</div>`).join('')}</div>
+   <div style="font-size:12px;line-height:1.5;color:var(--t2)">Panel inset 12 · card padding 10–12 · row 42–44 · section gap 13</div>
+ </div>
+ <div class="tc"><h4>Motion · SwiftUI</h4><div class="mo">${springs.map(([n, v, u]) => `<div style="display:block"><div style="display:flex;justify-content:space-between"><span class="nm" style="font:600 12.5px var(--text);color:#fff">${n}</span></div><span style="display:block;margin-top:2px">${v}</span><span style="display:block;color:var(--t3);font:500 11px var(--text);margin-top:1px">${u}</span></div>`).join('')}</div></div>`;
+
+window.__h = document.getElementById('bd').getBoundingClientRect().height;
+document.title = 'H' + Math.ceil(window.__h);
+</script>

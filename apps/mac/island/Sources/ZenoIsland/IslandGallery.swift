@@ -41,6 +41,7 @@ enum IslandGallery {
             model.status.apply(event)
             model.apply(event)
         }
+        let filled = model.conversation
 
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let compact = IslandMetrics().compact
@@ -61,14 +62,80 @@ enum IslandGallery {
         model.tab = .conversation
         model.conversation = Conversation()
         write(model, size: expanded, name: "4-empty-conversation", to: directory)
+        model.conversation = filled
         writePet(to: directory)
         writeBubbles(to: directory)
         writeApproval(to: directory)
         writePeek(to: directory)
+        writeThemes(model: model, to: directory)
+    }
+
+    /// ADR-057: every surface in every theme, and every Wisp style in every mood.
+    private static func writeThemes(model: IslandModel, to directory: URL) {
+        let saved = (model.settings.theme, model.settings.wispStyle, model.tab, model.settingsPage)
+        defer { (model.settings.theme, model.settings.wispStyle, model.tab, model.settingsPage) = saved }
+        let size = IslandMetrics().expanded
+        for theme in AppTheme.allCases {
+            model.settings.theme = theme
+            let name = "9-\(theme.title.lowercased().replacingOccurrences(of: " ", with: "-"))"
+            var panels: [AnyView] = []
+            model.expanded = true
+            let restore = model.conversation
+            for (tab, page) in [(IslandModel.Tab.conversation, nil), (.settings, nil), (.settings, IslandModel.SettingsPage.appearance),
+                                (.settings, .model), (.settings, .wisp), (.status, nil)] as [(IslandModel.Tab, IslandModel.SettingsPage?)] {
+                model.tab = tab
+                model.settingsPage = page
+                panels.append(frozen(IslandView(model: model, snapshot: true).frame(width: size.width, height: size.height)))
+            }
+            model.conversation = Conversation()
+            model.tab = .conversation
+            panels.append(frozen(IslandView(model: model, snapshot: true).frame(width: size.width, height: size.height)))
+            model.conversation = restore
+            let sheet = VStack(alignment: .leading, spacing: 18) {
+                Text("\(theme.title) — panel").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+                HStack(alignment: .top, spacing: 18) { ForEach(0..<4, id: \.self) { panels[$0] } }
+                HStack(alignment: .top, spacing: 18) { ForEach(4..<7, id: \.self) { panels[$0] } }
+            }
+            .padding(24)
+            .background(Color(red: 0.36, green: 0.42, blue: 0.52))
+            save(sheet, name: name + "-panel", to: directory)
+
+            // The strip, the bubble and the point label in this theme.
+            writeApproval(to: directory, theme: theme, name: name + "-strip")
+            writeBubbles(to: directory, theme: theme, name: name + "-bubble")
+        }
+
+        let moods: [(PetBrain.Mood, String)] = [
+            (.resting, "Resting"), (.floating, "Floating"), (.listening, "Listening"), (.thinking, "Thinking"),
+            (.speaking, "Speaking"), (.worried, "Problem"), (.napping, "Napping"), (.carried, "Carried"),
+        ]
+        for style in WispStyle.allCases {
+            let sheet = VStack(alignment: .leading, spacing: 14) {
+                Text("Wisp — \(style.title)").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+                HStack(spacing: 6) {
+                    ForEach(Array(moods.enumerated()), id: \.offset) { _, entry in
+                        VStack(spacing: 2) {
+                            WispView(mood: entry.0, time: 0.55, facing: 1, size: 88, style: style)
+                            Text(entry.1).font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.75))
+                        }
+                    }
+                }
+                HStack(spacing: 6) {
+                    ForEach(Array(moods.enumerated()), id: \.offset) { _, entry in
+                        WispView(mood: entry.0, time: 1.35, facing: -1, size: 88, style: style)
+                    }
+                }
+                Text("Second row: a later moment, facing left").font(.system(size: 10)).foregroundStyle(.white.opacity(0.5))
+            }
+            .padding(22)
+            .background(LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.24, green: 0.29, blue: 0.42)], startPoint: .top, endPoint: .bottom))
+            save(sheet, name: "10-wisp-\(style.title.lowercased())", to: directory)
+            writePeek(to: directory, style: style, name: "10-wisp-\(style.title.lowercased())-peek")
+        }
     }
 
     /// Wisp hiding at a display edge (ADR-053): leaning 35-50 degrees from its feet, the body cut off by the edge.
-    private static func writePeek(to directory: URL) {
+    private static func writePeek(to directory: URL, style: WispStyle = .ghost, name: String = "7-wisp-peek") {
         let side: CGFloat = 170
         let unit: CGFloat = 56
         let view: CGFloat = unit * 1.5
@@ -82,7 +149,7 @@ enum IslandGallery {
                 Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
                 ZStack(alignment: .topLeading) {
                     LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.26, green: 0.31, blue: 0.45)], startPoint: .top, endPoint: .bottom)
-                    WispView(mood: .resting, time: 0.4, facing: left ? 1 : -1, size: unit, hide: PeekLayout.amount(rotation: degrees), tilt: degrees, edgeGap: -Double(PeekLayout.inset + (revealed ? PeekLayout.revealExtra : 0)) * 64 / Double(unit))
+                    WispView(mood: .resting, time: 0.4, facing: left ? 1 : -1, size: unit, hide: PeekLayout.amount(rotation: degrees), tilt: degrees, edgeGap: -Double(PeekLayout.inset + (revealed ? PeekLayout.revealExtra : 0)) * 64 / Double(unit), style: style)
                         .rotationEffect(.degrees(degrees), anchor: UnitPoint(x: 0.5, y: WispView.feetFraction))
                         .position(x: centre.x, y: centre.y)
                     Rectangle().fill(.white.opacity(0.35)).frame(width: 1.5, height: side).offset(x: left ? 0 : side - 1.5)
@@ -107,17 +174,18 @@ enum IslandGallery {
         }
         .padding(20)
         .background(Color(white: 0.08))
-        save(sheet, name: "7-wisp-peek", to: directory)
+        save(sheet, name: name, to: directory)
     }
 
     /// Computer control (ADR-054, ADR-056): the strip above the Dock while ZENO works on the Mac, the request for
     /// approval in it, how it ends, and the label beside Wisp while it points.
-    private static func writeApproval(to directory: URL) {
+    private static func writeApproval(to directory: URL, theme: AppTheme = .native, name: String = "8-computer-control") {
         let suite = "zeno.gallery.approval.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         func strip(_ title: String, _ lines: [String], stop: Bool = false) -> some View {
             let model = IslandModel(settings: IslandSettings(defaults: defaults))
+            model.settings.theme = theme
             for line in lines {
                 guard let event = try? decodeEvent(line) else { continue }
                 model.status.apply(event)
@@ -140,8 +208,8 @@ enum IslandGallery {
         let pointing = VStack(alignment: .leading, spacing: 4) {
             Text("Pointing: only a label beside Wisp").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
             HStack(spacing: -6) {
-                WispView(mood: .thinking, time: 0.4, facing: 1, size: 56)
-                PointLabelView(text: "the Send button", snapshot: true).frame(width: 150, height: 26 + 2 * PointLabelController.shadowInset)
+                WispView(mood: .thinking, time: 0.4, facing: 1, size: 56, style: theme == .native ? .orb : (theme == .warm ? .companion : .orb))
+                PointLabelView(text: "the Send button", palette: theme.palette, snapshot: true).frame(width: 150, height: 26 + 2 * PointLabelController.shadowInset)
             }
         }
         let sheet = VStack(alignment: .leading, spacing: 14) {
@@ -158,16 +226,17 @@ enum IslandGallery {
         }
         .padding(24)
         .background(LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.26, green: 0.31, blue: 0.45)], startPoint: .top, endPoint: .bottom))
-        save(sheet, name: "8-computer-control", to: directory)
+        save(sheet, name: name, to: directory)
     }
 
     /// Wisp's speech bubble in the states that matter: dictating with words, hands-free, thinking, a notice, and flipped below Wisp.
-    private static func writeBubbles(to directory: URL) {
+    private static func writeBubbles(to directory: URL, theme: AppTheme = .native, name: String = "6-wisp-bubble") {
         let suite = "zeno.gallery.bubble.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         func scene(_ title: String, below: Bool = false, _ setup: (IslandModel) -> Void) -> some View {
             let model = IslandModel(settings: IslandSettings(defaults: defaults))
+            model.settings.theme = theme
             setup(model)
             let state = BubbleState(visible: true, tailX: BubbleLayout.size.width / 2, tailOnTop: below)
             let wisp = WispView(mood: model.status.kind == .listening ? .listening : .thinking, time: 0.4, facing: 1, size: 72)
@@ -201,7 +270,7 @@ enum IslandGallery {
         }
         .padding(24)
         .background(LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.26, green: 0.31, blue: 0.45)], startPoint: .top, endPoint: .bottom))
-        save(sheet, name: "6-wisp-bubble", to: directory)
+        save(sheet, name: name, to: directory)
     }
 
     /// Wisp in every mood, each at three moments, on a desktop-like strip above a Dock-coloured bar.
@@ -227,6 +296,14 @@ enum IslandGallery {
         .padding(20)
         .background(LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.24, green: 0.29, blue: 0.42)], startPoint: .top, endPoint: .bottom))
         save(sheet, name: "5-wisp-moods", to: directory)
+    }
+
+    /// Draws a view now, so a sheet can show one model in several states (views hold the live model).
+    private static func frozen(_ view: some View) -> AnyView {
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 2
+        guard let image = renderer.nsImage else { return AnyView(Color.red) }
+        return AnyView(Image(nsImage: image).resizable().frame(width: image.size.width, height: image.size.height))
     }
 
     private static func save(_ view: some View, name: String, to directory: URL) {

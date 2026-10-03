@@ -61,6 +61,7 @@ struct BubbleView: View {
         let size = BubbleLayout.size
         let tail = BubbleLayout.tailHeight
         let shape = BubbleShape(tailX: state.tailX, tailOnTop: state.tailOnTop)
+        let palette = model.settings.theme.palette
         StatusRow(model: model)
             .padding(.leading, 11)
             .padding(.trailing, 14)
@@ -69,13 +70,15 @@ struct BubbleView: View {
             .frame(width: size.width, height: size.height)
             .background {
                 ZStack {
-                    if !snapshot { shape.fill(.ultraThinMaterial) }
-                    shape.fill(Color(white: 0.06).opacity(snapshot ? 0.94 : model.settings.bubbleOpacity.fill))
+                    if !snapshot { shape.fill(palette.isDark ? .ultraThinMaterial : .regularMaterial) }
+                    // The Background setting scales how much of the theme's fill covers the blur.
+                    shape.fill((snapshot ? palette.surfaceSolid : palette.surface).color
+                        .opacity(snapshot ? 1 : min(1, model.settings.bubbleOpacity.fill / 0.86)))
                 }
             }
-            .overlay { shape.stroke(.white.opacity(0.16), lineWidth: 0.5) }
-            .shadow(color: .black.opacity(snapshot ? 0 : 0.32), radius: 9, y: 3)
-            .environment(\.colorScheme, .dark)
+            .overlay { shape.stroke(palette.border.color, lineWidth: 0.6) }
+            .shadow(color: .black.opacity(snapshot ? 0 : (palette.isDark ? 0.32 : 0.16)), radius: 9, y: 3)
+            .themed(palette)
             .environment(\.islandSnapshot, snapshot)
             // It grows out of the tail, where Wisp is, and shrinks back into it.
             .scaleEffect(state.visible || reduceMotion ? 1 : 0.72, anchor: UnitPoint(x: state.tailX / size.width, y: state.tailOnTop ? 0 : 1))

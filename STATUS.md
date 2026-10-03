@@ -168,6 +168,7 @@ Phase 0.5 decisions (ADR-033 to ADR-042):
 - Hold Ctrl+Option to talk, from any app (listen-only key reading, Input Monitoring permission)
 - The panel hangs below ZENO's menu-bar icon (ADR-056; was the left edge, ADR-037, then beside Wisp, ADR-051); ZENO's work on the Mac shows in a strip above the Dock
 - Compact view: live state and level meter; expanded: Conversation, Status, Settings (provider and model); dark glass (ADR-038)
+- Three looks, chosen in Settings → Appearance (ADR-057): Theme (Quiet Native, Luminous, Warm) for every surface and Wisp (Ghost, Orb, Companion), independently; text contrast tested in every theme
 
 ---
 

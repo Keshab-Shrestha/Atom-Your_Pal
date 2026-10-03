@@ -1,11 +1,14 @@
 import SwiftUI
 import ZenoIslandCore
 
-/// Wisp, drawn in SwiftUI shapes (ADR-042): a soft glowing spirit with a wavy hem. Every motion is a pure
-/// function of `time`, so one `TimelineView` drives it and the gallery can render any moment exactly.
+/// Wisp (ADR-042, ADR-057), drawn in one of three styles: the refined ghost, the orb of light, or the warmer
+/// companion. Every motion is a pure function of `time`, so one `TimelineView` drives it and the gallery can
+/// render any moment exactly. Moods are carried by the body, the light and the face — never by stickers (no
+/// z's, sweat drops or cheeks).
 ///
-/// Drawn in a 64×64 design space (the original sketch), scaled to `size`, with a margin of `size / 4` on every
-/// side so the dots, z's and sound waves are never clipped. The view is therefore `size * 1.5` square.
+/// Drawn in a 64×64 design space, scaled to `size`, with a margin of `size / 4` on every side so rings and glow
+/// are never clipped. The view is therefore `size * 1.5` square. The feet (or the bottom of the orb's float) sit
+/// at y = 57 in every style, so placement, hiding and pointing work the same for all of them.
 struct WispView: View {
     /// The margin around the drawing for a given size.
     static func margin(for size: CGFloat) -> CGFloat { size / 4 }
@@ -28,13 +31,8 @@ struct WispView: View {
     /// Degrees Wisp is leaned (clockwise) and how far inward of its feet the display edge lies, in design points.
     var tilt: Double = 0
     var edgeGap: Double = 4.5
-
-    private static let body = Color(red: 0.79, green: 0.93, blue: 1.0)      // #c9ecff
-    private static let glow = Color(red: 0.56, green: 0.83, blue: 1.0)      // #8fd3ff
-    private static let ink = Color(red: 0.11, green: 0.16, blue: 0.27)      // #1b2a44
-    private static let blush = Color(red: 1.0, green: 0.62, blue: 0.70)     // #ff9fb2
-    private static let accent = Color(red: 0.81, green: 0.89, blue: 1.0)    // #cfe3ff
-    private static let worry = Color(red: 1.0, green: 0.72, blue: 0.45)
+    /// How Wisp is drawn (Settings → Appearance → Wisp).
+    var style: WispStyle = .ghost
 
     var body: some View {
         Canvas { context, _ in
@@ -47,35 +45,94 @@ struct WispView: View {
         .accessibilityLabel("ZENO's pet, Wisp")
     }
 
+    // MARK: - Colours
+
+    private static func hex(_ value: UInt32, _ opacity: Double = 1) -> Color {
+        Color(red: Double((value >> 16) & 0xFF) / 255, green: Double((value >> 8) & 0xFF) / 255, blue: Double(value & 0xFF) / 255).opacity(opacity)
+    }
+
+    /// Ghost.
+    private static let ghostBody = hex(0xC9ECFF)
+    private static let ghostGlow = hex(0x8FD3FF)
+    private static let ghostInk = hex(0x1B2A44)
+    /// Orb.
+    private static let orbInk = hex(0x0F1430)
+    /// Companion.
+    private static let mintTop = hex(0xF6FFFC)
+    private static let mintBottom = hex(0xC5EBDF)
+    private static let mintPool = hex(0xA6DFCF)
+    private static let mintRim = hex(0x8FD2C0)
+    private static let companionInk = hex(0x1E2626)
+
+    /// Shared mood light: listening teal, thinking violet, a problem amber.
+    private static let listenLight = hex(0x6FE7FF)
+    private static let thinkLight = hex(0xB69CFF)
+    private static let worryLight = hex(0xFFB86B)
+
+    private var ink: Color {
+        switch style {
+        case .ghost: Self.ghostInk
+        case .orb: Self.orbInk
+        case .companion: Self.companionInk
+        }
+    }
+
+    /// The body colour used for the hand on the display edge.
+    private var handFill: Color {
+        switch style {
+        case .ghost: Self.ghostBody
+        case .orb: Self.hex(0xC9D2FF)
+        case .companion: Self.hex(0xE4F6F0)
+        }
+    }
+    private var handLine: Color {
+        switch style {
+        case .ghost: Self.ghostGlow.opacity(0.75)
+        case .orb: .white.opacity(0.8)
+        case .companion: Self.mintRim.opacity(0.9)
+        }
+    }
+
     // MARK: - Motion (all pure functions of time)
 
     /// Vertical float offset in design points (negative is up).
     private var bob: Double {
-        switch mood {
+        let base: Double = switch mood {
         case .napping, .carried: 0
         case .listening: -4 + sin(time * 2 * .pi / 0.9) * 0.6 // perked up, small hover
-        case .floating: sin(time * 2 * .pi / 1.4) * 2.2
+        case .floating: -4 + sin(time * 2 * .pi / 1.4) * 2.2 // clearly aloft: higher than resting, smaller shadow
+        case .speaking: -abs(sin(time * .pi * 2.75)) * 1.2 // a small bounce with the syllables
         default: sin(time * 2 * .pi / 2.2) * 1.6
         }
+        // A problem makes Wisp sink a little.
+        return base + (mood == .worried ? 2.5 : 0)
     }
 
-    /// Squash for breathing while napping, a slight stretch while listening.
+    /// Squash for breathing while napping, a slight stretch while listening, jelly while carried.
     private var squash: (x: Double, y: Double) {
         switch mood {
         case .napping:
-            let b = (1 - cos(time * 2 * .pi / 3.2)) / 2
-            return (1 + 0.03 * b, 1 - 0.06 * b)
+            let b = (1 - cos(time * 2 * .pi / (style == .companion ? 5.5 : 4))) / 2
+            return style == .companion ? (1.06 + 0.02 * b, 0.9 - 0.03 * b) : (1 + 0.03 * b, 1 - 0.06 * b)
         case .listening: return (0.98, 1.04)
-        case .carried: return (0.97, 1.05)
+        // Carried: the ghost and companion stretch as they dangle; the orb stays round (a stretched sphere reads
+        // as a scaling bug) and shows it through the sway, the missing shadow and its surprised face.
+        case .carried: return style == .orb ? (1, 1) : (0.94, 1.08)
+        case .worried: return style == .companion ? (0.92, 0.92) : (1, 1)
+        case .resting where style == .companion:
+            let b = (1 - cos(time * 2 * .pi / 4)) / 2
+            return (1, 1 + 0.025 * b)
         default: return (1, 1)
         }
     }
 
-    /// Lean into the direction of travel.
+    /// Lean into the direction of travel; a head tilt while thinking.
     private var lean: Double {
         switch mood {
         case .floating: facing * 0.08
         case .carried: sin(time * 2 * .pi / 0.9) * 0.14 // dangles from the user's hand
+        case .thinking: style == .orb ? 0 : 0.11
+        case .listening: style == .companion ? facing * 0.07 : 0
         default: 0
         }
     }
@@ -90,15 +147,30 @@ struct WispView: View {
         default: 2.0
         }
         let pulse = (1 + cos(time * 2 * .pi / period)) / 2 // 1 → 0 → 1
-        let low = mood == .napping ? 0.35 : 0.55
+        let low = mood == .napping ? 0.25 : 0.55
         return low + (0.85 - low) * pulse
     }
 
     private var haloScale: Double {
         switch mood {
         case .listening: 1.08 + 0.04 * sin(time * 2 * .pi / 0.6)
-        case .napping: 0.96
+        case .napping: 0.94
         default: 1.0
+        }
+    }
+
+    /// The halo's colour follows the mood in every style.
+    private var haloColor: Color {
+        switch mood {
+        case .worried: Self.worryLight
+        case .listening: Self.listenLight
+        case .thinking: Self.thinkLight
+        default:
+            switch style {
+            case .ghost: Self.ghostGlow
+            case .orb: Self.hex(0x7F9BFF)
+            case .companion: Self.hex(0x8FE3CF)
+            }
         }
     }
 
@@ -136,26 +208,30 @@ struct WispView: View {
         let x = edge // after mirroring, "into the display" is +x at both edges
         let top = 45.0 + bob * 0.3
         // Arm, behind the edge (the display edge hides most of it), then three fingers lying over the edge.
-        hand.fill(Path(roundedRect: CGRect(x: x - 9, y: top, width: 10, height: 10.4), cornerRadius: 4), with: .color(Self.body))
+        hand.fill(Path(roundedRect: CGRect(x: x - 9, y: top, width: 10, height: 10.4), cornerRadius: 4), with: .color(handFill))
         for i in 0..<3 {
             let y = top + Double(i) * 3.6
             let finger = CGRect(x: x - 2, y: y, width: 9 - Double(i == 1 ? 0 : 1), height: 3.4)
-            hand.fill(Path(roundedRect: finger, cornerRadius: 1.7), with: .color(Self.body))
-            hand.stroke(Path(roundedRect: finger, cornerRadius: 1.7), with: .color(Self.glow.opacity(0.75)), lineWidth: 0.7)
+            hand.fill(Path(roundedRect: finger, cornerRadius: 1.7), with: .color(handFill))
+            hand.stroke(Path(roundedRect: finger, cornerRadius: 1.7), with: .color(handLine), lineWidth: 0.7)
         }
     }
 
     // MARK: - Drawing
 
     private func draw(in context: inout GraphicsContext) {
-        // Ground shadow: shrinks as Wisp rises. None while carried: there is no ground in the user's hand.
+        // Ground shadow (a coloured floor glow for the orb): shrinks as Wisp rises. None while carried or hiding.
         let lift = -bob
         let shadowWidth = 28 - lift * 1.2
-        if mood != .carried {
-            context.fill(
-                Path(ellipseIn: CGRect(x: 32 - shadowWidth / 2, y: 59, width: shadowWidth, height: 4)),
-                with: .color(.black.opacity(0.22 - lift * 0.015))
-            )
+        if mood != .carried, hideAmount < 0.5 {
+            let floor = CGRect(x: 32 - shadowWidth / 2, y: 59, width: shadowWidth, height: 4)
+            if style == .orb {
+                var glowFloor = context
+                glowFloor.addFilter(.blur(radius: 2))
+                glowFloor.fill(Path(ellipseIn: floor), with: .color(haloColor.opacity((mood == .napping ? 0.25 : 0.45) * min(1, glow))))
+            } else {
+                context.fill(Path(ellipseIn: floor), with: .color(.black.opacity(0.22 - lift * 0.015)))
+            }
         }
 
         var figure = context
@@ -166,140 +242,328 @@ struct WispView: View {
         figure.scaleBy(x: squash.x, y: squash.y)
         figure.translateBy(x: -32, y: -pivotY)
 
-        // Halo.
-        var halo = figure
-        halo.translateBy(x: 32, y: 32)
-        halo.scaleBy(x: haloScale, y: haloScale)
-        halo.translateBy(x: -32, y: -32)
-        halo.addFilter(.blur(radius: 2.5))
-        halo.fill(Self.outer, with: .color((mood == .worried ? Self.worry : Self.glow).opacity(min(1, glowOpacity * glow))))
-
-        figure.fill(Self.inner, with: .color(Self.body))
-        // A soft highlight, top left.
-        figure.fill(
-            Path(ellipseIn: CGRect(x: 18, y: 13, width: 10, height: 7)),
-            with: .color(.white.opacity(0.45))
-        )
-
-        drawFace(in: &figure)
+        switch style {
+        case .ghost: drawGhost(in: &figure)
+        case .orb: drawOrb(in: &figure, base: context, bob: bob)
+        case .companion: drawCompanion(in: &figure)
+        }
         drawEdgeHand(in: &context, bob: bob)
         drawExtras(in: context, bob: bob)
     }
 
-    private func drawFace(in context: inout GraphicsContext) {
-        // Eyes look a little toward the direction of travel, or up toward the thinking dots.
-        let look = mood == .floating ? facing * 1.5 : (mood == .thinking ? 1.2 : 0) + hideSide * hideAmount * 2.6
-        let eyes = [25.0 + look, 39.0 + look]
-        let eyeY = 30.0
+    /// The halo: a blurred, scaled copy of `shape` in the mood's light.
+    private func drawHalo(_ shape: Path, in figure: GraphicsContext, centre: CGPoint, strength: Double = 1) {
+        var halo = figure
+        halo.translateBy(x: centre.x, y: centre.y)
+        halo.scaleBy(x: haloScale, y: haloScale)
+        halo.translateBy(x: -centre.x, y: -centre.y)
+        halo.addFilter(.blur(radius: 2.5))
+        halo.fill(shape, with: .color(haloColor.opacity(min(1, glowOpacity * glow * strength))))
+    }
+
+    // MARK: Ghost
+
+    private func drawGhost(in figure: inout GraphicsContext) {
+        drawHalo(Self.outer, in: figure, centre: CGPoint(x: 32, y: 32))
+        figure.fill(Self.inner, with: .color(Self.ghostBody.opacity(mood == .napping ? 0.85 : 1)))
+        // Volume: a cool shade pooled low, and a soft highlight top left.
+        var shade = figure
+        shade.clip(to: Self.inner)
+        shade.fill(Self.inner, with: .radialGradient(
+            Gradient(colors: [Self.hex(0x8FB8E8, 0.45), .clear]), center: CGPoint(x: 32, y: 56), startRadius: 0, endRadius: 26))
+        figure.fill(Path(ellipseIn: CGRect(x: 18, y: 13, width: 10, height: 7)), with: .color(.white.opacity(0.5)))
+        drawClassicFace(in: &figure, eyeY: 30, eyeGap: 7, mouthY: 39, scale: 1)
+    }
+
+    /// The ghost's and companion's face: eyes, optional brows, and a mouth, all varying by mood.
+    private func drawClassicFace(in context: inout GraphicsContext, eyeY: Double, eyeGap: Double, mouthY: Double, scale s: Double) {
+        let ink = self.ink
+        // Eyes look toward the direction of travel, up while thinking, and toward the display while hiding.
+        let lookX = (mood == .floating ? facing * 1.5 : (mood == .thinking ? 1.2 : 0)) * s + hideSide * hideAmount * 2.6 * s
+        let lookY = mood == .thinking ? -1.4 * s : 0
+        let eyes = [32 - eyeGap + lookX, 32 + eyeGap + lookX]
+        let w = 6 * s
 
         switch mood {
         case .napping:
-            for x in eyes { context.stroke(arc(x: x, y: 31, width: 6, dip: 2), with: .color(Self.ink), style: .init(lineWidth: 2, lineCap: .round)) }
+            for x in eyes { context.stroke(arc(x: x, y: eyeY + 1 * s, width: w, dip: 2 * s), with: .color(ink), style: .init(lineWidth: 2 * s, lineCap: .round)) }
         default:
-            let height = 8 * (mood == .listening ? 1.1 : (mood == .carried ? 1.2 : 1)) * (mood == .carried ? 1 : eyeOpen)
+            let wide = mood == .listening || mood == .carried
+            let height = 8 * s * (wide ? 1.15 : (mood == .worried ? 0.9 : 1)) * (mood == .carried ? 1 : eyeOpen)
+            let width = w * (wide ? 1.1 : 1)
             for x in eyes {
-                context.fill(Path(ellipseIn: CGRect(x: x - 3, y: eyeY - height / 2, width: 6, height: height)), with: .color(Self.ink))
-                if mood == .thinking {
-                    // Looking up and right at the thinking dots: a white crescent low on the eye, so the dark part sits high.
-                    context.fill(Path(ellipseIn: CGRect(x: x - 2.2, y: eyeY + height / 2 - 2.8, width: 3.2, height: 2.2)), with: .color(.white.opacity(0.85)))
-                } else if eyeOpen > 0.5 { // tiny catchlight
-                    context.fill(Path(ellipseIn: CGRect(x: x - 1.6, y: eyeY - height / 2 + 1.2, width: 1.8, height: 1.8)), with: .color(.white.opacity(0.9)))
+                context.fill(Path(ellipseIn: CGRect(x: x - width / 2, y: eyeY + lookY - height / 2, width: width, height: height)), with: .color(ink))
+                if eyeOpen > 0.5 || mood == .carried { // one catchlight, top right
+                    context.fill(Path(ellipseIn: CGRect(x: x + 0.1 * s, y: eyeY + lookY - height / 2 + 1.1 * s, width: 1.9 * s, height: 1.9 * s)),
+                                 with: .color(.white.opacity(0.92)))
                 }
             }
             if mood == .worried {
                 // Brows slanting up toward the middle.
                 var brows = Path()
-                brows.move(to: CGPoint(x: eyes[0] - 3.5, y: 23)); brows.addLine(to: CGPoint(x: eyes[0] + 2.5, y: 21))
-                brows.move(to: CGPoint(x: eyes[1] + 3.5, y: 23)); brows.addLine(to: CGPoint(x: eyes[1] - 2.5, y: 21))
-                context.stroke(brows, with: .color(Self.ink), style: .init(lineWidth: 1.6, lineCap: .round))
+                brows.move(to: CGPoint(x: eyes[0] - 3.5 * s, y: eyeY - 7 * s)); brows.addLine(to: CGPoint(x: eyes[0] + 2.5 * s, y: eyeY - 9 * s))
+                brows.move(to: CGPoint(x: eyes[1] + 3.5 * s, y: eyeY - 7 * s)); brows.addLine(to: CGPoint(x: eyes[1] - 2.5 * s, y: eyeY - 9 * s))
+                context.stroke(brows, with: .color(ink), style: .init(lineWidth: 1.6 * s, lineCap: .round))
             }
         }
 
-        // Cheeks.
-        let blush = mood == .worried ? 0.3 : 0.6
-        for x in [20.0, 44.0] {
-            context.fill(Path(ellipseIn: CGRect(x: x - 2.5, y: 33.5, width: 5, height: 5)), with: .color(Self.blush.opacity(blush)))
-        }
-
-        // Mouth.
-        let mouthX = 32 + (mood == .floating ? facing * 1.5 : 0) + hideSide * hideAmount * 2.2
+        let mouthX = 32 + (mood == .floating ? facing * 1.5 * s : 0) + hideSide * hideAmount * 2.2 * s
         switch mood {
         case .speaking:
             // Opens and closes about 5.5 times a second.
-            let open = 0.35 + 0.65 * abs(sin(time * .pi * 5.5))
-            context.fill(Path(ellipseIn: CGRect(x: mouthX - 3, y: 40 - 3 * open, width: 6, height: 6 * open)), with: .color(Self.ink))
-        case .listening:
-            context.fill(Path(ellipseIn: CGRect(x: mouthX - 1.6, y: 38.5, width: 3.2, height: 3)), with: .color(Self.ink))
-        case .carried:
-            // A small surprised "o".
-            context.fill(Path(ellipseIn: CGRect(x: mouthX - 2.2, y: 38.5, width: 4.4, height: 5)), with: .color(Self.ink))
+            let open = 0.5 + 0.5 * abs(sin(time * .pi * 5.5))
+            let mouth = CGRect(x: mouthX - 3 * s, y: mouthY + 1 * s - 3 * s * open, width: 6 * s, height: 6 * s * open)
+            context.fill(Path(roundedRect: mouth, cornerRadius: 2.6 * s * open), with: .color(ink))
+            if style == .companion, open > 0.55 {
+                context.fill(Path(ellipseIn: CGRect(x: mouthX - 1.8 * s, y: mouth.maxY - 2.2 * s, width: 3.6 * s, height: 1.8 * s)),
+                             with: .color(Self.hex(0xE05A50)))
+            }
+        case .listening, .carried:
+            let r = (mood == .carried ? 2.3 : 1.7) * s
+            context.fill(Path(ellipseIn: CGRect(x: mouthX - r, y: mouthY - 0.5 * s, width: r * 2, height: r * 2.1)), with: .color(ink))
         case .worried:
-            context.stroke(arc(x: mouthX, y: 41, width: 6, dip: -2), with: .color(Self.ink), style: .init(lineWidth: 2, lineCap: .round))
+            context.stroke(arc(x: mouthX, y: mouthY + 2 * s, width: w, dip: -1.8 * s), with: .color(ink), style: .init(lineWidth: 2 * s, lineCap: .round))
         case .napping:
-            context.fill(Path(ellipseIn: CGRect(x: mouthX - 1.2, y: 39, width: 2.4, height: 2)), with: .color(Self.ink.opacity(0.8)))
+            var line = Path()
+            line.move(to: CGPoint(x: mouthX - 1.4 * s, y: mouthY + 0.6 * s)); line.addLine(to: CGPoint(x: mouthX + 1.4 * s, y: mouthY + 0.6 * s))
+            context.stroke(line, with: .color(ink.opacity(0.75)), style: .init(lineWidth: 1.6 * s, lineCap: .round))
         case .thinking:
-            // A small, slightly lopsided "hmm".
+            // A small, slightly lopsided "hmm", offset toward where the eyes look.
             var hmm = Path()
-            hmm.move(to: CGPoint(x: mouthX - 2.5, y: 39.6))
-            hmm.addLine(to: CGPoint(x: mouthX + 2.5, y: 40.4))
-            context.stroke(hmm, with: .color(Self.ink), style: .init(lineWidth: 2, lineCap: .round))
+            hmm.move(to: CGPoint(x: mouthX - 1.5 * s, y: mouthY + 0.6 * s))
+            hmm.addLine(to: CGPoint(x: mouthX + 3 * s, y: mouthY + 1.2 * s))
+            context.stroke(hmm, with: .color(ink), style: .init(lineWidth: 2 * s, lineCap: .round))
         default:
-            context.stroke(arc(x: mouthX, y: 39, width: 6, dip: 2.5), with: .color(Self.ink), style: .init(lineWidth: 2, lineCap: .round))
+            context.stroke(arc(x: mouthX, y: mouthY, width: w, dip: 2.5 * s), with: .color(ink), style: .init(lineWidth: 2 * s, lineCap: .round))
         }
     }
 
-    /// Drawn outside the bobbing figure's transform so they read as floating around it.
-    private func drawExtras(in context: GraphicsContext, bob: Double) {
+    // MARK: Orb
+
+    private static let orbCentre = CGPoint(x: 32, y: 36)
+    private static let orbRadius = 18.5
+
+    /// The orb's light, centre → middle → rim, by mood.
+    private var orbColors: [Color] {
         switch mood {
-        case .napping:
-            // Two z's rising and fading, staggered, with a soft glow so they read on any wallpaper.
-            for delay in [0.0, 1.2] {
-                let p = ((time + delay).truncatingRemainder(dividingBy: 2.4)) / 2.4
-                let opacity = p < 0.25 ? p / 0.25 : 1 - (p - 0.25) / 0.75
-                let size = 8 + p * 5 // grows as it rises
-                let at = CGPoint(x: 52 + p * 9, y: 10 - p * 14)
-                var glow = context
-                glow.addFilter(.blur(radius: 1.5))
-                glow.draw(Text("z").font(.system(size: size, weight: .heavy, design: .rounded)).foregroundColor(Self.glow.opacity(opacity)), at: at)
-                context.draw(Text("z").font(.system(size: size, weight: .heavy, design: .rounded)).foregroundColor(.white.opacity(opacity)), at: at)
+        case .worried: [Self.hex(0xF8C79A), Self.hex(0xEC9160), Self.hex(0xD4605C)]
+        case .napping: [Self.hex(0x7E9CC0), Self.hex(0x6F7FB0), Self.hex(0x5A4C98)]
+        case .listening: [Self.hex(0xD2F4FF), Self.hex(0x86B4FF), Self.hex(0x6A4EE0)]
+        default: [Self.hex(0xBFE6FF), Self.hex(0x8FA8FF), Self.hex(0x6A4EE0)]
+        }
+    }
+
+    /// The orb's outline: a circle, rippling with the voice while listening.
+    private var orbShape: Path {
+        let c = Self.orbCentre, r = Self.orbRadius
+        // Listening: the circle swells gently with the voice; the rings around it carry the meaning.
+        let rr = mood == .listening ? r * (1.02 + 0.025 * sin(time * 2 * .pi / 0.5)) : r
+        return Path(ellipseIn: CGRect(x: c.x - rr, y: c.y - rr, width: rr * 2, height: rr * 2))
+    }
+
+    private func drawOrb(in figure: inout GraphicsContext, base: GraphicsContext, bob: Double) {
+        let c = Self.orbCentre, r = Self.orbRadius
+        let shape = orbShape
+        let dim = mood == .napping ? 0.8 : 1
+
+        // A wide soft halo, then the body.
+        var halo = figure
+        halo.addFilter(.blur(radius: 5))
+        let hr = r * 1.45 * haloScale
+        halo.fill(Path(ellipseIn: CGRect(x: c.x - hr, y: c.y - hr, width: hr * 2, height: hr * 2)),
+                  with: .color(haloColor.opacity(min(1, glowOpacity * glow * 0.55))))
+
+        var body = figure
+        body.opacity = dim
+        body.fill(shape, with: .radialGradient(Gradient(colors: orbColors), center: CGPoint(x: c.x - 6, y: c.y - 7), startRadius: 0, endRadius: r * 1.55))
+
+        // Thinking: an aurora turns slowly inside.
+        if mood == .thinking {
+            var aurora = body
+            aurora.clip(to: shape)
+            aurora.addFilter(.blur(radius: 3))
+            aurora.opacity = 0.75
+            let turn = Angle(radians: time * 0.9)
+            aurora.fill(shape, with: .conicGradient(
+                Gradient(colors: [Self.hex(0xFF8AD8), Self.hex(0x7A5CF0), Self.hex(0x5EF0D0), Self.hex(0x8FA8FF), Self.hex(0xFF8AD8)]),
+                center: c, angle: turn))
+        }
+
+        // Gloss and rim: reads as lit glass.
+        var gloss = body
+        gloss.addFilter(.blur(radius: 1.2))
+        gloss.translateBy(x: c.x - 7, y: c.y - 9)
+        gloss.rotate(by: .degrees(-30))
+        gloss.fill(Path(ellipseIn: CGRect(x: -5.5, y: -3, width: 11, height: 6)), with: .color(.white.opacity(mood == .napping ? 0.3 : 0.7)))
+        body.stroke(shape, with: .color(Self.hex(mood == .worried ? 0xFFD9C4 : 0xDFE8FF, 0.5)), lineWidth: 0.8)
+
+        drawOrbFace(in: &body)
+    }
+
+    private func drawOrbFace(in context: inout GraphicsContext) {
+        let c = Self.orbCentre
+        let ink = Self.orbInk
+        let lookX = (mood == .floating ? facing * 2.5 : 0) + hideSide * hideAmount * 3.5
+        let lookY: Double = mood == .thinking ? -3.5 : (hideAmount > 0.05 ? 1.5 : 0)
+        let eyes = [c.x - 6 + lookX, c.x + 6 + lookX]
+        let y = c.y - 2 + lookY
+
+        switch mood {
+        case .speaking:
+            // Open eyes and a small mouth that opens with the syllables.
+            for x in eyes {
+                context.fill(Path(ellipseIn: CGRect(x: x - 2.1, y: y - 3.1, width: 4.2, height: 6.2)), with: .color(ink))
+                context.fill(Path(ellipseIn: CGRect(x: x - 1.5, y: y - 2.3, width: 1.5, height: 1.5)), with: .color(.white.opacity(0.9)))
             }
-        case .thinking:
+            let open = 0.5 + 0.5 * abs(sin(time * .pi * 5.5))
+            let mouth = CGRect(x: c.x + lookX - 2.6, y: y + 6 - 2.4 * open, width: 5.2, height: 4.8 * open)
+            context.fill(Path(roundedRect: mouth, cornerRadius: 2.2 * open), with: .color(ink))
+        case .napping:
+            for x in eyes { context.stroke(arc(x: x, y: y + 0.5, width: 5.2, dip: 1.8), with: .color(ink.opacity(0.85)), style: .init(lineWidth: 1.8, lineCap: .round)) }
+        default:
+            let wide = mood == .listening || mood == .carried
+            let h = 6.2 * (wide ? 1.15 : 1) * (mood == .carried ? 1 : eyeOpen)
+            let w = 4.2 * (wide ? 1.08 : 1)
+            for x in eyes {
+                context.fill(Path(ellipseIn: CGRect(x: x - w / 2, y: y - h / 2, width: w, height: h)), with: .color(ink))
+                if h > 3 {
+                    context.fill(Path(ellipseIn: CGRect(x: x - w / 2 + 0.6, y: y - h / 2 + 0.8, width: 1.5, height: 1.5)), with: .color(.white.opacity(0.9)))
+                }
+            }
+            if mood == .worried {
+                var brows = Path()
+                brows.move(to: CGPoint(x: eyes[0] - 3, y: y - 5.5)); brows.addQuadCurve(to: CGPoint(x: eyes[0] + 2.4, y: y - 7.3), control: CGPoint(x: eyes[0], y: y - 7))
+                brows.move(to: CGPoint(x: eyes[1] + 3, y: y - 5.5)); brows.addQuadCurve(to: CGPoint(x: eyes[1] - 2.4, y: y - 7.3), control: CGPoint(x: eyes[1], y: y - 7))
+                context.stroke(brows, with: .color(Self.hex(0x3A1A1A)), style: .init(lineWidth: 1.4, lineCap: .round))
+            }
+        }
+    }
+
+    // MARK: Companion
+
+    /// The companion's pear-shaped body with two soft hem points, from the design board (a 100×124 sketch, fitted
+    /// to y 8...57 here).
+    private static let pear: Path = {
+        let s = 49.0 / 117.0
+        func p(_ x: Double, _ y: Double) -> CGPoint { CGPoint(x: 32 + (x - 50) * s, y: 8 + (y - 4) * s) }
+        var path = Path()
+        path.move(to: p(50, 4))
+        path.addCurve(to: p(20, 42), control1: p(31, 4), control2: p(21, 21))
+        path.addCurve(to: p(8, 96), control1: p(19, 60), control2: p(9, 78))
+        path.addCurve(to: p(22, 121), control1: p(7, 110), control2: p(14, 121))
+        path.addCurve(to: p(50, 108), control1: p(30, 121), control2: p(38, 110))
+        path.addCurve(to: p(78, 121), control1: p(62, 110), control2: p(70, 121))
+        path.addCurve(to: p(92, 96), control1: p(86, 121), control2: p(93, 110))
+        path.addCurve(to: p(80, 42), control1: p(91, 78), control2: p(81, 60))
+        path.addCurve(to: p(50, 4), control1: p(79, 21), control2: p(69, 4))
+        path.closeSubpath()
+        return path
+    }()
+
+    private func drawCompanion(in figure: inout GraphicsContext) {
+        // A faint mint glow so it reads on dark wallpapers; the mood's light when it means something.
+        let strength: Double = switch mood {
+        case .listening, .worried, .thinking: 1
+        case .speaking: 0.6
+        case .napping: 0.25
+        default: 0.4
+        }
+        drawHalo(Self.pear, in: figure, centre: CGPoint(x: 32, y: 34), strength: strength)
+
+        figure.fill(Self.pear, with: .linearGradient(Gradient(colors: [Self.mintTop, Self.mintBottom]), startPoint: CGPoint(x: 32, y: 8), endPoint: CGPoint(x: 32, y: 57)))
+        var shade = figure
+        shade.clip(to: Self.pear)
+        // Inner shade pooled at the hem gives it volume; a rim light crescent top left.
+        shade.fill(Self.pear, with: .radialGradient(Gradient(colors: [Self.mintPool.opacity(0.9), .clear]), center: CGPoint(x: 32, y: 56), startRadius: 0, endRadius: 22))
+        var rim = shade
+        rim.addFilter(.blur(radius: 0.8))
+        var crescent = Path()
+        crescent.addArc(center: CGPoint(x: 32, y: 26), radius: 15.5, startAngle: .degrees(195), endAngle: .degrees(255), clockwise: false)
+        rim.stroke(crescent, with: .color(.white.opacity(0.85)), style: .init(lineWidth: 2, lineCap: .round))
+        figure.stroke(Self.pear, with: .color(Self.mintRim.opacity(0.45)), lineWidth: 0.7)
+
+        drawClassicFace(in: &figure, eyeY: 26, eyeGap: 5, mouthY: 32.5, scale: 0.78)
+    }
+
+    // MARK: - Mood extras (motion around the body, never symbols)
+
+    /// Drawn outside the bobbing figure's transform so they read as moving around it.
+    private func drawExtras(in context: GraphicsContext, bob: Double) {
+        let light = haloColor
+        switch (style, mood) {
+        case (.orb, .listening):
+            // Ripples leaving the surface with the voice.
+            for i in 0..<2 {
+                let p = (time * 1.4 + Double(i) * 0.5).truncatingRemainder(dividingBy: 1)
+                let r = Self.orbRadius * (1.12 + p * 0.45)
+                let c = CGPoint(x: Self.orbCentre.x, y: Self.orbCentre.y + bob)
+                context.stroke(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2)),
+                               with: .color(Self.hex(0x9DB6FF, 0.5 * (1 - p))), lineWidth: 1.1)
+            }
+        case (.orb, .speaking):
+            // A ring on each syllable, growing and fading.
+            for i in 0..<2 {
+                let p = (time / 0.36 + Double(i) * 0.5).truncatingRemainder(dividingBy: 1)
+                let r = Self.orbRadius * (1.08 + p * 0.35)
+                let c = CGPoint(x: Self.orbCentre.x, y: Self.orbCentre.y + bob)
+                context.stroke(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2)),
+                               with: .color(Self.hex(0xA8C0FF, 0.7 * (1 - p))), lineWidth: 1.6 - p)
+            }
+        case (.orb, .thinking):
+            // A dotted orbit turning slowly, with one bright spark on it.
+            let c = CGPoint(x: Self.orbCentre.x, y: Self.orbCentre.y + bob)
+            let r = Self.orbRadius * 1.2
+            let turn = time * 0.8
+            for i in 0..<24 {
+                let a = Double(i) / 24 * 2 * .pi + turn
+                context.fill(Path(ellipseIn: CGRect(x: c.x + cos(a) * r - 0.45, y: c.y + sin(a) * r * 0.42 - 0.45, width: 0.9, height: 0.9)),
+                             with: .color(Self.hex(0xC8D0FF, 0.5)))
+            }
+            let a = turn * 1.6
+            let spark = CGPoint(x: c.x + cos(a) * r, y: c.y + sin(a) * r * 0.42)
+            var glowSpark = context
+            glowSpark.addFilter(.blur(radius: 1.4))
+            glowSpark.fill(Path(ellipseIn: CGRect(x: spark.x - 2.4, y: spark.y - 2.4, width: 4.8, height: 4.8)), with: .color(Self.hex(0x5EF0D0, 0.8)))
+            context.fill(Path(ellipseIn: CGRect(x: spark.x - 1.1, y: spark.y - 1.1, width: 2.2, height: 2.2)), with: .color(Self.hex(0xE8FFF8)))
+        case (.orb, .floating):
+            // A short light trail behind.
+            for i in 1...3 {
+                let d = Double(i)
+                let x = Self.orbCentre.x - facing * (Self.orbRadius + 2 + d * 4.5)
+                let y = Self.orbCentre.y + bob + sin(time * 4 + d) * 1.2 + d * 0.8
+                let r = 2.2 - d * 0.5
+                context.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)), with: .color(Self.hex(0x9DB6FF, 0.65 - d * 0.17)))
+            }
+        case (_, .thinking):
             // Three dots that light up in turn, above and to the right.
             for i in 0..<3 {
                 let phase = (time - Double(i) * 0.2).truncatingRemainder(dividingBy: 1.0)
                 let brightness = 0.25 + 0.75 * max(0, sin(phase * .pi))
-                let r = 2.0 + Double(i) * 0.3
+                let r = 1.8 + Double(i) * 0.3
                 context.fill(
-                    Path(ellipseIn: CGRect(x: 46 + Double(i) * 6.5 - r, y: 6 - Double(i) * 2.5 + bob * 0.5 - r, width: r * 2, height: r * 2)),
-                    with: .color(Self.accent.opacity(brightness))
-                )
+                    Path(ellipseIn: CGRect(x: 46 + Double(i) * 6 - r, y: 7 - Double(i) * 2.5 + bob * 0.5 - r, width: r * 2, height: r * 2)),
+                    with: .color(light.opacity(brightness)))
             }
-        case .speaking:
+        case (_, .speaking):
             // Sound waves on the side Wisp faces.
             for (i, delay) in [0.0, 0.25].enumerated() {
                 let p = ((time + 1 - delay).truncatingRemainder(dividingBy: 1.0))
                 let opacity = sin(p * .pi)
                 let r = Double(6 + i * 5)
                 var wave = Path()
-                let cx = 32 + facing * 22, cy = 40 + bob
+                let cx = 32 + facing * 22, cy = (style == .companion ? 36 : 40) + bob
                 wave.addArc(center: CGPoint(x: cx, y: cy), radius: r, startAngle: .degrees(facing > 0 ? -40 : 140), endAngle: .degrees(facing > 0 ? 40 : 220), clockwise: false)
-                context.stroke(wave, with: .color(Self.accent.opacity(opacity)), style: .init(lineWidth: 2, lineCap: .round))
+                context.stroke(wave, with: .color(light.opacity(opacity * 0.9)), style: .init(lineWidth: 1.8, lineCap: .round))
             }
-        case .listening:
-            // Little "ears up" sparks on both sides, pulsing.
-            let o = 0.5 + 0.5 * sin(time * 2 * .pi / 0.6)
-            var sparks = Path()
-            sparks.move(to: CGPoint(x: 13, y: 17 + bob)); sparks.addLine(to: CGPoint(x: 8, y: 12 + bob))
-            sparks.move(to: CGPoint(x: 51, y: 17 + bob)); sparks.addLine(to: CGPoint(x: 56, y: 12 + bob))
-            context.stroke(sparks, with: .color(Self.body.opacity(0.6 + 0.4 * o)), style: .init(lineWidth: 3, lineCap: .round))
-        case .worried:
-            // A small sweat drop.
-            var drop = Path()
-            let y = 14 + bob
-            drop.move(to: CGPoint(x: 50, y: y))
-            drop.addQuadCurve(to: CGPoint(x: 50, y: y + 8), control: CGPoint(x: 54, y: y + 6))
-            drop.addQuadCurve(to: CGPoint(x: 50, y: y), control: CGPoint(x: 46, y: y + 6))
-            context.fill(drop, with: .color(Color(red: 0.6, green: 0.85, blue: 1).opacity(0.9)))
+        case (.companion, .listening):
+            // A small level meter across the body, tallest in the middle.
+            for i in 0..<7 {
+                let mid = 1 - abs(Double(i) - 3) / 4
+                let h = 2 + 6 * mid * (0.55 + 0.45 * abs(sin(time * 6 + Double(i) * 0.9)))
+                let x = 32 - 7.5 + Double(i) * 2.5
+                context.fill(Path(roundedRect: CGRect(x: x - 0.7, y: 46 + bob - h / 2, width: 1.4, height: h), cornerRadius: 0.7),
+                             with: .color(Self.hex(0x0B8F7E, 0.85)))
+            }
         default:
             break
         }
@@ -315,7 +579,7 @@ struct WispView: View {
         return p
     }
 
-    /// The glow outline, from the chosen sketch.
+    /// The ghost's glow outline, from the chosen sketch.
     private static let outer: Path = {
         var p = Path()
         p.move(to: CGPoint(x: 32, y: 6))
@@ -331,7 +595,7 @@ struct WispView: View {
         return p
     }()
 
-    /// The body, from the chosen sketch.
+    /// The ghost's body, from the chosen sketch.
     private static let inner: Path = {
         var p = Path()
         p.move(to: CGPoint(x: 32, y: 9))

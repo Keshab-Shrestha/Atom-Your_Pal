@@ -106,6 +106,7 @@ final class PetController {
         window.isReleasedWhenClosed = false
         content = PetContentView(frame: NSRect(x: 0, y: 0, width: side, height: side))
         state.size = settings.wispSize.points
+        state.style = settings.wispStyle
         let hosting = NSHostingView(rootView: PetStage(state: state))
         hosting.frame = content.bounds
         hosting.autoresizingMask = [.width, .height]
@@ -193,6 +194,7 @@ final class PetController {
         let next = PetBrain.Tuning(wander: settings.wispWander, nap: settings.wispNap)
         if brain.tuning != next { brain.tuning = next }
         state.glow = settings.wispGlow.strength
+        if state.style != settings.wispStyle { state.style = settings.wispStyle }
         let drawn = settings.wispSize.points
         guard state.size != drawn else { return }
         state.size = drawn
@@ -475,6 +477,8 @@ final class PetState {
     /// Drawn size and halo strength from the settings.
     var size: CGFloat = 56
     var glow = 1.0
+    /// How Wisp is drawn (Settings → Appearance).
+    var style = WispStyle.orb
     /// The hiding pose: 0 standing, ±1 hiding (the sign is the edge).
     var hide = 0.0
     var tilt = 0.0
@@ -486,7 +490,7 @@ struct PetStage: View {
     let state: PetState
 
     var body: some View {
-        WispView(mood: state.mood, time: state.time, facing: state.facing, size: state.size, glow: state.glow, hide: state.hide, tilt: state.tilt, edgeGap: state.edgeGap)
+        WispView(mood: state.mood, time: state.time, facing: state.facing, size: state.size, glow: state.glow, hide: state.hide, tilt: state.tilt, edgeGap: state.edgeGap, style: state.style)
             // Leans from the feet, so the body stays behind the edge while the head tips into the display.
             .rotationEffect(.degrees(state.rotation), anchor: UnitPoint(x: 0.5, y: WispView.feetFraction))
     }

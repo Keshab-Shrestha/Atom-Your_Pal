@@ -20,3 +20,8 @@ apps/mac/island/build/
 
 # ZENO Island settings (written by the runtime on model.set)
 config/island.json
+
+# Design mockup renders (regenerate from the HTML / the island gallery)
+sketches/**/*.png
+sketches/review/
+sketches/**/tmp/

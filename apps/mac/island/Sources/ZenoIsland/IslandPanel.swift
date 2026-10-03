@@ -51,7 +51,9 @@ struct IslandView: View {
     static let expandedCornerRadius: CGFloat = 22
 
     var body: some View {
-        let radius = model.showsExpanded ? IslandView.expandedCornerRadius : IslandView.cornerRadius
+        let palette = model.settings.theme.palette
+        let radius = model.showsExpanded ? palette.radiusSurface : IslandView.cornerRadius
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         ZStack(alignment: .topLeading) {
             if model.showsExpanded {
                 ExpandedView(model: model)
@@ -63,18 +65,10 @@ struct IslandView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background {
-            if snapshot || model.settings.panelBackground == .solid {
-                RoundedRectangle(cornerRadius: radius, style: .continuous).fill(Color(white: 0.11).opacity(snapshot ? 0.94 : 0.98))
-            } else {
-                GlassBackground(cornerRadius: radius)
-            }
+            SurfaceBackground(shape: shape, glass: !snapshot && model.settings.panelBackground == .glass, systemGlassRadius: radius)
         }
-        .overlay(
-            RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .strokeBorder(.white.opacity(0.12), lineWidth: 0.5)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
-        .environment(\.colorScheme, .dark)
+        .clipShape(shape)
+        .themed(palette)
         .environment(\.islandSnapshot, snapshot)
         .animation(.easeOut(duration: 0.16), value: model.showsExpanded)
     }
@@ -86,13 +80,14 @@ struct CompactView: View {
     let model: IslandModel
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
     private let hovering = State(initialValue: false)
+    @Environment(\.theme) private var theme
 
     var body: some View {
         StatusRow(model: model)
         .padding(.leading, 11)
         .padding(.trailing, 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background(.white.opacity(hovering.wrappedValue ? 0.05 : 0))
+        .background(theme.fill1.color.opacity(hovering.wrappedValue ? 1 : 0))
         .contentShape(Rectangle())
         .onHover { hovering.wrappedValue = $0 }
         .onTapGesture { model.setExpanded(true) }
@@ -109,6 +104,7 @@ struct CompactView: View {
 /// Shared by the compact card and Wisp's speech bubble.
 struct StatusRow: View {
     let model: IslandModel
+    @Environment(\.theme) private var theme
 
     var body: some View {
         HStack(spacing: 11) {
@@ -118,20 +114,20 @@ struct StatusRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(model.pointing.target.map(PointingState.line(for:)) ?? model.status.title)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(theme.text.color)
                 if model.pointing.target != nil {
                     Text("ZENO is pointing")
                         .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.62))
+                        .foregroundStyle(theme.text2.color)
                 } else if !model.status.preview.isEmpty {
                     Text(model.status.preview)
                         .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.85))
+                        .foregroundStyle(theme.text.color.opacity(0.88))
                         .truncationMode(.head)
                 } else if !model.status.detail.isEmpty {
                     Text(model.status.detail)
                         .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.62))
+                        .foregroundStyle(theme.text2.color)
                 }
             }
             .lineLimit(1)
@@ -141,7 +137,7 @@ struct StatusRow: View {
             Spacer(minLength: 4)
 
             if model.status.showsLevel {
-                Waveform(levels: model.meter.history)
+                Waveform(levels: model.meter.history, color: theme.live.color)
                     .frame(width: 46, height: 22)
                     .transition(.opacity)
             }
@@ -153,11 +149,12 @@ struct StatusRow: View {
 /// A round badge whose icon and colour follow ZENO's state.
 struct StateGlyph: View {
     let kind: IslandStatus.Kind
+    @Environment(\.theme) private var theme
 
     var body: some View {
-        let tint = StateGlyph.tint(kind)
+        let tint = theme.tint(kind)
         ZStack {
-            Circle().fill(tint.opacity(0.22))
+            Circle().fill(tint.opacity(theme.isDark ? 0.2 : 0.14))
             Image(systemName: StateGlyph.symbol(kind))
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(tint)
@@ -167,7 +164,8 @@ struct StateGlyph: View {
         .animation(.easeOut(duration: 0.2), value: kind)
     }
 
-    /// Also the menu-bar icon's symbol (ADR-056).
+    /// Also the menu-bar icon's symbol (ADR-056). The colours below are for the menu bar, which follows the
+    /// system's appearance rather than ZENO's theme.
     static func symbol(_ kind: IslandStatus.Kind) -> String {
         switch kind {
         case .starting: "hourglass"
@@ -201,6 +199,7 @@ struct StateGlyph: View {
 /// Bars for the recent microphone levels, newest on the right.
 struct Waveform: View {
     let levels: [Double]
+    var color: Color = .white
 
     var body: some View {
         GeometryReader { proxy in
@@ -210,7 +209,7 @@ struct Waveform: View {
             HStack(alignment: .center, spacing: gap) {
                 ForEach(levels.indices, id: \.self) { i in
                     Capsule()
-                        .fill(.white.opacity(0.55 + 0.45 * levels[i]))
+                        .fill(color.opacity(0.5 + 0.5 * levels[i]))
                         .frame(width: width, height: max(width, proxy.size.height * levels[i]))
                 }
             }
@@ -221,29 +220,40 @@ struct Waveform: View {
     }
 }
 
-/// Dark glass: the system glass material on macOS 26 and later, a dark blur before that.
+/// The system glass behind a surface: Liquid Glass on macOS 26 and later, a blur before that. Tinted and set
+/// light or dark by the theme (ADR-057).
 struct GlassBackground: NSViewRepresentable {
     let cornerRadius: CGFloat
+    var tint: NSColor = NSColor(white: 0.04, alpha: 0.55)
+    var dark = true
 
     func makeNSView(context: Context) -> NSView {
         if #available(macOS 26.0, *) {
             let glass = NSGlassEffectView()
-            glass.cornerRadius = cornerRadius
-            glass.style = .regular
-            glass.tintColor = NSColor(white: 0.04, alpha: 0.55) // dark, still showing what is behind
+            configure(glass)
             return glass
         }
         let blur = NSVisualEffectView()
-        blur.material = .hudWindow
         blur.blendingMode = .behindWindow
         blur.state = .active
-        blur.appearance = NSAppearance(named: .vibrantDark)
         blur.wantsLayer = true
-        blur.layer?.cornerRadius = cornerRadius
         blur.layer?.cornerCurve = .continuous
         blur.layer?.masksToBounds = true
+        configure(blur)
         return blur
     }
 
-    func updateNSView(_ view: NSView, context: Context) {}
+    func updateNSView(_ view: NSView, context: Context) { configure(view) }
+
+    private func configure(_ view: NSView) {
+        view.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        if #available(macOS 26.0, *), let glass = view as? NSGlassEffectView {
+            glass.cornerRadius = cornerRadius
+            glass.style = .regular
+            glass.tintColor = tint
+        } else if let blur = view as? NSVisualEffectView {
+            blur.material = dark ? .hudWindow : .popover
+            blur.layer?.cornerRadius = cornerRadius
+        }
+    }
 }

@@ -1,0 +1,112 @@
+<style>
+html,body{width:1440px;height:900px;overflow:hidden;background:#05060A}
+#scr{position:relative;width:1440px;height:900px;overflow:hidden;
+  background:
+   radial-gradient(60% 55% at 78% 92%,rgba(255,138,160,.38),transparent 70%),
+   radial-gradient(55% 60% at 14% 82%,rgba(64,210,255,.32),transparent 70%),
+   radial-gradient(70% 60% at 30% 20%,rgba(110,90,255,.42),transparent 70%),
+   radial-gradient(50% 50% at 92% 18%,rgba(40,120,200,.35),transparent 70%),
+   conic-gradient(from 210deg at 55% 60%,#0F1230,#1A1546,#0D2340,#1B1240,#0F1230);}
+#scr::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-radial-gradient(circle at 60% 120%,rgba(255,255,255,.025) 0 2px,transparent 2px 46px)}
+/* menu bar */
+.mb{position:absolute;left:0;right:0;top:0;height:30px;display:flex;align-items:center;padding:0 10px 0 18px;z-index:5;
+  background:rgba(14,14,30,.38);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);color:#fff;font:500 13.5px/1 var(--text);letter-spacing:-.1px}
+.mb .l{display:flex;align-items:center;gap:20px}
+.mb .l b{font-weight:700}
+.mb .r{margin-left:auto;display:flex;align-items:center;gap:6px}
+.mi{height:24px;min-width:28px;padding:0 5px;display:grid;place-items:center;border-radius:6px;color:#fff}
+.mi.sel{background:rgba(255,255,255,.22)}
+.clock{padding:0 8px;font-variant-numeric:tabular-nums}
+/* window */
+.win{position:absolute;left:96px;top:92px;width:640px;height:470px;border-radius:12px;overflow:hidden;background:#FBFBFA;
+  box-shadow:0 0 0 .5px rgba(0,0,0,.5),0 30px 80px rgba(0,0,0,.55),0 8px 24px rgba(0,0,0,.3)}
+.tb{height:52px;display:flex;align-items:center;padding:0 16px;background:#ECECEC;border-bottom:1px solid #D6D6D6;color:#333}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.2)}
+.ttl{flex:1;text-align:center;font:600 13px var(--text);color:#3a3a3a;margin-right:52px}
+.fmt{height:34px;display:flex;align-items:center;gap:10px;padding:0 14px;background:#F4F4F3;border-bottom:1px solid #E2E2E2;font:12px var(--text);color:#444}
+.fmt span{height:22px;padding:0 8px;border-radius:5px;display:flex;align-items:center;background:#fff;box-shadow:0 0 0 .5px #CFCFCF}
+.doc{padding:30px 54px;font:15px/1.6 "Helvetica Neue",Helvetica,sans-serif;color:#1d1d1f}
+.doc h3{font-size:19px;margin-bottom:10px;letter-spacing:-.2px}
+.caret{display:inline-block;width:1.5px;height:18px;background:#1d1d1f;vertical-align:-3px;margin-left:1px}
+.tgt{box-shadow:0 0 0 5px rgba(255,184,107,.22),0 0 0 6px rgba(255,184,107,.7),0 0 18px 6px rgba(255,184,107,.35);border-radius:1px}
+/* dock */
+.dock{position:absolute;left:50%;transform:translateX(-50%);bottom:8px;height:68px;padding:7px 9px;display:flex;gap:7px;border-radius:22px;z-index:3;
+  background:rgba(255,255,255,.14);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.3),0 10px 30px rgba(0,0,0,.3)}
+.app{width:54px;height:54px;border-radius:13px;position:relative;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.25),0 2px 6px rgba(0,0,0,.25)}
+.app.run::after{content:"";position:absolute;left:50%;bottom:-6px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:rgba(255,255,255,.8)}
+.dsep{width:1px;margin:4px 3px;background:rgba(255,255,255,.3)}
+/* placements */
+#panel{position:absolute;left:851px;top:36px;z-index:6}
+#strip{position:absolute;left:510px;top:596px;z-index:4}
+#wisp{position:absolute;left:1030px;top:747px;z-index:4}
+#wisp2{position:absolute;left:1286px;top:36px;z-index:7}
+#pill{position:absolute;left:1252px;top:84px;z-index:7}
+.trail{position:absolute;left:980px;top:793px;width:70px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,rgba(166,247,255,.6));filter:blur(1px);z-index:3}
+</style>
+<div id="scr">
+  <div class="mb">
+    <div class="l"><svg width="15" height="18" viewBox="0 0 17 20"><path fill="#fff" d="M14.1 10.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9C3.6 4.8 1.9 5.9 1 7.5c-1.8 3.2-.5 7.9 1.3 10.5.9 1.3 1.9 2.7 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.1-2.6 1-1.5 1.4-2.9 1.4-3-.1 0-2.6-1-2.6-4.4zM11.6 3c.7-.9 1.2-2 1-3.2-1 0-2.3.7-3 1.6-.7.8-1.3 2-1.1 3.1 1.1.1 2.3-.6 3.1-1.5z"/></svg>
+      <b>TextEdit</b><span>File</span><span>Edit</span><span>Format</span><span>View</span><span>Window</span><span>Help</span></div>
+    <div class="r" id="mbr"></div>
+  </div>
+
+  <div class="win">
+    <div class="tb"><div class="lights"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></div><div class="ttl">Untitled.rtf — Edited</div></div>
+    <div class="fmt"><span>Helvetica ⌄</span><span>Regular ⌄</span><span>15 ⌄</span><span style="padding:0 6px"><b>B</b>&nbsp;&nbsp;<i>I</i>&nbsp;&nbsp;<u>U</u></span></div>
+    <div class="doc">
+      <h3>Saturday notes</h3>
+      <div>Design review at 3 — bring the new panel and strip mockups.</div>
+      <div>Call with Aiko at 4:30 about the Wisp motion pass.</div>
+      <div style="margin-top:12px">Ideas for the orb:<span class="caret tgt"></span></div>
+    </div>
+  </div>
+
+  <div class="trail"></div>
+  <div id="wisp"></div>
+  <div id="strip"></div>
+
+  <div class="dock" id="dock"></div>
+
+  <div id="panel"></div>
+  <div id="wisp2"></div>
+  <div id="pill"></div>
+</div>
+<script>
+const mb = document.getElementById('mbr');
+const g = (p) => `<svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+mb.innerHTML = [
+  `<div class="mi">${g('<path d="M5.5 14.5h9a3.5 3.5 0 0 0 .4-7A5 5 0 0 0 5.3 8.6 3 3 0 0 0 5.5 14.5z"/>')}</div>`,
+  `<div class="mi">${g('<circle cx="7.5" cy="10" r="3.2"/><path d="M10.7 10H17M14.5 10v2.5M16.5 10v1.8"/>')}</div>`,
+  `<div class="mi sel" id="zicon">${mbIcon('attention', 18)}</div>`,
+  `<div class="mi"><svg width="27" height="13" viewBox="0 0 27 13"><rect x=".75" y=".75" width="22.5" height="11.5" rx="3.4" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/><rect x="2.6" y="2.6" width="15.5" height="7.8" rx="1.8" fill="#fff"/><path d="M24.8 4.6v3.8c.8-.3 1.3-1.1 1.3-1.9s-.5-1.6-1.3-1.9z" fill="rgba(255,255,255,.55)"/></svg></div>`,
+  `<div class="mi"><svg width="17" height="17" viewBox="0 0 20 20" fill="#fff"><path d="M10 15.6l2.3-2.6a3.2 3.2 0 0 0-4.6 0zM4.9 10.5l1.5 1.7a5 5 0 0 1 7.2 0l1.5-1.7a7.3 7.3 0 0 0-10.2 0zM1.9 7.2l1.5 1.7a9.4 9.4 0 0 1 13.2 0l1.5-1.7a11.6 11.6 0 0 0-16.2 0z"/></svg></div>`,
+  `<div class="mi">${g('<circle cx="8.6" cy="8.6" r="5"/><path d="M12.3 12.3L16.5 16.5"/>')}</div>`,
+  `<div class="mi" id="cc"><svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.5"><rect x="2.5" y="3.5" width="15" height="5.5" rx="2.75"/><rect x="2.5" y="11" width="15" height="5.5" rx="2.75"/><circle cx="14.75" cy="6.25" r="1.6" fill="#fff"/><circle cx="5.25" cy="13.75" r="1.6" fill="#fff"/></svg></div>`,
+  `<div class="clock">Sat 3 Oct 18:42</div>`
+].join('');
+
+document.getElementById('panel').innerHTML = panelConversation({ pending: true, mood: 'thinking', wash: 'attn', title: 'Waiting for your OK', h: 548 });
+document.getElementById('strip').innerHTML = strip('ask');
+document.getElementById('wisp').innerHTML = orb('thinking', 64);
+document.getElementById('wisp2').innerHTML = orb('pointing', 40, { point: -107, floor: false });
+document.getElementById('pill').innerHTML = pill('Control Centre');
+
+const apps = [
+  'linear-gradient(160deg,#5AC8FA,#007AFF)', 'linear-gradient(160deg,#fff,#E6E6E6)', 'linear-gradient(160deg,#FF9F0A,#FF375F)',
+  'linear-gradient(160deg,#34C759,#30B0C7)', 'linear-gradient(160deg,#2C2C2E,#1C1C1E)', 'linear-gradient(160deg,#FFD60A,#FF9F0A)',
+  'linear-gradient(160deg,#BF5AF2,#5E5CE6)', 'linear-gradient(160deg,#F2F2F7,#D1D1D6)', 'linear-gradient(160deg,#64D2FF,#5E5CE6)',
+];
+const glyph = [
+  '<svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="16" fill="none" stroke="#fff" stroke-width="2.5"/><path d="M27 15l4 12-4 12-4-12z" fill="#fff" opacity=".9"/></svg>',
+  '<svg viewBox="0 0 54 54"><rect x="15" y="12" width="24" height="30" rx="3" fill="#fff" stroke="#bbb"/><path d="M19 20h16M19 25h16M19 30h11" stroke="#888" stroke-width="2"/></svg>',
+  '<svg viewBox="0 0 54 54"><path d="M27 15c5 0 9 4 9 9 0 7-9 15-9 15s-9-8-9-15c0-5 4-9 9-9z" fill="#fff"/></svg>',
+  '<svg viewBox="0 0 54 54"><path d="M14 20a6 6 0 0 1 6-6h14a6 6 0 0 1 6 6v9a6 6 0 0 1-6 6h-9l-7 5v-5a6 6 0 0 1-4-6z" fill="#fff"/></svg>',
+  '<svg viewBox="0 0 54 54"><path d="M16 20l7 7-7 7M27 35h11" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round"/></svg>',
+  '<svg viewBox="0 0 54 54"><rect x="15" y="13" width="24" height="28" rx="3" fill="#fff" opacity=".95"/><path d="M19 21h16M19 27h16M19 33h10" stroke="#FF9F0A" stroke-width="2"/></svg>',
+  '<svg viewBox="0 0 54 54"><path d="M20 36V18l16-4v18" stroke="#fff" stroke-width="2.6" fill="none"/><circle cx="17" cy="36" r="4" fill="#fff"/><circle cx="33" cy="32" r="4" fill="#fff"/></svg>',
+  '<svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="13" fill="none" stroke="#8E8E93" stroke-width="3" stroke-dasharray="3 3.8"/><circle cx="27" cy="27" r="6" fill="#8E8E93"/></svg>',
+  '<svg viewBox="0 0 54 54"><rect x="13" y="16" width="28" height="22" rx="3" fill="none" stroke="#fff" stroke-width="2.4"/><path d="M13 22h28" stroke="#fff" stroke-width="2.4"/></svg>',
+];
+document.getElementById('dock').innerHTML = apps.map((b, i) => (i === 8 ? '<div class="dsep"></div>' : '') + `<div class="app ${[0, 1, 3, 4].includes(i) ? 'run' : ''}" style="background:${b}">${glyph[i]}</div>`).join('');
+</script>

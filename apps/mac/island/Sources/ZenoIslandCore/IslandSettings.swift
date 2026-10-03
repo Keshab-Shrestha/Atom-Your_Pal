@@ -27,6 +27,8 @@ public final class IslandSettings {
     static let bubbleOpacityKey = "zeno.bubble.opacity"
     static let panelSizeKey = "zeno.panel.size"
     static let panelBackgroundKey = "zeno.panel.background"
+    static let themeKey = "zeno.look.theme"
+    static let wispStyleKey = "zeno.wisp.style"
 
     @ObservationIgnored private let defaults: UserDefaults
     /// Mirrors what is stored, so views observe changes.
@@ -77,6 +79,10 @@ public final class IslandSettings {
     public var bubbleOpacity: BubbleOpacity { didSet { store(bubbleOpacity.rawValue, Self.bubbleOpacityKey) } }
     public var panelSize: PanelSize { didSet { store(panelSize.rawValue, Self.panelSizeKey) } }
     public var panelBackground: PanelBackground { didSet { store(panelBackground.rawValue, Self.panelBackgroundKey) } }
+    /// How ZENO's surfaces look (ADR-057). Default Quiet Native.
+    public var theme: AppTheme { didSet { store(theme.rawValue, Self.themeKey) } }
+    /// How Wisp is drawn (ADR-057). Default Orb.
+    public var wispStyle: WispStyle { didSet { store(wispStyle.rawValue, Self.wispStyleKey) } }
 
     /// Start and stop sounds. Default on.
     public var soundsEnabled: Bool {
@@ -122,6 +128,8 @@ public final class IslandSettings {
         bubbleOpacity = Self.choice(defaults, Self.bubbleOpacityKey, .normal)
         panelSize = Self.choice(defaults, Self.panelSizeKey, .normal)
         panelBackground = Self.choice(defaults, Self.panelBackgroundKey, .glass)
+        theme = Self.choice(defaults, Self.themeKey, .native)
+        wispStyle = Self.choice(defaults, Self.wispStyleKey, .orb)
         dictationMode = (defaults.string(forKey: Self.dictationModeKey)).flatMap(DictationMode.init(rawValue:)) ?? .automatic
         livePreview = defaults.object(forKey: Self.livePreviewKey) as? Bool ?? true
         removeFillers = defaults.object(forKey: Self.removeFillersKey) as? Bool ?? true
@@ -208,6 +216,7 @@ public final class IslandSettings {
         wispHideAfter = .minute1; wispLean = .normal
         bubbleStay = .seconds2; bubbleSize = .normal; bubbleOpacity = .normal
         panelSize = .normal; panelBackground = .glass
+        theme = .native; wispStyle = .orb
     }
 
     private func save(_ value: Bool, _ key: String) {

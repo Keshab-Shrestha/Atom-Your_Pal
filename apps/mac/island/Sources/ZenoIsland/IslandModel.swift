@@ -39,6 +39,33 @@ final class IslandModel {
     /// The panel is fading out after being closed: it still draws the expanded view until it is gone.
     var closing = false
     var tab = Tab.conversation
+    /// The Settings page open inside the Settings tab; nil shows the list of pages (ADR-057).
+    var settingsPage: SettingsPage?
+
+    enum SettingsPage: String, CaseIterable, Identifiable {
+        case appearance = "Appearance"
+        case model = "AI model"
+        case shortcuts = "Shortcuts"
+        case dictation = "Dictation"
+        case wisp = "Wisp"
+        case bubble = "Speech bubble"
+        case panel = "Panel"
+        case general = "General"
+        var id: String { rawValue }
+
+        var symbol: String {
+            switch self {
+            case .appearance: "paintpalette.fill"
+            case .model: "sparkles"
+            case .shortcuts: "command"
+            case .dictation: "mic.fill"
+            case .wisp: "face.smiling.inverse"
+            case .bubble: "text.bubble.fill"
+            case .panel: "menubar.rectangle"
+            case .general: "gearshape.fill"
+            }
+        }
+    }
 
     /// Draw the expanded view (open, or fading out).
     var showsExpanded: Bool { expanded || closing }

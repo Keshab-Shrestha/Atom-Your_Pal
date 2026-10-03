@@ -1,0 +1,425 @@
+/* ZENO · Direction A · Quiet Native — components (inlined into each page at build time) */
+const Z = (() => {
+  let uid = 0;
+  const TEAL = '#5BD6E8', AMBER = '#FFB547';
+
+  /* ---------------- icons (SF-Symbols-like, 16 grid, 1.4 stroke) ---------------- */
+  const gear = (() => {
+    let s = '<circle cx="8" cy="8" r="2.1"/><circle cx="8" cy="8" r="4.7"/>';
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4, c = Math.cos(a), d = Math.sin(a);
+      s += `<path d="M${(8 + c * 4.9).toFixed(2)} ${(8 + d * 4.9).toFixed(2)}L${(8 + c * 6.6).toFixed(2)} ${(8 + d * 6.6).toFixed(2)}" stroke-width="1.9"/>`;
+    }
+    return s;
+  })();
+  const I = {
+    mic: '<rect x="5.5" y="1.6" width="5" height="8.2" rx="2.5"/><path d="M3.4 7.6a4.6 4.6 0 0 0 9.2 0M8 12.3v2.2"/>',
+    wave: '<path d="M2 6.8v2.4M4.8 4.8v6.4M7.6 2.6v10.8M10.4 4.8v6.4M13.2 6.6v2.8"/>',
+    speaker: '<path d="M2.4 6.1h2.4l3.6-3v9.8l-3.6-3H2.4z"/><path d="M10.9 5.6a3.4 3.4 0 0 1 0 4.8M12.8 3.8a6 6 0 0 1 0 8.4"/>',
+    sparkle: '<path d="M8 1.6C8.5 5.3 10.7 7.5 14.4 8 10.7 8.5 8.5 10.7 8 14.4 7.5 10.7 5.3 8.5 1.6 8 5.3 7.5 7.5 5.3 8 1.6z"/>',
+    cursor: '<path d="M3.6 2.4l8.9 5.3-3.9 1 2.2 4.1-1.6.9-2.2-4.1-2.9 2.6z"/>',
+    restart: '<path d="M13 8.2A5 5 0 1 1 11.4 4.4"/><path d="M12.4 1.9v2.9H9.5"/>',
+    timer: '<circle cx="8" cy="9" r="5.4"/><path d="M8 9V6.2M6.4 1.7h3.2"/>',
+    gear,
+    keyboard: '<rect x="1.4" y="3.8" width="13.2" height="8.4" rx="2"/><path d="M4.2 6.6h.01M6.7 6.6h.01M9.3 6.6h.01M11.8 6.6h.01M5 9.4h6"/>',
+    bubble: '<path d="M3 3.2h10a1.6 1.6 0 0 1 1.6 1.6v5a1.6 1.6 0 0 1-1.6 1.6H7.2l-3.1 2.4v-2.4H3a1.6 1.6 0 0 1-1.6-1.6v-5A1.6 1.6 0 0 1 3 3.2z"/>',
+    panel: '<rect x="1.6" y="2.6" width="12.8" height="10.8" rx="2.2"/><path d="M1.6 6h12.8"/>',
+    dictate: '<rect x="1.4" y="3.6" width="13.2" height="8.8" rx="2"/><path d="M4.4 8h.8M7 6.4v3.2M9.2 5.6v4.8M11.4 7v2"/>',
+    chevR: '<path d="M6 3.4L10.6 8 6 12.6"/>',
+    chevL: '<path d="M10 3.4L5.4 8 10 12.6"/>',
+    updown: '<path d="M5.2 6.2L8 3.4l2.8 2.8M5.2 9.8L8 12.6l2.8-2.8"/>',
+    stopf: '<rect x="4.2" y="4.2" width="7.6" height="7.6" rx="1.6" fill="currentColor" stroke="none"/>',
+    check: '<path d="M3.6 8.4l2.9 2.9 5.9-6.6"/>',
+    checkc: '<circle cx="8" cy="8" r="6.6" fill="currentColor" stroke="none"/><path d="M5.2 8.2l2 2 3.7-4.2" stroke="#062A31" stroke-width="1.6"/>',
+    stopc: '<circle cx="8" cy="8" r="6.6" fill="currentColor" stroke="none"/><rect x="5.6" y="5.6" width="4.8" height="4.8" rx="1" fill="#1d1f23" stroke="none"/>',
+    warn: '<path d="M7.1 2.6a1 1 0 0 1 1.8 0l5.7 10a1 1 0 0 1-.9 1.5H2.3a1 1 0 0 1-.9-1.5z" fill="currentColor" stroke="none"/><path d="M8 6v3.4M8 11.6v.1" stroke="#2a1a05" stroke-width="1.6"/>',
+    shield: '<path d="M8 1.7l5 1.9v3.9c0 3.2-2.1 5.6-5 6.8-2.9-1.2-5-3.6-5-6.8V3.6z"/><path d="M8 5.4v3M8 10.5v.1" stroke-width="1.6"/>',
+    lock: '<rect x="3.4" y="7" width="9.2" height="7" rx="1.6"/><path d="M5.4 7V5.2a2.6 2.6 0 0 1 5.2 0V7"/>',
+    clip: '<rect x="3" y="3" width="10" height="11.6" rx="1.8"/><rect x="5.6" y="1.6" width="4.8" height="2.8" rx="1"/>',
+    compose: '<path d="M13 9.2v3.4a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 2 12.6v-8A1.5 1.5 0 0 1 3.5 3.1H7"/><path d="M11.9 1.9l2.2 2.2-5.9 5.9-2.9.7.7-2.9z"/>',
+    more: '<circle cx="3.6" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="12.4" cy="8" r="1.1" fill="currentColor" stroke="none"/>',
+    pin: '<path d="M10.2 1.8l4 4-2.3.8-2.4 2.4.2 3-1.2 1.2L2.8 7.5 4 6.3l3 .2 2.4-2.4z"/><path d="M5.3 10.7L2 14"/>',
+    wifi: '<path d="M1.6 6.2a9.2 9.2 0 0 1 12.8 0M3.8 8.6a6 6 0 0 1 8.4 0M6 11a2.8 2.8 0 0 1 4 0"/><circle cx="8" cy="13.2" r=".9" fill="currentColor" stroke="none"/>',
+    search: '<circle cx="6.9" cy="6.9" r="4.6"/><path d="M10.4 10.4l3.8 3.8"/>',
+    cc: '<rect x="1.4" y="2.6" width="13.2" height="4.6" rx="2.3"/><circle cx="12.3" cy="4.9" r="1.4" fill="currentColor" stroke="none"/><rect x="1.4" y="8.8" width="13.2" height="4.6" rx="2.3"/><circle cx="3.7" cy="11.1" r="1.4" fill="currentColor" stroke="none"/>',
+    cloud: '<path d="M4.6 12.6h7.2a2.9 2.9 0 0 0 .4-5.8 4.2 4.2 0 0 0-8-.9 3.3 3.3 0 0 0 .4 6.7z"/>',
+    music: '<path d="M6 12.2V3.6l7-1.4v8.4"/><circle cx="4.4" cy="12.2" r="1.7"/><circle cx="11.4" cy="10.6" r="1.7"/>',
+    plus: '<path d="M8 3v10M3 8h10"/>',
+    x: '<path d="M4.2 4.2l7.6 7.6M11.8 4.2l-7.6 7.6"/>',
+    bell: '<path d="M4 11.5V7.2a4 4 0 0 1 8 0v4.3l1.2 1.3H2.8z"/><path d="M6.6 14.2a1.5 1.5 0 0 0 2.8 0"/>',
+    nonet: '<path d="M1.6 6.2a9.2 9.2 0 0 1 12.8 0M3.8 8.6a6 6 0 0 1 8.4 0M6 11a2.8 2.8 0 0 1 4 0" opacity=".45"/><path d="M2.6 2.4l10.8 11.2"/>',
+    globe: '<circle cx="8" cy="8" r="6.4"/><path d="M1.6 8h12.8M8 1.6c2 2.1 2.6 4.1 2.6 6.4S10 12.3 8 14.4C6 12.3 5.4 10.3 5.4 8S6 3.7 8 1.6z"/>',
+  };
+  const icon = (n, s = 16, extra = '') =>
+    `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" ${extra}>${I[n]}</svg>`;
+
+  /* --------------- ZENO glyph (menu bar / avatar), template-style --------------- */
+  const GHOST = 'M3.5 8.6C3.5 4.9 6 2.2 9 2.2s5.5 2.7 5.5 6.4v5.9c0 .9-.6 1.5-1.4 1.5-.7 0-1.3-.5-1.8-1-.5.5-1.3 1-2.3 1s-1.8-.5-2.3-1c-.5.5-1.1 1-1.8 1-.8 0-1.4-.6-1.4-1.5z';
+  const EYES = 'M7.2 7.4c.5 0 .85.38.85.85v1.3c0 .47-.35.85-.85.85s-.85-.38-.85-.85v-1.3c0-.47.35-.85.85-.85zM10.8 7.4c.5 0 .85.38.85.85v1.3c0 .47-.35.85-.85.85s-.85-.38-.85-.85v-1.3c0-.47.35-.85.85-.85z';
+  function glyph(state = 'idle', size = 18) {
+    const col = state === 'problem' ? AMBER : (state === 'listening' || state === 'speaking') ? TEAL : 'rgba(255,255,255,.92)';
+    let extra = '', w = 18;
+    if (state === 'listening') { w = 27; extra = [3, 6.5, 4.2].map((h, i) => `<rect x="${20 + i * 2.6}" y="${9 - h / 2}" width="1.6" height="${h}" rx=".8" fill="${TEAL}"/>`).join(''); }
+    if (state === 'speaking') { w = 26; extra = `<path d="M17.6 6.6a3.4 3.4 0 0 1 0 4.8M19.9 4.6a6.2 6.2 0 0 1 0 8.8" stroke="${TEAL}" stroke-width="1.3" fill="none" stroke-linecap="round"/>`; }
+    if (state === 'thinking') { extra = `<circle cx="15.6" cy="3" r="1.9" fill="${TEAL}"/>`; }
+    if (state === 'working') { extra = `<path d="M11.6 9.4l5.6 3.3-2.5.6 1.4 2.6-1 .6-1.4-2.6-1.9 1.7z" fill="${TEAL}" stroke="#15171a" stroke-width=".9" stroke-linejoin="round"/>`; }
+    if (state === 'attention') { extra = `<circle cx="15" cy="3.4" r="2.6" fill="${AMBER}" stroke="#15171a" stroke-width="1"/>`; }
+    if (state === 'problem') { extra = `<circle cx="15" cy="3.6" r="3" fill="${AMBER}" stroke="#15171a" stroke-width="1"/><path d="M15 2.1v1.9M15 5.2v.05" stroke="#2a1a05" stroke-width="1.2" stroke-linecap="round"/>`; }
+    const h = size, ww = size * w / 18;
+    return `<svg class="ic" width="${ww}" height="${h}" viewBox="0 0 ${w} 18"><path fill-rule="evenodd" fill="${col}" d="${GHOST}${EYES}"/>${extra}</svg>`;
+  }
+
+  /* ---------------------------------- Wisp ---------------------------------- */
+  const BODY = 'M16 54C16 28.5 31 10 50 10C69 10 84 28.5 84 54L84 92C84 101 79 106 72.7 106C67.5 106 64 101 61.3 98C58.6 101 55 106 50 106C45 106 41.4 101 38.7 98C36 101 32.5 106 27.3 106C21 106 16 101 16 92Z';
+  function palette(m) {
+    if (m === 'problem') return { s: ['#FFFFFF', '#FFF8EE', '#FBE3C2', '#E9B676'], glow: AMBER, go: .7, eye: '#2E1F0C', shade: 'rgba(160,90,10,.26)' };
+    if (m === 'napping') return { s: ['#F2FBFD', '#D9F1F6', '#A3DAE5', '#6EB9C9'], glow: TEAL, go: .22, eye: '#123541', shade: 'rgba(20,70,90,.34)' };
+    return { s: ['#FFFFFF', '#EAFBFE', '#B2EBF5', '#6DCADC'], glow: TEAL, go: m === 'listening' ? .78 : .55, eye: '#0E2D37', shade: 'rgba(20,110,130,.28)' };
+  }
+  function wisp(mood = 'resting', o = {}) {
+    const id = 'w' + (uid++);
+    const p = palette(mood);
+    const W = o.w || 160;
+    const vb = o.vb || (mood === 'hiding' ? '-62 -26 160 160' : '-30 -26 160 160');
+    const [vx, vy, vw, vh] = vb.split(' ').map(Number);
+    const H = W * vh / vw;
+    const E = p.eye;
+    const pill = (cx, cy, w, h, clip) =>
+      `<g ${clip ? `clip-path="url(#${clip})"` : ''}><rect x="${cx - w / 2}" y="${cy - h / 2}" width="${w}" height="${h}" rx="${w / 2}" fill="${E}"/>` +
+      `<circle cx="${cx + w * .16}" cy="${cy - h * .26}" r="${w * .17}" fill="#fff" opacity=".85"/></g>`;
+    let defs = `
+      <radialGradient id="${id}b" cx=".42" cy=".32" r=".78">
+        <stop offset="0" stop-color="${p.s[0]}"/><stop offset=".42" stop-color="${p.s[1]}"/>
+        <stop offset=".78" stop-color="${p.s[2]}"/><stop offset="1" stop-color="${p.s[3]}"/></radialGradient>
+      <linearGradient id="${id}sh" x1="0" y1="0" x2="0" y2="1">
+        <stop offset=".55" stop-color="${p.shade}" stop-opacity="0"/><stop offset="1" stop-color="${p.shade}"/></linearGradient>
+      <linearGradient id="${id}r" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset=".45" stop-color="#fff" stop-opacity=".25"/><stop offset=".8" stop-color="#fff" stop-opacity="0"/></linearGradient>
+      <filter id="${id}g" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="${o.glowBlur || 10}"/></filter>
+      <filter id="${id}s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter>
+      <filter id="${id}m" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="3.2"/></filter>
+      <clipPath id="${id}c"><path d="${BODY}"/></clipPath>`;
+
+    const glowOp = o.glow != null ? o.glow : p.go;
+    let behind = '', front = '', bodyT = '', eyes = '', extraBody = '', underBody = '';
+    const shadow = (y, rx, op) => `<ellipse cx="50" cy="${y}" rx="${rx}" ry="3.2" fill="#000" opacity="${op}" filter="url(#${id}s)"/>`;
+
+    switch (mood) {
+      case 'resting':
+        eyes = pill(39.5, 55, 7.4, 11.6) + pill(60.5, 55, 7.4, 11.6);
+        if (!o.noShadow) behind += shadow(124, 24, .28);
+        break;
+      case 'floating':
+        bodyT = 'translate(2 -7) rotate(8 50 58)';
+        eyes = pill(43, 54, 7.4, 11.6) + pill(64, 54, 7.4, 11.6);
+        if (!o.noShadow) behind += shadow(127, 17, .16);
+        break;
+      case 'listening':
+        eyes = pill(38, 52.5, 10.4, 16.4) + pill(62, 52.5, 10.4, 16.4);
+        [[52, 2, .6], [60, 1.4, .34], [68, 1, .16]].forEach(([r, w, op]) =>
+          behind += `<circle cx="50" cy="58" r="${r}" fill="none" stroke="${TEAL}" stroke-width="${w}" opacity="${op}"/>`);
+        if (!o.noShadow) behind += shadow(124, 24, .26);
+        break;
+      case 'thinking': {
+        defs += `<clipPath id="${id}l1"><path d="M30 42 L76 38 L76 72 L30 72Z"/></clipPath>`;
+        // pupils clearly looking up and to the right
+        eyes = `<g clip-path="url(#${id}l1)">` + pill(48, 45, 7.4, 11.6) + pill(68.5, 44, 7.4, 11.6) + `</g>`;
+        // halo/orbit tilted around the crown above the eyes: cy=22
+        const cx = 50, cy = 22, rx = 48, ry = 10, rd = -12, rot = rd * Math.PI / 180;
+        const P = t => { const x = rx * Math.cos(t), y = ry * Math.sin(t); return [cx + x * Math.cos(rot) - y * Math.sin(rot), cy + x * Math.sin(rot) + y * Math.cos(rot)]; };
+        const arc = (t0, t1) => { let d = ''; for (let i = 0; i <= 40; i++) { const [x, y] = P(t0 + (t1 - t0) * i / 40); d += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1); } return d; };
+        behind += `<path d="${arc(Math.PI, 2 * Math.PI)}" fill="none" stroke="#fff" stroke-opacity=".18" stroke-width=".8"/>`;
+        front += `<path d="${arc(0, Math.PI)}" fill="none" stroke="${TEAL}" stroke-opacity=".8" stroke-width="1.1"/>`;
+        const tm = 0.38;
+        let trail = '';
+        for (let i = 6; i >= 1; i--) { const [x, y] = P(tm + i * 0.12); trail += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(2.6 - i * .28).toFixed(2)}" fill="#E9FBFF" opacity="${(.65 - i * .09).toFixed(2)}"/>`; }
+        const [mx, my] = P(tm);
+        front += trail + `<circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="8" fill="${TEAL}" opacity=".85" filter="url(#${id}m)"/><circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="3.3" fill="#fff"/>`;
+        if (!o.noShadow) behind += shadow(124, 24, .26);
+        break;
+      }
+      case 'speaking':
+        eyes = pill(39.5, 53.5, 7.4, 11) + pill(60.5, 53.5, 7.4, 11);
+        extraBody += `<path d="M45.6 66.4c0-.9.7-1.4 1.6-1.4h5.6c.9 0 1.6.5 1.6 1.4 0 2.8-2 4.6-4.4 4.6s-4.4-1.8-4.4-4.6z" fill="${E}"/><ellipse cx="50" cy="69.2" rx="2.2" ry="1" fill="#E58A8A" opacity=".55"/>`;
+        [1, -1].forEach(dir => {
+          [[10, .55], [19, .3], [28, .14]].forEach(([r, op]) => {
+            const cx = 50, cy = 64, R = 34 + r, span = 24;
+            const a1 = dir > 0 ? -span : 180 - span, a2 = dir > 0 ? span : 180 + span;
+            const Pp = a => [cx + R * Math.cos(a * Math.PI / 180), cy + R * Math.sin(a * Math.PI / 180)];
+            const [x1, y1] = Pp(a1), [x2, y2] = Pp(a2);
+            behind += `<path d="M${x1.toFixed(1)} ${y1.toFixed(1)}A${R} ${R} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}" fill="none" stroke="${TEAL}" stroke-width="1.8" stroke-linecap="round" opacity="${op}"/>`;
+          });
+        });
+        if (!o.noShadow) behind += shadow(124, 24, .26);
+        break;
+      case 'problem': {
+        defs += `<clipPath id="${id}l1"><path d="M30 56 L50 50.4 L50 74 L30 74Z"/></clipPath><clipPath id="${id}l2"><path d="M50 50.4 L70 56 L70 74 L50 74Z"/></clipPath>`;
+        eyes = pill(40, 57, 7.2, 11.4, id + 'l1') + pill(60, 57, 7.2, 11.4, id + 'l2');
+        eyes += `<path d="M34.2 46.6Q39.4 45.6 44.2 41.6M65.8 46.6Q60.6 45.6 55.8 41.6" fill="none" stroke="${E}" stroke-width="2.6" stroke-linecap="round" opacity=".85"/>`;
+        if (!o.noShadow) behind += shadow(124, 24, .28);
+        break;
+      }
+      case 'napping':
+        bodyT = 'translate(50 106) scale(1.03 .95) translate(-50 -106)';
+        eyes = `<path d="M35.2 58.5q4.3 4.2 8.6 0M56.2 58.5q4.3 4.2 8.6 0" fill="none" stroke="${E}" stroke-width="2.4" stroke-linecap="round"/>`;
+        front += `<circle cx="72" cy="2" r="5" fill="${TEAL}" opacity=".45" filter="url(#${id}m)"/><circle cx="72" cy="2" r="1.8" fill="#E9FBFF" opacity=".9"/>`;
+        if (!o.noShadow) behind += shadow(121, 27, .3);
+        break;
+      case 'carried':
+        // pinched top, elongated body, stretched downward
+        bodyT = 'translate(50 12) rotate(2) scale(.84 1.18) translate(-50 -12)';
+        eyes = pill(42, 45, 8.4, 13) + pill(61, 45, 8.4, 13);
+        behind += shadow(132, 12, .08);
+        // cursor tip placed exactly on the stretched head crown
+        front += `<g transform="translate(48 5)"><path d="M0 0L0 16.5L4 12.6L6.9 19.4L9.6 18.3L6.8 11.6L12.3 11.6Z" fill="#111" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></g>`;
+        break;
+      case 'hiding': {
+        // Clip body strictly to x >= 0 so the ghost is visibly cut by the screen bezel line
+        defs += `<clipPath id="${id}scr"><rect x="0" y="-60" width="200" height="240"/></clipPath>
+          <linearGradient id="${id}band" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#040608" stop-opacity=".7"/><stop offset="1" stop-color="#040608" stop-opacity=".95"/></linearGradient>
+          <linearGradient id="${id}edge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".15" stop-color="#fff" stop-opacity=".55"/><stop offset=".85" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>`;
+        // Ghost leans in from left screen edge: head at x ~ 25, body extends into negative x, clipped at x=0
+        bodyT = 'translate(-42 12) rotate(16 50 106)';
+        eyes = pill(58, 54, 7.4, 11.6) + pill(78, 54, 7.4, 11.6);
+        // Screen edge bezel on left
+        behind += `<rect x="-56" y="-26" width="56" height="160" fill="url(#${id}band)"/><rect x="-.5" y="-26" width="1.2" height="160" fill="url(#${id}edge)"/>`;
+        o.clipScreen = `${id}scr`;
+        // Hand grips the screen edge: wraps over x=0 with fingers extending onto the bezel
+        front += `<g><ellipse cx="6" cy="68" rx="8" ry="3" fill="#000" opacity=".3" filter="url(#${id}s)"/>
+          <path d="M-3 55.5h11a5 5 0 0 1 5 5v.5a3.6 3.6 0 0 1 0 7.2a3.6 3.6 0 0 1-3.6 3.6H-3z" fill="#F4FCFE"/>
+          <path d="M-3 55.5h11a5 5 0 0 1 5 5v.5a3.6 3.6 0 0 1 0 7.2a3.6 3.6 0 0 1-3.6 3.6H-3" fill="none" stroke="${p.s[3]}" stroke-width="1"/>
+          <path d="M9 64.2h4M8 68.2h3" stroke="${p.s[3]}" stroke-width=".9" stroke-linecap="round"/></g>`;
+        break;
+      }
+      case 'pointing':
+        bodyT = 'rotate(-6 50 60)';
+        eyes = pill(47, 50, 7.4, 11.6) + pill(67.5, 49, 7.4, 11.6);
+        // Tapered arm extending cleanly toward the target (angle ~34 deg)
+        underBody += `<g transform="rotate(-34 78 57)"><path d="M68 49.5L102 52.2A4 4 0 0 1 102 60.2L68 62.5Z" fill="url(#${id}b)"/><path d="M78 50.4L102 52.2A4 4 0 0 1 102 60.2L78 61.6" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width=".8"/></g>`;
+        if (o.target) {
+          // target reticle exactly aligned with arm tip
+          front += `<circle cx="114" cy="27" r="7" fill="none" stroke="${TEAL}" stroke-width="1.3" opacity=".95"/>
+            <circle cx="114" cy="27" r="12" fill="none" stroke="${TEAL}" stroke-width="1" opacity=".35"/>
+            <circle cx="114" cy="27" r="2.4" fill="${TEAL}"/>
+            <g transform="translate(90 48)">
+              <rect x="0" y="0" width="48" height="15" rx="7.5" fill="rgba(28,30,34,.9)" stroke="rgba(255,255,255,.2)" stroke-width=".6"/>
+              <circle cx="8" cy="7.5" r="2" fill="${TEAL}"/>
+              <text x="14" y="10.8" font-size="8" font-weight="600" fill="#fff" font-family="-apple-system,sans-serif">Wi-Fi</text>
+            </g>`;
+        }
+        break;
+    }
+    if (o.eyesOnly === false) eyes = '';
+
+    const glow = `<ellipse cx="50" cy="60" rx="38" ry="44" fill="${p.glow}" opacity="${glowOp}" filter="url(#${id}g)"/>`;
+    const body = `
+      <g ${bodyT ? `transform="${bodyT}"` : ''}>
+        ${mood === 'hiding' ? '' : glow}
+        ${underBody}
+        <path d="${BODY}" fill="url(#${id}b)"/>
+        <g clip-path="url(#${id}c)">
+          <path d="${BODY}" fill="url(#${id}sh)"/>
+          <ellipse cx="37" cy="29" rx="15" ry="9" fill="#fff" opacity=".55" filter="url(#${id}s)"/>
+          <ellipse cx="50" cy="118" rx="40" ry="16" fill="${p.glow}" opacity=".18" filter="url(#${id}s)"/>
+        </g>
+        <path d="${BODY}" fill="none" stroke="url(#${id}r)" stroke-width="1.3"/>
+        <path d="${BODY}" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width=".6"/>
+        ${eyes}${extraBody}
+      </g>`;
+    const bodyWrapped = o.clipScreen ? `<g clip-path="url(#${o.clipScreen})">${mood === 'hiding' ? `<g transform="${bodyT}">${glow}</g>` : ''}${body}</g>` : body;
+    const flip = o.flip ? `transform="translate(${2 * vx + vw} 0) scale(-1 1)"` : '';
+    return `<svg width="${W}" height="${H.toFixed(1)}" viewBox="${vb}" style="${o.style || ''}"><defs>${defs}</defs><g ${flip}>${behind}${bodyWrapped}${front}</g></svg>`;
+  }
+
+  /* --------------------------------- helpers --------------------------------- */
+  function meter(levels, cls = '') {
+    return `<div class="meter ${cls}">${levels.map(h => `<i style="height:${h}px"></i>`).join('')}</div>`;
+  }
+  const LV = [3, 5, 8, 12, 9, 14, 11, 6, 9, 13, 15, 10, 7, 11, 8, 5, 7, 4, 3, 2];
+  function spinner(s = 16, col = TEAL) {
+    return `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="2"/><path d="M8 2a6 6 0 0 1 6 6" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round"/></svg>`;
+  }
+  function progress(frac, s = 18) {
+    const r = 7, C = 2 * Math.PI * r;
+    return `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 18 18"><circle cx="9" cy="9" r="${r}" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="2"/><circle cx="9" cy="9" r="${r}" fill="none" stroke="${TEAL}" stroke-width="2" stroke-linecap="round" stroke-dasharray="${(C * frac).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 9 9)"/></svg>`;
+  }
+  const slider = (labels, idx) => {
+    const n = labels.length;
+    const pct = i => `calc(7px + (100% - 14px) * ${i / (n - 1)})`;
+    return `<div class="slider"><div class="track"><div class="fill" style="width:${(idx / (n - 1)) * 100}%"></div></div>` +
+      labels.map((l, i) => `<div class="tick" style="left:${pct(i)}"></div><div class="lab ${i === idx ? 'on' : ''} ${i === 0 ? 'first' : ''} ${i === n - 1 ? 'last' : ''}" style="left:${pct(i)}">${l}</div>`).join('') +
+      `<div class="knob" style="left:${pct(idx)}"></div></div>`;
+  };
+  const seg = (items, on, cls = '') => `<div class="seg ${cls}">${items.map((t, i) => `<span class="${i === on ? 'on' : ''}">${t}</span>`).join('')}</div>`;
+  const popup = t => `<div class="popup">${t}<span class="ud">${icon('updown', 14)}</span></div>`;
+  const sw = on => `<div class="switch ${on ? 'on' : ''}"></div>`;
+
+  /* ---------------------------------- panel ---------------------------------- */
+  function header({ title, sub, mood = 'resting', right = '' }) {
+    return `<div class="ph"><div class="mini">${wisp(mood, { w: 30, vb: '4 4 92 108', noShadow: true, glowBlur: 7, glow: mood === 'problem' ? .5 : .4 })}</div>
+      <div><div class="tt">${title}</div><div class="ss">${sub}</div></div>
+      <div class="right">${right}<div class="iconbtn">${icon('pin', 15)}</div></div></div>`;
+  }
+  const tabs = on => `<div class="tabs">${seg(['Conversation', 'Status', 'Settings'], on, 'full')}</div>`;
+  const shell = (inner, cls = '') => `<div class="panel glass ${cls}">${inner}</div>`;
+
+  function zMsg(text, meta, extra = '') {
+    return `<div class="mz"><div class="av">${glyph('idle', 16).replace('rgba(255,255,255,.92)', 'rgba(255,255,255,.55)')}</div><div><div class="tx">${text}</div>${extra}${meta ? `<div class="meta num">${meta}</div>` : ''}</div></div>`;
+  }
+  function panelConversation(variant = 'done') {
+    const waiting = variant === 'waiting';
+    const h = waiting
+      ? header({ title: 'Waiting for your OK', sub: 'Claude Sonnet 5.5 (my plan)', mood: 'thinking' })
+      : header({ title: 'Ready', sub: 'Claude Sonnet 5.5 (my plan)', mood: 'resting' });
+    const last = waiting
+      ? zMsg('I’ll press Return in TextEdit as soon as you allow it.', '', `<div class="chip amb">${icon('shield', 12)}Approve in the strip below</div>`)
+      : zMsg('Done — I pressed Return in TextEdit.', 'heard 0.5 s · AI 1.4 s · 1 step · 2.1 s', `<div class="chip acc">${icon('check', 12)}TextEdit · pressed Return</div>`);
+    return shell(`${h}${tabs(0)}
+      <div class="pbody"><div class="convo">
+        <div class="daysep">Today 18:39</div>
+        <div class="mu">What’s on my calendar this afternoon?</div>
+        ${zMsg('You have a design review at 3 and a call with Aiko at 4:30. Nothing after that.', 'heard 0.6 s · AI 1.8 s · first sound 2.7 s')}
+        <div class="mu">In TextEdit, press return once</div>
+        ${last}
+      </div></div>
+      <div class="pfoot"><div class="hint">Hold <span class="kbd">⌃</span><span class="kbd">⌥</span> to talk</div>
+        <div style="margin-left:auto" class="btn plain">${icon('compose', 14)}New conversation</div></div>`);
+  }
+
+  function panelStatus() {
+    const r = (ic, lb, vl) => `<div class="row"><div class="sq">${icon(ic, 14)}</div><div class="lb">${lb}</div><div class="vl">${vl}</div></div>`;
+    const seg3 = `<div style="position:relative;height:8px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden">
+        <div style="position:absolute;left:0;width:22.2%;top:0;bottom:0;background:rgba(255,255,255,.38)"></div>
+        <div style="position:absolute;left:22.6%;width:44%;top:0;bottom:0;background:rgba(91,214,232,.5)"></div>
+        <div style="position:absolute;left:67%;width:33%;top:0;bottom:0;background:${TEAL}"></div></div>
+      <div style="display:flex;font-size:10.5px;line-height:14px;color:var(--t2);margin-top:6px" class="num">
+        <div style="width:22.6%">Heard 0.6 s</div><div style="width:44.4%">AI 1.8 s</div><div style="flex:1;text-align:right">First sound 2.7 s</div></div>`;
+    return shell(`${header({ title: 'Ready', sub: 'Claude Sonnet 5.5 (my plan)' })}${tabs(1)}
+      <div class="pbody">
+        <div class="card">
+          ${r('mic', 'Microphone', `MacBook Pro Mic ${meter([3, 6, 10, 7, 12, 8, 5, 3], '')}`)}
+          ${r('wave', 'Speech recognition', 'Parakeet · on-device')}
+          ${r('speaker', 'Voice', 'On-device')}
+          ${r('sparkle', 'AI provider', 'Claude (my plan)')}
+          ${r('cursor', 'Computer control', '<span class="dot"></span>On · asks first')}
+          ${r('restart', 'Runtime', '<span class="dot"></span>Running · 0 restarts')}
+        </div>
+        <div class="gl">Last turn</div>
+        <div class="card" style="padding:11px 12px 10px">${seg3}</div>
+        <div class="help">Measured from when you let go of ⌃⌥.</div>
+      </div>
+      <div class="pfoot"><div class="hint"><span class="dot"></span>Everything’s working</div>
+        <div style="margin-left:auto" class="btn plain">Copy diagnostics</div></div>`);
+  }
+
+  function panelSettings() {
+    const nav = (ic, lb, vl) => `<div class="row"><div class="sq">${icon(ic, 14)}</div><div class="lb">${lb}</div><div class="vl">${vl}<span class="chev">${icon('chevR', 12)}</span></div></div>`;
+    return shell(`${header({ title: 'Ready', sub: 'Claude Sonnet 5.5 (my plan)' })}${tabs(2)}
+      <div class="pbody">
+        <div class="gl" style="padding-top:2px">AI model</div>
+        <div class="card noic">
+          <div class="row"><div class="lb">Provider</div><div class="vl">${seg(['Claude API', 'My plan', 'Gemini'], 1)}</div></div>
+          <div class="row"><div class="lb">Model<small>5 models on your plan</small></div><div class="vl">${popup('Sonnet 5.5')}</div></div>
+        </div>
+        <div class="gl">Preferences</div>
+        <div class="card">
+          ${nav('keyboard', 'Shortcuts', '<span class="kbd">⌃</span><span class="kbd">⌥</span>')}
+          ${nav('dictate', 'Dictation', 'Hold')}
+          ${nav('ghost', 'Wisp', 'On · M')}
+          ${nav('bubble', 'Speech bubble', '4 s')}
+          ${nav('panel', 'Panel', 'Glass')}
+        </div>
+      </div>
+      <div class="pfoot"><div class="hint">ZENO 2.0</div>
+        <div style="margin-left:auto" class="btn plain">Quit ZENO <span class="kbd" style="margin-left:4px">⌘Q</span></div></div>`);
+  }
+  I.ghost = `<path fill-rule="evenodd" fill="currentColor" stroke="none" transform="translate(-1 -1)" d="${GHOST}${EYES}"/>`;
+
+  function sub(title, inner, foot = '') {
+    return shell(`<div class="subhead" style="position:relative"><div class="back">${icon('chevL', 13)}Settings</div><div class="tt">${title}</div></div>
+      <div class="pbody">${inner}</div>${foot}`);
+  }
+  function panelWisp() {
+    return sub('Wisp', `
+      <div class="card noic">
+        <div class="row"><div class="lb">Show Wisp</div><div class="vl">${sw(true)}</div></div>
+        <div class="row"><div class="lb">Size</div><div class="vl">${seg(['S', 'M', 'L', 'XL'], 1)}</div></div>
+        <div class="row stack"><div class="lb">Glow</div>${slider(['Off', 'Soft', 'Normal', 'Bright'], 2)}</div>
+        <div class="row stack"><div class="lb">Movement</div>${slider(['Stay put', 'Calm', 'Normal', 'Lively'], 1)}</div>
+      </div>
+      <div class="gl">When idle</div>
+      <div class="card noic">
+        <div class="row"><div class="lb">Falls asleep after</div><div class="vl">${popup('3 min')}</div></div>
+        <div class="row"><div class="lb">Tuck away after</div><div class="vl">${popup('30 s')}</div></div>
+        <div class="row"><div class="lb">Hiding lean</div><div class="vl">${seg(['Slight', 'Normal', 'Deep'], 1)}</div></div>
+      </div>
+      <div class="help">Wisp tucks into the nearest screen edge and peeks out.</div>`);
+  }
+  function panelShortcuts() {
+    const r = (lb, keys, mod, rec) => `<div class="row"><div class="lb">${lb}</div><div class="vl"><div class="recorder ${rec ? 'rec' : ''}">${rec ? 'Press new keys…' : keys.map(k => `<span class="kbd">${k}</span>`).join('') + (mod ? `<span class="mod">${mod}</span>` : '')}</div></div></div>`;
+    return sub('Shortcuts', `
+      <div class="card noic">
+        ${r('Talk to ZENO', ['⌃', '⌥'], 'hold')}
+        ${r('Dictate', ['Right ⌥', '⌘'], 'hold')}
+        ${r('Show or hide panel', ['⌃', '⌥', 'Z'], '', true)}
+        ${r('Cancel', ['esc'], '')}
+      </div>
+      <div class="help">Click a shortcut, then press the new keys. Esc cancels recording.</div>
+      <div style="padding:10px 10px 0"><div class="btn">Restore defaults</div></div>`);
+  }
+  function panelDictation() {
+    return sub('Dictation', `
+      <div class="card noic">
+        <div class="row"><div class="lb">Start and stop</div><div class="vl">${seg(['Hold', 'Tap', 'Hold or tap'], 0)}</div></div>
+        <div class="row"><div class="lb">Live preview<small>Show words in Wisp’s bubble as you speak</small></div><div class="vl">${sw(true)}</div></div>
+        <div class="row"><div class="lb">Remove “um” and “uh”</div><div class="vl">${sw(true)}</div></div>
+      </div>
+      <div class="gl">Preview</div>
+      <div class="card" style="padding:16px 12px 18px;display:flex;align-items:center;gap:4px;background:rgba(0,0,0,.16)">
+        ${wisp('listening', { w: 78, noShadow: true })}
+        ${bubble('dictating')}
+      </div>
+      <div class="help">Hold Right <span class="kbd">⌥</span><span class="kbd">⌘</span> in any text field. Typed where your cursor is.</div>`);
+  }
+
+  /* -------------------------------- work strip -------------------------------- */
+  function strip(state) {
+    const b = inner => `<div class="strip glass">${inner}</div>`;
+    switch (state) {
+      case 'step': return b(`<div class="line">${progress(.5)}<span class="st">Step 2 of 4</span><span class="sd">Opening the Format menu in TextEdit</span>
+        <div class="push"><div class="btn">${icon('stopf', 12)}Stop</div></div></div>`);
+      case 'ask': return b(`<div class="kicker"><span style="color:var(--amber);display:flex">${icon('shield', 13)}</span>Step 3 of 3 · ZENO needs your OK</div>
+        <div class="line"><span class="q">Press Return in TextEdit?</span>
+        <div class="push"><div class="btn">Decline</div><div class="btn prim">Allow</div></div></div>`);
+      case 'done': return b(`<div class="line"><span style="color:${TEAL}">${icon('checkc', 18)}</span><span class="st">Done</span><span class="sd">Pressed Return in TextEdit</span>
+        <div class="push"><div class="btn plain">Show steps</div></div></div>`);
+      case 'stopped': return b(`<div class="line"><span style="color:rgba(255,255,255,.7)">${icon('stopc', 18)}</span><span class="st">Stopped</span><span class="sd">After step 2 of 4</span>
+        <div class="push"><div class="btn plain">Show steps</div></div></div>`);
+      case 'failed': return b(`<div class="line"><span style="color:${AMBER}">${icon('warn', 18)}</span><span class="st">Couldn’t finish</span><span class="sd">TextEdit isn’t responding</span>
+        <div class="push"><div class="btn plain">Details</div></div></div>`);
+    }
+  }
+
+  /* -------------------------------- status card ------------------------------- */
+  function statusCard(state) {
+    const c = inner => `<div class="scard glass">${inner}</div>`;
+    if (state === 'listening') return c(`<div class="top">${glyph('listening', 16)}<span class="nm">Listening</span><span class="md">Sonnet 5.5</span></div>
+      <div class="mid">${meter([4, 7, 11, 16, 12, 19, 15, 9, 13, 18, 21, 14, 10, 16, 12, 8, 11, 7, 5, 4, 3, 5, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2].slice(0, 62))}</div>`);
+    if (state === 'thinking') return c(`<div class="top">${glyph('thinking', 16)}<span class="nm">Thinking</span><span class="md">Sonnet 5.5</span></div>
+      <div class="mid"><div style="flex:1;height:4px;border-radius:2px;background:linear-gradient(90deg,rgba(91,214,232,0) 0%,rgba(91,214,232,.15) 30%,${TEAL} 62%,rgba(91,214,232,.15) 80%,rgba(91,214,232,0) 100%)"></div><span style="font-size:11px;color:var(--t2)" class="num">1.2 s</span></div>`);
+    if (state === 'problem') return c(`<div class="top">${glyph('problem', 16)}<span class="nm" style="color:${AMBER}">No internet</span><span class="md">Sonnet 5.5</span></div>
+      <div class="mid" style="font-size:12px;color:var(--t2)">ZENO will answer again once you’re back online.</div>`);
+  }
+
+  /* ------------------------------- speech bubble ------------------------------ */
+  function bubble(state) {
+    if (state === 'dictating') return `<div class="bubble glass"><div class="bk"><span style="color:${TEAL}">${icon('mic', 12)}</span>Dictating${meter([3, 6, 9, 5, 11, 8, 4, 7, 3], '')}</div>
+      <div class="bw">send the deck to Aiko before Friday and<span class="caret"></span></div></div>`;
+    if (state === 'transcribing') return `<div class="bubble glass one">${spinner(14)}<span class="bw">Transcribing…</span></div>`;
+    if (state === 'typed') return `<div class="bubble glass one"><span style="color:${TEAL}">${icon('checkc', 15)}</span><span class="bw">Typed · <span class="num">12</span> words</span></div>`;
+    if (state === 'copied') return `<div class="bubble glass one"><span style="color:${AMBER}">${icon('lock', 15)}</span><span class="bw">Copied to clipboard <span style="color:var(--t2)">· a password field is focused</span></span></div>`;
+  }
+  const pointPill = text => `<div class="pill glass"><span class="dot"></span>${text}</div>`;
+
+  return { icon, glyph, wisp, meter, LV, spinner, progress, slider, seg, popup, sw, panelConversation, panelStatus, panelSettings, panelWisp, panelShortcuts, panelDictation, strip, statusCard, bubble, pointPill, TEAL, AMBER };
+})();

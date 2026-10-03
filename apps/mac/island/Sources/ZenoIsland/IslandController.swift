@@ -413,7 +413,7 @@ final class IslandController {
     private func updatePointing() {
         if let target = model.pointing.target, pet.isShown, pointArrived {
             let scale = model.settings.wispSize.scale
-            pointLabel.show(PointingState.line(for: target), feet: pet.feetPoint, wispHeight: 54 * scale, wispHalfWidth: 22 * scale)
+            pointLabel.show(PointingState.line(for: target), palette: model.settings.theme.palette, feet: pet.feetPoint, wispHeight: 54 * scale, wispHalfWidth: 22 * scale)
             if !pointLabel.isVisible { trace("point label show") }
             return
         }

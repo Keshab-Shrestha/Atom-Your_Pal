@@ -1,0 +1,653 @@
+/* ZENO · Direction B · Luminous Orb — shared drawing kit (inlined into each page by build.py) */
+
+/* ---------- Icons (one style: 20pt grid, 1.6 stroke, round caps — SF Symbols "regular") ---------- */
+const IC = {
+  gear: '<circle cx="10" cy="10" r="6.7" stroke-width="2.4" stroke-dasharray="2.3 2.96"/><circle cx="10" cy="10" r="5.2"/><circle cx="10" cy="10" r="1.9"/>',
+  compose: '<path d="M9.2 4.2H5.8A1.8 1.8 0 0 0 4 6v8.2A1.8 1.8 0 0 0 5.8 16H14a1.8 1.8 0 0 0 1.8-1.8v-3.4"/><path d="M14.4 3.4l2.2 2.2-6.4 6.4-2.9.7.7-2.9z"/>',
+  mic: '<rect x="7.4" y="2.8" width="5.2" height="9" rx="2.6"/><path d="M4.8 9.6a5.2 5.2 0 0 0 10.4 0M10 14.8v2.6"/>',
+  chevR: '<path d="M8 5l5 5-5 5"/>',
+  chevL: '<path d="M12.5 4.5L7 10l5.5 5.5"/>',
+  updown: '<path d="M7 8.2l3-3 3 3M7 11.8l3 3 3-3"/>',
+  wave: '<path d="M3 9v2M6 6.5v7M9 4v12M12 7v6M15 5.5v9M18 9v2"/>',
+  speaker: '<path d="M3.5 7.8h2.8L10 4.8v10.4l-3.7-3H3.5z"/><path d="M13 7.4a3.6 3.6 0 0 1 0 5.2M15.3 5.2a6.8 6.8 0 0 1 0 9.6"/>',
+  sparkle: '<path d="M10 2.8c.7 3.7 1.6 4.6 5.3 5.3-3.7.7-4.6 1.6-5.3 5.3-.7-3.7-1.6-4.6-5.3-5.3 3.7-.7 4.6-1.6 5.3-5.3z"/><path d="M15.4 13.2c.3 1.4.6 1.7 2 2-1.4.3-1.7.6-2 2-.3-1.4-.6-1.7-2-2 1.4-.3 1.7-.6 2-2z"/>',
+  cursor: '<path d="M5.2 3.2l10 5.6-4.6 1.3-2.2 4.5z"/>',
+  cycle: '<path d="M15.6 10.4A5.6 5.6 0 1 1 13.8 6"/><path d="M14.4 2.8v3.6h-3.6"/>',
+  clock: '<circle cx="10" cy="10" r="7"/><path d="M10 6v4.2l2.8 1.6"/>',
+  keyboard: '<rect x="2.8" y="5.2" width="14.4" height="9.6" rx="2.2"/><path d="M6 8.4h.01M8.7 8.4h.01M11.3 8.4h.01M14 8.4h.01M6.8 11.6h6.4"/>',
+  bubble: '<path d="M4 6a2.6 2.6 0 0 1 2.6-2.6h6.8A2.6 2.6 0 0 1 16 6v4.6a2.6 2.6 0 0 1-2.6 2.6H9.2L6 16v-2.8A2.6 2.6 0 0 1 4 10.6z"/>',
+  panel: '<rect x="3" y="3.8" width="14" height="12.4" rx="2.6"/><path d="M3 7.6h14"/>',
+  power: '<path d="M10 3v6.4"/><path d="M6.2 5.4a6 6 0 1 0 7.6 0"/>',
+  check: '<path d="M5 10.6l3.2 3.1L15.2 6.4"/>',
+  x: '<path d="M6 6l8 8M14 6l-8 8"/>',
+  stop: '<rect x="6" y="6" width="8" height="8" rx="1.6" fill="currentColor" stroke="none"/>',
+  clip: '<rect x="4.8" y="4" width="10.4" height="13" rx="2.2"/><rect x="7.4" y="2.6" width="5.2" height="3" rx="1.2"/>',
+  ibeam: '<path d="M7.4 3.6c1.5 0 2.6.6 2.6 1.8v9.2c0 1.2-1.1 1.8-2.6 1.8M12.6 3.6c-1.5 0-2.6.6-2.6 1.8M12.6 16.4c-1.5 0-2.6-.6-2.6-1.8M8.2 10h3.6"/>',
+  warn: '<path d="M10 3.6l7 12.4H3z"/><path d="M10 8.4v3.4M10 14h.01"/>',
+  wifiOff: '<path d="M3 7.6a10 10 0 0 1 14 0M5.6 10.4a6.2 6.2 0 0 1 8.8 0M8.2 13a2.6 2.6 0 0 1 3.6 0"/><path d="M4 3.5l12 13"/>',
+  hand: '<path d="M7 9.5V5.2a1.2 1.2 0 0 1 2.4 0v3.6M9.4 8.2V4.2a1.2 1.2 0 0 1 2.4 0v4.4M11.8 8.4V5.4a1.2 1.2 0 0 1 2.4 0v5.4c0 3.2-2 5.6-5 5.6-2.2 0-3.4-1.2-4.4-3L3.4 10.6a1.2 1.2 0 0 1 2-1.3L7 11"/>',
+  globe: '<circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3c2 2.2 2.8 4.4 2.8 7s-.8 4.8-2.8 7c-2-2.2-2.8-4.4-2.8-7S8 5.2 10 3z"/>',
+  ret: '<path d="M15.5 4.5v5a2 2 0 0 1-2 2h-9"/><path d="M7.5 8.5l-3 3 3 3"/>',
+  dots: '<path d="M5 10h.01M10 10h.01M15 10h.01" stroke-width="2.4"/>',
+};
+function ic(name, size = 16, extra = '') {
+  return `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" ${extra}>${IC[name]}</svg>`;
+}
+
+/* ---------- Wisp: the luminous orb ---------- */
+let __oid = 0;
+const PAL = {
+  cool: { a: '#A6F7FF', b: '#7FB0FF', c: '#9C8CFF', d: '#B79CFF', deep: '#3B2FA8', halo: '#7FA8FF', ring: '#8FD8FF' },
+  warm: { a: '#FFE3AE', b: '#FFB06E', c: '#FF8A6B', d: '#FF7088', deep: '#8A2A45', halo: '#FF946A', ring: '#FFB08A' },
+};
+const P2 = (x, y) => `${x.toFixed(2)} ${y.toFixed(2)}`;
+function wobblePath(R, amp, k1, k2, ph) {
+  let d = '';
+  const N = 96;
+  for (let i = 0; i <= N; i++) {
+    const t = (i / N) * Math.PI * 2;
+    const r = R + amp * Math.sin(k1 * t + ph) + amp * 0.6 * Math.sin(k2 * t + ph * 1.7);
+    d += (i ? 'L' : 'M') + P2(100 + r * Math.cos(t), 100 + r * Math.sin(t));
+  }
+  return d + 'Z';
+}
+function tearPath(R, ang, len) {
+  let d = '';
+  for (let i = 0; i <= 120; i++) {
+    const t = (i / 120) * Math.PI * 2;
+    let dt = Math.atan2(Math.sin(t - ang), Math.cos(t - ang));
+    const r = R + len * Math.exp(-Math.abs(dt) / 0.16) * (1 - 0.15 * Math.abs(dt));
+    d += (i ? 'L' : 'M') + P2(100 + r * Math.cos(t), 100 + r * Math.sin(t));
+  }
+  return d + 'Z';
+}
+function tearPathOld(R, ang, len) {
+  const c = 100, a1 = ang + 0.82, a2 = ang - 0.82;
+  const p1 = [c + R * Math.cos(a1), c + R * Math.sin(a1)];
+  const p2 = [c + R * Math.cos(a2), c + R * Math.sin(a2)];
+  const tip = [c + (R + len) * Math.cos(ang), c + (R + len) * Math.sin(ang)];
+  const q1 = [c + (R + len * 0.35) * Math.cos(ang - 0.32), c + (R + len * 0.35) * Math.sin(ang - 0.32)];
+  const q2 = [c + (R + len * 0.35) * Math.cos(ang + 0.32), c + (R + len * 0.35) * Math.sin(ang + 0.32)];
+  return `M${P2(...p1)}A${R} ${R} 0 1 1 ${P2(...p2)}Q${P2(...q1)} ${P2(...tip)}Q${P2(...q2)} ${P2(...p1)}Z`;
+}
+
+/* mood: resting | floating | listening | thinking | speaking | problem | napping | carried | hiding | pointing
+   opts: floor (soft light reflection under it), glow (0..1 multiplier), point (angle in deg), edge (for hiding) */
+function orbSVG(mood = 'resting', o = {}) {
+  const id = 'w' + (++__oid);
+  const C = mood === 'problem' ? PAL.warm : PAL.cool;
+  const baseGlow = { listening: 1.15, speaking: 0.95, thinking: 0.85, napping: 0.28, problem: 0.5, carried: 0.8, pointing: 0.9 }[mood] ?? 0.7;
+  const glow = baseGlow * (o.glow ?? 1);
+  const R = 50;
+  let shape = `<circle cx="100" cy="100" r="${R}"/>`;
+  let eye = { dx: 0, dy: 0, rx: 4.9, ry: 7.6, kind: 'open', rot: 0 };
+  let pre = '', post = '', inner = '', bodyT = '', groupOp = 1;
+
+  if (mood === 'resting') { eye.dy = 1; }
+  if (mood === 'floating') {
+    shape = `<ellipse cx="100" cy="100" rx="53" ry="48"/>`;
+    bodyT = 'rotate(-8 100 100)';
+    eye.dx = 6; eye.dy = -1;
+    pre += `<path d="M24 104 Q60 96 74 100 Q60 108 24 104Z" fill="url(#${id}tr)" filter="url(#${id}b3)" opacity=".9"/>
+            <circle cx="38" cy="112" r="2.4" fill="${C.a}" opacity=".55"/><circle cx="26" cy="96" r="1.6" fill="${C.a}" opacity=".35"/>`;
+  }
+  if (mood === 'listening') {
+    shape = `<path d="${wobblePath(R, 2.3, 5, 3, 0.6)}"/>`;
+    eye.ry = 8.4; eye.rx = 5.2;
+    pre += `<path d="${wobblePath(62, 3.6, 6, 4, 1.4)}" fill="none" stroke="${C.ring}" stroke-width="1.6" opacity=".55" filter="url(#${id}b1)"/>
+            <path d="${wobblePath(74, 4.6, 7, 3, 2.2)}" fill="none" stroke="${C.ring}" stroke-width="1.2" opacity=".26" filter="url(#${id}b1)"/>`;
+  }
+  if (mood === 'thinking') {
+    eye.dx = 3; eye.dy = -7; eye.ry = 7.2;
+    inner += `<g filter="url(#${id}b7)" opacity=".95">
+        <ellipse cx="78" cy="116" rx="34" ry="13" transform="rotate(28 78 116)" fill="#F08BFF"/>
+        <ellipse cx="122" cy="88" rx="30" ry="12" transform="rotate(-34 122 88)" fill="#5CFFD6"/>
+        <ellipse cx="102" cy="128" rx="26" ry="9" transform="rotate(-8 102 128)" fill="#5C6BFF"/>
+      </g>
+      <g fill="none" stroke="#fff" stroke-linecap="round" filter="url(#${id}b1)">
+        <path d="M58 116 C70 84 118 74 140 98" stroke-width="2.6" opacity=".55"/>
+        <path d="M66 132 C92 140 128 124 142 108" stroke-width="1.6" opacity=".4"/>
+      </g>`;
+    post += `<circle cx="160" cy="76" r="3" fill="${C.a}" filter="url(#${id}b1)"/><circle cx="160" cy="76" r="1.5" fill="#fff"/>
+             <circle cx="44" cy="134" r="2.2" fill="${C.d}" opacity=".9" filter="url(#${id}b1)"/>`;
+    pre += `<circle cx="100" cy="100" r="62" fill="none" stroke="url(#${id}rg)" stroke-width="1" stroke-dasharray="1 7" stroke-linecap="round" opacity=".7"/>`;
+  }
+  if (mood === 'speaking') {
+    eye.ry = 6.8; eye.kind = 'smile';
+    pre += `<circle cx="100" cy="100" r="59" fill="none" stroke="url(#${id}rg)" stroke-width="2" opacity=".75"/>
+            <circle cx="100" cy="100" r="69" fill="none" stroke="url(#${id}rg)" stroke-width="1.5" opacity=".42"/>`;
+  }
+  if (mood === 'problem') {
+    eye.kind = 'worried'; eye.dy = 3; eye.ry = 6.8;
+    bodyT = 'translate(0 3)';
+    groupOp = 0.92;
+  }
+  if (mood === 'napping') {
+    eye.kind = 'closed'; eye.dy = 4;
+    groupOp = 0.62;
+    post += `<text x="146" y="70" font-family="-apple-system,'SF Pro Rounded',ui-rounded,sans-serif" font-weight="700" font-size="17" fill="${C.a}" opacity=".7">z</text>
+             <text x="160" y="52" font-family="-apple-system,'SF Pro Rounded',ui-rounded,sans-serif" font-weight="700" font-size="12" fill="${C.a}" opacity=".45">z</text>`;
+  }
+  if (mood === 'carried') {
+    { let d = ''; for (let i = 0; i <= 120; i++) { const t = (i / 120) * Math.PI * 2; const c = Math.cos(t + Math.PI / 2);
+        const rx = 58, ry = 43; let x = 100 + rx * Math.cos(t), y = 110 + ry * Math.sin(t);
+        if (c > 0) y += 9 * Math.pow(c, 10); d += (i ? 'L' : 'M') + P2(x, y); } shape = `<path d="${d}Z"/>`; }
+    eye.rx = 5.6; eye.ry = 5.6; eye.dy = 13; eye.kind = 'round';
+    post += `<g fill="none" stroke="${C.a}" stroke-width="2" stroke-linecap="round" opacity=".55">
+        <path d="M34 98 q-6 10 0 20"/><path d="M166 98 q6 10 0 20"/></g>
+      <circle cx="100" cy="76" r="8" fill="none" stroke="#fff" stroke-width="1.4" opacity=".6"/><circle cx="100" cy="76" r="2.6" fill="#fff" opacity=".95"/>`;
+  }
+  if (mood === 'pointing') {
+    const ang = ((o.point ?? -45) * Math.PI) / 180;
+    shape = `<path d="${tearPath(R, ang, 30)}"/>`;
+    eye.dx = Math.cos(ang) * 8; eye.dy = Math.sin(ang) * 8;
+    const tx = 100 + (R + 42) * Math.cos(ang), ty = 100 + (R + 42) * Math.sin(ang);
+    post += `<circle cx="${tx}" cy="${ty}" r="5" fill="${C.a}" opacity=".9" filter="url(#${id}b3)"/><circle cx="${tx}" cy="${ty}" r="2" fill="#fff"/>`;
+  }
+  let hideClip = '', hideOpen = '', hideClose = '', edge = '', top = '';
+  if (mood === 'hiding') {
+    bodyT = 'translate(42 6) rotate(-12 100 100)';
+    eye.dx = -13; eye.dy = 0;
+    hideClip = `<clipPath id="${id}hc"><rect x="0" y="0" width="150" height="200"/></clipPath>`;
+    hideOpen = `<g clip-path="url(#${id}hc)">`; hideClose = '</g>';
+    edge = `<defs><pattern id="${id}hp" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0V6" stroke="rgba(255,255,255,.14)" stroke-width="2"/></pattern></defs>
+      <linearGradient id="${id}fm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".72" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+      <mask id="${id}mk" maskUnits="userSpaceOnUse" x="140" y="-40" width="140" height="200"><rect x="140" y="-40" width="140" height="196" fill="url(#${id}fm)"/></mask>
+      <g mask="url(#${id}mk)"><rect x="150" y="-40" width="120" height="196" fill="#020305"/><rect x="150" y="-40" width="120" height="196" fill="url(#${id}hp)"/>
+      </g><path d="M150 -40V150" stroke="rgba(255,255,255,.5)" stroke-width="1" mask="url(#${id}mk)"/>
+      <text x="156" y="-10" text-anchor="start" font-family="-apple-system,sans-serif" font-size="8" font-weight="700" fill="rgba(255,255,255,.55)" letter-spacing=".8">SCREEN EDGE</text>`;
+    top = `<g><ellipse cx="152" cy="80" rx="13" ry="11" fill="${C.halo}" opacity=".8" filter="url(#${id}b3)"/>
+             <path d="M139 72 C139 67.5 143 65 149 65 C155 65 159 67.5 159 72 L159 88 C159 91 157 93 154.5 93 C152.5 93 151 91.5 151 89.5 L151 85.5 C146 87 139 83.5 139 78Z" fill="url(#${id}lg)" stroke="#fff" stroke-width="1.2"/>
+             <path d="M152 76h6M152 81h6" stroke="#3B2FA8" stroke-width="1.3" stroke-linecap="round" opacity=".7"/>
+             <path d="M141.5 71.5 C142.5 68.6 145 67.5 148 67.5" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round"/></g>`;
+  }
+
+  /* eyes */
+  const ex = [88 + eye.dx, 112 + eye.dx], ey = 99 + eye.dy;
+  let eyes = '';
+  const ink = '#0B0E24';
+  ex.forEach((x, i) => {
+    if (eye.kind === 'closed') {
+      eyes += `<path d="M${x - 5.5} ${ey} q5.5 4.6 11 0" fill="none" stroke="${ink}" stroke-width="2.6" stroke-linecap="round" opacity=".85"/>`;
+    } else if (eye.kind === 'smile') {
+      eyes += `<path d="M${x - 5.6} ${ey + 2.4} Q${x} ${ey - 7.6} ${x + 5.6} ${ey + 2.4}" fill="none" stroke="${ink}" stroke-width="3.6" stroke-linecap="round"/>`;
+    } else if (eye.kind === 'worried') {
+      const inner = i === 0 ? 1 : -1;
+      const by = ey - eye.ry - 5;
+      eyes += `<ellipse cx="${x}" cy="${ey}" rx="${eye.rx}" ry="${eye.ry}" fill="${ink}"/><circle cx="${x + 1.3}" cy="${ey - 2.4}" r="1.4" fill="#fff" opacity=".9"/>
+        <path d="M${x - 5.5 * inner} ${by + 1.5} Q${x} ${by + 0.6} ${x + 5 * inner} ${by - 3.4}" fill="none" stroke="${ink}" stroke-width="2.4" stroke-linecap="round" opacity=".85"/>`;
+    } else {
+      eyes += `<ellipse cx="${x}" cy="${ey}" rx="${eye.rx}" ry="${eye.ry}" fill="${ink}"/><circle cx="${x + 1.5}" cy="${ey - eye.ry * 0.42}" r="1.6" fill="#fff" opacity=".95"/>`;
+    }
+  });
+
+  const floor = (o.floor ?? !['hiding', 'carried'].includes(mood))
+    ? `<ellipse cx="100" cy="168" rx="${mood === 'napping' ? 30 : 26}" ry="4.5" fill="${C.halo}" opacity="${0.18 + 0.22 * glow}" filter="url(#${id}b3)"/>` : '';
+
+  return `<svg class="orb-svg" viewBox="0 0 200 200" overflow="visible" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="${id}base" gradientUnits="userSpaceOnUse" x1="58" y1="48" x2="146" y2="152">
+      <stop offset="0" stop-color="${C.a}"/><stop offset=".42" stop-color="${C.b}"/><stop offset=".78" stop-color="${C.c}"/><stop offset="1" stop-color="${C.d}"/>
+    </linearGradient>
+    <radialGradient id="${id}shade" gradientUnits="userSpaceOnUse" cx="84" cy="78" r="74">
+      <stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".32" stop-color="#fff" stop-opacity=".06"/>
+      <stop offset=".72" stop-color="${C.deep}" stop-opacity=".16"/><stop offset="1" stop-color="${C.deep}" stop-opacity=".62"/>
+    </radialGradient>
+    <radialGradient id="${id}halo" gradientUnits="userSpaceOnUse" cx="100" cy="100" r="96">
+      <stop offset=".40" stop-color="${C.halo}" stop-opacity="${Math.min(0.7, 0.5 * glow)}"/>
+      <stop offset=".62" stop-color="${C.halo}" stop-opacity="${Math.min(0.4, 0.2 * glow)}"/>
+      <stop offset="1" stop-color="${C.halo}" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="${id}rim" gradientUnits="userSpaceOnUse" x1="60" y1="55" x2="140" y2="148">
+      <stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="${C.a}" stop-opacity=".95"/>
+    </linearGradient>
+    <linearGradient id="${id}rg" gradientUnits="userSpaceOnUse" x1="10" y1="10" x2="190" y2="190">
+      <stop offset="0" stop-color="${C.a}"/><stop offset=".5" stop-color="${C.b}"/><stop offset="1" stop-color="${C.d}"/>
+    </linearGradient>
+    <linearGradient id="${id}tr" x1="0" x2="1"><stop offset="0" stop-color="${C.a}" stop-opacity="0"/><stop offset="1" stop-color="${C.a}" stop-opacity=".75"/></linearGradient>
+    <linearGradient id="${id}lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${C.a}"/><stop offset="1" stop-color="${C.c}"/></linearGradient>
+    <linearGradient id="${id}eyeMask" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C.b}"/><stop offset="1" stop-color="${C.b}"/></linearGradient>
+    <linearGradient id="${id}lidW" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C.b}"/><stop offset="1" stop-color="${C.b}"/></linearGradient>
+    <clipPath id="${id}c">${shape}</clipPath>
+    ${hideClip}
+    <filter id="${id}b1" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.4"/></filter>
+    <filter id="${id}b3" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter>
+    <filter id="${id}b7" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter>
+  </defs>
+  ${edge}
+  ${hideOpen}
+  <g opacity="${groupOp}">
+  ${floor}
+  <g transform="${bodyT}">
+    <circle cx="100" cy="100" r="96" fill="url(#${id}halo)"/>
+    ${pre}
+    <g clip-path="url(#${id}c)">
+      <rect x="0" y="0" width="200" height="200" fill="url(#${id}base)"/>
+      <ellipse cx="106" cy="128" rx="30" ry="16" fill="${C.a}" opacity=".55" filter="url(#${id}b7)"/>
+      ${inner}
+      <rect x="0" y="0" width="200" height="200" fill="url(#${id}shade)"/>
+      <ellipse cx="80" cy="70" rx="15" ry="7.5" transform="rotate(-34 80 70)" fill="#fff" opacity=".85" filter="url(#${id}b3)"/>
+      <ellipse cx="77" cy="68" rx="5" ry="2.6" transform="rotate(-34 77 68)" fill="#fff"/>
+    </g>
+    <g fill="none" stroke="url(#${id}rim)" stroke-width="1.3">${shape.replace('/>', ' fill="none"/>')}</g>
+    ${eyes}
+  </g>
+  ${post}
+  </g>
+  ${hideClose}
+  ${top}
+</svg>`;
+}
+/* orb(mood, sizePx) — returns an inline box sizePx wide whose svg overflows 2× for halo/rings */
+function orb(mood, size = 64, o = {}) {
+  return `<span class="orb" style="width:${size}px;height:${size}px">${orbSVG(mood, o)}</span>`;
+}
+
+/* ---------- Menu-bar glyph (18pt canvas). One family: a 13 pt orb disc with two eye pills; states add one mark.
+   light=true renders the template-ink variant for light menu bars (colour kept only for amber/coral states). ---------- */
+function mbIcon(state, px = 18, light = false) {
+  const id = 'm' + (++__oid);
+  const ink = light ? '#1d1d1f' : '#fff';
+  const g = `<defs><linearGradient id="${id}g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A6F7FF"/><stop offset=".5" stop-color="#8EA2FF"/><stop offset="1" stop-color="#B79CFF"/></linearGradient>
+     <linearGradient id="${id}a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFD48A"/><stop offset="1" stop-color="#FF9A4A"/></linearGradient></defs>`;
+  const fillOrb = light ? ink : `url(#${id}g)`;
+  const eyeOn = light ? '#fff' : '#0B0E24';
+  const eyes = (cx, cy, col) => `<rect x="${cx - 2.6}" y="${cy - 2}" width="1.8" height="3.6" rx=".9" fill="${col}"/><rect x="${cx + 0.8}" y="${cy - 2}" width="1.8" height="3.6" rx=".9" fill="${col}"/>`;
+  let s = '';
+  switch (state) {
+    case 'idle': s = `<circle cx="9" cy="9" r="6.3" fill="none" stroke="${ink}" stroke-width="1.5"/>${eyes(9, 9, ink)}`; break;
+    case 'listening': s = `<circle cx="9" cy="9" r="8.25" fill="none" stroke="${light ? ink : '#8FE9FF'}" stroke-width="1.1" stroke-dasharray="2.2 1.6"/><circle cx="9" cy="9" r="6" fill="${fillOrb}"/>${eyes(9, 9, eyeOn)}`; break;
+    case 'thinking': s = `<path d="M9 .75 A8.25 8.25 0 1 1 .75 9" fill="none" stroke="${light ? ink : '#C3B0FF'}" stroke-width="1.4" stroke-linecap="round"/><circle cx="9" cy="9" r="6" fill="${fillOrb}"/>${eyes(9.8, 8, eyeOn)}`; break;
+    case 'speaking': s = `<circle cx="7.2" cy="9" r="5.8" fill="${fillOrb}"/>${eyes(7.2, 9, eyeOn)}<path d="M14.3 6a4.4 4.4 0 0 1 0 6M16.6 3.9a7.4 7.4 0 0 1 0 10.2" fill="none" stroke="${light ? ink : '#9FD8FF'}" stroke-width="1.5" stroke-linecap="round"/>`; break;
+    case 'working': s = `<circle cx="7.6" cy="7.6" r="6" fill="${fillOrb}"/>${eyes(7.6, 7.6, eyeOn)}<path d="M10.4 9.6l6.8 3.9-3.1.85-1.5 3.05z" fill="${light ? '#fff' : '#fff'}" stroke="${light ? ink : '#0B0D12'}" stroke-width="1.1" stroke-linejoin="round"/>`; break;
+    case 'attention': s = `<circle cx="8.4" cy="9.4" r="6.2" fill="url(#${id}a)"/>${eyes(8.4, 9.4, '#2A1606')}<circle cx="15" cy="3.2" r="2.9" fill="#fff" stroke="${light ? '#E9EAEE' : '#14161C'}" stroke-width="1.4"/><circle cx="15" cy="3.2" r="1.4" fill="#FF8A3D"/>`; break;
+    case 'problem': s = `<circle cx="9" cy="9" r="6.3" fill="none" stroke="${light ? '#D9452F' : '#FF7A6B'}" stroke-width="1.6"/>${eyes(9, 8.4, light ? '#D9452F' : '#FF7A6B')}<path d="M6.4 12.6q2.6-1.6 5.2 0" fill="none" stroke="${light ? '#D9452F' : '#FF7A6B'}" stroke-width="1.3" stroke-linecap="round"/>`; break;
+  }
+  return `<svg width="${px}" height="${px}" viewBox="0 0 18 18" style="display:block;overflow:visible">${g}${s}</svg>`;
+}
+
+/* ---------- small helpers ---------- */
+function meter(h, cls = '') {
+  return `<span class="meter ${cls}">${h.map(v => `<i style="height:${v}%"></i>`).join('')}</span>`;
+}
+const keys = (...k) => k.map(x => `<kbd>${x}</kbd>`).join('');
+const seg = (items, on, cls = '') => `<div class="seg ${cls}">${items.map((t, i) => `<div class="${i === on ? 'on' : ''}">${t}</div>`).join('')}</div>`;
+const sw = (on = true) => `<span class="sw ${on ? 'on' : ''}"><i></i></span>`;
+const popup = (v) => `<span class="popup">${v}${ic('updown', 12)}</span>`;
+
+/* ---------- Panel builders ---------- */
+function panelHeader({ mood = 'resting', wash = 'cool', title, sub, tab = 0 }) {
+  return `<div class="wash ${wash}"></div>
+  <div class="hd">
+    ${orb(mood, 30, { floor: false, glow: 0.8 })}
+    <div class="hd-t"><div class="tt">${title}</div><div class="st">${sub}</div></div>
+    <div class="ib" title="New conversation">${ic('compose', 16)}</div>
+  </div>
+  <div class="tabs">${['Conversation', 'Status', 'Settings'].map((t, i) => `<div class="${i === tab ? 'on' : ''}">${t}</div>`).join('')}</div>`;
+}
+function panelFooter() {
+  return `<div class="ft">
+    <div class="ftl">${ic('compose', 14)}<span>New conversation</span></div>
+    <div class="ftr"><span class="hint">Hold ${keys('⌃', '⌥')} to talk</span><span class="talk">${ic('mic', 15)}</span></div>
+  </div>`;
+}
+const META = (h, a, f) => `<div class="meta"><span>heard ${h} s</span><span>AI ${a} s</span><span>first sound ${f} s</span></div>`;
+
+function panelConversation({ pending = false, mood = 'resting', wash = 'cool', title = 'Ready', h = 560 } = {}) {
+  const last = pending
+    ? `<div class="zmsg pending">${orb('thinking', 18, { floor: false })}<div><div class="ztxt">I'm about to press Return in TextEdit.</div>
+         <div class="await"><span class="adot"></span>Waiting for your OK in the strip below</div></div></div>`
+    : `<div class="zmsg">${orb('resting', 18, { floor: false })}<div><div class="ztxt">Done — I pressed Return in TextEdit.</div>
+         <div class="steps">${ic('check', 12)}<span>3 steps · approved by you</span></div>${META('0.5', '2.4', '3.1')}</div></div>`;
+  return `<div class="pn" style="height:${h}px">
+    ${panelHeader({ mood, wash, title, sub: 'Claude Sonnet 5.5 · my plan', tab: 0 })}
+    <div class="body conv">
+      <div class="day">Today · 18:31</div>
+      <div class="umsg"><div>What's on my calendar this afternoon?</div></div>
+      <div class="zmsg">${orb('resting', 18, { floor: false })}<div><div class="ztxt">You have a design review at 3 and a call with Aiko at 4:30. Nothing after that.</div>${META('0.6', '1.8', '2.7')}</div></div>
+      <div class="umsg"><div>In TextEdit, press return once</div></div>
+      ${last}
+    </div>
+    ${panelFooter()}
+  </div>`;
+}
+
+function row(iconName, tint, label, value, extra = '') {
+  return `<div class="row"><span class="tile" style="--t:${tint}">${ic(iconName, 14)}</span><span class="lbl">${label}</span><span class="val">${value}</span>${extra}</div>`;
+}
+const DOT = (c = 'var(--mint)') => `<span class="dot" style="background:${c};box-shadow:0 0 8px ${c}"></span>`;
+
+function panelStatus({ h = 0 } = {}) {
+  return `<div class="pn" style="${h ? `height:${h}px` : ''}">
+    ${panelHeader({ mood: 'resting', wash: 'cool', title: 'Ready', sub: 'Claude Sonnet 5.5 · my plan', tab: 1 })}
+    <div class="body">
+      <div class="sec">Listening & voice</div>
+      <div class="card">
+        ${row('mic', '#6FE7FF', 'Microphone', `${meter([30, 55, 80, 45, 65, 35, 20], 'tiny')} MacBook Pro mic`, DOT())}
+        ${row('wave', '#8EA2FF', 'Speech recognition', 'Parakeet · on-device', DOT())}
+        ${row('speaker', '#B69CFF', 'Voice', 'On-device', DOT())}
+      </div>
+      <div class="sec">Brain & hands</div>
+      <div class="card">
+        ${row('sparkle', '#C9A8FF', 'AI provider', 'Claude · my plan', DOT())}
+        ${row('cursor', '#FFB86B', 'Computer control', 'On · asks first', DOT('#FFB86B'))}
+        ${row('cycle', '#62E6B4', 'Runtime', 'Running · 0 restarts', DOT())}
+      </div>
+      <div class="sec">Last turn</div>
+      <div class="card tl">
+        <div class="tlbar"><i style="left:0;width:22.2%" class="s1"></i><i style="left:22.2%;width:44.5%" class="s2"></i><i style="left:66.7%;width:33.3%" class="s3"></i></div>
+        <div class="tllab"><span style="right:77.8%;--c:#6FE7FF"><b>0.6 s</b>heard</span><span style="right:33.3%;--c:#8EA2FF"><b>1.8 s</b>AI answer</span><span style="right:0;--c:#B69CFF"><b>2.7 s</b>first sound</span></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function navRow(iconName, tint, label, value) {
+  return `<div class="row nav"><span class="tile" style="--t:${tint}">${ic(iconName, 14)}</span><span class="lbl">${label}</span><span class="val">${value}</span>${ic('chevR', 13)}</div>`;
+}
+function panelSettings({ h = 0 } = {}) {
+  return `<div class="pn" style="${h ? `height:${h}px` : ''}">
+    ${panelHeader({ mood: 'resting', wash: 'cool', title: 'Ready', sub: 'Claude Sonnet 5.5 · my plan', tab: 2 })}
+    <div class="body">
+      <div class="sec">AI model</div>
+      <div class="card pad">
+        ${seg(['Claude API', 'Claude · my plan', 'Gemini'], 1, 'full')}
+        <div class="mrow"><div><div class="lbl">Model</div><div class="help">5 models on this plan</div></div>${popup('Sonnet 5.5')}</div>
+      </div>
+      <div class="sec">Preferences</div>
+      <div class="card">
+        ${navRow('keyboard', '#6FE7FF', 'Shortcuts', `${keys('⌃', '⌥')}`)}
+        ${navRow('sparkle', '#B69CFF', 'Wisp', 'On · M · soft glow')}
+        ${navRow('ibeam', '#8EA2FF', 'Dictation & bubble', 'Hold · 2 s')}
+      </div>
+      <div class="sec">Panel</div>
+      <div class="card">
+        ${ctl('Size', seg(['Compact', 'Normal', 'Large'], 1, 'sm'))}
+        ${ctl('Background', seg(['Glass', 'Solid'], 0, 'sm'))}
+      </div>
+      <div class="quit"><span>${ic('power', 14)} Quit ZENO</span><span class="ver">${keys('⌘', 'Q')}</span></div>
+    </div>
+  </div>`;
+}
+function subHeader(title, wash = 'cool') {
+  return `<div class="wash ${wash}"></div>
+  <div class="hd sub"><div class="back">${ic('chevL', 14)}Settings</div><div class="tt2">${title}</div><div style="width:76px"></div></div>`;
+}
+function ctl(label, control, help = '') {
+  return `<div class="crow"><div><div class="lbl">${label}</div>${help ? `<div class="help">${help}</div>` : ''}</div>${control}</div>`;
+}
+function panelWisp({ h = 0 } = {}) {
+  return `<div class="pn" style="${h ? `height:${h}px` : ''}">
+    ${subHeader('Wisp')}
+    <div class="body">
+      <div class="preview">
+        <div class="pv-dock"></div>
+        <div class="pv-orb">${orb('floating', 34)}</div>
+        <span class="pv-cap">Preview</span>
+      </div>
+      <div class="card">
+        ${ctl('Show Wisp', sw(true))}
+        ${ctl('Size', seg(['S', 'M', 'L', 'XL'], 1, 'sm'))}
+        ${ctl('Glow', seg(['Off', 'Soft', 'Normal', 'Bright'], 1, 'sm'))}
+        <div class="crow col"><div class="lbl">Movement</div>
+          <div class="slider"><div class="track"><i style="width:66.6%"></i></div>${[0, 33.3, 66.6, 100].map((p, i) => `<b style="left:${p}%" class="${i <= 2 ? 'in' : ''}"></b>`).join('')}<span class="knob" style="left:66.6%"></span></div>
+          <div class="stops"><span style="left:0">Stay put</span><span style="left:33.3%">Calm</span><span class="on" style="left:66.6%">Normal</span><span style="left:100%">Lively</span></div></div>
+        ${ctl('Falls asleep after', popup('3 min'))}
+        ${ctl('Hiding lean', seg(['Slight', 'Normal', 'Deep'], 1, 'sm'), 'How far it peeks in')}
+        ${ctl('Tuck away after', popup('30 s'))}
+      </div>
+    </div>
+  </div>`;
+}
+function panelShortcuts({ h = 0 } = {}) {
+  const rec = (k, state = '') => `<span class="rec ${state}">${k}</span>`;
+  return `<div class="pn" style="${h ? `height:${h}px` : ''}">
+    ${subHeader('Shortcuts')}
+    <div class="body">
+      <div class="card">
+        ${ctl('Talk to ZENO', rec(keys('⌃', '⌥')), 'Hold while you speak')}
+        ${ctl('Dictate', rec(keys('Right ⌥', '⌘')), 'Types into the focused app')}
+        ${ctl('Show or hide panel', rec('<span class="typing">Press keys…</span>', 'live'))}
+        ${ctl('Cancel', rec(keys('esc')))}
+      </div>
+      <div class="note">Click a shortcut, then press the new keys.<br>${keys('esc')} cancels · ${keys('⌫')} clears</div>
+      <div class="reset">Restore defaults</div>
+    </div>
+  </div>`;
+}
+function panelDictation({ h = 0 } = {}) {
+  return `<div class="pn" style="${h ? `height:${h}px` : ''}">
+    ${subHeader('Dictation & bubble')}
+    <div class="body">
+      <div class="sec" style="margin-top:6px">Dictation</div>
+      <div class="card">
+        ${ctl('Start and stop', seg(['Hold', 'Tap', 'Hold or tap'], 0, 'sm'))}
+        ${ctl('Live preview', sw(true), 'Words appear in the bubble as you speak')}
+        ${ctl('Remove “um” and “uh”', sw(true))}
+      </div>
+      <div class="sec">Speech bubble</div>
+      <div class="card">
+        ${ctl('Stays', seg(['1s', '2s', '4s', '8s'], 1, 'sm eq'))}
+        ${ctl('Size', seg(['S', 'M', 'L'], 1, 'sm eq'))}
+        ${ctl('Background', seg(['Clear', 'Normal', 'Solid'], 1, 'sm eq'))}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---------- Work strip ---------- */
+function strip(kind) {
+  const o = (m) => orb(m, 26, { floor: false });
+  if (kind === 'step') return `<div class="strip work"><div class="srow">${o('thinking')}<div class="stx"><div class="s1">Typing in TextEdit</div><div class="s2">Step 2 of 3 · “Untitled.rtf”</div></div><span class="sbtn">${ic('stop', 14)}Stop <kbd>esc</kbd></span></div></div>`;
+  if (kind === 'ask') return `<div class="strip ask"><div class="srow">${o('thinking')}<div class="stx"><div class="s1">Using your Mac</div><div class="s2">Step 2 of 3 · TextEdit</div></div><span class="sbtn">${ic('stop', 14)}Stop <kbd>esc</kbd></span></div>
+      <div class="q"><span class="qic">${ic('ret', 15)}</span><span class="qt">Press Return in TextEdit?</span></div>
+      <div class="acts"><span class="btn">Decline</span><span class="btn primary">Allow</span></div></div>`;
+  if (kind === 'done') return `<div class="strip done"><div class="srow"><span class="badge ok">${ic('check', 15)}</span><div class="stx"><div class="s1">Done</div><div class="s2">Pressed Return in TextEdit · 3 steps</div></div></div></div>`;
+  if (kind === 'stopped') return `<div class="strip stopped"><div class="srow"><span class="badge mute">${ic('stop', 15)}</span><div class="stx"><div class="s1">Stopped</div><div class="s2">You pressed esc · nothing else was changed</div></div></div></div>`;
+  if (kind === 'fail') return `<div class="strip fail"><div class="srow"><span class="badge bad">${ic('x', 15)}</span><div class="stx"><div class="s1">Couldn't finish</div><div class="s2">TextEdit stopped responding at step 2</div></div><span class="sbtn ghost">Details</span></div></div>`;
+}
+
+/* ---------- Status card ---------- */
+function statusCard(kind) {
+  if (kind === 'listening') return `<div class="scard"><div class="scrow">${orb('listening', 30, { floor: false })}<div class="sct"><div class="s1">Listening</div><div class="s2">Claude Sonnet 5.5 · my plan</div></div></div>
+     <div class="bigmeter">${meter([22, 34, 52, 74, 92, 68, 84, 100, 76, 58, 70, 88, 64, 46, 60, 40, 52, 36, 44, 30, 24, 20, 28, 18], 'big')}</div></div>`;
+  if (kind === 'thinking') return `<div class="scard th"><div class="scrow">${orb('thinking', 30, { floor: false })}<div class="sct"><div class="s1">Thinking</div><div class="s2">Claude Sonnet 5.5 · my plan</div></div><span class="tm">1.2 s</span></div>
+     <div class="shimmer"><i></i></div></div>`;
+  if (kind === 'problem') return `<div class="scard pr"><div class="scrow">${orb('problem', 30, { floor: false })}<div class="sct"><div class="s1">No internet</div><div class="s2">Check Wi-Fi, then try again</div></div></div>
+     <div class="pact"><span class="btn sm">Open Wi-Fi Settings</span><span class="btn sm ghost">Try again</span></div></div>`;
+}
+
+/* ---------- Dictation bubble + label pill ---------- */
+function bubble(kind) {
+  if (kind === 'dictating') return `<div class="bub"><div class="bh"><span class="rdot"></span>Dictating${meter([40, 70, 100, 60, 85, 45, 30], 'tiny')}</div><div class="bw">move the design review to half past <span class="fade">three</span></div></div>`;
+  if (kind === 'transcribing') return `<div class="bub"><div class="bh one"><span class="spin"></span>Transcribing…</div></div>`;
+  if (kind === 'typed') return `<div class="bub"><div class="bh one"><span class="okc">${ic('check', 12)}</span>Typed · 12 words</div></div>`;
+  if (kind === 'copied') return `<div class="bub"><div class="bh one"><span class="okc warm">${ic('clip', 12)}</span>Copied to clipboard<span class="sep">·</span><span class="dim">a password field is focused</span></div></div>`;
+}
+const pill = (t) => `<span class="lpill">${t}</span>`;
+
+/* ---------- CSS ---------- */
+const CSS = `
+:root{
+  --base:#0B0D12; --glass:rgba(14,16,22,.78); --stroke:rgba(255,255,255,.09); --stroke2:rgba(255,255,255,.15);
+  --t1:rgba(255,255,255,.95); --t2:rgba(255,255,255,.68); --t3:rgba(255,255,255,.62);
+  --cyan:#6FE7FF; --peri:#8EA2FF; --violet:#B69CFF; --amber:#FFB86B; --coral:#FF7A6B; --mint:#62E6B4;
+  --orb:linear-gradient(115deg,#7EEBFF 0%,#8EA2FF 52%,#B69CFF 100%);
+  --disp:-apple-system,"SF Pro Display",system-ui,sans-serif; --text:-apple-system,"SF Pro Text",system-ui,sans-serif;
+  --r-panel:22px; --r-card:12px; --r-ctl:8px; --r-key:5px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--text);-webkit-font-smoothing:antialiased;color:var(--t1)}
+.ic{display:block;flex:none}
+.orb{position:relative;display:inline-block;flex:none}
+.orb>svg{position:absolute;left:-50%;top:-50%;width:200%;height:200%;overflow:visible;pointer-events:none}
+kbd{font:600 11px/1 var(--text);display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;border-radius:var(--r-key);
+  background:rgba(255,255,255,.10);box-shadow:inset 0 -1px 0 rgba(0,0,0,.35),inset 0 0 0 .5px rgba(255,255,255,.14);color:var(--t1);margin-left:3px}
+kbd:first-child{margin-left:0}
+/* glass */
+.pn{width:380px;border-radius:var(--r-panel);position:relative;overflow:hidden;display:flex;flex-direction:column;
+  background:rgba(13,15,21,.82);backdrop-filter:blur(40px) saturate(170%);-webkit-backdrop-filter:blur(40px) saturate(170%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.13),0 0 0 1.5px rgba(0,0,0,.6),0 30px 90px rgba(0,0,0,.7),0 8px 24px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.10)}
+.wash{position:absolute;left:0;right:0;top:0;height:190px;pointer-events:none;-webkit-mask:linear-gradient(#000 25%,transparent);mask:linear-gradient(#000 25%,transparent)}
+.wash.cool{background:radial-gradient(70% 100% at 12% -20%,rgba(111,231,255,.30),transparent 70%),radial-gradient(70% 100% at 88% -30%,rgba(182,156,255,.34),transparent 70%)}
+.wash.think{background:radial-gradient(70% 100% at 15% -20%,rgba(150,120,255,.38),transparent 70%),radial-gradient(60% 100% at 85% -20%,rgba(92,255,214,.20),transparent 70%)}
+.wash.attn{background:radial-gradient(70% 100% at 12% -20%,rgba(140,150,255,.30),transparent 70%),radial-gradient(70% 100% at 88% -30%,rgba(255,184,107,.30),transparent 70%)}
+.wash.listen{background:radial-gradient(80% 110% at 30% -20%,rgba(111,231,255,.42),transparent 70%),radial-gradient(60% 100% at 90% -20%,rgba(142,162,255,.3),transparent 70%)}
+.wash.warm{background:radial-gradient(80% 110% at 20% -20%,rgba(255,138,107,.36),transparent 70%),radial-gradient(60% 100% at 90% -20%,rgba(255,184,107,.24),transparent 70%)}
+.hd{position:relative;display:flex;align-items:center;gap:12px;padding:18px 14px 14px 18px}
+.hd-t{flex:1;min-width:0}
+.tt{font:600 18px/1.15 var(--disp);letter-spacing:-.45px;color:#fff}
+.st{font:500 12.5px/1.3 var(--text);color:var(--t2);margin-top:3px;letter-spacing:-.05px}
+.ib{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;color:var(--t1);background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.1)}
+.tabs{position:relative;display:flex;gap:2px;margin:0 12px;padding:2px;border-radius:11px;background:rgba(255,255,255,.055);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.06)}
+.tabs>div{flex:1;position:relative;text-align:center;font:500 12.5px/28px var(--text);color:var(--t2);border-radius:9px;letter-spacing:-.05px}
+.tabs>.on{color:#fff;background:rgba(255,255,255,.12);box-shadow:0 1px 3px rgba(0,0,0,.35),inset 0 0 0 .5px rgba(255,255,255,.14)}
+.body{position:relative;flex:1;padding:6px 12px 12px;overflow:hidden}
+.sec{font:600 11.5px/1 var(--text);color:var(--t2);margin:13px 6px 7px;letter-spacing:.1px}
+.card{background:rgba(255,255,255,.045);border-radius:var(--r-card);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.08)}
+.card.pad{padding:10px}
+.row{display:flex;align-items:center;gap:10px;height:42px;padding:0 12px 0 10px;font-size:13.5px;letter-spacing:-.1px}
+.row+.row,.crow+.crow{box-shadow:inset 0 .5px 0 rgba(255,255,255,.08)}
+.tile{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;color:var(--t);background:color-mix(in srgb,var(--t) 16%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--t) 30%,transparent)}
+.row .lbl{flex:1;color:var(--t1)}
+.row .val{color:var(--t2);font-size:12.5px;display:flex;align-items:center;gap:7px}
+.row.nav>.ic:last-child{color:var(--t3);margin-left:-2px}
+.dot{width:6px;height:6px;border-radius:50%;flex:none}
+.meter{display:inline-flex;align-items:center;gap:2px;height:14px}
+.meter i{display:block;width:2.5px;border-radius:2px;background:var(--orb);background:linear-gradient(#A6F7FF,#8EA2FF)}
+.meter.tiny{height:12px}
+.meter.big{height:26px;gap:3px}.meter.big i{width:4px}
+.tl{padding:14px 12px 12px}
+.tlbar{position:relative;height:6px;border-radius:3px;background:rgba(255,255,255,.07)}
+.tlbar i{position:absolute;top:0;bottom:0;border-radius:3px}
+.tlbar .s1{background:#6FE7FF}.tlbar .s2{background:#8EA2FF;margin-left:2px}.tlbar .s3{background:#B69CFF;margin-left:2px}
+.tllab{position:relative;height:34px;margin-top:10px;font-size:11.5px;color:var(--t2)}
+.tllab span{position:absolute;top:0;padding-right:7px;text-align:right;box-shadow:inset -1.5px 0 0 var(--c)}
+.tllab b{display:block;font:600 14px/1.1 var(--disp);color:#fff;letter-spacing:-.2px;margin-bottom:2px;font-variant-numeric:tabular-nums}
+
+.seg{display:flex;gap:2px;padding:2px;border-radius:var(--r-ctl);background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.07)}
+.seg>div{flex:1;text-align:center;font:500 12px/24px var(--text);color:var(--t2);padding:0 9px;border-radius:6px;white-space:nowrap}
+.seg>.on{color:#0B0D12;font-weight:600;background:var(--orb);box-shadow:0 1px 4px rgba(120,150,255,.35)}
+.seg.sm>div{line-height:22px;padding:0 8px;font-size:11.5px}
+.seg.full{width:100%}
+.seg.eq{width:168px}.seg.eq>div{padding:0 4px}
+.sec kbd{height:16px;font-size:9.5px;min-width:16px;padding:0 4px;vertical-align:1px}
+.quit{margin-top:12px!important}
+.mrow,.crow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.mrow{margin-top:12px;padding:0 2px}
+.crow{min-height:44px;padding:8px 12px}
+.crow .lbl,.mrow .lbl{font-size:13.5px;letter-spacing:-.1px;color:var(--t1)}
+.help{font-size:11.5px;color:var(--t3);margin-top:2px}
+.popup{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 6px 0 10px;border-radius:var(--r-ctl);font:500 12.5px/1 var(--text);
+  background:rgba(255,255,255,.10);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14),0 1px 2px rgba(0,0,0,.3);color:#fff;white-space:nowrap}
+.popup .ic{color:var(--t2)}
+.sw{width:36px;height:21px;border-radius:11px;background:rgba(255,255,255,.16);position:relative;flex:none}
+.sw i{position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.sw.on{background:var(--orb)}.sw.on i{left:17px}
+.quit{display:flex;justify-content:space-between;align-items:center;margin:14px 2px 0;padding:0 10px;height:38px;border-radius:var(--r-card);font-size:13.5px;color:#FFB3A8;background:rgba(255,122,107,.09);box-shadow:inset 0 0 0 .5px rgba(255,122,107,.22)}
+.quit>span:first-child{display:flex;align-items:center;gap:8px}
+/* sub-page header */
+.hd.sub{justify-content:space-between;padding:16px 14px 10px}
+.back{display:flex;align-items:center;gap:2px;font:500 13px var(--text);color:var(--t1);height:28px;padding:0 10px 0 4px;border-radius:9px;background:rgba(255,255,255,.07);width:76px}
+.tt2{font:600 16px var(--disp);letter-spacing:-.35px}
+.preview{position:relative;height:84px;border-radius:var(--r-card);margin-bottom:12px;overflow:hidden;
+  background:radial-gradient(80% 120% at 50% 120%,rgba(111,140,255,.28),transparent 70%),linear-gradient(#141826,#0E1018);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.08)}
+.pv-dock{position:absolute;left:22%;right:22%;bottom:10px;height:14px;border-radius:5px;background:rgba(255,255,255,.10);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.18)}
+.pv-orb{position:absolute;left:calc(50% - 17px);top:14px}
+.preview{height:80px!important}
+.pv-cap{position:absolute;left:10px;top:9px;font-size:10.5px;font-weight:600;color:var(--t3);letter-spacing:.2px}
+.crow.col{flex-direction:column;align-items:stretch;gap:0}
+.slider{position:relative;height:20px;margin:6px 6px 0}
+.slider .track{position:absolute;left:0;right:0;top:8px;height:4px;border-radius:2px;background:rgba(255,255,255,.14)}
+.slider .track i{display:block;height:100%;border-radius:2px;background:var(--orb)}
+.slider b{position:absolute;top:7px;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:rgba(255,255,255,.35)}
+.slider b.in{background:#fff;opacity:.9}
+.slider .knob{position:absolute;top:1px;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.45),0 0 0 3px rgba(142,162,255,.25)}
+.stops{position:relative;height:16px;margin:3px 6px 0;font-size:11px;color:var(--t2)}
+.stops span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
+.stops span:first-child{transform:none;left:-6px!important}.stops span:last-child{transform:none;left:auto!important;right:-6px}
+.stops .on{color:#fff;font-weight:600}
+.rec{display:inline-flex;align-items:center;justify-content:center;width:112px;height:28px;padding:0 6px;border-radius:var(--r-ctl);background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14)}
+.rec.live{box-shadow:inset 0 0 0 1px rgba(142,162,255,.9),0 0 0 3px rgba(142,162,255,.18)}
+.typing{font-size:12px;color:#C9D3FF}
+.note{font-size:12px;color:var(--t2);margin:12px 8px 0;line-height:1.7}
+.note kbd{height:17px;font-size:10px;margin:0 2px}
+.reset{margin:14px 2px 2px;height:32px;display:grid;place-items:center;border-radius:var(--r-card);font-size:12.5px;color:var(--t1);background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.1)}
+/* conversation */
+.conv{padding:4px 16px 10px;display:flex;flex-direction:column;gap:12px}
+.day{text-align:center;font:500 11px var(--text);color:var(--t3);margin:12px 0 0}
+.umsg{display:flex;justify-content:flex-end}
+.umsg>div{max-width:78%;padding:8px 12px;border-radius:16px 16px 5px 16px;font-size:14px;line-height:1.38;letter-spacing:-.15px;background:rgba(255,255,255,.10);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.08)}
+.zmsg{display:flex;gap:10px;align-items:flex-start}
+.zmsg>.orb{margin-top:2px}
+.ztxt{font-size:14px;line-height:1.42;letter-spacing:-.15px;color:var(--t1)}
+.meta{display:flex;gap:6px;margin-top:5px;font:500 11px var(--text);color:rgba(255,255,255,.62);font-variant-numeric:tabular-nums}
+.meta span+span::before{content:"·";margin-right:6px;opacity:.7}
+.steps{display:inline-flex;align-items:center;gap:5px;margin-top:6px;font-size:11.5px;color:#9FEFD2}
+.await{display:flex;align-items:center;gap:7px;margin-top:7px;font-size:12px;color:#FFD3A1}
+.adot{width:7px;height:7px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 3px rgba(255,184,107,.2),0 0 10px var(--amber)}
+.ft{position:relative;display:flex;align-items:center;justify-content:space-between;padding:10px 12px 12px 14px;box-shadow:inset 0 .5px 0 rgba(255,255,255,.09)}
+.ftl{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--t1);height:30px;padding:0 10px 0 8px;border-radius:9px;background:rgba(255,255,255,.06)}
+.ftr{display:flex;align-items:center;gap:10px}
+.hint{font-size:12px;color:var(--t2);display:flex;align-items:center;gap:6px}
+.hint kbd{margin-left:0}
+.talk{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:#0B0D12;background:var(--orb);box-shadow:0 0 16px rgba(126,170,255,.45),inset 0 1px 0 rgba(255,255,255,.5)}
+/* work strip */
+.strip{width:420px;border-radius:20px;padding:10px 10px 10px 12px;position:relative;background:rgba(13,15,21,.84);backdrop-filter:blur(36px) saturate(170%);-webkit-backdrop-filter:blur(36px) saturate(170%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.08),0 18px 50px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.07)}
+.strip::before{content:"";position:absolute;inset:-1px;border-radius:21px;padding:1px;background:var(--edge,var(--orb));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.85}
+.strip::after{content:"";position:absolute;inset:0;border-radius:20px;z-index:-1;box-shadow:0 0 28px var(--edgeglow,rgba(126,160,255,.35))}
+.strip.ask{--edge:linear-gradient(115deg,#FFD9A0,#FFB86B 45%,#FF8A7A);--edgeglow:rgba(255,170,100,.32)}
+.strip.done{--edge:linear-gradient(115deg,#9DF5D6,#62E6B4);--edgeglow:rgba(98,230,180,.22)}
+.strip.stopped{--edge:linear-gradient(115deg,rgba(255,255,255,.6),rgba(255,255,255,.28));--edgeglow:rgba(255,255,255,.06)}
+.strip.fail{--edge:linear-gradient(115deg,#FFB08A,#FF7A6B);--edgeglow:rgba(255,122,107,.25)}
+.srow{display:flex;align-items:center;gap:12px;min-height:32px}
+.srow>.orb{margin-left:4px}
+.stx{flex:1;min-width:0}
+.s1{font:600 14px/1.2 var(--disp);letter-spacing:-.25px;color:#fff}
+.s2{font-size:12px;color:var(--t2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbtn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 8px 0 10px;border-radius:10px;font:500 12.5px var(--text);background:rgba(255,255,255,.10);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14)}
+.sbtn.ghost{background:transparent;color:var(--t2);padding:0 10px}
+.sbtn kbd{height:17px;font-size:10px;margin-left:2px}
+.q{display:flex;align-items:center;gap:10px;margin:10px 0 0;padding:12px 12px;border-radius:12px;background:rgba(255,184,107,.10);box-shadow:inset 0 0 0 .5px rgba(255,184,107,.25)}
+.qic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:rgba(255,184,107,.2);color:#FFD3A1}
+.qt{font:600 15px var(--disp);letter-spacing:-.3px;color:#fff}
+.acts{display:flex;gap:8px;margin-top:10px}
+.btn{flex:1;display:grid;place-items:center;height:34px;border-radius:11px;font:600 13.5px var(--text);letter-spacing:-.1px;background:rgba(255,255,255,.10);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14);color:#fff}
+.btn.primary{color:#0B0D12;background:var(--orb);box-shadow:0 0 18px rgba(126,170,255,.4),inset 0 1px 0 rgba(255,255,255,.55)}
+.btn.sm{flex:none;height:28px;padding:0 12px;font-size:12px;border-radius:9px}
+.btn.ghost{background:transparent;color:var(--t2)}
+.badge{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;margin-left:2px}
+.badge.ok{background:rgba(98,230,180,.24);color:#B5FFE4;box-shadow:0 0 14px rgba(98,230,180,.3)}
+.badge.mute{background:rgba(255,255,255,.1);color:var(--t1)}
+.badge.bad{background:rgba(255,122,107,.26);color:#FFC2B8;box-shadow:0 0 14px rgba(255,122,107,.3)}
+/* status card */
+.scard{width:300px;border-radius:18px;padding:12px 14px 14px;position:relative;overflow:hidden;background:rgba(13,15,21,.84);backdrop-filter:blur(36px) saturate(170%);-webkit-backdrop-filter:blur(36px) saturate(170%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.09),0 18px 50px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.07)}
+.scard::before{content:"";position:absolute;inset:0;background:radial-gradient(80% 90% at 10% -20%,rgba(111,231,255,.26),transparent 70%);pointer-events:none}
+.scard.th::before{background:radial-gradient(80% 90% at 10% -20%,rgba(160,120,255,.32),transparent 70%)}
+.scard.pr::before{background:radial-gradient(80% 90% at 10% -20%,rgba(255,138,107,.3),transparent 70%)}
+.scrow{position:relative;display:flex;align-items:center;gap:12px}
+.sct{flex:1}.tm{font:500 12px var(--text);color:var(--t2);font-variant-numeric:tabular-nums}
+.bigmeter{position:relative;margin-top:12px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:rgba(255,255,255,.04)}
+.shimmer{position:relative;margin-top:14px;height:5px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden}
+.shimmer i{position:absolute;left:14%;width:56%;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,rgba(182,156,255,0),#B69CFF 35%,#6FE7FF 70%,rgba(111,231,255,0));box-shadow:0 0 10px rgba(150,170,255,.5)}
+.pact{position:relative;display:flex;gap:6px;margin-top:12px}
+/* bubble + pill */
+.bub{display:inline-flex;flex-direction:column;gap:5px;max-width:320px;padding:9px 13px;border-radius:16px;background:rgba(13,15,21,.84);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);
+  box-shadow:0 0 0 1px rgba(255,255,255,.1),0 12px 32px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.07)}
+.bh{display:flex;align-items:center;gap:7px;font:600 11.5px var(--text);color:var(--t2);letter-spacing:.05px;white-space:nowrap}
+.bh.one{padding-right:2px;font:500 13px var(--text);color:var(--t1);letter-spacing:-.1px}
+.bh .meter{margin-left:2px}
+.rdot{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.bw{font-size:14px;line-height:1.35;letter-spacing:-.15px;color:#fff}
+.bw .fade{color:rgba(255,255,255,.62)}
+.spin{width:13px;height:13px;border-radius:50%;border:2px solid rgba(255,255,255,.15);border-top-color:var(--cyan);border-right-color:var(--violet)}
+.okc{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:rgba(98,230,180,.2);color:#8FF2CF}
+.okc.warm{background:rgba(255,184,107,.28);color:#FFE2BF}
+.sep{color:var(--t3)}.dim{color:var(--t2)}
+.lpill{display:inline-flex;align-items:center;height:26px;padding:0 11px;border-radius:13px;font:600 12.5px var(--text);letter-spacing:-.1px;color:#fff;white-space:nowrap;
+  background:rgba(13,15,21,.82);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 0 0 1px rgba(142,162,255,.45),0 0 16px rgba(126,170,255,.35),0 6px 18px rgba(0,0,0,.45)}
+`;
+document.head.insertAdjacentHTML('beforeend', `<style>${CSS}</style>`);

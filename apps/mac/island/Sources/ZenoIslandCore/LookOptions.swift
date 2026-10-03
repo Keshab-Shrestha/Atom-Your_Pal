@@ -121,7 +121,7 @@ public enum BubbleSize: Int, SettingsChoice {
     public var title: String {
         switch self {
         case .small: "Small"
-        case .normal: "Normal"
+        case .normal: "Medium"
         case .large: "Large"
         }
     }
@@ -161,8 +161,8 @@ public enum PanelSize: Int, SettingsChoice {
     }
     public var title: String {
         switch self {
-        case .compact: "Compact"
-        case .normal: "Normal"
+        case .compact: "Small"
+        case .normal: "Medium"
         case .large: "Large"
         }
     }

@@ -108,46 +108,49 @@ struct WorkStripView: View {
     let model: IslandModel
     var snapshot = false
 
-    static let amber = Color(red: 1.0, green: 0.80, blue: 0.35)
     static let cornerRadius: CGFloat = 16
 
     var body: some View {
         let asking = model.approval.pending != nil
+        let palette = model.settings.theme.palette
+        let shape = RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
         ZStack(alignment: .topLeading) {
             if let request = model.approval.pending {
                 AskingView(request: request) { model.answerApproval($0) }
                     .transition(.opacity)
             } else {
-                stepRow.transition(.opacity)
+                StepRow(model: model).transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background {
-            ZStack {
-                if !snapshot { RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous).fill(.ultraThinMaterial) }
-                RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous).fill(Color(white: 0.06).opacity(snapshot ? 0.96 : 0.86))
-            }
-        }
+        .background { SurfaceBackground(shape: shape, glass: !snapshot) }
         .overlay {
-            RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
-                .strokeBorder(asking ? Self.amber.opacity(0.5) : .white.opacity(0.14), lineWidth: asking ? 0.8 : 0.5)
+            // Asking: a quiet attention edge, not a glow.
+            if asking { shape.strokeBorder(palette.attention.color.opacity(0.55), lineWidth: 1) }
         }
-        .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
-        .shadow(color: .black.opacity(snapshot ? 0 : 0.32), radius: 10, y: 3)
-        .environment(\.colorScheme, .dark)
+        .clipShape(shape)
+        .shadow(color: .black.opacity(snapshot ? 0 : (palette.isDark ? 0.32 : 0.16)), radius: 10, y: 3)
+        .themed(palette)
         .animation(.easeOut(duration: 0.18), value: asking)
         .padding(WorkStripController.shadowInset)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(asking ? "ZENO needs your OK" : "ZENO: \(model.work.line)")
     }
 
-    private var stepRow: some View {
+}
+
+/// What ZENO is doing, and Stop. Its own view so it reads the theme set on the strip.
+private struct StepRow: View {
+    let model: IslandModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
         HStack(spacing: 10) {
             WorkGlyph(outcome: model.work.outcome)
                 .frame(width: 26, height: 26)
             Text(model.work.line)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(theme.text.color)
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .contentTransition(.opacity)
@@ -155,15 +158,15 @@ struct WorkStripView: View {
             Spacer(minLength: 6)
             if model.work.outcome == .working {
                 Button { model.stopWork() } label: {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 6) {
                         Image(systemName: "stop.fill").font(.system(size: 9, weight: .bold))
                         Text("Stop").font(.system(size: 12, weight: .semibold))
-                        Text("esc").font(.system(size: 10, weight: .medium)).foregroundStyle(.white.opacity(0.45))
+                        KeyHint(text: "esc")
                     }
-                    .foregroundStyle(.white.opacity(0.92))
-                    .padding(.horizontal, 10)
+                    .foregroundStyle(theme.text.color)
+                    .padding(.leading, 10).padding(.trailing, 6)
                     .frame(height: 26)
-                    .background(Capsule().fill(.white.opacity(0.12)))
+                    .background(Capsule().fill(theme.fill2.color))
                     .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -180,28 +183,29 @@ struct WorkStripView: View {
 private struct AskingView: View {
     let request: ApprovalRequest
     let onAnswer: (Bool) -> Void
+    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 ZStack {
-                    Circle().fill(WorkStripView.amber.opacity(0.22))
-                    Image(systemName: "hand.raised.fill").font(.system(size: 11, weight: .semibold)).foregroundStyle(WorkStripView.amber)
+                    Circle().fill(theme.attention.color.opacity(theme.isDark ? 0.2 : 0.14))
+                    Image(systemName: "hand.raised.fill").font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.attention.color)
                 }
                 .frame(width: 24, height: 24)
                 Text("ZENO needs your OK")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.8))
+                    .foregroundStyle(theme.text2.color)
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text(request.summary)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(theme.text.color)
                     .lineLimit(2)
                 if !request.reason.isEmpty {
                     Text("Because \(request.reason)")
                         .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.62))
+                        .foregroundStyle(theme.text2.color)
                         .lineLimit(1)
                 }
             }
@@ -219,14 +223,16 @@ private struct AskingView: View {
 
     private func button(_ title: String, hint: String?, primary: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 5) {
+            HStack(spacing: 6) {
                 Text(title).font(.system(size: 12.5, weight: .semibold))
-                if let hint { Text(hint).font(.system(size: 10, weight: .medium)).opacity(0.5) }
+                if let hint {
+                    Text(hint).font(.system(size: 10, weight: .semibold, design: .rounded)).opacity(primary ? 0.7 : 0.55)
+                }
             }
-            .foregroundStyle(primary ? Color.black.opacity(0.85) : .white.opacity(0.9))
-            .frame(width: 104, height: 28)
-            .background(primary ? WorkStripView.amber : Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .foregroundStyle(primary ? theme.onAttention.color : theme.text.color)
+            .frame(width: 112, height: 28)
+            .background(primary ? theme.attention.color : theme.fill2.color, in: RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
@@ -236,16 +242,17 @@ private struct AskingView: View {
 /// The strip's badge: working (pulsing), done, stopped or failed.
 struct WorkGlyph: View {
     let outcome: WorkStripState.Outcome
+    @Environment(\.theme) private var theme
 
     var body: some View {
         let (symbol, tint): (String, Color) = switch outcome {
-        case .working: ("cursorarrow.motionlines", StateGlyph.tint(.acting))
-        case .done: ("checkmark", StateGlyph.tint(.ready))
-        case .stopped: ("stop.fill", Color(white: 0.75))
-        case .failed: ("exclamationmark.triangle.fill", StateGlyph.tint(.problem))
+        case .working: ("cursorarrow.motionlines", theme.tint(.acting))
+        case .done: ("checkmark", theme.success.color)
+        case .stopped: ("stop.fill", theme.text2.color)
+        case .failed: ("exclamationmark.triangle.fill", theme.problem.color)
         }
         ZStack {
-            Circle().fill(tint.opacity(0.22))
+            Circle().fill(tint.opacity(theme.isDark ? 0.2 : 0.14))
             Image(systemName: symbol)
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(tint)
@@ -360,28 +367,23 @@ final class WorkStripController {
 /// The short label beside Wisp while it points (ADR-056): what the place is, nothing more.
 struct PointLabelView: View {
     let text: String
+    var palette = ThemePalette.native
     var snapshot = false
 
     var body: some View {
         HStack(spacing: 6) {
-            Circle().fill(StateGlyph.tint(.acting)).frame(width: 6, height: 6)
+            Circle().fill(palette.accentFill).frame(width: 6, height: 6)
             Text(text)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(palette.text.color)
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
         .padding(.horizontal, 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background {
-            ZStack {
-                if !snapshot { Capsule().fill(.ultraThinMaterial) }
-                Capsule().fill(Color(white: 0.06).opacity(snapshot ? 0.95 : 0.84))
-            }
-        }
-        .overlay { Capsule().strokeBorder(.white.opacity(0.16), lineWidth: 0.5) }
-        .shadow(color: .black.opacity(snapshot ? 0 : 0.3), radius: 6, y: 2)
-        .environment(\.colorScheme, .dark)
+        .background { SurfaceBackground(shape: Capsule(), glass: !snapshot) }
+        .shadow(color: .black.opacity(snapshot ? 0 : (palette.isDark ? 0.3 : 0.14)), radius: 6, y: 2)
+        .themed(palette)
         .padding(PointLabelController.shadowInset)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("ZENO is pointing at \(text)")
@@ -416,12 +418,12 @@ final class PointLabelController {
         panel.contentView = hosting
     }
 
-    func show(_ text: String, feet: CGPoint, wispHeight: CGFloat, wispHalfWidth: CGFloat) {
+    func show(_ text: String, palette: ThemePalette, feet: CGPoint, wispHeight: CGFloat, wispHalfWidth: CGFloat) {
         self.text = text
         self.feet = feet
         self.wispHeight = wispHeight
         self.wispHalfWidth = wispHalfWidth
-        hosting.rootView = PointLabelView(text: text)
+        hosting.rootView = PointLabelView(text: text, palette: palette)
         reposition()
         guard !isVisible else { return }
         isVisible = true

@@ -1040,6 +1040,24 @@ ZENO will act on the Mac by voice command ("open Safari and search for X") throu
 
 ---
 
+## ADR-057 — Three Looks, Chosen in Settings
+
+**Status:** Accepted (2026-10-04). Extends ADR-038 (dark glass) and ADR-042 (Wisp's look); keeps ADR-056's layout.
+
+**Context.** Keshab asked for a makeover of the whole app, island to Wisp. Three directions were mocked up on the same ADR-056 layout (`sketches/makeover/`): *Quiet Native* (dark glass, one teal accent, the ghost refined), *Luminous* (near-black glass, a cyan-to-violet gradient, Wisp as an orb of light) and *Warm* (light paper glass, a coral accent, a character with a face). Shown the three, Keshab chose to keep all of them, switchable in Settings.
+
+**Decision.**
+- **Two independent settings** under Settings → Appearance: **Theme** (Quiet Native, Luminous, Warm) for every surface (panel, status card, bubble, work strip, point label) and **Wisp** (Ghost, Orb, Companion) for the character. Any theme goes with any Wisp; both apply instantly and are kept with the other look settings. Defaults: Quiet Native and Orb (the mix recommended at review).
+- **One palette per theme** (`ThemePalette`, in the core so it is tested): surface, text levels, fills, accent (or gradient), live / attention / problem / success colours and corner radii. Views read the palette from the environment and use no literal colours, so a theme is data, not code paths.
+- **Readability is tested**, not eyeballed: body, caption and button text meet WCAG AA (4.5:1) on every theme's surface (`ThemeTests`). This forced Warm's coral, amber and caption grey darker than the mockup.
+- **One Wisp view, three bodies**, with the same moods, motion, hiding pose and size. Moods are shown by body, light and face, never stickers: the orb's light changes (teal listening, an aurora thinking, amber for a problem, dim napping) and it stays round when carried (a stretched sphere reads as a scaling bug).
+- **Settings rebuilt as pages** (Appearance, AI model, Shortcuts, Dictation, Wisp, Speech bubble, Panel, General), each row showing its current value. Controls fit the setting: switches for on/off, a segmented picker for two to four short choices, a menu for longer lists; the AI model is a Provider menu and a Model menu instead of a wall of chips. Size words are Small / Medium / Large everywhere.
+- **Conversation**: ZENO's replies are plain text beside a small Wisp, your words in a bubble; turn timings show only on hover.
+
+**Consequences.** Three looks to keep working: a new surface must use the palette, and the gallery renders every theme and Wisp style (`9-*`, `10-*`) for review. The orb and companion are new characters, so their hiding pose and moods need Keshab's look on the real desktop.
+
+---
+
 ## Final Architectural Principle
 
 > Preserve the future without prematurely implementing it.

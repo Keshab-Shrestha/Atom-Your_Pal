@@ -405,6 +405,20 @@ From Keshab's end-to-end check (0.5.9): checks 1–4 and the Decline card passed
 
 ---
 
+### Task 0.5.11 — Makeover: Three Looks in Settings (ADR-057) — built; tested; not yet seen on the real screen
+
+Keshab asked for a makeover from the island to Wisp; three directions were mocked up (`sketches/makeover/`), and he chose to keep all three, switchable in Settings.
+
+- **Theme** (Quiet Native / Luminous / Warm) and **Wisp** (Ghost / Orb / Companion), chosen separately in Settings → Appearance with live previews; defaults Quiet Native + Orb. Saved with the look settings; "Reset" in General restores them.
+- `ThemePalette` (core) drives every surface: panel, compact card, bubble, work strip, point label, menu items. Liquid Glass on macOS 26 is tinted per theme.
+- `WispView` draws all three bodies with the same moods, motion and hiding pose.
+- Settings rebuilt as pages with the right control per setting; the model picker is two menus; Status shows a labelled timing bar; conversation timings appear on hover.
+- Tests: 6 new (`ThemeTests`: WCAG AA text contrast in every theme, saving and resetting the choices). 307 Swift tests pass; 322 TS pass, 2 skipped; typecheck clean. Gallery sheets `9-*` (each theme's panel, strip, bubble) and `10-*` (each Wisp's moods and hiding pose) reviewed; contrast, clipping and mood problems found there were fixed.
+
+**Not done:** seen on the real screen. Keshab: open Settings → Appearance and try each theme and Wisp; check the hiding pose of Orb and Companion at a screen edge; check Warm on a light wallpaper.
+
+---
+
 ## 6. Definition of Done
 
 A task is done only when:
