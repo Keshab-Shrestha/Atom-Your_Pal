@@ -180,7 +180,7 @@ struct RuntimeLocatorTests {
     @Test func buildsTheLaunchCommand() throws {
         let launch = try locator(env: ["PATH": "/usr/bin:/bin", "HOME": "/Users/k"]).locate()
         #expect(launch.executable.path == "/opt/homebrew/bin/node")
-        #expect(launch.arguments == ["--env-file-if-exists=.env", "apps/mac/src/main.ts", "--island"])
+        #expect(launch.arguments == ["--env-file-if-exists=.env", "--disable-warning=ExperimentalWarning", "apps/mac/src/main.ts", "--island"])
         #expect(launch.directory.path == "/p/zeno")
         #expect(launch.environment["HOME"] == "/Users/k")
         // ffmpeg and whisper-cli are found by name, so their folders must be on PATH even when started from Finder.

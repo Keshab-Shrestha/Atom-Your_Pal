@@ -60,6 +60,9 @@ The island (`RestartPolicy`, `RuntimeSupervisor` in `apps/mac/island/`) waits 1,
 | `{"type":"conversation.reset"}` | Cancel any turn and forget the conversation. Answered with a `conversation.reset` event |
 | `{"type":"model.set","provider":"gemini","model":"gemini-3.6-flash"}` | Switch the AI model for the next request (ADR-040). Takes effect at once, without restarting; a request already in flight finishes with the old model. The conversation is kept. Saved to `config/island.json` and used at the next start. Answered with an `info` event, or an `error` with stage `settings` (unknown provider, no API key for it, a model not offered for that provider) and nothing changes. The runtime keeps running |
 | `{"type":"approval.answer","id":"a1","approved":true}` | The user's answer to an `approval.request` (ADR-054). `approved` must be a boolean. An unknown or already-closed `id` is ignored. Any other command that ends the turn (`talk.cancel`, `talk.start`, `conversation.reset`) counts as "no" |
+| `{"type":"memory.list"}` | Send what ZENO keeps (ADR-058), as a `memory` event. From then on, a `memory` event also follows every change ZENO makes by itself (the `remember` and `forget` tools). An island that never sends it gets no `memory` events |
+| `{"type":"memory.forget","id":3}` | Delete one memory for good. `id` must be a whole number. Answered with a `memory` event (an unknown id changes nothing) |
+| `{"type":"memory.clear"}` | Delete every memory for good. Answered with a `memory` event |
 | `{"type":"quit"}` | Release the microphone, stop speech and exit with code 0 |
 
 Holding Ctrl+Option maps to `talk.start` on press and `talk.send` on release. Pressing another key while holding, or Esc, maps to `talk.cancel` (ADR-035).
@@ -85,6 +88,7 @@ Holding Ctrl+Option maps to `talk.start` on press and `talk.send` on release. Pr
 | `computer.point` | `x`, `y`, `w`, `h` (numbers), `label` | ZENO shows the user a place on screen (ADR-054, Task 0.6.4): Wisp flies to the element and the bubble says `label` (e.g. "the settings button"). The numbers are Cua's own: points, origin at the top-left of the main display, y down, across all displays. Sent only while a turn is running. `w` and `h` must be above 0 and every number finite, or the island reports a bad event. A place on no display is not flown to. Wisp stays about 7 s after arriving, then goes back; a new turn, a reset or an error also ends it. Contains the label only, never screen content |
 | `approval.request` | `id`, `summary`, `reason` | ZENO will not do this until the user says yes: `summary` is the action ("Click \"Send\" in Mail"), `reason` is why it asks. One request at a time. The island must show it with Allow and Decline and answer with `approval.answer`. The runtime declines by itself after 60 s |
 | `approval.closed` | `id` | That request is no longer waiting (answered, declined, timed out, or the turn was cancelled). The island removes the prompt |
+| `memory` | `enabled`, `count`, `memories` | What ZENO keeps (ADR-058), newest first: a list of `{ "id", "text", "createdAt" (ISO 8601), "source" ("voice" or "text") }`. `enabled` is `false` (and the list empty) when memory is off (`ZENO_MEMORY=0`, or its file could not be opened). Sent only after `memory.list`, `memory.forget` or `memory.clear`, and after changes once the island has asked. Memory text is never logged |
 | `error` | `stage`, `message`, `kind`, `retryable` | Something failed. `kind` and `retryable` are present for model errors only |
 
 `state` returns to `idle` after every turn, including turns that end in `notice` or `error`.
@@ -146,3 +150,4 @@ A complete turn:
 
 - The transcript and reply travel only over this private pipe between two processes of the same app. No port or socket is opened.
 - Neither side writes the transcript or reply to a log (SECURITY.md). stderr never contains them.
+- The same holds for memory text: the logs record memory ids and counts only.

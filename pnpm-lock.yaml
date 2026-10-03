@@ -178,12 +178,18 @@ importers:
       '@huggingface/transformers':
         specifier: 3.8.1
         version: 3.8.1
+      '@zeno/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@zeno/core':
         specifier: workspace:*
         version: link:../../services/core
       '@zeno/llm-gateway':
         specifier: workspace:*
         version: link:../../services/llm-gateway
+      '@zeno/memory':
+        specifier: workspace:*
+        version: link:../../services/memory
       '@zeno/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -224,6 +230,12 @@ importers:
       zod:
         specifier: ^4.6.5
         version: 4.6.5
+
+  services/memory:
+    dependencies:
+      '@zeno/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
 
   services/tool-engine:
     dependencies:

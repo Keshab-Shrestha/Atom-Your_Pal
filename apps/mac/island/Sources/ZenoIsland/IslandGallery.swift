@@ -91,10 +91,24 @@ enum IslandGallery {
             model.tab = .conversation
             panels.append(frozen(IslandView(model: model, snapshot: true).frame(width: size.width, height: size.height)))
             model.conversation = restore
+            // Memory (ADR-058): a few kept facts, then nothing kept.
+            let savedMemory = model.memory
+            model.tab = .settings
+            model.settingsPage = .memory
+            let now = Date()
+            model.memory = MemoryList(enabled: true, count: 3, memories: [
+                MemoryItem(id: 3, text: "Keshab takes his coffee black, no sugar.", createdAt: now.addingTimeInterval(-300), source: "voice"),
+                MemoryItem(id: 2, text: "Keshab's sister is called Asha and she lives in Osaka.", createdAt: now.addingTimeInterval(-86_400 * 2), source: "voice"),
+                MemoryItem(id: 1, text: "Keshab prefers replies in short sentences.", createdAt: now.addingTimeInterval(-86_400 * 9), source: "text"),
+            ])
+            panels.append(frozen(IslandView(model: model, snapshot: true).frame(width: size.width, height: size.height)))
+            model.memory = MemoryList(enabled: true, count: 0, memories: [])
+            panels.append(frozen(IslandView(model: model, snapshot: true).frame(width: size.width, height: size.height)))
+            model.memory = savedMemory
             let sheet = VStack(alignment: .leading, spacing: 18) {
                 Text("\(theme.title) — panel").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
-                HStack(alignment: .top, spacing: 18) { ForEach(0..<4, id: \.self) { panels[$0] } }
-                HStack(alignment: .top, spacing: 18) { ForEach(4..<7, id: \.self) { panels[$0] } }
+                HStack(alignment: .top, spacing: 18) { ForEach(0..<5, id: \.self) { panels[$0] } }
+                HStack(alignment: .top, spacing: 18) { ForEach(5..<9, id: \.self) { panels[$0] } }
             }
             .padding(24)
             .background(Color(red: 0.36, green: 0.42, blue: 0.52))

@@ -33,6 +33,7 @@ function islandHarness(
     silenceWarnMs: number;
     settings: IslandOptions["settings"];
     computer: IslandOptions["computer"];
+    memory: IslandOptions["memory"];
   }> = {},
 ) {
   const input = new PassThrough();
@@ -77,6 +78,7 @@ function islandHarness(
     info: { provider: "fake", model: "fake-1", microphone: ":default" },
     settings: over.settings,
     computer: over.computer,
+    ...(over.memory ? { memory: over.memory } : {}),
     micName: async () => "macOS default: Test Mic",
     describe: (error) => (error instanceof Error ? error.message : String(error)),
     errorDetails: (error) => ((error as { kind?: string }).kind ? { kind: (error as { kind: string }).kind, retryable: true } : {}),
@@ -499,4 +501,81 @@ test("without computer control, approval.answer is quietly ignored", async () =>
   h.clear();
   await h.send({ type: "approval.answer", id: "a1", approved: true });
   assert.deepEqual(h.events(), []);
+});
+
+// --- memory (ADR-058) ---
+
+function fakeMemory() {
+  let items = [
+    { id: 2, text: "Keshab drinks green tea.", createdAt: "2026-10-04T01:00:00.000Z", source: "voice" as const },
+    { id: 1, text: "Keshab's sister is Asha.", createdAt: "2026-10-03T01:00:00.000Z", source: "text" as const },
+  ];
+  const listeners = new Set<() => void>();
+  return {
+    memory: {
+      list: () => items,
+      count: () => items.length,
+      forget: (id: number) => {
+        const before = items.length;
+        items = items.filter((m) => m.id !== id);
+        return items.length < before;
+      },
+      clear: () => {
+        const n = items.length;
+        items = [];
+        return n;
+      },
+      onChange: (listener: () => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    },
+    /** ZENO kept something by itself (the remember tool). */
+    changed: () => {
+      items = [{ id: 3, text: "Keshab is in Tokyo.", createdAt: "2026-10-04T02:00:00.000Z", source: "voice" }, ...items];
+      for (const l of listeners) l();
+    },
+  };
+}
+
+test("memory.list sends what is kept, newest first; nothing is sent before the island asks", async () => {
+  const fake = fakeMemory();
+  const h = islandHarness({ memory: fake.memory });
+  await tick(5);
+  fake.changed();
+  assert.ok(!h.types().includes("memory"), "an island that never asked gets no memory events");
+  await h.send({ type: "memory.list" });
+  const event = h.events().at(-1) as Extract<IslandEvent, { type: "memory" }>;
+  assert.equal(event.type, "memory");
+  assert.equal(event.enabled, true);
+  assert.equal(event.count, 3);
+  assert.deepEqual(event.memories.map((m) => m.id), [3, 2, 1]);
+});
+
+test("after memory.list, changes ZENO makes by itself are sent; forget and clear answer with the new list", async () => {
+  const fake = fakeMemory();
+  const h = islandHarness({ memory: fake.memory });
+  await tick(5);
+  await h.send({ type: "memory.list" });
+  h.clear();
+  fake.changed();
+  assert.deepEqual(h.types(), ["memory"]);
+  h.clear();
+  await h.send({ type: "memory.forget", id: 2 });
+  assert.deepEqual((h.events().at(-1) as Extract<IslandEvent, { type: "memory" }>).memories.map((m) => m.id), [3, 1]);
+  await h.send({ type: "memory.forget", id: 99 }); // unknown id: nothing changes, the list is sent again
+  assert.equal((h.events().at(-1) as Extract<IslandEvent, { type: "memory" }>).count, 2);
+  await h.send({ type: "memory.clear" });
+  assert.deepEqual(h.events().at(-1), { type: "memory", enabled: true, count: 0, memories: [] });
+});
+
+test("memory commands with memory off answer enabled: false; a bad id is a protocol error", async () => {
+  const h = islandHarness();
+  await tick(5); // let ready go first
+  await h.send({ type: "memory.list" });
+  assert.deepEqual(h.events().at(-1), { type: "memory", enabled: false, count: 0, memories: [] });
+  h.clear();
+  await h.send({ type: "memory.forget", id: "2" }, { type: "memory.forget", id: 1.5 }, { type: "memory.forget" });
+  assert.deepEqual(h.types(), ["error", "error", "error"]);
+  for (const e of h.events()) assert.equal((e as { stage: string }).stage, "protocol");
 });

@@ -1,6 +1,6 @@
 import Foundation
 
-/// How to start the ZENO runtime: `node --env-file-if-exists=.env apps/mac/src/main.ts --island`
+/// How to start the ZENO runtime: `node --env-file-if-exists=.env --disable-warning=ExperimentalWarning apps/mac/src/main.ts --island`
 /// in the project folder.
 public struct RuntimeLaunch: Sendable, Equatable {
     public var executable: URL
@@ -102,7 +102,7 @@ public struct RuntimeLocator {
         let node = try nodePath()
         return RuntimeLaunch(
             executable: URL(fileURLWithPath: node),
-            arguments: ["--env-file-if-exists=.env", Self.entryPoint, "--island"],
+            arguments: ["--env-file-if-exists=.env", "--disable-warning=ExperimentalWarning", Self.entryPoint, "--island"],
             directory: URL(fileURLWithPath: root, isDirectory: true),
             environment: runtimeEnvironment(node: node))
     }

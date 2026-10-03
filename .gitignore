@@ -25,3 +25,6 @@ config/island.json
 sketches/**/*.png
 sketches/review/
 sketches/**/tmp/
+
+# ZENO memory (ADR-058): personal, local only
+data/

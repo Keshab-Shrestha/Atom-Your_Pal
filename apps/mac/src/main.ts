@@ -97,6 +97,7 @@ function start(config: Config) {
     info: { provider: config.llm.provider, model: config.llm.model, microphone: config.audio.inputDevice },
     settings: runtime.settings,
     computer: runtime.computer,
+    ...(runtime.islandMemory ? { memory: runtime.islandMemory } : {}),
     micName: runtime.micName,
     describe,
     errorDetails: (error) => (error instanceof GatewayError ? { kind: error.kind, retryable: error.retryable } : {}),

@@ -419,6 +419,22 @@ Keshab asked for a makeover from the island to Wisp; three directions were mocke
 
 ---
 
+## Phase 1 — Memory
+
+Keshab (2026-10-04): "Let's skip the tests… continue building." Phase 0.5's hands-on checks are deferred at his request, not dropped: the "Not done" items above still stand. Phase 1 starts with the smallest memory a person expects (ADR-058).
+
+### Task 1.1 — Remember, Recall, Forget (ADR-058) — built; tested; checked live in text
+
+- New service `services/memory`: one SQLite file (`data/memory.db`, gitignored, Node's built-in `node:sqlite`) with full-text search. Every memory has an owner, scope, provenance (voice or text, request id, time) and lifecycle; forgetting deletes the row. 300 characters each, 500 at most, never dropped silently. Facts that look like passwords, PINs, card numbers or API keys are refused.
+- Tools `remember`, `recall`, `forget` in the Tool Engine. The Core gained a `context` hook: up to 12 relevant memories (matching words first, then newest) are added to the system prompt of each request, with their ids.
+- Island protocol: `memory.list`, `memory.forget`, `memory.clear` and a `memory` event (sent only to an island that asked). Settings has a **Memory** page: every fact with when and how it was kept, × to forget one, and "Forget everything" with a confirm step.
+- `ZENO_MEMORY=0` turns it off; `ZENO_MEMORY_FILE` moves the file. The runtime starts with `--disable-warning=ExperimentalWarning` so Node 22's SQLite notice stays out of the log.
+- Tests: TS 338 pass, 2 skipped (12 new for the store, tools and context; 2 for the Core hook; 3 for the protocol); Swift 310 pass (3 new). Live on Claude Haiku 4.5 (Claude plan), across two separate runtimes sharing one file: "remember my sister is Asha in Osaka" and "my coffee is black" were kept; the second runtime, with no conversation history, answered both; "forget my coffee" deleted it; "remember my bank PIN" was declined.
+
+**Not done:** spoken through the island by Keshab; the Memory page seen on the real screen.
+
+---
+
 ## 6. Definition of Done
 
 A task is done only when:

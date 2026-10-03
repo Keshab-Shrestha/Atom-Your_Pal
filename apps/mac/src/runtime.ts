@@ -6,6 +6,9 @@ import { createComputerBridge, type ComputerBridge } from "./computer-bridge.ts"
 import { createComputerTool, createCuaTransport, createToolEngine, timeTool } from "@zeno/tool-engine";
 import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError } from "@zeno/llm-gateway";
 import { createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
+import { createMemoryTools, DEFAULT_MAX_MEMORIES, memoryContext, openMemoryStore, type MemoryStore } from "@zeno/memory";
+import type { InputSource } from "@zeno/contracts";
+import type { IslandMemory } from "./island.ts";
 import { AudioError, defaultInputDevice, startRecording } from "./audio.ts";
 import { SttError, createWhisperStt, type SpeechToText } from "./stt.ts";
 import { createModelSettings, writeSavedChoice, type ModelSettings } from "./model-settings.ts";
@@ -28,6 +31,10 @@ export interface Runtime {
   micName(): Promise<string>;
   /** Computer control's link to the island (steps and approvals). Used only when ZENO_COMPUTER=1. */
   computer: ComputerBridge;
+  /** What the user asked ZENO to keep (ADR-058). Undefined when ZENO_MEMORY=0 or the store could not open. */
+  memory?: MemoryStore;
+  /** The memory as Settings sees it (list, forget, clear, change updates). Undefined when memory is off. */
+  islandMemory?: IslandMemory;
 }
 
 export interface RuntimeOptions {
@@ -35,6 +42,8 @@ export interface RuntimeOptions {
   keys?: ProviderKeys;
   /** Where a model switch is saved (config/island.json). */
   settingsPath?: string;
+  /** The memory file (ADR-058). Default: ZENO_MEMORY_FILE or data/memory.db; ":memory:" for tests. */
+  memoryPath?: string;
 }
 
 export function createRuntime(
@@ -48,11 +57,35 @@ export function createRuntime(
     vocabulary: config.stt.vocabulary,
   });
   const computer = createComputerBridge();
+  const memory = openMemory(options.memoryPath ?? process.env.ZENO_MEMORY_FILE ?? "data/memory.db", log);
+  // The request a memory tool is running for, for provenance. Set by the Core's context hook, which runs first.
+  let current: { source: InputSource; requestId?: string } = { source: "voice" };
+  const memoryListeners = new Set<() => void>();
+  const islandMemory: IslandMemory | undefined = memory && {
+    list: () => memory.recent(DEFAULT_MAX_MEMORIES).map((m) => ({ id: m.id, text: m.text, createdAt: m.createdAt.toISOString(), source: m.source })),
+    count: () => memory.count(),
+    forget: (id) => memory.remove(id),
+    clear: () => memory.clear(),
+    onChange: (listener) => {
+      memoryListeners.add(listener);
+      return () => memoryListeners.delete(listener);
+    },
+  };
   // The tools ZENO can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
   // needs them; the other providers get them from the Core.
   const toolEngine = createToolEngine({
     tools: [
       timeTool(),
+      ...(memory
+        ? createMemoryTools({
+            store: memory,
+            provenance: () => current,
+            onChange: (e) => {
+              log.info("memory.change", e);
+              for (const listener of memoryListeners) listener();
+            },
+          })
+        : []),
       // ADR-054: off unless ZENO_COMPUTER=1. Steps and approvals go through the bridge to the island;
       // with no island, or no answer, an approval is a refusal.
       ...(process.env.ZENO_COMPUTER === "1"
@@ -88,7 +121,17 @@ export function createRuntime(
   const model = createSwitchableModel(createModel(initial, config.llm.apiKey));
   // ZENO_VOICE_ONLY=1: test speech in and out without the AI. ZENO reads back what Whisper heard, and no
   // request is made to any model. (Typed as `Core` so every caller treats it the same.)
-  const core: Core = process.env.ZENO_VOICE_ONLY === "1" ? createEchoCore() : createCore({ model, tools: toolEngine });
+  const core: Core = process.env.ZENO_VOICE_ONLY === "1" ? createEchoCore() : createCore({
+        model,
+        tools: toolEngine,
+        context: (input, context) => {
+          current = { source: input.source, requestId: context.requestId };
+          if (!memory) return undefined;
+          const block = memoryContext(input.text, { store: memory });
+          log.debug("memory.context", { requestId: context.requestId, kept: memory.count(), used: block ? block.split("\n").length - 1 : 0 });
+          return block;
+        },
+      });
   const settingsPath = options.settingsPath;
   const settings = createModelSettings({
     initial,
@@ -109,6 +152,7 @@ export function createRuntime(
     stt,
     tts,
     computer,
+    ...(memory ? { memory, islandMemory } : {}),
     record: (handlers) => startRecording(config.audio, handlers),
     async micName() {
       if (config.audio.inputDevice !== ":default") return config.audio.inputDevice;
@@ -116,6 +160,19 @@ export function createRuntime(
       return name ? `macOS default: ${name}` : "macOS default";
     },
   };
+}
+
+/** Opens the memory store, or returns undefined (memory off, or the file cannot be opened: ZENO still runs). */
+function openMemory(path: string, log: Logger): MemoryStore | undefined {
+  if (process.env.ZENO_MEMORY === "0") return undefined;
+  try {
+    const store = openMemoryStore({ path });
+    log.info("memory.open", { kept: store.count() });
+    return store;
+  } catch (error) {
+    log.error("memory.unavailable", { ...errorFields(error) });
+    return undefined;
+  }
 }
 
 /** Machine-readable error details for the log (messages are already free of credentials). */

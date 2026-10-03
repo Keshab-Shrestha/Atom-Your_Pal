@@ -269,3 +269,39 @@ test("without tools the request offers none and tool calls are not run", async (
   await createCore({ model }).handle({ text: "hi", source: "text" });
   assert.equal("tools" in requests[0], false);
 });
+
+test("context: extra text joins the system prompt for that request only; a failing provider is ignored", async () => {
+  const { model, requests } = fakeModel();
+  let calls = 0;
+  const core = createCore({
+    model,
+    context: (input, context) => {
+      calls++;
+      if (input.text === "boom") throw new Error("store gone");
+      return input.text === "tea" ? `Known: likes tea (${context.source})` : undefined;
+    },
+  });
+  await core.handle({ text: " tea ", source: "voice" });
+  await core.handle({ text: "hello", source: "voice" });
+  await core.handle({ text: "boom", source: "text" });
+  assert.equal(calls, 3);
+  assert.equal(requests[0].system, `${DEFAULT_SYSTEM_PROMPT}\n\nKnown: likes tea (voice)`);
+  assert.equal(requests[1].system, DEFAULT_SYSTEM_PROMPT);
+  assert.equal(requests[2].system, DEFAULT_SYSTEM_PROMPT);
+});
+
+test("context: tool rounds keep the same system prompt", async () => {
+  let n = 0;
+  const requests: ModelRequest[] = [];
+  const model: LanguageModel = {
+    async complete(request) {
+      requests.push(structuredClone(request));
+      return n++ === 0 ? { text: "", toolCalls: [{ id: "c1", name: "t", input: {} }] } : { text: "done" };
+    },
+  };
+  const tools: ToolRunner = { specs: () => [{ name: "t", description: "", inputSchema: { type: "object" } }], run: async (c) => ({ callId: c.id, content: "ok" }) };
+  const core = createCore({ model, tools, context: () => "Known: X" });
+  await core.handle({ text: "go", source: "text" });
+  assert.equal(requests.length, 2);
+  for (const r of requests) assert.ok(r.system.endsWith("Known: X"));
+});

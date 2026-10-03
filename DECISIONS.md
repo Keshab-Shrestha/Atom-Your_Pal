@@ -1058,6 +1058,25 @@ ZENO will act on the Mac by voice command ("open Safari and search for X") throu
 
 ---
 
+## ADR-058 — Memory v1: Facts the User Asks ZENO to Keep (Phase 1)
+
+**Status:** Accepted (2026-10-04). First step of Phase 1 (Memory); follows ADR-015 (memory is not conversation history) and SECURITY.md §17.
+
+**Context.** ZENO forgets everything when it quits. Keshab asked to keep building past the desktop phase. The smallest useful memory is the one a person expects from an assistant: "remember that…", "what do you know about…", "forget that…", and ZENO using what it knows without being asked.
+
+**Decision.**
+- **Only what the user asks to keep.** ZENO saves a fact when the user asks it to remember something, or states a lasting personal fact and agrees when ZENO offers. Conversation turns are never stored automatically (ADR-015).
+- **Local and private.** One SQLite file on this Mac (`data/memory.db`, gitignored; Node's built-in `node:sqlite`, no new dependency). Nothing is sent anywhere except, as context, to the model already in use.
+- **Every memory has** (SECURITY.md §17): an *owner* (the single local user for now), a *scope* (`personal`), *provenance* (how it arrived: voice or text, the request id, the time), and a *lifecycle* (forgotten on request, which deletes the row; no soft delete).
+- **Three tools** through the Tool Engine: `remember` (save one short fact), `recall` (search what is kept), `forget` (delete by id, after recall found it). The model chooses them; the tools validate input like any other.
+- **Known facts in every request.** The Core asks a context provider for what is relevant and adds it to the system prompt: up to 12 memories, the newest and those matching the request (full-text search), each with its id, so the model can use or forget them. If none are kept, nothing is added.
+- **Limits.** One memory is at most 300 characters; at most 500 are kept, and the store refuses more rather than dropping old ones silently. Logs record counts and ids, never memory text.
+- Off with `ZENO_MEMORY=0`.
+
+**Consequences.** ZENO remembers across restarts. The model sees kept facts, so a fact the user wants private from the model should not be told to ZENO; Settings will list and delete memories (next task). Automatic extraction, summaries, embeddings and knowledge (documents) stay deferred.
+
+---
+
 ## Final Architectural Principle
 
 > Preserve the future without prematurely implementing it.

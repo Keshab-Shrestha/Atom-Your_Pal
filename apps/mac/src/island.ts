@@ -4,7 +4,15 @@
 import { createInterface } from "node:readline";
 import type { Readable } from "node:stream";
 import type { Logger } from "@zeno/shared";
-import { PROTOCOL_VERSION, createLevelThrottle, encodeEvent, parseCommand, type IslandCommand, type IslandEvent } from "./island-protocol.ts";
+import {
+  PROTOCOL_VERSION,
+  createLevelThrottle,
+  encodeEvent,
+  parseCommand,
+  type IslandCommand,
+  type IslandEvent,
+  type MemoryItem,
+} from "./island-protocol.ts";
 import type { ComputerBridge } from "./computer-bridge.ts";
 import type { ModelSettings } from "./model-settings.ts";
 import type { SpeechToText } from "./stt.ts";
@@ -26,6 +34,8 @@ export interface IslandOptions {
   settings?: Pick<ModelSettings, "info" | "setModel">;
   /** Computer control (ADR-054): shows what ZENO is doing and asks before risky actions. Absent when it is off. */
   computer?: Pick<ComputerBridge, "attach" | "answer" | "cancelAll">;
+  /** What ZENO keeps (ADR-058), for Settings. Absent when memory is off: `memory.*` answers `enabled: false`. */
+  memory?: IslandMemory;
   micName(): Promise<string>;
   /** Plain-language error text for the user. */
   describe(error: unknown): string;
@@ -38,6 +48,15 @@ export interface IslandOptions {
   onQuit(): void;
   silenceWarnMs?: number;
   levelIntervalMs?: number;
+}
+
+export interface IslandMemory {
+  list(): MemoryItem[];
+  count(): number;
+  forget(id: number): boolean;
+  clear(): number;
+  /** Called after ZENO keeps or forgets something by itself (the remember / forget tools). Returns an unsubscribe. */
+  onChange(listener: () => void): () => void;
 }
 
 export interface IslandSession {
@@ -138,11 +157,34 @@ export function runIsland(options: IslandOptions): IslandSession {
         sendInfo();
         return;
       }
+      case "memory.list":
+        memoryWatched = true; // from now on, changes ZENO makes by itself are sent too
+        sendMemory();
+        return;
+      case "memory.forget":
+        if (options.memory?.forget(command.id)) options.log?.info("memory.change", { action: "forget", id: command.id, by: "settings" });
+        sendMemory();
+        return;
+      case "memory.clear": {
+        const removed = options.memory?.clear() ?? 0;
+        if (removed) options.log?.info("memory.change", { action: "clear", removed, by: "settings" });
+        sendMemory();
+        return;
+      }
       case "quit":
         quit();
         return;
     }
   }
+
+  function sendMemory() {
+    const memory = options.memory;
+    send(memory ? { type: "memory", enabled: true, count: memory.count(), memories: memory.list() } : { type: "memory", enabled: false, count: 0, memories: [] });
+  }
+  let memoryWatched = false;
+  const stopMemoryUpdates = options.memory?.onChange(() => {
+    if (memoryWatched) sendMemory();
+  });
 
   function sendInfo() {
     if (options.settings) send({ type: "info", ...options.settings.info() });
@@ -166,6 +208,7 @@ export function runIsland(options: IslandOptions): IslandSession {
   function quit() {
     if (quitting) return;
     quitting = true;
+    stopMemoryUpdates?.();
     options.log?.info("app.quit");
     options.computer?.cancelAll();
     loop.cancel();

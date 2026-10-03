@@ -1,6 +1,8 @@
 # ZENO Project Status
 
-Last updated: 2026-10-03
+Last updated: 2026-10-04
+
+Phase 1 (Memory) has started at Keshab's request, with Phase 0.5's hands-on checks deferred, not dropped. Task 1.1 (ADR-058): ZENO keeps facts the user asks it to remember in a local SQLite file, uses them in every request, and forgets them on request; Settings → Memory lists and deletes them. Checked live in text on the Claude plan, across a restart. Next: Keshab tries it by voice.
 
 Keshab's end-to-end check (Task 0.5.9, 2026-10-03): talk, follow-up, interrupt, dictation, Settings and the Decline card all passed. Opening the panel made Wisp jump, and pointing near corners had no room for the bubble, so ADR-056 gives each part a fixed home: the panel hangs under a new menu-bar icon, Mac work shows in a strip above the Dock (step, Stop, Allow/Decline), and Wisp only points with a short label (Task 0.5.10). It is built and tested (301 Swift tests) but not yet seen on screen, because the Mac was locked. Next: Keshab's live look at 0.5.10, then pointing by voice.
 
@@ -47,6 +49,8 @@ ZENO runtime (Phase 0, apps/mac/src)
     ↓
 Microphone → Whisper → Core → LLM Gateway → LLM → Kokoro → Speaker
 ```
+
+### Next: Phase 1 — Memory (started 2026-10-04, Task 1.1 built)
 
 ### Completed
 
@@ -107,7 +111,7 @@ Phase 0 components (microphone, Whisper, Core, LLM Gateway, providers, Kokoro, c
 
 The following remain future work (Phase 0.5 deferrals are listed in TASK.md):
 
-- persistent memory
+- automatic memory (summaries, extraction without being asked), embeddings
 - RAG
 - knowledge graph
 - team knowledge
@@ -260,7 +264,7 @@ Tasks 0.5.1–0.5.4b are done: the island lives at the left edge and shows ZENO'
 
 Task 0.5.5 (expanded island with settings) is done. Task 0.5.6 (shortcuts in every app) is coded and partly checked live; hand checks remain. Voice testing is paused at Keshab's request, so Task 0.5.7 (Dictation) waits and Task 0.5.8 (Wisp) is built and waits for Keshab's look on the real desktop.
 
-Do not start Phase 1 (Memory) until Phase 0.5 has been verified.
+Phase 1 (Memory) started on 2026-10-04 at Keshab's request ("skip the tests… continue building"); Phase 0.5's open hand checks are kept in TASK.md. Task 1.1 (remember, recall, forget, and the Memory page) is built and checked live in text. Next: Keshab tries it by voice, then Task 1.2.
 
 ---
 

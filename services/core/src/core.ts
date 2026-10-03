@@ -19,6 +19,11 @@ export interface CoreOptions {
   /** Most tool rounds in one request, so a confused model cannot loop forever. */
   maxToolRounds?: number;
   systemPrompt?: string;
+  /**
+   * Extra context for one request (ADR-058: what ZENO remembers that may matter). Its text is added to the system
+   * prompt for this request only. A failing provider is ignored: the request goes on without it.
+   */
+  context?: (input: ZenoInput, context: RequestContext) => string | undefined;
   /** Maximum user+assistant turn pairs kept in session history (bounds prompt size). */
   maxTurns?: number;
   newId?: () => string;
@@ -51,7 +56,8 @@ export function createCore(options: CoreOptions): Core {
     model,
     tools,
     maxToolRounds = 8,
-    systemPrompt = DEFAULT_SYSTEM_PROMPT,
+    systemPrompt: basePrompt = DEFAULT_SYSTEM_PROMPT,
+    context: contextFor,
     maxTurns = 20,
     newId = randomUUID,
     now = () => new Date(),
@@ -73,6 +79,13 @@ export function createCore(options: CoreOptions): Core {
       const context: RequestContext = { requestId: newId(), sessionId, source: input.source, receivedAt: now() };
       const userTurn: Message = { role: "user", content: text };
       const sessionAtStart = sessionId;
+      let extra: string | undefined;
+      try {
+        extra = contextFor?.({ ...input, text }, context)?.trim() || undefined;
+      } catch {
+        extra = undefined; // memory is a help, never a reason to fail a request
+      }
+      const systemPrompt = extra ? `${basePrompt}\n\n${extra}` : basePrompt;
 
       busy = true;
       try {

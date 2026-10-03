@@ -6,6 +6,8 @@
     "@huggingface/transformers": "3.8.1",
     "@zeno/core": "workspace:*",
     "@zeno/llm-gateway": "workspace:*",
+    "@zeno/memory": "workspace:*",
+    "@zeno/contracts": "workspace:*",
     "@zeno/shared": "workspace:*",
     "@zeno/tool-engine": "workspace:*",
     "kokoro-js": "^1.2.1"

@@ -151,3 +151,47 @@ struct IslandStatusDetailTests {
         #expect(status.lastTimings == second)
     }
 }
+
+
+@Suite("Memory protocol")
+struct MemoryProtocolTests {
+    func object(_ command: IslandCommand) throws -> [String: Any] {
+        let line = command.line
+        #expect(line.hasSuffix("\n") && !line.dropLast().contains("\n"))
+        return try #require(try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any])
+    }
+
+    @Test func commands() throws {
+        #expect(try object(.memoryList) as? [String: String] == ["type": "memory.list"])
+        #expect(try object(.memoryClear) as? [String: String] == ["type": "memory.clear"])
+        let forget = try object(.memoryForget(id: 12))
+        #expect(forget["type"] as? String == "memory.forget")
+        let id = try #require(forget["id"] as? NSNumber)
+        #expect(id.intValue == 12 && CFGetTypeID(id) != CFBooleanGetTypeID()) // a number, not "12"
+    }
+
+    @Test func decodesMemoryNewestFirst() throws {
+        let line = #"{"type":"memory","enabled":true,"count":2,"memories":[{"id":2,"text":"Keshab drinks tea.","createdAt":"2026-10-04T01:02:03.456Z","source":"voice"},{"id":1,"text":"Sister: Asha","createdAt":"bad","source":"text","extra":1}]}"#
+        guard case .memory(let list) = try decodeEvent(line) else { Issue.record("not memory"); return }
+        #expect(list.enabled && list.count == 2)
+        #expect(list.memories.map(\.id) == [2, 1])
+        #expect(list.memories[0].text == "Keshab drinks tea.")
+        #expect(list.memories[0].createdAt == Date(timeIntervalSince1970: 1_791_075_723.456))
+        #expect(list.memories[1].createdAt == nil) // an unreadable date is dropped, the fact is kept
+        #expect(list.memories[1].source == "text")
+        #expect(IslandEvent.memory(list).name == "memory") // never the text
+    }
+
+    @Test func memoryOffAndBadLists() throws {
+        #expect(try decodeEvent(#"{"type":"memory","enabled":false,"count":0,"memories":[]}"#) == .memory(MemoryList(enabled: false, count: 0, memories: [])))
+        #expect(throws: ProtocolError.missingField(event: "memory", field: "memories")) {
+            try decodeEvent(#"{"type":"memory","enabled":true,"count":0}"#)
+        }
+        #expect(throws: ProtocolError.invalidValue(event: "memory", field: "memories")) {
+            try decodeEvent(#"{"type":"memory","enabled":true,"count":1,"memories":[{"id":"1","text":"x"}]}"#)
+        }
+        #expect(throws: ProtocolError.invalidValue(event: "memory", field: "memories")) {
+            try decodeEvent(#"{"type":"memory","enabled":true,"count":1,"memories":[{"id":true,"text":"x"}]}"#)
+        }
+    }
+}

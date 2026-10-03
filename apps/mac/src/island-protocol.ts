@@ -15,6 +15,9 @@ export type IslandCommand =
   | { type: "conversation.reset" }
   | { type: "model.set"; provider: string; model: string }
   | { type: "approval.answer"; id: string; approved: boolean }
+  | { type: "memory.list" }
+  | { type: "memory.forget"; id: number }
+  | { type: "memory.clear" }
   | { type: "quit" };
 
 export type ErrorStage =
@@ -34,6 +37,15 @@ export interface InfoEvent {
   provider: string;
   model: string;
   providers: { id: string; name: string; available: boolean; models: { id: string; name: string }[] }[];
+}
+
+/** One kept memory, for Settings (ADR-058). Travels only over the private pipe; never logged. */
+export interface MemoryItem {
+  id: number;
+  text: string;
+  /** ISO 8601. */
+  createdAt: string;
+  source: "voice" | "text";
 }
 
 export type IslandEvent =
@@ -59,9 +71,21 @@ export type IslandEvent =
   | { type: "approval.request"; id: string; summary: string; reason: string }
   | { type: "approval.closed"; id: string }
   | InfoEvent
+  | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[] }
   | { type: "error"; stage: ErrorStage; message: string; kind?: string; retryable?: boolean };
 
-const COMMANDS = new Set<IslandCommand["type"]>(["talk.start", "talk.send", "talk.cancel", "conversation.reset", "model.set", "approval.answer", "quit"]);
+const COMMANDS = new Set<IslandCommand["type"]>([
+  "talk.start",
+  "talk.send",
+  "talk.cancel",
+  "conversation.reset",
+  "model.set",
+  "approval.answer",
+  "memory.list",
+  "memory.forget",
+  "memory.clear",
+  "quit",
+]);
 
 export type ParsedLine = { command: IslandCommand } | { error: string } | { blank: true };
 
@@ -91,6 +115,11 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof id !== "string" || id === "") return { error: 'approval.answer needs an "id" string.' };
     if (typeof approved !== "boolean") return { error: 'approval.answer needs "approved" to be true or false.' };
     return { command: { type, id, approved } };
+  }
+  if (type === "memory.forget") {
+    const { id } = value as { id?: unknown };
+    if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: 'memory.forget needs an "id" that is a whole number.' };
+    return { command: { type, id } };
   }
   return { command: { type } as IslandCommand }; // extra fields are ignored (forward compatibility)
 }

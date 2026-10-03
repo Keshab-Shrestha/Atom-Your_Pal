@@ -15,6 +15,9 @@ public enum IslandCommand: Sendable, Equatable {
     case modelSet(provider: String, model: String)
     /// The user's answer to an `approval.request` (ADR-054).
     case approvalAnswer(id: String, approved: Bool)
+    /// Memory (ADR-058): ask for the list (and its changes from then on), forget one, or forget everything.
+    case memoryList, memoryClear
+    case memoryForget(id: Int)
 
     /// The command's `type` field. Safe for logs: never includes values.
     public var type: String {
@@ -26,6 +29,9 @@ public enum IslandCommand: Sendable, Equatable {
         case .quit: "quit"
         case .modelSet: "model.set"
         case .approvalAnswer: "approval.answer"
+        case .memoryList: "memory.list"
+        case .memoryClear: "memory.clear"
+        case .memoryForget: "memory.forget"
         }
     }
 
@@ -39,6 +45,9 @@ public enum IslandCommand: Sendable, Equatable {
         if case .approvalAnswer(let id, let approved) = self {
             fields["id"] = id
             fields["approved"] = approved // a real JSON boolean: the runtime refuses the strings "true" and "yes"
+        }
+        if case .memoryForget(let id) = self {
+            fields["id"] = id // a JSON number: the runtime refuses "2"
         }
         // A dictionary of strings and booleans is always valid JSON, so this cannot fail.
         guard let data = try? JSONSerialization.data(withJSONObject: fields, options: [.sortedKeys, .withoutEscapingSlashes]),
@@ -91,6 +100,37 @@ public struct ModelInfo: Sendable, Equatable {
     public var currentModelName: String {
         currentProvider?.models.first { $0.id == model }?.name
             ?? IslandStatus.displayName(provider: provider, model: model)
+    }
+}
+
+/// One fact ZENO keeps (ADR-058), as listed in Settings. Never written to a log.
+public struct MemoryItem: Sendable, Equatable, Identifiable {
+    public var id: Int
+    public var text: String
+    public var createdAt: Date?
+    /// "voice" or "text".
+    public var source: String
+
+    public init(id: Int, text: String, createdAt: Date?, source: String) {
+        self.id = id
+        self.text = text
+        self.createdAt = createdAt
+        self.source = source
+    }
+}
+
+/// What ZENO keeps, from the `memory` event.
+public struct MemoryList: Sendable, Equatable {
+    /// False when memory is off in the runtime (`ZENO_MEMORY=0`, or the file could not be opened).
+    public var enabled: Bool
+    public var count: Int
+    /// Newest first.
+    public var memories: [MemoryItem]
+
+    public init(enabled: Bool, count: Int, memories: [MemoryItem]) {
+        self.enabled = enabled
+        self.count = count
+        self.memories = memories
     }
 }
 
@@ -157,6 +197,8 @@ public enum IslandEvent: Sendable, Equatable {
     /// That request is no longer waiting: answered, declined, timed out or cancelled.
     case approvalClosed(id: String)
     case info(ModelInfo)
+    /// What ZENO keeps (ADR-058): after `memory.list`, and after every change from then on.
+    case memory(MemoryList)
     case error(RuntimeError)
     /// A newer runtime sent an event this island does not know; ignored for forward compatibility.
     case unknown(type: String)
@@ -179,6 +221,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .approvalRequest: "approval.request"
         case .approvalClosed: "approval.closed"
         case .info: "info"
+        case .memory: "memory"
         case .error(let e): "error:\(e.stage)"
         case .unknown(let type): "unknown:\(type)"
         }
@@ -259,6 +302,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
             provider: try f.string("provider"),
             model: try f.string("model"),
             providers: try f.providers()))
+    case "memory":
+        return .memory(MemoryList(enabled: try f.bool("enabled"), count: try f.int("count"), memories: try f.memories()))
     case "error":
         return .error(RuntimeError(
             stage: try f.string("stage"),
@@ -325,6 +370,23 @@ private struct Fields {
                 else { throw invalid }
                 return ModelOption(id: id, name: name)
             })
+        }
+    }
+
+    /// The `memories` list of a `memory` event; any malformed entry makes the whole list invalid.
+    func memories() throws -> [MemoryItem] {
+        guard let value = values["memories"] else { throw ProtocolError.missingField(event: event, field: "memories") }
+        let invalid = ProtocolError.invalidValue(event: event, field: "memories")
+        guard let entries = value as? [Any] else { throw invalid }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return try entries.map { entry in
+            guard let m = entry as? [String: Any],
+                  let id = m["id"] as? NSNumber, CFGetTypeID(id) != CFBooleanGetTypeID(),
+                  let text = m["text"] as? String
+            else { throw invalid }
+            let date = (m["createdAt"] as? String).flatMap { iso.date(from: $0) }
+            return MemoryItem(id: id.intValue, text: text, createdAt: date, source: m["source"] as? String ?? "voice")
         }
     }
 

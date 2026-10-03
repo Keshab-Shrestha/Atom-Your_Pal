@@ -34,6 +34,8 @@ final class IslandModel {
     var pendingModel: String?
     /// Why the last model switch was refused, shown under the model list until the next attempt.
     var modelError: String?
+    /// What ZENO keeps (ADR-058). Nil until the Memory page first asks the runtime.
+    var memory: MemoryList?
 
     var expanded = false
     /// The panel is fading out after being closed: it still draws the expanded view until it is gone.
@@ -50,6 +52,7 @@ final class IslandModel {
         case wisp = "Wisp"
         case bubble = "Speech bubble"
         case panel = "Panel"
+        case memory = "Memory"
         case general = "General"
         var id: String { rawValue }
 
@@ -62,6 +65,7 @@ final class IslandModel {
             case .wisp: "face.smiling.inverse"
             case .bubble: "text.bubble.fill"
             case .panel: "menubar.rectangle"
+            case .memory: "brain.head.profile"
             case .general: "gearshape.fill"
             }
         }
@@ -113,12 +117,24 @@ final class IslandModel {
         send(.conversationReset)
     }
 
+    /// The Memory page opened: ask for the list. From then on the runtime also sends its changes.
+    func loadMemory() { send(.memoryList) }
+    func forgetMemory(_ id: Int) {
+        memory?.memories.removeAll { $0.id == id } // at once; the runtime's answer confirms
+        send(.memoryForget(id: id))
+    }
+    func forgetAllMemory() { send(.memoryClear) }
+
     /// Keeps the conversation and model list in step with the runtime. The status is applied by the controller.
     func apply(_ event: IslandEvent) {
         conversation.apply(event)
         approval.apply(event)
         pointing.apply(event)
         switch event {
+        case .memory(let list):
+            memory = list
+        case .ready:
+            if memory != nil { send(.memoryList) } // a restarted runtime: ask again so updates keep coming
         case .info(let info):
             modelInfo = info
             pendingModel = nil
