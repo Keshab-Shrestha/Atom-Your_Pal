@@ -24,6 +24,8 @@ final class IslandModel {
     var approval = ApprovalState()
     /// The place ZENO is showing the user, if any (ADR-054).
     var pointing = PointingState()
+    /// The strip above the Dock while ZENO works on the Mac (ADR-056). Written by the controller, which knows the time.
+    var work = WorkStripState()
     var meter = LevelMeter(bars: 14)
     var conversation = Conversation()
     /// The model in use and the choices, from the runtime's `info` event.
@@ -59,6 +61,8 @@ final class IslandModel {
     @ObservationIgnored var send: (IslandCommand) -> Void = { _ in }
     /// Opens or closes the expanded view. Set by the controller.
     @ObservationIgnored var setExpanded: (Bool) -> Void = { _ in }
+    /// The work strip's Stop button: the same as Esc. Set by the controller.
+    @ObservationIgnored var stopWork: () -> Void = {}
 
     init(settings: IslandSettings) {
         self.settings = settings

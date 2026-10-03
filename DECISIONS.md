@@ -1023,6 +1023,23 @@ ZENO will act on the Mac by voice command ("open Safari and search for X") throu
 
 ---
 
+## ADR-056 — The Panel Lives in the Menu Bar; Mac Work Shows in a Strip Above the Dock
+
+**Status:** Accepted (2026-10-03). Replaces the panel placement of ADR-037/ADR-051 and the bubble/card placement of ADR-054 while ZENO works on the Mac.
+
+**Context.** Keshab's end-to-end check (Task 0.5.9) found two faults with one cause: everything was attached to Wisp. Opening the panel beside Wisp moved and froze Wisp, and the panel jumped with it ("Wisp positioning goes haywire"). When Wisp flew to point at something near a corner, its 340-point status bubble and the approval card had no room, so Wisp stood in awkward places or the bubble covered the thing pointed at.
+
+**Decision.** Wisp only walks, reacts and points. Everything else gets a fixed home.
+
+- **Menu bar.** ZENO gets a menu-bar icon (`NSStatusItem`) whose symbol and colour follow ZENO's state. A click opens the panel (Conversation, Status, Settings) just below the icon, like Wi-Fi or Control Centre; a click outside, Esc, the shortcut or a second click closes it. Right-click: Open ZENO, Show Wisp, Quit ZENO. Clicking Wisp opens the same panel in the same place. The panel never moves or freezes Wisp. The left-edge hover band (ADR-037) is removed; without Wisp, the compact status card shows under the icon during a turn.
+- **Work strip.** From ZENO's first action on the Mac (a step, a point, or an approval request) until the turn ends, a slim strip shows at the bottom centre of the main display, above the Dock and Wisp's walkway: the current step and a Stop button (the same as Esc). An approval request grows the strip with what ZENO wants to do, why, and Decline / Allow. It lingers briefly after the turn so the outcome can be read, and never takes focus, so the app being controlled keeps it.
+- **Pointing.** Wisp flies to the target and shows only a short label pill beside it (the model's label, or "Here"). Wisp's status bubble is not shown while the strip is up or Wisp is pointing, so nothing covers the target.
+- Wisp's status bubble stays for ordinary talk and dictation.
+
+**Consequences.** The panel has one place, so it can never push Wisp or be pushed off a display. The approval card no longer depends on where Wisp is. The icon takes a little menu-bar space. The Wisp-anchored approval card and the left-edge island code are removed.
+
+---
+
 ## Final Architectural Principle
 
 > Preserve the future without prematurely implementing it.

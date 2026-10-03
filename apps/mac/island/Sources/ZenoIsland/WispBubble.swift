@@ -100,8 +100,6 @@ final class BubbleController {
     private let panel: NSPanel
     private var feet = CGPoint.zero
     private var hiding: Task<Void, Never>?
-    /// Set while Wisp points: the side that keeps the bubble off the thing pointed at.
-    var preferredSide: BubblePlacement.Side? { didSet { if panel.isVisible { reposition() } } }
 
     var isVisible: Bool { state.visible }
 
@@ -179,7 +177,7 @@ final class BubbleController {
         let scale = settings.bubbleSize.scale
         let wisp = settings.wispSize.scale // a bigger Wisp stands taller: the bubble clears its head
         let size = CGSize(width: BubbleLayout.size.width * scale, height: BubbleLayout.size.height * scale)
-        let placement = BubbleLayout.place(feet: feet, bodyHeight: 54 * wisp, size: size, in: bounds, prefer: preferredSide)
+        let placement = BubbleLayout.place(feet: feet, bodyHeight: 54 * wisp, size: size, in: bounds)
         let tailOnTop = placement.side == .below
         // The tail is drawn in the bubble's own (unscaled) coordinates.
         let tailX = placement.tailX / scale

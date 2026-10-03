@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-03
 
-Voice computer control through Cua (ADR-054, Tasks 0.6.1–0.6.4) is built: tool calling, the `computer` tool (including `point`), and Wisp showing the work with an Allow/Decline card and flying to what the model points at. Still unseen by hand: the approval card and pointing by voice. Next after Task 0.5.9: Task 0.5.9 itself, then Phase 0.6 hand checks.
+Keshab's end-to-end check (Task 0.5.9, 2026-10-03): talk, follow-up, interrupt, dictation, Settings and the Decline card all passed. Opening the panel made Wisp jump, and pointing near corners had no room for the bubble, so ADR-056 gives each part a fixed home: the panel hangs under a new menu-bar icon, Mac work shows in a strip above the Dock (step, Stop, Allow/Decline), and Wisp only points with a short label (Task 0.5.10). It is built and tested (301 Swift tests) but not yet seen on screen, because the Mac was locked. Next: Keshab's live look at 0.5.10, then pointing by voice.
 
 ---
 
@@ -166,7 +166,7 @@ Phase 0.5 decisions (ADR-033 to ADR-042):
 - A desktop island comes before Memory
 - Native Swift app for the island; the Node runtime runs as its child process, talking JSON lines over stdin / stdout
 - Hold Ctrl+Option to talk, from any app (listen-only key reading, Input Monitoring permission)
-- Hidden past the left edge, below the menu bar (moved from the top-centre, ADR-037); revealed on hover and while talking
+- The panel hangs below ZENO's menu-bar icon (ADR-056; was the left edge, ADR-037, then beside Wisp, ADR-051); ZENO's work on the Mac shows in a strip above the Dock
 - Compact view: live state and level meter; expanded: Conversation, Status, Settings (provider and model); dark glass (ADR-038)
 
 ---

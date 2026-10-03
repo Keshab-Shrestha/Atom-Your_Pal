@@ -2,10 +2,12 @@ import AppKit
 import SwiftUI
 import ZenoIslandCore
 
-/// Places the island at the left edge of the display with the menu bar, below the menu bar (ADR-037),
-/// and slides it in and out as the pointer reaches that edge. Pointer tracking uses mouse-moved events,
-/// which need no permission. Clicking the card expands it in place (ADR-038); a click elsewhere, Esc or
-/// the collapse button folds it back.
+/// Gives each part of ZENO's face a fixed home (ADR-056):
+/// - the panel (Conversation, Status, Settings) hangs below ZENO's menu-bar icon; a click on the icon or on Wisp,
+///   or the shortcut, opens it, and a click elsewhere, Esc or the collapse button closes it;
+/// - the status goes in Wisp's bubble, or — with Wisp off — in a small card under the icon during a turn;
+/// - while ZENO works on the Mac, a strip at the bottom centre shows the step, Stop, and any approval request;
+/// - while Wisp points, a short label sits beside it and nothing else is near it.
 @MainActor
 final class IslandController {
     let model: IslandModel
@@ -13,42 +15,39 @@ final class IslandController {
     /// Wisp, shown while the Pet setting is on (ADR-042).
     let pet: PetController
     private let panel = IslandPanel()
-    /// Wisp's speech bubble (ADR-050): while Wisp is shown and the island is closed, status appears here, not at the left edge.
+    private let menuIcon = MenuBarIcon()
+    /// Wisp's speech bubble (ADR-050): status for talk and dictation while Wisp is shown.
     private let bubble: BubbleController
-    /// Asks the user before a risky action (ADR-054): replaces the bubble while a request is waiting.
-    private let approvalCard = ApprovalController()
-    /// The bubble stays up until this time (uptime) after a turn, so the outcome can be read.
-    private var bubbleUntil = 0.0
-    private var bubbleTimer: Timer?
-    /// Talk was started by its shortcut and not yet sent or cancelled: show the island at once.
+    /// What ZENO is doing on the Mac, Stop, and approval requests (ADR-054, ADR-056).
+    private let strip: WorkStripController
+    /// The short label beside Wisp while it points.
+    private let pointLabel = PointLabelController()
+    /// Talk was started by its shortcut and not yet sent or cancelled.
     private var talking = false
     /// Dictation (ADR-047): hold, speak, let go, and the text is typed into the app in front.
     let dictation: DictationController
-    /// A dictation is in progress (listening or transcribing): the island stays out.
+    /// A dictation is in progress (listening or transcribing).
     private var dictating = false
     private let hosting: NSHostingView<IslandView>
-    private var hover = HoverController()
-    private var geometry: IslandGeometry
-    private var presentation = IslandGeometry.Presentation.compact
-    private var shown = false
+    /// What the panel window shows now: nil when it is off screen.
+    private var current: MenuPanelLayout.Presentation?
+    /// The status stays up until this time (uptime) after a turn, so the outcome can be read.
+    private var statusUntil = 0.0
+    /// Wakes the controller when a linger ends.
+    private var wakeTimer: Timer?
+    /// Counts panel changes, so a fade that finished late cannot hide a panel that was shown again.
+    private var panelGeneration = 0
     private var monitors: [Any] = []
     private var observers: [NSObjectProtocol] = []
-    private var recheck: Timer?
-    /// The features panel is open (or fading out) beside Wisp rather than at the left edge (ADR-051).
-    private var anchored = false
-    /// Counts opens and closes, so a fade that finished late cannot hide a panel that was opened again.
-    private var panelGeneration = 0
-    private var lastTrigger = false
     private var lastTitle = ""
-    /// Development only: when set, a PNG of the island is written here each time its title changes.
+    /// Wisp reached the place it points at: its label shows from then on.
+    private var pointArrived = false
+    /// Development only: when set, a PNG of the panel is written here each time its title changes.
     private let snapshotDirectory = ProcessInfo.processInfo.environment["ZENO_ISLAND_SNAPSHOTS"].map { URL(fileURLWithPath: $0) }
     private var snapshotCount = 0
     private let trace: (String) -> Void
 
-    /// Slide duration; with Reduce Motion the island fades instead.
-    private let slideDuration = 0.24
-    /// How long the island or bubble stays out after a turn or dictation ends, so the outcome can be seen
-    /// (Settings → Bubble → Stays).
+    /// How long the status stays after a turn or dictation ends (Settings → Bubble → Stays).
     private var afterTurn: Double { model.settings.bubbleStay.seconds }
     /// How long a notice or problem stays out.
     private let afterProblem = 6.0
@@ -57,19 +56,24 @@ final class IslandController {
         self.trace = trace
         model = IslandModel(settings: settings)
         bubble = BubbleController(model: model)
-        approvalCard.onAnswer = { [weak model] approved in model?.answerApproval(approved) }
+        strip = WorkStripController(model: model)
         shortcuts = ShortcutEngine(settings: settings, recorder: model.recorder, log: log)
         pet = PetController(settings: settings, trace: trace)
         dictation = DictationController(vocabularyURL: IslandController.vocabularyURL)
         dictation.log = log
         model.shortcuts = shortcuts
-        geometry = IslandController.currentGeometry(panel: settings.panelSize)
         hosting = NSHostingView(rootView: IslandView(model: model))
         hosting.sizingOptions = [] // the controller sets the size; SwiftUI must not resize the window
         panel.contentView = hosting
-        panel.setFrame(geometry.frame(presentation, visible: false), display: false)
         model.setExpanded = { [weak self] expanded in self?.setExpanded(expanded) }
+        model.stopWork = { [weak self] in self?.stopWork() }
         panel.onCancel = { [weak self] in self?.setExpanded(false) }
+        menuIcon.onClick = { [weak self] in
+            guard let self else { return }
+            self.setExpanded(!self.model.expanded)
+        }
+        menuIcon.isWispShown = { [weak model] in model?.settings.petEnabled ?? false }
+        menuIcon.onShowWisp = { [weak model] enabled in model?.setPet(enabled) }
         shortcuts.onTrigger = { [weak self] trigger in self?.shortcut(trigger) }
         dictation.onPhase = { [weak self] phase in self?.dictationPhase(phase) }
         dictation.onLevel = { [weak self] peak in
@@ -78,23 +82,18 @@ final class IslandController {
         }
         dictation.playSound = { [weak self] sound in self?.playTone(sound) }
         dictation.options = { [weak self] in self?.model.settings.dictationOptions ?? DictationOptions() }
-        dictation.onPreview = { [weak self] text in
-            guard let self else { return }
-            self.model.status.setPreview(text)
-        }
+        dictation.onPreview = { [weak self] text in self?.model.status.setPreview(text) }
         dictation.conversationBusy = { [weak self] in self.map { $0.talking || $0.model.status.isBusy && !$0.dictating } ?? false }
         shortcuts.trace = trace
         model.petChanged = { [weak self] enabled in
             guard let self else { return }
             self.pet.setEnabled(enabled)
-            if !enabled, self.anchored, self.model.expanded { self.moveToLeftEdge() } // Wisp is gone: the panel goes back to the edge
-            self.statusChanged() // the status moves between Wisp's bubble and the island
+            self.refresh() // the status moves between Wisp's bubble and the card under the icon
         }
         pet.onMove = { [weak self] feet in
             guard let self else { return }
             self.bubble.follow(feet)
-            self.approvalCard.follow(feet)
-            self.followWisp()
+            self.pointLabel.follow(feet)
         }
         pet.onArrive = { [weak self] in self?.arrivedAtPoint() }
         pet.onClick = { [weak self] count in self?.wispClicked(count) }
@@ -102,17 +101,7 @@ final class IslandController {
     }
 
     func start() {
-        let move: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged]
-        // Moves over other apps (global) and over the island itself (local).
-        if let global = NSEvent.addGlobalMonitorForEvents(matching: move, handler: { [weak self] _ in
-            MainActor.assumeIsolated { self?.evaluate() }
-        }) { monitors.append(global) }
-        if let local = NSEvent.addLocalMonitorForEvents(matching: move, handler: { [weak self] event in
-            MainActor.assumeIsolated { self?.evaluate() }
-            return event
-        }) { monitors.append(local) }
-
-        // A click in another app folds the expanded island back.
+        // A click in another app closes the panel.
         if let outside = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown], handler: { [weak self] _ in
             MainActor.assumeIsolated { self?.clickedOutside() }
         }) { monitors.append(outside) }
@@ -128,7 +117,7 @@ final class IslandController {
         observers.append(center.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.screensChanged() }
         })
-        // After switching Spaces (including into a full-screen app), make sure the island is still in front.
+        // After switching Spaces (including into a full-screen app), keep ZENO's windows in front.
         observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.spaceChanged() }
         })
@@ -136,22 +125,27 @@ final class IslandController {
         watchSettings()
         pet.setEnabled(model.settings.petEnabled)
         dictation.warmUp()
-        if ProcessInfo.processInfo.environment["ZENO_BUBBLE_DEMO"] != nil { playBubbleDemo() }
-        if ProcessInfo.processInfo.environment["ZENO_PANEL_DEMO"] != nil { playPanelDemo() }
-        if ProcessInfo.processInfo.environment["ZENO_LOOK_DEMO"] != nil { playLookDemo() }
-        if ProcessInfo.processInfo.environment["ZENO_HIDE_DEMO"] != nil { playHideDemo() }
-        if let spots = ProcessInfo.processInfo.environment["ZENO_POINT_DEMO"] { playPointDemo(spots) }
-        if let files = ProcessInfo.processInfo.environment["ZENO_DICTATION_FILE"] { dictation.selfTest(files: files.split(separator: ",").map(String.init)) }
+        refresh()
+        let env = ProcessInfo.processInfo.environment
+        if env["ZENO_BUBBLE_DEMO"] != nil { playBubbleDemo() }
+        if env["ZENO_PANEL_DEMO"] != nil { playPanelDemo() }
+        if env["ZENO_LOOK_DEMO"] != nil { playLookDemo() }
+        if env["ZENO_HIDE_DEMO"] != nil { playHideDemo() }
+        if env["ZENO_WORK_DEMO"] != nil { playWorkDemo() }
+        if let spots = env["ZENO_POINT_DEMO"] { playPointDemo(spots) }
+        if let files = env["ZENO_DICTATION_FILE"] { dictation.selfTest(files: files.split(separator: ",").map(String.init)) }
     }
 
     func stop() {
         shortcuts.stop()
         dictation.stop()
         pet.stop()
-        bubbleTimer?.invalidate()
-        bubble.stop()
-        approvalCard.stop()
+        wakeTimer?.invalidate()
         pointTimer?.invalidate()
+        bubble.stop()
+        strip.stop()
+        pointLabel.stop()
+        menuIcon.remove()
         for monitor in monitors { NSEvent.removeMonitor(monitor) }
         monitors = []
         for observer in observers {
@@ -159,7 +153,6 @@ final class IslandController {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
         }
         observers = []
-        recheck?.invalidate()
         panel.orderOut(nil)
     }
 
@@ -167,7 +160,11 @@ final class IslandController {
 
     func apply(_ status: RuntimeSupervisor.Status) {
         model.status.apply(status)
-        if case .running = status {} else { model.approval.runtimeStopped(); model.pointing.runtimeStopped() } // whatever it asked or showed is over
+        if case .running = status {} else { // whatever it asked or showed is over
+            model.approval.runtimeStopped()
+            model.pointing.runtimeStopped()
+            model.work.runtimeStopped()
+        }
         statusChanged()
     }
 
@@ -183,6 +180,7 @@ final class IslandController {
         default:
             break
         }
+        model.work.apply(event, now: Self.now)
         if case .computerPoint(let target) = event { startPointing(target) }
         let wasBusy = model.status.isBusy
         model.status.apply(event)
@@ -193,7 +191,6 @@ final class IslandController {
         statusChanged()
     }
 
-    /// Keeps the island out during a turn, and brings it out for a notice or problem.
     private func statusChanged() {
         pet.update(model.status.kind)
         if model.status.title != lastTitle {
@@ -202,9 +199,7 @@ final class IslandController {
             snapshotSoon()
         }
         if model.status.needsAttention { linger(afterProblem) }
-        updateHeld()
-        updateBubble()
-        evaluate()
+        refresh()
     }
 
     // MARK: - Shortcuts
@@ -226,7 +221,7 @@ final class IslandController {
             setExpanded(!model.expanded)
         case .pressed(.cancel):
             talking = false
-            if dictation.isActive { dictation.cancel() } else { model.send(.talkCancel) }
+            if dictation.isActive { dictation.cancel() } else { stopWork() }
         case .holdBegan(.dictate):
             model.meter.reset()
             dictation.holdBegan()
@@ -237,111 +232,174 @@ final class IslandController {
         default:
             break
         }
-        updateHeld()
-        evaluate()
+        refresh()
     }
 
-    /// Kept out during a turn, while talking or dictating by shortcut and while expanded.
-    private func updateHeld() {
-        shortcuts.setBusy(model.status.isBusy || talking || dictating)
-        // With Wisp out, a turn shows in its bubble and the card at the edge stays put.
-        let working = model.status.isBusy || talking || dictating
-        let held = model.expanded || (working && !bubbleMode)
-        if hover.held != held {
-            hover.held = held
-            trace("held \(held)")
-        }
+    /// Esc or the strip's Stop: ends the turn, declines anything waiting, and the strip says "Stopped".
+    private func stopWork() {
+        talking = false
+        model.send(.talkCancel)
+        if model.work.isShown(at: Self.now), model.work.outcome == .working { model.work.stopped(now: Self.now) }
+        trace("stop")
+        refresh()
     }
 
     private func linger(_ seconds: Double) {
-        let until = ProcessInfo.processInfo.systemUptime + seconds
-        if bubbleMode {
-            bubbleUntil = max(bubbleUntil, until)
-        } else {
-            hover.linger(until: until)
-        }
+        statusUntil = max(statusUntil, Self.now + seconds)
     }
 
-    /// Wisp is on screen and the island is closed: status goes in Wisp's bubble.
-    private var bubbleMode: Bool { pet.isShown && !model.expanded }
+    private static var now: Double { ProcessInfo.processInfo.systemUptime }
 
-    /// Shows or hides the bubble: up while a turn is in progress, and for a moment after.
-    private func updateBubble() {
-        updateApproval()
+    // MARK: - What shows where
+
+    /// Puts every window in step with the state. Cheap: each part only acts on a change.
+    private func refresh() {
+        menuIcon.update(model.status.kind, title: model.status.title)
+        shortcuts.setBusy(model.status.isBusy || talking || dictating)
+        updateStrip()
         updatePointing()
-        let now = ProcessInfo.processInfo.systemUptime
-        let wanted = bubbleMode && model.approval.pending == nil && (model.status.isBusy || talking || dictating || now < bubbleUntil || model.pointing.target != nil)
+        updateBubble()
+        updatePanel()
+        scheduleWake()
+    }
+
+    /// A turn or dictation is in progress, or just ended and its outcome is still showing.
+    private var statusWanted: Bool {
+        model.status.isBusy || talking || dictating || Self.now < statusUntil
+    }
+
+    /// This turn works on the Mac: the strip has the floor, Wisp's bubble and the card stay away.
+    private var workTurn: Bool { model.work.active }
+
+    private func updateStrip() {
+        let now = Self.now
+        let show = model.work.isShown(at: now)
+        if model.approval.pending != nil { pet.poke() } // the question is for the user: Wisp comes out of hiding
+        let clearance = pet.isShown ? 54 * model.settings.wispSize.scale + 10 : 0
+        if show != strip.isVisible { trace(show ? "strip show" : "strip hide") }
+        strip.update(show: show, asking: model.approval.pending != nil, clearance: clearance)
+        if show, model.approval.pending != nil { trace("strip asking \(strip.frame.integral)") }
+    }
+
+    /// Wisp's bubble: the status during talk and dictation, never while it points or while the strip is up.
+    private func updateBubble() {
+        let wanted = pet.isShown && !model.expanded && !workTurn && model.pointing.target == nil && statusWanted
         if wanted {
             if !bubble.isVisible { trace("bubble show") }
             bubble.show(at: pet.feetPoint)
-            bubbleTimer?.invalidate()
-            bubbleTimer = nil
-            // Once nothing is happening, re-check when the linger ends.
-            if !(model.status.isBusy || talking || dictating), bubbleUntil > now {
-                let timer = Timer(timeInterval: bubbleUntil - now + 0.02, repeats: false) { [weak self] _ in
-                    MainActor.assumeIsolated { self?.updateBubble() }
-                }
-                RunLoop.main.add(timer, forMode: .common)
-                bubbleTimer = timer
-            }
         } else if bubble.isVisible {
             trace("bubble hide")
             bubble.hide()
-            if bubbleMode { model.status.acknowledge() } // seen: a notice goes back to Ready, as when the island hides
+            if pet.isShown, !statusWanted { model.status.acknowledge() } // seen: a notice goes back to Ready
         }
     }
 
-    /// The approval card (ADR-054): over Wisp while a request waits, wherever Wisp is. The bubble steps aside for it.
-    /// Without Wisp it stands at the bottom of the main display, so a request is never missed.
-    private func updateApproval() {
-        if let request = model.approval.pending {
-            if !approvalCard.isVisible { trace("approval show") }
-            pet.poke() // brings Wisp out of hiding and wakes it: the question is for the user
-            let feet = pet.isShown ? pet.feetPoint : Self.bottomCentre()
-            let height = 54 * model.settings.wispSize.scale
-            approvalCard.show(request, at: feet, wispHeight: pet.isShown ? height : 0)
-        } else if approvalCard.isVisible {
-            trace("approval hide")
-            approvalCard.hide()
-        }
+    /// The panel window: open (expanded), the status card (Wisp off, a turn running), or off screen.
+    private func wantedPresentation() -> MenuPanelLayout.Presentation? {
+        if model.expanded { return .expanded }
+        guard !pet.isShown, !workTurn, statusWanted else { return nil }
+        let wide = model.status.kind == .listening && model.settings.livePreview && dictating
+        return wide ? .wide : .compact
     }
 
-    // MARK: - Pointing (ADR-054, Task 0.6.4)
+    private func updatePanel() {
+        let wanted = wantedPresentation()
+        guard wanted != current || (wanted != nil && !panel.isVisible) else { return }
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        panelGeneration += 1
+        let generation = panelGeneration
+        if let wanted {
+            let target = layout().frame(wanted)
+            if current == nil || !panel.isVisible {
+                // Drops a little from the menu bar as it fades in.
+                panel.setFrame(reduceMotion ? target : target.offsetBy(dx: 0, dy: 6), display: false)
+                panel.alphaValue = 0
+                panel.orderFrontRegardless()
+            }
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = reduceMotion ? 0.12 : 0.22
+                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.25, 1)
+                panel.animator().setFrame(target, display: true)
+                panel.animator().alphaValue = 1
+            }
+            trace("panel \(wanted) \(target.integral)")
+        } else {
+            let start = panel.frame
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = reduceMotion ? 0.1 : 0.16
+                context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+                if !reduceMotion { panel.animator().setFrame(start.offsetBy(dx: 0, dy: 4), display: true) }
+                panel.animator().alphaValue = 0
+            }, completionHandler: { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self, generation == self.panelGeneration else { return }
+                    self.panel.orderOut(nil)
+                    self.panel.alphaValue = 1
+                    self.model.closing = false
+                    self.model.status.acknowledge()
+                    self.model.meter.reset()
+                }
+            })
+            trace("panel hide")
+        }
+        current = wanted
+    }
+
+    /// Re-checks when a linger ends, even if nothing else happens.
+    private func scheduleWake() {
+        wakeTimer?.invalidate()
+        wakeTimer = nil
+        let now = Self.now
+        var times: [Double] = []
+        if statusUntil > now { times.append(statusUntil) }
+        if let hideAt = model.work.hideAt, hideAt > now { times.append(hideAt) }
+        guard let next = times.min() else { return }
+        let timer = Timer(timeInterval: next - now + 0.02, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refresh() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        wakeTimer = timer
+    }
+
+    // MARK: - Pointing (ADR-054, ADR-056)
 
     /// How long Wisp stays at the place once it gets there, so the user has time to look.
     private static let pointDwell: Double = 7
     private var pointTimer: Timer?
 
-    /// The model named a place: Wisp flies there, the bubble goes on the side that leaves the place clear.
+    /// The model named a place: Wisp flies there. Its label shows on arrival, beside it.
     private func startPointing(_ target: PointTarget) {
-        guard pet.isShown else { // no Wisp: nothing to fly. The bubble line still says what it is.
+        guard pet.isShown else { // no Wisp: nothing to fly. The strip says what it is.
             trace("point without Wisp: \(target.label)")
             return
         }
         let areas = NSScreen.screens.map { ScreenArea(frame: $0.frame, visible: $0.visibleFrame) }
         let scale = model.settings.wispSize.scale
-        let bubbleScale = model.settings.bubbleSize.scale
+        // No bubble goes with Wisp now (ADR-056): it only needs room for itself.
         guard let flight = PointPlacement.flight(to: target, screens: areas, wispHeight: 54 * scale, wispHalfWidth: 22 * scale,
-                                                 bubbleHeight: BubbleLayout.size.height * bubbleScale) else {
+                                                 bubbleHeight: 0) else {
             trace("point off every display, not flown to")
             model.pointing.clear()
             return
         }
         pointTimer?.invalidate()
         pointTimer = nil
-        bubble.preferredSide = flight.bubbleSide
+        pointArrived = false
+        pointLabel.hide()
         pet.point(at: flight.feet)
-        trace("point \(target.label) side=\(flight.bubbleSide == .above ? "above" : "below")")
+        trace("point \(target.label) feet=\(Int(flight.feet.x)),\(Int(flight.feet.y))")
     }
 
-    /// Wisp got there: the dwell starts now.
+    /// Wisp got there: the label shows and the dwell starts.
     private func arrivedAtPoint() {
+        pointArrived = true
         pointTimer?.invalidate()
         let timer = Timer(timeInterval: Self.pointDwell, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated { self?.finishPointing() }
         }
         RunLoop.main.add(timer, forMode: .common)
         pointTimer = timer
+        refresh()
     }
 
     private func finishPointing() {
@@ -351,27 +409,30 @@ final class IslandController {
         statusChanged()
     }
 
-    /// Keeps Wisp and the bubble in step with the pointing state: it ended (a new turn, a reset, the dwell) → go back.
+    /// Keeps Wisp and its label in step with the pointing state: it ended (a new turn, a reset, the dwell) → go back.
     private func updatePointing() {
-        guard model.pointing.target == nil, pet.isPointing || bubble.preferredSide != nil else { return }
+        if let target = model.pointing.target, pet.isShown, pointArrived {
+            let scale = model.settings.wispSize.scale
+            pointLabel.show(PointingState.line(for: target), feet: pet.feetPoint, wispHeight: 54 * scale, wispHalfWidth: 22 * scale)
+            if !pointLabel.isVisible { trace("point label show") }
+            return
+        }
+        if pointLabel.isVisible { pointLabel.hide() }
+        guard model.pointing.target == nil, pet.isPointing else { return }
         pointTimer?.invalidate()
         pointTimer = nil
+        pointArrived = false
         pet.endPointing()
-        bubble.preferredSide = nil
-    }
-
-    private static func bottomCentre() -> CGPoint {
-        let frame = NSScreen.screens.first?.visibleFrame ?? .zero
-        return CGPoint(x: frame.midX, y: frame.minY + 24)
     }
 
     // MARK: - Dictation
 
-    /// Shows a dictation's progress on the island, and keeps it out while one is in progress.
+    /// Shows a dictation's progress, and keeps the status out while one is in progress.
     private func dictationPhase(_ phase: DictationPhase) {
         model.status.apply(phase)
         switch phase {
         case .loading, .listening, .listeningHandsFree, .transcribing:
+            if !dictating { model.work.dismiss() } // a new request: the last Mac work is out of the way
             dictating = true
         case .done(let outcome):
             dictating = false
@@ -380,23 +441,6 @@ final class IslandController {
             dictating = false
         }
         statusChanged()
-        syncWidth()
-    }
-
-    /// The card is wider while dictating with the live preview, so the words fit. Not while expanded.
-    private func syncWidth() {
-        guard !model.expanded else { return }
-        if bubbleMode, presentation != .compact { presentation = .compact }
-        let wanted: IslandGeometry.Presentation = model.status.kind == .listening && model.settings.livePreview && dictating && !bubbleMode ? .wide : .compact
-        guard wanted != presentation else { return }
-        presentation = wanted
-        guard shown else { return }
-        let target = geometry.frame(presentation, visible: true)
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.2
-            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.25, 1)
-            panel.animator().setFrame(target, display: true)
-        }
     }
 
     /// Where the user's spelling fixes live: `vocabulary.txt` in ZENO's folder under Application Support.
@@ -409,156 +453,26 @@ final class IslandController {
         NSSound(named: sound == .start ? "Tink" : "Pop")?.play()
     }
 
-    // MARK: - Pointer
-
-    private func evaluate() {
-        // With Wisp out, the left edge is left alone (ADR-051): Wisp carries status and opens the panel, so the
-        // edge never collides with other apps that live there. Only an old edge card still on screen is put away.
-        if pet.isShown {
-            if shown, !model.expanded, !model.closing { setShown(false) }
-            return
-        }
-        let point = NSEvent.mouseLocation
-        let trigger = geometry.inTrigger(point)
-        if trigger != lastTrigger {
-            lastTrigger = trigger
-            trace("trigger \(trigger) at \(point)")
-        }
-        let output = hover.update(
-            inTrigger: trigger,
-            inKeepZone: shown && geometry.inKeepZone(point, presentation),
-            now: ProcessInfo.processInfo.systemUptime)
-        setShown(output.visible)
-        scheduleRecheck(at: output.recheckAt)
-    }
-
-    /// Re-evaluates when a delay ends even if the pointer has stopped moving (e.g. resting at the edge).
-    private func scheduleRecheck(at time: Double?) {
-        recheck?.invalidate()
-        recheck = nil
-        guard let time else { return }
-        let delay = max(0, time - ProcessInfo.processInfo.systemUptime) + 0.005
-        let timer = Timer(timeInterval: delay, repeats: false) { [weak self] _ in
-            MainActor.assumeIsolated { self?.evaluate() }
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        recheck = timer
-    }
-
-    // MARK: - Expanding
+    // MARK: - Opening and closing the panel
 
     private func setExpanded(_ expanded: Bool) {
         pet.poke()
         guard expanded != model.expanded else { return }
         trace(expanded ? "expand" : "collapse")
-        if !expanded { model.recorder.stop() }
-        if expanded ? pet.isShown : anchored {
-            setExpandedBesideWisp(expanded)
-        } else {
-            setExpandedAtEdge(expanded)
-        }
-    }
-
-    /// The features panel opens above (or below) Wisp, and fades away when closed.
-    private func setExpandedBesideWisp(_ expanded: Bool) {
-        panelGeneration += 1
-        let generation = panelGeneration
-        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        model.expanded = expanded
-        model.closing = !expanded
-        presentation = expanded ? .expanded : .compact
-        panel.acceptsKeyFocus = expanded
-        pet.setFrozen(expanded)
-        updateHeld()
-        updateBubble()
-
-        if expanded {
-            anchored = true
-            let target = wispPanelFrame()
-            if !shown || !panel.isVisible {
-                // Grows out of Wisp: starts a little smaller, nearer Wisp, and transparent.
-                panel.setFrame(reduceMotion ? target : Self.shrunk(target, toward: pet.anchorFeet), display: false)
-                panel.alphaValue = 0
-                panel.orderFrontRegardless()
-            }
-            shown = true
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = reduceMotion ? 0.12 : 0.26
-                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.25, 1)
-                if !reduceMotion { panel.animator().setFrame(target, display: true) }
-                panel.animator().alphaValue = 1
-            }
-            panel.makeKey() // key, without activating ZENO: the app you were in stays active
-        } else {
+        if !expanded {
+            model.recorder.stop()
             panel.resignKey()
-            let target = Self.shrunk(panel.frame, toward: pet.anchorFeet)
-            NSAnimationContext.runAnimationGroup({ context in
-                context.duration = reduceMotion ? 0.1 : 0.18
-                context.timingFunction = CAMediaTimingFunction(name: .easeIn)
-                if !reduceMotion { panel.animator().setFrame(target, display: true) }
-                panel.animator().alphaValue = 0
-            }, completionHandler: { [weak self] in
-                MainActor.assumeIsolated {
-                    guard let self, generation == self.panelGeneration else { return }
-                    self.panel.orderOut(nil)
-                    self.panel.alphaValue = 1
-                    self.shown = false
-                    self.anchored = false
-                    self.model.closing = false
-                    self.model.status.acknowledge()
-                    self.model.meter.reset()
-                    self.updateHeld()
-                    self.updateBubble()
-                    self.evaluate()
-                }
-            })
         }
-    }
-
-    /// The old behaviour, with no Wisp: the card at the left edge grows into the panel and folds back.
-    private func setExpandedAtEdge(_ expanded: Bool) {
         model.expanded = expanded
-        presentation = expanded ? .expanded : .compact
         panel.acceptsKeyFocus = expanded
-        updateHeld()
-        updateBubble()
-
-        let target = geometry.frame(presentation, visible: true)
-        if !shown {
-            shown = true
-            panel.setFrame(target, display: false)
-            panel.orderFrontRegardless()
-        } else {
-            let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = reduceMotion ? 0 : 0.28
-                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.25, 1)
-                panel.animator().setFrame(target, display: true)
-            }
-        }
-        if expanded {
-            // Key, so the recorder and Esc get keys, without activating ZENO: the app you were in stays active.
-            panel.makeKey()
-        } else {
-            panel.resignKey()
-            hover.dismiss() // hide soon unless the pointer is over the card
-        }
-        evaluate()
+        menuIcon.setHighlighted(expanded)
+        // Closing to nothing: keep drawing the expanded view while it fades.
+        model.closing = !expanded && wantedPresentation() == nil
+        refresh()
+        if expanded { panel.makeKey() } // key, without activating ZENO: the app you were in stays active
     }
 
-    /// Wisp was switched off while its panel was open: the panel goes to the left edge, where it opens without Wisp.
-    private func moveToLeftEdge() {
-        anchored = false
-        pet.setFrozen(false)
-        let target = geometry.frame(.expanded, visible: true)
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.28
-            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.25, 1)
-            panel.animator().setFrame(target, display: true)
-        }
-    }
-
-    /// A press on Wisp that was not a drag: opens the features panel, or closes it (ADR-051).
+    /// A press on Wisp that was not a drag: opens the panel under the icon, or closes it (ADR-051, ADR-056).
     private func wispClicked(_ count: Int) {
         trace("wisp click \(count)")
         switch PetClickAction.forPress(clickCount: count, panelOpen: model.expanded) {
@@ -568,225 +482,25 @@ final class IslandController {
         }
     }
 
-    /// Where the features panel goes: beside Wisp, on Wisp's display, inside it.
-    private func wispPanelFrame() -> CGRect {
-        let feet = pet.anchorFeet
-        guard let bounds = BubbleController.displayBounds(containing: feet) else { return geometry.frame(.expanded, visible: true) }
-        let base = geometry.metrics.expanded
-        let size = CGSize(width: min(base.width, bounds.width - 16), height: min(base.height, bounds.height - 16))
-        return BubbleLayout.place(feet: feet, gap: 8, size: size, in: bounds).frame
-    }
-
-    /// The panel keeps its place beside Wisp while Wisp is dragged.
-    private func followWisp() {
-        guard anchored, model.expanded, panel.isVisible else { return }
-        let target = wispPanelFrame()
-        if panel.frame != target { panel.setFrame(target, display: true) }
-    }
-
-    /// `frame` made a little smaller around its edge nearest `point`: how the panel grows out of, and folds back into, Wisp.
-    private static func shrunk(_ frame: CGRect, toward point: CGPoint) -> CGRect {
-        let scale: CGFloat = 0.82
-        let size = CGSize(width: frame.width * scale, height: frame.height * scale)
-        let fx = frame.width > 0 ? min(max((point.x - frame.minX) / frame.width, 0), 1) : 0.5
-        let fy = frame.height > 0 ? min(max((point.y - frame.minY) / frame.height, 0), 1) : 0.5
-        return CGRect(x: frame.minX + (frame.width - size.width) * fx, y: frame.minY + (frame.height - size.height) * fy,
-                      width: size.width, height: size.height)
-    }
-
     private func clickedOutside() {
-        guard model.expanded, !model.closing else { return }
-        // Global monitors only see clicks in other apps, so this was not on the island or Wisp.
+        guard model.expanded else { return }
+        // Global monitors only see clicks in other apps, so this was not on the panel, the icon or Wisp.
         setExpanded(false)
-    }
-
-    // MARK: - Showing and hiding
-
-    private func setShown(_ visible: Bool) {
-        guard visible != shown else { return }
-        shown = visible
-        trace(visible ? "panel show" : "panel hide")
-        let target = geometry.frame(presentation, visible: visible)
-        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-
-        if visible, !panel.isVisible {
-            // Start from the hidden position (or in place, faded out, with Reduce Motion).
-            panel.setFrame(reduceMotion ? target : geometry.frame(presentation, visible: false), display: false)
-            panel.alphaValue = reduceMotion ? 0 : 1
-            panel.orderFrontRegardless()
-        }
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = slideDuration
-            context.timingFunction = visible
-                ? CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.25, 1) // quick out, soft landing
-                : CAMediaTimingFunction(name: .easeIn)
-            if reduceMotion {
-                panel.animator().alphaValue = visible ? 1 : 0
-            } else {
-                panel.animator().setFrame(target, display: true)
-            }
-        }, completionHandler: { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self, !self.shown else { return }
-                // Fully hidden: take it off screen so it cannot catch clicks or appear on another display.
-                self.panel.orderOut(nil)
-                self.panel.alphaValue = 1
-                self.model.status.acknowledge()
-                self.model.meter.reset()
-            }
-        })
-    }
-
-    // MARK: - Development demo
-
-    /// Development only (`ZENO_BUBBLE_DEMO=1`): plays a dictation's phases through the real controller, with no
-    /// microphone and no keys, so the bubble's window can be measured on the real screen.
-    private func playBubbleDemo() {
-        let steps: [(Double, @MainActor () -> Void)] = [
-            (4, { [self] in model.meter.reset(); dictationPhase(.listening) }),
-            (6, { [self] in model.status.setPreview("send the deck before the call"); trace("demo preview") }),
-            (9, { [self] in dictationPhase(.listeningHandsFree) }),
-            (12, { [self] in dictationPhase(.transcribing) }),
-            (14, { [self] in dictationPhase(.done(.typed(words: 6))) }),
-        ]
-        for (delay, step) in steps {
-            let timer = Timer(timeInterval: delay, repeats: false) { _ in MainActor.assumeIsolated { step() } }
-            RunLoop.main.add(timer, forMode: .common)
-        }
-    }
-
-    /// Development only (`ZENO_PANEL_DEMO=1`): tucks Wisp away, brings it back with a click, opens and closes the
-    /// features panel, and runs a dictation while Wisp is hiding, all through the real controller (no pointer, no keys).
-    private func playPanelDemo() {
-        func note(_ label: String) { trace("demo \(label) | \(pet.debugState) | panel shown=\(shown) expanded=\(model.expanded) anchored=\(anchored)") }
-        let steps: [(Double, @MainActor () -> Void)] = [
-            (3, { note("start") }),
-            (4, { [self] in pet.tuckAway(); note("tuck") }),
-            (6, { note("tucked") }),
-            (7, { [self] in model.meter.reset(); dictationPhase(.listening); note("dictation starts while hidden") }),
-            (9, { note("dictating") }),
-            (10, { [self] in dictationPhase(.cancelled); note("dictation over") }),
-            (13, { [self] in pet.tuckAway(); note("tuck again") }),
-            (15, { [self] in wispClicked(1); note("click 1 opens") }),
-            (17, { note("panel open") }),
-            (18, { [self] in wispClicked(1); wispClicked(1); note("click closes") }),
-            (19.5, { note("closed") }),
-            (20, { [self] in wispClicked(1); wispClicked(2); note("double-click opens and stays") }),
-            (22, { note("still open") }),
-            (23, { [self] in setExpanded(false); note("closing") }),
-            (24.5, { note("closed again") }),
-        ]
-        for (delay, step) in steps {
-            let timer = Timer(timeInterval: delay, repeats: false) { _ in MainActor.assumeIsolated { step() } }
-            RunLoop.main.add(timer, forMode: .common)
-        }
-    }
-
-    /// Development only (`ZENO_POINT_DEMO="x,y,w,h,label;x,y,w,h,label"`): plays each place through the real event path,
-    /// 11 s apart, as the runtime would send them (Cua's coordinates: points, origin top-left of the main display).
-    private func playPointDemo(_ spots: String) {
-        for (index, spot) in spots.split(separator: ";").enumerated() {
-            let parts = spot.split(separator: ",", maxSplits: 4).map(String.init)
-            guard parts.count == 5, let x = Double(parts[0]), let y = Double(parts[1]), let w = Double(parts[2]), let h = Double(parts[3]) else { continue }
-            let target = PointTarget(x: x, y: y, w: w, h: h, label: parts[4])
-            let timer = Timer(timeInterval: 3 + Double(index) * 11, repeats: false) { [weak self] _ in
-                MainActor.assumeIsolated {
-                    guard let self else { return }
-                    self.trace("demo point \(target.label)")
-                    self.apply(.state(.thinking))
-                    self.apply(.computerPoint(target))
-                    self.apply(.state(.idle))
-                }
-            }
-            RunLoop.main.add(timer, forMode: .common)
-        }
-    }
-
-    /// Development only (`ZENO_HIDE_DEMO`): Wisp hides, then shows each lean, then the user's own lean comes back.
-    private func playHideDemo() {
-        let settings = model.settings
-        let saved = settings.wispLean
-        let steps: [(Double, @MainActor () -> Void)] = [
-            (2, { [self] in pet.tuckAway() }),
-            (5, { settings.wispLean = .slight }),
-            (8, { settings.wispLean = .deep }),
-            (11, { settings.wispLean = saved }),
-        ]
-        for (delay, step) in steps {
-            let timer = Timer(timeInterval: delay, repeats: false) { _ in MainActor.assumeIsolated { step() } }
-            RunLoop.main.add(timer, forMode: .common)
-        }
-    }
-
-    /// Development only (`ZENO_LOOK_DEMO`): changes the look settings while the app runs, so the real windows can
-    /// be measured, then puts the user's own values back.
-    private func playLookDemo() {
-        let settings = model.settings
-        let saved = (settings.wispSize, settings.wispGlow, settings.bubbleSize, settings.bubbleOpacity, settings.panelSize, settings.panelBackground, settings.bubbleStay)
-        func note(_ label: String) {
-            trace("look \(label) | wisp=\(Int(settings.wispSize.points)) | panel frame=\(Int(panel.frame.width))x\(Int(panel.frame.height)) visible=\(panel.isVisible) expanded=\(model.expanded) | bubble=\(bubble.isVisible)")
-        }
-        let steps: [(Double, @MainActor () -> Void)] = [
-            (3, { note("start") }),
-            (4, { settings.wispSize = .huge }),
-            (5.5, { note("wisp huge") }),
-            (6, { settings.bubbleSize = .large; settings.bubbleOpacity = .solid; settings.wispGlow = .bright }),
-            (6.5, { [self] in model.meter.reset(); dictationPhase(.listening) }),
-            (8, { note("bubble large while listening") }),
-            (9, { [self] in dictationPhase(.cancelled) }),
-            (10, { settings.wispSize = .small; settings.bubbleSize = .normal }),
-            (11, { note("wisp small") }),
-            (12, { settings.panelSize = .large; settings.panelBackground = .solid }),
-            (12.5, { [self] in wispClicked(1) }),
-            (14.5, { note("panel large") }),
-            (15, { settings.panelSize = .compact }),
-            (16.5, { note("panel compact while open") }),
-            (17, { [self] in setExpanded(false) }),
-            (18.5, { [self] in
-                (settings.wispSize, settings.wispGlow, settings.bubbleSize, settings.bubbleOpacity, settings.panelSize, settings.panelBackground, settings.bubbleStay) = saved
-                note("restored")
-            }),
-        ]
-        for (delay, step) in steps {
-            let timer = Timer(timeInterval: delay, repeats: false) { _ in MainActor.assumeIsolated { step() } }
-            RunLoop.main.add(timer, forMode: .common)
-        }
-    }
-
-    // MARK: - Development snapshots
-
-    private func snapshotSoon() {
-        guard snapshotDirectory != nil else { return }
-        // Long enough for some mic levels to arrive while listening.
-        let timer = Timer(timeInterval: 0.6, repeats: false) { [weak self] _ in
-            MainActor.assumeIsolated { self?.writeSnapshot() }
-        }
-        RunLoop.main.add(timer, forMode: .common)
-    }
-
-    private func writeSnapshot() {
-        guard let directory = snapshotDirectory else { return }
-        let size = geometry.size(presentation)
-        let renderer = ImageRenderer(content: IslandView(model: model, snapshot: true).frame(width: size.width, height: size.height))
-        renderer.scale = 2
-        guard let image = renderer.nsImage, let tiff = image.tiffRepresentation,
-              let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else { return }
-        snapshotCount += 1
-        let name = String(format: "%02d-%@.png", snapshotCount, model.status.title.replacingOccurrences(of: " ", with: "-"))
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try? png.write(to: directory.appendingPathComponent(name))
     }
 
     // MARK: - Displays and Spaces
 
-    private static func currentGeometry(panel: PanelSize = .normal) -> IslandGeometry {
+    /// The panel hangs from the icon; if the icon's place is unknown, from the top-right of the main display.
+    private func layout() -> MenuPanelLayout {
         var metrics = IslandMetrics()
-        metrics.expanded = panel.size
-        // The first screen is always the one with the menu bar.
-        guard let screen = NSScreen.screens.first else {
-            return IslandGeometry(screen: CGRect(x: 0, y: 0, width: 1440, height: 900), metrics: metrics)
+        metrics.expanded = model.settings.panelSize.size
+        if let anchor = menuIcon.anchor {
+            return MenuPanelLayout(screen: anchor.screen.frame, menuBarBottom: Self.menuBarBottom(of: anchor.screen), iconMidX: anchor.midX, metrics: metrics)
         }
-        return IslandGeometry(screen: screen.frame, menuBarBottom: menuBarBottom(of: screen), metrics: metrics)
+        guard let screen = NSScreen.screens.first else {
+            return MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1440, height: 900), metrics: metrics)
+        }
+        return MenuPanelLayout(screen: screen.frame, menuBarBottom: Self.menuBarBottom(of: screen), metrics: metrics)
     }
 
     /// The bottom of the menu bar. `visibleFrame` also excludes a Dock on the left or right, so only its top is used.
@@ -814,12 +528,10 @@ final class IslandController {
 
     private func applyLook() {
         bubble.lookChanged()
-        let next = IslandController.currentGeometry(panel: model.settings.panelSize)
-        guard next != geometry else { return }
-        geometry = next
-        trace("panel size \(Int(next.metrics.expanded.width))x\(Int(next.metrics.expanded.height))")
-        guard model.expanded, panel.isVisible else { return }
-        let target = anchored ? wispPanelFrame() : geometry.frame(.expanded, visible: true)
+        guard let current, panel.isVisible else { return }
+        let target = layout().frame(current)
+        guard target != panel.frame else { return }
+        trace("panel size \(Int(target.width))x\(Int(target.height))")
         NSAnimationContext.runAnimationGroup { context in
             context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.2
             panel.animator().setFrame(target, display: true)
@@ -827,20 +539,158 @@ final class IslandController {
     }
 
     private func screensChanged() {
-        let next = IslandController.currentGeometry(panel: model.settings.panelSize)
-        guard next != geometry else { return }
-        geometry = next
-        trace("screens changed: \(next.screen) menuBarBottom=\(next.menuBarBottom)")
-        if anchored, model.expanded {
-            panel.setFrame(wispPanelFrame(), display: true)
-        } else {
-            panel.setFrame(next.frame(presentation, visible: shown), display: shown)
-        }
-        evaluate()
+        trace("screens changed")
+        if let current, panel.isVisible { panel.setFrame(layout().frame(current), display: true) }
+        refresh()
     }
 
     private func spaceChanged() {
-        trace("space changed shown=\(shown)")
-        if shown { panel.orderFrontRegardless() }
+        if panel.isVisible { panel.orderFrontRegardless() }
+        strip.bringToFront()
+    }
+
+    // MARK: - Development demos
+
+    private func schedule(_ steps: [(Double, @MainActor () -> Void)]) {
+        for (delay, step) in steps {
+            let timer = Timer(timeInterval: delay, repeats: false) { _ in MainActor.assumeIsolated { step() } }
+            RunLoop.main.add(timer, forMode: .common)
+        }
+    }
+
+    private func note(_ label: String) {
+        trace("demo \(label) | \(pet.debugState) | panel=\(current.map { "\($0)" } ?? "off") frame=\(panel.isVisible ? "\(panel.frame.integral)" : "-") expanded=\(model.expanded) | icon=\(menuIcon.anchor.map { "\(Int($0.midX))" } ?? "?")")
+    }
+
+    /// Development only (`ZENO_BUBBLE_DEMO=1`): plays a dictation's phases through the real controller, with no
+    /// microphone and no keys, so the bubble's window can be measured on the real screen.
+    private func playBubbleDemo() {
+        schedule([
+            (4, { [self] in model.meter.reset(); dictationPhase(.listening) }),
+            (6, { [self] in model.status.setPreview("send the deck before the call"); trace("demo preview") }),
+            (9, { [self] in dictationPhase(.listeningHandsFree) }),
+            (12, { [self] in dictationPhase(.transcribing) }),
+            (14, { [self] in dictationPhase(.done(.typed(words: 6))) }),
+        ])
+    }
+
+    /// Development only (`ZENO_PANEL_DEMO=1`): opens and closes the panel from the icon and from Wisp, and checks
+    /// that Wisp does not move while it is open (ADR-056).
+    private func playPanelDemo() {
+        schedule([
+            (3, { [self] in note("start") }),
+            (4, { [self] in menuIcon.onClick(); note("icon click opens") }),
+            (5.5, { [self] in note("open") }),
+            (6, { [self] in menuIcon.onClick(); note("icon click closes") }),
+            (7.5, { [self] in note("closed") }),
+            (8, { [self] in wispClicked(1); note("wisp click opens") }),
+            (9.5, { [self] in note("open from wisp") }),
+            (12, { [self] in note("wisp while open (should have moved freely)") }),
+            (12.5, { [self] in setExpanded(false); note("closing") }),
+            (14, { [self] in note("closed again") }),
+        ])
+    }
+
+    /// Development only (`ZENO_WORK_DEMO=1`): a turn that works on the Mac, through the real event path: steps, an
+    /// approval request (answered by the demo), a point at the top-right corner, then the end of the turn.
+    private func playWorkDemo() {
+        let top = NSScreen.screens.first?.frame ?? .zero
+        let corner = PointTarget(x: Double(top.width) - 70, y: 4, w: 40, h: 22, label: "the Control Centre icon")
+        schedule([
+            (3, { [self] in apply(.state(.thinking)); note("thinking") }),
+            (4, { [self] in apply(.computerStep("Looking at TextEdit")); note("step 1") }),
+            (6, { [self] in apply(.computerStep("Typing in TextEdit")); note("step 2") }),
+            (8, { [self] in apply(.approvalRequest(ApprovalRequest(id: "demo", summary: "Press return in TextEdit", reason: "it uses the Return key"))); note("asking") }),
+            (12, { [self] in apply(.approvalClosed(id: "demo")); note("answered") }),
+            (13, { [self] in apply(.computerPoint(corner)); note("pointing top-right") }),
+            (18, { [self] in note("pointed") }),
+            (19, { [self] in apply(.state(.speaking)) }),
+            (21, { [self] in apply(.state(.idle)); note("turn over") }),
+            (22, { [self] in note("lingering") }),
+            (25, { [self] in note("strip gone") }),
+        ])
+    }
+
+    /// Development only (`ZENO_POINT_DEMO="x,y,w,h,label;x,y,w,h,label"`): plays each place through the real event path,
+    /// 11 s apart, as the runtime would send them (Cua's coordinates: points, origin top-left of the main display).
+    private func playPointDemo(_ spots: String) {
+        for (index, spot) in spots.split(separator: ";").enumerated() {
+            let parts = spot.split(separator: ",", maxSplits: 4).map(String.init)
+            guard parts.count == 5, let x = Double(parts[0]), let y = Double(parts[1]), let w = Double(parts[2]), let h = Double(parts[3]) else { continue }
+            let target = PointTarget(x: x, y: y, w: w, h: h, label: parts[4])
+            schedule([(3 + Double(index) * 11, { [self] in
+                trace("demo point \(target.label)")
+                apply(.state(.thinking))
+                apply(.computerPoint(target))
+                apply(.state(.idle))
+            })])
+        }
+    }
+
+    /// Development only (`ZENO_HIDE_DEMO`): Wisp hides, then shows each lean, then the user's own lean comes back.
+    private func playHideDemo() {
+        let settings = model.settings
+        let saved = settings.wispLean
+        schedule([
+            (2, { [self] in pet.tuckAway() }),
+            (5, { settings.wispLean = .slight }),
+            (8, { settings.wispLean = .deep }),
+            (11, { settings.wispLean = saved }),
+        ])
+    }
+
+    /// Development only (`ZENO_LOOK_DEMO`): changes the look settings while the app runs, so the real windows can
+    /// be measured, then puts the user's own values back.
+    private func playLookDemo() {
+        let settings = model.settings
+        let saved = (settings.wispSize, settings.wispGlow, settings.bubbleSize, settings.bubbleOpacity, settings.panelSize, settings.panelBackground, settings.bubbleStay)
+        func look(_ label: String) {
+            trace("look \(label) | wisp=\(Int(settings.wispSize.points)) | panel frame=\(Int(panel.frame.width))x\(Int(panel.frame.height)) visible=\(panel.isVisible) expanded=\(model.expanded) | bubble=\(bubble.isVisible)")
+        }
+        schedule([
+            (3, { look("start") }),
+            (4, { settings.wispSize = .huge }),
+            (5.5, { look("wisp huge") }),
+            (6, { settings.bubbleSize = .large; settings.bubbleOpacity = .solid; settings.wispGlow = .bright }),
+            (6.5, { [self] in model.meter.reset(); dictationPhase(.listening) }),
+            (8, { look("bubble large while listening") }),
+            (9, { [self] in dictationPhase(.cancelled) }),
+            (10, { settings.wispSize = .small; settings.bubbleSize = .normal }),
+            (11, { look("wisp small") }),
+            (12, { settings.panelSize = .large; settings.panelBackground = .solid }),
+            (12.5, { [self] in setExpanded(true) }),
+            (14.5, { look("panel large") }),
+            (15, { settings.panelSize = .compact }),
+            (16.5, { look("panel compact while open") }),
+            (17, { [self] in setExpanded(false) }),
+            (18.5, {
+                (settings.wispSize, settings.wispGlow, settings.bubbleSize, settings.bubbleOpacity, settings.panelSize, settings.panelBackground, settings.bubbleStay) = saved
+                look("restored")
+            }),
+        ])
+    }
+
+    // MARK: - Development snapshots
+
+    private func snapshotSoon() {
+        guard snapshotDirectory != nil else { return }
+        // Long enough for some mic levels to arrive while listening.
+        let timer = Timer(timeInterval: 0.6, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.writeSnapshot() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func writeSnapshot() {
+        guard let directory = snapshotDirectory else { return }
+        let size = layout().size(current ?? .compact)
+        let renderer = ImageRenderer(content: IslandView(model: model, snapshot: true).frame(width: size.width, height: size.height))
+        renderer.scale = 2
+        guard let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+              let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else { return }
+        snapshotCount += 1
+        let name = String(format: "%02d-%@.png", snapshotCount, model.status.title.replacingOccurrences(of: " ", with: "-"))
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try? png.write(to: directory.appendingPathComponent(name))
     }
 }

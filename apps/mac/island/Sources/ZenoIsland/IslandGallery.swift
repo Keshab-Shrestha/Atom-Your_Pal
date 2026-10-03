@@ -110,46 +110,50 @@ enum IslandGallery {
         save(sheet, name: "7-wisp-peek", to: directory)
     }
 
-    /// Computer control (ADR-054): the bubble while ZENO works on the Mac, and the card that asks before a risky action.
+    /// Computer control (ADR-054, ADR-056): the strip above the Dock while ZENO works on the Mac, the request for
+    /// approval in it, how it ends, and the label beside Wisp while it points.
     private static func writeApproval(to directory: URL) {
         let suite = "zeno.gallery.approval.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
-        func working(_ title: String, _ lines: [String]) -> some View {
+        func strip(_ title: String, _ lines: [String], stop: Bool = false) -> some View {
             let model = IslandModel(settings: IslandSettings(defaults: defaults))
-            for line in lines { if let event = try? decodeEvent(line) { model.status.apply(event); model.apply(event) } }
-            let state = BubbleState(visible: true, tailX: BubbleLayout.size.width / 2, tailOnTop: false)
-            return VStack(alignment: .leading, spacing: 6) {
+            for line in lines {
+                guard let event = try? decodeEvent(line) else { continue }
+                model.status.apply(event)
+                model.apply(event)
+                model.work.apply(event, now: 1)
+            }
+            if stop { model.work.stopped(now: 2) }
+            let size = model.approval.pending != nil ? WorkStripLayout.askingSize : WorkStripLayout.size
+            return VStack(alignment: .leading, spacing: 4) {
                 Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
-                VStack(spacing: -14) {
-                    BubbleView(model: model, state: state, snapshot: true)
-                    WispView(mood: .thinking, time: 0.4, facing: 1, size: 72)
-                }
-                .frame(width: BubbleLayout.size.width + 24)
+                WorkStripView(model: model, snapshot: true)
+                    .frame(width: size.width + 2 * WorkStripController.shadowInset, height: size.height + 2 * WorkStripController.shadowInset)
             }
         }
-        func asking(_ title: String, summary: String, reason: String, below: Bool = false) -> some View {
-            let card = ApprovalCardState(request: ApprovalRequest(id: "a1", summary: summary, reason: reason), visible: true, tailOnTop: below)
-            let wisp = WispView(mood: .thinking, time: 0.4, facing: 1, size: 72)
-            return VStack(alignment: .leading, spacing: 6) {
-                Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
-                VStack(spacing: below ? -2 : -14) {
-                    if below { wisp }
-                    ApprovalView(state: card, onAnswer: { _ in }, snapshot: true)
-                    if !below { wisp }
-                }
-                .frame(width: ApprovalController.size.width + 24)
-            }
-        }
+        let thinking = #"{"type":"state","state":"thinking"}"#
         let step = #"{"type":"computer.step","text":"Typing in TextEdit"}"#
-        let sheet = HStack(alignment: .top, spacing: 26) {
-            VStack(spacing: 22) {
-                working("Working on the Mac", [#"{"type":"state","state":"thinking"}"#, step])
-                asking("Asks before sending", summary: #"Click "Send" in Mail"#, reason: "it may send, buy, delete or change something")
+        let ask = #"{"type":"approval.request","id":"a1","summary":"Click \"Send\" in Mail","reason":"it may send, buy, delete or change something"}"#
+        let askLong = #"{"type":"approval.request","id":"a2","summary":"Click \"Delete this project and all of the files inside it permanently\" in Finder","reason":"it may send, buy, delete or change something"}"#
+        let idle = #"{"type":"state","state":"idle"}"#
+        let pointing = VStack(alignment: .leading, spacing: 4) {
+            Text("Pointing: only a label beside Wisp").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+            HStack(spacing: -6) {
+                WispView(mood: .thinking, time: 0.4, facing: 1, size: 56)
+                PointLabelView(text: "the Send button", snapshot: true).frame(width: 150, height: 26 + 2 * PointLabelController.shadowInset)
             }
-            VStack(spacing: 22) {
-                asking("Long wording is held to two lines", summary: #"Click "Delete this project and all of the files inside it permanently" in Finder"#, reason: "it may send, buy, delete or change something")
-                asking("Near the top: below Wisp", summary: "Press delete in TextEdit", reason: "it uses the Delete key", below: true)
+        }
+        let sheet = VStack(alignment: .leading, spacing: 14) {
+            strip("Working on the Mac", [thinking, step])
+            strip("Asks before a risky action", [thinking, step, ask])
+            strip("Long wording is held to two lines", [thinking, askLong])
+            HStack(alignment: .top, spacing: 20) {
+                VStack(alignment: .leading, spacing: 14) {
+                    strip("After the turn", [thinking, step, idle])
+                    strip("Stopped", [thinking, step], stop: true)
+                }
+                pointing
             }
         }
         .padding(24)

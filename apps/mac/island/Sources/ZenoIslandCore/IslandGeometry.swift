@@ -1,46 +1,41 @@
 import CoreGraphics
 
-/// Sizes and distances for the island (ADR-037, ADR-038). Points, not pixels.
+/// Sizes for the panel (ADR-038, ADR-056). Points, not pixels.
 public struct IslandMetrics: Sendable, Equatable {
-    /// The card shown on hover and while talking.
+    /// The status card shown under the menu-bar icon during a turn when Wisp is off.
     public var compact = CGSize(width: 232, height: 52)
     /// The same card, wider, while dictating with the live preview: room for the words being heard.
     public var wide = CGSize(width: 340, height: 52)
-    /// The expanded view opened by clicking the card (Tasks 0.5.6–0.5.7).
+    /// The panel opened from the menu-bar icon or Wisp (Conversation, Status, Settings).
     public var expanded = CGSize(width: 380, height: 460)
-    /// Gap between the card and the left edge of the display when shown.
-    public var edgeInset: CGFloat = 8
-    /// Gap between the menu bar and the top of the card.
-    public var topGap: CGFloat = 8
-    /// The hover band: this tall, starting at the bottom of the menu bar.
-    public var triggerHeight: CGFloat = 140
-    /// How close to the left edge the pointer must be (it stops at the edge, so this is small).
-    public var triggerDepth: CGFloat = 2
-    /// How far the pointer may stray from the shown card before it starts to hide.
-    public var keepMargin: CGFloat = 24
-    /// Smallest gap kept to the bottom and right of the display, for small displays.
+    /// Gap between the menu bar and the top of the panel.
+    public var topGap: CGFloat = 6
+    /// Smallest gap kept to the sides and bottom of the display.
     public var screenMargin: CGFloat = 8
 
     public init() {}
 }
 
-/// Where the island sits on a display: at the left edge, just below the menu bar (ADR-037).
-/// AppKit coordinates: origin at the bottom left, y grows upward.
-public struct IslandGeometry: Sendable, Equatable {
+/// Where the panel sits (ADR-056): just below ZENO's menu-bar icon, centred on it like Wi-Fi or Control Centre,
+/// slid sideways when that would cross the display's edge. AppKit coordinates: origin at the bottom left, y up.
+public struct MenuPanelLayout: Sendable, Equatable {
     public enum Presentation: Sendable, Equatable {
         case compact, wide, expanded
     }
 
-    /// The full frame of the display with the menu bar.
+    /// The full frame of the display the icon is on.
     public let screen: CGRect
-    /// The bottom of the menu bar (`NSScreen.visibleFrame.maxY`). Equal to `screen.maxY` when the
-    /// menu bar hides itself.
+    /// The bottom of the menu bar (`NSScreen.visibleFrame.maxY`), or `screen.maxY` when it hides itself.
     public let menuBarBottom: CGFloat
+    /// The icon's centre, left to right. Nil when its place is not known (hidden behind the notch, or no room in
+    /// the menu bar): the panel goes to the top-right, where status items live.
+    public let iconMidX: CGFloat?
     public let metrics: IslandMetrics
 
-    public init(screen: CGRect, menuBarBottom: CGFloat? = nil, metrics: IslandMetrics = IslandMetrics()) {
+    public init(screen: CGRect, menuBarBottom: CGFloat? = nil, iconMidX: CGFloat? = nil, metrics: IslandMetrics = IslandMetrics()) {
         self.screen = screen
         self.menuBarBottom = min(screen.maxY, max(screen.minY, menuBarBottom ?? screen.maxY))
+        self.iconMidX = iconMidX.flatMap { $0.isFinite ? $0 : nil }
         self.metrics = metrics
     }
 
@@ -51,40 +46,19 @@ public struct IslandGeometry: Sendable, Equatable {
         case .wide: base = metrics.wide
         case .expanded: base = metrics.expanded
         }
-        let room = CGSize(
-            width: screen.width - metrics.edgeInset - metrics.screenMargin,
-            height: menuBarBottom - metrics.topGap - screen.minY - metrics.screenMargin)
+        let room = CGSize(width: screen.width - 2 * metrics.screenMargin,
+                          height: menuBarBottom - metrics.topGap - screen.minY - metrics.screenMargin)
         return CGSize(width: max(0, min(base.width, room.width)), height: max(0, min(base.height, room.height)))
     }
 
-    /// The card's top edge: a small gap below the menu bar.
-    var top: CGFloat { menuBarBottom - metrics.topGap }
-
-    /// The card's frame. Hidden: entirely past the left edge, at the same height. Shown: a small gap
-    /// in from the left edge. Sliding between them is a straight horizontal move.
-    public func frame(_ presentation: Presentation, visible: Bool) -> CGRect {
+    /// The panel's frame: its top a small gap below the menu bar, centred under the icon, inside the display.
+    public func frame(_ presentation: Presentation) -> CGRect {
         let size = size(presentation)
-        let x = visible ? screen.minX + metrics.edgeInset : screen.minX - size.width
+        let left = screen.minX + metrics.screenMargin
+        let right = screen.maxX - metrics.screenMargin - size.width
+        let centre = iconMidX ?? (screen.maxX - metrics.screenMargin - size.width / 2)
+        let x = right >= left ? min(max(centre - size.width / 2, left), right) : left
+        let top = menuBarBottom - metrics.topGap
         return CGRect(x: x, y: top - size.height, width: size.width, height: size.height)
-    }
-
-    /// The hover band: the pointer pressed against the left edge, just below the menu bar.
-    /// It starts below the menu bar, so the Apple menu and the top-left corner (a hot corner) never trigger it.
-    public func inTrigger(_ point: CGPoint) -> Bool {
-        point.x <= screen.minX + metrics.triggerDepth
-            && point.x >= screen.minX - 1
-            && point.y < menuBarBottom
-            && point.y >= menuBarBottom - metrics.triggerHeight
-    }
-
-    /// While the card is shown, the pointer keeps it open anywhere over it, a margin around it, or the
-    /// strip between it and the left edge. The menu bar above it is not included.
-    public func inKeepZone(_ point: CGPoint, _ presentation: Presentation) -> Bool {
-        let card = frame(presentation, visible: true)
-        let inZone = point.x >= screen.minX - 1
-            && point.x <= card.maxX + metrics.keepMargin
-            && point.y >= card.minY - metrics.keepMargin
-            && point.y < menuBarBottom
-        return inZone || inTrigger(point)
     }
 }

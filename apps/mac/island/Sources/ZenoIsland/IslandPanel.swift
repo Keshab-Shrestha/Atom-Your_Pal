@@ -155,9 +155,10 @@ struct StateGlyph: View {
     let kind: IslandStatus.Kind
 
     var body: some View {
+        let tint = StateGlyph.tint(kind)
         ZStack {
             Circle().fill(tint.opacity(0.22))
-            Image(systemName: symbol)
+            Image(systemName: StateGlyph.symbol(kind))
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(tint)
                 .contentTransition(.symbolEffect(.replace))
@@ -166,7 +167,8 @@ struct StateGlyph: View {
         .animation(.easeOut(duration: 0.2), value: kind)
     }
 
-    private var symbol: String {
+    /// Also the menu-bar icon's symbol (ADR-056).
+    static func symbol(_ kind: IslandStatus.Kind) -> String {
         switch kind {
         case .starting: "hourglass"
         case .ready: "waveform"
@@ -181,7 +183,7 @@ struct StateGlyph: View {
         }
     }
 
-    private var tint: Color {
+    static func tint(_ kind: IslandStatus.Kind) -> Color {
         switch kind {
         case .starting: Color(white: 0.75)
         case .ready: Color(red: 0.38, green: 0.86, blue: 0.52)

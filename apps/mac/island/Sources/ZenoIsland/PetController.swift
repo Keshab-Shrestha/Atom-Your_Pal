@@ -42,8 +42,6 @@ final class PetController {
     var onClick: (Int) -> Void = { _ in }
     /// The point on the ground under Wisp now.
     var feetPoint: CGPoint { feet }
-    /// Where Wisp stands, or will stand once it has come out of hiding: the features panel is placed from this.
-    var anchorFeet: CGPoint { dragging ? feet : standingFeet() }
     /// Wisp is tucked against an edge.
     var isHidden: Bool { peek != nil }
     /// Wisp reached the place it was sent to point at (once per flight).
@@ -60,8 +58,6 @@ final class PetController {
     private var peek: Peek?
     /// How far Wisp is turned now, in degrees: eases toward the hiding angle and back.
     private var rotation = 0.0
-    /// Standing still while the features panel is open.
-    private var frozen = false
     /// Where Wisp stands to point (ADR-054), or nil. Overrides the walkway and a parked spot, never the user's hand.
     private var pointFeet: CGPoint?
     private var pointArrived = false
@@ -136,7 +132,6 @@ final class PetController {
             retreat.wake(at: now)
             peek = nil
             rotation = 0
-            frozen = false
             place()
             if let spot = settings.petSpot, screenContains(CGPoint(x: spot.x, y: spot.y)) {
                 brain.drop(homeX: nil, at: now)
@@ -193,13 +188,6 @@ final class PetController {
         trace("pet going back from pointing")
     }
 
-    /// Wisp stands still while the features panel is open, and its idle timer restarts when it closes.
-    func setFrozen(_ frozen: Bool) {
-        guard frozen != self.frozen else { return }
-        self.frozen = frozen
-        wake()
-    }
-
     /// Wisp's size, glow, pace and sleepiness from the settings, applied as soon as they change.
     private func applyLook() {
         let next = PetBrain.Tuning(wander: settings.wispWander, nap: settings.wispNap)
@@ -224,11 +212,11 @@ final class PetController {
     }
 
     /// Development only: a snapshot of where Wisp is, for the live demo.
-    var debugState: String { "feet=\(Int(feet.x)),\(Int(feet.y)) hidden=\(peek != nil) edge=\(peek.map { $0.edge == .left ? "left" : "right" } ?? "-") turn=\(Int(rotation)) frozen=\(frozen)" }
+    var debugState: String { "feet=\(Int(feet.x)),\(Int(feet.y)) hidden=\(peek != nil) edge=\(peek.map { $0.edge == .left ? "left" : "right" } ?? "-") turn=\(Int(rotation)) pointing=\(pointFeet != nil)" }
 
     /// Tucks Wisp against the nearest free edge now (the right-click menu), or does nothing if neither is free.
     func tuckAway() {
-        guard peek == nil, window.isVisible, !dragging, !frozen else { return } // not while the panel is open
+        guard peek == nil, window.isVisible, !dragging else { return }
         let displays = NSScreen.screens.map(\.frame)
         guard let chosen = PeekLayout.choose(feet: standingFeet(), displays: displays) else {
             trace("pet cannot hide: both edges touch another display")
@@ -265,9 +253,8 @@ final class PetController {
         applyLook()
         let over = dragging || bodyRect().contains(NSEvent.mouseLocation)
         pointerOver = over
-        // Hiding or holding the panel: the brain does not wander, so Wisp comes back to where it was.
-        var mood = frozen || peek != nil ? brain.mood : brain.step(to: now)
-        if frozen, mood == .floating { mood = .resting }
+        // Hiding: the brain does not wander, so Wisp comes back to where it was.
+        var mood = peek != nil ? brain.mood : brain.step(to: now)
         if peek != nil, !mood.isReacting { mood = .resting } // hiding: awake, eyes open, not a nap with z's turned sideways
         if mood == .napping, peek != nil { mood = .resting }
         state.mood = mood
@@ -275,7 +262,7 @@ final class PetController {
         state.time = now
 
         if over, peek == nil { retreat.wake(at: now) } // never hides from under the pointer
-        if peek == nil, retreat.isDue(at: now, blocked: dragging || frozen || mood.isReacting || pointFeet != nil) { tuckAway() }
+        if peek == nil, retreat.isDue(at: now, blocked: dragging || mood.isReacting || pointFeet != nil) { tuckAway() }
         if peek != nil, retreat.timeout == 0 { wake() } // the setting was switched to Never
 
         if !dragging {

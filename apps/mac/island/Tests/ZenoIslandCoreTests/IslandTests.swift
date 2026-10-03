@@ -2,182 +2,68 @@ import CoreGraphics
 import Testing
 @testable import ZenoIslandCore
 
-@Suite("IslandGeometry")
-struct IslandGeometryTests {
+@Suite("MenuPanelLayout")
+struct MenuPanelLayoutTests {
     // The Mac mini's main display: 1920 × 1080 points, menu bar 24 points tall (its bottom at y = 1056;
-    // AppKit coordinates grow upward).
-    let geometry = IslandGeometry(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056)
+    // AppKit coordinates grow upward). ZENO's icon is centred at x = 1500.
+    let layout = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: 1500)
 
-    @Test func shownSitsAtTheLeftEdgeJustBelowTheMenuBar() {
-        let frame = geometry.frame(.compact, visible: true)
-        #expect(frame == CGRect(x: 8, y: 996, width: 232, height: 52))
-        #expect(frame.maxY == 1048) // 8 below the menu bar: never over it
+    @Test func thePanelHangsCentredUnderTheIcon() {
+        let frame = layout.frame(.expanded)
+        #expect(frame == CGRect(x: 1310, y: 590, width: 380, height: 460))
+        #expect(frame.midX == 1500)
+        #expect(frame.maxY == 1050) // 6 below the menu bar: never over it
     }
 
-    @Test func hiddenIsEntirelyPastTheLeftEdge() {
-        let frame = geometry.frame(.compact, visible: false)
-        #expect(frame == CGRect(x: -232, y: 996, width: 232, height: 52))
-        #expect(frame.maxX <= geometry.screen.minX)
+    @Test func theStatusCardHangsFromTheSamePlace() {
+        let compact = layout.frame(.compact), expanded = layout.frame(.expanded)
+        #expect(compact.midX == expanded.midX && compact.maxY == expanded.maxY)
+        #expect(compact.size == CGSize(width: 232, height: 52))
     }
 
-    @Test func slidingIsAStraightHorizontalMove() {
-        for presentation in [IslandGeometry.Presentation.compact, .expanded] {
-            let hidden = geometry.frame(presentation, visible: false), shown = geometry.frame(presentation, visible: true)
-            #expect(hidden.minY == shown.minY && hidden.size == shown.size)
-        }
+    @Test func anIconNearTheRightEdgeKeepsThePanelOnTheDisplay() {
+        let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: 1900)
+        #expect(g.frame(.expanded).maxX == 1912)
     }
 
-    @Test func expandedGrowsDownAndRightFromTheSameCorner() {
-        let compact = geometry.frame(.compact, visible: true), expanded = geometry.frame(.expanded, visible: true)
-        #expect(expanded.minX == compact.minX && expanded.maxY == compact.maxY)
-        #expect(expanded.size == CGSize(width: 380, height: 460))
+    @Test func anIconNearTheLeftEdgeKeepsThePanelOnTheDisplay() {
+        let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: 30)
+        #expect(g.frame(.expanded).minX == 8)
+    }
+
+    @Test func anUnknownIconPlaceUsesTheTopRight() {
+        let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056)
+        #expect(g.frame(.expanded).maxX == 1912)
+        let nan = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: .nan)
+        #expect(nan.frame(.expanded) == g.frame(.expanded))
     }
 
     @Test func followsATallerMenuBar() {
         // A MacBook with a notch: the menu bar is 37 points tall.
-        let g = IslandGeometry(screen: CGRect(x: 0, y: 0, width: 1512, height: 982), menuBarBottom: 945)
-        #expect(g.frame(.compact, visible: true).maxY == 937)
-        #expect(!g.inTrigger(CGPoint(x: 0, y: 950))) // in the menu bar
-        #expect(g.inTrigger(CGPoint(x: 0, y: 940)))
+        let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1512, height: 982), menuBarBottom: 945, iconMidX: 1200)
+        #expect(g.frame(.expanded).maxY == 939)
     }
 
     @Test func aHiddenMenuBarUsesTheTopOfTheDisplay() {
-        let g = IslandGeometry(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080))
+        let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), iconMidX: 1500)
         #expect(g.menuBarBottom == 1080)
-        #expect(g.frame(.compact, visible: true).maxY == 1072)
+        #expect(g.frame(.compact).maxY == 1074)
     }
 
     @Test func followsADisplayThatIsNotAtTheOrigin() {
-        // The menu bar display to the right of and higher than another one.
-        let g = IslandGeometry(screen: CGRect(x: 1920, y: 200, width: 2560, height: 1440), menuBarBottom: 1615)
-        #expect(g.frame(.compact, visible: true) == CGRect(x: 1928, y: 1555, width: 232, height: 52))
-        #expect(g.frame(.compact, visible: false).maxX == 1920)
-        #expect(g.inTrigger(CGPoint(x: 1920, y: 1600)))
-        #expect(!g.inTrigger(CGPoint(x: 0, y: 1000))) // the left edge of the other display
+        let g = MenuPanelLayout(screen: CGRect(x: 1920, y: 200, width: 2560, height: 1440), menuBarBottom: 1615, iconMidX: 4300)
+        let frame = g.frame(.expanded)
+        #expect(frame.maxX == 4472 && frame.maxY == 1609)
     }
 
     @Test func neverLargerThanASmallDisplay() {
-        let g = IslandGeometry(screen: CGRect(x: 0, y: 0, width: 300, height: 400), menuBarBottom: 376)
-        let expanded = g.frame(.expanded, visible: true)
+        let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 300, height: 400), menuBarBottom: 376, iconMidX: 200)
+        let expanded = g.frame(.expanded)
         #expect(expanded.width == 284 && expanded.minX == 8)
-        #expect(expanded.height == 360 && expanded.minY == 8)
-    }
-
-    @Test func triggerIsTheLeftEdgeJustBelowTheMenuBar() {
-        #expect(geometry.inTrigger(CGPoint(x: 0, y: 1040)))
-        #expect(geometry.inTrigger(CGPoint(x: 2, y: 917)))   // 139 below the menu bar: the end of the band
-        #expect(!geometry.inTrigger(CGPoint(x: 0, y: 915)))  // below the band
-        #expect(!geometry.inTrigger(CGPoint(x: 3, y: 1040)))  // not pressed against the edge
-        #expect(!geometry.inTrigger(CGPoint(x: 0, y: 1056)))  // the menu bar itself (Apple menu)
-        #expect(!geometry.inTrigger(CGPoint(x: 0, y: 1079)))  // the top-left corner (hot corner)
-        #expect(!geometry.inTrigger(CGPoint(x: 0, y: 500)))   // further down the left edge
-    }
-
-    @Test func keepZoneCoversTheCardAndTheStripToTheEdgeButNotTheMenuBar() {
-        #expect(geometry.inKeepZone(CGPoint(x: 120, y: 1020), .compact)) // over the card
-        #expect(geometry.inKeepZone(CGPoint(x: 3, y: 1020), .compact))   // between it and the edge
-        #expect(geometry.inKeepZone(CGPoint(x: 260, y: 980), .compact))  // within the margin
-        #expect(!geometry.inKeepZone(CGPoint(x: 300, y: 1020), .compact)) // beyond the margin
-        #expect(!geometry.inKeepZone(CGPoint(x: 120, y: 900), .compact)) // well below it
-        #expect(!geometry.inKeepZone(CGPoint(x: 20, y: 1060), .compact))  // in the menu bar: the Apple menu
-        #expect(geometry.inKeepZone(CGPoint(x: 300, y: 700), .expanded)) // the expanded view is larger
+        #expect(expanded.height == 362 && expanded.minY == 8)
     }
 }
 
-@Suite("HoverController")
-struct HoverControllerTests {
-    typealias Output = HoverController.Output
-
-    @Test func restingInTheStripRevealsAfterTheDelay() {
-        var hover = HoverController(revealDelay: 0.25, hideDelay: 0.5)
-        #expect(hover.update(inTrigger: true, inKeepZone: true, now: 10) == Output(visible: false, recheckAt: 10.25))
-        #expect(hover.update(inTrigger: true, inKeepZone: true, now: 10.1) == Output(visible: false, recheckAt: 10.25))
-        #expect(hover.update(inTrigger: true, inKeepZone: true, now: 10.25) == Output(visible: true, recheckAt: nil))
-        #expect(hover.phase == .shown)
-    }
-
-    @Test func passingThroughTheStripDoesNotReveal() {
-        var hover = HoverController()
-        _ = hover.update(inTrigger: true, inKeepZone: true, now: 0)
-        #expect(hover.update(inTrigger: false, inKeepZone: false, now: 0.1) == Output(visible: false, recheckAt: nil))
-        #expect(hover.phase == .hidden)
-        // Coming back starts the delay again.
-        #expect(hover.update(inTrigger: true, inKeepZone: true, now: 0.2) == Output(visible: false, recheckAt: 0.45))
-    }
-
-    @Test func staysOpenWhileThePointerIsOverIt() {
-        var hover = HoverController()
-        _ = hover.update(inTrigger: true, inKeepZone: true, now: 0)
-        _ = hover.update(inTrigger: true, inKeepZone: true, now: 0.3)
-        // Moving down onto the pill: out of the strip but in the keep zone.
-        #expect(hover.update(inTrigger: false, inKeepZone: true, now: 5) == Output(visible: true, recheckAt: nil))
-        #expect(hover.update(inTrigger: false, inKeepZone: true, now: 60) == Output(visible: true, recheckAt: nil))
-    }
-
-    @Test func hidesAfterTheDelayOnceThePointerLeaves() {
-        var hover = HoverController(revealDelay: 0.25, hideDelay: 0.5)
-        _ = hover.update(inTrigger: true, inKeepZone: true, now: 0)
-        _ = hover.update(inTrigger: true, inKeepZone: true, now: 0.25)
-        #expect(hover.update(inTrigger: false, inKeepZone: false, now: 1) == Output(visible: true, recheckAt: 1.5))
-        #expect(hover.update(inTrigger: false, inKeepZone: false, now: 1.2) == Output(visible: true, recheckAt: 1.5))
-        #expect(hover.update(inTrigger: false, inKeepZone: false, now: 1.5) == Output(visible: false, recheckAt: nil))
-        #expect(hover.phase == .hidden)
-    }
-
-    @Test func comingBackBeforeTheDelayKeepsItOpen() {
-        var hover = HoverController(revealDelay: 0.25, hideDelay: 0.5)
-        _ = hover.update(inTrigger: true, inKeepZone: true, now: 0)
-        _ = hover.update(inTrigger: true, inKeepZone: true, now: 0.25)
-        _ = hover.update(inTrigger: false, inKeepZone: false, now: 1)
-        #expect(hover.update(inTrigger: false, inKeepZone: true, now: 1.3) == Output(visible: true, recheckAt: nil))
-        // Leaving again starts a fresh delay.
-        #expect(hover.update(inTrigger: false, inKeepZone: false, now: 2) == Output(visible: true, recheckAt: 2.5))
-    }
-
-    @Test func heldStaysVisibleWhereverThePointerIs() {
-        var hover = HoverController(revealDelay: 0.25, hideDelay: 0.5)
-        hover.held = true
-        #expect(hover.visible)
-        #expect(hover.update(inTrigger: false, inKeepZone: false, now: 0) == Output(visible: true, recheckAt: nil))
-        #expect(hover.update(inTrigger: false, inKeepZone: false, now: 100) == Output(visible: true, recheckAt: nil))
-        // Released with the pointer away: hides after the usual delay.
-        hover.held = false
-        #expect(hover.update(inTrigger: false, inKeepZone: false, now: 101) == Output(visible: true, recheckAt: 101.5))
-        #expect(hover.update(inTrigger: false, inKeepZone: false, now: 101.5) == Output(visible: false, recheckAt: nil))
-    }
-
-    @Test func lingerShowsUntilItEndsThenHidesAsUsual() {
-        var hover = HoverController(revealDelay: 0.25, hideDelay: 0.5)
-        hover.linger(until: 12.5)
-        #expect(hover.visible)
-        #expect(hover.update(inTrigger: false, inKeepZone: false, now: 10) == Output(visible: true, recheckAt: 12.5))
-        #expect(hover.update(inTrigger: false, inKeepZone: false, now: 12.5) == Output(visible: true, recheckAt: 13))
-        #expect(hover.update(inTrigger: false, inKeepZone: false, now: 13) == Output(visible: false, recheckAt: nil))
-    }
-
-    @Test func lingerEndingWithThePointerOverItStaysOpen() {
-        var hover = HoverController()
-        hover.linger(until: 2)
-        #expect(hover.update(inTrigger: false, inKeepZone: true, now: 3) == Output(visible: true, recheckAt: nil))
-    }
-
-    @Test func aLaterLingerExtendsAnEarlierOne() {
-        var hover = HoverController()
-        hover.linger(until: 8)
-        hover.linger(until: 5) // shorter: ignored
-        #expect(hover.update(inTrigger: false, inKeepZone: false, now: 6) == Output(visible: true, recheckAt: 8))
-    }
-
-    @Test func dismissHidesAtOnceUnlessThePointerIsOverIt() {
-        var hover = HoverController()
-        hover.linger(until: 100)
-        hover.dismiss()
-        #expect(hover.update(inTrigger: false, inKeepZone: false, now: 1) == Output(visible: false, recheckAt: nil))
-        hover.linger(until: 100)
-        hover.dismiss()
-        #expect(hover.update(inTrigger: false, inKeepZone: true, now: 1) == Output(visible: true, recheckAt: nil))
-    }
-}
 
 @Suite("IslandStatus")
 struct IslandStatusTests {
