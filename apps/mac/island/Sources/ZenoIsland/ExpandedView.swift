@@ -688,7 +688,7 @@ struct SettingsTab: View {
             guard let memory = model.memory else { return "" }
             if !memory.enabled { return "Off" }
             return memory.count == 0 ? "Nothing kept" : memory.count == 1 ? "1 fact" : "\(memory.count) facts"
-        case .general: return s.soundsEnabled ? "Sounds on" : "Sounds off"
+        case .general: return model.loginItem.enabled ? "Opens at login" : (s.soundsEnabled ? "Sounds on" : "Sounds off")
         }
     }
 
@@ -961,11 +961,24 @@ struct GeneralSection: View {
 
     var body: some View {
         let settings = model.settings
-        Card {
+        let login = model.loginItem
+        Card(footer: loginFooter(login)) {
+            Row(title: "Open at login", detail: "Start ZENO when you log in to this Mac") {
+                ThemedSwitch(isOn: login.enabled || login.needsApproval, set: { login.set($0) }, label: "Open at login")
+                    .disabled(!login.available)
+            }
+            if login.needsApproval || login.error != nil {
+                RowDivider()
+                Row(title: "Needs your OK in System Settings") {
+                    PillButton(title: "Open…") { login.openSystemSettings() }
+                }
+            }
+            RowDivider()
             Row(title: "Sounds", detail: "A soft tone when listening starts and stops") {
                 ThemedSwitch(isOn: settings.soundsEnabled, set: { settings.soundsEnabled = $0 }, label: "Sounds")
             }
         }
+        .onAppear { login.refresh() }
         Card(footer: "Theme, Wisp, bubble and panel go back to their defaults. Shortcuts, dictation and the AI model stay.") {
             Row(title: "Reset look and behaviour") {
                 PillButton(title: "Reset") { settings.resetLook() }
@@ -1073,6 +1086,11 @@ private struct MemoryRow: View {
         guard let date = item.createdAt else { return how }
         return "\(how) · \(date.formatted(.relative(presentation: .named)))"
     }
+}
+
+@MainActor private func loginFooter(_ login: LoginItem) -> String? {
+    if !login.available { return "Available when ZENO runs as an app (pnpm island:open)." }
+    return login.error
 }
 
 /// How dictation starts and what it shows and removes (ADR-050).

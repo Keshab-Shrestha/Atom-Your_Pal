@@ -433,6 +433,14 @@ Keshab (2026-10-04): "Let's skip the tests… continue building." Phase 0.5's ha
 
 **Not done:** spoken through the island by Keshab; the Memory page seen on the real screen.
 
+### Task 1.1b — Open at Login — built; not yet tried
+
+Settings → General → **Open at login**: registers ZENO.app as a macOS Login Item (`SMAppService.mainApp`). The state is read from macOS each time, never saved by ZENO, so it always matches System Settings → General → Login Items. If macOS asks for approval, the row offers "Open…" to go there. Unavailable (switch off, with a note) when ZENO is not running from the app bundle.
+
+Also checked: a damaged `data/memory.db` turns memory off with `memory.unavailable` in the log; ZENO keeps running.
+
+**Not done:** Keshab turns it on, logs out and in.
+
 ---
 
 ## 6. Definition of Done

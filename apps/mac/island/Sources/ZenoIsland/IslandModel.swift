@@ -76,6 +76,8 @@ final class IslandModel {
 
     let settings: IslandSettings
     let recorder: ShortcutRecorder
+    /// Open ZENO at login (General). Read from macOS, never saved by ZENO.
+    let loginItem = LoginItem()
     /// Shows or hides Wisp. Set by the controller.
     @ObservationIgnored var petChanged: (Bool) -> Void = { _ in }
 
