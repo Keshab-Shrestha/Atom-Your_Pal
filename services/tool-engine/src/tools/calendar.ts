@@ -10,7 +10,7 @@ export interface CalendarRunner {
 }
 
 /** Runs the helper and parses its one JSON line. */
-export function calendarRunner(helperPath: string, timeoutMs = 15_000): CalendarRunner {
+export function calendarRunner(helperPath: string, timeoutMs = 30_000): CalendarRunner {
   return (args) =>
     new Promise((resolve, reject) => {
       execFile(helperPath, args, { timeout: timeoutMs, maxBuffer: 1 << 20 }, (error, stdout) => {
@@ -20,6 +20,14 @@ export function calendarRunner(helperPath: string, timeoutMs = 15_000): Calendar
           if (parsed && typeof parsed === "object") return resolve(parsed);
         } catch {
           // fall through
+        }
+        if (error && (error as { killed?: boolean }).killed) {
+          // The only thing that takes this long is macOS's permission question going unanswered.
+          return reject(
+            new Error(
+              "macOS is asking whether ZENO may use Calendar or Reminders, and nobody answered. Tell the user to click Allow on that dialog (or in System Settings → Privacy & Security), then ask again.",
+            ),
+          );
         }
         reject(new Error(error ? `the calendar helper failed: ${error.message.split("\n")[0]}` : "the calendar helper gave no answer"));
       });

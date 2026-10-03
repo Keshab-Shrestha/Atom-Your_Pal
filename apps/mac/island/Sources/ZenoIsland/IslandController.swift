@@ -182,12 +182,14 @@ final class IslandController {
         }
         model.work.apply(event, now: Self.now)
         if case .computerPoint(let target) = event { startPointing(target) }
+        if case .timer = event { pet.poke() } // out of hiding: the user should see it (the runtime chimed and spoke)
         let wasBusy = model.status.isBusy
         model.status.apply(event)
         if case .state(.idle) = event, wasBusy {
             // A turn just ended: stay out briefly so the outcome is seen.
             linger(model.status.needsAttention ? afterProblem : afterTurn)
         }
+        if case .timer = event, model.status.kind == .notice { linger(afterProblem) }
         statusChanged()
     }
 

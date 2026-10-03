@@ -108,6 +108,9 @@ public struct IslandStatus: Sendable, Equatable {
             if kind == .listening { detail = "Can't hear you. Check the microphone" }
         case .notice(let noticeKind, _):
             set(.notice, IslandStatus.noticeTitle(noticeKind), IslandStatus.noticeDetail(noticeKind))
+        case .timer(_, let label, _):
+            // Not while a turn runs: the turn's own status wins, and the runtime speaks the timer afterwards.
+            if !isBusy { set(.notice, "Timer done", label.isEmpty ? "Your timer is up" : IslandStatus.short(label.prefix(1).uppercased() + label.dropFirst())) }
         case .error(let error):
             let title = IslandStatus.errorTitle(error)
             lastProblem = Problem(title: title, message: error.message)

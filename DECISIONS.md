@@ -1111,6 +1111,16 @@ ZENO will act on the Mac by voice command ("open Safari and search for X") throu
 
 ---
 
+## ADR-061 — Timers (Phase 1)
+
+**Status:** Accepted (2026-10-04).
+
+**Decision.** `timer_set` (1 s to 24 h, optional label, at most 10), `timer_list` and `timer_cancel` (one or all), held in the runtime's memory; quitting ZENO loses them (said in the tool description, so ZENO can say so). For a clock time or another day, ZENO uses `reminder_add` instead, which survives quitting and alerts even with ZENO closed.
+
+When a timer ends, the runtime chimes (Glass) and says "Your pasta timer is done." If a turn is running, it waits until ZENO is idle. Then it sends a `timer` event, which the island shows as "Timer done · Pasta" on Wisp's bubble (Wisp comes out of hiding). The event comes after speaking so the notice stays up. Older islands ignore the unknown event and still hear it.
+
+---
+
 ## Final Architectural Principle
 
 > Preserve the future without prematurely implementing it.

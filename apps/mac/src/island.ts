@@ -18,6 +18,7 @@ import type { ComputerBridge } from "./computer-bridge.ts";
 import type { ModelSettings } from "./model-settings.ts";
 import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
+import { spokenDuration } from "@zeno/tool-engine";
 import { createVoiceLoop, type CoreLike, type LoopNotice, type VoiceLoop, type VoiceLoopEvents, type VoiceLoopOptions } from "./voice-loop.ts";
 
 export interface IslandOptions {
@@ -37,6 +38,10 @@ export interface IslandOptions {
   computer?: Pick<ComputerBridge, "attach" | "answer" | "cancelAll">;
   /** What ZENO keeps (ADR-058), for Settings. Absent when memory is off: `memory.*` answers `enabled: false`. */
   memory?: IslandMemory;
+  /** Plays a short sound before a timer is announced (optional). */
+  chime?(): Promise<void>;
+  /** Timers (ADR-061): subscribe to timers ending, to announce them. */
+  onTimer?(listener: (timer: { id: number; label: string; seconds: number }) => void): () => void;
   micName(): Promise<string>;
   /** Plain-language error text for the user. */
   describe(error: unknown): string;
@@ -201,6 +206,40 @@ export function runIsland(options: IslandOptions): IslandSession {
     );
   }
   let memoryWatched = false;
+
+  // ADR-061: a timer ended. Shown at once; spoken now if ZENO is idle, else as soon as it is.
+  const timerQueue: { id: number; label: string; message: string }[] = [];
+  let announcing = false;
+  async function announce() {
+    if (announcing || quitting) return;
+    announcing = true;
+    try {
+      while (timerQueue.length && !quitting) {
+        if (loop.state !== "idle") {
+          await new Promise((r) => setTimeout(r, 500));
+          continue;
+        }
+        const timer = timerQueue.shift()!;
+        await options.chime?.();
+        send({ type: "state", state: "speaking" });
+        try {
+          await tts.speak(timer.message);
+        } catch (error) {
+          options.log?.warn("timer.speak_failed", { message: describe(error) });
+        }
+        if (loop.state === "idle") send({ type: "state", state: "idle" });
+        // Last, so the island's "Timer done" stays up after the speaking ends.
+        send({ type: "timer", ...timer });
+      }
+    } finally {
+      announcing = false;
+    }
+  }
+  const stopTimers = options.onTimer?.((timer) => {
+    const message = timer.label ? `Your ${timer.label} timer is done.` : `Your ${spokenDuration(timer.seconds)} timer is done.`;
+    timerQueue.push({ id: timer.id, label: timer.label, message });
+    void announce();
+  });
   const stopMemoryUpdates = options.memory?.onChange(() => {
     if (memoryWatched) sendMemory();
   });
@@ -228,6 +267,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     if (quitting) return;
     quitting = true;
     stopMemoryUpdates?.();
+    stopTimers?.();
     options.log?.info("app.quit");
     options.computer?.cancelAll();
     loop.cancel();

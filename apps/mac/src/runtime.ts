@@ -5,7 +5,17 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createCore, CoreError, type Core } from "@zeno/core";
 import { createComputerBridge, type ComputerBridge } from "./computer-bridge.ts";
-import { calendarRunner, createCalendarTools, createComputerTool, createCuaTransport, createToolEngine, timeTool } from "@zeno/tool-engine";
+import {
+  calendarRunner,
+  createCalendarTools,
+  createComputerTool,
+  createCuaTransport,
+  createTimers,
+  createToolEngine,
+  timeTool,
+  type TimerInfo,
+  type Timers,
+} from "@zeno/tool-engine";
 import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError } from "@zeno/llm-gateway";
 import { createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import {
@@ -48,6 +58,10 @@ export interface Runtime {
   memory?: MemoryStore;
   /** The memory as Settings sees it (list, forget, clear, change updates). Undefined when memory is off. */
   islandMemory?: IslandMemory;
+  /** Countdown timers (ADR-061). */
+  timers: Timers;
+  /** Called when a timer ends; returns a function that stops listening. */
+  onTimer(listener: (timer: TimerInfo) => void): () => void;
 }
 
 export interface RuntimeOptions {
@@ -87,6 +101,13 @@ export function createRuntime(
       return () => memoryListeners.delete(listener);
     },
   };
+  const timerListeners = new Set<(timer: TimerInfo) => void>();
+  const timers = createTimers({
+    onFire: (timer) => {
+      log.info("timer.fired", { id: timer.id, seconds: timer.seconds });
+      for (const listener of timerListeners) listener(timer);
+    },
+  });
   const calendarHelper = findCalendarHelper();
   log.info("calendar.helper", { available: Boolean(calendarHelper) });
   // The tools ZENO can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
@@ -94,6 +115,7 @@ export function createRuntime(
   const toolEngine = createToolEngine({
     tools: [
       timeTool(),
+      ...timers.tools,
       // ADR-060: Calendar and Reminders when the helper is there (inside ZENO.app). ZENO_CALENDAR=0 turns it off.
       ...(calendarHelper ? createCalendarTools({ run: calendarRunner(calendarHelper) }) : []),
       ...(memory
@@ -193,6 +215,11 @@ export function createRuntime(
     tts,
     computer,
     ...(memory ? { memory, islandMemory } : {}),
+    timers,
+    onTimer(listener) {
+      timerListeners.add(listener);
+      return () => timerListeners.delete(listener);
+    },
     record: (handlers) => startRecording(config.audio, handlers),
     async micName() {
       if (config.audio.inputDevice !== ":default") return config.audio.inputDevice;

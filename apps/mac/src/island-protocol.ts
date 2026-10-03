@@ -82,6 +82,7 @@ export type IslandEvent =
   | { type: "approval.request"; id: string; summary: string; reason: string }
   | { type: "approval.closed"; id: string }
   | InfoEvent
+  | { type: "timer"; id: number; label: string; message: string }
   | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[] }
   | { type: "error"; stage: ErrorStage; message: string; kind?: string; retryable?: boolean };
 

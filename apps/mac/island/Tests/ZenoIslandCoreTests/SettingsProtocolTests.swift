@@ -210,3 +210,18 @@ struct MemoryProtocolTests {
         #expect(try object(.episodeClear) as? [String: String] == ["type": "episode.clear"])
     }
 }
+
+@Suite struct TimerEventTests {
+    @Test func timerDecodesAndShowsAsNotice() throws {
+        let event = try decodeEvent(#"{"type":"timer","id":3,"label":"pasta","message":"Your pasta timer is done."}"#)
+        #expect(event == .timer(id: 3, label: "pasta", message: "Your pasta timer is done."))
+        var status = IslandStatus()
+        status.apply(.ready(ReadyInfo(protocolVersion: 1, provider: "claude-plan", model: "claude-haiku-4-5", microphone: ":default", voice: true)))
+        status.apply(event)
+        #expect(status.kind == .notice && status.title == "Timer done" && status.detail == "Pasta")
+        // During a turn, the turn's status stays.
+        status.apply(.state(.thinking))
+        status.apply(.timer(id: 4, label: "", message: "Your timer is done."))
+        #expect(status.kind == .thinking)
+    }
+}

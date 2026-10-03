@@ -34,6 +34,7 @@ function islandHarness(
     settings: IslandOptions["settings"];
     computer: IslandOptions["computer"];
     memory: IslandOptions["memory"];
+    onTimer: IslandOptions["onTimer"];
   }> = {},
 ) {
   const input = new PassThrough();
@@ -79,6 +80,7 @@ function islandHarness(
     settings: over.settings,
     computer: over.computer,
     ...(over.memory ? { memory: over.memory } : {}),
+    ...(over.onTimer ? { onTimer: over.onTimer } : {}),
     micName: async () => "macOS default: Test Mic",
     describe: (error) => (error instanceof Error ? error.message : String(error)),
     errorDetails: (error) => ((error as { kind?: string }).kind ? { kind: (error as { kind: string }).kind, retryable: true } : {}),
@@ -593,4 +595,28 @@ test("memory commands with memory off answer enabled: false; a bad id is a proto
   await h.send({ type: "memory.forget", id: "2" }, { type: "memory.forget", id: 1.5 }, { type: "memory.forget" });
   assert.deepEqual(h.types(), ["error", "error", "error"]);
   for (const e of h.events()) assert.equal((e as { stage: string }).stage, "protocol");
+});
+
+
+// --- timers (ADR-061) ---
+
+test("a timer ending is shown and spoken, in that order, then ZENO is idle again", async () => {
+  let fire!: (t: { id: number; label: string; seconds: number }) => void;
+  const h = islandHarness({ onTimer: (listener) => ((fire = listener), () => {}) });
+  await new Promise((r) => setTimeout(r, 5));
+  fire({ id: 3, label: "pasta", seconds: 600 });
+  fire({ id: 4, label: "", seconds: 90 });
+  await new Promise((r) => setTimeout(r, 20));
+  const events = h.events();
+  const timers = events.filter((e) => e.type === "timer");
+  assert.deepEqual(
+    events.filter((e) => e.type === "state" || e.type === "timer").slice(-3).map((e) => e.type === "state" ? e.state : "timer"),
+    ["speaking", "idle", "timer"],
+    "the timer event comes last so the island's notice stays up",
+  );
+  assert.deepEqual(timers, [
+    { type: "timer", id: 3, label: "pasta", message: "Your pasta timer is done." },
+    { type: "timer", id: 4, label: "", message: "Your 1 minute and 30 seconds timer is done." },
+  ]);
+  assert.deepEqual(h.spoken, ["Your pasta timer is done.", "Your 1 minute and 30 seconds timer is done."]);
 });

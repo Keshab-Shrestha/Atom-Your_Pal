@@ -225,6 +225,8 @@ public enum IslandEvent: Sendable, Equatable {
     case info(ModelInfo)
     /// What ZENO keeps (ADR-058): after `memory.list`, and after every change from then on.
     case memory(MemoryList)
+    /// A timer ended (ADR-061). The runtime also says `message` aloud.
+    case timer(id: Int, label: String, message: String)
     case error(RuntimeError)
     /// A newer runtime sent an event this island does not know; ignored for forward compatibility.
     case unknown(type: String)
@@ -248,6 +250,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .approvalClosed: "approval.closed"
         case .info: "info"
         case .memory: "memory"
+        case .timer: "timer"
         case .error(let e): "error:\(e.stage)"
         case .unknown(let type): "unknown:\(type)"
         }
@@ -328,6 +331,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
             provider: try f.string("provider"),
             model: try f.string("model"),
             providers: try f.providers()))
+    case "timer":
+        return .timer(id: try f.int("id"), label: (try? f.string("label")) ?? "", message: try f.string("message"))
     case "memory":
         return .memory(MemoryList(enabled: try f.bool("enabled"), count: try f.int("count"), memories: try f.memories(), episodes: try f.episodes()))
     case "error":

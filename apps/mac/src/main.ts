@@ -2,6 +2,7 @@
 //   pnpm start                    terminal: Space to talk (terminal.ts)
 //   node apps/mac/src/main.ts --island   driven by ZENO Island over stdin / stdout (island.ts)
 
+import { execFile } from "node:child_process";
 import { GatewayError } from "@zeno/llm-gateway";
 import { ConfigError, createLogger, loadConfig, readProviderKeys, type Config } from "@zeno/shared";
 import { encodeEvent, type ErrorStage } from "./island-protocol.ts";
@@ -98,6 +99,11 @@ function start(config: Config) {
     settings: runtime.settings,
     computer: runtime.computer,
     ...(runtime.islandMemory ? { memory: runtime.islandMemory } : {}),
+    onTimer: runtime.onTimer,
+    chime: () =>
+      new Promise<void>((resolve) => {
+        execFile("/usr/bin/afplay", ["/System/Library/Sounds/Glass.aiff"], { timeout: 3000 }, () => resolve());
+      }),
     micName: runtime.micName,
     describe,
     errorDetails: (error) => (error instanceof GatewayError ? { kind: error.kind, retryable: error.retryable } : {}),
