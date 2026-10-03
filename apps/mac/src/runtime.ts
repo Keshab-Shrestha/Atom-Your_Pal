@@ -1,9 +1,11 @@
 // The parts of the Mac runtime shared by both interfaces (terminal and island):
 // Microphone → Whisper → ZENO Core → LLM Gateway → provider → Kokoro → speaker.
 
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { createCore, CoreError, type Core } from "@zeno/core";
 import { createComputerBridge, type ComputerBridge } from "./computer-bridge.ts";
-import { createComputerTool, createCuaTransport, createToolEngine, timeTool } from "@zeno/tool-engine";
+import { calendarRunner, createCalendarTools, createComputerTool, createCuaTransport, createToolEngine, timeTool } from "@zeno/tool-engine";
 import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError } from "@zeno/llm-gateway";
 import { createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import {
@@ -85,11 +87,15 @@ export function createRuntime(
       return () => memoryListeners.delete(listener);
     },
   };
+  const calendarHelper = findCalendarHelper();
+  log.info("calendar.helper", { available: Boolean(calendarHelper) });
   // The tools ZENO can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
   // needs them; the other providers get them from the Core.
   const toolEngine = createToolEngine({
     tools: [
       timeTool(),
+      // ADR-060: Calendar and Reminders when the helper is there (inside ZENO.app). ZENO_CALENDAR=0 turns it off.
+      ...(calendarHelper ? createCalendarTools({ run: calendarRunner(calendarHelper) }) : []),
       ...(memory
         ? createMemoryTools({
             store: memory,
@@ -153,7 +159,7 @@ export function createRuntime(
         tools: toolEngine,
         context: (input, context) => {
           current = { source: input.source, requestId: context.requestId };
-          if (!memory) return undefined;
+          if (!memory) return nowLine();
           const facts = memoryContext(input.text, { store: memory });
           const past = episodes ? episodeContext(memory, context.sessionId) : undefined;
           log.debug("memory.context", {
@@ -162,7 +168,7 @@ export function createRuntime(
             used: facts ? facts.split("\n").length - 1 : 0,
             episodes: past ? past.split("\n").length - 1 : 0,
           });
-          return [MEMORY_GUIDANCE, facts, past].filter(Boolean).join("\n\n");
+          return [nowLine(), MEMORY_GUIDANCE, facts, past].filter(Boolean).join("\n\n");
         },
         ...(episodes ? { onExchange: (sessionId: string, turns: readonly Message[]) => episodes.update(sessionId, turns) } : {}),
       });
@@ -269,4 +275,23 @@ function createEchoCore(): Core {
       return { text: `I heard: ${input.text}`, requestId: "voice-only" };
     },
   } as unknown as Core;
+}
+
+/** The Calendar and Reminders helper: the one the island passes, else a development build. */
+function findCalendarHelper(): string | undefined {
+  if (process.env.ZENO_CALENDAR === "0") return undefined;
+  const candidates = [
+    process.env.ZENO_CALENDAR_HELPER,
+    fileURLToPath(new URL("../island/build/ZENO.app/Contents/MacOS/zeno-calendar", import.meta.url)),
+  ];
+  return candidates.find((p): p is string => Boolean(p) && existsSync(p!));
+}
+
+/** The date, time and zone, so the model can turn "tomorrow at 3" into a real time for the calendar tools. */
+export function nowLine(now = new Date()): string {
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const minutes = -now.getTimezoneOffset();
+  const offset = `${minutes >= 0 ? "+" : "-"}${String(Math.floor(Math.abs(minutes) / 60)).padStart(2, "0")}:${String(Math.abs(minutes) % 60).padStart(2, "0")}`;
+  const text = new Intl.DateTimeFormat("en-GB", { dateStyle: "full", timeStyle: "short" }).format(now);
+  return `It is now ${text} (${zone}, UTC${offset}).`;
 }

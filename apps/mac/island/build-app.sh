@@ -29,6 +29,7 @@ node=$(cd "$(dirname "$node")" && pwd)/$(basename "$node")
 
 echo "Building ZenoIsland (release)…"
 (cd "$here" && swift build -c release --product ZenoIsland 2>&1 | grep -v "search path '/Library/Developer/CommandLineTools" || true)
+(cd "$here" && swift build -c release --product ZenoCalendar 2>&1 | grep -v "search path '/Library/Developer/CommandLineTools" || true)
 binary="$here/.build/release/ZenoIsland"
 [ -x "$binary" ] || { echo "Build failed: $binary not found" >&2; exit 1; }
 # Fail if the binary is older than any source file (the build above failed but left an old one).
@@ -40,6 +41,9 @@ fi
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$binary" "$app/Contents/MacOS/ZENO"
+# Calendar and Reminders helper (ADR-060). Inside the app so macOS attributes its permission to ZENO.
+helper="$here/.build/release/ZenoCalendar"
+[ -x "$helper" ] && cp "$helper" "$app/Contents/MacOS/zeno-calendar" || echo "warning: calendar helper not built" >&2
 
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -56,6 +60,10 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
+  <key>NSCalendarsFullAccessUsageDescription</key><string>ZENO reads your calendar only when you ask about your schedule.</string>
+  <key>NSCalendarsUsageDescription</key><string>ZENO reads your calendar only when you ask about your schedule.</string>
+  <key>NSRemindersFullAccessUsageDescription</key><string>ZENO reads your reminders when you ask, and adds one when you ask it to.</string>
+  <key>NSRemindersUsageDescription</key><string>ZENO reads your reminders when you ask, and adds one when you ask it to.</string>
   <key>NSMicrophoneUsageDescription</key><string>ZENO listens only while you hold its talk or dictate key, to hear you. Speech is transcribed on this Mac and never recorded.</string>
   <key>ZenoProjectRoot</key><string>$root</string>
   <key>ZenoNodePath</key><string>$node</string>

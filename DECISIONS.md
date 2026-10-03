@@ -1095,6 +1095,22 @@ ZENO will act on the Mac by voice command ("open Safari and search for X") throu
 
 ---
 
+## ADR-060 — Calendar and Reminders (Phase 1)
+
+**Status:** Accepted (2026-10-04).
+
+**Context.** "What's on tomorrow?" and "remind me to call Asha at six" are the most common things people ask a voice assistant, and ZENO could do neither.
+
+**Decision.**
+- **A small EventKit helper inside the app.** `zeno-calendar` (Swift, `Sources/ZenoCalendar`) is copied into `ZENO.app/Contents/MacOS/`. The runtime (a child of the app) runs it, so macOS asks for Calendar and Reminders permission once, for ZENO, with the reasons in Info.plist. It prints one JSON line per call. No AppleScript, no third-party CLI.
+- **Three tools:** `calendar_events` (read-only, at most 62 days, 60 events), `reminders_list` (open reminders, soonest due first), `reminder_add` (default list, alert at the due time, refuses past times). Adding a reminder needs no approval card: it is exactly what was asked, and it is easy to undo in Reminders.
+- **The model knows "now".** Every request's context starts with today's date, time and zone (`It is now … (Asia/Tokyo, UTC+09:00)`), so "tomorrow at 3" becomes a real time.
+- The island passes the helper's path as `ZENO_CALENDAR_HELPER`; a development runtime falls back to the built app. `ZENO_CALENDAR=0` turns the tools off. No access means a plain spoken explanation of where to allow it.
+
+**Consequences.** No event creation or editing yet (read-only calendar). Event titles go to the model when asked about the schedule, like any tool result.
+
+---
+
 ## Final Architectural Principle
 
 > Preserve the future without prematurely implementing it.

@@ -8,6 +8,8 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .executable(name: "ZenoIsland", targets: ["ZenoIsland"]),
+        // Calendar and Reminders for the runtime (ADR-060); copied into ZENO.app as zeno-calendar.
+        .executable(name: "ZenoCalendar", targets: ["ZenoCalendar"]),
     ],
     dependencies: [
         // On-device speech recognition (Parakeet on the Neural Engine), Apache-2.0. Pinned: it is pre-1.0 and
@@ -20,6 +22,7 @@ let package = Package(
             name: "ZenoIsland",
             dependencies: ["ZenoIslandCore", .product(name: "FluidAudio", package: "FluidAudio")]
         ),
+        .executableTarget(name: "ZenoCalendar"),
         .testTarget(name: "ZenoIslandCoreTests", dependencies: ["ZenoIslandCore"]),
     ]
 )

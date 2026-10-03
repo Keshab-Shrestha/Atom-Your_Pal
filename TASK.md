@@ -450,6 +450,13 @@ Also checked: a damaged `data/memory.db` turns memory off with `memory.unavailab
 
 **Not done:** by voice through the island; the notes card on the real screen.
 
+### Task 1.3 — Calendar and Reminders (ADR-060) — built; tested; helper in the app
+
+- `zeno-calendar` EventKit helper in ZENO.app; tools `calendar_events`, `reminders_list`, `reminder_add`; date, time and zone in every request's context.
+- Tests: TS 347 pass (3 new for the tools). The app builds with the helper inside, signed; the runtime logs `calendar.helper available:true`.
+
+**Not done:** Keshab allows Calendar and Reminders when macOS asks (first time ZENO is asked about his schedule), then tries "What's on tomorrow?" and "Remind me to … at …".
+
 ---
 
 ## 6. Definition of Done

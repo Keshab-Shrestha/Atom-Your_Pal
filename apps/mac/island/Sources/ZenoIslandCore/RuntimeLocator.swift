@@ -76,6 +76,8 @@ public struct RuntimeLocator {
     public var fileExists: (String) -> Bool
     /// Runs `node --version`; nil if it could not be run.
     public var nodeVersion: (String) -> String?
+    /// The Calendar and Reminders helper (ADR-060), when there is one: `zeno-calendar` next to the app's binary.
+    public var calendarHelper: String?
 
     public init(
         environment: [String: String],
@@ -83,8 +85,10 @@ public struct RuntimeLocator {
         homeDirectory: String,
         isExecutable: @escaping (String) -> Bool,
         fileExists: @escaping (String) -> Bool,
-        nodeVersion: @escaping (String) -> String?
+        nodeVersion: @escaping (String) -> String?,
+        calendarHelper: String? = nil
     ) {
+        self.calendarHelper = calendarHelper
         self.environment = environment
         self.bundleInfo = bundleInfo
         self.homeDirectory = homeDirectory
@@ -139,6 +143,10 @@ public struct RuntimeLocator {
         let nodeDir = (node as NSString).deletingLastPathComponent
         let existing = (env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin").split(separator: ":").map(String.init)
         env["PATH"] = unique([nodeDir] + Self.toolDirectories + existing).joined(separator: ":")
+        // ADR-060: the Calendar and Reminders helper next to the app's own binary, so permission is ZENO's.
+        if env["ZENO_CALENDAR_HELPER"] == nil, let helper = calendarHelper, isExecutable(helper) {
+            env["ZENO_CALENDAR_HELPER"] = helper
+        }
         return env
     }
 
@@ -170,6 +178,7 @@ extension RuntimeLocator {
                 let data = out.fileHandleForReading.readDataToEndOfFile()
                 process.waitUntilExit()
                 return process.terminationStatus == 0 ? String(decoding: data, as: UTF8.self) : nil
-            })
+            },
+            calendarHelper: bundle.executableURL.map { $0.deletingLastPathComponent().appendingPathComponent("zeno-calendar").path })
     }
 }
