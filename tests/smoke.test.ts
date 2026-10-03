@@ -5,7 +5,9 @@ import { spawn, spawnSync } from "node:child_process";
 function startZeno(env: Record<string, string>, args: string[] = [], input?: string) {
   return spawnSync(process.execPath, ["apps/mac/src/main.ts", ...args], {
     encoding: "utf8",
-    env: { ...process.env, ...env },
+    // A model saved in the island (config/island.json) overrides the env, so point at a file that
+    // does not exist: these tests check the env configuration, not whatever the user last picked.
+    env: { ...process.env, ZENO_ISLAND_SETTINGS: "tests/no-saved-choice.json", ...env },
     input,
     timeout: 30_000,
   });
