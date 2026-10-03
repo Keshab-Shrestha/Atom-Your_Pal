@@ -38,7 +38,7 @@ test("weather: geocodes, prefers the named country, and reads the forecast", asy
   const f = fakeFetch(geo, forecast);
   const text = String(await weatherTool({ fetch: f.fetch }).run({ place: "Paris, France", days: 2 }));
   assert.match(f.urls[1], /latitude=48.85&longitude=2.35/);
-  assert.match(f.urls[1], /forecast_days=2/);
+  assert.match(f.urls[1], /forecast_days=7/, "always a week, so one cached forecast answers any question");
   assert.match(text, /^Paris, Île-de-France, France now: partly cloudy, 21°C \(feels 21°C\), wind 11 km\/h, humidity 63%\./);
   assert.match(text, /Today: partly cloudy, 16 to 25°C, 10% chance of rain\./);
   assert.match(text, /Monday 5 Oct: rain, 15 to 20°C, 80% chance of rain\./);
@@ -50,4 +50,18 @@ test("weather: no place means home; an unknown place is a clear error", async ()
   assert.match(f.urls[0], /name=Tokyo/);
   const none = fakeFetch({}, forecast);
   await assert.rejects(Promise.resolve().then(() => weatherTool({ fetch: none.fetch }).run({ place: "Xyzzyville" })), /no place called "Xyzzyville"/);
+});
+
+test("weather: places and fresh forecasts are reused; warm() fetches home ahead", async () => {
+  let clock = 0;
+  const f = fakeFetch({ results: [{ name: "Tokyo", country: "Japan", latitude: 35.69, longitude: 139.69 }] }, forecast);
+  const tool = weatherTool({ fetch: f.fetch, home: () => "Tokyo", now: () => clock });
+  await tool.warm();
+  assert.equal(f.urls.length, 2);
+  await tool.run({});
+  await tool.run({ place: "tokyo", days: 1 });
+  assert.equal(f.urls.length, 2, "answered from the cache");
+  clock += 16 * 60_000;
+  await tool.run({});
+  assert.equal(f.urls.length, 3, "a stale forecast is fetched again; the place is not");
 });

@@ -193,6 +193,9 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
         persistSession: false,
         permissionMode: "default",
         maxTurns: specs.length ? maxTurns : 1,
+        // Spoken answers to everyday questions: thinking adds ~1 s per model turn for nothing a listener notices.
+        // ZENO_THINKING=1 turns it back on (Claude decides how much).
+        thinking: (options.env ?? process.env).ZENO_THINKING === "1" ? { type: "adaptive" } : { type: "disabled" },
         abortController: controller,
         env: scrubbedEnv(options.env ?? process.env),
         ...(specs.length

@@ -1129,6 +1129,10 @@ When a timer ends, the runtime chimes (Glass) and says "Your pasta timer is done
 
 **Consequences.** "Here" is a city, not a precise location: no Location Services permission is needed. A user away from home names the place.
 
+**Latency (measured 2026-10-04).** Open-Meteo's TLS handshake takes ~6 s from this network (Google 0.3 s, Anthropic 0.08 s), so a cold question cost two handshakes (~13 s). Places are kept for the session, the week's forecast is reused for 15 minutes, and home's forecast is fetched at start and every 30 minutes. With the Claude plan's thinking turned off (below), "What's the weather like?" went from 19.4 s to 6.3 s.
+
+**Claude plan thinking off.** Claude Code turned on adaptive thinking by default, adding ~1 s per model turn (5 runs each of a bare request: median 2.4 s off vs 3.3 s on). Spoken everyday answers do not need it: `thinking: disabled` unless `ZENO_THINKING=1`. Measured after: greeting 4.6 s, arithmetic 4.2 s, timer 5.5 s (all as text, model only). The remaining ~2 s per request is Claude Code's own process start and init; `startup()` pre-warming cannot help because ZENO's system prompt (memory, time) is fixed at warm-up time.
+
 ---
 
 ## Final Architectural Principle

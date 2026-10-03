@@ -7,6 +7,15 @@ export interface WeatherOptions {
   /** Where "here" is when the user names no place: a city name (default: from the Mac's time zone, e.g. Tokyo). */
   home?: () => string;
   timeoutMs?: number;
+  now?: () => number;
+  /** How long a forecast is reused (default 15 minutes). */
+  freshMs?: number;
+}
+
+/** The weather tool, plus a way to fetch "home" ahead of time (Open-Meteo can take 6 s per connection from here). */
+export interface WeatherTool extends Tool {
+  /** Fetches home's forecast into the cache; never throws. */
+  warm(): Promise<void>;
 }
 
 const CODES: Record<number, string> = {
@@ -43,10 +52,45 @@ export function homeFromTimeZone(zone = Intl.DateTimeFormat().resolvedOptions().
   return city.replace(/_/g, " ") || "Tokyo";
 }
 
-export function weatherTool(options: WeatherOptions = {}): Tool {
+export function weatherTool(options: WeatherOptions = {}): WeatherTool {
   const doFetch = options.fetch ?? globalThis.fetch;
   const home = options.home ?? (() => homeFromTimeZone());
-  const timeoutMs = options.timeoutMs ?? 8000;
+  const timeoutMs = options.timeoutMs ?? 12_000;
+  const now = options.now ?? Date.now;
+  const freshMs = options.freshMs ?? 15 * 60_000;
+  // Places do not move: a looked-up place is kept for the session. Forecasts are reused while fresh.
+  const places = new Map<string, Record<string, unknown>>();
+  const forecasts = new Map<string, { at: number; body: Record<string, unknown> }>();
+
+  async function locate(place: string): Promise<Record<string, unknown>> {
+    const key = place.toLowerCase();
+    const known = places.get(key);
+    if (known) return known;
+    const name = place.split(",")[0].trim();
+    const geo = await getJson(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=5&language=en&format=json`);
+    const results = Array.isArray(geo.results) ? (geo.results as Record<string, unknown>[]) : [];
+    const hint = place.includes(",") ? place.split(",").slice(1).join(",").trim().toLowerCase() : "";
+    const match =
+      (hint && results.find((r) => [r.country, r.country_code, r.admin1].some((v) => typeof v === "string" && v.toLowerCase() === hint))) ||
+      results[0];
+    if (!match) throw new Error(`no place called "${place}" was found`);
+    places.set(key, match);
+    return match;
+  }
+
+  async function forecastFor(match: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const key = `${match.latitude},${match.longitude}`;
+    const cached = forecasts.get(key);
+    if (cached && now() - cached.at < freshMs) return cached.body;
+    const body = await getJson(
+      `https://api.open-meteo.com/v1/forecast?latitude=${match.latitude}&longitude=${match.longitude}` +
+        `&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m` +
+        `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
+        `&timezone=auto&forecast_days=7`,
+    );
+    forecasts.set(key, { at: now(), body });
+    return body;
+  }
 
   async function getJson(url: string): Promise<Record<string, unknown>> {
     const response = await doFetch(url, { signal: AbortSignal.timeout(timeoutMs) });
@@ -55,6 +99,13 @@ export function weatherTool(options: WeatherOptions = {}): Tool {
   }
 
   return {
+    async warm() {
+      try {
+        await forecastFor(await locate(home()));
+      } catch {
+        // a later question will try again and report the problem then
+      }
+    },
     spec: {
       name: "weather",
       description:
@@ -71,27 +122,15 @@ export function weatherTool(options: WeatherOptions = {}): Tool {
     async run(input) {
       const place = typeof input.place === "string" && input.place.trim() ? input.place.trim() : home();
       const days = Math.min(7, Math.max(1, typeof input.days === "number" ? Math.round(input.days) : 3));
-      const name = place.split(",")[0].trim();
-      const geo = await getJson(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=5&language=en&format=json`);
-      const results = Array.isArray(geo.results) ? (geo.results as Record<string, unknown>[]) : [];
-      const hint = place.includes(",") ? place.split(",").slice(1).join(",").trim().toLowerCase() : "";
-      const match =
-        (hint && results.find((r) => [r.country, r.country_code, r.admin1].some((v) => typeof v === "string" && v.toLowerCase() === hint))) ||
-        results[0];
-      if (!match) throw new Error(`no place called "${place}" was found`);
+      const match = await locate(place);
       const label = [match.name, match.admin1 !== match.name ? match.admin1 : undefined, match.country].filter(Boolean).join(", ");
-      const forecast = await getJson(
-        `https://api.open-meteo.com/v1/forecast?latitude=${match.latitude}&longitude=${match.longitude}` +
-          `&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m` +
-          `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
-          `&timezone=auto&forecast_days=${days}`,
-      );
+      const forecast = await forecastFor(match);
       const c = (forecast.current ?? {}) as Record<string, number>;
       const d = (forecast.daily ?? {}) as Record<string, unknown[]>;
       const lines = [
         `${label} now: ${CODES[c.weather_code] ?? "unknown"}, ${Math.round(c.temperature_2m)}°C (feels ${Math.round(c.apparent_temperature)}°C), wind ${Math.round(c.wind_speed_10m)} km/h, humidity ${Math.round(c.relative_humidity_2m)}%.`,
       ];
-      const dates = Array.isArray(d.time) ? (d.time as string[]) : [];
+      const dates = Array.isArray(d.time) ? (d.time as string[]).slice(0, days) : [];
       dates.forEach((date, i) => {
         const day = new Date(`${date}T12:00:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
         const rain = (d.precipitation_probability_max as number[] | undefined)?.[i];

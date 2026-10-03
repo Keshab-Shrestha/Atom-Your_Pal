@@ -109,6 +109,13 @@ export function createRuntime(
       for (const listener of timerListeners) listener(timer);
     },
   });
+  // ADR-062: Open-Meteo, no key. ZENO_WEATHER=0 turns it off; ZENO_HOME sets "here" (default: the time zone's city).
+  // Home's forecast is fetched at start and every 30 minutes, so "what's the weather" needs no network wait.
+  const weather = process.env.ZENO_WEATHER === "0" ? undefined : weatherTool(process.env.ZENO_HOME ? { home: () => process.env.ZENO_HOME! } : {});
+  if (weather) {
+    void weather.warm();
+    setInterval(() => void weather.warm(), 30 * 60_000).unref();
+  }
   const calendarHelper = findCalendarHelper();
   log.info("calendar.helper", { available: Boolean(calendarHelper) });
   // The tools ZENO can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
@@ -118,7 +125,7 @@ export function createRuntime(
       timeTool(),
       ...timers.tools,
       // ADR-062: Open-Meteo, no key. ZENO_WEATHER=0 turns it off; ZENO_HOME sets "here" (default: the time zone's city).
-      ...(process.env.ZENO_WEATHER === "0" ? [] : [weatherTool(process.env.ZENO_HOME ? { home: () => process.env.ZENO_HOME! } : {})]),
+      ...(weather ? [weather] : []),
       // ADR-060: Calendar and Reminders when the helper is there (inside ZENO.app). ZENO_CALENDAR=0 turns it off.
       ...(calendarHelper ? createCalendarTools({ run: calendarRunner(calendarHelper) }) : []),
       ...(memory
