@@ -1121,6 +1121,16 @@ When a timer ends, the runtime chimes (Glass) and says "Your pasta timer is done
 
 ---
 
+## ADR-062 — Weather (Phase 1)
+
+**Status:** Accepted (2026-10-04).
+
+**Decision.** One `weather` tool on Open-Meteo (geocoding + forecast; free, no key, no account). Only the place name and its coordinates leave the Mac. With no place, "here" is `ZENO_HOME`, else the city of the Mac's time zone (Asia/Tokyo → Tokyo). Current conditions plus 1–7 days (default 3), with rain chance. `ZENO_WEATHER=0` turns it off.
+
+**Consequences.** "Here" is a city, not a precise location: no Location Services permission is needed. A user away from home names the place.
+
+---
+
 ## Final Architectural Principle
 
 > Preserve the future without prematurely implementing it.

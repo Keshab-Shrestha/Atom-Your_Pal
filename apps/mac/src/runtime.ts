@@ -13,6 +13,7 @@ import {
   createTimers,
   createToolEngine,
   timeTool,
+  weatherTool,
   type TimerInfo,
   type Timers,
 } from "@zeno/tool-engine";
@@ -116,6 +117,8 @@ export function createRuntime(
     tools: [
       timeTool(),
       ...timers.tools,
+      // ADR-062: Open-Meteo, no key. ZENO_WEATHER=0 turns it off; ZENO_HOME sets "here" (default: the time zone's city).
+      ...(process.env.ZENO_WEATHER === "0" ? [] : [weatherTool(process.env.ZENO_HOME ? { home: () => process.env.ZENO_HOME! } : {})]),
       // ADR-060: Calendar and Reminders when the helper is there (inside ZENO.app). ZENO_CALENDAR=0 turns it off.
       ...(calendarHelper ? createCalendarTools({ run: calendarRunner(calendarHelper) }) : []),
       ...(memory

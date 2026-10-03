@@ -462,6 +462,10 @@ Live in text (Claude plan): the calendar call waited on macOS's permission dialo
 - `timer_set` / `timer_list` / `timer_cancel`; the runtime chimes and speaks when one ends, then the island shows "Timer done".
 - Tests: TS 351 pass (4 timer tool, 1 island); Swift 312 pass. Live: "a timer for 5 seconds for the tea" fired at 5 s; "20 minutes for the laundry" listed, then cancelled.
 
+### Task 1.5 — Weather (ADR-062) — built; tested; checked live in text
+
+- `weather` tool on Open-Meteo; home from the time zone. Tests: 3 new. Live: "What's the weather like?" → Tokyo now and the next days; "Will it rain in Osaka tomorrow?" → 53%, bring an umbrella. Both took ~18 s (see the latency task).
+
 **Not done (1.3):** Keshab allows Calendar and Reminders when macOS asks (first time ZENO is asked about his schedule), then tries "What's on tomorrow?" and "Remind me to … at …".
 
 ---
