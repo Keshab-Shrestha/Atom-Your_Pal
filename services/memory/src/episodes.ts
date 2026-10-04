@@ -88,7 +88,8 @@ export function episodeContext(store: MemoryStore, currentSessionId: string, lim
   const episodes = store.episodes(limit + 1).filter((e) => e.sessionId !== currentSessionId).slice(0, limit);
   if (episodes.length === 0) return undefined;
   return [
-    "Your notes from recent conversations with the user (use them if the user refers back; do not bring them up unprompted):",
+    "Your notes from recent conversations with the user (use them if the user refers back; do not bring them up unprompted). " +
+      "They record what happened then, not what you can do now: if a note says you could not do something, try again with the tools you have.",
     ...episodes.reverse().map((e) => `- ${when(e)}: ${e.summary}`),
   ].join("\n");
 }

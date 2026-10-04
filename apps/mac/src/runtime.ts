@@ -11,6 +11,7 @@ import {
   createComputerTool,
   createCuaTransport,
   createTimers,
+  createAppTools,
   createToolEngine,
   timeTool,
   weatherTool,
@@ -123,6 +124,8 @@ export function createRuntime(
   const toolEngine = createToolEngine({
     tools: [
       timeTool(),
+      // ADR-066: open apps and web pages. Always on: no screen access, no clicks. ZENO_APPS=0 turns it off.
+      ...(process.env.ZENO_APPS === "0" ? [] : createAppTools()),
       ...timers.tools,
       // ADR-062: Open-Meteo, no key. ZENO_WEATHER=0 turns it off; ZENO_HOME sets "here" (default: the time zone's city).
       ...(weather ? [weather] : []),

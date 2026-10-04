@@ -1211,3 +1211,19 @@ Date: 2026-10-04.
 - "Thanks, that is all.": 1.3 s
 
 For voice, add Parakeet's transcription (~0.1–0.3 s, ADR-063) after the keys come up.
+
+---
+
+## ADR-066 — Opening Apps and Websites Is Always On
+
+Date: 2026-10-04.
+
+### Decision
+
+"Open Safari" failed: computer control (ADR-054) is off unless `ZENO_COMPUTER=1`, so the model had no tool and said it could not. Opening an app is the Dock's job, not computer control's, so it gets its own always-on tools:
+
+- `open_app`: matches the name against installed apps (Applications folders), then `open -a`. Refuses the apps computer control never touches (terminals, password managers, System Settings, AI agents), using the same `appBlock` list.
+- `open_url`: opens an http or https page in the default browser; other schemes are refused.
+- No screen access, no clicks, no typing, so no approval. `ZENO_APPS=0` turns them off.
+
+Two prompt changes. The failure had been saved as a conversation note ("ZENO explained it cannot open apps"), and later requests believed it. So conversation notes are now introduced as "what happened then, not what you can do now". The system prompt also tells the model to use a tool when one fits, instead of explaining how the user could do it.
