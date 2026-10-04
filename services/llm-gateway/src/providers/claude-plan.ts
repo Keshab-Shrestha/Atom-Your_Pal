@@ -166,6 +166,49 @@ function classify(code: string | undefined, acted: boolean): { kind: ErrorKind; 
   }
 }
 
+const SOURCES = /\n\s*(?:\*\*)?sources:?(?:\*\*)?\s*(?:\n|$)/i;
+
+/** Claude Code's web search ends replies with a "Sources:" list of links: never spoken, never shown (ADR-069). */
+export function withoutSources(text: string): string {
+  const at = `\n${text}`.search(SOURCES);
+  return at < 0 ? text : text.slice(0, Math.max(0, at - 1)).trimEnd();
+}
+
+/**
+ * Passes streamed text on, but stops at a "Sources:" list. Text after the last line break is held back while it
+ * could still turn out to be "Sources:". `flush` passes on what was held, at the end.
+ */
+export function sourcesFilter(onText: (delta: string) => void) {
+  let all = "";
+  let sent = 0;
+  let stopped = false;
+  const forward = (upTo: number) => {
+    if (upTo > sent) onText(all.slice(sent, upTo));
+    sent = Math.max(sent, upTo);
+  };
+  return {
+    push(delta: string) {
+      if (stopped) return;
+      all += delta;
+      const found = `\n${all}`.search(SOURCES);
+      if (found >= 0) {
+        stopped = true;
+        forward(Math.max(0, found - 1));
+        return;
+      }
+      const lastBreak = all.lastIndexOf("\n");
+      if (lastBreak >= 0) {
+        const tail = all.slice(lastBreak + 1).trim().replace(/\*/g, "").toLowerCase();
+        if (tail.length < 9 && "sources:".startsWith(tail)) return forward(lastBreak);
+      }
+      forward(all.length);
+    },
+    flush() {
+      if (!stopped) forward(all.length);
+    },
+  };
+}
+
 /** What a pre-started Claude Code process was started for: requests must match it exactly to use it. */
 function keyOf(system: string, specs: ToolSpec[]): string {
   return JSON.stringify([system, specs.map((s) => [s.name, s.description, s.inputSchema])]);
@@ -206,7 +249,11 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
   const getSdk = async () => options.sdk ?? (await (sdkPromise ??= loadSdk()));
 
   /** Claude Code's options for one process. Tool calls go to whichever request `state` belongs to at the time. */
+  // ADR-069: Claude Code's own web search, for news, scores, prices and anything else current. ZENO_WEB=0 turns it off.
+  const webAllowed = env.ZENO_WEB !== "0";
   function queryOptions(sdk: ClaudeSdk, system: string, specs: ToolSpec[], state: RunState, controller: AbortController) {
+    // Only with ZENO's tools: requests without them (the out-of-steps wrap-up, conversation notes) get nothing.
+    const web = webAllowed && specs.length > 0;
     const sdkTools = specs.map((spec) =>
       sdk.tool(spec.name, spec.description, shapeOf(spec), async (input) => {
         state.acted = true;
@@ -220,7 +267,7 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
       pathToClaudeCodeExecutable: claudePath,
       // Nothing from Claude Code itself: no built-in tools, no user settings, and not the account's claude.ai connectors
       // (they would add tens of thousands of tokens to every request and let Claude reach into other services).
-      tools: [],
+      tools: web ? ["WebSearch"] : [],
       settingSources: [],
       strictMcpConfig: true,
       persistSession: false,
@@ -235,7 +282,7 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
       ...(specs.length
         ? {
             mcpServers: { [SERVER]: sdk.createSdkMcpServer({ name: SERVER, version: "1.0.0", tools: sdkTools }) },
-            allowedTools: specs.map((s) => `mcp__${SERVER}__${s.name}`),
+            allowedTools: [...specs.map((s) => `mcp__${SERVER}__${s.name}`), ...(web ? ["WebSearch"] : [])],
           }
         : {}),
     } as Record<string, unknown>;
@@ -283,19 +330,21 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
     let lastError: string | undefined;
     let result: Record<string, any> | undefined;
     let wrote = false;
+    const filter = onText ? sourcesFilter(onText) : undefined;
+    try {
     for await (const message of messages) {
       if (signal.aborted) break;
       if (message.type === "stream_event") {
         const event = message.event ?? {};
         if (message.parent_tool_use_id) continue;
-        if (event.type === "message_start" && wrote) onText?.("\n"); // a new turn starts a new sentence
-        if (event.type === "content_block_delta" && event.delta?.type === "text_delta" && typeof event.delta.text === "string") {
-          wrote = true;
-          try {
-            onText?.(event.delta.text);
-          } catch {
-            // speaking early is a help, never a reason to fail the request
+        try {
+          if (event.type === "message_start" && wrote) filter?.push("\n"); // a new turn starts a new sentence
+          if (event.type === "content_block_delta" && event.delta?.type === "text_delta" && typeof event.delta.text === "string") {
+            wrote = true;
+            filter?.push(event.delta.text);
           }
+        } catch {
+          // speaking early is a help, never a reason to fail the request
         }
       } else if (message.type === "system" && message.subtype === "init") {
         const source = String(message.apiKeySource ?? "");
@@ -325,6 +374,13 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
         lastError = message.error;
       } else if (message.type === "result") {
         result = message;
+      }
+    }
+    } finally {
+      try {
+        filter?.flush();
+      } catch {
+        // as above
       }
     }
     void state;
@@ -410,7 +466,7 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
         const { kind, message } = classify(lastError, acted);
         throw new ProviderError(kind, message);
       }
-      const text = typeof result.result === "string" ? result.result.trim() : "";
+      const text = typeof result.result === "string" ? withoutSources(result.result.trim()) : "";
       if (!text) throw new ProviderError("unknown", emptyReplyReason("claude-plan", "none"));
       return { text };
     },

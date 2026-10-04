@@ -1258,3 +1258,22 @@ Two always-on tools, through AppleScript (`osascript`):
 - `volume`: read, set (0–100), change by a step, mute or unmute the Mac's output.
 
 ZENO.app now declares `NSAppleEventsUsageDescription`. macOS asks once per player ("ZENO wants to control Music"). `ZENO_MEDIA=0` turns both tools off.
+
+---
+
+## ADR-069 — Web Search on the Claude Plan
+
+Date: 2026-10-04.
+
+### Decision
+
+On the Claude plan, Claude Code's own `WebSearch` is allowed, next to ZENO's tools. It is the only Claude Code tool allowed; no files, no shell. It runs on the plan, with no extra key. Requests without ZENO's tools (the out-of-steps wrap-up, conversation notes) get no search. `ZENO_WEB=0` turns it off. The API providers do not search yet.
+
+- The system prompt asks for a few words before searching ("Let me look that up."). Those are spoken straight away through streaming (ADR-065), so the wait does not feel dead.
+- Claude Code adds a "Sources:" list of links to replies that used search. It is cut from the streamed speech (`sourcesFilter`, which holds back a line that might turn out to be "Sources:") and from the final reply (`withoutSources`).
+
+### Measured (Haiku 4.5)
+
+- First words: 1.0–1.6 s.
+- Whole answer: 7–24 s, depending on the search.
+- Answers to "who won the last race" varied between runs, so search quality is Haiku's. A stronger model can be chosen in Settings.

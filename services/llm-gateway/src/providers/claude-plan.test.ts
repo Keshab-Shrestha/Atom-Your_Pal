@@ -179,16 +179,16 @@ function runnerOf(fn: (call: ToolCall) => ToolResult | Promise<ToolResult>) {
   return { runner, calls };
 }
 
-test("ZENO's tools are offered to Claude as one in-process server, and nothing else is allowed", async () => {
+test("ZENO's tools are offered to Claude as one in-process server; of Claude Code's own, only web search", async () => {
   const { runner } = runnerOf((c) => ({ callId: c.id, content: "ok" }));
   const { sdk, seen } = fakeSdk(() => msgs(init(), done("ok")));
   await make(sdk, { tools: runner }).complete(request({ tools: [spec] }), live());
   const o = seen[0]!.options;
-  assert.deepEqual(o.allowedTools, ["mcp__zeno__computer"]);
+  assert.deepEqual(o.allowedTools, ["mcp__zeno__computer", "WebSearch"], "plus Claude Code's web search (ADR-069)");
   assert.equal(o.mcpServers.zeno.name, "zeno");
   assert.equal(o.mcpServers.zeno.tools.length, 1);
   assert.equal(o.mcpServers.zeno.tools[0].name, "computer");
-  assert.deepEqual(o.tools, []);
+  assert.deepEqual(o.tools, ["WebSearch"]);
   assert.ok(o.maxTurns > 1);
   assert.equal(o.permissionMode, "default");
 });
@@ -398,4 +398,22 @@ test("ZENO_PREWARM=0 never pre-starts", async () => {
   await adapter.complete(request(), live());
   await new Promise((r) => setTimeout(r, 0));
   assert.equal(w.started.length, 0);
+});
+
+test("withoutSources / sourcesFilter: a web search's Sources list is never spoken or shown (ADR-069)", async () => {
+  const { withoutSources, sourcesFilter } = await import("./claude-plan.ts");
+  const text = "Antelli won.\n\nSources:\n- [ESPN](https://espn.com)";
+  assert.equal(withoutSources(text), "Antelli won.");
+  assert.equal(withoutSources("No sources here."), "No sources here.");
+  assert.equal(withoutSources("A.\n**Sources:**\n- x"), "A.");
+  let out = "";
+  const f = sourcesFilter((d) => (out += d));
+  for (const piece of ["Antelli ", "won.\n", "\nSour", "ces:\n- [ESPN](https://", "espn.com)"]) f.push(piece);
+  f.flush();
+  assert.equal(out.trim(), "Antelli won.");
+  let plain = "";
+  const g = sourcesFilter((d) => (plain += d));
+  for (const piece of ["Line one.\n", "So", " it goes."]) g.push(piece);
+  g.flush();
+  assert.equal(plain, "Line one.\nSo it goes.");
 });
