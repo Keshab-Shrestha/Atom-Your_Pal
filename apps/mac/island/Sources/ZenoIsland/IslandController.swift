@@ -198,7 +198,27 @@ final class IslandController {
             linger(model.status.needsAttention ? afterProblem : afterTurn)
         }
         if case .timer = event, model.status.kind == .notice { linger(afterProblem) }
+        if case .reply(let text) = event { lastReply = text }
+        if case .turnComplete = event { maybeFollowUp() }
         statusChanged()
+    }
+
+    // MARK: - Follow-up (ADR-067)
+
+    private var lastReply = ""
+
+    /// ZENO's reply ended in a question: open the microphone for the answer, once its voice has stopped.
+    private func maybeFollowUp() {
+        let reply = lastReply
+        lastReply = ""
+        guard model.settings.followUpEnabled, talkLocally, SpeechEndpoint.invitesAnswer(reply) else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+            guard let self, !self.talking, !self.dictating, !self.model.status.isBusy else { return }
+            if self.dictation.followUpBegan() {
+                self.talkingLocally = true
+                self.trace("follow-up listening")
+            }
+        }
     }
 
     private func statusChanged() {
@@ -219,6 +239,7 @@ final class IslandController {
         pet.poke()
         switch trigger {
         case .holdBegan(.talk):
+            dictation.followUpCancelled() // the keys take over from listening for an answer
             talking = true
             let interrupting = model.status.isBusy
             if talkLocally, dictation.talkBegan() {
@@ -240,6 +261,7 @@ final class IslandController {
             talking = false
             if dictation.isActive { dictation.cancel() } else { stopWork() }
         case .holdBegan(.dictate):
+            dictation.followUpCancelled()
             model.meter.reset()
             dictation.holdBegan()
         case .holdEnded(.dictate):

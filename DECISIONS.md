@@ -1227,3 +1227,19 @@ Date: 2026-10-04.
 - No screen access, no clicks, no typing, so no approval. `ZENO_APPS=0` turns them off.
 
 Two prompt changes. The failure had been saved as a conversation note ("ZENO explained it cannot open apps"), and later requests believed it. So conversation notes are now introduced as "what happened then, not what you can do now". The system prompt also tells the model to use a tool when one fits, instead of explaining how the user could do it.
+
+---
+
+## ADR-067 — Answer ZENO's Question Without the Keys
+
+Date: 2026-10-04.
+
+### Decision
+
+When ZENO's reply ends with a question, the island opens the microphone 0.25 s after ZENO stops speaking, so the user can just answer.
+
+- It uses the same path as Talk: the prepared microphone, then Parakeet (ADR-063). `SpeechEndpoint` (ZenoIslandCore) watches loudness every 100 ms. Speech starts after 0.15 s above RMS 0.012. The answer ends after 0.9 s of quiet, or after 20 s at most. If nobody speaks within 6 s, the microphone closes quietly and nothing is sent.
+- The island shows Listening the whole time, so the user can see the microphone is on.
+- The Talk keys, the Dictate keys and Esc take over or cancel at once.
+- It starts only after playback has ended (`turn.complete` follows the end of speech), so ZENO does not hear itself.
+- Settings → General → "Answer without keys" (default on). It is off when Talk uses the runtime's Whisper path (`ZENO_TALK_ENGINE=whisper`).

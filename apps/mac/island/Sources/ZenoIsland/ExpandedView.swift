@@ -1021,6 +1021,10 @@ struct GeneralSection: View {
             Row(title: "Sounds", detail: "A soft tone when listening starts and stops") {
                 ThemedSwitch(isOn: settings.soundsEnabled, set: { settings.soundsEnabled = $0 }, label: "Sounds")
             }
+            RowDivider()
+            Row(title: "Answer without keys", detail: "When ZENO asks you something, it listens for a few seconds") {
+                ThemedSwitch(isOn: settings.followUpEnabled, set: { settings.followUpEnabled = $0 }, label: "Answer without keys")
+            }
         }
         .onAppear { login.refresh() }
         Card(footer: "Theme, Wisp, bubble and panel go back to their defaults. Shortcuts, dictation and the AI model stay.") {

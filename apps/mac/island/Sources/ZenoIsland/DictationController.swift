@@ -278,8 +278,59 @@ final class DictationController {
         }
     }
 
+    // MARK: - Follow-up (ADR-067)
+
+    private var followUp: Task<Void, Never>?
+    /// True while the microphone is open for an answer to ZENO's question.
+    var isFollowingUp: Bool { followUp != nil }
+
+    /// ZENO just asked something: listen for an answer without keys. Ends by itself when the user stops speaking
+    /// (the answer is sent like Talk) or when nobody speaks within a few seconds (closed quietly, nothing sent).
+    @discardableResult
+    func followUpBegan() -> Bool {
+        guard followUp == nil, talkBegan() else { return false }
+        log("followup.start", [:])
+        let opened = ProcessInfo.processInfo.systemUptime
+        followUp = Task { [weak self] in
+            var endpoint = SpeechEndpoint()
+            var seen = 0
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                guard let self, !Task.isCancelled, self.talkSince != nil else { return }
+                let (total, clip) = self.capture.snapshot(maxSamples: DictationAudio.sampleRate)
+                let fresh = min(max(total - seen, 0), clip.count)
+                seen = total
+                let rms = SpeechEndpoint.rms(clip.suffix(fresh))
+                switch endpoint.update(elapsed: ProcessInfo.processInfo.systemUptime - opened, rms: rms) {
+                case .listen:
+                    continue
+                case .finish:
+                    self.followUp = nil
+                    self.log("followup.heard", [:])
+                    self.talkEnded()
+                    return
+                case .giveUp:
+                    self.followUp = nil
+                    self.log("followup.quiet", [:])
+                    self.talkCancelled()
+                    return
+                }
+            }
+        }
+        return true
+    }
+
+    /// Stops listening for an answer (the Talk keys, Esc, a new turn), sending nothing.
+    func followUpCancelled() {
+        guard let task = followUp else { return }
+        task.cancel()
+        followUp = nil
+        talkCancelled()
+    }
+
     /// Esc, or the hold was spoiled: nothing is sent.
     func talkCancelled() {
+        if let task = followUp { task.cancel(); followUp = nil }
         guard talkSince != nil || talkWork != nil else { return }
         if talkSince != nil { capture.cancel() }
         talkSince = nil

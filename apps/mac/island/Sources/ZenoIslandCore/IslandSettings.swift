@@ -15,6 +15,7 @@ public final class IslandSettings {
     static func shortcutKey(_ action: ShortcutAction) -> String { "zeno.shortcut.\(action.rawValue)" }
     static let petKey = "zeno.petEnabled"
     static let soundsKey = "zeno.soundsEnabled"
+    static let followUpKey = "zeno.followUp"
     static let petSpotKey = "zeno.petSpot"
     static let wispHideKey = "zeno.wispHideAfter"
     static let wispSizeKey = "zeno.wisp.size"
@@ -39,6 +40,11 @@ public final class IslandSettings {
 
     /// Increments on every change, so callers (e.g. the shortcut engine) can tell something changed.
     public private(set) var revision = 0
+
+    /// After ZENO asks a question, listen for the answer without the Talk keys (ADR-067). Default on.
+    public var followUpEnabled: Bool {
+        didSet { save(followUpEnabled, Self.followUpKey) }
+    }
 
     /// Show the pet (ADR-042). Default on.
     public var petEnabled: Bool {
@@ -117,6 +123,7 @@ public final class IslandSettings {
         self.defaults = defaults
         petEnabled = defaults.object(forKey: Self.petKey) as? Bool ?? true
         soundsEnabled = defaults.object(forKey: Self.soundsKey) as? Bool ?? true
+        followUpEnabled = defaults.object(forKey: Self.followUpKey) as? Bool ?? true
         wispHideAfter = (defaults.object(forKey: Self.wispHideKey) as? Int).flatMap(WispHideTimeout.init(rawValue:)) ?? .minute1
         wispSize = Self.choice(defaults, Self.wispSizeKey, .medium)
         wispLean = Self.choice(defaults, Self.wispLeanKey, .normal)
