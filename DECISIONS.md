@@ -1277,3 +1277,13 @@ On the Claude plan, Claude Code's own `WebSearch` is allowed, next to ZENO's too
 - First words: 1.0–1.6 s.
 - Whole answer: 7–24 s, depending on the search.
 - Answers to "who won the last race" varied between runs, so search quality is Haiku's. A stronger model can be chosen in Settings.
+
+---
+
+## ADR-070 — Take a Note
+
+Date: 2026-10-04.
+
+### Decision
+
+`note_add` saves a new note in Apple Notes (default account, Notes folder) through AppleScript. It has a short title in bold and the user's words, escaped as HTML. It only adds notes: ZENO never reads, changes or deletes them. macOS asks once ("ZENO wants to control Notes"), under the same `NSAppleEventsUsageDescription` as ADR-068. `ZENO_NOTES=0` turns it off.

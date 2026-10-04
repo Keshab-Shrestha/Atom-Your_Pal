@@ -471,6 +471,17 @@ Live in text (Claude plan): the calendar call waited on macOS's permission dialo
 - Claude plan thinking off (unless `ZENO_THINKING=1`); weather cached and home pre-fetched. Measured: greeting 4.6 s, weather 6.3 s (was 19.4 s), timer 5.5 s, arithmetic 4.2 s.
 - Type to ZENO: a composer at the bottom of the Conversation tab; Return sends; the reply is shown and spoken. Protocol `text.send`. Checked over the real pipe: "What is 6 times 7?" → "Six times seven is forty-two." in 4.8 s, first sound 1.2 s later.
 
+- ADR-064: the next Claude Code process is pre-started (3 s after each answer, so it does not slow speech). Per-request context moved to `systemExtra`.
+- ADR-065: speech starts on Claude's first sentence while it is still writing. A long opening is cut short; Kokoro now runs at fp32 (~1.6× faster here). Measured, question → first sound: greeting 1.7 s, plain question 1.3 s, weather 2.5 s.
+
+## Phase 2 — Hands-Free and More Things to Do (2026-10-04)
+
+- ADR-066: open apps and websites (always on; terminals, password managers, System Settings and AI agents refused). Checked live: Safari, Notes, YouTube opened; Terminal refused.
+- ADR-067: answer ZENO's question without keys. The microphone opens after a reply that ends in "?"; 6 s to start, 0.9 s of quiet ends it. Setting "Answer without keys". **Not yet tried by voice.**
+- ADR-068: music (Spotify/Music) and volume. **Not yet tried live** (macOS asks to allow ZENO to control the player).
+- ADR-069: web search on the Claude plan; "Let me look that up" spoken first (~1 s); the Sources list is never spoken. Checked live in text.
+- ADR-070: take a note into Apple Notes. **Not yet tried live.**
+
 **Not done (1.3):** Keshab allows Calendar and Reminders when macOS asks (first time ZENO is asked about his schedule), then tries "What's on tomorrow?" and "Remind me to … at …".
 
 ---
