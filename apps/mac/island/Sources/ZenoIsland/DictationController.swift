@@ -252,9 +252,11 @@ final class DictationController {
         let samples = capture.stop()
         let seconds = DictationAudio.seconds(samples)
         let held = Int((ProcessInfo.processInfo.systemUptime - since) * 1000)
+        let quiet = quietIfNothing
+        quietIfNothing = false
         guard seconds >= tooShort, DictationAudio.hasSpeech(samples) else {
             log("talk.end", ["outcome": "no_speech", "heldMs": held])
-            onTalk(.nothing)
+            onTalk(quiet ? .cancelled : .nothing)
             return
         }
         let removeFillers = options().removeFillers
@@ -268,7 +270,7 @@ final class DictationController {
                 self.log("talk.end", ["outcome": text.isEmpty ? "no_speech" : "heard", "heldMs": held,
                                       "transcribeMs": Int((ProcessInfo.processInfo.systemUptime - started) * 1000),
                                       "clipped": DictationAudio.clipped(samples)])
-                self.onTalk(text.isEmpty ? .nothing : .heard(text))
+                self.onTalk(text.isEmpty ? (quiet ? .cancelled : .nothing) : .heard(text))
             } catch {
                 if Task.isCancelled { return }
                 self.talkWork = nil
@@ -281,6 +283,8 @@ final class DictationController {
     // MARK: - Follow-up (ADR-067)
 
     private var followUp: Task<Void, Never>?
+    /// The answer came without keys: if it turns out to be noise, end quietly rather than say "Hold the keys".
+    private var quietIfNothing = false
     /// True while the microphone is open for an answer to ZENO's question.
     var isFollowingUp: Bool { followUp != nil }
 
@@ -307,6 +311,7 @@ final class DictationController {
                 case .finish:
                     self.followUp = nil
                     self.log("followup.heard", [:])
+                    self.quietIfNothing = true
                     self.talkEnded()
                     return
                 case .giveUp:
