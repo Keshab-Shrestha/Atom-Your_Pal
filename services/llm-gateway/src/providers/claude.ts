@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Message, ModelRequest, ModelResponse, ToolCall } from "@zeno/contracts";
-import { emptyReplyReason, ProviderError, type ErrorKind, type ProviderAdapter } from "../gateway.ts";
+import { emptyReplyReason, ProviderError, type ErrorKind, type ProviderAdapter, systemText } from "../gateway.ts";
 
 /** The subset of the Anthropic client this adapter uses (lets tests supply a fake). */
 export interface ClaudeClient {
@@ -40,7 +40,7 @@ export function createClaudeAdapter(options: ClaudeOptions): ProviderAdapter {
           {
             model,
             max_tokens: maxTokens,
-            system: request.system,
+            system: systemText(request),
             messages: request.messages.map(toClaudeMessage),
             ...(request.tools?.length
               ? { tools: request.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.inputSchema })) }

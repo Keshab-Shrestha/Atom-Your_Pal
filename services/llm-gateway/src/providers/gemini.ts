@@ -1,7 +1,7 @@
 import { ApiError, GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { randomUUID } from "node:crypto";
 import type { Message, ModelRequest, ModelResponse, ToolCall } from "@zeno/contracts";
-import { emptyReplyReason, ProviderError, type ErrorKind, type ProviderAdapter } from "../gateway.ts";
+import { emptyReplyReason, ProviderError, type ErrorKind, type ProviderAdapter, systemText } from "../gateway.ts";
 
 /** One piece of a Gemini turn: text, a function call (with its thought signature), or a function result. */
 interface GeminiPart {
@@ -68,7 +68,7 @@ export function createGeminiAdapter(options: GeminiOptions): ProviderAdapter {
           model,
           contents: toGeminiContents(request.messages),
           config: {
-            systemInstruction: request.system,
+            systemInstruction: systemText(request),
             abortSignal: signal,
             ...(request.tools?.length
               ? {

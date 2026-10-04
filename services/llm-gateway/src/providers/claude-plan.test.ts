@@ -334,3 +334,66 @@ test("the provider factory builds it, and the key slot carries the path of the s
   const adapter = createProviderAdapter({ provider: "claude-plan", apiKey: "/bin/claude", model: "claude-sonnet-5-5" });
   assert.equal(adapter.name, "claude-plan");
 });
+
+// ---- ADR-064: a pre-started process for the next request
+
+function warmSdk(reply: (prompt: string, n: number) => AsyncIterable<Msg>) {
+  const base = fakeSdk(() => msgs(init(), done("cold")));
+  const started: Record<string, any>[] = [];
+  const prompts: string[] = [];
+  let closed = 0;
+  base.sdk.startup = async ({ options }) => {
+    started.push(options);
+    return {
+      query: (prompt: string) => {
+        prompts.push(prompt);
+        return reply(prompt, prompts.length) as never;
+      },
+      close: () => void closed++,
+    };
+  };
+  return { ...base, started, prompts, closed: () => closed };
+}
+
+test("prepare pre-starts Claude Code; the next matching request uses it and the next one is started", async () => {
+  const w = warmSdk(() => msgs(init(), done("warm")));
+  const adapter = make(w.sdk);
+  adapter.prepare!({ system: "You are ZENO." });
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(w.started.length, 1);
+  assert.equal(w.started[0]!.systemPrompt, "You are ZENO.");
+  const reply = await adapter.complete(request({ systemExtra: "The time is 10:00." }), live());
+  assert.deepEqual(reply, { text: "warm" });
+  assert.equal(w.seen.length, 0, "no cold start");
+  assert.match(w.prompts[0]!, /^Context for this request, from ZENO \(not said by the user\):\nThe time is 10:00\.\n\nhi there$/);
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(w.started.length, 2, "the next request's process is already starting");
+  adapter.close!();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(w.closed(), 1);
+});
+
+test("a request with different instructions does not use the prepared process; a broken one falls back to a cold start", async () => {
+  const w = warmSdk(() => msgs(init(), done("warm")));
+  const adapter = make(w.sdk);
+  adapter.prepare!({ system: "Other." });
+  assert.deepEqual(await adapter.complete(request(), live()), { text: "cold" });
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(w.closed(), 1, "the mismatched process is closed");
+
+  const broken = warmSdk(() => {
+    throw new Error("pipe closed");
+  });
+  const b = make(broken.sdk);
+  b.prepare!({ system: "You are ZENO." });
+  assert.deepEqual(await b.complete(request(), live()), { text: "cold" });
+});
+
+test("ZENO_PREWARM=0 never pre-starts", async () => {
+  const w = warmSdk(() => msgs(init(), done("warm")));
+  const adapter = make(w.sdk, { env: { PATH: "/bin", ZENO_PREWARM: "0" } });
+  adapter.prepare!({ system: "You are ZENO." });
+  await adapter.complete(request(), live());
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(w.started.length, 0);
+});

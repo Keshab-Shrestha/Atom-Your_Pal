@@ -270,7 +270,7 @@ test("without tools the request offers none and tool calls are not run", async (
   assert.equal("tools" in requests[0], false);
 });
 
-test("context: extra text joins the system prompt for that request only; a failing provider is ignored", async () => {
+test("context: extra text rides as systemExtra for that request only; the system prompt stays fixed; a failing provider is ignored", async () => {
   const { model, requests } = fakeModel();
   let calls = 0;
   const core = createCore({
@@ -285,9 +285,10 @@ test("context: extra text joins the system prompt for that request only; a faili
   await core.handle({ text: "hello", source: "voice" });
   await core.handle({ text: "boom", source: "text" });
   assert.equal(calls, 3);
-  assert.equal(requests[0].system, `${DEFAULT_SYSTEM_PROMPT}\n\nKnown: likes tea (voice)`);
-  assert.equal(requests[1].system, DEFAULT_SYSTEM_PROMPT);
-  assert.equal(requests[2].system, DEFAULT_SYSTEM_PROMPT);
+  for (const r of requests) assert.equal(r.system, DEFAULT_SYSTEM_PROMPT, "fixed, so a provider can prepare ahead (ADR-064)");
+  assert.equal(requests[0].systemExtra, "Known: likes tea (voice)");
+  assert.equal(requests[1].systemExtra, undefined);
+  assert.equal(requests[2].systemExtra, undefined);
 });
 
 test("context: tool rounds keep the same system prompt", async () => {
@@ -303,7 +304,15 @@ test("context: tool rounds keep the same system prompt", async () => {
   const core = createCore({ model, tools, context: () => "Known: X" });
   await core.handle({ text: "go", source: "text" });
   assert.equal(requests.length, 2);
-  for (const r of requests) assert.ok(r.system.endsWith("Known: X"));
+  for (const r of requests) assert.equal(r.systemExtra, "Known: X");
+});
+
+test("prepare: passes the fixed system prompt and the tools to the model", () => {
+  const seen: unknown[] = [];
+  const model: LanguageModel = { complete: async () => ({ text: "x" }), prepare: (r) => seen.push(r) };
+  const tools: ToolRunner = { specs: () => [{ name: "t", description: "", inputSchema: { type: "object" } }], run: async (c) => ({ callId: c.id, content: "ok" }) };
+  createCore({ model, tools }).prepare();
+  assert.deepEqual(seen, [{ system: DEFAULT_SYSTEM_PROMPT, tools: tools.specs() }]);
 });
 
 test("onExchange: called with the whole session after each kept exchange; a throwing hook never fails the reply", async () => {

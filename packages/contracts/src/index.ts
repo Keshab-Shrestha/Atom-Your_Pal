@@ -66,7 +66,10 @@ export interface ZenoResponse {
 
 /** What the Core asks of a language model. */
 export interface ModelRequest {
+  /** The standing instructions: the same from request to request (lets a provider prepare ahead, ADR-064). */
   system: string;
+  /** Per-request additions (memory, the time). Providers add them to the instructions or send them with the message. */
+  systemExtra?: string;
   messages: Message[];
   context: RequestContext;
   /** Tools the model may call. Providers that cannot call tools ignore this and just answer. */
@@ -86,4 +89,10 @@ export interface ModelResponse {
 export interface LanguageModel {
   /** `signal` cancels the request (e.g. the user started speaking again). */
   complete(request: ModelRequest, signal?: AbortSignal): Promise<ModelResponse>;
+  /** A hint that a request with these instructions and tools is coming, so a provider can start up ahead. Optional. */
+  prepare?(request: PrepareRequest): void;
+  /** Releases anything prepared (e.g. a pre-started process). Optional. */
+  close?(): void;
 }
+
+export type PrepareRequest = Pick<ModelRequest, "system" | "tools">;

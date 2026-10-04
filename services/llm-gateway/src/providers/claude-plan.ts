@@ -29,6 +29,14 @@ export interface ClaudeSdk {
     handler: (args: Record<string, unknown>) => Promise<{ content: { type: "text"; text: string }[]; isError?: boolean }>,
   ): unknown;
   createSdkMcpServer(options: { name: string; version?: string; tools: unknown[] }): unknown;
+  /** Pre-starts a Claude Code process (ADR-064). Older SDKs and test fakes may not have it. */
+  startup?(params: { options: Record<string, unknown>; initializeTimeoutMs?: number }): Promise<WarmQueryLike>;
+}
+
+/** A pre-started Claude Code process: one prompt, then it is used up. */
+export interface WarmQueryLike {
+  query(prompt: string): AsyncIterable<Record<string, any>>;
+  close(): void;
 }
 
 /** How much of the plan is used, as fractions (0.66 = 66%). For the log: shows plan use, never a key. */
@@ -153,106 +161,214 @@ function classify(code: string | undefined, acted: boolean): { kind: ErrorKind; 
   }
 }
 
+/** What a pre-started Claude Code process was started for: requests must match it exactly to use it. */
+function keyOf(system: string, specs: ToolSpec[]): string {
+  return JSON.stringify([system, specs.map((s) => [s.name, s.description, s.inputSchema])]);
+}
+
+/** The newest message, with this request's additions (memory, the time) in front, marked as not said by the user. */
+function promptWith(extra: string | undefined, messages: Message[]): string {
+  const prompt = promptFrom(messages);
+  if (!extra?.trim()) return prompt;
+  return `Context for this request, from ZENO (not said by the user):\n${extra.trim()}\n\n${prompt}`;
+}
+
+/** One request's link to the tools: set when a pre-started process is put to use. */
+interface RunState {
+  signal?: AbortSignal;
+  acted: boolean;
+}
+
+interface Prepared {
+  key: string;
+  state: RunState;
+  controller: AbortController;
+  warm: Promise<WarmQueryLike>;
+  /** Set if starting failed: the slot is unusable. */
+  failed: boolean;
+}
+
 export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAdapter {
   const { claudePath, model, tools, maxTurns = DEFAULT_MAX_TURNS, onUsage } = options;
+  const env = options.env ?? process.env;
   let sdkPromise: Promise<ClaudeSdk> | undefined;
+  let prepared: Prepared | undefined;
+  let closed = false;
+  const getSdk = async () => options.sdk ?? (await (sdkPromise ??= loadSdk()));
+
+  /** Claude Code's options for one process. Tool calls go to whichever request `state` belongs to at the time. */
+  function queryOptions(sdk: ClaudeSdk, system: string, specs: ToolSpec[], state: RunState, controller: AbortController) {
+    const sdkTools = specs.map((spec) =>
+      sdk.tool(spec.name, spec.description, shapeOf(spec), async (input) => {
+        state.acted = true;
+        const result = await tools!.run({ id: randomUUID(), name: spec.name, input }, state.signal ?? controller.signal);
+        return { content: [{ type: "text" as const, text: result.content }], ...(result.isError ? { isError: true } : {}) };
+      }),
+    );
+    return {
+      model,
+      systemPrompt: system,
+      pathToClaudeCodeExecutable: claudePath,
+      // Nothing from Claude Code itself: no built-in tools, no user settings, and not the account's claude.ai connectors
+      // (they would add tens of thousands of tokens to every request and let Claude reach into other services).
+      tools: [],
+      settingSources: [],
+      strictMcpConfig: true,
+      persistSession: false,
+      permissionMode: "default",
+      maxTurns: specs.length ? maxTurns : 1,
+      // Spoken answers to everyday questions: thinking adds ~1 s per model turn for nothing a listener notices.
+      // ZENO_THINKING=1 turns it back on (Claude decides how much).
+      thinking: env.ZENO_THINKING === "1" ? { type: "adaptive" } : { type: "disabled" },
+      abortController: controller,
+      env: scrubbedEnv(env),
+      ...(specs.length
+        ? {
+            mcpServers: { [SERVER]: sdk.createSdkMcpServer({ name: SERVER, version: "1.0.0", tools: sdkTools }) },
+            allowedTools: specs.map((s) => `mcp__${SERVER}__${s.name}`),
+          }
+        : {}),
+    } as Record<string, unknown>;
+  }
+
+  /** ADR-064: start the next Claude Code process now, so the next request skips its ~1 s start. */
+  function prepare(system: string, specs: ToolSpec[]) {
+    if (closed || !claudePath || env.ZENO_PREWARM === "0") return;
+    const key = keyOf(system, specs);
+    if (prepared && prepared.key === key && !prepared.failed) return;
+    discard();
+    const slot: Prepared = { key, state: { acted: false }, controller: new AbortController(), failed: false, warm: undefined as never };
+    slot.warm = getSdk().then((sdk) => {
+      if (!sdk.startup) throw new Error("this Claude Agent SDK cannot pre-start");
+      return sdk.startup({ options: queryOptions(sdk, system, specs, slot.state, slot.controller), initializeTimeoutMs: 20_000 });
+    });
+    slot.warm.catch(() => {
+      slot.failed = true;
+    });
+    prepared = slot;
+  }
+
+  function discard() {
+    const old = prepared;
+    prepared = undefined;
+    if (!old) return;
+    old.controller.abort();
+    old.warm.then((w) => w.close(), () => {});
+  }
+
+  /** The prepared process, if it was started for exactly this request and is ready (or nearly). */
+  function take(key: string): Prepared | undefined {
+    const slot = prepared;
+    if (!slot || slot.failed) return undefined;
+    if (slot.key !== key) {
+      discard();
+      return undefined;
+    }
+    prepared = undefined;
+    return slot;
+  }
+
+  async function run(
+    messages: AsyncIterable<Record<string, any>>,
+    state: RunState,
+    signal: AbortSignal,
+  ): Promise<{ result?: Record<string, any>; lastError?: string }> {
+    let lastError: string | undefined;
+    let result: Record<string, any> | undefined;
+    for await (const message of messages) {
+      if (signal.aborted) break;
+      if (message.type === "system" && message.subtype === "init") {
+        const source = String(message.apiKeySource ?? "");
+        if (!PLAN_CREDENTIALS.has(source)) {
+          throw new ProviderError(
+            "auth",
+            `Claude Code is using an API key (${source || "unknown"}), which bills per token, so ZENO stopped. Remove the key from Claude Code or use the Claude (API) provider on purpose.`,
+          );
+        }
+      } else if (message.type === "rate_limit_event") {
+        const info = message.rate_limit_info ?? {};
+        if (onUsage) {
+          const windows = info.unifiedWindows ?? {};
+          onUsage({
+            ...(typeof windows.five_hour?.utilization === "number" ? { fiveHour: windows.five_hour.utilization } : {}),
+            ...(typeof windows.seven_day?.utilization === "number" ? { sevenDay: windows.seven_day.utilization } : {}),
+            ...(typeof info.isUsingOverage === "boolean" ? { overage: info.isUsingOverage } : {}),
+          });
+        }
+        if (info.isUsingOverage === true) {
+          throw new ProviderError("rate_limit", "Your Claude plan is used up and Claude would charge extra usage, so ZENO stopped. Switch model or wait for the plan to reset.");
+        }
+        if (info.status === "rejected") {
+          throw new ProviderError("rate_limit", `Your Claude plan limit is reached.${resetTime(info.resetsAt)}`);
+        }
+      } else if (message.type === "assistant" && typeof message.error === "string") {
+        lastError = message.error;
+      } else if (message.type === "result") {
+        result = message;
+      }
+    }
+    void state;
+    return { result, lastError };
+  }
 
   return {
     name: "claude-plan",
+    prepare(request) {
+      prepare(request.system, tools && request.tools?.length ? request.tools : []);
+    },
+    close() {
+      closed = true;
+      discard();
+    },
     async complete(request: ModelRequest, signal: AbortSignal): Promise<ModelResponse> {
       if (signal.aborted) throw new ProviderError("cancelled", "Request cancelled");
       if (!claudePath) {
         throw new ProviderError("auth", "Claude Code was not found. Install it, then run `claude auth login` in a terminal.");
       }
-
-      const sdk = options.sdk ?? (await (sdkPromise ??= loadSdk()));
-      const controller = new AbortController();
-      const onAbort = () => controller.abort();
-      signal.addEventListener("abort", onAbort, { once: true });
-
+      const sdk = await getSdk();
       // Offer ZENO's tools, if there are any to offer and a way to run them.
       const specs = tools && request.tools?.length ? request.tools : [];
-      let acted = false;
-      const sdkTools = specs.map((spec) =>
-        sdk.tool(spec.name, spec.description, shapeOf(spec), async (input) => {
-          acted = true;
-          const result = await tools!.run({ id: randomUUID(), name: spec.name, input }, signal);
-          return { content: [{ type: "text" as const, text: result.content }], ...(result.isError ? { isError: true } : {}) };
-        }),
-      );
+      const prompt = promptWith(request.systemExtra, request.messages);
+      const key = keyOf(request.system, specs);
 
-      const queryOptions: Record<string, unknown> = {
-        model,
-        systemPrompt: request.system,
-        pathToClaudeCodeExecutable: claudePath,
-        // Nothing from Claude Code itself: no built-in tools, no user settings, and not the account's claude.ai connectors
-        // (they would add tens of thousands of tokens to every request and let Claude reach into other services).
-        tools: [],
-        settingSources: [],
-        strictMcpConfig: true,
-        persistSession: false,
-        permissionMode: "default",
-        maxTurns: specs.length ? maxTurns : 1,
-        // Spoken answers to everyday questions: thinking adds ~1 s per model turn for nothing a listener notices.
-        // ZENO_THINKING=1 turns it back on (Claude decides how much).
-        thinking: (options.env ?? process.env).ZENO_THINKING === "1" ? { type: "adaptive" } : { type: "disabled" },
-        abortController: controller,
-        env: scrubbedEnv(options.env ?? process.env),
-        ...(specs.length
-          ? {
-              mcpServers: { [SERVER]: sdk.createSdkMcpServer({ name: SERVER, version: "1.0.0", tools: sdkTools }) },
-              allowedTools: specs.map((s) => `mcp__${SERVER}__${s.name}`),
-            }
-          : {}),
+      const attempt = async (slot: Prepared | undefined) => {
+        const state: RunState = slot?.state ?? { acted: false };
+        const controller = slot?.controller ?? new AbortController();
+        state.signal = signal;
+        const onAbort = () => controller.abort();
+        signal.addEventListener("abort", onAbort, { once: true });
+        try {
+          const messages = slot
+            ? (await slot.warm).query(prompt)
+            : sdk.query({ prompt, options: queryOptions(sdk, request.system, specs, state, controller) });
+          return { ...(await run(messages, state, signal)), acted: state.acted };
+        } catch (error) {
+          if (signal.aborted) throw new ProviderError("cancelled", "Request cancelled");
+          if (error instanceof ProviderError) throw error;
+          const text = error instanceof Error ? error.message : String(error);
+          throw new ProviderError(state.acted ? "unknown" : "unavailable", redactSecrets(`Claude Code could not run: ${text}`));
+        } finally {
+          signal.removeEventListener("abort", onAbort);
+          controller.abort(); // stops the claude program, whether the request finished, failed or was cancelled
+        }
       };
 
-      let lastError: string | undefined;
-      let result: Record<string, any> | undefined;
+      let outcome: Awaited<ReturnType<typeof attempt>>;
       try {
-        for await (const message of sdk.query({ prompt: promptFrom(request.messages), options: queryOptions })) {
-          if (signal.aborted) break;
-
-          if (message.type === "system" && message.subtype === "init") {
-            const source = String(message.apiKeySource ?? "");
-            if (!PLAN_CREDENTIALS.has(source)) {
-              throw new ProviderError(
-                "auth",
-                `Claude Code is using an API key (${source || "unknown"}), which bills per token, so ZENO stopped. Remove the key from Claude Code or use the Claude (API) provider on purpose.`,
-              );
-            }
-          } else if (message.type === "rate_limit_event") {
-            const info = message.rate_limit_info ?? {};
-            if (onUsage) {
-              const windows = info.unifiedWindows ?? {};
-              const usage: PlanUsage = {
-                ...(typeof windows.five_hour?.utilization === "number" ? { fiveHour: windows.five_hour.utilization } : {}),
-                ...(typeof windows.seven_day?.utilization === "number" ? { sevenDay: windows.seven_day.utilization } : {}),
-                ...(typeof info.isUsingOverage === "boolean" ? { overage: info.isUsingOverage } : {}),
-              };
-              onUsage(usage);
-            }
-            if (info.isUsingOverage === true) {
-              throw new ProviderError("rate_limit", "Your Claude plan is used up and Claude would charge extra usage, so ZENO stopped. Switch model or wait for the plan to reset.");
-            }
-            if (info.status === "rejected") {
-              throw new ProviderError("rate_limit", `Your Claude plan limit is reached.${resetTime(info.resetsAt)}`);
-            }
-          } else if (message.type === "assistant" && typeof message.error === "string") {
-            lastError = message.error;
-          } else if (message.type === "result") {
-            result = message;
-          }
+        const slot = take(key);
+        try {
+          outcome = await attempt(slot);
+        } catch (error) {
+          // A pre-started process that broke before doing anything: try once more the ordinary way.
+          if (!slot || signal.aborted || !(error instanceof ProviderError) || error.kind !== "unavailable") throw error;
+          outcome = await attempt(undefined);
         }
-      } catch (error) {
-        if (signal.aborted) throw new ProviderError("cancelled", "Request cancelled");
-        if (error instanceof ProviderError) throw error;
-        const text = error instanceof Error ? error.message : String(error);
-        throw new ProviderError(acted ? "unknown" : "unavailable", redactSecrets(`Claude Code could not run: ${text}`));
+        if (slot && !outcome.result && !outcome.acted && !signal.aborted) outcome = await attempt(undefined);
       } finally {
-        signal.removeEventListener("abort", onAbort);
-        controller.abort(); // stops the claude program, whether the request finished, failed or was cancelled
+        prepare(request.system, specs); // ready for the next request
       }
 
+      const { result, lastError, acted } = outcome;
       if (signal.aborted) throw new ProviderError("cancelled", "Request cancelled");
       if (!result) {
         const { kind, message } = classify(lastError, acted);

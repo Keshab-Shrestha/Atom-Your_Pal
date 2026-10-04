@@ -1163,3 +1163,27 @@ The runtime path started ffmpeg on each press (first words could be lost: the "m
 - English only, like dictation (Keshab chose Parakeet only).
 - The spelling list (`vocabulary.txt`) and filler removal now also apply to questions.
 - `turn.complete` for these turns has `speechMs` and `transcriptionMs` 0; the island logs `talk.end` with `transcribeMs`.
+
+---
+
+## ADR-064 — The Next Claude Code Process Is Started Ahead of Time
+
+Date: 2026-10-04.
+
+### Decision
+
+On the Claude plan, every request used to start a new `claude` process (~1 s before it could take the question). Now the adapter pre-starts the next one with the SDK's `startup()` as soon as ZENO launches, after every answer, and after a model switch. A request whose instructions and tools match uses it; anything else starts cold as before.
+
+- The **instructions are now fixed** (the base prompt). Per-request additions (the time, memory, recent conversations) move to `ModelRequest.systemExtra`. The Claude plan sends them at the top of the message, marked "Context for this request, from ZENO (not said by the user)". The API providers still add them to the instructions.
+- Each process answers one request and is then stopped, so conversation handling is unchanged (no history inside Claude Code).
+- A pre-started process that fails before doing anything: the request is retried cold once. `ZENO_PREWARM=0` turns the whole thing off.
+- One idle `claude` process is kept while ZENO runs.
+
+### Results (text, model only, same questions as ADR-062's measurement)
+
+- Greeting: 4.6 s → 1.6 s
+- "What's 17 times 23?": 4.2 s → 2.2 s
+- Timer: 5.5 s → 4.0 s
+- Weather: 6.3 s → 5.7 s
+
+Requests with a tool still take two model steps; streaming the spoken reply is next.

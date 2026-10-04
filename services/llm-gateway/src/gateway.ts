@@ -1,4 +1,9 @@
-import type { LanguageModel, ModelRequest, ModelResponse } from "@zeno/contracts";
+import type { LanguageModel, ModelRequest, ModelResponse, PrepareRequest } from "@zeno/contracts";
+
+/** The full instructions for providers that take one system text: the standing part, then this request's additions. */
+export function systemText(request: Pick<ModelRequest, "system" | "systemExtra">): string {
+  return request.systemExtra ? `${request.system}\n\n${request.systemExtra}` : request.system;
+}
 
 /**
  * What every provider adapter (Claude, OpenAI, ...) implements.
@@ -9,6 +14,8 @@ export interface ProviderAdapter {
   readonly name: string;
   /** Must stop work and reject when `signal` is aborted. */
   complete(request: ModelRequest, signal: AbortSignal): Promise<ModelResponse>;
+  prepare?(request: PrepareRequest): void;
+  close?(): void;
 }
 
 export type ErrorKind =
@@ -102,6 +109,12 @@ export function createGateway(options: GatewayOptions): LanguageModel {
   }
 
   return {
+    prepare(request) {
+      provider.prepare?.(request);
+    },
+    close() {
+      provider.close?.();
+    },
     async complete(request, signal) {
       for (let tries = 0; ; tries++) {
         if (signal?.aborted) throw cancelled();

@@ -15,7 +15,14 @@ export function createSwitchableModel(initial: LanguageModel): SwitchableModel {
     complete(request, signal) {
       return current.complete(request, signal);
     },
+    prepare(request) {
+      current.prepare?.(request);
+    },
+    close() {
+      current.close?.();
+    },
     replace(next) {
+      current.close?.(); // a pre-started process for the old model is no use now
       current = next;
     },
   };

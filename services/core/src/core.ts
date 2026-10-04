@@ -48,6 +48,8 @@ export interface Core {
   history(): readonly Message[];
   /** Forgets the conversation and starts a new session. */
   reset(): void;
+  /** Lets the model start up ahead of the next request (ADR-064). Safe to call any time. */
+  prepare(): void;
 }
 
 /**
@@ -93,7 +95,8 @@ export function createCore(options: CoreOptions): Core {
       } catch {
         extra = undefined; // memory is a help, never a reason to fail a request
       }
-      const systemPrompt = extra ? `${basePrompt}\n\n${extra}` : basePrompt;
+      const systemPrompt = basePrompt;
+      const systemExtra = extra ? { systemExtra: extra } : {};
 
       busy = true;
       try {
@@ -101,13 +104,13 @@ export function createCore(options: CoreOptions): Core {
         // the final answer, so a trimmed history can never hold half a tool exchange.
         const messages: Message[] = [...turns, userTurn];
         const specs = tools?.specs() ?? [];
-        let reply = await model.complete({ system: systemPrompt, messages, context, ...(specs.length ? { tools: specs } : {}) }, signal);
+        let reply = await model.complete({ system: systemPrompt, ...systemExtra, messages, context, ...(specs.length ? { tools: specs } : {}) }, signal);
         for (let round = 0; tools && reply.toolCalls?.length; round++) {
           if (signal?.aborted) throw new CoreError("Request cancelled");
           if (round >= maxToolRounds) {
             // Out of steps. Do not just fail: ask once, with no tools, for a short account of where it got stuck,
             // so the user hears why ("Brave has two windows open") and not a bare error.
-            const wrapUp = await model.complete({ system: `${systemPrompt}\n\n${OUT_OF_STEPS}`, messages, context }, signal);
+            const wrapUp = await model.complete({ system: `${systemPrompt}\n\n${OUT_OF_STEPS}`, ...systemExtra, messages, context }, signal);
             if (signal?.aborted) throw new CoreError("Request cancelled");
             if (!wrapUp.text.trim() || wrapUp.toolCalls?.length) throw new CoreError("ZENO used too many steps on this request and stopped");
             reply = { text: wrapUp.text };
@@ -118,7 +121,7 @@ export function createCore(options: CoreOptions): Core {
           for (const call of calls) results.push(await tools.run(call, signal)); // one at a time, in order
           if (signal?.aborted) throw new CoreError("Request cancelled");
           messages.push({ role: "assistant", content: reply.text, toolCalls: calls }, { role: "user", content: "", toolResults: results });
-          reply = await model.complete({ system: systemPrompt, messages, context, tools: specs }, signal);
+          reply = await model.complete({ system: systemPrompt, ...systemExtra, messages, context, tools: specs }, signal);
         }
         if (signal?.aborted) throw new CoreError("Request cancelled");
         const replyText = reply.text.trim();
@@ -147,6 +150,11 @@ export function createCore(options: CoreOptions): Core {
     reset() {
       turns = [];
       sessionId = newId();
+    },
+
+    prepare() {
+      const specs = tools?.specs() ?? [];
+      model.prepare?.({ system: basePrompt, ...(specs.length ? { tools: specs } : {}) });
     },
   };
 }

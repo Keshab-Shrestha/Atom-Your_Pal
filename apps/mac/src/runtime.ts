@@ -204,12 +204,18 @@ export function createRuntime(
         },
         ...(episodes ? { onExchange: (sessionId: string, turns: readonly Message[]) => episodes.update(sessionId, turns) } : {}),
       });
+  // ADR-064: start the model up now (the Claude plan pre-starts Claude Code), and again after a model switch.
+  core.prepare();
   const settingsPath = options.settingsPath;
   const settings = createModelSettings({
     initial,
     keys: { ...options.keys, [config.llm.provider]: config.llm.apiKey },
     model,
-    createModel,
+    createModel: (choice, apiKey) => {
+      const next = createModel(choice, apiKey);
+      queueMicrotask(() => core.prepare()); // runs once the switch has put `next` in place
+      return next;
+    },
     save: (choice) => {
       if (settingsPath) writeSavedChoice(settingsPath, choice);
     },
@@ -311,6 +317,7 @@ function createEchoCore(): Core {
     async handle(input: { text: string }) {
       return { text: `I heard: ${input.text}`, requestId: "voice-only" };
     },
+    prepare() {},
   } as unknown as Core;
 }
 
