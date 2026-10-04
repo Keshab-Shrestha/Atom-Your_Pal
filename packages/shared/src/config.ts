@@ -201,7 +201,7 @@ export function loadConfig(env: Env = process.env, options: LoadConfigOptions = 
     },
     tts: {
       voice: read("ZENO_TTS_VOICE", "af_heart"),
-      dtype: oneOf("ZENO_TTS_DTYPE", TTS_DTYPES, "q8"),
+      dtype: oneOf("ZENO_TTS_DTYPE", TTS_DTYPES, "fp32"), // fp32: ~1.6x faster than q8 on Apple silicon (ADR-065)
     },
     log: {
       level: oneOf("ZENO_LOG_LEVEL", LOG_LEVELS, "info"),

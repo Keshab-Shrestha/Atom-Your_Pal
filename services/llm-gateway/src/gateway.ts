@@ -116,13 +116,17 @@ export function createGateway(options: GatewayOptions): LanguageModel {
       provider.close?.();
     },
     async complete(request, signal) {
+      // Text already passed on (and maybe spoken) must not be repeated by a retry.
+      let streamed = false;
+      const listener = request.onText;
+      const req = listener ? { ...request, onText: (delta: string) => ((streamed = true), listener(delta)) } : request;
       for (let tries = 0; ; tries++) {
         if (signal?.aborted) throw cancelled();
         try {
-          return await attempt(request, signal);
+          return await attempt(req, signal);
         } catch (error) {
           const gatewayError = error as GatewayError;
-          if (!gatewayError.retryable || tries >= maxRetries) throw gatewayError;
+          if (!gatewayError.retryable || tries >= maxRetries || streamed) throw gatewayError;
           await sleep(retryDelayMs * (tries + 1));
         }
       }

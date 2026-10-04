@@ -59,6 +59,11 @@ export interface ClaudePlanOptions {
   sdk?: ClaudeSdk;
   /** The environment to start from. Default: this process's. */
   env?: Record<string, string | undefined>;
+  /**
+   * How long after an answer the next process is pre-started (default 3 s). Starting it costs about a second of CPU,
+   * which would otherwise slow the synthesis of the answer's first spoken sentence.
+   */
+  prewarmDelayMs?: number;
 }
 
 const SERVER = "zeno";
@@ -193,7 +198,11 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
   const env = options.env ?? process.env;
   let sdkPromise: Promise<ClaudeSdk> | undefined;
   let prepared: Prepared | undefined;
+  /** What ZENO asked to keep ready (its main instructions and tools). Other requests, like conversation notes, never replace it. */
+  let primary: { system: string; specs: ToolSpec[] } | undefined;
   let closed = false;
+  let later: ReturnType<typeof setTimeout> | undefined;
+  const prewarmDelayMs = options.prewarmDelayMs ?? 3000;
   const getSdk = async () => options.sdk ?? (await (sdkPromise ??= loadSdk()));
 
   /** Claude Code's options for one process. Tool calls go to whichever request `state` belongs to at the time. */
@@ -222,6 +231,7 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
       thinking: env.ZENO_THINKING === "1" ? { type: "adaptive" } : { type: "disabled" },
       abortController: controller,
       env: scrubbedEnv(env),
+      includePartialMessages: true, // text as it is written, so ZENO can start speaking (ADR-065)
       ...(specs.length
         ? {
             mcpServers: { [SERVER]: sdk.createSdkMcpServer({ name: SERVER, version: "1.0.0", tools: sdkTools }) },
@@ -256,14 +266,10 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
     old.warm.then((w) => w.close(), () => {});
   }
 
-  /** The prepared process, if it was started for exactly this request and is ready (or nearly). */
+  /** The prepared process, if it was started for exactly this request. A different request leaves it for the next one. */
   function take(key: string): Prepared | undefined {
     const slot = prepared;
-    if (!slot || slot.failed) return undefined;
-    if (slot.key !== key) {
-      discard();
-      return undefined;
-    }
+    if (!slot || slot.failed || slot.key !== key) return undefined;
     prepared = undefined;
     return slot;
   }
@@ -272,12 +278,26 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
     messages: AsyncIterable<Record<string, any>>,
     state: RunState,
     signal: AbortSignal,
+    onText?: (delta: string) => void,
   ): Promise<{ result?: Record<string, any>; lastError?: string }> {
     let lastError: string | undefined;
     let result: Record<string, any> | undefined;
+    let wrote = false;
     for await (const message of messages) {
       if (signal.aborted) break;
-      if (message.type === "system" && message.subtype === "init") {
+      if (message.type === "stream_event") {
+        const event = message.event ?? {};
+        if (message.parent_tool_use_id) continue;
+        if (event.type === "message_start" && wrote) onText?.("\n"); // a new turn starts a new sentence
+        if (event.type === "content_block_delta" && event.delta?.type === "text_delta" && typeof event.delta.text === "string") {
+          wrote = true;
+          try {
+            onText?.(event.delta.text);
+          } catch {
+            // speaking early is a help, never a reason to fail the request
+          }
+        }
+      } else if (message.type === "system" && message.subtype === "init") {
         const source = String(message.apiKeySource ?? "");
         if (!PLAN_CREDENTIALS.has(source)) {
           throw new ProviderError(
@@ -314,10 +334,12 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
   return {
     name: "claude-plan",
     prepare(request) {
-      prepare(request.system, tools && request.tools?.length ? request.tools : []);
+      primary = { system: request.system, specs: tools && request.tools?.length ? request.tools : [] };
+      prepare(primary.system, primary.specs);
     },
     close() {
       closed = true;
+      clearTimeout(later);
       discard();
     },
     async complete(request: ModelRequest, signal: AbortSignal): Promise<ModelResponse> {
@@ -330,6 +352,9 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
       const specs = tools && request.tools?.length ? request.tools : [];
       const prompt = promptWith(request.systemExtra, request.messages);
       const key = keyOf(request.system, specs);
+      let streamed = false;
+      const listener = request.onText;
+      if (listener) request = { ...request, onText: (d) => ((streamed = true), listener(d)) };
 
       const attempt = async (slot: Prepared | undefined) => {
         const state: RunState = slot?.state ?? { acted: false };
@@ -341,7 +366,7 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
           const messages = slot
             ? (await slot.warm).query(prompt)
             : sdk.query({ prompt, options: queryOptions(sdk, request.system, specs, state, controller) });
-          return { ...(await run(messages, state, signal)), acted: state.acted };
+          return { ...(await run(messages, state, signal, request.onText)), acted: state.acted };
         } catch (error) {
           if (signal.aborted) throw new ProviderError("cancelled", "Request cancelled");
           if (error instanceof ProviderError) throw error;
@@ -360,12 +385,16 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
           outcome = await attempt(slot);
         } catch (error) {
           // A pre-started process that broke before doing anything: try once more the ordinary way.
-          if (!slot || signal.aborted || !(error instanceof ProviderError) || error.kind !== "unavailable") throw error;
+          if (!slot || signal.aborted || streamed || !(error instanceof ProviderError) || error.kind !== "unavailable") throw error;
           outcome = await attempt(undefined);
         }
-        if (slot && !outcome.result && !outcome.acted && !signal.aborted) outcome = await attempt(undefined);
+        if (slot && !outcome.result && !outcome.acted && !streamed && !signal.aborted) outcome = await attempt(undefined);
       } finally {
-        prepare(request.system, specs); // ready for the next request
+        // Ready for ZENO's next request, once the answer has started being spoken.
+        const next = primary ?? { system: request.system, specs };
+        clearTimeout(later);
+        later = setTimeout(() => prepare(next.system, next.specs), prewarmDelayMs);
+        later.unref?.();
       }
 
       const { result, lastError, acted } = outcome;

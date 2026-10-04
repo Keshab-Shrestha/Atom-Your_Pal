@@ -37,13 +37,18 @@ export interface CoreOptions {
   now?: () => Date;
 }
 
+export interface HandleHooks {
+  /** The reply's text as the model writes it (ADR-065). Not called by models that cannot stream. */
+  onText?: (delta: string) => void;
+}
+
 export interface Core {
   readonly sessionId: string;
   /**
    * Receives one input, establishes context, routes it and returns the response.
    * Aborting `signal` cancels the request; a cancelled exchange is not added to history.
    */
-  handle(input: ZenoInput, signal?: AbortSignal): Promise<ZenoResponse>;
+  handle(input: ZenoInput, signal?: AbortSignal, hooks?: HandleHooks): Promise<ZenoResponse>;
   /** The current session's conversation, oldest first. */
   history(): readonly Message[];
   /** Forgets the conversation and starts a new session. */
@@ -81,7 +86,7 @@ export function createCore(options: CoreOptions): Core {
       return sessionId;
     },
 
-    async handle(input, signal) {
+    async handle(input, signal, hooks) {
       const text = input.text.trim();
       if (!text) throw new CoreError("Empty request");
       if (busy) throw new CoreError("Still answering the previous request");
@@ -96,7 +101,7 @@ export function createCore(options: CoreOptions): Core {
         extra = undefined; // memory is a help, never a reason to fail a request
       }
       const systemPrompt = basePrompt;
-      const systemExtra = extra ? { systemExtra: extra } : {};
+      const systemExtra = { ...(extra ? { systemExtra: extra } : {}), ...(hooks?.onText ? { onText: hooks.onText } : {}) };
 
       busy = true;
       try {

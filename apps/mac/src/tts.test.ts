@@ -191,8 +191,9 @@ test("splitFirstClause splits only a long opening sentence, at its first comma",
   ]);
   assert.deepEqual(splitFirstClause(["Hello Keshab, nice to meet you."]), ["Hello Keshab, nice to meet you."]); // short: kept
   assert.deepEqual(splitFirstClause(["Yes, that is right and it is a really long sentence without another pause in it."]), [
-    "Yes, that is right and it is a really long sentence without another pause in it.",
-  ]); // clause before the comma too short to sound natural alone
+    "Yes, that is right",
+    "and it is a really long sentence without another pause in it.",
+  ]); // comma too early: cut before "and" instead // clause before the comma too short to sound natural alone
   assert.deepEqual(splitFirstClause([]), []);
 });
 
@@ -227,4 +228,46 @@ test("speak strips markdown before synthesizing", async () => {
   sink.endPlayback();
   await done;
   assert.ok(log.includes("synth:Tokyo is the capital."), log.join(" | "));
+});
+
+test("streamSentences: each sentence comes out as soon as the next one begins; the rest at the end", async () => {
+  const { streamSentences } = await import("./tts.ts");
+  let release!: () => void;
+  const gate = new Promise<void>((r) => (release = r));
+  const out: string[] = [];
+  async function* pieces() {
+    yield "Hi! It is sunny ";
+    yield "in Tokyo today. Tomor";
+    await gate;
+    yield "row it rains.";
+  }
+  const it = streamSentences(pieces());
+  const reading = (async () => {
+    for await (const s of it) out.push(s);
+  })();
+  await new Promise((r) => setTimeout(r, 5));
+  assert.deepEqual(out, ["Hi! It is sunny in Tokyo today."], "spoken before the model finished");
+  release();
+  await reading;
+  assert.deepEqual(out, ["Hi! It is sunny in Tokyo today.", "Tomorrow it rains."]);
+});
+
+test("streamSentences: a long opening is cut at its first comma; turns split on newlines", async () => {
+  const { streamSentences } = await import("./tts.ts");
+  async function* pieces() {
+    yield "Let me check the weather.\n";
+    yield "It is mostly clear right now in Tokyo with sixteen degrees, and tomorrow looks overcast with some rain";
+  }
+  const out: string[] = [];
+  for await (const s of streamSentences(pieces())) out.push(s);
+  assert.equal(out[0], "Let me check the weather.");
+  assert.ok(out.length >= 2);
+  assert.equal(out.join(" ").replace(/\s+/g, " "), "Let me check the weather. It is mostly clear right now in Tokyo with sixteen degrees, and tomorrow looks overcast with some rain.");
+});
+
+test("openingCut: a long opening with no comma is cut before a word people pause at", async () => {
+  const { openingCut, splitFirstClause } = await import("./tts.ts");
+  const s = "The sky appears blue because of a phenomenon called Rayleigh scattering.";
+  assert.deepEqual(splitFirstClause([s]), ["The sky appears blue", "because of a phenomenon called Rayleigh scattering."]);
+  assert.equal(openingCut("Supercalifragilisticexpialidocious is a very long word indeed without breaks"), -1);
 });

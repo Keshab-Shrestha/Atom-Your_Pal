@@ -1187,3 +1187,27 @@ On the Claude plan, every request used to start a new `claude` process (~1 s bef
 - Weather: 6.3 s → 5.7 s
 
 Requests with a tool still take two model steps; streaming the spoken reply is next.
+
+---
+
+## ADR-065 — ZENO Speaks While Claude Is Still Writing
+
+Date: 2026-10-04.
+
+### Decision
+
+- **Streaming text:** the Claude plan adapter turns on `includePartialMessages` and passes each piece of text to `ModelRequest.onText`. Core passes it through (`handle(input, signal, { onText })`). Text written before a tool call ("Let me check.") is included, so it is heard while the tool runs. The gateway does not retry once text has been passed on, so nothing is said twice.
+- **Speaking sentences as they complete:** `speakStream` cuts the stream into sentences (`streamSentences`). A sentence is spoken as soon as the next one begins; the rest is spoken when the stream ends. Speech providers without `speakStream`, and models that cannot stream, behave exactly as before.
+- **A short opening:** Kokoro takes ~0.25 s per second of speech plus ~0.35 s, so the first part spoken is kept short. A long opening sentence is cut after its first comma, else before a word people pause at ("because", "and", "which"…).
+- **Kokoro fp32 by default:** measured on this Mac, fp32 synthesizes ~1.6× faster than q8 (e.g. 62 characters: 0.93 s vs 1.50 s) and is the reference quality. `ZENO_TTS_DTYPE=q8` still works.
+- **Pre-start 3 s later:** pre-starting the next Claude Code process (ADR-064) costs about a second of CPU. Done right after the answer, it slowed synthesis of the first sentence, so it now waits 3 s (by then ZENO is speaking). Conversation-note requests no longer take or replace the pre-started process.
+- `firstSoundMs` in `turn.complete` is now measured from when the question is asked, not from when speech began.
+
+### Results (question asked → first sound, Claude plan, Haiku 4.5, text input, real Kokoro and speaker)
+
+- Greeting: 1.7 s (Task 1.6: 4.6 s model + ~1.2 s speech ≈ 5.8 s)
+- "Why is the sky blue? Three sentences.": 1.3 s, while the model was still writing
+- Weather (one tool call): 2.5 s (≈ 7 s before)
+- "Thanks, that is all.": 1.3 s
+
+For voice, add Parakeet's transcription (~0.1–0.3 s, ADR-063) after the keys come up.

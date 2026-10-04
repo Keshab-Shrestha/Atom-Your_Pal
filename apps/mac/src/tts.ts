@@ -11,6 +11,11 @@ export interface TextToSpeech {
   close(): void;
   /** Speaks the text aloud. Resolves when playback ends; aborting stops it immediately. */
   speak(text: string, signal?: AbortSignal, hooks?: SpeakHooks): Promise<void>;
+  /**
+   * Speaks text that is still being written (ADR-065): each sentence is spoken as soon as it is complete.
+   * Resolves when the stream has ended and everything has been played.
+   */
+  speakStream?(text: AsyncIterable<string>, signal?: AbortSignal, hooks?: SpeakHooks): Promise<void>;
 }
 
 export interface SpeakHooks {
@@ -72,10 +77,19 @@ export function createSpeaker(synthesizer: Synthesizer, openSink: OpenSink = ope
       for (const stop of active) stop();
       synthesizer.close?.();
     },
-    async speak(text, signal = new AbortController().signal, hooks = {}) {
-      const sentences = splitFirstClause(splitSentences(toSpeakable(text)));
-      if (sentences.length === 0 || signal.aborted) return;
-      await warmUp();
+    speak(text, signal, hooks) {
+      return this.speakStream!(
+        (async function* () {
+          yield text;
+        })(),
+        signal,
+        hooks,
+      );
+    },
+    async speakStream(text, signal = new AbortController().signal, hooks = {}) {
+      if (signal.aborted) return;
+      const sentences = streamSentences(text);
+      let loaded = false;
 
       let sink: AudioSink | null = null;
       let onAbort: () => void = () => {};
@@ -87,7 +101,13 @@ export function createSpeaker(synthesizer: Synthesizer, openSink: OpenSink = ope
       signal.addEventListener("abort", stop, { once: true });
       active.add(stop);
       try {
-        for (const sentence of sentences) {
+        for await (const sentence of sentences) {
+          if (signal.aborted) return;
+          if (!loaded) {
+            await warmUp(); // only once there is something to say
+            loaded = true;
+            if (signal.aborted) return;
+          }
           const synthesis = synthesizer.synthesize(sentence);
           synthesis.catch(() => {}); // an abandoned synthesis must not surface as unhandled
           // Return as soon as we are aborted, without waiting for the sentence being synthesized.
@@ -114,12 +134,82 @@ export function createSpeaker(synthesizer: Synthesizer, openSink: OpenSink = ope
  * so a long opening sentence is split at its first comma: speech starts sooner, and the rest is
  * synthesized while the opening plays.
  */
-export function splitFirstClause(sentences: string[], longerThan = 60, minClause = 15): string[] {
+export function splitFirstClause(sentences: string[], longerThan = 35, minClause = 12): string[] {
   const [first, ...rest] = sentences;
   if (!first || first.length <= longerThan) return sentences;
-  const cut = first.search(/[,;:]\s/);
-  if (cut < minClause || first.length - cut < minClause) return sentences;
-  return [first.slice(0, cut + 1), first.slice(cut + 2), ...rest];
+  const cut = openingCut(first, minClause);
+  if (cut < 0) return sentences;
+  return [first.slice(0, cut).trim(), first.slice(cut).trim(), ...rest];
+}
+
+/** Words a speaker naturally pauses before. */
+const BREAK_WORDS = /\s(?=(?:because|and|but|so|which|when|while|since|although|though|that|with|called|or|if)\s)/gi;
+
+/**
+ * Where to cut a long opening sentence so its first part is short to synthesize (Kokoro takes ~0.25 s per second of
+ * speech, plus a fixed ~0.35 s): after its first comma, else before a word people pause at ("because", "and").
+ * -1 if there is no good place (both parts must be at least `minClause` characters; the first part at most ~50).
+ */
+export function openingCut(text: string, minClause = 12): number {
+  const comma = text.indexOf(", ", minClause);
+  if (comma > 0 && comma <= 60 && text.length - comma > minClause) return comma + 1;
+  for (const m of text.matchAll(BREAK_WORDS)) {
+    const at = m.index!;
+    if (at < minClause) continue;
+    if (at > 50 || text.length - at <= minClause) break;
+    return at;
+  }
+  return -1;
+}
+
+/**
+ * Turns text arriving in pieces into speakable sentences as soon as each one is complete (ADR-065).
+ * A sentence is complete when its end mark is followed by more text; whatever is left is spoken when the stream ends.
+ * The opening sentence is cut at a comma if it runs long, as `splitFirstClause` does, so speech starts sooner.
+ */
+export async function* streamSentences(pieces: AsyncIterable<string>): AsyncGenerator<string> {
+  let buffer = "";
+  let first = true;
+  const emit = function* (raw: string) {
+    let parts = splitSentences(toSpeakable(raw));
+    if (first) parts = splitFirstClause(parts);
+    if (parts.length) first = false;
+    yield* parts;
+  };
+  for await (const piece of pieces) {
+    buffer += piece;
+    for (;;) {
+      // the end of a sentence (or a line) at least 8 characters in, with more text after it
+      const ends = /[.!?]["')\]]*(?=\s+\S)|\n+(?=\S)/g;
+      let cut = -1;
+      for (let m = ends.exec(buffer); m; m = ends.exec(buffer)) {
+        const at = m.index + m[0].length;
+        if (buffer.slice(0, at).trim().length >= 8) {
+          cut = at;
+          break;
+        }
+      }
+      if (cut > 0) {
+        const sentence = buffer.slice(0, cut);
+        buffer = buffer.slice(cut).replace(/^\s+/, "");
+        yield* emit(sentence);
+        continue;
+      }
+      // a long opening with no end yet: speak up to its first comma
+      if (first && buffer.length > 35) {
+        const cut = openingCut(buffer);
+        if (cut > 0) {
+          const clause = buffer.slice(0, cut);
+          buffer = buffer.slice(cut).replace(/^\s+/, "");
+          first = false;
+          yield* splitSentences(toSpeakable(clause));
+          continue;
+        }
+      }
+      break;
+    }
+  }
+  if (buffer.trim()) yield* emit(buffer);
 }
 
 /**
@@ -174,7 +264,7 @@ export const KOKORO_MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
 export interface KokoroOptions {
   /** Kokoro voice id, e.g. "af_heart". */
   voice: string;
-  /** Model precision: "q8" (~90 MB, default) or "fp32" (~330 MB, highest quality). */
+  /** Model precision: "fp32" (~330 MB, default: highest quality and, on Apple silicon, fastest) or "q8" (~90 MB). */
   dtype?: "fp32" | "fp16" | "q8" | "q4" | "q4f16";
   speed?: number;
   /** Where downloaded model files are kept. */
@@ -182,7 +272,7 @@ export interface KokoroOptions {
 }
 
 export function createKokoroSynthesizer(options: KokoroOptions): Synthesizer {
-  const { voice, dtype = "q8", speed = 1, cacheDir = resolve("models/huggingface") } = options;
+  const { voice, dtype = "fp32", speed = 1, cacheDir = resolve("models/huggingface") } = options;
   let child: ChildProcess | null = null;
   let loading: Promise<void> | null = null;
   let nextId = 0;

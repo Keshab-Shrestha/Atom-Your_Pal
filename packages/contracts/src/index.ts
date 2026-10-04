@@ -74,6 +74,11 @@ export interface ModelRequest {
   context: RequestContext;
   /** Tools the model may call. Providers that cannot call tools ignore this and just answer. */
   tools?: ToolSpec[];
+  /**
+   * Receives the reply's text as it is written, for speaking early (ADR-065). Providers that cannot stream ignore it.
+   * Text written before a tool call ("Let me check.") is included; turns are separated by a newline.
+   */
+  onText?: (delta: string) => void;
 }
 
 export interface ModelResponse {

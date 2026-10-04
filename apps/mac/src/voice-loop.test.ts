@@ -247,3 +247,34 @@ test("reports microphone levels for the current recording only", () => {
   h.recordings[1].level(0.2);
   assert.deepEqual(h.log, ["level:0.2"]);
 });
+
+test("streaming: speech starts on the model's first words, before the reply is complete (ADR-065)", async () => {
+  const order: string[] = [];
+  let finish!: () => void;
+  const core = {
+    async handle(_i: { text: string }, _s?: AbortSignal, hooks?: { onText?: (d: string) => void }) {
+      hooks?.onText?.("Sure. ");
+      await new Promise<void>((r) => (finish = r));
+      order.push("model done");
+      return { text: "Sure. Done.", requestId: "r" };
+    },
+  };
+  const tts = {
+    warmUp: async () => {},
+    close: () => {},
+    speak: async () => {},
+    async speakStream(pieces: AsyncIterable<string>, _s?: AbortSignal, hooks?: { onStart?: () => void }) {
+      for await (const p of pieces) {
+        order.push(`say ${p.trim()}`);
+        hooks?.onStart?.();
+        if (p.includes("Sure")) setTimeout(() => finish(), 0);
+      }
+    },
+  };
+  const states: string[] = [];
+  const loop = createVoiceLoop({ core, tts, stt: { transcribe: async () => "" } as never, record: (() => { throw new Error("no mic"); }) as never, events: { onState: (s: string) => states.push(s) } } as never);
+  loop.ask("do it");
+  await new Promise((r) => setTimeout(r, 30));
+  assert.deepEqual(order, ["say Sure.", "model done"]);
+  assert.ok(states.indexOf("speaking") >= 0);
+});

@@ -44,7 +44,7 @@ const request = (over: Partial<ModelRequest> = {}): ModelRequest => ({
 });
 
 const make = (sdk: ClaudeSdk, over: Record<string, unknown> = {}) =>
-  createClaudePlanAdapter({ claudePath: "/bin/claude", model: "claude-sonnet-5-5", sdk, env: { PATH: "/bin", HOME: "/h" }, ...over });
+  createClaudePlanAdapter({ claudePath: "/bin/claude", model: "claude-sonnet-5-5", sdk, env: { PATH: "/bin", HOME: "/h" }, prewarmDelayMs: 0, ...over });
 const live = () => new AbortController().signal;
 
 // ---- a plain answer
@@ -379,7 +379,9 @@ test("a request with different instructions does not use the prepared process; a
   adapter.prepare!({ system: "Other." });
   assert.deepEqual(await adapter.complete(request(), live()), { text: "cold" });
   await new Promise((r) => setTimeout(r, 0));
-  assert.equal(w.closed(), 1, "the mismatched process is closed");
+  assert.equal(w.closed(), 0, "kept: another request (e.g. a conversation note) does not take or replace it");
+  assert.equal(w.started.length, 1);
+  assert.deepEqual(await adapter.complete(request({ system: "Other." }), live()), { text: "warm" });
 
   const broken = warmSdk(() => {
     throw new Error("pipe closed");

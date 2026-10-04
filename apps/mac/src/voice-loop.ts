@@ -1,10 +1,10 @@
 import { peakLevel, type AudioClip, type AudioError, type Recording } from "./audio.ts";
 import type { SpeechToText } from "./stt.ts";
-import type { TextToSpeech } from "./tts.ts";
+import type { SpeakHooks, TextToSpeech } from "./tts.ts";
 
 /** The parts of ZENO Core the voice loop uses. */
 export interface CoreLike {
-  handle(input: { text: string; source: "voice" | "text" }, signal?: AbortSignal): Promise<{ text: string; requestId?: string }>;
+  handle(input: { text: string; source: "voice" | "text" }, signal?: AbortSignal, hooks?: { onText?: (delta: string) => void }): Promise<{ text: string; requestId?: string }>;
 }
 
 export type LoopState = "idle" | "listening" | "transcribing" | "thinking" | "speaking";
@@ -196,19 +196,50 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
     onStage: (stage: LoopStage) => void,
   ) {
     setState("thinking");
-    let started = now();
-    const answer = await core.handle({ text, source }, signal);
-    const model = now() - started;
-    if (signal.aborted) return;
-    events.onReply?.(answer.text);
-
-    onStage("speech");
-    setState("speaking");
-    started = now();
+    const started = now();
+    // ADR-065: speech starts on the reply's first sentence while the model is still writing the rest.
+    const queue = textQueue();
+    const endQueue = () => queue.end();
+    signal.addEventListener("abort", endQueue, { once: true });
     let firstSound: number | undefined;
-    await tts.speak(answer.text, signal, { onStart: () => (firstSound = now() - started) });
-    if (signal.aborted) return;
-    events.onTurnComplete?.({ requestId: answer.requestId, ...heard, model, firstSound });
+    const speakStream =
+      tts.speakStream?.bind(tts) ??
+      (async (pieces: AsyncIterable<string>, s?: AbortSignal, hooks?: SpeakHooks) => {
+        let all = "";
+        for await (const piece of pieces) all += piece; // cannot stream: wait for the whole reply
+        if (!all.trim()) return;
+        setState("speaking"); // as before streaming: speaking from the moment the whole reply is handed over
+        await tts.speak(all, s, hooks);
+      });
+    const speaking = speakStream(queue.pieces, signal, {
+      onStart: () => {
+        firstSound = now() - started;
+        setState("speaking");
+      },
+    });
+    speaking.catch(() => {}); // awaited below; a failure before then must not go unhandled
+    try {
+      let answer;
+      try {
+        answer = await core.handle({ text, source }, signal, { onText: (delta) => queue.push(delta) });
+      } catch (error) {
+        queue.end();
+        await speaking.catch(() => {});
+        throw error;
+      }
+      const model = now() - started;
+      if (signal.aborted) return;
+      if (!queue.received) queue.push(answer.text); // a model that cannot stream: speak the whole reply now
+      queue.end();
+      events.onReply?.(answer.text);
+
+      onStage("speech");
+      await speaking;
+      if (signal.aborted) return;
+      events.onTurnComplete?.({ requestId: answer.requestId, ...heard, model, firstSound });
+    } finally {
+      signal.removeEventListener("abort", endQueue);
+    }
   }
 
   async function typed(text: string) {
@@ -262,4 +293,38 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
 /** Peak level as dBFS for messages: 0 dB is full scale; speech close to a microphone is usually above -20 dB. */
 function decibels(peak: number): string {
   return peak <= 0 ? "silence" : `${Math.round(20 * Math.log10(peak))} dB`;
+}
+
+/** Text pieces handed from the model to speech as they arrive (ADR-065). */
+function textQueue() {
+  const items: string[] = [];
+  let done = false;
+  let received = false;
+  let wake: (() => void) | null = null;
+  return {
+    get received() {
+      return received;
+    },
+    push(text: string) {
+      if (done || !text) return;
+      if (text.trim()) received = true;
+      items.push(text);
+      wake?.();
+    },
+    end() {
+      done = true;
+      wake?.();
+    },
+    pieces: (async function* () {
+      for (;;) {
+        if (items.length) {
+          yield items.shift()!;
+          continue;
+        }
+        if (done) return;
+        await new Promise<void>((resolve) => (wake = resolve));
+        wake = null;
+      }
+    })(),
+  };
 }

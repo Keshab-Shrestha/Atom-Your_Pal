@@ -19,7 +19,7 @@ const LISTEN_MS = 6_000;
 
 const env = process.env;
 const voice = env.ZENO_TTS_VOICE ?? "af_heart";
-const dtype = (env.ZENO_TTS_DTYPE ?? "q8") as "q8" | "fp32";
+const dtype = (env.ZENO_TTS_DTYPE ?? "fp32") as "q8" | "fp32";
 const inputDevice = env.ZENO_AUDIO_INPUT_DEVICE ?? ":default";
 const withMic = !process.argv.includes("--no-mic");
 
