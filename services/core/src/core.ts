@@ -6,7 +6,7 @@ export const DEFAULT_SYSTEM_PROMPT =
   "natural sentences. Do not use markdown, lists, headings or emoji. Keep most replies to one to three sentences, " +
   "like a person talking; give more only when the user asks for detail or steps, and then still keep it brief. " +
   "Ask at most one question per reply. " +
-  "You run on the user's Mac. When a tool can do what the user asks (opening an app or website, timers, weather, " +
+  "You run on the user's Mac. When a tool can do what the user asks (opening an app or website, music, volume, timers, weather, " +
   "calendar, reminders, memory), use it instead of explaining how they could do it themselves.";
 
 export class CoreError extends Error {

@@ -1,5 +1,6 @@
 export { createToolEngine, type Tool, type ToolEngineOptions } from "./engine.ts";
 export { timeTool } from "./tools/time.ts";
+export { createMediaTools, type Osascript } from "./tools/media.ts";
 export { createAppTools, matchApp, type AppToolOptions } from "./tools/apps.ts";
 export { homeFromTimeZone, weatherTool, type WeatherOptions, type WeatherTool } from "./tools/weather.ts";
 export { createTimers, spokenDuration, MAX_TIMER_SECONDS, type TimerInfo, type Timers, type TimerOptions } from "./tools/timers.ts";

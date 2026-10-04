@@ -1243,3 +1243,18 @@ When ZENO's reply ends with a question, the island opens the microphone 0.25 s a
 - The Talk keys, the Dictate keys and Esc take over or cancel at once.
 - It starts only after playback has ended (`turn.complete` follows the end of speech), so ZENO does not hear itself.
 - Settings → General → "Answer without keys" (default on). It is off when Talk uses the runtime's Whisper path (`ZENO_TALK_ENGINE=whisper`).
+
+---
+
+## ADR-068 — Music and Volume
+
+Date: 2026-10-04.
+
+### Decision
+
+Two always-on tools, through AppleScript (`osascript`):
+
+- `media`: play, pause, toggle, next, previous, now_playing. It controls Spotify or Music: whichever is playing, else whichever is open (Spotify first), else Music. It never sends anything to an app that is not running.
+- `volume`: read, set (0–100), change by a step, mute or unmute the Mac's output.
+
+ZENO.app now declares `NSAppleEventsUsageDescription`. macOS asks once per player ("ZENO wants to control Music"). `ZENO_MEDIA=0` turns both tools off.
