@@ -1,5 +1,6 @@
 export { createToolEngine, type Tool, type ToolEngineOptions } from "./engine.ts";
 export { timeTool } from "./tools/time.ts";
+export { createNoteTools } from "./tools/notes.ts";
 export { createMediaTools, type Osascript } from "./tools/media.ts";
 export { createAppTools, matchApp, type AppToolOptions } from "./tools/apps.ts";
 export { homeFromTimeZone, weatherTool, type WeatherOptions, type WeatherTool } from "./tools/weather.ts";

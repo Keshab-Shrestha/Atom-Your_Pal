@@ -13,6 +13,7 @@ import {
   createTimers,
   createAppTools,
   createMediaTools,
+  createNoteTools,
   createToolEngine,
   timeTool,
   weatherTool,
@@ -129,6 +130,8 @@ export function createRuntime(
       ...(process.env.ZENO_APPS === "0" ? [] : createAppTools()),
       // ADR-068: music (Spotify or Music) and the Mac's volume. ZENO_MEDIA=0 turns it off.
       ...(process.env.ZENO_MEDIA === "0" ? [] : createMediaTools()),
+      // ADR-070: "take a note" into Apple Notes (adding only). ZENO_NOTES=0 turns it off.
+      ...(process.env.ZENO_NOTES === "0" ? [] : createNoteTools()),
       ...timers.tools,
       // ADR-062: Open-Meteo, no key. ZENO_WEATHER=0 turns it off; ZENO_HOME sets "here" (default: the time zone's city).
       ...(weather ? [weather] : []),

@@ -65,7 +65,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>NSRemindersFullAccessUsageDescription</key><string>ZENO reads your reminders when you ask, and adds one when you ask it to.</string>
   <key>NSRemindersUsageDescription</key><string>ZENO reads your reminders when you ask, and adds one when you ask it to.</string>
   <key>NSMicrophoneUsageDescription</key><string>ZENO listens only while you hold its talk or dictate key, to hear you. Speech is transcribed on this Mac and never recorded.</string>
-  <key>NSAppleEventsUsageDescription</key><string>ZENO controls Music or Spotify (play, pause, skip) and reads what is playing, only when you ask.</string>
+  <key>NSAppleEventsUsageDescription</key><string>ZENO controls Music or Spotify (play, pause, skip) and adds notes to Notes, only when you ask.</string>
   <key>ZenoProjectRoot</key><string>$root</string>
   <key>ZenoNodePath</key><string>$node</string>
 </dict>
