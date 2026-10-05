@@ -484,6 +484,19 @@ Live in text (Claude plan): the calendar call waited on macOS's permission dialo
 
 **Not done (1.3):** Keshab allows Calendar and Reminders when macOS asks (first time ZENO is asked about his schedule), then tries "What's on tomorrow?" and "Remind me to … at …".
 
+### Task 2.x — Shortcuts: Plain Commands Skip the Model (ADR-071) — planned; not started
+
+Run plain spoken commands in code before any model is called. Do not start until Keshab confirms the starting list.
+
+1. `services/tool-engine/src/shortcuts/`: a pure matcher `matchShortcut(text, context) → { name, call } | undefined`; `context` has the installed app names. Tests first, in two groups: sentences that must match, and look-alikes that must not ("open Safari and search for cats", "open the pod bay doors", "scroll down and tell me what it says", "open" alone, a near-match app name, "please" and capitals and punctuation variants of the real commands).
+2. Run the matched call through the existing tool engine, so every rule and log line stays. Return the fixed reply, or "not handled" if the tool fails or refuses.
+3. A Core option `shortcuts`: try it before `model.complete`; on a hit, the reply and exchange join the conversation with no model call; on "not handled", carry on as today. Cancel behaves as for a model turn.
+4. Wire it in `apps/mac/src/runtime.ts` unless `ZENO_SHORTCUTS=0`; log `shortcut.hit` / `shortcut.fallback` (name and reason only). `.env.example`.
+
+**Done when:** unit tests pass including every look-alike staying unmatched; typecheck and existing tests green; on the real Mac, the log shows no model request for a shortcut and the time from end of speech to action is recorded next to today's 2–3 s model path; by voice, a shortcut works, a look-alike goes to the model, and "open Terminal" is refused with the reason spoken; Keshab's verdict is written here.
+
+**Out of scope:** typing, sending, deleting, buying, quitting; web page buttons; partial speech; wake words.
+
 ---
 
 ## 6. Definition of Done

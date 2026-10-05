@@ -1287,3 +1287,39 @@ Date: 2026-10-04.
 ### Decision
 
 `note_add` saves a new note in Apple Notes (default account, Notes folder) through AppleScript. It has a short title in bold and the user's words, escaped as HTML. It only adds notes: ZENO never reads, changes or deletes them. macOS asks once ("ZENO wants to control Notes"), under the same `NSAppleEventsUsageDescription` as ADR-068. `ZENO_NOTES=0` turns it off.
+
+---
+
+## ADR-071 — Shortcuts: Plain Commands Skip the Model
+
+Date: 2026-10-05. Status: **proposed**; waits for Keshab's answer on the starting list.
+
+### Context
+
+Plain commands ("open Safari", "volume down", "pause") already have their own tools (ADR-066, ADR-068), and the next Claude process is started ahead of time (ADR-064). What is left is the model round trip. From `logs/zeno.log`: the tools take about 0.15–0.3 s (`open_app` 151–173 ms, `open_url` 290 ms), while a turn spends about 2–3 s in the model (`modelMs` 2.1–3.1 s over the last turns, first sound 1.6–4.2 s after the end of speech). For a sentence whose meaning is not in doubt, that is most of the wait.
+
+The Alfred project (github.com/zisshh/computer-use, MIT, Python) settles such sentences in code before any model sees them; its README reports about 50 ms for them (its figure, not measured by ZENO). We take the idea, not the code: it is Python, it chooses actions with a paid hosted model, and it never looks at the screen.
+
+### Decision
+
+A small shortcut layer in front of the model. A sentence either matches a shortcut exactly and runs at once, or goes to the model unchanged.
+
+- **Exact grammar, no guessing.** A shortcut claims a sentence only when the whole sentence fits a fixed pattern and every slot resolves exactly: an app name must equal an installed app, not look like one. Anything extra ("open Safari and search for cats", "open my chat with Ma") is not claimed. A wrongly claimed sentence is worse than a slow one.
+- **Same tools, same rules.** A shortcut calls ZENO's existing tools (`open_app`, `open_url`, `media`, `volume`, and for scrolling the `computer` tool), not new code that does the same thing. Blocked apps, approvals, logging and the Wisp strip apply unchanged. One that needs approval asks like any other action.
+- **Only safe, reversible things.** Nothing that types text, sends, deletes, buys or quits stays with the model.
+- **Every provider.** It runs before the provider is called, so "Claude (my plan)" spends none of the plan on these sentences.
+- **ZENO says what it did**, in a short fixed reply ("Opened Safari."). If the tool fails or refuses, the sentence goes to the model with nothing lost, so the user hears the reason. The exchange joins the conversation so a follow-up still makes sense.
+- **Visible and switchable.** `shortcut.hit` and `shortcut.fallback` are logged with the shortcut's name only, never the text. `ZENO_SHORTCUTS=0` turns it off.
+
+### Not taken from Alfred (for now)
+
+Reading web page buttons by JavaScript (needs browser permission and a method per browser); acting on partial transcripts while the user is still speaking (Parakeet gives none); wake words; echo cancellation. Worth keeping for later: its messaging checks (refuse an empty box, name who it went to, type but do not send on a rough name match or an existing draft), which would complement the approval card when ZENO sends messages; and giving the model the frontmost app and window title with each request.
+
+### Not decided yet
+
+- The starting list. Proposal: open app/site, switch to app, volume up/down/mute, pause/play/next/previous, scroll up/down/top/bottom, go back. Keshab to say what he says most and what to drop.
+
+### Consequences
+
+One more layer to keep honest: a pattern that is too loose takes a sentence meant for the model, so the tests must include look-alikes that must not match. The gain is about 2–3 s on these sentences, not the 17 s of a computer task. `ZENO_SHORTCUTS=0` removes the layer without touching anything else.
+

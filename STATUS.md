@@ -6,6 +6,8 @@ Phase 1 (Memory) has started at Keshab's request, with Phase 0.5's hands-on chec
 
 Keshab's end-to-end check (Task 0.5.9, 2026-10-03): talk, follow-up, interrupt, dictation, Settings and the Decline card all passed. Opening the panel made Wisp jump, and pointing near corners had no room for the bubble, so ADR-056 gives each part a fixed home: the panel hangs under a new menu-bar icon, Mac work shows in a strip above the Dock (step, Stop, Allow/Decline), and Wisp only points with a short label (Task 0.5.10). It is built and tested (301 Swift tests) but not yet seen on screen, because the Mac was locked. Next: Keshab's live look at 0.5.10, then pointing by voice.
 
+Next idea, planned and not started (2026-10-05): shortcuts, so plain commands skip the model (ADR-071, Task 2.x); waits for Keshab's starting list.
+
 ---
 
 ## 1. Product
