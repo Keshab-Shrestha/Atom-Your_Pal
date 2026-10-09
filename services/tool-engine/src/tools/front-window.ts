@@ -79,6 +79,40 @@ const tabScript = (bundleId: string) =>
 
 const cut = (s: string) => (s.length > MAX_TITLE ? s.slice(0, MAX_TITLE) : s);
 
+/** What reading one app gave: the text for the model, which fields it holds (for the log), and whether the app is blocked. */
+export interface AppRead {
+  text: string;
+  fields: string[];
+  blocked: boolean;
+}
+
+/**
+ * Reads the given app once: its name and, in Chrome, Arc, Edge or Brave, the open tab's title and address. Blocked
+ * apps are not read; private windows give no title or address. Used by `front_window` and by pointing Wisp at a
+ * window (ADR-074), which names the app itself.
+ */
+export async function readApp(front: FrontApp, options: { osascript?: Osascript } = {}): Promise<AppRead> {
+  const script = options.osascript ?? defaultOsascript;
+  if (appBlock(front.bundleId, front.name)) return { text: `ZENO does not read ${front.name}.`, fields: [], blocked: true };
+  const head = `Front app: ${front.name}`;
+  const nameOnly = (note: string): AppRead => ({ text: `${head}\n${note}`, fields: ["app"], blocked: false });
+  if (!front.bundleId || !BROWSERS.has(front.bundleId)) return nameOnly("Only the app's name is available here.");
+  let out: string;
+  try {
+    out = await script(tabScript(front.bundleId));
+  } catch (error) {
+    return nameOnly(`ZENO could not read the tab: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (!out) return nameOnly("It has no window open.");
+  const [mode, title = "", address = ""] = out.split(SEP);
+  if (mode !== "normal") return nameOnly("The front window is a private window, so ZENO does not read it.");
+  return {
+    text: `${head}\nTab title: ${cut(title.replace(/\s+/g, " ").trim())}\nAddress: ${cleanAddress(address)}\n${DATA_NOTE}`,
+    fields: ["app", "title", "address"],
+    blocked: false,
+  };
+}
+
 /**
  * ADR-072: which app is in front and, in Chrome, Arc, Edge or Brave, the open tab's title and address. Read-only, on
  * request only. Needs no Accessibility: the app comes from `lsappinfo`, the tab from the browser's own AppleScript
@@ -86,9 +120,6 @@ const cut = (s: string) => (s.length > MAX_TITLE ? s.slice(0, MAX_TITLE) : s);
  */
 export function createFrontWindowTool(options: FrontWindowOptions = {}): Tool {
   const frontApp = options.frontApp ?? lsappinfoFront;
-  const script = options.osascript ?? defaultOsascript;
-  const report = (front: FrontApp, fields: string[]) =>
-    options.onRead?.({ ...(front.bundleId ? { bundleId: front.bundleId } : {}), fields });
 
   return {
     spec: {
@@ -102,33 +133,9 @@ export function createFrontWindowTool(options: FrontWindowOptions = {}): Tool {
     async run() {
       const front = await frontApp();
       if (!front) throw new Error("ZENO could not tell which app is in front");
-      if (appBlock(front.bundleId, front.name)) {
-        report(front, []);
-        return `ZENO does not read ${front.name}.`;
-      }
-      const head = `Front app: ${front.name}`;
-      if (!front.bundleId || !BROWSERS.has(front.bundleId)) {
-        report(front, ["app"]);
-        return `${head}\nOnly the app's name is available here.`;
-      }
-      let out: string;
-      try {
-        out = await script(tabScript(front.bundleId));
-      } catch (error) {
-        report(front, ["app"]);
-        return `${head}\nZENO could not read the tab: ${error instanceof Error ? error.message : String(error)}`;
-      }
-      if (!out) {
-        report(front, ["app"]);
-        return `${head}\nIt has no window open.`;
-      }
-      const [mode, title = "", address = ""] = out.split(SEP);
-      if (mode !== "normal") {
-        report(front, ["app"]);
-        return `${head}\nThe front window is a private window, so ZENO does not read it.`;
-      }
-      report(front, ["app", "title", "address"]);
-      return `${head}\nTab title: ${cut(title.replace(/\s+/g, " ").trim())}\nAddress: ${cleanAddress(address)}\n${DATA_NOTE}`;
+      const read = await readApp(front, { osascript: options.osascript });
+      options.onRead?.({ ...(front.bundleId ? { bundleId: front.bundleId } : {}), fields: read.fields });
+      return read.text;
     },
   };
 }

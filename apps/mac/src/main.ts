@@ -100,6 +100,7 @@ function start(config: Config) {
     computer: runtime.computer,
     ...(runtime.islandMemory ? { memory: runtime.islandMemory } : {}),
     onTimer: runtime.onTimer,
+    screen: runtime.screen,
     chime: () =>
       new Promise<void>((resolve) => {
         execFile("/usr/bin/afplay", ["/System/Library/Sounds/Glass.aiff"], { timeout: 3000 }, () => resolve());

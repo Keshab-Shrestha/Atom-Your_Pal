@@ -52,6 +52,11 @@ final class IslandController {
     private let snapshotDirectory = ProcessInfo.processInfo.environment["ZENO_ISLAND_SNAPSHOTS"].map { URL(fileURLWithPath: $0) }
     private var snapshotCount = 0
     private let trace: (String) -> Void
+    private let log: (String, [String: Any]) -> Void
+    /// The runtime said `ready` and has not stopped since: a dropped Wisp can ask it something (ADR-074).
+    private var runtimeReady = false
+    /// The app Wisp was last dropped on, until the runtime answers `context.ready`.
+    private var pointedBundleId: String?
 
     /// How long the status stays after a turn or dictation ends (Settings → Bubble → Stays).
     private var afterTurn: Double { model.settings.bubbleStay.seconds }
@@ -60,6 +65,7 @@ final class IslandController {
 
     init(settings: IslandSettings, log: @escaping (String, [String: Any]) -> Void, trace: @escaping (String) -> Void = { _ in }) {
         self.trace = trace
+        self.log = log
         model = IslandModel(settings: settings)
         bubble = BubbleController(model: model)
         strip = WorkStripController(model: model)
@@ -105,6 +111,7 @@ final class IslandController {
         pet.onArrive = { [weak self] in self?.arrivedAtPoint() }
         pet.onClick = { [weak self] count in self?.wispClicked(count) }
         pet.onHide = { [weak model] in model?.setPet(false) } // right-click → Hide Wisp
+        pet.onPointAt = { [weak self] app in self?.pointedAt(app) }
     }
 
     func start() {
@@ -168,6 +175,7 @@ final class IslandController {
     func apply(_ status: RuntimeSupervisor.Status) {
         model.status.apply(status)
         if case .running = status {} else { // whatever it asked or showed is over
+            runtimeReady = false
             model.approval.runtimeStopped()
             model.pointing.runtimeStopped()
             model.work.runtimeStopped()
@@ -188,6 +196,8 @@ final class IslandController {
         default:
             break
         }
+        if case .ready = event { runtimeReady = true }
+        if case .contextReady(_, let ok, _) = event { contextReady(ok: ok) } // before the status: it opens the microphone
         model.work.apply(event, now: Self.now)
         if case .computerPoint(let target) = event { startPointing(target) }
         if case .timer = event { pet.poke() } // out of hiding: the user should see it (the runtime chimed and spoke)
@@ -218,6 +228,60 @@ final class IslandController {
                 self.talkingLocally = true
                 self.trace("follow-up listening")
             }
+        }
+    }
+
+    // MARK: - Drop Wisp on a window (ADR-074)
+
+    /// Wisp was dropped with Option on this app's window: bring the app to the front, then ask the runtime to read it.
+    private func pointedAt(_ app: NSRunningApplication) {
+        let name = app.localizedName ?? "this app"
+        guard let bundleId = app.bundleIdentifier else {
+            log("wisp.pointed.refused", ["reason": "no_bundle_id"])
+            refusePoint(name, "ZENO doesn't read \(name).")
+            return
+        }
+        guard runtimeReady else {
+            log("wisp.pointed.refused", ["bundleId": bundleId, "reason": "not_connected"])
+            refusePoint(name, "ZENO isn't running.")
+            return
+        }
+        log("wisp.pointed", ["bundleId": bundleId])
+        trace("wisp pointed")
+        pointedBundleId = bundleId
+        Task { [weak self] in
+            await Self.bringToFront(app)
+            self?.model.send(.contextWindow(bundleId: bundleId, name: name))
+        }
+    }
+
+    /// Shown like the runtime's own refusal: a bubble, no microphone.
+    private func refusePoint(_ app: String, _ message: String) {
+        apply(.contextReady(app: app, ok: false, message: message))
+    }
+
+    /// The runtime read the app (or refused it). The user pointed on purpose, so the microphone opens whatever the
+    /// follow-up setting says; the bubble then names the app (`IslandStatus`).
+    private func contextReady(ok: Bool) {
+        let bundleId = pointedBundleId
+        pointedBundleId = nil
+        guard ok else {
+            if let bundleId { log("wisp.pointed.refused", ["bundleId": bundleId]) }
+            return
+        }
+        guard talkLocally, !talking, !dictating, !model.status.isBusy, dictation.followUpBegan() else { return }
+        talkingLocally = true
+        trace("pointed: listening")
+    }
+
+    /// Activates the app and waits until it is in front (at most half a second), so the runtime reads that app.
+    private static func bringToFront(_ app: NSRunningApplication) async {
+        guard !app.isTerminated, NSWorkspace.shared.frontmostApplication?.processIdentifier != app.processIdentifier else { return }
+        app.activate()
+        let deadline = ProcessInfo.processInfo.systemUptime + 0.5
+        while NSWorkspace.shared.frontmostApplication?.processIdentifier != app.processIdentifier,
+              ProcessInfo.processInfo.systemUptime < deadline {
+            try? await Task.sleep(for: .milliseconds(20))
         }
     }
 

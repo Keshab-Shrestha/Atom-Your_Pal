@@ -233,3 +233,43 @@ struct MemoryProtocolTests {
         #expect(object == ["type": "text.send", "text": "say \"hi\"\nplease"])
     }
 }
+
+@Suite struct ContextWindowProtocolTests {
+    @Test func contextWindowEncodesTheAppOnly() throws {
+        let line = IslandCommand.contextWindow(bundleId: "com.brave.Browser", name: "Brave Browser").line
+        #expect(line.hasSuffix("\n") && !line.dropLast().contains("\n"))
+        let object = try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: String]
+        #expect(object == ["type": "context.window", "bundleId": "com.brave.Browser", "name": "Brave Browser"])
+        #expect(IslandCommand.contextWindow(bundleId: "a", name: "b").type == "context.window")
+    }
+
+    @Test func contextReadyDecodes() throws {
+        #expect(try decodeEvent(#"{"type":"context.ready","app":"Brave Browser","ok":true}"#)
+            == .contextReady(app: "Brave Browser", ok: true, message: nil))
+        let refused = try decodeEvent(#"{"type":"context.ready","app":"Terminal","ok":false,"message":"ZENO doesn't read Terminal."}"#)
+        #expect(refused == .contextReady(app: "Terminal", ok: false, message: "ZENO doesn't read Terminal."))
+        #expect(refused.name == "context.ready") // never the app or message
+        #expect(throws: ProtocolError.missingField(event: "context.ready", field: "ok")) {
+            try decodeEvent(#"{"type":"context.ready","app":"Terminal"}"#)
+        }
+        #expect(throws: ProtocolError.invalidValue(event: "context.ready", field: "ok")) {
+            try decodeEvent(#"{"type":"context.ready","app":"Terminal","ok":"yes"}"#)
+        }
+    }
+
+    @Test func contextReadyInTheBubble() {
+        var status = IslandStatus()
+        status.apply(.ready(ReadyInfo(protocolVersion: 1, provider: "claude-plan", model: "claude-haiku-4-5", microphone: ":default", voice: true)))
+        status.apply(.contextReady(app: "Terminal", ok: false, message: "ZENO doesn't read Terminal."))
+        #expect(status.kind == .notice && status.title == "ZENO doesn't read Terminal.")
+        // The microphone opened first: listening, with the app named under it.
+        status.apply(.state(.listening))
+        status.apply(.contextReady(app: "Brave Browser", ok: true, message: nil))
+        #expect(status.kind == .listening && status.detail == "Ask about Brave Browser")
+        // No microphone: a notice says how to ask.
+        status.apply(.state(.idle))
+        status.acknowledge()
+        status.apply(.contextReady(app: "Brave Browser", ok: true, message: nil))
+        #expect(status.kind == .notice && status.title == "Ask about Brave Browser")
+    }
+}

@@ -35,6 +35,7 @@ function islandHarness(
     computer: IslandOptions["computer"];
     memory: IslandOptions["memory"];
     onTimer: IslandOptions["onTimer"];
+    screen: IslandOptions["screen"];
   }> = {},
 ) {
   const input = new PassThrough();
@@ -81,6 +82,7 @@ function islandHarness(
     computer: over.computer,
     ...(over.memory ? { memory: over.memory } : {}),
     ...(over.onTimer ? { onTimer: over.onTimer } : {}),
+    ...(over.screen ? { screen: over.screen } : {}),
     micName: async () => "macOS default: Test Mic",
     describe: (error) => (error instanceof Error ? error.message : String(error)),
     errorDetails: (error) => ((error as { kind?: string }).kind ? { kind: (error as { kind: string }).kind, retryable: true } : {}),
@@ -636,4 +638,40 @@ test("text.send: answered and spoken like a voice turn, without the microphone; 
   assert.ok(!events.some((e) => e.type === "state" && e.state === "listening"));
   await h.send({ type: "text.send", text: "   " });
   assert.match(String((h.events().at(-1) as { message?: string }).message), /non-empty "text"/);
+});
+
+test("context.window reads the named app and answers context.ready", async () => {
+  const points: string[] = [];
+  let clears = 0;
+  const h = islandHarness({
+    screen: {
+      point: async (bundleId, name) => (points.push(`${bundleId}|${name}`), bundleId === "com.apple.Terminal" ? { ok: false, message: "ZENO doesn't read Terminal." } : { ok: true }),
+      clear: () => clears++,
+    },
+  });
+  await tick(2);
+  h.clear();
+  await h.send({ type: "context.window", bundleId: "com.brave.Browser", name: "Brave Browser" });
+  await h.send({ type: "context.window", bundleId: "com.apple.Terminal", name: "Terminal" });
+  assert.deepEqual(points, ["com.brave.Browser|Brave Browser", "com.apple.Terminal|Terminal"]);
+  assert.deepEqual(h.events(), [
+    { type: "context.ready", app: "Brave Browser", ok: true },
+    { type: "context.ready", app: "Terminal", ok: false, message: "ZENO doesn't read Terminal." },
+  ]);
+  await h.send({ type: "conversation.reset" });
+  assert.equal(clears, 1);
+});
+
+test("context.window without a screen reader, or when the read fails, answers ok: false", async () => {
+  const h = islandHarness();
+  await tick(2);
+  h.clear();
+  await h.send({ type: "context.window", bundleId: "com.brave.Browser", name: "Brave Browser" });
+  assert.deepEqual(h.events(), [{ type: "context.ready", app: "Brave Browser", ok: false, message: "Reading the screen is turned off." }]);
+
+  const failing = islandHarness({ screen: { point: async () => Promise.reject(new Error("lsappinfo failed")), clear: () => {} } });
+  await tick(2);
+  failing.clear();
+  await failing.send({ type: "context.window", bundleId: "com.brave.Browser", name: "Brave Browser" });
+  assert.deepEqual(failing.events(), [{ type: "context.ready", app: "Brave Browser", ok: false, message: "lsappinfo failed" }]);
 });

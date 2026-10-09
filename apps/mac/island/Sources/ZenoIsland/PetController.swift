@@ -48,6 +48,8 @@ final class PetController {
     var onArrive: () -> Void = {}
     /// Wisp is out pointing at something: it flew there and stays until `endPointing`.
     var isPointing: Bool { pointFeet != nil }
+    /// ADR-074: Wisp was dropped with Option held on this app's window. Wisp has already gone back to its spot.
+    var onPointAt: (NSRunningApplication) -> Void = { _ in }
 
     private let settings: IslandSettings
     private let window: NSPanel
@@ -88,6 +90,8 @@ final class PetController {
     private var pressCount = 1
     /// The pointer is over Wisp (read by the next frame).
     private var pointerOver = false
+    /// ADR-074: the outline around the window Wisp would ask about while Option is held.
+    private let outline = WindowOutline()
 
     // ADR-073: Wisp notices you while ZENO is idle.
     private var reactions = WispReactionPlayer()
@@ -280,6 +284,7 @@ final class PetController {
         if peek == nil, retreat.isDue(at: now, blocked: dragging || mood.isReacting || pointFeet != nil) { tuckAway() }
         if peek != nil, retreat.timeout == 0 { wake() } // the setting was switched to Never
 
+        if dragging { updateOutline() }
         if !dragging {
             let normal = standingFeet()
             let target = pointFeet ?? peek.map { PeekLayout.feet(for: $0, y: normal.y, revealed: pointerOver, scale: unit) } ?? normal
@@ -455,6 +460,7 @@ final class PetController {
 
     private func endDrag() {
         pressed = false
+        outline.hide()
         if dragging {
             dragging = false
             NSCursor.pop()
@@ -464,7 +470,20 @@ final class PetController {
     private func drop() {
         dragging = false
         NSCursor.pop()
+        outline.hide()
         let now = Self.now
+        if case .ask(let target) = PetDrop.decide(optionHeld: NSEvent.modifierFlags.contains(.option), window: windowUnderPointer()) {
+            // ADR-074: not parked. Wisp settles back where it was picked up, and the app is asked about.
+            brain.putBack(at: now)
+            settling = true
+            guard let app = NSRunningApplication(processIdentifier: target.pid) else {
+                trace("pet dropped on a window whose app is gone")
+                return
+            }
+            trace("pet dropped on a window to ask")
+            onPointAt(app)
+            return
+        }
         if isOnWalkway(feet) {
             // Put down on the Dock: it settles to the walkway and wanders from there.
             brain.drop(homeX: Double(feet.x - size / 2 - walkMinX), at: now)
@@ -476,6 +495,34 @@ final class PetController {
             settings.petSpot = PetSpot(x: Double(feet.x), y: Double(feet.y))
             trace("pet parked \(Int(feet.x)),\(Int(feet.y))")
         }
+    }
+
+    // MARK: - Asking about a window (ADR-074)
+
+    /// While Option is held during a drag, outlines the window under the pointer; otherwise hides the outline.
+    private func updateOutline() {
+        guard NSEvent.modifierFlags.contains(.option), let target = windowUnderPointer() else {
+            outline.hide()
+            return
+        }
+        outline.show(around: target.bounds, color: settings.theme.palette.accent.nsColor, below: window)
+    }
+
+    /// The window under the pointer, from the window list: owner, layer and frame only. No titles, so no Screen Recording.
+    private func windowUnderPointer() -> WindowInfo? {
+        guard let primary = NSScreen.screens.first,
+              let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]
+        else { return nil }
+        let windows = list.compactMap { entry -> WindowInfo? in
+            guard let pid = entry[kCGWindowOwnerPID as String] as? Int32,
+                  let layer = entry[kCGWindowLayer as String] as? Int,
+                  let raw = entry[kCGWindowBounds as String] as? NSDictionary,
+                  let bounds = CGRect(dictionaryRepresentation: raw as CFDictionary)
+            else { return nil }
+            let onScreen = entry[kCGWindowIsOnscreen as String] as? Bool ?? true // the list is on-screen only
+            return WindowInfo(pid: pid, layer: layer, bounds: WindowPick.appKitRect(bounds, primaryHeight: primary.frame.height), isOnScreen: onScreen)
+        }
+        return WindowPick.window(at: NSEvent.mouseLocation, in: windows, ownPID: ProcessInfo.processInfo.processIdentifier)
     }
 
     /// Sends a parked Wisp back to wandering the Dock walkway.
@@ -579,6 +626,51 @@ final class PetContentView: NSView {
     @objc private func goHome() { onHome() }
     @objc private func tuckAway() { onTuck() }
     @objc private func hideWisp() { onHide() }
+}
+
+/// ADR-074: a rounded stroke in the theme's accent around the window Wisp would ask about. It only shows: it never
+/// takes clicks or focus.
+@MainActor
+final class WindowOutline {
+    private static let width: CGFloat = 3
+    private static let radius: CGFloat = 12
+    private let panel: NSPanel
+    private var shown: CGRect?
+
+    init() {
+        panel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = false
+        panel.ignoresMouseEvents = true
+        panel.level = .floating
+        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
+        panel.isReleasedWhenClosed = false
+        panel.animationBehavior = .none
+        let view = NSView()
+        view.wantsLayer = true
+        view.layer?.borderWidth = Self.width
+        view.layer?.cornerRadius = Self.radius
+        view.layer?.cornerCurve = .continuous
+        panel.contentView = view
+    }
+
+    /// Outlines `rect` (AppKit screen coordinates), just under Wisp's own window.
+    func show(around rect: CGRect, color: NSColor, below pet: NSWindow) {
+        panel.contentView?.layer?.borderColor = color.cgColor
+        let frame = rect.insetBy(dx: -Self.width, dy: -Self.width)
+        guard shown != frame else { return }
+        let wasShown = shown != nil
+        shown = frame
+        panel.setFrame(frame, display: true)
+        if !wasShown { panel.order(.below, relativeTo: pet.windowNumber) }
+    }
+
+    func hide() {
+        guard shown != nil else { return }
+        shown = nil
+        panel.orderOut(nil)
+    }
 }
 
 /// Wisp's window. Hiding puts most of Wisp past the edge of the display, so AppKit must not pull it back on.

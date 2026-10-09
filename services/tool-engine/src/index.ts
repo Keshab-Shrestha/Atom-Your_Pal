@@ -3,7 +3,7 @@ export { timeTool } from "./tools/time.ts";
 export { createNoteTools } from "./tools/notes.ts";
 export { createMediaTools, type Osascript } from "./tools/media.ts";
 export { createAppTools, matchApp, type AppToolOptions } from "./tools/apps.ts";
-export { createFrontWindowTool, type FrontWindowOptions } from "./tools/front-window.ts";
+export { createFrontWindowTool, readApp, type AppRead, type FrontApp, type FrontWindowOptions } from "./tools/front-window.ts";
 export { homeFromTimeZone, weatherTool, type WeatherOptions, type WeatherTool } from "./tools/weather.ts";
 export { createTimers, spokenDuration, MAX_TIMER_SECONDS, type TimerInfo, type Timers, type TimerOptions } from "./tools/timers.ts";
 export { calendarRunner, createCalendarTools, type CalendarRunner, type CalendarToolOptions } from "./tools/calendar.ts";

@@ -269,6 +269,7 @@ The island reads the keyboard and the pointer position system-wide, so its limit
   - Logs hold the bundle id and which fields were returned, never the title or address.
 
   ZENO still holds no Accessibility permission.
+- Drop Wisp on a window (ADR-074): only while Option is held during a drag, the island reads the window list's owner, layer and frame to find and outline the window under the pointer. It never reads window titles, so it needs no Screen Recording. On the drop, the runtime reads that app once with `front_window`'s rules and keeps the result for the next request only (30 s at most, cleared by a new conversation). Logs hold the bundle id only.
 
 ---
 

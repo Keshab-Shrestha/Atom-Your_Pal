@@ -66,6 +66,7 @@ The island (`RestartPolicy`, `RuntimeSupervisor` in `apps/mac/island/`) waits 1,
 | `{"type":"episode.forget","id":4}` | Delete one conversation note (ADR-059). Answered with a `memory` event |
 | `{"type":"text.send","text":"…"}` | A typed request (up to 4000 characters): answered and spoken like a voice turn, with `transcript` (the text), `reply`, `turn.complete` (`speechMs` and `transcriptionMs` 0). Interrupts a turn in progress, like talking does |
 | `{"type":"episode.clear"}` | Delete every conversation note. Facts are kept. Answered with a `memory` event |
+| `{"type":"context.window","bundleId":"…","name":"…"}` | Wisp was dropped on this app's window with Option held (ADR-074). The runtime reads that app once (`front_window`'s rules, ADR-072) and holds the result for the next request only, for up to 30 s. Answered with `context.ready` |
 | `{"type":"quit"}` | Release the microphone, stop speech and exit with code 0 |
 
 Holding Ctrl+Option maps to `talk.start` on press and `talk.send` on release. Pressing another key while holding, or Esc, maps to `talk.cancel` (ADR-035).
@@ -93,6 +94,7 @@ Holding Ctrl+Option maps to `talk.start` on press and `talk.send` on release. Pr
 | `approval.closed` | `id` | That request is no longer waiting (answered, declined, timed out, or the turn was cancelled). The island removes the prompt |
 | `timer` | `id`, `label`, `message` | A timer ended (ADR-061). The runtime has already chimed and spoken `message`; the island shows it. |
 | `memory` | `enabled`, `count`, `memories`, `episodes` | What ZENO keeps (ADR-058), newest first: a list of `{ "id", "text", "createdAt" (ISO 8601), "source" ("voice" or "text") }`. `episodes` (ADR-059) lists conversation notes, newest first: `{ "id", "summary", "endedAt", "exchanges" }`; an island must accept it missing. `enabled` is `false` (and the list empty) when memory is off (`ZENO_MEMORY=0`, or its file could not be opened). Sent only after `memory.list`, `memory.forget` or `memory.clear`, and after changes once the island has asked. Memory text is never logged |
+| `context.ready` | `app`, `ok`, `message` | Answer to `context.window`. `ok: true`: the read is held, and the island opens the microphone for the question. `ok: false`: `message` says why (a blocked app, or reading turned off with `ZENO_FRONT_WINDOW=0`); nothing is held |
 | `error` | `stage`, `message`, `kind`, `retryable` | Something failed. `kind` and `retryable` are present for model errors only |
 
 `state` returns to `idle` after every turn, including turns that end in `notice` or `error`.

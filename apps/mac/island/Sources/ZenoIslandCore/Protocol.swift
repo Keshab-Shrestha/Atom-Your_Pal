@@ -23,6 +23,8 @@ public enum IslandCommand: Sendable, Equatable {
     case episodeClear
     /// A typed request: answered and spoken like a voice turn.
     case textSend(String)
+    /// The user dropped Wisp on a window to ask about it (ADR-074): its app, never the window's title.
+    case contextWindow(bundleId: String, name: String)
 
     /// The command's `type` field. Safe for logs: never includes values.
     public var type: String {
@@ -40,6 +42,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .episodeForget: "episode.forget"
         case .episodeClear: "episode.clear"
         case .textSend: "text.send"
+        case .contextWindow: "context.window"
         }
     }
 
@@ -62,6 +65,10 @@ public enum IslandCommand: Sendable, Equatable {
         }
         if case .textSend(let text) = self {
             fields["text"] = text
+        }
+        if case .contextWindow(let bundleId, let name) = self {
+            fields["bundleId"] = bundleId
+            fields["name"] = name
         }
         // A dictionary of strings and booleans is always valid JSON, so this cannot fail.
         guard let data = try? JSONSerialization.data(withJSONObject: fields, options: [.sortedKeys, .withoutEscapingSlashes]),
@@ -233,6 +240,8 @@ public enum IslandEvent: Sendable, Equatable {
     case memory(MemoryList)
     /// A timer ended (ADR-061). The runtime also says `message` aloud.
     case timer(id: Int, label: String, message: String)
+    /// The answer to `context.window` (ADR-074): the app was read for the next question, or refused with `message`.
+    case contextReady(app: String, ok: Bool, message: String?)
     case error(RuntimeError)
     /// A newer runtime sent an event this island does not know; ignored for forward compatibility.
     case unknown(type: String)
@@ -257,6 +266,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .info: "info"
         case .memory: "memory"
         case .timer: "timer"
+        case .contextReady: "context.ready"
         case .error(let e): "error:\(e.stage)"
         case .unknown(let type): "unknown:\(type)"
         }
@@ -339,6 +349,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
             providers: try f.providers()))
     case "timer":
         return .timer(id: try f.int("id"), label: (try? f.string("label")) ?? "", message: try f.string("message"))
+    case "context.ready":
+        return .contextReady(app: try f.string("app"), ok: try f.bool("ok"), message: f.optionalString("message"))
     case "memory":
         return .memory(MemoryList(enabled: try f.bool("enabled"), count: try f.int("count"), memories: try f.memories(), episodes: try f.episodes()))
     case "error":

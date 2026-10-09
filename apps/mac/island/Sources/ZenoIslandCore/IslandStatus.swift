@@ -111,6 +111,15 @@ public struct IslandStatus: Sendable, Equatable {
         case .timer(_, let label, _):
             // Not while a turn runs: the turn's own status wins, and the runtime speaks the timer afterwards.
             if !isBusy { set(.notice, "Timer done", label.isEmpty ? "Your timer is up" : IslandStatus.short(label.prefix(1).uppercased() + label.dropFirst())) }
+        case .contextReady(let app, let ok, let message):
+            // ADR-074. The microphone opens before this arrives here, so "listening" means it is open.
+            if !ok {
+                set(.notice, IslandStatus.short(message ?? "ZENO doesn't read \(app)."), "")
+            } else if kind == .listening {
+                detail = IslandStatus.short("Ask about \(app)")
+            } else if !isBusy {
+                set(.notice, IslandStatus.short("Ask about \(app)"), "Hold the Talk keys to ask")
+            }
         case .error(let error):
             let title = IslandStatus.errorTitle(error)
             lastProblem = Problem(title: title, message: error.message)

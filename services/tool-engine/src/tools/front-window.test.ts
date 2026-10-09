@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cleanAddress, createFrontWindowTool, parseLsappinfo, type FrontApp } from "./front-window.ts";
+import { cleanAddress, createFrontWindowTool, parseLsappinfo, readApp, type FrontApp } from "./front-window.ts";
 
 const SEP = String.fromCharCode(31);
 const signal = new AbortController().signal;
@@ -100,4 +100,26 @@ test("a browser with no window gives the name only", async () => {
 
 test("no front app is an error", async () => {
   await assert.rejects(async () => setup(undefined).run(), /could not tell which app is in front/);
+});
+
+test("readApp reads the app it is given: a blocked app is not read", async () => {
+  let scripts = 0;
+  const read = await readApp({ name: "Terminal", bundleId: "com.apple.Terminal" }, { osascript: async () => (scripts++, "") });
+  assert.deepEqual(read, { text: "ZENO does not read Terminal.", fields: [], blocked: true });
+  assert.equal(scripts, 0);
+});
+
+test("readApp gives a browser's tab title and address", async () => {
+  const read = await readApp(
+    { name: "Brave Browser", bundleId: "com.brave.Browser" },
+    { osascript: async () => `normal${SEP}Cats${SEP}https://cats.example/a?k=1` },
+  );
+  assert.equal(read.blocked, false);
+  assert.deepEqual(read.fields, ["app", "title", "address"]);
+  assert.match(read.text, /Front app: Brave Browser\nTab title: Cats\nAddress: https:\/\/cats\.example\/a\n/);
+});
+
+test("readApp gives only the name of a non-browser app", async () => {
+  const read = await readApp({ name: "Notes", bundleId: "com.apple.Notes" }, { osascript: async () => assert.fail("no script") });
+  assert.deepEqual(read, { text: "Front app: Notes\nOnly the app's name is available here.", fields: ["app"], blocked: false });
 });

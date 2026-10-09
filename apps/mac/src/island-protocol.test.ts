@@ -117,3 +117,33 @@ test("approval.answer needs an id and a real boolean", () => {
     assert.ok("error" in parseCommand(bad), bad);
   }
 });
+
+test("parses context.window with a bundle id and a name", () => {
+  assert.deepEqual(parseCommand('{"type":"context.window","bundleId":"com.brave.Browser","name":"Brave Browser"}'), {
+    command: { type: "context.window", bundleId: "com.brave.Browser", name: "Brave Browser" },
+  });
+});
+
+test("rejects context.window without both strings, or with overlong ones", () => {
+  for (const c of [
+    { type: "context.window", name: "Brave Browser" },
+    { type: "context.window", bundleId: "com.brave.Browser" },
+    { type: "context.window", bundleId: "", name: "Brave Browser" },
+    { type: "context.window", bundleId: "com.brave.Browser", name: "  " },
+    { type: "context.window", bundleId: 7, name: "Brave Browser" },
+    { type: "context.window", bundleId: "x".repeat(300), name: "Brave Browser" },
+    { type: "context.window", bundleId: "com.brave.Browser", name: "y".repeat(300) },
+  ]) {
+    const parsed = parseCommand(JSON.stringify(c));
+    assert.ok("error" in parsed, JSON.stringify(c));
+    assert.match(parsed.error, /context\.window/);
+  }
+});
+
+test("encodes context.ready, with a message when refused", () => {
+  assert.equal(encodeEvent({ type: "context.ready", app: "Brave Browser", ok: true }), '{"type":"context.ready","app":"Brave Browser","ok":true}\n');
+  assert.equal(
+    encodeEvent({ type: "context.ready", app: "Terminal", ok: false, message: "ZENO doesn't read Terminal." }),
+    '{"type":"context.ready","app":"Terminal","ok":false,"message":"ZENO doesn\'t read Terminal."}\n',
+  );
+});

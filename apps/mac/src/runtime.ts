@@ -37,6 +37,7 @@ import {
 } from "@zeno/memory";
 import type { InputSource, Message } from "@zeno/contracts";
 import type { IslandMemory } from "./island.ts";
+import { createWindowPointer, type WindowPointer } from "./screen-context.ts";
 import { AudioError, defaultInputDevice, startRecording } from "./audio.ts";
 import { SttError, createWhisperStt, type SpeechToText } from "./stt.ts";
 import { createModelSettings, writeSavedChoice, type ModelSettings } from "./model-settings.ts";
@@ -63,6 +64,8 @@ export interface Runtime {
   memory?: MemoryStore;
   /** The memory as Settings sees it (list, forget, clear, change updates). Undefined when memory is off. */
   islandMemory?: IslandMemory;
+  /** Wisp dropped on a window (ADR-074): that app's read, held for the next request only. */
+  screen: WindowPointer;
   /** Countdown timers (ADR-061). */
   timers: Timers;
   /** Called when a timer ends; returns a function that stops listening. */
@@ -120,6 +123,8 @@ export function createRuntime(
     void weather.warm();
     setInterval(() => void weather.warm(), 30 * 60_000).unref();
   }
+  // ADR-074: off with the front window tool (ZENO_FRONT_WINDOW=0), whose limits it shares.
+  const screen = createWindowPointer({ enabled: process.env.ZENO_FRONT_WINDOW !== "0", log });
   const calendarHelper = findCalendarHelper();
   log.info("calendar.helper", { available: Boolean(calendarHelper) });
   // The tools ZENO can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
@@ -204,7 +209,8 @@ export function createRuntime(
         tools: toolEngine,
         context: (input, context) => {
           current = { source: input.source, requestId: context.requestId };
-          if (!memory) return nowLine();
+          const pointed = screen.take(); // ADR-074: the window Wisp was dropped on, for this request only
+          if (!memory) return [nowLine(), pointed].filter(Boolean).join("\n\n");
           const facts = memoryContext(input.text, { store: memory });
           const past = episodes ? episodeContext(memory, context.sessionId) : undefined;
           log.debug("memory.context", {
@@ -213,7 +219,7 @@ export function createRuntime(
             used: facts ? facts.split("\n").length - 1 : 0,
             episodes: past ? past.split("\n").length - 1 : 0,
           });
-          return [nowLine(), MEMORY_GUIDANCE, facts, past].filter(Boolean).join("\n\n");
+          return [nowLine(), MEMORY_GUIDANCE, facts, past, pointed].filter(Boolean).join("\n\n");
         },
         ...(episodes ? { onExchange: (sessionId: string, turns: readonly Message[]) => episodes.update(sessionId, turns) } : {}),
       });
@@ -244,6 +250,7 @@ export function createRuntime(
     tts,
     computer,
     ...(memory ? { memory, islandMemory } : {}),
+    screen,
     timers,
     onTimer(listener) {
       timerListeners.add(listener);

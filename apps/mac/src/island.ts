@@ -15,6 +15,7 @@ import {
   type MemoryItem,
 } from "./island-protocol.ts";
 import type { ComputerBridge } from "./computer-bridge.ts";
+import type { WindowPointer } from "./screen-context.ts";
 import type { ModelSettings } from "./model-settings.ts";
 import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
@@ -38,6 +39,8 @@ export interface IslandOptions {
   computer?: Pick<ComputerBridge, "attach" | "answer" | "cancelAll">;
   /** What ZENO keeps (ADR-058), for Settings. Absent when memory is off: `memory.*` answers `enabled: false`. */
   memory?: IslandMemory;
+  /** Wisp dropped on a window (ADR-074): reads that app once for the next request. Absent: `context.window` is refused. */
+  screen?: Pick<WindowPointer, "point" | "clear">;
   /** Plays a short sound before a timer is announced (optional). */
   chime?(): Promise<void>;
   /** Timers (ADR-061): subscribe to timers ending, to announce them. */
@@ -154,8 +157,18 @@ export function runIsland(options: IslandOptions): IslandSession {
         options.computer?.cancelAll();
         loop.cancel();
         core.reset();
+        options.screen?.clear();
         send({ type: "conversation.reset" });
         return;
+      case "context.window": {
+        const app = command.name;
+        const pointed = options.screen?.point(command.bundleId, app) ?? Promise.resolve({ ok: false as const, message: "Reading the screen is turned off." });
+        void pointed.then(
+          (result) => send({ type: "context.ready", app, ...result }),
+          (error: unknown) => send({ type: "context.ready", app, ok: false, message: describe(error) }),
+        );
+        return;
+      }
       case "model.set": {
         // Applies to the next request; a turn in progress finishes with the old model.
         if (!options.settings) {

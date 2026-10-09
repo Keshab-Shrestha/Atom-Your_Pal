@@ -21,6 +21,7 @@ export type IslandCommand =
   | { type: "text.send"; text: string }
   | { type: "episode.forget"; id: number }
   | { type: "episode.clear" }
+  | { type: "context.window"; bundleId: string; name: string }
   | { type: "quit" };
 
 export type ErrorStage =
@@ -84,6 +85,8 @@ export type IslandEvent =
   | { type: "approval.closed"; id: string }
   | InfoEvent
   | { type: "timer"; id: number; label: string; message: string }
+  | { type: "context.ready"; app: string; ok: true }
+  | { type: "context.ready"; app: string; ok: false; message: string }
   | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[] }
   | { type: "error"; stage: ErrorStage; message: string; kind?: string; retryable?: boolean };
 
@@ -100,6 +103,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "text.send",
   "episode.forget",
   "episode.clear",
+  "context.window",
   "quit",
 ]);
 
@@ -137,6 +141,12 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof text !== "string" || !text.trim()) return { error: 'text.send needs a non-empty "text".' };
     if (text.length > 4000) return { error: "text.send: the text is longer than 4000 characters." };
     return { command: { type, text } };
+  }
+  if (type === "context.window") {
+    const { bundleId, name } = value as { bundleId?: unknown; name?: unknown };
+    const ok = (v: unknown): v is string => typeof v === "string" && v.trim() !== "" && v.length <= 200;
+    if (!ok(bundleId) || !ok(name)) return { error: 'context.window needs "bundleId" and "name" strings (1 to 200 characters).' };
+    return { command: { type, bundleId, name } };
   }
   if (type === "memory.forget" || type === "episode.forget") {
     const { id } = value as { id?: unknown };
