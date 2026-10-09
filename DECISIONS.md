@@ -1328,7 +1328,7 @@ One more layer to keep honest: a pattern that is too loose takes a sentence mean
 
 ## ADR-072 — What Is in Front: App, Page Title and Address
 
-Date: 2026-10-10. Status: **proposed**; waits for Keshab's answers below.
+Date: 2026-10-10. Status: **accepted** (Keshab, 2026-10-10: on by default; Safari left out).
 
 ### Context
 
@@ -1346,7 +1346,8 @@ A read-only tool, `front_window`. The model calls it when the user refers to wha
 - **No new broad permission.**
   - The front app's name and bundle id come from the system without asking for any permission. The island never takes focus (ADR-033), so the front app is the one the user is working in.
   - Window titles of other apps need Accessibility, which ZENO does not hold (SECURITY.md §15). They are left out: for other apps the tool gives the app's name only. With `ZENO_COMPUTER=1`, the `computer` tool's look already reads them through Cua.
-- **Browsers through their own AppleScript:** Safari, Google Chrome, Arc, Microsoft Edge and Brave. macOS asks once per browser ("ZENO wants to control Safari"), under the `NSAppleEventsUsageDescription` that ADR-068 added. Only the browser in front is asked. Firefox has no AppleScript for this, so it gets its name only.
+- **Browsers through their own AppleScript:** Google Chrome, Arc, Microsoft Edge and Brave. macOS asks once per browser ("ZENO wants to control Google Chrome"), under the `NSAppleEventsUsageDescription` that ADR-068 added. Only the browser in front is asked. Firefox has no AppleScript for this, so it gets its name only.
+- **Safari is left out: name only.** Safari's AppleScript cannot tell a private window from a normal one, so reading it could pass private browsing to the model. ZENO does not script Safari at all, so macOS never asks to control it for this tool. Revisit if a reliable private-window check is found.
 - **Deterministic limits, in code:**
   - **Blocked apps.** The front app is checked against `appBlock` (terminals, password managers, System Settings, AI agents). For a blocked app, the tool says only that ZENO does not read it.
   - **Private windows.** A Chromium window whose `mode` is `incognito` gives no title or address.
@@ -1355,13 +1356,10 @@ A read-only tool, `front_window`. The model calls it when the user refers to wha
 - **Data, not instructions.** Page titles are written by websites. The result is labelled as screen content, and the model must not follow instructions in it (SECURITY.md §11).
 - **Visible and switchable.** `front_window.read` is logged with the bundle id and which fields were returned, never the title or address. `ZENO_FRONT_WINDOW=0` turns the tool off.
 
+- **On by default**, like `open_app` and `note_add` (ADR-066, ADR-070): it only reads, and macOS asks before each browser is first used.
+
 ### Not decided yet
 
-- **On by default?** Proposal: on, like `open_app` and `note_add` (ADR-066, ADR-070), since it only reads and macOS asks before each browser is first used.
-- **Safari private windows.** Safari's AppleScript cannot tell them apart, so their title and address would be read. Options:
-  - accept and document it;
-  - give Safari its name only;
-  - leave Safari out until a way is found.
 - **Reading the page itself** ("summarize this page"). This tool gives the title and address only. The page text would need Claude Code's `WebFetch` on the plan, as `WebSearch` was allowed in ADR-069. That would be its own decision.
 
 ### Consequences

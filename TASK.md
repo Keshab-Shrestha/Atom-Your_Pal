@@ -499,13 +499,13 @@ Run plain spoken commands in code before any model is called. Do not start until
 
 ### Task 2.y — What Is in Front (ADR-072) — planned; not started
 
-A read-only `front_window` tool: front app name, and for Safari, Chrome, Arc, Edge and Brave the tab title and address. Do not start until Keshab answers ADR-072's open points: on by default, Safari private windows. Comes after Task 2.x unless Keshab says otherwise.
+A read-only `front_window` tool: front app name, and for Chrome, Arc, Edge and Brave the tab title and address. On by default; Safari gives its name only (ADR-072, accepted 2026-10-10). Comes after Task 2.x unless Keshab says otherwise.
 
 1. `services/tool-engine/src/tools/front-window.ts`. Write the tests first, using a fake `osascript` / front-app reader:
    - **pure functions:** `cleanAddress(url)` drops the query, fragment and user info, and keeps only http(s); `describeFront(...)` builds the labelled result;
    - **blocked apps:** an `appBlock` app gives "ZENO does not read <app>" and no title;
    - **private windows:** an incognito Chromium window gives no title or address;
-   - **Firefox and other apps:** name only;
+   - **Safari, Firefox and other apps:** name only, and no browser script is run for them;
    - **long titles:** cut to 200 characters;
    - **browser errors:** a script error or refusal gives the app name and the reason, not a crash.
 2. Front app without permissions: get the name and bundle id with no TCC prompt (`lsappinfo` or AppleScript `path to frontmost application`, whichever proves prompt-free on the real Mac). If a prompt appears, stop and report.
@@ -514,12 +514,13 @@ A read-only `front_window` tool: front app name, and for Safari, Chrome, Arc, Ed
 
 **Done when:**
 - unit tests pass, and typecheck and the existing tests are green;
-- on the real Mac, by voice, with Safari and with Chrome in front, "what's this page?" answers with the page title; macOS asked once per browser, and no Accessibility prompt appeared;
+- on the real Mac, by voice, with Chrome in front, "what's this page?" answers with the page title; macOS asked once for Chrome, and no Accessibility prompt appeared;
+- with Safari in front, ZENO names Safari only, and macOS never asks to control Safari;
 - "save this link in a note" puts the cleaned address in Notes;
 - with Terminal in front, ZENO says it does not read it;
 - the log shows no title or address.
 
-**Out of scope:** page text (`WebFetch`, its own ADR); window titles of non-browser apps; sending the front app with every request; Firefox addresses.
+**Out of scope:** page text (`WebFetch`, its own ADR); window titles of non-browser apps; sending the front app with every request; Safari and Firefox addresses.
 
 ---
 
