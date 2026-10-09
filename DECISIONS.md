@@ -1365,3 +1365,84 @@ A read-only tool, `front_window`. The model calls it when the user refers to wha
 ### Consequences
 
 Short, cheap answers about where the user is, with no Accessibility or Screen Recording for ZENO. The tool reads what is in front when it runs, about 2 s after speech ends (the model's first round trip). If the user switches apps in that gap, it reads the new one. Other apps' window titles stay out of reach until there is a reason to ask for Accessibility.
+
+---
+
+## ADR-073 — Wisp Notices You
+
+Date: 2026-10-10. Status: **proposed**; waits for Keshab's answers below.
+
+### Context
+
+Wisp shows ZENO's state (ADR-042) and holds the island (ADR-051), but when ZENO is idle it ignores the person in front of it. Its eyes look only where it floats. Keshab wants a pet that feels alive and gives visible feedback.
+
+Coucou's Mochi (MIT code; the character is not licensed) shows what a little attention does: eyes that follow the pointer, a squish when clicked, dizziness after several fast clicks, and a hello on launch (`BotEngine.swift`). We take the ideas, not the code or the character: Wisp is drawn by ZENO's own `WispView`.
+
+### Decision
+
+Wisp reacts to the pointer and to clicks while ZENO is idle. All of it is shown by body, light and face, never by stickers (ADR-057), and works for all three Wisps (Ghost, Orb, Companion).
+
+- **Eyes follow the pointer.**
+  - **When:** the pointer is within about 400 pt of Wisp, and Wisp is floating or resting.
+  - **How:** the eyes turn toward it, a few points at most, eased so they never jump.
+  - **Data:** this uses the pointer position Wisp already reads for hover (ADR-043), and needs no permission. The position is not stored, logged or sent anywhere.
+- **Hover:** the eyes open a little wider and the glow brightens.
+- **Click:** a short squash-and-stretch (about 0.25 s) on every click. What a click does is unchanged (ADR-051: open or close the panel).
+- **Three fast clicks:** Wisp is dizzy for about 2 s (swirling eyes, a wobble). The third click already does nothing to the panel, so no click rule changes.
+- **Hello:** once per launch, Wisp pops in with a small bounce.
+- **Yawn before napping:** one yawn as Wisp falls asleep (ADR-042).
+- **ZENO's state comes first.**
+  - Listening, thinking, speaking, worried, carried and tucked away (ADR-051) always replace a reaction at once.
+  - Reactions never change ZENO's state, delay a shortcut or open the microphone.
+- **Reduce Motion** (macOS accessibility setting): no squash, wobble or bounce. The eyes still follow, because the movement is a few points only.
+- **Logic in the core, drawing in the view.** Where the eyes look, which reaction a click count gives, and how long a reaction lasts are plain functions in `ZenoIslandCore`, with tests. `WispView` only draws them.
+
+### Not taken from Coucou
+
+Hearts, stars and other particles (ADR-057: no stickers), the "annoyed" reaction, a sound for every poke, and outfits.
+
+### Not decided yet
+
+- **On by default, with a switch** in Settings → Wisp ("Reacts to you")? Proposal: yes.
+- **Hello on every launch, or only the first launch of the day?** Proposal: every launch. With "Open at login" (Task 1.1b), that is about once a day.
+
+### Consequences
+
+More of Wisp's drawing runs while idle. The eyes are recomputed on every frame Wisp already draws, so no new timer is added. Each reaction is short and ends on its own. The Settings switch turns all of it off, leaving ADR-042's Wisp as it is today.
+
+---
+
+## ADR-074 — Drop Wisp on a Window to Ask About It
+
+Date: 2026-10-10. Status: **proposed**; waits for Keshab's answers below.
+
+### Context
+
+`front_window` (ADR-072) reads the app in front. To ask about a page, the user must bring it to the front and say "this page". Coucou lets the user drag Mochi onto any window to make that window the topic of the next chat message (`DesktopMochi.swift`, `IslandWindowController.swift`). For ZENO, pointing Wisp at a window would be the same kind of gesture as pointing at the screen in ADR-054, the other way round.
+
+There is a conflict. Dropping Wisp anywhere parks it there (ADR-043), and almost every drop lands over some window. "Ask about this" therefore needs its own gesture.
+
+### Decision
+
+- **Gesture: hold Option while dropping Wisp.** While Option is held during a drag, the window under Wisp is outlined. A drop without Option parks Wisp as today.
+- **Finding the window.** The island looks up the window under the drop point with `CGWindowListCopyWindowInfo`: on-screen windows only, ZENO's own windows skipped. That gives the owning app and the window's frame without Screen Recording, because window titles are not requested.
+- **Same limits as ADR-072.**
+  - A blocked app (terminal, password manager, System Settings, AI agent) gets a short bubble ("ZENO doesn't read Terminal") and nothing else.
+  - Safari and non-browser apps give their name only.
+- **What happens on the drop:**
+  - **Bring the app to the front.** The app comes to the front, so the user sees what ZENO is looking at, and `front_window` reads it.
+  - **Read once, for this turn only.** The runtime runs `front_window` once and attaches the result to the next request as screen content (data, not instructions). The user pointed on purpose, so the read happens in code instead of waiting for the model to decide to call the tool (CLAUDE.md §9).
+  - **Open the microphone** with no keys, using the same timing as answering ZENO's question (ADR-067: 6 s to start, 0.9 s of quiet ends it). The bubble says "Ask about <app>".
+  - **If nothing is said,** the microphone closes quietly and the read is dropped.
+  - **Wisp flies back** to where it was picked up. Its parked spot does not change.
+- **Logged:** `wisp.pointed` with the bundle id, never the title or address.
+
+### Not decided yet
+
+- **The gesture.** Proposal: hold Option. The alternative is holding Wisp still over a window for about 0.8 s. That is easier to find, but a slow parking drop could trigger it by mistake.
+- **Bringing the app to the front.** Proposal: yes. Without it, a browser with several windows may be read from a different window than the one Wisp was dropped on.
+
+### Consequences
+
+- **One window per browser.** Raising the exact window would need Accessibility, which ZENO does not hold. The app comes to the front with its own last window. In a browser with several windows, that may not be the window Wisp was dropped on. The outline shows which window was meant; the bubble names the app.
+- **Builds on unchecked work.** This builds on ADR-067 (microphone without keys), which has not yet been tried by voice. That check should come first.

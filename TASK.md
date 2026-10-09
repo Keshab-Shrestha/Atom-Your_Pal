@@ -524,6 +524,46 @@ A read-only `front_window` tool: front app name, and for Chrome, Arc, Edge and B
 
 **Out of scope:** page text (`WebFetch`, its own ADR); window titles of non-browser apps; sending the front app with every request; Safari and Firefox addresses.
 
+### Task 2.z — Wisp Notices You (ADR-073) — planned; not started
+
+Eyes that follow the pointer, a hover glow, a squish on click, dizzy after three fast clicks, a hello on launch, and a yawn before napping. Wait for Keshab's answers on ADR-073 (on by default; hello every launch).
+
+1. `ZenoIslandCore`. Write the tests first:
+   - **gaze:** where the eyes look from Wisp's centre and the pointer, clamped to a few points, zero beyond about 400 pt, zero unless floating or resting;
+   - **click count:** which reaction it gives;
+   - **reactions:** how long each lasts, and that any ZENO state (listening, thinking, speaking, worried, carried, tucked) replaces a reaction at once;
+   - **Reduce Motion:** no squash, wobble or bounce.
+2. `WispView` and `PetController`: draw the gaze and the reactions for Ghost, Orb and Companion. Reuse the pointer position already read for hover; add no new timer.
+3. Settings → Wisp: "Reacts to you" switch. The gallery renders each reaction for each Wisp.
+4. SECURITY.md §15: the pointer position is also used for Wisp's gaze, and is still not stored or logged.
+
+**Done when:**
+- Swift tests pass (`pnpm island:test`), and the existing tests are green;
+- on the real screen, with each Wisp: the eyes follow the pointer, a click squishes and still opens or closes the panel, three clicks make it dizzy, and talking to ZENO interrupts any reaction;
+- with Reduce Motion on, only the eyes move.
+
+**Out of scope:** particles and stickers; sounds; outfits.
+
+### Task 2.w — Drop Wisp on a Window to Ask About It (ADR-074) — planned; not started
+
+Holding Option while dropping Wisp on a window brings that app to the front, reads it once with `front_window`, and opens the microphone for the question. Wisp then flies back. Wait for Keshab's answers on ADR-074 (gesture; bringing the app to the front), and for ADR-067's voice check.
+
+1. `ZenoIslandCore`. Write the tests first:
+   - **window choice:** from `CGWindowListCopyWindowInfo`-shaped data, pick the window under a point, skipping ZENO's own windows and windows that are not on screen;
+   - **gesture:** a drop with Option asks, a drop without Option parks;
+   - **flight home:** Wisp's spot is unchanged after asking.
+2. Island: outline the window while Option is held; on the drop, refuse blocked apps with a bubble, otherwise bring the app to the front and send the runtime one new command (island protocol doc updated).
+3. Runtime: on that command, run `front_window` once and attach the result to the next turn only, as screen content. Open the microphone with ADR-067's timing. Drop the read if nothing is said. Log `wisp.pointed` with the bundle id only.
+
+**Done when:**
+- Swift and TS tests pass, and typecheck is green;
+- on the real screen, Option-dropping Wisp on Brave and asking "what's this about?" answers about that page;
+- a plain drop still parks Wisp;
+- Option-dropping on Terminal shows the refusal bubble and opens no microphone;
+- the log has no title or address.
+
+**Out of scope:** raising one exact window of a browser (needs Accessibility); dropping files; Safari addresses.
+
 ---
 
 ## 6. Definition of Done
