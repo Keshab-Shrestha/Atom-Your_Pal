@@ -10,7 +10,9 @@ Next idea, planned and not started (2026-10-05): shortcuts, so plain commands sk
 
 Built (2026-10-10): a read-only `front_window` tool that gives the front app, plus the page title and address in Chrome, Arc, Edge and Brave, with no Accessibility (ADR-072, Task 2.y; idea from Coucou, MIT). It is on by default, and Safari gives its name only. Tested and read once on the real Mac from the terminal; not yet tried by voice. Task 2.x (shortcuts) still waits for Keshab's starting list.
 
-Planned, not started (2026-10-10), ideas from Coucou (MIT): Wisp notices you, with eyes that follow the pointer and small reactions to clicks (ADR-073, Task 2.z; built and tested, not yet seen on the real screen), and dropping Wisp on a window with Option held to ask about it (ADR-074, Task 2.w). Both accepted as proposed. Task 2.w also waits for ADR-067's voice check. Keshab will do the voice checks (Task 2.y, ADR-067) and give the shortcut list (Task 2.x) later.
+Planned, not started (2026-10-10), ideas from Coucou (MIT): Wisp notices you, with eyes that follow the pointer and small reactions to clicks (ADR-073, Task 2.z; built and tested, not yet seen on the real screen), and dropping Wisp on a window with Option held to ask about it (ADR-074, Task 2.w; built and tested, not yet tried on the real screen). Both accepted as proposed. Task 2.w also waits for ADR-067's voice check. Keshab will do the voice checks (Task 2.y, ADR-067) and give the shortcut list (Task 2.x) later.
+
+Planned (2026-10-10): four polish batches taken from Clicky, Coucou and a review of ZENO's setup: setup and errors (ADR-075, Task 2.A), everyday polish (ADR-076, 2.B), Wisp and voice polish (ADR-077, 2.C), Wisp's home display (ADR-078, 2.D), settings tidy-up (ADR-079, 2.E). Pointing from a screenshot (ADR-080, 2.F) is accepted: Cua only, so it needs computer control on.
 
 ---
 

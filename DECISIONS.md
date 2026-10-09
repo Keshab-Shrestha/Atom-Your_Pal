@@ -1444,3 +1444,165 @@ There is a conflict. Dropping Wisp anywhere parks it there (ADR-043), and almost
 
 - **One window per browser.** Raising the exact window would need Accessibility, which ZENO does not hold. The app comes to the front with its own last window. In a browser with several windows, that may not be the window Wisp was dropped on. The outline shows which window was meant; the bubble names the app.
 - **Builds on unchecked work.** This builds on ADR-067 (microphone without keys), which has not yet been tried by voice. That check should come first.
+
+---
+
+## ADR-075 — Setup and Errors: Permissions Checklist, Plain Error Cards, a First-Run Tour
+
+Date: 2026-10-10. Status: **accepted** (Keshab chose the batch, 2026-10-10). Ideas from Clicky (MIT, `CompanionPanelView.swift`, onboarding in `CompanionManager.swift`) and from a review of ZENO's own setup.
+
+### Context
+
+A new install fails in ways that read like developer logs:
+- **Permissions arrive one at a time.** Microphone shows a dictation failure card. Input Monitoring is one label in Settings. Automation, Calendar and Reminders prompts appear only on first use.
+- **Setup errors tell the user to edit files.** Examples: "No API key in .env", "GEMINI_API_KEY is missing. Add it to .env.", "The speech model is missing. Run: pnpm models".
+- **Crashes end silently.** After six quick crashes the runtime is not restarted again (`RestartPolicy`). The card says "ZENO is not running", with no way back but quitting.
+- **There is no first run at all.** Nothing tells a new user to hold Ctrl+Option.
+
+### Decision
+
+- **Permissions checklist** in Settings → General, and as a card on first launch until everything needed is granted.
+  - **One row per permission:** Microphone, Input Monitoring, Automation (Music, Spotify, Notes, and the browsers of ADR-072), Calendar and Reminders.
+  - **Live state:** Granted, Not yet asked, or Denied, re-read every 1.5 s while the page is open, and again whenever ZENO comes to the front.
+  - **One button** opens the matching System Settings pane. A Denied row says to switch ZENO on there.
+  - **One line per row says exactly when ZENO uses the permission,** e.g. "Only while you hold the Talk keys or dictate".
+  - **Status checks never cause a prompt.** Automation status is read with `AEDeterminePermissionToAutomateTarget` with `askUserIfNeeded` false.
+- **Plain error cards.** Each known setup failure maps to one sentence and one action button:
+  - **Claude plan not signed in:** "Open Terminal" with the `claude` command to sign in.
+  - **API key missing:** "Choose another model", opening the AI model page.
+  - **Speech model missing:** "How to download", showing the command.
+  - **Microphone denied:** "Open Settings".
+
+  The full technical message stays available under Status.
+- **Restart and log.** When the runtime gave up after repeated crashes, or exited with a config error, the card offers "Restart ZENO" (resets `RestartPolicy`) and "Open log".
+- **First-run tour, once** (replayable from Settings → General):
+  1. Wisp says hello (ADR-073).
+  2. Its bubble says "Hi, I'm Wisp. Hold Control + Option and talk to me."
+  3. Wisp flies to the menu-bar icon (ADR-054 pointing) with the label "Settings and our chats live here".
+  4. Wisp flies back.
+
+  The tour is skipped automatically if the user talks to ZENO first. Stored as `zeno.tourDone`.
+- **README quick start:** prerequisites, install, models, signing identity, build, the permission list, and the first words to say. The Phase 0 vision text moves below it.
+
+### Not taken from Clicky
+
+Its hosted onboarding video and music, the email gate, and its "Find App" Finder trick. ZENO.app has a stable signing identity (`make-signing-identity.sh`), so it shows up in the permission lists.
+
+### Consequences
+
+More UI to keep honest. Each row's check is one small function, kept in the core where it can be tested. The checklist must never trigger a permission prompt itself: prompts come only from real use or the user's click.
+
+---
+
+## ADR-076 — Everyday Polish: Sleep and Lock, "What Can I Ask?", Plan Usage, Switching Provider
+
+Date: 2026-10-10. Status: **accepted** (Keshab chose the batch, 2026-10-10). Ideas from Coucou (MIT: SPEC §13 sleep handling, `ClaudePlanGauge.swift`) and from the review.
+
+### Decision
+
+- **Pause while the Mac sleeps or is locked.**
+  - The island observes `NSWorkspace.screensDidSleepNotification` and `screensDidWakeNotification`, plus the distributed `com.apple.screenIsLocked` / `com.apple.screenIsUnlocked`.
+  - While asleep or locked, Wisp's frame timer stops, and dictation and Talk do not prepare the microphone. This answers the mic warm-up that hung on CoreAudio while the Mac was locked (TASK.md, Task 0.5.10).
+  - Everything resumes on wake or unlock. Timers keep running in the runtime.
+- **"What can I ask?"** A page in the panel (and the empty Conversation state) lists example phrases for each tool that is on.
+  - Each tool declares two or three examples next to its spec in the tool engine.
+  - The runtime sends the list with a new `capabilities` event after `ready`, so the page cannot go stale, and a tool switched off by its `ZENO_*` switch is not listed.
+  - The Talk and Dictate shortcuts are shown at the top with their current keys.
+- **Claude plan usage.** The runtime already receives the SDK's `rate_limit_event` (logged as `plan.usage`, ADR-055).
+  - It sends a new `plan.usage` event (`fiveHour`, `sevenDay` percentages, `overage`) to the island.
+  - The AI model page and Status show both as small meters, coloured from 80% and from 95%.
+  - A meter whose window has reset shows 0. Values outside 0–200% are ignored, as in Coucou.
+  - Nothing is read beyond the event: no tokens, no usage page (ADR-055).
+- **When the model's limit is reached, offer the other provider.** A `rate_limit` error card offers "Switch to <provider>" when another provider is usable: Claude plan signed in, or a key present. It sends the existing `model.set`. No automatic switching: the user chooses.
+
+### Consequences
+
+Two new runtime→island events (`capabilities`, `plan.usage`). An island that does not know them ignores them, as the protocol already requires. Tool examples are one more thing to write when a tool is added; the tool engine's tests require them.
+
+---
+
+## ADR-077 — Wisp and Voice Polish: A Curved Flight, Less Drawing While Napping, Replies for the Ear
+
+Date: 2026-10-10. Status: **accepted** (Keshab chose the batch, 2026-10-10). Ideas from Clicky (`OverlayWindow.swift` flight, `CompanionManager.swift` prompt) and Coucou (SPEC §13 frame rates).
+
+### Decision
+
+- **A curved flight.** When Wisp flies to point (ADR-054) or comes back, it follows a quadratic Bézier arc that rises above the straight line, eased with smoothstep. The flight takes 0.6–1.4 s depending on distance, and Wisp leans along the curve. Reduce Motion keeps today's straight ease. The path is a pure function in the core, with tests.
+- **Less drawing while napping or hidden.** Wisp's frame timer runs at 30 fps while awake, and at 10 fps while napping or tucked away (ADR-051), when nothing moves fast. The timer stops completely during sleep or lock (ADR-076).
+- **Replies for the ear.** Three rules are added to the system prompt (`DEFAULT_SYSTEM_PROMPT`):
+  - End with the answer, not with "do you want to know more?".
+  - Describe code or long text instead of reading it out.
+  - Say web addresses and file paths by name ("the BBC News site"), not character by character.
+
+### Not taken from Clicky
+
+Its full-screen cursor overlay. Wisp keeps its own window, sized to its body.
+
+---
+
+## ADR-078 — Wisp's Home Display
+
+Date: 2026-10-10. Status: **accepted** (Keshab chose the batch, 2026-10-10). Idea from Coucou (`IslandDisplayChoice.swift`). Amends ADR-042's "primary display" walkway.
+
+### Decision
+
+Settings → Wisp → "Home display" sets where Wisp's walkway is:
+- **Main display** (default, as today).
+- **The display with the pointer.** Wisp moves to that display's Dock edge when the pointer has stayed on another display for 3 s and Wisp is idle.
+- **A chosen display,** stored by its display UUID, so it survives a restart and a rearranged layout. While that display is unplugged, Settings shows "Saved display (not connected)" and Wisp uses the main display.
+
+The choice is a pure resolver in the core (displays in, index out), with tests. A parked Wisp (ADR-043) stays where it was parked. The menu-bar panel stays under its icon (ADR-056).
+
+---
+
+## ADR-079 — Settings Tidy-Up
+
+Date: 2026-10-10. Status: **accepted** (Keshab chose the batch, 2026-10-10).
+
+### Decision
+
+- **Split before changing.** `ExpandedView.swift` (about 1,350 lines) is split into one file per settings page and one for the conversation, with no change in behaviour. The 340 Swift tests and the gallery images must come out the same.
+- **Fewer pages.** Wisp, Speech bubble and Panel become one "Wisp" page with three sections. The page list becomes:
+  - Appearance
+  - AI model
+  - Shortcuts
+  - Dictation
+  - Wisp
+  - Memory
+  - What can I ask? (ADR-076)
+  - General (permissions, ADR-075)
+- **Reset per page.** Each page with choices has "Reset this page". It replaces the single "Reset look", and covers shortcuts too (Shortcuts page only).
+
+---
+
+## ADR-080 — Pointing From a Screenshot, Without Computer Control
+
+Date: 2026-10-10. Status: **accepted** (Keshab, 2026-10-10: Cua only). Idea from Clicky (`CompanionManager.swift` `[POINT:…]` tag, `CompanionScreenCaptureUtility.swift`).
+
+### Context
+
+Wisp points at things today only through computer control (ADR-054), which is off unless `ZENO_COMPUTER=1` and reads the accessibility tree through Cua. Clicky points with a screenshot instead:
+1. It captures the screen on the turn.
+2. It asks the model to end its reply with `[POINT:x,y:label]` or `[POINT:none]`.
+3. It strips that marker before speaking, and flies its cursor there.
+
+This needs Screen Recording, which ZENO deliberately does not hold (SECURITY.md §15).
+
+### Proposal
+
+- **Only on request.** A screenshot is taken only when the user asks where something is ("where's the Wi-Fi icon?", "show me the save button"). The model decides through a `look_at_screen` tool, never on every turn.
+- **Source: Cua.** Use Cua Driver's screenshot, which already holds Screen Recording, so ZENO itself still holds none. That means pointing from a screenshot works only while computer control is on. The alternative is ZENO.app asking for Screen Recording itself, which is a bigger step.
+- **The marker is parsed in code.**
+  - The runtime strips `[POINT:…]` before speech and checks the coordinates against the screenshot's size.
+  - It converts them to screen points per display (Clicky's conversion, with tests), then sends the existing `computer.point` event.
+  - A malformed or out-of-range marker is dropped silently, and the spoken answer stands.
+- **Screenshots:**
+  - the display with the pointer first;
+  - downscaled to 1280 px on the long side;
+  - ZENO's own windows excluded;
+  - never stored or logged.
+
+### Decided
+
+- **Cua only.** ZENO holds no new permission, and pointing from a screenshot needs `ZENO_COMPUTER=1`. ZENO.app asking for Screen Recording was rejected for now, as a bigger step than this feature is worth.
+- **A pointing reply also speaks** one short sentence ("It's the fan icon, top right."), and Wisp shows the label. Speech is how ZENO answers everywhere else.

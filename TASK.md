@@ -546,7 +546,19 @@ Eyes that follow the pointer, a hover glow, a squish on click, dizzy after three
 
 **Out of scope:** particles and stickers; sounds; outfits.
 
-### Task 2.w — Drop Wisp on a Window to Ask About It (ADR-074) — planned; not started
+### Task 2.w — Drop Wisp on a Window to Ask About It (ADR-074) — built; tested; not yet tried on the real screen
+
+Built 2026-10-10 at Keshab's request, ahead of ADR-067's voice check. Swift: `WindowPick` (the window under a point, the Option rule, window-list coordinates) with 7 tests, plus 3 protocol tests; 340 Swift tests pass. TS: `readApp` in `front-window.ts`, `screen-context.ts` (the pending read and the pointer), and `context.window` / `context.ready` in the protocol; 399 TS tests pass, and typecheck is clean.
+
+As built:
+- The island brings the app to the front and waits up to 0.5 s for it before asking the runtime.
+- The microphone opens through ADR-067's follow-up path, whatever the follow-up setting.
+- If nothing is said, the read lapses after 30 s (or at a new conversation), so a typed question within 30 s also gets it.
+
+Known limits:
+- A fully transparent window from another app could be picked.
+- No timeout if `context.ready` never comes.
+- `activate()` from the background must be checked on the real Mac.
 
 Holding Option while dropping Wisp on a window brings that app to the front, reads it once with `front_window`, and opens the microphone for the question. Wisp then flies back. ADR-074 accepted: hold Option; the app comes to the front. Still waits for ADR-067's voice check.
 
@@ -565,6 +577,65 @@ Holding Option while dropping Wisp on a window brings that app to the front, rea
 - the log has no title or address.
 
 **Out of scope:** raising one exact window of a browser (needs Accessibility); dropping files; Safari addresses.
+
+### Polish batches (ADR-075 to ADR-080), chosen by Keshab 2026-10-10 — planned; not started
+
+Built one batch at a time, in this order, each with tests and a gallery image where it shows on screen. Each batch ends with typecheck, all TS tests, all Swift tests and the gallery, then Keshab's look.
+
+**Task 2.A — Setup and errors (ADR-075).**
+1. Core: permission state per row (pure mapping from system answers to Granted / Not yet asked / Denied), and the failure → sentence + action table. Tests first.
+2. Island:
+   - the permissions checklist in Settings → General, plus the first-launch card;
+   - plain error cards with action buttons;
+   - "Restart ZENO" and "Open log" on the stopped card;
+   - the first-run tour, skipped if the user talks first.
+3. README quick start.
+
+**Done when:**
+- no check ever triggers a permission prompt (verified on the real Mac);
+- each known failure shows one sentence and a working button;
+- the tour runs once and can be replayed.
+
+**Task 2.B — Everyday polish (ADR-076).**
+1. Island: pause and resume on sleep, wake, lock and unlock.
+2. Tool engine: examples per tool, with tests requiring them. Runtime: the `capabilities` and `plan.usage` events (protocol doc updated).
+3. Island:
+   - the "What can I ask?" page and the empty conversation;
+   - plan meters;
+   - "Switch to <provider>" on a rate-limit card.
+
+**Done when:**
+- after locking the Mac and unlocking, Talk and dictation work at once, and the log shows no mic preparation while locked;
+- the page lists only tools that are on;
+- the meters match the logged `plan.usage`.
+
+**Task 2.C — Wisp and voice polish (ADR-077).**
+1. Core: the Bézier flight path (pure, tested).
+2. PetController: the flight, and the timer at 10 fps while napping or tucked.
+3. `DEFAULT_SYSTEM_PROMPT`: the three rules (core test updated).
+
+**Done when:**
+- Wisp's flight to the menu-bar icon arcs and lands exactly;
+- CPU while napping is lower than today's (measured the same way as TASK.md 0.5.4b).
+
+**Task 2.D — Wisp's home display (ADR-078).**
+1. Core resolver with tests: main display, display with the pointer, chosen display, unplugged display.
+2. Settings row; re-place Wisp on `didChangeScreenParametersNotification`.
+
+**Done when:** on two displays, each choice puts the walkway where it says, and unplugging the chosen display brings Wisp to the main one.
+
+**Task 2.E — Settings tidy-up (ADR-079).**
+1. Split `ExpandedView.swift` with no change in behaviour (tests and gallery identical).
+2. Merge Wisp, Bubble and Panel; add "Reset this page".
+
+**Done when:** every setting is reachable on the new pages, and each reset touches only its page.
+
+**Task 2.F — Pointing from a screenshot (ADR-080, Cua only).**
+1. Runtime: a `look_at_screen` tool, only while `ZENO_COMPUTER=1`, using Cua's screenshot (pointer display first, 1280 px long side, never stored or logged).
+2. A pure parser for `[POINT:x,y:label]` / `[POINT:none]`, stripped before speech, with a range check against the screenshot size and the pixel → screen-point conversion per display. Tests first, including a second display.
+3. Send the existing `computer.point` event.
+
+**Done when:** with computer control on, "where's the Wi-Fi icon?" makes Wisp point there and say one sentence, and a malformed marker is dropped without being spoken.
 
 ---
 
