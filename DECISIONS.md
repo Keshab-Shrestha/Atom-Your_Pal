@@ -1323,3 +1323,47 @@ Reading web page buttons by JavaScript (needs browser permission and a method pe
 
 One more layer to keep honest: a pattern that is too loose takes a sentence meant for the model, so the tests must include look-alikes that must not match. The gain is about 2–3 s on these sentences, not the 17 s of a computer task. `ZENO_SHORTCUTS=0` removes the layer without touching anything else.
 
+
+---
+
+## ADR-072 — What Is in Front: App, Page Title and Address
+
+Date: 2026-10-10. Status: **proposed**; waits for Keshab's answers below.
+
+### Context
+
+"What's this page?", "Save this link in a note" and "Search for more on this" all point at what is on screen, and ZENO cannot see it. Computer control (ADR-054) can read a window, but it is off unless `ZENO_COMPUTER=1`, reads the whole accessibility tree (slow, many tokens), and never gives the page's address.
+
+Coucou (github.com/louis-cfm/coucou, MIT; see ADR-033) reads the front window's title through Accessibility and the browser tab's address through AppleScript (`WindowContextCapture.swift`). We take the idea, not the code: ZENO's version is TypeScript in the tool engine, and it does without Accessibility.
+
+ADR-071 listed "give the model the frontmost app and window title with each request" for later. This ADR chooses a tool that is called only when needed.
+
+### Decision
+
+A read-only tool, `front_window`. The model calls it when the user refers to what is on screen ("this page", "what I'm looking at"). It returns the front app's name, plus, when that app is a supported browser, the tab's title and address.
+
+- **On request, not on every turn.** The front app is never sent to the model unless this tool runs. Every turn would send the user's browsing to the provider and cost tokens on turns that do not need it.
+- **No new broad permission.**
+  - The front app's name and bundle id come from the system without asking for any permission. The island never takes focus (ADR-033), so the front app is the one the user is working in.
+  - Window titles of other apps need Accessibility, which ZENO does not hold (SECURITY.md §15). They are left out: for other apps the tool gives the app's name only. With `ZENO_COMPUTER=1`, the `computer` tool's look already reads them through Cua.
+- **Browsers through their own AppleScript:** Safari, Google Chrome, Arc, Microsoft Edge and Brave. macOS asks once per browser ("ZENO wants to control Safari"), under the `NSAppleEventsUsageDescription` that ADR-068 added. Only the browser in front is asked. Firefox has no AppleScript for this, so it gets its name only.
+- **Deterministic limits, in code:**
+  - **Blocked apps.** The front app is checked against `appBlock` (terminals, password managers, System Settings, AI agents). For a blocked app, the tool says only that ZENO does not read it.
+  - **Private windows.** A Chromium window whose `mode` is `incognito` gives no title or address.
+  - **Addresses.** Only `http` and `https` addresses are returned. The query, fragment and user info are removed, because those parts can carry sign-in codes and reset tokens. Any other scheme becomes "a local page".
+  - **Titles** are cut to 200 characters.
+- **Data, not instructions.** Page titles are written by websites. The result is labelled as screen content, and the model must not follow instructions in it (SECURITY.md §11).
+- **Visible and switchable.** `front_window.read` is logged with the bundle id and which fields were returned, never the title or address. `ZENO_FRONT_WINDOW=0` turns the tool off.
+
+### Not decided yet
+
+- **On by default?** Proposal: on, like `open_app` and `note_add` (ADR-066, ADR-070), since it only reads and macOS asks before each browser is first used.
+- **Safari private windows.** Safari's AppleScript cannot tell them apart, so their title and address would be read. Options:
+  - accept and document it;
+  - give Safari its name only;
+  - leave Safari out until a way is found.
+- **Reading the page itself** ("summarize this page"). This tool gives the title and address only. The page text would need Claude Code's `WebFetch` on the plan, as `WebSearch` was allowed in ADR-069. That would be its own decision.
+
+### Consequences
+
+Short, cheap answers about where the user is, with no Accessibility or Screen Recording for ZENO. The tool reads what is in front when it runs, about 2 s after speech ends (the model's first round trip). If the user switches apps in that gap, it reads the new one. Other apps' window titles stay out of reach until there is a reason to ask for Accessibility.

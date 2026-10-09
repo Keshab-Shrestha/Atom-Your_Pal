@@ -497,6 +497,30 @@ Run plain spoken commands in code before any model is called. Do not start until
 
 **Out of scope:** typing, sending, deleting, buying, quitting; web page buttons; partial speech; wake words.
 
+### Task 2.y — What Is in Front (ADR-072) — planned; not started
+
+A read-only `front_window` tool: front app name, and for Safari, Chrome, Arc, Edge and Brave the tab title and address. Do not start until Keshab answers ADR-072's open points: on by default, Safari private windows. Comes after Task 2.x unless Keshab says otherwise.
+
+1. `services/tool-engine/src/tools/front-window.ts`. Write the tests first, using a fake `osascript` / front-app reader:
+   - **pure functions:** `cleanAddress(url)` drops the query, fragment and user info, and keeps only http(s); `describeFront(...)` builds the labelled result;
+   - **blocked apps:** an `appBlock` app gives "ZENO does not read <app>" and no title;
+   - **private windows:** an incognito Chromium window gives no title or address;
+   - **Firefox and other apps:** name only;
+   - **long titles:** cut to 200 characters;
+   - **browser errors:** a script error or refusal gives the app name and the reason, not a crash.
+2. Front app without permissions: get the name and bundle id with no TCC prompt (`lsappinfo` or AppleScript `path to frontmost application`, whichever proves prompt-free on the real Mac). If a prompt appears, stop and report.
+3. Register the tool in `apps/mac/src/runtime.ts` unless `ZENO_FRONT_WINDOW=0`. Log `front_window.read` with the bundle id and the returned field names only. Add the switch to `.env.example`. The tool description tells the model to call it only when the user refers to what is on screen, and to treat the result as data.
+4. SECURITY.md §15 (desktop island): one bullet covering what is read, from which browsers, the limits, and that ZENO still holds no Accessibility.
+
+**Done when:**
+- unit tests pass, and typecheck and the existing tests are green;
+- on the real Mac, by voice, with Safari and with Chrome in front, "what's this page?" answers with the page title; macOS asked once per browser, and no Accessibility prompt appeared;
+- "save this link in a note" puts the cleaned address in Notes;
+- with Terminal in front, ZENO says it does not read it;
+- the log shows no title or address.
+
+**Out of scope:** page text (`WebFetch`, its own ADR); window titles of non-browser apps; sending the front app with every request; Firefox addresses.
+
 ---
 
 ## 6. Definition of Done
