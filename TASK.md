@@ -526,7 +526,7 @@ A read-only `front_window` tool: front app name, and for Chrome, Arc, Edge and B
 
 ### Task 2.z — Wisp Notices You (ADR-073) — planned; not started
 
-Eyes that follow the pointer, a hover glow, a squish on click, dizzy after three fast clicks, a hello on launch, and a yawn before napping. Wait for Keshab's answers on ADR-073 (on by default; hello every launch).
+Eyes that follow the pointer, a hover glow, a squish on click, dizzy after three fast clicks, a hello on launch, and a yawn before napping. ADR-073 accepted: on by default with a switch; hello on every launch.
 
 1. `ZenoIslandCore`. Write the tests first:
    - **gaze:** where the eyes look from Wisp's centre and the pointer, clamped to a few points, zero beyond about 400 pt, zero unless floating or resting;
@@ -546,7 +546,7 @@ Eyes that follow the pointer, a hover glow, a squish on click, dizzy after three
 
 ### Task 2.w — Drop Wisp on a Window to Ask About It (ADR-074) — planned; not started
 
-Holding Option while dropping Wisp on a window brings that app to the front, reads it once with `front_window`, and opens the microphone for the question. Wisp then flies back. Wait for Keshab's answers on ADR-074 (gesture; bringing the app to the front), and for ADR-067's voice check.
+Holding Option while dropping Wisp on a window brings that app to the front, reads it once with `front_window`, and opens the microphone for the question. Wisp then flies back. ADR-074 accepted: hold Option; the app comes to the front. Still waits for ADR-067's voice check.
 
 1. `ZenoIslandCore`. Write the tests first:
    - **window choice:** from `CGWindowListCopyWindowInfo`-shaped data, pick the window under a point, skipping ZENO's own windows and windows that are not on screen;

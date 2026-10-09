@@ -1370,7 +1370,7 @@ Short, cheap answers about where the user is, with no Accessibility or Screen Re
 
 ## ADR-073 — Wisp Notices You
 
-Date: 2026-10-10. Status: **proposed**; waits for Keshab's answers below.
+Date: 2026-10-10. Status: **accepted** (Keshab, 2026-10-10: on by default with a switch; hello on every launch).
 
 ### Context
 
@@ -1401,10 +1401,8 @@ Wisp reacts to the pointer and to clicks while ZENO is idle. All of it is shown 
 
 Hearts, stars and other particles (ADR-057: no stickers), the "annoyed" reaction, a sound for every poke, and outfits.
 
-### Not decided yet
-
-- **On by default, with a switch** in Settings → Wisp ("Reacts to you")? Proposal: yes.
-- **Hello on every launch, or only the first launch of the day?** Proposal: every launch. With "Open at login" (Task 1.1b), that is about once a day.
+- **On by default**, with a switch in Settings → Wisp ("Reacts to you").
+- **Hello on every launch.** With "Open at login" (Task 1.1b), that is about once a day.
 
 ### Consequences
 
@@ -1414,7 +1412,7 @@ More of Wisp's drawing runs while idle. The eyes are recomputed on every frame W
 
 ## ADR-074 — Drop Wisp on a Window to Ask About It
 
-Date: 2026-10-10. Status: **proposed**; waits for Keshab's answers below.
+Date: 2026-10-10. Status: **accepted** (Keshab, 2026-10-10: hold Option; bring the app to the front).
 
 ### Context
 
@@ -1437,10 +1435,10 @@ There is a conflict. Dropping Wisp anywhere parks it there (ADR-043), and almost
   - **Wisp flies back** to where it was picked up. Its parked spot does not change.
 - **Logged:** `wisp.pointed` with the bundle id, never the title or address.
 
-### Not decided yet
+### Alternatives Considered
 
-- **The gesture.** Proposal: hold Option. The alternative is holding Wisp still over a window for about 0.8 s. That is easier to find, but a slow parking drop could trigger it by mistake.
-- **Bringing the app to the front.** Proposal: yes. Without it, a browser with several windows may be read from a different window than the one Wisp was dropped on.
+- **Holding Wisp still over a window for about 0.8 s instead of Option:** rejected. It is easier to discover, but a slow parking drop could trigger it by mistake.
+- **Not bringing the app to the front:** rejected. A browser with several windows would more often be read from a window other than the one Wisp was dropped on.
 
 ### Consequences
 

@@ -10,7 +10,7 @@ Next idea, planned and not started (2026-10-05): shortcuts, so plain commands sk
 
 Built (2026-10-10): a read-only `front_window` tool that gives the front app, plus the page title and address in Chrome, Arc, Edge and Brave, with no Accessibility (ADR-072, Task 2.y; idea from Coucou, MIT). It is on by default, and Safari gives its name only. Tested and read once on the real Mac from the terminal; not yet tried by voice. Task 2.x (shortcuts) still waits for Keshab's starting list.
 
-Planned, not started (2026-10-10), ideas from Coucou (MIT): Wisp notices you, with eyes that follow the pointer and small reactions to clicks (ADR-073, Task 2.z), and dropping Wisp on a window with Option held to ask about it (ADR-074, Task 2.w). Both wait for Keshab's answers.
+Planned, not started (2026-10-10), ideas from Coucou (MIT): Wisp notices you, with eyes that follow the pointer and small reactions to clicks (ADR-073, Task 2.z), and dropping Wisp on a window with Option held to ask about it (ADR-074, Task 2.w). Both accepted as proposed. Task 2.w also waits for ADR-067's voice check. Keshab will do the voice checks (Task 2.y, ADR-067) and give the shortcut list (Task 2.x) later.
 
 ---
 
