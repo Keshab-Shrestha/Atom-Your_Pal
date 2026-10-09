@@ -251,7 +251,7 @@ The island reads the keyboard and the pointer position system-wide, so its limit
 
 - Keys are read with a listen-only event tap. It cannot block or change keystrokes.
 - Only the Ctrl and Option state and "some other key was pressed" are used. Key codes are not stored, logged or sent anywhere.
-- The pointer position is used only to decide whether to show the panel. It is not stored or logged.
+- The pointer position is used only to decide whether to show the panel and, while ZENO is idle, where Wisp's eyes look (ADR-073; Settings → Wisp → "Reacts to you"). It is not stored or logged.
 - The runtime is reachable only through the island's private stdin / stdout. It opens no port or socket.
 - Permissions requested by ZENO itself: Microphone and Input Monitoring. Not Accessibility, Screen Recording or Full Disk Access.
 - Computer control (ADR-054, off unless `ZENO_COMPUTER=1`): the Accessibility and Screen Recording permissions belong to Cua Driver (`com.trycua.driver`), not to ZENO. ZENO starts Cua in standard mode with telemetry off, offers the model one `computer` tool, never controls terminals, password managers, System Settings or AI agents, asks before risky clicks and keys, and never types into secret fields. Logs hold the action and the app name, never typed text or screen content.

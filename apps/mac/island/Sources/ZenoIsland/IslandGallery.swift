@@ -142,6 +142,24 @@ enum IslandGallery {
                     }
                 }
                 Text("Second row: a later moment, facing left").font(.system(size: 10)).foregroundStyle(.white.opacity(0.5))
+                // ADR-073: looking at the pointer, hovered, and each reaction at its peak.
+                let notices: [(String, PetBrain.Mood, CGSize, Double, WispReaction?, Double)] = [
+                    ("Looks up-left", .resting, CGSize(width: -2.2, height: -1.2), 0, nil, 0),
+                    ("Looks right", .resting, CGSize(width: 2.5, height: 0), 0, nil, 0),
+                    ("Hovered", .resting, .zero, 1, nil, 0),
+                    ("Squish", .resting, .zero, 1, .squish, 0.25),
+                    ("Dizzy", .resting, .zero, 0, .dizzy, 0.3),
+                    ("Hello", .resting, .zero, 0, .hello, 0.5),
+                    ("Yawn", .napping, .zero, 0, .yawn, 0.5),
+                ]
+                HStack(spacing: 6) {
+                    ForEach(Array(notices.enumerated()), id: \.offset) { _, n in
+                        VStack(spacing: 2) {
+                            WispView(mood: n.1, time: 0.55, facing: 1, size: 88, style: style, gaze: n.2, hover: n.3, reaction: n.4, reactionProgress: n.5)
+                            Text(n.0).font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.75))
+                        }
+                    }
+                }
             }
             .padding(22)
             .background(LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.24, green: 0.29, blue: 0.42)], startPoint: .top, endPoint: .bottom))

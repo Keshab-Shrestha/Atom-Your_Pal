@@ -524,7 +524,9 @@ A read-only `front_window` tool: front app name, and for Chrome, Arc, Edge and B
 
 **Out of scope:** page text (`WebFetch`, its own ADR); window titles of non-browser apps; sending the front app with every request; Safari and Firefox addresses.
 
-### Task 2.z — Wisp Notices You (ADR-073) — planned; not started
+### Task 2.z — Wisp Notices You (ADR-073) — built; tested; seen in the gallery; not yet seen on the real screen
+
+Built 2026-10-10. `WispGaze`, `WispReaction` and `WispReactionPlayer` (in `ZenoIslandCore`) have 12 new tests; all 330 Swift tests pass. The gallery (`10-wisp-*`) now has a third row showing each Wisp looking up-left and right, hovered, squish, dizzy, hello and yawn. Not yet done: Keshab's look on the real screen (see Done when).
 
 Eyes that follow the pointer, a hover glow, a squish on click, dizzy after three fast clicks, a hello on launch, and a yawn before napping. ADR-073 accepted: on by default with a switch; hello on every launch.
 

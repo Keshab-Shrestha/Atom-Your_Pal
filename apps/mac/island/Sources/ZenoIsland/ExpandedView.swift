@@ -962,6 +962,10 @@ struct WispSection: View {
                 RowDivider()
                 ChoiceRow(title: "Hiding lean", detail: "How far Wisp tips toward the screen at an edge (\(Int(settings.wispLean.degrees))°)",
                           selection: settings.wispLean) { settings.wispLean = $0 }
+                RowDivider()
+                Row(title: "Reacts to you", detail: "Eyes follow the pointer; a squish when clicked, dizzy after three quick clicks") {
+                    ThemedSwitch(isOn: settings.wispReacts, set: { settings.wispReacts = $0 }, label: "Reacts to you")
+                }
             }
         }
     }

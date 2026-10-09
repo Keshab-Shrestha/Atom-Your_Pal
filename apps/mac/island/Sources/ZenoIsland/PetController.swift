@@ -89,6 +89,15 @@ final class PetController {
     /// The pointer is over Wisp (read by the next frame).
     private var pointerOver = false
 
+    // ADR-073: Wisp notices you while ZENO is idle.
+    private var reactions = WispReactionPlayer()
+    /// Where the eyes look and how much the pointer is over Wisp, eased each frame.
+    private var gaze = (x: 0.0, y: 0.0)
+    private var hover = 0.0
+    private var lastMood = PetBrain.Mood.resting
+    /// Wisp's eyes above its feet, in design points (64 = Wisp's drawn size).
+    private static let eyeHeight: CGFloat = 25
+
     static var now: Double { ProcessInfo.processInfo.systemUptime }
 
     init(settings: IslandSettings, trace: @escaping (String) -> Void = { _ in }) {
@@ -146,6 +155,7 @@ final class PetController {
             window.orderFrontRegardless()
             startTimer()
             if observers.isEmpty { observe() }
+            react(.hello)
             trace("pet shown \(brain.pinned ? "parked" : "walking")")
         } else {
             timer?.invalidate()
@@ -262,6 +272,9 @@ final class PetController {
         state.mood = mood
         state.facing = pointFeet != nil ? pointFacing : brain.facing
         state.time = now
+        if mood == .napping, lastMood != .napping { react(.yawn) }
+        lastMood = mood
+        notice(mood, now: now, dt: Double(dt))
 
         if over, peek == nil { retreat.wake(at: now) } // never hides from under the pointer
         if peek == nil, retreat.isDue(at: now, blocked: dragging || mood.isReacting || pointFeet != nil) { tuckAway() }
@@ -307,6 +320,33 @@ final class PetController {
             lastTrace = now
             trace("pet \(mood) feet=\(Int(feet.x)),\(Int(feet.y)) facing=\(Int(brain.facing)) \(brain.pinned ? "parked" : "walking")")
         }
+    }
+
+    /// ADR-073: the eyes ease toward the pointer, the glow toward hover, and the reaction for this frame. Nothing
+    /// while the setting is off, while hiding, or while pointing; ZENO's state ends a reaction (`WispReactionPlayer`).
+    private func notice(_ mood: PetBrain.Mood, now: Double, dt: Double) {
+        let on = settings.wispReacts && peek == nil && pointFeet == nil
+        var wanted = (x: 0.0, y: 0.0)
+        if on {
+            let mouse = NSEvent.mouseLocation
+            let eyes = CGPoint(x: feet.x, y: feet.y + size * Self.eyeHeight / 64)
+            wanted = WispGaze.offset(dx: Double(mouse.x - eyes.x), dy: Double(mouse.y - eyes.y), mood: mood)
+        }
+        let k = 1 - exp(-10 * dt)
+        gaze.x += (wanted.x - gaze.x) * k
+        gaze.y += (wanted.y - gaze.y) * k
+        hover += ((on && pointerOver && !dragging ? 1 : 0) - hover) * k
+        let playing = on ? reactions.active(at: now, mood: mood) : nil
+        state.gaze = CGSize(width: gaze.x, height: gaze.y)
+        state.hover = hover
+        state.reaction = playing?.reaction
+        state.reactionProgress = playing?.progress ?? 0
+    }
+
+    /// Starts a reaction if the setting is on (ADR-073). ZENO's state and Reduce Motion are checked by the player.
+    private func react(_ reaction: WispReaction) {
+        guard settings.wispReacts else { return }
+        reactions.start(reaction, at: Self.now, mood: state.mood, reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
     }
 
     private func move(to feet: CGPoint) {
@@ -408,6 +448,7 @@ final class PetController {
         if dragging {
             drop()
         } else if wasClick {
+            react(WispReaction.forClick(count: pressCount))
             onClick(pressCount) // pressed and let go without moving: open (or close) the features panel
         }
     }
@@ -483,6 +524,11 @@ final class PetState {
     var hide = 0.0
     var tilt = 0.0
     var edgeGap = 4.5
+    /// ADR-073: gaze toward the pointer, hover, and the reaction playing.
+    var gaze = CGSize.zero
+    var hover = 0.0
+    var reaction: WispReaction?
+    var reactionProgress = 0.0
 }
 
 /// Draws Wisp for the current state.
@@ -490,7 +536,8 @@ struct PetStage: View {
     let state: PetState
 
     var body: some View {
-        WispView(mood: state.mood, time: state.time, facing: state.facing, size: state.size, glow: state.glow, hide: state.hide, tilt: state.tilt, edgeGap: state.edgeGap, style: state.style)
+        WispView(mood: state.mood, time: state.time, facing: state.facing, size: state.size, glow: state.glow, hide: state.hide, tilt: state.tilt, edgeGap: state.edgeGap, style: state.style,
+                 gaze: state.gaze, hover: state.hover, reaction: state.reaction, reactionProgress: state.reactionProgress)
             // Leans from the feet, so the body stays behind the edge while the head tips into the display.
             .rotationEffect(.degrees(state.rotation), anchor: UnitPoint(x: 0.5, y: WispView.feetFraction))
     }

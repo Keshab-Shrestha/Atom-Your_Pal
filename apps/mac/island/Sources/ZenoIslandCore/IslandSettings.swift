@@ -30,6 +30,7 @@ public final class IslandSettings {
     static let panelBackgroundKey = "zeno.panel.background"
     static let themeKey = "zeno.look.theme"
     static let wispStyleKey = "zeno.wisp.style"
+    static let wispReactsKey = "zeno.wisp.reacts"
 
     @ObservationIgnored private let defaults: UserDefaults
     /// Mirrors what is stored, so views observe changes.
@@ -44,6 +45,11 @@ public final class IslandSettings {
     /// After ZENO asks a question, listen for the answer without the Talk keys (ADR-067). Default on.
     public var followUpEnabled: Bool {
         didSet { save(followUpEnabled, Self.followUpKey) }
+    }
+
+    /// Wisp notices you while ZENO is idle: eyes follow the pointer, small reactions to clicks (ADR-073). Default on.
+    public var wispReacts: Bool {
+        didSet { save(wispReacts, Self.wispReactsKey) }
     }
 
     /// Show the pet (ADR-042). Default on.
@@ -122,6 +128,7 @@ public final class IslandSettings {
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         petEnabled = defaults.object(forKey: Self.petKey) as? Bool ?? true
+        wispReacts = defaults.object(forKey: Self.wispReactsKey) as? Bool ?? true
         soundsEnabled = defaults.object(forKey: Self.soundsKey) as? Bool ?? true
         followUpEnabled = defaults.object(forKey: Self.followUpKey) as? Bool ?? true
         wispHideAfter = (defaults.object(forKey: Self.wispHideKey) as? Int).flatMap(WispHideTimeout.init(rawValue:)) ?? .minute1

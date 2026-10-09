@@ -33,6 +33,12 @@ struct WispView: View {
     var edgeGap: Double = 4.5
     /// How Wisp is drawn (Settings → Appearance → Wisp).
     var style: WispStyle = .ghost
+    /// ADR-073, while ZENO is idle: where the eyes look toward the pointer (design points, y down), how much the
+    /// pointer is over Wisp (0...1), and the reaction playing with how far through it is (0...1).
+    var gaze = CGSize.zero
+    var hover: Double = 0
+    var reaction: WispReaction?
+    var reactionProgress: Double = 0
 
     var body: some View {
         Canvas { context, _ in
@@ -104,8 +110,24 @@ struct WispView: View {
         case .speaking: -abs(sin(time * .pi * 2.75)) * 1.2 // a small bounce with the syllables
         default: sin(time * 2 * .pi / 2.2) * 1.6
         }
-        // A problem makes Wisp sink a little.
-        return base + (mood == .worried ? 2.5 : 0)
+        // A problem makes Wisp sink a little; hello is a small hop.
+        return base + (mood == .worried ? 2.5 : 0) - (reaction == .hello ? 6 * beat : 0)
+    }
+
+    /// 0 → 1 → 0 over the reaction playing now.
+    private var beat: Double { reaction == nil ? 0 : sin(reactionProgress * .pi) }
+
+    /// A click's squash-and-stretch, and hello's stretch on the way up. The orb only half as much: it should
+    /// still read as a sphere.
+    private var reactionSquash: (x: Double, y: Double) {
+        let amount = style == .orb ? 0.5 : 1
+        switch reaction {
+        case .squish:
+            let wave = sin(reactionProgress * 2 * .pi) * (1 - reactionProgress) * 0.16 * amount
+            return (1 + wave, 1 - wave)
+        case .hello: return (1 - 0.05 * beat * amount, 1 + 0.07 * beat * amount)
+        default: return (1, 1)
+        }
     }
 
     /// Squash for breathing while napping, a slight stretch while listening, jelly while carried.
@@ -126,9 +148,10 @@ struct WispView: View {
         }
     }
 
-    /// Lean into the direction of travel; a head tilt while thinking.
+    /// Lean into the direction of travel; a head tilt while thinking; a wobble while dizzy.
     private var lean: Double {
-        switch mood {
+        if reaction == .dizzy { return sin(time * 2 * .pi * 2.5) * 0.12 * (1 - reactionProgress) }
+        return switch mood {
         case .floating: facing * 0.08
         case .carried: sin(time * 2 * .pi / 0.9) * 0.14 // dangles from the user's hand
         case .thinking: style == .orb ? 0 : 0.11
@@ -148,7 +171,7 @@ struct WispView: View {
         }
         let pulse = (1 + cos(time * 2 * .pi / period)) / 2 // 1 → 0 → 1
         let low = mood == .napping ? 0.25 : 0.55
-        return low + (0.85 - low) * pulse
+        return (low + (0.85 - low) * pulse) * (1 + 0.35 * hover)
     }
 
     private var haloScale: Double {
@@ -239,7 +262,7 @@ struct WispView: View {
         let pivotY = mood == .carried ? 8.0 : 57.0
         figure.translateBy(x: 32, y: pivotY + bob)
         figure.rotate(by: .radians(lean))
-        figure.scaleBy(x: squash.x, y: squash.y)
+        figure.scaleBy(x: squash.x * reactionSquash.x, y: squash.y * reactionSquash.y)
         figure.translateBy(x: -32, y: -pivotY)
 
         switch style {
@@ -279,17 +302,21 @@ struct WispView: View {
     private func drawClassicFace(in context: inout GraphicsContext, eyeY: Double, eyeGap: Double, mouthY: Double, scale s: Double) {
         let ink = self.ink
         // Eyes look toward the direction of travel, up while thinking, and toward the display while hiding.
-        let lookX = (mood == .floating ? facing * 1.5 : (mood == .thinking ? 1.2 : 0)) * s + hideSide * hideAmount * 2.6 * s
-        let lookY = mood == .thinking ? -1.4 * s : 0
+        let lookX = (mood == .floating ? facing * 1.5 : (mood == .thinking ? 1.2 : 0)) * s + hideSide * hideAmount * 2.6 * s + gaze.width * s
+        let lookY = (mood == .thinking ? -1.4 * s : 0) + gaze.height * s
         let eyes = [32 - eyeGap + lookX, 32 + eyeGap + lookX]
         let w = 6 * s
 
         switch mood {
+        case _ where reaction == .dizzy:
+            for x in eyes { context.stroke(spiral(x: x, y: eyeY + lookY, radius: 3.4 * s, turn: time * 9), with: .color(ink), style: .init(lineWidth: 1.4 * s, lineCap: .round)) }
+        case _ where reaction == .hello:
+            for x in eyes { context.stroke(arc(x: x, y: eyeY + lookY + 1 * s, width: w, dip: -2 * s), with: .color(ink), style: .init(lineWidth: 2 * s, lineCap: .round)) }
         case .napping:
             for x in eyes { context.stroke(arc(x: x, y: eyeY + 1 * s, width: w, dip: 2 * s), with: .color(ink), style: .init(lineWidth: 2 * s, lineCap: .round)) }
         default:
             let wide = mood == .listening || mood == .carried
-            let height = 8 * s * (wide ? 1.15 : (mood == .worried ? 0.9 : 1)) * (mood == .carried ? 1 : eyeOpen)
+            let height = 8 * s * (wide ? 1.15 : (mood == .worried ? 0.9 : 1)) * (mood == .carried ? 1 : eyeOpen) * (1 + 0.12 * hover)
             let width = w * (wide ? 1.1 : 1)
             for x in eyes {
                 context.fill(Path(ellipseIn: CGRect(x: x - width / 2, y: eyeY + lookY - height / 2, width: width, height: height)), with: .color(ink))
@@ -307,8 +334,11 @@ struct WispView: View {
             }
         }
 
-        let mouthX = 32 + (mood == .floating ? facing * 1.5 * s : 0) + hideSide * hideAmount * 2.2 * s
+        let mouthX = 32 + (mood == .floating ? facing * 1.5 * s : 0) + hideSide * hideAmount * 2.2 * s + gaze.width * 0.6 * s
         switch mood {
+        case _ where reaction == .yawn:
+            let open = 0.3 + 0.7 * beat
+            context.fill(Path(ellipseIn: CGRect(x: mouthX - 2.4 * s, y: mouthY - 1 * s, width: 4.8 * s, height: 6.5 * s * open)), with: .color(ink))
         case .speaking:
             // Opens and closes about 5.5 times a second.
             let open = 0.5 + 0.5 * abs(sin(time * .pi * 5.5))
@@ -403,12 +433,20 @@ struct WispView: View {
     private func drawOrbFace(in context: inout GraphicsContext) {
         let c = Self.orbCentre
         let ink = Self.orbInk
-        let lookX = (mood == .floating ? facing * 2.5 : 0) + hideSide * hideAmount * 3.5
-        let lookY: Double = mood == .thinking ? -3.5 : (hideAmount > 0.05 ? 1.5 : 0)
+        let lookX = (mood == .floating ? facing * 2.5 : 0) + hideSide * hideAmount * 3.5 + gaze.width
+        let lookY: Double = (mood == .thinking ? -3.5 : (hideAmount > 0.05 ? 1.5 : 0)) + gaze.height
         let eyes = [c.x - 6 + lookX, c.x + 6 + lookX]
         let y = c.y - 2 + lookY
 
         switch mood {
+        case _ where reaction == .dizzy:
+            for x in eyes { context.stroke(spiral(x: x, y: y, radius: 2.8, turn: time * 9), with: .color(ink), style: .init(lineWidth: 1.2, lineCap: .round)) }
+        case _ where reaction == .hello:
+            for x in eyes { context.stroke(arc(x: x, y: y + 0.8, width: 4.6, dip: -1.6), with: .color(ink), style: .init(lineWidth: 1.6, lineCap: .round)) }
+        case _ where reaction == .yawn:
+            for x in eyes { context.stroke(arc(x: x, y: y + 0.5, width: 5.2, dip: 1.8), with: .color(ink.opacity(0.85)), style: .init(lineWidth: 1.8, lineCap: .round)) }
+            let open = 0.3 + 0.7 * beat
+            context.fill(Path(ellipseIn: CGRect(x: c.x + lookX - 2.2, y: y + 4, width: 4.4, height: 5.5 * open)), with: .color(ink))
         case .speaking:
             // Open eyes and a small mouth that opens with the syllables.
             for x in eyes {
@@ -422,7 +460,7 @@ struct WispView: View {
             for x in eyes { context.stroke(arc(x: x, y: y + 0.5, width: 5.2, dip: 1.8), with: .color(ink.opacity(0.85)), style: .init(lineWidth: 1.8, lineCap: .round)) }
         default:
             let wide = mood == .listening || mood == .carried
-            let h = 6.2 * (wide ? 1.15 : 1) * (mood == .carried ? 1 : eyeOpen)
+            let h = 6.2 * (wide ? 1.15 : 1) * (mood == .carried ? 1 : eyeOpen) * (1 + 0.12 * hover)
             let w = 4.2 * (wide ? 1.08 : 1)
             for x in eyes {
                 context.fill(Path(ellipseIn: CGRect(x: x - w / 2, y: y - h / 2, width: w, height: h)), with: .color(ink))
@@ -570,6 +608,19 @@ struct WispView: View {
     }
 
     // MARK: - Shapes
+
+    /// A small spiral turning with `turn` (radians): dizzy eyes.
+    private func spiral(x: Double, y: Double, radius: Double, turn: Double) -> Path {
+        var p = Path()
+        let steps = 28
+        for i in 0...steps {
+            let t = Double(i) / Double(steps)
+            let a = turn + t * 2.6 * .pi
+            let point = CGPoint(x: x + cos(a) * radius * t, y: y + sin(a) * radius * t)
+            if i == 0 { p.move(to: point) } else { p.addLine(to: point) }
+        }
+        return p
+    }
 
     /// A short curve between (x ± width/2, y); positive dip curves down (a smile or a shut eye).
     private func arc(x: Double, y: Double, width: Double, dip: Double) -> Path {
