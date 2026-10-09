@@ -39,6 +39,9 @@ public struct IslandStatus: Sendable, Equatable {
     public private(set) var lastTimings: TurnTimings?
     /// The last error, kept until a later error replaces it.
     public private(set) var lastProblem: Problem?
+    /// The last known setup failure in plain words, with its one action (ADR-075). Kept until ZENO recovers (the runtime
+    /// starts or becomes ready, a turn or dictation starts listening, a turn completes) or the user dismisses it.
+    public private(set) var failure: PlainFailure?
     /// The problem lasts until ZENO itself recovers (stopped, settings), so seeing it does not clear it.
     private var persistent = false
 
@@ -60,6 +63,11 @@ public struct IslandStatus: Sendable, Equatable {
 
     public mutating func apply(_ status: RuntimeSupervisor.Status) {
         switch status {
+        case .running: failure = nil
+        case .restarting: break
+        default: failure = PlainFailure.forStatus(status)
+        }
+        switch status {
         case .stopped: set(.problem, "Stopped", "ZENO is not running", persistent: true)
         case .running: set(.starting, "Starting", "Loading voice")
         case .restarting: set(.starting, "Restarting", "ZENO stopped unexpectedly")
@@ -76,6 +84,7 @@ public struct IslandStatus: Sendable, Equatable {
             model = info.model
             microphone = info.microphone
             voiceLoaded = info.voice
+            failure = nil
             set(.ready, "Ready", modelName)
         case .info(let info):
             modelName = info.currentModelName
@@ -84,12 +93,15 @@ public struct IslandStatus: Sendable, Equatable {
             if kind == .ready { detail = modelName }
         case .turnComplete(let timings):
             lastTimings = timings
+            failure = nil
         case .state(let state):
             switch state {
             case .idle:
                 // A notice or problem from the turn that just ended stays until it has been seen.
                 if !needsAttention { set(.ready, "Ready", modelName) }
-            case .listening: set(.listening, "Listening", "")
+            case .listening:
+                failure = nil
+                set(.listening, "Listening", "")
             case .transcribing: set(.transcribing, "Transcribing", "")
             case .thinking: set(.thinking, "Thinking", modelName)
             case .speaking: set(.speaking, "Speaking", "")
@@ -123,6 +135,7 @@ public struct IslandStatus: Sendable, Equatable {
         case .error(let error):
             let title = IslandStatus.errorTitle(error)
             lastProblem = Problem(title: title, message: error.message)
+            failure = PlainFailure.match(error.message)
             set(.problem, title, IslandStatus.short(error.message))
         default:
             break
@@ -133,7 +146,9 @@ public struct IslandStatus: Sendable, Equatable {
     public mutating func apply(_ phase: DictationPhase) {
         switch phase {
         case .loading(let detail): set(.starting, "Loading speech", detail)
-        case .listening: set(.listening, "Dictating", "Let go to type")
+        case .listening:
+            failure = nil
+            set(.listening, "Dictating", "Let go to type")
         case .listeningHandsFree:
             let words = preview // a tap that turns a hold into hands-free keeps the words already shown
             set(.listening, "Dictating", "Tap again to finish")
@@ -149,6 +164,7 @@ public struct IslandStatus: Sendable, Equatable {
             case .busy: set(.notice, "Busy", "Try again in a moment")
             case .failed(let title, let message):
                 lastProblem = Problem(title: title, message: message)
+                failure = PlainFailure.match(title: title, message: message)
                 set(.problem, title, IslandStatus.short(message))
             }
         }
@@ -158,6 +174,12 @@ public struct IslandStatus: Sendable, Equatable {
     public mutating func acknowledge() {
         if needsAttention && !persistent { set(.ready, "Ready", modelName) }
     }
+
+    /// The user closed the error card.
+    public mutating func dismissFailure() { failure = nil }
+
+    /// A line from the island itself in Wisp's bubble, e.g. the first-run tour (ADR-075).
+    public mutating func say(_ title: String, _ detail: String) { set(.notice, title, detail) }
 
     /// The words heard so far while dictating (the live preview). Empty outside listening.
     public private(set) var preview = ""

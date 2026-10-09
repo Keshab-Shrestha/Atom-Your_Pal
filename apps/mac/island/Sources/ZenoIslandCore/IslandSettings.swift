@@ -31,6 +31,7 @@ public final class IslandSettings {
     static let themeKey = "zeno.look.theme"
     static let wispStyleKey = "zeno.wisp.style"
     static let wispReactsKey = "zeno.wisp.reacts"
+    static let tourDoneKey = "zeno.tourDone"
 
     @ObservationIgnored private let defaults: UserDefaults
     /// Mirrors what is stored, so views observe changes.
@@ -50,6 +51,11 @@ public final class IslandSettings {
     /// Wisp notices you while ZENO is idle: eyes follow the pointer, small reactions to clicks (ADR-073). Default on.
     public var wispReacts: Bool {
         didSet { save(wispReacts, Self.wispReactsKey) }
+    }
+
+    /// The first-run tour has run, or the user talked before it could (ADR-075). Default false.
+    public var tourDone: Bool {
+        didSet { save(tourDone, Self.tourDoneKey) }
     }
 
     /// Show the pet (ADR-042). Default on.
@@ -129,6 +135,7 @@ public final class IslandSettings {
         self.defaults = defaults
         petEnabled = defaults.object(forKey: Self.petKey) as? Bool ?? true
         wispReacts = defaults.object(forKey: Self.wispReactsKey) as? Bool ?? true
+        tourDone = defaults.bool(forKey: Self.tourDoneKey)
         soundsEnabled = defaults.object(forKey: Self.soundsKey) as? Bool ?? true
         followUpEnabled = defaults.object(forKey: Self.followUpKey) as? Bool ?? true
         wispHideAfter = (defaults.object(forKey: Self.wispHideKey) as? Int).flatMap(WispHideTimeout.init(rawValue:)) ?? .minute1

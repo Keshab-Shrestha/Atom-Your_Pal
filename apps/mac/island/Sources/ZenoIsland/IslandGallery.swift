@@ -68,6 +68,70 @@ enum IslandGallery {
         writeApproval(to: directory)
         writePeek(to: directory)
         writeThemes(model: model, to: directory)
+        writeSetup(to: directory, conversation: filled)
+    }
+
+    /// ADR-075: the permissions checklist in mixed states, a plain error card, the stopped card with its two buttons,
+    /// and the panel as a new user first sees it.
+    private static func writeSetup(to directory: URL, conversation: Conversation) {
+        let suite = "zeno.gallery.setup.\(ProcessInfo.processInfo.processIdentifier)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let size = IslandMetrics().expanded
+        func model(_ theme: AppTheme = .native) -> IslandModel {
+            let m = IslandModel(settings: IslandSettings(defaults: defaults))
+            m.settings.theme = theme
+            m.permissions.states = [
+                .microphone: .granted, .inputMonitoring: .notAsked, .accessibility: .denied,
+                .automation(.music): .granted, .automation(.spotify): .notApplicable, .automation(.notes): .unchecked,
+                .automation(.chrome): .notAsked, .automation(.arc): .notApplicable, .automation(.edge): .notApplicable,
+                .automation(.brave): .denied, .calendar: .granted, .reminders: .notAsked,
+            ]
+            return m
+        }
+        func card(_ title: String, _ m: IslandModel, _ content: some View) -> some View {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.75))
+                content.padding(12).frame(width: size.width)
+                    .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(m.settings.theme.palette.surfaceSolid.color))
+                    .themed(m.settings.theme.palette)
+            }
+        }
+        let checklist = model()
+        let plain = model()
+        if let event = try? decodeEvent(#"{"type":"error","stage":"model","kind":"auth","message":"Claude Code is not signed in. Run `claude auth login` in a terminal, then try again."}"#) {
+            plain.status.apply(event)
+        }
+        let stopped = model()
+        stopped.status.apply(.failed("ZENO's runtime keeps stopping: it exited with code 1"))
+        let config = model(.luminous)
+        config.status.apply(.configError("Invalid configuration:\n  - GEMINI_API_KEY is required (set it in .env)"))
+        let sheet = HStack(alignment: .top, spacing: 22) {
+            card("Settings → General → Permissions", checklist, PermissionsCard(model: checklist))
+            VStack(alignment: .leading, spacing: 18) {
+                card("Plain error card", plain, FailureCard(model: plain, failure: plain.status.failure!))
+                card("Stopped after repeated crashes", stopped, FailureCard(model: stopped, failure: stopped.status.failure!))
+                card("Config error (Luminous)", config, FailureCard(model: config, failure: config.status.failure!))
+            }
+        }
+        .padding(24)
+        .background(Color(red: 0.36, green: 0.42, blue: 0.52))
+        save(sheet, name: "11-setup-cards", to: directory)
+
+        // The panel on first launch: the stopped card and the first-launch card above an empty conversation.
+        let first = model()
+        first.status.apply(.failed("ZENO's runtime keeps stopping: it exited with code 1"))
+        first.expanded = true
+        write(first, size: size, name: "11-setup-panel", to: directory)
+        // A plain error above a conversation already under way.
+        let busy = model()
+        busy.permissions.states[.inputMonitoring] = .granted
+        if let event = try? decodeEvent(#"{"type":"error","stage":"transcription","message":"Whisper model not found at \"models/ggml-small.en.bin\". Download it with: curl -L -o models/ggml-small.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin"}"#) {
+            busy.status.apply(event)
+        }
+        busy.conversation = conversation
+        busy.expanded = true
+        write(busy, size: size, name: "11-setup-panel-conversation", to: directory)
     }
 
     /// ADR-057: every surface in every theme, and every Wisp style in every mood.

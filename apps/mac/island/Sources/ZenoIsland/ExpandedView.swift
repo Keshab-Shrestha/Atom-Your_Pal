@@ -395,6 +395,24 @@ struct ConversationTab: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        // ADR-075: setup and error cards come first. They scroll, and push the empty-state picture out, so the
+        // composer always stays in the panel.
+        if SetupCards.isShown(model) {
+            VStack(spacing: 0) {
+                Scrollable { SetupCards(model: model).padding(.bottom, 10) }
+                    .frame(maxHeight: model.conversation.isEmpty ? .infinity : 210)
+                if model.conversation.isEmpty {
+                    Composer(model: model).padding(12)
+                } else {
+                    content
+                }
+            }
+        } else {
+            content
+        }
+    }
+
+    @ViewBuilder private var content: some View {
         if model.conversation.isEmpty {
             VStack(spacing: 10) {
                 Spacer()
@@ -1003,7 +1021,7 @@ struct PanelSection: View {
     }
 }
 
-/// Sounds, and resetting the look.
+/// Sounds, permissions (ADR-075), the tour, and resetting the look.
 struct GeneralSection: View {
     let model: IslandModel
 
@@ -1031,6 +1049,15 @@ struct GeneralSection: View {
             }
         }
         .onAppear { login.refresh() }
+        PermissionsCard(model: model)
+            .onAppear { model.permissions.startPolling() }
+            .onDisappear { model.permissions.stopPolling() }
+        Card(footer: settings.petEnabled ? nil : "Turn on Wisp to see the tour.") {
+            Row(title: "Replay the tour", detail: "Wisp shows where to talk and where your settings live") {
+                PillButton(title: "Replay") { model.replayTour() }
+                    .disabled(!settings.petEnabled)
+            }
+        }
         Card(footer: "Theme, Wisp, bubble and panel go back to their defaults. Shortcuts, dictation and the AI model stay.") {
             Row(title: "Reset look and behaviour") {
                 PillButton(title: "Reset") { settings.resetLook() }

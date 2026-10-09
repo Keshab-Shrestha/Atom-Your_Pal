@@ -77,6 +77,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 onMain { self?.statusChanged(status) }
             })
         island.model.send = { [weak self] command in self?.supervisor?.send(command) }
+        // ADR-075: "Restart ZENO" starts it again with a fresh restart policy; "Open log" opens this file.
+        island.restartRuntime = { [weak self] in self?.supervisor?.start() }
+        island.logURL = launch.directory.appendingPathComponent("logs/zeno.log")
         supervisor?.start()
     }
 
@@ -100,13 +103,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if trace { FileHandle.standardError.write(Data("status \(status)\n".utf8)) }
         island?.apply(status)
         switch status {
-        case .configError(let message):
-            // Until the panel exists (Task 0.5.4) an alert is the only way to explain this.
-            showProblem(title: "ZENO's settings need attention", message: message + "\n\nFix .env in the ZENO folder, then open ZENO again.")
-            NSApp.terminate(nil)
-        case .failed(let message):
-            showProblem(title: "ZENO stopped", message: message + "\n\nDetails are in logs/zeno.log.")
-            NSApp.terminate(nil)
+        case .configError, .failed:
+            // ADR-075: the panel's card explains it in one sentence and offers "Restart ZENO" and "Open log".
+            island?.showSetupProblem()
         default:
             break
         }

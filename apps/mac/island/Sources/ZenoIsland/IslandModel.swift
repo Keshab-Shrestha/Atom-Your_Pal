@@ -78,6 +78,8 @@ final class IslandModel {
     let recorder: ShortcutRecorder
     /// Open ZENO at login (General). Read from macOS, never saved by ZENO.
     let loginItem = LoginItem()
+    /// The permissions checklist (ADR-075). Read from macOS, never saved by ZENO.
+    let permissions = PermissionChecker()
     /// Shows or hides Wisp. Set by the controller.
     @ObservationIgnored var petChanged: (Bool) -> Void = { _ in }
 
@@ -96,6 +98,12 @@ final class IslandModel {
     @ObservationIgnored var setExpanded: (Bool) -> Void = { _ in }
     /// The work strip's Stop button: the same as Esc. Set by the controller.
     @ObservationIgnored var stopWork: () -> Void = {}
+    /// An error card's button (ADR-075). Set by the controller.
+    @ObservationIgnored var perform: (FailureAction) -> Void = { _ in }
+    /// A permission row's button: asks macOS (only for one never asked, on the user's click) or opens its pane.
+    @ObservationIgnored var permissionButton: (PermissionRow) -> Void = { _ in }
+    /// Settings → General → Replay the tour. Set by the controller.
+    @ObservationIgnored var replayTour: () -> Void = {}
 
     init(settings: IslandSettings) {
         self.settings = settings

@@ -253,7 +253,7 @@ The island reads the keyboard and the pointer position system-wide, so its limit
 - Only the Ctrl and Option state and "some other key was pressed" are used. Key codes are not stored, logged or sent anywhere.
 - The pointer position is used only to decide whether to show the panel and, while ZENO is idle, where Wisp's eyes look (ADR-073; Settings → Wisp → "Reacts to you"). It is not stored or logged.
 - The runtime is reachable only through the island's private stdin / stdout. It opens no port or socket.
-- Permissions requested by ZENO itself: Microphone and Input Monitoring. Not Accessibility, Screen Recording or Full Disk Access.
+- Permissions requested by ZENO itself: Microphone and Input Monitoring; Accessibility only to type dictated text into the app in front (ADR-041, ADR-047; without it the text stays on the clipboard), and Automation per app on first use. Not Screen Recording or Full Disk Access.
 - Computer control (ADR-054, off unless `ZENO_COMPUTER=1`): the Accessibility and Screen Recording permissions belong to Cua Driver (`com.trycua.driver`), not to ZENO. ZENO starts Cua in standard mode with telemetry off, offers the model one `computer` tool, never controls terminals, password managers, System Settings or AI agents, asks before risky clicks and keys, and never types into secret fields. Logs hold the action and the app name, never typed text or screen content.
 - Front window (ADR-072, on unless `ZENO_FRONT_WINDOW=0`): a read-only `front_window` tool that the model calls only when the user refers to what is on screen. What it reads:
   - **Every app:** only the name of the app in front, from `lsappinfo`, which needs no permission.
@@ -268,7 +268,7 @@ The island reads the keyboard and the pointer position system-wide, so its limit
   - The result is marked as data, not instructions (§11).
   - Logs hold the bundle id and which fields were returned, never the title or address.
 
-  ZENO still holds no Accessibility permission.
+  The tool does not use Accessibility, even when ZENO holds it for dictation.
 - Drop Wisp on a window (ADR-074): only while Option is held during a drag, the island reads the window list's owner, layer and frame to find and outline the window under the pointer. It never reads window titles, so it needs no Screen Recording. On the drop, the runtime reads that app once with `front_window`'s rules and keeps the result for the next request only (30 s at most, cleared by a new conversation). Logs hold the bundle id only.
 
 ---

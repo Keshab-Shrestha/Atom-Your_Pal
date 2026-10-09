@@ -1345,7 +1345,7 @@ A read-only tool, `front_window`. The model calls it when the user refers to wha
 - **On request, not on every turn.** The front app is never sent to the model unless this tool runs. Every turn would send the user's browsing to the provider and cost tokens on turns that do not need it.
 - **No new broad permission.**
   - The front app's name and bundle id come from the system without asking for any permission. The island never takes focus (ADR-033), so the front app is the one the user is working in.
-  - Window titles of other apps need Accessibility, which ZENO does not hold (SECURITY.md §15). They are left out: for other apps the tool gives the app's name only. With `ZENO_COMPUTER=1`, the `computer` tool's look already reads them through Cua.
+  - Window titles of other apps need Accessibility, which ZENO holds only to type dictated text (ADR-047), so this tool does not use it (SECURITY.md §15). They are left out: for other apps the tool gives the app's name only. With `ZENO_COMPUTER=1`, the `computer` tool's look already reads them through Cua.
 - **Browsers through their own AppleScript:** Google Chrome, Arc, Microsoft Edge and Brave. macOS asks once per browser ("ZENO wants to control Google Chrome"), under the `NSAppleEventsUsageDescription` that ADR-068 added. Only the browser in front is asked. Firefox has no AppleScript for this, so it gets its name only.
 - **Safari is left out: name only.** Safari's AppleScript cannot tell a private window from a normal one, so reading it could pass private browsing to the model. ZENO does not script Safari at all, so macOS never asks to control it for this tool. Revisit if a reliable private-window check is found.
 - **Deterministic limits, in code:**
@@ -1442,7 +1442,7 @@ There is a conflict. Dropping Wisp anywhere parks it there (ADR-043), and almost
 
 ### Consequences
 
-- **One window per browser.** Raising the exact window would need Accessibility, which ZENO does not hold. The app comes to the front with its own last window. In a browser with several windows, that may not be the window Wisp was dropped on. The outline shows which window was meant; the bubble names the app.
+- **One window per browser.** Raising the exact window would need Accessibility, which ZENO uses only to type dictated text. The app comes to the front with its own last window. In a browser with several windows, that may not be the window Wisp was dropped on. The outline shows which window was meant; the bubble names the app.
 - **Builds on unchecked work.** This builds on ADR-067 (microphone without keys), which has not yet been tried by voice. That check should come first.
 
 ---
@@ -1462,7 +1462,7 @@ A new install fails in ways that read like developer logs:
 ### Decision
 
 - **Permissions checklist** in Settings → General, and as a card on first launch until everything needed is granted.
-  - **One row per permission:** Microphone, Input Monitoring, Automation (Music, Spotify, Notes, and the browsers of ADR-072), Calendar and Reminders.
+  - **One row per permission:** Microphone, Input Monitoring, Accessibility (only to type dictated text, ADR-047), Automation (Music, Spotify, Notes, and the browsers of ADR-072), Calendar and Reminders.
   - **Live state:** Granted, Not yet asked, or Denied, re-read every 1.5 s while the page is open, and again whenever ZENO comes to the front.
   - **One button** opens the matching System Settings pane. A Denied row says to switch ZENO on there.
   - **One line per row says exactly when ZENO uses the permission,** e.g. "Only while you hold the Talk keys or dictate".

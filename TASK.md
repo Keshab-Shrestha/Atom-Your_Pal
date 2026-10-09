@@ -582,7 +582,15 @@ Holding Option while dropping Wisp on a window brings that app to the front, rea
 
 Built one batch at a time, in this order, each with tests and a gallery image where it shows on screen. Each batch ends with typecheck, all TS tests, all Swift tests and the gallery, then Keshab's look.
 
-**Task 2.A — Setup and errors (ADR-075).**
+**Task 2.A — Setup and errors (ADR-075).** Built 2026-10-10; tested (366 Swift tests); gallery `11-setup-*`; not yet tried on the real Mac.
+
+As built:
+- Permission rows include Accessibility, which is read only, for typing dictated text.
+- Input Monitoring is read with `IOHIDCheckAccess`, so "never asked" shows as Not yet asked.
+- For Microphone and Input Monitoring never asked, the row button asks macOS on the user's click.
+- On a config error or after repeated crashes, the panel now opens on the stopped card instead of an alert that quit ZENO.
+- "Choose another model" shows only while the runtime runs. A missing key in .env stops the runtime, so that card offers Restart and Open log.
+- "Sign in" opens Terminal with `claude auth login` through a temporary `.command` file, so no Automation permission is needed.
 1. Core: permission state per row (pure mapping from system answers to Granted / Not yet asked / Denied), and the failure → sentence + action table. Tests first.
 2. Island:
    - the permissions checklist in Settings → General, plus the first-launch card;

@@ -57,6 +57,13 @@ final class IslandController {
     private var runtimeReady = false
     /// The app Wisp was last dropped on, until the runtime answers `context.ready`.
     private var pointedBundleId: String?
+    /// Starts the runtime again with a fresh restart policy (ADR-075). Set by the app.
+    var restartRuntime: () -> Void = {}
+    /// ZENO's log file, for "Open log". Set by the app.
+    var logURL: URL?
+    /// The first-run tour (ADR-075) and the timer for its next step.
+    private var tour = FirstRunTour()
+    private var tourTimer: Timer?
 
     /// How long the status stays after a turn or dictation ends (Settings → Bubble → Stays).
     private var afterTurn: Double { model.settings.bubbleStay.seconds }
@@ -79,6 +86,9 @@ final class IslandController {
         panel.contentView = hosting
         model.setExpanded = { [weak self] expanded in self?.setExpanded(expanded) }
         model.stopWork = { [weak self] in self?.stopWork() }
+        model.perform = { [weak self] action in self?.perform(action) }
+        model.permissionButton = { [weak self] row in self?.permissionButton(row) }
+        model.replayTour = { [weak self] in self?.replayTour() }
         panel.onCancel = { [weak self] in self?.setExpanded(false) }
         menuIcon.onClick = { [weak self] in
             guard let self else { return }
@@ -135,6 +145,11 @@ final class IslandController {
         observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.spaceChanged() }
         })
+        // ADR-075: permissions are re-read whenever ZENO comes to the front (the user may be back from System Settings).
+        observers.append(center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.model.permissions.refresh() }
+        })
+        model.permissions.refresh()
         shortcuts.start()
         watchSettings()
         pet.setEnabled(model.settings.petEnabled)
@@ -156,6 +171,7 @@ final class IslandController {
         pet.stop()
         wakeTimer?.invalidate()
         pointTimer?.invalidate()
+        tourTimer?.invalidate()
         bubble.stop()
         strip.stop()
         pointLabel.stop()
@@ -196,7 +212,10 @@ final class IslandController {
         default:
             break
         }
-        if case .ready = event { runtimeReady = true }
+        if case .ready = event {
+            runtimeReady = true
+            schedule([(1.5, { [self] in maybeStartTour() })]) // after Wisp's launch hello
+        }
         if case .contextReady(_, let ok, _) = event { contextReady(ok: ok) } // before the status: it opens the microphone
         model.work.apply(event, now: Self.now)
         if case .computerPoint(let target) = event { startPointing(target) }
@@ -303,6 +322,7 @@ final class IslandController {
         pet.poke()
         switch trigger {
         case .holdBegan(.talk):
+            skipTour()
             dictation.followUpCancelled() // the keys take over from listening for an answer
             talking = true
             let interrupting = model.status.isBusy
@@ -325,6 +345,7 @@ final class IslandController {
             talking = false
             if dictation.isActive { dictation.cancel() } else { stopWork() }
         case .holdBegan(.dictate):
+            skipTour()
             dictation.followUpCancelled()
             model.meter.reset()
             dictation.holdBegan()
@@ -594,6 +615,7 @@ final class IslandController {
             panel.resignKey()
         }
         model.expanded = expanded
+        if expanded { model.permissions.refresh() } // the first-launch card shows what is still missing
         panel.acceptsKeyFocus = expanded
         menuIcon.setHighlighted(expanded)
         // Closing to nothing: keep drawing the expanded view while it fades.
@@ -616,6 +638,166 @@ final class IslandController {
         guard model.expanded else { return }
         // Global monitors only see clicks in other apps, so this was not on the panel, the icon or Wisp.
         setExpanded(false)
+    }
+
+    // MARK: - Setup and errors (ADR-075)
+
+    /// The runtime stopped for good (config error, repeated crashes): open the panel so its card is seen.
+    func showSetupProblem() {
+        model.tab = .conversation
+        setExpanded(true)
+    }
+
+    private func perform(_ action: FailureAction) {
+        switch action {
+        case .openTerminal(let command):
+            openTerminal(running: command)
+        case .openModelSettings:
+            model.tab = .settings
+            model.settingsPage = .model
+            setExpanded(true)
+        case .showCommand:
+            break // the card shows the text itself
+        case .openSettingsPane(let url):
+            NSWorkspace.shared.open(url)
+        case .restartRuntime:
+            log("island.runtime.restart_by_user", [:])
+            restartRuntime()
+        case .openLog:
+            openLog()
+        }
+    }
+
+    /// Opens Terminal running a fixed command from the failure table, through a `.command` file, so ZENO needs no
+    /// permission to script Terminal.
+    private func openTerminal(running command: String) {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("zeno-setup.command")
+        let script = "#!/bin/zsh -il\n\(command)\necho\necho 'Done. You can close this window and try ZENO again.'\n"
+        do {
+            try script.write(to: file, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: file.path)
+        } catch {
+            log("setup.terminal_failed", ["message": "\(error)"])
+            return
+        }
+        guard let terminal = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") else {
+            log("setup.terminal_failed", ["message": "Terminal not found"])
+            return
+        }
+        NSWorkspace.shared.open([file], withApplicationAt: terminal, configuration: NSWorkspace.OpenConfiguration())
+    }
+
+    /// The log in Console; if Console cannot open it, the file (or its folder) in Finder.
+    private func openLog() {
+        guard let url = logURL else { return }
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            NSWorkspace.shared.activateFileViewerSelecting([url.deletingLastPathComponent()])
+            return
+        }
+        let console = URL(fileURLWithPath: "/System/Applications/Utilities/Console.app")
+        NSWorkspace.shared.open([url], withApplicationAt: console, configuration: NSWorkspace.OpenConfiguration()) { _, error in
+            guard error != nil else { return }
+            DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+        }
+    }
+
+    /// Never asked: the click asks macOS (Microphone, Input Monitoring). Otherwise: the row's pane.
+    private func permissionButton(_ row: PermissionRow) {
+        let state = model.permissions.states[row]
+        log("setup.permission_button", ["row": row.title, "state": state.map { "\($0)" } ?? "unknown"])
+        if PermissionRowView.asksOnClick(row, state) {
+            switch row {
+            case .microphone:
+                Task { [weak self] in
+                    _ = await DictationCapture.requestPermission()
+                    self?.model.permissions.refresh()
+                }
+                return
+            case .inputMonitoring:
+                shortcuts.requestKeyAccess()
+                model.permissions.refresh()
+                return
+            default:
+                break
+            }
+        }
+        NSWorkspace.shared.open(row.settingsURL)
+    }
+
+    // MARK: - First-run tour (ADR-075)
+
+    private func maybeStartTour() {
+        guard !tour.isRunning, !model.settings.tourDone else { return }
+        guard !talking, !dictating, !model.status.isBusy else { return skipTour() } // the user talked first
+        guard FirstRunTour.shouldStart(wispShown: pet.isShown, tourDone: model.settings.tourDone, runtimeReady: runtimeReady) else { return }
+        log("tour.start", [:])
+        runTourStep(tour.start())
+    }
+
+    private func replayTour() {
+        guard pet.isShown, !tour.isRunning else { return }
+        setExpanded(false)
+        log("tour.replay", [:])
+        schedule([(0.4, { [self] in if !tour.isRunning, pet.isShown { runTourStep(tour.start()) } })])
+    }
+
+    private func runTourStep(_ step: TourStep) {
+        switch step {
+        case .hello:
+            pet.react(.hello)
+        case .say(let title, let detail):
+            model.status.say(title, detail)
+            statusChanged()
+        case .point(let label):
+            model.status.acknowledge() // the greeting is over; the label beside Wisp takes over
+            pointAtMenuIcon(label)
+        case .back:
+            if model.pointing.target != nil { finishPointing() }
+        case .done:
+            endTour(outcome: "done")
+            return
+        }
+        guard let index = tour.index, index + 1 < FirstRunTour.script.count else { return }
+        let timer = Timer(timeInterval: FirstRunTour.script[index + 1].after, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, let next = self.tour.advance() else { return }
+                self.runTourStep(next)
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        tourTimer = timer
+    }
+
+    /// Wisp flies to ZENO's menu-bar icon, the same way it points for the model (ADR-054).
+    private func pointAtMenuIcon(_ label: String) {
+        guard let anchor = menuIcon.anchor, let primary = NSScreen.screens.first else {
+            trace("tour: menu-bar icon not on screen")
+            return
+        }
+        let screen = anchor.screen.frame
+        let barHeight = max(1, screen.maxY - Self.menuBarBottom(of: anchor.screen))
+        // Pointing takes the driver's coordinates: points from the top-left of the main display, y down.
+        let target = PointTarget(x: Double(anchor.midX - 11 - primary.frame.minX), y: Double(primary.frame.maxY - screen.maxY),
+                                 w: 22, h: Double(barHeight), label: label)
+        model.pointing.apply(.computerPoint(target))
+        startPointing(target)
+        refresh()
+    }
+
+    /// The user talked or dictated before or during the tour: it ends, and is not offered again.
+    private func skipTour() {
+        guard tour.isRunning || !model.settings.tourDone else { return }
+        let wasRunning = tour.userTalked()
+        if wasRunning, model.pointing.target != nil { finishPointing() }
+        endTour(outcome: "skipped")
+    }
+
+    private func endTour(outcome: String) {
+        tourTimer?.invalidate()
+        tourTimer = nil
+        _ = tour.userTalked() // not running any more
+        if !model.settings.tourDone { model.settings.tourDone = true }
+        log("tour.end", ["outcome": outcome])
     }
 
     // MARK: - Displays and Spaces

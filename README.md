@@ -1,5 +1,104 @@
 # ZENO
 
+ZENO is a voice assistant for the Mac: a menu-bar app with a small companion, Wisp, that you talk to by holding two keys. Speech is turned into text and back on your Mac; the thinking is done by a remote AI model you choose.
+
+## Quick start
+
+### 1. Prerequisites
+
+- macOS 14 or later (the app's minimum).
+- Xcode Command Line Tools: `xcode-select --install`.
+- Node.js 22.18 or later (`engines` in `package.json`; ZENO runs TypeScript directly). The app build prefers Homebrew's Node: `brew install node`.
+- pnpm (the repo pins `pnpm@12.6.0`).
+- ffmpeg and whisper.cpp, for the microphone and speech-to-text: `brew install ffmpeg whisper-cpp`.
+
+### 2. Install and models
+
+```sh
+pnpm install
+mkdir -p models
+curl -L -o models/ggml-small.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin
+```
+
+- **Whisper** (`models/ggml-small.en.bin`, about 470 MB) hears what you say to ZENO. Set `ZENO_STT_MODEL` in `.env` to use another file, e.g. the faster, less accurate `ggml-base.en.bin`.
+- **Kokoro** (ZENO's voice, about 330 MB) downloads itself into `models/huggingface/` the first time ZENO speaks.
+- **Parakeet** (dictation, about 450 MB) downloads itself the first time you dictate.
+
+`pnpm voice:check` tests speech output and input on their own, with no AI: Kokoro speaks, Whisper transcribes it, then Whisper transcribes you. Its first run also downloads Kokoro.
+
+### 3. Choose the AI
+
+ZENO works with one of three providers. Pick one in the app under Settings → AI model, or set `ZENO_LLM_PROVIDER` in `.env` (`cp .env.example .env`). A choice made in Settings is saved in `config/island.json` and wins over `.env`.
+
+| Provider | `ZENO_LLM_PROVIDER` | What it needs |
+|---|---|---|
+| Claude on your own Claude plan | `claude-plan` | No key. Claude Code installed and signed in (`claude auth login`). Set `ZENO_CLAUDE_PATH` if `claude` is not found. |
+| Gemini | `gemini` | `GEMINI_API_KEY` in `.env` |
+| Claude API (the default) | `claude` | `ANTHROPIC_API_KEY` in `.env` |
+
+Only the selected provider needs a key. Keys stay in `.env`, which git ignores.
+
+### 4. Build and open the app
+
+Once per Mac, create a local signing identity, so macOS keeps ZENO's permissions across rebuilds:
+
+```sh
+apps/mac/island/make-signing-identity.sh
+```
+
+Then build and open:
+
+```sh
+pnpm island:build   # makes apps/mac/island/build/ZENO.app
+pnpm island:open    # builds, then opens it
+```
+
+Without the signing identity the app is signed ad hoc, and macOS asks for every permission again after each rebuild. `ZENO.app` records where the project folder and Node.js are; rebuild it if either moves. ZENO has no Dock icon: look for its icon in the menu bar.
+
+To run ZENO in the terminal without the app, use `pnpm start`.
+
+### 5. Permissions
+
+macOS asks for each one the first time ZENO needs it:
+
+| Permission | When ZENO uses it |
+|---|---|
+| Microphone | Only while you hold the Talk keys or dictate. Speech is transcribed on this Mac and never recorded. |
+| Input Monitoring | To notice the Talk and dictation keys in any app. It only listens; it cannot block or change keys. |
+| Accessibility | Only to type dictated text into the app you were in. Without it, the text is left on the clipboard. |
+| Automation | When you ask: Music or Spotify (play, pause, skip), Notes (add a note), and Chrome, Arc, Edge or Brave (the open tab's title and address). macOS asks once per app. |
+| Calendar and Reminders | When you ask about your schedule or reminders, or ask ZENO to add a reminder. |
+
+Talking to ZENO needs no Accessibility or Screen Recording. Computer control (off unless `ZENO_COMPUTER=1`) uses Cua Driver, which holds its own Accessibility and Screen Recording permissions.
+
+### 6. First words
+
+- Hold **Control + Option**, talk, and let go. ZENO answers out loud.
+- Hold **Right ⌘ + Right ⌥** to dictate into any text field.
+- Both shortcuts can be changed in Settings → Shortcuts. You can also type to ZENO in the Conversation tab.
+
+Things to try:
+
+- "Open Safari."
+- "What's the weather in Tokyo?"
+- "Set a timer for ten minutes."
+- "Take a note: buy milk."
+- "What's this page?" with Chrome or Brave in front.
+- "Play some music." / "Pause the music."
+- "What's on my calendar tomorrow?"
+- "Remember that my project uses PostgreSQL."
+
+### 7. Tests
+
+```sh
+pnpm test           # TypeScript tests (node --test)
+pnpm typecheck      # tsc
+pnpm island:test    # Swift tests for the app
+pnpm test:live      # live tests against real models; need a key in .env
+```
+
+---
+
 ## The Intelligence Layer for Your Digital World
 
 ZENO is an AI-native personal intelligence system designed to sit between a person and their digital world.
@@ -193,17 +292,7 @@ Speaker
 
 Phase 0 establishes the fundamental ZENO request/response loop. It is complete (2026-10-02).
 
-Phase 0.5 (current) puts that loop behind a desktop island: a dark glass island hidden past the left edge of the screen below the menu bar, revealed by hovering, with push-to-talk by holding Ctrl+Option in any app. See ROADMAP.md and TASK.md.
-
-The island app is built from `apps/mac/island/` (Swift; needs the Xcode Command Line Tools):
-
-```sh
-pnpm island:build   # makes apps/mac/island/build/ZENO.app
-pnpm island:open    # build and launch it
-pnpm island:test    # Swift tests
-```
-
-`ZENO.app` records where the project folder and Node.js are; rebuild it if either moves. Push the pointer against the left edge of the screen, just below the menu bar, and the island slides in showing ZENO's state and model; move away and it slides back. Talking from the island arrives with Task 0.5.5.
+Phase 0.5 put that loop behind a desktop app, `ZENO.app` (`apps/mac/island/`, Swift): a menu-bar icon with a panel, Wisp, push-to-talk by holding Ctrl+Option in any app, and dictation. Phase 1 added memory, calendar and reminders, timers and weather; Phase 2 adds more things to do. See the Quick start above to build it, and STATUS.md and TASK.md for where things stand.
 
 ---
 
@@ -521,7 +610,7 @@ The canonical ZENO documentation set is:
 
 These documents should remain consistent.
 
-Supporting documents live in `docs/`: the Phase 0 task history, the speech-to-text benchmark, and (from Phase 0.5) the island protocol.
+Supporting documents live in `docs/`: the Phase 0 task history, the speech-to-text benchmark, the dictation research, and the island protocol.
 
 ---
 

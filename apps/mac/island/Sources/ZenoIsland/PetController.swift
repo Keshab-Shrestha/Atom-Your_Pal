@@ -349,7 +349,7 @@ final class PetController {
     }
 
     /// Starts a reaction if the setting is on (ADR-073). ZENO's state and Reduce Motion are checked by the player.
-    private func react(_ reaction: WispReaction) {
+    func react(_ reaction: WispReaction) {
         guard settings.wispReacts else { return }
         reactions.start(reaction, at: Self.now, mood: state.mood, reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
     }
