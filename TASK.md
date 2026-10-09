@@ -497,7 +497,9 @@ Run plain spoken commands in code before any model is called. Do not start until
 
 **Out of scope:** typing, sending, deleting, buying, quitting; web page buttons; partial speech; wake words.
 
-### Task 2.y — What Is in Front (ADR-072) — planned; not started
+### Task 2.y — What Is in Front (ADR-072) — built; tested; read once on the real Mac from the terminal (Brave); not yet tried by voice
+
+Built 2026-10-10, ahead of Task 2.x at Keshab's choice. `front_window` has 10 unit tests; typecheck and all tests are green (384 pass, 2 skipped). On the real Mac: `lsappinfo` read the front app with no prompt. The first read of Brave failed while macOS showed its one-time Automation prompt, so the browser now gets 15 s and a timeout says to allow it and ask again. The second read returned the title and address. Arc's `mode` property is untested (no Arc installed); if Arc has none, Arc gives its name and the reason. Not yet done: Keshab's voice checks below, with Brave instead of Chrome (Chrome is not installed).
 
 A read-only `front_window` tool: front app name, and for Chrome, Arc, Edge and Brave the tab title and address. On by default; Safari gives its name only (ADR-072, accepted 2026-10-10). Comes after Task 2.x unless Keshab says otherwise.
 

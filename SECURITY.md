@@ -255,6 +255,20 @@ The island reads the keyboard and the pointer position system-wide, so its limit
 - The runtime is reachable only through the island's private stdin / stdout. It opens no port or socket.
 - Permissions requested by ZENO itself: Microphone and Input Monitoring. Not Accessibility, Screen Recording or Full Disk Access.
 - Computer control (ADR-054, off unless `ZENO_COMPUTER=1`): the Accessibility and Screen Recording permissions belong to Cua Driver (`com.trycua.driver`), not to ZENO. ZENO starts Cua in standard mode with telemetry off, offers the model one `computer` tool, never controls terminals, password managers, System Settings or AI agents, asks before risky clicks and keys, and never types into secret fields. Logs hold the action and the app name, never typed text or screen content.
+- Front window (ADR-072, on unless `ZENO_FRONT_WINDOW=0`): a read-only `front_window` tool that the model calls only when the user refers to what is on screen. What it reads:
+  - **Every app:** only the name of the app in front, from `lsappinfo`, which needs no permission.
+  - **Chrome, Arc, Edge and Brave:** also the open tab's title and address, through each browser's own AppleScript. macOS asks once per browser.
+  - **Safari:** only its name. Safari is never scripted, because its private windows cannot be told apart.
+
+  Its limits:
+  - Apps on the computer-control block list are not read.
+  - Private windows give no title or address.
+  - Addresses keep only scheme, host and path. The query, fragment and user info are dropped, because they can carry sign-in codes.
+  - Titles are cut to 200 characters.
+  - The result is marked as data, not instructions (§11).
+  - Logs hold the bundle id and which fields were returned, never the title or address.
+
+  ZENO still holds no Accessibility permission.
 
 ---
 

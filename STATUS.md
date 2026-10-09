@@ -8,7 +8,7 @@ Keshab's end-to-end check (Task 0.5.9, 2026-10-03): talk, follow-up, interrupt, 
 
 Next idea, planned and not started (2026-10-05): shortcuts, so plain commands skip the model (ADR-071, Task 2.x); waits for Keshab's starting list.
 
-Also planned, not started (2026-10-10): a read-only `front_window` tool that gives the front app, plus the page title and address in browsers, with no Accessibility (ADR-072, Task 2.y; idea from Coucou, MIT). Accepted: on by default; Safari gives its name only. Comes after Task 2.x.
+Built (2026-10-10): a read-only `front_window` tool that gives the front app, plus the page title and address in Chrome, Arc, Edge and Brave, with no Accessibility (ADR-072, Task 2.y; idea from Coucou, MIT). It is on by default, and Safari gives its name only. Tested and read once on the real Mac from the terminal; not yet tried by voice. Task 2.x (shortcuts) still waits for Keshab's starting list.
 
 ---
 

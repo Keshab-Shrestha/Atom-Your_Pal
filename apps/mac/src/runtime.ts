@@ -13,6 +13,7 @@ import {
   createTimers,
   createAppTools,
   createMediaTools,
+  createFrontWindowTool,
   createNoteTools,
   createToolEngine,
   timeTool,
@@ -132,6 +133,9 @@ export function createRuntime(
       ...(process.env.ZENO_MEDIA === "0" ? [] : createMediaTools()),
       // ADR-070: "take a note" into Apple Notes (adding only). ZENO_NOTES=0 turns it off.
       ...(process.env.ZENO_NOTES === "0" ? [] : createNoteTools()),
+      // ADR-072: the app in front and, in Chrome/Arc/Edge/Brave, the tab title and address. Read-only, on request.
+      // Logs the bundle id and field names only. ZENO_FRONT_WINDOW=0 turns it off.
+      ...(process.env.ZENO_FRONT_WINDOW === "0" ? [] : [createFrontWindowTool({ onRead: (e) => log.info("front_window.read", { ...e, fields: e.fields.join(",") }) })]),
       ...timers.tools,
       // ADR-062: Open-Meteo, no key. ZENO_WEATHER=0 turns it off; ZENO_HOME sets "here" (default: the time zone's city).
       ...(weather ? [weather] : []),
