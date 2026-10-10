@@ -1801,3 +1801,32 @@ Bible Strong Avatar Lab is a browser studio for procedural 2D characters with ex
 ### Consequences
 
 The characters get a richer, consistent look designed by Keshab, with no license obligations on ZENO's code. Each new expression is a file, not code. Animation inside an expression (blinks, eye movement) is limited to what ZENO does with whole images.
+
+---
+
+## ADR-086 — Void: a Flat Black Look After Resend's Style
+
+Date: 2026-10-10. Status: **accepted** (Keshab, 2026-10-10: "use the following for reference to re design the UI", giving a style reference of Resend's site; "Full Resend, no glow anywhere"). Changes ADR-084: Lantern stays as a selectable theme but is no longer the default.
+
+### Context
+
+Keshab shared a style reference (`docs/design/resend-reference.md`): a pure black canvas, 1px graphite hairlines instead of shadows, white and bone text, ghost (outlined) buttons, two radii (6 px controls, 16 px cards, 24 px large panels), a monospaced face for identifiers, and one violet (`#9281f7`) used only for identifiers, with status colours (green, blue, violet, red, amber) only on small status dots. No gradients, glows or drop shadows. This is the opposite of Lantern's glow, and Keshab chose to go all the way, Wisp included.
+
+### Decision
+
+- **A new theme, "Void", becomes the default.** Lantern, Lantern Day, Quiet Native, Luminous and Warm stay selectable in Appearance.
+- **Rules (from the reference, applied to a Mac app):**
+  - **Canvas** `#000000`; elevated surfaces `#0b0e14` at most; overlays are black with a blur.
+  - **Hairlines** `#292d30` (1 px) separate every layer: panel, cards, inputs, buttons, bubble, strip, Helpers window. No drop shadows and no glows anywhere: not on UI, not on Wisp, not on the menu-bar glyph.
+  - **Text** `#ffffff` headings, `#f0f0f0` body, `#a1a4a5` muted, `#6e727a` disabled.
+  - **Buttons** are ghost: transparent, 1 px hairline, white label, 6 px radius; hover brightens the border. The only filled control is a destructive confirmation where the system expects one (none today); Allow in the approval card is a ghost button with an amber hairline.
+  - **Radii:** panel and windows 24, cards 16, controls, inputs and badges 6. Where a control sits in a corner it uses 16 at an 8 px gap, so corners stay concentric (24 = 16 + 8), which Keshab asked for earlier.
+  - **Type:** SF Pro (the system's Inter-like sans) for UI; SF Mono for identifiers (model names, app names in job lines, timings, job ids, file paths, shortcuts); New York (the system serif, in place of the reference's commercial serif) only for one large display line if a screen has one. No third-party fonts are bundled.
+  - **Colour:** violet `#9281f7` (light `#baa7ff`) only for identifiers in mono. Status colours only as small dots next to a label: green `#3ad389` done or ready, blue `#70b8ff` listening or running, violet `#baa7ff` thinking, red `#ff9592` problem, amber `#ffca16` needs you.
+  - **Wisp is flat:** its body is drawn without halo, glow or soft shadow; its state shows by its face and a small status dot, not light.
+  - **Motion:** short (150 ms ease-out) fades and slides on hover and appearance; the named springs remain only for the panel opening and Wisp's own movement.
+- **Nothing from Resend's brand** (name, logo, illustrations, commercial fonts) is used: only the general style rules.
+
+### Consequences
+
+ZENO looks like a quiet developer tool: black, hairlines, mono identifiers, colour only where it carries a status. Wisp loses its glow, the thing Lantern was built on; Lantern remains one click away for anyone who wants it back.
