@@ -41,6 +41,8 @@ public enum IslandCommand: Sendable, Equatable {
     case planApprove(id: Int)
     case planReject(id: Int)
     case helperPlanFirst(helper: String, on: Bool)
+    /// Task 3.9: remove a routine.
+    case routineDelete(id: Int)
     case jobDelete(id: Int)
     case reportGet(id: Int)
     /// ADR-083: pin a helper to a model (`""` lets Laya choose again); allow or forbid the large model for jobs.
@@ -81,6 +83,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .planApprove: "plan.approve"
         case .planReject: "plan.reject"
         case .helperPlanFirst: "helper.planFirst"
+        case .routineDelete: "routine.delete"
         case .jobDelete: "job.delete"
         case .reportGet: "report.get"
         case .helperPin: "helper.pin"
@@ -132,7 +135,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .helperPlanFirst(let helper, let on):
             fields["helper"] = helper
             fields["on"] = on // a real JSON boolean
-        case .jobStop(let id), .jobFresh(let id), .planApprove(let id), .planReject(let id), .jobDelete(let id), .reportGet(let id), .threadGet(let id):
+        case .jobStop(let id), .jobFresh(let id), .planApprove(let id), .planReject(let id), .routineDelete(let id), .jobDelete(let id), .reportGet(let id), .threadGet(let id):
             fields["id"] = id // a JSON number
         case .helperPin(let helper, let model):
             fields["helper"] = helper
@@ -689,7 +692,7 @@ private struct Fields {
                 return job
             }, pinnedModel: pinned as? String, role: h["role"] as? String ?? "", soul: soul,
                soulVersion: (h["soulVersion"] as? NSNumber)?.intValue ?? 1, soulVersions: versions, budget: Self.budget(h["budget"]),
-               planFirst: Self.flag(h["planFirst"]))
+               planFirst: Self.flag(h["planFirst"]), routines: Self.routines(h["routines"]))
         }
     }
 
@@ -717,6 +720,16 @@ private struct Fields {
         guard let b = value as? [String: Any], let spent = b["spent"] as? NSNumber, CFGetTypeID(spent) != CFBooleanGetTypeID() else { return nil }
         let cap = b["cap"] as? NSNumber
         return HelperBudget(cap: cap.flatMap { CFGetTypeID($0) == CFBooleanGetTypeID() ? nil : $0.doubleValue }, spent: spent.doubleValue)
+    }
+
+    /// Task 3.9: a helper's routines; a malformed entry is left out.
+    static func routines(_ value: Any?) -> [HelperRoutine] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let r = entry as? [String: Any], let id = r["id"] as? NSNumber, let task = r["task"] as? String, let when = r["when"] as? String
+            else { return nil }
+            return HelperRoutine(id: id.intValue, task: task, when: when, lastAt: (r["lastAt"] as? String).flatMap(Self.date),
+                                 lastSkipped: flag(r["lastSkipped"]))
+        }
     }
 
     /// An optional JSON boolean; anything else reads as false.

@@ -253,6 +253,7 @@ private struct HelperPane: View {
                     }
                     if let problem = model.helpers.problem { ProblemLine(text: problem) }
                     JobList(model: model, helper: helper)
+                    if !helper.routines.isEmpty { RoutinesSection(model: model, routines: helper.routines) }
                 } else {
                     Text("\(helper.name) is not ready for jobs yet. You can shape its soul now.")
                         .font(.system(size: 12.5)).foregroundStyle(theme.text2.color)

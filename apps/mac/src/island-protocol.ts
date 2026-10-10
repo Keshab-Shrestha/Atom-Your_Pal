@@ -29,6 +29,7 @@ export type IslandCommand =
   | { type: "plan.approve"; id: number }
   | { type: "plan.reject"; id: number }
   | { type: "helper.planFirst"; helper: string; on: boolean }
+  | { type: "routine.delete"; id: number }
   | { type: "job.block"; id: number; blockedBy: number[] }
   | { type: "comment.add"; id: number; text: string }
   | { type: "thread.get"; id: number }
@@ -163,6 +164,8 @@ export interface HelperItem {
   budget: { cap: number | null; spent: number };
   /** Task 3.8: its new tasks plan first. */
   planFirst: boolean;
+  /** Task 3.9: its routines: `when` in words ("Every day at 8:00 AM"), when it last came due, and whether that was skipped. */
+  routines: { id: number; task: string; when: string; lastAt?: string; lastSkipped?: boolean }[];
   jobs: JobItem[];
 }
 
@@ -249,6 +252,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "plan.approve",
   "plan.reject",
   "helper.planFirst",
+  "routine.delete",
   "job.stop",
   "job.fresh",
   "job.delete",
@@ -379,7 +383,7 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof version !== "number" || !Number.isInteger(version) || version < 1) return { error: 'soul.restore needs a "version" that is a whole number.' };
     return { command: { type, helper, version } };
   }
-  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "job.delete" || type === "report.get" || type === "thread.get") {
+  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "job.delete" || type === "report.get" || type === "thread.get") {
     const { id } = value as { id?: unknown };
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     return { command: { type, id } };

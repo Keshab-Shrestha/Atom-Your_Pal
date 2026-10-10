@@ -644,6 +644,7 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
         pinnedModel: null,
         budget: { cap: 5, spent: 0 },
         planFirst: false,
+        routines: [],
         jobs: [],
       })),
       apps: ["Arc", "Brave Browser", "Notes"],
@@ -864,6 +865,17 @@ test("a line with something to do after it: done once it has been said (Task 3.8
   say("Sid has a plan ready for your OK.", () => asked++);
   await new Promise((r) => setTimeout(r, 20));
   assert.deepEqual([h.spoken, asked], [["Sid has a plan ready for your OK."], 1]);
+});
+
+test("routines in helpers, and routine.delete (Task 3.9)", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  const r = store.addRoutine("sid", "News", { kind: "daily", minute: 480 });
+  h.clear();
+  await h.send({ type: "helpers.list" });
+  assert.deepEqual((h.events().at(-1) as HelpersEvent).helpers[0]!.routines, [{ id: r.id, task: "News", when: "Every day at 8:00 AM" }]);
+  await h.send({ type: "routine.delete", id: r.id });
+  assert.deepEqual((h.events().at(-1) as HelpersEvent).helpers[0]!.routines, []);
 });
 
 test("helpers.settings turns the large model off and on, answered with helpers", async () => {

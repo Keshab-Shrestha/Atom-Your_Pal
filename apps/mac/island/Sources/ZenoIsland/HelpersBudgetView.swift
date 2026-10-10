@@ -122,3 +122,32 @@ struct PlanFirstRow: View {
         .frame(maxWidth: 320, alignment: .leading)
     }
 }
+
+/// Task 3.9: the worker's routines: when, what, and how the last one went; each can be removed.
+struct RoutinesSection: View {
+    let model: IslandModel
+    let routines: [HelperRoutine]
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Routines").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            ForEach(routines) { routine in
+                HStack(alignment: .top, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(routine.task).font(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
+                        Text(Self.detail(routine)).font(.system(size: 11)).foregroundStyle(theme.text2.color)
+                    }
+                    Spacer(minLength: 8)
+                    QuietButton(title: "Remove") { model.sendHelpers(model.helpers.deleteRoutine(routine.id)) }
+                }
+            }
+        }
+    }
+
+    static func detail(_ routine: HelperRoutine) -> String {
+        guard let at = routine.lastAt else { return routine.when }
+        let when = at.formatted(date: .abbreviated, time: .shortened)
+        return "\(routine.when) · \(routine.lastSkipped ? "skipped \(when): the last one was still going" : "last \(when)")"
+    }
+}

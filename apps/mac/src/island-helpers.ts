@@ -1,6 +1,6 @@
 // ADR-081: the helper store as the island sees it (wire shapes, ISO dates, sorted app names).
 
-import { HelperError, type HelperStore, type Job, type PlanModel } from "@zeno/helpers";
+import { HelperError, describeSchedule, type HelperStore, type Job, type PlanModel } from "@zeno/helpers";
 import type { IslandHelpers } from "./island.ts";
 import type { JobItem } from "./island-protocol.ts";
 
@@ -47,6 +47,13 @@ export function islandHelpers(
       store.list().map((h) => ({
         ...h,
         soulVersions: h.soulVersions.map((v) => ({ version: v.version, createdAt: v.createdAt.toISOString() })),
+        routines: h.routines.map((r) => ({
+          id: r.id,
+          task: r.task,
+          when: describeSchedule(r.schedule),
+          ...(r.lastAt ? { lastAt: r.lastAt.toISOString() } : {}),
+          ...(r.lastSkipped ? { lastSkipped: true } : {}),
+        })),
         jobs: h.jobs.map((job) => toJobItem(job, held(job))),
       })),
     budgets: () => {
@@ -62,6 +69,7 @@ export function islandHelpers(
     approvePlan: (id) => store.approvePlan(id),
     rejectPlan: (id) => store.rejectPlan(id),
     setPlanFirst: (helper, on) => store.setPlanFirst(helper, on),
+    removeRoutine: (id) => store.removeRoutine(id),
     setBlockers: (id, blockedBy) => store.setBlockers(id, blockedBy),
     addComment: (id, text) => store.addComment(id, text),
     startFresh: (id) => store.startFresh(id),

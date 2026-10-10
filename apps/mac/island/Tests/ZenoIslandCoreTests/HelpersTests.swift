@@ -648,3 +648,18 @@ struct HelperPlanTests {
         #expect(IslandCommand.planApprove(id: 6).line == #"{"id":6,"type":"plan.approve"}"# + "\n")
     }
 }
+
+@Suite("Routines (Task 3.9)")
+struct HelperRoutineTests {
+    @Test func decodesRoutinesAndRemovesOne() throws {
+        let line = HelperTaskTests.line.replacingOccurrences(of: #""name":"Sid","available":true,"app":null,"jobs""#,
+            with: #""name":"Sid","available":true,"app":null,"routines":[{"id":2,"task":"News","when":"Every day at 8:00 AM","lastAt":"2026-10-11T08:00:00Z","lastSkipped":true},{"bad":1}],"jobs""#)
+        var state = HelpersState()
+        state.apply(try decodeEvent(line))
+        let sid = try #require(state.selectedHelper)
+        #expect(sid.routines.map(\.id) == [2] && sid.routines[0].lastSkipped && sid.routines[0].lastAt != nil)
+        #expect(state.deleteRoutine(9) == nil)
+        #expect(state.deleteRoutine(2) == .routineDelete(id: 2))
+        #expect(IslandCommand.routineDelete(id: 2).line == #"{"id":2,"type":"routine.delete"}"# + "\n")
+    }
+}

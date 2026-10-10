@@ -815,6 +815,15 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 **Task 3.9 — Routines.** Schedules (daily or weekly at a time, or every N hours) that create a task for a worker; one catch-up after ZENO was closed; skipped while the previous run still goes; a Wisp `schedule` tool for voice; a list in the window.
 **Done when:** "Sid, every morning at 8, summarise networking news" creates a routine that makes a task at 8, a missed morning runs once at start, and an overlapping run is skipped.
 
+**As built (2026-10-11):** built; tested with a fake clock; not yet tried live.
+- `routines.ts`: three schedules in local time: daily at a time, weekly on a day at a time, every 1 to 168 hours (counted from when the routine was made). A routine is due when a scheduled time has passed since it last came due (or since it was made), so any number of missed times make one catch-up. At most 20 routines. A `routines` table in the helpers file.
+- The clock: the runtime looks every 30 s and once at start (`runRoutines`). A due routine makes a task for its worker; if its last task is still to do or running, it is skipped this time ("skipped: the last one was still going"), as is one whose worker is no longer available. Routine tasks are plain tasks (no goal, so nothing is said when they finish).
+- By voice, in code: "Sid, every morning at 8, summarise networking news", "every evening at 7:30 …" (evening, night and afternoon mean PM), "every Monday at 9 am: …", "daily at …", "every 3 hours, …", "every hour …": "Sid will do that every day at 8:00 am." Any other "Sid, every …" goes to Wisp, which has a `schedule` tool (worker, task, every day / week / hours, time HH:MM, weekday, hours), checked in code. Logs `routine.scheduled` and `helpers.change` (ids and outcomes only).
+- Window: a worker's page lists its routines (when, what, how the last one went) with Remove (`routine.delete`).
+- `store.ts` was split again: its public types are in `store-types.ts` (store.ts 640 lines).
+- Tests: 9 TS (routines 7, island 1, protocol) and 1 Swift. TS 577 pass, 2 skipped; typecheck clean; Swift 483 pass.
+- Known limits: routines are added by voice or Wisp only (the window lists and removes); an hourly routine counts from when it was made, not from the hour; a routine cannot be paused, only removed.
+
 **Task 3.10 — Hand-offs.** A worker's `hand_off` tool creates a sub-task for another worker, checked in code (role allows it, depth at most 2, at most 3 sub-tasks per task, budgets); shown in the parent's thread.
 **Done when:** Sid hands Penny a costs question as a sub-task, a third level is refused, and the parent waits for it.
 

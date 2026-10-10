@@ -190,10 +190,12 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public var budget: HelperBudget?
     /// Task 3.8: its new tasks plan first.
     public var planFirst: Bool
+    /// Task 3.9: its routines, oldest first.
+    public var routines: [HelperRoutine]
 
     public init(id: String, name: String, available: Bool, app: String?, jobs: [HelperJob], pinnedModel: String? = nil,
                 role: String = "", soul: HelperSoul? = nil, soulVersion: Int = 1, soulVersions: [SoulVersion] = [],
-                budget: HelperBudget? = nil, planFirst: Bool = false) {
+                budget: HelperBudget? = nil, planFirst: Bool = false, routines: [HelperRoutine] = []) {
         self.id = id
         self.name = name
         self.available = available
@@ -206,6 +208,7 @@ public struct Helper: Sendable, Equatable, Identifiable {
         self.soulVersions = soulVersions
         self.budget = budget
         self.planFirst = planFirst
+        self.routines = routines
     }
 
     /// The role as the window says it: "Researcher", "Financial information", "HR", ….
@@ -638,6 +641,12 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.helperPin(helper: helper.id, model: modelId ?? ""))
     }
 
+    /// Task 3.9: removes one of the chosen worker's routines.
+    public mutating func deleteRoutine(_ id: Int) -> IslandCommand? {
+        guard selectedHelper?.routines.contains(where: { $0.id == id }) == true else { return nil }
+        return waiting(.routineDelete(id: id))
+    }
+
     /// Task 3.8: approve or reject the open task's waiting plan; nil when no plan waits.
     public mutating func approvePlan() -> IslandCommand? {
         guard let job = openJob, job.awaitsApproval else { return nil }
@@ -749,5 +758,24 @@ public struct HelperBudget: Sendable, Equatable {
     /// "$1.20 of $5.00 today", or "$1.20 today" without a cap.
     public var line: String {
         cap.map { "\(Self.dollars(spent)) of \(Self.dollars($0)) today" } ?? "\(Self.dollars(spent)) today"
+    }
+}
+
+/// Task 3.9: a schedule that makes a task for a worker, as the runtime describes it.
+public struct HelperRoutine: Sendable, Equatable, Identifiable {
+    public var id: Int
+    public var task: String
+    /// "Every day at 8:00 AM".
+    public var when: String
+    public var lastAt: Date?
+    /// The last time it came due, its previous task was still going, so it made none.
+    public var lastSkipped: Bool
+
+    public init(id: Int, task: String, when: String, lastAt: Date? = nil, lastSkipped: Bool = false) {
+        self.id = id
+        self.task = task
+        self.when = when
+        self.lastAt = lastAt
+        self.lastSkipped = lastSkipped
     }
 }

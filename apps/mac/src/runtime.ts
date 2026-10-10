@@ -46,6 +46,7 @@ import {
   briefFor,
   chooseJobModel,
   createDelegateTool,
+  createScheduleTool,
   createWorkerShortcut,
   holdFor,
   followUpBrief,
@@ -235,6 +236,8 @@ export function createRuntime(
       : []),
     // ADR-082/087, Task 3.5: Wisp hands work to the team. Logs the goal id and task count only.
     ...(helpers ? [createDelegateTool({ store: helpers, onDelegated: (e) => log.info("goal.delegated", e) })] : []),
+    // Task 3.9: routines by voice in any wording. Logs the routine id and worker only.
+    ...(helpers ? [createScheduleTool({ store: helpers, onScheduled: (e) => log.info("routine.scheduled", e) })] : []),
   ];
   const toolEngine = createToolEngine({ tools, onCall: (e) => log.info("tool.call", e) });
   const planUsageListeners = new Set<(usage: PlanUsage) => void>();
@@ -417,6 +420,18 @@ export function createRuntime(
     helpers && startJobRunner({ store: helpers, run: runJob, onRun: (e) => log.info("job.run", e), mayStart: (job) => !held(job) });
   // A new day (budgets) or an older plan window (its use falls) frees held tasks without any change in the store.
   if (runner) setInterval(() => runner.poke(), 60_000).unref();
+  // Task 3.9: routines come due on the clock. At start, one catch-up for each that came due while ZENO was closed.
+  if (helpers) {
+    const runRoutines = () => {
+      try {
+        helpers.runRoutines();
+      } catch (error) {
+        log.warn("routines.failed", { ...errorFields(error) });
+      }
+    };
+    runRoutines();
+    setInterval(runRoutines, 30_000).unref();
+  }
   // Task 3.5: a goal whose tasks have all ended gets its combined report (one model call, no tools) and one line.
   const goalLineListeners = new Set<(line: string, after?: () => void) => void>();
   // Task 3.8: a plan waits for Keshab: one line, then Wisp's approval card. Allow approves; Decline or no answer leaves

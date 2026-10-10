@@ -103,6 +103,8 @@ export interface IslandHelpers {
   rejectPlan(id: number): void;
   /** Whether a worker's new tasks plan first. Throws, with words for the user, for an unknown worker. */
   setPlanFirst(helper: string, on: boolean): void;
+  /** Task 3.9: removes a routine. False when there is none. */
+  removeRoutine(id: number): boolean;
   /** Changes what a queued task waits for (ADR-087). Throws, with words for the user, for a started task or a circle. */
   setBlockers(id: number, blockedBy: number[]): void;
   /** Adds Keshab's note to a task, which wakes it (Task 3.6). Throws, with words for the user, for an unknown task or an empty or long note. */
@@ -288,6 +290,10 @@ export function runIsland(options: IslandOptions): IslandSession {
         return;
       case "plan.reject":
         changeHelpers(command.type, (helpers) => helpers.rejectPlan(command.id));
+        return;
+      case "routine.delete":
+        options.helpers?.removeRoutine(command.id); // unknown: ignored
+        sendHelpers();
         return;
       case "helper.planFirst":
         changeHelpers(command.type, (helpers) => helpers.setPlanFirst(command.helper, command.on));
