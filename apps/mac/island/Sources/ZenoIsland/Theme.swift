@@ -95,18 +95,15 @@ struct SurfaceBackground<S: InsettableShape>: View {
     }
 }
 
-/// A key-cap hint such as "esc" or "⌘↩".
+/// A key hint such as "esc" beside a button's word: quiet rounded type, no key-cap box (ADR-084).
 struct KeyHint: View {
     let text: String
     @Environment(\.theme) private var theme
 
     var body: some View {
         Text(text)
-            .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+            .font(.system(size: 10, weight: .semibold, design: .rounded))
             .foregroundStyle(theme.text3.color)
-            .padding(.horizontal, 4)
-            .frame(minHeight: 15)
-            .background(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(theme.separator.color, lineWidth: 0.8))
     }
 }
 

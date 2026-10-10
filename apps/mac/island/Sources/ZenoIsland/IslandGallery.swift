@@ -131,21 +131,32 @@ enum IslandGallery {
         let ago = { (minutes: Double) in iso.string(from: Date().addingTimeInterval(-minutes * 60)) }
         // ADR-083: the plan's models, the large-model switch, Sid's pin (null: Laya chooses) and each job's model.
         let models = #"[{"id":"claude-haiku-4-5","name":"Claude Haiku 4.5","tier":"small"},{"id":"claude-sonnet-4-5","name":"Claude Sonnet 4.5","tier":"medium"},{"id":"claude-opus-5-5","name":"Claude Opus 5.5","tier":"large"}]"#
-        func helpers(pinned: String, allowLarge: Bool) -> String { #"{"type":"helpers","apps":["Brave Browser","Notes","Safari"],"allowLarge":\#(allowLarge),"models":\#(models),"helpers":[{"id":"sid","name":"Sid","available":true,"app":"Brave Browser","pinnedModel":\#(pinned),"jobs":[{"id":3,"task":"What year was TCP/IP adopted by ARPANET?","state":"queued","createdAt":"\#(ago(1))"},{"id":2,"task":"Research how IPv6 is rolled out in home routers","state":"running","createdAt":"\#(ago(4))","step":"Reading 3 of 8 pages","model":"claude-sonnet-4-5","modelReason":"Laya: moderate"},{"id":1,"task":"Research networking basics for a beginner","state":"done","createdAt":"\#(ago(52))","endedAt":"\#(ago(41))","title":"Networking basics","summary":"How data finds its way from your Mac to a website and back.","model":"claude-haiku-4-5","modelReason":"Laya: easy"}]},{"id":"kame","name":"Kame","available":false,"app":null,"jobs":[]},{"id":"puff","name":"Puff","available":false,"app":null,"jobs":[]}]}"# }
+        func helpers(pinned: String, allowLarge: Bool, failed: Bool = false) -> String { #"{"type":"helpers","apps":["Brave Browser","Notes","Safari"],"allowLarge":\#(allowLarge),"models":\#(models),"helpers":[{"id":"sid","name":"Sid","available":true,"app":"Brave Browser","pinnedModel":\#(pinned),"jobs":[\#(failed ? #"{"id":4,"task":"Compare the reviews of the new Mac mini","state":"failed","createdAt":"\#(ago(2))","endedAt":"\#(ago(1))","error":"The review pages would not load"},"# : ""){"id":3,"task":"What year was TCP/IP adopted by ARPANET?","state":"queued","createdAt":"\#(ago(1))"},{"id":2,"task":"Research how IPv6 is rolled out in home routers","state":"running","createdAt":"\#(ago(4))","step":"Reading 3 of 8 pages","model":"claude-sonnet-4-5","modelReason":"Laya: moderate"},{"id":1,"task":"Research networking basics for a beginner","state":"done","createdAt":"\#(ago(52))","endedAt":"\#(ago(41))","title":"Networking basics","summary":"How data finds its way from your Mac to a website and back.","model":"claude-haiku-4-5","modelReason":"Laya: easy"}]},{"id":"kame","name":"Kame","available":false,"app":null,"jobs":[]},{"id":"puff","name":"Puff","available":false,"app":null,"jobs":[]}]}"# }
         let report = #"{"type":"report","id":1,"title":"Networking basics","summary":"How data finds its way from your Mac to a website and back.","body":"Every device on a network has an address. Your router hands one to your Mac, and translates between your home network and the internet.\n\nData travels in small packets. Each packet carries where it is going, and routers along the way pass it on, one hop at a time.\n\nNames like apple.com are turned into addresses by DNS before any packet is sent.","sources":[{"title":"How the Internet works","url":"https://developer.mozilla.org/en-US/docs/Learn/Common_questions/Web_mechanics/How_does_the_Internet_work"},{"title":"Internet Protocol (RFC 791)","url":"https://www.rfc-editor.org/rfc/rfc791"}]}"#
-        func model(_ theme: AppTheme, pinned: String = "null", allowLarge: Bool = true) -> IslandModel {
+        func model(_ theme: AppTheme, pinned: String = "null", allowLarge: Bool = true, failed: Bool = false) -> IslandModel {
             let m = IslandModel(settings: IslandSettings(defaults: defaults))
             m.settings.theme = theme
-            if let event = try? decodeEvent(helpers(pinned: pinned, allowLarge: allowLarge)) { m.apply(event) } else {
+            if let event = try? decodeEvent(helpers(pinned: pinned, allowLarge: allowLarge, failed: failed)) { m.apply(event) } else {
                 FileHandle.standardError.write(Data("gallery: could not decode helpers\n".utf8))
             }
             return m
         }
         func window(_ title: String, _ m: IslandModel) -> some View {
-            VStack(alignment: .leading, spacing: 6) {
+            let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+            return VStack(alignment: .leading, spacing: 6) {
                 Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.75))
                 frozen(HelpersView(model: m).environment(\.islandSnapshot, true).frame(width: 720, height: 520))
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    // The window's own buttons, which only the window server draws, over the clear title bar.
+                    .overlay(alignment: .topLeading) {
+                        HStack(spacing: 8) {
+                            ForEach([0xFF5F57, 0xFEBC2E, 0x28C840] as [UInt32], id: \.self) { hex in
+                                Circle().fill(RGBA(hex: hex).color).frame(width: 12, height: 12)
+                            }
+                        }
+                        .padding(.leading, 16).padding(.top, 16)
+                    }
+                    .clipShape(shape)
+                    .overlay(shape.strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5))
             }
         }
         let reading = model(.lantern)
@@ -156,7 +167,7 @@ enum IslandGallery {
                 window("Helpers: Sid's model chosen by Laya, jobs show their model", model(.lantern))
                 window("Sid's report", reading)
             }
-            window("Warm (light): Sid pinned to Sonnet, large model off", model(.warm, pinned: #""claude-sonnet-4-5""#, allowLarge: false))
+            window("Warm (light): Sid pinned to Sonnet, large model off, a failed job", model(.warm, pinned: #""claude-sonnet-4-5""#, allowLarge: false, failed: true))
         }
         .padding(24)
         .background(Color(red: 0.36, green: 0.42, blue: 0.52))
@@ -474,42 +485,52 @@ enum IslandGallery {
         save(sheet, name: name, to: directory)
     }
 
-    /// Wisp's speech bubble in the states that matter: dictating with words, hands-free, thinking, a notice, and flipped below Wisp.
+    /// Wisp's speech bubble in the states that get one (IslandStatus.needsBubble): dictating with live words and
+    /// hands-free (lit), a notice and an approval (amber), a problem (coral), and flipped below Wisp near the top.
     private static func writeBubbles(to directory: URL, theme: AppTheme = .lantern, name: String = "6-wisp-bubble") {
         let suite = "zeno.gallery.bubble.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
+        let inset = BubbleController.shadowInset
         func scene(_ title: String, below: Bool = false, _ setup: (IslandModel) -> Void) -> some View {
             let model = IslandModel(settings: IslandSettings(defaults: defaults))
             model.settings.theme = theme
             setup(model)
             let state = BubbleState(visible: true, tailX: BubbleLayout.size.width / 2, tailOnTop: below)
-            let wisp = WispView(mood: model.status.kind == .listening ? .listening : .thinking, time: 0.4, facing: 1, size: 72)
-            return VStack(alignment: .leading, spacing: 6) {
-                Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
-                VStack(spacing: below ? -2 : -14) {
+            let mood: PetBrain.Mood = switch model.status.kind {
+            case .listening: .listening
+            case .problem: .worried
+            default: .resting
+            }
+            let wisp = WispView(mood: mood, time: 0.4, facing: 1, size: 64, glow: mood == .listening ? 1.6 : 1)
+            return VStack(alignment: .leading, spacing: 0) {
+                Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7)).padding(.leading, inset)
+                VStack(spacing: below ? -inset - 4 : -inset - 8) {
                     if below { wisp }
                     BubbleView(model: model, state: state, snapshot: true)
                     if !below { wisp }
                 }
-                .frame(width: BubbleLayout.size.width + 24)
+                .frame(width: BubbleLayout.size.width + 2 * inset)
             }
         }
-        let sheet = HStack(alignment: .top, spacing: 26) {
-            VStack(spacing: 22) {
+        let sheet = HStack(alignment: .top, spacing: 18) {
+            VStack(alignment: .leading, spacing: 18) {
                 scene("Dictating, live words") { m in
                     m.status.apply(DictationPhase.listening)
                     m.status.setPreview("…send the deck before the call")
-                    for v in [0.2, 0.6, 0.9, 0.5, 0.8, 0.3, 0.7] { m.meter.add(v) }
+                    for v in [0.05, 0.2, 0.6, 0.9, 0.5, 0.8, 0.3, 0.7, 0.95, 0.6, 0.4, 0.8] { m.meter.add(v) }
                 }
                 scene("Hands-free") { m in
                     m.status.apply(DictationPhase.listeningHandsFree)
-                    for v in [0.3, 0.7, 0.4, 0.9, 0.6] { m.meter.add(v) }
+                    for v in [0.3, 0.7, 0.4, 0.9, 0.6, 0.2, 0.5, 0.8] { m.meter.add(v) }
+                }
+                scene("Needs your OK") { m in
+                    if let ask = try? decodeEvent(#"{"type":"approval.request","id":"a1","summary":"Click \"Send\" in Mail","reason":"It sends"}"#) { m.status.apply(ask) }
                 }
             }
-            VStack(spacing: 22) {
-                scene("Transcribing") { m in m.status.apply(DictationPhase.listening); m.status.apply(DictationPhase.transcribing) }
-                scene("Typed") { m in m.status.apply(DictationPhase.done(.typed(words: 12))) }
+            VStack(alignment: .leading, spacing: 18) {
+                scene("A notice") { m in m.status.apply(DictationPhase.done(.noSpeech)) }
+                scene("A problem") { m in m.status.apply(DictationPhase.done(.failed(title: "Microphone problem", message: "The microphone stopped. Check it in System Settings"))) }
                 scene("Near the top: flips below Wisp", below: true) { m in m.status.apply(DictationPhase.done(.copied(reason: "A password field is focused. Paste it yourself"))) }
             }
         }
@@ -607,7 +628,7 @@ enum IslandGallery {
         let jobs: [(String, [JobState])] = [("neutral", []), ("working", [.running]), ("happy", [.done]), ("worried", [.failed])]
         let caption = AvatarImages.hasWisp
             ? "From \(AvatarImages.directory?.path ?? "?")"
-            : "no avatar images yet: Wisp is drawn as the orb, helpers as the plain mark"
+            : "no avatar images yet: Wisp is drawn as the orb, helpers as their letter"
         let palette = AppTheme.lantern.palette
         let sheet = VStack(alignment: .leading, spacing: 14) {
             Text("Avatars (ADR-085)").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
@@ -625,7 +646,7 @@ enum IslandGallery {
                     VStack(spacing: 6) {
                         Text(id.capitalized).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.85))
                         ForEach(Array(jobs.enumerated()), id: \.offset) { _, job in
-                            HStack(spacing: 6) {
+                            HStack(spacing: 11) {
                                 HelperBadge(helper: Helper(id: id, name: id.capitalized, available: true, app: nil,
                                                            jobs: job.1.map { HelperJob(id: 1, task: "", state: $0) }), size: 40)
                                 Text(job.0).font(.system(size: 10)).foregroundStyle(.white.opacity(0.6)).frame(width: 46, alignment: .leading)

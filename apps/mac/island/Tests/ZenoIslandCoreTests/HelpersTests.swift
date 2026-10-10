@@ -296,3 +296,22 @@ struct HelpersModelTests {
         #expect(empty.setAllowLarge(false) == nil)
     }
 }
+
+@Suite("Helpers progress line (ADR-084)")
+struct HelpersProgressTests {
+    @Test func readsNOfMFromARunningJobsStep() {
+        #expect(HelperJob(id: 1, task: "", state: .running, step: "Reading 3 of 8 pages").progress == 3.0 / 8)
+        #expect(HelperJob.progress(in: "Page 8 of 8.") == 1)
+        #expect(HelperJob.progress(in: "0 of 5 sources checked") == 0)
+    }
+
+    @Test func noLineWithoutATrustworthyCount() {
+        #expect(HelperJob(id: 1, task: "", state: .running, step: "Writing the report").progress == nil)
+        #expect(HelperJob(id: 1, task: "", state: .running).progress == nil)
+        #expect(HelperJob(id: 1, task: "", state: .queued, step: "Reading 3 of 8 pages").progress == nil) // not running
+        #expect(HelperJob.progress(in: "Reading 9 of 8 pages") == nil)
+        #expect(HelperJob.progress(in: "Reading 3 of 0 pages") == nil)
+        #expect(HelperJob.progress(in: "One of the pages") == nil)
+        #expect(HelperJob.progress(in: "of 8") == nil)
+    }
+}

@@ -786,6 +786,12 @@ Design: `docs/design/design-study.md` §3 A (tokens, type, motion) and §4 (roll
 - **4.9 Helpers window.** Letter discs with a working arc, dot states, a progress line, "Read report" as the lit button.
 - **4.10 Sounds** (optional, a separate decision).
 
+**As built, 4.7–4.9 (2026-10-10):** built; tested (455 Swift); seen in the gallery; not yet checked in the running app (the Helpers window's transparent title bar, the turning arc, the breathing dot, the bubble growing from its tail).
+- 4.7: Wisp's bubble is night glass (radius 18, no icon circle, a soft curved tail); listening and dictating light its rim with a pool of light at the tail and a meter in Wisp's light; amber for a notice or a question, coral for a problem; grows from the tail and leaves on the named springs.
+- 4.8: the work strip is a glass capsule with a breathing dot of light and a concentric Stop; the approval card has an amber rim and dot, the request in rounded type, Decline with its `esc` hint and Allow as the only filled button, both concentric with the corners; the pointing label is a glass capsule.
+- 4.9: the Helpers window has a darker sidebar reaching the top, helper discs (avatar or letter) with a turning arc of light while working, jobs as dots (running, queued, done, failed, stopped), a line of light for "n of m" steps (`HelperJob.progress`, tested), compact "Opens in" and "Model" pills, a capsule task field, "Read report" as the only lit button, and a roomier report view.
+- Kept on purpose: "ZENO needs your OK" wording; Delete on every job row; the helper header shows job counts, since helpers have no description yet.
+
 **Avatars (ADR-085, 2026-10-10):** the loader is built and tested (453 Swift); waiting for Keshab's exported images in `assets/avatars/`. `build-app.sh` copies the PNGs one folder deep into the app; `AvatarImages` finds them (`ZENO_AVATARS_DIR`, then the app bundle, then the repo); a new Wisp style "Avatar" draws the image for each mood and reaction with ZENO's own motion and light (speaking alternates two mouths about 6 times a second, unevenly); helpers show their face in the Helpers window. With Wisp's images present, Avatar becomes the default, and a stored Orb moves to it once. A missing image falls back to today's drawing. Not done: Wisp's "happy" for a finished job (only the hello), mirroring when Wisp faces left, the letter discs with a working arc from the mock.
 
 ---

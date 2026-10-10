@@ -96,17 +96,20 @@ final class MenuBarIcon: NSObject {
 // MARK: - Work strip
 
 /// The strip's content: what ZENO is doing and Stop, or — while a request waits — what it wants to do, why, and
-/// Decline / Allow.
+/// Decline / Allow. Lantern's night glass (ADR-084); asking turns it to the amber family, with Allow the one fill.
 struct WorkStripView: View {
     let model: IslandModel
     var snapshot = false
 
-    static let cornerRadius: CGFloat = 16
+    /// The working strip is a capsule (its height 44 / 2): Stop, 28 tall and 8 from the edge, is concentric with it.
+    static let cornerRadius: CGFloat = WorkStripLayout.size.height / 2
+    /// Asking: the panel's radius. Decline and Allow sit `Spacing.composer` from the edges, concentric with it.
+    static let askingRadius: CGFloat = 26
 
     var body: some View {
         let asking = model.approval.pending != nil
         let palette = model.settings.theme.palette
-        let shape = RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: asking ? Self.askingRadius : Self.cornerRadius, style: .continuous)
         ZStack(alignment: .topLeading) {
             if let request = model.approval.pending {
                 AskingView(request: request) { model.answerApproval($0) }
@@ -116,14 +119,22 @@ struct WorkStripView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background { SurfaceBackground(shape: shape, glass: !snapshot) }
-        .overlay {
-            // Asking: a quiet attention edge, not a glow.
-            if asking { shape.strokeBorder(palette.attention.color.opacity(0.55), lineWidth: 1) }
+        .background {
+            ZStack {
+                SurfaceBackground(shape: shape, glass: !snapshot)
+                if asking {
+                    // Amber, because it needs you: a little warmth from the top corner and an amber rim.
+                    shape.fill(RadialGradient(colors: [palette.attention.color.opacity(palette.isDark ? 0.13 : 0.10), .clear],
+                                              center: .topLeading, startRadius: 0, endRadius: 240))
+                    shape.strokeBorder(palette.attention.color.opacity(0.4), lineWidth: 0.8)
+                }
+            }
         }
         .clipShape(shape)
-        .shadow(color: .black.opacity(snapshot ? 0 : (palette.isDark ? 0.32 : 0.16)), radius: 10, y: 3)
+        .shadow(color: .black.opacity(palette.isDark ? 0.3 : 0.12), radius: 2, y: 1)
+        .shadow(color: .black.opacity(palette.isDark ? 0.36 : 0.14), radius: 12, y: 7)
         .themed(palette)
+        .environment(\.islandSnapshot, snapshot)
         .animation(.easeOut(duration: 0.18), value: asking)
         .padding(WorkStripController.shadowInset)
         .accessibilityElement(children: .contain)
@@ -138,11 +149,11 @@ private struct StepRow: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 11) {
             WorkGlyph(outcome: model.work.outcome)
-                .frame(width: 26, height: 26)
+                .frame(width: 14, height: 14)
             Text(model.work.line)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(theme.text.color)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -152,13 +163,12 @@ private struct StepRow: View {
             if model.work.outcome == .working {
                 Button { model.stopWork() } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: "stop.fill").font(.system(size: 9, weight: .bold))
-                        Text("Stop").font(.system(size: 12, weight: .semibold))
+                        Text("Stop").font(.system(size: 12, weight: .medium))
                         KeyHint(text: "esc")
                     }
                     .foregroundStyle(theme.text.color)
-                    .padding(.leading, 10).padding(.trailing, 6)
-                    .frame(height: 26)
+                    .padding(.horizontal, 14)
+                    .frame(height: 28)
                     .background(Capsule().fill(theme.fill2.color))
                     .contentShape(Capsule())
                 }
@@ -167,7 +177,8 @@ private struct StepRow: View {
                 .accessibilityHint("Stops what ZENO is doing on your Mac")
             }
         }
-        .padding(.horizontal, 10)
+        .padding(.leading, 18)
+        .padding(.trailing, (WorkStripLayout.size.height - 28) / 2)
         .frame(maxHeight: .infinity)
     }
 }
@@ -179,81 +190,99 @@ private struct AskingView: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                ZStack {
-                    Circle().fill(theme.attention.color.opacity(theme.isDark ? 0.2 : 0.14))
-                    Image(systemName: "hand.raised.fill").font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.attention.color)
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Circle().fill(theme.attention.color).frame(width: 7, height: 7)
+                        .shadow(color: theme.attention.color.opacity(0.8), radius: 4)
+                    Text("ZENO needs your OK")
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundStyle(theme.attention.color)
                 }
-                .frame(width: 24, height: 24)
-                Text("ZENO needs your OK")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(theme.text2.color)
-            }
-            VStack(alignment: .leading, spacing: 3) {
-                Text(request.summary)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(theme.text.color)
-                    .lineLimit(2)
-                if !request.reason.isEmpty {
-                    Text("Because \(request.reason)")
-                        .font(.system(size: 11))
-                        .foregroundStyle(theme.text2.color)
-                        .lineLimit(1)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(request.summary)
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundStyle(theme.text.color)
+                        .lineLimit(2)
+                    if !request.reason.isEmpty {
+                        Text("Because \(request.reason)")
+                            .font(.system(size: 12))
+                            .foregroundStyle(theme.text2.color)
+                            .lineLimit(1)
+                    }
                 }
+                .fixedSize(horizontal: false, vertical: true)
             }
-            .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
+            .padding(.horizontal, 20)
+            .padding(.top, 18)
+            Spacer(minLength: 8)
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
-                button("Decline", hint: "esc", primary: false) { onAnswer(false) }
-                button("Allow", hint: nil, primary: true) { onAnswer(true) }
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-    }
-
-    private func button(_ title: String, hint: String?, primary: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Text(title).font(.system(size: 12.5, weight: .semibold))
-                if let hint {
-                    Text(hint).font(.system(size: 10, weight: .semibold, design: .rounded)).opacity(primary ? 0.7 : 0.55)
+                Button { onAnswer(false) } label: {
+                    HStack(spacing: 6) {
+                        Text("Decline").font(.system(size: 12.5, weight: .medium))
+                        KeyHint(text: "esc")
+                    }
+                    .foregroundStyle(theme.text.color)
+                    .padding(.horizontal, 18)
+                    .frame(minWidth: 104, minHeight: 32)
+                    .background(Capsule().fill(theme.fill2.color))
+                    .contentShape(Capsule())
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Decline")
+                Button { onAnswer(true) } label: {
+                    Text("Allow").font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(theme.onAttention.color)
+                        .padding(.horizontal, 24)
+                        .frame(minWidth: 104, minHeight: 32)
+                        .background(Capsule().fill(theme.attention.color))
+                        .shadow(color: theme.attention.color.opacity(theme.isDark ? 0.45 : 0.25), radius: 8)
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Allow")
             }
-            .foregroundStyle(primary ? theme.onAttention.color : theme.text.color)
-            .frame(width: 112, height: 28)
-            .background(primary ? theme.attention.color : theme.fill2.color, in: RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous))
+            .padding(Spacing.composer)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(title)
     }
 }
 
-/// The strip's badge: working (pulsing), done, stopped or failed.
+/// The strip's mark: Wisp's light while working, a check when done, a small square when stopped, coral when it
+/// failed. No icon circle: the light itself says it is live.
 struct WorkGlyph: View {
     let outcome: WorkStripState.Outcome
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let (symbol, tint): (String, Color) = switch outcome {
-        case .working: ("cursorarrow.motionlines", theme.tint(.acting))
-        case .done: ("checkmark", theme.success.color)
-        case .stopped: ("stop.fill", theme.text2.color)
-        case .failed: ("exclamationmark.triangle.fill", theme.problem.color)
+        Group {
+            switch outcome {
+            case .working: WorkingLight(color: theme.live.color)
+            case .done: Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(theme.success.color)
+            case .stopped: RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(theme.text3.color).frame(width: 7, height: 7)
+            case .failed: Circle().fill(theme.problem.color).frame(width: 7, height: 7).shadow(color: theme.problem.color.opacity(0.7), radius: 3.5)
+            }
         }
-        ZStack {
-            Circle().fill(tint.opacity(theme.isDark ? 0.2 : 0.14))
-            Image(systemName: symbol)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(tint)
-                .contentTransition(.symbolEffect(.replace))
-                .symbolEffect(.pulse, options: .repeating, isActive: outcome == .working)
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .transition(.opacity)
         .animation(.easeOut(duration: 0.2), value: outcome)
         .accessibilityHidden(true)
+    }
+}
+
+/// A dot of Wisp's light that breathes while ZENO works (`Motion.breathe`); still with Reduce Motion and in snapshots.
+private struct WorkingLight: View {
+    let color: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.islandSnapshot) private var snapshot
+
+    var body: some View {
+        let breathe = snapshot ? nil : Motion.breathe(reduceMotion)
+        PhaseAnimator(breathe == nil ? [1.0] : [1.0, 0.45]) { glow in
+            Circle().fill(color).frame(width: 7, height: 7)
+                .shadow(color: color.opacity(0.9 * glow), radius: 2 + 4 * glow)
+                .opacity(0.7 + 0.3 * glow)
+        } animation: { _ in breathe }
     }
 }
 
@@ -261,7 +290,8 @@ struct WorkGlyph: View {
 /// but never takes focus, so the app ZENO is working in keeps it.
 @MainActor
 final class WorkStripController {
-    static let shadowInset: CGFloat = 12
+    /// Room around the strip for its shadow.
+    static let shadowInset: CGFloat = 20
 
     private let panel: NSPanel
     private var visible = false
@@ -364,18 +394,19 @@ struct PointLabelView: View {
     var snapshot = false
 
     var body: some View {
-        HStack(spacing: 6) {
-            Circle().fill(palette.accentFill).frame(width: 6, height: 6)
+        HStack(spacing: 7) {
+            Circle().fill(palette.live.color).frame(width: 6, height: 6)
+                .shadow(color: palette.live.color.opacity(0.8), radius: 3)
             Text(text)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(palette.text.color)
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 11)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background { SurfaceBackground(shape: Capsule(), glass: !snapshot) }
-        .shadow(color: .black.opacity(snapshot ? 0 : (palette.isDark ? 0.3 : 0.14)), radius: 6, y: 2)
+        .shadow(color: .black.opacity(palette.isDark ? 0.34 : 0.14), radius: 6, y: 3)
         .themed(palette)
         .padding(PointLabelController.shadowInset)
         .accessibilityElement(children: .ignore)

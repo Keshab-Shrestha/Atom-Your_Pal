@@ -101,7 +101,7 @@ public struct WorkStripState: Sendable, Equatable {
 public enum WorkStripLayout {
     /// The strip alone, and with an approval request.
     public static let size = CGSize(width: 420, height: 44)
-    public static let askingSize = CGSize(width: 420, height: 140)
+    public static let askingSize = CGSize(width: 420, height: 164)
 
     /// - Parameters:
     ///   - visible: the main display's visible frame (without the menu bar and Dock).

@@ -20,7 +20,7 @@ final class BubbleState {
     }
 }
 
-/// A rounded bubble with a tail on its top or bottom edge, as one outline.
+/// A rounded bubble with a soft tail on its top or bottom edge, as one outline.
 struct BubbleShape: Shape {
     var tailX: CGFloat
     var tailOnTop: Bool
@@ -33,23 +33,59 @@ struct BubbleShape: Shape {
     func path(in rect: CGRect) -> Path {
         let tail = BubbleLayout.tailHeight
         let body = CGRect(x: rect.minX, y: tailOnTop ? rect.minY + tail : rect.minY, width: rect.width, height: rect.height - tail)
-        let half: CGFloat = 8
+        let half: CGFloat = 9
+        // The tail's base sits a point inside the body so the union has no seam; its sides curve in to a soft tip.
+        let base = tailOnTop ? body.minY + 1 : body.maxY - 1
+        let tip = tailOnTop ? rect.minY : rect.maxY
+        let bend = base + (tip - base) * 0.55
         var point = Path()
-        if tailOnTop {
-            point.move(to: CGPoint(x: tailX - half, y: body.minY + 1))
-            point.addLine(to: CGPoint(x: tailX, y: rect.minY))
-            point.addLine(to: CGPoint(x: tailX + half, y: body.minY + 1))
-        } else {
-            point.move(to: CGPoint(x: tailX - half, y: body.maxY - 1))
-            point.addLine(to: CGPoint(x: tailX, y: rect.maxY))
-            point.addLine(to: CGPoint(x: tailX + half, y: body.maxY - 1))
-        }
+        point.move(to: CGPoint(x: tailX - half, y: base))
+        point.addLine(to: CGPoint(x: tailX + half, y: base))
+        point.addQuadCurve(to: CGPoint(x: tailX, y: tip), control: CGPoint(x: tailX + half * 0.24, y: bend))
+        point.addQuadCurve(to: CGPoint(x: tailX - half, y: base), control: CGPoint(x: tailX - half * 0.24, y: bend))
         point.closeSubpath()
         return Path(roundedRect: body, cornerRadius: BubbleLayout.cornerRadius, style: .continuous).union(point)
     }
 }
 
-/// ZENO's status as a speech bubble over Wisp (ADR-050): what the island's card shows, held by the character.
+/// How the bubble is lit (ADR-084): Wisp's light while listening, amber when Wisp needs you, coral for a problem,
+/// otherwise plain night glass with a white hairline.
+enum BubbleTone: Equatable {
+    case plain, lit, attention, problem
+
+    init(_ kind: IslandStatus.Kind) {
+        switch kind {
+        case .listening: self = .lit
+        case .notice, .asking: self = .attention
+        case .problem: self = .problem
+        default: self = .plain
+        }
+    }
+
+    /// The rim's colour; nil for the plain hairline.
+    func rim(_ palette: ThemePalette) -> Color? {
+        switch self {
+        case .plain: nil
+        case .lit: palette.live.color
+        case .attention: palette.attention.color
+        case .problem: palette.problem.color
+        }
+    }
+
+    /// The light pooled inside the glass at the tail, where Wisp is, and the glow around it. Lantern's glow is Wisp's
+    /// own light even where controls use a deeper blue (Lantern Day).
+    func light(_ palette: ThemePalette) -> Color? {
+        switch self {
+        case .plain: nil
+        case .lit: (palette.glow.a > 0 ? palette.glow.with(alpha: 1) : palette.live).color
+        case .attention: palette.attention.color
+        case .problem: palette.problem.color
+        }
+    }
+}
+
+/// ZENO's status as a speech bubble over Wisp (ADR-050), in Lantern's night glass (ADR-084): no icon circle, since
+/// Wisp is right below it. It grows out of the tail, where Wisp is, and shrinks back into it.
 struct BubbleView: View {
     let model: IslandModel
     let state: BubbleState
@@ -60,30 +96,23 @@ struct BubbleView: View {
     var body: some View {
         let size = BubbleLayout.size
         let tail = BubbleLayout.tailHeight
-        let shape = BubbleShape(tailX: state.tailX, tailOnTop: state.tailOnTop)
         let palette = model.settings.theme.palette
-        StatusRow(model: model)
-            .padding(.leading, 11)
-            .padding(.trailing, 14)
+        let tone = BubbleTone(model.status.kind)
+        let tailAnchor = UnitPoint(x: state.tailX / size.width, y: state.tailOnTop ? 0 : 1)
+        BubbleContent(model: model)
+            .padding(.horizontal, 18)
             .padding(.top, state.tailOnTop ? tail : 0)
             .padding(.bottom, state.tailOnTop ? 0 : tail)
             .frame(width: size.width, height: size.height)
             .background {
-                ZStack {
-                    if !snapshot { shape.fill(palette.isDark ? .ultraThinMaterial : .regularMaterial) }
-                    // The Background setting scales how much of the theme's fill covers the blur.
-                    shape.fill((snapshot ? palette.surfaceSolid : palette.surface).color
-                        .opacity(snapshot ? 1 : min(1, model.settings.bubbleOpacity.fill / 0.86)))
-                }
+                BubbleGlass(state: state, tone: tone, snapshot: snapshot, fill: model.settings.bubbleOpacity.fill, tailAnchor: tailAnchor)
             }
-            .overlay { shape.stroke(palette.border.color, lineWidth: 0.6) }
-            .shadow(color: .black.opacity(snapshot ? 0 : (palette.isDark ? 0.32 : 0.16)), radius: 9, y: 3)
             .themed(palette)
             .environment(\.islandSnapshot, snapshot)
-            // It grows out of the tail, where Wisp is, and shrinks back into it.
-            .scaleEffect(state.visible || reduceMotion ? 1 : 0.72, anchor: UnitPoint(x: state.tailX / size.width, y: state.tailOnTop ? 0 : 1))
+            .animation(Motion.glow(reduceMotion), value: tone)
+            .scaleEffect(state.visible || reduceMotion ? 1 : 0.6, anchor: tailAnchor)
             .opacity(state.visible ? 1 : 0)
-            .animation(reduceMotion ? .easeOut(duration: 0.15) : .spring(response: 0.34, dampingFraction: 0.78), value: state.visible)
+            .animation(state.visible ? Motion.open(reduceMotion) : Motion.close(reduceMotion), value: state.visible)
             .scaleEffect(state.scale, anchor: .topLeading)
             .frame(width: size.width * state.scale, height: size.height * state.scale, alignment: .topLeading)
             .padding(BubbleController.shadowInset)
@@ -92,11 +121,135 @@ struct BubbleView: View {
     }
 }
 
+/// The bubble's glass: the blur, the theme's night fill, light pooled at the tail, a top-lit rim and the state's rim,
+/// with a soft shadow (a glow of the state's light when lit).
+private struct BubbleGlass: View {
+    let state: BubbleState
+    let tone: BubbleTone
+    let snapshot: Bool
+    /// The Background setting: how much of the theme's fill covers the blur.
+    let fill: Double
+    let tailAnchor: UnitPoint
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let shape = BubbleShape(tailX: state.tailX, tailOnTop: state.tailOnTop)
+        let light = tone.light(theme)
+        ZStack {
+            if !snapshot { shape.fill(theme.isDark ? .ultraThinMaterial : .regularMaterial) }
+            shape.fill(theme.surfaceFill(solid: snapshot, opacity: min(1, fill / 0.86)))
+            if let light {
+                shape.fill(RadialGradient(colors: [light.opacity(tone == .lit ? (theme.isDark ? 0.24 : 0.30) : 0.06), light.opacity(0)],
+                                          center: tailAnchor, startRadius: 0, endRadius: 190))
+            }
+            // Light catching the top edge of the glass.
+            shape.stroke(LinearGradient(colors: [theme.rim.color, theme.border.color, theme.border.color], startPoint: .top, endPoint: .bottom),
+                         lineWidth: 0.7)
+            if let rim = tone.rim(theme) {
+                shape.stroke(rim.opacity(tone == .lit ? 0.5 : 0.55), lineWidth: 0.9)
+            }
+        }
+        .shadow(color: .black.opacity(theme.isDark ? 0.3 : 0.12), radius: 2, y: 1)
+        .shadow(color: shadowColor(light), radius: tone == .lit ? 16 : 12, y: 6)
+    }
+
+    private func shadowColor(_ light: Color?) -> Color {
+        if tone == .lit, let light { return light.opacity(theme.isDark ? 0.3 : 0.35) }
+        return .black.opacity(theme.isDark ? 0.36 : 0.14)
+    }
+}
+
+/// What the bubble says. Dictating: the words heard so far, with the meter in Wisp's light. Otherwise the title and
+/// a line under it, led by an amber dot (Wisp needs you), a coral dot (a problem) or a check (done).
+private struct BubbleContent: View {
+    let model: IslandModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let status = model.status
+        HStack(spacing: 10) {
+            mark(status.kind)
+            VStack(alignment: .leading, spacing: 2) {
+                if let target = model.pointing.target {
+                    title(PointingState.line(for: target))
+                    detail("ZENO is pointing")
+                } else if !status.preview.isEmpty {
+                    Text(status.preview)
+                        .font(.system(size: 13.5))
+                        .foregroundStyle(theme.text.color)
+                        .truncationMode(.head)
+                } else {
+                    title(status.title)
+                    if !status.detail.isEmpty { detail(status.detail) }
+                }
+            }
+            .lineLimit(1)
+            .contentTransition(.opacity)
+            .animation(.easeOut(duration: 0.18), value: status.title)
+
+            Spacer(minLength: 8)
+
+            if status.showsLevel {
+                BubbleMeter(levels: model.meter.history, color: theme.live.color)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.18), value: status.showsLevel)
+    }
+
+    private func title(_ text: String) -> some View {
+        Text(text).font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color)
+    }
+
+    private func detail(_ text: String) -> some View {
+        Text(text).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+    }
+
+    @ViewBuilder private func mark(_ kind: IslandStatus.Kind) -> some View {
+        switch kind {
+        case .notice, .asking: GlowDot(color: theme.attention.color)
+        case .problem: GlowDot(color: theme.problem.color)
+        case .ready:
+            Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(theme.accent.color)
+        default: EmptyView()
+        }
+    }
+}
+
+/// A small glowing dot: amber or coral.
+private struct GlowDot: View {
+    let color: Color
+    var body: some View {
+        Circle().fill(color).frame(width: 7, height: 7).shadow(color: color.opacity(0.8), radius: 3.5)
+    }
+}
+
+/// The microphone as Wisp's light (ADR-084): bars that rise with the voice, brighter towards the newest on the right.
+struct BubbleMeter: View {
+    let levels: [Double]
+    let color: Color
+
+    var body: some View {
+        let count = max(1, levels.count)
+        HStack(alignment: .center, spacing: 2.5) {
+            ForEach(levels.indices, id: \.self) { i in
+                Capsule()
+                    .fill(color.opacity(0.35 + 0.65 * Double(i + 1) / Double(count)))
+                    .frame(width: 2.5, height: 4 + 16 * min(1, max(0, levels[i])))
+            }
+        }
+        .frame(height: 22)
+        .shadow(color: color.opacity(0.6), radius: 4)
+        .animation(.linear(duration: 0.05), value: levels)
+        .accessibilityHidden(true)
+    }
+}
+
 /// The window that carries the bubble: transparent, click-through, never takes focus, and follows Wisp.
 @MainActor
 final class BubbleController {
-    /// Room around the bubble for its shadow.
-    static let shadowInset: CGFloat = 12
+    /// Room around the bubble for its shadow and the glow of its light.
+    static let shadowInset: CGFloat = 22
 
     let state = BubbleState()
     private let model: IslandModel

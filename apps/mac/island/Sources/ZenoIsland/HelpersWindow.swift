@@ -42,8 +42,12 @@ final class HelpersWindowController: NSObject, NSWindowDelegate {
 
     private func makeWindow() -> NSWindow {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 520),
-                              styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+                              styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+                              backing: .buffered, defer: false)
         window.title = "Helpers"
+        // ADR-084: the content runs under a clear title bar, so the sidebar reaches the top with the window's buttons on it.
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 600, height: 400)
         window.contentView = NSHostingView(rootView: HelpersView(model: model))

@@ -59,6 +59,24 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
 
     /// The state badge's word: a done job that hit a limit says so.
     public var badge: String { state == .done && partial ? "Partial" : state.title }
+
+    /// How far a running job is, from its step's "n of m" ("Reading 3 of 8 pages" is 3/8), for the Helpers window's
+    /// line of light (ADR-084). Nil when the job is not running or its step has no count it can trust.
+    public var progress: Double? {
+        guard state == .running, let step else { return nil }
+        return Self.progress(in: step)
+    }
+
+    /// The first "n of m" in `text` as n/m, when 0 ≤ n ≤ m and m > 0.
+    public static func progress(in text: String) -> Double? {
+        let words = text.split(whereSeparator: \.isWhitespace).map(String.init)
+        for i in words.indices.dropFirst().dropLast() where words[i].lowercased() == "of" {
+            guard let done = Int(words[i - 1]), let total = Int(words[i + 1].trimmingCharacters(in: .punctuationCharacters)),
+                  total > 0, done >= 0, done <= total else { continue }
+            return Double(done) / Double(total)
+        }
+        return nil
+    }
 }
 
 public struct Helper: Sendable, Equatable, Identifiable {

@@ -2,15 +2,19 @@ import AppKit
 import SwiftUI
 import ZenoIslandCore
 
-/// The Helpers window's content (ADR-081): one card per helper on the left; the chosen helper's app, a task field and
-/// its jobs on the right, or the report being read. The logic lives in `HelpersState`; these views only draw it.
+/// The Helpers window's content (ADR-081), in Lantern (ADR-084): a darker sidebar of helpers as discs; the chosen
+/// helper with its "Opens in" and "Model" pills, a task field and one list of jobs, or the report being read.
+/// The logic lives in `HelpersState`; these views only draw it.
 struct HelpersView: View {
     let model: IslandModel
+
+    /// Room at the top of the sidebar for the window's buttons (the title bar is transparent over the content).
+    static let titleBarRoom: CGFloat = 40
 
     var body: some View {
         let palette = model.settings.theme.palette
         HStack(spacing: 0) {
-            HelperSidebar(model: model).frame(width: 220)
+            HelperSidebar(model: model).frame(width: 224)
             Rectangle().fill(palette.separator.color).frame(width: 0.5)
             Group {
                 if let helper = model.helpers.selectedHelper {
@@ -25,7 +29,8 @@ struct HelpersView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .background(palette.surfaceSolid.color)
+        .background(Rectangle().fill(palette.surfaceFill(solid: true)).ignoresSafeArea())
+        .ignoresSafeArea(edges: .top)
         .themed(palette)
     }
 }
@@ -50,11 +55,7 @@ private struct HelperSidebar: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Helpers")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(theme.text2.color)
-                .padding(.leading, 6)
+        VStack(alignment: .leading, spacing: 4) {
             ForEach(model.helpers.list?.helpers ?? []) { helper in
                 Button { model.helpers.selectHelper(helper.id) } label: {
                     HelperCard(helper: helper, selected: helper.id == model.helpers.selectedHelperId)
@@ -65,13 +66,16 @@ private struct HelperSidebar: View {
             Spacer(minLength: 0)
             if let list = model.helpers.list { AllowLargeSwitch(model: model, list: list) }
         }
-        .padding(12)
+        .padding(.horizontal, 14)
+        .padding(.top, HelpersView.titleBarRoom)
+        .padding(.bottom, 18)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(theme.fill1.color)
+        // Darker than the window: the list sits back, the chosen helper comes forward.
+        .background((theme.isDark ? Color.black.opacity(0.2) : theme.fill1.color).ignoresSafeArea())
     }
 }
 
-/// "Allow the large model for helpers" (ADR-083): window-wide, so it sits under the helper list.
+/// "Allow the large model for helpers" (ADR-083): window-wide, so it sits at the bottom of the sidebar.
 private struct AllowLargeSwitch: View {
     let model: IslandModel
     let list: HelpersList
@@ -79,21 +83,21 @@ private struct AllowLargeSwitch: View {
 
     var body: some View {
         let enabled = !list.models.isEmpty
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text("Allow the large model for helpers")
-                    .font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text.color)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 4)
-                ThemedSwitch(isOn: list.allowLarge, set: { model.sendHelpers(model.helpers.setAllowLarge($0)) },
-                             label: "Allow the large model for helpers")
-                    .disabled(!enabled)
+                    .font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
+                Text(enabled ? "Off: jobs use at most the medium model, saving your plan." : "Needs the Claude plan")
+                    .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             }
-            Text(enabled ? "Off: jobs use at most the medium model, saving your plan." : "Needs the Claude plan")
-                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
-                .fixedSize(horizontal: false, vertical: true)
+            .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 4)
+            ThemedSwitch(isOn: list.allowLarge, set: { model.sendHelpers(model.helpers.setAllowLarge($0)) },
+                         label: "Allow the large model for helpers")
+                .shadow(color: theme.accent.color.opacity(list.allowLarge && enabled && theme.isDark ? 0.5 : 0), radius: 6)
+                .disabled(!enabled)
         }
-        .padding(9)
+        .padding(.horizontal, 8)
         .opacity(enabled ? 1 : 0.6)
     }
 }
@@ -105,25 +109,30 @@ private struct HelperCard: View {
 
     var body: some View {
         let running = helper.jobs.contains { $0.state == .running }
-        HStack(spacing: 10) {
-            HelperBadge(helper: helper, size: 34)
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 11) {
+            HelperBadge(helper: helper, size: 32)
+            VStack(alignment: .leading, spacing: 1) {
                 Text(helper.name).font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
-                if helper.available {
-                    Text(helper.app ?? "No app").font(.system(size: 11)).foregroundStyle(theme.text2.color)
-                    Text(helper.activity).font(.system(size: 11)).foregroundStyle(running ? theme.live.color : theme.text3.color)
-                } else {
-                    Text("Coming soon").font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                Group {
+                    if !helper.available {
+                        Text("Coming soon").foregroundStyle(theme.text3.color)
+                    } else if running {
+                        Text(helper.activity).foregroundStyle(theme.live.color)
+                    } else {
+                        Text(helper.app ?? "No app").foregroundStyle(theme.text3.color)
+                    }
                 }
+                .font(.system(size: 11))
             }
             .lineLimit(1)
             Spacer(minLength: 0)
         }
-        .padding(9)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 8)
         .background {
-            RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
-                .fill(selected ? (theme.isDark ? theme.fill3.color : Color.white) : Color.clear)
-                .shadow(color: .black.opacity(selected && !theme.isDark ? 0.08 : 0), radius: 1.5, y: 0.5)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(selected ? (theme.isDark ? theme.fill2.color : Color.white.opacity(0.85)) : Color.clear)
+                .shadow(color: .black.opacity(selected && !theme.isDark ? 0.06 : 0), radius: 1.5, y: 0.5)
         }
         .opacity(helper.available ? 1 : 0.5)
         .contentShape(Rectangle())
@@ -132,27 +141,63 @@ private struct HelperCard: View {
     }
 }
 
-/// A helper's mark: its avatar image for what it is doing (ADR-085) in a disc, else a plain, neutral person.
+/// A helper's mark (ADR-085): its avatar image for what it is doing, else its first letter, in a disc. While it
+/// works, an arc of Wisp's light runs round it (a still ring with Reduce Motion).
 struct HelperBadge: View {
     let helper: Helper
     let size: CGFloat
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let working = helper.jobs.contains { $0.state == .running }
         Group {
             if let image = AvatarImages.image(helper.id, AvatarExpression.helper(helper)) {
                 // Exports leave room around the character: a little larger, so it fills the disc.
                 Image(nsImage: image).resizable().scaledToFit().scaleEffect(1.15)
             } else {
-                Image(systemName: "person.fill")
-                    .font(.system(size: size * 0.45, weight: .medium))
-                    .foregroundStyle(theme.text2.color)
+                Text(helper.name.prefix(1).uppercased())
+                    .font(.system(size: size * 0.42, weight: .semibold, design: .rounded))
+                    .foregroundStyle(theme.text.color)
             }
         }
         .frame(width: size, height: size)
         .background(Circle().fill(theme.fill2.color))
         .clipShape(Circle())
+        .overlay { if working { WorkingArc(lineWidth: size >= 36 ? 2.2 : 1.8).padding(-3.5) } }
         .accessibilityHidden(true)
+    }
+}
+
+/// Wisp's light running round a working helper's disc: a 70% arc that fades in from its tail and turns once every
+/// 1.6 s. Still with Reduce Motion (a full, quiet ring) and in snapshots (the arc).
+private struct WorkingArc: View {
+    let lineWidth: CGFloat
+    @Environment(\.theme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.islandSnapshot) private var snapshot
+
+    var body: some View {
+        let light = theme.live.color
+        if reduceMotion {
+            Circle().stroke(light.opacity(0.75), lineWidth: lineWidth)
+                .shadow(color: light.opacity(0.4), radius: 4)
+        } else if snapshot {
+            arc(light)
+        } else {
+            TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+                let turn = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.6) / 1.6
+                arc(light).rotationEffect(.degrees(turn * 360))
+            }
+        }
+    }
+
+    private func arc(_ light: Color) -> some View {
+        Circle()
+            .trim(from: 0, to: 0.7)
+            .stroke(AngularGradient(colors: [light.opacity(0), light], center: .center, startAngle: .degrees(0), endAngle: .degrees(252)),
+                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+            .rotationEffect(.degrees(-90))
+            .shadow(color: light.opacity(0.5), radius: 4)
     }
 }
 
@@ -165,37 +210,60 @@ private struct HelperPane: View {
 
     var body: some View {
         Scrollable {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 12) {
-                    HelperBadge(helper: helper, size: 40)
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(spacing: 14) {
+                    HelperBadge(helper: helper, size: 42)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(helper.name).font(.system(size: 18, weight: .bold)).foregroundStyle(theme.text.color)
-                        Text(helper.app.map { "Works in \($0)" } ?? "No app chosen")
-                            .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                        Text(helper.name).font(.system(size: 18, weight: .semibold, design: .rounded)).foregroundStyle(theme.text.color)
+                        Text(Self.summary(helper)).font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                            .lineLimit(1)
                     }
                 }
-                Card(footer: "Where \(helper.name) opens what it finds, and the model its jobs run on.") {
-                    Row(title: "App") { AppPicker(model: model, helper: helper) }
-                    RowDivider()
-                    let models = model.helpers.list?.models ?? []
-                    Row(title: "Model", detail: models.isEmpty ? "Needs the Claude plan" : nil) {
-                        ModelPicker(model: model, helper: helper, models: models)
-                    }
+                HStack(spacing: 8) {
+                    AppPicker(model: model, helper: helper)
+                    ModelPicker(model: model, helper: helper, models: model.helpers.list?.models ?? [])
                 }
                 TaskField(model: model, helper: helper)
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
-                Card("Jobs") {
-                    if helper.jobs.isEmpty {
-                        Row(title: "No jobs yet", detail: "Give \(helper.name) a task above.") { EmptyView() }
-                    }
-                    ForEach(Array(helper.jobs.enumerated()), id: \.element.id) { index, job in
-                        if index > 0 { RowDivider() }
-                        JobRow(model: model, job: job)
-                    }
-                }
+                JobList(model: model, helper: helper)
             }
-            .padding(18)
+            .padding(.horizontal, Spacing.panel)
+            .padding(.top, 28)
+            .padding(.bottom, Spacing.panel)
         }
+    }
+
+    /// Under the name: how many jobs are running, waiting and done ("1 running, 1 waiting, 1 done"). The step itself
+    /// is in the sidebar and on the job.
+    static func summary(_ helper: Helper) -> String {
+        let counts: [(JobState, String)] = [(.running, "running"), (.queued, "waiting"), (.done, "done"), (.failed, "failed")]
+        let parts = counts.compactMap { state, word in
+            let n = helper.jobs.filter { $0.state == state }.count
+            return n > 0 ? "\(n) \(word)" : nil
+        }
+        return parts.isEmpty ? "Ready for a task" : parts.joined(separator: ", ")
+    }
+}
+
+/// A compact pill for a pop-up menu: a quiet label, the value and an up-down chevron, as in the mock.
+private struct PillMenuLabel: View {
+    let label: String
+    let value: String
+    var dimmed = false
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(label).foregroundStyle(theme.text3.color)
+            Text(value).fontWeight(.medium).foregroundStyle(dimmed ? theme.text2.color : theme.text.color)
+            Image(systemName: "chevron.up.chevron.down").font(.system(size: 8, weight: .bold)).foregroundStyle(theme.text3.color)
+        }
+        .font(.system(size: 11.5))
+        .lineLimit(1)
+        .padding(.horizontal, 12)
+        .frame(height: 28)
+        .background(Capsule().fill(theme.fill2.color))
+        .contentShape(Capsule())
     }
 }
 
@@ -215,14 +283,15 @@ private struct AppPicker: View {
                 }
             }
         } label: {
-            MenuLabel(text: helper.app ?? "No app", dimmed: helper.app == nil)
+            PillMenuLabel(label: "Opens in", value: helper.app ?? "No app", dimmed: helper.app == nil)
         }
         .menuStyle(.button).buttonStyle(.plain).fixedSize()
+        .help("Where \(helper.name) opens what it finds")
         .accessibilityLabel("\(helper.name)'s app")
     }
 }
 
-/// "Chosen by Laya" or a pinned model (ADR-083).
+/// "Chosen by Laya" or a pinned model (ADR-083). Without the Claude plan the pill says so and is disabled.
 private struct ModelPicker: View {
     let model: IslandModel
     let helper: Helper
@@ -230,6 +299,7 @@ private struct ModelPicker: View {
 
     var body: some View {
         let pinned = models.first { $0.id == helper.pinnedModel }
+        let value = models.isEmpty ? "Needs the Claude plan" : (pinned?.name ?? helper.pinnedModel ?? "Chosen by Laya")
         Menu {
             Button { model.sendHelpers(model.helpers.pinModel(nil)) } label: {
                 if helper.pinnedModel == nil { Label("Chosen by Laya", systemImage: "checkmark") } else { Text("Chosen by Laya") }
@@ -241,15 +311,17 @@ private struct ModelPicker: View {
                 }
             }
         } label: {
-            MenuLabel(text: pinned?.name ?? helper.pinnedModel ?? "Chosen by Laya", dimmed: helper.pinnedModel == nil || models.isEmpty)
+            PillMenuLabel(label: "Model", value: value, dimmed: models.isEmpty)
         }
         .menuStyle(.button).buttonStyle(.plain).fixedSize()
         .disabled(models.isEmpty)
+        .help("The model \(helper.name)'s jobs run on")
         .accessibilityLabel("\(helper.name)'s model")
     }
 }
 
-/// "Give Sid a task": Return or Add sends it.
+/// "Give Sid a task": a capsule with an arrow button, concentric with it (40 tall, the 28 pt button 6 from the
+/// edge). Return or the arrow adds it.
 private struct TaskField: View {
     let model: IslandModel
     let helper: Helper
@@ -259,6 +331,7 @@ private struct TaskField: View {
     @Environment(\.islandSnapshot) private var snapshot
 
     var body: some View {
+        let ready = !draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         HStack(spacing: 8) {
             if snapshot { // ImageRenderer cannot draw a text field
                 Text("Give \(helper.name) a task").font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
@@ -271,14 +344,24 @@ private struct TaskField: View {
                     .onSubmit(add)
                     .accessibilityLabel("Task for \(helper.name)")
             }
-            PillButton(title: "Add", prominent: true, action: add)
-                .disabled(draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            Button(action: add) {
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(ready ? theme.onAccent.color : theme.text3.color)
+                    .frame(width: 28, height: 28)
+                    .background(Circle().fill(ready ? AnyShapeStyle(theme.accentFill) : AnyShapeStyle(theme.fill2.color)))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!ready)
+            .help("Add")
+            .accessibilityLabel("Add")
         }
-        .padding(.leading, 11)
-        .padding(.trailing, 5)
-        .padding(.vertical, 5)
-        .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).fill(theme.fill1.color))
-        .overlay(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).strokeBorder(theme.separator.color, lineWidth: 0.5))
+        .padding(.leading, 16)
+        .padding(.trailing, 6)
+        .frame(height: 40)
+        .background(Capsule().fill(theme.fill1.color))
+        .overlay(Capsule().strokeBorder(theme.separator.color, lineWidth: 0.6))
     }
 
     private func add() {
@@ -288,47 +371,87 @@ private struct TaskField: View {
     }
 }
 
+/// Every job in one well, newest first; a hairline between rows.
+private struct JobList: View {
+    let model: IslandModel
+    let helper: Helper
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
+        VStack(alignment: .leading, spacing: 0) {
+            if helper.jobs.isEmpty {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("No jobs yet").font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color)
+                    Text("Give \(helper.name) a task above.").font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+            }
+            ForEach(Array(helper.jobs.enumerated()), id: \.element.id) { index, job in
+                if index > 0 { Rectangle().fill(theme.separator.color).frame(height: 0.5) }
+                JobRow(model: model, job: job)
+            }
+        }
+        .background(shape.fill(theme.fill1.color))
+        .overlay(shape.strokeBorder(theme.separator.color, lineWidth: 0.5))
+    }
+}
+
 private struct JobRow: View {
     let model: IslandModel
     let job: HelperJob
     @Environment(\.theme) private var theme
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            StateBadge(job: job)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(job.task).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
-                if let line = model.helpers.list?.modelLine(job) {
-                    Text(line).font(.system(size: 10.5)).foregroundStyle(theme.text2.color)
-                }
-                if let title = job.title {
-                    Text(title).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(theme.text.color)
-                }
+        HStack(alignment: .top, spacing: 12) {
+            JobDot(job: job).padding(.top, 5)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(job.title ?? job.task)
+                    .font(.system(size: 13, weight: job.hasReport ? .semibold : .medium))
+                    .foregroundStyle(theme.text.color)
+                    .lineLimit(2)
                 if let summary = job.summary {
-                    Text(summary).font(.system(size: 11)).foregroundStyle(theme.text2.color)
+                    Text(summary).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
                 }
                 if job.state == .running, let step = job.step {
-                    Text(step).font(.system(size: 11)).foregroundStyle(theme.live.color)
+                    HStack(spacing: 8) {
+                        if let progress = job.progress { ProgressLine(fraction: progress) }
+                        Text(step).font(.system(size: 11)).foregroundStyle(theme.live.color).lineLimit(1)
+                    }
                 }
                 if job.state == .failed, let error = job.error { ProblemLine(text: error) }
-                if let time = Self.time(job) {
-                    Text(time).font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
-                }
+                if let meta = meta { Text(meta).font(.system(size: 11)).foregroundStyle(theme.text3.color).lineLimit(2) }
             }
             .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 6)
+            Spacer(minLength: 8)
             HStack(spacing: 6) {
                 if job.hasReport {
-                    PillButton(title: "Read", symbol: "doc.text") { model.sendHelpers(model.helpers.openReport(job.id)) }
+                    ReadReportButton { model.sendHelpers(model.helpers.openReport(job.id)) }
                 }
                 if job.state.isActive {
-                    PillButton(title: "Stop", symbol: "stop.fill") { model.sendHelpers(model.helpers.stopJob(job.id)) }
+                    QuietButton(title: "Stop") { model.sendHelpers(model.helpers.stopJob(job.id)) }
                 }
                 IconButton(symbol: "trash", label: "Delete") { model.sendHelpers(model.helpers.deleteJob(job.id)) }
             }
         }
-        .padding(.horizontal, 11)
-        .padding(.vertical, 9)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
+        .help(help)
+    }
+
+    /// The quiet line: how a done job ended early, the model and Laya's reason, or when it was added.
+    private var meta: String? {
+        var parts: [String] = []
+        if job.state == .done && job.partial { parts.append("Partial report") }
+        if job.state == .stopped { parts.append("Stopped") }
+        if let line = model.helpers.list?.modelLine(job) { parts.append(line) } else if let time = Self.time(job) { parts.append(time) }
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
+    }
+
+    /// On hover: the task as given and when it ran.
+    private var help: String {
+        [job.hasReport ? job.task : nil, Self.time(job)].compactMap { $0 }.joined(separator: "\n")
     }
 
     /// "Added 5 min. ago", and when it ended.
@@ -337,28 +460,101 @@ private struct JobRow: View {
         guard let created = job.createdAt else { return nil }
         let added = "Added \(created.formatted(style))"
         guard let ended = job.endedAt, !job.state.isActive else { return added }
-        return "\(added) · ended \(ended.formatted(style))"
+        return "\(added), ended \(ended.formatted(style))"
     }
 }
 
-private struct StateBadge: View {
+/// A job's state as a dot: lit and glowing while running, a ring while queued, solid grey when done, coral when it
+/// failed, a faint grey when stopped. The state's word is its VoiceOver label.
+private struct JobDot: View {
     let job: HelperJob
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let color: Color = switch job.state {
-        case .queued: theme.text2.color
-        case .running: theme.live.color
-        case .done: job.partial ? theme.attention.color : theme.success.color
-        case .failed: theme.problem.color
-        case .stopped: theme.text3.color
+        Group {
+            switch job.state {
+            case .running:
+                Circle().fill(theme.live.color).shadow(color: theme.live.color.opacity(0.9), radius: 4)
+            case .queued:
+                Circle().strokeBorder(theme.text3.color, lineWidth: 1.2)
+            case .done:
+                Circle().fill(theme.text2.color)
+            case .failed:
+                Circle().fill(theme.problem.color).shadow(color: theme.problem.color.opacity(0.6), radius: 3)
+            case .stopped:
+                Circle().fill(theme.text3.color.opacity(0.6))
+            }
         }
-        Text(job.badge)
-            .font(.system(size: 10, weight: .semibold))
-            .foregroundStyle(color)
-            .padding(.horizontal, 6)
-            .frame(width: 62, height: 18)
-            .background(Capsule().fill(color.opacity(0.14)))
+        .frame(width: 7, height: 7)
+        .accessibilityLabel(job.badge)
+    }
+}
+
+/// A thin line of Wisp's light under a running job, as far as its step's "n of m".
+private struct ProgressLine: View {
+    let fraction: Double
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            Capsule().fill(theme.fill3.color)
+            Capsule().fill(theme.live.color)
+                .frame(width: max(3, 120 * min(1, max(0, fraction))))
+                .shadow(color: theme.live.color.opacity(0.7), radius: 4)
+        }
+        .frame(width: 120, height: 3)
+        .accessibilityHidden(true)
+    }
+}
+
+/// "Read report": the window's one lit button, outlined in Wisp's light.
+private struct ReadReportButton: View {
+    let action: () -> Void
+    private let hovering = State(initialValue: false)
+    @Environment(\.theme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Button(action: action) {
+            Text("Read report")
+                .font(.system(size: 11.5, weight: .semibold))
+                .foregroundStyle(theme.accent.color)
+                .padding(.horizontal, 13)
+                .frame(height: 26)
+                .background(Capsule().fill(theme.accent.color.opacity(hovering.wrappedValue ? 0.12 : 0)))
+                .overlay(Capsule().strokeBorder(theme.accent.color.opacity(0.45), lineWidth: 0.8))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering.wrappedValue = $0 }
+        .animation(Motion.snap(reduceMotion), value: hovering.wrappedValue)
+    }
+}
+
+/// A quiet capsule button: Stop, Jobs.
+private struct QuietButton: View {
+    let title: String
+    var symbol: String? = nil
+    let action: () -> Void
+    private let hovering = State(initialValue: false)
+    @Environment(\.theme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                if let symbol { Image(systemName: symbol).font(.system(size: 10, weight: .semibold)) }
+                Text(title).font(.system(size: 11.5, weight: .medium))
+            }
+            .foregroundStyle(hovering.wrappedValue ? theme.text.color : theme.text2.color)
+            .padding(.horizontal, 12)
+            .frame(height: 26)
+            .background(Capsule().fill(hovering.wrappedValue ? theme.fill3.color : theme.fill2.color))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering.wrappedValue = $0 }
+        .animation(Motion.snap(reduceMotion), value: hovering.wrappedValue)
     }
 }
 
@@ -382,24 +578,18 @@ private struct ReportPane: View {
 
     var body: some View {
         Scrollable {
-            VStack(alignment: .leading, spacing: 12) {
-                PillButton(title: "Jobs", symbol: "chevron.left") { model.helpers.closeReport() }
+            VStack(alignment: .leading, spacing: 14) {
+                QuietButton(title: "Jobs", symbol: "chevron.left") { model.helpers.closeReport() }
                 if let report = model.helpers.report {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(report.title).font(.system(size: 18, weight: .bold)).foregroundStyle(theme.text.color)
-                        Text(report.summary).font(.system(size: 12.5)).foregroundStyle(theme.text2.color)
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(report.title).font(.system(size: 20, weight: .semibold, design: .rounded)).foregroundStyle(theme.text.color)
+                        Text(report.summary).font(.system(size: 13)).foregroundStyle(theme.text2.color)
                     }
+                    .padding(.bottom, 4)
                     ForEach(Array(report.paragraphs.enumerated()), id: \.offset) { _, paragraph in
-                        Text(paragraph).font(.system(size: 12.5)).foregroundStyle(theme.text.color).lineSpacing(2)
+                        Text(paragraph).font(.system(size: 13)).foregroundStyle(theme.text.color).lineSpacing(3.5)
                     }
-                    if !report.sources.isEmpty {
-                        Card("Sources") {
-                            ForEach(Array(report.sources.enumerated()), id: \.offset) { index, source in
-                                if index > 0 { RowDivider() }
-                                SourceRow(source: source)
-                            }
-                        }
-                    }
+                    if !report.sources.isEmpty { SourceList(sources: report.sources).padding(.top, 6) }
                 } else if let problem = model.helpers.problem {
                     ProblemLine(text: problem)
                 } else {
@@ -410,8 +600,31 @@ private struct ReportPane: View {
                 }
             }
             .textSelection(.enabled)
+            .frame(maxWidth: 560, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(18)
+            .padding(.horizontal, Spacing.panel + 4)
+            .padding(.top, 30)
+            .padding(.bottom, Spacing.panel)
+        }
+    }
+}
+
+private struct SourceList: View {
+    let sources: [ReportSource]
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Sources").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
+            VStack(spacing: 0) {
+                ForEach(Array(sources.enumerated()), id: \.offset) { index, source in
+                    if index > 0 { Rectangle().fill(theme.separator.color).frame(height: 0.5).padding(.leading, 40) }
+                    SourceRow(source: source)
+                }
+            }
+            .background(shape.fill(theme.fill1.color))
+            .overlay(shape.strokeBorder(theme.separator.color, lineWidth: 0.5))
         }
     }
 }
@@ -425,18 +638,19 @@ private struct SourceRow: View {
             // The decoder keeps http(s) sources only; checked again here, right before opening.
             if let url = ReportSource.webURL(source.url.absoluteString) { NSWorkspace.shared.open(url) }
         } label: {
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 Image(systemName: "link").font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.accent.color)
+                    .frame(width: 16)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(source.title).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
-                    Text(source.url.host ?? source.url.absoluteString).font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                    Text(source.title).font(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color)
+                    Text(source.url.host ?? source.url.absoluteString).font(.system(size: 11)).foregroundStyle(theme.text3.color)
                 }
                 .lineLimit(1)
                 Spacer(minLength: 6)
                 Image(systemName: "arrow.up.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(theme.text3.color)
             }
-            .padding(.horizontal, 11)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

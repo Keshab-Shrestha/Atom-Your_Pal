@@ -29,9 +29,11 @@ public enum BubbleLayout {
     /// The bubble with its tail: the body is `size.height - tailHeight` tall.
     public static let size = CGSize(width: 340, height: 60)
     public static let tailHeight: CGFloat = 8
-    public static let cornerRadius: CGFloat = 16
-    /// The tail stays this far from the bubble's ends, clear of the rounded corners.
-    public static let tailInset: CGFloat = 22
+    /// Lantern's bubble radius (ADR-084, design study §3 A).
+    public static let cornerRadius: CGFloat = 18
+    /// The tail stays this far from the bubble's ends, clear of the rounded corners: the corner radius plus the
+    /// tail's half-width plus a little.
+    public static let tailInset: CGFloat = 28
 
     /// - Parameters:
     ///   - feet: the point on the ground under Wisp.
