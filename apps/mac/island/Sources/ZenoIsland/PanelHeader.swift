@@ -8,7 +8,7 @@ import ZenoIslandCore
 /// Where the header's Wisp sits, from the panel's top-left corner: the centre of its 38 pt slot. The glow is
 /// centred here so the light comes from Wisp.
 private enum HeaderLayout {
-    static let padding = EdgeInsets(top: 16, leading: 18, bottom: 10, trailing: 18)
+    static let padding = EdgeInsets(top: 20, leading: Spacing.panel, bottom: 12, trailing: Spacing.panel)
     static let wispSlot: CGFloat = 38
     static let wispSize: CGFloat = 34
     static var wispCentre: CGPoint { CGPoint(x: padding.leading + wispSlot / 2, y: padding.top + wispSlot / 2) }
@@ -20,8 +20,8 @@ struct PanelHeader: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
                 HeaderWisp(kind: model.status.kind, style: model.settings.wispStyle)
                     .frame(width: HeaderLayout.wispSlot, height: HeaderLayout.wispSlot)
                 stateText
@@ -34,7 +34,14 @@ struct PanelHeader: View {
                 IconButton(symbol: "person.2", label: "Helpers", diameter: 26) { model.openHelpers() }
                 IconButton(symbol: "xmark", label: "Close (Esc)", diameter: 26) { model.setExpanded(false) }
             }
-            WordTabs(selection: Binding(get: { model.tab }, set: { model.tab = $0 }))
+            HStack(alignment: .top, spacing: 8) {
+                WordTabs(selection: Binding(get: { model.tab }, set: { model.tab = $0 }))
+                // ADR-084: "New conversation" is a pencil beside the tabs, there once a conversation has begun.
+                if model.tab == .conversation, !model.conversation.isEmpty {
+                    PencilButton { model.newConversation() }
+                        .transition(.opacity)
+                }
+            }
         }
         .padding(HeaderLayout.padding)
     }
@@ -57,6 +64,32 @@ struct PanelHeader: View {
         .lineLimit(1)
         .animation(.easeOut(duration: 0.18), value: model.status.title)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// A bare glyph button (no disc) for the tab row: brightens and gains a soft round fill on hover.
+private struct PencilButton: View {
+    let action: () -> Void
+    /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
+    private let hovering = State(initialValue: false)
+    @Environment(\.theme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "square.and.pencil")
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundStyle(hovering.wrappedValue ? theme.text.color : theme.text2.color)
+                .frame(width: 26, height: 26)
+                .background(Circle().fill(hovering.wrappedValue ? theme.fill1.color : .clear))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .offset(y: -5) // centred on the tab words, not on the words and the light under them
+        .onHover { hovering.wrappedValue = $0 }
+        .animation(Motion.snap(reduceMotion), value: hovering.wrappedValue)
+        .help("New conversation")
+        .accessibilityLabel("New conversation")
     }
 }
 

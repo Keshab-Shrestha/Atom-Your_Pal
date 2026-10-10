@@ -4,20 +4,9 @@ import ZenoIslandCore
 /// Everything the island's views show, and the actions they can take. Owned by `IslandController`.
 @MainActor @Observable
 final class IslandModel {
-    enum Tab: String, CaseIterable, Identifiable {
-        case conversation = "Conversation"
-        case status = "Status"
-        case settings = "Settings"
-        var id: String { rawValue }
-
-        var symbol: String {
-            switch self {
-            case .conversation: "bubble.left.and.text.bubble.right"
-            case .status: "gauge.with.dots.needle.33percent"
-            case .settings: "gearshape"
-            }
-        }
-    }
+    /// Conversation and Settings (ADR-084: the Status tab became Settings' "now" card).
+    typealias Tab = PanelTab
+    typealias SettingsPage = ZenoIslandCore.SettingsPage
 
     var status = IslandStatus()
     /// What ZENO is waiting for the user to allow (ADR-054).
@@ -45,37 +34,21 @@ final class IslandModel {
     /// The Helpers window is open: a restarted runtime is asked for the list again.
     var helpersWindowOpen = false
 
-    var expanded = false
+    var expanded = false {
+        didSet { if expanded && !oldValue { settingsCascaded = false } } // each opening cascades Settings once
+    }
+    /// Settings home has already cascaded in since the panel opened (ADR-084).
+    @ObservationIgnored var settingsCascaded = false
     /// The panel is fading out after being closed: it still draws the expanded view until it is gone.
     var closing = false
+    /// The panel's content at full size (ADR-084). False for the moment it opens, so it can grow in from the menu-bar
+    /// icon, and while it closes. Set by the controller, inside the open and close animations.
+    var presented = true
+    /// Where the panel grows from, as a fraction of its width (0 left, 1 right). Set by the controller.
+    var openAnchorX = 1.0
     var tab = Tab.conversation
     /// The Settings page open inside the Settings tab; nil shows the list of pages (ADR-057).
     var settingsPage: SettingsPage?
-
-    enum SettingsPage: String, CaseIterable, Identifiable {
-        case examples = "What can I ask?"
-        case appearance = "Appearance"
-        case model = "AI model"
-        case shortcuts = "Shortcuts"
-        case dictation = "Dictation"
-        case wisp = "Wisp"
-        case memory = "Memory"
-        case general = "General"
-        var id: String { rawValue }
-
-        var symbol: String {
-            switch self {
-            case .examples: "questionmark.bubble.fill"
-            case .appearance: "paintpalette.fill"
-            case .model: "sparkles"
-            case .shortcuts: "command"
-            case .dictation: "mic.fill"
-            case .wisp: "face.smiling.inverse"
-            case .memory: "brain.head.profile"
-            case .general: "gearshape.fill"
-            }
-        }
-    }
 
     /// Draw the expanded view (open, or fading out).
     var showsExpanded: Bool { expanded || closing }

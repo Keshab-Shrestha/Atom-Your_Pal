@@ -770,6 +770,14 @@ Design: `docs/design/design-study.md` §3 A (tokens, type, motion) and §4 (roll
 - 4.3: live Wisp in the header (the user's Wisp style and mood), state in rounded type, three word tabs with a sliding light (Status stays until 4.4), header glow by state (`PanelLight`, tested); focus order and VoiceOver labels kept.
 - Known limits: the panel rim does not yet follow the state; the glow is faint on Lantern Day.
 
+**As built, 4.4–4.6 and Keshab's feedback (2026-10-10):** built; tested (444 Swift); seen in the gallery; not yet checked by eye in the running app (corners and shadow, open and close, the menu-bar glyph).
+- Feedback "a padding for the whole and more in conversation; the box shape is square": `Spacing` values (panel edges 22, inside wells 14, between wells 18, conversation sides 26, between turns 28); the edge-to-edge hairlines and hard scroll edge that boxed in the conversation are gone; the window shadow is re-traced after opening and resizing, and the blur gets a rounded mask before macOS 26 (both possible causes of square corners in the real app).
+- 4.4: the Status tab is gone; Settings opens with a "now" card (provider, model, "Change model", plan meters, microphone, voice, "Last turn" with every stage on tap, the last problem), then two groups of rows with outline glyphs; pages push with a hand-off, rows cascade once per opening (`PanelPages`, tested).
+- 4.5: quiet rounded slips for the user, full-width replies with no avatar, older replies fade, a breathing caret after the reply being spoken, a pencil for New conversation, a capsule composer with a lit mic that becomes Send once you type; hover still shows a turn's timings.
+- 4.6: the panel opens from under the menu-bar icon on `Motion.open` (96 %, a 6 pt drop, 0.3 s fade) and closes on `Motion.close` without bounce; Reduce Motion fades only.
+- The menu-bar glyph is redrawn from Wisp's own body (egg-shaped head, one soft wave into a tail, Wisp's eyes), so it no longer resembles a well-known game character.
+- Known limits: replies arrive whole, so words do not fade in one by one; the shadow may lag the opening size for about 0.2 s; `IslandController.swift` is 1120 lines.
+
 - **4.4 Settings home with "now".** The Status tab's content in a top card, monochrome rows, page hand-off; the Status tab removed last.
 - **4.5 Conversation.** Quiet user slips, full-width replies without avatars, older turns receding, a glowing caret while a reply streams, a pencil for New conversation, a lit mic.
 - **4.6 Panel open and close.** Springs from the menu-bar item.

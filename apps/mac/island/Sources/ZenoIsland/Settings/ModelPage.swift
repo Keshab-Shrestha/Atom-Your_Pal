@@ -53,7 +53,7 @@ struct ModelSection: View {
                         .font(.system(size: 11))
                         .foregroundStyle(theme.problem.color)
                         .fixedSize(horizontal: false, vertical: true)
-                        .padding(11)
+                        .padding(Spacing.well)
                 }
             }
             if info.provider == "claude-plan" { PlanMetersCard(usage: model.planUsage) }

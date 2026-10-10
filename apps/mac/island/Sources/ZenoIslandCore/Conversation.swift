@@ -74,3 +74,14 @@ public struct Conversation: Sendable, Equatable {
         change(&turns[last])
     }
 }
+
+// ADR-084 (Lantern, Task 4.5): the light stays with the newest words.
+extension Conversation {
+    /// The newest turn keeps full brightness; older turns recede to secondary text.
+    public func isLatest(_ turn: Turn) -> Bool { turn.id == turns.last?.id }
+}
+
+extension Conversation.Turn {
+    /// The reply is here and the turn is still going (it is being spoken): a caret of light glows after it.
+    public var isStreaming: Bool { outcome == .inProgress && reply != nil }
+}

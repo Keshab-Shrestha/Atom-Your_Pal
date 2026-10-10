@@ -44,12 +44,12 @@ struct Card<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             if let title {
                 Text(title)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(theme.text2.color)
-                    .padding(.leading, 4)
+                    .padding(.leading, 6)
             }
             VStack(alignment: .leading, spacing: 0) { content }
                 .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).fill(theme.fill1.color))
@@ -59,7 +59,7 @@ struct Card<Content: View>: View {
                     .font(.system(size: 10.5))
                     .foregroundStyle(theme.text3.color)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 4)
+                    .padding(.horizontal, 6)
             }
         }
     }
@@ -83,15 +83,17 @@ struct Row<Trailing: View>: View {
             Spacer(minLength: 6)
             trailing
         }
-        .padding(.horizontal, 11)
-        .padding(.vertical, 8)
-        .frame(minHeight: 36)
+        .padding(.horizontal, Spacing.well)
+        .padding(.vertical, 9)
+        .frame(minHeight: 40)
     }
 }
 
 struct RowDivider: View {
+    /// Where the hairline starts from the well's leading edge.
+    var inset: CGFloat = Spacing.well
     @Environment(\.theme) private var theme
-    var body: some View { Rectangle().fill(theme.separator.color).frame(height: 0.5).padding(.leading, 11) }
+    var body: some View { Rectangle().fill(theme.separator.color).frame(height: 0.5).padding(.leading, inset) }
 }
 
 /// A switch drawn in the theme (the system's mini switch does not render in snapshots, and its colour is the
@@ -219,13 +221,13 @@ struct PillButton: View {
                 Text(title).font(.system(size: 11.5, weight: .semibold))
             }
             .foregroundStyle(prominent ? theme.onAccent.color : theme.text.color)
-            .padding(.horizontal, 10)
-            .frame(height: 24)
+            .padding(.horizontal, 11)
+            .frame(height: 26)
             .background {
-                RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous)
+                Capsule(style: .continuous)
                     .fill(prominent ? theme.accentFill : AnyShapeStyle(hovering.wrappedValue ? theme.fill3.color : theme.fill2.color))
             }
-            .contentShape(Rectangle())
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .onHover { hovering.wrappedValue = $0 }
@@ -272,7 +274,7 @@ struct ChoiceRow<Choice: SettingsChoice>: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 11)
+        .padding(.horizontal, Spacing.well)
         .padding(.vertical, 8)
     }
 }

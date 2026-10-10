@@ -25,6 +25,17 @@ struct ConversationTests {
         #expect(!c.isEmpty)
     }
 
+    /// ADR-084: the caret glows only while a reply that has arrived is still being spoken; older turns recede.
+    @Test func theCaretAndTheLightFollowTheNewestReply() {
+        var c = applying([.transcript("First"), .reply("One."), .turnComplete(timings), .state(.idle), .transcript("Second")])
+        #expect(!c.turns[1].isStreaming) // no reply yet: the thinking dots, not the caret
+        c.apply(.reply("Two."))
+        #expect(c.turns[1].isStreaming && !c.turns[0].isStreaming)
+        #expect(c.isLatest(c.turns[1]) && !c.isLatest(c.turns[0]))
+        c.apply(.turnComplete(timings))
+        #expect(!c.turns[1].isStreaming)
+    }
+
     @Test func anErrorFailsTheTurnInProgress() {
         let c = applying([.transcript("Hi"), .error(RuntimeError(stage: "model", message: "Limit reached.")), .state(.idle)])
         #expect(c.turns.map(\.outcome) == [.failed("Limit reached.")])

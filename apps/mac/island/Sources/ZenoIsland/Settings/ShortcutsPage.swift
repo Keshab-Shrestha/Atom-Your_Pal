@@ -24,7 +24,7 @@ struct ShortcutSection: View {
                         Label(problem.message, systemImage: "exclamationmark.circle.fill")
                             .font(.system(size: 10.5))
                             .foregroundStyle(theme.problem.color)
-                            .padding(.horizontal, 11)
+                            .padding(.horizontal, Spacing.well)
                             .padding(.bottom, 6)
                     }
                 }
@@ -41,7 +41,7 @@ struct ShortcutSection: View {
                         .fixedSize(horizontal: false, vertical: true)
                     PillButton(title: "Allow in System Settings…", prominent: true) { engine.requestKeyAccess() }
                 }
-                .padding(11)
+                .padding(Spacing.well)
             }
         }
         ResetPageCard(footer: "Every shortcut goes back to its default, including any you turned off.") {

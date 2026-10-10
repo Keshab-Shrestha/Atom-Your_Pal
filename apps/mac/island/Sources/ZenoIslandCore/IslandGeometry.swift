@@ -61,4 +61,12 @@ public struct MenuPanelLayout: Sendable, Equatable {
         let top = menuBarBottom - metrics.topGap
         return CGRect(x: x, y: top - size.height, width: size.width, height: size.height)
     }
+
+    /// Where the panel grows from as it opens (ADR-084), as a fraction of its width from the left: under the
+    /// menu-bar icon, so it seems to come out of it; the top-trailing corner when the icon's place is not known.
+    public func openAnchorX(_ presentation: Presentation) -> Double {
+        let frame = frame(presentation)
+        guard let iconMidX, frame.width > 0 else { return 1 }
+        return Double(min(max((iconMidX - frame.minX) / frame.width, 0), 1))
+    }
 }

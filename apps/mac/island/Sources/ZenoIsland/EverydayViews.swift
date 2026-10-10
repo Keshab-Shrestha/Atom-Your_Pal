@@ -48,7 +48,7 @@ private struct CapabilityRow: View {
                 }
             }
         }
-        .padding(.horizontal, 11)
+        .padding(.horizontal, Spacing.well)
         .padding(.vertical, 9)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -128,9 +128,12 @@ struct PlanMetersCard: View {
     }
 }
 
-private struct PlanMeter: View {
+struct PlanMeter: View {
     let title: String
     let fraction: Double
+    /// Side padding: a well's inset in a card of rows, none inside the now card.
+    var inset: CGFloat = Spacing.well
+    var height: CGFloat = 34
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -150,8 +153,8 @@ private struct PlanMeter: View {
                 .foregroundStyle(PlanUsage.level(fraction) == .normal ? theme.text2.color : color)
                 .frame(width: 38, alignment: .trailing)
         }
-        .padding(.horizontal, 11)
-        .frame(height: 34)
+        .padding(.horizontal, inset)
+        .frame(height: height)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(title) usage")
         .accessibilityValue("\(percent) percent")

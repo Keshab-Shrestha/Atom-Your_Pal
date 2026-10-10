@@ -17,7 +17,7 @@ public enum FailureAction: Sendable, Equatable {
 }
 
 /// A known setup failure in plain words: one sentence and one action (ADR-075). Unknown failures have none and keep
-/// today's text; the full technical message always stays in the Status tab.
+/// today's text; the full technical message always stays in Settings (the now card).
 public struct PlainFailure: Sendable, Equatable {
     public var sentence: String
     public var button: String

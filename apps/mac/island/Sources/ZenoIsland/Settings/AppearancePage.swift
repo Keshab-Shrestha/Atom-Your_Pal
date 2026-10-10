@@ -9,12 +9,12 @@ struct AppearanceSection: View {
     var body: some View {
         let settings = model.settings
         Card("Theme", footer: settings.theme.detail) {
-            HStack(spacing: 8) {
+            HStack(spacing: 4) {
                 ForEach(AppTheme.allCases) { option in
                     ThemeSwatch(option: option, selected: settings.theme == option) { settings.theme = option }
                 }
             }
-            .padding(10)
+            .padding(8)
         }
         Card("Wisp", footer: wispDetail(settings.wispStyle)) {
             HStack(spacing: 8) {
@@ -50,12 +50,12 @@ private struct ThemeSwatch: View {
                 ZStack(alignment: .topLeading) {
                     RoundedRectangle(cornerRadius: 8, style: .continuous).fill(p.surfaceFill(solid: true))
                     VStack(alignment: .leading, spacing: 4) {
-                        Capsule().fill(p.text.color.opacity(0.85)).frame(width: 30, height: 4)
-                        Capsule().fill(p.text2.color).frame(width: 44, height: 3)
+                        Capsule().fill(p.text.color.opacity(0.85)).frame(maxWidth: 30).frame(height: 4)
+                        Capsule().fill(p.text2.color).frame(maxWidth: 44).frame(height: 3)
                         Spacer(minLength: 0)
                         HStack(spacing: 4) {
-                            Capsule().fill(p.accentFill).frame(width: 22, height: 8)
-                            Capsule().fill(p.fill3.color).frame(width: 14, height: 8)
+                            Capsule().fill(p.accentFill).frame(maxWidth: 22).frame(height: 8)
+                            Capsule().fill(p.fill3.color).frame(maxWidth: 14).frame(height: 8)
                         }
                     }
                     .padding(7)

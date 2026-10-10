@@ -42,6 +42,13 @@ enum Motion {
     static func handOffOut(_ reduceMotion: Bool) -> Animation { reduceMotion ? plain : .easeIn(duration: 0.14) }
     static func handOffIn(_ reduceMotion: Bool) -> Animation { reduceMotion ? plain : settle(false).delay(0.12) }
 
+    /// The hand-off as a transition, for content keyed by its tab or page: it leaves with a quick fade; the new
+    /// content waits, then settles in from 98%. With Reduce Motion, a plain cross-fade.
+    static func handOff(_ reduceMotion: Bool) -> AnyTransition {
+        let arrive: AnyTransition = reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.98, anchor: .top))
+        return .asymmetric(insertion: arrive.animation(handOffIn(reduceMotion)), removal: .opacity.animation(handOffOut(reduceMotion)))
+    }
+
     /// A list arriving row by row: 30 ms apart, the eighth row and later together. None with Reduce Motion.
     static func cascadeDelay(row: Int, _ reduceMotion: Bool) -> Double {
         reduceMotion ? 0 : Double(min(max(row, 0), 8)) * 0.03

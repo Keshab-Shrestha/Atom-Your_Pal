@@ -109,3 +109,18 @@ struct KeyHint: View {
             .background(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(theme.separator.color, lineWidth: 0.8))
     }
 }
+
+/// Lantern's spacing (ADR-084, design study §3 A, one step more generous after Keshab's "lets have a padding for the
+/// whole and more when it is in conversation"): the panel's side inset, the inset inside a well, and the
+/// conversation's own, stiller margins.
+enum Spacing {
+    /// Between the panel's edge and its content: header, tabs, Settings wells, the composer.
+    static let panel: CGFloat = 22
+    /// Inside a well (rounded group of rows): a row's side padding.
+    static let well: CGFloat = 14
+    /// Between wells in Settings.
+    static let wells: CGFloat = 18
+    /// The conversation's side margin and the space between turns.
+    static let conversation: CGFloat = 26
+    static let turn: CGFloat = 28
+}

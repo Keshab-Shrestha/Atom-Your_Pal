@@ -128,7 +128,7 @@ private struct NoteRow: View {
             .accessibilityLabel("Remove")
             .help("Remove")
         }
-        .padding(.horizontal, 11)
+        .padding(.horizontal, Spacing.well)
         .padding(.vertical, 8)
         .contentShape(Rectangle())
         .onHover { hovering.wrappedValue = $0 }
@@ -163,7 +163,7 @@ private struct MemoryRow: View {
             .accessibilityLabel("Forget this")
             .help("Forget this")
         }
-        .padding(.horizontal, 11)
+        .padding(.horizontal, Spacing.well)
         .padding(.vertical, 8)
         .contentShape(Rectangle())
         .onHover { hovering.wrappedValue = $0 }

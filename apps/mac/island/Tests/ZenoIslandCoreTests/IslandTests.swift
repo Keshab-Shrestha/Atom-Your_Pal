@@ -38,6 +38,17 @@ struct MenuPanelLayoutTests {
         #expect(nan.frame(.expanded) == g.frame(.expanded))
     }
 
+    /// ADR-084: the panel grows out of the icon: from its centre, from under the icon when slid sideways, and from the
+    /// top-right corner when the icon's place is unknown.
+    @Test func thePanelOpensFromTheIcon() {
+        #expect(layout.openAnchorX(.expanded) == 0.5)
+        let right = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: 1900)
+        #expect(abs(right.openAnchorX(.expanded) - (1900 - 1532) / 380) < 0.0001)
+        #expect(MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056).openAnchorX(.expanded) == 1)
+        let edge = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: 1919)
+        #expect((0...1).contains(edge.openAnchorX(.compact)))
+    }
+
     @Test func followsATallerMenuBar() {
         // A MacBook with a notch: the menu bar is 37 points tall.
         let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1512, height: 982), menuBarBottom: 945, iconMidX: 1200)

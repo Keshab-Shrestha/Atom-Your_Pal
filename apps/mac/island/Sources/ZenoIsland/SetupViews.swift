@@ -27,8 +27,8 @@ struct SetupCards: View {
                     }
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.top, 10)
+            .padding(.horizontal, Spacing.panel)
+            .padding(.top, 14)
         }
     }
 }
@@ -75,12 +75,20 @@ struct FailureCard: View {
                         PillButton(title: "Open log") { model.perform(.openLog) }
                     }
                     Spacer(minLength: 0)
-                    Text("Details in Status")
-                        .font(.system(size: 10))
-                        .foregroundStyle(theme.text3.color)
+                    // The full message is in Settings' now card, under the last turn (ADR-084).
+                    Button {
+                        model.settingsPage = nil
+                        model.tab = .settings
+                    } label: {
+                        Text("Details in Settings")
+                            .font(.system(size: 10))
+                            .foregroundStyle(theme.text3.color)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
             }
-            .padding(11)
+            .padding(Spacing.well)
         }
     }
 }
@@ -123,7 +131,7 @@ struct PermissionRowView: View {
             PillButton(title: Self.asksOnClick(row, state) ? "Allow…" : "Settings") { model.permissionButton(row) }
                 .accessibilityLabel("\(row.title): \(Self.asksOnClick(row, state) ? "allow" : "open System Settings")")
         }
-        .padding(.horizontal, 11)
+        .padding(.horizontal, Spacing.well)
         .padding(.vertical, 8)
         .accessibilityElement(children: .combine)
     }

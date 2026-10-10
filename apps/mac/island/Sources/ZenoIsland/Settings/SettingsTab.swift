@@ -1,59 +1,82 @@
 import SwiftUI
 import ZenoIslandCore
 
-/// Settings as a short list of pages (ADR-057). Each page holds one area, with the right control per setting:
-/// switches for on/off, segmented pickers for two to four short choices, pop-up menus for longer lists.
+/// Settings (ADR-057, ADR-084): home is the "now" card, then two groups of pages, each row with a monochrome glyph
+/// and its current value. A page pushes in with the content hand-off; home cascades in the first time it shows
+/// after the panel opens. Each page holds one area, with the right control per setting.
 struct SettingsTab: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        if let page = model.settingsPage {
-            VStack(spacing: 0) {
-                HStack(spacing: 6) {
-                    Button {
-                        withAnimation(.easeOut(duration: 0.18)) { model.settingsPage = nil }
-                    } label: {
-                        HStack(spacing: 3) {
-                            Image(systemName: "chevron.left").font(.system(size: 11, weight: .semibold))
-                            Text("Settings").font(.system(size: 12, weight: .medium))
-                        }
-                        .foregroundStyle(theme.accent.color)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Back to Settings")
-                    Spacer()
-                    Text(page.rawValue).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color)
-                    Spacer()
-                    Color.clear.frame(width: 64, height: 1)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                Scrollable {
-                    VStack(alignment: .leading, spacing: 14) { pageContent(page) }
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 12)
-                        .padding(.top, 2)
-                }
+        ZStack(alignment: .top) {
+            if let page = model.settingsPage {
+                pageView(page).id(page).transition(Motion.handOff(reduceMotion))
+            } else {
+                home.transition(Motion.handOff(reduceMotion))
             }
-            .transition(.move(edge: .trailing).combined(with: .opacity))
-        } else {
-            Scrollable {
-                VStack(alignment: .leading, spacing: 14) {
-                    Card {
-                        ForEach(Array(IslandModel.SettingsPage.allCases.enumerated()), id: \.element) { index, page in
-                            if index > 0 { RowDivider() }
-                            PageRow(page: page, summary: summary(page)) {
-                                withAnimation(.easeOut(duration: 0.18)) { model.settingsPage = page }
-                            }
-                        }
-                    }
-                }
-                .padding(12)
-            }
-            .transition(.opacity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private var home: some View {
+        let cascade = !model.settingsCascaded
+        return Scrollable {
+            VStack(alignment: .leading, spacing: Spacing.wells) {
+                NowCard(model: model).cascade(0, enabled: cascade)
+                ForEach(Array(SettingsHome.groups.enumerated()), id: \.offset) { groupIndex, pages in
+                    let before = 1 + SettingsHome.groups.prefix(groupIndex).map(\.count).reduce(0, +)
+                    Card {
+                        ForEach(Array(pages.enumerated()), id: \.element) { index, page in
+                            if index > 0 { RowDivider(inset: PageRow.textInset) }
+                            PageRow(page: page, summary: summary(page)) { open(page) }
+                                .cascade(before + index, enabled: cascade)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, Spacing.panel)
+            .padding(.top, 16)
+            .padding(.bottom, Spacing.panel)
+        }
+        .onAppear { model.settingsCascaded = true }
+    }
+
+    private func pageView(_ page: IslandModel.SettingsPage) -> some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 6) {
+                Button {
+                    withAnimation(Motion.settle(reduceMotion)) { model.settingsPage = nil }
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: "chevron.left").font(.system(size: 11, weight: .semibold))
+                        Text("Settings").font(.system(size: 12, weight: .medium))
+                    }
+                    .foregroundStyle(theme.accent.color)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Back to Settings")
+                Spacer()
+                Text(page.rawValue).font(.system(size: 13, weight: .semibold, design: .rounded)).foregroundStyle(theme.text.color)
+                Spacer()
+                Color.clear.frame(width: 64, height: 1)
+            }
+            .padding(.horizontal, Spacing.panel)
+            .padding(.top, 14)
+            .padding(.bottom, 10)
+            Scrollable {
+                VStack(alignment: .leading, spacing: Spacing.wells) { pageContent(page) }
+                    .padding(.horizontal, Spacing.panel)
+                    .padding(.bottom, Spacing.panel)
+                    .padding(.top, 4)
+            }
+        }
+    }
+
+    private func open(_ page: IslandModel.SettingsPage) {
+        withAnimation(Motion.settle(reduceMotion)) { model.settingsPage = page }
     }
 
     /// The current value shown on a page's row, so the list answers "how is it set?" without opening anything.
@@ -61,7 +84,7 @@ struct SettingsTab: View {
         let s = model.settings
         switch page {
         case .examples: return model.capabilities.map { $0.count == 1 ? "1 tool" : "\($0.count) tools" } ?? ""
-        case .appearance: return "\(s.theme.title) · \(s.wispStyle.title)"
+        case .appearance: return "\(s.theme.title), \(s.wispStyle.title)"
         case .model: return model.modelInfo?.currentModelName ?? "—"
         case .shortcuts: return s.shortcut(for: .talk)?.display ?? "Off"
         case .dictation: return s.dictationMode.title
@@ -88,22 +111,27 @@ struct SettingsTab: View {
     }
 }
 
-/// One row in the Settings list: a coloured icon tile, the page name, its current value and a chevron.
+/// One row in Settings home: a monochrome glyph, the page name, its current value and a chevron.
 private struct PageRow: View {
     let page: IslandModel.SettingsPage
     let summary: String
     let action: () -> Void
+    /// Where the row's name starts: the divider between rows begins here, under the words rather than the glyph.
+    static let textInset = Spacing.well + glyphWidth + spacing
+    private static let glyphWidth: CGFloat = 20
+    private static let spacing: CGFloat = 12
+    /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
     private let hovering = State(initialValue: false)
     @Environment(\.theme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
+            HStack(spacing: Self.spacing) {
                 Image(systemName: page.symbol)
-                    .font(.system(size: 10.5, weight: .semibold))
-                    .foregroundStyle(theme.onAccent.color)
-                    .frame(width: 22, height: 22)
-                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(theme.accentFill))
+                    .font(.system(size: 13))
+                    .foregroundStyle(hovering.wrappedValue ? theme.text.color : theme.text2.color)
+                    .frame(width: Self.glyphWidth)
                 Text(page.rawValue)
                     .font(.system(size: 12.5, weight: .medium))
                     .foregroundStyle(theme.text.color)
@@ -117,13 +145,39 @@ private struct PageRow: View {
                     .font(.system(size: 9.5, weight: .bold))
                     .foregroundStyle(theme.text3.color)
             }
-            .padding(.horizontal, 11)
-            .frame(height: 38)
+            .padding(.horizontal, Spacing.well)
+            .frame(height: 40)
             .background(hovering.wrappedValue ? theme.fill1.color : .clear)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { hovering.wrappedValue = $0 }
-        .accessibilityLabel("\(page.rawValue), \(summary)")
+        .animation(Motion.snap(reduceMotion), value: hovering.wrappedValue)
+        .accessibilityLabel(summary.isEmpty ? page.rawValue : "\(page.rawValue), \(summary)")
+    }
+}
+
+private extension View {
+    /// Arrives with the cascade: row `index` settles in 30 ms after the one before (design study §3 A). Off in
+    /// snapshots and with Reduce Motion, where everything is simply there.
+    func cascade(_ index: Int, enabled: Bool) -> some View { modifier(Cascade(index: index, enabled: enabled)) }
+}
+
+private struct Cascade: ViewModifier {
+    let index: Int
+    let enabled: Bool
+    private let shown = State(initialValue: false)
+    @Environment(\.islandSnapshot) private var snapshot
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        let visible = shown.wrappedValue || !enabled || snapshot || reduceMotion
+        content
+            .opacity(visible ? 1 : 0)
+            .offset(y: visible ? 0 : 6)
+            .onAppear {
+                guard enabled, !shown.wrappedValue else { return }
+                withAnimation(Motion.settle(reduceMotion).delay(Motion.cascadeDelay(row: index, reduceMotion))) { shown.wrappedValue = true }
+            }
     }
 }

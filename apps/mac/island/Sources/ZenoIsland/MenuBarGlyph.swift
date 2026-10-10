@@ -1,13 +1,15 @@
 import AppKit
 import ZenoIslandCore
 
-/// Wisp's silhouette for the menu bar (ADR-084), drawn here rather than taken from any icon set: a dome, a
-/// three-scallop hem and two eyes cut out, so the bar shows through them.
+/// Wisp's silhouette for the menu bar (ADR-084), drawn here rather than taken from any icon set. It is Wisp's own
+/// ghost body (`WispView`'s round, egg-shaped head whose sides draw in toward the hem), with the hem as one soft
+/// wave trailing into a tail that sweeps down to the left as if Wisp were drifting right, and Wisp's tall eyes,
+/// glancing the way it floats, cut out so the bar shows through. No flat bottom, no row of even feet.
 @MainActor
 enum MenuBarGlyph {
     /// The image's size: a menu-bar icon, with room around the glyph for the glow.
     static let canvas = NSSize(width: 20, height: 18)
-    private static let glyph = NSSize(width: 13, height: 14)
+    private static let glyph = NSSize(width: 13.6, height: 16)
 
     /// The status item's image. Plain is a template; the coloured ones pick their shade when drawn, from the
     /// menu bar's appearance (light or dark), so they read on both.
@@ -58,25 +60,31 @@ enum MenuBarGlyph {
         }
     }
 
-    /// The outline in a y-down rect: dome to the shoulders, straight sides, three scallops along the hem, and two
-    /// slightly tall eyes (cut out with the even-odd rule).
+    /// The outline in a y-down rect, from Wisp's 64-point drawing space (the body spans x 9.5...52, y 7...59).
     static func silhouette(in r: CGRect) -> CGPath {
-        let p = CGMutablePath()
-        let (x, y, w, h) = (r.minX, r.minY, r.width, r.height)
-        let shoulder = y + h * 0.48
-        let hem = y + h * 0.86
-        p.move(to: CGPoint(x: x, y: shoulder))
-        p.addCurve(to: CGPoint(x: x + w, y: shoulder), control1: CGPoint(x: x, y: y - h * 0.14), control2: CGPoint(x: x + w, y: y - h * 0.14))
-        p.addLine(to: CGPoint(x: x + w, y: hem))
-        let step = w / 3
-        for i in 0..<3 {
-            let right = x + w - CGFloat(i) * step
-            p.addQuadCurve(to: CGPoint(x: right - step, y: hem), control: CGPoint(x: right - step / 2, y: y + h * 1.12))
+        func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+            CGPoint(x: r.minX + (x - 9.5) / 42.5 * r.width, y: r.minY + (y - 7) / 52 * r.height)
         }
-        p.closeSubpath()
-        let eye = CGSize(width: w * 0.16, height: w * 0.21)
-        p.addEllipse(in: CGRect(x: x + w * 0.27, y: y + h * 0.33, width: eye.width, height: eye.height))
-        p.addEllipse(in: CGRect(x: x + w * 0.57, y: y + h * 0.33, width: eye.width, height: eye.height))
-        return p
+        let path = CGMutablePath()
+        path.move(to: p(32, 8))
+        // A round head, its right side drawing in toward the hem.
+        path.addCurve(to: p(52, 30.5), control1: p(45.5, 8), control2: p(52, 18.5))
+        path.addCurve(to: p(47.5, 48), control1: p(52, 38.5), control2: p(50.5, 44.5))
+        // The hem: one soft lobe, a gentle rise, then the tail flicking out and down to the left.
+        path.addCurve(to: p(38.5, 50.5), control1: p(45, 53), control2: p(41, 53.5))
+        path.addCurve(to: p(30.5, 50.5), control1: p(36.5, 48), control2: p(33, 48))
+        path.addCurve(to: p(9.5, 58), control1: p(25.5, 54.5), control2: p(15, 59))
+        // The tail's upper edge curls back in to the body, then the left side rises and rounds over the head.
+        path.addCurve(to: p(14.5, 45), control1: p(12.5, 54.5), control2: p(14.5, 50.5))
+        path.addCurve(to: p(12.5, 30.5), control1: p(14.5, 40), control2: p(12.5, 36))
+        path.addCurve(to: p(32, 8), control1: p(12.5, 18.5), control2: p(18.5, 8))
+        path.closeSubpath()
+        // Wisp's eyes: tall ovals, a little to the right, looking where it drifts.
+        for x in [27.6, 40.4] as [CGFloat] {
+            let centre = p(x, 28.5)
+            let size = CGSize(width: 6.4 / 42.5 * r.width, height: 9.4 / 52 * r.height)
+            path.addEllipse(in: CGRect(x: centre.x - size.width / 2, y: centre.y - size.height / 2, width: size.width, height: size.height))
+        }
+        return path
     }
 }

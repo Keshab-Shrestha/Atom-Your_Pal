@@ -513,24 +513,40 @@ final class IslandController {
         let generation = panelGeneration
         if let wanted {
             let target = layout().frame(wanted)
-            if current == nil || !panel.isVisible {
-                // Drops a little from the menu bar as it fades in.
+            let opening = current == nil || !panel.isVisible
+            if opening {
+                // ADR-084: drops a little from the menu bar and fades in while the content grows from the icon on the
+                // open spring. The content starts small, without animation, before the window is shown.
+                model.openAnchorX = layout().openAnchorX(wanted)
+                var still = Transaction()
+                still.disablesAnimations = true
+                withTransaction(still) { model.presented = false }
                 panel.setFrame(reduceMotion ? target : target.offsetBy(dx: 0, dy: 6), display: false)
                 panel.alphaValue = 0
                 panel.orderFrontRegardless()
+                DispatchQueue.main.async { [weak self] in
+                    MainActor.assumeIsolated {
+                        guard let self, generation == self.panelGeneration else { return }
+                        withAnimation(Motion.open(reduceMotion)) { self.model.presented = true }
+                    }
+                }
             }
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = reduceMotion ? 0.12 : 0.22
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = reduceMotion ? 0.15 : (opening ? 0.3 : 0.22)
                 context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.25, 1)
                 panel.animator().setFrame(target, display: true)
                 panel.animator().alphaValue = 1
-            }
+            }, completionHandler: { [weak self] in
+                MainActor.assumeIsolated { self?.settleShadow() }
+            })
             trace("panel \(wanted) \(target.integral)")
         } else {
+            // Leaves quickly and without a bounce (`Motion.close`): rises a touch, shrinks a little and fades.
             let start = panel.frame
+            withAnimation(Motion.close(reduceMotion)) { model.presented = false }
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = reduceMotion ? 0.1 : 0.16
-                context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+                context.duration = reduceMotion ? 0.15 : 0.26
+                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.45, 0, 0.2, 1)
                 if !reduceMotion { panel.animator().setFrame(start.offsetBy(dx: 0, dy: 4), display: true) }
                 panel.animator().alphaValue = 0
             }, completionHandler: { [weak self] in
@@ -925,9 +941,24 @@ final class IslandController {
         let target = layout().frame(current)
         guard target != panel.frame else { return }
         trace("panel size \(Int(target.width))x\(Int(target.height))")
-        NSAnimationContext.runAnimationGroup { context in
+        NSAnimationContext.runAnimationGroup({ context in
             context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.2
             panel.animator().setFrame(target, display: true)
+        }, completionHandler: { [weak self] in
+            MainActor.assumeIsolated { self?.settleShadow() }
+        })
+    }
+
+    /// The window's shadow is traced from what the panel drew when it was last computed. Re-trace it once the
+    /// panel has its final size and corners (a stale trace from the smaller status card, or from mid-animation, shows
+    /// as a squared-off edge around the rounded panel). After the content's own cross-fade.
+    private func settleShadow() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, self.panel.isVisible else { return }
+                self.panel.display()
+                self.panel.invalidateShadow()
+            }
         }
     }
 

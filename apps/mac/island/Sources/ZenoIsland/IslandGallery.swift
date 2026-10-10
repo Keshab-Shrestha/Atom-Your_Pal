@@ -65,11 +65,33 @@ enum IslandGallery {
             for i in 0..<14 { model.meter.add(level * (0.05 + 0.95 * abs(sin(Double(i) * 0.9)))) }
             write(model, size: expanded, name: "2-conversation-\(state)", to: directory)
         }
+        // ADR-084: a reply still being spoken, with the caret of light after it; the older turns recede.
+        let spoken = model.conversation
+        model.conversation = Conversation()
+        for line in [#"{"type":"transcript","text":"What's on my calendar this afternoon?"}"#,
+                     #"{"type":"reply","text":"You have a design review at 3 and a call with Aiko at 4:30. Nothing after that."}"#,
+                     #"{"type":"turn.complete","speechMs":2400,"transcriptionMs":610,"modelMs":1840,"firstSoundMs":2710}"#,
+                     #"{"type":"state","state":"idle"}"#,
+                     #"{"type":"transcript","text":"Remind me at 4:15 to send the deck."}"#,
+                     #"{"type":"reply","text":"Done. I'll remind you at 4:15 to send the deck before your call."}"#,
+                     #"{"type":"state","state":"speaking"}"#] {
+            if let event = try? decodeEvent(line) { model.conversation.apply(event); model.status.apply(event) }
+        }
+        write(model, size: expanded, name: "2-conversation-streaming", to: directory)
+        model.conversation = spoken
         if let idle = try? decodeEvent(#"{"type":"state","state":"idle"}"#) { model.status.apply(idle) }
         model.meter.reset()
         // The Settings tab is taller than the window and scrolls: render it tall once, so the lower cards can be reviewed.
         model.tab = .settings
         write(model, size: CGSize(width: expanded.width, height: 2000), name: "2-settings-full", to: directory)
+        // ADR-084: the now card with "Last turn" opened to every stage, and with the plan meters and a problem.
+        let palette = model.settings.theme.palette
+        let nowCard = NowCard(model: model, timingsOpen: true)
+            .padding(Spacing.panel)
+            .frame(width: expanded.width)
+            .background(palette.surfaceFill(solid: true))
+            .themed(palette)
+        save(nowCard, name: "2-settings-now-last-turn", to: directory)
         // ADR-079: the Wisp page (Wisp, Speech bubble, Panel) down to its "Reset this page" row.
         model.settingsPage = .wisp
         write(model, size: CGSize(width: expanded.width, height: 1300), name: "2-settings-wisp-full", to: directory)
@@ -185,9 +207,9 @@ enum IslandGallery {
             }
             HStack(alignment: .top, spacing: 18) {
                 panel("AI model page: 42% and 86%", model([usage]), tab: .settings, page: .model)
-                panel("Status: 97% (Luminous)", model([high], theme: .luminous), tab: .status)
+                panel("Now card: 97% (Luminous)", model([high], theme: .luminous), tab: .settings)
                 panel("Rate limit: switch provider", limited, tab: .conversation)
-                panel("No usage yet: no meters", model([]), tab: .status)
+                panel("No usage yet: no meters", model([]), tab: .settings)
             }
         }
         .padding(24)
@@ -270,7 +292,7 @@ enum IslandGallery {
             model.expanded = true
             let restore = model.conversation
             for (tab, page) in [(IslandModel.Tab.conversation, nil), (.settings, nil), (.settings, IslandModel.SettingsPage.appearance),
-                                (.settings, .model), (.settings, .wisp), (.status, nil)] as [(IslandModel.Tab, IslandModel.SettingsPage?)] {
+                                (.settings, .model), (.settings, .wisp), (.settings, .examples)] as [(IslandModel.Tab, IslandModel.SettingsPage?)] {
                 model.tab = tab
                 model.settingsPage = page
                 panels.append(frozen(IslandView(model: model, snapshot: true).frame(width: size.width, height: size.height)))

@@ -1,6 +1,6 @@
 /// What the compact island shows, derived from the runtime's status and events (ADR-038):
 /// a state with a title, a short detail line, and whether the level meter is live.
-/// Also keeps what the Status tab shows: provider, model, microphone, last timings and last problem.
+/// Also keeps what Settings' now card shows (ADR-084; once the Status tab): provider, model, microphone, last timings and last problem.
 public struct IslandStatus: Sendable, Equatable {
     public enum Kind: Sendable, Equatable {
         case starting, ready, listening, transcribing, thinking, speaking, notice, problem
@@ -10,7 +10,7 @@ public struct IslandStatus: Sendable, Equatable {
         case asking
     }
 
-    /// An error as the Status tab shows it: a title and the runtime's full message (with its fix).
+    /// An error as the now card shows it: a title and the runtime's full message (with its fix).
     public struct Problem: Sendable, Equatable {
         public var title: String
         /// The full message, not shortened.

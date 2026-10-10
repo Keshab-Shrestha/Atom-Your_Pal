@@ -49,6 +49,7 @@ struct IslandView: View {
     var snapshot = false
     static let cornerRadius: CGFloat = 16
     static let expandedCornerRadius: CGFloat = 22
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let palette = model.settings.theme.palette
@@ -68,6 +69,9 @@ struct IslandView: View {
             SurfaceBackground(shape: shape, glass: !snapshot && model.settings.panelBackground == .glass, systemGlassRadius: radius)
         }
         .clipShape(shape)
+        // ADR-084: grows from the menu-bar icon as it opens (the window drops and fades in alongside), shrinks a
+        // little as it leaves. With Reduce Motion it only fades (the window's alpha).
+        .scaleEffect(model.presented || reduceMotion ? 1 : (model.expanded ? 0.96 : 0.98), anchor: UnitPoint(x: model.openAnchorX, y: 0))
         .themed(palette)
         .environment(\.islandSnapshot, snapshot)
         .animation(.easeOut(duration: 0.16), value: model.showsExpanded)
@@ -238,6 +242,22 @@ struct GlassBackground: NSViewRepresentable {
         } else if let blur = view as? NSVisualEffectView {
             blur.material = dark ? .hudWindow : .popover
             blur.layer?.cornerRadius = cornerRadius
+            // A behind-window blur is cut by the window server, which ignores the layer's corner radius: without a
+            // mask image its corners come out square.
+            blur.maskImage = Self.roundedMask(cornerRadius)
         }
+    }
+
+    /// A stretchable rounded-rectangle mask with continuous-looking corners for `NSVisualEffectView.maskImage`.
+    static func roundedMask(_ radius: CGFloat) -> NSImage {
+        let edge = radius * 2 + 1
+        let image = NSImage(size: NSSize(width: edge, height: edge), flipped: false) { rect in
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
+            return true
+        }
+        image.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
+        image.resizingMode = .stretch
+        return image
     }
 }
