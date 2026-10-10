@@ -1779,3 +1779,25 @@ A design study (`docs/design/design-study.md`) found why: a stock iOS-Settings l
 ### Consequences
 
 One visual language across the panel, Wisp's bubble, the work strip, the menu-bar item and the Helpers window, with Wisp at its centre. Older themes stay but are no longer the default. Sounds are a separate, later decision.
+
+---
+
+## ADR-085 — Avatars From Bible Strong Avatar Lab
+
+Date: 2026-10-10. Status: **accepted** (Keshab, 2026-10-10: "lets change the avatars using https://avatars.bible-strong.app/"; Wisp and the helpers; Keshab designs, Claude integrates).
+
+### Context
+
+Bible Strong Avatar Lab is a browser studio for procedural 2D characters with expressions, by Stéphane Montlouis-Calixte. Its source (github.com/smontlouis/bible-strong-avatar-lab) and its runtime packages (`@bible-strong/avatar-core`, `avatar-react`, `avatar-web`) are all **AGPL-3.0**. Embedding any of them would put ZENO under the AGPL.
+
+### Decision
+
+- **The Lab is a design tool only.** Keshab designs Wisp and the seven helpers in it and exports Photo Mode PNGs (512 px, transparent), one per expression, into `assets/avatars/<character>/` (spec in `assets/avatars/README.md`). Exported images are the output of the tool, not its code; no Lab code, engine or package is used in ZENO.
+- **None of the Lab's own sample characters** (such as Strobi) are used: every character is Keshab's own design.
+- **ZENO keeps its own motion.** The images replace how a character looks; floating, glow (Lantern's light), squish, flight and reactions stay ZENO's code. Speaking alternates two mouth images.
+- **Fallback.** A missing image falls back to today's drawing, so characters can arrive one at a time.
+- **The menu-bar glyph** stays a template drawing derived from Wisp's silhouette, since the menu bar needs a single-colour shape.
+
+### Consequences
+
+The characters get a richer, consistent look designed by Keshab, with no license obligations on ZENO's code. Each new expression is a file, not code. Animation inside an expression (blinks, eye movement) is limited to what ZENO does with whole images.
