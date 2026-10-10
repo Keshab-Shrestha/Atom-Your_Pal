@@ -419,15 +419,18 @@ public struct HelpersList: Sendable, Equatable {
     public var planLimit: Int?
     /// Task 3.12: Keshab's skills in ~/.claude/skills.
     public var skills: [SkillInfo]
+    /// Task 3.16: the tasks handed to Keshab's Paperclip; nil when the connection is off.
+    public var paperclip: [PaperclipTask]?
 
     public init(helpers: [Helper], apps: [String], allowLarge: Bool = true, models: [HelperModel] = [], team: HelperBudget? = nil,
-                planLimit: Int? = nil, skills: [SkillInfo] = []) {
+                planLimit: Int? = nil, paperclip: [PaperclipTask]? = nil, skills: [SkillInfo] = []) {
         self.helpers = helpers
         self.apps = apps
         self.allowLarge = allowLarge
         self.models = models
         self.team = team
         self.planLimit = planLimit
+        self.paperclip = paperclip
         self.skills = skills
     }
 
@@ -892,4 +895,26 @@ public struct SoulProposal: Sendable, Equatable, Identifiable {
         default: "Lessons learned"
         }
     }
+}
+
+/// Task 3.16: a task ZENO handed to an agent in Keshab's own Paperclip.
+public struct PaperclipTask: Sendable, Equatable, Identifiable {
+    public var id: String
+    public var identifier: String?
+    public var title: String
+    public var agent: String
+    public var status: String
+    /// The newest comment once it is done.
+    public var result: String?
+
+    public init(id: String, identifier: String? = nil, title: String, agent: String, status: String, result: String? = nil) {
+        self.id = id
+        self.identifier = identifier
+        self.title = title
+        self.agent = agent
+        self.status = status
+        self.result = result
+    }
+
+    public var isDone: Bool { ["done", "cancelled", "canceled"].contains(status) }
 }

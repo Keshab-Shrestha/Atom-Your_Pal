@@ -75,6 +75,7 @@ import { denyRead, folderCheck } from "./folder-run.ts";
 import { commitWork, prepareWorkdir, type Workdir } from "./worktree.ts";
 import { SKILLS_PLUGIN, listSkills, prepareSkills } from "./skills.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
+import { checkIssues, createPaperclip, createPaperclipTools, issueTracker, paperclipBase } from "./paperclip.ts";
 import { createWindowPointer, type WindowPointer } from "./screen-context.ts";
 import { withPointing } from "./pointing.ts";
 import { AudioError, defaultInputDevice, startRecording } from "./audio.ts";
@@ -175,6 +176,17 @@ export function createRuntime(
   const helpers = openHelpers(helpersPath, log);
   // Task 3.11: the tasks' git worktrees live beside the helpers file, never inside a granted repository.
   const worktrees = join(dirname(resolve(helpersPath === ":memory:" ? "data/x" : helpersPath)), "worktrees");
+  // ADR-087, Task 3.16: Keshab's own Paperclip, only when ZENO_PAPERCLIP_URL names a loopback address. Anything else
+  // sends nothing. ZENO never installs or starts it.
+  const paperclipApi = paperclipBase(process.env.ZENO_PAPERCLIP_URL);
+  if (process.env.ZENO_PAPERCLIP_URL && !paperclipApi) log.warn("paperclip.refused", { reason: "not_loopback_http" });
+  const paperclip = paperclipApi
+    ? { client: createPaperclip(paperclipApi, { company: process.env.ZENO_PAPERCLIP_COMPANY || undefined }), tracker: issueTracker(join(dirname(worktrees), "paperclip.json")) }
+    : undefined;
+  const paperclipListeners = new Set<() => void>();
+  const paperclipChanged = () => {
+    for (const listener of paperclipListeners) listener();
+  };
   const timerListeners = new Set<(timer: TimerInfo) => void>();
   const timers = createTimers({
     onFire: (timer) => {
@@ -200,6 +212,10 @@ export function createRuntime(
   // The tools ZENO can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
   // needs them; the other providers get them from the Core.
   const tools = [
+    // Task 3.16: only with Keshab's own Paperclip on this Mac. Approvals are answered only after his OK on the card.
+    ...(paperclip
+      ? createPaperclipTools({ ...paperclip, confirm: (request) => computer.approve(request), onChange: paperclipChanged, onCall: (e) => log.info("paperclip.call", e) })
+      : []),
     timeTool(),
     // ADR-066: open apps and web pages. Always on: no screen access, no clicks. ZENO_APPS=0 turns it off.
     ...(process.env.ZENO_APPS === "0" ? [] : createAppTools()),
@@ -503,6 +519,33 @@ export function createRuntime(
     helpers && startJobRunner({ store: helpers, run: runJob, onRun: (e) => log.info("job.run", e), mayStart: (job) => !held(job) });
   // A new day (budgets) or an older plan window (its use falls) frees held tasks without any change in the store.
   if (runner) setInterval(() => runner.poke(), 60_000).unref();
+  // Task 3.16: the Paperclip tasks ZENO handed over are looked at every minute; a finished one is said once.
+  if (paperclip) {
+    const look = () =>
+      void checkIssues(paperclip.client, paperclip.tracker).then((lines) => {
+        if (!lines.length) return;
+        log.info("paperclip.done", { count: lines.length });
+        paperclipChanged();
+        for (const line of lines) for (const listener of goalLineListeners) listener(line);
+      });
+    setInterval(look, 60_000).unref();
+  }
+  /** The board's Paperclip section and its updates, when the connection is on. */
+  function withPaperclip(island: IslandHelpers): IslandHelpers {
+    if (!paperclip) return island;
+    return {
+      ...island,
+      paperclip: () => ({ issues: paperclip.tracker.list() }),
+      onChange: (listener) => {
+        const stop = island.onChange(listener);
+        paperclipListeners.add(listener);
+        return () => {
+          stop();
+          paperclipListeners.delete(listener);
+        };
+      },
+    };
+  }
   // Task 3.9: routines come due on the clock. At start, one catch-up for each that came due while ZENO was closed.
   if (helpers) {
     const runRoutines = () => {
@@ -566,7 +609,7 @@ export function createRuntime(
     tts,
     computer,
     ...(memory ? { memory, islandMemory } : {}),
-    ...(helpers ? { helpers, islandHelpers: warmOnOpen({ ...islandHelpers(helpers, installedApps, planModels, held, () => listSkills()), openReport }, decisions) } : {}),
+    ...(helpers ? { helpers, islandHelpers: warmOnOpen(withPaperclip({ ...islandHelpers(helpers, installedApps, planModels, held, () => listSkills()), openReport }), decisions) } : {}),
     screen,
     timers,
     onTimer(listener) {

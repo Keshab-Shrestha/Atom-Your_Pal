@@ -890,6 +890,15 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 **Task 3.16 — Optional Paperclip connection.** Off unless `ZENO_PAPERCLIP_URL` is set, loopback only; Wisp creates an issue for a chosen Paperclip agent, reads its state and comments, approves or rejects its approvals; Paperclip tasks on the board marked "Paperclip"; the window warns that Paperclip agents run outside ZENO's checks and that its telemetry is on unless turned off. ZENO never installs or starts Paperclip.
 **Done when:** with Keshab's Paperclip running, a task handed to a Paperclip agent shows on the board and its result comes back; with the setting unset or a non-loopback address, nothing is sent.
 
+**As built (2026-10-11):** built; tested against a fake Paperclip that follows its documented API (`docs/api` in paperclipai/paperclip); not yet tried with Keshab's own Paperclip (not installed).
+- On only when `ZENO_PAPERCLIP_URL` is an http or https address on this Mac (`localhost`, `127.0.0.1`, `::1`, no user or password); anything else logs `paperclip.refused` and sends nothing. Requests never follow redirects and time out after 10 s. Local trusted mode: no keys, nothing stored but the issues ZENO handed over (`data/paperclip.json`: ids, titles, agent names, status, the result). `ZENO_PAPERCLIP_COMPANY` picks a company, else the first.
+- Narrow client (`paperclip.ts`): list agents, create an issue for an agent, read an issue and its comments, list pending approvals, approve or reject one. Ids are checked before they go into a path.
+- Wisp's tools, only when on: `paperclip_hand` (an agent by name or role, a title, a description; "Handed to Paperclip's CTO as PAP-1."), `paperclip_check` (the handed tasks with their results, and approvals waiting, marked as data), `paperclip_decide` (approve or reject one, sent only after Keshab's OK on Wisp's approval card; no answer is a no).
+- Coming back: every minute ZENO reads the handed tasks not yet finished; when one is done (or cancelled) its newest comment becomes the result and ZENO says one line when idle ("Paperclip's CTO finished \"Review\"."), once.
+- Window: the board has a "Paperclip" section, each task marked "Paperclip" with its id, status, agent and result, under the warning that Paperclip's agents run outside ZENO's checks and that its telemetry is on unless `PAPERCLIP_TELEMETRY_DISABLED=1` is set where it runs. ZENO never installs, starts or configures Paperclip.
+- Tests: 5 TS (Paperclip 4, island 1) and 1 Swift. TS 615 pass, 2 skipped; typecheck clean; Swift 490 pass.
+- Known limits: the field names for comments and approvals (`body`, `title`) follow Paperclip's docs and are read defensively; a live check with a real Paperclip may need small adjustments.
+
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.
 
 **Task 3.17 — Companies and user logins.** Separate workspaces with their own tasks, workers, budgets and history; sign-in for more than one person.

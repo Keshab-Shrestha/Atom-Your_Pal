@@ -561,6 +561,7 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .helpers(HelpersList(helpers: try f.helpers(), apps: try f.strings("apps"),
                                     allowLarge: try f.optionalStrictBool("allowLarge") ?? true, models: try f.helperModels(),
                                     team: Fields.budget(f.values["team"]), planLimit: (f.values["planLimit"] as? NSNumber)?.intValue,
+                                    paperclip: Fields.paperclip(f.values["paperclip"]),
                                     skills: (f.values["skills"] as? [Any] ?? []).compactMap { entry in
                                         guard let s = entry as? [String: Any], let name = s["name"] as? String else { return nil }
                                         return SkillInfo(name: name, description: s["description"] as? String ?? "")
@@ -765,6 +766,16 @@ private struct Fields {
         guard let b = value as? [String: Any], let spent = b["spent"] as? NSNumber, CFGetTypeID(spent) != CFBooleanGetTypeID() else { return nil }
         let cap = b["cap"] as? NSNumber
         return HelperBudget(cap: cap.flatMap { CFGetTypeID($0) == CFBooleanGetTypeID() ? nil : $0.doubleValue }, spent: spent.doubleValue)
+    }
+
+    /// Task 3.16: the tasks handed to Keshab's Paperclip; nil when the connection is off.
+    static func paperclip(_ value: Any?) -> [PaperclipTask]? {
+        guard let p = value as? [String: Any], let issues = p["issues"] as? [Any] else { return nil }
+        return issues.compactMap { entry in
+            guard let i = entry as? [String: Any], let id = i["id"] as? String, let title = i["title"] as? String, let agent = i["agent"] as? String,
+                  let status = i["status"] as? String else { return nil }
+            return PaperclipTask(id: id, identifier: i["identifier"] as? String, title: title, agent: agent, status: status, result: i["result"] as? String)
+        }
     }
 
     /// Task 3.13: Tinker's proposals for a helper's soul; a malformed entry is left out.

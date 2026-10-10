@@ -760,3 +760,16 @@ struct WorkersOnScreenTests {
         #expect(throws: ProtocolError.self) { try decodeEvent(#"{"type":"worker.line"}"#) }
     }
 }
+
+@Suite("Paperclip connection (Task 3.16)")
+struct PaperclipTests {
+    @Test func paperclipTasksAreOnlyThereWhenTheConnectionIsOn() throws {
+        guard case .helpers(let off) = try decodeEvent(HelperTaskTests.line) else { return }
+        #expect(off.paperclip == nil)
+        let on = HelperTaskTests.line.replacingOccurrences(of: #"{"type":"helpers","apps":[],"#,
+            with: #"{"type":"helpers","apps":[],"paperclip":{"issues":[{"id":"is1","identifier":"PAP-1","title":"Review","agent":"CTO","status":"done","createdAt":"x","result":"Done."},{"id":2}]},"#)
+        guard case .helpers(let list) = try decodeEvent(on) else { Issue.record("not helpers"); return }
+        #expect(list.paperclip == [PaperclipTask(id: "is1", identifier: "PAP-1", title: "Review", agent: "CTO", status: "done", result: "Done.")])
+        #expect(list.paperclip?.first?.isDone == true)
+    }
+}

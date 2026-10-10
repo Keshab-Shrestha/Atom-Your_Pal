@@ -957,6 +957,18 @@ test("job.open opens through the runtime; its words come back as an error when i
   assert.match((h.events()[0] as { message: string }).message, /no report/);
 });
 
+test("the helpers event carries Paperclip's tasks only when the connection is on (Task 3.16)", async () => {
+  const store = openHelperStore({ path: ":memory:" });
+  const issue = { id: "is1", identifier: "PAP-1", title: "Review", agent: "CTO", status: "todo", createdAt: "2026-10-11T00:00:00.000Z" };
+  const on = islandHarness({ helpers: { ...islandHelpers(store, async () => []), paperclip: () => ({ issues: [issue] }) } });
+  const off = islandHarness({ helpers: islandHelpers(store, async () => []) });
+  await tick(5);
+  await on.send({ type: "helpers.list" });
+  await off.send({ type: "helpers.list" });
+  assert.deepEqual((on.events().at(-1) as HelpersEvent).paperclip, { issues: [issue] });
+  assert.equal(Object.hasOwn(off.events().at(-1) as object, "paperclip"), false);
+});
+
 test("helpers.settings turns the large model off and on, answered with helpers", async () => {
   const { h, store } = helperHarness();
   await tick(5);

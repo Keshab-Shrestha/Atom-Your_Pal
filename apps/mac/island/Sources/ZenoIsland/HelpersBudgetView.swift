@@ -294,3 +294,35 @@ struct RateSection: View {
         }
     }
 }
+
+/// Task 3.16: the tasks handed to Keshab's own Paperclip, marked as such, with what that means.
+struct PaperclipSection: View {
+    let tasks: [PaperclipTask]
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Paperclip · \(tasks.count)").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
+            Text("Paperclip's agents run outside ZENO's checks: Paperclip decides their tools and folders. Its telemetry is on unless PAPERCLIP_TELEMETRY_DISABLED=1 is set where it runs.")
+                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true).padding(.leading, 4)
+            if tasks.isEmpty {
+                Text("No tasks yet. Ask Wisp to hand one to a Paperclip agent.").font(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.leading, 4)
+            }
+            ForEach(tasks) { task in
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text("Paperclip").font(theme.idFont(.system(size: 10.5), size: 10)).foregroundStyle(theme.idColor(theme.text2))
+                        if let identifier = task.identifier { Text(identifier).font(theme.idFont(.system(size: 10.5), size: 10)).foregroundStyle(theme.text3.color) }
+                        Text(task.status).font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                    }
+                    Text(task.title).font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
+                    Text(task.agent).font(.system(size: 11)).foregroundStyle(theme.text2.color)
+                    if let result = task.result { Text(result).font(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(4) }
+                }
+                .padding(.horizontal, 16).padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+            }
+        }
+    }
+}

@@ -143,6 +143,18 @@ export interface ThreadEvent {
   goal?: { id: number; text: string; ended: boolean; tasks: number[]; report?: Omit<ReportEvent, "type" | "id"> };
 }
 
+/** Task 3.16: a task ZENO handed to Keshab's Paperclip. Titles and results never logged. */
+export interface PaperclipItem {
+  id: string;
+  identifier?: string;
+  title: string;
+  agent: string;
+  status: string;
+  createdAt: string;
+  result?: string;
+  told?: boolean;
+}
+
 /** One model the Claude plan offers to worker jobs (ADR-083). */
 export interface ModelItem {
   id: string;
@@ -248,6 +260,8 @@ export type IslandEvent =
       planLimit?: number;
       /** Task 3.12: Keshab's skills in ~/.claude/skills, for choosing. */
       skills?: { name: string; description: string }[];
+      /** Task 3.16: the tasks handed to Keshab's Paperclip; absent when the connection is off. */
+      paperclip?: { issues: PaperclipItem[] };
     }
   | ReportEvent
   | ThreadEvent

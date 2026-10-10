@@ -19,6 +19,7 @@ import {
   type ReportEvent,
   type SoulItem,
   type ThreadEvent,
+  type PaperclipItem,
 } from "./island-protocol.ts";
 import type { ComputerBridge } from "./computer-bridge.ts";
 import type { WindowPointer } from "./screen-context.ts";
@@ -103,6 +104,8 @@ export interface IslandHelpers {
   rejectPlan(id: number): void;
   /** Whether a worker's new tasks plan first. Throws, with words for the user, for an unknown worker. */
   setPlanFirst(helper: string, on: boolean): void;
+  /** Task 3.16: the tasks handed to Keshab's Paperclip, for the board. Absent when the connection is off. */
+  paperclip?(): { issues: PaperclipItem[] };
   /** Task 3.14: opens a task's report in its worker's app. Absent: `job.open` is refused. Rejects with words for the user. */
   openReport?(id: number): Promise<string>;
   /** Task 3.13: rate a finished task ("not good" asks Tinker to review it); answer Tinker's proposals. Each throws with words for the user. */
@@ -406,7 +409,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     void appNames().then((apps) => {
       helpersQueued = false;
       const helpers = options.helpers;
-      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets(), skills: helpers.skills() } : {}) });
+      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets(), skills: helpers.skills(), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}) });
     });
   }
   function appNames(): Promise<string[]> {
