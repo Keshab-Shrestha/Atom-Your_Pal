@@ -1616,3 +1616,42 @@ This needs Screen Recording, which ZENO deliberately does not hold (SECURITY.md 
 
 - **Cua only.** ZENO holds no new permission, and pointing from a screenshot needs `ZENO_COMPUTER=1`. ZENO.app asking for Screen Recording was rejected for now, as a bigger step than this feature is worth.
 - **A pointing reply also speaks** one short sentence ("It's the fan icon, top right."), and Wisp shows the label. Speech is how ZENO answers everywhere else.
+
+---
+
+## ADR-081 — Helpers: Sid, Kame and Puff Work in the Background
+
+Date: 2026-10-10. Status: **accepted** (Keshab, 2026-10-10). Ideas, not code, from Multica (github.com/multica-ai/multica; Apache 2.0 with extra conditions, so nothing is copied).
+
+### Context
+
+Keshab: "i want to add multiple bots like wisp namely, kame, sid, puff each can be implemented on a app and it works with that app mainly like .. setting sid to brave and i ask sid to research on Networking, sid then goes on to the task given behind user use and each reports back to user .. which can be mnanageable in the app's actual window."
+
+Today ZENO does one thing at a time: the Core answers one request and is busy until it ends (ADR-030), and a long job (a computer task, a web search) holds the conversation. Multica treats agents as named teammates: you hand one a piece of work, it picks it up on its own, reports progress, raises blockers, and hands the result back for review; an inbox and a log of every run keep it manageable.
+
+### Decision
+
+**Helpers** are named characters, each with its own look, an app it belongs to, and its own background jobs. Wisp stays the one you talk to; helpers are who Wisp hands longer work to.
+
+- **Three helpers: Sid, Kame and Puff.** Each has an original look in Wisp's style (no third-party characters), a home app chosen by the user (Sid → Brave), and at most one job running at a time. Jobs for a busy helper wait in its queue.
+- **How a helper works: research, then open in its app** (Keshab's choice). The helper searches the web and reads pages itself, out of sight, with the model's own web tools, then writes a report. When its app is a browser it opens the best sources there as tabs at the end; when it is Notes it saves the report as a note; otherwise the report stays in ZENO. Helpers never drive an app's buttons in this ADR; driving the app through computer control is a later decision.
+- **Asking a helper is deterministic.** A sentence that starts with a helper's name ("Sid, research networking", "Ask Sid to research networking") becomes a job in code, without the main model deciding. ZENO answers at once ("Sid is on it.") and the conversation is free again. "Sid, stop" and "What is Sid doing?" are also settled in code.
+- **Management in ZENO's own window** (Keshab's choice). A real Mac window, with a Dock icon while it is open: one card per helper with its app, its current job and progress, its queue, and its finished reports. From there the user assigns the app, reads a report, opens its sources, stops or deletes a job. Wisp's panel stays as it is.
+- **Reporting back: flies over and says one line** (Keshab's choice). When a job ends, the helper flies in to the corner near Wisp and says one short sentence ("Networking research is ready") only when ZENO is not in a turn; the full report waits in the window. A click on the helper opens it. A failed job says why in one line.
+- **Sid end to end first** (Keshab's choice): Sid works fully, from assigning Brave to the report in the window, before Kame and Puff, who then reuse everything with their own looks and apps.
+
+### Limits and safety
+
+- **A helper's tools are web search and reading pages only.** It cannot use computer control, type, send, buy or change anything. Opening sources in its app and saving a note are done by code after the job, from the report's source list (http and https only).
+- **Pages are data, not instructions** (SECURITY.md §11). The job prompt says so, and a helper has no tool that could act on an injected instruction.
+- **Budget.** At most two jobs run at once across all helpers; each job has a time limit (15 minutes) and a page limit; a job that hits a limit ends with what it has, marked as partial. On the Claude plan every job spends plan; the plan meters (ADR-076) show it.
+- **Storage.** Jobs and reports are kept locally in ZENO's SQLite file, like memory. The task text, report and source addresses are never logged; logs hold the helper, the job id, timings and the outcome.
+- **Providers.** The first version uses the Claude plan's own web tools (WebSearch and WebFetch, ADR-069). With another provider a helper says it needs the Claude plan; other providers' web tools are a later task.
+
+### Not taken from Multica (for now)
+
+Teams of agents with a leader, coding agents and pull requests, issue boards, schedules ("autopilots"), and many runtimes. Worth adding later: steering a running job ("Sid, also cover IPv6"), an execution log per job in the window, retries, and a scheduled helper.
+
+### Consequences
+
+ZENO gains a second way of working, alongside the conversation: background jobs with their own state, storage and window. The Core is unchanged; jobs run in the runtime beside it. The cost is a new window, a job runner and a third character set to maintain, and plan use that grows with how much work the helpers are given.

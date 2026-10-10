@@ -687,6 +687,41 @@ As built:
 
 **Done when:** with computer control on, "where's the Wi-Fi icon?" makes Wisp point there and say one sentence, and a malformed marker is dropped without being spoken.
 
+
+## Phase 3 — Helpers: Sid, Kame and Puff (ADR-081, 2026-10-10)
+
+Keshab's answers: research, then open in its app; ZENO's own window; flies over and says one line; Sid end to end first. Each task below is one capability and ends with its own tests and docs.
+
+**Task 3.1 — Helper store and the Helpers window.**
+1. Runtime: tables for helpers (name, app), jobs (id, helper, task, state, timestamps, partial) and reports (job, title, one-line summary, body, sources) in ZENO's SQLite file; a pure job state machine (queued → running → done / failed / stopped) with tests.
+2. Protocol: `helpers.list`, `helper.set` (app), `job.stop`, `job.delete` commands; a `helpers` event with every helper, its jobs and its reports' titles; `report.get` → `report` event for one report body.
+3. Swift: a "Helpers" window (Dock icon while open) opened from the menu-bar icon and the panel: Sid's card with an app picker (installed apps), job list, report view, Stop and Delete. Kame and Puff appear as "coming soon".
+
+**Done when:** Sid can be set to Brave in the window, the choice survives a restart, and a job added by a test shows up, can be stopped and deleted.
+
+**Task 3.2 — Background jobs: research on the Claude plan.**
+1. A job runner in the runtime: one job per helper, at most two at once, a 15-minute limit and a page limit, cancel by `job.stop`; a running job never blocks the conversation.
+2. The research run: a separate Claude plan session with WebSearch and WebFetch only, no ZENO tools, a prompt that treats pages as data, ending in a structured report (title, one-line summary, body, sources). Progress steps ("Searching", "Reading 3 of 8 pages") go to the window.
+3. With another provider the job fails at once with "Sid needs the Claude plan for research."
+
+**Done when:** a job started from a test produces a stored report with sources; stop ends it within a second; the conversation answers while it runs; logs hold no task or report text.
+
+**Task 3.3 — Ask Sid by voice.** Deterministic routing in front of the shortcuts: "<name>, research …", "ask <name> to …", "<name>, stop", "what is <name> doing?". Tests with look-alikes ("Sid Meier's games", "is Sid there"). ZENO replies at once ("Sid is on it.").
+
+**Done when:** saying "Sid, research networking" starts a job without a model request from the Core, and look-alikes go to the model.
+
+**Task 3.4 — Open in its app.** After a job: a browser app opens the top three sources as tabs; Notes saves the report as a note (through the notes tool's rules); any other app keeps the report in ZENO only. Code, not the model, does it, from the report's http(s) sources.
+
+**Done when:** with Sid on Brave, a finished job opens its sources in Brave.
+
+**Task 3.5 — Sid on screen and reporting back.** Sid's original look (Wisp's renderer, own shape and colour), parked out of the way while working (a small working sign), flying in near Wisp when a job ends, one spoken line when ZENO is idle, a click opening the report in the Helpers window. Reduce Motion respected.
+
+**Done when:** a finished job brings Sid in with one line, and the click opens its report.
+
+**Task 3.6 — Kame and Puff.** Their looks and cards, each with its own app and queue, reusing 3.1–3.5.
+
+**Later (not planned):** steering a running job, a per-job execution log, retries, scheduled helpers, other providers' web tools, driving the helper's app through computer control.
+
 ---
 
 ## 6. Definition of Done
