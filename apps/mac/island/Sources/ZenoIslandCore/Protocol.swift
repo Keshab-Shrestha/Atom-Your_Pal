@@ -33,6 +33,9 @@ public enum IslandCommand: Sendable, Equatable {
     case jobStop(id: Int)
     case jobDelete(id: Int)
     case reportGet(id: Int)
+    /// ADR-083: pin a helper to a model (`""` lets Laya choose again); allow or forbid the large model for jobs.
+    case helperPin(helper: String, model: String)
+    case helpersSettings(allowLarge: Bool)
 
     /// The command's `type` field. Safe for logs: never includes values.
     public var type: String {
@@ -57,6 +60,8 @@ public enum IslandCommand: Sendable, Equatable {
         case .jobStop: "job.stop"
         case .jobDelete: "job.delete"
         case .reportGet: "report.get"
+        case .helperPin: "helper.pin"
+        case .helpersSettings: "helpers.settings"
         }
     }
 
@@ -93,6 +98,11 @@ public enum IslandCommand: Sendable, Equatable {
             fields["task"] = task
         case .jobStop(let id), .jobDelete(let id), .reportGet(let id):
             fields["id"] = id // a JSON number
+        case .helperPin(let helper, let model):
+            fields["helper"] = helper
+            fields["model"] = model
+        case .helpersSettings(let allowLarge):
+            fields["allowLarge"] = allowLarge // a real JSON boolean
         default:
             break
         }
@@ -458,7 +468,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         guard let key = MediaKey(rawValue: try f.string("key")) else { throw ProtocolError.invalidValue(event: type, field: "key") }
         return .mediaKey(key)
     case "helpers":
-        return .helpers(HelpersList(helpers: try f.helpers(), apps: try f.strings("apps")))
+        return .helpers(HelpersList(helpers: try f.helpers(), apps: try f.strings("apps"),
+                                    allowLarge: try f.optionalStrictBool("allowLarge") ?? true, models: try f.helperModels()))
     case "report":
         return .report(HelperReport(id: try f.int("id"), title: try f.string("title"), summary: try f.string("summary"),
                                     body: try f.string("body"), sources: try f.sources()))
@@ -603,13 +614,14 @@ private struct Fields {
                   let available = h["available"] as? NSNumber, CFGetTypeID(available) == CFBooleanGetTypeID(),
                   let jobs = h["jobs"] as? [Any]
             else { throw invalid }
-            // `app` is a name or null (absent is read as null).
-            let app = h["app"]
-            guard app == nil || app is NSNull || app is String else { throw invalid }
+            // `app` and `pinnedModel` are text or null (absent is read as null).
+            let app = h["app"], pinned = h["pinnedModel"]
+            guard app == nil || app is NSNull || app is String, pinned == nil || pinned is NSNull || pinned is String
+            else { throw invalid }
             return Helper(id: id, name: name, available: available.boolValue, app: app as? String, jobs: try jobs.map { entry in
                 guard let job = job(entry) else { throw invalid }
                 return job
-            })
+            }, pinnedModel: pinned as? String)
         }
     }
 
@@ -623,7 +635,31 @@ private struct Fields {
         let partial = (j["partial"] as? NSNumber).map { CFGetTypeID($0) == CFBooleanGetTypeID() && $0.boolValue } ?? false
         return HelperJob(id: id.intValue, task: task, state: state, createdAt: Self.date(createdAt),
                          endedAt: (j["endedAt"] as? String).flatMap(Self.date), step: j["step"] as? String, partial: partial,
-                         title: j["title"] as? String, summary: j["summary"] as? String, error: j["error"] as? String)
+                         title: j["title"] as? String, summary: j["summary"] as? String, error: j["error"] as? String,
+                         model: j["model"] as? String, modelReason: j["modelReason"] as? String)
+    }
+
+    /// The optional `models` of a `helpers` event (ADR-083; absent from older runtimes). Strict like the helpers list:
+    /// a malformed entry, or a tier other than small, medium or large, makes the whole event invalid.
+    func helperModels() throws -> [HelperModel] {
+        guard let value = values["models"] else { return [] }
+        let invalid = ProtocolError.invalidValue(event: event, field: "models")
+        guard let entries = value as? [Any] else { throw invalid }
+        return try entries.map { entry in
+            guard let m = entry as? [String: Any], let id = m["id"] as? String, let name = m["name"] as? String,
+                  let tier = (m["tier"] as? String).flatMap(ModelTier.init(rawValue:))
+            else { throw invalid }
+            return HelperModel(id: id, name: name, tier: tier)
+        }
+    }
+
+    /// An optional boolean that, when present, must be a real JSON boolean.
+    func optionalStrictBool(_ key: String) throws -> Bool? {
+        guard let value = values[key] else { return nil }
+        guard let n = value as? NSNumber, CFGetTypeID(n) == CFBooleanGetTypeID() else {
+            throw ProtocolError.invalidValue(event: event, field: key)
+        }
+        return n.boolValue
     }
 
     /// ISO 8601, with or without fractional seconds.

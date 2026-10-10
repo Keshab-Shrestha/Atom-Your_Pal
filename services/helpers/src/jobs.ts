@@ -1,9 +1,9 @@
 // ADR-081: the helpers and the life of a job. Pure: no storage, no clock.
 
 export const HELPERS = [
-  { id: "sid", name: "Sid", available: true },
-  { id: "kame", name: "Kame", available: false },
-  { id: "puff", name: "Puff", available: false },
+  { id: "sid", name: "Sid", available: true, role: "researcher" },
+  { id: "kame", name: "Kame", available: false, role: "coder" },
+  { id: "puff", name: "Puff", available: false, role: "designer" },
 ] as const;
 
 /** Sid's soul (ADR-082): the researcher's instructions for every job. Editable souls come in Task 3.3. */

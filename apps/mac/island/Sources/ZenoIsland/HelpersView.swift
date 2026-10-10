@@ -63,10 +63,38 @@ private struct HelperSidebar: View {
                 .disabled(!helper.available)
             }
             Spacer(minLength: 0)
+            if let list = model.helpers.list { AllowLargeSwitch(model: model, list: list) }
         }
         .padding(12)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(theme.fill1.color)
+    }
+}
+
+/// "Allow the large model for helpers" (ADR-083): window-wide, so it sits under the helper list.
+private struct AllowLargeSwitch: View {
+    let model: IslandModel
+    let list: HelpersList
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let enabled = !list.models.isEmpty
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .top, spacing: 8) {
+                Text("Allow the large model for helpers")
+                    .font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text.color)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 4)
+                ThemedSwitch(isOn: list.allowLarge, set: { model.sendHelpers(model.helpers.setAllowLarge($0)) },
+                             label: "Allow the large model for helpers")
+                    .disabled(!enabled)
+            }
+            Text(enabled ? "Off: jobs use at most the medium model, saving your plan." : "Needs the Claude plan")
+                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(9)
+        .opacity(enabled ? 1 : 0.6)
     }
 }
 
@@ -137,8 +165,13 @@ private struct HelperPane: View {
                             .font(.system(size: 12)).foregroundStyle(theme.text2.color)
                     }
                 }
-                Card(footer: "Where \(helper.name) opens what it finds.") {
+                Card(footer: "Where \(helper.name) opens what it finds, and the model its jobs run on.") {
                     Row(title: "App") { AppPicker(model: model, helper: helper) }
+                    RowDivider()
+                    let models = model.helpers.list?.models ?? []
+                    Row(title: "Model", detail: models.isEmpty ? "Needs the Claude plan" : nil) {
+                        ModelPicker(model: model, helper: helper, models: models)
+                    }
                 }
                 TaskField(model: model, helper: helper)
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
@@ -177,6 +210,33 @@ private struct AppPicker: View {
         }
         .menuStyle(.button).buttonStyle(.plain).fixedSize()
         .accessibilityLabel("\(helper.name)'s app")
+    }
+}
+
+/// "Chosen by Laya" or a pinned model (ADR-083).
+private struct ModelPicker: View {
+    let model: IslandModel
+    let helper: Helper
+    let models: [HelperModel]
+
+    var body: some View {
+        let pinned = models.first { $0.id == helper.pinnedModel }
+        Menu {
+            Button { model.sendHelpers(model.helpers.pinModel(nil)) } label: {
+                if helper.pinnedModel == nil { Label("Chosen by Laya", systemImage: "checkmark") } else { Text("Chosen by Laya") }
+            }
+            Divider()
+            ForEach(models) { option in
+                Button { model.sendHelpers(model.helpers.pinModel(option.id)) } label: {
+                    if option.id == helper.pinnedModel { Label(option.name, systemImage: "checkmark") } else { Text(option.name) }
+                }
+            }
+        } label: {
+            MenuLabel(text: pinned?.name ?? helper.pinnedModel ?? "Chosen by Laya", dimmed: helper.pinnedModel == nil || models.isEmpty)
+        }
+        .menuStyle(.button).buttonStyle(.plain).fixedSize()
+        .disabled(models.isEmpty)
+        .accessibilityLabel("\(helper.name)'s model")
     }
 }
 
@@ -229,6 +289,9 @@ private struct JobRow: View {
             StateBadge(job: job)
             VStack(alignment: .leading, spacing: 3) {
                 Text(job.task).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
+                if let line = model.helpers.list?.modelLine(job) {
+                    Text(line).font(.system(size: 10.5)).foregroundStyle(theme.text2.color)
+                }
                 if let title = job.title {
                     Text(title).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(theme.text.color)
                 }

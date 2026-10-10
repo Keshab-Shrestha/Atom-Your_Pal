@@ -42,6 +42,10 @@ export interface Job {
   /** From the report, when there is one. */
   title?: string;
   summary?: string;
+  /** The model it runs on, once chosen (ADR-083). */
+  model?: string;
+  /** Why that model, in plain words. */
+  modelReason?: string;
 }
 
 export interface HelperView {
@@ -49,6 +53,8 @@ export interface HelperView {
   name: string;
   available: boolean;
   app: string | null;
+  /** The model Keshab pinned this helper to (ADR-083), or null to let the Decision Engine choose. */
+  pinnedModel: string | null;
   /** Newest first, at most JOBS_PER_HELPER. */
   jobs: Job[];
 }
@@ -56,6 +62,9 @@ export interface HelperView {
 /** What changed, for logs and updates: ids, states and timings only. */
 export type HelperChange =
   | { action: "app"; helper: HelperId }
+  | { action: "pin"; helper: HelperId }
+  | { action: "settings" }
+  | { action: "model"; helper: HelperId; job: number }
   | { action: "job"; helper: HelperId; job: number; state: JobState; ms?: number }
   | { action: "step"; helper: HelperId; job: number }
   | { action: "deleted"; helper: HelperId; job: number };
@@ -65,6 +74,13 @@ export interface HelperStore {
   list(): HelperView[];
   /** Gives a helper its app; "" for none. Throws HelperError for an unknown helper. */
   setApp(helper: string, app: string): void;
+  /** Pins a helper to a model; "" unpins. Throws HelperError for an unknown helper. The caller checks the model is offered. */
+  pin(helper: string, model: string): void;
+  /** Whether jobs may use the large model (ADR-083). Default true. */
+  allowLarge(): boolean;
+  setAllowLarge(allowed: boolean): void;
+  /** Records a running job's model and why. False (and nothing saved) unless the job is running. */
+  setModel(id: number, model: string, reason: string): boolean;
   /** Queues a job. Throws HelperError for an unknown or unavailable helper, or an empty or long task. */
   addJob(helper: string, task: string): Job;
   get(id: number): Job | undefined;
@@ -104,6 +120,8 @@ interface JobRow {
   ended_at: string | null;
   title?: string | null;
   summary?: string | null;
+  model: string | null;
+  model_reason: string | null;
 }
 
 interface ReportRow {
@@ -126,6 +144,8 @@ const toJob = (row: JobRow): Job => ({
   ...(row.ended_at ? { endedAt: new Date(row.ended_at) } : {}),
   ...(row.title != null ? { title: row.title } : {}),
   ...(row.summary != null ? { summary: row.summary } : {}),
+  ...(row.model ? { model: row.model } : {}),
+  ...(row.model_reason ? { modelReason: row.model_reason } : {}),
 });
 
 /** Sources with an http or https address only; anything else (javascript:, file:, junk) is dropped. */
@@ -169,7 +189,18 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       body TEXT NOT NULL,
       sources TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS helper_models (
+      helper TEXT PRIMARY KEY,
+      model TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS helper_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
   `);
+  // ADR-083: files from before Task 3.2b lack the model columns.
+  const columns = new Set((db.prepare("PRAGMA table_info(jobs)").all() as { name: string }[]).map((c) => c.name));
+  for (const column of ["model", "model_reason"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);
   // A job cannot outlive the process that ran it.
   db.prepare("UPDATE jobs SET state = 'failed', step = NULL, error = ?, ended_at = ? WHERE state = 'running'").run(
     CLOSED_WHILE_RUNNING,
@@ -179,6 +210,12 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const appOf = db.prepare("SELECT app FROM helper_apps WHERE helper = ?");
   const putApp = db.prepare("INSERT INTO helper_apps (helper, app) VALUES (?, ?) ON CONFLICT (helper) DO UPDATE SET app = excluded.app");
   const dropApp = db.prepare("DELETE FROM helper_apps WHERE helper = ?");
+  const pinOf = db.prepare("SELECT model FROM helper_models WHERE helper = ?");
+  const putPin = db.prepare("INSERT INTO helper_models (helper, model) VALUES (?, ?) ON CONFLICT (helper) DO UPDATE SET model = excluded.model");
+  const dropPin = db.prepare("DELETE FROM helper_models WHERE helper = ?");
+  const settingOf = db.prepare("SELECT value FROM helper_settings WHERE key = ?");
+  const putSetting = db.prepare("INSERT INTO helper_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value");
+  const setJobModel = db.prepare("UPDATE jobs SET model = ?, model_reason = ? WHERE id = ? AND state = 'running'");
   const newestJobs = db.prepare(
     "SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.helper = ? ORDER BY j.id DESC LIMIT ?",
   );
@@ -234,6 +271,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         name: h.name,
         available: h.available,
         app: (appOf.get(h.id) as { app: string } | undefined)?.app ?? null,
+        pinnedModel: (pinOf.get(h.id) as { model: string } | undefined)?.model ?? null,
         jobs: (newestJobs.all(h.id, JOBS_PER_HELPER) as unknown as JobRow[]).map(toJob),
       }));
     },
@@ -244,6 +282,29 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if (app) putApp.run(known.id, app);
       else dropApp.run(known.id);
       emit({ action: "app", helper: known.id });
+    },
+
+    pin(helper, model) {
+      const known = findHelper(helper);
+      if (!known) throw new HelperError(`There is no helper called "${helper.slice(0, 40)}".`);
+      if (model) putPin.run(known.id, model);
+      else dropPin.run(known.id);
+      emit({ action: "pin", helper: known.id });
+    },
+
+    allowLarge() {
+      return (settingOf.get("allowLarge") as { value: string } | undefined)?.value !== "false";
+    },
+
+    setAllowLarge(allowed) {
+      putSetting.run("allowLarge", String(allowed));
+      emit({ action: "settings" });
+    },
+
+    setModel(id, model, reason) {
+      if (Number(setJobModel.run(model, reason, id).changes) === 0) return false;
+      emit({ action: "model", helper: get(id)!.helper, job: id });
+      return true;
     },
 
     addJob(helper, raw) {

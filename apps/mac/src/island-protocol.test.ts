@@ -181,6 +181,11 @@ test("parses the helper commands", () => {
     { type: "job.stop", id: 12 },
     { type: "job.delete", id: 12 },
     { type: "report.get", id: 12 },
+    { type: "helper.pin", helper: "sid", model: "claude-sonnet-5-5" },
+    { type: "helper.pin", helper: "sid", model: "" },
+    { type: "helper.pin", helper: "sid", model: "not-offered" }, // refused later by the helpers, with stage "settings"
+    { type: "helpers.settings", allowLarge: false },
+    { type: "helpers.settings", allowLarge: true },
   ];
   for (const command of good) assert.deepEqual(parseCommand(JSON.stringify(command)), { command }, JSON.stringify(command));
   assert.deepEqual(parseCommand('{"type":"helpers.list","extra":1}'), { command: { type: "helpers.list" } });
@@ -199,6 +204,12 @@ test("helper commands with missing or wrong fields are protocol errors", () => {
     [{ type: "job.stop", id: "12" }, /whole number/],
     [{ type: "job.delete", id: 1.5 }, /whole number/],
     [{ type: "report.get", id: 0 }, /whole number/],
+    [{ type: "helper.pin", model: "x" }, /"helper"/],
+    [{ type: "helper.pin", helper: "", model: "x" }, /"helper"/],
+    [{ type: "helper.pin", helper: "sid" }, /"model"/],
+    [{ type: "helper.pin", helper: "sid", model: null }, /"model"/],
+    [{ type: "helpers.settings" }, /"allowLarge"/],
+    [{ type: "helpers.settings", allowLarge: "false" }, /"allowLarge"/],
   ];
   for (const [command, expected] of bad) {
     const parsed = parseCommand(JSON.stringify(command));

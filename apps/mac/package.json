@@ -5,6 +5,7 @@
   "dependencies": {
     "@huggingface/transformers": "3.8.1",
     "@zeno/core": "workspace:*",
+    "@zeno/decision-engine": "workspace:*",
     "@zeno/llm-gateway": "workspace:*",
     "@zeno/helpers": "workspace:*",
     "@zeno/memory": "workspace:*",

@@ -14,6 +14,7 @@ import {
   type IslandEvent,
   type EpisodeItem,
   type HelperItem,
+  type ModelItem,
   type MemoryItem,
   type ReportEvent,
 } from "./island-protocol.ts";
@@ -93,6 +94,13 @@ export interface IslandHelpers {
   setApp(helper: string, app: string): void;
   /** Throws, with words for the user, for an unknown or unavailable helper or an empty or long task. */
   addJob(helper: string, task: string): void;
+  /** Pins a helper to an offered model ("" unpins). Throws, with words for the user, for an unknown helper or model. */
+  pin(helper: string, model: string): void;
+  /** Whether worker jobs may use the large model (ADR-083). */
+  allowLarge(): boolean;
+  setAllowLarge(allowed: boolean): void;
+  /** The plan's models offered to worker jobs; empty when the provider is not the Claude plan. */
+  models(): ModelItem[];
   stop(id: number): boolean;
   remove(id: number): boolean;
   report(id: number): Omit<ReportEvent, "type"> | undefined;
@@ -256,6 +264,12 @@ export function runIsland(options: IslandOptions): IslandSession {
         options.helpers?.remove(command.id);
         sendHelpers();
         return;
+      case "helper.pin":
+        changeHelpers(command.type, (helpers) => helpers.pin(command.helper, command.model));
+        return;
+      case "helpers.settings":
+        changeHelpers(command.type, (helpers) => helpers.setAllowLarge(command.allowLarge));
+        return;
       case "report.get": {
         const report = options.helpers?.report(command.id);
         if (report) send({ type: "report", ...report });
@@ -277,7 +291,8 @@ export function runIsland(options: IslandOptions): IslandSession {
     helpersQueued = true;
     void appNames().then((apps) => {
       helpersQueued = false;
-      send({ type: "helpers", helpers: options.helpers?.list() ?? [], apps });
+      const helpers = options.helpers;
+      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models() } : {}) });
     });
   }
   function appNames(): Promise<string[]> {

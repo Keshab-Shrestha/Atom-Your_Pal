@@ -29,6 +29,8 @@ export type IslandCommand =
   | { type: "job.stop"; id: number }
   | { type: "job.delete"; id: number }
   | { type: "report.get"; id: number }
+  | { type: "helper.pin"; helper: string; model: string }
+  | { type: "helpers.settings"; allowLarge: boolean }
   | { type: "quit" };
 
 export type ErrorStage =
@@ -81,6 +83,17 @@ export interface JobItem {
   title?: string;
   summary?: string;
   error?: string;
+  /** The model it runs on, once chosen (ADR-083). */
+  model?: string;
+  /** Why that model, in plain words ("Laya: trivial", "Pinned", …). */
+  modelReason?: string;
+}
+
+/** One model the Claude plan offers to worker jobs (ADR-083). */
+export interface ModelItem {
+  id: string;
+  name: string;
+  tier: "small" | "medium" | "large";
 }
 
 /** One helper and its newest jobs (ADR-081), in the fixed order. */
@@ -89,6 +102,8 @@ export interface HelperItem {
   name: string;
   available: boolean;
   app: string | null;
+  /** The pinned model id (ADR-083), or null to let Laya choose. */
+  pinnedModel: string | null;
   jobs: JobItem[];
 }
 
@@ -141,7 +156,7 @@ export type IslandEvent =
   | { type: "capabilities"; items: Capability[] }
   | PlanUsageEvent
   | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[] }
-  | { type: "helpers"; helpers: HelperItem[]; apps: string[] }
+  | { type: "helpers"; helpers: HelperItem[]; apps: string[]; allowLarge?: boolean; models?: ModelItem[] }
   | ReportEvent
   | { type: "error"; stage: ErrorStage; message: string; kind?: string; retryable?: boolean };
 
@@ -165,6 +180,8 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "job.stop",
   "job.delete",
   "report.get",
+  "helper.pin",
+  "helpers.settings",
   "quit",
 ]);
 
@@ -221,6 +238,18 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof helper !== "string" || helper === "") return { error: 'job.add needs a "helper" string.' };
     if (typeof task !== "string") return { error: 'job.add needs a "task" string.' };
     return { command: { type, helper, task } };
+  }
+  if (type === "helper.pin") {
+    // Whether the model is offered is the helpers' to refuse (stage "settings"), as the protocol says.
+    const { helper, model } = value as { helper?: unknown; model?: unknown };
+    if (typeof helper !== "string" || helper === "") return { error: 'helper.pin needs a "helper" string.' };
+    if (typeof model !== "string") return { error: 'helper.pin needs a "model" string ("" to let Laya choose).' };
+    return { command: { type, helper, model } };
+  }
+  if (type === "helpers.settings") {
+    const { allowLarge } = value as { allowLarge?: unknown };
+    if (typeof allowLarge !== "boolean") return { error: 'helpers.settings needs "allowLarge" to be true or false.' };
+    return { command: { type, allowLarge } };
   }
   if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.delete" || type === "report.get") {
     const { id } = value as { id?: unknown };

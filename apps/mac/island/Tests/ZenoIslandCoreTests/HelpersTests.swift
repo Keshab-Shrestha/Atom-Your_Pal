@@ -214,3 +214,85 @@ struct HelpersStateTests {
         #expect(state.selectedHelper == nil)
     }
 }
+
+@Suite("Helpers models (ADR-083)")
+struct HelpersModelTests {
+    static let line = #"""
+    {"type":"helpers","apps":[],"allowLarge":false,"models":[
+      {"id":"claude-haiku-4-5","name":"Claude Haiku 4.5","tier":"small"},
+      {"id":"claude-sonnet-4-5","name":"Claude Sonnet 4.5","tier":"medium"},
+      {"id":"claude-opus-4-5","name":"Claude Opus 4.5","tier":"large"}],
+     "helpers":[{"id":"sid","name":"Sid","available":true,"app":null,"pinnedModel":"claude-sonnet-4-5","jobs":[
+       {"id":2,"task":"t","state":"running","createdAt":"2026-10-10T08:00:00Z","model":"claude-haiku-4-5","modelReason":"Laya: trivial"},
+       {"id":1,"task":"t","state":"done","createdAt":"2026-10-10T07:00:00Z","model":"claude-gone-1"},
+       {"id":0,"task":"t","state":"queued","createdAt":"2026-10-10T06:00:00Z"}]}]}
+    """#.replacingOccurrences(of: "\n", with: "")
+
+    func loaded(_ line: String = Self.line) throws -> HelpersState {
+        var state = HelpersState()
+        state.apply(try decodeEvent(line))
+        return state
+    }
+
+    @Test func encodesPinAndSettings() {
+        #expect(IslandCommand.helperPin(helper: "sid", model: "claude-opus-4-5").line
+            == #"{"helper":"sid","model":"claude-opus-4-5","type":"helper.pin"}"# + "\n")
+        #expect(IslandCommand.helperPin(helper: "sid", model: "").line == #"{"helper":"sid","model":"","type":"helper.pin"}"# + "\n")
+        #expect(IslandCommand.helpersSettings(allowLarge: false).line == #"{"allowLarge":false,"type":"helpers.settings"}"# + "\n")
+        #expect(IslandCommand.helpersSettings(allowLarge: true).line == #"{"allowLarge":true,"type":"helpers.settings"}"# + "\n")
+    }
+
+    @Test func decodesModelsPinAndJobModels() throws {
+        guard case .helpers(let list) = try decodeEvent(Self.line) else { Issue.record("not helpers"); return }
+        #expect(!list.allowLarge)
+        #expect(list.models.map(\.tier) == [.small, .medium, .large])
+        let sid = list.helpers[0]
+        #expect(sid.pinnedModel == "claude-sonnet-4-5")
+        #expect(sid.jobs[0].model == "claude-haiku-4-5" && sid.jobs[0].modelReason == "Laya: trivial")
+        #expect(list.modelLine(sid.jobs[0]) == "Haiku 4.5 · Laya: trivial")
+        #expect(list.modelLine(sid.jobs[1]) == "claude-gone-1") // not offered any more: the id
+        #expect(list.modelLine(sid.jobs[2]) == nil)
+    }
+
+    @Test func anOlderRuntimeSendsNone() throws {
+        guard case .helpers(let list) = try decodeEvent(HelpersProtocolTests.helpersLine) else { Issue.record("not helpers"); return }
+        #expect(list.allowLarge && list.models.isEmpty)
+        #expect(list.helpers[0].pinnedModel == nil && list.helpers[0].jobs[0].model == nil && list.modelLine(list.helpers[0].jobs[0]) == nil)
+    }
+
+    @Test func rejectsMalformedModels() {
+        let helpers = #""helpers":[],"apps":[]"#
+        let cases: [(String, ProtocolError)] = [
+            (#"{"type":"helpers",\#(helpers),"models":[{"id":"x","name":"X","tier":"huge"}]}"#, .invalidValue(event: "helpers", field: "models")),
+            (#"{"type":"helpers",\#(helpers),"models":[{"id":"x","name":"X"}]}"#, .invalidValue(event: "helpers", field: "models")),
+            (#"{"type":"helpers",\#(helpers),"models":{}}"#, .invalidValue(event: "helpers", field: "models")),
+            (#"{"type":"helpers",\#(helpers),"allowLarge":"no"}"#, .invalidValue(event: "helpers", field: "allowLarge")),
+            (#"{"type":"helpers","apps":[],"helpers":[{"id":"sid","name":"Sid","available":true,"pinnedModel":3,"jobs":[]}]}"#,
+             .invalidValue(event: "helpers", field: "helpers")),
+        ]
+        for (line, expected) in cases {
+            #expect(throws: expected, "\(line)") { try decodeEvent(line) }
+        }
+    }
+
+    @Test func pinSendsHelperPin() throws {
+        var state = try loaded()
+        #expect(state.pinModel("claude-sonnet-4-5") == nil) // already pinned
+        #expect(state.pinModel("claude-unknown") == nil)
+        #expect(state.pinModel("claude-opus-4-5") == .helperPin(helper: "sid", model: "claude-opus-4-5"))
+        #expect(state.isWaiting)
+        #expect(state.pinModel(nil) == .helperPin(helper: "sid", model: "")) // Chosen by Laya
+        var older = try loaded(HelpersProtocolTests.helpersLine)
+        #expect(older.pinModel("claude-opus-4-5") == nil && older.pinModel(nil) == nil) // no models: not the Claude plan
+    }
+
+    @Test func allowLargeSendsSettings() throws {
+        var state = try loaded()
+        #expect(state.setAllowLarge(false) == nil) // unchanged
+        #expect(state.setAllowLarge(true) == .helpersSettings(allowLarge: true))
+        var older = try loaded(HelpersProtocolTests.helpersLine)
+        #expect(older.setAllowLarge(false) == nil)
+        var empty = HelpersState()
+        #expect(empty.setAllowLarge(false) == nil)
+    }
+}

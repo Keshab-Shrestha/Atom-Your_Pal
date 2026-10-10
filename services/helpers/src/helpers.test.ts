@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import {
   CLOSED_WHILE_RUNNING,
   HelperError,
@@ -217,6 +218,73 @@ test("survives a restart: the app, jobs and reports are kept; a job left running
     assert.ok(r.endedAt);
     assert.equal(second.get(queued)!.state, "queued", "queued jobs wait for the runner");
     second.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// --- models (ADR-083) ---
+
+test("pin and allowLarge persist across a restart; an unknown helper cannot be pinned", () => {
+  const dir = mkdtempSync(join(tmpdir(), "zeno-helpers-"));
+  try {
+    const path = join(dir, "helpers.db");
+    const first = openHelperStore({ path });
+    const changes: HelperChange[] = [];
+    first.onChange((c) => changes.push(c));
+    assert.equal(first.allowLarge(), true, "the large model is allowed by default");
+    assert.equal(first.list()[0]!.pinnedModel, null);
+    first.pin("sid", "claude-sonnet-5-5");
+    first.setAllowLarge(false);
+    assert.throws(() => first.pin("bob", "x"), HelperError);
+    assert.deepEqual(changes, [{ action: "pin", helper: "sid" }, { action: "settings" }]);
+    first.close();
+    const second = openHelperStore({ path });
+    assert.equal(second.list()[0]!.pinnedModel, "claude-sonnet-5-5");
+    assert.equal(second.allowLarge(), false);
+    second.pin("sid", "");
+    second.setAllowLarge(true);
+    assert.equal(second.list()[0]!.pinnedModel, null);
+    assert.equal(second.allowLarge(), true);
+    second.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("setModel records a running job's model and reason, and nothing for a job that is not running", () => {
+  const store = openHelperStore({ path: ":memory:" });
+  const changes: HelperChange[] = [];
+  store.onChange((c) => changes.push(c));
+  const id = store.addJob("sid", "a").id;
+  assert.equal(store.setModel(id, "claude-haiku-4-5-20251001", "Laya: trivial"), false, "queued: not yet");
+  store.start(id);
+  assert.equal(store.setModel(id, "claude-haiku-4-5-20251001", "Laya: trivial"), true);
+  assert.deepEqual([store.get(id)!.model, store.get(id)!.modelReason], ["claude-haiku-4-5-20251001", "Laya: trivial"]);
+  assert.deepEqual(changes.at(-1), { action: "model", helper: "sid", job: id });
+  store.finish(id, report);
+  assert.equal(store.list()[0]!.jobs[0]!.model, "claude-haiku-4-5-20251001", "kept after the job ends");
+  assert.equal(store.setModel(id, "x", "y"), false);
+  assert.equal(Object.hasOwn(store.get(store.addJob("sid", "b").id)!, "model"), false);
+});
+
+test("a file from before Task 3.2b gains the model columns and keeps its jobs", () => {
+  const dir = mkdtempSync(join(tmpdir(), "zeno-helpers-"));
+  try {
+    const path = join(dir, "helpers.db");
+    const old = new DatabaseSync(path);
+    old.exec(`CREATE TABLE jobs (id INTEGER PRIMARY KEY AUTOINCREMENT, helper TEXT NOT NULL, task TEXT NOT NULL, state TEXT NOT NULL,
+      step TEXT, partial INTEGER NOT NULL DEFAULT 0, error TEXT, created_at TEXT NOT NULL, ended_at TEXT);
+      INSERT INTO jobs (helper, task, state, created_at) VALUES ('sid', 'old job', 'queued', '2026-10-09T00:00:00Z');`);
+    old.close();
+    const store = openHelperStore({ path });
+    assert.equal(store.get(1)!.task, "old job");
+    store.start(1);
+    assert.equal(store.setModel(1, "claude-sonnet-5-5", "Laya unavailable"), true);
+    store.close();
+    const again = openHelperStore({ path }); // opening twice adds nothing twice
+    assert.equal(again.get(1)!.modelReason, "Laya unavailable");
+    again.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

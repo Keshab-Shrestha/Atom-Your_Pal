@@ -15,7 +15,7 @@ import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
 import type { CoreLike } from "./voice-loop.ts";
 import { createComputerBridge } from "./computer-bridge.ts";
-import { openHelperStore } from "@zeno/helpers";
+import { openHelperStore, tieredModels } from "@zeno/helpers";
 import { islandHelpers } from "./island-helpers.ts";
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
@@ -609,9 +609,15 @@ test("memory commands with memory off answer enabled: false; a bad id is a proto
 
 // --- helpers (ADR-081) ---
 
-function helperHarness() {
+const PLAN_MODELS = tieredModels([
+  { id: "claude-opus-5-5", name: "Claude Opus 5.5" },
+  { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" },
+  { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },
+]);
+
+function helperHarness(models = PLAN_MODELS) {
   const store = openHelperStore({ path: ":memory:" });
-  const h = islandHarness({ helpers: islandHelpers(store, async () => ["Notes", "Brave Browser", "Arc"]) });
+  const h = islandHarness({ helpers: islandHelpers(store, async () => ["Notes", "Brave Browser", "Arc"], () => models) });
   return { store, h };
 }
 type HelpersEvent = Extract<IslandEvent, { type: "helpers" }>;
@@ -625,11 +631,17 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
     {
       type: "helpers",
       helpers: [
-        { id: "sid", name: "Sid", available: true, app: null, jobs: [] },
-        { id: "kame", name: "Kame", available: false, app: null, jobs: [] },
-        { id: "puff", name: "Puff", available: false, app: null, jobs: [] },
+        { id: "sid", name: "Sid", available: true, app: null, pinnedModel: null, jobs: [] },
+        { id: "kame", name: "Kame", available: false, app: null, pinnedModel: null, jobs: [] },
+        { id: "puff", name: "Puff", available: false, app: null, pinnedModel: null, jobs: [] },
       ],
       apps: ["Arc", "Brave Browser", "Notes"],
+      allowLarge: true,
+      models: [
+        { id: "claude-opus-5-5", name: "Claude Opus 5.5", tier: "large" },
+        { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5", tier: "medium" },
+        { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5", tier: "small" },
+      ],
     },
   ]);
 });
@@ -708,6 +720,49 @@ test("after helpers.list, job changes made elsewhere (the runner) are sent; befo
   assert.deepEqual([done.state, done.partial, done.title, done.summary, Object.hasOwn(done, "step")], ["done", true, "Networking", "The basics.", false]);
 });
 
+test("helper.pin pins Sid to an offered model and \"\" unpins; an unknown model or helper is refused with stage settings", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  h.clear();
+  await h.send({ type: "helper.pin", helper: "sid", model: "claude-sonnet-5-5" });
+  assert.deepEqual(h.types(), ["helpers"]);
+  assert.equal((h.events()[0] as HelpersEvent).helpers[0]!.pinnedModel, "claude-sonnet-5-5");
+  h.clear();
+  await h.send({ type: "helper.pin", helper: "sid", model: "claude-gone-1" }, { type: "helper.pin", helper: "bob", model: "claude-sonnet-5-5" });
+  assert.deepEqual(h.types(), ["error", "error"]);
+  for (const e of h.events()) assert.equal((e as { stage: string }).stage, "settings");
+  assert.equal(store.list()[0]!.pinnedModel, "claude-sonnet-5-5", "nothing changed");
+  h.clear();
+  await h.send({ type: "helper.pin", helper: "sid", model: "" });
+  assert.equal((h.events()[0] as HelpersEvent).helpers[0]!.pinnedModel, null);
+});
+
+test("helpers.settings turns the large model off and on, answered with helpers", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  h.clear();
+  await h.send({ type: "helpers.settings", allowLarge: false });
+  assert.deepEqual(h.types(), ["helpers"]);
+  assert.equal((h.events()[0] as HelpersEvent).allowLarge, false);
+  assert.equal(store.allowLarge(), false);
+  await h.send({ type: "helpers.settings", allowLarge: true });
+  assert.equal((h.events().at(-1) as HelpersEvent).allowLarge, true);
+});
+
+test("a job's model and reason are sent once chosen; models is empty when the provider is not the Claude plan", async () => {
+  const { h, store } = helperHarness([]);
+  await tick(5);
+  await h.send({ type: "helpers.list" });
+  assert.deepEqual((h.events().at(-1) as HelpersEvent).models, []);
+  const id = store.addJob("sid", "a").id;
+  store.start(id);
+  h.clear();
+  store.setModel(id, "claude-haiku-4-5-20251001", "Laya: trivial");
+  await tick(2);
+  const job = (h.events().at(-1) as HelpersEvent).helpers[0]!.jobs[0]!;
+  assert.deepEqual([job.model, job.modelReason], ["claude-haiku-4-5-20251001", "Laya: trivial"]);
+});
+
 test("report.get sends the report; a job without one is an error with stage settings", async () => {
   const { h, store } = helperHarness();
   await tick(5);
@@ -740,8 +795,14 @@ test("with helpers off: helpers.list and stop/delete answer an empty list; set, 
   for (const e of h.events()) assert.deepEqual(e, { type: "helpers", helpers: [], apps: [] });
   assert.equal(h.events().length, 3);
   h.clear();
-  await h.send({ type: "helper.set", helper: "sid", app: "Notes" }, { type: "job.add", helper: "sid", task: "x" }, { type: "report.get", id: 1 });
-  assert.deepEqual(h.types(), ["error", "error", "error"]);
+  await h.send(
+    { type: "helper.set", helper: "sid", app: "Notes" },
+    { type: "job.add", helper: "sid", task: "x" },
+    { type: "report.get", id: 1 },
+    { type: "helper.pin", helper: "sid", model: "" },
+    { type: "helpers.settings", allowLarge: false },
+  );
+  assert.deepEqual(h.types(), ["error", "error", "error", "error", "error"]);
   for (const e of h.events()) assert.deepEqual(e, { type: "error", stage: "settings", message: "Helpers are off: their file could not be opened." });
 });
 

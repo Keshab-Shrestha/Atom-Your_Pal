@@ -1746,6 +1746,11 @@ The custom question spreads the tasks from 0.16 to 2.67 in a sensible order. The
 - **Laya decides only the model.** Never what a worker may do, which folders it may touch, or whether an action needs approval (SECURITY.md §12; `laya-system1`).
 - **Visible:** the window shows each job's model and why ("Laya: moderate"); logs hold the tier, score and source (laya, pinned, fallback), never the task text.
 
+### As built (2026-10-10)
+
+- Laya's cold start took 5.4 s, longer than the 5 s limit, so it starts when the Helpers window opens rather than on the first job.
+- A pin wins over Laya, the role floor and the large-model switch ("Keshab's say wins").
+
 ### Consequences
 
 Small jobs run faster and spend less of the plan; hard ones get the bigger model. ZENO starts Laya's server once, on the first job, and keeps it warm (its model load takes a few seconds; then about 0.2 s a call), and stops it when ZENO quits. The cost is one more local process and a classifier whose scores are rough: the floors, the pin and the fallback keep a bad score from doing harm beyond picking a smaller or larger model.

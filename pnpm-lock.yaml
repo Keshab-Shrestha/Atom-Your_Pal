@@ -184,6 +184,9 @@ importers:
       '@zeno/core':
         specifier: workspace:*
         version: link:../../services/core
+      '@zeno/decision-engine':
+        specifier: workspace:*
+        version: link:../../services/decision-engine
       '@zeno/helpers':
         specifier: workspace:*
         version: link:../../services/helpers
@@ -213,7 +216,20 @@ importers:
         specifier: workspace:*
         version: link:../../packages/contracts
 
-  services/helpers: {}
+  services/decision-engine:
+    dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: 1.31.0
+        version: 1.31.0(zod@4.6.5)
+      '@zeno/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+
+  services/helpers:
+    dependencies:
+      '@zeno/decision-engine':
+        specifier: workspace:*
+        version: link:../decision-engine
 
   services/llm-gateway:
     dependencies:

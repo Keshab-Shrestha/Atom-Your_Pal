@@ -82,19 +82,22 @@ enum IslandGallery {
     }
 
     /// ADR-081: the Helpers window with Sid running one job and done with another, Kame and Puff coming soon; Sid's
-    /// report open; and the job list in the light Warm theme.
+    /// report open; and the job list in the light Warm theme. ADR-083: Sid's model picker (Laya, then pinned), the
+    /// large-model switch (on, then off) and each job's model.
     private static func writeHelpers(to directory: URL) {
         let suite = "zeno.gallery.helpers.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let iso = ISO8601DateFormatter()
         let ago = { (minutes: Double) in iso.string(from: Date().addingTimeInterval(-minutes * 60)) }
-        let helpers = #"{"type":"helpers","apps":["Brave Browser","Notes","Safari"],"helpers":[{"id":"sid","name":"Sid","available":true,"app":"Brave Browser","jobs":[{"id":2,"task":"Research how IPv6 is rolled out in home routers","state":"running","createdAt":"\#(ago(4))","step":"Reading 3 of 8 pages"},{"id":1,"task":"Research networking basics for a beginner","state":"done","createdAt":"\#(ago(52))","endedAt":"\#(ago(41))","title":"Networking basics","summary":"How data finds its way from your Mac to a website and back."}]},{"id":"kame","name":"Kame","available":false,"app":null,"jobs":[]},{"id":"puff","name":"Puff","available":false,"app":null,"jobs":[]}]}"#
+        // ADR-083: the plan's models, the large-model switch, Sid's pin (null: Laya chooses) and each job's model.
+        let models = #"[{"id":"claude-haiku-4-5","name":"Claude Haiku 4.5","tier":"small"},{"id":"claude-sonnet-4-5","name":"Claude Sonnet 4.5","tier":"medium"},{"id":"claude-opus-5-5","name":"Claude Opus 5.5","tier":"large"}]"#
+        func helpers(pinned: String, allowLarge: Bool) -> String { #"{"type":"helpers","apps":["Brave Browser","Notes","Safari"],"allowLarge":\#(allowLarge),"models":\#(models),"helpers":[{"id":"sid","name":"Sid","available":true,"app":"Brave Browser","pinnedModel":\#(pinned),"jobs":[{"id":3,"task":"What year was TCP/IP adopted by ARPANET?","state":"queued","createdAt":"\#(ago(1))"},{"id":2,"task":"Research how IPv6 is rolled out in home routers","state":"running","createdAt":"\#(ago(4))","step":"Reading 3 of 8 pages","model":"claude-sonnet-4-5","modelReason":"Laya: moderate"},{"id":1,"task":"Research networking basics for a beginner","state":"done","createdAt":"\#(ago(52))","endedAt":"\#(ago(41))","title":"Networking basics","summary":"How data finds its way from your Mac to a website and back.","model":"claude-haiku-4-5","modelReason":"Laya: easy"}]},{"id":"kame","name":"Kame","available":false,"app":null,"jobs":[]},{"id":"puff","name":"Puff","available":false,"app":null,"jobs":[]}]}"# }
         let report = #"{"type":"report","id":1,"title":"Networking basics","summary":"How data finds its way from your Mac to a website and back.","body":"Every device on a network has an address. Your router hands one to your Mac, and translates between your home network and the internet.\n\nData travels in small packets. Each packet carries where it is going, and routers along the way pass it on, one hop at a time.\n\nNames like apple.com are turned into addresses by DNS before any packet is sent.","sources":[{"title":"How the Internet works","url":"https://developer.mozilla.org/en-US/docs/Learn/Common_questions/Web_mechanics/How_does_the_Internet_work"},{"title":"Internet Protocol (RFC 791)","url":"https://www.rfc-editor.org/rfc/rfc791"}]}"#
-        func model(_ theme: AppTheme) -> IslandModel {
+        func model(_ theme: AppTheme, pinned: String = "null", allowLarge: Bool = true) -> IslandModel {
             let m = IslandModel(settings: IslandSettings(defaults: defaults))
             m.settings.theme = theme
-            if let event = try? decodeEvent(helpers) { m.apply(event) } else {
+            if let event = try? decodeEvent(helpers(pinned: pinned, allowLarge: allowLarge)) { m.apply(event) } else {
                 FileHandle.standardError.write(Data("gallery: could not decode helpers\n".utf8))
             }
             return m
@@ -111,10 +114,10 @@ enum IslandGallery {
         if let event = try? decodeEvent(report) { reading.apply(event) }
         let sheet = VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 18) {
-                window("Helpers: Sid running and done, Kame and Puff coming soon", model(.native))
+                window("Helpers: Sid's model chosen by Laya, jobs show their model", model(.native))
                 window("Sid's report", reading)
             }
-            window("Warm (light)", model(.warm))
+            window("Warm (light): Sid pinned to Sonnet, large model off", model(.warm, pinned: #""claude-sonnet-4-5""#, allowLarge: false))
         }
         .padding(24)
         .background(Color(red: 0.36, green: 0.42, blue: 0.52))

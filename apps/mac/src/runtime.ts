@@ -29,7 +29,7 @@ import {
   type Timers,
 } from "@zeno/tool-engine";
 import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError, runResearch, type PlanUsage } from "@zeno/llm-gateway";
-import { createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
+import { CLAUDE_PLAN, createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import {
   createEpisodeRecorder,
   createMemoryTools,
@@ -42,7 +42,18 @@ import {
   type EpisodeRecorder,
   type MemoryStore,
 } from "@zeno/memory";
-import { findHelper, openHelperStore, RESEARCHER_SOUL, startJobRunner, type HelperStore, type JobRun, type JobRunner } from "@zeno/helpers";
+import {
+  chooseJobModel,
+  findHelper,
+  openHelperStore,
+  RESEARCHER_SOUL,
+  startJobRunner,
+  tieredModels,
+  type HelperStore,
+  type JobRun,
+  type JobRunner,
+} from "@zeno/helpers";
+import { createLayaEngine } from "@zeno/decision-engine";
 import type { InputSource, Message } from "@zeno/contracts";
 import type { IslandHelpers, IslandMemory } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
@@ -94,7 +105,7 @@ export interface Runtime {
   capabilities(): Capability[];
   /** Called when the Claude plan reports usage (ADR-076); returns a function that stops listening. */
   onPlanUsage(listener: (usage: PlanUsage) => void): () => void;
-  /** Shutdown: stops running helper jobs (they are marked failed at the next start). */
+  /** Shutdown: stops running helper jobs (they are marked failed at the next start) and Laya's server. */
   close(): void;
 }
 
@@ -306,12 +317,39 @@ export function createRuntime(
     },
     log,
   });
+  // ADR-083: Laya rates each job's difficulty. Its server starts on the first job, stays warm, and stops in close().
+  // ZENO_LAYA=0 turns it off (every job then gets the role's default tier).
+  const decisions = createLayaEngine({ log });
+  /** The Claude plan's models for worker jobs, by tier; empty on any other provider. */
+  const planModels = () =>
+    settings.current().provider === CLAUDE_PLAN ? tieredModels(settings.info().providers.find((p) => p.id === CLAUDE_PLAN)?.models ?? []) : [];
   // ADR-081/082, Task 3.2: helper jobs run beside the Core, on the Claude plan in use at the time each job starts.
   const runJob: JobRun = async (job, { signal, onStep }) => {
-    const { provider, model: modelId } = settings.current();
-    const name = findHelper(job.helper)?.name ?? job.helper;
-    if (provider !== "claude-plan") throw new Error(`${name} needs the Claude plan for research.`);
-    return runResearch({ claudePath: keys["claude-plan"] ?? "", model: modelId, task: job.task, instructions: RESEARCHER_SOUL, signal, onStep, onUsage: reportUsage });
+    const { provider, model: current } = settings.current();
+    const helper = findHelper(job.helper);
+    const name = helper?.name ?? job.helper;
+    if (provider !== CLAUDE_PLAN) throw new Error(`${name} needs the Claude plan for research.`);
+    // ADR-083: pin, else Laya; then the role's floor and the large-model switch. Stored first so the window shows it.
+    const pick = await chooseJobModel({
+      engine: decisions,
+      task: job.task,
+      role: helper?.role ?? "",
+      pinnedModel: helpers?.list().find((h) => h.id === job.helper)?.pinnedModel,
+      allowLarge: helpers?.allowLarge() ?? true,
+      models: planModels(),
+    });
+    const model = pick.model ?? current;
+    helpers?.setModel(job.id, model, pick.reason);
+    // Never the task text.
+    log.info("job.model", {
+      helper: job.helper,
+      job: job.id,
+      model,
+      tier: pick.tier,
+      ...(pick.score !== undefined ? { score: Math.round(pick.score * 100) / 100 } : {}),
+      source: pick.source,
+    });
+    return runResearch({ claudePath: keys["claude-plan"] ?? "", model, task: job.task, instructions: RESEARCHER_SOUL, signal, onStep, onUsage: reportUsage });
   };
   // Logs ids, states, timings and page counts only: never the task, report or addresses.
   const runner: JobRunner | undefined = helpers && startJobRunner({ store: helpers, run: runJob, onRun: (e) => log.info("job.run", e) });
@@ -325,7 +363,7 @@ export function createRuntime(
     tts,
     computer,
     ...(memory ? { memory, islandMemory } : {}),
-    ...(helpers ? { helpers, islandHelpers: islandHelpers(helpers, installedApps) } : {}),
+    ...(helpers ? { helpers, islandHelpers: warmOnOpen(islandHelpers(helpers, installedApps, planModels), decisions) } : {}),
     screen,
     timers,
     onTimer(listener) {
@@ -338,7 +376,10 @@ export function createRuntime(
       planUsageListeners.add(listener);
       return () => planUsageListeners.delete(listener);
     },
-    close: () => runner?.close(),
+    close: () => {
+      runner?.close();
+      void decisions.close();
+    },
     record: (handlers) => startRecording(config.audio, handlers),
     async micName() {
       if (config.audio.inputDevice !== ":default") return config.audio.inputDevice;
@@ -457,4 +498,15 @@ export function nowLine(now = new Date()): string {
   const offset = `${minutes >= 0 ? "+" : "-"}${String(Math.floor(Math.abs(minutes) / 60)).padStart(2, "0")}:${String(Math.abs(minutes) % 60).padStart(2, "0")}`;
   const text = new Intl.DateTimeFormat("en-GB", { dateStyle: "full", timeStyle: "short" }).format(now);
   return `It is now ${text} (${zone}, UTC${offset}).`;
+}
+
+/** ADR-083: Laya takes about 5 s to start, so it starts when the Helpers window opens, not on the first job. */
+function warmOnOpen(island: IslandHelpers, decisions: { warm(): void }): IslandHelpers {
+  return {
+    ...island,
+    list: () => {
+      decisions.warm();
+      return island.list();
+    },
+  };
 }

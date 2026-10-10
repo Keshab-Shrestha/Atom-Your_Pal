@@ -726,6 +726,15 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 3. The runner asks for the model before each job; the window shows the model and why; logs hold tier, score and source only.
 **Done when:** a lookup task runs on Haiku and a refactor task on Opus (or Sonnet with the large model off), Laya stopped makes jobs fall back without waiting, and the pin overrides Laya.
 
+**As built (2026-10-10):** built; tested; Laya checked live (no Claude jobs, the plan was nearly spent); not yet tried from the window.
+- `services/decision-engine` (`@zeno/decision-engine`): the `DecisionEngine` interface (`chooseTier`, `warm`, `close`), the thresholds in one place, and the Laya engine over MCP stdio (`@modelcontextprotocol/sdk` 1.31.0, already in the lockfile). 5 s per call; a failure or a missing server falls back to medium; one restart after a crash, then off until ZENO restarts. `ZENO_LAYA=0` turns it off, `ZENO_LAYA_SERVER` sets the path. Laya starts when the Helpers window opens (its cold start took 5.4 s, longer than a job's 5 s limit) and stops when ZENO quits.
+- `services/helpers/src/models.ts`: roles on the roster (Sid researcher, Kame coder, Puff designer), role floors, newest model per family with "next tier down" when one is missing, and the reasons the window shows. A pin wins over Laya, the floor and the large-model switch.
+- Store: pins, the large-model switch (default on) and each job's model and reason, with old files migrated. Protocol: `helper.pin`, `helpers.settings` and the new `helpers` fields.
+- Window: a Model picker ("Chosen by Laya" or a model), "Allow the large model for helpers", and a line on each job such as "Sonnet 4.5 · Laya: moderate".
+- Live: cold start 5.4 s; then "What year was TCP/IP adopted?" → small (trivial, 0.16) and "Refactor the authentication module to support OAuth and add tests" → large (hard, 2.67), about 50 ms a call warm; the process was gone after close.
+- Tests: 28 TS (engine 13, models 9, store 3, island and protocol) and 6 Swift. 511 TS and 430 Swift pass; typecheck clean.
+- Known limits: a model that fell back a tier keeps Laya's label as its reason; only Haiku, Sonnet and Opus models are offered for pins; a `models` tier the island does not know stops the window updating until the island is updated.
+
 **Task 3.3 — The team and their souls.** All seven workers in the roster with their souls (role, personality, how they work, rules, lessons), editable in the window with versions. Penny and Hana available with the research tools (Hana also writes to her job folder); Kame, Puff and Quill wait for 3.5; Tinker for 3.7.
 **Done when:** each worker's soul shows in the window, an edit is used by the next job, and an older version can be restored.
 
