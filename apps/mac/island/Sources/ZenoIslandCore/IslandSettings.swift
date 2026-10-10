@@ -31,6 +31,7 @@ public final class IslandSettings {
     static let themeKey = "zeno.look.theme"
     static let wispStyleKey = "zeno.wisp.style"
     static let wispReactsKey = "zeno.wisp.reacts"
+    static let wispHomeDisplayKey = "zeno.wisp.homeDisplay"
     static let tourDoneKey = "zeno.tourDone"
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -51,6 +52,11 @@ public final class IslandSettings {
     /// Wisp notices you while ZENO is idle: eyes follow the pointer, small reactions to clicks (ADR-073). Default on.
     public var wispReacts: Bool {
         didSet { save(wispReacts, Self.wispReactsKey) }
+    }
+
+    /// Which display Wisp's walkway is on (ADR-078). Default the main display.
+    public var wispHomeDisplay: WispHomeDisplay {
+        didSet { defaults.set(wispHomeDisplay.storageValue, forKey: Self.wispHomeDisplayKey); revision += 1 }
     }
 
     /// The first-run tour has run, or the user talked before it could (ADR-075). Default false.
@@ -136,6 +142,7 @@ public final class IslandSettings {
         petEnabled = defaults.object(forKey: Self.petKey) as? Bool ?? true
         wispReacts = defaults.object(forKey: Self.wispReactsKey) as? Bool ?? true
         tourDone = defaults.bool(forKey: Self.tourDoneKey)
+        wispHomeDisplay = defaults.string(forKey: Self.wispHomeDisplayKey).map(WispHomeDisplay.init(storageValue:)) ?? .main
         soundsEnabled = defaults.object(forKey: Self.soundsKey) as? Bool ?? true
         followUpEnabled = defaults.object(forKey: Self.followUpKey) as? Bool ?? true
         wispHideAfter = (defaults.object(forKey: Self.wispHideKey) as? Int).flatMap(WispHideTimeout.init(rawValue:)) ?? .minute1
@@ -247,7 +254,7 @@ public final class IslandSettings {
     /// controller's job (`IslandModel.setPet`), and a reset should not make Wisp appear or vanish.
     public func resetWisp() {
         wispSize = .medium; wispGlow = .normal; wispWander = .normal; wispNap = .minutes3
-        wispHideAfter = .minute1; wispLean = .normal; wispReacts = true
+        wispHideAfter = .minute1; wispLean = .normal; wispReacts = true; wispHomeDisplay = .main
         bubbleStay = .seconds2; bubbleSize = .normal; bubbleOpacity = .normal
         panelSize = .normal; panelBackground = .glass
     }

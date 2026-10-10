@@ -4,7 +4,8 @@ import ZenoIslandCore
 
 /// Wisp's home (ADR-042, ADR-043): a small transparent window that follows Wisp.
 ///
-/// - By default Wisp wanders the "walkway" along the top of the Dock on the primary display.
+/// - By default Wisp wanders the "walkway" along the top of the Dock on its home display (ADR-078: the main display,
+///   the display with the pointer, or a chosen one).
 /// - Drag it anywhere, on any display: it stays there ("parked", remembered across launches). Drop it back on
 ///   the Dock walkway and it wanders again. Right-click → "Back to the Dock" sends it home.
 /// - A click or double-click opens the features panel beside it (ADR-051); Wisp stands still while it is open.
@@ -81,6 +82,13 @@ final class PetController {
     // Where things are, in screen coordinates (origin bottom-left of the primary display).
     private var walkMinX: CGFloat = 0
     private var walkY: CGFloat = 0
+    /// The visible frame of the display the walkway is on.
+    private var walkFrame = CGRect.zero
+    /// ADR-078: the display the walkway is on (`NSScreen.displayUUID`); nil until first placed.
+    private var homeUUID: String?
+    /// The display the pointer is on and since when (for "Display with the pointer").
+    private var pointerDisplay: (uuid: String, since: Double)?
+    private var lastHomeCheck = 0.0
     /// Wisp's feet now (what the window shows).
     private var feet = CGPoint.zero
     /// Where Wisp's feet are headed; while `settling`, `feet` eases toward it.
@@ -153,6 +161,7 @@ final class PetController {
             retreat.wake(at: now)
             peek = nil
             rotation = 0
+            homeUUID = resolveHome(now: now)
             place()
             if let spot = settings.petSpot, screenContains(CGPoint(x: spot.x, y: spot.y)) {
                 brain.drop(homeX: nil, at: now)
@@ -360,6 +369,11 @@ final class PetController {
         let interval = resting ? Self.restingInterval : Self.awakeInterval
         if let timer, timer.timeInterval != interval { startTimer(interval: interval) }
 
+        if now - lastHomeCheck >= 1 {
+            lastHomeCheck = now
+            checkHome(now: now)
+        }
+
         if now - lastTrace >= 1 {
             lastTrace = now
             trace("pet \(mood) feet=\(Int(feet.x)),\(Int(feet.y)) facing=\(Int(brain.facing)) \(brain.pinned ? "parked" : "walking")")
@@ -425,11 +439,13 @@ final class PetController {
 
     // MARK: - The walkway
 
-    /// The primary display (the one with the menu bar and Dock), same as the island. Not `NSScreen.main`:
-    /// that is whichever display has the focused window, so Wisp would jump between displays.
+    /// The walkway along the bottom of the home display's visible frame (above its Dock, if it has one). Falls back to
+    /// the menu-bar display, never `NSScreen.main`: that is whichever display has the focused window.
     private func place() {
-        guard let screen = NSScreen.screens.first else { return }
+        let screens = NSScreen.screens
+        guard let screen = screens.first(where: { $0.displayUUID == homeUUID }) ?? screens.first else { return }
         let visible = screen.visibleFrame
+        walkFrame = visible
         walkMinX = visible.minX + Self.margin
         walkY = visible.minY + Self.dockLift
         let width = max(visible.width - Self.margin * 2 - size, 0)
@@ -454,12 +470,46 @@ final class PetController {
     }
 
     private func screensChanged() {
+        checkHome(now: Self.now)
         place()
         // A parked Wisp whose display went away comes home instead of being lost off-screen.
         if brain.pinned, let spot = settings.petSpot, !screenContains(CGPoint(x: spot.x, y: spot.y)) {
             trace("pet display gone, going home")
             sendHome()
         }
+    }
+
+    // MARK: - Home display (ADR-078)
+
+    /// Where the settings and the pointer say home is now, as a display UUID.
+    private func resolveHome(now: Double) -> String? {
+        let displays = NSScreen.homeDisplays()
+        let mouse = NSEvent.mouseLocation
+        let pointerIndex = displays.firstIndex { $0.frame.contains(mouse) }
+        if let pointerIndex, pointerDisplay?.uuid != displays[pointerIndex].uuid {
+            pointerDisplay = (displays[pointerIndex].uuid, now)
+        }
+        let current = displays.firstIndex { $0.uuid == homeUUID }
+        return WispHomeResolver.resolve(settings.wispHomeDisplay, displays: displays, pointerIndex: pointerIndex,
+                                        pointerDwell: pointerDisplay.map { now - $0.since } ?? 0, currentHome: current)
+            .map { displays[$0.index].uuid }
+    }
+
+    /// Moves the walkway to the resolved home display. A walking Wisp flies there only while idle (otherwise the next
+    /// check tries again); a parked Wisp stays put. If the old home display is gone, the walkway moves at once.
+    private func checkHome(now: Double) {
+        guard window.isVisible, let wanted = resolveHome(now: now), wanted != homeUUID else { return }
+        let oldGone = !NSScreen.screens.contains { $0.displayUUID == homeUUID }
+        let idle = !pressed && !dragging && pointFeet == nil && peek == nil && flight == nil
+            && !state.mood.isReacting && state.reaction == nil
+        guard brain.pinned || idle || oldGone else { return }
+        trace("pet home display \(homeUUID ?? "-") -> \(wanted)")
+        homeUUID = wanted
+        place()
+        guard !brain.pinned, !dragging, pointFeet == nil else { return } // pointing returns to the new walkway when it ends
+        peek = nil
+        settling = true
+        fly(to: walkwayFeet())
     }
 
     private func screenContains(_ point: CGPoint) -> Bool {
@@ -581,10 +631,7 @@ final class PetController {
     }
 
     private func isOnWalkway(_ feet: CGPoint) -> Bool {
-        guard let primary = NSScreen.screens.first else { return false }
-        let visible = primary.visibleFrame
-        return abs(feet.y - walkY) <= Self.snapDistance
-            && feet.x >= visible.minX && feet.x <= visible.maxX
+        abs(feet.y - walkY) <= Self.snapDistance && feet.x >= walkFrame.minX && feet.x <= walkFrame.maxX
     }
 
     /// Keeps Wisp fully on the display the pointer is over.
@@ -597,6 +644,22 @@ final class PetController {
             x: min(max(point.x, frame.minX + half), frame.maxX - half),
             y: min(max(point.y, frame.minY + 2), top)
         )
+    }
+}
+
+extension NSScreen {
+    /// ADR-078: the display's UUID, stable across restarts and rearranged layouts (the display ID is not).
+    var displayUUID: String {
+        let id = (deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0
+        guard let uuid = CGDisplayCreateUUIDFromDisplayID(id)?.takeRetainedValue() else { return "display-\(id)" }
+        return CFUUIDCreateString(nil, uuid) as String
+    }
+
+    /// The connected displays for `WispHomeResolver`, in `NSScreen.screens` order (the menu-bar display first).
+    static func homeDisplays() -> [HomeDisplay] {
+        screens.enumerated().map { i, screen in
+            HomeDisplay(uuid: screen.displayUUID, frame: screen.frame, visibleFrame: screen.visibleFrame, isMain: i == 0)
+        }
     }
 }
 

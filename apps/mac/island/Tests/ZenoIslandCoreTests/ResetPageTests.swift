@@ -11,7 +11,7 @@ struct ResetPageTests {
     static let dictationKeys: Set = [IslandSettings.dictationModeKey, IslandSettings.livePreviewKey, IslandSettings.removeFillersKey]
     static let wispKeys: Set = [
         IslandSettings.wispSizeKey, IslandSettings.wispGlowKey, IslandSettings.wispWanderKey, IslandSettings.wispNapKey,
-        IslandSettings.wispHideKey, IslandSettings.wispLeanKey, IslandSettings.wispReactsKey,
+        IslandSettings.wispHideKey, IslandSettings.wispLeanKey, IslandSettings.wispReactsKey, IslandSettings.wispHomeDisplayKey,
         IslandSettings.bubbleSizeKey, IslandSettings.bubbleOpacityKey, IslandSettings.bubbleStayKey,
         IslandSettings.panelSizeKey, IslandSettings.panelBackgroundKey,
     ]
@@ -28,7 +28,7 @@ struct ResetPageTests {
         s.dictationMode = other(s.dictationMode); s.livePreview.toggle(); s.removeFillers.toggle()
         s.wispSize = other(s.wispSize); s.wispGlow = other(s.wispGlow); s.wispWander = other(s.wispWander)
         s.wispNap = other(s.wispNap); s.wispHideAfter = other(s.wispHideAfter); s.wispLean = other(s.wispLean)
-        s.wispReacts.toggle()
+        s.wispReacts.toggle(); s.wispHomeDisplay = .display(uuid: "SIDE")
         s.bubbleSize = other(s.bubbleSize); s.bubbleOpacity = other(s.bubbleOpacity); s.bubbleStay = other(s.bubbleStay)
         s.panelSize = other(s.panelSize); s.panelBackground = other(s.panelBackground)
         s.petEnabled.toggle(); s.soundsEnabled.toggle(); s.followUpEnabled.toggle(); s.tourDone.toggle()
@@ -70,7 +70,7 @@ struct ResetPageTests {
         #expect(changed == Self.wispKeys)
         #expect(s.wispSize == fresh.wispSize && s.wispGlow == fresh.wispGlow && s.wispWander == fresh.wispWander)
         #expect(s.wispNap == fresh.wispNap && s.wispHideAfter == fresh.wispHideAfter && s.wispLean == fresh.wispLean)
-        #expect(s.wispReacts == fresh.wispReacts)
+        #expect(s.wispReacts == fresh.wispReacts && s.wispHomeDisplay == fresh.wispHomeDisplay)
         #expect(s.bubbleSize == fresh.bubbleSize && s.bubbleOpacity == fresh.bubbleOpacity && s.bubbleStay == fresh.bubbleStay)
         #expect(s.panelSize == fresh.panelSize && s.panelBackground == fresh.panelBackground)
         // Show Wisp and where it is parked are left alone.

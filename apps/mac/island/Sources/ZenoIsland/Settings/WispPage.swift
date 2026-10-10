@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import ZenoIslandCore
 
@@ -21,6 +22,8 @@ struct WispSection: View {
                 ChoiceRow(title: "Glow", selection: settings.wispGlow) { settings.wispGlow = $0 }
             }
             Card("Behaviour") {
+                HomeDisplayRow(settings: settings)
+                RowDivider()
                 ChoiceRow(title: "Movement",
                           detail: settings.wispWander == .stayPut ? "Wisp rests where it stands" : "How fast Wisp floats along the Dock when idle",
                           selection: settings.wispWander) { settings.wispWander = $0 }
@@ -57,6 +60,58 @@ struct WispSection: View {
         }
         ResetPageCard(footer: "Wisp, the speech bubble and the panel go back to their defaults. Show Wisp stays as it is.") {
             settings.resetWisp()
+        }
+    }
+}
+
+/// ADR-078: which display Wisp walks along: the main one, the one with the pointer, or a connected display by name.
+/// A chosen display that is unplugged shows as "Saved display (not connected)" until it comes back or another is picked.
+private struct HomeDisplayRow: View {
+    let settings: IslandSettings
+
+    var body: some View {
+        let screens = NSScreen.screens
+        let displays = NSScreen.homeDisplays()
+        let choice = settings.wispHomeDisplay
+        let missing = WispHomeResolver.resolve(choice, displays: displays, pointerIndex: nil, pointerDwell: 0, currentHome: nil)?.chosenMissing
+            ?? true // no displays at all: nothing chosen can be connected
+        Row(title: "Home display", detail: detail(choice, missing: missing)) {
+            Menu {
+                item("Main display", .main)
+                item("Display with the pointer", .pointer)
+                Divider()
+                ForEach(Array(zip(displays, screens)), id: \.0.uuid) { display, screen in
+                    item(screen.localizedName, .display(uuid: display.uuid))
+                }
+            } label: {
+                MenuLabel(text: label(choice, missing: missing, displays: displays, screens: screens))
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .fixedSize()
+        }
+    }
+
+    private func item(_ title: String, _ value: WispHomeDisplay) -> some View {
+        Button { settings.wispHomeDisplay = value } label: {
+            if settings.wispHomeDisplay == value { Label(title, systemImage: "checkmark") } else { Text(title) }
+        }
+    }
+
+    private func label(_ choice: WispHomeDisplay, missing: Bool, displays: [HomeDisplay], screens: [NSScreen]) -> String {
+        switch choice {
+        case .main: "Main display"
+        case .pointer: "Display with the pointer"
+        case .display(let uuid):
+            missing ? "Saved display (not connected)" : displays.firstIndex { $0.uuid == uuid }.map { screens[$0].localizedName } ?? "Main display"
+        }
+    }
+
+    private func detail(_ choice: WispHomeDisplay, missing: Bool) -> String {
+        switch choice {
+        case .main: "Where Wisp walks along the Dock"
+        case .pointer: "Wisp moves to the display you are using after 3 seconds there"
+        case .display: missing ? "On the main display until it is back" : "Where Wisp walks along the Dock"
         }
     }
 }

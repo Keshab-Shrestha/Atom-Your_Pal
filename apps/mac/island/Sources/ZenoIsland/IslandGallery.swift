@@ -59,6 +59,10 @@ enum IslandGallery {
         // ADR-079: the Wisp page (Wisp, Speech bubble, Panel) down to its "Reset this page" row.
         model.settingsPage = .wisp
         write(model, size: CGSize(width: expanded.width, height: 1300), name: "2-settings-wisp-full", to: directory)
+        // ADR-078: a chosen home display that is unplugged.
+        model.settings.wispHomeDisplay = .display(uuid: "UNPLUGGED")
+        write(model, size: CGSize(width: expanded.width, height: 700), name: "2-settings-wisp-home-unplugged", to: directory)
+        model.settings.wispHomeDisplay = .main
         model.settingsPage = nil
         model.recorder.start(.talk)
         write(model, size: expanded, name: "3-recording-shortcut", to: directory)

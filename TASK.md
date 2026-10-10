@@ -632,7 +632,13 @@ As built:
 - Wisp's flight to the menu-bar icon arcs and lands exactly;
 - CPU while napping is lower than today's (measured the same way as TASK.md 0.5.4b).
 
-**Task 2.D — Wisp's home display (ADR-078).**
+**Task 2.D — Wisp's home display (ADR-078).** Built 2026-10-10; tested (403 Swift); not yet tried on two displays.
+
+As built:
+- **Checks.** The home is re-checked once a second and on display changes, so a busy Wisp moves once it is idle.
+- **Follow the pointer.** Wisp moves 3–4 s after the pointer settles on another display.
+- **Home display unplugged.** The walkway moves at once, and a tucked Wisp comes out.
+- **Parked Wisp.** It stays where it was parked.
 1. Core resolver with tests: main display, display with the pointer, chosen display, unplugged display.
 2. Settings row; re-place Wisp on `didChangeScreenParametersNotification`.
 
