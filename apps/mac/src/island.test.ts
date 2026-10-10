@@ -941,6 +941,22 @@ test("job.rate asks Tinker to review; proposal.accept, proposal.undo and proposa
   assert.deepEqual(h.types(), ["error"]);
 });
 
+test("job.open opens through the runtime; its words come back as an error when it cannot (Task 3.14)", async () => {
+  const store = openHelperStore({ path: ":memory:" });
+  const opened: number[] = [];
+  const helpers = { ...islandHelpers(store, async () => []), openReport: async (id: number) => (id === 1 ? (opened.push(id), "Opened") : Promise.reject(new Error("That task has no report."))) };
+  const h = islandHarness({ helpers });
+  await tick(5);
+  h.clear();
+  await h.send({ type: "job.open", id: 1 });
+  await tick(5);
+  assert.deepEqual([opened, h.types()], [[1], ["helpers"]]);
+  h.clear();
+  await h.send({ type: "job.open", id: 2 });
+  await tick(5);
+  assert.match((h.events()[0] as { message: string }).message, /no report/);
+});
+
 test("helpers.settings turns the large model off and on, answered with helpers", async () => {
   const { h, store } = helperHarness();
   await tick(5);

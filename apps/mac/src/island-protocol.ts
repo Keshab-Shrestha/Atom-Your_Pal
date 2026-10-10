@@ -33,6 +33,7 @@ export type IslandCommand =
   | { type: "grant.add"; helper: string; path: string }
   | { type: "helper.skills"; helper: string; skills: string[] }
   | { type: "job.rate"; id: number; good: boolean; comment?: string }
+  | { type: "job.open"; id: number }
   | { type: "proposal.accept"; id: number }
   | { type: "proposal.reject"; id: number }
   | { type: "proposal.undo"; id: number }
@@ -276,6 +277,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "grant.add",
   "helper.skills",
   "job.rate",
+  "job.open",
   "proposal.accept",
   "proposal.reject",
   "proposal.undo",
@@ -430,7 +432,7 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof version !== "number" || !Number.isInteger(version) || version < 1) return { error: 'soul.restore needs a "version" that is a whole number.' };
     return { command: { type, helper, version } };
   }
-  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "report.get" || type === "thread.get") {
+  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "job.open" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "report.get" || type === "thread.get") {
     const { id } = value as { id?: unknown };
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     return { command: { type, id } };

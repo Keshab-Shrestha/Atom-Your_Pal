@@ -74,6 +74,7 @@ import { islandHelpers } from "./island-helpers.ts";
 import { denyRead, folderCheck } from "./folder-run.ts";
 import { commitWork, prepareWorkdir, type Workdir } from "./worktree.ts";
 import { SKILLS_PLUGIN, listSkills, prepareSkills } from "./skills.ts";
+import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { createWindowPointer, type WindowPointer } from "./screen-context.ts";
 import { withPointing } from "./pointing.ts";
 import { AudioError, defaultInputDevice, startRecording } from "./audio.ts";
@@ -299,11 +300,23 @@ export function createRuntime(
           onHit: (e) => log.info("shortcut.hit", e),
           onFallback: (e) => log.info("shortcut.fallback", e),
         });
+  // Task 3.14: a finished report opens in its worker's app (tabs, a note, or a text file), by code.
+  const openDeps = defaultOpenDeps(join(dirname(resolve(helpersPath === ":memory:" ? "data/x" : helpersPath)), "reports"));
+  const openReport = async (taskId: number): Promise<string> => {
+    const job = helpers?.get(taskId);
+    const report = helpers?.report(taskId);
+    if (!helpers || !job || !report) throw new Error("That task has no report.");
+    const worker = helpers.list().find((h) => h.id === job.helper)!;
+    if (!worker.app) throw new Error(`Choose where ${worker.name} opens things in the Helpers window first.`);
+    const said = await openInApp(worker.app, taskId, report, openDeps);
+    log.info("report.opened", { helper: job.helper, job: taskId });
+    return said;
+  };
   // ADR-081, Task 3.5: "Sid, …" goes straight to that worker, in code. Logs the worker and action only.
-  const workerShortcut = helpers && createWorkerShortcut(helpers, (e) => log.info("worker.command", e));
+  const workerShortcut = helpers && createWorkerShortcut(helpers, (e) => log.info("worker.command", e), openReport);
   const shortcuts =
     toolShortcuts || workerShortcut
-      ? async (text: string, signal?: AbortSignal) => workerShortcut?.(text) ?? toolShortcuts?.(text, signal)
+      ? async (text: string, signal?: AbortSignal) => (await workerShortcut?.(text)) ?? toolShortcuts?.(text, signal)
       : undefined;
   // ZENO_VOICE_ONLY=1: test speech in and out without the AI. ZENO reads back what Whisper heard, and no
   // request is made to any model. (Typed as `Core` so every caller treats it the same.)
@@ -553,7 +566,7 @@ export function createRuntime(
     tts,
     computer,
     ...(memory ? { memory, islandMemory } : {}),
-    ...(helpers ? { helpers, islandHelpers: warmOnOpen(islandHelpers(helpers, installedApps, planModels, held, () => listSkills()), decisions) } : {}),
+    ...(helpers ? { helpers, islandHelpers: warmOnOpen({ ...islandHelpers(helpers, installedApps, planModels, held, () => listSkills()), openReport }, decisions) } : {}),
     screen,
     timers,
     onTimer(listener) {

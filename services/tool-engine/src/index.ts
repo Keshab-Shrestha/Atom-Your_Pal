@@ -1,6 +1,6 @@
 export { capabilityItems, createToolEngine, type Capability, type Tool, type ToolEngineOptions, type ToolOutput } from "./engine.ts";
 export { timeTool } from "./tools/time.ts";
-export { createNoteTools } from "./tools/notes.ts";
+export { appleScriptString, createNoteTools, noteHtml } from "./tools/notes.ts";
 export { createMediaTools, type Osascript } from "./tools/media.ts";
 export { createAppTools, installedApps, matchApp, type AppToolOptions } from "./tools/apps.ts";
 export { createIslandTools, type IslandToolOptions } from "./tools/island.ts";

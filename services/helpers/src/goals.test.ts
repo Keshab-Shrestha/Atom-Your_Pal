@@ -211,6 +211,21 @@ test("the voice command gives the worker a task of its own, or stops it, or says
   assert.deepEqual(hits.at(-1), { helper: "tinker", action: "task" });
 });
 
+test("'Sid, open it' opens Sid's newest finished report in its app (Task 3.14)", async () => {
+  const store = openHelperStore({ path: ":memory:" });
+  const opened: number[] = [];
+  const say = createWorkerShortcut(store, undefined, async (id) => (opened.push(id), "Opened 3 sources in Brave Browser."));
+  assert.equal(say("Sid, open it"), "Sid has no finished report yet.");
+  const { id } = store.addJob("sid", "x");
+  store.start(id);
+  store.finish(id, { title: "T", summary: "S.", body: "B", sources: [] });
+  assert.equal(await say("Sid, open the sources"), "Opened 3 sources in Brave Browser.");
+  assert.deepEqual(opened, [id]);
+  const failing = createWorkerShortcut(store, undefined, async () => Promise.reject(new Error("Choose where Sid opens things first.")));
+  assert.equal(await failing("Sid, open that"), "Choose where Sid opens things first.");
+  assert.equal(store.get(id)!.state, "done", "not taken as a follow-up");
+});
+
 test("the brief does not repeat a goal that is the task itself", () => {
   assert.equal(briefFor("Research mesh", { goal: "Research mesh", comments: [], earlier: [] }), "Research mesh");
 });

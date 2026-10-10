@@ -665,6 +665,17 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.helperPin(helper: helper.id, model: modelId ?? ""))
     }
 
+    /// Task 3.14: the app the open task's report opens in, when it has a report and its worker has an app.
+    public var openTaskApp: String? {
+        guard let item = openItem, item.job.state == .done, report != nil else { return nil }
+        return list?.helpers.first { $0.id == item.helperId }?.app
+    }
+
+    public mutating func openReportInApp() -> IslandCommand? {
+        guard openTaskApp != nil, let id = openJobId else { return nil }
+        return waiting(.jobOpen(id: id))
+    }
+
     /// Task 3.13: rates the open task, if it has finished and is not one of Tinker's reviews.
     public mutating func rate(good: Bool, comment: String = "") -> IslandCommand? {
         guard let job = openJob, job.isFinished, job.reviews == nil else { return nil }

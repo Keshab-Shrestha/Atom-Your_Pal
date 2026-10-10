@@ -186,6 +186,9 @@ struct ThreadPane: View {
                     WaitsForSection(model: model, job: item.job)
                     if let handOffs = model.helpers.thread?.handOffs, !handOffs.isEmpty { SubTasksSection(model: model, ids: handOffs) }
                     if let report = model.helpers.report {
+                        if let app = model.helpers.openTaskApp {
+                            QuietButton(title: "Open in \(app)", symbol: "arrow.up.forward.app") { model.sendHelpers(model.helpers.openReportInApp()) }
+                        }
                         ReportSection(report: report)
                     } else if item.job.hasReport {
                         HStack(spacing: 8) {

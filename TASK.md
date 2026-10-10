@@ -872,6 +872,12 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 
 **Task 3.14 — Open in the worker's app.** A browser opens the top sources as tabs; Notes saves the report as a note; done by code from http(s) sources.
 
+**As built (2026-10-11):** built; tested with fakes for `open` and AppleScript; not yet tried on the real apps.
+- `open-in-app.ts`: a browser (Safari, Brave, Chrome, Arc, Firefox, Edge and others by name) opens the report's top 5 web sources as tabs (`open -a`), http and https only; Notes gets a new note with the report and its sources (adding only, as the Notes tool); any other app opens the report as a text file (`data/reports/task-<id>.txt`).
+- From the thread: "Open in Brave Browser" above a finished report, when its worker has an app (`job.open`). By voice: "Sid, open it", "Sid, open the sources", "Sid, show that" open Sid's newest finished report and ZENO says what it did; problems come back as words ("Choose where Sid opens things in the Helpers window first.", "The report has no web sources to open."). Logs `report.opened` with ids only.
+- Tests: 6 TS (open in app 3, voice 1, island 1, protocol) and 1 Swift. TS 610 pass, 2 skipped; typecheck clean; Swift 488 pass.
+- Known limits: nothing opens by itself when a task finishes (on request only); a browser not in the list is treated as "any other app" (the report as a text file).
+
 **Task 3.15 — Workers on screen.** Each worker's original look in Wisp's style, a small working sign while busy, and Wisp flying over to say its one line when a goal is done.
 
 **Task 3.16 — Optional Paperclip connection.** Off unless `ZENO_PAPERCLIP_URL` is set, loopback only; Wisp creates an issue for a chosen Paperclip agent, reads its state and comments, approves or rejects its approvals; Paperclip tasks on the board marked "Paperclip"; the window warns that Paperclip agents run outside ZENO's checks and that its telemetry is on unless turned off. ZENO never installs or starts Paperclip.

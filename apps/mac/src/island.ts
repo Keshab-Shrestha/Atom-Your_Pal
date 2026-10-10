@@ -103,6 +103,8 @@ export interface IslandHelpers {
   rejectPlan(id: number): void;
   /** Whether a worker's new tasks plan first. Throws, with words for the user, for an unknown worker. */
   setPlanFirst(helper: string, on: boolean): void;
+  /** Task 3.14: opens a task's report in its worker's app. Absent: `job.open` is refused. Rejects with words for the user. */
+  openReport?(id: number): Promise<string>;
   /** Task 3.13: rate a finished task ("not good" asks Tinker to review it); answer Tinker's proposals. Each throws with words for the user. */
   rate(id: number, good: boolean, comment?: string): void;
   acceptProposal(id: number): void;
@@ -302,6 +304,16 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "plan.reject":
         changeHelpers(command.type, (helpers) => helpers.rejectPlan(command.id));
         return;
+      case "job.open": {
+        const helpers = options.helpers;
+        if (!helpers?.openReport) return refuseHelpers(command.type, HELPERS_OFF);
+        // Done by code in the worker's app; a problem ("no app chosen", "no web sources") comes back as words.
+        void helpers.openReport(command.id).then(
+          () => sendHelpers(),
+          (error: unknown) => refuseHelpers(command.type, describe(error)),
+        );
+        return;
+      }
       case "job.rate":
         changeHelpers(command.type, (helpers) => helpers.rate(command.id, command.good, command.comment));
         return;

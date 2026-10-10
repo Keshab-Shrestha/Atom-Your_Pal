@@ -188,6 +188,9 @@ export function isFollowUp(task: string): boolean {
 const APPROVE = /^(?:yes|yeah|ok(?:ay)?|go ahead|approved?|approve it|start(?: it)?|do it|sounds good)(?:\s+please)?[.!]*$/i;
 const REJECT = /^(?:no|nope|reject(?: it)?|don'?t|drop (?:it|that|the plan))(?:\s+thanks)?[.!]*$/i;
 
+/** Task 3.14: "Sid, open it", "open that", "open the sources": the newest report, in Sid's app. */
+const OPEN = /^(?:please\s+)?(?:open|show)(?:\s+(?:it|that|them|this|the sources|the report|your report|the tabs))?(?:\s+(?:up|please))?[.!]*$/i;
+
 const STOP = /^(?:please\s+)?stop(?:\s+(?:it|that|now|working))?(?:\s+please)?[.!]*$/i;
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -215,9 +218,11 @@ export function matchWorkerCommand(text: string, workers: readonly HelperView[])
  */
 export function createWorkerShortcut(
   store: HelperStore,
-  onHit?: (event: { helper: string; action: "task" | "again" | "stop" | "approve" | "reject" | "routine" }) => void,
+  onHit?: (event: { helper: string; action: "task" | "again" | "stop" | "approve" | "reject" | "routine" | "open" }) => void,
+  /** Task 3.14: opens a finished task's report in its worker's app; returns what happened, in words. */
+  openReport?: (taskId: number) => Promise<string>,
 ) {
-  return (text: string): string | undefined => {
+  return (text: string): string | Promise<string> | undefined => {
     const workers = store.list();
     const command = matchWorkerCommand(text, workers);
     if (!command) return undefined;
@@ -236,6 +241,12 @@ export function createWorkerShortcut(
     }
     const own = workers.find((w) => w.id === command.helper)!.jobs;
     const latest = own[0];
+    if (openReport && "task" in command && OPEN.test(command.task)) {
+      onHit?.({ helper: command.helper, action: "open" });
+      const done = own.find((j) => j.state === "done");
+      if (!done) return `${command.name} has no finished report yet.`;
+      return openReport(done.id).catch((error: unknown) => (error instanceof Error ? error.message : String(error)));
+    }
     const planned = own.find((j) => j.state === "queued" && j.planStatus === "awaiting");
     if (planned && "task" in command && (APPROVE.test(command.task) || REJECT.test(command.task))) {
       const approve = APPROVE.test(command.task);

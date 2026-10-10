@@ -730,3 +730,20 @@ struct HelperFeedbackTests {
         #expect(IslandCommand.jobRate(id: 1, good: true, comment: nil).line == #"{"good":true,"id":1,"type":"job.rate"}"# + "\n")
     }
 }
+
+@Suite("Open in the worker's app (Task 3.14)")
+struct HelperOpenTests {
+    @Test func aFinishedReportOpensInItsWorkersApp() throws {
+        let line = HelperTaskTests.line.replacingOccurrences(of: #""name":"Sid","available":true,"app":null"#, with: #""name":"Sid","available":true,"app":"Brave Browser""#)
+        var state = HelpersState()
+        state.apply(try decodeEvent(line))
+        _ = state.openThread(1)
+        #expect(state.openTaskApp == nil) // the report has not come yet
+        state.apply(.thread(HelperThread(id: 1, comments: [], activity: [], report: HelperReport(id: 1, title: "T", summary: "S", body: "B", sources: []))))
+        #expect(state.openTaskApp == "Brave Browser")
+        #expect(state.openReportInApp() == .jobOpen(id: 1))
+        _ = state.openThread(5) // Hana has no app, and the task is queued
+        #expect(state.openReportInApp() == nil)
+        #expect(IslandCommand.jobOpen(id: 1).line == #"{"id":1,"type":"job.open"}"# + "\n")
+    }
+}

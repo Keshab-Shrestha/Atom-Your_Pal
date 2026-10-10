@@ -52,6 +52,8 @@ public enum IslandCommand: Sendable, Equatable {
     case proposalAccept(id: Int)
     case proposalReject(id: Int)
     case proposalUndo(id: Int)
+    /// Task 3.14: open a task's report in its worker's app.
+    case jobOpen(id: Int)
     case grantRemove(helper: String, path: String)
     case jobDelete(id: Int)
     case reportGet(id: Int)
@@ -100,6 +102,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .proposalAccept: "proposal.accept"
         case .proposalReject: "proposal.reject"
         case .proposalUndo: "proposal.undo"
+        case .jobOpen: "job.open"
         case .grantRemove: "grant.remove"
         case .jobDelete: "job.delete"
         case .reportGet: "report.get"
@@ -153,7 +156,7 @@ public enum IslandCommand: Sendable, Equatable {
             fields["id"] = id
             fields["good"] = good // a real JSON boolean
             if let comment, !comment.isEmpty { fields["comment"] = comment }
-        case .proposalAccept(let id), .proposalReject(let id), .proposalUndo(let id):
+        case .proposalAccept(let id), .proposalReject(let id), .proposalUndo(let id), .jobOpen(let id):
             fields["id"] = id
         case .helperSkills(let helper, let skills):
             fields["helper"] = helper
