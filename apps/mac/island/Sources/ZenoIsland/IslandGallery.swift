@@ -10,6 +10,11 @@ enum IslandGallery {
         let suite = "zeno.gallery.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
+        // The design study alone (ZENO_ISLAND_GALLERY_ONLY=design), for quick iteration on sheet 14.
+        if ProcessInfo.processInfo.environment["ZENO_ISLAND_GALLERY_ONLY"] == "design" {
+            DesignStudy.render(to: directory)
+            return
+        }
 
         let model = IslandModel(settings: IslandSettings(defaults: defaults))
         let lines = [
@@ -79,6 +84,7 @@ enum IslandGallery {
         writeSetup(to: directory, conversation: filled)
         writeEveryday(to: directory)
         writeHelpers(to: directory)
+        DesignStudy.render(to: directory)
     }
 
     /// ADR-081: the Helpers window with Sid running one job and done with another, Kame and Puff coming soon; Sid's

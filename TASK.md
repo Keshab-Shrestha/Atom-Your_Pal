@@ -756,6 +756,22 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 
 **Later (not planned):** steering a running job, a per-job execution log, retries, scheduled work, other providers, workers driving apps through computer control.
 
+
+## Phase 4 — Lantern: the Redesign (ADR-084, 2026-10-10)
+
+Design: `docs/design/design-study.md` §3 A (tokens, type, motion) and §4 (rollout). Mockups: gallery sheets `14-design-study-*`. Each step changes how things look and move, never what they do; each ends with its tests, a gallery render shown to Keshab, and docs.
+
+- **4.1 Tokens and motion.** A `lantern` palette (dark and Lantern Day) with contrast tests, a `Motion` set of named springs with Reduce Motion fallbacks; Lantern is the default theme.
+- **4.2 Menu-bar item.** One Wisp outline (template image), lit while listening, amber when asking, coral on a problem.
+- **4.3 Panel header and tabs.** Live Wisp in the header, the state in rounded type, two word tabs with the light underneath, header glow from state.
+- **4.4 Settings home with "now".** The Status tab's content in a top card, monochrome rows, page hand-off; the Status tab removed last.
+- **4.5 Conversation.** Quiet user slips, full-width replies without avatars, older turns receding, a glowing caret while a reply streams, a pencil for New conversation, a lit mic.
+- **4.6 Panel open and close.** Springs from the menu-bar item.
+- **4.7 Wisp's bubble.** Night glass, lit rim while listening, amber for attention.
+- **4.8 Work strip and pointing label.** Same glass; amber approval with Allow as the only filled button.
+- **4.9 Helpers window.** Letter discs with a working arc, dot states, a progress line, "Read report" as the lit button.
+- **4.10 Sounds** (optional, a separate decision).
+
 ---
 
 ## 6. Definition of Done

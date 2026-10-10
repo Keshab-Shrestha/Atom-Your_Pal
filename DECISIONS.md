@@ -1754,3 +1754,28 @@ The custom question spreads the tasks from 0.16 to 2.67 in a sensible order. The
 ### Consequences
 
 Small jobs run faster and spend less of the plan; hard ones get the bigger model. ZENO starts Laya's server once, on the first job, and keeps it warm (its model load takes a few seconds; then about 0.2 s a call), and stops it when ZENO quits. The cost is one more local process and a classifier whose scores are rough: the floors, the pin and the fallback keep a bad score from doing harm beyond picking a smaller or larger model.
+
+---
+
+## ADR-084 — Lantern: ZENO's Look, Grown From Wisp
+
+Date: 2026-10-10. Status: **accepted** (Keshab, 2026-10-10: "yeah i love this", choosing Lantern from three rendered directions).
+
+### Context
+
+Keshab: "lets improvise the UX and UI from zero .. i like the features they are now but i want improvised UX UI .. it feels like a slop rather than a genuine product .. if needed use coucou and clicky as reference.. i want those swift motions and color accents and the premium feel to this app."
+
+A design study (`docs/design/design-study.md`) found why: a stock iOS-Settings look, six unrelated accent colours, a segmented tab bar, a Settings page with an empty half, and little motion, while the most distinctive thing ZENO has, Wisp, is barely used. Coucou and Clicky were studied as references for motion, materials and accents (ideas only; no names, characters, icons, sounds or media are taken). Three directions were rendered: Lantern, Mist and Halo.
+
+### Decision
+
+**Lantern.** Wisp is a small light in the dark: night-glass surfaces in cool greys, and the only colour is Wisp's own light (`#8FD3FF`). State is shown by how brightly the light burns, never by changing hue. Amber means "Wisp needs you", coral means "something went wrong"; nothing else is coloured. The tokens, type scale, spacing, materials and named springs are in the design study, §3 A.
+
+- **The Status tab goes**: its content becomes the "now" card at the top of Settings (plan meters, model, microphone, voice, last turn). Every fact and page stays reachable.
+- **Lantern becomes the default theme.** Quiet Native, Luminous and Warm stay selectable; a light "Lantern Day" variant is part of it.
+- **Motion has names.** A small `Motion` set of springs is used everywhere, each with a Reduce Motion fallback.
+- **Rolled out one screen at a time** (Phase 4), each step tested, rendered in the gallery and shown before the next. Behaviour does not change; only how it looks and moves.
+
+### Consequences
+
+One visual language across the panel, Wisp's bubble, the work strip, the menu-bar item and the Helpers window, with Wisp at its centre. Older themes stay but are no longer the default. Sounds are a separate, later decision.
