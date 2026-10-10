@@ -688,7 +688,7 @@ As built:
 **Done when:** with computer control on, "where's the Wi-Fi icon?" makes Wisp point there and say one sentence, and a malformed marker is dropped without being spoken.
 
 
-## Phase 3 — Helpers: Sid, Kame and Puff (ADR-081, 2026-10-10)
+## Phase 3 — Helpers: Sid, Kame and Puff (ADR-081, 2026-10-10; ADR-082; ADR-087)
 
 Keshab's answers: research, then open in its app; ZENO's own window; flies over and says one line; Sid end to end first. Each task below is one capability and ends with its own tests and docs.
 
@@ -738,23 +738,55 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 **Task 3.3 — The team and their souls.** All seven workers in the roster with their souls (role, personality, how they work, rules, lessons), editable in the window with versions. Penny and Hana available with the research tools (Hana also writes to her job folder); Kame, Puff and Quill wait for 3.5; Tinker for 3.7.
 **Done when:** each worker's soul shows in the window, an edit is used by the next job, and an older version can be restored.
 
-**Task 3.4 — Wisp the manager.** The `delegate` tool (goal; up to six parts with worker, task and "wait for"), checked in code; missions that start parts when what they wait for is done and hand earlier reports to later parts; the combined report; one spoken line when ZENO is idle; the mission and its parts in the window. "<Name>, …" by voice goes straight to that worker.
-**Done when:** "research home networking and write it up as a guide" makes Wisp delegate to Sid then Quill, says who is on it, and later says one line, with the combined report in the window.
+**Revised by ADR-087 (2026-10-10): orchestration after Paperclip.** Tasks 3.4–3.16 replace the earlier 3.4–3.9. 3.3 is unchanged. Each is one capability with its own tests and docs.
 
-**Task 3.5 — Folder grants, and Kame, Puff and Quill.** Grants in the window (refusing the home folder, `/`, system and credential folders); file tools checked against grants in code; sandboxed commands without network; approval through Wisp for risky commands; a `zeno/<job>` branch in git repositories, never pushed. The coder, designer and documenter roles.
+**Task 3.4 — Tasks and the task board.** Store: tasks (goal, parent, worker, brief, state, blocked-by, thread of comments, reports and runs); a job becomes a run of a task; one run per task, claimed atomically; blocker cycles refused; a task waits until its blockers are done and then gets their reports. Protocol for tasks and comments. Window: a board (To do, Running, Needs you, Done) and a thread per task with its activity list.
+**Done when:** a task blocked by another starts only after it finishes and receives its report, a cycle is refused, two claims on one task give one run, and the board shows each state.
+
+**Task 3.5 — Wisp the manager.** The `delegate` tool (a goal and up to six tasks with worker and blockers), checked in code; the combined report; one spoken line when ZENO is idle; "<Name>, …" by voice gives that worker a task directly.
+**Done when:** "research home networking and write it up as a guide" makes Wisp create a Sid task and a Quill task blocked by it, says who is on it, and later says one line, with the combined report in the window.
+
+**Task 3.6 — Wake-ups and memory.** Wake on assignment, on asking again and on a new comment; wake-ups during a run merge into one more run; each (worker, task) resumes its Claude session (`resume`), with "Start fresh" in the thread.
+**Done when:** "Sid, dig deeper on that" continues the same session, three wake-ups during a run lead to one more run, and "Start fresh" starts a new session.
+
+**Task 3.7 — Budgets.** Daily caps per worker and for the team from each run's reported usage; a warning at 80 %; at 100 % the worker pauses and its tasks wait as "needs you"; new runs also wait above a set plan-window level; caps and resume in the window.
+**Done when:** a worker over its cap pauses with its task in "needs you", no new run starts, and raising the cap resumes it.
+
+**Task 3.8 — Plan first.** A per-worker or per-task switch: the first run plans with no write tools; the task waits as "needs you"; approve or reject by voice through Wisp's approval card or in the window; the approved plan goes to the next run.
+**Done when:** a plan-first task stops after planning, a rejection ends it, and an approval starts a run that receives the plan.
+
+**Task 3.9 — Routines.** Schedules (daily or weekly at a time, or every N hours) that create a task for a worker; one catch-up after ZENO was closed; skipped while the previous run still goes; a Wisp `schedule` tool for voice; a list in the window.
+**Done when:** "Sid, every morning at 8, summarise networking news" creates a routine that makes a task at 8, a missed morning runs once at start, and an overlapping run is skipped.
+
+**Task 3.10 — Hand-offs.** A worker's `hand_off` tool creates a sub-task for another worker, checked in code (role allows it, depth at most 2, at most 3 sub-tasks per task, budgets); shown in the parent's thread.
+**Done when:** Sid hands Penny a costs question as a sub-task, a third level is refused, and the parent waits for it.
+
+**Task 3.11 — Folder grants, and Kame, Puff and Quill.** Grants in the window (refusing the home folder, `/`, system and credential folders); file tools checked against grants in code; sandboxed commands without network; approval through Wisp for risky commands; a `zeno/<task>` branch in git repositories, never pushed. The coder, designer and documenter roles.
 **Done when:** Kame changes a file in a granted repo on its own branch, is refused a path outside, and `git push` is never run.
 
-**Task 3.6 — Skills.** Per-worker choice of skills from `~/.claude/skills` in the window; only those are loaded for the worker's jobs.
+**Task 3.12 — Skills.** Per-worker choice of skills from `~/.claude/skills` in the window; only those are loaded for the worker's runs.
 **Done when:** a worker given one skill uses it, and a skill not given is not loaded.
 
-**Task 3.7 — Tinker and feedback.** Rate a finished job (good or not, with a comment); Tinker reviews failed and poorly rated jobs and proposes soul changes with a reason; accept or reject in the window; every version kept and undoable.
-**Done when:** a rejected job leads to a proposal that, once accepted, shows in the worker's soul, and undo restores the old one.
+**Task 3.13 — Tinker and feedback.** Rate a finished task (good or not, with a comment); Tinker reviews failed and poorly rated tasks and proposes soul changes with a reason; accept or reject in the window; every version kept and undoable.
+**Done when:** a poorly rated task leads to a proposal that, once accepted, shows in the worker's soul, and undo restores the old one.
 
-**Task 3.8 — Open in the worker's app.** A browser opens the top sources as tabs; Notes saves the report as a note; done by code from http(s) sources.
+**Task 3.14 — Open in the worker's app.** A browser opens the top sources as tabs; Notes saves the report as a note; done by code from http(s) sources.
 
-**Task 3.9 — Workers on screen.** Each worker's original look in Wisp's style, a small working sign while busy, and Wisp flying over to say its one line when a mission ends.
+**Task 3.15 — Workers on screen.** Each worker's original look in Wisp's style, a small working sign while busy, and Wisp flying over to say its one line when a goal is done.
 
-**Later (not planned):** steering a running job, a per-job execution log, retries, scheduled work, other providers, workers driving apps through computer control.
+**Task 3.16 — Optional Paperclip connection.** Off unless `ZENO_PAPERCLIP_URL` is set, loopback only; Wisp creates an issue for a chosen Paperclip agent, reads its state and comments, approves or rejects its approvals; Paperclip tasks on the board marked "Paperclip"; the window warns that Paperclip agents run outside ZENO's checks and that its telemetry is on unless turned off. ZENO never installs or starts Paperclip.
+**Done when:** with Keshab's Paperclip running, a task handed to a Paperclip agent shows on the board and its result comes back; with the setting unset or a non-loopback address, nothing is sent.
+
+**Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.
+
+**Task 3.17 — Companies and user logins.** Separate workspaces with their own tasks, workers, budgets and history; sign-in for more than one person.
+**Task 3.18 — Secrets manager.** Worker credentials in the macOS Keychain, given to one worker's run by reference; never in souls, tasks or logs.
+**Task 3.19 — Cloud sandboxes.** Runs on a remote sandbox instead of this Mac.
+**Task 3.20 — Team templates.** Export and import a team (workers, souls, skills, routines) with secrets and local paths removed.
+**Task 3.21 — Mobile web app.** The board and approvals from a phone.
+**Task 3.22 — Codex and Hermes as workers.** A worker runs through the local `codex` or `hermes` command, with the same role, grant and budget checks.
+
+**Later (not planned):** steering a running run, retries, workers driving apps through computer control.
 
 
 ## Phase 4 — Lantern: the Redesign (ADR-084, 2026-10-10)

@@ -1662,7 +1662,7 @@ ZENO gains a second way of working, alongside the conversation: background jobs 
 
 ## ADR-082 — Wisp the Manager, and a Team of Workers
 
-Date: 2026-10-10. Status: **accepted** (Keshab, 2026-10-10). Changes ADR-081: the helpers become workers with roles, and Wisp hands them work.
+Date: 2026-10-10. Status: **accepted** (Keshab, 2026-10-10). Changes ADR-081: the helpers become workers with roles, and Wisp hands them work. Partly revised by ADR-087: missions become a tree of tasks.
 
 ### Context
 
@@ -1830,3 +1830,59 @@ Keshab shared a style reference (`docs/design/resend-reference.md`): a pure blac
 ### Consequences
 
 ZENO looks like a quiet developer tool: black, hairlines, mono identifiers, colour only where it carries a status. Wisp loses its glow, the thing Lantern was built on; Lantern remains one click away for anyone who wants it back.
+
+---
+
+## ADR-087 — Orchestration After Paperclip, Built Into ZENO, With an Optional Paperclip Connection
+
+Date: 2026-10-10. Status: **accepted** in direction (Keshab, 2026-10-10: "B now with an optional connection to a Paperclip i install myself later"); the task list below is proposed. Changes ADR-082: Wisp's "missions" become a tree of tasks, and workers gain wake-ups, memory, budgets, plan approval, routines and hand-offs.
+
+### Context
+
+Keshab asked for "a total Orchestration like paperclip" (`paperclipai/paperclip`, MIT), even if it changes how Wisp gives work to Sid and the others. Paperclip is a Node server with a web dashboard that runs a "company" of agents: tasks with sub-tasks and blockers, an org chart, agents that wake for assigned work or on a schedule and resume their last session, budgets that pause work, approval stages, routines, skills and a learning agent.
+
+Running Paperclip itself inside ZENO was rejected:
+
+- its Claude Code runs default to skipping every permission prompt and run unsandboxed on the host, which bypasses ADR-082's folder grants and approvals;
+- the model is set per agent (default Opus 5), which undoes ADR-083's model choice per job;
+- it needs Node 24.11+ (ZENO runs on 22.23), an embedded Postgres, a Rust runner build and a second always-on server;
+- telemetry is on by default;
+- most of it (companies, members, roles, sign-in, secrets manager, cloud sandboxes) serves teams, not one person.
+
+### Decision
+
+**Build Paperclip's orchestration ideas into `@zeno/helpers`.** ADR-082's team, souls, folder grants, skills, Tinker and safety rules stay. Laya still chooses each run's model (ADR-083). What changes:
+
+- **Tasks are the unit of work.** A task has a goal, an optional parent, one assigned worker, a brief, a state (to do, blocked, running, needs you, done, failed, stopped), the tasks it is blocked by, and a thread (comments, reports, files, runs). A job becomes one *run* of a task. Only one run per task at a time, claimed atomically in the store. A blocker that would make a cycle is refused.
+- **Wisp is the manager.** Wisp's `delegate` tool creates a goal and a tree of tasks (limits in code), each with its worker and blockers. A task starts when its blockers are done and receives their reports and the goal as context. When the goal's tasks are done, Wisp writes the combined report and says one line (ADR-082).
+- **Wake-ups.** A worker wakes when a task is assigned, when it is asked again ("Sid, dig deeper on that"), or when a comment is added. Wake-ups that arrive while it runs merge into one more run.
+- **Memory across runs.** Each (worker, task) keeps its Claude session id; the next run resumes it (Agent SDK `resume`). It can be reset in the window. A new task starts fresh.
+- **Budgets.** A daily cap per worker and for the team, measured from the run's reported usage. A warning at 80 %; at 100 % the worker pauses and its tasks wait as "needs you". New runs also wait when the plan's five-hour window is above a set level. Budgets are numbers in code and the store, never in a soul.
+- **Plan first.** Per worker or per task, a first run may only plan (no write tools). The task then waits as "needs you" until Keshab approves or rejects the plan, by voice through Wisp's approval card or in the window. The approved plan is handed to the next run.
+- **Routines.** A schedule (a time daily or weekly, or every N hours) creates a task for a worker. If a run is missed while ZENO was closed, one catch-up runs; if the previous run is still going, the new one is skipped. Created by voice through a Wisp `schedule` tool or in the window.
+- **Hand-offs.** A worker may create a sub-task for another worker with a `hand_off` tool, checked in code: the target's role allows the work, depth at most 2, at most 3 sub-tasks per task, and budgets apply. Workers never assign work back up to Wisp.
+- **The Helpers window becomes a task board:** To do, Running, Needs you and Done, with a thread per task; the workers' cards, souls, grants, skills and budgets stay.
+- **An activity list** per task: who did what and when (ids, states, timings), shown in the thread. Logs keep the same rule as before: never task text, reports, file contents or addresses.
+
+**Optional connection to Keshab's own Paperclip, built last.** If Keshab installs Paperclip himself, ZENO can hand tasks to it:
+
+- off unless `ZENO_PAPERCLIP_URL` is set; loopback addresses only (Paperclip's local trusted mode), so nothing leaves the Mac;
+- Wisp can create a Paperclip issue for a chosen Paperclip agent, read its state and comments, and approve or reject Paperclip approvals; its tasks show in the board, marked "Paperclip";
+- ZENO never installs, starts or configures Paperclip and stores no Paperclip secrets;
+- the window says plainly that Paperclip agents run outside ZENO's checks (Paperclip decides their tools and folders), and that Paperclip's telemetry is on unless `PAPERCLIP_TELEMETRY_DISABLED=1` is set;
+- the tasks module keeps its operations narrow (create, list, get, comment, approve, stop) so this connection can be added later without changing Wisp's tools. No separate interface is built until that task.
+
+**Also planned, each after its own decision** (Keshab, 2026-10-10: "include these as well"). They come after 3.16, and each starts with an ADR that settles its safety and scope before any code:
+
+- **Companies and user logins:** separate workspaces (tasks, workers, budgets, history) and sign-in for more than one person.
+- **A secrets manager:** credentials for workers kept in the macOS Keychain, given to one worker's run by reference, never written into souls, tasks or logs.
+- **Cloud sandboxes:** runs on a remote sandbox instead of this Mac.
+- **Team templates:** export and import a team (workers, souls, skills, routines) with secrets and local paths removed.
+- **A mobile web app:** see the board and approve from a phone.
+- **Codex and Hermes as workers:** a worker can run through the local `codex` or `hermes` command instead of the Claude plan, with the same role, grant and budget checks.
+
+**Left out:** telemetry.
+
+### Consequences
+
+ZENO's helpers become a small orchestrator: work is tracked as tasks, workers continue where they left off, recurring work runs by itself, and spend is capped before it drains the plan. The safety boundary stays in ZENO's code. The cost is a larger store and window, more states to test, and runs that may wake without Keshab asking (routines), each with a task, an owner and a history. The Paperclip connection keeps the door open without making ZENO depend on it.
