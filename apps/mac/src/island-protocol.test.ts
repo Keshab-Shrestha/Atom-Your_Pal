@@ -193,6 +193,7 @@ test("parses the helper commands", () => {
     { type: "job.block", id: 3, blockedBy: [] },
     { type: "comment.add", id: 3, text: "Keep it short" },
     { type: "thread.get", id: 3 },
+    { type: "job.fresh", id: 3 },
   ];
   for (const command of good) assert.deepEqual(parseCommand(JSON.stringify(command)), { command }, JSON.stringify(command));
   assert.deepEqual(parseCommand('{"type":"helpers.list","extra":1}'), { command: { type: "helpers.list" } });

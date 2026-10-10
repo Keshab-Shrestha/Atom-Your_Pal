@@ -260,3 +260,12 @@ export function briefFor(task: string, context: TaskContext): string {
   }
   return parts.join("\n\n");
 }
+
+/**
+ * Task 3.6: what a resumed run is given. Its session already holds the task, the earlier notes and its last report,
+ * so only what is new: the notes added since its last run.
+ */
+export function followUpBrief(notes: readonly string[]): string {
+  const asked = notes.length ? `Keshab asks again about this job:\n${notes.map((n) => `- ${n}`).join("\n")}` : "Keshab asks you to look at this job again.";
+  return `${asked}\n\nContinue from where you left off, then write the whole report again, updated, in the same format.`;
+}

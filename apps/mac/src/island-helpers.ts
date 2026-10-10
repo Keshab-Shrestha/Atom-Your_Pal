@@ -23,6 +23,7 @@ const toJobItem = (job: Job): JobItem => ({
   ...(job.goal ? { goal: job.goal } : {}),
   ...(job.goalId !== undefined ? { goalId: job.goalId } : {}),
   ...(job.goalEnded ? { goalEnded: true } : {}),
+  ...(job.resumable ? { resumable: true } : {}),
   ...(job.parentId !== undefined ? { parentId: job.parentId } : {}),
 });
 
@@ -43,6 +44,7 @@ export function islandHelpers(store: HelperStore, apps: () => Promise<string[]>,
     addJob: (helper, task, blockedBy) => void store.addJob(helper, task, blockedBy ? { blockedBy } : {}),
     setBlockers: (id, blockedBy) => store.setBlockers(id, blockedBy),
     addComment: (id, text) => store.addComment(id, text),
+    startFresh: (id) => store.startFresh(id),
     thread: (id) => {
       const thread = store.thread(id);
       if (!thread) return undefined;

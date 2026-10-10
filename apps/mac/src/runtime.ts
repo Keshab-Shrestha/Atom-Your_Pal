@@ -47,6 +47,7 @@ import {
   chooseJobModel,
   createDelegateTool,
   createWorkerShortcut,
+  followUpBrief,
   teamContext,
   watchGoals,
   findHelper,
@@ -372,8 +373,23 @@ export function createRuntime(
     if (!soul) throw new Error(`There is no worker called ${job.helper}.`);
     const instructions = instructionsFor(soul, role);
     // ADR-087: the task with its goal, Keshab's notes and the reports of the tasks it waited for.
-    const task = briefFor(job.task, helpers?.context(job.id) ?? { comments: [], earlier: [] });
-    const result = await runResearch({ claudePath: keys["claude-plan"] ?? "", model, task, instructions, signal, onStep, onUsage: reportUsage });
+    const fresh = () => briefFor(job.task, helpers?.context(job.id) ?? { comments: [], earlier: [] });
+    const research = (task: string, resume?: string) =>
+      runResearch({ claudePath: keys["claude-plan"] ?? "", model, task, instructions, signal, onStep, onUsage: reportUsage, ...(resume ? { resume } : {}) });
+    // Task 3.6: asked again, the run continues its last session with only what is new. A session Claude Code no
+    // longer has (or any other failure to resume, except the plan's limits) falls back to one fresh run.
+    const resume = helpers?.resumeOf(job.id);
+    let result;
+    try {
+      result = await research(resume ? followUpBrief(resume.notes) : fresh(), resume?.sessionId);
+    } catch (error) {
+      const kind = error instanceof GatewayError || (error instanceof Error && "kind" in error) ? (error as { kind?: string }).kind : undefined;
+      if (!resume || signal.aborted || kind === "rate_limit" || kind === "auth" || kind === "cancelled") throw error;
+      log.warn("job.resume_failed", { helper: job.helper, job: job.id, kind });
+      result = await research(fresh());
+    }
+    if (result.sessionId) helpers?.setSession(job.id, result.sessionId);
+    log.info("job.session", { helper: job.helper, job: job.id, resumed: Boolean(resume) });
     return { ...result, report: withRoleNotice(role, result.report) };
   };
   // Logs ids, states, timings and page counts only: never the task, report or addresses.

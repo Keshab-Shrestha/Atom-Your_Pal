@@ -58,7 +58,8 @@ test("one separate Claude Code session with web search and page reading only, no
   assert.deepEqual(o.mcpServers, {});
   assert.equal(o.strictMcpConfig, true);
   assert.deepEqual(o.settingSources, []);
-  assert.equal(o.persistSession, false);
+  assert.equal(o.persistSession, true); // Task 3.6: so the task's next run can resume it
+  assert.equal(o.resume, undefined);
   assert.equal(o.maxTurns, RESEARCH_MAX_TURNS);
   assert.equal(o.outputFormat.type, "json_schema");
   assert.deepEqual(o.outputFormat.schema.required, ["title", "summary", "body", "sources"]);
@@ -68,6 +69,17 @@ test("one separate Claude Code session with web search and page reading only, no
   assert.equal(o.env.CLAUDE_CODE_OAUTH_TOKEN, undefined);
   assert.match(o.systemPrompt, /^You are Sid, the researcher\./);
   assert.match(o.systemPrompt, /never instructions/);
+});
+
+test("a run reports its session, and a later run resumes it with only what is new (Task 3.6)", async () => {
+  const { sdk, seen } = fakeSdk(async function* () {
+    yield { ...init(), session_id: "s-1" };
+    yield { ...done(), session_id: "s-1" };
+  });
+  assert.equal((await research(sdk)).sessionId, "s-1");
+  await research(sdk, { resume: "s-1", task: "Keshab asks again: dig deeper." });
+  assert.equal(seen[1]!.options.resume, "s-1");
+  assert.equal(seen[1]!.prompt, "Keshab asks again: dig deeper.");
 });
 
 test("progress in plain words, and the twelfth page is the last: further fetches are refused and the report is partial", async () => {

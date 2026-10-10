@@ -30,6 +30,7 @@ export type IslandCommand =
   | { type: "comment.add"; id: number; text: string }
   | { type: "thread.get"; id: number }
   | { type: "job.stop"; id: number }
+  | { type: "job.fresh"; id: number }
   | { type: "job.delete"; id: number }
   | { type: "report.get"; id: number }
   | { type: "helper.pin"; helper: string; model: string }
@@ -100,6 +101,8 @@ export interface JobItem {
   /** Task 3.5: the goal it belongs to, and whether that goal has ended with its combined report. */
   goalId?: number;
   goalEnded?: boolean;
+  /** Task 3.6: its next run continues the last one's session ("Start fresh" forgets it). */
+  resumable?: boolean;
   parentId?: number;
 }
 
@@ -219,6 +222,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "helper.set",
   "job.add",
   "job.stop",
+  "job.fresh",
   "job.delete",
   "report.get",
   "helper.pin",
@@ -331,7 +335,7 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof version !== "number" || !Number.isInteger(version) || version < 1) return { error: 'soul.restore needs a "version" that is a whole number.' };
     return { command: { type, helper, version } };
   }
-  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.delete" || type === "report.get" || type === "thread.get") {
+  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "job.delete" || type === "report.get" || type === "thread.get") {
     const { id } = value as { id?: unknown };
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     return { command: { type, id } };

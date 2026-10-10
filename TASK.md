@@ -779,6 +779,16 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 **Task 3.6 — Wake-ups and memory.** Wake on assignment, on asking again and on a new comment; wake-ups during a run merge into one more run; each (worker, task) resumes its Claude session (`resume`), with "Start fresh" in the thread.
 **Done when:** "Sid, dig deeper on that" continues the same session, three wake-ups during a run lead to one more run, and "Start fresh" starts a new session.
 
+**As built (2026-10-11):** built; tested (a fake Claude Code for the session); not yet tried live (plan quota).
+- A note wakes its task (`comment.add`, the thread's field, or by voice): an ended task (done, failed or stopped) goes back to "to do" and runs again; a running one is marked and runs once more when it ends, so several notes meanwhile make one more run; a queued one just gets the note in its brief. A failed run that was asked again runs once more instead of failing what waits for it; a stop drops the wake. Activity gains "Asked again" (`woken`) and "Set to start fresh" (`fresh`). Waking a task of an ended goal opens the goal again, so it ends again with a new report and line.
+- Memory: each run's Claude session id is kept on its task (`session_id`). The next run resumes it (Agent SDK `resume`, sessions now kept by Claude Code with `persistSession: true`) and is given only the notes added since the last run started (`followUpBrief`). If resuming fails for any reason but the plan's limits, the run starts fresh once (`job.resume_failed` in the log).
+- "Start fresh" (`job.fresh`, a button in the thread when a task has a session and is not running) forgets the session; an ended task runs again from the start. Jobs carry `resumable`.
+- Voice: "Sid, dig deeper on that", "Sid, also cover IPv6", "Sid, keep going" (follow-up words, or a sentence ending in "that", "it" or "this") become a note on Sid's newest task: "Sid will look again." (or "… when this run ends."). With no earlier task it is a new task.
+- The thread's note field says what a note will do: "Ask Sid again", "Add a note: Sid runs once more after this", "Add a note for Sid".
+- `store.ts` was split: its tables, migrations and row mapping are in `store-schema.ts`.
+- Tests: 10 TS (wake-ups 8, research resume 1, island 1) and 2 Swift. TS 556 pass, 2 skipped; typecheck clean; Swift 477 pass.
+- Known limits: a woken task replaces its report (the activity keeps when); tasks that failed because it failed stay failed; a session Claude Code has cleaned up costs one failed resume before the fresh run; "Sid, look into it" with an earlier task counts as a follow-up.
+
 **Task 3.7 — Budgets.** Daily caps per worker and for the team from each run's reported usage; a warning at 80 %; at 100 % the worker pauses and its tasks wait as "needs you"; new runs also wait above a set plan-window level; caps and resume in the window.
 **Done when:** a worker over its cap pauses with its task in "needs you", no new run starts, and raising the cap resumes it.
 

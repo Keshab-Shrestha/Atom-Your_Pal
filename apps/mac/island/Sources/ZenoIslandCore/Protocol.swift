@@ -35,6 +35,8 @@ public enum IslandCommand: Sendable, Equatable {
     case commentAdd(id: Int, text: String)
     case threadGet(id: Int)
     case jobStop(id: Int)
+    /// Task 3.6: forget a task's Claude session; an ended task runs again from the start.
+    case jobFresh(id: Int)
     case jobDelete(id: Int)
     case reportGet(id: Int)
     /// ADR-083: pin a helper to a model (`""` lets Laya choose again); allow or forbid the large model for jobs.
@@ -68,6 +70,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .commentAdd: "comment.add"
         case .threadGet: "thread.get"
         case .jobStop: "job.stop"
+        case .jobFresh: "job.fresh"
         case .jobDelete: "job.delete"
         case .reportGet: "report.get"
         case .helperPin: "helper.pin"
@@ -115,7 +118,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .commentAdd(let id, let text):
             fields["id"] = id
             fields["text"] = text
-        case .jobStop(let id), .jobDelete(let id), .reportGet(let id), .threadGet(let id):
+        case .jobStop(let id), .jobFresh(let id), .jobDelete(let id), .reportGet(let id), .threadGet(let id):
             fields["id"] = id // a JSON number
         case .helperPin(let helper, let model):
             fields["helper"] = helper
@@ -684,7 +687,12 @@ private struct Fields {
                          blockedBy: Self.ids(j["blockedBy"]), waitingFor: Self.ids(j["waitingFor"]),
                          comments: (j["comments"] as? NSNumber)?.intValue ?? 0, goal: j["goal"] as? String,
                          parentId: (j["parentId"] as? NSNumber)?.intValue, goalId: (j["goalId"] as? NSNumber)?.intValue,
-                         goalEnded: (j["goalEnded"] as? NSNumber).map { CFGetTypeID($0) == CFBooleanGetTypeID() && $0.boolValue } ?? false)
+                         goalEnded: Self.flag(j["goalEnded"]), resumable: Self.flag(j["resumable"]))
+    }
+
+    /// An optional JSON boolean; anything else reads as false.
+    private static func flag(_ value: Any?) -> Bool {
+        (value as? NSNumber).map { CFGetTypeID($0) == CFBooleanGetTypeID() && $0.boolValue } ?? false
     }
 
     /// A list of task ids; anything else reads as none.

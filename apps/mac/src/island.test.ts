@@ -804,6 +804,23 @@ test("thread.get carries the task's goal, and its combined report once it has en
   assert.deepEqual([sid.goalId, sid.goalEnded], [goal.id, true]);
 });
 
+test("job.fresh forgets an ended task's session and runs it again; a running task is refused (Task 3.6)", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  const { id } = store.addJob("sid", "x");
+  store.start(id);
+  h.clear();
+  await h.send({ type: "job.fresh", id });
+  assert.deepEqual(h.types(), ["error"]);
+  store.setSession(id, "s-1");
+  store.finish(id, { title: "T", summary: "S", body: "B", sources: [] });
+  assert.equal((store.list()[0]!.jobs[0] as { resumable?: boolean }).resumable, true);
+  h.clear();
+  await h.send({ type: "job.fresh", id });
+  const sid = (h.events().at(-1) as HelpersEvent).helpers[0]!.jobs[0]!;
+  assert.deepEqual([sid.state, sid.resumable], ["queued", undefined]);
+});
+
 test("helpers.settings turns the large model off and on, answered with helpers", async () => {
   const { h, store } = helperHarness();
   await tick(5);

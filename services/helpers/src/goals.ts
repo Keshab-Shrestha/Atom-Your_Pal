@@ -99,7 +99,7 @@ export function watchGoals(options: GoalWatcherOptions): () => void {
 
   async function end(goalId: number) {
     const goal = store.goal(goalId);
-    if (!goal || goal.endedAt) return;
+    if (!goal || goal.endedAt || !goal.tasks.every((t) => isFinal(t.state))) return; // asked again meanwhile
     const parts = goal.tasks.map((t) => ({
       worker: store.soul(t.helper).name,
       task: t.task,

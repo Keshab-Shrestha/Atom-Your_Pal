@@ -46,11 +46,14 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     /// Task 3.5: the goal Wisp made it part of, and whether that goal has ended with its combined report.
     public var goalId: Int?
     public var goalEnded: Bool
+    /// Task 3.6: its next run continues the last one's Claude session ("Start fresh" forgets it).
+    public var resumable: Bool
 
     public init(id: Int, task: String, state: JobState, createdAt: Date? = nil, endedAt: Date? = nil, step: String? = nil,
                 partial: Bool = false, title: String? = nil, summary: String? = nil, error: String? = nil,
                 model: String? = nil, modelReason: String? = nil, blockedBy: [Int] = [], waitingFor: [Int] = [],
-                comments: Int = 0, goal: String? = nil, parentId: Int? = nil, goalId: Int? = nil, goalEnded: Bool = false) {
+                comments: Int = 0, goal: String? = nil, parentId: Int? = nil, goalId: Int? = nil, goalEnded: Bool = false,
+                resumable: Bool = false) {
         self.id = id
         self.task = task
         self.state = state
@@ -70,6 +73,7 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
         self.parentId = parentId
         self.goalId = goalId
         self.goalEnded = goalEnded
+        self.resumable = resumable
     }
 
     public var hasReport: Bool { title != nil }
@@ -281,6 +285,8 @@ public struct TaskActivity: Sendable, Equatable {
         case "created": "Added"
         case "waits": "Changed what it waits for"
         case "commented": "Note added"
+        case "woken": "Asked again"
+        case "fresh": "Set to start fresh"
         case "running": "Started"
         case "done": "Finished"
         case "failed": "Failed"
@@ -599,6 +605,12 @@ public struct HelpersState: Sendable, Equatable {
     public mutating func stopJob(_ id: Int) -> IslandCommand? {
         guard selectedHelper?.jobs.first(where: { $0.id == id })?.state.isActive == true else { return nil }
         return waiting(.jobStop(id: id))
+    }
+
+    /// Task 3.6: the open task forgets its session; nil while it runs or when it has none.
+    public mutating func startFresh() -> IslandCommand? {
+        guard let job = openJob, job.resumable, job.state != .running else { return nil }
+        return waiting(.jobFresh(id: job.id))
     }
 
     public mutating func deleteJob(_ id: Int) -> IslandCommand? {

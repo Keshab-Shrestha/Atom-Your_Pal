@@ -86,6 +86,17 @@ export function teamContext(workers: readonly HelperView[]): string {
 
 export type WorkerCommand = { helper: string; name: string; task: string } | { helper: string; name: string; stop: true };
 
+/**
+ * Task 3.6: words that ask a worker to go on with its last task rather than start a new one: "dig deeper on that",
+ * "also cover IPv6", "keep going", or anything ending in "that", "it" or "this".
+ */
+const FOLLOW_UP =
+  /^(?:(?:please|now|then)\s+)?(?:(?:dig|go|look)\s+(?:deeper|further|closer|again)|also\b|and\b|more\b|continue\b|keep going|follow up|expand|elaborate|redo|try again)|\b(?:that|it|this)[.!?]*$/i;
+
+export function isFollowUp(task: string): boolean {
+  return FOLLOW_UP.test(task.trim());
+}
+
 const STOP = /^(?:please\s+)?stop(?:\s+(?:it|that|now|working))?(?:\s+please)?[.!]*$/i;
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -107,21 +118,28 @@ export function matchWorkerCommand(text: string, workers: readonly HelperView[])
 }
 
 /**
- * Runs a worker command and returns ZENO's reply, or undefined when the sentence is not one. A task becomes a goal of
- * one task, so ZENO says when it is done. Refusals ("Kame is not ready yet.") are replies too.
+ * Runs a worker command and returns ZENO's reply, or undefined when the sentence is not one. A new task becomes a goal
+ * of one task, so ZENO says when it is done; a follow-up ("Sid, dig deeper on that") is a note on the worker's newest
+ * task, which wakes it (Task 3.6). Refusals ("Kame is not ready yet.") are replies too.
  */
-export function createWorkerShortcut(store: HelperStore, onHit?: (event: { helper: string; action: "task" | "stop" }) => void) {
+export function createWorkerShortcut(store: HelperStore, onHit?: (event: { helper: string; action: "task" | "again" | "stop" }) => void) {
   return (text: string): string | undefined => {
     const workers = store.list();
     const command = matchWorkerCommand(text, workers);
     if (!command) return undefined;
-    onHit?.({ helper: command.helper, action: "task" in command ? "task" : "stop" });
+    const latest = workers.find((w) => w.id === command.helper)!.jobs[0];
+    const followUp = "task" in command && latest !== undefined && isFollowUp(command.task);
+    onHit?.({ helper: command.helper, action: "task" in command ? (followUp ? "again" : "task") : "stop" });
     if (!("task" in command)) {
       const running = workers.find((w) => w.id === command.helper)!.jobs.filter((j) => j.state === "running");
       for (const job of running) store.stop(job.id);
       return running.length ? `${command.name} stopped.` : `${command.name} isn't working on anything.`;
     }
     try {
+      if (followUp) {
+        store.addComment(latest!.id, command.task);
+        return latest!.state === "running" ? `${command.name} will look again when this run ends.` : `${command.name} will look again.`;
+      }
       const busy = workers.find((w) => w.id === command.helper)!.jobs.some((j) => j.state === "running");
       store.addGoal(command.task, [{ helper: command.helper, task: command.task }]);
       return busy ? `${command.name} will start on it after the current task.` : `${command.name} is on it.`;

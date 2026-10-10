@@ -29,14 +29,18 @@ export interface ResearchResult {
   partial: boolean;
   /** Pages read (WebFetch calls allowed). */
   pages: number;
+  /** ADR-087, Task 3.6: the Claude session this run used, to resume it next time. */
+  sessionId?: string;
 }
 
 export interface ResearchOptions {
   /** Full path of the signed-in `claude` program (as for the plan provider). */
   claudePath: string;
   model: string;
-  /** The worker's own words for the job. */
+  /** The worker's own words for the job (when resuming, only what is new). */
   task: string;
+  /** A session to continue (Agent SDK `resume`), so the run remembers the last one. */
+  resume?: string;
   /** The worker's soul: who it is and how it works. The output contract is added here. */
   instructions: string;
   signal: AbortSignal;
@@ -115,9 +119,10 @@ export async function runResearch(options: ResearchOptions): Promise<ResearchRes
   signal.addEventListener("abort", onAbort, { once: true });
   let result: Record<string, any> | undefined;
   let lastError: string | undefined;
+  let sessionId: string | undefined;
   try {
     const messages = sdk.query({
-      prompt: `The job:\n${task}`,
+      prompt: options.resume ? task : `The job:\n${task}`,
       options: {
         model,
         systemPrompt: `${instructions.trim()}\n${contract(pageLimit)}`,
@@ -132,7 +137,10 @@ export async function runResearch(options: ResearchOptions): Promise<ResearchRes
         settingSources: [],
         strictMcpConfig: true,
         mcpServers: {},
-        persistSession: false,
+        // Task 3.6: kept by Claude Code on this Mac (its own project folder for the temporary directory), so the next
+        // run of the task can resume it. ZENO stores only the id.
+        persistSession: true,
+        ...(options.resume ? { resume: options.resume } : {}),
         maxTurns,
         outputFormat: { type: "json_schema", schema: REPORT_JSON_SCHEMA },
         abortController: controller,
@@ -141,6 +149,7 @@ export async function runResearch(options: ResearchOptions): Promise<ResearchRes
     });
     for await (const message of messages) {
       if (signal.aborted) break;
+      if (typeof message.session_id === "string") sessionId = message.session_id;
       if (isPlanMessage(message)) planGuard(message, onUsage);
       else if (message.type === "assistant" && !message.parent_tool_use_id) {
         if (typeof message.error === "string") lastError = message.error;
@@ -171,5 +180,5 @@ export async function runResearch(options: ResearchOptions): Promise<ResearchRes
     const { kind, message } = classify(lastError, false);
     throw new ProviderError(kind, message);
   }
-  return { report: parseReport(result.structured_output), partial: limited, pages };
+  return { report: parseReport(result.structured_output), partial: limited, pages, ...(sessionId ? { sessionId } : {}) };
 }

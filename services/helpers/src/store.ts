@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { createSchema, sameSoul, toJobRow, toSoul, webSources, type JobRow, type ReportRow, type SoulRow } from "./store-schema.ts";
 import {
   HELPERS,
   HelperError,
@@ -69,6 +70,10 @@ export interface Job {
   goalId?: number;
   /** Its goal has ended and has its combined report (Task 3.5). */
   goalEnded?: boolean;
+  /** Task 3.6: its next run continues the last one's Claude session (until "Start fresh"). */
+  resumable: boolean;
+  /** Asked again while running: one more run follows this one. */
+  wakePending: boolean;
   parentId?: number;
   /** The tasks it waits for, and those of them not done yet (it starts when this is empty). */
   blockedBy: number[];
@@ -85,7 +90,7 @@ export interface Comment {
 
 /** One line of a task's activity: what happened and when (ids and states only, as in the logs). */
 export interface Activity {
-  kind: "created" | "waits" | "commented" | JobState;
+  kind: "created" | "waits" | "commented" | "woken" | "fresh" | JobState;
   at: Date;
 }
 
@@ -200,8 +205,18 @@ export interface HelperStore {
   queued(): Job[];
   /** Changes what a queued task waits for. Throws HelperError for a task that is not queued, bad blockers, or a circle. */
   setBlockers(id: number, blockedBy: readonly number[]): void;
-  /** Adds Keshab's note to a task. Throws HelperError for an unknown task or an empty or long note. */
+  /**
+   * Adds Keshab's note to a task and wakes it (Task 3.6): an ended task runs again; a running one runs once more when
+   * it ends (several notes meanwhile make one more run); a queued one gets the note in its brief. Throws HelperError
+   * for an unknown task or an empty or long note.
+   */
   addComment(id: number, text: string): void;
+  /** Forgets a task's Claude session; an ended task runs again, fresh. Throws HelperError for an unknown or running task. */
+  startFresh(id: number): void;
+  /** Keeps the session a run used, so the next run resumes it. False (nothing saved) for an unknown task. */
+  setSession(id: number, sessionId: string): boolean;
+  /** How the next run continues: the session to resume and the notes added since the last run started. */
+  resumeOf(id: number): { sessionId: string; notes: string[] } | undefined;
   thread(id: number): Thread | undefined;
   /** What a task is given when it runs: its goal, notes and the reports of the tasks it waited for. */
   context(id: number): TaskContext;
@@ -230,165 +245,16 @@ export interface HelperStoreOptions {
   now?: () => Date;
 }
 
-interface JobRow {
-  id: number;
-  helper: string;
-  task: string;
-  state: string;
-  step: string | null;
-  partial: number;
-  error: string | null;
-  created_at: string;
-  ended_at: string | null;
-  title?: string | null;
-  summary?: string | null;
-  model: string | null;
-  model_reason: string | null;
-  goal: string | null;
-  goal_id: number | null;
-  parent_id: number | null;
-}
-
-interface SoulRow {
-  version: number;
-  name: string;
-  personality: string;
-  how_it_works: string;
-  rules: string;
-  lessons: string;
-}
-
-const toSoul = (row: SoulRow): Soul => ({
-  name: row.name,
-  personality: row.personality,
-  howItWorks: row.how_it_works,
-  rules: row.rules,
-  lessons: row.lessons,
-});
-
-const sameSoul = (a: Soul, b: Soul) => (Object.keys(a) as (keyof Soul)[]).every((k) => a[k] === b[k]);
-
-interface ReportRow {
-  job_id: number;
-  title: string;
-  summary: string;
-  body: string;
-  sources: string;
-}
-
-const toJobRow = (row: JobRow): Omit<Job, "blockedBy" | "waitingFor" | "comments"> => ({
-  id: row.id,
-  helper: row.helper as HelperId,
-  task: row.task,
-  state: row.state as JobState,
-  ...(row.step && row.state === "running" ? { step: row.step } : {}),
-  partial: row.partial === 1,
-  ...(row.error ? { error: row.error } : {}),
-  createdAt: new Date(row.created_at),
-  ...(row.ended_at ? { endedAt: new Date(row.ended_at) } : {}),
-  ...(row.title != null ? { title: row.title } : {}),
-  ...(row.summary != null ? { summary: row.summary } : {}),
-  ...(row.model ? { model: row.model } : {}),
-  ...(row.model_reason ? { modelReason: row.model_reason } : {}),
-  ...(row.goal ? { goal: row.goal } : {}),
-  ...(row.goal_id != null ? { goalId: row.goal_id } : {}),
-  ...(row.parent_id != null ? { parentId: row.parent_id } : {}),
-});
-
-/** Sources with an http or https address only; anything else (javascript:, file:, junk) is dropped. */
-export function webSources(sources: readonly Source[]): Source[] {
-  return sources.filter((s) => {
-    try {
-      const { protocol } = new URL(s.url);
-      return protocol === "http:" || protocol === "https:";
-    } catch {
-      return false;
-    }
-  });
-}
+export { webSources } from "./store-schema.ts";
 
 export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const { path, now = () => new Date() } = options;
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
-  db.exec(`
-    PRAGMA journal_mode = WAL;
-    CREATE TABLE IF NOT EXISTS helper_apps (
-      helper TEXT PRIMARY KEY,
-      app TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS jobs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      helper TEXT NOT NULL,
-      task TEXT NOT NULL,
-      state TEXT NOT NULL,
-      step TEXT,
-      partial INTEGER NOT NULL DEFAULT 0,
-      error TEXT,
-      created_at TEXT NOT NULL,
-      ended_at TEXT
-    );
-    CREATE INDEX IF NOT EXISTS jobs_helper ON jobs(helper, id);
-    CREATE TABLE IF NOT EXISTS reports (
-      job_id INTEGER PRIMARY KEY,
-      title TEXT NOT NULL,
-      summary TEXT NOT NULL,
-      body TEXT NOT NULL,
-      sources TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS helper_models (
-      helper TEXT PRIMARY KEY,
-      model TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS helper_settings (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS job_blockers (
-      job_id INTEGER NOT NULL,
-      blocker_id INTEGER NOT NULL,
-      PRIMARY KEY (job_id, blocker_id)
-    );
-    CREATE INDEX IF NOT EXISTS job_blockers_blocker ON job_blockers(blocker_id);
-    CREATE TABLE IF NOT EXISTS job_comments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      job_id INTEGER NOT NULL,
-      text TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS job_events (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      job_id INTEGER NOT NULL,
-      kind TEXT NOT NULL,
-      at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS souls (
-      helper TEXT NOT NULL,
-      version INTEGER NOT NULL,
-      name TEXT NOT NULL,
-      personality TEXT NOT NULL,
-      how_it_works TEXT NOT NULL,
-      rules TEXT NOT NULL,
-      lessons TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      PRIMARY KEY (helper, version)
-    );
-    CREATE TABLE IF NOT EXISTS goals (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      text TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      ended_at TEXT,
-      report TEXT
-    );
-  `);
-  // ADR-083: files from before Task 3.2b lack the model columns.
-  const columns = new Set((db.prepare("PRAGMA table_info(jobs)").all() as { name: string }[]).map((c) => c.name));
-  for (const column of ["model", "model_reason", "goal"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);
-  // ADR-087: files from before Task 3.4 lack the task columns.
-  for (const column of ["parent_id", "goal_id"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} INTEGER`);
+  createSchema(db);
   const opened = now();
   // A job cannot outlive the process that ran it.
-  db.prepare("UPDATE jobs SET state = 'failed', step = NULL, error = ?, ended_at = ? WHERE state = 'running'").run(
+  db.prepare("UPDATE jobs SET state = 'failed', step = NULL, error = ?, ended_at = ?, wake_pending = 0 WHERE state = 'running'").run(
     CLOSED_WHILE_RUNNING,
     opened.toISOString(),
   );
@@ -433,7 +299,14 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const insertEvent = db.prepare("INSERT INTO job_events (job_id, kind, at) VALUES (?, ?, ?)");
   const eventsOf = db.prepare("SELECT kind, at FROM job_events WHERE job_id = ? ORDER BY id");
   const deleteEvents = db.prepare("DELETE FROM job_events WHERE job_id = ?");
-  const claim = db.prepare("UPDATE jobs SET state = 'running', step = NULL WHERE id = ? AND state = 'queued'");
+  const claim = db.prepare(
+    // The notes this run sees, and (from the run before) where the notes new to this run begin.
+    "UPDATE jobs SET state = 'running', step = NULL, brief_from = seen_comments, seen_comments = (SELECT COUNT(*) FROM job_comments WHERE job_id = jobs.id) WHERE id = ? AND state = 'queued'",
+  );
+  const requeue = db.prepare("UPDATE jobs SET state = 'queued', step = NULL, partial = 0, error = NULL, ended_at = NULL, wake_pending = 0 WHERE id = ?");
+  const setPending = db.prepare("UPDATE jobs SET wake_pending = ? WHERE id = ?");
+  const putSession = db.prepare("UPDATE jobs SET session_id = ? WHERE id = ?");
+  const reopenGoal = db.prepare("UPDATE goals SET ended_at = NULL WHERE id = ?");
   const jobById = db.prepare("SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.id = ?");
   const insertJob = db.prepare("INSERT INTO jobs (helper, task, state, created_at, goal, parent_id, goal_id) VALUES (?, ?, 'queued', ?, ?, ?, ?)");
   const insertGoal = db.prepare("INSERT INTO goals (text, created_at) VALUES (?, ?)");
@@ -441,7 +314,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const goalEndedAt = db.prepare("SELECT ended_at FROM goals WHERE id = ?");
   const goalTasks = db.prepare("SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.goal_id = ? ORDER BY j.id");
   const closeGoal = db.prepare("UPDATE goals SET ended_at = ?, report = ? WHERE id = ? AND ended_at IS NULL");
-  const setState = db.prepare("UPDATE jobs SET state = ?, step = NULL, partial = ?, error = ?, ended_at = ? WHERE id = ?");
+  const setState = db.prepare("UPDATE jobs SET state = ?, step = NULL, partial = ?, error = ?, ended_at = ?, wake_pending = 0 WHERE id = ?");
   const setStep = db.prepare("UPDATE jobs SET step = ? WHERE id = ? AND state = 'running'");
   const insertReport = db.prepare("INSERT OR REPLACE INTO reports (job_id, title, summary, body, sources) VALUES (?, ?, ?, ?, ?)");
   const reportById = db.prepare("SELECT * FROM reports WHERE job_id = ?");
@@ -533,15 +406,31 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
    */
   function transition(job: Job, to: JobState, fields: { partial?: boolean; error?: string } = {}) {
     move(job.state, to);
+    const pending = to !== "stopped" && get(job.id)?.wakePending === true;
     const ended = isFinal(to) ? now() : undefined;
     setState.run(to, fields.partial ? 1 : 0, fields.error ?? null, ended?.toISOString() ?? null, job.id);
     log(job.id, to, ended);
     emit({ action: "job", helper: job.helper, job: job.id, state: to, ...(ended ? { ms: ended.getTime() - job.createdAt.getTime() } : {}) });
+    // Asked again while it ran: one more run, instead of failing what waits for it.
+    if (pending) return wake(get(job.id)!);
     if (to !== "failed" && to !== "stopped") return;
     for (const { id } of dependents.all(job.id) as { id: number }[]) {
       const waiting = get(id);
       if (waiting?.state === "queued") transition(waiting, "failed", { error: `Task ${job.id}, which it waited for, ${to === "failed" ? "failed" : "was stopped"}.` });
     }
+  }
+
+  /** Task 3.6: an ended task runs again (its goal opens again); a running one runs once more when it ends. */
+  function wake(job: Job) {
+    if (job.state === "running") {
+      setPending.run(1, job.id);
+      return;
+    }
+    if (!isFinal(job.state)) return;
+    requeue.run(job.id);
+    if (job.goalId !== undefined) reopenGoal.run(job.goalId);
+    log(job.id, "woken");
+    emit({ action: "job", helper: job.helper, job: job.id, state: "queued" });
   }
 
   function transaction(work: () => void) {
@@ -710,6 +599,30 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         log(id, "commented");
       });
       emit({ action: "comment", helper: job.helper, job: id });
+      wake(job);
+    },
+
+    startFresh(id) {
+      const job = mustGet(id);
+      if (job.state === "running") throw new HelperError("Wait for the run to end, or stop it, before starting fresh.");
+      putSession.run(null, id);
+      log(id, "fresh");
+      emit({ action: "comment", helper: job.helper, job: id });
+      wake(job);
+    },
+
+    setSession(id, sessionId) {
+      const job = get(id);
+      if (!job) return false;
+      putSession.run(sessionId, id);
+      return true;
+    },
+
+    resumeOf(id) {
+      const row = jobById.get(id) as JobRow | undefined;
+      if (!row?.session_id) return undefined;
+      const notes = (commentsOf.all(id) as { text: string }[]).map((c) => c.text).slice(row.state === "running" ? (row.brief_from ?? 0) : (row.seen_comments ?? 0));
+      return { sessionId: row.session_id, notes };
     },
 
     thread(id) {

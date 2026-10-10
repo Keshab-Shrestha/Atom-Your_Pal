@@ -553,3 +553,24 @@ struct HelperGoalTests {
         #expect(HelperGoal(id: 1, text: "g", ended: true, tasks: [3]).progress(in: list) == "No task finished.")
     }
 }
+
+@Suite("Wake-ups and memory (Task 3.6)")
+struct HelperWakeTests {
+    @Test func startFreshIsForAnEndedTaskWithASession() throws {
+        let line = HelperTaskTests.line.replacingOccurrences(of: #""comments":2}"#, with: #""comments":2,"resumable":true}"#)
+        var state = HelpersState()
+        state.apply(try decodeEvent(line))
+        #expect(state.list?.item(1)?.job.resumable == true && state.list?.item(2)?.job.resumable == false)
+        #expect(state.startFresh() == nil) // nothing open
+        _ = state.openThread(2)
+        #expect(state.startFresh() == nil) // running, and no session
+        _ = state.openThread(1)
+        #expect(state.startFresh() == .jobFresh(id: 1))
+        #expect(IslandCommand.jobFresh(id: 1).line == #"{"id":1,"type":"job.fresh"}"# + "\n")
+    }
+
+    @Test func activityNamesTheWakeUps() {
+        #expect(TaskActivity(kind: "woken", at: nil).title == "Asked again")
+        #expect(TaskActivity(kind: "fresh", at: nil).title == "Set to start fresh")
+    }
+}

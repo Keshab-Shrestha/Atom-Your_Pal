@@ -187,7 +187,7 @@ struct ThreadPane: View {
                         }
                     }
                     if let goal = model.helpers.thread?.goal, goal.tasks.count > 1 { GoalSection(goal: goal, list: model.helpers.list) }
-                    NotesSection(model: model, comments: model.helpers.thread?.comments ?? [])
+                    NotesSection(model: model, comments: model.helpers.thread?.comments ?? [], prompt: notePrompt(item))
                     if let activity = model.helpers.thread?.activity, !activity.isEmpty { ActivitySection(activity: activity) }
                 }
             }
@@ -197,6 +197,15 @@ struct ThreadPane: View {
             .padding(.horizontal, Spacing.panel + 4)
             .padding(.top, 30)
             .padding(.bottom, Spacing.panel)
+        }
+    }
+
+    /// Task 3.6: a note wakes the task, so the field says what it will do.
+    private func notePrompt(_ item: BoardItem) -> String {
+        switch item.job.state {
+        case .queued: "Add a note for \(item.helperName)"
+        case .running: "Add a note: \(item.helperName) runs once more after this"
+        default: "Ask \(item.helperName) again"
         }
     }
 
@@ -211,6 +220,7 @@ struct ThreadPane: View {
                 Text(item.helperName).font(theme.idFont(.system(size: 12), size: 11)).foregroundStyle(theme.idColor(theme.text2))
                 Text("#\(job.id)").font(theme.idFont(.system(size: 12), size: 11)).foregroundStyle(theme.text3.color)
                 Spacer(minLength: 0)
+                if job.resumable && job.state != .running { QuietButton(title: "Start fresh") { model.sendHelpers(model.helpers.startFresh()) } }
                 if job.state.isActive { QuietButton(title: "Stop") { model.sendHelpers(model.helpers.stopJob(job.id)) } }
             }
             if let goal = job.goal, goal != job.task { Text("Goal: \(goal)").font(.system(size: 12)).foregroundStyle(theme.text2.color) }
@@ -309,14 +319,16 @@ private struct GoalSection: View {
 private struct NotesSection: View {
     let model: IslandModel
     let comments: [TaskComment]
+    let prompt: String
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
     private let draft = State(initialValue: "")
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
 
-    init(model: IslandModel, comments: [TaskComment]) {
+    init(model: IslandModel, comments: [TaskComment], prompt: String) {
         self.model = model
         self.comments = comments
+        self.prompt = prompt
     }
 
     var body: some View {
@@ -332,9 +344,9 @@ private struct NotesSection: View {
             }
             HStack(spacing: 8) {
                 if snapshot {
-                    Text("Add a note for the worker").font(.system(size: 12.5)).foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading)
+                    Text(prompt).font(.system(size: 12.5)).foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading)
                 } else {
-                    TextField("Add a note for the worker", text: draft.projectedValue)
+                    TextField(prompt, text: draft.projectedValue)
                         .textFieldStyle(.plain).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
                         .onSubmit(add)
                         .accessibilityLabel("Note")
