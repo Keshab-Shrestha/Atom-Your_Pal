@@ -484,9 +484,11 @@ Live in text (Claude plan): the calendar call waited on macOS's permission dialo
 
 **Not done (1.3):** Keshab allows Calendar and Reminders when macOS asks (first time ZENO is asked about his schedule), then tries "What's on tomorrow?" and "Remind me to … at …".
 
-### Task 2.x — Shortcuts: Plain Commands Skip the Model (ADR-071) — planned; not started
+### Task 2.x — Shortcuts: Plain Commands Skip the Model (ADR-071) — built; tested; not yet tried by voice
 
-Run plain spoken commands in code before any model is called. Do not start until Keshab confirms the starting list.
+Run plain spoken commands in code before any model is called.
+
+**Keshab's list (2026-10-10):** "open settings, open brave, open finder, open notes, open journal, play/pause the music on current brave window, search <tag> on chrome/currently open youtube site". His answers: "settings" means both (ZENO's Settings, and "open system settings" for the Mac's); play/pause by the Mac's media key; searches on YouTube reuse the open YouTube tab, "on Google" or "on Chrome" opens a new tab.
 
 1. `services/tool-engine/src/shortcuts/`: a pure matcher `matchShortcut(text, context) → { name, call } | undefined`; `context` has the installed app names. Tests first, in two groups: sentences that must match, and look-alikes that must not ("open Safari and search for cats", "open the pod bay doors", "scroll down and tell me what it says", "open" alone, a near-match app name, "please" and capitals and punctuation variants of the real commands).
 2. Run the matched call through the existing tool engine, so every rule and log line stays. Return the fixed reply, or "not handled" if the tool fails or refuses.
@@ -496,6 +498,22 @@ Run plain spoken commands in code before any model is called. Do not start until
 **Done when:** unit tests pass including every look-alike staying unmatched; typecheck and existing tests green; on the real Mac, the log shows no model request for a shortcut and the time from end of speech to action is recorded next to today's 2–3 s model path; by voice, a shortcut works, a look-alike goes to the model, and "open Terminal" is refused with the reason spoken; Keshab's verdict is written here.
 
 **Out of scope:** typing, sending, deleting, buying, quitting; web page buttons; partial speech; wake words.
+
+**As built (2026-10-10):**
+- `services/tool-engine/src/shortcuts.ts`: `matchShortcut` (pure) and `createShortcuts` (runs the match through the tool engine, returns the tool's reply or undefined). The sentence is lower-cased and loses commas, end punctuation, a leading "Zeno", "please", "can you" and a trailing "please"; then the whole of it must fit one pattern:
+  - "open/show (the/my/your/ZENO's) settings" → `open_zeno_settings`.
+  - "open/launch/start/switch to (the/my) <app> (app)" → `open_app`, only when <app> is exactly an installed app's name, or that name without " Browser" ("Brave"). "Mac settings" and "System Preferences" mean System Settings.
+  - "play/pause/resume/unpause (the) (music/video/song/YouTube) (in/on Brave/the browser/YouTube)" → `play_pause`.
+  - "search (for) <text> on/in YouTube", "search YouTube for <text>" → `open_url` with a YouTube results address and `same_tab`. The same with Google or Chrome → a Google search in a new tab. Text up to 200 characters.
+- New tools in `tools/island.ts`: `open_zeno_settings` and `play_pause`, carried out by the island (`settings.open`, `media.key`). The island presses the system play/pause key with the Accessibility permission it holds for dictation, or shows a notice when it lacks it.
+- `open_app`: Finder is now in the app list (it lives in CoreServices), and System Settings may be opened (open only; computer control still never touches it).
+- `open_url` takes `same_tab`: when the browser in front (Chrome, Arc, Edge or Brave, the ones `front_window` reads) shows the same site in a normal window, the address is loaded in that tab; otherwise, or if the browser cannot be scripted, a new tab as before.
+- Core option `shortcuts`, tried before the model; a reply joins the conversation, a refusal or failure goes to the model unchanged (so "open Terminal" is answered by the model with the reason). Wired in `runtime.ts` unless `ZENO_SHORTCUTS=0`; logs `shortcut.hit` (name, ms) and `shortcut.fallback` (name, reason), never the sentence.
+- Tests: 7 matcher/runner tests (every look-alike from the plan stays unmatched), 3 `open_url same_tab` and 1 System Settings test, 1 island tools test, 2 Core tests; 5 Swift tests for the two events and the key numbers. 447 TS and 408 Swift tests pass; typecheck clean. A dry run against this Mac's installed apps matched all of Keshab's commands (nothing was run).
+
+**Known limits:** play/pause is a toggle ("play" while playing pauses); without Accessibility the runtime still answers "Done." while the island shows the notice; `same_tab` can only reuse a tab in the browser in front.
+
+**Not done:** by voice through the island; the time from end of speech to action next to the 2–3 s model path; Keshab's verdict.
 
 ### Task 2.y — What Is in Front (ADR-072) — built; tested; read once on the real Mac from the terminal (Brave); not yet tried by voice
 

@@ -90,6 +90,8 @@ export type IslandEvent =
   | { type: "conversation.reset" }
   | { type: "computer.step"; text: string }
   | { type: "computer.point"; x: number; y: number; w: number; h: number; label: string }
+  | { type: "settings.open" }
+  | { type: "media.key"; key: "playpause" }
   | { type: "approval.request"; id: string; summary: string; reason: string }
   | { type: "approval.closed"; id: string }
   | InfoEvent

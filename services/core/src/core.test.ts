@@ -336,3 +336,23 @@ test("the system prompt asks for replies for the ear (ADR-077)", () => {
   assert.match(DEFAULT_SYSTEM_PROMPT, /Describe code or long text/);
   assert.match(DEFAULT_SYSTEM_PROMPT, /web addresses and file paths by name/);
 });
+
+test("shortcuts: a handled sentence skips the model and joins the conversation; undefined goes to the model", async () => {
+  const { model, requests } = fakeModel();
+  const seen: string[] = [];
+  const core = createCore({ model, shortcuts: async (text) => (seen.push(text), text === "open Brave" ? "Opened Brave Browser." : undefined) });
+  assert.equal((await core.handle({ text: "  open Brave ", source: "voice" })).text, "Opened Brave Browser.");
+  assert.equal(requests.length, 0);
+  assert.equal((await core.handle({ text: "what did you open?", source: "voice" })).text, "echo: what did you open?");
+  assert.equal(requests.length, 1);
+  assert.deepEqual(seen, ["open Brave", "what did you open?"]);
+  assert.deepEqual(requests[0]!.messages.map((m) => m.content), ["open Brave", "Opened Brave Browser.", "what did you open?"]);
+});
+
+test("shortcuts: a cancel during a shortcut fails the request and keeps no history", async () => {
+  const { model } = fakeModel();
+  const controller = new AbortController();
+  const core = createCore({ model, shortcuts: async () => (controller.abort(), "Done.") });
+  await assert.rejects(() => core.handle({ text: "pause", source: "voice" }, controller.signal), /cancelled/);
+  assert.equal(core.history().length, 0);
+});

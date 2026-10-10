@@ -257,6 +257,11 @@ final class IslandController {
         if case .contextReady(_, let ok, _) = event { contextReady(ok: ok) } // before the status: it opens the microphone
         model.work.apply(event, now: Self.now)
         if case .computerPoint(let target) = event { startPointing(target) }
+        if case .settingsOpen = event { // ADR-071: as if the user opened Settings by hand
+            model.tab = .settings
+            setExpanded(true)
+        }
+        if case .mediaKey(let key) = event { press(key) }
         if case .timer = event { pet.poke() } // out of hiding: the user should see it (the runtime chimed and spoke)
         let wasBusy = model.status.isBusy
         model.status.apply(event)
@@ -268,6 +273,21 @@ final class IslandController {
         if case .reply(let text) = event { lastReply = text }
         if case .turnComplete = event { maybeFollowUp() }
         statusChanged()
+    }
+
+    /// Presses a system media key once (ADR-071). Posting needs Accessibility, which typing dictated text already uses.
+    private func press(_ key: MediaKey) {
+        guard AXIsProcessTrusted() else {
+            apply(.notice(kind: "media_key_permission",
+                          message: "To press play/pause, allow ZENO in System Settings → Privacy & Security → Accessibility."))
+            return
+        }
+        for down in [true, false] {
+            let (flags, data1) = key.event(down: down)
+            NSEvent.otherEvent(with: .systemDefined, location: .zero, modifierFlags: NSEvent.ModifierFlags(rawValue: flags),
+                               timestamp: 0, windowNumber: 0, context: nil, subtype: 8, data1: data1, data2: -1)?
+                .cgEvent?.post(tap: .cghidEventTap)
+        }
     }
 
     // MARK: - Follow-up (ADR-067)

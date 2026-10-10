@@ -273,6 +273,10 @@ The island reads the keyboard and the pointer position system-wide, so its limit
   - **What is captured:** the main display only, downscaled to 1280 px, sent to the current model provider for that one request.
   - **Storage:** the image is written to a temporary folder deleted in a `finally` block. It is never logged and never kept in conversation history.
   - **The point marker:** `[POINT:x,y:label]` is parsed in code, range-checked, never spoken, and a malformed one is dropped.
+- Shortcuts (ADR-071, on unless `ZENO_SHORTCUTS=0`): a few plain commands are matched in code and run through the same tool engine, so every block and log applies. Logs hold the shortcut's name, never the sentence. Three additions came with it:
+  - `open_app` may open System Settings. It only opens it; computer control still never clicks or types in it.
+  - The island may press the system play/pause media key (`media.key`), using the Accessibility permission it holds for dictation. It presses that one key and nothing else.
+  - `open_url` with `same_tab` may load a web address in the browser tab in front (Chrome, Arc, Edge or Brave, normal windows only) when that tab shows the same site. It reads the tab's address only to compare the site, and neither logs nor keeps it.
 - Drop Wisp on a window (ADR-074): only while Option is held during a drag, the island reads the window list's owner, layer and frame to find and outline the window under the pointer. It never reads window titles, so it needs no Screen Recording. On the drop, the runtime reads that app once with `front_window`'s rules and keeps the result for the next request only (30 s at most, cleared by a new conversation). Logs hold the bundle id only.
 
 ---

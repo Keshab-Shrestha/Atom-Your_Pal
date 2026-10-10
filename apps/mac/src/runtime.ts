@@ -14,6 +14,9 @@ import {
   createLookAtScreenTool,
   createTimers,
   createAppTools,
+  createIslandTools,
+  createShortcuts,
+  installedApps,
   createMediaTools,
   createFrontWindowTool,
   createNoteTools,
@@ -154,6 +157,8 @@ export function createRuntime(
     ...(process.env.ZENO_APPS === "0" ? [] : createAppTools()),
     // ADR-068: music (Spotify or Music) and the Mac's volume. ZENO_MEDIA=0 turns it off.
     ...(process.env.ZENO_MEDIA === "0" ? [] : createMediaTools()),
+    // Task 2.x: open ZENO's Settings and press the play/pause key, both done by the island.
+    ...createIslandTools({ openSettings: () => computer.openSettings(), playPause: () => computer.playPause() }),
     // ADR-070: "take a note" into Apple Notes (adding only). ZENO_NOTES=0 turns it off.
     ...(process.env.ZENO_NOTES === "0" ? [] : createNoteTools()),
     // ADR-072: the app in front and, in Chrome/Arc/Edge/Brave, the tab title and address. Read-only, on request.
@@ -245,6 +250,17 @@ export function createRuntime(
           });
           return [nowLine(), MEMORY_GUIDANCE, facts, past, pointed].filter(Boolean).join("\n\n");
         },
+        // ADR-071: plain commands run in code, before any model. ZENO_SHORTCUTS=0 turns it off. Logs the name only.
+        ...(process.env.ZENO_SHORTCUTS === "0"
+          ? {}
+          : {
+              shortcuts: createShortcuts({
+                tools: toolEngine,
+                apps: installedApps,
+                onHit: (e) => log.info("shortcut.hit", e),
+                onFallback: (e) => log.info("shortcut.fallback", e),
+              }),
+            }),
         ...(episodes ? { onExchange: (sessionId: string, turns: readonly Message[]) => episodes.update(sessionId, turns) } : {}),
       });
   // ADR-080: with computer control on, replies lose their [POINT:…] marker before speech, and a valid one points.

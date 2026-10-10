@@ -1292,7 +1292,7 @@ Date: 2026-10-04.
 
 ## ADR-071 — Shortcuts: Plain Commands Skip the Model
 
-Date: 2026-10-05. Status: **proposed**; waits for Keshab's answer on the starting list.
+Date: 2026-10-05. Status: **accepted** (Keshab, 2026-10-10, with his starting list; see "Starting list" below).
 
 ### Context
 
@@ -1317,7 +1317,17 @@ Reading web page buttons by JavaScript (needs browser permission and a method pe
 
 ### Not decided yet
 
-- The starting list. Proposal: open app/site, switch to app, volume up/down/mute, pause/play/next/previous, scroll up/down/top/bottom, go back. Keshab to say what he says most and what to drop.
+- ~~The starting list.~~ Settled below.
+
+### Starting list (Keshab, 2026-10-10)
+
+"open settings, open brave, open finder, open notes, open journal, play/pause the music on current brave window, search <tag> on chrome/currently open youtube site". Built as (Task 2.x):
+
+- **Open settings:** "open settings" opens ZENO's own Settings; "open system settings" opens the Mac's. System Settings stays on computer control's block list: `open_app` may now open it, nothing more.
+- **Open an app:** any installed app by its exact name, or without " Browser" ("Brave"). Finder is added to the app list.
+- **Play/pause:** the island presses the Mac's play/pause media key, which reaches whatever is playing (YouTube in Brave, Spotify, Music). Chosen over running JavaScript in the Brave tab, which needs Brave's "Allow JavaScript from Apple Events" and would let any app allowed to control Brave run code in its pages. The key needs Accessibility, which ZENO already holds for dictation. It is a toggle.
+- **Search:** "search X on YouTube" loads the results in the YouTube tab in front if there is one (Chrome, Arc, Edge or Brave, normal windows only), else a new tab. "on Google" or "on Chrome" opens a Google search in a new tab of the default browser (Chrome is not installed here).
+- Volume, next/previous and scrolling from the proposal are not in the list; the model still does them.
 
 ### Consequences
 

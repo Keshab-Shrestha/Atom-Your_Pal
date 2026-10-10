@@ -39,6 +39,11 @@ export interface CoreOptions {
    * summaries). Must not throw or block; errors are ignored.
    */
   onExchange?: (sessionId: string, turns: readonly Message[]) => void;
+  /**
+   * ADR-071: plain commands settled in code. Tried before the model; a reply string means it was handled (the exchange
+   * joins the conversation and no model is called), undefined means the model answers as usual.
+   */
+  shortcuts?: (text: string, signal?: AbortSignal) => Promise<string | undefined>;
   /** Maximum user+assistant turn pairs kept in session history (bounds prompt size). */
   maxTurns?: number;
   newId?: () => string;
@@ -81,6 +86,7 @@ export function createCore(options: CoreOptions): Core {
     systemPrompt: basePrompt = DEFAULT_SYSTEM_PROMPT,
     context: contextFor,
     onExchange,
+    shortcuts,
     maxTurns = 20,
     newId = randomUUID,
     now = () => new Date(),
@@ -102,17 +108,37 @@ export function createCore(options: CoreOptions): Core {
       const context: RequestContext = { requestId: newId(), sessionId, source: input.source, receivedAt: now() };
       const userTurn: Message = { role: "user", content: text };
       const sessionAtStart = sessionId;
-      let extra: string | undefined;
-      try {
-        extra = contextFor?.({ ...input, text }, context)?.trim() || undefined;
-      } catch {
-        extra = undefined; // memory is a help, never a reason to fail a request
-      }
-      const systemPrompt = basePrompt;
-      const systemExtra = { ...(extra ? { systemExtra: extra } : {}), ...(hooks?.onText ? { onText: hooks.onText } : {}) };
+      // Only record the exchange if it succeeded and the session was not reset meanwhile.
+      const record = (replyText: string): ZenoResponse => {
+        if (sessionId === sessionAtStart) {
+          const assistantTurn: Message = { role: "assistant", content: replyText };
+          turns = [...turns, userTurn, assistantTurn].slice(-maxTurns * 2);
+          try {
+            onExchange?.(sessionId, turns);
+          } catch {
+            // a summary is a help, never a reason to fail a reply
+          }
+        }
+        return { requestId: context.requestId, text: replyText };
+      };
 
       busy = true;
       try {
+        if (shortcuts) {
+          const quick = await shortcuts(text, signal);
+          if (signal?.aborted) throw new CoreError("Request cancelled");
+          if (quick?.trim()) return record(quick.trim());
+        }
+
+        let extra: string | undefined;
+        try {
+          extra = contextFor?.({ ...input, text }, context)?.trim() || undefined;
+        } catch {
+          extra = undefined; // memory is a help, never a reason to fail a request
+        }
+        const systemPrompt = basePrompt;
+        const systemExtra = { ...(extra ? { systemExtra: extra } : {}), ...(hooks?.onText ? { onText: hooks.onText } : {}) };
+
         // Tool rounds live only in this request's `messages`; session history keeps just the user turn and
         // the final answer, so a trimmed history can never hold half a tool exchange.
         const messages: Message[] = [...turns, userTurn];
@@ -139,18 +165,7 @@ export function createCore(options: CoreOptions): Core {
         if (signal?.aborted) throw new CoreError("Request cancelled");
         const replyText = reply.text.trim();
         if (!replyText) throw new CoreError("The model returned an empty reply");
-
-        // Only record the exchange if it succeeded and the session was not reset meanwhile.
-        if (sessionId === sessionAtStart) {
-          const assistantTurn: Message = { role: "assistant", content: replyText };
-          turns = [...turns, userTurn, assistantTurn].slice(-maxTurns * 2);
-          try {
-            onExchange?.(sessionId, turns);
-          } catch {
-            // a summary is a help, never a reason to fail a reply
-          }
-        }
-        return { requestId: context.requestId, text: replyText };
+        return record(replyText);
       } finally {
         busy = false;
       }

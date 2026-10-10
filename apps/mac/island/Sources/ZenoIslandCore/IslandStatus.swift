@@ -209,6 +209,7 @@ public struct IslandStatus: Sendable, Equatable {
         case "too_short": "Too short"
         case "no_speech": "Didn't catch that"
         case "mic_not_ready": "Microphone starting"
+        case "media_key_permission": "Can't press play/pause"
         default: "Nothing sent"
         }
     }
@@ -218,6 +219,7 @@ public struct IslandStatus: Sendable, Equatable {
         case "too_short": "Hold the keys while you speak"
         case "no_speech": "Nothing heard. Try speaking closer"
         case "mic_not_ready": "Try again in a moment"
+        case "media_key_permission": "Allow ZENO under Accessibility"
         default: ""
         }
     }

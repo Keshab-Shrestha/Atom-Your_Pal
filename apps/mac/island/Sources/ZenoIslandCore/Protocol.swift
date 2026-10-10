@@ -297,6 +297,10 @@ public enum IslandEvent: Sendable, Equatable {
     case capabilities([CapabilityItem])
     /// Claude plan usage, whenever the plan reports it (ADR-076).
     case planUsage(PlanUsage)
+    /// Open the panel on Settings (ADR-071).
+    case settingsOpen
+    /// Press a system media key once (ADR-071).
+    case mediaKey(MediaKey)
     case error(RuntimeError)
     /// A newer runtime sent an event this island does not know; ignored for forward compatibility.
     case unknown(type: String)
@@ -324,6 +328,8 @@ public enum IslandEvent: Sendable, Equatable {
         case .contextReady: "context.ready"
         case .capabilities: "capabilities"
         case .planUsage: "plan.usage"
+        case .settingsOpen: "settings.open"
+        case .mediaKey: "media.key"
         case .error(let e): "error:\(e.stage)"
         case .unknown(let type): "unknown:\(type)"
         }
@@ -414,6 +420,11 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .capabilities(try f.capabilities())
     case "plan.usage":
         return .planUsage(PlanUsage(fiveHour: f.usageFraction("fiveHour"), sevenDay: f.usageFraction("sevenDay"), overage: f.optionalBool("overage")))
+    case "settings.open":
+        return .settingsOpen
+    case "media.key":
+        guard let key = MediaKey(rawValue: try f.string("key")) else { throw ProtocolError.invalidValue(event: type, field: "key") }
+        return .mediaKey(key)
     case "error":
         return .error(RuntimeError(
             stage: try f.string("stage"),
