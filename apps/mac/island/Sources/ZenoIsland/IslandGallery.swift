@@ -56,6 +56,10 @@ enum IslandGallery {
         // The Settings tab is taller than the window and scrolls: render it tall once, so the lower cards can be reviewed.
         model.tab = .settings
         write(model, size: CGSize(width: expanded.width, height: 2000), name: "2-settings-full", to: directory)
+        // ADR-079: the Wisp page (Wisp, Speech bubble, Panel) down to its "Reset this page" row.
+        model.settingsPage = .wisp
+        write(model, size: CGSize(width: expanded.width, height: 1300), name: "2-settings-wisp-full", to: directory)
+        model.settingsPage = nil
         model.recorder.start(.talk)
         write(model, size: expanded, name: "3-recording-shortcut", to: directory)
         model.recorder.stop()

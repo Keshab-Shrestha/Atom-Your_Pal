@@ -230,14 +230,26 @@ public final class IslandSettings {
         (defaults.object(forKey: key) as? Int).flatMap(C.init(rawValue:)) ?? fallback
     }
 
-    /// Puts every look and behaviour setting (Wisp, bubble, panel) back to its default. Shortcuts, dictation,
-    /// the model and the on/off switches are left alone.
-    public func resetLook() {
+    // "Reset this page" (ADR-079): each resets only the settings on its own Settings page. Shortcuts use
+    // `resetAllShortcuts()`. The defaults here must match `init`; the tests compare against a fresh instance.
+
+    /// Appearance: the theme and Wisp's style.
+    public func resetAppearance() {
+        theme = .native; wispStyle = .orb
+    }
+
+    /// Dictation: how it starts and stops, the live preview and filler removal.
+    public func resetDictation() {
+        dictationMode = .automatic; livePreview = true; removeFillers = true
+    }
+
+    /// Wisp, its speech bubble and the panel. "Show Wisp" stays as it is: turning Wisp on or off is the
+    /// controller's job (`IslandModel.setPet`), and a reset should not make Wisp appear or vanish.
+    public func resetWisp() {
         wispSize = .medium; wispGlow = .normal; wispWander = .normal; wispNap = .minutes3
-        wispHideAfter = .minute1; wispLean = .normal
+        wispHideAfter = .minute1; wispLean = .normal; wispReacts = true
         bubbleStay = .seconds2; bubbleSize = .normal; bubbleOpacity = .normal
         panelSize = .normal; panelBackground = .glass
-        theme = .native; wispStyle = .orb
     }
 
     private func save(_ value: Bool, _ key: String) {

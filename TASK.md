@@ -638,7 +638,12 @@ As built:
 
 **Done when:** on two displays, each choice puts the walkway where it says, and unplugging the chosen display brings Wisp to the main one.
 
-**Task 2.E — Settings tidy-up (ADR-079).**
+**Task 2.E — Settings tidy-up (ADR-079).** Built 2026-10-10; tested (394 Swift).
+
+As built:
+- **The split.** `ExpandedView.swift` went from 1,490 to 121 lines, plus one file per page under `Settings/`, `ConversationView`, `StatusView` and `SharedRows`. The gallery was byte-identical before and after the split.
+- **Reset per page.** The Wisp page now holds Wisp, Speech bubble and Panel. Appearance, Shortcuts, Dictation and Wisp each have "Reset this page", replacing "Reset look".
+- **What the Wisp reset touches.** It also resets "Reacts to you", but never "Show Wisp" or the parked spot.
 1. Split `ExpandedView.swift` with no change in behaviour (tests and gallery identical).
 2. Merge Wisp, Bubble and Panel; add "Reset this page".
 

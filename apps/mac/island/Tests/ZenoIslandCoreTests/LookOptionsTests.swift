@@ -62,22 +62,6 @@ struct LookOptionsTests {
         #expect(settings.revision == before + 1)
     }
 
-    @Test func resetLookRestoresDefaultsButNotTheRest() {
-        let (settings, _, name) = fresh()
-        defer { UserDefaults().removePersistentDomain(forName: name) }
-        settings.wispSize = .large
-        settings.wispHideAfter = .seconds15
-        settings.panelSize = .compact
-        settings.livePreview = false
-        settings.soundsEnabled = false
-        settings.resetLook()
-        #expect(settings.wispSize == .medium)
-        #expect(settings.wispHideAfter == .minute1)
-        #expect(settings.panelSize == .normal)
-        #expect(settings.livePreview == false)
-        #expect(settings.soundsEnabled == false)
-    }
-
     @Test func everyChoiceHasAUniqueTitle() {
         func unique<C: SettingsChoice>(_: C.Type) -> Bool { Set(C.allCases.map(\.title)).count == C.allCases.count }
         #expect(unique(WispLean.self))

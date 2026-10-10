@@ -55,8 +55,6 @@ final class IslandModel {
         case shortcuts = "Shortcuts"
         case dictation = "Dictation"
         case wisp = "Wisp"
-        case bubble = "Speech bubble"
-        case panel = "Panel"
         case memory = "Memory"
         case general = "General"
         var id: String { rawValue }
@@ -69,8 +67,6 @@ final class IslandModel {
             case .shortcuts: "command"
             case .dictation: "mic.fill"
             case .wisp: "face.smiling.inverse"
-            case .bubble: "text.bubble.fill"
-            case .panel: "menubar.rectangle"
             case .memory: "brain.head.profile"
             case .general: "gearshape.fill"
             }

@@ -59,7 +59,7 @@ import Testing
         let reloaded = IslandSettings(defaults: defaults)
         #expect(reloaded.theme == .warm)
         #expect(reloaded.wispStyle == .companion)
-        reloaded.resetLook()
+        reloaded.resetAppearance()
         #expect(reloaded.theme == .native)
         #expect(reloaded.wispStyle == .orb)
     }
