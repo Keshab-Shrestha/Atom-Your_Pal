@@ -43,11 +43,14 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     public var comments: Int
     public var goal: String?
     public var parentId: Int?
+    /// Task 3.5: the goal Wisp made it part of, and whether that goal has ended with its combined report.
+    public var goalId: Int?
+    public var goalEnded: Bool
 
     public init(id: Int, task: String, state: JobState, createdAt: Date? = nil, endedAt: Date? = nil, step: String? = nil,
                 partial: Bool = false, title: String? = nil, summary: String? = nil, error: String? = nil,
                 model: String? = nil, modelReason: String? = nil, blockedBy: [Int] = [], waitingFor: [Int] = [],
-                comments: Int = 0, goal: String? = nil, parentId: Int? = nil) {
+                comments: Int = 0, goal: String? = nil, parentId: Int? = nil, goalId: Int? = nil, goalEnded: Bool = false) {
         self.id = id
         self.task = task
         self.state = state
@@ -65,6 +68,8 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
         self.comments = comments
         self.goal = goal
         self.parentId = parentId
+        self.goalId = goalId
+        self.goalEnded = goalEnded
     }
 
     public var hasReport: Bool { title != nil }
@@ -291,12 +296,38 @@ public struct HelperThread: Sendable, Equatable {
     public var comments: [TaskComment]
     public var activity: [TaskActivity]
     public var report: HelperReport?
+    public var goal: HelperGoal?
 
-    public init(id: Int, comments: [TaskComment], activity: [TaskActivity], report: HelperReport? = nil) {
+    public init(id: Int, comments: [TaskComment], activity: [TaskActivity], report: HelperReport? = nil, goal: HelperGoal? = nil) {
         self.id = id
         self.comments = comments
         self.activity = activity
         self.report = report
+        self.goal = goal
+    }
+}
+
+/// What Wisp handed the team in one go (Task 3.5): its tasks, and the combined report once they have all ended.
+public struct HelperGoal: Sendable, Equatable {
+    public var id: Int
+    public var text: String
+    public var ended: Bool
+    public var tasks: [Int]
+    public var report: HelperReport?
+
+    public init(id: Int, text: String, ended: Bool, tasks: [Int], report: HelperReport? = nil) {
+        self.id = id
+        self.text = text
+        self.ended = ended
+        self.tasks = tasks
+        self.report = report
+    }
+
+    /// "2 of 3 tasks done" while it runs; how it ended once it has.
+    public func progress(in list: HelpersList?) -> String {
+        let done = tasks.filter { list?.item($0)?.job.state == .done }.count
+        if ended { return report == nil ? "No task finished." : "\(done) of \(tasks.count) tasks done." }
+        return "Working: \(done) of \(tasks.count) tasks done."
     }
 }
 

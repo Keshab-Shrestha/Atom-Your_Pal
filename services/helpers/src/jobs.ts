@@ -11,8 +11,9 @@ export interface Soul {
 
 /**
  * The team (ADR-082, Task 3.3), in the window's order. `available` and `role` are code: a soul edit never changes
- * them, and the role alone decides a worker's tools and floor. Kame, Puff and Quill wait for folder grants (Task 3.11),
- * Tinker for feedback (Task 3.13).
+ * them, and the role alone decides a worker's tools and floor. Kame and Puff wait for folder grants (Task 3.11), Tinker
+ * for feedback (Task 3.13). Quill writes up with the research tools from Task 3.5 (its report is the write-up) and gains
+ * folders in 3.11.
  */
 export const HELPERS = [
   {
@@ -57,7 +58,7 @@ export const HELPERS = [
   {
     id: "quill",
     name: "Quill",
-    available: false,
+    available: true,
     role: "documenter",
     soul: {
       name: "Quill",
@@ -213,6 +214,8 @@ export function findHelper(id: string) {
 
 /** At most this many tasks one task may wait for (ADR-087). */
 export const MAX_BLOCKERS = 6;
+/** Most tasks in one goal Wisp hands the team (ADR-082: up to six parts). */
+export const MAX_GOAL_TASKS = 6;
 /** How much of an earlier report's body a later task is given. */
 export const BRIEF_REPORT_CHARS = 8000;
 
@@ -243,7 +246,7 @@ export interface TaskContext {
 /** The task as the worker receives it. Earlier reports are marked as data, never instructions. */
 export function briefFor(task: string, context: TaskContext): string {
   const parts = [task];
-  if (context.goal) parts.push(`The goal this task is part of: ${context.goal}`);
+  if (context.goal && context.goal !== task) parts.push(`The goal this task is part of: ${context.goal}`);
   if (context.comments.length) parts.push(`Notes from Keshab:\n${context.comments.map((c) => `- ${c}`).join("\n")}`);
   if (context.earlier.length) {
     const reports = context.earlier.map((r) => {

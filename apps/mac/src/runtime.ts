@@ -45,6 +45,10 @@ import {
 import {
   briefFor,
   chooseJobModel,
+  createDelegateTool,
+  createWorkerShortcut,
+  teamContext,
+  watchGoals,
   findHelper,
   instructionsFor,
   openHelperStore,
@@ -107,6 +111,8 @@ export interface Runtime {
   capabilities(): Capability[];
   /** Called when the Claude plan reports usage (ADR-076); returns a function that stops listening. */
   onPlanUsage(listener: (usage: PlanUsage) => void): () => void;
+  /** Called with the one line to say when a goal Wisp handed out has ended (Task 3.5); returns a function that stops listening. */
+  onGoalLine(listener: (line: string) => void): () => void;
   /** Shutdown: stops running helper jobs (they are marked failed at the next start) and Laya's server. */
   close(): void;
 }
@@ -221,6 +227,8 @@ export function createRuntime(
           createLookAtScreenTool({ cua, onShot: (shot) => (lastShot = shot), onStep: (step) => computer.step(step) }),
         ]
       : []),
+    // ADR-082/087, Task 3.5: Wisp hands work to the team. Logs the goal id and task count only.
+    ...(helpers ? [createDelegateTool({ store: helpers, onDelegated: (e) => log.info("goal.delegated", e) })] : []),
   ];
   const toolEngine = createToolEngine({ tools, onCall: (e) => log.info("tool.call", e) });
   const planUsageListeners = new Set<(usage: PlanUsage) => void>();
@@ -256,6 +264,22 @@ export function createRuntime(
           onError: (error) => log.warn("episode.failed", { ...errorFields(error) }),
         })
       : undefined;
+  // ADR-071: plain commands run in code, before any model. ZENO_SHORTCUTS=0 turns these off. Logs the name only.
+  const toolShortcuts =
+    process.env.ZENO_SHORTCUTS === "0"
+      ? undefined
+      : createShortcuts({
+          tools: toolEngine,
+          apps: installedApps,
+          onHit: (e) => log.info("shortcut.hit", e),
+          onFallback: (e) => log.info("shortcut.fallback", e),
+        });
+  // ADR-081, Task 3.5: "Sid, …" goes straight to that worker, in code. Logs the worker and action only.
+  const workerShortcut = helpers && createWorkerShortcut(helpers, (e) => log.info("worker.command", e));
+  const shortcuts =
+    toolShortcuts || workerShortcut
+      ? async (text: string, signal?: AbortSignal) => workerShortcut?.(text) ?? toolShortcuts?.(text, signal)
+      : undefined;
   // ZENO_VOICE_ONLY=1: test speech in and out without the AI. ZENO reads back what Whisper heard, and no
   // request is made to any model. (Typed as `Core` so every caller treats it the same.)
   const baseCore: Core = process.env.ZENO_VOICE_ONLY === "1" ? createEchoCore() : createCore({
@@ -264,7 +288,8 @@ export function createRuntime(
         context: (input, context) => {
           current = { source: input.source, requestId: context.requestId };
           const pointed = screen.take(); // ADR-074: the window Wisp was dropped on, for this request only
-          if (!memory) return [nowLine(), pointed].filter(Boolean).join("\n\n");
+          const team = helpers ? teamContext(helpers.list()) : undefined; // Task 3.5: who Wisp can delegate to
+          if (!memory) return [nowLine(), team, pointed].filter(Boolean).join("\n\n");
           const facts = memoryContext(input.text, { store: memory });
           const past = episodes ? episodeContext(memory, context.sessionId) : undefined;
           log.debug("memory.context", {
@@ -273,19 +298,9 @@ export function createRuntime(
             used: facts ? facts.split("\n").length - 1 : 0,
             episodes: past ? past.split("\n").length - 1 : 0,
           });
-          return [nowLine(), MEMORY_GUIDANCE, facts, past, pointed].filter(Boolean).join("\n\n");
+          return [nowLine(), team, MEMORY_GUIDANCE, facts, past, pointed].filter(Boolean).join("\n\n");
         },
-        // ADR-071: plain commands run in code, before any model. ZENO_SHORTCUTS=0 turns it off. Logs the name only.
-        ...(process.env.ZENO_SHORTCUTS === "0"
-          ? {}
-          : {
-              shortcuts: createShortcuts({
-                tools: toolEngine,
-                apps: installedApps,
-                onHit: (e) => log.info("shortcut.hit", e),
-                onFallback: (e) => log.info("shortcut.fallback", e),
-              }),
-            }),
+        ...(shortcuts ? { shortcuts } : {}),
         ...(episodes ? { onExchange: (sessionId: string, turns: readonly Message[]) => episodes.update(sessionId, turns) } : {}),
       });
   // ADR-080: with computer control on, replies lose their [POINT:…] marker before speech, and a valid one points.
@@ -363,6 +378,26 @@ export function createRuntime(
   };
   // Logs ids, states, timings and page counts only: never the task, report or addresses.
   const runner: JobRunner | undefined = helpers && startJobRunner({ store: helpers, run: runJob, onRun: (e) => log.info("job.run", e) });
+  // Task 3.5: a goal whose tasks have all ended gets its combined report (one model call, no tools) and one line.
+  const goalLineListeners = new Set<(line: string) => void>();
+  const stopGoals =
+    helpers &&
+    watchGoals({
+      store: helpers,
+      write: async (system, input) =>
+        (
+          await model.complete({
+            system,
+            messages: [{ role: "user", content: input }],
+            context: { requestId: `goal-${Date.now()}`, sessionId: "goals", source: "text", receivedAt: new Date() },
+          })
+        ).text,
+      onEnded: ({ goal, tasks, line }) => {
+        log.info("goal.ended", { goal, tasks, spoken: Boolean(line) });
+        if (line) for (const listener of goalLineListeners) listener(line);
+      },
+      onFallback: (e) => log.warn("goal.report_fallback", e),
+    });
   const tts = createSpeaker(createKokoroSynthesizer({ voice: config.tts.voice, dtype: config.tts.dtype }));
   return {
     config,
@@ -386,7 +421,12 @@ export function createRuntime(
       planUsageListeners.add(listener);
       return () => planUsageListeners.delete(listener);
     },
+    onGoalLine(listener) {
+      goalLineListeners.add(listener);
+      return () => goalLineListeners.delete(listener);
+    },
     close: () => {
+      stopGoals?.();
       runner?.close();
       void decisions.close();
     },

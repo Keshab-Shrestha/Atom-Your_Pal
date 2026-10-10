@@ -104,6 +104,7 @@ function start(config: Config) {
     ...(runtime.islandMemory ? { memory: runtime.islandMemory } : {}),
     ...(runtime.islandHelpers ? { helpers: runtime.islandHelpers } : {}),
     onTimer: runtime.onTimer,
+    onGoalLine: runtime.onGoalLine,
     capabilities: runtime.capabilities,
     onPlanUsage: runtime.onPlanUsage,
     screen: runtime.screen,

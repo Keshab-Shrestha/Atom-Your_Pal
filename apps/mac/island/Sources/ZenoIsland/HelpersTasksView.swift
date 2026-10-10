@@ -186,6 +186,7 @@ struct ThreadPane: View {
                             Text("Loading report…").font(.system(size: 12)).foregroundStyle(theme.text2.color)
                         }
                     }
+                    if let goal = model.helpers.thread?.goal, goal.tasks.count > 1 { GoalSection(goal: goal, list: model.helpers.list) }
                     NotesSection(model: model, comments: model.helpers.thread?.comments ?? [])
                     if let activity = model.helpers.thread?.activity, !activity.isEmpty { ActivitySection(activity: activity) }
                 }
@@ -212,7 +213,7 @@ struct ThreadPane: View {
                 Spacer(minLength: 0)
                 if job.state.isActive { QuietButton(title: "Stop") { model.sendHelpers(model.helpers.stopJob(job.id)) } }
             }
-            if let goal = job.goal { Text("Goal: \(goal)").font(.system(size: 12)).foregroundStyle(theme.text2.color) }
+            if let goal = job.goal, goal != job.task { Text("Goal: \(goal)").font(.system(size: 12)).foregroundStyle(theme.text2.color) }
             if job.state == .failed, let error = job.error { ProblemLine(text: error) }
         }
     }
@@ -285,6 +286,22 @@ private struct ReportSection: View {
             }
             if !report.sources.isEmpty { SourceList(sources: report.sources).padding(.top, 4) }
         }
+    }
+}
+
+/// Task 3.5: the goal Wisp made this task part of, how far its tasks are, and the combined report once they have ended.
+private struct GoalSection: View {
+    let goal: HelperGoal
+    let list: HelpersList?
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("The whole goal").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            Text(goal.progress(in: list)).font(.system(size: 12.5)).foregroundStyle(theme.text2.color)
+            if let report = goal.report { ReportSection(report: report) }
+        }
+        .padding(.top, 6)
     }
 }
 

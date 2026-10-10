@@ -55,7 +55,7 @@ test("webSources keeps http and https addresses only", () => {
 
 // --- store ---
 
-test("lists the seven workers in a fixed order; Sid, Penny and Hana available, the rest not yet (Task 3.3)", () => {
+test("lists the seven workers in a fixed order; Sid, Quill, Penny and Hana available, the rest not yet (Tasks 3.3, 3.5)", () => {
   const store = openHelperStore({ path: ":memory:" });
   assert.deepEqual(
     store.list().map((h) => [h.id, h.name, h.available, h.app, h.jobs.length, h.soulVersion]),
@@ -63,7 +63,7 @@ test("lists the seven workers in a fixed order; Sid, Penny and Hana available, t
       ["sid", "Sid", true, null, 0, 1],
       ["kame", "Kame", false, null, 0, 1],
       ["puff", "Puff", false, null, 0, 1],
-      ["quill", "Quill", false, null, 0, 1],
+      ["quill", "Quill", true, null, 0, 1],
       ["penny", "Penny", true, null, 0, 1],
       ["hana", "Hana", true, null, 0, 1],
       ["tinker", "Tinker", false, null, 0, 1],

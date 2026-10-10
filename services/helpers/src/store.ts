@@ -5,6 +5,7 @@ import {
   HELPERS,
   HelperError,
   MAX_BLOCKERS,
+  MAX_GOAL_TASKS,
   cleanSoul,
   findHelper,
   isFinal,
@@ -65,6 +66,9 @@ export interface Job {
   modelReason?: string;
   /** ADR-087: the goal it is part of, and the task that created it. */
   goal?: string;
+  goalId?: number;
+  /** Its goal has ended and has its combined report (Task 3.5). */
+  goalEnded?: boolean;
   parentId?: number;
   /** The tasks it waits for, and those of them not done yet (it starts when this is empty). */
   blockedBy: number[];
@@ -91,6 +95,32 @@ export interface Thread {
   comments: Comment[];
   activity: Activity[];
   report?: Report;
+}
+
+/** A goal's combined report (ADR-087, Task 3.5), written when all its tasks have ended. */
+export interface GoalReport {
+  title: string;
+  summary: string;
+  body: string;
+  sources: Source[];
+}
+
+/** What Wisp hands the team in one go (Task 3.5): a goal and its tasks. */
+export interface Goal {
+  id: number;
+  text: string;
+  createdAt: Date;
+  /** Set when its tasks had all ended and the combined report (if any task was done) was saved. */
+  endedAt?: Date;
+  tasks: Job[];
+  report?: GoalReport;
+}
+
+/** One task of a new goal. `after` holds the positions (1 = first) of earlier tasks of the same goal it waits for. */
+export interface GoalPart {
+  helper: string;
+  task: string;
+  after?: readonly number[];
 }
 
 export interface AddJobOptions {
@@ -134,7 +164,8 @@ export type HelperChange =
   | { action: "step"; helper: HelperId; job: number }
   | { action: "comment"; helper: HelperId; job: number }
   | { action: "blockers"; helper: HelperId; job: number }
-  | { action: "deleted"; helper: HelperId; job: number };
+  | { action: "deleted"; helper: HelperId; job: number }
+  | { action: "goal"; goal: number; tasks: number; ended: boolean };
 
 export interface HelperStore {
   /** Every helper in the fixed order, with its newest jobs. */
@@ -157,6 +188,14 @@ export interface HelperStore {
   /** Queues a job. Throws HelperError for an unknown or unavailable helper, an empty or long task, or bad blockers. */
   addJob(helper: string, task: string, options?: AddJobOptions): Job;
   get(id: number): Job | undefined;
+  /**
+   * Creates a goal and its tasks in one go (Task 3.5), or nothing: throws HelperError for an empty or long goal, no
+   * tasks or more than MAX_GOAL_TASKS, a bad task, or an `after` that is not an earlier task of the goal.
+   */
+  addGoal(text: string, parts: readonly GoalPart[]): Goal;
+  goal(id: number): Goal | undefined;
+  /** Ends a goal, with its combined report or null when no task was done. Throws HelperError for an unknown or ended goal. */
+  endGoal(id: number, report: GoalReport | null): void;
   /** Every queued job whose blockers are all done, oldest first (for the job runner). */
   queued(): Job[];
   /** Changes what a queued task waits for. Throws HelperError for a task that is not queued, bad blockers, or a circle. */
@@ -206,6 +245,7 @@ interface JobRow {
   model: string | null;
   model_reason: string | null;
   goal: string | null;
+  goal_id: number | null;
   parent_id: number | null;
 }
 
@@ -251,6 +291,7 @@ const toJobRow = (row: JobRow): Omit<Job, "blockedBy" | "waitingFor" | "comments
   ...(row.model ? { model: row.model } : {}),
   ...(row.model_reason ? { modelReason: row.model_reason } : {}),
   ...(row.goal ? { goal: row.goal } : {}),
+  ...(row.goal_id != null ? { goalId: row.goal_id } : {}),
   ...(row.parent_id != null ? { parentId: row.parent_id } : {}),
 });
 
@@ -332,12 +373,19 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       created_at TEXT NOT NULL,
       PRIMARY KEY (helper, version)
     );
+    CREATE TABLE IF NOT EXISTS goals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      text TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      ended_at TEXT,
+      report TEXT
+    );
   `);
   // ADR-083: files from before Task 3.2b lack the model columns.
   const columns = new Set((db.prepare("PRAGMA table_info(jobs)").all() as { name: string }[]).map((c) => c.name));
   for (const column of ["model", "model_reason", "goal"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);
   // ADR-087: files from before Task 3.4 lack the task columns.
-  if (!columns.has("parent_id")) db.exec("ALTER TABLE jobs ADD COLUMN parent_id INTEGER");
+  for (const column of ["parent_id", "goal_id"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} INTEGER`);
   const opened = now();
   // A job cannot outlive the process that ran it.
   db.prepare("UPDATE jobs SET state = 'failed', step = NULL, error = ?, ended_at = ? WHERE state = 'running'").run(
@@ -387,7 +435,12 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const deleteEvents = db.prepare("DELETE FROM job_events WHERE job_id = ?");
   const claim = db.prepare("UPDATE jobs SET state = 'running', step = NULL WHERE id = ? AND state = 'queued'");
   const jobById = db.prepare("SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.id = ?");
-  const insertJob = db.prepare("INSERT INTO jobs (helper, task, state, created_at, goal, parent_id) VALUES (?, ?, 'queued', ?, ?, ?)");
+  const insertJob = db.prepare("INSERT INTO jobs (helper, task, state, created_at, goal, parent_id, goal_id) VALUES (?, ?, 'queued', ?, ?, ?, ?)");
+  const insertGoal = db.prepare("INSERT INTO goals (text, created_at) VALUES (?, ?)");
+  const goalRow = db.prepare("SELECT * FROM goals WHERE id = ?");
+  const goalEndedAt = db.prepare("SELECT ended_at FROM goals WHERE id = ?");
+  const goalTasks = db.prepare("SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.goal_id = ? ORDER BY j.id");
+  const closeGoal = db.prepare("UPDATE goals SET ended_at = ?, report = ? WHERE id = ? AND ended_at IS NULL");
   const setState = db.prepare("UPDATE jobs SET state = ?, step = NULL, partial = ?, error = ?, ended_at = ? WHERE id = ?");
   const setStep = db.prepare("UPDATE jobs SET step = ? WHERE id = ? AND state = 'running'");
   const insertReport = db.prepare("INSERT OR REPLACE INTO reports (job_id, title, summary, body, sources) VALUES (?, ?, ?, ?, ?)");
@@ -402,8 +455,10 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
   const toJob = (row: JobRow): Job => {
     const blockers = blockersOf.all(row.id) as { id: number; state: string }[];
+    const goalEnded = row.goal_id != null && Boolean((goalEndedAt.get(row.goal_id) as { ended_at: string | null } | undefined)?.ended_at);
     return {
       ...toJobRow(row),
+      ...(goalEnded ? { goalEnded } : {}),
       blockedBy: blockers.map((b) => b.id),
       waitingFor: blockers.filter((b) => b.state !== "done").map((b) => b.id),
       comments: Number((commentCount.get(row.id) as { n: number }).n),
@@ -428,6 +483,28 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if (blocker.state === "failed" || blocker.state === "stopped") throw new HelperError(`Task ${id} has ${blocker.state === "failed" ? "failed" : "been stopped"}; nothing can wait for it.`);
     }
     return ids;
+  }
+
+  function availableHelper(helper: string) {
+    const known = mustHelper(helper);
+    if (!known.available) throw new HelperError(`${current(known.id).name} is not ready yet.`);
+    return known;
+  }
+
+  function cleanTask(raw: string): string {
+    const task = raw.trim();
+    if (!task) throw new HelperError("The job is empty.");
+    if (task.length > MAX_TASK_CHARS) throw new HelperError(`The job is too long (${task.length} characters, limit ${MAX_TASK_CHARS}).`);
+    return task;
+  }
+
+  /** Inserts a checked task with its blockers; call inside a transaction. */
+  function insertTask(helper: HelperId, task: string, blockers: readonly number[], links: { goal: string | null; parentId: number | null; goalId: number | null }): number {
+    const created = now();
+    const id = Number(insertJob.run(helper, task, created.toISOString(), links.goal, links.parentId, links.goalId).lastInsertRowid);
+    for (const b of blockers) insertBlocker.run(id, b);
+    log(id, "created", created);
+    return id;
   }
 
   function mustHelper(helper: string) {
@@ -548,25 +625,62 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     },
 
     addJob(helper, raw, options = {}) {
-      const known = mustHelper(helper);
-      if (!known.available) throw new HelperError(`${current(known.id).name} is not ready yet.`);
-      const task = raw.trim();
-      if (!task) throw new HelperError("The job is empty.");
-      if (task.length > MAX_TASK_CHARS) throw new HelperError(`The job is too long (${task.length} characters, limit ${MAX_TASK_CHARS}).`);
+      const known = availableHelper(helper);
+      const task = cleanTask(raw);
       const goal = options.goal?.trim() || null;
       if (goal && goal.length > MAX_GOAL_CHARS) throw new HelperError(`The goal is too long (${goal.length} characters, limit ${MAX_GOAL_CHARS}).`);
       if (options.parentId !== undefined && !get(options.parentId)) throw new HelperError(`There is no task ${options.parentId}.`);
       // A new task cannot close a circle: everything it waits for already exists.
       const blockers = checkBlockers(options.blockedBy ?? []);
       let id = 0;
-      const created = now();
-      transaction(() => {
-        id = Number(insertJob.run(known.id, task, created.toISOString(), goal, options.parentId ?? null).lastInsertRowid);
-        for (const b of blockers) insertBlocker.run(id, b);
-        log(id, "created", created);
-      });
+      transaction(() => (id = insertTask(known.id, task, blockers, { goal, parentId: options.parentId ?? null, goalId: null })));
       emit({ action: "job", helper: known.id, job: id, state: "queued" });
       return mustGet(id);
+    },
+
+    addGoal(raw, parts) {
+      const text = raw.trim();
+      if (!text) throw new HelperError("The goal is empty.");
+      if (text.length > MAX_GOAL_CHARS) throw new HelperError(`The goal is too long (${text.length} characters, limit ${MAX_GOAL_CHARS}).`);
+      if (!parts.length || parts.length > MAX_GOAL_TASKS) throw new HelperError(`A goal has 1 to ${MAX_GOAL_TASKS} tasks.`);
+      // Everything is checked before anything is written; `after` points back only, so a goal can never be a circle.
+      const checked = parts.map((part, i) => {
+        const after = [...new Set(part.after ?? [])];
+        const bad = after.find((n) => !Number.isInteger(n) || n < 1 || n > i);
+        if (bad !== undefined) throw new HelperError(`Task ${i + 1} can only wait for tasks before it, not ${bad}.`);
+        if (after.length > MAX_BLOCKERS) throw new HelperError(`A task can wait for at most ${MAX_BLOCKERS} others.`);
+        return { helper: availableHelper(part.helper).id, task: cleanTask(part.task), after };
+      });
+      let goalId = 0;
+      const ids: number[] = [];
+      transaction(() => {
+        goalId = Number(insertGoal.run(text, now().toISOString()).lastInsertRowid);
+        for (const part of checked) ids.push(insertTask(part.helper, part.task, part.after.map((n) => ids[n - 1]!), { goal: text, parentId: null, goalId }));
+      });
+      emit({ action: "goal", goal: goalId, tasks: ids.length, ended: false });
+      ids.forEach((id, i) => emit({ action: "job", helper: checked[i]!.helper, job: id, state: "queued" }));
+      return this.goal(goalId)!;
+    },
+
+    goal(id) {
+      const row = goalRow.get(id) as { id: number; text: string; created_at: string; ended_at: string | null; report: string | null } | undefined;
+      if (!row) return undefined;
+      return {
+        id: row.id,
+        text: row.text,
+        createdAt: new Date(row.created_at),
+        ...(row.ended_at ? { endedAt: new Date(row.ended_at) } : {}),
+        tasks: (goalTasks.all(id) as unknown as JobRow[]).map(toJob),
+        ...(row.report ? { report: JSON.parse(row.report) as GoalReport } : {}),
+      };
+    },
+
+    endGoal(id, report) {
+      const goal = this.goal(id);
+      if (!goal) throw new HelperError(`There is no goal ${id}.`);
+      const saved = report && { ...report, sources: webSources(report.sources).map((s) => ({ title: s.title, url: s.url })) };
+      if (Number(closeGoal.run(now().toISOString(), saved ? JSON.stringify(saved) : null, id).changes) === 0) throw new HelperError(`Goal ${id} has already ended.`);
+      emit({ action: "goal", goal: id, tasks: goal.tasks.length, ended: true });
     },
 
     setBlockers(id, raw) {

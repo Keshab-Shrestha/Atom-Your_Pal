@@ -683,7 +683,8 @@ private struct Fields {
                          model: j["model"] as? String, modelReason: j["modelReason"] as? String,
                          blockedBy: Self.ids(j["blockedBy"]), waitingFor: Self.ids(j["waitingFor"]),
                          comments: (j["comments"] as? NSNumber)?.intValue ?? 0, goal: j["goal"] as? String,
-                         parentId: (j["parentId"] as? NSNumber)?.intValue)
+                         parentId: (j["parentId"] as? NSNumber)?.intValue, goalId: (j["goalId"] as? NSNumber)?.intValue,
+                         goalEnded: (j["goalEnded"] as? NSNumber).map { CFGetTypeID($0) == CFBooleanGetTypeID() && $0.boolValue } ?? false)
     }
 
     /// A list of task ids; anything else reads as none.
@@ -696,12 +697,21 @@ private struct Fields {
         let invalid = { (field: String) in ProtocolError.invalidValue(event: event, field: field) }
         guard let comments = values["comments"] as? [Any] else { throw invalid("comments") }
         guard let activity = values["activity"] as? [Any] else { throw invalid("activity") }
-        var report: HelperReport?
-        if let r = values["report"] {
-            guard let r = r as? [String: Any], let title = r["title"] as? String, let summary = r["summary"] as? String,
-                  let body = r["body"] as? String else { throw invalid("report") }
+        func report(_ value: Any?, id: Int, field: String) throws -> HelperReport? {
+            guard let value else { return nil }
+            guard let r = value as? [String: Any], let title = r["title"] as? String, let summary = r["summary"] as? String,
+                  let body = r["body"] as? String else { throw invalid(field) }
             let sources = try Fields(event: event, values: ["sources": r["sources"] ?? []]).sources()
-            report = HelperReport(id: try int("id"), title: title, summary: summary, body: body, sources: sources)
+            return HelperReport(id: id, title: title, summary: summary, body: body, sources: sources)
+        }
+        // Task 3.5: the task's goal; absent from older runtimes and for tasks added in the window.
+        var goal: HelperGoal?
+        if let g = values["goal"] {
+            guard let g = g as? [String: Any], let id = g["id"] as? NSNumber, CFGetTypeID(id) != CFBooleanGetTypeID(),
+                  let text = g["text"] as? String, let ended = g["ended"] as? NSNumber, CFGetTypeID(ended) == CFBooleanGetTypeID()
+            else { throw invalid("goal") }
+            goal = HelperGoal(id: id.intValue, text: text, ended: ended.boolValue, tasks: Self.ids(g["tasks"]),
+                              report: try report(g["report"], id: id.intValue, field: "goal"))
         }
         return HelperThread(id: try int("id"), comments: try comments.map { entry in
             guard let c = entry as? [String: Any], let id = c["id"] as? NSNumber, let text = c["text"] as? String else { throw invalid("comments") }
@@ -709,7 +719,7 @@ private struct Fields {
         }, activity: try activity.map { entry in
             guard let a = entry as? [String: Any], let kind = a["kind"] as? String else { throw invalid("activity") }
             return TaskActivity(kind: kind, at: (a["at"] as? String).flatMap(Self.date))
-        }, report: report)
+        }, report: try report(values["report"], id: try int("id"), field: "report"), goal: goal)
     }
 
     /// The optional `models` of a `helpers` event (ADR-083; absent from older runtimes). Strict like the helpers list:

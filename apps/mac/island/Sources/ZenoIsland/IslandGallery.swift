@@ -139,7 +139,7 @@ enum IslandGallery {
         let sidSoul = #"{"name":"Sid","personality":"Curious and thorough. Always cites sources.","howItWorks":"Searches more than once, reads several good pages, compares what they say, and prefers primary and reputable sources.","rules":"Say plainly when sources disagree or when something could not be confirmed.","lessons":"Give at least three sources; two reports had only one."}"#
         // Task 3.4: Hana's guide waits for Sid's running research.
         let hanaJob = #"{"id":5,"task":"Write a one-page guide from Sid's IPv6 research","state":"queued","createdAt":"\#(ago(3))","blockedBy":[2],"waitingFor":[2],"comments":1}"#
-        let team = [("kame", "Kame", false, "coder"), ("puff", "Puff", false, "designer"), ("quill", "Quill", false, "documenter"),
+        let team = [("kame", "Kame", false, "coder"), ("puff", "Puff", false, "designer"), ("quill", "Quill", true, "documenter"),
                     ("penny", "Penny", true, "financial adviser"), ("hana", "Hana", true, "hr"), ("tinker", "Tinker", false, "improver")]
             .map { id, name, available, role in
                 #"{"id":"\#(id)","name":"\#(name)","available":\#(available),"app":null,"role":"\#(role)","soul":{"name":"\#(name)","personality":"…","howItWorks":"","rules":"","lessons":""},"soulVersion":1,"soulVersions":[{"version":1,"createdAt":"\#(ago(3000))"}],"jobs":[\#(id == "hana" ? hanaJob : "")]}"#
@@ -179,14 +179,14 @@ enum IslandGallery {
         let reading = model(theme)
         _ = reading.helpers.openThread(1)
         let reportObject = report.replacingOccurrences(of: #"{"type":"report","id":1,"#, with: "{")
-        let thread = #"{"type":"thread","id":1,"comments":[{"id":1,"text":"Keep it short, for a beginner.","createdAt":"\#(ago(53))"}],"activity":[{"kind":"created","at":"\#(ago(53))"},{"kind":"commented","at":"\#(ago(53))"},{"kind":"running","at":"\#(ago(52))"},{"kind":"done","at":"\#(ago(41))"}],"report":\#(reportObject)}"#
+        let thread = #"{"type":"thread","id":1,"comments":[{"id":1,"text":"Keep it short, for a beginner.","createdAt":"\#(ago(53))"}],"activity":[{"kind":"created","at":"\#(ago(53))"},{"kind":"commented","at":"\#(ago(53))"},{"kind":"running","at":"\#(ago(52))"},{"kind":"done","at":"\#(ago(41))"}],"report":\#(reportObject),"goal":{"id":1,"text":"networking guide for a beginner","ended":false,"tasks":[1,5]}}"#
         do { reading.apply(try decodeEvent(thread)) } catch { FileHandle.standardError.write(Data("gallery: thread: \(error)\n".utf8)) }
         let boarded = model(theme)
         boarded.helpers.selectBoard()
         let sheet = VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 18) {
                 window("Helpers: Sid's model chosen by Laya, jobs show their model", model(theme))
-                window("A task's thread: report, notes, activity (Task 3.4)", reading)
+                window("A task's thread: report, the whole goal, notes, activity (Tasks 3.4, 3.5)", reading)
             }
             HStack(alignment: .top, spacing: 18) {
                 let other: AppTheme = theme == .void ? .void : .warm

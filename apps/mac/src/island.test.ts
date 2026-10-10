@@ -38,6 +38,7 @@ function islandHarness(
     memory: IslandOptions["memory"];
     helpers: IslandOptions["helpers"];
     onTimer: IslandOptions["onTimer"];
+    onGoalLine: IslandOptions["onGoalLine"];
     screen: IslandOptions["screen"];
     capabilities: IslandOptions["capabilities"];
     onPlanUsage: IslandOptions["onPlanUsage"];
@@ -88,6 +89,7 @@ function islandHarness(
     ...(over.memory ? { memory: over.memory } : {}),
     ...(over.helpers ? { helpers: over.helpers } : {}),
     ...(over.onTimer ? { onTimer: over.onTimer } : {}),
+    ...(over.onGoalLine ? { onGoalLine: over.onGoalLine } : {}),
     ...(over.screen ? { screen: over.screen } : {}),
     ...(over.capabilities ? { capabilities: over.capabilities } : {}),
     ...(over.onPlanUsage ? { onPlanUsage: over.onPlanUsage } : {}),
@@ -785,6 +787,23 @@ test("tasks: job.add with blockedBy, job.block refusing a circle, comment.add an
   assert.equal(store.get(2)!.comments, 1);
 });
 
+test("thread.get carries the task's goal, and its combined report once it has ended (Task 3.5)", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  const goal = store.addGoal("guide", [{ helper: "sid", task: "a" }, { helper: "quill", task: "b", after: [1] }]);
+  h.clear();
+  await h.send({ type: "thread.get", id: goal.tasks[1]!.id });
+  const open = h.events().at(-1) as Extract<IslandEvent, { type: "thread" }>;
+  assert.deepEqual(open.goal, { id: goal.id, text: "guide", ended: false, tasks: [1, 2] });
+  store.endGoal(goal.id, { title: "T", summary: "S", body: "B", sources: [{ title: "x", url: "javascript:alert(1)" }] });
+  h.clear();
+  await h.send({ type: "thread.get", id: 1 });
+  const ended = h.events().at(-1) as Extract<IslandEvent, { type: "thread" }>;
+  assert.deepEqual(ended.goal, { id: goal.id, text: "guide", ended: true, tasks: [1, 2], report: { title: "T", summary: "S", body: "B", sources: [] } });
+  const sid = store.list()[0]!.jobs[0]!;
+  assert.deepEqual([sid.goalId, sid.goalEnded], [goal.id, true]);
+});
+
 test("helpers.settings turns the large model off and on, answered with helpers", async () => {
   const { h, store } = helperHarness();
   await tick(5);
@@ -875,6 +894,26 @@ test("a timer ending is shown and spoken, in that order, then ZENO is idle again
     { type: "timer", id: 4, label: "", message: "Your 1 minute and 30 seconds timer is done." },
   ]);
   assert.deepEqual(h.spoken, ["Your pasta timer is done.", "Your 1 minute and 30 seconds timer is done."]);
+});
+
+// --- goals (Task 3.5) ---
+
+test("a goal's line waits until ZENO is idle, then is spoken without a timer notice", async () => {
+  let say!: (line: string) => void;
+  let answer!: () => void;
+  const h = islandHarness({
+    onGoalLine: (listener) => ((say = listener), () => {}),
+    core: { handle: () => new Promise((r) => (answer = () => r({ text: "the reply", requestId: "r" }))), reset: () => {} },
+  });
+  await new Promise((r) => setTimeout(r, 5));
+  await h.send({ type: "text.send", text: "hello" });
+  say("Your guide is ready. The Helpers window has the report.");
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepEqual(h.spoken, [], "not while ZENO is thinking");
+  answer();
+  await new Promise((r) => setTimeout(r, 700));
+  assert.deepEqual(h.spoken, ["the reply", "Your guide is ready. The Helpers window has the report."]);
+  assert.ok(!h.events().some((e) => e.type === "timer"));
 });
 
 // --- typed requests ---

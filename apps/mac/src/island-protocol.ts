@@ -97,6 +97,9 @@ export interface JobItem {
   waitingFor: number[];
   comments: number;
   goal?: string;
+  /** Task 3.5: the goal it belongs to, and whether that goal has ended with its combined report. */
+  goalId?: number;
+  goalEnded?: boolean;
   parentId?: number;
 }
 
@@ -107,6 +110,8 @@ export interface ThreadEvent {
   comments: { id: number; text: string; createdAt: string }[];
   activity: { kind: string; at: string }[];
   report?: Omit<ReportEvent, "type" | "id">;
+  /** Task 3.5: the goal the task is part of, its tasks, and the combined report once every task has ended. */
+  goal?: { id: number; text: string; ended: boolean; tasks: number[]; report?: Omit<ReportEvent, "type" | "id"> };
 }
 
 /** One model the Claude plan offers to worker jobs (ADR-083). */

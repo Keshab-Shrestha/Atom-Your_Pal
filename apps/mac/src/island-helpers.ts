@@ -21,6 +21,8 @@ const toJobItem = (job: Job): JobItem => ({
   waitingFor: job.waitingFor,
   comments: job.comments,
   ...(job.goal ? { goal: job.goal } : {}),
+  ...(job.goalId !== undefined ? { goalId: job.goalId } : {}),
+  ...(job.goalEnded ? { goalEnded: true } : {}),
   ...(job.parentId !== undefined ? { parentId: job.parentId } : {}),
 });
 
@@ -45,11 +47,24 @@ export function islandHelpers(store: HelperStore, apps: () => Promise<string[]>,
       const thread = store.thread(id);
       if (!thread) return undefined;
       const { report } = thread;
+      const goalId = store.get(id)?.goalId;
+      const goal = goalId === undefined ? undefined : store.goal(goalId);
       return {
         id,
         comments: thread.comments.map((c) => ({ id: c.id, text: c.text, createdAt: c.createdAt.toISOString() })),
         activity: thread.activity.map((a) => ({ kind: a.kind, at: a.at.toISOString() })),
         ...(report ? { report: { title: report.title, summary: report.summary, body: report.body, sources: report.sources } } : {}),
+        ...(goal
+          ? {
+              goal: {
+                id: goal.id,
+                text: goal.text,
+                ended: Boolean(goal.endedAt),
+                tasks: goal.tasks.map((t) => t.id),
+                ...(goal.report ? { report: goal.report } : {}),
+              },
+            }
+          : {}),
       };
     },
     pin: (helper, model) => {

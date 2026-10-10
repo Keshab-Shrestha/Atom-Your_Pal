@@ -60,6 +60,8 @@ export interface IslandOptions {
   chime?(): Promise<void>;
   /** Timers (ADR-061): subscribe to timers ending, to announce them. */
   onTimer?(listener: (timer: { id: number; label: string; seconds: number }) => void): () => void;
+  /** Goals Wisp handed out (Task 3.5): subscribe to the one line said when one ends. */
+  onGoalLine?(listener: (line: string) => void): () => void;
   micName(): Promise<string>;
   /** Plain-language error text for the user. */
   describe(error: unknown): string;
@@ -364,8 +366,9 @@ export function runIsland(options: IslandOptions): IslandSession {
   }
   let memoryWatched = false;
 
-  // ADR-061: a timer ended. Shown at once; spoken now if ZENO is idle, else as soon as it is.
-  const timerQueue: { id: number; label: string; message: string }[] = [];
+  // ADR-061: a timer ended. Shown at once; spoken now if ZENO is idle, else as soon as it is. Task 3.5: a goal's line
+  // waits its turn the same way.
+  const timerQueue: { message: string; timer?: { id: number; label: string; message: string } }[] = [];
   let announcing = false;
   async function announce() {
     if (announcing || quitting) return;
@@ -376,17 +379,17 @@ export function runIsland(options: IslandOptions): IslandSession {
           await new Promise((r) => setTimeout(r, 500));
           continue;
         }
-        const timer = timerQueue.shift()!;
+        const { message, timer } = timerQueue.shift()!;
         await options.chime?.();
         send({ type: "state", state: "speaking" });
         try {
-          await tts.speak(timer.message);
+          await tts.speak(message);
         } catch (error) {
-          options.log?.warn("timer.speak_failed", { message: describe(error) });
+          options.log?.warn(timer ? "timer.speak_failed" : "goal.speak_failed", { message: describe(error) });
         }
         if (loop.state === "idle") send({ type: "state", state: "idle" });
         // Last, so the island's "Timer done" stays up after the speaking ends.
-        send({ type: "timer", ...timer });
+        if (timer) send({ type: "timer", ...timer });
       }
     } finally {
       announcing = false;
@@ -394,7 +397,11 @@ export function runIsland(options: IslandOptions): IslandSession {
   }
   const stopTimers = options.onTimer?.((timer) => {
     const message = timer.label ? `Your ${timer.label} timer is done.` : `Your ${spokenDuration(timer.seconds)} timer is done.`;
-    timerQueue.push({ id: timer.id, label: timer.label, message });
+    timerQueue.push({ message, timer: { id: timer.id, label: timer.label, message } });
+    void announce();
+  });
+  const stopGoalLines = options.onGoalLine?.((line) => {
+    timerQueue.push({ message: line });
     void announce();
   });
   const stopMemoryUpdates = options.memory?.onChange(() => {
@@ -433,6 +440,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     stopHelperUpdates?.();
     stopPlanUsage?.();
     stopTimers?.();
+    stopGoalLines?.();
     options.log?.info("app.quit");
     options.computer?.cancelAll();
     loop.cancel();

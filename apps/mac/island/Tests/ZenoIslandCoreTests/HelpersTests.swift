@@ -521,3 +521,35 @@ struct HelperTaskTests {
         #expect(IslandCommand.threadGet(id: 5).line == #"{"id":5,"type":"thread.get"}"# + "\n")
     }
 }
+
+@Suite("Goals Wisp hands out (Task 3.5)")
+struct HelperGoalTests {
+    @Test func decodesAThreadsGoalAndItsCombinedReport() throws {
+        let line = #"{"type":"thread","id":5,"comments":[],"activity":[],"goal":{"id":2,"text":"networking guide","ended":true,"tasks":[1,5],"report":{"title":"T","summary":"S","body":"B","sources":[{"title":"x","url":"file:///etc/passwd"},{"title":"y","url":"https://example.org/"}]}}}"#
+        guard case .thread(let thread) = try decodeEvent(line) else { Issue.record("not a thread"); return }
+        let goal = try #require(thread.goal)
+        #expect(goal.id == 2 && goal.text == "networking guide" && goal.ended && goal.tasks == [1, 5])
+        #expect(goal.report?.title == "T" && goal.report?.sources.map(\.title) == ["y"])
+        #expect(throws: ProtocolError.self) { try decodeEvent(#"{"type":"thread","id":5,"comments":[],"activity":[],"goal":{"id":2,"text":"g","ended":1,"tasks":[]}}"#) }
+    }
+
+    @Test func aGoalEndingAsksForTheOpenThreadAgain() throws {
+        var state = HelpersState()
+        state.apply(try decodeEvent(HelperTaskTests.line))
+        _ = state.openThread(5)
+        state.apply(try decodeEvent(HelperTaskTests.line))
+        #expect(state.takeRefresh() == nil)
+        let ended = HelperTaskTests.line.replacingOccurrences(of: #""parentId":1"#, with: #""parentId":1,"goalId":2,"goalEnded":true"#)
+        state.apply(try decodeEvent(ended))
+        #expect(state.openJob?.goalId == 2 && state.openJob?.goalEnded == true)
+        #expect(state.takeRefresh() == .threadGet(id: 5))
+    }
+
+    @Test func progressCountsDoneTasks() throws {
+        guard case .helpers(let list) = try decodeEvent(HelperTaskTests.line) else { Issue.record("not helpers"); return }
+        #expect(HelperGoal(id: 1, text: "g", ended: false, tasks: [1, 5]).progress(in: list) == "Working: 1 of 2 tasks done.")
+        let report = HelperReport(id: 1, title: "T", summary: "S", body: "B", sources: [])
+        #expect(HelperGoal(id: 1, text: "g", ended: true, tasks: [1, 3], report: report).progress(in: list) == "1 of 2 tasks done.")
+        #expect(HelperGoal(id: 1, text: "g", ended: true, tasks: [3]).progress(in: list) == "No task finished.")
+    }
+}
