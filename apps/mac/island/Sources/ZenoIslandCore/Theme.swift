@@ -169,7 +169,7 @@ public struct ThemePalette: Sendable, Equatable {
         attention: RGBA(hex: 0xFFC069), onAttention: RGBA(hex: 0x2B1A00),
         problem: RGBA(hex: 0xFF8A7A), success: RGBA(hex: 0x8FD3FF),
         userBubble: .white(0.055), onUserBubble: RGBA(hex: 0xA7B4CC),
-        radiusSurface: 22, radiusCard: 14, radiusControl: 9,
+        radiusSurface: 26, radiusCard: 14, radiusControl: 9,
         surfaceTop: RGBA(hex: 0x161F3A), glow: RGBA(hex: 0x8FD3FF))
 
     /// Lantern Day: pale cool glass and ink. Text and controls use a deep light-blue (#1F6FA8) and amber #A05E00
@@ -185,7 +185,7 @@ public struct ThemePalette: Sendable, Equatable {
         attention: RGBA(hex: 0xA05E00), onAttention: .white(1),
         problem: RGBA(hex: 0xB42318), success: RGBA(hex: 0x1F6FA8),
         userBubble: .ink(0x1B2A44, 0.05), onUserBubble: RGBA(hex: 0x4A5670),
-        radiusSurface: 22, radiusCard: 14, radiusControl: 9,
+        radiusSurface: 26, radiusCard: 14, radiusControl: 9,
         surfaceTop: RGBA(hex: 0xFAFCFE), glow: RGBA(hex: 0x8FD3FF, alpha: 0.9))
 
     /// A: dark Liquid-Glass, system-like, one teal accent from Wisp's glow.

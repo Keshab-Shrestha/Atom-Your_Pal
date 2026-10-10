@@ -252,8 +252,11 @@ struct GlassBackground: NSViewRepresentable {
     static func roundedMask(_ radius: CGFloat) -> NSImage {
         let edge = radius * 2 + 1
         let image = NSImage(size: NSSize(width: edge, height: edge), flipped: false) { rect in
-            NSColor.black.setFill()
-            NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
+            // The same continuous curve SwiftUI draws the panel with, so the blur and the panel's edge match.
+            let path = RoundedRectangle(cornerRadius: radius, style: .continuous).path(in: rect).cgPath
+            NSGraphicsContext.current?.cgContext.addPath(path)
+            NSGraphicsContext.current?.cgContext.setFillColor(NSColor.black.cgColor)
+            NSGraphicsContext.current?.cgContext.fillPath()
             return true
         }
         image.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)

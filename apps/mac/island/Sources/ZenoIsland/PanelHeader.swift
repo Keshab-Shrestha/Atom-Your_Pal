@@ -8,7 +8,7 @@ import ZenoIslandCore
 /// Where the header's Wisp sits, from the panel's top-left corner: the centre of its 38 pt slot. The glow is
 /// centred here so the light comes from Wisp.
 private enum HeaderLayout {
-    static let padding = EdgeInsets(top: 20, leading: Spacing.panel, bottom: 12, trailing: Spacing.panel)
+    static let padding = EdgeInsets(top: 14, leading: Spacing.panel, bottom: 8, trailing: Spacing.panel)
     static let wispSlot: CGFloat = 38
     static let wispSize: CGFloat = 34
     static var wispCentre: CGPoint { CGPoint(x: padding.leading + wispSlot / 2, y: padding.top + wispSlot / 2) }
@@ -20,7 +20,7 @@ struct PanelHeader: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
                 HeaderWisp(kind: model.status.kind, style: model.settings.wispStyle)
                     .frame(width: HeaderLayout.wispSlot, height: HeaderLayout.wispSlot)

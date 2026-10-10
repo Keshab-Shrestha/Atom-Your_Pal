@@ -123,4 +123,7 @@ enum Spacing {
     /// The conversation's side margin and the space between turns.
     static let conversation: CGFloat = 26
     static let turn: CGFloat = 28
+    /// The composer sits this close to the panel's sides and bottom, with corners concentric to the panel's
+    /// (panel radius = composer radius + this gap), so the bottom corners read as one shape.
+    static let composer: CGFloat = 10
 }

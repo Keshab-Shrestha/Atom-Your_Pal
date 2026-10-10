@@ -13,6 +13,11 @@ struct Composer: View {
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
 
+    /// Concentric with the panel's bottom corners (`Spacing.composer`).
+    private var composerShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: max(10, theme.radiusSurface - Spacing.composer), style: .continuous)
+    }
+
     var body: some View {
         HStack(spacing: 8) {
             if snapshot {
@@ -32,8 +37,8 @@ struct Composer: View {
         .padding(.leading, 18)
         .padding(.trailing, 5)
         .padding(.vertical, 5)
-        .background(Capsule(style: .continuous).fill(theme.fill1.color))
-        .overlay(Capsule(style: .continuous).strokeBorder(theme.separator.color, lineWidth: 0.5))
+        .background(composerShape.fill(theme.fill1.color))
+        .overlay(composerShape.strokeBorder(theme.separator.color, lineWidth: 0.5))
     }
 
     private var talkHint: String? { model.settings.shortcut(for: .talk).map { "Hold \($0.display) to talk" } }
@@ -106,9 +111,9 @@ struct ConversationTab: View {
 
     private var composer: some View {
         Composer(model: model)
-            .padding(.horizontal, Spacing.panel)
+            .padding(.horizontal, Spacing.composer)
             .padding(.top, 8)
-            .padding(.bottom, Spacing.panel - 2)
+            .padding(.bottom, Spacing.composer)
     }
 
     @ViewBuilder private var content: some View {

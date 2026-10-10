@@ -37,7 +37,7 @@ struct SettingsTab: View {
                 }
             }
             .padding(.horizontal, Spacing.panel)
-            .padding(.top, 16)
+            .padding(.top, 10)
             .padding(.bottom, Spacing.panel)
         }
         .onAppear { model.settingsCascaded = true }
