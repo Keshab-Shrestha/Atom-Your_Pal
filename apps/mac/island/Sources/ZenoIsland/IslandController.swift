@@ -483,9 +483,10 @@ final class IslandController {
         if show, model.approval.pending != nil { trace("strip asking \(strip.frame.integral)") }
     }
 
-    /// Wisp's bubble: the status during talk and dictation, never while it points or while the strip is up.
+    /// Wisp's bubble: only when the status needs words (a problem, a notice, a question), never while it points or
+    /// while the strip is up.
     private func updateBubble() {
-        let wanted = pet.isShown && !model.expanded && !workTurn && model.pointing.target == nil && statusWanted
+        let wanted = pet.isShown && !model.expanded && !workTurn && model.pointing.target == nil && statusWanted && model.status.needsBubble
         if wanted {
             if !bubble.isVisible { trace("bubble show") }
             bubble.show(at: pet.feetPoint)

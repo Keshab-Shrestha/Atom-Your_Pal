@@ -856,6 +856,8 @@ All typed. Key release to text typed: about 0.6 s before the paste no longer wai
 
 ## ADR-050 — Dictation Modes, Live Preview and Wisp's Speech Bubble
 
+**Changed 2026-10-10 (Keshab):** the bubble no longer shows Listening, Thinking or Speaking; Wisp's face and light show those. It appears only for a problem, a notice, a question ("Needs your OK") or a microphone that hears nothing (`IslandStatus.needsBubble`).
+
 Date: 2026-10-02. Extends ADR-047 and ADR-042. Keshab asked for FluidVoice's features in ZENO's own code (it is GPL-3.0, so nothing is copied) and for Wisp to hold the island.
 
 ### Decision

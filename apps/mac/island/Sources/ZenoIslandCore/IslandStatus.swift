@@ -52,6 +52,16 @@ public struct IslandStatus: Sendable, Equatable {
     /// The meter follows the microphone only while listening.
     public var showsLevel: Bool { kind == .listening }
 
+    /// Wisp's bubble has something to say: a problem, a notice, a question, or a microphone that hears nothing.
+    /// Listening, thinking and speaking show on Wisp itself, so they get no bubble (Keshab, 2026-10-10).
+    public var needsBubble: Bool {
+        switch kind {
+        case .notice, .problem, .asking: true
+        case .listening: !detail.isEmpty
+        default: false
+        }
+    }
+
     /// ZENO is in the middle of a turn: the island stays shown.
     public var isBusy: Bool {
         switch kind {
