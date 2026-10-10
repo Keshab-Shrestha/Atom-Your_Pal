@@ -615,3 +615,36 @@ struct HelperBudgetTests {
         #expect(IslandCommand.helpersPlanLimit(60).line == #"{"planLimit":60,"type":"helpers.settings"}"# + "\n")
     }
 }
+
+@Suite("Plan first (Task 3.8)")
+struct HelperPlanTests {
+    static let line = HelperTaskTests.line
+        .replacingOccurrences(of: #""name":"Sid","available":true,"app":null,"jobs""#, with: #""name":"Sid","available":true,"app":null,"planFirst":true,"jobs""#)
+        .replacingOccurrences(of: #""id":6,"task":"Then this","state":"queued","#, with: #""id":6,"task":"Then this","state":"queued","planFirst":true,"planStatus":"awaiting","planSummary":"Search, then compare.","held":"Hana's plan waits for your OK.","#)
+
+    @Test func decodesPlanFields() throws {
+        guard case .helpers(let list) = try decodeEvent(Self.line) else { Issue.record("not helpers"); return }
+        #expect(list.helpers.first?.planFirst == true && list.helpers.last?.planFirst == false)
+        let job = try #require(list.item(6)?.job)
+        #expect(job.planFirst && job.awaitsApproval && job.planSummary == "Search, then compare.")
+        #expect(list.board.first?.column == .needsYou)
+        let thread = #"{"type":"thread","id":6,"comments":[],"activity":[{"kind":"planned","at":"2026-10-10T09:05:00Z"}],"plan":{"summary":"S","steps":"1. a\n\n2. b"}}"#
+        guard case .thread(let t) = try decodeEvent(thread) else { Issue.record("not a thread"); return }
+        #expect(t.plan?.lines == ["1. a", "2. b"] && t.activity.first?.title == "Wrote a plan")
+        #expect(throws: ProtocolError.self) { try decodeEvent(#"{"type":"thread","id":6,"comments":[],"activity":[],"plan":{"summary":"S"}}"#) }
+    }
+
+    @Test func approveAndRejectOnlyAWaitingPlan() throws {
+        var state = HelpersState()
+        state.apply(try decodeEvent(Self.line))
+        _ = state.openThread(5)
+        #expect(state.approvePlan() == nil)
+        _ = state.openThread(6)
+        #expect(state.approvePlan() == .planApprove(id: 6))
+        #expect(state.rejectPlan() == .planReject(id: 6))
+        #expect(state.setPlanFirst(true) == nil) // Sid's is already on
+        #expect(state.setPlanFirst(false) == .helperPlanFirst(helper: "sid", on: false))
+        #expect(IslandCommand.helperPlanFirst(helper: "sid", on: false).line == #"{"helper":"sid","on":false,"type":"helper.planFirst"}"# + "\n")
+        #expect(IslandCommand.planApprove(id: 6).line == #"{"id":6,"type":"plan.approve"}"# + "\n")
+    }
+}

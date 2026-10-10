@@ -97,6 +97,10 @@ export function isFollowUp(task: string): boolean {
   return FOLLOW_UP.test(task.trim());
 }
 
+/** Task 3.8: answers to a worker's waiting plan. */
+const APPROVE = /^(?:yes|yeah|ok(?:ay)?|go ahead|approved?|approve it|start(?: it)?|do it|sounds good)(?:\s+please)?[.!]*$/i;
+const REJECT = /^(?:no|nope|reject(?: it)?|don'?t|drop (?:it|that|the plan))(?:\s+thanks)?[.!]*$/i;
+
 const STOP = /^(?:please\s+)?stop(?:\s+(?:it|that|now|working))?(?:\s+please)?[.!]*$/i;
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -122,12 +126,24 @@ export function matchWorkerCommand(text: string, workers: readonly HelperView[])
  * of one task, so ZENO says when it is done; a follow-up ("Sid, dig deeper on that") is a note on the worker's newest
  * task, which wakes it (Task 3.6). Refusals ("Kame is not ready yet.") are replies too.
  */
-export function createWorkerShortcut(store: HelperStore, onHit?: (event: { helper: string; action: "task" | "again" | "stop" }) => void) {
+export function createWorkerShortcut(
+  store: HelperStore,
+  onHit?: (event: { helper: string; action: "task" | "again" | "stop" | "approve" | "reject" }) => void,
+) {
   return (text: string): string | undefined => {
     const workers = store.list();
     const command = matchWorkerCommand(text, workers);
     if (!command) return undefined;
-    const latest = workers.find((w) => w.id === command.helper)!.jobs[0];
+    const own = workers.find((w) => w.id === command.helper)!.jobs;
+    const latest = own[0];
+    const planned = own.find((j) => j.state === "queued" && j.planStatus === "awaiting");
+    if (planned && "task" in command && (APPROVE.test(command.task) || REJECT.test(command.task))) {
+      const approve = APPROVE.test(command.task);
+      onHit?.({ helper: command.helper, action: approve ? "approve" : "reject" });
+      if (approve) store.approvePlan(planned.id);
+      else store.rejectPlan(planned.id);
+      return approve ? `${command.name} is starting.` : `${command.name} dropped that plan.`;
+    }
     const followUp = "task" in command && latest !== undefined && isFollowUp(command.task);
     onHit?.({ helper: command.helper, action: "task" in command ? (followUp ? "again" : "task") : "stop" });
     if (!("task" in command)) {

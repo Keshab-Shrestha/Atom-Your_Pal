@@ -803,6 +803,15 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 **Task 3.8 — Plan first.** A per-worker or per-task switch: the first run plans with no write tools; the task waits as "needs you"; approve or reject by voice through Wisp's approval card or in the window; the approved plan goes to the next run.
 **Done when:** a plan-first task stops after planning, a rejection ends it, and an approval starts a run that receives the plan.
 
+**As built (2026-10-11):** built; tested (a fake Claude Code for the plan run); not yet tried live.
+- Switches: a worker's "Plan first" (window switch, `helper.planFirst`, default off) applies to its new tasks; one task can say otherwise (`job.add` `planFirst`). The goal and voice paths follow the worker's switch.
+- The plan run (`runPlan`): no tools at all, nothing kept for resuming, a structured plan back (`summary` at most 160 characters, `steps` at most 4000). Its cost counts toward budgets. The runner saves it (`savePlan`); the task goes back to "to do" with `planStatus: awaiting`, held under "Needs you" ("Sid's plan waits for your OK."). No run starts until Keshab answers.
+- Approving (`plan.approve`, the thread's Approve button, Wisp's approval card, or "Sid, go ahead" / "yes" / "do it") lets the next run start; its brief carries "The plan Keshab approved. Follow it:". Rejecting (`plan.reject`, Reject, or "Sid, no" / "drop it") stops the task, and what waits for it fails. Voice answers must be the whole sentence, so "Sid, go find prices" is still a new task.
+- When a plan is written, ZENO says "Sid has a plan ready for your OK." when idle, then shows Wisp's approval card (the computer-control card): Allow approves; Decline or no answer within 60 s leaves the plan waiting in the window, never a rejection.
+- Window: the thread shows the plan (waiting, approved) with Approve and Reject; activity "Wrote a plan", "Plan approved", "Plan rejected".
+- Tests: 10 TS (plan first 4, plan run 1, island 2, protocol) and 2 Swift. TS 569 pass, 2 skipped; typecheck clean; Swift 482 pass.
+- Known limits: the window has no per-task switch (the protocol has); researchers have no write tools anyway, so for them the plan is a preview of what they will search and deliver until folder grants (3.11); a waiting plan is said and asked about once.
+
 **Task 3.9 — Routines.** Schedules (daily or weekly at a time, or every N hours) that create a task for a worker; one catch-up after ZENO was closed; skipped while the previous run still goes; a Wisp `schedule` tool for voice; a list in the window.
 **Done when:** "Sid, every morning at 8, summarise networking news" creates a routine that makes a task at 8, a missed morning runs once at start, and an overlapping run is skipped.
 

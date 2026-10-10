@@ -643,6 +643,7 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
         app: null,
         pinnedModel: null,
         budget: { cap: 5, spent: 0 },
+        planFirst: false,
         jobs: [],
       })),
       apps: ["Arc", "Brave Browser", "Notes"],
@@ -835,6 +836,34 @@ test("budgets: helper.budget and helpers.settings planLimit, with caps, spend an
   await h.send({ type: "helper.budget", helper: "sid", cap: -1 });
   assert.deepEqual(h.types(), ["error"]);
   assert.equal(store.budgets().workers.sid!.cap, 2);
+});
+
+test("plan first: helper.planFirst, job.add planFirst, the plan in thread.get, plan.approve and plan.reject (Task 3.8)", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  await h.send({ type: "helper.planFirst", helper: "sid", on: true }, { type: "job.add", helper: "sid", task: "a" }, { type: "job.add", helper: "sid", task: "b", planFirst: false });
+  const sid = (h.events().at(-1) as HelpersEvent).helpers[0]!;
+  assert.deepEqual([sid.planFirst, sid.jobs.map((j) => j.planFirst)], [true, [undefined, true]]);
+  store.start(1);
+  store.savePlan(1, { summary: "S", steps: "1. x" });
+  h.clear();
+  await h.send({ type: "thread.get", id: 1 });
+  assert.deepEqual((h.events().at(-1) as Extract<IslandEvent, { type: "thread" }>).plan, { summary: "S", steps: "1. x" });
+  await h.send({ type: "plan.approve", id: 1 });
+  assert.equal(store.get(1)!.planStatus, "approved");
+  h.clear();
+  await h.send({ type: "plan.reject", id: 1 });
+  assert.deepEqual(h.types(), ["error"], "no plan waits any more");
+});
+
+test("a line with something to do after it: done once it has been said (Task 3.8)", async () => {
+  let say!: (line: string, after?: () => void) => void;
+  const h = islandHarness({ onGoalLine: (listener) => ((say = listener), () => {}) });
+  await new Promise((r) => setTimeout(r, 5));
+  let asked = 0;
+  say("Sid has a plan ready for your OK.", () => asked++);
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepEqual([h.spoken, asked], [["Sid has a plan ready for your OK."], 1]);
 });
 
 test("helpers.settings turns the large model off and on, answered with helpers", async () => {

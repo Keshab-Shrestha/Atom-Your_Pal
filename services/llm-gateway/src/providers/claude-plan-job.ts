@@ -23,6 +23,21 @@ const ReportSchema = z
 
 export type ResearchReport = z.infer<typeof ReportSchema>;
 
+/** Task 3.8: a plan-first task's first run writes this instead of doing the job. */
+const PlanSchema = z
+  .object({
+    summary: z.string().trim().min(1).max(160),
+    steps: z.string().trim().min(1).max(4000),
+  })
+  .strict();
+
+export type JobPlan = z.infer<typeof PlanSchema>;
+
+export interface PlanResult {
+  plan: JobPlan;
+  costUsd?: number;
+}
+
 export interface ResearchResult {
   report: ResearchReport;
   /** True when the run hit the page limit and wrote the report with what it had. */
@@ -66,7 +81,19 @@ How the job ends:
   - sources: the pages you actually used, each with its title and full http or https address.`;
 
 // Claude Code refuses the "$schema" draft marker zod adds.
-const { $schema: _draft, ...REPORT_JSON_SCHEMA } = z.toJSONSchema(ReportSchema) as Record<string, unknown>;
+const jsonSchema = (schema: z.ZodType) => {
+  const { $schema: _draft, ...rest } = z.toJSONSchema(schema) as Record<string, unknown>;
+  return rest;
+};
+const REPORT_JSON_SCHEMA = jsonSchema(ReportSchema);
+const PLAN_JSON_SCHEMA = jsonSchema(PlanSchema);
+
+const PLAN_CONTRACT = `
+This run only plans. Do not do the job and do not use any tool. Keshab reads the plan and approves or rejects it; an
+approved plan is handed to the run that does the job.
+Return the plan in the required structured format:
+- summary: one sentence saying what you will do, at most 160 characters.
+- steps: the plan in plain text, one step per line, no markdown. Say what you will look for, where, and what you will deliver.`;
 
 /** The report from structured output, checked strictly. Throws a ProviderError naming what was wrong. */
 export function parseReport(value: unknown): ResearchReport {
@@ -80,7 +107,21 @@ export function parseReport(value: unknown): ResearchReport {
 }
 
 export async function runResearch(options: ResearchOptions): Promise<ResearchResult> {
+  const out = await runStructured(options, "research");
+  return { report: parseReport(out.structured), partial: out.limited, pages: out.pages, ...(out.sessionId ? { sessionId: out.sessionId } : {}), ...(out.costUsd ? { costUsd: out.costUsd } : {}) };
+}
+
+/** Task 3.8: a plan-first task's first run: no tools at all, a short plan back, nothing kept for resuming. */
+export async function runPlan(options: Omit<ResearchOptions, "resume" | "pageLimit">): Promise<PlanResult> {
+  const out = await runStructured(options, "plan");
+  const parsed = PlanSchema.safeParse(out.structured);
+  if (!parsed.success) throw new ProviderError("bad_request", "The plan came back in the wrong shape.");
+  return { plan: parsed.data, ...(out.costUsd ? { costUsd: out.costUsd } : {}) };
+}
+
+async function runStructured(options: ResearchOptions, mode: "research" | "plan") {
   const { claudePath, model, task, instructions, signal, onUsage } = options;
+  const planning = mode === "plan";
   const pageLimit = options.pageLimit ?? RESEARCH_PAGE_LIMIT;
   const maxTurns = options.maxTurns ?? RESEARCH_MAX_TURNS;
   if (signal.aborted) throw new ProviderError("cancelled", "Research cancelled");
@@ -127,10 +168,10 @@ export async function runResearch(options: ResearchOptions): Promise<ResearchRes
       prompt: options.resume ? task : `The job:\n${task}`,
       options: {
         model,
-        systemPrompt: `${instructions.trim()}\n${contract(pageLimit)}`,
+        systemPrompt: `${instructions.trim()}\n${planning ? PLAN_CONTRACT : contract(pageLimit)}`,
         pathToClaudeCodeExecutable: claudePath,
         cwd: tmpdir(), // no project folder: nothing of ZENO's repository is in reach or in context
-        tools: ["WebSearch", "WebFetch"],
+        tools: planning ? [] : ["WebSearch", "WebFetch"],
         // None pre-allowed: an allowed tool skips canUseTool, which counts pages and refuses anything else.
         allowedTools: [],
         canUseTool,
@@ -141,10 +182,10 @@ export async function runResearch(options: ResearchOptions): Promise<ResearchRes
         mcpServers: {},
         // Task 3.6: kept by Claude Code on this Mac (its own project folder for the temporary directory), so the next
         // run of the task can resume it. ZENO stores only the id.
-        persistSession: true,
-        ...(options.resume ? { resume: options.resume } : {}),
+        persistSession: !planning,
+        ...(options.resume && !planning ? { resume: options.resume } : {}),
         maxTurns,
-        outputFormat: { type: "json_schema", schema: REPORT_JSON_SCHEMA },
+        outputFormat: { type: "json_schema", schema: planning ? PLAN_JSON_SCHEMA : REPORT_JSON_SCHEMA },
         abortController: controller,
         env: scrubbedEnv(options.env ?? process.env),
       },
@@ -176,12 +217,12 @@ export async function runResearch(options: ResearchOptions): Promise<ResearchRes
     const { kind, message } = classify(lastError, false);
     throw new ProviderError(kind, lastError ? message : "Claude Code ended without a report.");
   }
-  if (result.subtype === "error_max_turns") throw new ProviderError("bad_request", `The research took more than ${maxTurns} steps and stopped.`);
+  if (result.subtype === "error_max_turns") throw new ProviderError("bad_request", `The ${planning ? "plan" : "research"} took more than ${maxTurns} steps and stopped.`);
   if (result.subtype === "error_max_structured_output_retries") throw new ProviderError("bad_request", "The report could not be written in the required shape.");
   if (result.is_error || result.subtype !== "success") {
     const { kind, message } = classify(lastError, false);
     throw new ProviderError(kind, message);
   }
   const costUsd = typeof result.total_cost_usd === "number" && result.total_cost_usd > 0 ? result.total_cost_usd : undefined;
-  return { report: parseReport(result.structured_output), partial: limited, pages, ...(sessionId ? { sessionId } : {}), ...(costUsd ? { costUsd } : {}) };
+  return { structured: result.structured_output as unknown, limited, pages, sessionId, costUsd };
 }

@@ -103,3 +103,22 @@ struct HeldLine: View {
         }
     }
 }
+
+/// Task 3.8: a worker's new tasks plan first: the first run writes a plan and waits for Keshab's OK.
+struct PlanFirstRow: View {
+    let model: IslandModel
+    let helper: Helper
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Plan first").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
+                Text("New tasks start with a plan for your OK.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+            }
+            Spacer(minLength: 4)
+            ThemedSwitch(isOn: helper.planFirst, set: { model.sendHelpers(model.helpers.setPlanFirst($0)) }, label: "Plan first")
+        }
+        .frame(maxWidth: 320, alignment: .leading)
+    }
+}

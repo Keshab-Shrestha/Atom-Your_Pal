@@ -37,6 +37,10 @@ public enum IslandCommand: Sendable, Equatable {
     case jobStop(id: Int)
     /// Task 3.6: forget a task's Claude session; an ended task runs again from the start.
     case jobFresh(id: Int)
+    /// Task 3.8: approve or reject a task's waiting plan; whether a worker's new tasks plan first.
+    case planApprove(id: Int)
+    case planReject(id: Int)
+    case helperPlanFirst(helper: String, on: Bool)
     case jobDelete(id: Int)
     case reportGet(id: Int)
     /// ADR-083: pin a helper to a model (`""` lets Laya choose again); allow or forbid the large model for jobs.
@@ -74,6 +78,9 @@ public enum IslandCommand: Sendable, Equatable {
         case .threadGet: "thread.get"
         case .jobStop: "job.stop"
         case .jobFresh: "job.fresh"
+        case .planApprove: "plan.approve"
+        case .planReject: "plan.reject"
+        case .helperPlanFirst: "helper.planFirst"
         case .jobDelete: "job.delete"
         case .reportGet: "report.get"
         case .helperPin: "helper.pin"
@@ -122,7 +129,10 @@ public enum IslandCommand: Sendable, Equatable {
         case .commentAdd(let id, let text):
             fields["id"] = id
             fields["text"] = text
-        case .jobStop(let id), .jobFresh(let id), .jobDelete(let id), .reportGet(let id), .threadGet(let id):
+        case .helperPlanFirst(let helper, let on):
+            fields["helper"] = helper
+            fields["on"] = on // a real JSON boolean
+        case .jobStop(let id), .jobFresh(let id), .planApprove(let id), .planReject(let id), .jobDelete(let id), .reportGet(let id), .threadGet(let id):
             fields["id"] = id // a JSON number
         case .helperPin(let helper, let model):
             fields["helper"] = helper
@@ -678,7 +688,8 @@ private struct Fields {
                 guard let job = job(entry) else { throw invalid }
                 return job
             }, pinnedModel: pinned as? String, role: h["role"] as? String ?? "", soul: soul,
-               soulVersion: (h["soulVersion"] as? NSNumber)?.intValue ?? 1, soulVersions: versions, budget: Self.budget(h["budget"]))
+               soulVersion: (h["soulVersion"] as? NSNumber)?.intValue ?? 1, soulVersions: versions, budget: Self.budget(h["budget"]),
+               planFirst: Self.flag(h["planFirst"]))
         }
     }
 
@@ -697,7 +708,8 @@ private struct Fields {
                          blockedBy: Self.ids(j["blockedBy"]), waitingFor: Self.ids(j["waitingFor"]),
                          comments: (j["comments"] as? NSNumber)?.intValue ?? 0, goal: j["goal"] as? String,
                          parentId: (j["parentId"] as? NSNumber)?.intValue, goalId: (j["goalId"] as? NSNumber)?.intValue,
-                         goalEnded: Self.flag(j["goalEnded"]), resumable: Self.flag(j["resumable"]), held: j["held"] as? String)
+                         goalEnded: Self.flag(j["goalEnded"]), resumable: Self.flag(j["resumable"]), held: j["held"] as? String,
+                         planFirst: Self.flag(j["planFirst"]), planStatus: j["planStatus"] as? String, planSummary: j["planSummary"] as? String)
     }
 
     /// Task 3.7: `{ "cap": number | null, "spent": number }`; anything else reads as none.
@@ -729,6 +741,12 @@ private struct Fields {
             let sources = try Fields(event: event, values: ["sources": r["sources"] ?? []]).sources()
             return HelperReport(id: id, title: title, summary: summary, body: body, sources: sources)
         }
+        // Task 3.8: the plan a plan-first run wrote.
+        var plan: JobPlan?
+        if let p = values["plan"] {
+            guard let p = p as? [String: Any], let summary = p["summary"] as? String, let steps = p["steps"] as? String else { throw invalid("plan") }
+            plan = JobPlan(summary: summary, steps: steps)
+        }
         // Task 3.5: the task's goal; absent from older runtimes and for tasks added in the window.
         var goal: HelperGoal?
         if let g = values["goal"] {
@@ -744,7 +762,7 @@ private struct Fields {
         }, activity: try activity.map { entry in
             guard let a = entry as? [String: Any], let kind = a["kind"] as? String else { throw invalid("activity") }
             return TaskActivity(kind: kind, at: (a["at"] as? String).flatMap(Self.date))
-        }, report: try report(values["report"], id: try int("id"), field: "report"), goal: goal)
+        }, report: try report(values["report"], id: try int("id"), field: "report"), goal: goal, plan: plan)
     }
 
     /// The optional `models` of a `helpers` event (ADR-083; absent from older runtimes). Strict like the helpers list:

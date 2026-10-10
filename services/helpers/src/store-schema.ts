@@ -91,6 +91,9 @@ export function createSchema(db: DatabaseSync) {
   for (const column of ["parent_id", "goal_id", "wake_pending", "seen_comments", "brief_from"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} INTEGER`);
   // Task 3.6: the Claude session the next run resumes.
   if (!columns.has("session_id")) db.exec("ALTER TABLE jobs ADD COLUMN session_id TEXT");
+  // Task 3.8: plan first.
+  if (!columns.has("plan_first")) db.exec("ALTER TABLE jobs ADD COLUMN plan_first INTEGER");
+  for (const column of ["plan", "plan_summary", "plan_status"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);
 }
 
 export interface JobRow {
@@ -114,6 +117,10 @@ export interface JobRow {
   wake_pending: number | null;
   seen_comments: number | null;
   brief_from: number | null;
+  plan_first: number | null;
+  plan: string | null;
+  plan_summary: string | null;
+  plan_status: string | null;
 }
 
 export interface SoulRow {
@@ -162,6 +169,9 @@ export const toJobRow = (row: JobRow): Omit<Job, "blockedBy" | "waitingFor" | "c
   ...(row.parent_id != null ? { parentId: row.parent_id } : {}),
   resumable: Boolean(row.session_id),
   wakePending: row.wake_pending === 1,
+  planFirst: row.plan_first === 1,
+  ...(row.plan_status === "awaiting" || row.plan_status === "approved" ? { planStatus: row.plan_status } : {}),
+  ...(row.plan_summary ? { planSummary: row.plan_summary } : {}),
 });
 
 /** Sources with an http or https address only; anything else (javascript:, file:, junk) is dropped. */

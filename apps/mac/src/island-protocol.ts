@@ -25,7 +25,10 @@ export type IslandCommand =
   | { type: "context.window"; bundleId: string; name: string }
   | { type: "helpers.list" }
   | { type: "helper.set"; helper: string; app: string }
-  | { type: "job.add"; helper: string; task: string; blockedBy?: number[] }
+  | { type: "job.add"; helper: string; task: string; blockedBy?: number[]; planFirst?: boolean }
+  | { type: "plan.approve"; id: number }
+  | { type: "plan.reject"; id: number }
+  | { type: "helper.planFirst"; helper: string; on: boolean }
   | { type: "job.block"; id: number; blockedBy: number[] }
   | { type: "comment.add"; id: number; text: string }
   | { type: "thread.get"; id: number }
@@ -106,6 +109,10 @@ export interface JobItem {
   resumable?: boolean;
   /** Task 3.7: why a runnable task waits (a budget used up, the plan above its limit); it shows under "Needs you". */
   held?: string;
+  /** Task 3.8: plan first; the plan's state and one-line summary once written. */
+  planFirst?: boolean;
+  planStatus?: "awaiting" | "approved";
+  planSummary?: string;
   parentId?: number;
 }
 
@@ -116,6 +123,8 @@ export interface ThreadEvent {
   comments: { id: number; text: string; createdAt: string }[];
   activity: { kind: string; at: string }[];
   report?: Omit<ReportEvent, "type" | "id">;
+  /** Task 3.8: the plan a plan-first run wrote. */
+  plan?: { summary: string; steps: string };
   /** Task 3.5: the goal the task is part of, its tasks, and the combined report once every task has ended. */
   goal?: { id: number; text: string; ended: boolean; tasks: number[]; report?: Omit<ReportEvent, "type" | "id"> };
 }
@@ -152,6 +161,8 @@ export interface HelperItem {
   pinnedModel: string | null;
   /** Task 3.7: the daily cap in dollars of API-equivalent use (null: none) and today's spend. */
   budget: { cap: number | null; spent: number };
+  /** Task 3.8: its new tasks plan first. */
+  planFirst: boolean;
   jobs: JobItem[];
 }
 
@@ -235,6 +246,9 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "helpers.list",
   "helper.set",
   "job.add",
+  "plan.approve",
+  "plan.reject",
+  "helper.planFirst",
   "job.stop",
   "job.fresh",
   "job.delete",
@@ -302,10 +316,16 @@ export function parseCommand(line: string): ParsedLine {
     const { helper, task } = value as { helper?: unknown; task?: unknown };
     if (typeof helper !== "string" || helper === "") return { error: 'job.add needs a "helper" string.' };
     if (typeof task !== "string") return { error: 'job.add needs a "task" string.' };
-    const { blockedBy } = value as { blockedBy?: unknown };
-    if (blockedBy === undefined) return { command: { type, helper, task } };
-    if (!isIdList(blockedBy)) return { error: 'job.add needs "blockedBy" to be a list of whole numbers.' };
-    return { command: { type, helper, task, blockedBy } };
+    const { blockedBy, planFirst } = value as { blockedBy?: unknown; planFirst?: unknown };
+    if (blockedBy !== undefined && !isIdList(blockedBy)) return { error: 'job.add needs "blockedBy" to be a list of whole numbers.' };
+    if (planFirst !== undefined && typeof planFirst !== "boolean") return { error: 'job.add needs "planFirst" to be true or false.' };
+    return { command: { type, helper, task, ...(blockedBy !== undefined ? { blockedBy } : {}), ...(planFirst !== undefined ? { planFirst } : {}) } };
+  }
+  if (type === "helper.planFirst") {
+    const { helper, on } = value as { helper?: unknown; on?: unknown };
+    if (typeof helper !== "string" || helper === "") return { error: 'helper.planFirst needs a "helper" string.' };
+    if (typeof on !== "boolean") return { error: 'helper.planFirst needs "on" to be true or false.' };
+    return { command: { type, helper, on } };
   }
   if (type === "job.block") {
     const { id, blockedBy } = value as { id?: unknown; blockedBy?: unknown };
@@ -359,7 +379,7 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof version !== "number" || !Number.isInteger(version) || version < 1) return { error: 'soul.restore needs a "version" that is a whole number.' };
     return { command: { type, helper, version } };
   }
-  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "job.delete" || type === "report.get" || type === "thread.get") {
+  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "job.delete" || type === "report.get" || type === "thread.get") {
     const { id } = value as { id?: unknown };
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     return { command: { type, id } };

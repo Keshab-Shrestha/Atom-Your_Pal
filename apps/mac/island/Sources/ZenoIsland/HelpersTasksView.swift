@@ -181,6 +181,7 @@ struct ThreadPane: View {
                 if let item = model.helpers.openItem {
                     header(item)
                     if let problem = model.helpers.problem { ProblemLine(text: problem) }
+                    if let plan = model.helpers.thread?.plan { PlanSection(model: model, job: item.job, plan: plan) }
                     WaitsForSection(model: model, job: item.job)
                     if let report = model.helpers.report {
                         ReportSection(report: report)
@@ -230,6 +231,32 @@ struct ThreadPane: View {
             if let goal = job.goal, goal != job.task { Text("Goal: \(goal)").font(.system(size: 12)).foregroundStyle(theme.text2.color) }
             if job.state == .failed, let error = job.error { ProblemLine(text: error) }
             if let held = job.held { HeldLine(reason: held) }
+        }
+    }
+}
+
+/// Task 3.8: the plan a plan-first run wrote; while it waits, Approve starts the work and Reject ends the task.
+private struct PlanSection: View {
+    let model: IslandModel
+    let job: HelperJob
+    let plan: JobPlan
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(job.awaitsApproval ? "The plan, waiting for your OK" : job.planStatus == "approved" ? "The plan you approved" : "The plan")
+                .font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            Text(plan.summary).font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true)
+            ForEach(Array(plan.lines.enumerated()), id: \.offset) { _, line in
+                Text(line).font(.system(size: 12.5)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+            }
+            if job.awaitsApproval {
+                HStack(spacing: 8) {
+                    QuietButton(title: "Approve", symbol: "checkmark") { model.sendHelpers(model.helpers.approvePlan()) }
+                    QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.rejectPlan()) }
+                }
+                .padding(.top, 2)
+            }
         }
     }
 }

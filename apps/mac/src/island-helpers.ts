@@ -25,6 +25,9 @@ const toJobItem = (job: Job, held?: string): JobItem => ({
   ...(job.goalEnded ? { goalEnded: true } : {}),
   ...(job.resumable ? { resumable: true } : {}),
   ...(held ? { held } : {}),
+  ...(job.planFirst ? { planFirst: true } : {}),
+  ...(job.planStatus ? { planStatus: job.planStatus } : {}),
+  ...(job.planSummary ? { planSummary: job.planSummary } : {}),
   ...(job.parentId !== undefined ? { parentId: job.parentId } : {}),
 });
 
@@ -54,7 +57,11 @@ export function islandHelpers(
     setPlanLimit: (percent) => store.setPlanLimit(percent),
     apps: async () => [...(await apps())].sort((a, b) => a.localeCompare(b)),
     setApp: (helper, app) => store.setApp(helper, app),
-    addJob: (helper, task, blockedBy) => void store.addJob(helper, task, blockedBy ? { blockedBy } : {}),
+    addJob: (helper, task, blockedBy, planFirst) =>
+      void store.addJob(helper, task, { ...(blockedBy ? { blockedBy } : {}), ...(planFirst !== undefined ? { planFirst } : {}) }),
+    approvePlan: (id) => store.approvePlan(id),
+    rejectPlan: (id) => store.rejectPlan(id),
+    setPlanFirst: (helper, on) => store.setPlanFirst(helper, on),
     setBlockers: (id, blockedBy) => store.setBlockers(id, blockedBy),
     addComment: (id, text) => store.addComment(id, text),
     startFresh: (id) => store.startFresh(id),
@@ -68,6 +75,7 @@ export function islandHelpers(
         id,
         comments: thread.comments.map((c) => ({ id: c.id, text: c.text, createdAt: c.createdAt.toISOString() })),
         activity: thread.activity.map((a) => ({ kind: a.kind, at: a.at.toISOString() })),
+        ...(thread.plan ? { plan: thread.plan } : {}),
         ...(report ? { report: { title: report.title, summary: report.summary, body: report.body, sources: report.sources } } : {}),
         ...(goal
           ? {

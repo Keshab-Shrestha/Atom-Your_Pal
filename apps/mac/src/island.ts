@@ -60,8 +60,8 @@ export interface IslandOptions {
   chime?(): Promise<void>;
   /** Timers (ADR-061): subscribe to timers ending, to announce them. */
   onTimer?(listener: (timer: { id: number; label: string; seconds: number }) => void): () => void;
-  /** Goals Wisp handed out (Task 3.5): subscribe to the one line said when one ends. */
-  onGoalLine?(listener: (line: string) => void): () => void;
+  /** Goals Wisp handed out (Task 3.5) and plans waiting (Task 3.8): a line to say when idle, then `after`. */
+  onGoalLine?(listener: (line: string, after?: () => void) => void): () => void;
   micName(): Promise<string>;
   /** Plain-language error text for the user. */
   describe(error: unknown): string;
@@ -97,7 +97,12 @@ export interface IslandHelpers {
   /** Throws, with words for the user, for an unknown helper. */
   setApp(helper: string, app: string): void;
   /** Throws, with words for the user, for an unknown or unavailable helper, an empty or long task, or bad blockers. */
-  addJob(helper: string, task: string, blockedBy?: number[]): void;
+  addJob(helper: string, task: string, blockedBy?: number[], planFirst?: boolean): void;
+  /** Task 3.8: approve or reject a task's waiting plan. Throws, with words for the user, when no plan waits. */
+  approvePlan(id: number): void;
+  rejectPlan(id: number): void;
+  /** Whether a worker's new tasks plan first. Throws, with words for the user, for an unknown worker. */
+  setPlanFirst(helper: string, on: boolean): void;
   /** Changes what a queued task waits for (ADR-087). Throws, with words for the user, for a started task or a circle. */
   setBlockers(id: number, blockedBy: number[]): void;
   /** Adds Keshab's note to a task, which wakes it (Task 3.6). Throws, with words for the user, for an unknown task or an empty or long note. */
@@ -276,7 +281,16 @@ export function runIsland(options: IslandOptions): IslandSession {
         void setHelperApp(command.helper, command.app);
         return;
       case "job.add":
-        changeHelpers(command.type, (helpers) => helpers.addJob(command.helper, command.task, command.blockedBy));
+        changeHelpers(command.type, (helpers) => helpers.addJob(command.helper, command.task, command.blockedBy, command.planFirst));
+        return;
+      case "plan.approve":
+        changeHelpers(command.type, (helpers) => helpers.approvePlan(command.id));
+        return;
+      case "plan.reject":
+        changeHelpers(command.type, (helpers) => helpers.rejectPlan(command.id));
+        return;
+      case "helper.planFirst":
+        changeHelpers(command.type, (helpers) => helpers.setPlanFirst(command.helper, command.on));
         return;
       case "job.stop":
         options.helpers?.stop(command.id); // unknown or finished: ignored
@@ -385,7 +399,7 @@ export function runIsland(options: IslandOptions): IslandSession {
 
   // ADR-061: a timer ended. Shown at once; spoken now if ZENO is idle, else as soon as it is. Task 3.5: a goal's line
   // waits its turn the same way.
-  const timerQueue: { message: string; timer?: { id: number; label: string; message: string } }[] = [];
+  const timerQueue: { message: string; timer?: { id: number; label: string; message: string }; after?: () => void }[] = [];
   let announcing = false;
   async function announce() {
     if (announcing || quitting) return;
@@ -396,7 +410,7 @@ export function runIsland(options: IslandOptions): IslandSession {
           await new Promise((r) => setTimeout(r, 500));
           continue;
         }
-        const { message, timer } = timerQueue.shift()!;
+        const { message, timer, after } = timerQueue.shift()!;
         await options.chime?.();
         send({ type: "state", state: "speaking" });
         try {
@@ -407,6 +421,7 @@ export function runIsland(options: IslandOptions): IslandSession {
         if (loop.state === "idle") send({ type: "state", state: "idle" });
         // Last, so the island's "Timer done" stays up after the speaking ends.
         if (timer) send({ type: "timer", ...timer });
+        after?.();
       }
     } finally {
       announcing = false;
@@ -417,8 +432,8 @@ export function runIsland(options: IslandOptions): IslandSession {
     timerQueue.push({ message, timer: { id: timer.id, label: timer.label, message } });
     void announce();
   });
-  const stopGoalLines = options.onGoalLine?.((line) => {
-    timerQueue.push({ message: line });
+  const stopGoalLines = options.onGoalLine?.((line, after) => {
+    timerQueue.push({ message: line, ...(after ? { after } : {}) });
     void announce();
   });
   const stopMemoryUpdates = options.memory?.onChange(() => {

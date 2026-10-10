@@ -239,6 +239,8 @@ export function makesCycle(edges: ReadonlyMap<number, readonly number[]>, id: nu
 /** What a task is given besides its own words (ADR-087): the goal, Keshab's notes and the reports it waited for. */
 export interface TaskContext {
   goal?: string;
+  /** Task 3.8: the plan Keshab approved. */
+  plan?: string;
   comments: string[];
   earlier: { worker: string; task: string; title: string; summary: string; body: string; sources: { title: string; url: string }[] }[];
 }
@@ -247,6 +249,7 @@ export interface TaskContext {
 export function briefFor(task: string, context: TaskContext): string {
   const parts = [task];
   if (context.goal && context.goal !== task) parts.push(`The goal this task is part of: ${context.goal}`);
+  if (context.plan) parts.push(`The plan Keshab approved. Follow it:\n${context.plan}`);
   if (context.comments.length) parts.push(`Notes from Keshab:\n${context.comments.map((c) => `- ${c}`).join("\n")}`);
   if (context.earlier.length) {
     const reports = context.earlier.map((r) => {

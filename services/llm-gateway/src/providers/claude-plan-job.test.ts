@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { RESEARCH_MAX_TURNS, RESEARCH_PAGE_LIMIT, runResearch, type ResearchOptions } from "./claude-plan-job.ts";
+import { RESEARCH_MAX_TURNS, RESEARCH_PAGE_LIMIT, runPlan, runResearch, type ResearchOptions } from "./claude-plan-job.ts";
 import type { ClaudeSdk, PlanUsage } from "./claude-plan.ts";
 import { ProviderError } from "../gateway.ts";
 
@@ -80,6 +80,25 @@ test("a run reports its session, and a later run resumes it with only what is ne
   await research(sdk, { resume: "s-1", task: "Keshab asks again: dig deeper." });
   assert.equal(seen[1]!.options.resume, "s-1");
   assert.equal(seen[1]!.prompt, "Keshab asks again: dig deeper.");
+});
+
+test("a plan-first run uses no tools at all, keeps no session and returns the plan (Task 3.8)", async () => {
+  const plan = { summary: "Search, then compare.", steps: "1. Search\n2. Compare" };
+  const { sdk, seen } = fakeSdk(async function* () {
+    yield init();
+    yield { ...done(plan), total_cost_usd: 0.02 };
+  });
+  assert.deepEqual(await runPlan({ claudePath: "/bin/claude", model: "m", task: "Compare routers", instructions: "You are Sid.", signal: new AbortController().signal, sdk, env: {} }), { plan, costUsd: 0.02 });
+  const o = seen[0]!.options;
+  assert.deepEqual(o.tools, []);
+  assert.equal(o.persistSession, false);
+  assert.deepEqual(o.outputFormat.schema.required, ["summary", "steps"]);
+  assert.match(o.systemPrompt, /This run only plans\. Do not do the job/);
+  const bad = fakeSdk(async function* () {
+    yield init();
+    yield done({ summary: "x" });
+  });
+  await assert.rejects(runPlan({ claudePath: "/bin/claude", model: "m", task: "t", instructions: "i", signal: new AbortController().signal, sdk: bad.sdk, env: {} }), /plan came back in the wrong shape/);
 });
 
 test("progress in plain words, and the twelfth page is the last: further fetches are refused and the report is partial", async () => {

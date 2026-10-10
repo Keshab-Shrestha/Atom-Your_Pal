@@ -75,6 +75,11 @@ export interface Job {
   resumable: boolean;
   /** Asked again while running: one more run follows this one. */
   wakePending: boolean;
+  /** Task 3.8: its first run only plans; the plan waits for Keshab ("awaiting"), then goes to the next run ("approved"). */
+  planFirst: boolean;
+  planStatus?: "awaiting" | "approved";
+  /** The plan in one sentence, once written. */
+  planSummary?: string;
   parentId?: number;
   /** The tasks it waits for, and those of them not done yet (it starts when this is empty). */
   blockedBy: number[];
@@ -91,7 +96,7 @@ export interface Comment {
 
 /** One line of a task's activity: what happened and when (ids and states only, as in the logs). */
 export interface Activity {
-  kind: "created" | "waits" | "commented" | "woken" | "fresh" | JobState;
+  kind: "created" | "waits" | "commented" | "woken" | "fresh" | "planned" | "approved" | "rejected" | JobState;
   at: Date;
 }
 
@@ -101,6 +106,8 @@ export interface Thread {
   comments: Comment[];
   activity: Activity[];
   report?: Report;
+  /** Task 3.8: the plan, once a plan-first run has written it. */
+  plan?: { summary: string; steps: string };
 }
 
 /** A goal's combined report (ADR-087, Task 3.5), written when all its tasks have ended. */
@@ -134,6 +141,8 @@ export interface AddJobOptions {
   blockedBy?: readonly number[];
   goal?: string;
   parentId?: number;
+  /** Task 3.8: plan first; default the worker's setting. */
+  planFirst?: boolean;
 }
 
 export interface SoulVersion {
@@ -157,6 +166,8 @@ export interface HelperView {
   pinnedModel: string | null;
   /** Task 3.7: its daily cap and today's spend. */
   budget: Budget;
+  /** Task 3.8: its new tasks plan first. */
+  planFirst: boolean;
   /** Newest first, at most JOBS_PER_HELPER. */
   jobs: Job[];
 }
@@ -169,6 +180,7 @@ export type HelperChange =
   | { action: "settings" }
   | { action: "budget"; helper: HelperId | "team" }
   | { action: "spend"; helper: HelperId; job: number }
+  | { action: "plan"; helper: HelperId; job: number; status: "awaiting" | "approved" | "rejected" }
   | { action: "model"; helper: HelperId; job: number }
   | { action: "job"; helper: HelperId; job: number; state: JobState; ms?: number }
   | { action: "step"; helper: HelperId; job: number }
@@ -200,6 +212,14 @@ export interface HelperStore {
   setPlanLimit(percent: number): void;
   /** Records what a run of a task cost (dollars of API-equivalent use). Nothing for an unknown task or a bad amount. */
   addSpend(id: number, dollars: number): void;
+  /** Task 3.8: whether a worker's new tasks plan first. Throws HelperError for an unknown worker. */
+  setPlanFirst(helper: string, on: boolean): void;
+  /** For the runner: a plan-first run's plan. The task goes back to "to do", held until Keshab approves. */
+  savePlan(id: number, plan: { summary: string; steps: string }): void;
+  /** Approves a task's waiting plan, so its next run does the job with it. Throws HelperError when no plan waits. */
+  approvePlan(id: number): void;
+  /** Rejects a task's waiting plan: the task is stopped. Throws HelperError when no plan waits. */
+  rejectPlan(id: number): void;
   setAllowLarge(allowed: boolean): void;
   /** Records a running job's model and why. False (and nothing saved) unless the job is running. */
   setModel(id: number, model: string, reason: string): boolean;
@@ -321,9 +341,16 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const requeue = db.prepare("UPDATE jobs SET state = 'queued', step = NULL, partial = 0, error = NULL, ended_at = NULL, wake_pending = 0 WHERE id = ?");
   const setPending = db.prepare("UPDATE jobs SET wake_pending = ? WHERE id = ?");
   const putSession = db.prepare("UPDATE jobs SET session_id = ? WHERE id = ?");
+  const putPlan = db.prepare(
+    "UPDATE jobs SET state = 'queued', step = NULL, wake_pending = 0, plan = ?, plan_summary = ?, plan_status = 'awaiting' WHERE id = ? AND state = 'running'",
+  );
+  const setPlanStatus = db.prepare("UPDATE jobs SET plan_status = ? WHERE id = ? AND plan_status = 'awaiting'");
   const reopenGoal = db.prepare("UPDATE goals SET ended_at = NULL WHERE id = ?");
   const jobById = db.prepare("SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.id = ?");
-  const insertJob = db.prepare("INSERT INTO jobs (helper, task, state, created_at, goal, parent_id, goal_id) VALUES (?, ?, 'queued', ?, ?, ?, ?)");
+  const insertJob = db.prepare(
+    "INSERT INTO jobs (helper, task, state, created_at, goal, parent_id, goal_id, plan_first) VALUES (?, ?, 'queued', ?, ?, ?, ?, ?)",
+  );
+  const planFirstOf = (helper: HelperId) => (settingOf.get(`planFirst:${helper}`) as { value: string } | undefined)?.value === "true";
   const insertGoal = db.prepare("INSERT INTO goals (text, created_at) VALUES (?, ?)");
   const goalRow = db.prepare("SELECT * FROM goals WHERE id = ?");
   const goalEndedAt = db.prepare("SELECT ended_at FROM goals WHERE id = ?");
@@ -387,9 +414,15 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   }
 
   /** Inserts a checked task with its blockers; call inside a transaction. */
-  function insertTask(helper: HelperId, task: string, blockers: readonly number[], links: { goal: string | null; parentId: number | null; goalId: number | null }): number {
+  function insertTask(
+    helper: HelperId,
+    task: string,
+    blockers: readonly number[],
+    links: { goal: string | null; parentId: number | null; goalId: number | null; planFirst?: boolean },
+  ): number {
     const created = now();
-    const id = Number(insertJob.run(helper, task, created.toISOString(), links.goal, links.parentId, links.goalId).lastInsertRowid);
+    const planFirst = links.planFirst ?? planFirstOf(helper) ? 1 : 0;
+    const id = Number(insertJob.run(helper, task, created.toISOString(), links.goal, links.parentId, links.goalId, planFirst).lastInsertRowid);
     for (const b of blockers) insertBlocker.run(id, b);
     log(id, "created", created);
     return id;
@@ -476,6 +509,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         app: (appOf.get(h.id) as { app: string } | undefined)?.app ?? null,
         pinnedModel: (pinOf.get(h.id) as { model: string } | undefined)?.model ?? null,
         budget: budgets.workers[h.id],
+        planFirst: planFirstOf(h.id),
         jobs: (newestJobs.all(h.id, JOBS_PER_HELPER) as unknown as JobRow[]).map(toJob),
       }));
     },
@@ -541,6 +575,35 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       emit({ action: "budget", helper: "team" });
     },
 
+    setPlanFirst(helper, on) {
+      const known = mustHelper(helper);
+      putSetting.run(`planFirst:${known.id}`, String(on));
+      emit({ action: "settings" });
+    },
+
+    savePlan(id, plan) {
+      const job = mustGet(id);
+      if (Number(putPlan.run(plan.steps, plan.summary, id).changes) === 0) throw new HelperError(`A ${job.state} job cannot save a plan.`);
+      log(id, "planned");
+      emit({ action: "plan", helper: job.helper, job: id, status: "awaiting" });
+      emit({ action: "job", helper: job.helper, job: id, state: "queued" });
+    },
+
+    approvePlan(id) {
+      const job = mustGet(id);
+      if (job.state !== "queued" || Number(setPlanStatus.run("approved", id).changes) === 0) throw new HelperError("No plan waits for your OK on that task.");
+      log(id, "approved");
+      emit({ action: "plan", helper: job.helper, job: id, status: "approved" });
+    },
+
+    rejectPlan(id) {
+      const job = mustGet(id);
+      if (job.planStatus !== "awaiting" || job.state !== "queued") throw new HelperError("No plan waits for your OK on that task.");
+      log(id, "rejected");
+      emit({ action: "plan", helper: job.helper, job: id, status: "rejected" });
+      transition(job, "stopped");
+    },
+
     addSpend(id, dollars) {
       const job = get(id);
       if (!job || !Number.isFinite(dollars) || dollars <= 0) return;
@@ -572,7 +635,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       // A new task cannot close a circle: everything it waits for already exists.
       const blockers = checkBlockers(options.blockedBy ?? []);
       let id = 0;
-      transaction(() => (id = insertTask(known.id, task, blockers, { goal, parentId: options.parentId ?? null, goalId: null })));
+      transaction(() => (id = insertTask(known.id, task, blockers, { goal, parentId: options.parentId ?? null, goalId: null, planFirst: options.planFirst })));
       emit({ action: "job", helper: known.id, job: id, state: "queued" });
       return mustGet(id);
     },
@@ -678,8 +741,10 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     thread(id) {
       if (!get(id)) return undefined;
       const report = this.report(id);
+      const row = jobById.get(id) as unknown as JobRow;
       return {
         id,
+        ...(row.plan && row.plan_summary ? { plan: { summary: row.plan_summary, steps: row.plan } } : {}),
         comments: (commentsOf.all(id) as { id: number; text: string; created_at: string }[]).map((c) => ({ id: c.id, text: c.text, createdAt: new Date(c.created_at) })),
         activity: (eventsOf.all(id) as { kind: Activity["kind"]; at: string }[]).map((e) => ({ kind: e.kind, at: new Date(e.at) })),
         ...(report ? { report } : {}),
@@ -688,8 +753,10 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
     context(id) {
       const job = mustGet(id);
+      const row = jobById.get(id) as unknown as JobRow;
       return {
         ...(job.goal ? { goal: job.goal } : {}),
+        ...(job.planStatus === "approved" && row.plan ? { plan: row.plan } : {}),
         comments: (commentsOf.all(id) as { text: string }[]).map((c) => c.text),
         earlier: job.blockedBy.flatMap((b) => {
           const blocker = get(b);

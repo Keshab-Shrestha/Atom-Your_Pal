@@ -50,12 +50,18 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     public var resumable: Bool
     /// Task 3.7: why a runnable task waits (a budget used up, the plan above its limit).
     public var held: String?
+    /// Task 3.8: its first run only plans; "awaiting" (Keshab's OK) or "approved", and the plan in one line.
+    public var planFirst: Bool
+    public var planStatus: String?
+    public var planSummary: String?
+    public var awaitsApproval: Bool { state == .queued && planStatus == "awaiting" }
 
     public init(id: Int, task: String, state: JobState, createdAt: Date? = nil, endedAt: Date? = nil, step: String? = nil,
                 partial: Bool = false, title: String? = nil, summary: String? = nil, error: String? = nil,
                 model: String? = nil, modelReason: String? = nil, blockedBy: [Int] = [], waitingFor: [Int] = [],
                 comments: Int = 0, goal: String? = nil, parentId: Int? = nil, goalId: Int? = nil, goalEnded: Bool = false,
-                resumable: Bool = false, held: String? = nil) {
+                resumable: Bool = false, held: String? = nil, planFirst: Bool = false, planStatus: String? = nil,
+                planSummary: String? = nil) {
         self.id = id
         self.task = task
         self.state = state
@@ -77,6 +83,9 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
         self.goalEnded = goalEnded
         self.resumable = resumable
         self.held = held
+        self.planFirst = planFirst
+        self.planStatus = planStatus
+        self.planSummary = planSummary
     }
 
     public var hasReport: Bool { title != nil }
@@ -179,10 +188,12 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public var soulVersions: [SoulVersion]
     /// Task 3.7: its daily cap and today's spend; nil from an older runtime.
     public var budget: HelperBudget?
+    /// Task 3.8: its new tasks plan first.
+    public var planFirst: Bool
 
     public init(id: String, name: String, available: Bool, app: String?, jobs: [HelperJob], pinnedModel: String? = nil,
                 role: String = "", soul: HelperSoul? = nil, soulVersion: Int = 1, soulVersions: [SoulVersion] = [],
-                budget: HelperBudget? = nil) {
+                budget: HelperBudget? = nil, planFirst: Bool = false) {
         self.id = id
         self.name = name
         self.available = available
@@ -194,6 +205,7 @@ public struct Helper: Sendable, Equatable, Identifiable {
         self.soulVersion = soulVersion
         self.soulVersions = soulVersions
         self.budget = budget
+        self.planFirst = planFirst
     }
 
     /// The role as the window says it: "Researcher", "Financial information", "HR", ….
@@ -298,6 +310,9 @@ public struct TaskActivity: Sendable, Equatable {
         case "commented": "Note added"
         case "woken": "Asked again"
         case "fresh": "Set to start fresh"
+        case "planned": "Wrote a plan"
+        case "approved": "Plan approved"
+        case "rejected": "Plan rejected"
         case "running": "Started"
         case "done": "Finished"
         case "failed": "Failed"
@@ -314,13 +329,31 @@ public struct HelperThread: Sendable, Equatable {
     public var activity: [TaskActivity]
     public var report: HelperReport?
     public var goal: HelperGoal?
+    public var plan: JobPlan?
 
-    public init(id: Int, comments: [TaskComment], activity: [TaskActivity], report: HelperReport? = nil, goal: HelperGoal? = nil) {
+    public init(id: Int, comments: [TaskComment], activity: [TaskActivity], report: HelperReport? = nil, goal: HelperGoal? = nil,
+                plan: JobPlan? = nil) {
         self.id = id
         self.comments = comments
         self.activity = activity
         self.report = report
         self.goal = goal
+        self.plan = plan
+    }
+}
+
+/// Task 3.8: what a plan-first run means to do, for Keshab to approve or reject.
+public struct JobPlan: Sendable, Equatable {
+    public var summary: String
+    public var steps: String
+
+    public init(summary: String, steps: String) {
+        self.summary = summary
+        self.steps = steps
+    }
+
+    public var lines: [String] {
+        steps.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
     }
 }
 
@@ -603,6 +636,23 @@ public struct HelpersState: Sendable, Equatable {
               helper.pinnedModel != modelId else { return nil }
         if let modelId, !models.contains(where: { $0.id == modelId }) { return nil }
         return waiting(.helperPin(helper: helper.id, model: modelId ?? ""))
+    }
+
+    /// Task 3.8: approve or reject the open task's waiting plan; nil when no plan waits.
+    public mutating func approvePlan() -> IslandCommand? {
+        guard let job = openJob, job.awaitsApproval else { return nil }
+        return waiting(.planApprove(id: job.id))
+    }
+
+    public mutating func rejectPlan() -> IslandCommand? {
+        guard let job = openJob, job.awaitsApproval else { return nil }
+        return waiting(.planReject(id: job.id))
+    }
+
+    /// Whether the chosen worker's new tasks plan first. Nil when unchanged or the worker is not ready for jobs.
+    public mutating func setPlanFirst(_ on: Bool) -> IslandCommand? {
+        guard let helper = selectedHelper, helper.available, helper.planFirst != on else { return nil }
+        return waiting(.helperPlanFirst(helper: helper.id, on: on))
     }
 
     /// Task 3.7: the chosen worker's daily cap (nil: none). Nil when unchanged or from an older runtime.

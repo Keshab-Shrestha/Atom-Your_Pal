@@ -197,6 +197,10 @@ test("parses the helper commands", () => {
     { type: "helper.budget", helper: "sid", cap: 2.5 },
     { type: "helper.budget", helper: "team", cap: null },
     { type: "helpers.settings", planLimit: 70 },
+    { type: "job.add", helper: "sid", task: "x", planFirst: true },
+    { type: "plan.approve", id: 3 },
+    { type: "plan.reject", id: 3 },
+    { type: "helper.planFirst", helper: "sid", on: false },
   ];
   for (const command of good) assert.deepEqual(parseCommand(JSON.stringify(command)), { command }, JSON.stringify(command));
   assert.deepEqual(parseCommand('{"type":"helpers.list","extra":1}'), { command: { type: "helpers.list" } });

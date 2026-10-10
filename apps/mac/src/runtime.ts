@@ -28,7 +28,7 @@ import {
   type TimerInfo,
   type Timers,
 } from "@zeno/tool-engine";
-import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError, runResearch, type PlanUsage } from "@zeno/llm-gateway";
+import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError, runPlan, runResearch, type PlanUsage } from "@zeno/llm-gateway";
 import { CLAUDE_PLAN, createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import {
   createEpisodeRecorder,
@@ -114,8 +114,11 @@ export interface Runtime {
   capabilities(): Capability[];
   /** Called when the Claude plan reports usage (ADR-076); returns a function that stops listening. */
   onPlanUsage(listener: (usage: PlanUsage) => void): () => void;
-  /** Called with the one line to say when a goal Wisp handed out has ended (Task 3.5); returns a function that stops listening. */
-  onGoalLine(listener: (line: string) => void): () => void;
+  /**
+   * Called with a line to say when a goal Wisp handed out has ended (Task 3.5), or a plan waits for Keshab (Task 3.8,
+   * then `after` asks on Wisp's approval card). Returns a function that stops listening.
+   */
+  onGoalLine(listener: (line: string, after?: () => void) => void): () => void;
   /** Shutdown: stops running helper jobs (they are marked failed at the next start) and Laya's server. */
   close(): void;
 }
@@ -384,6 +387,12 @@ export function createRuntime(
     const fresh = () => briefFor(job.task, helpers?.context(job.id) ?? { comments: [], earlier: [] });
     const research = (task: string, resume?: string) =>
       runResearch({ claudePath: keys["claude-plan"] ?? "", model, task, instructions, signal, onStep, onUsage: reportUsage, ...(resume ? { resume } : {}) });
+    // Task 3.8: a plan-first task's first run only plans (no tools); the plan then waits for Keshab.
+    if (job.planFirst && job.planStatus !== "approved") {
+      const { plan, costUsd } = await runPlan({ claudePath: keys["claude-plan"] ?? "", model, task: fresh(), instructions, signal, onStep, onUsage: reportUsage });
+      if (costUsd) helpers?.addSpend(job.id, costUsd);
+      return { plan };
+    }
     // Task 3.6: asked again, the run continues its last session with only what is new. A session Claude Code no
     // longer has (or any other failure to resume, except the plan's limits) falls back to one fresh run.
     const resume = helpers?.resumeOf(job.id);
@@ -409,7 +418,28 @@ export function createRuntime(
   // A new day (budgets) or an older plan window (its use falls) frees held tasks without any change in the store.
   if (runner) setInterval(() => runner.poke(), 60_000).unref();
   // Task 3.5: a goal whose tasks have all ended gets its combined report (one model call, no tools) and one line.
-  const goalLineListeners = new Set<(line: string) => void>();
+  const goalLineListeners = new Set<(line: string, after?: () => void) => void>();
+  // Task 3.8: a plan waits for Keshab: one line, then Wisp's approval card. Allow approves; Decline or no answer leaves
+  // it waiting in the window (never a rejection). Logs ids only.
+  helpers?.onChange((change) => {
+    if (change.action !== "plan" || change.status !== "awaiting") return;
+    const job = helpers.get(change.job);
+    if (!job?.planSummary) return;
+    const name = helpers.soul(job.helper).name;
+    const ask = () =>
+      void computer
+        .approve({ summary: `${name}'s plan: ${job.planSummary}`, reason: "Allow starts the work. Decline leaves the plan waiting in the Helpers window." })
+        .then((ok) => {
+          log.info("plan.answer", { helper: job.helper, job: job.id, approved: ok });
+          if (!ok) return;
+          try {
+            helpers.approvePlan(job.id);
+          } catch {
+            // answered in the window meanwhile
+          }
+        });
+    for (const listener of goalLineListeners) listener(`${name} has a plan ready for your OK.`, ask);
+  });
   const stopGoals =
     helpers &&
     watchGoals({

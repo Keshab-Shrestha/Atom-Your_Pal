@@ -11,7 +11,9 @@ export const JOB_TIME_LIMIT_MS = 15 * 60_000;
 const LATE_GRACE_MS = 1000;
 
 export interface RunOutcome {
-  report: ReportInput;
+  /** Task 3.8: a plan-first task's first run hands back its plan instead of a report. */
+  plan?: { summary: string; steps: string };
+  report?: ReportInput;
   /** Ended at a limit with what it had. */
   partial?: boolean;
   /** Pages read, for the log. */
@@ -31,10 +33,10 @@ export type JobRun = (job: Job, context: RunContext) => Promise<RunOutcome>;
 /** For the log: ids, states, timings and counts only. Never the task, report or addresses. */
 export type RunEvent =
   | { phase: "start"; helper: HelperId; job: number }
-  | { phase: "end"; helper: HelperId; job: number; state: "done" | "failed" | "stopped"; ms: number; pages?: number; partial: boolean };
+  | { phase: "end"; helper: HelperId; job: number; state: "done" | "planned" | "failed" | "stopped"; ms: number; pages?: number; partial: boolean };
 
 export interface JobRunnerOptions {
-  store: Pick<HelperStore, "queued" | "get" | "start" | "step" | "finish" | "fail" | "onChange">;
+  store: Pick<HelperStore, "queued" | "get" | "start" | "step" | "finish" | "fail" | "savePlan" | "onChange">;
   run: JobRun;
   maxRunning?: number;
   timeLimitMs?: number;
@@ -116,14 +118,18 @@ export function startJobRunner(options: JobRunnerOptions): JobRunner {
     running.delete(job.id);
     schedule();
 
-    const end = (state: "done" | "failed" | "stopped", partial = false, pages?: number) =>
+    const end = (state: "done" | "planned" | "failed" | "stopped", partial = false, pages?: number) =>
       onRun?.({ phase: "end", helper: job.helper, job: job.id, state, ms: Date.now() - started, ...(pages !== undefined ? { pages } : {}), partial });
     if (closed) return;
     // Stopped or deleted (here or in the moment before): the store already says so, and the result is dropped.
     if (outcome === "cancelled" || store.get(job.id)?.state !== "running") return end("stopped");
     const timeMessage = `Took longer than ${minutes(timeLimitMs)}`;
     try {
-      if (typeof outcome === "object" && "value" in outcome) {
+      if (typeof outcome === "object" && "value" in outcome && outcome.value.plan) {
+        store.savePlan(job.id, outcome.value.plan);
+        end("planned");
+      } else if (typeof outcome === "object" && "value" in outcome) {
+        if (!outcome.value.report) throw new Error("The run ended without a report.");
         const partial = Boolean(outcome.value.partial) || timedOut;
         store.finish(job.id, outcome.value.report, partial);
         end("done", partial, outcome.value.pages);
@@ -140,7 +146,12 @@ export function startJobRunner(options: JobRunnerOptions): JobRunner {
 
   const unsubscribe = store.onChange((change) => {
     // A new task, or one that ended (its waiting tasks may now start), or a change to what a task waits for.
-    if ((change.action === "job" && change.state !== "running") || change.action === "blockers" || change.action === "deleted" || change.action === "budget") schedule();
+    if (
+      (change.action === "job" && change.state !== "running") ||
+      ["blockers", "deleted", "budget", "plan"].includes(change.action)
+    ) {
+      schedule();
+    }
     if ((change.action === "job" && change.state === "stopped") || change.action === "deleted") {
       const entry = running.get(change.job);
       if (!entry) return;
