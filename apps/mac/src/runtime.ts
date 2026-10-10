@@ -42,8 +42,10 @@ import {
   type EpisodeRecorder,
   type MemoryStore,
 } from "@zeno/memory";
+import { openHelperStore, type HelperStore } from "@zeno/helpers";
 import type { InputSource, Message } from "@zeno/contracts";
-import type { IslandMemory } from "./island.ts";
+import type { IslandHelpers, IslandMemory } from "./island.ts";
+import { islandHelpers } from "./island-helpers.ts";
 import { createWindowPointer, type WindowPointer } from "./screen-context.ts";
 import { withPointing } from "./pointing.ts";
 import { AudioError, defaultInputDevice, startRecording } from "./audio.ts";
@@ -78,6 +80,10 @@ export interface Runtime {
   memory?: MemoryStore;
   /** The memory as Settings sees it (list, forget, clear, change updates). Undefined when memory is off. */
   islandMemory?: IslandMemory;
+  /** Helpers' apps, jobs and reports (ADR-081). Undefined when the store could not open. */
+  helpers?: HelperStore;
+  /** The helpers as the Helpers window sees them. Undefined when the store could not open. */
+  islandHelpers?: IslandHelpers;
   /** Wisp dropped on a window (ADR-074): that app's read, held for the next request only. */
   screen: WindowPointer;
   /** Countdown timers (ADR-061). */
@@ -97,6 +103,8 @@ export interface RuntimeOptions {
   settingsPath?: string;
   /** The memory file (ADR-058). Default: ZENO_MEMORY_FILE or data/memory.db; ":memory:" for tests. */
   memoryPath?: string;
+  /** The helpers file (ADR-081). Default: ZENO_HELPERS_FILE or data/helpers.db; ":memory:" for tests. */
+  helpersPath?: string;
 }
 
 export function createRuntime(
@@ -127,6 +135,7 @@ export function createRuntime(
       return () => memoryListeners.delete(listener);
     },
   };
+  const helpers = openHelpers(options.helpersPath ?? process.env.ZENO_HELPERS_FILE ?? "data/helpers.db", log);
   const timerListeners = new Set<(timer: TimerInfo) => void>();
   const timers = createTimers({
     onFire: (timer) => {
@@ -303,6 +312,7 @@ export function createRuntime(
     tts,
     computer,
     ...(memory ? { memory, islandMemory } : {}),
+    ...(helpers ? { helpers, islandHelpers: islandHelpers(helpers, installedApps) } : {}),
     screen,
     timers,
     onTimer(listener) {
@@ -333,6 +343,22 @@ function openMemory(path: string, log: Logger): MemoryStore | undefined {
     return store;
   } catch (error) {
     log.error("memory.unavailable", { ...errorFields(error) });
+    return undefined;
+  }
+}
+
+/**
+ * Opens the helper store (ADR-081), or returns undefined if the file cannot be opened (ZENO still runs; the
+ * island is told there are no helpers). Every change is logged by ids, state and timing only, never task or report text.
+ */
+function openHelpers(path: string, log: Logger): HelperStore | undefined {
+  try {
+    const store = openHelperStore({ path });
+    store.onChange((change) => log.info("helpers.change", change));
+    log.info("helpers.open");
+    return store;
+  } catch (error) {
+    log.error("helpers.unavailable", { ...errorFields(error) });
     return undefined;
   }
 }

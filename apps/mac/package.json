@@ -6,6 +6,7 @@
     "@huggingface/transformers": "3.8.1",
     "@zeno/core": "workspace:*",
     "@zeno/llm-gateway": "workspace:*",
+    "@zeno/helpers": "workspace:*",
     "@zeno/memory": "workspace:*",
     "@zeno/contracts": "workspace:*",
     "@zeno/shared": "workspace:*",

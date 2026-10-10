@@ -277,6 +277,7 @@ The island reads the keyboard and the pointer position system-wide, so its limit
   - `open_app` may open System Settings. It only opens it; computer control still never clicks or types in it.
   - The island may press the system play/pause media key (`media.key`), using the Accessibility permission it holds for dictation. It presses that one key and nothing else.
   - `open_url` with `same_tab` may load a web address in the browser tab in front (Chrome, Arc, Edge or Brave, normal windows only) when that tab shows the same site. It reads the tab's address only to compare the site, and neither logs nor keeps it.
+- Helpers (ADR-081, Task 3.1): Sid, Kame and Puff's apps, jobs and reports live in a local SQLite file (`data/helpers.db`, not in git). The task, report and source addresses are never logged; logs hold the helper, the job id, its state and timings. A helper's app must be an installed app. Report sources are kept and opened only when they are http or https. Jobs do not run yet (Task 3.2 adds the research run, with web tools only).
 - Drop Wisp on a window (ADR-074): only while Option is held during a drag, the island reads the window list's owner, layer and frame to find and outline the window under the pointer. It never reads window titles, so it needs no Screen Recording. On the drop, the runtime reads that app once with `front_window`'s rules and keeps the result for the next request only (30 s at most, cleared by a new conversation). Logs hold the bundle id only.
 
 ---

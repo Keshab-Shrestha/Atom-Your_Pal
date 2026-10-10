@@ -28,6 +28,7 @@ struct ExpandedView: View {
                     Waveform(levels: model.meter.history, color: theme.live.color)
                         .frame(width: 46, height: 20)
                 }
+                IconButton(symbol: "person.2.fill", label: "Helpers") { model.openHelpers() }
                 IconButton(symbol: "xmark", label: "Close (Esc)") { model.setExpanded(false) }
             }
             .padding(.horizontal, 12)

@@ -78,6 +78,47 @@ enum IslandGallery {
         writeThemes(model: model, to: directory)
         writeSetup(to: directory, conversation: filled)
         writeEveryday(to: directory)
+        writeHelpers(to: directory)
+    }
+
+    /// ADR-081: the Helpers window with Sid running one job and done with another, Kame and Puff coming soon; Sid's
+    /// report open; and the job list in the light Warm theme.
+    private static func writeHelpers(to directory: URL) {
+        let suite = "zeno.gallery.helpers.\(ProcessInfo.processInfo.processIdentifier)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let iso = ISO8601DateFormatter()
+        let ago = { (minutes: Double) in iso.string(from: Date().addingTimeInterval(-minutes * 60)) }
+        let helpers = #"{"type":"helpers","apps":["Brave Browser","Notes","Safari"],"helpers":[{"id":"sid","name":"Sid","available":true,"app":"Brave Browser","jobs":[{"id":2,"task":"Research how IPv6 is rolled out in home routers","state":"running","createdAt":"\#(ago(4))","step":"Reading 3 of 8 pages"},{"id":1,"task":"Research networking basics for a beginner","state":"done","createdAt":"\#(ago(52))","endedAt":"\#(ago(41))","title":"Networking basics","summary":"How data finds its way from your Mac to a website and back."}]},{"id":"kame","name":"Kame","available":false,"app":null,"jobs":[]},{"id":"puff","name":"Puff","available":false,"app":null,"jobs":[]}]}"#
+        let report = #"{"type":"report","id":1,"title":"Networking basics","summary":"How data finds its way from your Mac to a website and back.","body":"Every device on a network has an address. Your router hands one to your Mac, and translates between your home network and the internet.\n\nData travels in small packets. Each packet carries where it is going, and routers along the way pass it on, one hop at a time.\n\nNames like apple.com are turned into addresses by DNS before any packet is sent.","sources":[{"title":"How the Internet works","url":"https://developer.mozilla.org/en-US/docs/Learn/Common_questions/Web_mechanics/How_does_the_Internet_work"},{"title":"Internet Protocol (RFC 791)","url":"https://www.rfc-editor.org/rfc/rfc791"}]}"#
+        func model(_ theme: AppTheme) -> IslandModel {
+            let m = IslandModel(settings: IslandSettings(defaults: defaults))
+            m.settings.theme = theme
+            if let event = try? decodeEvent(helpers) { m.apply(event) } else {
+                FileHandle.standardError.write(Data("gallery: could not decode helpers\n".utf8))
+            }
+            return m
+        }
+        func window(_ title: String, _ m: IslandModel) -> some View {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.75))
+                frozen(HelpersView(model: m).environment(\.islandSnapshot, true).frame(width: 720, height: 520))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+        }
+        let reading = model(.native)
+        _ = reading.helpers.openReport(1)
+        if let event = try? decodeEvent(report) { reading.apply(event) }
+        let sheet = VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top, spacing: 18) {
+                window("Helpers: Sid running and done, Kame and Puff coming soon", model(.native))
+                window("Sid's report", reading)
+            }
+            window("Warm (light)", model(.warm))
+        }
+        .padding(24)
+        .background(Color(red: 0.36, green: 0.42, blue: 0.52))
+        save(sheet, name: "13-helpers", to: directory)
     }
 
     /// ADR-076: What can I ask? (before and after `capabilities`), the empty conversation with examples, the plan

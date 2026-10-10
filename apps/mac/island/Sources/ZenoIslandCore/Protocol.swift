@@ -25,6 +25,14 @@ public enum IslandCommand: Sendable, Equatable {
     case textSend(String)
     /// The user dropped Wisp on a window to ask about it (ADR-074): its app, never the window's title.
     case contextWindow(bundleId: String, name: String)
+    /// Helpers (ADR-081): ask for the list (and its changes from then on), give a helper its app (`""` for none),
+    /// give it a job, stop or forget a job, ask for a job's report.
+    case helpersList
+    case helperSet(helper: String, app: String)
+    case jobAdd(helper: String, task: String)
+    case jobStop(id: Int)
+    case jobDelete(id: Int)
+    case reportGet(id: Int)
 
     /// The command's `type` field. Safe for logs: never includes values.
     public var type: String {
@@ -43,6 +51,12 @@ public enum IslandCommand: Sendable, Equatable {
         case .episodeClear: "episode.clear"
         case .textSend: "text.send"
         case .contextWindow: "context.window"
+        case .helpersList: "helpers.list"
+        case .helperSet: "helper.set"
+        case .jobAdd: "job.add"
+        case .jobStop: "job.stop"
+        case .jobDelete: "job.delete"
+        case .reportGet: "report.get"
         }
     }
 
@@ -69,6 +83,18 @@ public enum IslandCommand: Sendable, Equatable {
         if case .contextWindow(let bundleId, let name) = self {
             fields["bundleId"] = bundleId
             fields["name"] = name
+        }
+        switch self {
+        case .helperSet(let helper, let app):
+            fields["helper"] = helper
+            fields["app"] = app
+        case .jobAdd(let helper, let task):
+            fields["helper"] = helper
+            fields["task"] = task
+        case .jobStop(let id), .jobDelete(let id), .reportGet(let id):
+            fields["id"] = id // a JSON number
+        default:
+            break
         }
         // A dictionary of strings and booleans is always valid JSON, so this cannot fail.
         guard let data = try? JSONSerialization.data(withJSONObject: fields, options: [.sortedKeys, .withoutEscapingSlashes]),
@@ -301,6 +327,10 @@ public enum IslandEvent: Sendable, Equatable {
     case settingsOpen
     /// Press a system media key once (ADR-071).
     case mediaKey(MediaKey)
+    /// Every helper and its recent jobs (ADR-081): after every helper command, and on changes once asked.
+    case helpers(HelpersList)
+    /// One job's report, after `report.get`.
+    case report(HelperReport)
     case error(RuntimeError)
     /// A newer runtime sent an event this island does not know; ignored for forward compatibility.
     case unknown(type: String)
@@ -330,6 +360,8 @@ public enum IslandEvent: Sendable, Equatable {
         case .planUsage: "plan.usage"
         case .settingsOpen: "settings.open"
         case .mediaKey: "media.key"
+        case .helpers: "helpers"
+        case .report: "report"
         case .error(let e): "error:\(e.stage)"
         case .unknown(let type): "unknown:\(type)"
         }
@@ -425,6 +457,11 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
     case "media.key":
         guard let key = MediaKey(rawValue: try f.string("key")) else { throw ProtocolError.invalidValue(event: type, field: "key") }
         return .mediaKey(key)
+    case "helpers":
+        return .helpers(HelpersList(helpers: try f.helpers(), apps: try f.strings("apps")))
+    case "report":
+        return .report(HelperReport(id: try f.int("id"), title: try f.string("title"), summary: try f.string("summary"),
+                                    body: try f.string("body"), sources: try f.sources()))
     case "error":
         return .error(RuntimeError(
             stage: try f.string("stage"),
@@ -546,6 +583,68 @@ private struct Fields {
         guard let n = values[key] as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID(),
               PlanUsage.validRange.contains(n.doubleValue) else { return nil }
         return n.doubleValue
+    }
+
+    /// A list of strings (the `apps` of a `helpers` event); anything else in it makes it invalid.
+    func strings(_ key: String) throws -> [String] {
+        guard let value = values[key] else { throw ProtocolError.missingField(event: event, field: key) }
+        guard let list = value as? [Any], let strings = list as? [String] else { throw ProtocolError.invalidValue(event: event, field: key) }
+        return strings
+    }
+
+    /// The `helpers` list of a `helpers` event; any malformed helper or job makes the whole list invalid.
+    func helpers() throws -> [Helper] {
+        guard let value = values["helpers"] else { throw ProtocolError.missingField(event: event, field: "helpers") }
+        let invalid = ProtocolError.invalidValue(event: event, field: "helpers")
+        guard let entries = value as? [Any] else { throw invalid }
+        return try entries.map { entry in
+            guard let h = entry as? [String: Any],
+                  let id = h["id"] as? String, let name = h["name"] as? String,
+                  let available = h["available"] as? NSNumber, CFGetTypeID(available) == CFBooleanGetTypeID(),
+                  let jobs = h["jobs"] as? [Any]
+            else { throw invalid }
+            // `app` is a name or null (absent is read as null).
+            let app = h["app"]
+            guard app == nil || app is NSNull || app is String else { throw invalid }
+            return Helper(id: id, name: name, available: available.boolValue, app: app as? String, jobs: try jobs.map { entry in
+                guard let job = job(entry) else { throw invalid }
+                return job
+            })
+        }
+    }
+
+    private func job(_ entry: Any) -> HelperJob? {
+        guard let j = entry as? [String: Any],
+              let id = j["id"] as? NSNumber, CFGetTypeID(id) != CFBooleanGetTypeID(),
+              let task = j["task"] as? String,
+              let state = (j["state"] as? String).flatMap(JobState.init(rawValue:)),
+              let createdAt = j["createdAt"] as? String
+        else { return nil }
+        let partial = (j["partial"] as? NSNumber).map { CFGetTypeID($0) == CFBooleanGetTypeID() && $0.boolValue } ?? false
+        return HelperJob(id: id.intValue, task: task, state: state, createdAt: Self.date(createdAt),
+                         endedAt: (j["endedAt"] as? String).flatMap(Self.date), step: j["step"] as? String, partial: partial,
+                         title: j["title"] as? String, summary: j["summary"] as? String, error: j["error"] as? String)
+    }
+
+    /// ISO 8601, with or without fractional seconds.
+    private static func date(_ string: String) -> Date? {
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = iso.date(from: string) { return date }
+        iso.formatOptions = [.withInternetDateTime]
+        return iso.date(from: string)
+    }
+
+    /// The `sources` of a `report` event. A source that is not an http(s) address is dropped: nothing else is opened.
+    func sources() throws -> [ReportSource] {
+        guard let value = values["sources"] else { throw ProtocolError.missingField(event: event, field: "sources") }
+        let invalid = ProtocolError.invalidValue(event: event, field: "sources")
+        guard let entries = value as? [Any] else { throw invalid }
+        return try entries.compactMap { entry in
+            guard let s = entry as? [String: Any], let title = s["title"] as? String, let url = s["url"] as? String
+            else { throw invalid }
+            return ReportSource.webURL(url).map { ReportSource(title: title, url: $0) }
+        }
     }
 
     func optionalBool(_ key: String) -> Bool? {

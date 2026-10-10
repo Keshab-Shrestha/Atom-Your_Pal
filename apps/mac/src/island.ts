@@ -13,7 +13,9 @@ import {
   type IslandCommand,
   type IslandEvent,
   type EpisodeItem,
+  type HelperItem,
   type MemoryItem,
+  type ReportEvent,
 } from "./island-protocol.ts";
 import type { ComputerBridge } from "./computer-bridge.ts";
 import type { WindowPointer } from "./screen-context.ts";
@@ -40,6 +42,8 @@ export interface IslandOptions {
   computer?: Pick<ComputerBridge, "attach" | "answer" | "cancelAll">;
   /** What ZENO keeps (ADR-058), for Settings. Absent when memory is off: `memory.*` answers `enabled: false`. */
   memory?: IslandMemory;
+  /** Helpers and their jobs (ADR-081). Absent when their file could not be opened: no helpers are listed. */
+  helpers?: IslandHelpers;
   /** Wisp dropped on a window (ADR-074): reads that app once for the next request. Absent: `context.window` is refused. */
   screen?: Pick<WindowPointer, "point" | "clear">;
   /**
@@ -79,6 +83,24 @@ export interface IslandMemory {
   /** Called after ZENO keeps or forgets something by itself (the remember / forget tools). Returns an unsubscribe. */
   onChange(listener: () => void): () => void;
 }
+
+export interface IslandHelpers {
+  /** Every helper with its newest jobs, in the fixed order. */
+  list(): HelperItem[];
+  /** Installed app names, sorted: the choices for `helper.set`. */
+  apps(): Promise<string[]>;
+  /** Throws, with words for the user, for an unknown helper. */
+  setApp(helper: string, app: string): void;
+  /** Throws, with words for the user, for an unknown or unavailable helper or an empty or long task. */
+  addJob(helper: string, task: string): void;
+  stop(id: number): boolean;
+  remove(id: number): boolean;
+  report(id: number): Omit<ReportEvent, "type"> | undefined;
+  /** Called after every change to helpers or jobs. Returns an unsubscribe. */
+  onChange(listener: () => void): () => void;
+}
+
+const HELPERS_OFF = "Helpers are off: their file could not be opened.";
 
 export interface IslandSession {
   readonly loop: VoiceLoop;
@@ -216,11 +238,76 @@ export function runIsland(options: IslandOptions): IslandSession {
         sendMemory();
         return;
       }
+      case "helpers.list":
+        helpersWatched = true; // from now on, every job change is sent too
+        sendHelpers();
+        return;
+      case "helper.set":
+        void setHelperApp(command.helper, command.app);
+        return;
+      case "job.add":
+        changeHelpers(command.type, (helpers) => helpers.addJob(command.helper, command.task));
+        return;
+      case "job.stop":
+        options.helpers?.stop(command.id); // unknown or finished: ignored
+        sendHelpers();
+        return;
+      case "job.delete":
+        options.helpers?.remove(command.id);
+        sendHelpers();
+        return;
+      case "report.get": {
+        const report = options.helpers?.report(command.id);
+        if (report) send({ type: "report", ...report });
+        else refuseHelpers(command.type, options.helpers ? "That job has no report." : HELPERS_OFF);
+        return;
+      }
       case "quit":
         quit();
         return;
     }
   }
+
+  // ADR-081: helpers. Store changes are logged by the runtime (ids and states only); refusals log the command only.
+  let helpersWatched = false;
+  let helpersQueued = false;
+  /** Sends `helpers` once for any number of changes in the same moment (a command and the change it causes). */
+  function sendHelpers() {
+    if (helpersQueued) return;
+    helpersQueued = true;
+    void appNames().then((apps) => {
+      helpersQueued = false;
+      send({ type: "helpers", helpers: options.helpers?.list() ?? [], apps });
+    });
+  }
+  function appNames(): Promise<string[]> {
+    if (!options.helpers) return Promise.resolve([]);
+    return options.helpers.apps().catch((error: unknown) => {
+      options.log?.warn("helpers.apps_failed", { message: describe(error) });
+      return [];
+    });
+  }
+  function refuseHelpers(command: string, message: string) {
+    options.log?.warn("helpers.refused", { command });
+    send({ type: "error", stage: "settings", message });
+  }
+  function changeHelpers(command: string, change: (helpers: IslandHelpers) => void) {
+    if (!options.helpers) return refuseHelpers(command, HELPERS_OFF);
+    try {
+      change(options.helpers);
+    } catch (error) {
+      return refuseHelpers(command, describe(error));
+    }
+    sendHelpers();
+  }
+  async function setHelperApp(helper: string, app: string) {
+    if (!options.helpers) return refuseHelpers("helper.set", HELPERS_OFF);
+    if (app && !(await appNames()).includes(app)) return refuseHelpers("helper.set", "That app is not installed.");
+    changeHelpers("helper.set", (helpers) => helpers.setApp(helper, app));
+  }
+  const stopHelperUpdates = options.helpers?.onChange(() => {
+    if (helpersWatched) sendHelpers();
+  });
 
   function sendMemory() {
     const memory = options.memory;
@@ -298,6 +385,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     if (quitting) return;
     quitting = true;
     stopMemoryUpdates?.();
+    stopHelperUpdates?.();
     stopPlanUsage?.();
     stopTimers?.();
     options.log?.info("app.quit");

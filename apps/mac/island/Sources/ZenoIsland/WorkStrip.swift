@@ -8,11 +8,12 @@ import ZenoIslandCore
 // MARK: - Menu-bar icon
 
 /// ZENO's menu-bar icon: its symbol and colour follow ZENO's state. A click opens or closes the panel;
-/// right-click (or Control-click) shows Open ZENO, Show Wisp and Quit ZENO.
+/// right-click (or Control-click) shows Open ZENO, Helpers…, Show Wisp and Quit ZENO.
 @MainActor
 final class MenuBarIcon: NSObject {
     var onClick: () -> Void = {}
     var onShowWisp: (Bool) -> Void = { _ in }
+    var onHelpers: () -> Void = {}
     var isWispShown: () -> Bool = { false }
     private let item: NSStatusItem
     private var kind: IslandStatus.Kind?
@@ -81,6 +82,9 @@ final class MenuBarIcon: NSObject {
         let open = NSMenuItem(title: "Open ZENO", action: #selector(openPanel), keyEquivalent: "")
         open.target = self
         menu.addItem(open)
+        let helpers = NSMenuItem(title: "Helpers…", action: #selector(openHelpers), keyEquivalent: "")
+        helpers.target = self
+        menu.addItem(helpers)
         let wisp = NSMenuItem(title: "Show Wisp", action: #selector(toggleWisp), keyEquivalent: "")
         wisp.target = self
         wisp.state = isWispShown() ? .on : .off
@@ -96,6 +100,7 @@ final class MenuBarIcon: NSObject {
     }
 
     @objc private func openPanel() { onClick() }
+    @objc private func openHelpers() { onHelpers() }
     @objc private func toggleWisp() { onShowWisp(!isWispShown()) }
     @objc private func quit() { NSApp.terminate(nil) }
 }

@@ -168,3 +168,41 @@ test("plan usage keeps only sane shares and a true/false overage, and nothing el
   assert.deepEqual(planUsageEvent(extra), { type: "plan.usage", fiveHour: 0.3 });
   assert.equal(planUsageEvent({}), undefined);
 });
+
+// --- helpers (ADR-081) ---
+
+test("parses the helper commands", () => {
+  const good: object[] = [
+    { type: "helpers.list" },
+    { type: "helper.set", helper: "sid", app: "Brave Browser" },
+    { type: "helper.set", helper: "sid", app: "" },
+    { type: "job.add", helper: "sid", task: "research networking" },
+    { type: "job.add", helper: "sid", task: "" }, // refused later by the store, with stage "settings"
+    { type: "job.stop", id: 12 },
+    { type: "job.delete", id: 12 },
+    { type: "report.get", id: 12 },
+  ];
+  for (const command of good) assert.deepEqual(parseCommand(JSON.stringify(command)), { command }, JSON.stringify(command));
+  assert.deepEqual(parseCommand('{"type":"helpers.list","extra":1}'), { command: { type: "helpers.list" } });
+});
+
+test("helper commands with missing or wrong fields are protocol errors", () => {
+  const bad: [object, RegExp][] = [
+    [{ type: "helper.set", app: "Notes" }, /"helper"/],
+    [{ type: "helper.set", helper: "", app: "Notes" }, /"helper"/],
+    [{ type: "helper.set", helper: "sid" }, /"app"/],
+    [{ type: "helper.set", helper: "sid", app: null }, /"app"/],
+    [{ type: "job.add", task: "x" }, /"helper"/],
+    [{ type: "job.add", helper: 1, task: "x" }, /"helper"/],
+    [{ type: "job.add", helper: "sid", task: 5 }, /"task"/],
+    [{ type: "job.stop" }, /whole number/],
+    [{ type: "job.stop", id: "12" }, /whole number/],
+    [{ type: "job.delete", id: 1.5 }, /whole number/],
+    [{ type: "report.get", id: 0 }, /whole number/],
+  ];
+  for (const [command, expected] of bad) {
+    const parsed = parseCommand(JSON.stringify(command));
+    assert.ok("error" in parsed, JSON.stringify(command));
+    assert.match(parsed.error, expected, JSON.stringify(command));
+  }
+});

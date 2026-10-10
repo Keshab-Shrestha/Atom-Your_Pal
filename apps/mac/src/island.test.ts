@@ -15,6 +15,8 @@ import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
 import type { CoreLike } from "./voice-loop.ts";
 import { createComputerBridge } from "./computer-bridge.ts";
+import { openHelperStore } from "@zeno/helpers";
+import { islandHelpers } from "./island-helpers.ts";
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 const clip = (durationMs = 1500): AudioClip => ({ pcm: Buffer.alloc(4), sampleRate: 16_000, durationMs });
@@ -34,6 +36,7 @@ function islandHarness(
     settings: IslandOptions["settings"];
     computer: IslandOptions["computer"];
     memory: IslandOptions["memory"];
+    helpers: IslandOptions["helpers"];
     onTimer: IslandOptions["onTimer"];
     screen: IslandOptions["screen"];
     capabilities: IslandOptions["capabilities"];
@@ -83,6 +86,7 @@ function islandHarness(
     settings: over.settings,
     computer: over.computer,
     ...(over.memory ? { memory: over.memory } : {}),
+    ...(over.helpers ? { helpers: over.helpers } : {}),
     ...(over.onTimer ? { onTimer: over.onTimer } : {}),
     ...(over.screen ? { screen: over.screen } : {}),
     ...(over.capabilities ? { capabilities: over.capabilities } : {}),
@@ -603,6 +607,143 @@ test("memory commands with memory off answer enabled: false; a bad id is a proto
   for (const e of h.events()) assert.equal((e as { stage: string }).stage, "protocol");
 });
 
+// --- helpers (ADR-081) ---
+
+function helperHarness() {
+  const store = openHelperStore({ path: ":memory:" });
+  const h = islandHarness({ helpers: islandHelpers(store, async () => ["Notes", "Brave Browser", "Arc"]) });
+  return { store, h };
+}
+type HelpersEvent = Extract<IslandEvent, { type: "helpers" }>;
+
+test("helpers.list sends every helper in order with the installed apps, sorted", async () => {
+  const { h } = helperHarness();
+  await tick(5);
+  h.clear();
+  await h.send({ type: "helpers.list" });
+  assert.deepEqual(h.events(), [
+    {
+      type: "helpers",
+      helpers: [
+        { id: "sid", name: "Sid", available: true, app: null, jobs: [] },
+        { id: "kame", name: "Kame", available: false, app: null, jobs: [] },
+        { id: "puff", name: "Puff", available: false, app: null, jobs: [] },
+      ],
+      apps: ["Arc", "Brave Browser", "Notes"],
+    },
+  ]);
+});
+
+test("helper.set gives Sid an installed app; an unknown helper or app is refused with stage settings and nothing changes", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  h.clear();
+  await h.send({ type: "helper.set", helper: "sid", app: "Brave Browser" });
+  assert.deepEqual(h.types(), ["helpers"]);
+  assert.equal((h.events()[0] as HelpersEvent).helpers[0]!.app, "Brave Browser");
+  h.clear();
+  await h.send({ type: "helper.set", helper: "sid", app: "Safari" }, { type: "helper.set", helper: "bob", app: "Notes" });
+  assert.deepEqual(h.types(), ["error", "error"]);
+  for (const e of h.events()) assert.equal((e as { stage: string }).stage, "settings");
+  assert.equal(store.list()[0]!.app, "Brave Browser");
+  h.clear();
+  await h.send({ type: "helper.set", helper: "sid", app: "" });
+  assert.equal((h.events()[0] as HelpersEvent).helpers[0]!.app, null);
+});
+
+test("job.add queues a job for Sid; empty, long, unknown or unavailable is refused with stage settings", async () => {
+  const { h } = helperHarness();
+  await tick(5);
+  h.clear();
+  await h.send({ type: "job.add", helper: "sid", task: "  research networking  " });
+  assert.deepEqual(h.types(), ["helpers"], "one helpers event, not one for the command and one for the change");
+  const job = (h.events()[0] as HelpersEvent).helpers[0]!.jobs[0]!;
+  assert.deepEqual([job.task, job.state, typeof job.createdAt], ["research networking", "queued", "string"]);
+  assert.equal(Object.hasOwn(job, "endedAt"), false);
+  h.clear();
+  await h.send(
+    { type: "job.add", helper: "sid", task: "   " },
+    { type: "job.add", helper: "sid", task: "x".repeat(1001) },
+    { type: "job.add", helper: "kame", task: "x" },
+    { type: "job.add", helper: "bob", task: "x" },
+  );
+  assert.deepEqual(h.types(), ["error", "error", "error", "error"]);
+  for (const e of h.events()) assert.equal((e as { stage: string }).stage, "settings");
+});
+
+test("job.stop and job.delete answer with helpers; unknown ids are ignored", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  const id = store.addJob("sid", "research networking").id;
+  h.clear();
+  await h.send({ type: "job.stop", id });
+  assert.equal((h.events().at(-1) as HelpersEvent).helpers[0]!.jobs[0]!.state, "stopped");
+  assert.ok((h.events().at(-1) as HelpersEvent).helpers[0]!.jobs[0]!.endedAt);
+  await h.send({ type: "job.stop", id }, { type: "job.stop", id: 999 }, { type: "job.delete", id: 999 });
+  assert.deepEqual(h.types(), ["helpers", "helpers", "helpers", "helpers"]);
+  h.clear();
+  await h.send({ type: "job.delete", id });
+  assert.deepEqual((h.events().at(-1) as HelpersEvent).helpers[0]!.jobs, []);
+});
+
+test("after helpers.list, job changes made elsewhere (the runner) are sent; before it, nothing is", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  h.clear();
+  const id = store.addJob("sid", "research networking").id;
+  await tick(2);
+  assert.deepEqual(h.types(), [], "an island that never asked gets no helpers events");
+  await h.send({ type: "helpers.list" });
+  h.clear();
+  store.start(id);
+  store.step(id, "Searching"); // sent together with the start: one event for changes in the same moment
+  await tick(2);
+  assert.deepEqual(h.types(), ["helpers"]);
+  const running = (h.events().at(-1) as HelpersEvent).helpers[0]!.jobs[0]!;
+  assert.deepEqual([running.state, running.step], ["running", "Searching"]);
+  h.clear();
+  store.finish(id, { title: "Networking", summary: "The basics.", body: "One.\n\nTwo.", sources: [] }, true);
+  await tick(2);
+  const done = (h.events().at(-1) as HelpersEvent).helpers[0]!.jobs[0]!;
+  assert.deepEqual([done.state, done.partial, done.title, done.summary, Object.hasOwn(done, "step")], ["done", true, "Networking", "The basics.", false]);
+});
+
+test("report.get sends the report; a job without one is an error with stage settings", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  const id = store.addJob("sid", "research networking").id;
+  store.start(id);
+  store.finish(id, {
+    title: "Networking",
+    summary: "The basics.",
+    body: "One.\n\nTwo.",
+    sources: [
+      { title: "MDN", url: "https://developer.mozilla.org/" },
+      { title: "Bad", url: "javascript:alert(1)" },
+    ],
+  });
+  const other = store.addJob("sid", "another").id;
+  h.clear();
+  await h.send({ type: "report.get", id }, { type: "report.get", id: other }, { type: "report.get", id: 999 });
+  assert.deepEqual(h.events(), [
+    { type: "report", id, title: "Networking", summary: "The basics.", body: "One.\n\nTwo.", sources: [{ title: "MDN", url: "https://developer.mozilla.org/" }] },
+    { type: "error", stage: "settings", message: "That job has no report." },
+    { type: "error", stage: "settings", message: "That job has no report." },
+  ]);
+});
+
+test("with helpers off: helpers.list and stop/delete answer an empty list; set, add and report are refused", async () => {
+  const h = islandHarness();
+  await tick(5);
+  h.clear();
+  await h.send({ type: "helpers.list" }, { type: "job.stop", id: 1 }, { type: "job.delete", id: 1 });
+  for (const e of h.events()) assert.deepEqual(e, { type: "helpers", helpers: [], apps: [] });
+  assert.equal(h.events().length, 3);
+  h.clear();
+  await h.send({ type: "helper.set", helper: "sid", app: "Notes" }, { type: "job.add", helper: "sid", task: "x" }, { type: "report.get", id: 1 });
+  assert.deepEqual(h.types(), ["error", "error", "error"]);
+  for (const e of h.events()) assert.deepEqual(e, { type: "error", stage: "settings", message: "Helpers are off: their file could not be opened." });
+});
 
 // --- timers (ADR-061) ---
 

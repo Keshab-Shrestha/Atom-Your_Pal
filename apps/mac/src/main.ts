@@ -99,6 +99,7 @@ function start(config: Config) {
     settings: runtime.settings,
     computer: runtime.computer,
     ...(runtime.islandMemory ? { memory: runtime.islandMemory } : {}),
+    ...(runtime.islandHelpers ? { helpers: runtime.islandHelpers } : {}),
     onTimer: runtime.onTimer,
     capabilities: runtime.capabilities,
     onPlanUsage: runtime.onPlanUsage,

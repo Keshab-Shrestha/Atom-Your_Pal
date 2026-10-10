@@ -22,6 +22,8 @@ final class IslandController {
     private let strip: WorkStripController
     /// The short label beside Wisp while it points.
     private let pointLabel = PointLabelController()
+    /// The Helpers window (ADR-081).
+    private let helpersWindow: HelpersWindowController
     /// Talk was started by its shortcut and not yet sent or cancelled.
     private var talking = false
     /// This Talk is going through the app's own microphone and Parakeet (ADR-063), not the runtime's.
@@ -80,6 +82,7 @@ final class IslandController {
         model = IslandModel(settings: settings)
         bubble = BubbleController(model: model)
         strip = WorkStripController(model: model)
+        helpersWindow = HelpersWindowController(model: model)
         shortcuts = ShortcutEngine(settings: settings, recorder: model.recorder, log: log)
         pet = PetController(settings: settings, trace: trace)
         dictation = DictationController(vocabularyURL: IslandController.vocabularyURL)
@@ -93,6 +96,10 @@ final class IslandController {
         model.perform = { [weak self] action in self?.perform(action) }
         model.permissionButton = { [weak self] row in self?.permissionButton(row) }
         model.replayTour = { [weak self] in self?.replayTour() }
+        model.openHelpers = { [weak self] in
+            self?.setExpanded(false) // the panel floats above every window
+            self?.helpersWindow.show()
+        }
         panel.onCancel = { [weak self] in self?.setExpanded(false) }
         menuIcon.onClick = { [weak self] in
             guard let self else { return }
@@ -100,6 +107,7 @@ final class IslandController {
         }
         menuIcon.isWispShown = { [weak model] in model?.settings.petEnabled ?? false }
         menuIcon.onShowWisp = { [weak model] enabled in model?.setPet(enabled) }
+        menuIcon.onHelpers = { [weak model] in model?.openHelpers() }
         shortcuts.onTrigger = { [weak self] trigger in self?.shortcut(trigger) }
         dictation.onPhase = { [weak self] phase in self?.dictationPhase(phase) }
         dictation.onLevel = { [weak self] peak in
@@ -239,6 +247,7 @@ final class IslandController {
 
     func apply(_ event: IslandEvent) {
         if localListening, case .state(.idle) = event { return } // the turn we interrupted, ending
+        let helperRefusal = model.helpers.claims(event) // shown in the Helpers window, not as ZENO's status
         if case .micLevel = event {} else { model.apply(event) }
         switch event {
         case .micLevel(let peak):
@@ -264,7 +273,7 @@ final class IslandController {
         if case .mediaKey(let key) = event { press(key) }
         if case .timer = event { pet.poke() } // out of hiding: the user should see it (the runtime chimed and spoke)
         let wasBusy = model.status.isBusy
-        model.status.apply(event)
+        if !helperRefusal { model.status.apply(event) }
         if case .state(.idle) = event, wasBusy {
             // A turn just ended: stay out briefly so the outcome is seen.
             linger(model.status.needsAttention ? afterProblem : afterTurn)

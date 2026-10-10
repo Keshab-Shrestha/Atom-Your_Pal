@@ -40,6 +40,10 @@ final class IslandModel {
     var capabilities: [CapabilityItem]?
     /// Claude plan usage (ADR-076), merged from `plan.usage` events. Nil until one arrives: no meters.
     var planUsage: PlanUsage?
+    /// The Helpers window's content (ADR-081): helpers, their jobs, the report being read.
+    var helpers = HelpersState()
+    /// The Helpers window is open: a restarted runtime is asked for the list again.
+    var helpersWindowOpen = false
 
     var expanded = false
     /// The panel is fading out after being closed: it still draws the expanded view until it is gone.
@@ -106,6 +110,8 @@ final class IslandModel {
     @ObservationIgnored var permissionButton: (PermissionRow) -> Void = { _ in }
     /// Settings → General → Replay the tour. Set by the controller.
     @ObservationIgnored var replayTour: () -> Void = {}
+    /// Opens the Helpers window (ADR-081). Set by the controller.
+    @ObservationIgnored var openHelpers: () -> Void = {}
 
     init(settings: IslandSettings) {
         self.settings = settings
@@ -148,6 +154,11 @@ final class IslandModel {
     }
     func forgetAllEpisodes() { send(.episodeClear) }
 
+    /// Sends what a Helpers window action produced, if anything.
+    func sendHelpers(_ command: IslandCommand?) {
+        if let command { send(command) }
+    }
+
     /// A typed request from the Conversation tab. Ignored when empty or too long for the runtime.
     func ask(_ text: String) {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -157,6 +168,9 @@ final class IslandModel {
 
     /// Keeps the conversation and model list in step with the runtime. The status is applied by the controller.
     func apply(_ event: IslandEvent) {
+        let helperRefusal = helpers.claims(event)
+        helpers.apply(event)
+        if helperRefusal { return } // a refused helper command is shown in the Helpers window only
         conversation.apply(event)
         approval.apply(event)
         pointing.apply(event)
@@ -169,6 +183,7 @@ final class IslandModel {
             planUsage = (planUsage ?? PlanUsage()).merging(usage)
         case .ready:
             if memory != nil { send(.memoryList) } // a restarted runtime: ask again so updates keep coming
+            if helpersWindowOpen { send(.helpersList) }
         case .info(let info):
             modelInfo = info
             pendingModel = nil

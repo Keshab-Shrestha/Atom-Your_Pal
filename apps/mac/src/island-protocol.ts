@@ -23,6 +23,12 @@ export type IslandCommand =
   | { type: "episode.forget"; id: number }
   | { type: "episode.clear" }
   | { type: "context.window"; bundleId: string; name: string }
+  | { type: "helpers.list" }
+  | { type: "helper.set"; helper: string; app: string }
+  | { type: "job.add"; helper: string; task: string }
+  | { type: "job.stop"; id: number }
+  | { type: "job.delete"; id: number }
+  | { type: "report.get"; id: number }
   | { type: "quit" };
 
 export type ErrorStage =
@@ -60,6 +66,40 @@ export interface EpisodeItem {
   /** ISO 8601: when the conversation was last summarised. */
   endedAt: string;
   exchanges: number;
+}
+
+/** One helper job (ADR-081). Task and report text travel only over the private pipe; never logged. */
+export interface JobItem {
+  id: number;
+  task: string;
+  state: "queued" | "running" | "done" | "failed" | "stopped";
+  /** ISO 8601. */
+  createdAt: string;
+  endedAt?: string;
+  step?: string;
+  partial?: boolean;
+  title?: string;
+  summary?: string;
+  error?: string;
+}
+
+/** One helper and its newest jobs (ADR-081), in the fixed order. */
+export interface HelperItem {
+  id: string;
+  name: string;
+  available: boolean;
+  app: string | null;
+  jobs: JobItem[];
+}
+
+/** One job's report (ADR-081). Never logged. */
+export interface ReportEvent {
+  type: "report";
+  id: number;
+  title: string;
+  summary: string;
+  body: string;
+  sources: { title: string; url: string }[];
 }
 
 /** Claude plan usage (ADR-076): the share of each window used, 0.42 = 42%. Each field only when the SDK sent a sane one. */
@@ -101,6 +141,8 @@ export type IslandEvent =
   | { type: "capabilities"; items: Capability[] }
   | PlanUsageEvent
   | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[] }
+  | { type: "helpers"; helpers: HelperItem[]; apps: string[] }
+  | ReportEvent
   | { type: "error"; stage: ErrorStage; message: string; kind?: string; retryable?: boolean };
 
 const COMMANDS = new Set<IslandCommand["type"]>([
@@ -117,6 +159,12 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "episode.forget",
   "episode.clear",
   "context.window",
+  "helpers.list",
+  "helper.set",
+  "job.add",
+  "job.stop",
+  "job.delete",
+  "report.get",
   "quit",
 ]);
 
@@ -161,7 +209,20 @@ export function parseCommand(line: string): ParsedLine {
     if (!ok(bundleId) || !ok(name)) return { error: 'context.window needs "bundleId" and "name" strings (1 to 200 characters).' };
     return { command: { type, bundleId, name } };
   }
-  if (type === "memory.forget" || type === "episode.forget") {
+  if (type === "helper.set") {
+    const { helper, app } = value as { helper?: unknown; app?: unknown };
+    if (typeof helper !== "string" || helper === "") return { error: 'helper.set needs a "helper" string.' };
+    if (typeof app !== "string") return { error: 'helper.set needs an "app" string ("" for none).' };
+    return { command: { type, helper, app } };
+  }
+  if (type === "job.add") {
+    // An empty or long task is the store's to refuse (stage "settings"), as the protocol says.
+    const { helper, task } = value as { helper?: unknown; task?: unknown };
+    if (typeof helper !== "string" || helper === "") return { error: 'job.add needs a "helper" string.' };
+    if (typeof task !== "string") return { error: 'job.add needs a "task" string.' };
+    return { command: { type, helper, task } };
+  }
+  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.delete" || type === "report.get") {
     const { id } = value as { id?: unknown };
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     return { command: { type, id } };

@@ -699,6 +699,14 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 
 **Done when:** Sid can be set to Brave in the window, the choice survives a restart, and a job added by a test shows up, can be stopped and deleted.
 
+**As built (2026-10-10):** built; tested; seen in the gallery (`13-helpers`); not yet opened on the real screen.
+- `services/helpers` (`@zeno/helpers`): the roster (Sid available; Kame and Puff "coming soon"), the job state machine, and a store in its own SQLite file (`ZENO_HELPERS_FILE`, default `data/helpers.db`, gitignored) with helper apps, jobs and reports. `start`, `step`, `finish` and `fail` are ready for 3.2. A job left running when ZENO closed becomes failed ("ZENO was closed while this job ran"). Sources keep http and https only.
+- Protocol: the six commands and two events in `docs/island-protocol.md`. `helper.set` accepts only an installed app. If the file cannot be opened, the runtime logs `helpers.unavailable` and carries on: the list is empty and `helper.set`, `job.add` and `report.get` are refused ("Helpers are off: their file could not be opened.").
+- Logs: `helpers.change` with helper, job id, state and ms only; never the task, report or addresses.
+- Swift: the Helpers window (720×520, remembers its place, Dock icon and a small menu with Edit commands while open), opened from "Helpers…" in the menu-bar icon's menu and a people button in the panel header. Sid's card shows the app picker, "Give Sid a task", the jobs with Stop, Delete and Read, and the report with its sources (http and https only).
+- Tests: 21 TS (store, state machine, protocol, island) and 14 Swift. 468 TS and 422 Swift tests pass; typecheck clean.
+- Known limit: changing the theme while the window is open updates the title bar only the next time it opens. Jobs stay queued until Task 3.2.
+
 **Task 3.2 — Background jobs: research on the Claude plan.**
 1. A job runner in the runtime: one job per helper, at most two at once, a 15-minute limit and a page limit, cancel by `job.stop`; a running job never blocks the conversation.
 2. The research run: a separate Claude plan session with WebSearch and WebFetch only, no ZENO tools, a prompt that treats pages as data, ending in a structured report (title, one-line summary, body, sources). Progress steps ("Searching", "Reading 3 of 8 pages") go to the window.

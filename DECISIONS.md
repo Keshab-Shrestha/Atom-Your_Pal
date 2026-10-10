@@ -1645,7 +1645,7 @@ Today ZENO does one thing at a time: the Core answers one request and is busy un
 - **A helper's tools are web search and reading pages only.** It cannot use computer control, type, send, buy or change anything. Opening sources in its app and saving a note are done by code after the job, from the report's source list (http and https only).
 - **Pages are data, not instructions** (SECURITY.md §11). The job prompt says so, and a helper has no tool that could act on an injected instruction.
 - **Budget.** At most two jobs run at once across all helpers; each job has a time limit (15 minutes) and a page limit; a job that hits a limit ends with what it has, marked as partial. On the Claude plan every job spends plan; the plan meters (ADR-076) show it.
-- **Storage.** Jobs and reports are kept locally in ZENO's SQLite file, like memory. The task text, report and source addresses are never logged; logs hold the helper, the job id, timings and the outcome.
+- **Storage.** Jobs and reports are kept locally in their own SQLite file (`data/helpers.db`), like memory. The task text, report and source addresses are never logged; logs hold the helper, the job id, timings and the outcome.
 - **Providers.** The first version uses the Claude plan's own web tools (WebSearch and WebFetch, ADR-069). With another provider a helper says it needs the Claude plan; other providers' web tools are a later task.
 
 ### Not taken from Multica (for now)

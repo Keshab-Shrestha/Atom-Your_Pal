@@ -184,6 +184,9 @@ importers:
       '@zeno/core':
         specifier: workspace:*
         version: link:../../services/core
+      '@zeno/helpers':
+        specifier: workspace:*
+        version: link:../../services/helpers
       '@zeno/llm-gateway':
         specifier: workspace:*
         version: link:../../services/llm-gateway
@@ -209,6 +212,8 @@ importers:
       '@zeno/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+
+  services/helpers: {}
 
   services/llm-gateway:
     dependencies:
