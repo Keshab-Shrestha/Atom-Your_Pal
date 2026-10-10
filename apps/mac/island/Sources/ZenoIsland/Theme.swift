@@ -11,7 +11,7 @@ extension RGBA {
     var nsColor: NSColor { NSColor(srgbRed: r, green: g, blue: b, alpha: a) }
 }
 
-private struct ThemeKey: EnvironmentKey { static let defaultValue = ThemePalette.native }
+private struct ThemeKey: EnvironmentKey { static let defaultValue = ThemePalette.lantern }
 
 extension EnvironmentValues {
     var theme: ThemePalette {
@@ -28,6 +28,15 @@ extension ThemePalette {
         accentIsGradient
             ? AnyShapeStyle(LinearGradient(colors: [accent.color, accentEnd.color], startPoint: .leading, endPoint: .trailing))
             : AnyShapeStyle(accent.color)
+    }
+
+    /// The surface's own fill: flat, or Lantern's top-to-bottom night gradient. `solid` uses the opaque colours
+    /// (Solid panel setting, snapshots); otherwise the tint laid over the blur, scaled by `opacity`.
+    func surfaceFill(solid: Bool, opacity: Double = 1) -> AnyShapeStyle {
+        let bottom = solid ? surfaceSolid : surface.with(alpha: surface.a * opacity)
+        guard let surfaceTop else { return AnyShapeStyle(bottom.color) }
+        let top = solid ? surfaceTop : surfaceTop.with(alpha: bottom.a)
+        return AnyShapeStyle(LinearGradient(colors: [top.color, bottom.color], startPoint: .top, endPoint: .bottom))
     }
 
     /// Tints for ZENO's states, from the theme: live states use `live`, the brain's states the accent's end,
@@ -74,9 +83,9 @@ struct SurfaceBackground<S: InsettableShape>: View {
                 } else {
                     shape.fill(theme.isDark ? .ultraThinMaterial : .regularMaterial)
                 }
-                shape.fill(theme.surface.color.opacity(min(1, fillScale) * (systemGlassRadius == nil ? 1 : 0.55)))
+                shape.fill(theme.surfaceFill(solid: false, opacity: min(1, fillScale) * (systemGlassRadius == nil ? 1 : 0.55)))
             } else {
-                shape.fill(theme.surfaceSolid.color)
+                shape.fill(theme.surfaceFill(solid: true))
             }
             // Top rim: light catching the edge of the glass.
             shape.strokeBorder(

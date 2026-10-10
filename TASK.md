@@ -764,6 +764,12 @@ Design: `docs/design/design-study.md` §3 A (tokens, type, motion) and §4 (roll
 - **4.1 Tokens and motion.** A `lantern` palette (dark and Lantern Day) with contrast tests, a `Motion` set of named springs with Reduce Motion fallbacks; Lantern is the default theme.
 - **4.2 Menu-bar item.** One Wisp outline (template image), lit while listening, amber when asking, coral on a problem.
 - **4.3 Panel header and tabs.** Live Wisp in the header, the state in rounded type, two word tabs with the light underneath, header glow from state.
+**As built, 4.1–4.3 (2026-10-10):** built; tested (436 Swift); seen in the gallery; not yet seen in the real app.
+- 4.1: `lantern` and `lanternDay` palettes (contrast-tested; Lantern Day's amber is `#A05E00`, since the study's `#A86200` is only 4.4:1 on its surface) and named motions in `Motion.swift` with Reduce Motion fallbacks. Lantern is the default; a stored Quiet Native (the old default, which cannot be told apart from a deliberate choice) moves to Lantern once, then any choice sticks.
+- 4.2: one Wisp outline in the menu bar (`MenuBarGlyph.swift`, our own drawing), plain, lit while listening, amber for asking or a notice, coral on a problem (`MenuBarLight`, tested).
+- 4.3: live Wisp in the header (the user's Wisp style and mood), state in rounded type, three word tabs with a sliding light (Status stays until 4.4), header glow by state (`PanelLight`, tested); focus order and VoiceOver labels kept.
+- Known limits: the panel rim does not yet follow the state; the glow is faint on Lantern Day.
+
 - **4.4 Settings home with "now".** The Status tab's content in a top card, monochrome rows, page hand-off; the Status tab removed last.
 - **4.5 Conversation.** Quiet user slips, full-width replies without avatars, older turns receding, a glowing caret while a reply streams, a pencil for New conversation, a lit mic.
 - **4.6 Panel open and close.** Springs from the menu-bar item.

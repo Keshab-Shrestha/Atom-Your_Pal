@@ -4,22 +4,27 @@ import ZenoIslandCore
 struct IconButton: View {
     let symbol: String
     let label: String
+    /// The circle's size: 22 in rows, 26 in the panel header (ADR-084).
+    var diameter: CGFloat = 22
     let action: () -> Void
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
     private let hovering = State(initialValue: false)
     @Environment(\.theme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        let large = diameter >= 26
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(theme.text2.color)
-                .frame(width: 22, height: 22)
+                .font(.system(size: large ? 11 : 10, weight: large ? .semibold : .bold))
+                .foregroundStyle(hovering.wrappedValue ? theme.text.color : theme.text2.color)
+                .frame(width: diameter, height: diameter)
                 .background(Circle().fill(hovering.wrappedValue ? theme.fill3.color : theme.fill1.color))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .onHover { hovering.wrappedValue = $0 }
+        .animation(Motion.snap(reduceMotion), value: hovering.wrappedValue)
         .help(label)
         .accessibilityLabel(label)
     }

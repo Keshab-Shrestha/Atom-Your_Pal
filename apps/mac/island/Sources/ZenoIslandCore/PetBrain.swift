@@ -75,15 +75,21 @@ public struct PetBrain: Sendable {
         if let t = target { target = min(max(t, 0), self.width) }
     }
 
-    /// ZENO's state changed.
-    public mutating func update(status: IslandStatus.Kind, at now: Double) {
-        let reaction: Mood? = switch status {
+    /// The mood a ZENO state asks for; nil for idle states (Wisp keeps wandering, resting or napping). Also the
+    /// panel header's Wisp (ADR-084), which shows `.resting` for nil.
+    public static func mood(for status: IslandStatus.Kind) -> Mood? {
+        switch status {
         case .listening: .listening
         case .transcribing, .thinking, .acting, .asking: .thinking
         case .speaking: .speaking
         case .problem: .worried
         case .starting, .ready, .notice: nil
         }
+    }
+
+    /// ZENO's state changed.
+    public mutating func update(status: IslandStatus.Kind, at now: Double) {
+        let reaction = Self.mood(for: status)
         statusMood = reaction
         if mood == .carried { // in the user's hand: the reaction shows once put down
             lastActivity = now

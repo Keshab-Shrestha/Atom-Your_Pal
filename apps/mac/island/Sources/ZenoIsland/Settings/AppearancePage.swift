@@ -48,7 +48,7 @@ private struct ThemeSwatch: View {
         Button(action: action) {
             VStack(spacing: 6) {
                 ZStack(alignment: .topLeading) {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous).fill(p.surfaceSolid.color)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous).fill(p.surfaceFill(solid: true))
                     VStack(alignment: .leading, spacing: 4) {
                         Capsule().fill(p.text.color.opacity(0.85)).frame(width: 30, height: 4)
                         Capsule().fill(p.text2.color).frame(width: 44, height: 3)

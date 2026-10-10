@@ -4,6 +4,11 @@ import Foundation
 /// The look of ZENO's surfaces: panel, status card, work strip, bubbles and the point label (ADR-057).
 /// Each theme is a set of colours and corner radii; layout and behaviour are the same in all of them.
 public enum AppTheme: Int, SettingsChoice, Identifiable {
+    /// Night glass in cool greys; the only colour is Wisp's own light, and state is how brightly it burns
+    /// (ADR-084). The default. Listed first; raw values keep older stored choices valid.
+    case lantern = 3
+    /// Lantern in daylight: pale cool glass, ink text, the light kept for Wisp's glow.
+    case lanternDay = 4
     /// Dark glass and system-like controls, one teal accent. Looks like it shipped with macOS.
     case native = 0
     /// Near-black glass with a cyan → violet gradient for selection, the main button and live sound.
@@ -14,6 +19,8 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
     public var id: Int { rawValue }
     public var title: String {
         switch self {
+        case .lantern: "Lantern"
+        case .lanternDay: "Lantern Day"
         case .native: "Quiet Native"
         case .luminous: "Luminous"
         case .warm: "Warm"
@@ -21,6 +28,8 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
     }
     public var detail: String {
         switch self {
+        case .lantern: "Night glass lit only by Wisp's light"
+        case .lanternDay: "Pale glass by day, with Wisp's light"
         case .native: "Dark glass with one teal accent, like a built-in Mac app"
         case .luminous: "Near-black glass with a cyan-to-violet glow"
         case .warm: "Light paper glass with a coral accent"
@@ -129,16 +138,55 @@ public struct ThemePalette: Sendable, Equatable {
     public var radiusCard: CGFloat
     public var radiusControl: CGFloat
 
+    /// Lantern (ADR-084): the top of the surface's vertical gradient (nil: a flat surface), and Wisp's light
+    /// falling on the panel from the header. The glow's alpha scales the state's brightness; 0 draws none.
+    public var surfaceTop: RGBA? = nil
+    public var glow = RGBA(0, 0, 0, 0)
+
     /// The accent is a gradient, not a flat colour.
     public var accentIsGradient: Bool { accent != accentEnd }
 
     public static func `for`(_ theme: AppTheme) -> ThemePalette {
         switch theme {
+        case .lantern: lantern
+        case .lanternDay: lanternDay
         case .native: native
         case .luminous: luminous
         case .warm: warm
         }
     }
+
+    /// Lantern (ADR-084, design study §3 A): night glass, cool greys, one light (#8FD3FF). Amber only when
+    /// Wisp needs you, coral only when something went wrong; ready and success are the light too.
+    public static let lantern = ThemePalette(
+        isDark: true,
+        surface: RGBA(hex: 0x10162A, alpha: 0.82), surfaceSolid: RGBA(hex: 0x10162A),
+        border: .white(0.06), rim: .white(0.16),
+        text: RGBA(hex: 0xEAF1FF), text2: RGBA(hex: 0xA7B4CC), text3: RGBA(hex: 0x7F8BA6),
+        fill1: .white(0.045), fill2: .white(0.075), fill3: .white(0.12), separator: .white(0.07),
+        accent: RGBA(hex: 0x8FD3FF), accentEnd: RGBA(hex: 0x8FD3FF), onAccent: RGBA(hex: 0x0B1B33),
+        live: RGBA(hex: 0x8FD3FF),
+        attention: RGBA(hex: 0xFFC069), onAttention: RGBA(hex: 0x2B1A00),
+        problem: RGBA(hex: 0xFF8A7A), success: RGBA(hex: 0x8FD3FF),
+        userBubble: .white(0.055), onUserBubble: RGBA(hex: 0xA7B4CC),
+        radiusSurface: 22, radiusCard: 14, radiusControl: 9,
+        surfaceTop: RGBA(hex: 0x161F3A), glow: RGBA(hex: 0x8FD3FF))
+
+    /// Lantern Day: pale cool glass and ink. Text and controls use a deep light-blue (#1F6FA8) and amber #A05E00
+    /// (the study's #A86200 is only 4.4:1 on this surface) so they read; the glow stays Wisp's own #8FD3FF.
+    public static let lanternDay = ThemePalette(
+        isDark: false,
+        surface: RGBA(hex: 0xF3F6FB, alpha: 0.88), surfaceSolid: RGBA(hex: 0xF3F6FB),
+        border: .ink(0x1B2A44, 0.10), rim: .white(0.9),
+        text: RGBA(hex: 0x121A2E), text2: RGBA(hex: 0x4A5670), text3: RGBA(hex: 0x5E6A82),
+        fill1: .ink(0x1B2A44, 0.04), fill2: .ink(0x1B2A44, 0.07), fill3: .ink(0x1B2A44, 0.11), separator: .ink(0x1B2A44, 0.08),
+        accent: RGBA(hex: 0x1F6FA8), accentEnd: RGBA(hex: 0x1F6FA8), onAccent: .white(1),
+        live: RGBA(hex: 0x1F6FA8),
+        attention: RGBA(hex: 0xA05E00), onAttention: .white(1),
+        problem: RGBA(hex: 0xB42318), success: RGBA(hex: 0x1F6FA8),
+        userBubble: .ink(0x1B2A44, 0.05), onUserBubble: RGBA(hex: 0x4A5670),
+        radiusSurface: 22, radiusCard: 14, radiusControl: 9,
+        surfaceTop: RGBA(hex: 0xFAFCFE), glow: RGBA(hex: 0x8FD3FF, alpha: 0.9))
 
     /// A: dark Liquid-Glass, system-like, one teal accent from Wisp's glow.
     public static let native = ThemePalette(
@@ -152,7 +200,8 @@ public struct ThemePalette: Sendable, Equatable {
         attention: RGBA(hex: 0xFFB547), onAttention: RGBA(hex: 0x2B1A00),
         problem: RGBA(hex: 0xFF8A65), success: RGBA(hex: 0x5FD38D),
         userBubble: RGBA(hex: 0x5BD6E8, alpha: 0.18), onUserBubble: .white(0.95),
-        radiusSurface: 18, radiusCard: 10, radiusControl: 6)
+        radiusSurface: 18, radiusCard: 10, radiusControl: 6,
+        glow: RGBA(hex: 0x5BD6E8, alpha: 0.5))
 
     /// B: near-black deep glass; the orb's cyan → periwinkle → violet gradient used sparingly.
     public static let luminous = ThemePalette(
@@ -166,7 +215,8 @@ public struct ThemePalette: Sendable, Equatable {
         attention: RGBA(hex: 0xFFB86B), onAttention: RGBA(hex: 0x2A1600),
         problem: RGBA(hex: 0xFF7A6B), success: RGBA(hex: 0x62E6B4),
         userBubble: RGBA(hex: 0x8EA2FF, alpha: 0.22), onUserBubble: .white(0.96),
-        radiusSurface: 22, radiusCard: 12, radiusControl: 8)
+        radiusSurface: 22, radiusCard: 12, radiusControl: 8,
+        glow: RGBA(hex: 0x7EEBFF, alpha: 0.5))
 
     /// C: warm off-white paper glass, ink type, coral accent, mint for live states.
     public static let warm = ThemePalette(

@@ -1,0 +1,175 @@
+import SwiftUI
+import ZenoIslandCore
+
+// ADR-084 (Lantern, Task 4.3): the panel's header is Wisp itself, live in its current mood, with the state in
+// rounded type and the model under it. Tabs are words with Wisp's light lying under the selected one, and the
+// light falls from Wisp across the top of the panel, brighter or breathing with the state.
+
+/// Where the header's Wisp sits, from the panel's top-left corner: the centre of its 38 pt slot. The glow is
+/// centred here so the light comes from Wisp.
+private enum HeaderLayout {
+    static let padding = EdgeInsets(top: 16, leading: 18, bottom: 10, trailing: 18)
+    static let wispSlot: CGFloat = 38
+    static let wispSize: CGFloat = 34
+    static var wispCentre: CGPoint { CGPoint(x: padding.leading + wispSlot / 2, y: padding.top + wispSlot / 2) }
+}
+
+/// Wisp, the state and model, Helpers and Close; then the tabs.
+struct PanelHeader: View {
+    let model: IslandModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                HeaderWisp(kind: model.status.kind, style: model.settings.wispStyle)
+                    .frame(width: HeaderLayout.wispSlot, height: HeaderLayout.wispSlot)
+                stateText
+                Spacer(minLength: 4)
+                if model.status.showsLevel {
+                    Waveform(levels: model.meter.history, color: theme.live.color)
+                        .frame(width: 46, height: 20)
+                        .transition(.opacity)
+                }
+                IconButton(symbol: "person.2", label: "Helpers", diameter: 26) { model.openHelpers() }
+                IconButton(symbol: "xmark", label: "Close (Esc)", diameter: 26) { model.setExpanded(false) }
+            }
+            WordTabs(selection: Binding(get: { model.tab }, set: { model.tab = $0 }))
+        }
+        .padding(HeaderLayout.padding)
+    }
+
+    /// The state in SF Pro Rounded, and under it the detail, or the model when the state has none to add.
+    private var stateText: some View {
+        let detail = model.status.detail.isEmpty ? model.status.modelName : model.status.detail
+        return VStack(alignment: .leading, spacing: 1) {
+            Text(model.status.title)
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(theme.text.color)
+                .contentTransition(.opacity)
+            if !detail.isEmpty {
+                Text(detail)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(theme.text2.color)
+                    .contentTransition(.opacity)
+            }
+        }
+        .lineLimit(1)
+        .animation(.easeOut(duration: 0.18), value: model.status.title)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Wisp in the header, in the user's style, showing the mood the pet shows for this state. It moves while the
+/// panel is open; held still in snapshots and with Reduce Motion.
+private struct HeaderWisp: View {
+    let kind: IslandStatus.Kind
+    let style: WispStyle
+    @Environment(\.islandSnapshot) private var snapshot
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let mood = PetBrain.mood(for: kind) ?? .resting
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: snapshot || reduceMotion)) { context in
+            let time = snapshot || reduceMotion ? 0.45 : context.date.timeIntervalSinceReferenceDate
+            WispView(mood: mood, time: time, facing: 1, size: HeaderLayout.wispSize, glow: 1.4, style: style)
+        }
+        .accessibilityHidden(true) // the state beside it says the same in words
+    }
+}
+
+/// The light from the header's Wisp falling across the panel: a radial glow in the theme's glow colour, as bright
+/// as the state asks (`PanelLight`), easing between levels and breathing while listening or thinking.
+struct PanelGlow: View {
+    let kind: IslandStatus.Kind
+    @Environment(\.theme) private var theme
+    @Environment(\.islandSnapshot) private var snapshot
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let light = PanelLight(kind)
+        let colour = theme.glow.with(alpha: 1).color
+        let breathe = light.breath == .still || snapshot ? nil : Motion.breathe(reduceMotion, slow: light.breath == .slow)
+        Circle()
+            .fill(RadialGradient(colors: [colour, colour.opacity(0.28), colour.opacity(0)], center: .center, startRadius: 2, endRadius: 280))
+            .frame(width: 560, height: 560)
+            .opacity(light.brightness * theme.glow.a)
+            .breathing(breathe)
+            .animation(Motion.glow(reduceMotion), value: light.brightness)
+            .position(HeaderLayout.wispCentre)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+private extension View {
+    /// Dims and brightens a little, on repeat, with `animation` as each half-breath. Nil holds it still.
+    @ViewBuilder func breathing(_ animation: Animation?) -> some View {
+        if let animation {
+            phaseAnimator([1.0, 0.68]) { content, phase in content.opacity(phase) } animation: { _ in animation }
+        } else {
+            self
+        }
+    }
+}
+
+/// The tabs as words. The selected word is bright and a small bar of Wisp's light lies under it, sliding to the
+/// next word on the settle spring; the others brighten on hover.
+struct WordTabs: View {
+    @Binding var selection: IslandModel.Tab
+    @Namespace private var namespace
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        HStack(spacing: 20) {
+            ForEach(IslandModel.Tab.allCases) { tab in
+                WordTab(title: tab.rawValue, selected: selection == tab, namespace: namespace) {
+                    withAnimation(Motion.settle(reduceMotion)) { selection = tab }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+private struct WordTab: View {
+    let title: String
+    let selected: Bool
+    let namespace: Namespace.ID
+    let action: () -> Void
+    /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
+    private let hovering = State(initialValue: false)
+    @Environment(\.theme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let light = theme.glow.a > 0 ? theme.glow.with(alpha: 1).color : theme.accent.color
+        Button(action: action) {
+            VStack(spacing: 6) {
+                // Both weights are laid out so the word does not shift when it becomes selected.
+                ZStack {
+                    Text(title).font(.system(size: 12.5, weight: .semibold)).hidden()
+                    Text(title)
+                        .font(.system(size: 12.5, weight: selected ? .semibold : .medium))
+                        .foregroundStyle(selected ? theme.text.color : (hovering.wrappedValue ? theme.text2.color : theme.text3.color))
+                }
+                ZStack {
+                    Capsule().fill(.clear).frame(width: 16, height: 2.5)
+                    if selected {
+                        Capsule()
+                            .fill(theme.isDark ? light : theme.accent.color)
+                            .frame(width: 16, height: 2.5)
+                            .shadow(color: light.opacity(theme.isDark ? 0.9 : 0.7), radius: 4)
+                            .matchedGeometryEffect(id: "light", in: namespace)
+                    }
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering.wrappedValue = $0 }
+        .animation(Motion.snap(reduceMotion), value: hovering.wrappedValue)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}

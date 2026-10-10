@@ -7,7 +7,7 @@ import ZenoIslandCore
 
 // MARK: - Menu-bar icon
 
-/// ZENO's menu-bar icon: its symbol and colour follow ZENO's state. A click opens or closes the panel;
+/// ZENO's menu-bar icon: Wisp's silhouette, lit by ZENO's state. A click opens or closes the panel;
 /// right-click (or Control-click) shows Open ZENO, Helpers…, Show Wisp and Quit ZENO.
 @MainActor
 final class MenuBarIcon: NSObject {
@@ -32,25 +32,13 @@ final class MenuBarIcon: NSObject {
         update(.starting, title: "Starting")
     }
 
-    /// Shows ZENO's state. Quiet states use a plain (template) symbol like other menu-bar icons; states that need
-    /// the user's eye (listening, asking, a problem) are coloured.
+    /// Shows ZENO's state on Wisp's glyph (ADR-084): plain (template) most of the time, Wisp's light while
+    /// listening, amber when Wisp needs you, coral on a problem.
     func update(_ kind: IslandStatus.Kind, title: String) {
         item.button?.setAccessibilityValue(title)
         guard kind != self.kind else { return }
         self.kind = kind
-        let base = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
-        guard let symbol = NSImage(systemSymbolName: StateGlyph.symbol(kind), accessibilityDescription: "ZENO: \(title)") else { return }
-        let image: NSImage
-        switch kind {
-        case .listening, .asking, .problem, .notice, .acting:
-            let colour = NSImage.SymbolConfiguration(paletteColors: [NSColor(StateGlyph.tint(kind))])
-            image = symbol.withSymbolConfiguration(base.applying(colour)) ?? symbol
-            image.isTemplate = false
-        default:
-            image = symbol.withSymbolConfiguration(base) ?? symbol
-            image.isTemplate = true
-        }
-        item.button?.image = image
+        item.button?.image = MenuBarGlyph.image(MenuBarLight(kind), description: "ZENO: \(title)")
     }
 
     /// Where the panel hangs from: the icon's display and centre. Nil when the icon is not on screen (hidden by the notch).
@@ -372,7 +360,7 @@ final class WorkStripController {
 /// The short label beside Wisp while it points (ADR-056): what the place is, nothing more.
 struct PointLabelView: View {
     let text: String
-    var palette = ThemePalette.native
+    var palette = ThemePalette.lantern
     var snapshot = false
 
     var body: some View {

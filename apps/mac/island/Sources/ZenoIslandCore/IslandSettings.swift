@@ -29,6 +29,8 @@ public final class IslandSettings {
     static let panelSizeKey = "zeno.panel.size"
     static let panelBackgroundKey = "zeno.panel.background"
     static let themeKey = "zeno.look.theme"
+    /// Set once the ADR-084 move to Lantern has run, so a later choice of Quiet Native sticks.
+    static let lanternMoveKey = "zeno.look.lanternDefault"
     static let wispStyleKey = "zeno.wisp.style"
     static let wispReactsKey = "zeno.wisp.reacts"
     static let wispHomeDisplayKey = "zeno.wisp.homeDisplay"
@@ -103,7 +105,7 @@ public final class IslandSettings {
     public var bubbleOpacity: BubbleOpacity { didSet { store(bubbleOpacity.rawValue, Self.bubbleOpacityKey) } }
     public var panelSize: PanelSize { didSet { store(panelSize.rawValue, Self.panelSizeKey) } }
     public var panelBackground: PanelBackground { didSet { store(panelBackground.rawValue, Self.panelBackgroundKey) } }
-    /// How ZENO's surfaces look (ADR-057). Default Quiet Native.
+    /// How ZENO's surfaces look (ADR-057). Default Lantern (ADR-084).
     public var theme: AppTheme { didSet { store(theme.rawValue, Self.themeKey) } }
     /// How Wisp is drawn (ADR-057). Default Orb.
     public var wispStyle: WispStyle { didSet { store(wispStyle.rawValue, Self.wispStyleKey) } }
@@ -156,7 +158,8 @@ public final class IslandSettings {
         bubbleOpacity = Self.choice(defaults, Self.bubbleOpacityKey, .normal)
         panelSize = Self.choice(defaults, Self.panelSizeKey, .normal)
         panelBackground = Self.choice(defaults, Self.panelBackgroundKey, .glass)
-        theme = Self.choice(defaults, Self.themeKey, .native)
+        Self.moveToLanternOnce(defaults)
+        theme = Self.choice(defaults, Self.themeKey, .lantern)
         wispStyle = Self.choice(defaults, Self.wispStyleKey, .orb)
         dictationMode = (defaults.string(forKey: Self.dictationModeKey)).flatMap(DictationMode.init(rawValue:)) ?? .automatic
         livePreview = defaults.object(forKey: Self.livePreviewKey) as? Bool ?? true
@@ -242,7 +245,18 @@ public final class IslandSettings {
 
     /// Appearance: the theme and Wisp's style.
     public func resetAppearance() {
-        theme = .native; wispStyle = .orb
+        theme = .lantern; wispStyle = .orb
+    }
+
+    /// ADR-084: Lantern replaced Quiet Native as the default. A stored Quiet Native cannot be told apart from the
+    /// old default (choosing it and "Reset this page" both stored it), so it moves to Lantern once; choosing
+    /// Quiet Native again afterwards is kept. Other stored themes are left as they are.
+    private static func moveToLanternOnce(_ defaults: UserDefaults) {
+        guard !defaults.bool(forKey: lanternMoveKey) else { return }
+        defaults.set(true, forKey: lanternMoveKey)
+        if defaults.object(forKey: themeKey) as? Int == AppTheme.native.rawValue {
+            defaults.set(AppTheme.lantern.rawValue, forKey: themeKey)
+        }
     }
 
     /// Dictation: how it starts and stops, the live preview and filler removal.

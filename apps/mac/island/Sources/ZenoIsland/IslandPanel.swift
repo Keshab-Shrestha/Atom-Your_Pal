@@ -164,8 +164,6 @@ struct StateGlyph: View {
         .animation(.easeOut(duration: 0.2), value: kind)
     }
 
-    /// Also the menu-bar icon's symbol (ADR-056). The colours below are for the menu bar, which follows the
-    /// system's appearance rather than ZENO's theme.
     static func symbol(_ kind: IslandStatus.Kind) -> String {
         switch kind {
         case .starting: "hourglass"
@@ -178,20 +176,6 @@ struct StateGlyph: View {
         case .problem: "exclamationmark.triangle.fill"
         case .acting: "cursorarrow.motionlines"
         case .asking: "hand.raised.fill"
-        }
-    }
-
-    static func tint(_ kind: IslandStatus.Kind) -> Color {
-        switch kind {
-        case .starting: Color(white: 0.75)
-        case .ready: Color(red: 0.38, green: 0.86, blue: 0.52)
-        case .listening: Color(red: 1.0, green: 0.36, blue: 0.36)
-        case .transcribing, .thinking: Color(red: 0.62, green: 0.56, blue: 1.0)
-        case .speaking: Color(red: 0.36, green: 0.70, blue: 1.0)
-        case .notice: Color(red: 1.0, green: 0.80, blue: 0.35)
-        case .problem: Color(red: 1.0, green: 0.58, blue: 0.28)
-        case .acting: Color(red: 0.36, green: 0.82, blue: 0.80)
-        case .asking: Color(red: 1.0, green: 0.80, blue: 0.35)
         }
     }
 }

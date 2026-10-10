@@ -58,6 +58,15 @@ enum IslandGallery {
             model.tab = tab
             write(model, size: expanded, name: "2-\(tab.rawValue.lowercased())", to: directory)
         }
+        // ADR-084: the header's Wisp and light while speaking (brightest) and listening (with the live level).
+        model.tab = .conversation
+        for (state, level) in [("speaking", 0.0), ("listening", 0.3)] {
+            if let event = try? decodeEvent(#"{"type":"state","state":"\#(state)"}"#) { model.status.apply(event) }
+            for i in 0..<14 { model.meter.add(level * (0.05 + 0.95 * abs(sin(Double(i) * 0.9)))) }
+            write(model, size: expanded, name: "2-conversation-\(state)", to: directory)
+        }
+        if let idle = try? decodeEvent(#"{"type":"state","state":"idle"}"#) { model.status.apply(idle) }
+        model.meter.reset()
         // The Settings tab is taller than the window and scrolls: render it tall once, so the lower cards can be reviewed.
         model.tab = .settings
         write(model, size: CGSize(width: expanded.width, height: 2000), name: "2-settings-full", to: directory)
@@ -84,6 +93,7 @@ enum IslandGallery {
         writeSetup(to: directory, conversation: filled)
         writeEveryday(to: directory)
         writeHelpers(to: directory)
+        writeMenuBar(to: directory)
         DesignStudy.render(to: directory)
     }
 
@@ -115,12 +125,12 @@ enum IslandGallery {
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
         }
-        let reading = model(.native)
+        let reading = model(.lantern)
         _ = reading.helpers.openReport(1)
         if let event = try? decodeEvent(report) { reading.apply(event) }
         let sheet = VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 18) {
-                window("Helpers: Sid's model chosen by Laya, jobs show their model", model(.native))
+                window("Helpers: Sid's model chosen by Laya, jobs show their model", model(.lantern))
                 window("Sid's report", reading)
             }
             window("Warm (light): Sid pinned to Sonnet, large model off", model(.warm, pinned: #""claude-sonnet-4-5""#, allowLarge: false))
@@ -139,7 +149,7 @@ enum IslandGallery {
         let size = IslandMetrics().expanded
         let info = #"{"type":"info","provider":"claude-plan","model":"claude-opus-5-5","providers":[{"id":"claude","name":"Claude","available":false,"models":[{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"}]},{"id":"claude-plan","name":"Claude (my plan)","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"},{"id":"claude-haiku-4-5-20251001","name":"Claude Haiku 4.5"}]},{"id":"gemini","name":"Gemini","available":true,"models":[{"id":"gemini-3.8-flash","name":"Gemini 3.8 Flash"}]}]}"#
         let capabilities = #"{"type":"capabilities","items":[{"title":"Open apps and websites","examples":["Open Safari","Go to YouTube"]},{"title":"Music","examples":["Play some jazz","Skip this song","Pause the music"]},{"title":"Timers","examples":["Set a timer for 10 minutes","How long is left?"]},{"title":"Calendar and reminders","examples":["What's on my calendar today?","Remind me to call Aiko at 5"]},{"title":"Weather","examples":["Will it rain tomorrow?"]},{"title":"Notes","examples":["Make a note: buy oat milk"]}]}"#
-        func model(_ lines: [String], theme: AppTheme = .native) -> IslandModel {
+        func model(_ lines: [String], theme: AppTheme = .lantern) -> IslandModel {
             let m = IslandModel(settings: IslandSettings(defaults: defaults))
             m.settings.theme = theme
             m.permissions.states = [.microphone: .granted, .inputMonitoring: .granted]
@@ -192,7 +202,7 @@ enum IslandGallery {
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let size = IslandMetrics().expanded
-        func model(_ theme: AppTheme = .native) -> IslandModel {
+        func model(_ theme: AppTheme = .lantern) -> IslandModel {
             let m = IslandModel(settings: IslandSettings(defaults: defaults))
             m.settings.theme = theme
             m.permissions.states = [
@@ -391,7 +401,7 @@ enum IslandGallery {
 
     /// Computer control (ADR-054, ADR-056): the strip above the Dock while ZENO works on the Mac, the request for
     /// approval in it, how it ends, and the label beside Wisp while it points.
-    private static func writeApproval(to directory: URL, theme: AppTheme = .native, name: String = "8-computer-control") {
+    private static func writeApproval(to directory: URL, theme: AppTheme = .lantern, name: String = "8-computer-control") {
         let suite = "zeno.gallery.approval.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -442,7 +452,7 @@ enum IslandGallery {
     }
 
     /// Wisp's speech bubble in the states that matter: dictating with words, hands-free, thinking, a notice, and flipped below Wisp.
-    private static func writeBubbles(to directory: URL, theme: AppTheme = .native, name: String = "6-wisp-bubble") {
+    private static func writeBubbles(to directory: URL, theme: AppTheme = .lantern, name: String = "6-wisp-bubble") {
         let suite = "zeno.gallery.bubble.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -508,6 +518,58 @@ enum IslandGallery {
         .padding(20)
         .background(LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.24, green: 0.29, blue: 0.42)], startPoint: .top, endPoint: .bottom))
         save(sheet, name: "5-wisp-moods", to: directory)
+    }
+
+    /// ADR-084: the menu-bar item, Wisp's glyph in each of its four looks on a light and a dark menu bar, at 1x
+    /// and 4x. The plain glyph is a template, tinted here the way macOS tints it.
+    private static func writeMenuBar(to directory: URL) {
+        let lights: [(MenuBarLight, String)] = [(.plain, "Ready, thinking, speaking"), (.lit, "Listening"), (.attention, "Needs you"), (.problem, "Problem")]
+        func glyph(_ light: MenuBarLight, dark: Bool, scale: CGFloat) -> some View {
+            let image = Image(nsImage: MenuBarGlyph.image(light, dark: dark, scale: scale))
+            let size = MenuBarGlyph.canvas
+            return Group {
+                if light.isTemplate {
+                    image.renderingMode(.template).resizable().foregroundStyle(dark ? Color.white.opacity(0.92) : Color.black.opacity(0.85))
+                } else {
+                    image.resizable()
+                }
+            }
+            .frame(width: size.width * scale, height: size.height * scale)
+        }
+        func bar(dark: Bool) -> some View {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 22) {
+                    ForEach(Array(lights.enumerated()), id: \.offset) { _, entry in
+                        HStack(spacing: 10) {
+                            glyph(entry.0, dark: dark, scale: 1)
+                            Image(systemName: "wifi").font(.system(size: 13, weight: .medium)).foregroundStyle(dark ? .white.opacity(0.92) : .black.opacity(0.85))
+                        }
+                        .padding(.horizontal, 8)
+                        .frame(height: 24)
+                        .background(dark ? Color(red: 0.11, green: 0.12, blue: 0.16) : Color(red: 0.93, green: 0.94, blue: 0.96))
+                    }
+                }
+                HStack(spacing: 22) {
+                    ForEach(Array(lights.enumerated()), id: \.offset) { _, entry in
+                        VStack(spacing: 4) {
+                            glyph(entry.0, dark: dark, scale: 4)
+                                .padding(8)
+                                .background(RoundedRectangle(cornerRadius: 10).fill(dark ? Color(red: 0.11, green: 0.12, blue: 0.16) : Color(red: 0.93, green: 0.94, blue: 0.96)))
+                            Text(entry.1).font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.8))
+                        }
+                        .frame(width: 120)
+                    }
+                }
+            }
+        }
+        let sheet = VStack(alignment: .leading, spacing: 16) {
+            Text("Menu-bar item — light bar, then dark bar").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+            bar(dark: false)
+            bar(dark: true)
+        }
+        .padding(24)
+        .background(Color(red: 0.36, green: 0.42, blue: 0.52))
+        save(sheet, name: "15-menu-bar-item", to: directory)
     }
 
     /// Draws a view now, so a sheet can show one model in several states (views hold the live model).
