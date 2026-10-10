@@ -4,8 +4,11 @@ import Foundation
 /// The look of ZENO's surfaces: panel, status card, work strip, bubbles and the point label (ADR-057).
 /// Each theme is a set of colours and corner radii; layout and behaviour are the same in all of them.
 public enum AppTheme: Int, SettingsChoice, Identifiable {
+    /// Flat black with 1 px graphite hairlines, ghost buttons and mono identifiers; colour only on small status dots,
+    /// no glow or shadow anywhere (ADR-086, after Resend's style). The default. Listed first.
+    case void = 5
     /// Night glass in cool greys; the only colour is Wisp's own light, and state is how brightly it burns
-    /// (ADR-084). The default. Listed first; raw values keep older stored choices valid.
+    /// (ADR-084). Raw values keep older stored choices valid.
     case lantern = 3
     /// Lantern in daylight: pale cool glass, ink text, the light kept for Wisp's glow.
     case lanternDay = 4
@@ -19,6 +22,7 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
     public var id: Int { rawValue }
     public var title: String {
         switch self {
+        case .void: "Void"
         case .lantern: "Lantern"
         case .lanternDay: "Lantern Day"
         case .native: "Quiet Native"
@@ -28,6 +32,7 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
     }
     public var detail: String {
         switch self {
+        case .void: "Flat black with hairlines; colour only where it shows a status"
         case .lantern: "Night glass lit only by Wisp's light"
         case .lanternDay: "Pale glass by day, with Wisp's light"
         case .native: "Dark glass with one teal accent, like a built-in Mac app"
@@ -147,11 +152,35 @@ public struct ThemePalette: Sendable, Equatable {
     public var surfaceTop: RGBA? = nil
     public var glow = RGBA(0, 0, 0, 0)
 
+    /// ADR-086 (Void): how surfaces, buttons and states are drawn. The defaults are every older theme's look.
+    /// Glass (blur plus tint) or one flat, opaque colour with a hairline border.
+    public var surfaceStyle = SurfaceStyle.glass
+    /// Filled buttons, or ghost buttons (transparent, a 1 px hairline that brightens on hover).
+    public var buttonStyle = ButtonLook.filled
+    /// Glows (lit rims, pools of light, glowing dots and carets, Wisp's halo) and drop shadows.
+    public var usesGlow = true
+    public var usesShadows = true
+    /// Identifiers (model and app names, timings, shortcuts, job details) in SF Mono.
+    public var monoIdentifiers = false
+    /// ZENO's state as small coloured dots rather than tinted icons and light.
+    public var statusDots = false
+    /// The hairline once the pointer is over a ghost control.
+    public var borderHover = RGBA.white(0.3)
+    /// Violet for identifiers in mono, and the "thinking" dot (ADR-086). Nil: no identifier colour.
+    public var identifier: RGBA? = nil
+    /// The gap between the panel's edge and a control in its corner (the composer, the approval buttons); the
+    /// control's radius is `radiusSurface - cornerGap`, so the corners stay concentric.
+    public var cornerGap: CGFloat = 10
+
+    public enum SurfaceStyle: Sendable, Equatable { case glass, flat }
+    public enum ButtonLook: Sendable, Equatable { case filled, ghost }
+
     /// The accent is a gradient, not a flat colour.
     public var accentIsGradient: Bool { accent != accentEnd }
 
     public static func `for`(_ theme: AppTheme) -> ThemePalette {
         switch theme {
+        case .void: void
         case .lantern: lantern
         case .lanternDay: lanternDay
         case .native: native
@@ -159,6 +188,26 @@ public struct ThemePalette: Sendable, Equatable {
         case .warm: warm
         }
     }
+
+    /// Void (ADR-086, docs/design/resend-reference.md): a pure black canvas, `#292d30` hairlines instead of shadows,
+    /// bone-white text, ghost buttons, radii 24 / 16 / 6. Colour only for status: blue listening or running, violet
+    /// thinking (and identifiers), green done or ready, amber needs you, red a problem. Dark only. Captions use
+    /// `#878b92`: the reference's Iron `#6e727a` is 4.3:1 on black, under AA, so it is left to disabled things and
+    /// the hovered hairline. Cards are not filled; `fill2`/`fill3` are only for tracks and a selected segment.
+    public static let void = ThemePalette(
+        isDark: true,
+        surface: RGBA(hex: 0x000000), surfaceSolid: RGBA(hex: 0x000000),
+        border: RGBA(hex: 0x292D30), rim: RGBA(hex: 0x292D30),
+        text: RGBA(hex: 0xF0F0F0), text2: RGBA(hex: 0xA1A4A5), text3: RGBA(hex: 0x878B92),
+        fill1: .white(0), fill2: RGBA(hex: 0x16181B), fill3: RGBA(hex: 0x222529), separator: RGBA(hex: 0x292D30),
+        accent: RGBA(hex: 0xFFFFFF), accentEnd: RGBA(hex: 0xFFFFFF), onAccent: RGBA(hex: 0x000000),
+        live: RGBA(hex: 0x70B8FF),
+        attention: RGBA(hex: 0xFFCA16), onAttention: RGBA(hex: 0x000000),
+        problem: RGBA(hex: 0xFF9592), success: RGBA(hex: 0x3AD389),
+        userBubble: .white(0), onUserBubble: RGBA(hex: 0xA1A4A5),
+        radiusSurface: 24, radiusCard: 16, radiusControl: 6,
+        surfaceStyle: .flat, buttonStyle: .ghost, usesGlow: false, usesShadows: false, monoIdentifiers: true,
+        statusDots: true, borderHover: RGBA(hex: 0x6E727A), identifier: RGBA(hex: 0xBAA7FF), cornerGap: 8)
 
     /// Lantern (ADR-084, design study §3 A): night glass, cool greys, one light (#8FD3FF). Amber only when
     /// Wisp needs you, coral only when something went wrong; ready and success are the light too.

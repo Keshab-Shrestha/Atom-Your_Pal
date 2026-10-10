@@ -29,6 +29,7 @@ final class HelpersWindowController: NSObject, NSWindowDelegate {
         let palette = model.settings.theme.palette
         window.appearance = NSAppearance(named: palette.isDark ? .darkAqua : .aqua)
         window.backgroundColor = palette.surfaceSolid.nsColor
+        window.hasShadow = palette.usesShadows // Void: a hairline, no drop shadow (ADR-086)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }

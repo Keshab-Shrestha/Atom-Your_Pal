@@ -13,7 +13,7 @@ struct ExpandedView: View {
             PanelHeader(model: model)
 
             // Inset, so the header's hairline never draws a square box edge to edge.
-            Capsule().fill(theme.separator.color).frame(height: 0.5).padding(.horizontal, Spacing.panel)
+            Capsule().fill(theme.separator.color).frame(height: theme.isFlat ? 1 : 0.5).padding(.horizontal, Spacing.panel)
 
             ZStack(alignment: .top) {
                 switch model.tab {

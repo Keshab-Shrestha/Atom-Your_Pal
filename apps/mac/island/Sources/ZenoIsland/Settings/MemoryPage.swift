@@ -121,7 +121,7 @@ private struct NoteRow: View {
                     .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(theme.text2.color)
                     .frame(width: 20, height: 20)
-                    .background(Circle().fill(theme.fill2.color))
+                    .background(ControlFill(Circle(), fill: theme.fill2.color, hovering: hovering.wrappedValue))
             }
             .buttonStyle(.plain)
             .opacity(hovering.wrappedValue ? 1 : 0.6)
@@ -156,7 +156,7 @@ private struct MemoryRow: View {
                     .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(theme.text2.color)
                     .frame(width: 20, height: 20)
-                    .background(Circle().fill(theme.fill2.color))
+                    .background(ControlFill(Circle(), fill: theme.fill2.color, hovering: hovering.wrappedValue))
             }
             .buttonStyle(.plain)
             .opacity(hovering.wrappedValue ? 1 : 0.6) // always findable, clear on hover

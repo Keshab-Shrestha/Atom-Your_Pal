@@ -13,10 +13,11 @@ enum MenuBarGlyph {
 
     /// The status item's image. Plain is a template; the coloured ones pick their shade when drawn, from the
     /// menu bar's appearance (light or dark), so they read on both.
-    static func image(_ light: MenuBarLight, description: String) -> NSImage {
+    /// `flat`: Void's flat status colours with no glow (ADR-086).
+    static func image(_ light: MenuBarLight, flat: Bool = false, description: String) -> NSImage {
         let image = NSImage(size: canvas, flipped: true) { rect in
             let dark = NSAppearance.currentDrawing().bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-            draw(light, dark: dark, in: rect)
+            draw(light, dark: dark, flat: flat, in: rect)
             return true
         }
         image.isTemplate = light.isTemplate
@@ -25,21 +26,21 @@ enum MenuBarGlyph {
     }
 
     /// For the gallery: the same drawing for a known menu-bar appearance, optionally enlarged.
-    static func image(_ light: MenuBarLight, dark: Bool, scale: CGFloat = 1) -> NSImage {
+    static func image(_ light: MenuBarLight, dark: Bool, scale: CGFloat = 1, flat: Bool = false) -> NSImage {
         let image = NSImage(size: NSSize(width: canvas.width * scale, height: canvas.height * scale), flipped: true) { _ in
             NSGraphicsContext.current?.cgContext.scaleBy(x: scale, y: scale)
-            draw(light, dark: dark, in: NSRect(origin: .zero, size: canvas))
+            draw(light, dark: dark, flat: flat, in: NSRect(origin: .zero, size: canvas))
             return true
         }
         image.isTemplate = light.isTemplate
         return image
     }
 
-    private static func draw(_ light: MenuBarLight, dark: Bool, in rect: NSRect) {
+    private static func draw(_ light: MenuBarLight, dark: Bool, flat: Bool, in rect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let frame = CGRect(x: rect.midX - glyph.width / 2, y: rect.midY - glyph.height / 2 + 0.5, width: glyph.width, height: glyph.height)
         let path = silhouette(in: frame)
-        let (fill, glow) = colours(light, dark: dark)
+        let (fill, glow) = flat ? (flatColour(light, dark: dark), nil) : colours(light, dark: dark)
         context.saveGState()
         if let glow { context.setShadow(offset: .zero, blur: 4, color: glow.cgColor) }
         context.addPath(path)
@@ -57,6 +58,18 @@ enum MenuBarGlyph {
         case .lit: return ((dark ? night.accent : day.accent).nsColor, night.glow.with(alpha: dark ? 0.95 : 0.8).nsColor)
         case .attention: return ((dark ? night.attention : day.attention).nsColor, nil)
         case .problem: return ((dark ? night.problem : day.problem).nsColor, nil)
+        }
+    }
+
+    /// Void (ADR-086): one flat colour, no glow. On a dark bar Void's status colours (blue listening, amber, red); on
+    /// a light bar, where those would not read, Lantern Day's deeper blue, amber and red.
+    private static func flatColour(_ light: MenuBarLight, dark: Bool) -> NSColor {
+        let night = ThemePalette.void, day = ThemePalette.lanternDay
+        switch light {
+        case .plain: return .black
+        case .lit: return (dark ? night.live : day.live).nsColor
+        case .attention: return (dark ? night.attention : day.attention).nsColor
+        case .problem: return (dark ? night.problem : day.problem).nsColor
         }
     }
 

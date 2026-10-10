@@ -15,7 +15,7 @@ struct HelpersView: View {
         let palette = model.settings.theme.palette
         HStack(spacing: 0) {
             HelperSidebar(model: model).frame(width: 224)
-            Rectangle().fill(palette.separator.color).frame(width: 0.5)
+            Rectangle().fill(palette.separator.color).frame(width: palette.isFlat ? 1 : 0.5)
             Group {
                 if let helper = model.helpers.selectedHelper {
                     if model.helpers.openJobId != nil {
@@ -70,8 +70,9 @@ private struct HelperSidebar: View {
         .padding(.top, HelpersView.titleBarRoom)
         .padding(.bottom, 18)
         .frame(maxHeight: .infinity, alignment: .top)
-        // Darker than the window: the list sits back, the chosen helper comes forward.
-        .background((theme.isDark ? Color.black.opacity(0.2) : theme.fill1.color).ignoresSafeArea())
+        // Darker than the window: the list sits back, the chosen helper comes forward. Void: one black, the hairline
+        // between them is enough.
+        .background((theme.isFlat ? Color.clear : theme.isDark ? Color.black.opacity(0.2) : theme.fill1.color).ignoresSafeArea())
     }
 }
 
@@ -94,7 +95,7 @@ private struct AllowLargeSwitch: View {
             Spacer(minLength: 4)
             ThemedSwitch(isOn: list.allowLarge, set: { model.sendHelpers(model.helpers.setAllowLarge($0)) },
                          label: "Allow the large model for helpers")
-                .shadow(color: theme.accent.color.opacity(list.allowLarge && enabled && theme.isDark ? 0.5 : 0), radius: 6)
+                .shadow(color: theme.accent.color.opacity(list.allowLarge && enabled && theme.isDark && theme.usesGlow ? 0.5 : 0), radius: 6)
                 .disabled(!enabled)
         }
         .padding(.horizontal, 8)
@@ -117,9 +118,11 @@ private struct HelperCard: View {
                     if !helper.available {
                         Text("Coming soon").foregroundStyle(theme.text3.color)
                     } else if running {
-                        Text(helper.activity).foregroundStyle(theme.live.color)
+                        Text(helper.activity).foregroundStyle(theme.statusDots ? theme.text2.color : theme.live.color)
                     } else {
+                        // The app is an identifier: SF Mono in Void.
                         Text(helper.app ?? "No app").foregroundStyle(theme.text3.color)
+                            .font(helper.app == nil ? .system(size: 11) : theme.idFont(.system(size: 11), size: 10.5))
                     }
                 }
                 .font(.system(size: 11))
@@ -130,9 +133,15 @@ private struct HelperCard: View {
         .padding(.horizontal, 9)
         .padding(.vertical, 8)
         .background {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(selected ? (theme.isDark ? theme.fill2.color : Color.white.opacity(0.85)) : Color.clear)
-                .shadow(color: .black.opacity(selected && !theme.isDark ? 0.06 : 0), radius: 1.5, y: 0.5)
+            if theme.isFlat {
+                // Void: the chosen helper is outlined with a hairline, not filled.
+                RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous)
+                    .strokeBorder(selected ? theme.border.color : .clear, lineWidth: 1)
+            } else {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(selected ? (theme.isDark ? theme.fill2.color : Color.white.opacity(0.85)) : Color.clear)
+                    .shadow(color: .black.opacity(selected && !theme.isDark ? 0.06 : 0), radius: 1.5, y: 0.5)
+            }
         }
         .opacity(helper.available ? 1 : 0.5)
         .contentShape(Rectangle())
@@ -161,8 +170,9 @@ struct HelperBadge: View {
             }
         }
         .frame(width: size, height: size)
-        .background(Circle().fill(theme.fill2.color))
+        .background(Circle().fill(theme.isFlat ? Color.clear : theme.fill2.color))
         .clipShape(Circle())
+        .overlay { if theme.isFlat { Circle().strokeBorder(theme.border.color, lineWidth: 1) } } // Void: a hairline disc
         .overlay { if working { WorkingArc(lineWidth: size >= 36 ? 2.2 : 1.8).padding(-3.5) } }
         .accessibilityHidden(true)
     }
@@ -180,7 +190,7 @@ private struct WorkingArc: View {
         let light = theme.live.color
         if reduceMotion {
             Circle().stroke(light.opacity(0.75), lineWidth: lineWidth)
-                .shadow(color: light.opacity(0.4), radius: 4)
+                .shadow(color: light.opacity(theme.usesGlow ? 0.4 : 0), radius: 4)
         } else if snapshot {
             arc(light)
         } else {
@@ -197,7 +207,7 @@ private struct WorkingArc: View {
             .stroke(AngularGradient(colors: [light.opacity(0), light], center: .center, startAngle: .degrees(0), endAngle: .degrees(252)),
                     style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
             .rotationEffect(.degrees(-90))
-            .shadow(color: light.opacity(0.5), radius: 4)
+            .shadow(color: light.opacity(theme.usesGlow ? 0.5 : 0), radius: 4)
     }
 }
 
@@ -214,7 +224,7 @@ private struct HelperPane: View {
                 HStack(spacing: 14) {
                     HelperBadge(helper: helper, size: 42)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(helper.name).font(.system(size: 18, weight: .semibold, design: .rounded)).foregroundStyle(theme.text.color)
+                        Text(helper.name).font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
                         Text(Self.summary(helper)).font(.system(size: 12)).foregroundStyle(theme.text2.color)
                             .lineLimit(1)
                     }
@@ -250,19 +260,28 @@ private struct PillMenuLabel: View {
     let label: String
     let value: String
     var dimmed = false
+    var identifier = true
     @Environment(\.theme) private var theme
 
     var body: some View {
         HStack(spacing: 6) {
             Text(label).foregroundStyle(theme.text3.color)
+            // The app or model is an identifier: SF Mono in Void (a sentence such as "Chosen by Laya" stays sans).
             Text(value).fontWeight(.medium).foregroundStyle(dimmed ? theme.text2.color : theme.text.color)
+                .font(identifier ? theme.idFont(.system(size: 11.5), size: 11) : .system(size: 11.5))
             Image(systemName: "chevron.up.chevron.down").font(.system(size: 8, weight: .bold)).foregroundStyle(theme.text3.color)
         }
         .font(.system(size: 11.5))
         .lineLimit(1)
         .padding(.horizontal, 12)
         .frame(height: 28)
-        .background(Capsule().fill(theme.fill2.color))
+        .background {
+            if theme.isGhost {
+                ControlFill(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous), fill: Color.clear)
+            } else {
+                Capsule().fill(theme.fill2.color)
+            }
+        }
         .contentShape(Capsule())
     }
 }
@@ -283,7 +302,7 @@ private struct AppPicker: View {
                 }
             }
         } label: {
-            PillMenuLabel(label: "Opens in", value: helper.app ?? "No app", dimmed: helper.app == nil)
+            PillMenuLabel(label: "Opens in", value: helper.app ?? "No app", dimmed: helper.app == nil, identifier: helper.app != nil)
         }
         .menuStyle(.button).buttonStyle(.plain).fixedSize()
         .help("Where \(helper.name) opens what it finds")
@@ -311,7 +330,7 @@ private struct ModelPicker: View {
                 }
             }
         } label: {
-            PillMenuLabel(label: "Model", value: value, dimmed: models.isEmpty)
+            PillMenuLabel(label: "Model", value: value, dimmed: models.isEmpty, identifier: helper.pinnedModel != nil && !models.isEmpty)
         }
         .menuStyle(.button).buttonStyle(.plain).fixedSize()
         .disabled(models.isEmpty)
@@ -347,9 +366,9 @@ private struct TaskField: View {
             Button(action: add) {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(ready ? theme.onAccent.color : theme.text3.color)
+                    .foregroundStyle(ready ? (theme.isGhost ? theme.text.color : theme.onAccent.color) : theme.text3.color)
                     .frame(width: 28, height: 28)
-                    .background(Circle().fill(ready ? AnyShapeStyle(theme.accentFill) : AnyShapeStyle(theme.fill2.color)))
+                    .background(ControlFill(Circle(), fill: ready ? AnyShapeStyle(theme.accentFill) : AnyShapeStyle(theme.fill2.color), hovering: ready))
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
@@ -360,8 +379,15 @@ private struct TaskField: View {
         .padding(.leading, 16)
         .padding(.trailing, 6)
         .frame(height: 40)
-        .background(Capsule().fill(theme.fill1.color))
-        .overlay(Capsule().strokeBorder(theme.separator.color, lineWidth: 0.6))
+        .background {
+            if theme.isFlat {
+                // Void: the composer's shape (16), a 1 px hairline, no fill.
+                RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).strokeBorder(theme.border.color, lineWidth: 1)
+            } else {
+                Capsule().fill(theme.fill1.color)
+            }
+        }
+        .overlay { if !theme.isFlat { Capsule().strokeBorder(theme.separator.color, lineWidth: 0.6) } }
     }
 
     private func add() {
@@ -389,12 +415,12 @@ private struct JobList: View {
                 .padding(16)
             }
             ForEach(Array(helper.jobs.enumerated()), id: \.element.id) { index, job in
-                if index > 0 { Rectangle().fill(theme.separator.color).frame(height: 0.5) }
+                if index > 0 { Rectangle().fill(theme.separator.color).frame(height: theme.isFlat ? 1 : 0.5) }
                 JobRow(model: model, job: job)
             }
         }
         .background(shape.fill(theme.fill1.color))
-        .overlay(shape.strokeBorder(theme.separator.color, lineWidth: 0.5))
+        .overlay(shape.strokeBorder(theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
     }
 }
 
@@ -417,11 +443,12 @@ private struct JobRow: View {
                 if job.state == .running, let step = job.step {
                     HStack(spacing: 8) {
                         if let progress = job.progress { ProgressLine(fraction: progress) }
-                        Text(step).font(.system(size: 11)).foregroundStyle(theme.live.color).lineLimit(1)
+                        Text(step).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.statusDots ? theme.text2.color : theme.live.color).lineLimit(1)
                     }
                 }
-                if job.state == .failed, let error = job.error { ProblemLine(text: error) }
-                if let meta = meta { Text(meta).font(.system(size: 11)).foregroundStyle(theme.text3.color).lineLimit(2) }
+                if job.state == .failed, let error = job.error { ProblemLine(text: error, dot: false) }
+                // The model and Laya's reason are identifiers: SF Mono in Void.
+                if let meta = meta { Text(meta).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(2) }
             }
             .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 8)
@@ -474,13 +501,13 @@ private struct JobDot: View {
         Group {
             switch job.state {
             case .running:
-                Circle().fill(theme.live.color).shadow(color: theme.live.color.opacity(0.9), radius: 4)
+                Circle().fill(theme.live.color).shadow(color: theme.live.color.opacity(theme.usesGlow ? 0.9 : 0), radius: 4)
             case .queued:
                 Circle().strokeBorder(theme.text3.color, lineWidth: 1.2)
             case .done:
-                Circle().fill(theme.text2.color)
+                Circle().fill(theme.statusDots ? theme.success.color : theme.text2.color) // Void: done is green
             case .failed:
-                Circle().fill(theme.problem.color).shadow(color: theme.problem.color.opacity(0.6), radius: 3)
+                Circle().fill(theme.problem.color).shadow(color: theme.problem.color.opacity(theme.usesGlow ? 0.6 : 0), radius: 3)
             case .stopped:
                 Circle().fill(theme.text3.color.opacity(0.6))
             }
@@ -500,7 +527,7 @@ private struct ProgressLine: View {
             Capsule().fill(theme.fill3.color)
             Capsule().fill(theme.live.color)
                 .frame(width: max(3, 120 * min(1, max(0, fraction))))
-                .shadow(color: theme.live.color.opacity(0.7), radius: 4)
+                .shadow(color: theme.live.color.opacity(theme.usesGlow ? 0.7 : 0), radius: 4)
         }
         .frame(width: 120, height: 3)
         .accessibilityHidden(true)
@@ -515,6 +542,28 @@ private struct ReadReportButton: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        if theme.isGhost { ghost } else { lit }
+    }
+
+    /// Void (ADR-086): a ghost button with a violet hairline and label, brightening on hover.
+    private var ghost: some View {
+        let violet = theme.idColor(theme.accent)
+        return Button(action: action) {
+            Text("Read report")
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundStyle(violet)
+                .padding(.horizontal, 12)
+                .frame(height: 26)
+                .background(ControlFill(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous), fill: Color.clear,
+                                        hovering: hovering.wrappedValue, tint: violet))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering.wrappedValue = $0 }
+        .animation(Motion.plain, value: hovering.wrappedValue)
+    }
+
+    private var lit: some View {
         Button(action: action) {
             Text("Read report")
                 .font(.system(size: 11.5, weight: .semibold))
@@ -549,24 +598,41 @@ private struct QuietButton: View {
             .foregroundStyle(hovering.wrappedValue ? theme.text.color : theme.text2.color)
             .padding(.horizontal, 12)
             .frame(height: 26)
-            .background(Capsule().fill(hovering.wrappedValue ? theme.fill3.color : theme.fill2.color))
+            .background {
+                if theme.isGhost {
+                    ControlFill(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous), fill: Color.clear, hovering: hovering.wrappedValue)
+                } else {
+                    Capsule().fill(hovering.wrappedValue ? theme.fill3.color : theme.fill2.color)
+                }
+            }
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .onHover { hovering.wrappedValue = $0 }
-        .animation(Motion.snap(reduceMotion), value: hovering.wrappedValue)
+        .animation(Motion.hover(reduceMotion, ghost: theme.isGhost), value: hovering.wrappedValue)
     }
 }
 
 private struct ProblemLine: View {
     let text: String
+    /// Void: lead with a red dot; off where the row's own dot already says it failed.
+    var dot = true
     @Environment(\.theme) private var theme
 
     var body: some View {
-        Label(text, systemImage: "exclamationmark.triangle.fill")
-            .font(.system(size: 11))
-            .foregroundStyle(theme.problem.color)
+        if theme.statusDots {
+            // Void (ADR-086): the colour is only the dot; the words stay quiet.
+            HStack(alignment: .firstTextBaseline, spacing: 7) {
+                if dot { StatusDot(color: theme.problem.color, size: 6) }
+                Text(text).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+            }
             .fixedSize(horizontal: false, vertical: true)
+        } else {
+            Label(text, systemImage: "exclamationmark.triangle.fill")
+                .font(.system(size: 11))
+                .foregroundStyle(theme.problem.color)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 
@@ -582,7 +648,9 @@ private struct ReportPane: View {
                 QuietButton(title: "Jobs", symbol: "chevron.left") { model.helpers.closeReport() }
                 if let report = model.helpers.report {
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(report.title).font(.system(size: 20, weight: .semibold, design: .rounded)).foregroundStyle(theme.text.color)
+                        // Void: the report's title is the window's one display line, in New York.
+                        Text(report.title).font(theme.isFlat ? .system(size: 26, weight: .regular, design: .serif) : .system(size: 20, weight: .semibold, design: .rounded))
+                            .foregroundStyle(theme.isFlat ? Color.white : theme.text.color)
                         Text(report.summary).font(.system(size: 13)).foregroundStyle(theme.text2.color)
                     }
                     .padding(.bottom, 4)
@@ -624,7 +692,7 @@ private struct SourceList: View {
                 }
             }
             .background(shape.fill(theme.fill1.color))
-            .overlay(shape.strokeBorder(theme.separator.color, lineWidth: 0.5))
+            .overlay(shape.strokeBorder(theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
         }
     }
 }
@@ -639,11 +707,12 @@ private struct SourceRow: View {
             if let url = ReportSource.webURL(source.url.absoluteString) { NSWorkspace.shared.open(url) }
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: "link").font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.accent.color)
+                Image(systemName: "link").font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.statusDots ? theme.text2.color : theme.accent.color)
                     .frame(width: 16)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(source.title).font(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color)
-                    Text(source.url.host ?? source.url.absoluteString).font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                    // The host is an identifier: SF Mono in Void's violet.
+                    Text(source.url.host ?? source.url.absoluteString).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text3))
                 }
                 .lineLimit(1)
                 Spacer(minLength: 6)

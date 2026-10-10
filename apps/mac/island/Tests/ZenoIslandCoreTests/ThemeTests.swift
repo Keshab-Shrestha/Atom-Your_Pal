@@ -30,6 +30,7 @@ import Testing
         #expect(!AppTheme.warm.palette.isDark)
         #expect(AppTheme.lantern.palette.isDark)
         #expect(!AppTheme.lanternDay.palette.isDark)
+        #expect(AppTheme.void.palette.isDark)
         #expect(AppTheme.luminous.palette.accentIsGradient)
         #expect(!AppTheme.native.palette.accentIsGradient)
     }
@@ -54,7 +55,7 @@ import Testing
         defer { defaults.removePersistentDomain(forName: suite) }
 
         let settings = IslandSettings(defaults: defaults)
-        #expect(settings.theme == .lantern)
+        #expect(settings.theme == .void)
         #expect(settings.wispStyle == .orb)
         settings.theme = .warm
         settings.wispStyle = .companion
@@ -62,7 +63,7 @@ import Testing
         #expect(reloaded.theme == .warm)
         #expect(reloaded.wispStyle == .companion)
         reloaded.resetAppearance()
-        #expect(reloaded.theme == .lantern)
+        #expect(reloaded.theme == .void)
         #expect(reloaded.wispStyle == .orb)
     }
 
@@ -73,7 +74,7 @@ import Testing
         defaults.set(99, forKey: "zeno.look.theme")
         defaults.set(-4, forKey: "zeno.wisp.style")
         let settings = IslandSettings(defaults: defaults)
-        #expect(settings.theme == .lantern)
+        #expect(settings.theme == .void)
         #expect(settings.wispStyle == .orb)
     }
 
@@ -95,8 +96,8 @@ import Testing
         #expect(ThemePalette.warm.glow.a == 0, "Warm keeps its paper look: no glow")
     }
 
-    /// ADR-084: Lantern is the default for new installs and, once, for anyone still on the old default.
-    @MainActor @Test func lanternBecomesTheDefaultOnce() {
+    /// ADR-084, then ADR-086: anyone still on an old default (Quiet Native, then Lantern) moves on once.
+    @MainActor @Test func oldDefaultsMoveOnOnce() {
         func fresh(_ setup: (UserDefaults) -> Void) -> (IslandSettings, UserDefaults, String) {
             let suite = "zeno.test.theme.move.\(UUID().uuidString)"
             let defaults = UserDefaults(suiteName: suite)!
@@ -106,20 +107,62 @@ import Testing
         // A new install.
         let (new, d1, s1) = fresh { _ in }
         defer { d1.removePersistentDomain(forName: s1) }
-        #expect(new.theme == .lantern)
+        #expect(new.theme == .void)
 
-        // Quiet Native stored before Lantern existed (picked, or the old default after a reset): moved once.
+        // Quiet Native stored before Lantern existed (picked, or the old default after a reset): through Lantern to Void.
         let (old, d2, s2) = fresh { $0.set(AppTheme.native.rawValue, forKey: IslandSettings.themeKey) }
         defer { d2.removePersistentDomain(forName: s2) }
-        #expect(old.theme == .lantern)
-        #expect(IslandSettings(defaults: d2).theme == .lantern, "the move is saved")
+        #expect(old.theme == .void)
+        #expect(IslandSettings(defaults: d2).theme == .void, "the move is saved")
         // Choosing Quiet Native again after the move sticks.
         old.theme = .native
         #expect(IslandSettings(defaults: d2).theme == .native)
+
+        // Lantern stored by the ADR-084 move (or a reset, or a pick: they look the same) moves to Void once.
+        let (lit, d4, s4) = fresh {
+            $0.set(true, forKey: IslandSettings.lanternMoveKey)
+            $0.set(AppTheme.lantern.rawValue, forKey: IslandSettings.themeKey)
+        }
+        defer { d4.removePersistentDomain(forName: s4) }
+        #expect(lit.theme == .void)
+        // Picking Lantern after the move sticks, and so does Lantern Day.
+        lit.theme = .lantern
+        #expect(IslandSettings(defaults: d4).theme == .lantern)
+        let (day, d5, s5) = fresh { $0.set(AppTheme.lanternDay.rawValue, forKey: IslandSettings.themeKey) }
+        defer { d5.removePersistentDomain(forName: s5) }
+        #expect(day.theme == .lanternDay)
 
         // Any other stored choice is kept.
         let (warm, d3, s3) = fresh { $0.set(AppTheme.warm.rawValue, forKey: IslandSettings.themeKey) }
         defer { d3.removePersistentDomain(forName: s3) }
         #expect(warm.theme == .warm)
+    }
+
+    /// Void (ADR-086): the reference's colours and radii, and every glow, shadow and fill turned off. Older themes keep
+    /// glass, filled buttons, glows and shadows.
+    @Test func voidIsFlatBlackWithHairlines() {
+        let p = ThemePalette.void
+        #expect(p.surfaceSolid == RGBA(hex: 0x000000) && p.surface == p.surfaceSolid)
+        #expect(p.border == RGBA(hex: 0x292D30) && p.separator == p.border && p.rim == p.border)
+        #expect(p.text == RGBA(hex: 0xF0F0F0) && p.text2 == RGBA(hex: 0xA1A4A5))
+        #expect((p.radiusSurface, p.radiusCard, p.radiusControl) == (24, 16, 6))
+        // A control in the panel's corner: 16 at an 8 pt gap, concentric with the panel's 24.
+        #expect(p.radiusSurface - p.cornerGap == 16)
+        #expect(p.surfaceStyle == .flat && p.buttonStyle == .ghost)
+        #expect(!p.usesGlow && !p.usesShadows && p.glow.a == 0 && p.surfaceTop == nil)
+        #expect(p.monoIdentifiers && p.statusDots)
+        #expect(p.fill1.a == 0, "cards are not coloured")
+        // Status colours, and violet only for identifiers and thinking.
+        #expect(p.live == RGBA(hex: 0x70B8FF) && p.success == RGBA(hex: 0x3AD389) && p.attention == RGBA(hex: 0xFFCA16))
+        #expect(p.problem == RGBA(hex: 0xFF9592) && p.identifier == RGBA(hex: 0xBAA7FF))
+        // Identifiers, status labels and the brightened hairline read on black.
+        func on(_ c: RGBA) -> Double { RGBA.contrast(c, p.surfaceSolid) }
+        #expect(on(p.identifier!) >= 4.5, "violet identifiers")
+        #expect(on(p.live) >= 4.5 && on(p.attention) >= 4.5 && on(p.accent) >= 7)
+        #expect(on(p.borderHover) > on(p.border), "hover brightens the hairline")
+        #expect(!AppTheme.allCases.filter { $0 != .void }.contains { t in
+            let q = t.palette
+            return q.surfaceStyle != .glass || q.buttonStyle != .filled || !q.usesGlow || !q.usesShadows || q.monoIdentifiers || q.statusDots
+        }, "the other themes look as before")
     }
 }

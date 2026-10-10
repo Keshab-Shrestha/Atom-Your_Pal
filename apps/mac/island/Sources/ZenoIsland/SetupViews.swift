@@ -65,7 +65,7 @@ struct FailureCard: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(8)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).fill(theme.fill2.color))
+                        .background(ControlFill(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous), fill: theme.fill2.color))
                 }
                 HStack(spacing: 6) {
                     PillButton(title: failure.button, prominent: true) {

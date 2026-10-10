@@ -65,9 +65,9 @@ struct ExampleChip: View {
             .font(.system(size: 11))
             .foregroundStyle(theme.text2.color)
             .lineLimit(1)
-            .padding(.horizontal, 8)
-            .frame(height: 21)
-            .background(Capsule().fill(theme.fill2.color))
+            .padding(.horizontal, theme.isGhost ? 10 : 8)
+            .frame(height: theme.isGhost ? 24 : 21)
+            .background(ControlFill(Capsule(), fill: theme.fill2.color)) // Void: a hairline pill
     }
 }
 
@@ -78,12 +78,12 @@ private struct KeyCap: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+            .font(theme.idFont(.system(size: 11.5, weight: .semibold, design: .rounded), size: 11, weight: .medium))
             .foregroundStyle(theme.text.color)
             .padding(.horizontal, 8)
             .frame(height: 22)
-            .background(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).fill(theme.fill2.color))
-            .overlay(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).strokeBorder(theme.separator.color, lineWidth: 0.5))
+            .background(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).fill(theme.isGhost ? Color.clear : theme.fill2.color))
+            .overlay(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).strokeBorder(theme.separator.color, lineWidth: theme.isGhost ? 1 : 0.5))
     }
 }
 
@@ -149,7 +149,7 @@ struct PlanMeter: View {
             }
             .frame(height: 6)
             Text("\(percent)%")
-                .font(.system(size: 11.5, weight: .medium).monospacedDigit())
+                .font(theme.idFont(.system(size: 11.5, weight: .medium).monospacedDigit(), size: 11))
                 .foregroundStyle(PlanUsage.level(fraction) == .normal ? theme.text2.color : color)
                 .frame(width: 38, alignment: .trailing)
         }

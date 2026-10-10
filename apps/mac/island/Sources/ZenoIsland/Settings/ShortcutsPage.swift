@@ -72,16 +72,17 @@ struct RecorderButton: View {
             model.recorder.toggle(action)
         } label: {
             Text(label)
-                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                .font(theme.idFont(.system(size: 11.5, weight: .semibold, design: .rounded), size: 11, weight: .medium))
                 .foregroundStyle(recording ? theme.accent.color : (model.settings.shortcut(for: action) == nil ? theme.text2.color : theme.text.color))
                 .frame(minWidth: 64)
                 .padding(.horizontal, 8)
                 .frame(height: 24)
-                .background(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous)
-                    .fill(recording ? theme.accent.color.opacity(0.14) : (hovering.wrappedValue ? theme.fill3.color : theme.fill2.color)))
+                .background(ControlFill(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous),
+                    fill: recording ? theme.accent.color.opacity(0.14) : (hovering.wrappedValue ? theme.fill3.color : theme.fill2.color),
+                    hovering: hovering.wrappedValue, tint: recording ? theme.accent.color : nil))
                 .overlay(
                     RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous)
-                        .strokeBorder(recording ? theme.accent.color : .clear, lineWidth: 1.2))
+                        .strokeBorder(recording && !theme.isGhost ? theme.accent.color : .clear, lineWidth: 1.2))
         }
         .buttonStyle(.plain)
         .onHover { hovering.wrappedValue = $0 }

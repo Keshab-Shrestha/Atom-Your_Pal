@@ -27,19 +27,19 @@ struct NowCard: View {
             lastTurn(facts)
             if let problem = facts.problem { problemLine(problem) }
         }
-        .padding(16)
+        .padding(theme.isFlat ? 20 : 16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).fill(theme.fill1.color))
-        .overlay(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).strokeBorder(theme.separator.color.opacity(0.6), lineWidth: 0.5))
+        .cardWell(theme)
     }
 
     private func header(_ facts: NowFacts) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(facts.provider.isEmpty ? "AI model" : facts.provider)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .font(.system(size: 14, weight: .semibold, design: theme.titleDesign))
                     .foregroundStyle(theme.text.color)
-                Text("Replies from \(facts.model)")
+                // The model is an identifier: SF Mono in Void's violet.
+                (Text("Replies from ") + Text(facts.model).font(theme.idFont(.system(size: 11.5), size: 11)).foregroundColor(theme.idColor(theme.text2)))
                     .font(.system(size: 11.5))
                     .foregroundStyle(theme.text2.color)
             }
@@ -77,7 +77,7 @@ struct NowCard: View {
         HStack(spacing: 5) {
             Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(theme.text3.color)
             Text(text)
-                .font(.system(size: 11.5))
+                .font(theme.idFont(.system(size: 11.5), size: 11))
                 .foregroundStyle(dimmed ? theme.text3.color : theme.text2.color)
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -96,7 +96,7 @@ struct NowCard: View {
                     HStack(spacing: 6) {
                         Text("Last turn").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
                         Spacer(minLength: 6)
-                        Text(summary).font(.system(size: 11.5).monospacedDigit()).foregroundStyle(theme.text2.color)
+                        Text(summary).font(theme.idFont(.system(size: 11.5).monospacedDigit(), size: 11)).foregroundStyle(theme.text2.color)
                         Image(systemName: "chevron.right")
                             .font(.system(size: 9.5, weight: .bold))
                             .foregroundStyle(theme.text3.color)
@@ -148,7 +148,7 @@ private struct TimingDetail: View {
             TimingBar(timings: timings)
             HStack(spacing: 10) {
                 legend("Transcribing", theme.live.color.opacity(0.5))
-                legend("AI reply", theme.accentEnd.color)
+                legend("AI reply", theme.idColor(theme.accentEnd))
             }
             .padding(.bottom, 2)
             ForEach(rows, id: \.title) { row in
@@ -160,7 +160,7 @@ private struct TimingDetail: View {
                         }
                     }
                     Spacer()
-                    Text(row.value).font(.system(size: 11.5).monospacedDigit()).foregroundStyle(theme.text.color)
+                    Text(row.value).font(theme.idFont(.system(size: 11.5).monospacedDigit(), size: 11)).foregroundStyle(theme.text.color)
                 }
                 .accessibilityElement(children: .combine)
             }
@@ -183,7 +183,7 @@ private struct TimingBar: View {
     var body: some View {
         let parts: [(Double, Color)] = [
             (Double(timings.transcriptionMs), theme.live.color.opacity(0.5)),
-            (Double(timings.modelMs), theme.accentEnd.color),
+            (Double(timings.modelMs), theme.idColor(theme.accentEnd)),
         ]
         let total = max(1, parts.map(\.0).reduce(0, +))
         GeometryReader { proxy in

@@ -165,6 +165,7 @@ final class IslandController {
         model.permissions.refresh()
         shortcuts.start()
         watchSettings()
+        panel.hasShadow = model.settings.theme.palette.usesShadows // Void has no drop shadow (ADR-086)
         pet.setEnabled(model.settings.petEnabled)
         dictation.warmUp() // skips the microphone if launched while locked
         refresh()
@@ -456,7 +457,7 @@ final class IslandController {
 
     /// Puts every window in step with the state. Cheap: each part only acts on a change.
     private func refresh() {
-        menuIcon.update(model.status.kind, title: model.status.title)
+        menuIcon.update(model.status.kind, title: model.status.title, flat: !model.settings.theme.palette.usesGlow)
         shortcuts.setBusy(model.status.isBusy || talking || dictating)
         updateStrip()
         updatePointing()
@@ -937,6 +938,8 @@ final class IslandController {
 
     private func applyLook() {
         bubble.lookChanged()
+        panel.hasShadow = model.settings.theme.palette.usesShadows
+        menuIcon.update(model.status.kind, title: model.status.title, flat: !model.settings.theme.palette.usesGlow)
         guard let current, panel.isVisible else { return }
         let target = layout().frame(current)
         guard target != panel.frame else { return }

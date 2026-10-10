@@ -17,6 +17,7 @@ final class MenuBarIcon: NSObject {
     var isWispShown: () -> Bool = { false }
     private let item: NSStatusItem
     private var kind: IslandStatus.Kind?
+    private var flat = false
 
     override init() {
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -34,11 +35,13 @@ final class MenuBarIcon: NSObject {
 
     /// Shows ZENO's state on Wisp's glyph (ADR-084): plain (template) most of the time, Wisp's light while
     /// listening, amber when Wisp needs you, coral on a problem.
-    func update(_ kind: IslandStatus.Kind, title: String) {
+    /// `flat`: Void's flat colours, no glow (ADR-086).
+    func update(_ kind: IslandStatus.Kind, title: String, flat: Bool = false) {
         item.button?.setAccessibilityValue(title)
-        guard kind != self.kind else { return }
+        guard kind != self.kind || flat != self.flat else { return }
         self.kind = kind
-        item.button?.image = MenuBarGlyph.image(MenuBarLight(kind), description: "ZENO: \(title)")
+        self.flat = flat
+        item.button?.image = MenuBarGlyph.image(MenuBarLight(kind), flat: flat, description: "ZENO: \(title)")
     }
 
     /// Where the panel hangs from: the icon's display and centre. Nil when the icon is not on screen (hidden by the notch).
@@ -109,7 +112,9 @@ struct WorkStripView: View {
     var body: some View {
         let asking = model.approval.pending != nil
         let palette = model.settings.theme.palette
-        let shape = RoundedRectangle(cornerRadius: asking ? Self.askingRadius : Self.cornerRadius, style: .continuous)
+        // Void asks on the panel's own radius (24), its buttons 16 at the 8 pt corner gap (ADR-086).
+        let askingRadius = palette.isFlat ? palette.radiusSurface : Self.askingRadius
+        let shape = RoundedRectangle(cornerRadius: asking ? askingRadius : Self.cornerRadius, style: .continuous)
         ZStack(alignment: .topLeading) {
             if let request = model.approval.pending {
                 AskingView(request: request) { model.answerApproval($0) }
@@ -122,7 +127,7 @@ struct WorkStripView: View {
         .background {
             ZStack {
                 SurfaceBackground(shape: shape, glass: !snapshot)
-                if asking {
+                if asking, palette.usesGlow {
                     // Amber, because it needs you: a little warmth from the top corner and an amber rim.
                     shape.fill(RadialGradient(colors: [palette.attention.color.opacity(palette.isDark ? 0.13 : 0.10), .clear],
                                               center: .topLeading, startRadius: 0, endRadius: 240))
@@ -131,8 +136,8 @@ struct WorkStripView: View {
             }
         }
         .clipShape(shape)
-        .shadow(color: .black.opacity(palette.isDark ? 0.3 : 0.12), radius: 2, y: 1)
-        .shadow(color: .black.opacity(palette.isDark ? 0.36 : 0.14), radius: 12, y: 7)
+        .shadow(color: .black.opacity(palette.usesShadows ? (palette.isDark ? 0.3 : 0.12) : 0), radius: 2, y: 1)
+        .shadow(color: .black.opacity(palette.usesShadows ? (palette.isDark ? 0.36 : 0.14) : 0), radius: 12, y: 7)
         .themed(palette)
         .environment(\.islandSnapshot, snapshot)
         .animation(.easeOut(duration: 0.18), value: asking)
@@ -169,7 +174,7 @@ private struct StepRow: View {
                     .foregroundStyle(theme.text.color)
                     .padding(.horizontal, 14)
                     .frame(height: 28)
-                    .background(Capsule().fill(theme.fill2.color))
+                    .background(ControlFill(Capsule(), fill: theme.fill2.color))
                     .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -194,14 +199,14 @@ private struct AskingView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
                     Circle().fill(theme.attention.color).frame(width: 7, height: 7)
-                        .shadow(color: theme.attention.color.opacity(0.8), radius: 4)
+                        .shadow(color: theme.attention.color.opacity(theme.usesGlow ? 0.8 : 0), radius: 4)
                     Text("ZENO needs your OK")
                         .font(.system(size: 11.5, weight: .medium))
-                        .foregroundStyle(theme.attention.color)
+                        .foregroundStyle(theme.statusDots ? theme.text2.color : theme.attention.color) // Void: colour only on the dot
                 }
                 VStack(alignment: .leading, spacing: 3) {
                     Text(request.summary)
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .font(.system(size: 16, weight: .semibold, design: theme.titleDesign))
                         .foregroundStyle(theme.text.color)
                         .lineLimit(2)
                     if !request.reason.isEmpty {
@@ -226,24 +231,25 @@ private struct AskingView: View {
                     .foregroundStyle(theme.text.color)
                     .padding(.horizontal, 18)
                     .frame(minWidth: 104, minHeight: 32)
-                    .background(Capsule().fill(theme.fill2.color))
+                    .background(ControlFill(Capsule(), fill: theme.fill2.color))
                     .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Decline")
                 Button { onAnswer(true) } label: {
+                    // Void: a ghost button with an amber hairline and label (ADR-086); elsewhere the one fill.
                     Text("Allow").font(.system(size: 12.5, weight: .semibold))
-                        .foregroundStyle(theme.onAttention.color)
+                        .foregroundStyle(theme.isGhost ? theme.attention.color : theme.onAttention.color)
                         .padding(.horizontal, 24)
                         .frame(minWidth: 104, minHeight: 32)
-                        .background(Capsule().fill(theme.attention.color))
-                        .shadow(color: theme.attention.color.opacity(theme.isDark ? 0.45 : 0.25), radius: 8)
+                        .background(ControlFill(Capsule(), fill: theme.attention.color, tint: theme.attention.color))
+                        .shadow(color: theme.attention.color.opacity(theme.usesGlow ? (theme.isDark ? 0.45 : 0.25) : 0), radius: 8)
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Allow")
             }
-            .padding(Spacing.composer)
+            .padding(theme.cornerGap)
         }
     }
 }
@@ -256,11 +262,11 @@ struct WorkGlyph: View {
 
     var body: some View {
         Group {
-            switch outcome {
-            case .working: WorkingLight(color: theme.live.color)
-            case .done: Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(theme.success.color)
-            case .stopped: RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(theme.text3.color).frame(width: 7, height: 7)
-            case .failed: Circle().fill(theme.problem.color).frame(width: 7, height: 7).shadow(color: theme.problem.color.opacity(0.7), radius: 3.5)
+            if theme.statusDots, outcome != .working {
+                // Void: done, stopped and failed are dots too: green, grey, red.
+                StatusDot(color: outcome == .done ? theme.success.color : (outcome == .failed ? theme.problem.color : theme.text3.color))
+            } else {
+                lanternGlyph
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -268,19 +274,30 @@ struct WorkGlyph: View {
         .animation(.easeOut(duration: 0.2), value: outcome)
         .accessibilityHidden(true)
     }
+
+    @ViewBuilder private var lanternGlyph: some View {
+        switch outcome {
+        case .working: WorkingLight(color: theme.live.color)
+        case .done: Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(theme.success.color)
+        case .stopped: RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(theme.text3.color).frame(width: 7, height: 7)
+        case .failed: Circle().fill(theme.problem.color).frame(width: 7, height: 7).shadow(color: theme.problem.color.opacity(0.7), radius: 3.5)
+        }
+    }
 }
 
 /// A dot of Wisp's light that breathes while ZENO works (`Motion.breathe`); still with Reduce Motion and in snapshots.
 private struct WorkingLight: View {
     let color: Color
+    @Environment(\.theme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.islandSnapshot) private var snapshot
 
     var body: some View {
         let breathe = snapshot ? nil : Motion.breathe(reduceMotion)
+        // Void keeps the breath (it says ZENO is working) but drops the glow around the dot.
         PhaseAnimator(breathe == nil ? [1.0] : [1.0, 0.45]) { glow in
             Circle().fill(color).frame(width: 7, height: 7)
-                .shadow(color: color.opacity(0.9 * glow), radius: 2 + 4 * glow)
+                .shadow(color: color.opacity(theme.usesGlow ? 0.9 * glow : 0), radius: 2 + 4 * glow)
                 .opacity(0.7 + 0.3 * glow)
         } animation: { _ in breathe }
     }
@@ -396,7 +413,7 @@ struct PointLabelView: View {
     var body: some View {
         HStack(spacing: 7) {
             Circle().fill(palette.live.color).frame(width: 6, height: 6)
-                .shadow(color: palette.live.color.opacity(0.8), radius: 3)
+                .shadow(color: palette.live.color.opacity(palette.usesGlow ? 0.8 : 0), radius: 3)
             Text(text)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(palette.text.color)
@@ -406,7 +423,7 @@ struct PointLabelView: View {
         .padding(.horizontal, 11)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background { SurfaceBackground(shape: Capsule(), glass: !snapshot) }
-        .shadow(color: .black.opacity(palette.isDark ? 0.34 : 0.14), radius: 6, y: 3)
+        .shadow(color: .black.opacity(palette.usesShadows ? (palette.isDark ? 0.34 : 0.14) : 0), radius: 6, y: 3)
         .themed(palette)
         .padding(PointLabelController.shadowInset)
         .accessibilityElement(children: .ignore)

@@ -6,6 +6,9 @@ import ZenoIslandCore
 /// function of `time`, so one `TimelineView` drives it and the gallery can render any moment exactly. Moods are
 /// carried by the body, the light and the face — never by stickers (no z's, sweat drops or cheeks).
 ///
+/// Void (ADR-086, the theme in the environment has no glow): Wisp is flat. No halo, glow, ground shadow, gloss or
+/// soft shading, the body in one colour; the state shows by the face and a small status dot. The motion is the same.
+///
 /// Drawn in a 64×64 design space, scaled to `size`, with a margin of `size / 4` on every side so rings and glow
 /// are never clipped. The view is therefore `size * 1.5` square. The feet (or the bottom of the orb's float) sit
 /// at y = 57 in every style, so placement, hiding and pointing work the same for all of them.
@@ -41,6 +44,10 @@ struct WispView: View {
     var reactionProgress: Double = 0
     /// ADR-077: extra lean along the curved flight, in radians clockwise.
     var flightLean: Double = 0
+    @Environment(\.theme) private var theme
+
+    /// Void: drawn flat (see above).
+    private var flat: Bool { !theme.usesGlow }
 
     var body: some View {
         Canvas { context, _ in
@@ -210,9 +217,11 @@ struct WispView: View {
         }
     }
 
-    /// The halo's colour follows the mood in every style.
+    /// The halo's colour follows the mood in every style. Flat (Void), the mood's status colour from the theme,
+    /// used for the thinking dots, the sound waves and the status dot.
     private var haloColor: Color {
-        switch mood {
+        if flat { return statusColor ?? theme.text.color }
+        return switch mood {
         case .worried: Self.worryLight
         case .listening: Self.listenLight
         case .thinking: Self.thinkLight
@@ -274,7 +283,7 @@ struct WispView: View {
         // Ground shadow (a coloured floor glow for the orb): shrinks as Wisp rises. None while carried or hiding.
         let lift = -bob
         let shadowWidth = 28 - lift * 1.2
-        if mood != .carried, hideAmount < 0.5 {
+        if mood != .carried, hideAmount < 0.5, !flat {
             let floor = CGRect(x: 32 - shadowWidth / 2, y: 59, width: shadowWidth, height: 4)
             if look == .orb {
                 var glowFloor = context
@@ -304,10 +313,29 @@ struct WispView: View {
         }
         drawEdgeHand(in: &context, bob: bob)
         drawExtras(in: context, bob: bob)
+        if flat { drawStatusDot(in: context, bob: bob) }
+    }
+
+    /// Void's status colours for the moods that carry a state: blue listening, violet thinking, red a problem.
+    private var statusColor: Color? {
+        switch mood {
+        case .listening: theme.live.color
+        case .thinking: theme.idColor(theme.accentEnd)
+        case .worried: theme.problem.color
+        default: nil
+        }
+    }
+
+    /// Void: the state as a small flat dot beside Wisp's hem (no glow), bobbing with it. None at rest.
+    private func drawStatusDot(in context: GraphicsContext, bob: Double) {
+        guard let color = statusColor, hideAmount < 0.5 else { return }
+        let r = 3.2
+        context.fill(Path(ellipseIn: CGRect(x: 52 - r, y: 50 + bob - r, width: r * 2, height: r * 2)), with: .color(color))
     }
 
     /// The halo: a blurred, scaled copy of `shape` in the mood's light.
     private func drawHalo(_ shape: Path, in figure: GraphicsContext, centre: CGPoint, strength: Double = 1) {
+        guard !flat else { return }
         var halo = figure
         halo.translateBy(x: centre.x, y: centre.y)
         halo.scaleBy(x: haloScale, y: haloScale)
@@ -321,6 +349,10 @@ struct WispView: View {
     private func drawGhost(in figure: inout GraphicsContext) {
         drawHalo(Self.outer, in: figure, centre: CGPoint(x: 32, y: 32))
         figure.fill(Self.inner, with: .color(Self.ghostBody.opacity(mood == .napping ? 0.85 : 1)))
+        if flat {
+            drawClassicFace(in: &figure, eyeY: 30, eyeGap: 7, mouthY: 39, scale: 1)
+            return
+        }
         // Volume: a cool shade pooled low, and a soft highlight top left.
         var shade = figure
         shade.clip(to: Self.inner)
@@ -427,6 +459,16 @@ struct WispView: View {
         let c = Self.orbCentre, r = Self.orbRadius
         let shape = orbShape
         let dim = mood == .napping ? 0.8 : 1
+
+        if flat {
+            // One flat colour (the middle of the mood's light) and a hairline rim; no halo, aurora or gloss.
+            var body = figure
+            body.opacity = dim
+            body.fill(shape, with: .color(orbColors[1]))
+            body.stroke(shape, with: .color(Self.hex(mood == .worried ? 0xFFD9C4 : 0xDFE8FF, 0.5)), lineWidth: 0.8)
+            drawOrbFace(in: &body)
+            return
+        }
 
         // A wide soft halo, then the body.
         var halo = figure
@@ -539,6 +581,12 @@ struct WispView: View {
         default: 0.4
         }
         drawHalo(Self.pear, in: figure, centre: CGPoint(x: 32, y: 34), strength: strength)
+        if flat {
+            figure.fill(Self.pear, with: .color(Self.hex(0xDDF4EC)))
+            figure.stroke(Self.pear, with: .color(Self.mintRim.opacity(0.45)), lineWidth: 0.7)
+            drawClassicFace(in: &figure, eyeY: 26, eyeGap: 5, mouthY: 32.5, scale: 0.78)
+            return
+        }
 
         figure.fill(Self.pear, with: .linearGradient(Gradient(colors: [Self.mintTop, Self.mintBottom]), startPoint: CGPoint(x: 32, y: 8), endPoint: CGPoint(x: 32, y: 57)))
         var shade = figure
@@ -593,7 +641,7 @@ struct WispView: View {
             let spark = CGPoint(x: c.x + cos(a) * r, y: c.y + sin(a) * r * 0.42)
             var glowSpark = context
             glowSpark.addFilter(.blur(radius: 1.4))
-            glowSpark.fill(Path(ellipseIn: CGRect(x: spark.x - 2.4, y: spark.y - 2.4, width: 4.8, height: 4.8)), with: .color(Self.hex(0x5EF0D0, 0.8)))
+            if !flat { glowSpark.fill(Path(ellipseIn: CGRect(x: spark.x - 2.4, y: spark.y - 2.4, width: 4.8, height: 4.8)), with: .color(Self.hex(0x5EF0D0, 0.8))) }
             context.fill(Path(ellipseIn: CGRect(x: spark.x - 1.1, y: spark.y - 1.1, width: 2.2, height: 2.2)), with: .color(Self.hex(0xE8FFF8)))
         case (.orb, .floating):
             // A short light trail behind.

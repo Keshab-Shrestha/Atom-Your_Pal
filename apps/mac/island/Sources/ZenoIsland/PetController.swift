@@ -234,6 +234,7 @@ final class PetController {
         if brain.tuning != next { brain.tuning = next }
         state.glow = settings.wispGlow.strength
         if state.style != settings.wispStyle { state.style = settings.wispStyle }
+        if state.palette != settings.theme.palette { state.palette = settings.theme.palette }
         let drawn = settings.wispSize.points
         guard state.size != drawn else { return }
         state.size = drawn
@@ -674,8 +675,9 @@ final class PetState {
     /// Drawn size and halo strength from the settings.
     var size: CGFloat = 56
     var glow = 1.0
-    /// How Wisp is drawn (Settings → Appearance).
+    /// How Wisp is drawn (Settings → Appearance), and the theme (Void draws it flat, ADR-086).
     var style = WispStyle.orb
+    var palette = ThemePalette.lantern
     /// The hiding pose: 0 standing, ±1 hiding (the sign is the edge).
     var hide = 0.0
     var tilt = 0.0
@@ -698,6 +700,7 @@ struct PetStage: View {
                  gaze: state.gaze, hover: state.hover, reaction: state.reaction, reactionProgress: state.reactionProgress, flightLean: state.flightLean)
             // Leans from the feet, so the body stays behind the edge while the head tips into the display.
             .rotationEffect(.degrees(state.rotation), anchor: UnitPoint(x: 0.5, y: WispView.feetFraction))
+            .environment(\.theme, state.palette)
     }
 }
 

@@ -13,9 +13,9 @@ struct Composer: View {
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
 
-    /// Concentric with the panel's bottom corners (`Spacing.composer`).
+    /// Concentric with the panel's bottom corners (the theme's `cornerGap`: 24 = 16 + 8 in Void).
     private var composerShape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: max(10, theme.radiusSurface - Spacing.composer), style: .continuous)
+        RoundedRectangle(cornerRadius: max(10, theme.radiusSurface - theme.cornerGap), style: .continuous)
     }
 
     var body: some View {
@@ -38,7 +38,7 @@ struct Composer: View {
         .padding(.trailing, 5)
         .padding(.vertical, 5)
         .background(composerShape.fill(theme.fill1.color))
-        .overlay(composerShape.strokeBorder(theme.separator.color, lineWidth: 0.5))
+        .overlay(composerShape.strokeBorder(theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
     }
 
     private var talkHint: String? { model.settings.shortcut(for: .talk).map { "Hold \($0.display) to talk" } }
@@ -66,9 +66,34 @@ private struct ComposerButton: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        if theme.isGhost { ghost } else { filled }
+    }
+
+    /// Void (ADR-086): a ghost circle, its hairline brightening once there is something to send, and blue (with the
+    /// microphone) while listening. No glow.
+    private var ghost: some View {
+        let tint: Color? = listening ? theme.live.color : nil
+        return Button(action: action) {
+            Image(systemName: empty ? "mic" : "arrow.up")
+                .font(.system(size: empty ? 12.5 : 11.5, weight: empty ? .regular : .semibold))
+                .foregroundStyle(tint ?? (empty ? theme.text2.color : theme.text.color))
+                .frame(width: 30, height: 30)
+                .background(ControlFill(Circle(), fill: Color.clear, hovering: !empty, tint: tint))
+                .contentTransition(.symbolEffect(.replace))
+        }
+        .buttonStyle(.plain)
+        .allowsHitTesting(!empty)
+        .accessibilityRemoveTraits(empty ? .isButton : [])
+        .animation(Motion.plain, value: empty)
+        .animation(Motion.plain, value: listening)
+        .accessibilityLabel(empty ? (hint ?? "Microphone") : "Send")
+        .help(empty ? (hint ?? "Set a Talk shortcut in Settings") : "Send (Return)")
+    }
+
+    private var filled: some View {
         let light = theme.glow.a > 0 ? theme.glow.with(alpha: 1).color : theme.accent.color
         let lit = !empty || listening || hint != nil
-        Button(action: action) {
+        return Button(action: action) {
             Image(systemName: empty ? "mic.fill" : "arrow.up")
                 .font(.system(size: empty ? 12 : 11.5, weight: .bold))
                 .foregroundStyle(lit ? theme.onAccent.color : theme.text3.color)
@@ -111,9 +136,9 @@ struct ConversationTab: View {
 
     private var composer: some View {
         Composer(model: model)
-            .padding(.horizontal, Spacing.composer)
+            .padding(.horizontal, theme.cornerGap)
             .padding(.top, 8)
-            .padding(.bottom, Spacing.composer)
+            .padding(.bottom, theme.cornerGap)
     }
 
     @ViewBuilder private var content: some View {
@@ -164,9 +189,10 @@ private struct EmptyConversation: View {
                 WispView(mood: .resting, time: 0.3, size: 44, glow: 0.8, style: model.settings.wispStyle)
             }
             .frame(width: 92, height: 92)
+            // Void's one display line, in New York (the system serif, ADR-086).
             Text("Ask ZENO anything")
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(theme.text.color)
+                .font(theme.isFlat ? .system(size: 22, weight: .regular, design: .serif) : .system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(theme.isFlat ? Color.white : theme.text.color)
             Text(talkHint)
                 .font(.system(size: 11.5))
                 .foregroundStyle(theme.text2.color)
@@ -202,7 +228,8 @@ struct TurnView: View {
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
                     .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).fill(theme.fill1.color))
-                    .overlay(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).strokeBorder(theme.separator.color.opacity(0.5), lineWidth: 0.5))
+                    .overlay(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
+                        .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color.opacity(0.5), lineWidth: theme.isFlat ? 1 : 0.5))
                     .textSelection(.enabled)
             }
             VStack(alignment: .leading, spacing: 6) {
@@ -224,7 +251,7 @@ struct TurnView: View {
             .overlay(alignment: .bottomLeading) {
                 if let timings = turn.timings {
                     Text(NowFacts.summary(timings))
-                        .font(.system(size: 10, design: .rounded))
+                        .font(theme.idFont(.system(size: 10, design: .rounded), size: 10))
                         .foregroundStyle(theme.text3.color)
                         .fixedSize()
                         .offset(y: 16)
@@ -238,11 +265,20 @@ struct TurnView: View {
         .animation(.easeOut(duration: 0.15), value: hovering.wrappedValue)
     }
 
-    private func outcomeLine(_ text: String, symbol: String, color: Color) -> some View {
-        Label(text, systemImage: symbol)
-            .font(.system(size: 11.5, weight: .medium))
-            .foregroundStyle(color)
+    @ViewBuilder private func outcomeLine(_ text: String, symbol: String, color: Color) -> some View {
+        if theme.statusDots {
+            // Void: the colour is only the dot; the words stay quiet.
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                StatusDot(color: color).alignmentGuide(.firstTextBaseline) { $0[.bottom] - 0.5 }
+                Text(text).font(.system(size: 12)).foregroundStyle(theme.text2.color)
+            }
             .fixedSize(horizontal: false, vertical: true)
+        } else {
+            Label(text, systemImage: symbol)
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundStyle(color)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 
@@ -259,7 +295,7 @@ private struct ReplyText: View {
     var body: some View {
         let light = theme.glow.a > 0 ? theme.glow.with(alpha: 1).color : theme.accent.color
         ZStack(alignment: .topLeading) {
-            if streaming {
+            if streaming, theme.usesGlow {
                 (Text(text).foregroundColor(.clear) + caret(theme.isDark ? light : theme.accent.color))
                     .shadow(color: light.opacity(0.9), radius: 5)
                     .modifier(Breathing(active: !snapshot && !reduceMotion))
@@ -302,7 +338,7 @@ struct ThinkingDots: View {
             HStack(spacing: 4) {
                 ForEach(0..<3) { i in
                     Circle()
-                        .fill(theme.text2.color)
+                        .fill(theme.statusDots ? theme.idColor(theme.text2) : theme.text2.color) // Void: thinking is violet
                         .frame(width: 5, height: 5)
                         .opacity(0.3 + 0.7 * max(0, sin((t * 4) - Double(i) * 0.7)))
                 }

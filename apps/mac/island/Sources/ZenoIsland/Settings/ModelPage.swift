@@ -42,7 +42,7 @@ struct ModelSection: View {
                                 .disabled(model.pendingModel != nil)
                             }
                         } label: {
-                            MenuLabel(text: info.currentModelName)
+                            MenuLabel(text: info.currentModelName, identifier: true)
                         }
                         .menuStyle(.button).buttonStyle(.plain).fixedSize()
                     }

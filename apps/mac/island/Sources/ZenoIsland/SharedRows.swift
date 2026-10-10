@@ -19,12 +19,12 @@ struct IconButton: View {
                 .font(.system(size: large ? 11 : 10, weight: large ? .semibold : .bold))
                 .foregroundStyle(hovering.wrappedValue ? theme.text.color : theme.text2.color)
                 .frame(width: diameter, height: diameter)
-                .background(Circle().fill(hovering.wrappedValue ? theme.fill3.color : theme.fill1.color))
+                .background(ControlFill(Circle(), fill: hovering.wrappedValue ? theme.fill3.color : theme.fill1.color, hovering: hovering.wrappedValue))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .onHover { hovering.wrappedValue = $0 }
-        .animation(Motion.snap(reduceMotion), value: hovering.wrappedValue)
+        .animation(Motion.hover(reduceMotion, ghost: theme.isGhost), value: hovering.wrappedValue)
         .help(label)
         .accessibilityLabel(label)
     }
@@ -52,8 +52,7 @@ struct Card<Content: View>: View {
                     .padding(.leading, 6)
             }
             VStack(alignment: .leading, spacing: 0) { content }
-                .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).fill(theme.fill1.color))
-                .overlay(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).strokeBorder(theme.separator.color.opacity(0.6), lineWidth: 0.5))
+                .cardWell(theme)
             if let footer {
                 Text(footer)
                     .font(.system(size: 10.5))
@@ -93,7 +92,7 @@ struct RowDivider: View {
     /// Where the hairline starts from the well's leading edge.
     var inset: CGFloat = Spacing.well
     @Environment(\.theme) private var theme
-    var body: some View { Rectangle().fill(theme.separator.color).frame(height: 0.5).padding(.leading, inset) }
+    var body: some View { Rectangle().fill(theme.separator.color).frame(height: theme.isFlat ? 1 : 0.5).padding(.leading, inset) }
 }
 
 /// A switch drawn in the theme (the system's mini switch does not render in snapshots, and its colour is the
@@ -107,11 +106,18 @@ struct ThemedSwitch: View {
     var body: some View {
         Button { set(!isOn) } label: {
             ZStack(alignment: isOn ? .trailing : .leading) {
-                Capsule().fill(isOn ? theme.accentFill : AnyShapeStyle(theme.fill3.color))
-                Circle()
-                    .fill(Color.white)
-                    .shadow(color: .black.opacity(0.22), radius: 1, y: 0.5)
-                    .padding(2)
+                if theme.isGhost {
+                    // Void: on is a bone-white track with a black knob; off is a hairline track. No shadow.
+                    Capsule().fill(isOn ? theme.text.color : .clear)
+                    Capsule().strokeBorder(isOn ? theme.text.color : theme.hairline(true), lineWidth: 1)
+                    Circle().fill(isOn ? theme.surfaceSolid.color : theme.text2.color).padding(isOn ? 2.5 : 4)
+                } else {
+                    Capsule().fill(isOn ? theme.accentFill : AnyShapeStyle(theme.fill3.color))
+                    Circle()
+                        .fill(Color.white)
+                        .shadow(color: .black.opacity(0.22), radius: 1, y: 0.5)
+                        .padding(2)
+                }
             }
             .frame(width: 30, height: 18)
             .animation(.spring(response: 0.22, dampingFraction: 0.8), value: isOn)
@@ -146,7 +152,7 @@ struct Segmented<Choice: SettingsChoice>: View {
                             if selected {
                                 RoundedRectangle(cornerRadius: theme.radiusControl - 1, style: .continuous)
                                     .fill(theme.isDark ? theme.fill3.color : Color.white)
-                                    .shadow(color: .black.opacity(theme.isDark ? 0 : 0.08), radius: 1, y: 0.5)
+                                    .shadow(color: .black.opacity(theme.isDark || !theme.usesShadows ? 0 : 0.08), radius: 1, y: 0.5)
                             }
                         }
                         .contentShape(Rectangle())
@@ -156,7 +162,7 @@ struct Segmented<Choice: SettingsChoice>: View {
             }
         }
         .padding(2)
-        .background(RoundedRectangle(cornerRadius: theme.radiusControl + 1, style: .continuous).fill(theme.fill2.color))
+        .background(ControlFill(RoundedRectangle(cornerRadius: theme.radiusControl + 1, style: .continuous), fill: theme.fill2.color))
     }
 }
 
@@ -186,12 +192,14 @@ struct ThemedMenu<Choice: SettingsChoice>: View {
 struct MenuLabel: View {
     let text: String
     var dimmed = false
+    /// The value is an identifier (a model name): SF Mono in Void.
+    var identifier = false
     @Environment(\.theme) private var theme
 
     var body: some View {
         HStack(spacing: 5) {
             Text(text)
-                .font(.system(size: 11.5, weight: .medium))
+                .font(identifier ? theme.idFont(.system(size: 11.5, weight: .medium), size: 11) : .system(size: 11.5, weight: .medium))
                 .foregroundStyle(dimmed ? theme.text2.color : theme.text.color)
                 .lineLimit(1)
             Image(systemName: "chevron.up.chevron.down")
@@ -200,7 +208,7 @@ struct MenuLabel: View {
         }
         .padding(.horizontal, 9)
         .frame(height: 24)
-        .background(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).fill(theme.fill2.color))
+        .background(ControlFill(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous), fill: theme.fill2.color))
         .contentShape(Rectangle())
     }
 }
@@ -220,17 +228,32 @@ struct PillButton: View {
                 if let symbol { Image(systemName: symbol).font(.system(size: 10, weight: .semibold)) }
                 Text(title).font(.system(size: 11.5, weight: .semibold))
             }
-            .foregroundStyle(prominent ? theme.onAccent.color : theme.text.color)
-            .padding(.horizontal, 11)
+            .foregroundStyle(prominent && !theme.isGhost ? theme.onAccent.color : theme.text.color)
+            .padding(.horizontal, theme.isGhost ? 12 : 11)
             .frame(height: 26)
             .background {
-                Capsule(style: .continuous)
-                    .fill(prominent ? theme.accentFill : AnyShapeStyle(hovering.wrappedValue ? theme.fill3.color : theme.fill2.color))
+                if theme.isGhost {
+                    // Void: never filled, prominent or not (ADR-086).
+                    ControlFill(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous), fill: Color.clear, hovering: hovering.wrappedValue)
+                } else {
+                    Capsule(style: .continuous)
+                        .fill(prominent ? theme.accentFill : AnyShapeStyle(hovering.wrappedValue ? theme.fill3.color : theme.fill2.color))
+                }
             }
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .onHover { hovering.wrappedValue = $0 }
+        .animation(theme.isGhost ? Motion.plain : nil, value: hovering.wrappedValue)
+    }
+}
+
+extension View {
+    /// A card's well: the theme's faint fill and a soft hairline, or in Void (ADR-086) black with a full 1 px hairline.
+    func cardWell(_ theme: ThemePalette, radius: CGFloat? = nil) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius ?? theme.radiusCard, style: .continuous)
+        return background(shape.fill(theme.fill1.color))
+            .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color.opacity(0.6), lineWidth: theme.isFlat ? 1 : 0.5))
     }
 }
 

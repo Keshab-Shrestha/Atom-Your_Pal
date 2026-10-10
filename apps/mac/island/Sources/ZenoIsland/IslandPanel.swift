@@ -113,7 +113,7 @@ struct StatusRow: View {
     var body: some View {
         HStack(spacing: 11) {
             StateGlyph(kind: model.status.kind)
-                .frame(width: 30, height: 30)
+                .frame(width: theme.statusDots ? 8 : 30, height: 30)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(model.pointing.target.map(PointingState.line(for:)) ?? model.status.title)
@@ -157,6 +157,15 @@ struct StateGlyph: View {
 
     var body: some View {
         let tint = theme.tint(kind)
+        if theme.statusDots {
+            // Void (ADR-086): the state is a small dot of its status colour; the title beside it says the rest.
+            StatusDot(color: tint).animation(.easeOut(duration: 0.15), value: kind)
+        } else {
+            badge(tint)
+        }
+    }
+
+    private func badge(_ tint: Color) -> some View {
         ZStack {
             Circle().fill(tint.opacity(theme.isDark ? 0.2 : 0.14))
             Image(systemName: StateGlyph.symbol(kind))

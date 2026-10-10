@@ -24,6 +24,8 @@ final class BubbleState {
 struct BubbleShape: Shape {
     var tailX: CGFloat
     var tailOnTop: Bool
+    /// The body's corner radius: Lantern's 18, or the theme's card radius in Void (16).
+    var cornerRadius = BubbleLayout.cornerRadius
 
     var animatableData: CGFloat {
         get { tailX }
@@ -44,7 +46,7 @@ struct BubbleShape: Shape {
         point.addQuadCurve(to: CGPoint(x: tailX, y: tip), control: CGPoint(x: tailX + half * 0.24, y: bend))
         point.addQuadCurve(to: CGPoint(x: tailX - half, y: base), control: CGPoint(x: tailX - half * 0.24, y: bend))
         point.closeSubpath()
-        return Path(roundedRect: body, cornerRadius: BubbleLayout.cornerRadius, style: .continuous).union(point)
+        return Path(roundedRect: body, cornerRadius: cornerRadius, style: .continuous).union(point)
     }
 }
 
@@ -133,9 +135,23 @@ private struct BubbleGlass: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        if theme.isFlat { flatBody } else { glassBody }
+    }
+
+    /// Void (ADR-086): opaque black and a 1 px graphite hairline, no blur, rim light, pool of light or shadow. The
+    /// state is the dot in the content.
+    private var flatBody: some View {
+        let shape = BubbleShape(tailX: state.tailX, tailOnTop: state.tailOnTop, cornerRadius: theme.radiusCard)
+        return ZStack {
+            shape.fill(theme.surfaceSolid.color)
+            shape.stroke(theme.border.color, lineWidth: 1)
+        }
+    }
+
+    private var glassBody: some View {
         let shape = BubbleShape(tailX: state.tailX, tailOnTop: state.tailOnTop)
         let light = tone.light(theme)
-        ZStack {
+        return ZStack {
             if !snapshot { shape.fill(theme.isDark ? .ultraThinMaterial : .regularMaterial) }
             shape.fill(theme.surfaceFill(solid: snapshot, opacity: min(1, fill / 0.86)))
             if let light {
@@ -206,6 +222,15 @@ private struct BubbleContent: View {
     }
 
     @ViewBuilder private func mark(_ kind: IslandStatus.Kind) -> some View {
+        if theme.statusDots {
+            // Void: every state is a small dot in its status colour (green for done or ready).
+            StatusDot(color: theme.tint(kind))
+        } else {
+            lanternMark(kind)
+        }
+    }
+
+    @ViewBuilder private func lanternMark(_ kind: IslandStatus.Kind) -> some View {
         switch kind {
         case .notice, .asking: GlowDot(color: theme.attention.color)
         case .problem: GlowDot(color: theme.problem.color)
@@ -228,6 +253,7 @@ private struct GlowDot: View {
 struct BubbleMeter: View {
     let levels: [Double]
     let color: Color
+    @Environment(\.theme) private var theme
 
     var body: some View {
         let count = max(1, levels.count)
@@ -239,7 +265,7 @@ struct BubbleMeter: View {
             }
         }
         .frame(height: 22)
-        .shadow(color: color.opacity(0.6), radius: 4)
+        .shadow(color: color.opacity(theme.usesGlow ? 0.6 : 0), radius: 4)
         .animation(.linear(duration: 0.05), value: levels)
         .accessibilityHidden(true)
     }

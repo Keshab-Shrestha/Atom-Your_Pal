@@ -49,15 +49,17 @@ struct PanelHeader: View {
     /// The state in SF Pro Rounded, and under it the detail, or the model when the state has none to add.
     private var stateText: some View {
         let detail = model.status.detail.isEmpty ? model.status.modelName : model.status.detail
+        let showsModel = !detail.isEmpty && detail == model.status.modelName
         return VStack(alignment: .leading, spacing: 1) {
             Text(model.status.title)
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .font(.system(size: 15, weight: .semibold, design: theme.titleDesign))
                 .foregroundStyle(theme.text.color)
                 .contentTransition(.opacity)
             if !detail.isEmpty {
+                // The model is an identifier: SF Mono in Void's violet.
                 Text(detail)
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(theme.text2.color)
+                    .font(showsModel ? theme.idFont(.system(size: 11.5), size: 11) : .system(size: 11.5))
+                    .foregroundStyle(showsModel ? theme.idColor(theme.text2) : theme.text2.color)
                     .contentTransition(.opacity)
             }
         }
@@ -81,13 +83,19 @@ private struct PencilButton: View {
                 .font(.system(size: 12.5, weight: .medium))
                 .foregroundStyle(hovering.wrappedValue ? theme.text.color : theme.text2.color)
                 .frame(width: 26, height: 26)
-                .background(Circle().fill(hovering.wrappedValue ? theme.fill1.color : .clear))
+                .background {
+                    if theme.isGhost {
+                        Circle().strokeBorder(theme.hairline(true), lineWidth: 1).opacity(hovering.wrappedValue ? 1 : 0)
+                    } else {
+                        Circle().fill(hovering.wrappedValue ? theme.fill1.color : .clear)
+                    }
+                }
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .offset(y: -5) // centred on the tab words, not on the words and the light under them
         .onHover { hovering.wrappedValue = $0 }
-        .animation(Motion.snap(reduceMotion), value: hovering.wrappedValue)
+        .animation(Motion.hover(reduceMotion, ghost: theme.isGhost), value: hovering.wrappedValue)
         .help("New conversation")
         .accessibilityLabel("New conversation")
     }
@@ -120,10 +128,14 @@ struct PanelGlow: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        if theme.usesGlow { glow }
+    }
+
+    private var glow: some View {
         let light = PanelLight(kind)
         let colour = theme.glow.with(alpha: 1).color
         let breathe = light.breath == .still || snapshot ? nil : Motion.breathe(reduceMotion, slow: light.breath == .slow)
-        Circle()
+        return Circle()
             .fill(RadialGradient(colors: [colour, colour.opacity(0.28), colour.opacity(0)], center: .center, startRadius: 2, endRadius: 280))
             .frame(width: 560, height: 560)
             .opacity(light.brightness * theme.glow.a)
@@ -192,7 +204,7 @@ private struct WordTab: View {
                         Capsule()
                             .fill(theme.isDark ? light : theme.accent.color)
                             .frame(width: 16, height: 2.5)
-                            .shadow(color: light.opacity(theme.isDark ? 0.9 : 0.7), radius: 4)
+                            .shadow(color: light.opacity(theme.usesGlow ? (theme.isDark ? 0.9 : 0.7) : 0), radius: 4)
                             .matchedGeometryEffect(id: "light", in: namespace)
                     }
                 }

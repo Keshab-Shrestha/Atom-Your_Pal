@@ -8,10 +8,16 @@ struct AppearanceSection: View {
 
     var body: some View {
         let settings = model.settings
+        // Six themes since Void (ADR-086): two rows of three, so every name fits on one line.
+        let themes = AppTheme.allCases
         Card("Theme", footer: settings.theme.detail) {
-            HStack(spacing: 4) {
-                ForEach(AppTheme.allCases) { option in
-                    ThemeSwatch(option: option, selected: settings.theme == option) { settings.theme = option }
+            VStack(spacing: 6) {
+                ForEach(Array(stride(from: 0, to: themes.count, by: 3)), id: \.self) { start in
+                    HStack(spacing: 4) {
+                        ForEach(themes[start..<min(start + 3, themes.count)]) { option in
+                            ThemeSwatch(option: option, selected: settings.theme == option) { settings.theme = option }
+                        }
+                    }
                 }
             }
             .padding(8)
@@ -95,8 +101,14 @@ private struct WispSwatch: View {
         Button(action: action) {
             VStack(spacing: 4) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(LinearGradient(colors: [Color(red: 0.16, green: 0.2, blue: 0.29), Color(red: 0.25, green: 0.3, blue: 0.42)], startPoint: .top, endPoint: .bottom))
+                    if theme.isFlat {
+                        // Void: Wisp on black in a hairline, no gradient.
+                        RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).fill(theme.surfaceSolid.color)
+                        RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).strokeBorder(theme.border.color, lineWidth: 1)
+                    } else {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(LinearGradient(colors: [Color(red: 0.16, green: 0.2, blue: 0.29), Color(red: 0.25, green: 0.3, blue: 0.42)], startPoint: .top, endPoint: .bottom))
+                    }
                     WispView(mood: .resting, time: 0.3, size: 40, glow: 0.9, style: option)
                 }
                 .frame(height: 62)

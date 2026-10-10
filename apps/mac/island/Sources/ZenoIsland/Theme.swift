@@ -11,6 +11,7 @@ extension RGBA {
     var nsColor: NSColor { NSColor(srgbRed: r, green: g, blue: b, alpha: a) }
 }
 
+// Views outside a themed surface (the gallery's loose Wisps) keep Lantern's look; every real surface sets its own.
 private struct ThemeKey: EnvironmentKey { static let defaultValue = ThemePalette.lantern }
 
 extension EnvironmentValues {
@@ -22,6 +23,25 @@ extension EnvironmentValues {
 
 extension ThemePalette {
     var colorScheme: ColorScheme { isDark ? .dark : .light }
+
+    /// ADR-086 (Void): ghost buttons and flat surfaces.
+    var isGhost: Bool { buttonStyle == .ghost }
+    var isFlat: Bool { surfaceStyle == .flat }
+
+    /// The 1 px hairline of a flat surface or ghost control, brighter while the pointer is over it.
+    func hairline(_ hovering: Bool = false) -> Color { (hovering ? borderHover : border).color }
+
+    /// An identifier's font (model and app names, timings, shortcuts, job details): SF Mono at `size` in Void,
+    /// otherwise the theme's usual `font`.
+    func idFont(_ font: Font, size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        monoIdentifiers ? .system(size: size, weight: weight, design: .monospaced) : font
+    }
+
+    /// Titles: SF Pro Rounded, Lantern's voice; plain SF Pro in Void, whose UI is one sans (ADR-086).
+    var titleDesign: Font.Design { isFlat ? .default : .rounded }
+
+    /// An identifier's colour: Void's violet, otherwise `fallback`.
+    func idColor(_ fallback: RGBA) -> Color { (identifier ?? fallback).color }
 
     /// The accent as a fill: a gradient in Luminous, flat elsewhere.
     var accentFill: AnyShapeStyle {
@@ -46,7 +66,7 @@ extension ThemePalette {
         case .starting: text2.color
         case .ready: success.color
         case .listening: live.color
-        case .transcribing, .thinking: accentEnd.color
+        case .transcribing, .thinking: (identifier ?? accentEnd).color
         case .speaking: accent.color
         case .notice, .asking: attention.color
         case .problem: problem.color
@@ -76,6 +96,18 @@ struct SurfaceBackground<S: InsettableShape>: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        if theme.isFlat {
+            // Void (ADR-086): one opaque colour and a 1 px hairline. No blur, no gradient, no lit rim.
+            ZStack {
+                shape.fill(theme.surfaceSolid.color)
+                shape.strokeBorder(theme.border.color, lineWidth: 1)
+            }
+        } else {
+            glassBody
+        }
+    }
+
+    private var glassBody: some View {
         ZStack {
             if glass {
                 if let radius = systemGlassRadius {
@@ -102,8 +134,47 @@ struct KeyHint: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 10, weight: .semibold, design: .rounded))
+            .font(theme.idFont(.system(size: 10, weight: .semibold, design: .rounded), size: 10, weight: .medium))
             .foregroundStyle(theme.text3.color)
+    }
+}
+
+/// A control's background: the theme's `fill`, or with ghost buttons (Void, ADR-086) only a 1 px hairline that
+/// brightens on hover, drawn in `tint` when the control carries a status (Allow's amber, "Read report"'s violet).
+struct ControlFill<S: InsettableShape>: View {
+    let shape: S
+    let fill: AnyShapeStyle
+    var hovering = false
+    var tint: Color? = nil
+    @Environment(\.theme) private var theme
+
+    init(_ shape: S, fill: some ShapeStyle, hovering: Bool = false, tint: Color? = nil) {
+        self.shape = shape
+        self.fill = AnyShapeStyle(fill)
+        self.hovering = hovering
+        self.tint = tint
+    }
+
+    var body: some View {
+        if theme.isGhost {
+            shape.strokeBorder(tint.map { $0.opacity(hovering ? 1 : 0.7) } ?? theme.hairline(hovering), lineWidth: 1)
+        } else {
+            shape.fill(fill)
+        }
+    }
+}
+
+/// A small filled status dot (ADR-086): blue listening or running, violet thinking, green done, amber needs you, red
+/// a problem. Glows in themes with glow when `glows` is set.
+struct StatusDot: View {
+    let color: Color
+    var size: CGFloat = 7
+    var glows = false
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Circle().fill(color).frame(width: size, height: size)
+            .shadow(color: color.opacity(glows && theme.usesGlow ? 0.8 : 0), radius: size / 2)
     }
 }
 

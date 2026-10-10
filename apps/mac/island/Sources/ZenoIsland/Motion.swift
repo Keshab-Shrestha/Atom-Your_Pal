@@ -12,6 +12,12 @@ enum Motion {
         reduceMotion ? plain : .spring(response: 0.20, dampingFraction: 0.70)
     }
 
+    /// Hover on a control: the snap spring, or in Void (ghost buttons, ADR-086) a plain 150 ms ease-out as the
+    /// hairline brightens.
+    static func hover(_ reduceMotion: Bool, ghost: Bool) -> Animation {
+        ghost ? plain : snap(reduceMotion)
+    }
+
     /// Tab change, page push, row expand.
     static func settle(_ reduceMotion: Bool) -> Animation {
         reduceMotion ? plain : .spring(response: 0.30, dampingFraction: 0.82)

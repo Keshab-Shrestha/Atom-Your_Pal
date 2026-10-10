@@ -107,7 +107,9 @@ enum IslandGallery {
         model.conversation = Conversation()
         write(model, size: expanded, name: "4-empty-conversation", to: directory)
         model.conversation = filled
+        // ADR-086: Void is the default; each sheet that changed with it is also drawn in Lantern ("-lantern").
         writePet(to: directory)
+        writePet(to: directory, theme: .lantern, name: "5-wisp-moods-lantern")
         writeBubbles(to: directory)
         writeApproval(to: directory)
         writePeek(to: directory)
@@ -115,7 +117,9 @@ enum IslandGallery {
         writeSetup(to: directory, conversation: filled)
         writeEveryday(to: directory)
         writeHelpers(to: directory)
+        writeHelpers(to: directory, theme: .lantern, name: "13-helpers-lantern")
         writeMenuBar(to: directory)
+        writeMenuBar(to: directory, flat: false, name: "15-menu-bar-item-lantern")
         writeAvatars(to: directory)
         DesignStudy.render(to: directory)
     }
@@ -123,7 +127,7 @@ enum IslandGallery {
     /// ADR-081: the Helpers window with Sid running one job and done with another, Kame and Puff coming soon; Sid's
     /// report open; and the job list in the light Warm theme. ADR-083: Sid's model picker (Laya, then pinned), the
     /// large-model switch (on, then off) and each job's model.
-    private static func writeHelpers(to directory: URL) {
+    private static func writeHelpers(to directory: URL, theme: AppTheme = .void, name: String = "13-helpers") {
         let suite = "zeno.gallery.helpers.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -142,7 +146,9 @@ enum IslandGallery {
             return m
         }
         func window(_ title: String, _ m: IslandModel) -> some View {
-            let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+            // Void's windows are 24 with a graphite hairline (ADR-086); the real window's corners are the system's.
+            let flat = m.settings.theme.palette.isFlat
+            let shape = RoundedRectangle(cornerRadius: flat ? 24 : 16, style: .continuous)
             return VStack(alignment: .leading, spacing: 6) {
                 Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.75))
                 frozen(HelpersView(model: m).environment(\.islandSnapshot, true).frame(width: 720, height: 520))
@@ -156,22 +162,23 @@ enum IslandGallery {
                         .padding(.leading, 16).padding(.top, 16)
                     }
                     .clipShape(shape)
-                    .overlay(shape.strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5))
+                    .overlay(shape.strokeBorder(flat ? m.settings.theme.palette.border.color : Color.white.opacity(0.1), lineWidth: flat ? 1 : 0.5))
             }
         }
-        let reading = model(.lantern)
+        let reading = model(theme)
         _ = reading.helpers.openReport(1)
         if let event = try? decodeEvent(report) { reading.apply(event) }
         let sheet = VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 18) {
-                window("Helpers: Sid's model chosen by Laya, jobs show their model", model(.lantern))
+                window("Helpers: Sid's model chosen by Laya, jobs show their model", model(theme))
                 window("Sid's report", reading)
             }
-            window("Warm (light): Sid pinned to Sonnet, large model off, a failed job", model(.warm, pinned: #""claude-sonnet-4-5""#, allowLarge: false, failed: true))
+            let other: AppTheme = theme == .void ? .void : .warm
+            window("\(other == .warm ? "Warm (light)" : other.title): Sid pinned to Sonnet, large model off, a failed job", model(other, pinned: #""claude-sonnet-4-5""#, allowLarge: false, failed: true))
         }
         .padding(24)
         .background(Color(red: 0.36, green: 0.42, blue: 0.52))
-        save(sheet, name: "13-helpers", to: directory)
+        save(sheet, name: name, to: directory)
     }
 
     /// ADR-076: What can I ask? (before and after `capabilities`), the empty conversation with examples, the plan
@@ -347,6 +354,24 @@ enum IslandGallery {
             (.resting, "Resting"), (.floating, "Floating"), (.listening, "Listening"), (.thinking, "Thinking"),
             (.speaking, "Speaking"), (.worried, "Problem"), (.napping, "Napping"), (.carried, "Carried"),
         ]
+        // ADR-086: every Wisp style flat under Void, on black and on a desktop.
+        let flat = VStack(alignment: .leading, spacing: 10) {
+            Text("Void — Wisp is flat: no halo, glow or shadow; a status dot").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+            ForEach(WispStyle.allCases, id: \.self) { style in
+                HStack(spacing: 6) {
+                    Text(style.title).font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.75)).frame(width: 70, alignment: .leading)
+                    ForEach(Array(moods.enumerated()), id: \.offset) { _, entry in
+                        WispView(mood: entry.0, time: 0.55, facing: 1, size: 64, style: style)
+                    }
+                }
+            }
+            HStack(spacing: 6) { ForEach(moods.map(\.1), id: \.self) { Text($0).font(.system(size: 10)).foregroundStyle(.white.opacity(0.5)).frame(width: 96) } }
+                .padding(.leading, 76)
+        }
+        .padding(22)
+        .background(Color.black)
+        .environment(\.theme, .void)
+        save(flat, name: "9-void-wisp", to: directory)
         for style in WispStyle.allCases {
             let sheet = VStack(alignment: .leading, spacing: 14) {
                 Text("Wisp — \(style.title)").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
@@ -435,7 +460,7 @@ enum IslandGallery {
 
     /// Computer control (ADR-054, ADR-056): the strip above the Dock while ZENO works on the Mac, the request for
     /// approval in it, how it ends, and the label beside Wisp while it points.
-    private static func writeApproval(to directory: URL, theme: AppTheme = .lantern, name: String = "8-computer-control") {
+    private static func writeApproval(to directory: URL, theme: AppTheme = .void, name: String = "8-computer-control") {
         let suite = "zeno.gallery.approval.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -465,6 +490,7 @@ enum IslandGallery {
             Text("Pointing: only a label beside Wisp").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
             HStack(spacing: -6) {
                 WispView(mood: .thinking, time: 0.4, facing: 1, size: 56, style: theme == .native ? .orb : (theme == .warm ? .companion : .orb))
+                    .environment(\.theme, theme.palette)
                 PointLabelView(text: "the Send button", palette: theme.palette, snapshot: true).frame(width: 150, height: 26 + 2 * PointLabelController.shadowInset)
             }
         }
@@ -487,7 +513,7 @@ enum IslandGallery {
 
     /// Wisp's speech bubble in the states that get one (IslandStatus.needsBubble): dictating with live words and
     /// hands-free (lit), a notice and an approval (amber), a problem (coral), and flipped below Wisp near the top.
-    private static func writeBubbles(to directory: URL, theme: AppTheme = .lantern, name: String = "6-wisp-bubble") {
+    private static func writeBubbles(to directory: URL, theme: AppTheme = .void, name: String = "6-wisp-bubble") {
         let suite = "zeno.gallery.bubble.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -502,7 +528,7 @@ enum IslandGallery {
             case .problem: .worried
             default: .resting
             }
-            let wisp = WispView(mood: mood, time: 0.4, facing: 1, size: 64, glow: mood == .listening ? 1.6 : 1)
+            let wisp = WispView(mood: mood, time: 0.4, facing: 1, size: 64, glow: mood == .listening ? 1.6 : 1).environment(\.theme, theme.palette)
             return VStack(alignment: .leading, spacing: 0) {
                 Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7)).padding(.leading, inset)
                 VStack(spacing: below ? -inset - 4 : -inset - 8) {
@@ -540,7 +566,7 @@ enum IslandGallery {
     }
 
     /// Wisp in every mood, each at three moments, on a desktop-like strip above a Dock-coloured bar.
-    private static func writePet(to directory: URL) {
+    private static func writePet(to directory: URL, theme: AppTheme = .void, name: String = "5-wisp-moods") {
         let moods: [(PetBrain.Mood, String)] = [
             (.resting, "Resting"), (.floating, "Floating"), (.listening, "Listening"), (.thinking, "Thinking"),
             (.speaking, "Speaking"), (.worried, "Problem"), (.napping, "Napping"), (.carried, "Carried"),
@@ -561,15 +587,16 @@ enum IslandGallery {
         }
         .padding(20)
         .background(LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.24, green: 0.29, blue: 0.42)], startPoint: .top, endPoint: .bottom))
-        save(sheet, name: "5-wisp-moods", to: directory)
+        .environment(\.theme, theme.palette)
+        save(sheet, name: name, to: directory)
     }
 
     /// ADR-084: the menu-bar item, Wisp's glyph in each of its four looks on a light and a dark menu bar, at 1x
     /// and 4x. The plain glyph is a template, tinted here the way macOS tints it.
-    private static func writeMenuBar(to directory: URL) {
+    private static func writeMenuBar(to directory: URL, flat: Bool = true, name: String = "15-menu-bar-item") {
         let lights: [(MenuBarLight, String)] = [(.plain, "Ready, thinking, speaking"), (.lit, "Listening"), (.attention, "Needs you"), (.problem, "Problem")]
         func glyph(_ light: MenuBarLight, dark: Bool, scale: CGFloat) -> some View {
-            let image = Image(nsImage: MenuBarGlyph.image(light, dark: dark, scale: scale))
+            let image = Image(nsImage: MenuBarGlyph.image(light, dark: dark, scale: scale, flat: flat))
             let size = MenuBarGlyph.canvas
             return Group {
                 if light.isTemplate {
@@ -607,13 +634,13 @@ enum IslandGallery {
             }
         }
         let sheet = VStack(alignment: .leading, spacing: 16) {
-            Text("Menu-bar item — light bar, then dark bar").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+            Text(flat ? "Menu-bar item (Void: flat, no glow) — light bar, then dark bar" : "Menu-bar item — light bar, then dark bar").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
             bar(dark: false)
             bar(dark: true)
         }
         .padding(24)
         .background(Color(red: 0.36, green: 0.42, blue: 0.52))
-        save(sheet, name: "15-menu-bar-item", to: directory)
+        save(sheet, name: name, to: directory)
     }
 
     /// ADR-085: Wisp's avatar for each expression and every helper's four, from whatever images exist

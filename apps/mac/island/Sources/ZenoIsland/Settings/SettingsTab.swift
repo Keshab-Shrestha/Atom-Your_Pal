@@ -59,7 +59,7 @@ struct SettingsTab: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Back to Settings")
                 Spacer()
-                Text(page.rawValue).font(.system(size: 13, weight: .semibold, design: .rounded)).foregroundStyle(theme.text.color)
+                Text(page.rawValue).font(.system(size: 13, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
                 Spacer()
                 Color.clear.frame(width: 64, height: 1)
             }
@@ -137,7 +137,8 @@ private struct PageRow: View {
                     .foregroundStyle(theme.text.color)
                 Spacer(minLength: 6)
                 Text(summary)
-                    .font(.system(size: 11.5))
+                    // The model and the shortcut are identifiers: SF Mono in Void.
+                    .font(page == .model || page == .shortcuts ? theme.idFont(.system(size: 11.5), size: 11) : .system(size: 11.5))
                     .foregroundStyle(theme.text2.color)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -152,7 +153,7 @@ private struct PageRow: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering.wrappedValue = $0 }
-        .animation(Motion.snap(reduceMotion), value: hovering.wrappedValue)
+        .animation(Motion.hover(reduceMotion, ghost: theme.isGhost), value: hovering.wrappedValue)
         .accessibilityLabel(summary.isEmpty ? page.rawValue : "\(page.rawValue), \(summary)")
     }
 }
