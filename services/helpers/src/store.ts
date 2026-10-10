@@ -3,7 +3,8 @@ import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { isOver } from "./budgets.ts";
 import { homedir } from "node:os";
-import { FILE_ROLES, MAX_GRANTS, checkGrant } from "./grants.ts";
+import { MAX_GRANTS, checkGrant } from "./grants.ts";
+import { KITS, MAX_AGENTS, agentId, cleanRole, loadAgents, retireAgent, writeAgent, type Kit } from "./agents.ts";
 
 /** Task 3.12: most skills a worker may have. */
 export const MAX_SKILLS = 10;
@@ -12,6 +13,7 @@ import { isDue, routineTable } from "./routines.ts";
 import { SOUL_FIELDS, proposalTable } from "./feedback.ts";
 import { createSchema, sameSoul, toJobRow, toSoul, webSources, type JobRow, type ReportRow, type SoulRow } from "./store-schema.ts";
 import {
+  BUILT_IN_KITS,
   HAND_OFFS,
   HELPERS,
   HelperError,
@@ -46,7 +48,7 @@ import type { Activity, GoalReport, HelperChange, HelperStore, HelperStoreOption
 export { webSources } from "./store-schema.ts";
 
 export function openHelperStore(options: HelperStoreOptions): HelperStore {
-  const { path, now = () => new Date(), home = homedir() } = options;
+  const { path, now = () => new Date(), home = homedir(), agentsDir } = options;
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
   createSchema(db);
@@ -77,6 +79,54 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     insertSoul.run(helper, version, soul.name, soul.personality, soul.howItWorks, soul.rules, soul.lessons, at.toISOString());
   // Version 1 of every soul is the roster's default, so it can be restored like any other.
   for (const h of HELPERS) if (!latestSoul.get(h.id)) putSoul(h.id, 1, h.soul, opened);
+
+  /** One worker of the team: built in (ADR-082) or an agent from `agentsDir` (ADR-088). */
+  interface Member {
+    id: HelperId;
+    available: boolean;
+    role: string;
+    kit: Kit;
+    custom: boolean;
+  }
+  const builtIns: Member[] = HELPERS.map((h) => ({ id: h.id, available: h.available as boolean, role: h.role, kit: BUILT_IN_KITS[h.role] ?? "think", custom: false }));
+  let rosterProblems: string[] = [];
+
+  /**
+   * The team: the built-in workers, then every agent folder with a valid soul.md. An agent's file is its current
+   * soul: when it differs from the last version kept here, it becomes a new version (so edits in an editor are kept).
+   */
+  function roster(): Member[] {
+    if (!agentsDir) return builtIns;
+    const { agents, problems } = loadAgents(agentsDir);
+    rosterProblems = [...problems];
+    const members = [...builtIns];
+    for (const agent of agents) {
+      if (members.some((m) => m.id === agent.id)) continue;
+      let soul: Soul;
+      let role: string;
+      try {
+        role = cleanRole(agent.role || "assistant");
+        soul = cleanSoul(agent.soul, members.map((m) => current(m.id).name));
+      } catch (error) {
+        rosterProblems.push(`${agent.id}/soul.md: ${error instanceof Error ? error.message : String(error)}`);
+        continue;
+      }
+      const last = latestSoul.get(agent.id) as unknown as SoulRow | undefined;
+      if (!last) putSoul(agent.id, 1, soul);
+      else if (!sameSoul(toSoul(last), soul)) {
+        putSoul(agent.id, last.version + 1, soul);
+        emit({ action: "soul", helper: agent.id, version: last.version + 1 });
+      }
+      members.push({ id: agent.id, available: true, role, kit: agent.kit, custom: true });
+    }
+    return members;
+  }
+
+  /** Keeps a custom agent's soul.md in step after a save, restore or accepted proposal. */
+  function writeBack(member: Member) {
+    if (!member.custom || !agentsDir) return;
+    writeAgent(agentsDir, { id: member.id, role: member.role, kit: member.kit, soul: toSoul(current(member.id)) });
+  }
   const setJobModel = db.prepare("UPDATE jobs SET model = ?, model_reason = ? WHERE id = ? AND state = 'running'");
   const newestJobs = db.prepare(
     "SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.helper = ? ORDER BY j.id DESC LIMIT ?",
@@ -209,7 +259,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   }
 
   function mustHelper(helper: string) {
-    const known = findHelper(helper);
+    const known = roster().find((m) => m.id === helper);
     if (!known) throw new HelperError(`There is no helper called "${helper.slice(0, 40)}".`);
     return known;
   }
@@ -282,11 +332,13 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   return {
     list() {
       const budgets = this.budgets();
-      return HELPERS.map((h) => ({
+      return roster().map((h) => ({
         id: h.id,
         name: current(h.id).name,
         available: h.available,
         role: h.role,
+        kit: h.kit,
+        custom: h.custom,
         soul: toSoul(current(h.id)),
         soulVersion: current(h.id).version,
         soulVersions: (soulVersions.all(h.id, SOUL_VERSIONS_LISTED) as { version: number; created_at: string }[]).map((v) => ({
@@ -325,9 +377,10 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
     saveSoul(helper, input) {
       const known = mustHelper(helper);
-      const others = HELPERS.filter((h) => h.id !== known.id).map((h) => current(h.id).name);
+      const others = roster().filter((h) => h.id !== known.id).map((h) => current(h.id).name);
       const soul = cleanSoul(input, others);
       if (!sameSoul(soul, toSoul(current(known.id)))) newSoulVersion(known.id, soul);
+      writeBack(known);
     },
 
     restoreSoul(helper, version) {
@@ -336,8 +389,9 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if (!row) throw new HelperError(`${current(known.id).name} has no version ${version}.`);
       if (row.version === current(known.id).version) return;
       // The old name may have been taken by another worker since.
-      const others = HELPERS.filter((h) => h.id !== known.id).map((h) => current(h.id).name);
+      const others = roster().filter((h) => h.id !== known.id).map((h) => current(h.id).name);
       newSoulVersion(known.id, cleanSoul(toSoul(row), others));
+      writeBack(known);
     },
 
     budgets() {
@@ -347,7 +401,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         const value = (settingOf.get(key) as { value: string } | undefined)?.value;
         return value === undefined ? fallback : value === "none" ? null : Number(value);
       };
-      const workers = Object.fromEntries(HELPERS.map((h) => [h.id, { cap: cap(`budget:${h.id}`, DEFAULT_WORKER_CAP), spent: spent.get(h.id) ?? 0 }])) as Budgets["workers"];
+      const workers = Object.fromEntries(roster().map((h) => [h.id, { cap: cap(`budget:${h.id}`, DEFAULT_WORKER_CAP), spent: spent.get(h.id) ?? 0 }])) as Budgets["workers"];
       const team = { cap: cap("budget:team", DEFAULT_TEAM_CAP), spent: [...spent.values()].reduce((a, b) => a + b, 0) };
       return { team, workers, planLimit: cap("planLimit", DEFAULT_PLAN_LIMIT) ?? 100 };
     },
@@ -368,11 +422,38 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
     addGrant(helper, path) {
       const known = mustHelper(helper);
-      if (!FILE_ROLES.includes(known.role)) throw new HelperError(`${current(known.id).name} does not work in folders.`);
+      if (known.kit !== "folders") throw new HelperError(`${current(known.id).name} does not work in folders.`);
       const real = checkGrant(path, home);
       if ((grantsOf.all(known.id) as unknown[]).length >= MAX_GRANTS) throw new HelperError(`A worker can have at most ${MAX_GRANTS} folders.`);
       putGrant.run(known.id, real);
       emit({ action: "grant", helper: known.id, granted: true });
+    },
+
+    createAgent(input) {
+      if (!agentsDir) throw new HelperError("New agents need ZENO's agents folder.");
+      const team = roster();
+      if (team.filter((m) => m.custom).length >= MAX_AGENTS) throw new HelperError(`There are already ${MAX_AGENTS} agents.`);
+      const role = cleanRole(input.role);
+      if (!KITS.includes(input.kit)) throw new HelperError("Choose what the agent may use: research, folders or think.");
+      const soul = cleanSoul({ name: input.name, personality: input.personality, howItWorks: input.howItWorks ?? "", rules: input.rules ?? "", lessons: "" }, team.map((m) => current(m.id).name));
+      const id = agentId(soul.name, [...team.map((m) => m.id), ...loadAgents(agentsDir).agents.map((a) => a.id)]);
+      writeAgent(agentsDir, { id, role, kit: input.kit, soul });
+      roster(); // records version 1
+      emit({ action: "agent", helper: id, added: true });
+      return this.list().find((h) => h.id === id)!;
+    },
+
+    removeAgent(id) {
+      const member = mustHelper(id);
+      if (!member.custom || !agentsDir) throw new HelperError("Only an agent you added can be removed.");
+      for (const job of this.list().find((h) => h.id === id)!.jobs) if (!isFinal(job.state)) this.stop(job.id);
+      retireAgent(agentsDir, id, now());
+      emit({ action: "agent", helper: id, added: false });
+    },
+
+    agentProblems() {
+      roster();
+      return rosterProblems;
     },
 
     rate(id, good, raw) {
@@ -401,7 +482,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       const report = this.report(reviewed.id);
       return {
         worker: current(reviewed.helper).name,
-        role: findHelper(reviewed.helper)!.role,
+        role: mustHelper(reviewed.helper).role,
         task: reviewed.task,
         soul: toSoul(current(reviewed.helper)),
         ...(row.rating_comment ? { comment: row.rating_comment } : {}),
@@ -472,7 +553,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       const from = current(parent.helper).name;
       const to = current(target.id).name;
       if (target.id === parent.helper) throw new HelperError("A worker cannot hand a task to itself.");
-      if (!HAND_OFFS[findHelper(parent.helper)!.role]?.includes(target.role)) throw new HelperError(`${from} cannot hand work to ${to} (${target.role}).`);
+      if (!HAND_OFFS[mustHelper(parent.helper).role]?.includes(target.role)) throw new HelperError(`${from} cannot hand work to ${to} (${target.role}).`);
       let level = 1;
       for (let p: Job | undefined = parent; p?.parentId !== undefined; p = get(p.parentId)) level++;
       if (level + 1 > MAX_LEVELS) throw new HelperError("A sub-task cannot hand off work again. Do it yourself or say what is missing.");

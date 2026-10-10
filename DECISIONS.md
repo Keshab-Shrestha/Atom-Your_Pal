@@ -1886,3 +1886,25 @@ Running Paperclip itself inside ZENO was rejected:
 ### Consequences
 
 ZENO's helpers become a small orchestrator: work is tracked as tasks, workers continue where they left off, recurring work runs by itself, and spend is capped before it drains the plan. The safety boundary stays in ZENO's code. The cost is a larger store and window, more states to test, and runs that may wake without Keshab asking (routines), each with a task, an owner and a history. The Paperclip connection keeps the door open without making ZENO depend on it.
+
+---
+
+## ADR-088 — New Agents With Their Own Roles and soul.md
+
+Date: 2026-10-11. Status: **accepted** (Keshab, 2026-10-11: "make sure we can create other agents as well that we can work with in the future .. and we can create their own roles with personality/soul.md"; chose soul.md files in a folder, and a tool kit per agent).
+
+### Context
+
+The team was seven workers fixed in code (ADR-082). Keshab wants to add his own agents later, each with a role and a soul he can write, and to work with them the same way: Wisp delegates to them, "<Name>, …" by voice, the board, budgets, routines, plan first, ratings and Tinker.
+
+### Decision
+
+- **An agent is a folder:** `data/agents/<id>/soul.md` (local, not in git). Front matter `name`, `role` (Keshab's own words, such as "travel planner") and `kit`; then the soul's sections `## Personality`, `## How it works`, `## Rules`, `## Lessons`. A folder dropped in by hand becomes an agent; "New agent" in the Helpers window writes one.
+- **The file is the agent's current soul; ZENO keeps every version.** When the file changes (in an editor, or by a save, a restore or an accepted Tinker proposal), ZENO records a new version in its own store, so Versions and undo work as for the built-in workers.
+- **A tool kit per agent, fixed in code** (Keshab: "Pick one of 3 kits"): `research` (web search and pages, like Sid), `folders` (files in granted folders, sandboxed, its own git branch, never pushed, like Kame), `think` (no tools: writing, advice, planning from what it knows). The kit is the only thing that decides tools; a role or soul cannot add any. An unknown kit is read as `think`.
+- **Checked like the built-in souls:** names unique among all workers, not Wisp or ZENO; the same field limits; roles at most 40 characters, not `improver` (Tinker's). Role-fixed rules (such as the financial notice) apply to a custom agent with that role too.
+- **Built-in workers stay in code.** A custom agent can be removed from the window: its folder moves to `data/agents-removed/`, never deleted; its old tasks stay in the store.
+
+### Consequences
+
+The team can grow without code changes, and each new agent works everywhere the built-in ones do. The safety boundary stays the same: the kit, checked in code, decides what an agent may touch. The cost is a second place a soul lives (a file), kept in step with the store by reading the file whenever the team is listed or a task starts.

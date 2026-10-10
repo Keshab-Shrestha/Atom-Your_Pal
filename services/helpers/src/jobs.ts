@@ -177,7 +177,19 @@ export function withRoleNotice<R extends { body: string }>(role: string, report:
   return { ...report, body: `${report.body.trimEnd()}\n\n${FINANCIAL_NOTICE}` };
 }
 
-export type HelperId = (typeof HELPERS)[number]["id"];
+/** A worker's id: a built-in one ("sid") or an agent's folder name (ADR-088). */
+export type HelperId = string;
+
+/** ADR-088: what each built-in role may use. Custom agents name their kit in soul.md. */
+export const BUILT_IN_KITS: Readonly<Record<string, "research" | "folders" | "think">> = {
+  researcher: "research",
+  "financial adviser": "research",
+  hr: "research",
+  coder: "folders",
+  designer: "folders",
+  documenter: "folders",
+  improver: "think",
+};
 export type JobState = "queued" | "running" | "done" | "failed" | "stopped";
 
 export class HelperError extends Error {

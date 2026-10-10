@@ -85,6 +85,8 @@ export interface ResearchOptions {
    * that plugin and no other skills; a Skill call for any other name is refused.
    */
   skills?: { pluginDir: string; plugin: string; names: string[] };
+  /** ADR-088: a "think" agent: no tools at all; it writes the report from what it knows. */
+  thinkOnly?: boolean;
   files?: {
     cwd: string;
     writable: string[];
@@ -133,6 +135,16 @@ structured format:
 - text: the whole new text of that field (keep what is still right, add or change only what the problem shows). Empty when change is false.
 - reason: one or two sentences Keshab reads, saying what went wrong and why this change helps.`;
 const PLAN_JSON_SCHEMA = jsonSchema(PlanSchema);
+
+/** ADR-088: the contract for an agent with no tools. */
+const THINK_CONTRACT = `
+How the job is done:
+- You have no tools: no web, no files. Work from what you know, say plainly what you are unsure of, and never invent facts, figures or sources.
+- Return the report in the required structured format:
+  - title: at most 80 characters.
+  - summary: one sentence, at most 160 characters.
+  - body: plain text only, no markdown. Paragraphs separated by one blank line.
+  - sources: an empty list.`;
 
 /** Task 3.10: the hand_off tool's name as Claude Code sees it. */
 export const HAND_OFF_TOOL = "mcp__zeno__hand_off";
@@ -255,7 +267,9 @@ async function runStructured(options: ResearchOptions, mode: "research" | "plan"
       step(`Reading ${pages} of up to ${pageLimit} pages`);
       return { behavior: "allow", updatedInput: input };
     }
-    if (name === "WebSearch" || name === "StructuredOutput") return { behavior: "allow", updatedInput: input };
+    if (name === "StructuredOutput") return { behavior: "allow", updatedInput: input };
+    if (options.thinkOnly && name !== HAND_OFF_TOOL) return { behavior: "deny", message: "This job has no tools: write the report from what you know." };
+    if (name === "WebSearch") return { behavior: "allow", updatedInput: input };
     if (name === HAND_OFF_TOOL && options.handOff && !planning) return { behavior: "allow", updatedInput: input };
     return { behavior: "deny", message: "This job may only search the web and read pages." };
   };
@@ -271,11 +285,11 @@ async function runStructured(options: ResearchOptions, mode: "research" | "plan"
       prompt: options.resume ? task : `The job:\n${task}`,
       options: {
         model,
-        systemPrompt: `${instructions.trim()}\n${mode === "review" ? REVIEW_CONTRACT : planning ? PLAN_CONTRACT : files ? filesContract(files.cwd) : contract(pageLimit)}`,
+        systemPrompt: `${instructions.trim()}\n${mode === "review" ? REVIEW_CONTRACT : planning ? PLAN_CONTRACT : files ? filesContract(files.cwd) : options.thinkOnly ? THINK_CONTRACT : contract(pageLimit)}`,
         pathToClaudeCodeExecutable: claudePath,
         // Research: no project folder, so nothing of ZENO's repository is in reach or in context. Files: the work folder.
         cwd: files ? files.cwd : tmpdir(),
-        tools: planning ? [] : files ? FILE_TOOLS : ["WebSearch", "WebFetch"],
+        tools: planning || (options.thinkOnly && !files) ? [] : files ? FILE_TOOLS : ["WebSearch", "WebFetch"],
         ...(files
           ? {
               sandbox: {

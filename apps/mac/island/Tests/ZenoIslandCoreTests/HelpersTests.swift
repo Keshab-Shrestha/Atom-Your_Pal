@@ -773,3 +773,25 @@ struct PaperclipTests {
         #expect(list.paperclip?.first?.isDone == true)
     }
 }
+
+@Suite("New agents (ADR-088)")
+struct NewAgentTests {
+    @Test func createsAndRemovesAgents() throws {
+        let line = HelperTaskTests.line.replacingOccurrences(of: #"{"id":"hana","name":"Hana","available":true,"app":null,"jobs""#,
+            with: #"{"id":"rumi","name":"Rumi","available":true,"app":null,"role":"travel planner","kit":"think","custom":true,"jobs":[]},{"id":"hana","name":"Hana","available":true,"app":null,"jobs""#)
+        var state = HelpersState()
+        state.apply(try decodeEvent(line))
+        #expect(state.list?.helpers.first { $0.id == "rumi" }.map { $0.custom && $0.kit == "think" && !$0.worksInFolders } == true)
+        #expect(state.removeAgent() == nil) // Sid is built in
+        state.openNewAgent()
+        #expect(state.isCreatingAgent)
+        let soul = HelperSoul(name: " Mika ", personality: "Warm.", howItWorks: "", rules: "", lessons: "")
+        #expect(state.createAgent(role: "", kit: "think", soul: soul) == nil && state.problem != nil)
+        let command = state.createAgent(role: "Writer", kit: "folders", soul: soul)
+        #expect(command == .agentCreate(name: "Mika", role: "Writer", kit: "folders", soul: soul.trimmed))
+        let withMika = line.replacingOccurrences(of: #"{"id":"rumi""#, with: #"{"id":"mika","name":"Mika","available":true,"app":null,"role":"writer","kit":"folders","custom":true,"jobs":[]},{"id":"rumi""#)
+        state.apply(try decodeEvent(withMika))
+        #expect(!state.isCreatingAgent && state.selectedHelperId == "mika")
+        #expect(state.removeAgent() == .agentRemove(id: "mika"))
+    }
+}

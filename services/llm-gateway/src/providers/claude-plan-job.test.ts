@@ -207,6 +207,19 @@ test("Tinker's review uses no tools and returns one proposed change (Task 3.13)"
   assert.match(o.systemPrompt, /reviews one task that Keshab rated as not good/);
 });
 
+test("a think agent has no tools at all (ADR-088)", async () => {
+  let answer: unknown;
+  const { sdk, seen } = fakeSdk(async function* (o) {
+    yield init();
+    answer = await o.canUseTool("WebSearch", { query: "x" }, { signal: new AbortController().signal });
+    yield done();
+  });
+  await research(sdk, { thinkOnly: true });
+  assert.deepEqual(seen[0]!.options.tools, []);
+  assert.match(seen[0]!.options.systemPrompt, /You have no tools/);
+  assert.equal((answer as { behavior: string }).behavior, "deny");
+});
+
 test("progress in plain words, and the twelfth page is the last: further fetches are refused and the report is partial", async () => {
   const steps: string[] = [];
   const answers: string[] = [];

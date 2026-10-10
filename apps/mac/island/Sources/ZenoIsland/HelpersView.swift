@@ -17,7 +17,9 @@ struct HelpersView: View {
             HelperSidebar(model: model).frame(width: 224)
             Rectangle().fill(palette.separator.color).frame(width: palette.isFlat ? 1 : 0.5)
             Group {
-                if model.helpers.openJobId != nil {
+                if model.helpers.isCreatingAgent {
+                    NewAgentPane(model: model)
+                } else if model.helpers.openJobId != nil {
                     ThreadPane(model: model)
                 } else if model.helpers.showsBoard {
                     BoardPane(model: model)
@@ -61,14 +63,27 @@ private struct HelperSidebar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
+          // ADR-088: the team can grow, so the list scrolls; the switch stays at the bottom.
+          Scrollable {
+           VStack(alignment: .leading, spacing: 4) {
             Button { model.helpers.selectBoard() } label: { BoardRow(model: model, selected: model.helpers.showsBoard) }
                 .buttonStyle(.plain)
             ForEach(model.helpers.list?.helpers ?? []) { helper in
                 Button { model.helpers.selectHelper(helper.id) } label: {
-                    HelperCard(helper: helper, selected: !model.helpers.showsBoard && helper.id == model.helpers.selectedHelperId)
+                    HelperCard(helper: helper, selected: !model.helpers.showsBoard && !model.helpers.isCreatingAgent && helper.id == model.helpers.selectedHelperId)
                 }
                 .buttonStyle(.plain)
             }
+            if model.helpers.list != nil {
+                Button { model.helpers.openNewAgent() } label: {
+                    Label("New agent", systemImage: "plus").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+                        .padding(.horizontal, 10).padding(.vertical, 6)
+                }
+                .buttonStyle(.plain)
+                .help("Add an agent with its own role and soul")
+            }
+           }
+          }
             Spacer(minLength: 0)
             if let list = model.helpers.list { AllowLargeSwitch(model: model, list: list) }
         }
@@ -241,6 +256,7 @@ private struct HelperPane: View {
                         QuietButton(title: "Soul", symbol: "sparkles") { model.helpers.openSoul() }
                             .help("Who \(helper.name) is and how it works")
                     }
+                    if helper.custom { RemoveAgentButton(model: model, helper: helper) }
                 }
                 if helper.proposals.contains(where: { $0.state == "pending" || $0.state == "accepted" }) {
                     ProposalsSection(model: model, proposals: helper.proposals)

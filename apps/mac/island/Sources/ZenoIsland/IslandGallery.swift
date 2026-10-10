@@ -140,9 +140,9 @@ enum IslandGallery {
         // Task 3.4: Hana's guide waits for Sid's running research.
         let hanaJob = #"{"id":5,"task":"Write a one-page guide from Sid's IPv6 research","state":"queued","createdAt":"\#(ago(3))","blockedBy":[2],"waitingFor":[2],"comments":1}"#
         let team = [("kame", "Kame", true, "coder"), ("puff", "Puff", true, "designer"), ("quill", "Quill", true, "documenter"),
-                    ("penny", "Penny", true, "financial adviser"), ("hana", "Hana", true, "hr"), ("tinker", "Tinker", false, "improver")]
+                    ("penny", "Penny", true, "financial adviser"), ("hana", "Hana", true, "hr"), ("tinker", "Tinker", false, "improver"), ("rumi", "Rumi", true, "travel planner")]
             .map { id, name, available, role in
-                #"{"id":"\#(id)","name":"\#(name)","available":\#(available),"app":null,"role":"\#(role)","soul":{"name":"\#(name)","personality":"…","howItWorks":"","rules":"","lessons":""},"soulVersion":1,"soulVersions":[{"version":1,"createdAt":"\#(ago(3000))"}],"grants":\#(id == "kame" ? #"["\#(NSHomeDirectory())/Developer/zeno"]"# : "[]"),"jobs":[\#(id == "hana" ? hanaJob : "")]}"#
+                #"{"id":"\#(id)","name":"\#(name)","available":\#(available),"app":null,"role":"\#(role)","soul":{"name":"\#(name)","personality":"…","howItWorks":"","rules":"","lessons":""},"soulVersion":1,"soulVersions":[{"version":1,"createdAt":"\#(ago(3000))"}],"custom":\#(id == "rumi"),"kit":"\#(id == "rumi" ? "think" : id == "kame" || id == "puff" ? "folders" : "research")","grants":\#(id == "kame" ? #"["\#(NSHomeDirectory())/Developer/zeno"]"# : "[]"),"jobs":[\#(id == "hana" ? hanaJob : "")]}"#
             }.joined(separator: ",")
         func helpers(pinned: String, allowLarge: Bool, failed: Bool = false) -> String { #"{"type":"helpers","apps":["Brave Browser","Notes","Safari"],"allowLarge":\#(allowLarge),"models":\#(models),"team":{"cap":15,"spent":6.4},"planLimit":80,"helpers":[{"id":"sid","name":"Sid","available":true,"app":"Brave Browser","role":"researcher","budget":{"cap":5,"spent":4.1},"routines":[{"id":1,"task":"Summarise networking news","when":"Every day at 8:00 AM","lastAt":"\#(ago(120))"}],"soul":\#(sidSoul),"soulVersion":2,"soulVersions":[{"version":2,"createdAt":"\#(ago(30))"},{"version":1,"createdAt":"\#(ago(3000))"}],"pinnedModel":\#(pinned),"jobs":[\#(failed ? #"{"id":4,"task":"Compare the reviews of the new Mac mini","state":"failed","createdAt":"\#(ago(2))","endedAt":"\#(ago(1))","error":"The review pages would not load"},"# : ""){"id":3,"task":"What year was TCP/IP adopted by ARPANET?","state":"queued","createdAt":"\#(ago(1))","held":"The Claude plan is 84% used; new runs wait below 80%."},{"id":2,"task":"Research how IPv6 is rolled out in home routers","state":"running","createdAt":"\#(ago(4))","step":"Reading 3 of 8 pages","model":"claude-sonnet-4-5","modelReason":"Laya: moderate"},{"id":1,"task":"Research networking basics for a beginner","state":"done","createdAt":"\#(ago(52))","endedAt":"\#(ago(41))","title":"Networking basics","summary":"How data finds its way from your Mac to a website and back.","model":"claude-haiku-4-5","modelReason":"Laya: easy"}]},\#(team)]}"# }
         let report = #"{"type":"report","id":1,"title":"Networking basics","summary":"How data finds its way from your Mac to a website and back.","body":"Every device on a network has an address. Your router hands one to your Mac, and translates between your home network and the internet.\n\nData travels in small packets. Each packet carries where it is going, and routers along the way pass it on, one hop at a time.\n\nNames like apple.com are turned into addresses by DNS before any packet is sent.","sources":[{"title":"How the Internet works","url":"https://developer.mozilla.org/en-US/docs/Learn/Common_questions/Web_mechanics/How_does_the_Internet_work"},{"title":"Internet Protocol (RFC 791)","url":"https://www.rfc-editor.org/rfc/rfc791"}]}"#
@@ -185,6 +185,8 @@ enum IslandGallery {
         boarded.helpers.selectBoard()
         let kamed = model(theme)
         kamed.helpers.selectHelper("kame")
+        let creating = model(theme)
+        creating.helpers.openNewAgent()
         let sheet = VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 18) {
                 window("Helpers: Sid's model chosen by Laya, jobs show their model", model(theme))
@@ -199,6 +201,7 @@ enum IslandGallery {
                 window("The board: team budget and plan limit; a held task; Hana waits for Sid (Tasks 3.4, 3.7)", boarded)
                 window("Kame: a granted folder, its own branch (Task 3.11)", kamed)
             }
+            window("New agent: its own role, kit and soul.md (ADR-088)", creating)
         }
         .padding(24)
         .background(Color(red: 0.36, green: 0.42, blue: 0.52))

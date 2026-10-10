@@ -34,6 +34,8 @@ export type IslandCommand =
   | { type: "helper.skills"; helper: string; skills: string[] }
   | { type: "job.rate"; id: number; good: boolean; comment?: string }
   | { type: "job.open"; id: number }
+  | { type: "agent.create"; name: string; role: string; kit: "research" | "folders" | "think"; personality: string; howItWorks: string; rules: string }
+  | { type: "agent.remove"; id: string }
   | { type: "proposal.accept"; id: number }
   | { type: "proposal.reject"; id: number }
   | { type: "proposal.undo"; id: number }
@@ -178,6 +180,9 @@ export interface HelperItem {
   name: string;
   available: boolean;
   role: string;
+  /** ADR-088: what it may use (fixed in code), and whether Keshab added it. */
+  kit: "research" | "folders" | "think";
+  custom: boolean;
   soul: SoulItem;
   soulVersion: number;
   /** Newest first, at most 10; `createdAt` is ISO 8601. */
@@ -294,6 +299,8 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "helper.skills",
   "job.rate",
   "job.open",
+  "agent.create",
+  "agent.remove",
   "proposal.accept",
   "proposal.reject",
   "proposal.undo",
@@ -369,6 +376,20 @@ export function parseCommand(line: string): ParsedLine {
     if (blockedBy !== undefined && !isIdList(blockedBy)) return { error: 'job.add needs "blockedBy" to be a list of whole numbers.' };
     if (planFirst !== undefined && typeof planFirst !== "boolean") return { error: 'job.add needs "planFirst" to be true or false.' };
     return { command: { type, helper, task, ...(blockedBy !== undefined ? { blockedBy } : {}), ...(planFirst !== undefined ? { planFirst } : {}) } };
+  }
+  if (type === "agent.create") {
+    // Names, roles, kits and soul limits are the store's to refuse (stage "settings").
+    const v = value as Record<string, unknown>;
+    const text = (k: string) => (typeof v[k] === "string" ? (v[k] as string) : undefined);
+    if (text("name") === undefined || text("role") === undefined || text("personality") === undefined) return { error: 'agent.create needs "name", "role" and "personality" strings.' };
+    const kit = text("kit");
+    if (kit !== "research" && kit !== "folders" && kit !== "think") return { error: 'agent.create needs "kit": "research", "folders" or "think".' };
+    return { command: { type, name: text("name")!, role: text("role")!, kit, personality: text("personality")!, howItWorks: text("howItWorks") ?? "", rules: text("rules") ?? "" } };
+  }
+  if (type === "agent.remove") {
+    const { id } = value as { id?: unknown };
+    if (typeof id !== "string" || !id) return { error: 'agent.remove needs an "id" string.' };
+    return { command: { type, id } };
   }
   if (type === "job.rate") {
     const { id, good, comment } = value as { id?: unknown; good?: unknown; comment?: unknown };

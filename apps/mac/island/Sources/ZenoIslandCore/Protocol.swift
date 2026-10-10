@@ -54,6 +54,9 @@ public enum IslandCommand: Sendable, Equatable {
     case proposalUndo(id: Int)
     /// Task 3.14: open a task's report in its worker's app.
     case jobOpen(id: Int)
+    /// ADR-088: add an agent (its soul.md), or remove one Keshab added.
+    case agentCreate(name: String, role: String, kit: String, soul: HelperSoul)
+    case agentRemove(id: String)
     case grantRemove(helper: String, path: String)
     case jobDelete(id: Int)
     case reportGet(id: Int)
@@ -103,6 +106,8 @@ public enum IslandCommand: Sendable, Equatable {
         case .proposalReject: "proposal.reject"
         case .proposalUndo: "proposal.undo"
         case .jobOpen: "job.open"
+        case .agentCreate: "agent.create"
+        case .agentRemove: "agent.remove"
         case .grantRemove: "grant.remove"
         case .jobDelete: "job.delete"
         case .reportGet: "report.get"
@@ -156,6 +161,15 @@ public enum IslandCommand: Sendable, Equatable {
             fields["id"] = id
             fields["good"] = good // a real JSON boolean
             if let comment, !comment.isEmpty { fields["comment"] = comment }
+        case .agentCreate(let name, let role, let kit, let soul):
+            fields["name"] = name
+            fields["role"] = role
+            fields["kit"] = kit
+            fields["personality"] = soul.personality
+            fields["howItWorks"] = soul.howItWorks
+            fields["rules"] = soul.rules
+        case .agentRemove(let id):
+            fields["id"] = id
         case .proposalAccept(let id), .proposalReject(let id), .proposalUndo(let id), .jobOpen(let id):
             fields["id"] = id
         case .helperSkills(let helper, let skills):
@@ -737,7 +751,7 @@ private struct Fields {
                planFirst: Self.flag(h["planFirst"]), routines: Self.routines(h["routines"]),
                grants: (h["grants"] as? [Any])?.compactMap { $0 as? String } ?? [],
                skills: (h["skills"] as? [Any])?.compactMap { $0 as? String } ?? [],
-               proposals: Self.proposals(h["proposals"]))
+               proposals: Self.proposals(h["proposals"]), kit: h["kit"] as? String, custom: Self.flag(h["custom"]))
         }
     }
 

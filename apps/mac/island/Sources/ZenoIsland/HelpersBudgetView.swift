@@ -326,3 +326,25 @@ struct PaperclipSection: View {
         }
     }
 }
+
+/// ADR-088: removes an agent Keshab added, after asking. Its folder moves to data/agents-removed/; nothing is deleted.
+struct RemoveAgentButton: View {
+    let model: IslandModel
+    let helper: Helper
+    private let asking = State(initialValue: false)
+
+    init(model: IslandModel, helper: Helper) {
+        self.model = model
+        self.helper = helper
+    }
+
+    var body: some View {
+        QuietButton(title: "Remove") { asking.wrappedValue = true }
+            .help("Take \(helper.name) out of the team")
+            .confirmationDialog("Remove \(helper.name) from the team?", isPresented: asking.projectedValue) {
+                Button("Remove \(helper.name)", role: .destructive) { model.sendHelpers(model.helpers.removeAgent()) }
+            } message: {
+                Text("Its soul.md moves to data/agents-removed/ and is not deleted. Its tasks stay in the history; any not finished are stopped.")
+            }
+    }
+}

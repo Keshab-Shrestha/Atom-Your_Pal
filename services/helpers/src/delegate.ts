@@ -1,4 +1,4 @@
-import { HAND_OFFS, HelperError, MAX_GOAL_TASKS, MAX_HAND_OFFS, findHelper } from "./jobs.ts";
+import { HAND_OFFS, HelperError, MAX_GOAL_TASKS, MAX_HAND_OFFS } from "./jobs.ts";
 import { WEEKDAYS, describeSchedule, parseRoutine, type Schedule } from "./routines.ts";
 import type { GoalPart, HelperStore, HelperView, Job } from "./store.ts";
 
@@ -144,8 +144,9 @@ function scheduleFrom(input: Record<string, unknown>): Schedule {
  * undefined when there are none or the task is itself a sub-task. The store checks every call again.
  */
 export function handOffTool(store: HelperStore, job: Job) {
-  const roles = HAND_OFFS[findHelper(job.helper)?.role ?? ""] ?? [];
-  const workers = store.list().filter((w) => w.available && w.id !== job.helper && roles.includes(w.role));
+  const team = store.list();
+  const roles = HAND_OFFS[team.find((w) => w.id === job.helper)?.role ?? ""] ?? [];
+  const workers = team.filter((w) => w.available && w.id !== job.helper && roles.includes(w.role));
   if (job.parentId !== undefined || !workers.length) return undefined;
   return {
     description:

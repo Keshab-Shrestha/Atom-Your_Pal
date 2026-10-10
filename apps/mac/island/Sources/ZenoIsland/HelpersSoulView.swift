@@ -55,7 +55,7 @@ struct SoulPane: View {
 }
 
 /// One soul field: a quiet label with a character count, and the text in a well.
-private struct SoulField: View {
+struct SoulField: View {
     let label: String
     let text: Binding<String>
     let limit: Int
@@ -146,3 +146,60 @@ private struct SaveButton: View {
     }
 }
 
+
+/// ADR-088: a new agent of Keshab's own: a name, a role in his words, what it may use (a kit, fixed in code) and its
+/// soul. ZENO writes it as data/agents/<name>/soul.md, which he can also edit in any editor.
+struct NewAgentPane: View {
+    let model: IslandModel
+    /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
+    private let draft = State(initialValue: HelperSoul(name: "", personality: "", howItWorks: "", rules: "", lessons: ""))
+    private let role = State(initialValue: "")
+    private let kit = State(initialValue: "research")
+    @Environment(\.theme) private var theme
+
+    init(model: IslandModel) { self.model = model }
+
+    var body: some View {
+        Scrollable {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 8) {
+                    QuietButton(title: "Cancel", symbol: "chevron.left") { model.helpers.closeNewAgent() }
+                    Spacer(minLength: 8)
+                    QuietButton(title: "Create", symbol: "plus") {
+                        model.sendHelpers(model.helpers.createAgent(role: role.wrappedValue, kit: kit.wrappedValue, soul: draft.wrappedValue))
+                    }
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("New agent").font(theme.isFlat ? .system(size: 24, weight: .regular, design: .serif) : .system(size: 20, weight: .semibold, design: .rounded))
+                        .foregroundStyle(theme.isFlat ? Color.white : theme.text.color)
+                    Text("Saved as data/agents/<name>/soul.md, which you can also edit in any editor. What it may use is its kit, set here and checked in code; its soul cannot add tools.")
+                        .font(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
+                }
+                if let problem = model.helpers.problem { ProblemLine(text: problem) }
+                SoulField(label: "Name", text: draft.projectedValue.name, limit: HelperSoul.limits.name, lines: 1)
+                SoulField(label: "Role (in your words, such as travel planner)", text: role.projectedValue, limit: 40, lines: 1)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("What it may use").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                    Menu {
+                        ForEach(["research", "folders", "think"], id: \.self) { option in
+                            Button { kit.wrappedValue = option } label: {
+                                if option == kit.wrappedValue { Label(Helper.kitTitle(option), systemImage: "checkmark") } else { Text(Helper.kitTitle(option)) }
+                            }
+                        }
+                    } label: {
+                        PillMenuLabel(label: "Kit", value: Helper.kitTitle(kit.wrappedValue), identifier: false)
+                    }
+                    .menuStyle(.button).buttonStyle(.plain).fixedSize()
+                }
+                SoulField(label: "Personality", text: draft.projectedValue.personality, limit: HelperSoul.limits.personality, lines: 3)
+                SoulField(label: "How it works", text: draft.projectedValue.howItWorks, limit: HelperSoul.limits.howItWorks, lines: 4)
+                SoulField(label: "Rules", text: draft.projectedValue.rules, limit: HelperSoul.limits.rules, lines: 3)
+            }
+            .frame(maxWidth: 560, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.panel + 4)
+            .padding(.top, 30)
+            .padding(.bottom, Spacing.panel)
+        }
+    }
+}

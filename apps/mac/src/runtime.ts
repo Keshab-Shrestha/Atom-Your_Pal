@@ -50,7 +50,6 @@ import {
   createScheduleTool,
   createWorkerShortcut,
   holdFor,
-  FILE_ROLES,
   reviewBrief,
   followUpBrief,
   handOffTool,
@@ -173,7 +172,9 @@ export function createRuntime(
     },
   };
   const helpersPath = options.helpersPath ?? process.env.ZENO_HELPERS_FILE ?? "data/helpers.db";
-  const helpers = openHelpers(helpersPath, log);
+  // ADR-088: agents Keshab adds live beside the helpers file, each data/agents/<id>/soul.md.
+  const agentsDir = join(dirname(resolve(helpersPath === ":memory:" ? "data/x" : helpersPath)), "agents");
+  const helpers = openHelpers(helpersPath, log, helpersPath === ":memory:" ? undefined : agentsDir);
   // Task 3.11: the tasks' git worktrees live beside the helpers file, never inside a granted repository.
   const worktrees = join(dirname(resolve(helpersPath === ":memory:" ? "data/x" : helpersPath)), "worktrees");
   // ADR-087, Task 3.16: Keshab's own Paperclip, only when ZENO_PAPERCLIP_URL names a loopback address. Anything else
@@ -397,11 +398,13 @@ export function createRuntime(
   // ADR-081/082, Task 3.2: helper jobs run beside the Core, on the Claude plan in use at the time each job starts.
   const runJob: JobRun = async (job, { signal, onStep }) => {
     const { provider, model: current } = settings.current();
-    const helper = findHelper(job.helper);
+    // ADR-088: a built-in worker or an agent Keshab added; its role and kit (what it may use) come from the team list.
+    const member = helpers?.list().find((h) => h.id === job.helper);
     // ADR-082, Task 3.3: the soul is read when the job starts, so an edit applies from the next job.
-    const soul = helpers?.soul(job.helper) ?? helper?.soul;
+    const soul = helpers?.soul(job.helper) ?? findHelper(job.helper)?.soul;
     const name = soul?.name ?? job.helper;
-    const role = helper?.role ?? "";
+    const role = member?.role ?? findHelper(job.helper)?.role ?? "";
+    const kit = member?.kit ?? "think";
     if (provider !== CLAUDE_PLAN) throw new Error(`${name} needs the Claude plan for research.`);
     // ADR-083: pin, else Laya; then the role's floor and the large-model switch. Stored first so the window shows it.
     const pick = await chooseJobModel({
@@ -432,7 +435,7 @@ export function createRuntime(
     const grants = helpers?.list().find((h) => h.id === job.helper)?.grants ?? [];
     let work: Workdir | undefined;
     let files: Parameters<typeof runResearch>[0]["files"];
-    if (FILE_ROLES.includes(role) && grants.length) {
+    if (kit === "folders" && grants.length) {
       const folder = grants.find((g) => job.task.toLowerCase().includes(g.split("/").at(-1)!.toLowerCase())) ?? grants[0]!;
       work = await prepareWorkdir(folder, job.id, worktrees);
       const roots = [work.dir, ...grants.filter((g) => g !== folder)];
@@ -450,7 +453,7 @@ export function createRuntime(
           onCheck: (e) => log.info("job.tool", { helper: job.helper, job: job.id, ...e }),
         }),
       };
-    } else if (FILE_ROLES.includes(role) && role !== "documenter") {
+    } else if (kit === "folders" && role !== "documenter") {
       throw new Error(`${name} needs a folder to work in: grant one in the Helpers window.`);
     }
     // Task 3.10: a top-level task may hand sub-tasks to the workers its role allows; the store checks each one.
@@ -471,6 +474,8 @@ export function createRuntime(
         ...(handOff ? { handOff } : {}),
         ...(files ? { files } : {}),
         ...(skills?.names.length ? { skills } : {}),
+        // ADR-088: a "think" agent has no tools at all (the documenter without a folder still writes up from the web).
+        ...(kit === "think" ? { thinkOnly: true } : {}),
       });
     // Task 3.13: Tinker reviews a task Keshab rated as not good: no tools, one proposed soul change (or none).
     if (role === "improver") {
@@ -657,9 +662,9 @@ function openMemory(path: string, log: Logger): MemoryStore | undefined {
  * Opens the helper store (ADR-081), or returns undefined if the file cannot be opened (ZENO still runs; the
  * island is told there are no helpers). Every change is logged by ids, state and timing only, never task or report text.
  */
-function openHelpers(path: string, log: Logger): HelperStore | undefined {
+function openHelpers(path: string, log: Logger, agentsDir?: string): HelperStore | undefined {
   try {
-    const store = openHelperStore({ path });
+    const store = openHelperStore({ path, ...(agentsDir ? { agentsDir } : {}) });
     store.onChange((change) => log.info("helpers.change", change));
     log.info("helpers.open");
     return store;

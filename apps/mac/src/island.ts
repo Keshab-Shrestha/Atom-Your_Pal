@@ -104,6 +104,9 @@ export interface IslandHelpers {
   rejectPlan(id: number): void;
   /** Whether a worker's new tasks plan first. Throws, with words for the user, for an unknown worker. */
   setPlanFirst(helper: string, on: boolean): void;
+  /** ADR-088: add an agent (its folder and soul.md) or remove one Keshab added. Throw with words for the user. */
+  createAgent(input: { name: string; role: string; kit: "research" | "folders" | "think"; personality: string; howItWorks: string; rules: string }): void;
+  removeAgent(id: string): void;
   /** Task 3.16: the tasks handed to Keshab's Paperclip, for the board. Absent when the connection is off. */
   paperclip?(): { issues: PaperclipItem[] };
   /** Task 3.14: opens a task's report in its worker's app. Absent: `job.open` is refused. Rejects with words for the user. */
@@ -306,6 +309,14 @@ export function runIsland(options: IslandOptions): IslandSession {
         return;
       case "plan.reject":
         changeHelpers(command.type, (helpers) => helpers.rejectPlan(command.id));
+        return;
+      case "agent.create":
+        changeHelpers(command.type, (helpers) =>
+          helpers.createAgent({ name: command.name, role: command.role, kit: command.kit, personality: command.personality, howItWorks: command.howItWorks, rules: command.rules }),
+        );
+        return;
+      case "agent.remove":
+        changeHelpers(command.type, (helpers) => helpers.removeAgent(command.id));
         return;
       case "job.open": {
         const helpers = options.helpers;

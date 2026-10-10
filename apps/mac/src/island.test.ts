@@ -1,9 +1,8 @@
-import { homedir } from "node:os";
 import type { ProviderKeys } from "@zeno/shared";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import { createCore } from "@zeno/core";
@@ -16,7 +15,7 @@ import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
 import type { CoreLike } from "./voice-loop.ts";
 import { createComputerBridge } from "./computer-bridge.ts";
-import { HELPERS, openHelperStore, tieredModels } from "@zeno/helpers";
+import { BUILT_IN_KITS, HELPERS, openHelperStore, tieredModels } from "@zeno/helpers";
 import { islandHelpers } from "./island-helpers.ts";
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
@@ -638,6 +637,8 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
         name: r.name,
         available: r.available,
         role: r.role,
+        kit: BUILT_IN_KITS[r.role],
+        custom: false,
         soul: r.soul,
         soulVersion: 1,
         soulVersions: [{ version: 1, createdAt: (h.events()[0] as HelpersEvent).helpers[0]!.soulVersions[0]!.createdAt }],
@@ -967,6 +968,25 @@ test("the helpers event carries Paperclip's tasks only when the connection is on
   await off.send({ type: "helpers.list" });
   assert.deepEqual((on.events().at(-1) as HelpersEvent).paperclip, { issues: [issue] });
   assert.equal(Object.hasOwn(off.events().at(-1) as object, "paperclip"), false);
+});
+
+test("agent.create adds an agent with its soul.md; agent.remove takes it out (ADR-088)", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "zeno-ag-"));
+  try {
+    const store = openHelperStore({ path: ":memory:", agentsDir: dir });
+    const h = islandHarness({ helpers: islandHelpers(store, async () => []) });
+    await tick(5);
+    await h.send({ type: "agent.create", name: "Rumi", role: "Travel planner", kit: "think", personality: "Calm.", howItWorks: "", rules: "" });
+    const rumi = (h.events().at(-1) as HelpersEvent).helpers.at(-1)!;
+    assert.deepEqual([rumi.id, rumi.role, rumi.kit, rumi.custom], ["rumi", "travel planner", "think", true]);
+    h.clear();
+    await h.send({ type: "agent.create", name: "Wisp", role: "x", kit: "think", personality: "P", howItWorks: "", rules: "" });
+    assert.match((h.events()[0] as { message: string }).message, /taken by ZENO/);
+    await h.send({ type: "agent.remove", id: "rumi" });
+    assert.ok(!(h.events().at(-1) as HelpersEvent).helpers.some((x) => x.id === "rumi"));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("helpers.settings turns the large model off and on, answered with helpers", async () => {

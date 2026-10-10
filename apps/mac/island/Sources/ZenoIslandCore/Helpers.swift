@@ -204,12 +204,23 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public var skills: [String]
     /// Task 3.13: Tinker's proposals for its soul, newest first.
     public var proposals: [SoulProposal]
+    /// ADR-088: what it may use ("research", "folders", "think"; nil from an older runtime), and whether Keshab added it.
+    public var kit: String?
+    public var custom: Bool
     /// The coder, designer and documenter work in folders Keshab grants.
-    public var worksInFolders: Bool { ["coder", "designer", "documenter"].contains(role) }
+    public var worksInFolders: Bool { kit.map { $0 == "folders" } ?? ["coder", "designer", "documenter"].contains(role) }
+    /// ADR-088: the kit in words.
+    public static func kitTitle(_ kit: String) -> String {
+        switch kit {
+        case "research": "Research: web search and pages"
+        case "folders": "Folders: files in folders you grant"
+        default: "Think only: no tools"
+        }
+    }
 
     public init(id: String, name: String, available: Bool, app: String?, jobs: [HelperJob], pinnedModel: String? = nil,
                 role: String = "", soul: HelperSoul? = nil, soulVersion: Int = 1, soulVersions: [SoulVersion] = [],
-                budget: HelperBudget? = nil, planFirst: Bool = false, routines: [HelperRoutine] = [], grants: [String] = [], skills: [String] = [], proposals: [SoulProposal] = []) {
+                budget: HelperBudget? = nil, planFirst: Bool = false, routines: [HelperRoutine] = [], grants: [String] = [], skills: [String] = [], proposals: [SoulProposal] = [], kit: String? = nil, custom: Bool = false) {
         self.id = id
         self.name = name
         self.available = available
@@ -226,6 +237,8 @@ public struct Helper: Sendable, Equatable, Identifiable {
         self.grants = grants
         self.skills = skills
         self.proposals = proposals
+        self.kit = kit
+        self.custom = custom
     }
 
     /// The role as the window says it: "Researcher", "Financial information", "HR", ….
@@ -560,6 +573,11 @@ public struct HelpersState: Sendable, Equatable {
     public mutating func apply(_ event: IslandEvent) {
         switch event {
         case .helpers(let newList):
+            // ADR-088: the agent just created is chosen, and its form closes.
+            if isCreatingAgent, isWaiting, let old = list, let added = newList.helpers.first(where: { new in !old.helpers.contains { $0.id == new.id } }) {
+                isCreatingAgent = false
+                selectedHelperId = added.id
+            }
             list = newList
             isWaiting = false
             problem = nil
@@ -586,6 +604,7 @@ public struct HelpersState: Sendable, Equatable {
 
     /// Any listed worker can be chosen, so a worker not ready for jobs can still have its soul shaped.
     public mutating func selectHelper(_ id: String) {
+        isCreatingAgent = false
         guard list?.helpers.contains(where: { $0.id == id }) == true, id != selectedHelperId else { return }
         selectedHelperId = id
         showsBoard = false
@@ -595,7 +614,42 @@ public struct HelpersState: Sendable, Equatable {
         problem = nil
     }
 
+    /// ADR-088: the "New agent" form is open.
+    public private(set) var isCreatingAgent = false
+
+    public mutating func openNewAgent() {
+        closeReport()
+        showsBoard = false
+        isSoulOpen = false
+        isCreatingAgent = true
+        problem = nil
+    }
+
+    public mutating func closeNewAgent() {
+        isCreatingAgent = false
+        problem = nil
+    }
+
+    /// Nil with `problem` set for an obviously incomplete agent; the runtime checks the rest.
+    public mutating func createAgent(role: String, kit: String, soul: HelperSoul) -> IslandCommand? {
+        let clean = soul.trimmed
+        let roleClean = role.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.name.isEmpty || roleClean.isEmpty || clean.personality.isEmpty {
+            problem = "A new agent needs a name, a role and a personality."
+            return nil
+        }
+        guard ["research", "folders", "think"].contains(kit) else { return nil }
+        return waiting(.agentCreate(name: clean.name, role: roleClean, kit: kit, soul: clean))
+    }
+
+    /// Removes the chosen agent, if Keshab added it.
+    public mutating func removeAgent() -> IslandCommand? {
+        guard let helper = selectedHelper, helper.custom else { return nil }
+        return waiting(.agentRemove(id: helper.id))
+    }
+
     public mutating func selectBoard() {
+        isCreatingAgent = false
         showsBoard = true
         closeReport()
         isSoulOpen = false

@@ -899,6 +899,18 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Tests: 5 TS (Paperclip 4, island 1) and 1 Swift. TS 615 pass, 2 skipped; typecheck clean; Swift 490 pass.
 - Known limits: the field names for comments and approvals (`body`, `title`) follow Paperclip's docs and are read defensively; a live check with a real Paperclip may need small adjustments.
 
+**New agents with their own roles and soul.md (ADR-088).** Keshab: "make sure we can create other agents as well that we can work with in the future .. and we can create their own roles with personality/soul.md".
+**Done when:** an agent made in the window (or by dropping a folder in) has its own role, kit and soul.md, works like the built-in workers (Wisp, voice, board, budgets), edits to its soul.md become versions, and it can be removed without deleting anything.
+
+**As built (2026-10-11):** built; tested (real agent folders in temporary directories, a fake Claude Code for the think kit); seen in the gallery ("New agent"); not yet tried with a live run.
+- `services/helpers/src/agents.ts`: an agent is `data/agents/<id>/soul.md` (front matter `name`, `role`, `kit`; sections Personality, How it works, Rules, Lessons). The folder name comes from the name (`rumi`, `ana-li-2`). At most 20 agents; a broken or clashing file is skipped and named (`agentProblems`).
+- The team is the seven built-in workers plus every agent folder, read each time the team is listed or a task starts. A changed soul.md (an editor, or a save, restore or accepted Tinker proposal, which write the file back) becomes a new version, so Versions and undo work as before.
+- Kits, fixed in code: `research` (web search and pages), `folders` (granted folders, sandboxed, own branch, never pushed), `think` (no tools at all; the run's only possible call is its report). An unknown kit reads as `think`. The runtime picks the run by kit (Tinker and the documenter keep their own rules). Roles are Keshab's words (letters, at most 40, not `improver`); role rules such as Penny's financial notice apply by role to any agent.
+- Agents work everywhere: Wisp's team line and `delegate`, "Rumi, …" by voice, routines, plan first, budgets, skills, ratings and Tinker, the board. Hand-offs follow the role map, so an agent whose role is not in it neither hands off nor receives.
+- Window: "New agent" at the bottom of the (now scrolling) team list opens a form (name, role, kit, personality, how it works, rules); Create writes the soul.md and selects the agent. An added agent's page has Remove, which asks first; its folder moves to `data/agents-removed/`, never deleted.
+- Tests: 10 TS (agents 6, provider 1, island 1, protocol, older expectations) and 1 Swift. TS 623 pass, 2 skipped; typecheck clean; Swift 491 pass.
+- Known limits: role and kit are changed by editing soul.md (the window's Soul form edits the soul only); built-in workers' souls stay in ZENO's store, not in soul.md files; agents live in `data/` (local, not in git).
+
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.
 
 **Task 3.17 — Companies and user logins.** Separate workspaces with their own tasks, workers, budgets and history; sign-in for more than one person.

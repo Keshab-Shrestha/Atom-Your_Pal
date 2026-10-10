@@ -2,6 +2,7 @@ import type { Budget, Budgets } from "./budgets.ts";
 import type { HandOffOutcome, HelperId, JobState, Soul, TaskContext } from "./jobs.ts";
 import type { Routine, Schedule } from "./routines.ts";
 import type { Proposal, ReviewTarget, SoulField } from "./feedback.ts";
+import type { Kit } from "./agents.ts";
 
 // The helper store's public shapes (split from store.ts): jobs as tasks, threads, goals, the store's operations.
 
@@ -136,6 +137,9 @@ export interface HelperView {
   name: string;
   available: boolean;
   role: string;
+  /** ADR-088: what it may use (fixed in code), and whether Keshab added it (an agent folder). */
+  kit: Kit;
+  custom: boolean;
   /** The current soul (ADR-082, Task 3.3). */
   soul: Soul;
   soulVersion: number;
@@ -172,6 +176,7 @@ export type HelperChange =
   | { action: "routine"; helper: HelperId; routine: number; outcome: "added" | "removed" | "made" | "skipped" }
   | { action: "grant"; helper: HelperId; granted: boolean }
   | { action: "skills"; helper: HelperId; count: number }
+  | { action: "agent"; helper: HelperId; added: boolean }
   | { action: "rating"; helper: HelperId; job: number; good: boolean }
   | { action: "proposal"; helper: HelperId; proposal: number; state: "pending" | "accepted" | "rejected" | "undone" }
   | { action: "model"; helper: HelperId; job: number }
@@ -219,6 +224,15 @@ export interface HelperStore {
    */
   addGrant(helper: string, path: string): void;
   removeGrant(helper: string, path: string): boolean;
+  /**
+   * ADR-088: adds an agent: a folder with its soul.md in the agents folder. Throws HelperError for a bad name, role,
+   * kit or soul, or too many agents.
+   */
+  createAgent(input: { name: string; role: string; kit: Kit; personality: string; howItWorks?: string; rules?: string }): HelperView;
+  /** Moves an agent Keshab added out of the team (its folder to agents-removed/), stopping its tasks. */
+  removeAgent(id: string): void;
+  /** Agent folders that could not be read, in words. */
+  agentProblems(): string[];
   /**
    * Task 3.13: rates a finished (done or failed) task. "Not good" asks Tinker to review it (a Tinker task, once per
    * task). Throws HelperError for an unknown or unfinished task or a long comment.
@@ -307,5 +321,7 @@ export interface HelperStoreOptions {
   path: string;
   /** Task 3.11: the home folder grants are checked against (default the user's). */
   home?: string;
+  /** ADR-088: the folder of agents Keshab added (each `<id>/soul.md`). Without it, only the built-in workers. */
+  agentsDir?: string;
   now?: () => Date;
 }

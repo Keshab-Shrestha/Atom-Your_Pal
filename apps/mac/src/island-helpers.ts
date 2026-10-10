@@ -75,6 +75,8 @@ export function islandHelpers(
     rejectPlan: (id) => store.rejectPlan(id),
     setPlanFirst: (helper, on) => store.setPlanFirst(helper, on),
     removeRoutine: (id) => store.removeRoutine(id),
+    createAgent: (input) => void store.createAgent(input),
+    removeAgent: (id) => store.removeAgent(id),
     rate: (id, good, comment) => store.rate(id, good, comment),
     acceptProposal: (id) => store.acceptProposal(id),
     rejectProposal: (id) => store.rejectProposal(id),
