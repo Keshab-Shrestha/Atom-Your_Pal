@@ -707,28 +707,31 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Tests: 21 TS (store, state machine, protocol, island) and 14 Swift. 468 TS and 422 Swift tests pass; typecheck clean.
 - Known limit: changing the theme while the window is open updates the title bar only the next time it opens. Jobs stay queued until Task 3.2.
 
-**Task 3.2 — Background jobs: research on the Claude plan.**
-1. A job runner in the runtime: one job per helper, at most two at once, a 15-minute limit and a page limit, cancel by `job.stop`; a running job never blocks the conversation.
-2. The research run: a separate Claude plan session with WebSearch and WebFetch only, no ZENO tools, a prompt that treats pages as data, ending in a structured report (title, one-line summary, body, sources). Progress steps ("Searching", "Reading 3 of 8 pages") go to the window.
-3. With another provider the job fails at once with "Sid needs the Claude plan for research."
+**Revised by ADR-082 (2026-10-10): Wisp manages a team of workers.** Tasks 3.2–3.9 replace the earlier 3.2–3.6. Each is one capability with its own tests and docs.
 
-**Done when:** a job started from a test produces a stored report with sources; stop ends it within a second; the conversation answers while it runs; logs hold no task or report text.
+**Task 3.2 — The worker runner, with Sid researching.** A job runner in the runtime: at most three jobs at once, one per worker, a time and step limit, cancel by `job.stop`; a running job never blocks the conversation. A job is a separate Claude plan session whose tools come from the worker's role in code; this task builds the researcher's (WebSearch, WebFetch only) and the structured report (title, one line, body, sources). Progress steps go to the window. Another provider: the job fails with "Sid needs the Claude plan".
+**Done when:** a job added in the window runs, produces a stored report with sources, stop ends it within a second, and the conversation answers meanwhile.
 
-**Task 3.3 — Ask Sid by voice.** Deterministic routing in front of the shortcuts: "<name>, research …", "ask <name> to …", "<name>, stop", "what is <name> doing?". Tests with look-alikes ("Sid Meier's games", "is Sid there"). ZENO replies at once ("Sid is on it.").
+**Task 3.3 — The team and their souls.** All seven workers in the roster with their souls (role, personality, how they work, rules, lessons), editable in the window with versions. Penny and Hana available with the research tools (Hana also writes to her job folder); Kame, Puff and Quill wait for 3.5; Tinker for 3.7.
+**Done when:** each worker's soul shows in the window, an edit is used by the next job, and an older version can be restored.
 
-**Done when:** saying "Sid, research networking" starts a job without a model request from the Core, and look-alikes go to the model.
+**Task 3.4 — Wisp the manager.** The `delegate` tool (goal; up to six parts with worker, task and "wait for"), checked in code; missions that start parts when what they wait for is done and hand earlier reports to later parts; the combined report; one spoken line when ZENO is idle; the mission and its parts in the window. "<Name>, …" by voice goes straight to that worker.
+**Done when:** "research home networking and write it up as a guide" makes Wisp delegate to Sid then Quill, says who is on it, and later says one line, with the combined report in the window.
 
-**Task 3.4 — Open in its app.** After a job: a browser app opens the top three sources as tabs; Notes saves the report as a note (through the notes tool's rules); any other app keeps the report in ZENO only. Code, not the model, does it, from the report's http(s) sources.
+**Task 3.5 — Folder grants, and Kame, Puff and Quill.** Grants in the window (refusing the home folder, `/`, system and credential folders); file tools checked against grants in code; sandboxed commands without network; approval through Wisp for risky commands; a `zeno/<job>` branch in git repositories, never pushed. The coder, designer and documenter roles.
+**Done when:** Kame changes a file in a granted repo on its own branch, is refused a path outside, and `git push` is never run.
 
-**Done when:** with Sid on Brave, a finished job opens its sources in Brave.
+**Task 3.6 — Skills.** Per-worker choice of skills from `~/.claude/skills` in the window; only those are loaded for the worker's jobs.
+**Done when:** a worker given one skill uses it, and a skill not given is not loaded.
 
-**Task 3.5 — Sid on screen and reporting back.** Sid's original look (Wisp's renderer, own shape and colour), parked out of the way while working (a small working sign), flying in near Wisp when a job ends, one spoken line when ZENO is idle, a click opening the report in the Helpers window. Reduce Motion respected.
+**Task 3.7 — Tinker and feedback.** Rate a finished job (good or not, with a comment); Tinker reviews failed and poorly rated jobs and proposes soul changes with a reason; accept or reject in the window; every version kept and undoable.
+**Done when:** a rejected job leads to a proposal that, once accepted, shows in the worker's soul, and undo restores the old one.
 
-**Done when:** a finished job brings Sid in with one line, and the click opens its report.
+**Task 3.8 — Open in the worker's app.** A browser opens the top sources as tabs; Notes saves the report as a note; done by code from http(s) sources.
 
-**Task 3.6 — Kame and Puff.** Their looks and cards, each with its own app and queue, reusing 3.1–3.5.
+**Task 3.9 — Workers on screen.** Each worker's original look in Wisp's style, a small working sign while busy, and Wisp flying over to say its one line when a mission ends.
 
-**Later (not planned):** steering a running job, a per-job execution log, retries, scheduled helpers, other providers' web tools, driving the helper's app through computer control.
+**Later (not planned):** steering a running job, a per-job execution log, retries, scheduled work, other providers, workers driving apps through computer control.
 
 ---
 

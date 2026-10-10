@@ -1655,3 +1655,54 @@ Teams of agents with a leader, coding agents and pull requests, issue boards, sc
 ### Consequences
 
 ZENO gains a second way of working, alongside the conversation: background jobs with their own state, storage and window. The Core is unchanged; jobs run in the runtime beside it. The cost is a new window, a job runner and a third character set to maintain, and plan use that grows with how much work the helpers are given.
+
+---
+
+## ADR-082 — Wisp the Manager, and a Team of Workers
+
+Date: 2026-10-10. Status: **accepted** (Keshab, 2026-10-10). Changes ADR-081: the helpers become workers with roles, and Wisp hands them work.
+
+### Context
+
+Keshab: "i want wisp to work as a god tier manager and give its task to other agents .. and after the other agents return with results and reports, wisp then goes and report back to me", and "make it work like other agents are like workers for specific jobs with soul/personality of their own for example research, coder, designer, documentator, financial adviser, HR, agent-improviser that auto-improves the agents learning from their mistakes and lets also give them permission to have skills from ~/.claude/skills so they work efficiently."
+
+### Decision
+
+**Wisp manages; workers do the work.** Wisp stays the one Keshab talks to. For a big request it splits the work, picks workers by role, says who is on what, and the conversation is free again. When every worker on that request is done, Wisp writes one combined report and reports back.
+
+- **The team** (names editable in the Helpers window; each is "available" once its task below is built):
+
+  | Worker | Role | Personality | Works with |
+  |---|---|---|---|
+  | Sid | Researcher | curious, thorough, always cites sources | web search and pages; opens sources in its app (Brave) |
+  | Kame | Coder | steady and careful, tests first, small changes | folders Keshab allows |
+  | Puff | Designer | playful, visual, explains choices | folders Keshab allows (HTML, CSS, SVG mock-ups) |
+  | Quill | Documenter | clear plain English, short sentences | folders Keshab allows |
+  | Penny | Financial adviser | cautious, numbers first, states assumptions | web search and pages; information only |
+  | Hana | HR | warm, fair, discreet | web search and pages; writes in its workspace |
+  | Tinker | Agent improver | reflective, specific | job outcomes and Keshab's feedback; proposes changes only |
+
+- **A soul per worker.** Each worker has a short soul: name, role, personality, how it works, rules, and lessons learned. It is shown and editable in the Helpers window, kept with versions, and given to the worker as its instructions for every job.
+- **Wisp decides when to delegate** (Keshab's choice). Wisp's model gets a `delegate` tool: a goal and up to six parts, each with a worker, a task and, optionally, the parts it must wait for (so Quill can write up what Sid found). Code checks every part: the worker exists and is available, its role allows the work, limits hold. Quick questions Wisp still answers itself. "Sid, …" by name still goes straight to Sid (ADR-081).
+- **Reporting back: one line, read in the window** (Keshab's choice). When all parts are done, Wisp writes the combined report (one model call, no tools), says one line when ZENO is not in a turn ("Your networking research is ready"), and the combined report and each worker's own report wait in the Helpers window.
+- **Folders: read-write where Keshab allows** (Keshab's choice). In the Helpers window Keshab grants a folder to a worker (Kame, Puff, Quill). With these safeguards:
+  - **Never granted:** the home folder itself, `/`, system folders, `~/Library`, `~/.ssh` and other hidden credential folders. Code refuses them.
+  - **File tools stop at the folder.** Every read and write is checked in code against the worker's granted folders before it runs.
+  - **Commands are sandboxed.** Commands run only inside the granted folders, in Claude Code's sandbox, with no network. Deleting many files, `git push`, installing software and anything outside the folder ask Keshab first through Wisp's approval card.
+  - **Git as a safety net.** In a git repository, a worker works on its own branch (`zeno/<job>`) and commits there; it never pushes and never touches the current branch.
+  - Everything else (Sid, Penny, Hana) writes only in its own job folder, `~/ZENO Workspace/<job>`.
+- **Skills from `~/.claude/skills`.** Keshab picks which skills each worker may use in the Helpers window. Only those are loaded for that worker's jobs. Skill scripts run only through the sandboxed commands above.
+- **Tinker improves the team; Keshab approves every change** (Keshab's choice). Keshab can rate any finished job (good or not, with a comment). Tinker reads failed and poorly rated jobs and proposes a specific change to a worker's soul, with the reason ("Sid: give at least three sources; two reports had one"). Keshab accepts or rejects it in the window. Every version is kept and can be undone. Tinker itself changes nothing.
+- **Penny gives information, not advice.** She never touches accounts, money or trading, and her reports say they are not professional financial advice. **Hana keeps personal data local** and writes only to her job folder.
+
+### Limits and safety (in addition to ADR-081)
+
+- At most three jobs run at once across the team; each has a time limit and a step limit.
+- A worker's tools are fixed by its role in code, never by the model or the soul. A soul edit cannot grant a tool or a folder.
+- Web pages, files a worker reads, and skill content are data for the task; injected instructions cannot widen a worker's tools, because the tools are decided in code.
+- Logs hold worker, job, mission ids, states and timings; never tasks, reports, file contents or addresses.
+- The first version runs on the Claude plan (Agent SDK), like ADR-081.
+
+### Consequences
+
+ZENO becomes a small team. The risk moves from "what can Wisp do" to "what can each worker do", and the answer stays in code: role → tools, grants → folders, approvals → risky commands. The cost is plan use that grows with the work handed out, and more to maintain: souls, grants, skills and Tinker's proposals.
