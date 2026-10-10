@@ -4,6 +4,9 @@ import { DatabaseSync } from "node:sqlite";
 import { isOver } from "./budgets.ts";
 import { homedir } from "node:os";
 import { FILE_ROLES, MAX_GRANTS, checkGrant } from "./grants.ts";
+
+/** Task 3.12: most skills a worker may have. */
+export const MAX_SKILLS = 10;
 import { DEFAULT_PLAN_LIMIT, DEFAULT_TEAM_CAP, DEFAULT_WORKER_CAP, MAX_CAP, PLAN_LIMIT_RANGE, startOfDay, type Budgets } from "./budgets.ts";
 import { isDue, routineTable } from "./routines.ts";
 import { createSchema, sameSoul, toJobRow, toSoul, webSources, type JobRow, type ReportRow, type SoulRow } from "./store-schema.ts";
@@ -128,6 +131,9 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
   const routines = routineTable(db);
   const grantsOf = db.prepare("SELECT path FROM grants WHERE helper = ? ORDER BY rowid");
+  const skillsOf = db.prepare("SELECT skill FROM helper_skills WHERE helper = ? ORDER BY skill");
+  const clearSkills = db.prepare("DELETE FROM helper_skills WHERE helper = ?");
+  const putSkill = db.prepare("INSERT OR IGNORE INTO helper_skills (helper, skill) VALUES (?, ?)");
   const putGrant = db.prepare("INSERT OR IGNORE INTO grants (helper, path) VALUES (?, ?)");
   const dropGrant = db.prepare("DELETE FROM grants WHERE helper = ? AND path = ?");
   const listeners = new Set<(change: HelperChange) => void>();
@@ -286,6 +292,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         planFirst: planFirstOf(h.id),
         routines: routines.list().filter((r) => r.helper === h.id),
         grants: (grantsOf.all(h.id) as { path: string }[]).map((g) => g.path),
+        skills: (skillsOf.all(h.id) as { skill: string }[]).map((s) => s.skill),
         jobs: (newestJobs.all(h.id, JOBS_PER_HELPER) as unknown as JobRow[]).map(toJob),
       }));
     },
@@ -358,6 +365,19 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if ((grantsOf.all(known.id) as unknown[]).length >= MAX_GRANTS) throw new HelperError(`A worker can have at most ${MAX_GRANTS} folders.`);
       putGrant.run(known.id, real);
       emit({ action: "grant", helper: known.id, granted: true });
+    },
+
+    setSkills(helper, skills) {
+      const known = mustHelper(helper);
+      const names = [...new Set(skills)];
+      if (names.length > MAX_SKILLS) throw new HelperError(`A worker can have at most ${MAX_SKILLS} skills.`);
+      const bad = names.find((n) => !/^[a-z0-9][a-z0-9._-]{0,63}$/i.test(n));
+      if (bad !== undefined) throw new HelperError(`"${bad.slice(0, 40)}" is not a skill name.`);
+      transaction(() => {
+        clearSkills.run(known.id);
+        for (const n of names) putSkill.run(known.id, n);
+      });
+      emit({ action: "skills", helper: known.id, count: names.length });
     },
 
     removeGrant(helper, path) {

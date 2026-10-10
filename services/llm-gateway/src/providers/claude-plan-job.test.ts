@@ -172,6 +172,29 @@ test("a run in folders: file tools and Bash in the sandbox with no network; ever
   assert.deepEqual(checked, ["Edit", "Read"], "the sandbox switch is refused before any check; web tools are not file tools");
 });
 
+test("only the worker's skills load, through its plugin; a Skill call for another is refused (Task 3.12)", async () => {
+  const answers: string[] = [];
+  const { sdk, seen } = fakeSdk(async function* (o) {
+    yield init();
+    for (const skill of ["zeno-skills:pdf", "pdf", "zeno-skills:council"]) {
+      answers.push((await o.canUseTool("Skill", { skill }, { signal: new AbortController().signal })).behavior);
+    }
+    yield done();
+  });
+  await research(sdk, { skills: { pluginDir: "/data/skills/sid", plugin: "zeno-skills", names: ["pdf"] } });
+  const o = seen[0]!.options;
+  assert.deepEqual(o.plugins, [{ type: "local", path: "/data/skills/sid", skipMcpDiscovery: true }]);
+  assert.deepEqual(o.skills, ["zeno-skills:pdf"]);
+  assert.deepEqual(o.settingSources, [], "no user settings, so no other skills");
+  assert.deepEqual(answers, ["allow", "allow", "deny"]);
+  const plain = fakeSdk(async function* () {
+    yield init();
+    yield done();
+  });
+  await research(plain.sdk);
+  assert.equal(plain.seen[0]!.options.plugins, undefined);
+});
+
 test("progress in plain words, and the twelfth page is the last: further fetches are refused and the report is partial", async () => {
   const steps: string[] = [];
   const answers: string[] = [];

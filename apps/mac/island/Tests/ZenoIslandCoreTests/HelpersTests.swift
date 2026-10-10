@@ -693,3 +693,19 @@ struct HelperGrantTests {
         #expect(IslandCommand.grantAdd(helper: "kame", path: "/a b").line == #"{"helper":"kame","path":"/a b","type":"grant.add"}"# + "\n")
     }
 }
+
+@Suite("Skills (Task 3.12)")
+struct HelperSkillTests {
+    @Test func decodesSkillsAndTogglesThem() throws {
+        let line = HelperTaskTests.line
+            .replacingOccurrences(of: #"{"type":"helpers","apps":[],"#, with: #"{"type":"helpers","apps":[],"skills":[{"name":"council","description":"Four voices."},{"name":"pdf","description":"PDFs."}],"#)
+            .replacingOccurrences(of: #""name":"Sid","available":true,"app":null,"jobs""#, with: #""name":"Sid","available":true,"app":null,"skills":["pdf"],"jobs""#)
+        var state = HelpersState()
+        state.apply(try decodeEvent(line))
+        #expect(state.list?.skills.map(\.name) == ["council", "pdf"] && state.selectedHelper?.skills == ["pdf"])
+        #expect(state.toggleSkill("council") == .helperSkills(helper: "sid", skills: ["council", "pdf"]))
+        #expect(state.toggleSkill("pdf") == .helperSkills(helper: "sid", skills: []))
+        #expect(state.toggleSkill("secret") == nil) // not one of Keshab's
+        #expect(IslandCommand.helperSkills(helper: "sid", skills: ["pdf"]).line == #"{"helper":"sid","skills":["pdf"],"type":"helper.skills"}"# + "\n")
+    }
+}

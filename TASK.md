@@ -851,6 +851,13 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 **Task 3.12 — Skills.** Per-worker choice of skills from `~/.claude/skills` in the window; only those are loaded for the worker's runs.
 **Done when:** a worker given one skill uses it, and a skill not given is not loaded.
 
+**As built (2026-10-11):** built; tested (real files for the plugin, a fake Claude Code for the run); not yet tried live.
+- Keshab's skills are the folders in `~/.claude/skills` with a `SKILL.md` (name and description read from its front matter). The window has a "Skills" menu per worker; at most 10, names checked, and each must be one of Keshab's (`helper.skills`).
+- Loading only those: before each run ZENO rebuilds the worker's own small plugin (`data/skills/<worker>/`, a `zeno-skills` manifest and links to exactly the chosen skills) and the run loads it (`plugins`, `skills: ["zeno-skills:<name>"]`). Runs load no user settings, so no other skill is there; a Skill call for any other name is refused in code. Plan runs load no skills.
+- Skills are data for the task: they never add tools. A skill's scripts can only run through a run's sandboxed Bash (runs in folders); research runs have no Bash.
+- Tests: 5 TS (skills 2, provider 1, island 1, protocol) and 1 Swift. TS 598 pass, 2 skipped; typecheck clean; Swift 486 pass.
+- Known limits: skill files stay readable on disk to a run in folders (the SDK filter hides them from the model's list, it does not lock files); a skill renamed or removed from `~/.claude/skills` is quietly skipped until Keshab chooses again.
+
 **Task 3.13 — Tinker and feedback.** Rate a finished task (good or not, with a comment); Tinker reviews failed and poorly rated tasks and proposes soul changes with a reason; accept or reject in the window; every version kept and undoable.
 **Done when:** a poorly rated task leads to a proposal that, once accepted, shows in the worker's soul, and undo restores the old one.
 

@@ -647,12 +647,14 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
         planFirst: false,
         routines: [],
         grants: [],
+        skills: [],
         jobs: [],
       })),
       apps: ["Arc", "Brave Browser", "Notes"],
       allowLarge: true,
       team: { cap: 15, spent: 0 },
       planLimit: 80,
+      skills: [],
       models: [
         { id: "claude-opus-5-5", name: "Claude Opus 5.5", tier: "large" },
         { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5", tier: "medium" },
@@ -901,6 +903,19 @@ test("grant.add refuses the home folder; grant.remove takes a folder back (Task 
   assert.match((h.events()[0] as { message: string }).message, /whole home folder/);
   await h.send({ type: "grant.remove", helper: "kame", path: "/nope" });
   assert.deepEqual(store.list()[1]!.grants, []);
+});
+
+test("helper.skills keeps only Keshab's skills (Task 3.12)", async () => {
+  const store = openHelperStore({ path: ":memory:" });
+  const h = islandHarness({ helpers: islandHelpers(store, async () => [], () => [], () => undefined, () => [{ name: "pdf", description: "PDFs" }]) });
+  await tick(5);
+  await h.send({ type: "helper.skills", helper: "sid", skills: ["pdf"] });
+  const event = h.events().at(-1) as HelpersEvent;
+  assert.deepEqual([event.helpers[0]!.skills, event.skills], [["pdf"], [{ name: "pdf", description: "PDFs" }]]);
+  h.clear();
+  await h.send({ type: "helper.skills", helper: "sid", skills: ["secret"] });
+  assert.match((h.events()[0] as { message: string }).message, /no skill called "secret"/);
+  assert.deepEqual(store.list()[0]!.skills, ["pdf"]);
 });
 
 test("helpers.settings turns the large model off and on, answered with helpers", async () => {

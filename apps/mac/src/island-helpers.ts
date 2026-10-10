@@ -41,6 +41,8 @@ export function islandHelpers(
   models: () => PlanModel[] = () => [],
   /** Task 3.7: why a task may not start now (budgets, the plan's window), if so. */
   held: (job: Job) => string | undefined = () => undefined,
+  /** Task 3.12: Keshab's skills (default: none, for tests). */
+  skills: () => { name: string; description: string }[] = () => [],
 ): IslandHelpers {
   return {
     list: () =>
@@ -70,6 +72,13 @@ export function islandHelpers(
     rejectPlan: (id) => store.rejectPlan(id),
     setPlanFirst: (helper, on) => store.setPlanFirst(helper, on),
     removeRoutine: (id) => store.removeRoutine(id),
+    skills,
+    setSkills: (helper, names) => {
+      const known = new Set(skills().map((s) => s.name));
+      const missing = names.find((n) => !known.has(n));
+      if (missing !== undefined) throw new HelperError(`There is no skill called "${missing.slice(0, 40)}" in ~/.claude/skills.`);
+      store.setSkills(helper, names);
+    },
     addGrant: (helper, path) => store.addGrant(helper, path),
     removeGrant: (helper, path) => store.removeGrant(helper, path),
     setBlockers: (id, blockedBy) => store.setBlockers(id, blockedBy),

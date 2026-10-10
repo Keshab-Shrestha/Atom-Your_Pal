@@ -201,3 +201,27 @@ struct FoldersSection: View {
         model.sendHelpers(model.helpers.addGrant(url.path))
     }
 }
+
+/// Task 3.12: which of Keshab's skills (from ~/.claude/skills) this worker may use. Only these load for its runs.
+struct SkillsPicker: View {
+    let model: IslandModel
+    let helper: Helper
+    let skills: [SkillInfo]
+
+    var body: some View {
+        Menu {
+            if skills.isEmpty { Text("No skills in ~/.claude/skills") }
+            ForEach(skills) { skill in
+                Button { model.sendHelpers(model.helpers.toggleSkill(skill.name)) } label: {
+                    if helper.skills.contains(skill.name) { Label(skill.name, systemImage: "checkmark") } else { Text(skill.name) }
+                }
+                .help(skill.description)
+            }
+        } label: {
+            PillMenuLabel(label: "Skills", value: helper.skills.isEmpty ? "None" : helper.skills.count == 1 ? helper.skills[0] : "\(helper.skills.count) chosen",
+                          dimmed: helper.skills.isEmpty, identifier: helper.skills.count == 1)
+        }
+        .menuStyle(.button).buttonStyle(.plain).fixedSize()
+        .help("Skills \(helper.name) may use. Only these are loaded for its tasks.")
+    }
+}

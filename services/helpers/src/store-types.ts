@@ -148,6 +148,8 @@ export interface HelperView {
   routines: Routine[];
   /** Task 3.11: the folders it may work in (real paths), in the order granted. */
   grants: string[];
+  /** Task 3.12: the skills from ~/.claude/skills chosen for it, sorted. */
+  skills: string[];
   /** Newest first, at most JOBS_PER_HELPER. */
   jobs: Job[];
 }
@@ -163,6 +165,7 @@ export type HelperChange =
   | { action: "plan"; helper: HelperId; job: number; status: "awaiting" | "approved" | "rejected" }
   | { action: "routine"; helper: HelperId; routine: number; outcome: "added" | "removed" | "made" | "skipped" }
   | { action: "grant"; helper: HelperId; granted: boolean }
+  | { action: "skills"; helper: HelperId; count: number }
   | { action: "model"; helper: HelperId; job: number }
   | { action: "job"; helper: HelperId; job: number; state: JobState; ms?: number }
   | { action: "step"; helper: HelperId; job: number }
@@ -208,6 +211,8 @@ export interface HelperStore {
    */
   addGrant(helper: string, path: string): void;
   removeGrant(helper: string, path: string): boolean;
+  /** Task 3.12: the worker's skills, replacing what it had. Throws HelperError for a bad name or more than MAX_SKILLS. The caller checks they exist. */
+  setSkills(helper: string, skills: readonly string[]): void;
   /** Task 3.9: a schedule that makes a task for a worker. Throws HelperError for an unknown or unavailable worker, a bad task or schedule, or too many. */
   addRoutine(helper: string, task: string, schedule: Schedule): Routine;
   removeRoutine(id: number): boolean;

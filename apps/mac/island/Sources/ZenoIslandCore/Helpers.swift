@@ -194,12 +194,14 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public var routines: [HelperRoutine]
     /// Task 3.11: the folders it may work in.
     public var grants: [String]
+    /// Task 3.12: the skills chosen for it.
+    public var skills: [String]
     /// The coder, designer and documenter work in folders Keshab grants.
     public var worksInFolders: Bool { ["coder", "designer", "documenter"].contains(role) }
 
     public init(id: String, name: String, available: Bool, app: String?, jobs: [HelperJob], pinnedModel: String? = nil,
                 role: String = "", soul: HelperSoul? = nil, soulVersion: Int = 1, soulVersions: [SoulVersion] = [],
-                budget: HelperBudget? = nil, planFirst: Bool = false, routines: [HelperRoutine] = [], grants: [String] = []) {
+                budget: HelperBudget? = nil, planFirst: Bool = false, routines: [HelperRoutine] = [], grants: [String] = [], skills: [String] = []) {
         self.id = id
         self.name = name
         self.available = available
@@ -214,6 +216,7 @@ public struct Helper: Sendable, Equatable, Identifiable {
         self.planFirst = planFirst
         self.routines = routines
         self.grants = grants
+        self.skills = skills
     }
 
     /// The role as the window says it: "Researcher", "Financial information", "HR", ….
@@ -405,15 +408,18 @@ public struct HelpersList: Sendable, Equatable {
     /// Task 3.7: the team's daily cap and spend, and the plan limit (percent); nil from an older runtime.
     public var team: HelperBudget?
     public var planLimit: Int?
+    /// Task 3.12: Keshab's skills in ~/.claude/skills.
+    public var skills: [SkillInfo]
 
     public init(helpers: [Helper], apps: [String], allowLarge: Bool = true, models: [HelperModel] = [], team: HelperBudget? = nil,
-                planLimit: Int? = nil) {
+                planLimit: Int? = nil, skills: [SkillInfo] = []) {
         self.helpers = helpers
         self.apps = apps
         self.allowLarge = allowLarge
         self.models = models
         self.team = team
         self.planLimit = planLimit
+        self.skills = skills
     }
 
     /// A model's short name ("Sonnet 4.5" for "Claude Sonnet 4.5"); the id itself when it is not in `models`.
@@ -650,6 +656,13 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.helperPin(helper: helper.id, model: modelId ?? ""))
     }
 
+    /// Task 3.12: adds or removes one of Keshab's skills for the chosen worker.
+    public mutating func toggleSkill(_ name: String) -> IslandCommand? {
+        guard let helper = selectedHelper, helper.available, list?.skills.contains(where: { $0.name == name }) == true else { return nil }
+        let next = helper.skills.contains(name) ? helper.skills.filter { $0 != name } : (helper.skills + [name]).sorted()
+        return waiting(.helperSkills(helper: helper.id, skills: next))
+    }
+
     /// Task 3.11: grants the chosen worker a folder (the runtime checks which folders may be granted).
     public mutating func addGrant(_ path: String) -> IslandCommand? {
         guard let helper = selectedHelper, helper.worksInFolders, !path.isEmpty, !helper.grants.contains(path) else { return nil }
@@ -797,5 +810,17 @@ public struct HelperRoutine: Sendable, Equatable, Identifiable {
         self.when = when
         self.lastAt = lastAt
         self.lastSkipped = lastSkipped
+    }
+}
+
+/// Task 3.12: one of Keshab's skills.
+public struct SkillInfo: Sendable, Equatable, Identifiable {
+    public var name: String
+    public var description: String
+    public var id: String { name }
+
+    public init(name: String, description: String) {
+        self.name = name
+        self.description = description
     }
 }

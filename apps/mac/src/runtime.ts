@@ -72,6 +72,7 @@ import type { IslandHelpers, IslandMemory } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
 import { denyRead, folderCheck } from "./folder-run.ts";
 import { commitWork, prepareWorkdir, type Workdir } from "./worktree.ts";
+import { SKILLS_PLUGIN, listSkills, prepareSkills } from "./skills.ts";
 import { createWindowPointer, type WindowPointer } from "./screen-context.ts";
 import { withPointing } from "./pointing.ts";
 import { AudioError, defaultInputDevice, startRecording } from "./audio.ts";
@@ -424,6 +425,9 @@ export function createRuntime(
     }
     // Task 3.10: a top-level task may hand sub-tasks to the workers its role allows; the store checks each one.
     const handOff = helpers && !files && handOffTool(helpers, job);
+    // Task 3.12: only the skills chosen for this worker, through its own small plugin.
+    const chosen = helpers?.list().find((h) => h.id === job.helper)?.skills ?? [];
+    const skills = chosen.length ? { ...prepareSkills(join(dirname(worktrees), "skills", job.helper), chosen), plugin: SKILLS_PLUGIN } : undefined;
     const research = (task: string, resume?: string) =>
       runResearch({
         claudePath: keys["claude-plan"] ?? "",
@@ -436,6 +440,7 @@ export function createRuntime(
         ...(resume ? { resume } : {}),
         ...(handOff ? { handOff } : {}),
         ...(files ? { files } : {}),
+        ...(skills?.names.length ? { skills } : {}),
       });
     // Task 3.8: a plan-first task's first run only plans (no tools); the plan then waits for Keshab.
     if (job.planFirst && job.planStatus !== "approved") {
@@ -537,7 +542,7 @@ export function createRuntime(
     tts,
     computer,
     ...(memory ? { memory, islandMemory } : {}),
-    ...(helpers ? { helpers, islandHelpers: warmOnOpen(islandHelpers(helpers, installedApps, planModels, held), decisions) } : {}),
+    ...(helpers ? { helpers, islandHelpers: warmOnOpen(islandHelpers(helpers, installedApps, planModels, held, () => listSkills()), decisions) } : {}),
     screen,
     timers,
     onTimer(listener) {

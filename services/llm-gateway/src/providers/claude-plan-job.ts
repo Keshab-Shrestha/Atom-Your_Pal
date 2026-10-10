@@ -68,6 +68,11 @@ export interface ResearchOptions {
    * writes only in `writable`, `denyRead` unreadable). Every tool call goes through `check`, which returns why it is
    * refused (after asking Keshab, for risky commands) or undefined to allow it.
    */
+  /**
+   * Task 3.12: the worker's skills: a local plugin folder with only the chosen skills, and their names. The run loads
+   * that plugin and no other skills; a Skill call for any other name is refused.
+   */
+  skills?: { pluginDir: string; plugin: string; names: string[] };
   files?: {
     cwd: string;
     writable: string[];
@@ -192,7 +197,13 @@ async function runStructured(options: ResearchOptions, mode: "research" | "plan"
 
   // Every tool call Claude Code has not been told to allow comes here. WebFetch is counted (the page limit);
   // anything but the two web tools and the report itself is refused (none should exist: `tools` lists only these).
+  const skillNames = new Set(options.skills?.names ?? []);
   const canUseTool = async (name: string, input: Record<string, unknown>) => {
+    if (name === "Skill") {
+      const asked = String(input.skill ?? input.name ?? "").replace(/^[^:]+:/, "");
+      if (!planning && skillNames.has(asked)) return (step(`Using the ${asked} skill`), { behavior: "allow", updatedInput: input });
+      return { behavior: "deny", message: "That skill is not one of this worker's." };
+    }
     if (files && FILE_TOOLS.includes(name)) {
       // Never outside the sandbox, whatever the model asks.
       if (name === "Bash" && input.dangerouslyDisableSandbox) return { behavior: "deny", message: "Commands always run in the sandbox." };
@@ -257,6 +268,12 @@ async function runStructured(options: ResearchOptions, mode: "research" | "plan"
         // Task 3.6: kept by Claude Code on this Mac (its own project folder for the temporary directory), so the next
         // run of the task can resume it. ZENO stores only the id.
         persistSession: !planning,
+        ...(options.skills?.names.length && !planning
+          ? {
+              plugins: [{ type: "local", path: options.skills.pluginDir, skipMcpDiscovery: true }],
+              skills: options.skills.names.map((n) => `${options.skills!.plugin}:${n}`),
+            }
+          : {}),
         ...(options.resume && !planning ? { resume: options.resume } : {}),
         maxTurns,
         outputFormat: { type: "json_schema", schema: planning ? PLAN_JSON_SCHEMA : REPORT_JSON_SCHEMA },

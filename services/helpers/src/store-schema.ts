@@ -75,6 +75,11 @@ export function createSchema(db: DatabaseSync) {
       ended_at TEXT,
       report TEXT
     );
+    CREATE TABLE IF NOT EXISTS helper_skills (
+      helper TEXT NOT NULL,
+      skill TEXT NOT NULL,
+      PRIMARY KEY (helper, skill)
+    );
     CREATE TABLE IF NOT EXISTS grants (
       helper TEXT NOT NULL,
       path TEXT NOT NULL,

@@ -103,6 +103,9 @@ export interface IslandHelpers {
   rejectPlan(id: number): void;
   /** Whether a worker's new tasks plan first. Throws, with words for the user, for an unknown worker. */
   setPlanFirst(helper: string, on: boolean): void;
+  /** Task 3.12: Keshab's skills, and a worker's choice of them. Throws, with words for the user, for an unknown skill. */
+  skills(): { name: string; description: string }[];
+  setSkills(helper: string, skills: string[]): void;
   /** Task 3.11: grants a folder. Throws, with words for the user, for a folder that cannot be granted. */
   addGrant(helper: string, path: string): void;
   removeGrant(helper: string, path: string): boolean;
@@ -294,6 +297,9 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "plan.reject":
         changeHelpers(command.type, (helpers) => helpers.rejectPlan(command.id));
         return;
+      case "helper.skills":
+        changeHelpers(command.type, (helpers) => helpers.setSkills(command.helper, command.skills));
+        return;
       case "grant.add":
         changeHelpers(command.type, (helpers) => helpers.addGrant(command.helper, command.path));
         return;
@@ -371,7 +377,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     void appNames().then((apps) => {
       helpersQueued = false;
       const helpers = options.helpers;
-      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets() } : {}) });
+      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets(), skills: helpers.skills() } : {}) });
     });
   }
   function appNames(): Promise<string[]> {

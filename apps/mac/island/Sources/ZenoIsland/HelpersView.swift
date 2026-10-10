@@ -246,6 +246,7 @@ private struct HelperPane: View {
                         ModelPicker(model: model, helper: helper, models: model.helpers.list?.models ?? [])
                     }
                     if let budget = helper.budget { BudgetPicker(model: model, helper: helper, budget: budget) }
+                    SkillsPicker(model: model, helper: helper, skills: model.helpers.list?.skills ?? [])
                     PlanFirstRow(model: model, helper: helper)
                     if helper.worksInFolders { FoldersSection(model: model, helper: helper) }
                     VStack(alignment: .leading, spacing: 8) {

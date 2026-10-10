@@ -45,6 +45,8 @@ public enum IslandCommand: Sendable, Equatable {
     case routineDelete(id: Int)
     /// Task 3.11: grant a folder to a worker, or take it back.
     case grantAdd(helper: String, path: String)
+    /// Task 3.12: the skills chosen for a worker (the whole list).
+    case helperSkills(helper: String, skills: [String])
     case grantRemove(helper: String, path: String)
     case jobDelete(id: Int)
     case reportGet(id: Int)
@@ -88,6 +90,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .helperPlanFirst: "helper.planFirst"
         case .routineDelete: "routine.delete"
         case .grantAdd: "grant.add"
+        case .helperSkills: "helper.skills"
         case .grantRemove: "grant.remove"
         case .jobDelete: "job.delete"
         case .reportGet: "report.get"
@@ -137,6 +140,9 @@ public enum IslandCommand: Sendable, Equatable {
         case .commentAdd(let id, let text):
             fields["id"] = id
             fields["text"] = text
+        case .helperSkills(let helper, let skills):
+            fields["helper"] = helper
+            fields["skills"] = skills
         case .grantAdd(let helper, let path), .grantRemove(let helper, let path):
             fields["helper"] = helper
             fields["path"] = path
@@ -531,7 +537,11 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
     case "helpers":
         return .helpers(HelpersList(helpers: try f.helpers(), apps: try f.strings("apps"),
                                     allowLarge: try f.optionalStrictBool("allowLarge") ?? true, models: try f.helperModels(),
-                                    team: Fields.budget(f.values["team"]), planLimit: (f.values["planLimit"] as? NSNumber)?.intValue))
+                                    team: Fields.budget(f.values["team"]), planLimit: (f.values["planLimit"] as? NSNumber)?.intValue,
+                                    skills: (f.values["skills"] as? [Any] ?? []).compactMap { entry in
+                                        guard let s = entry as? [String: Any], let name = s["name"] as? String else { return nil }
+                                        return SkillInfo(name: name, description: s["description"] as? String ?? "")
+                                    }))
     case "thread":
         return .thread(try f.thread())
     case "report":
@@ -701,7 +711,8 @@ private struct Fields {
             }, pinnedModel: pinned as? String, role: h["role"] as? String ?? "", soul: soul,
                soulVersion: (h["soulVersion"] as? NSNumber)?.intValue ?? 1, soulVersions: versions, budget: Self.budget(h["budget"]),
                planFirst: Self.flag(h["planFirst"]), routines: Self.routines(h["routines"]),
-               grants: (h["grants"] as? [Any])?.compactMap { $0 as? String } ?? [])
+               grants: (h["grants"] as? [Any])?.compactMap { $0 as? String } ?? [],
+               skills: (h["skills"] as? [Any])?.compactMap { $0 as? String } ?? [])
         }
     }
 
