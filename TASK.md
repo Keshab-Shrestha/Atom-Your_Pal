@@ -623,7 +623,7 @@ As built:
 - the page lists only tools that are on;
 - the meters match the logged `plan.usage`.
 
-**Task 2.C — Wisp and voice polish (ADR-077).**
+**Task 2.C — Wisp and voice polish (ADR-077).** Built 2026-10-10; tested (390 Swift, 407 TS); not yet seen on the real screen. The flight leans with its horizontal direction, fading at take-off and landing. Wisp stays at 30 fps while hovered or reacting. The CPU measurement is still to do.
 1. Core: the Bézier flight path (pure, tested).
 2. PetController: the flight, and the timer at 10 fps while napping or tucked.
 3. `DEFAULT_SYSTEM_PROMPT`: the three rules (core test updated).

@@ -330,3 +330,9 @@ test("onExchange: called with the whole session after each kept exchange; a thro
   assert.deepEqual(seen.map(([, n]) => n), [2, 4]);
   assert.equal(seen[0][0], core.sessionId);
 });
+
+test("the system prompt asks for replies for the ear (ADR-077)", () => {
+  assert.match(DEFAULT_SYSTEM_PROMPT, /End with the answer/);
+  assert.match(DEFAULT_SYSTEM_PROMPT, /Describe code or long text/);
+  assert.match(DEFAULT_SYSTEM_PROMPT, /web addresses and file paths by name/);
+});

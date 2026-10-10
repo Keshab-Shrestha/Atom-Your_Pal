@@ -64,10 +64,15 @@ final class PetController {
     private var pointFeet: CGPoint?
     private var pointArrived = false
     private var pointFacing = 1.0
+    /// ADR-077: the curved flight to point or back, while it is in the air. Nil with Reduce Motion (the straight ease).
+    private var flight: WispFlight?
     private var lastKind = IslandStatus.Kind.starting
     private let state = PetState()
     private var brain = PetBrain(width: 800, now: PetController.now)
     private var timer: Timer?
+    /// ADR-077: frames while awake, and while napping or tucked away with nothing moving.
+    private static let awakeInterval = 1.0 / 30
+    private static let restingInterval = 1.0 / 10
     /// Asleep or locked (ADR-076): no frames are drawn.
     private var paused = false
     private var observers: [NSObjectProtocol] = []
@@ -166,6 +171,7 @@ final class PetController {
         } else {
             timer?.invalidate()
             timer = nil
+            flight = nil
             endDrag()
             window.orderOut(nil)
             trace("pet hidden")
@@ -193,6 +199,8 @@ final class PetController {
         pointArrived = false
         settling = true
         poke() // out of hiding and awake
+        fly(to: feet)
+        if abs(feet.x - self.feet.x) > 1 { pointFacing = feet.x > self.feet.x ? 1 : -1 }
         trace("pet flying to \(Int(feet.x)),\(Int(feet.y))")
     }
 
@@ -202,7 +210,13 @@ final class PetController {
         pointFeet = nil
         pointArrived = false
         settling = true
+        fly(to: restingTarget())
         trace("pet going back from pointing")
+    }
+
+    /// ADR-077: arcs from where Wisp is now to `target`. With Reduce Motion there is no flight: the straight ease runs.
+    private func fly(to target: CGPoint) {
+        flight = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : WispFlight(from: feet, to: target, at: Self.now)
     }
 
     /// Wisp's size, glow, pace and sleepiness from the settings, applied as soon as they change.
@@ -265,9 +279,9 @@ final class PetController {
 
     // MARK: - Frame loop
 
-    private func startTimer() {
+    private func startTimer(interval: TimeInterval = PetController.awakeInterval) {
         timer?.invalidate()
-        let t = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
+        let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
         RunLoop.main.add(t, forMode: .common) // keeps running while the pointer is dragging
@@ -289,6 +303,8 @@ final class PetController {
         if mood == .napping, peek != nil { mood = .resting }
         state.mood = mood
         state.facing = pointFeet != nil ? pointFacing : brain.facing
+        if let flight, abs(flight.end.x - flight.start.x) > 1 { state.facing = flight.end.x > flight.start.x ? 1 : -1 }
+        state.flightLean = flight?.lean(at: now) ?? 0
         state.time = now
         if mood == .napping, lastMood != .napping { react(.yawn) }
         lastMood = mood
@@ -300,8 +316,7 @@ final class PetController {
 
         if dragging { updateOutline() }
         if !dragging {
-            let normal = standingFeet()
-            let target = pointFeet ?? peek.map { PeekLayout.feet(for: $0, y: normal.y, revealed: pointerOver, scale: unit) } ?? normal
+            let target = pointFeet ?? restingTarget()
             let wantedTurn = peek.map { PeekLayout.rotation(for: $0, lean: settings.wispLean) } ?? 0
             rotation += (wantedTurn - rotation) * Double(1 - exp(-12 * dt))
             if abs(wantedTurn - rotation) < 0.3 { rotation = wantedTurn }
@@ -309,7 +324,12 @@ final class PetController {
             state.hide = PeekLayout.amount(rotation: rotation)
             state.tilt = rotation
             state.edgeGap = -Double((PeekLayout.inset + (pointerOver ? PeekLayout.revealExtra : 0)) * unit) * 64 / Double(state.size)
-            if settling || peek != nil {
+            if let current = flight {
+                // ADR-077: along the arc, landing exactly on its end. If the target moved meanwhile (Wisp's place
+                // on the walkway), the ease below covers the rest.
+                feet = current.position(at: now)
+                if current.isDone(at: now) { flight = nil }
+            } else if settling || peek != nil {
                 // An ease-out toward the target: quick at first, gentle at the end. While hiding it also
                 // eases the head out and back as the pointer comes and goes.
                 // A flight to point is slower, so the eye can follow it to the place.
@@ -334,6 +354,11 @@ final class PetController {
 
         // Only listen to the pointer while it is over Wisp (or Wisp is being dragged).
         if window.ignoresMouseEvents == over { window.ignoresMouseEvents = !over }
+
+        // ADR-077: fewer frames while napping or tucked away, once nothing is moving; the timer is only replaced on a change.
+        let resting = (mood == .napping || peek != nil) && flight == nil && !settling && !pointerOver && state.reaction == nil
+        let interval = resting ? Self.restingInterval : Self.awakeInterval
+        if let timer, timer.timeInterval != interval { startTimer(interval: interval) }
 
         if now - lastTrace >= 1 {
             lastTrace = now
@@ -390,6 +415,12 @@ final class PetController {
     /// Where Wisp's feet are when it is out: its place on the Dock walkway, or its parked spot.
     private func standingFeet() -> CGPoint {
         brain.pinned ? parkedFeet() : walkwayFeet()
+    }
+
+    /// Where Wisp's feet go when it is not pointing: tucked at an edge, or standing in its place.
+    private func restingTarget() -> CGPoint {
+        let normal = standingFeet()
+        return peek.map { PeekLayout.feet(for: $0, y: normal.y, revealed: pointerOver, scale: unit) } ?? normal
     }
 
     // MARK: - The walkway
@@ -450,6 +481,7 @@ final class PetController {
         let mouse = NSEvent.mouseLocation
         if !dragging {
             pointFeet = nil // the user took Wisp: it stops pointing
+            flight = nil
             guard hypot(mouse.x - pressStart.x, mouse.y - pressStart.y) >= Self.dragThreshold else { return }
             dragging = true
             settling = false
@@ -590,6 +622,8 @@ final class PetState {
     var hover = 0.0
     var reaction: WispReaction?
     var reactionProgress = 0.0
+    /// ADR-077: how far Wisp leans into its flight, in radians.
+    var flightLean = 0.0
 }
 
 /// Draws Wisp for the current state.
@@ -598,7 +632,7 @@ struct PetStage: View {
 
     var body: some View {
         WispView(mood: state.mood, time: state.time, facing: state.facing, size: state.size, glow: state.glow, hide: state.hide, tilt: state.tilt, edgeGap: state.edgeGap, style: state.style,
-                 gaze: state.gaze, hover: state.hover, reaction: state.reaction, reactionProgress: state.reactionProgress)
+                 gaze: state.gaze, hover: state.hover, reaction: state.reaction, reactionProgress: state.reactionProgress, flightLean: state.flightLean)
             // Leans from the feet, so the body stays behind the edge while the head tips into the display.
             .rotationEffect(.degrees(state.rotation), anchor: UnitPoint(x: 0.5, y: WispView.feetFraction))
     }

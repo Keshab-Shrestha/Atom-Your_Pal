@@ -39,6 +39,8 @@ struct WispView: View {
     var hover: Double = 0
     var reaction: WispReaction?
     var reactionProgress: Double = 0
+    /// ADR-077: extra lean along the curved flight, in radians clockwise.
+    var flightLean: Double = 0
 
     var body: some View {
         Canvas { context, _ in
@@ -148,8 +150,10 @@ struct WispView: View {
         }
     }
 
-    /// Lean into the direction of travel; a head tilt while thinking; a wobble while dizzy.
-    private var lean: Double {
+    /// Lean into the direction of travel; a head tilt while thinking; a wobble while dizzy; along the flight.
+    private var lean: Double { moodLean + flightLean }
+
+    private var moodLean: Double {
         if reaction == .dizzy { return sin(time * 2 * .pi * 2.5) * 0.12 * (1 - reactionProgress) }
         return switch mood {
         case .floating: facing * 0.08
