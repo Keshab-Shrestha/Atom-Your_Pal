@@ -9,6 +9,7 @@ import { FILE_ROLES, MAX_GRANTS, checkGrant } from "./grants.ts";
 export const MAX_SKILLS = 10;
 import { DEFAULT_PLAN_LIMIT, DEFAULT_TEAM_CAP, DEFAULT_WORKER_CAP, MAX_CAP, PLAN_LIMIT_RANGE, startOfDay, type Budgets } from "./budgets.ts";
 import { isDue, routineTable } from "./routines.ts";
+import { SOUL_FIELDS, proposalTable } from "./feedback.ts";
 import { createSchema, sameSoul, toJobRow, toSoul, webSources, type JobRow, type ReportRow, type SoulRow } from "./store-schema.ts";
 import {
   HAND_OFFS,
@@ -130,6 +131,10 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const deleteReport = db.prepare("DELETE FROM reports WHERE job_id = ?");
 
   const routines = routineTable(db);
+  const proposals = proposalTable(db);
+  const putRating = db.prepare("UPDATE jobs SET rating = ?, rating_comment = ? WHERE id = ?");
+  const reviewOf = db.prepare("SELECT id FROM jobs WHERE reviews = ? LIMIT 1");
+  const insertReview = db.prepare("INSERT INTO jobs (helper, task, state, created_at, reviews) VALUES ('tinker', ?, 'queued', ?, ?)");
   const grantsOf = db.prepare("SELECT path FROM grants WHERE helper = ? ORDER BY rowid");
   const skillsOf = db.prepare("SELECT skill FROM helper_skills WHERE helper = ? ORDER BY skill");
   const clearSkills = db.prepare("DELETE FROM helper_skills WHERE helper = ?");
@@ -175,7 +180,9 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
   function availableHelper(helper: string) {
     const known = mustHelper(helper);
-    if (!known.available) throw new HelperError(`${current(known.id).name} is not ready yet.`);
+    // Task 3.13: Tinker takes no tasks of its own: it reviews the tasks Keshab rates as not good.
+    if (known.role === "improver") throw new HelperError(`${current(known.id).name} only reviews tasks you rate as not good.`);
+    if (!(known.available as boolean)) throw new HelperError(`${current(known.id).name} is not ready yet.`);
     return known;
   }
 
@@ -293,6 +300,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         routines: routines.list().filter((r) => r.helper === h.id),
         grants: (grantsOf.all(h.id) as { path: string }[]).map((g) => g.path),
         skills: (skillsOf.all(h.id) as { skill: string }[]).map((s) => s.skill),
+        proposals: proposals.list(h.id),
         jobs: (newestJobs.all(h.id, JOBS_PER_HELPER) as unknown as JobRow[]).map(toJob),
       }));
     },
@@ -365,6 +373,76 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if ((grantsOf.all(known.id) as unknown[]).length >= MAX_GRANTS) throw new HelperError(`A worker can have at most ${MAX_GRANTS} folders.`);
       putGrant.run(known.id, real);
       emit({ action: "grant", helper: known.id, granted: true });
+    },
+
+    rate(id, good, raw) {
+      const job = mustGet(id);
+      if (job.state !== "done" && job.state !== "failed") throw new HelperError("Only a finished task can be rated.");
+      if (job.helper === "tinker") throw new HelperError("Tinker's reviews are answered by accepting or rejecting its proposal.");
+      const comment = raw?.trim() || null;
+      if (comment && comment.length > MAX_COMMENT_CHARS) throw new HelperError(`The comment is too long (limit ${MAX_COMMENT_CHARS}).`);
+      putRating.run(good ? "good" : "bad", comment, id);
+      emit({ action: "rating", helper: job.helper, job: id, good });
+      // One review per task: Tinker's task waits in the queue like any other (budgets apply).
+      if (good || reviewOf.get(id)) return;
+      let reviewId = 0;
+      transaction(() => {
+        const at = now();
+        reviewId = Number(insertReview.run(`Review task ${id} (${current(job.helper).name})`, at.toISOString(), id).lastInsertRowid);
+        log(reviewId, "created", at);
+      });
+      emit({ action: "job", helper: "tinker", job: reviewId, state: "queued" });
+    },
+
+    reviewTarget(tinkerTaskId) {
+      const reviewed = get(mustGet(tinkerTaskId).reviews ?? -1);
+      if (!reviewed) return undefined;
+      const row = jobById.get(reviewed.id) as unknown as JobRow & { rating_comment: string | null };
+      const report = this.report(reviewed.id);
+      return {
+        worker: current(reviewed.helper).name,
+        role: findHelper(reviewed.helper)!.role,
+        task: reviewed.task,
+        soul: toSoul(current(reviewed.helper)),
+        ...(row.rating_comment ? { comment: row.rating_comment } : {}),
+        ...(reviewed.error ? { error: reviewed.error } : {}),
+        ...(report ? { report: { title: report.title, summary: report.summary, body: report.body } } : {}),
+      };
+    },
+
+    addProposal(tinkerTaskId, proposal) {
+      const reviewed = get(mustGet(tinkerTaskId).reviews ?? -1);
+      if (!reviewed) throw new HelperError("The reviewed task is gone.");
+      if (!SOUL_FIELDS.includes(proposal.field)) throw new HelperError("A proposal changes personality, howItWorks, rules or lessons.");
+      // The changed soul must still be a valid soul (limits, no empty personality): checked now, and again on accept.
+      cleanSoul({ ...toSoul(current(reviewed.helper)), [proposal.field]: proposal.text }, []);
+      const id = proposals.add(reviewed.helper, proposal.field, proposal.text.trim(), proposal.reason.trim(), reviewed.id, now());
+      emit({ action: "proposal", helper: reviewed.helper, proposal: id, state: "pending" });
+      return proposals.get(id)!;
+    },
+
+    acceptProposal(id) {
+      const p = proposals.get(id);
+      if (!p || p.state !== "pending") throw new HelperError("No proposal waits for an answer there.");
+      const before = current(p.helper).version;
+      this.saveSoul(p.helper, { ...toSoul(current(p.helper)), [p.field]: p.text });
+      proposals.set(id, "accepted", before);
+      emit({ action: "proposal", helper: p.helper, proposal: id, state: "accepted" });
+    },
+
+    rejectProposal(id) {
+      const p = proposals.get(id);
+      if (!p || p.state !== "pending") throw new HelperError("No proposal waits for an answer there.");
+      proposals.set(id, "rejected");
+      emit({ action: "proposal", helper: p.helper, proposal: id, state: "rejected" });
+    },
+
+    undoProposal(id) {
+      const p = proposals.get(id);
+      if (!p || p.state !== "accepted" || p.previousVersion === undefined) throw new HelperError("Only an accepted proposal can be undone.");
+      this.restoreSoul(p.helper, p.previousVersion);
+      proposals.set(id, "undone");
+      emit({ action: "proposal", helper: p.helper, proposal: id, state: "undone" });
     },
 
     setSkills(helper, skills) {

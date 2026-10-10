@@ -47,6 +47,11 @@ public enum IslandCommand: Sendable, Equatable {
     case grantAdd(helper: String, path: String)
     /// Task 3.12: the skills chosen for a worker (the whole list).
     case helperSkills(helper: String, skills: [String])
+    /// Task 3.13: rate a finished task; answer Tinker's proposal.
+    case jobRate(id: Int, good: Bool, comment: String?)
+    case proposalAccept(id: Int)
+    case proposalReject(id: Int)
+    case proposalUndo(id: Int)
     case grantRemove(helper: String, path: String)
     case jobDelete(id: Int)
     case reportGet(id: Int)
@@ -91,6 +96,10 @@ public enum IslandCommand: Sendable, Equatable {
         case .routineDelete: "routine.delete"
         case .grantAdd: "grant.add"
         case .helperSkills: "helper.skills"
+        case .jobRate: "job.rate"
+        case .proposalAccept: "proposal.accept"
+        case .proposalReject: "proposal.reject"
+        case .proposalUndo: "proposal.undo"
         case .grantRemove: "grant.remove"
         case .jobDelete: "job.delete"
         case .reportGet: "report.get"
@@ -140,6 +149,12 @@ public enum IslandCommand: Sendable, Equatable {
         case .commentAdd(let id, let text):
             fields["id"] = id
             fields["text"] = text
+        case .jobRate(let id, let good, let comment):
+            fields["id"] = id
+            fields["good"] = good // a real JSON boolean
+            if let comment, !comment.isEmpty { fields["comment"] = comment }
+        case .proposalAccept(let id), .proposalReject(let id), .proposalUndo(let id):
+            fields["id"] = id
         case .helperSkills(let helper, let skills):
             fields["helper"] = helper
             fields["skills"] = skills
@@ -712,7 +727,8 @@ private struct Fields {
                soulVersion: (h["soulVersion"] as? NSNumber)?.intValue ?? 1, soulVersions: versions, budget: Self.budget(h["budget"]),
                planFirst: Self.flag(h["planFirst"]), routines: Self.routines(h["routines"]),
                grants: (h["grants"] as? [Any])?.compactMap { $0 as? String } ?? [],
-               skills: (h["skills"] as? [Any])?.compactMap { $0 as? String } ?? [])
+               skills: (h["skills"] as? [Any])?.compactMap { $0 as? String } ?? [],
+               proposals: Self.proposals(h["proposals"]))
         }
     }
 
@@ -732,7 +748,8 @@ private struct Fields {
                          comments: (j["comments"] as? NSNumber)?.intValue ?? 0, goal: j["goal"] as? String,
                          parentId: (j["parentId"] as? NSNumber)?.intValue, goalId: (j["goalId"] as? NSNumber)?.intValue,
                          goalEnded: Self.flag(j["goalEnded"]), resumable: Self.flag(j["resumable"]), held: j["held"] as? String,
-                         planFirst: Self.flag(j["planFirst"]), planStatus: j["planStatus"] as? String, planSummary: j["planSummary"] as? String)
+                         planFirst: Self.flag(j["planFirst"]), planStatus: j["planStatus"] as? String, planSummary: j["planSummary"] as? String,
+                         rating: j["rating"] as? String, reviews: (j["reviews"] as? NSNumber)?.intValue)
     }
 
     /// Task 3.7: `{ "cap": number | null, "spent": number }`; anything else reads as none.
@@ -740,6 +757,15 @@ private struct Fields {
         guard let b = value as? [String: Any], let spent = b["spent"] as? NSNumber, CFGetTypeID(spent) != CFBooleanGetTypeID() else { return nil }
         let cap = b["cap"] as? NSNumber
         return HelperBudget(cap: cap.flatMap { CFGetTypeID($0) == CFBooleanGetTypeID() ? nil : $0.doubleValue }, spent: spent.doubleValue)
+    }
+
+    /// Task 3.13: Tinker's proposals for a helper's soul; a malformed entry is left out.
+    static func proposals(_ value: Any?) -> [SoulProposal] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let p = entry as? [String: Any], let id = p["id"] as? NSNumber, let field = p["field"] as? String, let text = p["text"] as? String,
+                  let reason = p["reason"] as? String, let state = p["state"] as? String else { return nil }
+            return SoulProposal(id: id.intValue, field: field, text: text, reason: reason, jobId: (p["jobId"] as? NSNumber)?.intValue ?? 0, state: state)
+        }
     }
 
     /// Task 3.9: a helper's routines; a malformed entry is left out.

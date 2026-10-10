@@ -225,3 +225,72 @@ struct SkillsPicker: View {
         .help("Skills \(helper.name) may use. Only these are loaded for its tasks.")
     }
 }
+
+/// Task 3.13: Tinker's suggestions for this worker's soul: accept or reject; an accepted one can be undone.
+struct ProposalsSection: View {
+    let model: IslandModel
+    let proposals: [SoulProposal]
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Tinker suggests").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            ForEach(proposals.filter { $0.state == "pending" || $0.state == "accepted" }) { p in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(p.fieldTitle): \(p.text)").font(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(p.reason).font(.system(size: 11.5)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 8) {
+                        if p.state == "pending" {
+                            QuietButton(title: "Accept", symbol: "checkmark") { model.sendHelpers(model.helpers.answerProposal(p.id, accept: true)) }
+                            QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerProposal(p.id, accept: false)) }
+                        } else {
+                            Text("Accepted").font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                            QuietButton(title: "Undo", symbol: "arrow.uturn.backward") { model.sendHelpers(model.helpers.undoProposal(p.id)) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Task 3.13: how a finished task went: good, or not (with what was wrong), which asks Tinker to review it.
+struct RateSection: View {
+    let model: IslandModel
+    let job: HelperJob
+    /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
+    private let comment = State(initialValue: "")
+    @Environment(\.theme) private var theme
+    @Environment(\.islandSnapshot) private var snapshot
+
+    init(model: IslandModel, job: HelperJob) {
+        self.model = model
+        self.job = job
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("How did it go?").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            if let rating = job.rating {
+                Text(rating == "good" ? "You rated it good." : "You rated it not good; Tinker reviews it.")
+                    .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+            } else {
+                if snapshot {
+                    Text("What was wrong? (optional)").font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
+                } else {
+                    TextField("What was wrong? (optional)", text: comment.projectedValue)
+                        .textFieldStyle(.plain).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
+                        .accessibilityLabel("What was wrong")
+                }
+                HStack(spacing: 8) {
+                    QuietButton(title: "Good", symbol: "hand.thumbsup") { model.sendHelpers(model.helpers.rate(good: true)) }
+                    QuietButton(title: "Not good", symbol: "hand.thumbsdown") {
+                        model.sendHelpers(model.helpers.rate(good: false, comment: comment.wrappedValue))
+                        comment.wrappedValue = ""
+                    }
+                }
+            }
+        }
+    }
+}

@@ -648,6 +648,7 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
         routines: [],
         grants: [],
         skills: [],
+        proposals: [],
         jobs: [],
       })),
       apps: ["Arc", "Brave Browser", "Notes"],
@@ -916,6 +917,28 @@ test("helper.skills keeps only Keshab's skills (Task 3.12)", async () => {
   await h.send({ type: "helper.skills", helper: "sid", skills: ["secret"] });
   assert.match((h.events()[0] as { message: string }).message, /no skill called "secret"/);
   assert.deepEqual(store.list()[0]!.skills, ["pdf"]);
+});
+
+test("job.rate asks Tinker to review; proposal.accept, proposal.undo and proposal.reject (Task 3.13)", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  const { id } = store.addJob("sid", "x");
+  store.start(id);
+  store.finish(id, { title: "T", summary: "S", body: "B", sources: [] });
+  await h.send({ type: "job.rate", id, good: false, comment: "Too thin" });
+  const event = h.events().at(-1) as HelpersEvent;
+  assert.equal(event.helpers[0]!.jobs[0]!.rating, "bad");
+  const review = event.helpers[6]!.jobs[0]!;
+  assert.equal(review.reviews, id);
+  const p = store.addProposal(review.id, { field: "lessons", text: "Go deeper.", reason: "Too thin." });
+  await h.send({ type: "proposal.accept", id: p.id });
+  assert.equal(store.soul("sid").lessons, "Go deeper.");
+  assert.deepEqual((h.events().at(-1) as HelpersEvent).helpers[0]!.proposals.map((x) => x.state), ["accepted"]);
+  await h.send({ type: "proposal.undo", id: p.id });
+  assert.equal(store.soul("sid").lessons, "");
+  h.clear();
+  await h.send({ type: "proposal.reject", id: p.id });
+  assert.deepEqual(h.types(), ["error"]);
 });
 
 test("helpers.settings turns the large model off and on, answered with helpers", async () => {

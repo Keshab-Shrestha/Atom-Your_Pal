@@ -861,6 +861,15 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 **Task 3.13 — Tinker and feedback.** Rate a finished task (good or not, with a comment); Tinker reviews failed and poorly rated tasks and proposes soul changes with a reason; accept or reject in the window; every version kept and undoable.
 **Done when:** a poorly rated task leads to a proposal that, once accepted, shows in the worker's soul, and undo restores the old one.
 
+**As built (2026-10-11):** built; tested (a fake Claude Code for the review); not yet tried live.
+- Rating: a finished (done or failed) task's thread has "How did it go?": Good, or Not good with an optional "what was wrong" (`job.rate`).
+- "Not good" makes a Tinker task, "Review task 12 (Sid)" (once per task). It runs like any task (budgets apply, it shows on the board). Tinker's run has no tools and nothing kept for resuming (`runReview`). It reads the task, the comment, the error or report and the worker's soul, all marked as data, and returns at most one change: a field (lessons preferred, or rules, how it works, personality), its whole new text, and the reason. "No change" is an answer too (for example a failure outside the worker's control).
+- A proposal is checked so that the changed soul is still a valid soul. The worker's page shows "Tinker suggests" with Accept and Reject. Accept saves a new soul version with the change. Undo restores the version from before it, as another new version, so every version stays kept.
+- Tinker takes no tasks of its own ("Tinker only reviews tasks you rate as not good."); the sidebar says "Reviews rated tasks".
+- Failed tasks are reviewed when Keshab rates them not good, not automatically: most failures so far are limits and setup ("needs the Claude plan", "ZENO was closed"), where a soul change would not help and a review would spend plan for nothing.
+- Tests: 8 TS (feedback 5, provider 1, island 1, protocol) and 1 Swift. TS 605 pass, 2 skipped; typecheck clean; Swift 487 pass.
+- Known limits: a proposal is shown on the worker's page, not said aloud; Tinker reviews one task at a time and does not look across several.
+
 **Task 3.14 — Open in the worker's app.** A browser opens the top sources as tabs; Notes saves the report as a note; done by code from http(s) sources.
 
 **Task 3.15 — Workers on screen.** Each worker's original look in Wisp's style, a small working sign while busy, and Wisp flying over to say its one line when a goal is done.

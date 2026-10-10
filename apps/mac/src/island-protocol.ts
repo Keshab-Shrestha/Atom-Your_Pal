@@ -32,6 +32,10 @@ export type IslandCommand =
   | { type: "routine.delete"; id: number }
   | { type: "grant.add"; helper: string; path: string }
   | { type: "helper.skills"; helper: string; skills: string[] }
+  | { type: "job.rate"; id: number; good: boolean; comment?: string }
+  | { type: "proposal.accept"; id: number }
+  | { type: "proposal.reject"; id: number }
+  | { type: "proposal.undo"; id: number }
   | { type: "grant.remove"; helper: string; path: string }
   | { type: "job.block"; id: number; blockedBy: number[] }
   | { type: "comment.add"; id: number; text: string }
@@ -117,6 +121,9 @@ export interface JobItem {
   planFirst?: boolean;
   planStatus?: "awaiting" | "approved";
   planSummary?: string;
+  /** Task 3.13: Keshab's rating; for a Tinker task, the task it reviews. */
+  rating?: "good" | "bad";
+  reviews?: number;
   parentId?: number;
 }
 
@@ -175,6 +182,8 @@ export interface HelperItem {
   grants: string[];
   /** Task 3.12: the skills chosen for it. */
   skills: string[];
+  /** Task 3.13: Tinker's proposals for its soul: `field` changed to `text`, why, the task reviewed, and their state. */
+  proposals: { id: number; field: string; text: string; reason: string; jobId: number; state: string; createdAt: string }[];
   jobs: JobItem[];
 }
 
@@ -266,6 +275,10 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "routine.delete",
   "grant.add",
   "helper.skills",
+  "job.rate",
+  "proposal.accept",
+  "proposal.reject",
+  "proposal.undo",
   "grant.remove",
   "job.stop",
   "job.fresh",
@@ -339,6 +352,13 @@ export function parseCommand(line: string): ParsedLine {
     if (planFirst !== undefined && typeof planFirst !== "boolean") return { error: 'job.add needs "planFirst" to be true or false.' };
     return { command: { type, helper, task, ...(blockedBy !== undefined ? { blockedBy } : {}), ...(planFirst !== undefined ? { planFirst } : {}) } };
   }
+  if (type === "job.rate") {
+    const { id, good, comment } = value as { id?: unknown; good?: unknown; comment?: unknown };
+    if (!isId(id)) return { error: 'job.rate needs an "id" that is a whole number.' };
+    if (typeof good !== "boolean") return { error: 'job.rate needs "good" to be true or false.' };
+    if (comment !== undefined && typeof comment !== "string") return { error: 'job.rate needs "comment" to be a string.' };
+    return { command: { type, id, good, ...(comment !== undefined ? { comment } : {}) } };
+  }
   if (type === "helper.skills") {
     const { helper, skills } = value as { helper?: unknown; skills?: unknown };
     if (typeof helper !== "string" || helper === "") return { error: 'helper.skills needs a "helper" string.' };
@@ -410,7 +430,7 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof version !== "number" || !Number.isInteger(version) || version < 1) return { error: 'soul.restore needs a "version" that is a whole number.' };
     return { command: { type, helper, version } };
   }
-  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "job.delete" || type === "report.get" || type === "thread.get") {
+  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "report.get" || type === "thread.get") {
     const { id } = value as { id?: unknown };
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     return { command: { type, id } };

@@ -55,7 +55,7 @@ test("a renamed worker keeps its id; its new name shows in the list and in refus
   store.saveSoul("tinker", { ...HELPERS[6].soul, name: "Shell" });
   assert.equal(store.list()[6]!.name, "Shell");
   assert.equal(store.list()[6]!.id, "tinker");
-  assert.throws(() => store.addJob("tinker", "x"), /Shell is not ready yet/);
+  assert.throws(() => store.addJob("tinker", "x"), /Shell only reviews tasks you rate as not good/);
 });
 
 test("names stay unique, so a restore that would clash with another worker is refused", () => {

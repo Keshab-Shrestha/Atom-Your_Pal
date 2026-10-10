@@ -103,6 +103,9 @@ export function createSchema(db: DatabaseSync) {
   if (!columns.has("session_id")) db.exec("ALTER TABLE jobs ADD COLUMN session_id TEXT");
   // Task 3.8: plan first.
   if (!columns.has("plan_first")) db.exec("ALTER TABLE jobs ADD COLUMN plan_first INTEGER");
+  // Task 3.13: Keshab's rating, and for Tinker's review tasks the task reviewed.
+  for (const column of ["rating", "rating_comment"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);
+  if (!columns.has("reviews")) db.exec("ALTER TABLE jobs ADD COLUMN reviews INTEGER");
   for (const column of ["plan", "plan_summary", "plan_status"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);
 }
 
@@ -131,6 +134,9 @@ export interface JobRow {
   plan: string | null;
   plan_summary: string | null;
   plan_status: string | null;
+  rating: string | null;
+  rating_comment: string | null;
+  reviews: number | null;
 }
 
 export interface SoulRow {
@@ -182,6 +188,8 @@ export const toJobRow = (row: JobRow): Omit<Job, "blockedBy" | "waitingFor" | "c
   planFirst: row.plan_first === 1,
   ...(row.plan_status === "awaiting" || row.plan_status === "approved" ? { planStatus: row.plan_status } : {}),
   ...(row.plan_summary ? { planSummary: row.plan_summary } : {}),
+  ...(row.rating === "good" || row.rating === "bad" ? { rating: row.rating } : {}),
+  ...(row.reviews != null ? { reviews: row.reviews } : {}),
 });
 
 /** Sources with an http or https address only; anything else (javascript:, file:, junk) is dropped. */

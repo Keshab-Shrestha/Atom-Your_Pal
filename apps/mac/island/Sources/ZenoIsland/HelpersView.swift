@@ -121,7 +121,9 @@ private struct HelperCard: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(helper.name).font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
                 Group {
-                    if !helper.available {
+                    if helper.role == "improver" {
+                        Text("Reviews rated tasks").foregroundStyle(theme.text3.color)
+                    } else if !helper.available {
                         Text("Coming soon").foregroundStyle(theme.text3.color)
                     } else if running {
                         Text(helper.activity).foregroundStyle(theme.statusDots ? theme.text2.color : theme.live.color)
@@ -240,6 +242,9 @@ private struct HelperPane: View {
                             .help("Who \(helper.name) is and how it works")
                     }
                 }
+                if helper.proposals.contains(where: { $0.state == "pending" || $0.state == "accepted" }) {
+                    ProposalsSection(model: model, proposals: helper.proposals)
+                }
                 if helper.available {
                     HStack(spacing: 8) {
                         AppPicker(model: model, helper: helper)
@@ -257,7 +262,9 @@ private struct HelperPane: View {
                     JobList(model: model, helper: helper)
                     if !helper.routines.isEmpty { RoutinesSection(model: model, routines: helper.routines) }
                 } else {
-                    Text("\(helper.name) is not ready for jobs yet. You can shape its soul now.")
+                    Text(helper.role == "improver"
+                        ? "\(helper.name) reviews the tasks you rate as not good and suggests one change to that worker's soul. You accept or reject it on the worker's page. Its reviews are on the board."
+                        : "\(helper.name) is not ready for jobs yet. You can shape its soul now.")
                         .font(.system(size: 12.5)).foregroundStyle(theme.text2.color)
                 }
             }
@@ -269,7 +276,7 @@ private struct HelperPane: View {
 
     /// Under the name: the role, then the job counts ("Researcher · 1 running, 1 done").
     static func subtitle(_ helper: Helper) -> String {
-        let summary = helper.available ? Self.summary(helper) : "Coming soon"
+        let summary = helper.role == "improver" ? "Reviews the tasks you rate as not good" : helper.available ? Self.summary(helper) : "Coming soon"
         return helper.roleTitle.isEmpty ? summary : "\(helper.roleTitle) · \(summary)"
     }
 

@@ -103,6 +103,11 @@ export interface IslandHelpers {
   rejectPlan(id: number): void;
   /** Whether a worker's new tasks plan first. Throws, with words for the user, for an unknown worker. */
   setPlanFirst(helper: string, on: boolean): void;
+  /** Task 3.13: rate a finished task ("not good" asks Tinker to review it); answer Tinker's proposals. Each throws with words for the user. */
+  rate(id: number, good: boolean, comment?: string): void;
+  acceptProposal(id: number): void;
+  rejectProposal(id: number): void;
+  undoProposal(id: number): void;
   /** Task 3.12: Keshab's skills, and a worker's choice of them. Throws, with words for the user, for an unknown skill. */
   skills(): { name: string; description: string }[];
   setSkills(helper: string, skills: string[]): void;
@@ -296,6 +301,18 @@ export function runIsland(options: IslandOptions): IslandSession {
         return;
       case "plan.reject":
         changeHelpers(command.type, (helpers) => helpers.rejectPlan(command.id));
+        return;
+      case "job.rate":
+        changeHelpers(command.type, (helpers) => helpers.rate(command.id, command.good, command.comment));
+        return;
+      case "proposal.accept":
+        changeHelpers(command.type, (helpers) => helpers.acceptProposal(command.id));
+        return;
+      case "proposal.reject":
+        changeHelpers(command.type, (helpers) => helpers.rejectProposal(command.id));
+        return;
+      case "proposal.undo":
+        changeHelpers(command.type, (helpers) => helpers.undoProposal(command.id));
         return;
       case "helper.skills":
         changeHelpers(command.type, (helpers) => helpers.setSkills(command.helper, command.skills));

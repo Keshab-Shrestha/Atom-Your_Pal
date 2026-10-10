@@ -28,6 +28,8 @@ const toJobItem = (job: Job, held?: string): JobItem => ({
   ...(job.planFirst ? { planFirst: true } : {}),
   ...(job.planStatus ? { planStatus: job.planStatus } : {}),
   ...(job.planSummary ? { planSummary: job.planSummary } : {}),
+  ...(job.rating ? { rating: job.rating } : {}),
+  ...(job.reviews !== undefined ? { reviews: job.reviews } : {}),
   ...(job.parentId !== undefined ? { parentId: job.parentId } : {}),
 });
 
@@ -56,6 +58,7 @@ export function islandHelpers(
           ...(r.lastAt ? { lastAt: r.lastAt.toISOString() } : {}),
           ...(r.lastSkipped ? { lastSkipped: true } : {}),
         })),
+        proposals: h.proposals.map((p) => ({ id: p.id, field: p.field, text: p.text, reason: p.reason, jobId: p.jobId, state: p.state, createdAt: p.createdAt.toISOString() })),
         jobs: h.jobs.map((job) => toJobItem(job, held(job))),
       })),
     budgets: () => {
@@ -72,6 +75,10 @@ export function islandHelpers(
     rejectPlan: (id) => store.rejectPlan(id),
     setPlanFirst: (helper, on) => store.setPlanFirst(helper, on),
     removeRoutine: (id) => store.removeRoutine(id),
+    rate: (id, good, comment) => store.rate(id, good, comment),
+    acceptProposal: (id) => store.acceptProposal(id),
+    rejectProposal: (id) => store.rejectProposal(id),
+    undoProposal: (id) => store.undoProposal(id),
     skills,
     setSkills: (helper, names) => {
       const known = new Set(skills().map((s) => s.name));

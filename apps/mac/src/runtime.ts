@@ -29,7 +29,7 @@ import {
   type TimerInfo,
   type Timers,
 } from "@zeno/tool-engine";
-import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError, runPlan, runResearch, type PlanUsage } from "@zeno/llm-gateway";
+import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError, runPlan, runResearch, runReview, type PlanUsage } from "@zeno/llm-gateway";
 import { CLAUDE_PLAN, createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import {
   createEpisodeRecorder,
@@ -51,6 +51,7 @@ import {
   createWorkerShortcut,
   holdFor,
   FILE_ROLES,
+  reviewBrief,
   followUpBrief,
   handOffTool,
   teamContext,
@@ -442,6 +443,16 @@ export function createRuntime(
         ...(files ? { files } : {}),
         ...(skills?.names.length ? { skills } : {}),
       });
+    // Task 3.13: Tinker reviews a task Keshab rated as not good: no tools, one proposed soul change (or none).
+    if (role === "improver") {
+      const target = helpers?.reviewTarget(job.id);
+      if (!target) throw new Error("The task to review is gone.");
+      const { review, costUsd } = await runReview({ claudePath: keys["claude-plan"] ?? "", model, task: reviewBrief(target), instructions, signal, onStep, onUsage: reportUsage });
+      if (costUsd) helpers?.addSpend(job.id, costUsd);
+      if (!review.change || !review.text.trim()) return { report: { title: `No change for ${target.worker}`, summary: review.reason, body: review.reason, sources: [] } };
+      helpers?.addProposal(job.id, review);
+      return { report: { title: `A change for ${target.worker}'s ${review.field}`, summary: review.reason, body: review.text, sources: [] } };
+    }
     // Task 3.8: a plan-first task's first run only plans (no tools); the plan then waits for Keshab.
     if (job.planFirst && job.planStatus !== "approved") {
       const { plan, costUsd } = await runPlan({ claudePath: keys["claude-plan"] ?? "", model, task: fresh(), instructions, signal, onStep, onUsage: reportUsage });

@@ -89,7 +89,7 @@ test("addJob trims, queues, and refuses an unknown or unavailable helper and an 
   assert.equal(job.createdAt.toISOString(), "2026-10-10T09:02:00.000Z");
   assert.equal(job.endedAt, undefined);
   assert.throws(() => store.addJob("bob", "x"), /no helper/);
-  assert.throws(() => store.addJob("tinker", "x"), /not ready/);
+  assert.throws(() => store.addJob("tinker", "x"), /only reviews/);
   assert.throws(() => store.addJob("sid", "   "), /empty/);
   assert.throws(() => store.addJob("sid", "x".repeat(MAX_TASK_CHARS + 1)), /too long/);
   store.addJob("sid", "x".repeat(MAX_TASK_CHARS)); // exactly the limit is fine

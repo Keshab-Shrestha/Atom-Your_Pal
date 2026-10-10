@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { FILE_MAX_TURNS, FILE_TOOLS, HAND_OFF_TOOL, RESEARCH_MAX_TURNS, RESEARCH_PAGE_LIMIT, runPlan, runResearch, type ResearchOptions } from "./claude-plan-job.ts";
+import { FILE_MAX_TURNS, FILE_TOOLS, HAND_OFF_TOOL, RESEARCH_MAX_TURNS, RESEARCH_PAGE_LIMIT, runPlan, runResearch, runReview, type ResearchOptions } from "./claude-plan-job.ts";
 import type { ClaudeSdk, PlanUsage } from "./claude-plan.ts";
 import { ProviderError } from "../gateway.ts";
 
@@ -193,6 +193,18 @@ test("only the worker's skills load, through its plugin; a Skill call for anothe
   });
   await research(plain.sdk);
   assert.equal(plain.seen[0]!.options.plugins, undefined);
+});
+
+test("Tinker's review uses no tools and returns one proposed change (Task 3.13)", async () => {
+  const review = { change: true, field: "lessons", text: "Give three sources.", reason: "One source was too thin." };
+  const { sdk, seen } = fakeSdk(async function* () {
+    yield init();
+    yield done(review);
+  });
+  assert.deepEqual(await runReview({ claudePath: "/bin/claude", model: "m", task: "Review", instructions: "You are Tinker.", signal: new AbortController().signal, sdk, env: {} }), { review });
+  const o = seen[0]!.options;
+  assert.deepEqual([o.tools, o.persistSession, o.outputFormat.schema.required], [[], false, ["change", "field", "text", "reason"]]);
+  assert.match(o.systemPrompt, /reviews one task that Keshab rated as not good/);
 });
 
 test("progress in plain words, and the twelfth page is the last: further fetches are refused and the report is partial", async () => {

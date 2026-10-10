@@ -55,13 +55,17 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     public var planStatus: String?
     public var planSummary: String?
     public var awaitsApproval: Bool { state == .queued && planStatus == "awaiting" }
+    /// Task 3.13: Keshab's rating ("good" or "bad"); for a Tinker task, the task it reviews.
+    public var rating: String?
+    public var reviews: Int?
+    public var isFinished: Bool { state == .done || state == .failed }
 
     public init(id: Int, task: String, state: JobState, createdAt: Date? = nil, endedAt: Date? = nil, step: String? = nil,
                 partial: Bool = false, title: String? = nil, summary: String? = nil, error: String? = nil,
                 model: String? = nil, modelReason: String? = nil, blockedBy: [Int] = [], waitingFor: [Int] = [],
                 comments: Int = 0, goal: String? = nil, parentId: Int? = nil, goalId: Int? = nil, goalEnded: Bool = false,
                 resumable: Bool = false, held: String? = nil, planFirst: Bool = false, planStatus: String? = nil,
-                planSummary: String? = nil) {
+                planSummary: String? = nil, rating: String? = nil, reviews: Int? = nil) {
         self.id = id
         self.task = task
         self.state = state
@@ -86,6 +90,8 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
         self.planFirst = planFirst
         self.planStatus = planStatus
         self.planSummary = planSummary
+        self.rating = rating
+        self.reviews = reviews
     }
 
     public var hasReport: Bool { title != nil }
@@ -196,12 +202,14 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public var grants: [String]
     /// Task 3.12: the skills chosen for it.
     public var skills: [String]
+    /// Task 3.13: Tinker's proposals for its soul, newest first.
+    public var proposals: [SoulProposal]
     /// The coder, designer and documenter work in folders Keshab grants.
     public var worksInFolders: Bool { ["coder", "designer", "documenter"].contains(role) }
 
     public init(id: String, name: String, available: Bool, app: String?, jobs: [HelperJob], pinnedModel: String? = nil,
                 role: String = "", soul: HelperSoul? = nil, soulVersion: Int = 1, soulVersions: [SoulVersion] = [],
-                budget: HelperBudget? = nil, planFirst: Bool = false, routines: [HelperRoutine] = [], grants: [String] = [], skills: [String] = []) {
+                budget: HelperBudget? = nil, planFirst: Bool = false, routines: [HelperRoutine] = [], grants: [String] = [], skills: [String] = [], proposals: [SoulProposal] = []) {
         self.id = id
         self.name = name
         self.available = available
@@ -217,6 +225,7 @@ public struct Helper: Sendable, Equatable, Identifiable {
         self.routines = routines
         self.grants = grants
         self.skills = skills
+        self.proposals = proposals
     }
 
     /// The role as the window says it: "Researcher", "Financial information", "HR", ….
@@ -656,6 +665,24 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.helperPin(helper: helper.id, model: modelId ?? ""))
     }
 
+    /// Task 3.13: rates the open task, if it has finished and is not one of Tinker's reviews.
+    public mutating func rate(good: Bool, comment: String = "") -> IslandCommand? {
+        guard let job = openJob, job.isFinished, job.reviews == nil else { return nil }
+        let clean = comment.trimmingCharacters(in: .whitespacesAndNewlines)
+        return waiting(.jobRate(id: job.id, good: good, comment: clean.isEmpty ? nil : String(clean.prefix(2000))))
+    }
+
+    /// Tinker's proposals for the chosen worker: accept or reject a pending one; undo an accepted one.
+    public mutating func answerProposal(_ id: Int, accept: Bool) -> IslandCommand? {
+        guard selectedHelper?.proposals.first(where: { $0.id == id })?.state == "pending" else { return nil }
+        return waiting(accept ? .proposalAccept(id: id) : .proposalReject(id: id))
+    }
+
+    public mutating func undoProposal(_ id: Int) -> IslandCommand? {
+        guard selectedHelper?.proposals.first(where: { $0.id == id })?.state == "accepted" else { return nil }
+        return waiting(.proposalUndo(id: id))
+    }
+
     /// Task 3.12: adds or removes one of Keshab's skills for the chosen worker.
     public mutating func toggleSkill(_ name: String) -> IslandCommand? {
         guard let helper = selectedHelper, helper.available, list?.skills.contains(where: { $0.name == name }) == true else { return nil }
@@ -822,5 +849,36 @@ public struct SkillInfo: Sendable, Equatable, Identifiable {
     public init(name: String, description: String) {
         self.name = name
         self.description = description
+    }
+}
+
+/// Task 3.13: Tinker's proposed change to a worker's soul.
+public struct SoulProposal: Sendable, Equatable, Identifiable {
+    public var id: Int
+    /// "personality", "howItWorks", "rules" or "lessons".
+    public var field: String
+    /// The whole new text of that field.
+    public var text: String
+    public var reason: String
+    public var jobId: Int
+    /// "pending", "accepted", "rejected" or "undone".
+    public var state: String
+
+    public init(id: Int, field: String, text: String, reason: String, jobId: Int, state: String) {
+        self.id = id
+        self.field = field
+        self.text = text
+        self.reason = reason
+        self.jobId = jobId
+        self.state = state
+    }
+
+    public var fieldTitle: String {
+        switch field {
+        case "personality": "Personality"
+        case "howItWorks": "How it works"
+        case "rules": "Rules"
+        default: "Lessons learned"
+        }
     }
 }

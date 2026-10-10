@@ -1,6 +1,7 @@
 import type { Budget, Budgets } from "./budgets.ts";
 import type { HandOffOutcome, HelperId, JobState, Soul, TaskContext } from "./jobs.ts";
 import type { Routine, Schedule } from "./routines.ts";
+import type { Proposal, ReviewTarget, SoulField } from "./feedback.ts";
 
 // The helper store's public shapes (split from store.ts): jobs as tasks, threads, goals, the store's operations.
 
@@ -54,6 +55,9 @@ export interface Job {
   planStatus?: "awaiting" | "approved";
   /** The plan in one sentence, once written. */
   planSummary?: string;
+  /** Task 3.13: Keshab's rating of a finished task; for a Tinker task, the task it reviews. */
+  rating?: "good" | "bad";
+  reviews?: number;
   parentId?: number;
   /** The tasks it waits for, and those of them not done yet (it starts when this is empty). */
   blockedBy: number[];
@@ -150,6 +154,8 @@ export interface HelperView {
   grants: string[];
   /** Task 3.12: the skills from ~/.claude/skills chosen for it, sorted. */
   skills: string[];
+  /** Task 3.13: Tinker's proposals for its soul: every pending one and the newest others, newest first. */
+  proposals: Proposal[];
   /** Newest first, at most JOBS_PER_HELPER. */
   jobs: Job[];
 }
@@ -166,6 +172,8 @@ export type HelperChange =
   | { action: "routine"; helper: HelperId; routine: number; outcome: "added" | "removed" | "made" | "skipped" }
   | { action: "grant"; helper: HelperId; granted: boolean }
   | { action: "skills"; helper: HelperId; count: number }
+  | { action: "rating"; helper: HelperId; job: number; good: boolean }
+  | { action: "proposal"; helper: HelperId; proposal: number; state: "pending" | "accepted" | "rejected" | "undone" }
   | { action: "model"; helper: HelperId; job: number }
   | { action: "job"; helper: HelperId; job: number; state: JobState; ms?: number }
   | { action: "step"; helper: HelperId; job: number }
@@ -211,6 +219,19 @@ export interface HelperStore {
    */
   addGrant(helper: string, path: string): void;
   removeGrant(helper: string, path: string): boolean;
+  /**
+   * Task 3.13: rates a finished (done or failed) task. "Not good" asks Tinker to review it (a Tinker task, once per
+   * task). Throws HelperError for an unknown or unfinished task or a long comment.
+   */
+  rate(id: number, good: boolean, comment?: string): void;
+  /** What Tinker reads for one of its review tasks, or undefined when the reviewed task is gone. */
+  reviewTarget(tinkerTaskId: number): ReviewTarget | undefined;
+  /** Saves Tinker's proposal for the reviewed task's worker. Throws HelperError for a bad field or text. */
+  addProposal(tinkerTaskId: number, proposal: { field: SoulField; text: string; reason: string }): Proposal;
+  /** Accept makes a new soul version with the change; reject drops it; undo (after accept) restores the version before. */
+  acceptProposal(id: number): void;
+  rejectProposal(id: number): void;
+  undoProposal(id: number): void;
   /** Task 3.12: the worker's skills, replacing what it had. Throws HelperError for a bad name or more than MAX_SKILLS. The caller checks they exist. */
   setSkills(helper: string, skills: readonly string[]): void;
   /** Task 3.9: a schedule that makes a task for a worker. Throws HelperError for an unknown or unavailable worker, a bad task or schedule, or too many. */

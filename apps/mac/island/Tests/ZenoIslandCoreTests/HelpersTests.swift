@@ -709,3 +709,24 @@ struct HelperSkillTests {
         #expect(IslandCommand.helperSkills(helper: "sid", skills: ["pdf"]).line == #"{"helper":"sid","skills":["pdf"],"type":"helper.skills"}"# + "\n")
     }
 }
+
+@Suite("Tinker and feedback (Task 3.13)")
+struct HelperFeedbackTests {
+    @Test func ratesFinishedTasksAndAnswersProposals() throws {
+        let line = HelperTaskTests.line
+            .replacingOccurrences(of: #""name":"Sid","available":true,"app":null,"jobs""#,
+                                  with: #""name":"Sid","available":true,"app":null,"proposals":[{"id":4,"field":"lessons","text":"Three sources.","reason":"Thin.","jobId":1,"state":"pending","createdAt":"2026-10-11T08:00:00Z"},{"id":3,"field":"rules","text":"x","reason":"y","jobId":1,"state":"accepted","createdAt":"2026-10-11T08:00:00Z"}],"jobs""#)
+        var state = HelpersState()
+        state.apply(try decodeEvent(line))
+        let sid = try #require(state.selectedHelper)
+        #expect(sid.proposals.map(\.id) == [4, 3] && sid.proposals[0].fieldTitle == "Lessons learned")
+        #expect(state.answerProposal(4, accept: true) == .proposalAccept(id: 4))
+        #expect(state.answerProposal(3, accept: true) == nil) // not pending
+        #expect(state.undoProposal(3) == .proposalUndo(id: 3))
+        _ = state.openThread(2)
+        #expect(state.rate(good: true) == nil) // running
+        _ = state.openThread(1)
+        #expect(state.rate(good: false, comment: "  Thin ") == .jobRate(id: 1, good: false, comment: "Thin"))
+        #expect(IslandCommand.jobRate(id: 1, good: true, comment: nil).line == #"{"good":true,"id":1,"type":"job.rate"}"# + "\n")
+    }
+}

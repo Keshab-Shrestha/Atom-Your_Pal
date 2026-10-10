@@ -61,7 +61,7 @@ test("a bad goal creates nothing", () => {
     ["", [sid], /goal is empty/],
     ["g", [], /1 to 6 tasks/],
     ["g", Array(MAX_GOAL_TASKS + 1).fill(sid), /1 to 6 tasks/],
-    ["g", [sid, { helper: "tinker", task: "improve" }], /Tinker is not ready yet/],
+    ["g", [sid, { helper: "tinker", task: "improve" }], /Tinker only reviews tasks you rate as not good/],
     ["g", [sid, { helper: "bob", task: "x" }], /no helper called "bob"/],
     ["g", [{ ...sid, after: [1] }], /only wait for tasks before it, not 1/],
     ["g", [sid, { ...sid, after: [3] }], /not 3/],
@@ -164,7 +164,7 @@ test("the delegate tool reads names as Keshab uses them and refuses what the sto
   assert.throws(() => tool.run({ goal: "g", tasks: "do it" }), /tasks must be 1 to 6 tasks/);
   assert.throws(() => tool.run({ goal: "g", tasks: [{ worker: "Sid" }] }), /Task 1 needs a worker and a task/);
   assert.throws(() => tool.run({ goal: "g", tasks: [{ worker: "Sid", task: "x", after: "1" }] }), /after must be a list/);
-  assert.throws(() => tool.run({ goal: "g", tasks: [{ worker: "Tinker", task: "x" }] }), /Tinker is not ready yet/);
+  assert.throws(() => tool.run({ goal: "g", tasks: [{ worker: "Tinker", task: "x" }] }), /Tinker only reviews tasks you rate as not good/);
   assert.equal(store.list().flatMap((h) => h.jobs).length, 2);
 });
 
@@ -206,7 +206,7 @@ test("the voice command gives the worker a task of its own, or stops it, or says
   assert.equal(say("Sid, stop"), "Sid stopped.");
   assert.equal(store.get(job!.id)!.state, "stopped");
   assert.equal(say("Sid, stop"), "Sid isn't working on anything.");
-  assert.equal(say("Tinker, improve Sid"), "Tinker is not ready yet.");
+  assert.equal(say("Tinker, improve Sid"), "Tinker only reviews tasks you rate as not good.");
   assert.equal(say("What time is it?"), undefined);
   assert.deepEqual(hits.at(-1), { helper: "tinker", action: "task" });
 });

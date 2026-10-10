@@ -194,6 +194,7 @@ struct ThreadPane: View {
                         }
                     }
                     if let goal = model.helpers.thread?.goal, goal.tasks.count > 1 { GoalSection(goal: goal, list: model.helpers.list) }
+                    if item.job.isFinished && item.job.reviews == nil { RateSection(model: model, job: item.job) }
                     NotesSection(model: model, comments: model.helpers.thread?.comments ?? [], prompt: notePrompt(item))
                     if let activity = model.helpers.thread?.activity, !activity.isEmpty { ActivitySection(activity: activity) }
                 }
