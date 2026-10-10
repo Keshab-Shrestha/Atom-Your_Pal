@@ -58,6 +58,11 @@ export interface ResearchOptions {
   task: string;
   /** A session to continue (Agent SDK `resume`), so the run remembers the last one. */
   resume?: string;
+  /**
+   * Task 3.10: the worker's `hand_off` tool, run in ZENO (in-process MCP). Its words come back to the model; a throw
+   * comes back as an error result. Absent: no such tool.
+   */
+  handOff?: { description: string; run(input: { worker: string; task: string }): Promise<string> };
   /** The worker's soul: who it is and how it works. The output contract is added here. */
   instructions: string;
   signal: AbortSignal;
@@ -87,6 +92,20 @@ const jsonSchema = (schema: z.ZodType) => {
 };
 const REPORT_JSON_SCHEMA = jsonSchema(ReportSchema);
 const PLAN_JSON_SCHEMA = jsonSchema(PlanSchema);
+
+/** Task 3.10: the hand_off tool's name as Claude Code sees it. */
+export const HAND_OFF_TOOL = "mcp__zeno__hand_off";
+
+function handOffServer(sdk: ClaudeSdk, handOff: NonNullable<ResearchOptions["handOff"]>) {
+  const tool = sdk.tool("hand_off", handOff.description, { worker: z.string(), task: z.string() }, async (input) => {
+    try {
+      return { content: [{ type: "text" as const, text: await handOff.run({ worker: String(input.worker), task: String(input.task) }) }] };
+    } catch (error) {
+      return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : String(error) }], isError: true };
+    }
+  });
+  return sdk.createSdkMcpServer({ name: "zeno", version: "1.0.0", tools: [tool] });
+}
 
 const PLAN_CONTRACT = `
 This run only plans. Do not do the job and do not use any tool. Keshab reads the plan and approves or rejects it; an
@@ -154,6 +173,7 @@ async function runStructured(options: ResearchOptions, mode: "research" | "plan"
       return { behavior: "allow", updatedInput: input };
     }
     if (name === "WebSearch" || name === "StructuredOutput") return { behavior: "allow", updatedInput: input };
+    if (name === HAND_OFF_TOOL && options.handOff && !planning) return { behavior: "allow", updatedInput: input };
     return { behavior: "deny", message: "This job may only search the web and read pages." };
   };
 
@@ -179,7 +199,8 @@ async function runStructured(options: ResearchOptions, mode: "research" | "plan"
         // Nothing from the account or the Mac: no user settings, no claude.ai connectors, no MCP servers.
         settingSources: [],
         strictMcpConfig: true,
-        mcpServers: {},
+        // Task 3.10: only ZENO's own hand_off tool, in this process; nothing from the account or the Mac.
+        mcpServers: options.handOff && !planning ? { zeno: handOffServer(sdk, options.handOff) } : {},
         // Task 3.6: kept by Claude Code on this Mac (its own project folder for the temporary directory), so the next
         // run of the task can resume it. ZENO stores only the id.
         persistSession: !planning,

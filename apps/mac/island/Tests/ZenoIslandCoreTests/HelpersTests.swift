@@ -663,3 +663,14 @@ struct HelperRoutineTests {
         #expect(IslandCommand.routineDelete(id: 2).line == #"{"id":2,"type":"routine.delete"}"# + "\n")
     }
 }
+
+@Suite("Hand-offs (Task 3.10)")
+struct HelperHandOffTests {
+    @Test func decodesAThreadsSubTasks() throws {
+        let line = #"{"type":"thread","id":1,"comments":[],"activity":[{"kind":"handed","at":"2026-10-11T08:00:00Z"}],"handOffs":[2,3]}"#
+        guard case .thread(let thread) = try decodeEvent(line) else { Issue.record("not a thread"); return }
+        #expect(thread.handOffs == [2, 3] && thread.activity.first?.title == "Handed off a sub-task")
+        guard case .thread(let bare) = try decodeEvent(#"{"type":"thread","id":1,"comments":[],"activity":[]}"#) else { return }
+        #expect(bare.handOffs.isEmpty)
+    }
+}

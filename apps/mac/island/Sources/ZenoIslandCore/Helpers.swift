@@ -316,6 +316,7 @@ public struct TaskActivity: Sendable, Equatable {
         case "planned": "Wrote a plan"
         case "approved": "Plan approved"
         case "rejected": "Plan rejected"
+        case "handed": "Handed off a sub-task"
         case "running": "Started"
         case "done": "Finished"
         case "failed": "Failed"
@@ -333,15 +334,18 @@ public struct HelperThread: Sendable, Equatable {
     public var report: HelperReport?
     public var goal: HelperGoal?
     public var plan: JobPlan?
+    /// Task 3.10: the sub-tasks it handed off, oldest first.
+    public var handOffs: [Int]
 
     public init(id: Int, comments: [TaskComment], activity: [TaskActivity], report: HelperReport? = nil, goal: HelperGoal? = nil,
-                plan: JobPlan? = nil) {
+                plan: JobPlan? = nil, handOffs: [Int] = []) {
         self.id = id
         self.comments = comments
         self.activity = activity
         self.report = report
         self.goal = goal
         self.plan = plan
+        self.handOffs = handOffs
     }
 }
 

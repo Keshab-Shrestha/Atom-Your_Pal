@@ -126,6 +126,8 @@ export interface ThreadEvent {
   report?: Omit<ReportEvent, "type" | "id">;
   /** Task 3.8: the plan a plan-first run wrote. */
   plan?: { summary: string; steps: string };
+  /** Task 3.10: the sub-tasks this task handed off. */
+  handOffs?: number[];
   /** Task 3.5: the goal the task is part of, its tasks, and the combined report once every task has ended. */
   goal?: { id: number; text: string; ended: boolean; tasks: number[]; report?: Omit<ReportEvent, "type" | "id"> };
 }

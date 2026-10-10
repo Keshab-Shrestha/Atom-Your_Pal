@@ -878,6 +878,18 @@ test("routines in helpers, and routine.delete (Task 3.9)", async () => {
   assert.deepEqual((h.events().at(-1) as HelpersEvent).helpers[0]!.routines, []);
 });
 
+test("thread.get lists the sub-tasks a task handed off (Task 3.10)", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  const sid = store.addJob("sid", "Research");
+  store.start(sid.id);
+  const penny = store.handOff(sid.id, "penny", "Costs");
+  h.clear();
+  await h.send({ type: "thread.get", id: sid.id });
+  const thread = h.events().at(-1) as Extract<IslandEvent, { type: "thread" }>;
+  assert.deepEqual([thread.handOffs, thread.activity.map((a) => a.kind)], [[penny.id], ["created", "running", "handed"]]);
+});
+
 test("helpers.settings turns the large model off and on, answered with helpers", async () => {
   const { h, store } = helperHarness();
   await tick(5);

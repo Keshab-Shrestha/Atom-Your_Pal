@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { RESEARCH_MAX_TURNS, RESEARCH_PAGE_LIMIT, runPlan, runResearch, type ResearchOptions } from "./claude-plan-job.ts";
+import { HAND_OFF_TOOL, RESEARCH_MAX_TURNS, RESEARCH_PAGE_LIMIT, runPlan, runResearch, type ResearchOptions } from "./claude-plan-job.ts";
 import type { ClaudeSdk, PlanUsage } from "./claude-plan.ts";
 import { ProviderError } from "../gateway.ts";
 
@@ -99,6 +99,42 @@ test("a plan-first run uses no tools at all, keeps no session and returns the pl
     yield done({ summary: "x" });
   });
   await assert.rejects(runPlan({ claudePath: "/bin/claude", model: "m", task: "t", instructions: "i", signal: new AbortController().signal, sdk: bad.sdk, env: {} }), /plan came back in the wrong shape/);
+});
+
+test("the hand_off tool runs in ZENO through an in-process server; its refusals come back as errors (Task 3.10)", async () => {
+  type Handler = (args: Record<string, unknown>) => Promise<{ content: { text: string }[]; isError?: boolean }>;
+  const made: { name: string; handler: Handler }[] = [];
+  let allowed: unknown;
+  const { sdk, seen } = fakeSdk(async function* (o) {
+    yield init();
+    allowed = await o.canUseTool(HAND_OFF_TOOL, { worker: "Penny", task: "Costs" }, { signal: new AbortController().signal });
+    yield done();
+  });
+  Object.assign(sdk, {
+    tool: (name: string, _d: string, _s: unknown, handler: Handler) => (made.push({ name, handler }), { name }),
+    createSdkMcpServer: (o: { name: string; tools: unknown[] }) => ({ server: o.name, tools: o.tools }),
+  });
+  const calls: unknown[] = [];
+  await research(sdk, {
+    handOff: {
+      description: "Hand a sub-task",
+      run: async (input) => {
+        calls.push(input);
+        if (input.worker === "Kame") throw new Error("Kame is not ready yet.");
+        return "Task 2 is with Penny.";
+      },
+    },
+  });
+  assert.deepEqual(seen[0]!.options.mcpServers, { zeno: { server: "zeno", tools: [{ name: "hand_off" }] } });
+  assert.equal((allowed as { behavior: string }).behavior, "allow");
+  assert.deepEqual(await made[0]!.handler({ worker: "Penny", task: "Costs" }), { content: [{ type: "text", text: "Task 2 is with Penny." }] });
+  assert.deepEqual(await made[0]!.handler({ worker: "Kame", task: "x" }), { content: [{ type: "text", text: "Kame is not ready yet." }], isError: true });
+  const plain = fakeSdk(async function* () {
+    yield init();
+    yield done();
+  });
+  await research(plain.sdk);
+  assert.deepEqual(plain.seen[0]!.options.mcpServers, {}, "no hand_off: no server at all");
 });
 
 test("progress in plain words, and the twelfth page is the last: further fetches are refused and the report is partial", async () => {

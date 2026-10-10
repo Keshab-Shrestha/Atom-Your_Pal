@@ -1,12 +1,16 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { isOver } from "./budgets.ts";
 import { DEFAULT_PLAN_LIMIT, DEFAULT_TEAM_CAP, DEFAULT_WORKER_CAP, MAX_CAP, PLAN_LIMIT_RANGE, startOfDay, type Budgets } from "./budgets.ts";
 import { isDue, routineTable } from "./routines.ts";
 import { createSchema, sameSoul, toJobRow, toSoul, webSources, type JobRow, type ReportRow, type SoulRow } from "./store-schema.ts";
 import {
+  HAND_OFFS,
   HELPERS,
   HelperError,
+  MAX_HAND_OFFS,
+  MAX_LEVELS,
   MAX_BLOCKERS,
   MAX_GOAL_TASKS,
   cleanSoul,
@@ -101,6 +105,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   );
   const setPlanStatus = db.prepare("UPDATE jobs SET plan_status = ? WHERE id = ? AND plan_status = 'awaiting'");
   const reopenGoal = db.prepare("UPDATE goals SET ended_at = NULL WHERE id = ?");
+  const childrenOf = db.prepare("SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.parent_id = ? ORDER BY j.id");
+  const dropBlocker = db.prepare("DELETE FROM job_blockers WHERE job_id = ? AND blocker_id = ?");
   const jobById = db.prepare("SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.id = ?");
   const insertJob = db.prepare(
     "INSERT INTO jobs (helper, task, state, created_at, goal, parent_id, goal_id, plan_first) VALUES (?, ?, 'queued', ?, ?, ?, ?, ?)",
@@ -220,7 +226,14 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     if (to !== "failed" && to !== "stopped") return;
     for (const { id } of dependents.all(job.id) as { id: number }[]) {
       const waiting = get(id);
-      if (waiting?.state === "queued") transition(waiting, "failed", { error: `Task ${job.id}, which it waited for, ${to === "failed" ? "failed" : "was stopped"}.` });
+      if (waiting?.state !== "queued") continue;
+      // Task 3.10: a sub-task that did not finish does not fail the task that handed it off: that one runs again without it.
+      if (job.parentId === id) {
+        dropBlocker.run(id, job.id);
+        emit({ action: "blockers", helper: waiting.helper, job: id });
+        continue;
+      }
+      transition(waiting, "failed", { error: `Task ${job.id}, which it waited for, ${to === "failed" ? "failed" : "was stopped"}.` });
     }
   }
 
@@ -330,6 +343,45 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if (!Number.isInteger(percent) || percent < low || percent > high) throw new HelperError(`The plan limit is a whole percent from ${low} to ${high}.`);
       putSetting.run("planLimit", String(percent));
       emit({ action: "budget", helper: "team" });
+    },
+
+    handOff(parentId, helper, raw) {
+      const parent = mustGet(parentId);
+      if (parent.state !== "running") throw new HelperError("Only a running task can hand off work.");
+      const target = availableHelper(helper);
+      const from = current(parent.helper).name;
+      const to = current(target.id).name;
+      if (target.id === parent.helper) throw new HelperError("A worker cannot hand a task to itself.");
+      if (!HAND_OFFS[findHelper(parent.helper)!.role]?.includes(target.role)) throw new HelperError(`${from} cannot hand work to ${to} (${target.role}).`);
+      let level = 1;
+      for (let p: Job | undefined = parent; p?.parentId !== undefined; p = get(p.parentId)) level++;
+      if (level + 1 > MAX_LEVELS) throw new HelperError("A sub-task cannot hand off work again. Do it yourself or say what is missing.");
+      if ((childrenOf.all(parentId) as unknown[]).length >= MAX_HAND_OFFS) throw new HelperError(`A task can hand off at most ${MAX_HAND_OFFS} sub-tasks.`);
+      const budgets = this.budgets();
+      if (isOver(budgets.workers[target.id]!) || isOver(budgets.team)) throw new HelperError(`${to} has no budget left today. Carry on without the sub-task.`);
+      const task = cleanTask(raw);
+      let id = 0;
+      transaction(() => {
+        id = insertTask(target.id, task, [], { goal: parent.goal ?? null, parentId, goalId: parent.goalId ?? null, planFirst: false });
+        insertBlocker.run(parentId, id);
+        setPending.run(1, parentId); // runs again, once the sub-task is done
+        log(parentId, "handed");
+      });
+      emit({ action: "job", helper: target.id, job: id, state: "queued" });
+      emit({ action: "blockers", helper: parent.helper, job: parentId });
+      return mustGet(id);
+    },
+
+    handOffs(parentId) {
+      return (childrenOf.all(parentId) as unknown as JobRow[]).map((row) => {
+        const report = row.state === "done" ? this.report(row.id) : undefined;
+        return {
+          worker: current(row.helper as HelperId).name,
+          task: row.task,
+          ...(report ? { report: { title: report.title, summary: report.summary, body: report.body } } : {}),
+          ...(row.error ? { error: row.error } : {}),
+        };
+      });
     },
 
     addRoutine(helper, raw, schedule) {
@@ -538,6 +590,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       return {
         id,
         ...(row.plan && row.plan_summary ? { plan: { summary: row.plan_summary, steps: row.plan } } : {}),
+        handOffs: (childrenOf.all(id) as { id: number }[]).map((c) => c.id),
         comments: (commentsOf.all(id) as { id: number; text: string; created_at: string }[]).map((c) => ({ id: c.id, text: c.text, createdAt: new Date(c.created_at) })),
         activity: (eventsOf.all(id) as { kind: Activity["kind"]; at: string }[]).map((e) => ({ kind: e.kind, at: new Date(e.at) })),
         ...(report ? { report } : {}),

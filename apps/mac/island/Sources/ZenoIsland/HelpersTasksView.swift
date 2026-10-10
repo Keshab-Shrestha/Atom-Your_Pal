@@ -113,6 +113,7 @@ private struct BoardCard: View {
                     if job.comments > 0 {
                         Label("\(job.comments)", systemImage: "text.bubble").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                     }
+                    if let parent = job.parentId { Text("for #\(parent)").font(.system(size: 10.5)).foregroundStyle(theme.text3.color) }
                 }
                 if job.state == .running, let step = job.step {
                     Text(step).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color).lineLimit(1)
@@ -183,6 +184,7 @@ struct ThreadPane: View {
                     if let problem = model.helpers.problem { ProblemLine(text: problem) }
                     if let plan = model.helpers.thread?.plan { PlanSection(model: model, job: item.job, plan: plan) }
                     WaitsForSection(model: model, job: item.job)
+                    if let handOffs = model.helpers.thread?.handOffs, !handOffs.isEmpty { SubTasksSection(model: model, ids: handOffs) }
                     if let report = model.helpers.report {
                         ReportSection(report: report)
                     } else if item.job.hasReport {
@@ -256,6 +258,33 @@ private struct PlanSection: View {
                     QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.rejectPlan()) }
                 }
                 .padding(.top, 2)
+            }
+        }
+    }
+}
+
+/// Task 3.10: the sub-tasks this task handed to other workers, each opening its own thread.
+private struct SubTasksSection: View {
+    let model: IslandModel
+    let ids: [Int]
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Handed off").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            ForEach(ids, id: \.self) { id in
+                HStack(spacing: 8) {
+                    if let item = model.helpers.list?.item(id) {
+                        JobDot(job: item.job)
+                        Button { model.sendHelpers(model.helpers.openThread(id)) } label: {
+                            Text(item.job.shortTitle).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
+                        }
+                        .buttonStyle(.plain)
+                        Text(item.helperName).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text3))
+                    } else {
+                        Text("Task #\(id)").font(.system(size: 12.5)).foregroundStyle(theme.text2.color)
+                    }
+                }
             }
         }
     }

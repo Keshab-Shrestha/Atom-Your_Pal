@@ -827,6 +827,14 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 **Task 3.10 — Hand-offs.** A worker's `hand_off` tool creates a sub-task for another worker, checked in code (role allows it, depth at most 2, at most 3 sub-tasks per task, budgets); shown in the parent's thread.
 **Done when:** Sid hands Penny a costs question as a sub-task, a third level is refused, and the parent waits for it.
 
+**As built (2026-10-11):** built; tested (a fake Claude Code for the tool); not yet tried live.
+- The tool: a running top-level task's Claude session gets `hand_off` (worker, task) through an in-process MCP server (`mcp__zeno__hand_off`), the only server it may use. Its description names the workers its role may hand to, by their current names. Sub-tasks get no such tool.
+- Checks in code (`store.handOff`): the task is running; the target is available, not itself, and its role is allowed (`HAND_OFFS`: researcher to financial adviser, documenter and HR; financial adviser and HR to researcher and documenter; documenter to researcher); at most two levels (a sub-task cannot hand off again); at most 3 sub-tasks a task; neither the target's nor the team's budget used up. Every refusal comes back to the model as words it can act on.
+- Waiting: the sub-task becomes a blocker of the task and the task is marked to run again. The worker finishes its run with what it has; then the task waits for the sub-task and runs again (resuming its session) with "The sub-tasks you handed off" in its brief. A sub-task that fails or is stopped does not fail its parent: the link is dropped and the parent runs again, told it did not finish. A sub-task joins its parent's goal.
+- Window: the thread shows "Handed off" with each sub-task (opening its own thread), activity "Handed off a sub-task"; a sub-task's board card says "for #1".
+- Tests: 7 TS (hand-offs 4, provider 1, island 1) and 1 Swift. TS 583 pass, 2 skipped; typecheck clean; Swift 484 pass.
+- Known limits: the parent's first report is replaced when it runs again; a hand-off made in a plan run is not possible (plan runs have no tools); the worker is told, not forced, to finish quickly after handing off.
+
 **Task 3.11 — Folder grants, and Kame, Puff and Quill.** Grants in the window (refusing the home folder, `/`, system and credential folders); file tools checked against grants in code; sandboxed commands without network; approval through Wisp for risky commands; a `zeno/<task>` branch in git repositories, never pushed. The coder, designer and documenter roles.
 **Done when:** Kame changes a file in a granted repo on its own branch, is refused a path outside, and `git push` is never run.
 

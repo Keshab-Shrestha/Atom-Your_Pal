@@ -1,5 +1,5 @@
 import type { Budget, Budgets } from "./budgets.ts";
-import type { HelperId, JobState, Soul, TaskContext } from "./jobs.ts";
+import type { HandOffOutcome, HelperId, JobState, Soul, TaskContext } from "./jobs.ts";
 import type { Routine, Schedule } from "./routines.ts";
 
 // The helper store's public shapes (split from store.ts): jobs as tasks, threads, goals, the store's operations.
@@ -70,7 +70,7 @@ export interface Comment {
 
 /** One line of a task's activity: what happened and when (ids and states only, as in the logs). */
 export interface Activity {
-  kind: "created" | "waits" | "commented" | "woken" | "fresh" | "planned" | "approved" | "rejected" | JobState;
+  kind: "created" | "waits" | "commented" | "woken" | "fresh" | "planned" | "approved" | "rejected" | "handed" | JobState;
   at: Date;
 }
 
@@ -82,6 +82,8 @@ export interface Thread {
   report?: Report;
   /** Task 3.8: the plan, once a plan-first run has written it. */
   plan?: { summary: string; steps: string };
+  /** Task 3.10: the sub-tasks it handed off, oldest first. */
+  handOffs: number[];
 }
 
 /** A goal's combined report (ADR-087, Task 3.5), written when all its tasks have ended. */
@@ -189,6 +191,14 @@ export interface HelperStore {
   setPlanLimit(percent: number): void;
   /** Records what a run of a task cost (dollars of API-equivalent use). Nothing for an unknown task or a bad amount. */
   addSpend(id: number, dollars: number): void;
+  /**
+   * Task 3.10: a running task hands a sub-task to another worker. Checked here: the target is available and its role
+   * may take work from this one, at most two levels and three sub-tasks a task, and neither budget is used up. The
+   * task waits for the sub-task: when this run ends it runs again once the sub-task has. Throws HelperError otherwise.
+   */
+  handOff(parentId: number, helper: string, task: string): Job;
+  /** Task 3.10: the sub-tasks a task handed off, with their outcomes. */
+  handOffs(parentId: number): HandOffOutcome[];
   /** Task 3.9: a schedule that makes a task for a worker. Throws HelperError for an unknown or unavailable worker, a bad task or schedule, or too many. */
   addRoutine(helper: string, task: string, schedule: Schedule): Routine;
   removeRoutine(id: number): boolean;

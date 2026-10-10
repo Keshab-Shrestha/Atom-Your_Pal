@@ -50,6 +50,7 @@ import {
   createWorkerShortcut,
   holdFor,
   followUpBrief,
+  handOffTool,
   teamContext,
   watchGoals,
   findHelper,
@@ -388,8 +389,20 @@ export function createRuntime(
     const instructions = instructionsFor(soul, role);
     // ADR-087: the task with its goal, Keshab's notes and the reports of the tasks it waited for.
     const fresh = () => briefFor(job.task, helpers?.context(job.id) ?? { comments: [], earlier: [] });
+    // Task 3.10: a top-level task may hand sub-tasks to the workers its role allows; the store checks each one.
+    const handOff = helpers && handOffTool(helpers, job);
     const research = (task: string, resume?: string) =>
-      runResearch({ claudePath: keys["claude-plan"] ?? "", model, task, instructions, signal, onStep, onUsage: reportUsage, ...(resume ? { resume } : {}) });
+      runResearch({
+        claudePath: keys["claude-plan"] ?? "",
+        model,
+        task,
+        instructions,
+        signal,
+        onStep,
+        onUsage: reportUsage,
+        ...(resume ? { resume } : {}),
+        ...(handOff ? { handOff } : {}),
+      });
     // Task 3.8: a plan-first task's first run only plans (no tools); the plan then waits for Keshab.
     if (job.planFirst && job.planStatus !== "approved") {
       const { plan, costUsd } = await runPlan({ claudePath: keys["claude-plan"] ?? "", model, task: fresh(), instructions, signal, onStep, onUsage: reportUsage });
@@ -401,7 +414,7 @@ export function createRuntime(
     const resume = helpers?.resumeOf(job.id);
     let result;
     try {
-      result = await research(resume ? followUpBrief(resume.notes) : fresh(), resume?.sessionId);
+      result = await research(resume ? followUpBrief(resume.notes, helpers?.handOffs(job.id)) : fresh(), resume?.sessionId);
     } catch (error) {
       const kind = error instanceof GatewayError || (error instanceof Error && "kind" in error) ? (error as { kind?: string }).kind : undefined;
       if (!resume || signal.aborted || kind === "rate_limit" || kind === "auth" || kind === "cancelled") throw error;

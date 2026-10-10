@@ -84,6 +84,7 @@ export function islandHelpers(
         comments: thread.comments.map((c) => ({ id: c.id, text: c.text, createdAt: c.createdAt.toISOString() })),
         activity: thread.activity.map((a) => ({ kind: a.kind, at: a.at.toISOString() })),
         ...(thread.plan ? { plan: thread.plan } : {}),
+        ...(thread.handOffs.length ? { handOffs: thread.handOffs } : {}),
         ...(report ? { report: { title: report.title, summary: report.summary, body: report.body, sources: report.sources } } : {}),
         ...(goal
           ? {

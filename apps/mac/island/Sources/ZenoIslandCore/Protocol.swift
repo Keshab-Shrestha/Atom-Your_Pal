@@ -775,7 +775,8 @@ private struct Fields {
         }, activity: try activity.map { entry in
             guard let a = entry as? [String: Any], let kind = a["kind"] as? String else { throw invalid("activity") }
             return TaskActivity(kind: kind, at: (a["at"] as? String).flatMap(Self.date))
-        }, report: try report(values["report"], id: try int("id"), field: "report"), goal: goal, plan: plan)
+        }, report: try report(values["report"], id: try int("id"), field: "report"), goal: goal, plan: plan,
+           handOffs: Self.ids(values["handOffs"]))
     }
 
     /// The optional `models` of a `helpers` event (ADR-083; absent from older runtimes). Strict like the helpers list:

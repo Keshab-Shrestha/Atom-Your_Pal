@@ -1,6 +1,6 @@
-import { HelperError, MAX_GOAL_TASKS } from "./jobs.ts";
+import { HAND_OFFS, HelperError, MAX_GOAL_TASKS, MAX_HAND_OFFS, findHelper } from "./jobs.ts";
 import { WEEKDAYS, describeSchedule, parseRoutine, type Schedule } from "./routines.ts";
-import type { GoalPart, HelperStore, HelperView } from "./store.ts";
+import type { GoalPart, HelperStore, HelperView, Job } from "./store.ts";
 
 // ADR-082/087, Task 3.5: Wisp hands work to the team. The model proposes; code checks every part (the store refuses an
 // unknown or unavailable worker, bad tasks and bad waits) before anything is created.
@@ -137,6 +137,28 @@ function scheduleFrom(input: Record<string, unknown>): Schedule {
     default:
       throw new HelperError('every must be "day", "week" or "hours".');
   }
+}
+
+/**
+ * Task 3.10: a running task's `hand_off` tool, naming the workers its role may hand to (by their current names), or
+ * undefined when there are none or the task is itself a sub-task. The store checks every call again.
+ */
+export function handOffTool(store: HelperStore, job: Job) {
+  const roles = HAND_OFFS[findHelper(job.helper)?.role ?? ""] ?? [];
+  const workers = store.list().filter((w) => w.available && w.id !== job.helper && roles.includes(w.role));
+  if (job.parentId !== undefined || !workers.length) return undefined;
+  return {
+    description:
+      `Hand a sub-task to another of ZENO's workers when part of the job needs their skill: ${workers.map((w) => `${w.name} (${w.role})`).join(", ")}. ` +
+      `worker: their name. task: exactly what they should find and deliver. At most ${MAX_HAND_OFFS}. After handing off, finish your ` +
+      "report with what you have now; you will run again with their report to update it.",
+    async run(input: { worker: string; task: string }): Promise<string> {
+      const target = byName(workers, input.worker);
+      if (!target) throw new HelperError(`You can hand work to ${workers.map((w) => w.name).join(", ")} only.`);
+      const child = store.handOff(job.id, target.id, input.task);
+      return `Task ${child.id} is with ${target.name}. Finish your report now with what you have; you will run again with their report.`;
+    },
+  };
 }
 
 /** The team for the model's context, so it delegates by the names Keshab uses. */
