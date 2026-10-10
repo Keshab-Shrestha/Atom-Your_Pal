@@ -32,6 +32,7 @@ public final class IslandSettings {
     /// Set once the ADR-084 move to Lantern has run, so a later choice of Quiet Native sticks.
     static let lanternMoveKey = "zeno.look.lanternDefault"
     static let wispStyleKey = "zeno.wisp.style"
+    static let avatarMoveKey = "zeno.wisp.avatarDefault"
     static let wispReactsKey = "zeno.wisp.reacts"
     static let wispHomeDisplayKey = "zeno.wisp.homeDisplay"
     static let tourDoneKey = "zeno.tourDone"
@@ -107,7 +108,7 @@ public final class IslandSettings {
     public var panelBackground: PanelBackground { didSet { store(panelBackground.rawValue, Self.panelBackgroundKey) } }
     /// How ZENO's surfaces look (ADR-057). Default Lantern (ADR-084).
     public var theme: AppTheme { didSet { store(theme.rawValue, Self.themeKey) } }
-    /// How Wisp is drawn (ADR-057). Default Orb.
+    /// How Wisp is drawn (ADR-057). Default Orb, or Avatar when Wisp's avatar images exist (ADR-085).
     public var wispStyle: WispStyle { didSet { store(wispStyle.rawValue, Self.wispStyleKey) } }
 
     /// Start and stop sounds. Default on.
@@ -139,8 +140,13 @@ public final class IslandSettings {
         DictationOptions(mode: dictationMode, livePreview: livePreview, removeFillers: removeFillers)
     }
 
-    public init(defaults: UserDefaults = .standard) {
+    /// The default Wisp style: Avatar when its images exist (ADR-085), else Orb.
+    private let defaultWispStyle: WispStyle
+
+    /// `wispAvatar`: Wisp's avatar images exist (the app checks for `wisp/neutral.png`).
+    public init(defaults: UserDefaults = .standard, wispAvatar: Bool = false) {
         self.defaults = defaults
+        defaultWispStyle = wispAvatar ? .avatar : .orb
         petEnabled = defaults.object(forKey: Self.petKey) as? Bool ?? true
         wispReacts = defaults.object(forKey: Self.wispReactsKey) as? Bool ?? true
         tourDone = defaults.bool(forKey: Self.tourDoneKey)
@@ -160,7 +166,8 @@ public final class IslandSettings {
         panelBackground = Self.choice(defaults, Self.panelBackgroundKey, .glass)
         Self.moveToLanternOnce(defaults)
         theme = Self.choice(defaults, Self.themeKey, .lantern)
-        wispStyle = Self.choice(defaults, Self.wispStyleKey, .orb)
+        if wispAvatar { Self.moveToAvatarOnce(defaults) }
+        wispStyle = Self.choice(defaults, Self.wispStyleKey, defaultWispStyle)
         dictationMode = (defaults.string(forKey: Self.dictationModeKey)).flatMap(DictationMode.init(rawValue:)) ?? .automatic
         livePreview = defaults.object(forKey: Self.livePreviewKey) as? Bool ?? true
         removeFillers = defaults.object(forKey: Self.removeFillersKey) as? Bool ?? true
@@ -245,7 +252,17 @@ public final class IslandSettings {
 
     /// Appearance: the theme and Wisp's style.
     public func resetAppearance() {
-        theme = .lantern; wispStyle = .orb
+        theme = .lantern; wispStyle = defaultWispStyle
+    }
+
+    /// ADR-085: the first launch with Wisp's avatar images, a stored Orb (the old default, which "Reset this page"
+    /// also stores) moves to Avatar once; choosing Orb again afterwards is kept. Ghost and Companion are kept.
+    private static func moveToAvatarOnce(_ defaults: UserDefaults) {
+        guard !defaults.bool(forKey: avatarMoveKey) else { return }
+        defaults.set(true, forKey: avatarMoveKey)
+        if defaults.object(forKey: wispStyleKey) as? Int == WispStyle.orb.rawValue {
+            defaults.set(WispStyle.avatar.rawValue, forKey: wispStyleKey)
+        }
     }
 
     /// ADR-084: Lantern replaced Quiet Native as the default. A stored Quiet Native cannot be told apart from the

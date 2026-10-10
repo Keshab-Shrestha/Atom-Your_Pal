@@ -44,6 +44,16 @@ cp "$binary" "$app/Contents/MacOS/ZENO"
 # Calendar and Reminders helper (ADR-060). Inside the app so macOS attributes its permission to ZENO.
 helper="$here/.build/release/ZenoCalendar"
 [ -x "$helper" ] && cp "$helper" "$app/Contents/MacOS/zeno-calendar" || echo "warning: calendar helper not built" >&2
+# Avatar images (ADR-085): assets/avatars/<character>/<expression>.png → Resources/avatars/…, PNGs only (no README).
+# With none, nothing is copied and ZENO draws its own Wisp and helper marks.
+avatars=0
+if [ -d "$root/assets/avatars" ]; then
+  for png in $(cd "$root/assets" && find avatars -mindepth 2 -maxdepth 2 -type f -name '*.png' | sort); do
+    mkdir -p "$app/Contents/Resources/$(dirname "$png")"
+    cp "$root/assets/$png" "$app/Contents/Resources/$png"
+    avatars=$((avatars + 1))
+  done
+fi
 
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -90,6 +100,7 @@ echo "Built $app"
 echo "  project: $root"
 echo "  node:    $node ($("$node" --version))"
 echo "  signed:  $signed"
+echo "  avatars: $avatars image(s)"
 
 if [ "${1:-}" = "--open" ]; then
   open "$app"

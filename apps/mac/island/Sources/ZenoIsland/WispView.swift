@@ -2,9 +2,9 @@ import SwiftUI
 import ZenoIslandCore
 
 /// Wisp (ADR-042, ADR-057), drawn in one of three styles: the refined ghost, the orb of light, or the warmer
-/// companion. Every motion is a pure function of `time`, so one `TimelineView` drives it and the gallery can
-/// render any moment exactly. Moods are carried by the body, the light and the face — never by stickers (no
-/// z's, sweat drops or cheeks).
+/// companion; or as Keshab's avatar images (ADR-085) with the same motion and light. Every motion is a pure
+/// function of `time`, so one `TimelineView` drives it and the gallery can render any moment exactly. Moods are
+/// carried by the body, the light and the face — never by stickers (no z's, sweat drops or cheeks).
 ///
 /// Drawn in a 64×64 design space, scaled to `size`, with a margin of `size / 4` on every side so rings and glow
 /// are never clipped. The view is therefore `size * 1.5` square. The feet (or the bottom of the orb's float) sit
@@ -53,6 +53,30 @@ struct WispView: View {
         .accessibilityLabel("ZENO's pet, Wisp")
     }
 
+    // MARK: - Avatar (ADR-085)
+
+    /// The avatar image for this moment, when the style is Avatar and the image (or a fallback) exists.
+    private var avatar: NSImage? {
+        guard style == .avatar else { return nil }
+        let mouthOpen = AvatarExpression.mouthOpen(at: time)
+        return AvatarImages.image("wisp", AvatarExpression.wisp(mood: mood, reaction: reaction, mouthOpen: mouthOpen))
+    }
+
+    /// The style motion, light and extras follow. An avatar image moves like the ghost (full squash, head tilt,
+    /// shadow); Avatar without its image is drawn as the orb, the default style.
+    private var look: WispStyle {
+        guard style == .avatar else { return style }
+        return avatar == nil ? .orb : .ghost
+    }
+
+    /// The image in a 60-point square (exports are centred with a little room, so the character's feet land near
+    /// y = 57 like every style), behind it a soft halo in the mood's light, nudged a point toward the pointer.
+    private func drawAvatar(_ image: NSImage, in figure: inout GraphicsContext) {
+        drawHalo(Path(ellipseIn: CGRect(x: 11, y: 11, width: 42, height: 46)), in: figure, centre: CGPoint(x: 32, y: 34))
+        let nudge = CGSize(width: gaze.width * 0.4, height: gaze.height * 0.4)
+        figure.draw(Image(nsImage: image), in: CGRect(x: 2 + nudge.width, y: 0 + nudge.height, width: 60, height: 60))
+    }
+
     // MARK: - Colours
 
     private static func hex(_ value: UInt32, _ opacity: Double = 1) -> Color {
@@ -78,8 +102,8 @@ struct WispView: View {
     private static let worryLight = hex(0xFFB86B)
 
     private var ink: Color {
-        switch style {
-        case .ghost: Self.ghostInk
+        switch look {
+        case .ghost, .avatar: Self.ghostInk
         case .orb: Self.orbInk
         case .companion: Self.companionInk
         }
@@ -87,15 +111,15 @@ struct WispView: View {
 
     /// The body colour used for the hand on the display edge.
     private var handFill: Color {
-        switch style {
-        case .ghost: Self.ghostBody
+        switch look {
+        case .ghost, .avatar: Self.ghostBody
         case .orb: Self.hex(0xC9D2FF)
         case .companion: Self.hex(0xE4F6F0)
         }
     }
     private var handLine: Color {
-        switch style {
-        case .ghost: Self.ghostGlow.opacity(0.75)
+        switch look {
+        case .ghost, .avatar: Self.ghostGlow.opacity(0.75)
         case .orb: .white.opacity(0.8)
         case .companion: Self.mintRim.opacity(0.9)
         }
@@ -122,7 +146,7 @@ struct WispView: View {
     /// A click's squash-and-stretch, and hello's stretch on the way up. The orb only half as much: it should
     /// still read as a sphere.
     private var reactionSquash: (x: Double, y: Double) {
-        let amount = style == .orb ? 0.5 : 1
+        let amount = look == .orb ? 0.5 : 1
         switch reaction {
         case .squish:
             let wave = sin(reactionProgress * 2 * .pi) * (1 - reactionProgress) * 0.16 * amount
@@ -136,14 +160,14 @@ struct WispView: View {
     private var squash: (x: Double, y: Double) {
         switch mood {
         case .napping:
-            let b = (1 - cos(time * 2 * .pi / (style == .companion ? 5.5 : 4))) / 2
-            return style == .companion ? (1.06 + 0.02 * b, 0.9 - 0.03 * b) : (1 + 0.03 * b, 1 - 0.06 * b)
+            let b = (1 - cos(time * 2 * .pi / (look == .companion ? 5.5 : 4))) / 2
+            return look == .companion ? (1.06 + 0.02 * b, 0.9 - 0.03 * b) : (1 + 0.03 * b, 1 - 0.06 * b)
         case .listening: return (0.98, 1.04)
         // Carried: the ghost and companion stretch as they dangle; the orb stays round (a stretched sphere reads
         // as a scaling bug) and shows it through the sway, the missing shadow and its surprised face.
-        case .carried: return style == .orb ? (1, 1) : (0.94, 1.08)
-        case .worried: return style == .companion ? (0.92, 0.92) : (1, 1)
-        case .resting where style == .companion:
+        case .carried: return look == .orb ? (1, 1) : (0.94, 1.08)
+        case .worried: return look == .companion ? (0.92, 0.92) : (1, 1)
+        case .resting where look == .companion:
             let b = (1 - cos(time * 2 * .pi / 4)) / 2
             return (1, 1 + 0.025 * b)
         default: return (1, 1)
@@ -158,8 +182,8 @@ struct WispView: View {
         return switch mood {
         case .floating: facing * 0.08
         case .carried: sin(time * 2 * .pi / 0.9) * 0.14 // dangles from the user's hand
-        case .thinking: style == .orb ? 0 : 0.11
-        case .listening: style == .companion ? facing * 0.07 : 0
+        case .thinking: look == .orb ? 0 : 0.11
+        case .listening: look == .companion ? facing * 0.07 : 0
         default: 0
         }
     }
@@ -193,8 +217,8 @@ struct WispView: View {
         case .listening: Self.listenLight
         case .thinking: Self.thinkLight
         default:
-            switch style {
-            case .ghost: Self.ghostGlow
+            switch look {
+            case .ghost, .avatar: Self.ghostGlow
             case .orb: Self.hex(0x7F9BFF)
             case .companion: Self.hex(0x8FE3CF)
             }
@@ -252,7 +276,7 @@ struct WispView: View {
         let shadowWidth = 28 - lift * 1.2
         if mood != .carried, hideAmount < 0.5 {
             let floor = CGRect(x: 32 - shadowWidth / 2, y: 59, width: shadowWidth, height: 4)
-            if style == .orb {
+            if look == .orb {
                 var glowFloor = context
                 glowFloor.addFilter(.blur(radius: 2))
                 glowFloor.fill(Path(ellipseIn: floor), with: .color(haloColor.opacity((mood == .napping ? 0.25 : 0.45) * min(1, glow))))
@@ -269,10 +293,14 @@ struct WispView: View {
         figure.scaleBy(x: squash.x * reactionSquash.x, y: squash.y * reactionSquash.y)
         figure.translateBy(x: -32, y: -pivotY)
 
-        switch style {
-        case .ghost: drawGhost(in: &figure)
-        case .orb: drawOrb(in: &figure, base: context, bob: bob)
-        case .companion: drawCompanion(in: &figure)
+        if let avatar {
+            drawAvatar(avatar, in: &figure)
+        } else {
+            switch look {
+            case .ghost, .avatar: drawGhost(in: &figure)
+            case .orb: drawOrb(in: &figure, base: context, bob: bob)
+            case .companion: drawCompanion(in: &figure)
+            }
         }
         drawEdgeHand(in: &context, bob: bob)
         drawExtras(in: context, bob: bob)
@@ -348,7 +376,7 @@ struct WispView: View {
             let open = 0.5 + 0.5 * abs(sin(time * .pi * 5.5))
             let mouth = CGRect(x: mouthX - 3 * s, y: mouthY + 1 * s - 3 * s * open, width: 6 * s, height: 6 * s * open)
             context.fill(Path(roundedRect: mouth, cornerRadius: 2.6 * s * open), with: .color(ink))
-            if style == .companion, open > 0.55 {
+            if look == .companion, open > 0.55 {
                 context.fill(Path(ellipseIn: CGRect(x: mouthX - 1.8 * s, y: mouth.maxY - 2.2 * s, width: 3.6 * s, height: 1.8 * s)),
                              with: .color(Self.hex(0xE05A50)))
             }
@@ -532,7 +560,7 @@ struct WispView: View {
     /// Drawn outside the bobbing figure's transform so they read as moving around it.
     private func drawExtras(in context: GraphicsContext, bob: Double) {
         let light = haloColor
-        switch (style, mood) {
+        switch (look, mood) {
         case (.orb, .listening):
             // Ripples leaving the surface with the voice.
             for i in 0..<2 {
@@ -593,7 +621,7 @@ struct WispView: View {
                 let opacity = sin(p * .pi)
                 let r = Double(6 + i * 5)
                 var wave = Path()
-                let cx = 32 + facing * 22, cy = (style == .companion ? 36 : 40) + bob
+                let cx = 32 + facing * 22, cy = (look == .companion ? 36 : 40) + bob
                 wave.addArc(center: CGPoint(x: cx, y: cy), radius: r, startAngle: .degrees(facing > 0 ? -40 : 140), endAngle: .degrees(facing > 0 ? 40 : 220), clockwise: false)
                 context.stroke(wave, with: .color(light.opacity(opacity * 0.9)), style: .init(lineWidth: 1.8, lineCap: .round))
             }

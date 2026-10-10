@@ -18,7 +18,7 @@ struct AppearanceSection: View {
         }
         Card("Wisp", footer: wispDetail(settings.wispStyle)) {
             HStack(spacing: 8) {
-                ForEach(WispStyle.allCases) { option in
+                ForEach(wispOptions(settings.wispStyle)) { option in
                     WispSwatch(option: option, selected: settings.wispStyle == option) { settings.wispStyle = option }
                 }
             }
@@ -27,11 +27,18 @@ struct AppearanceSection: View {
         ResetPageCard(footer: "The theme and Wisp's style go back to their defaults.") { settings.resetAppearance() }
     }
 
+    /// Avatar is offered once its images exist (ADR-085), or while it is the stored choice.
+    private func wispOptions(_ current: WispStyle) -> [WispStyle] {
+        WispStyle.allCases.filter { $0 != .avatar || current == .avatar || AvatarImages.hasWisp }
+    }
+
     private func wispDetail(_ style: WispStyle) -> String {
         switch style {
         case .ghost: "The original ghost, refined: its eyes and glow show the mood"
         case .orb: "A floating marble of light: the light inside it shows the mood"
         case .companion: "A small character with a face: its pose and face show the mood"
+        case .avatar: AvatarImages.hasWisp ? "Your own character, from the images in assets/avatars: its face shows the mood"
+            : "Your own character: add its images to assets/avatars and rebuild. Until then, the orb"
         }
     }
 }

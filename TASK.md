@@ -786,6 +786,8 @@ Design: `docs/design/design-study.md` §3 A (tokens, type, motion) and §4 (roll
 - **4.9 Helpers window.** Letter discs with a working arc, dot states, a progress line, "Read report" as the lit button.
 - **4.10 Sounds** (optional, a separate decision).
 
+**Avatars (ADR-085, 2026-10-10):** the loader is built and tested (453 Swift); waiting for Keshab's exported images in `assets/avatars/`. `build-app.sh` copies the PNGs one folder deep into the app; `AvatarImages` finds them (`ZENO_AVATARS_DIR`, then the app bundle, then the repo); a new Wisp style "Avatar" draws the image for each mood and reaction with ZENO's own motion and light (speaking alternates two mouths about 6 times a second, unevenly); helpers show their face in the Helpers window. With Wisp's images present, Avatar becomes the default, and a stored Orb moves to it once. A missing image falls back to today's drawing. Not done: Wisp's "happy" for a finished job (only the hello), mirroring when Wisp faces left, the letter discs with a working arc from the mock.
+
 ---
 
 ## 6. Definition of Done

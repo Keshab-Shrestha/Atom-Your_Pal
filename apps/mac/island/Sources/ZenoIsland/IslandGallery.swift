@@ -116,6 +116,7 @@ enum IslandGallery {
         writeEveryday(to: directory)
         writeHelpers(to: directory)
         writeMenuBar(to: directory)
+        writeAvatars(to: directory)
         DesignStudy.render(to: directory)
     }
 
@@ -592,6 +593,52 @@ enum IslandGallery {
         .padding(24)
         .background(Color(red: 0.36, green: 0.42, blue: 0.52))
         save(sheet, name: "15-menu-bar-item", to: directory)
+    }
+
+    /// ADR-085: Wisp's avatar for each expression and every helper's four, from whatever images exist
+    /// (`ZENO_AVATARS_DIR`, else the repo's assets/avatars). A missing image shows today's drawing.
+    private static func writeAvatars(to directory: URL) {
+        let wisp: [(String, PetBrain.Mood, WispReaction?, Double)] = [
+            ("neutral", .resting, nil, 0.3), ("happy (hello)", .resting, .hello, 0.3), ("listening", .listening, nil, 0.3),
+            ("thinking", .thinking, nil, 0.3), ("speaking", .speaking, nil, 0.01), ("speaking-closed", .speaking, nil, 0.1),
+            ("worried", .worried, nil, 0.3), ("sleepy", .napping, nil, 0.3), ("surprised", .carried, nil, 0.3),
+        ]
+        let helpers = ["sid", "kame", "puff", "quill", "penny", "hana", "tinker"]
+        let jobs: [(String, [JobState])] = [("neutral", []), ("working", [.running]), ("happy", [.done]), ("worried", [.failed])]
+        let caption = AvatarImages.hasWisp
+            ? "From \(AvatarImages.directory?.path ?? "?")"
+            : "no avatar images yet: Wisp is drawn as the orb, helpers as the plain mark"
+        let palette = AppTheme.lantern.palette
+        let sheet = VStack(alignment: .leading, spacing: 14) {
+            Text("Avatars (ADR-085)").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+            Text(caption).font(.system(size: 11)).foregroundStyle(.white.opacity(0.7))
+            HStack(spacing: 6) {
+                ForEach(Array(wisp.enumerated()), id: \.offset) { _, w in
+                    VStack(spacing: 2) {
+                        WispView(mood: w.1, time: w.3, facing: 1, size: 72, style: .avatar, reaction: w.2, reactionProgress: 0.5)
+                        Text(w.0).font(.system(size: 10.5, weight: .medium)).foregroundStyle(.white.opacity(0.75))
+                    }
+                }
+            }
+            HStack(alignment: .top, spacing: 16) {
+                ForEach(helpers, id: \.self) { id in
+                    VStack(spacing: 6) {
+                        Text(id.capitalized).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.85))
+                        ForEach(Array(jobs.enumerated()), id: \.offset) { _, job in
+                            HStack(spacing: 6) {
+                                HelperBadge(helper: Helper(id: id, name: id.capitalized, available: true, app: nil,
+                                                           jobs: job.1.map { HelperJob(id: 1, task: "", state: $0) }), size: 40)
+                                Text(job.0).font(.system(size: 10)).foregroundStyle(.white.opacity(0.6)).frame(width: 46, alignment: .leading)
+                            }
+                        }
+                    }
+                }
+            }
+            .themed(palette)
+        }
+        .padding(22)
+        .background(LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.24, green: 0.29, blue: 0.42)], startPoint: .top, endPoint: .bottom))
+        save(sheet, name: "16-avatars", to: directory)
     }
 
     /// Draws a view now, so a sheet can show one model in several states (views hold the live model).

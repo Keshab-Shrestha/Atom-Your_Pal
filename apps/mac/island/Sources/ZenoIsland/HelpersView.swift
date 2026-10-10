@@ -106,7 +106,7 @@ private struct HelperCard: View {
     var body: some View {
         let running = helper.jobs.contains { $0.state == .running }
         HStack(spacing: 10) {
-            HelperBadge(size: 34)
+            HelperBadge(helper: helper, size: 34)
             VStack(alignment: .leading, spacing: 2) {
                 Text(helper.name).font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
                 if helper.available {
@@ -132,18 +132,27 @@ private struct HelperCard: View {
     }
 }
 
-/// A plain, neutral mark for a helper. Each helper's own look comes later (Task 3.5).
-private struct HelperBadge: View {
+/// A helper's mark: its avatar image for what it is doing (ADR-085) in a disc, else a plain, neutral person.
+struct HelperBadge: View {
+    let helper: Helper
     let size: CGFloat
     @Environment(\.theme) private var theme
 
     var body: some View {
-        Image(systemName: "person.fill")
-            .font(.system(size: size * 0.45, weight: .medium))
-            .foregroundStyle(theme.text2.color)
-            .frame(width: size, height: size)
-            .background(Circle().fill(theme.fill2.color))
-            .accessibilityHidden(true)
+        Group {
+            if let image = AvatarImages.image(helper.id, AvatarExpression.helper(helper)) {
+                // Exports leave room around the character: a little larger, so it fills the disc.
+                Image(nsImage: image).resizable().scaledToFit().scaleEffect(1.15)
+            } else {
+                Image(systemName: "person.fill")
+                    .font(.system(size: size * 0.45, weight: .medium))
+                    .foregroundStyle(theme.text2.color)
+            }
+        }
+        .frame(width: size, height: size)
+        .background(Circle().fill(theme.fill2.color))
+        .clipShape(Circle())
+        .accessibilityHidden(true)
     }
 }
 
@@ -158,7 +167,7 @@ private struct HelperPane: View {
         Scrollable {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 12) {
-                    HelperBadge(size: 40)
+                    HelperBadge(helper: helper, size: 40)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(helper.name).font(.system(size: 18, weight: .bold)).foregroundStyle(theme.text.color)
                         Text(helper.app.map { "Works in \($0)" } ?? "No app chosen")

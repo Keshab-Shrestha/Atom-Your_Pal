@@ -46,6 +46,9 @@ public enum WispStyle: Int, SettingsChoice, Identifiable {
     case orb
     /// A warmer character with a small expressive face; pose and face carry the mood.
     case companion
+    /// Keshab's own character from exported images (ADR-085); ZENO's motion and light around it. Drawn as the orb
+    /// when the images are missing.
+    case avatar
 
     public var id: Int { rawValue }
     public var title: String {
@@ -53,6 +56,7 @@ public enum WispStyle: Int, SettingsChoice, Identifiable {
         case .ghost: "Ghost"
         case .orb: "Orb"
         case .companion: "Companion"
+        case .avatar: "Avatar"
         }
     }
 }
