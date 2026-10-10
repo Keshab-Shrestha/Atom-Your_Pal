@@ -144,6 +144,13 @@ struct StatusRow: View {
                 Waveform(levels: model.meter.history, color: theme.live.color)
                     .frame(width: 46, height: 22)
                     .transition(.opacity)
+            } else if let busy = model.helpers.list?.helpers.filter({ $0.jobs.contains { $0.state == .running } }), !busy.isEmpty {
+                // Task 3.15: the workers at work, each with its working arc.
+                HStack(spacing: 6) {
+                    ForEach(busy.prefix(3)) { helper in HelperBadge(helper: helper, size: 20).help("\(helper.name): \(helper.activity)") }
+                }
+                .transition(.opacity)
+                .accessibilityLabel("Working: \(busy.map(\.name).joined(separator: ", "))")
             }
         }
         .animation(.easeOut(duration: 0.18), value: model.status.showsLevel)

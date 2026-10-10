@@ -463,6 +463,8 @@ export function runIsland(options: IslandOptions): IslandSession {
         }
         const { message, timer, after } = timerQueue.shift()!;
         await options.chime?.();
+        // Task 3.15: Wisp flies over with the line while ZENO says it.
+        if (!timer) send({ type: "worker.line", line: message });
         send({ type: "state", state: "speaking" });
         try {
           await tts.speak(message);

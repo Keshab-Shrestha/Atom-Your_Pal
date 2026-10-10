@@ -157,7 +157,7 @@ final class IslandModel {
             planUsage = (planUsage ?? PlanUsage()).merging(usage)
         case .ready:
             if memory != nil { send(.memoryList) } // a restarted runtime: ask again so updates keep coming
-            if helpersWindowOpen { send(.helpersList) }
+            send(.helpersList) // Task 3.15: busy workers show on the island too, so the list is always kept
         case .info(let info):
             modelInfo = info
             pendingModel = nil

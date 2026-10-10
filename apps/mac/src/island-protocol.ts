@@ -251,6 +251,8 @@ export type IslandEvent =
     }
   | ReportEvent
   | ThreadEvent
+  /** Task 3.15: a line from the team (a goal done, a plan waiting), sent just before ZENO says it. */
+  | { type: "worker.line"; line: string }
   | { type: "error"; stage: ErrorStage; message: string; kind?: string; retryable?: boolean };
 
 const COMMANDS = new Set<IslandCommand["type"]>([

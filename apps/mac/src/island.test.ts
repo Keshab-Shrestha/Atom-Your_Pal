@@ -1067,6 +1067,8 @@ test("a goal's line waits until ZENO is idle, then is spoken without a timer not
   await new Promise((r) => setTimeout(r, 700));
   assert.deepEqual(h.spoken, ["the reply", "Your guide is ready. The Helpers window has the report."]);
   assert.ok(!h.events().some((e) => e.type === "timer"));
+  const line = h.events().findIndex((e) => e.type === "worker.line");
+  assert.ok(line >= 0 && h.events()[line + 1]?.type === "state", "the line goes to the island just before it is said (Task 3.15)");
 });
 
 // --- typed requests ---

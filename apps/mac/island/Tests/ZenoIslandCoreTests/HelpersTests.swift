@@ -747,3 +747,16 @@ struct HelperOpenTests {
         #expect(IslandCommand.jobOpen(id: 1).line == #"{"id":1,"type":"job.open"}"# + "\n")
     }
 }
+
+@Suite("Workers on screen (Task 3.15)")
+struct WorkersOnScreenTests {
+    @Test func aLineFromTheTeamShowsWhenIdle() throws {
+        guard case .workerLine(let line) = try decodeEvent(#"{"type":"worker.line","line":"Your networking guide is ready. The Helpers window has the report."}"#) else {
+            Issue.record("not a worker line"); return
+        }
+        var status = IslandStatus()
+        status.apply(.workerLine(line))
+        #expect(status.kind == .notice && status.title == "From the team" && status.detail.hasPrefix("Your networking guide"))
+        #expect(throws: ProtocolError.self) { try decodeEvent(#"{"type":"worker.line"}"#) }
+    }
+}

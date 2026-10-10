@@ -134,6 +134,8 @@ public struct IslandStatus: Sendable, Equatable {
             if kind == .listening { detail = "Can't hear you. Check the microphone" }
         case .notice(let noticeKind, _):
             set(.notice, IslandStatus.noticeTitle(noticeKind), IslandStatus.noticeDetail(noticeKind))
+        case .workerLine(let line):
+            if !isBusy { set(.notice, "From the team", IslandStatus.short(line)) }
         case .timer(_, let label, _):
             // Not while a turn runs: the turn's own status wins, and the runtime speaks the timer afterwards.
             if !isBusy { set(.notice, "Timer done", label.isEmpty ? "Your timer is up" : IslandStatus.short(label.prefix(1).uppercased() + label.dropFirst())) }
@@ -254,7 +256,7 @@ public struct IslandStatus: Sendable, Equatable {
     }
 
     /// The first sentence of a message, kept to one line.
-    static func short(_ message: String, limit: Int = 44) -> String {
+    public static func short(_ message: String, limit: Int = 44) -> String {
         let firstLine = message.split(separator: "\n").first.map(String.init) ?? message
         var sentence = firstLine
         if let end = firstLine.range(of: ". ") { sentence = String(firstLine[..<end.lowerBound]) }

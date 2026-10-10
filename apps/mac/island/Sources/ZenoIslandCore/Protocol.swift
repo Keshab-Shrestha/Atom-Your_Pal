@@ -410,6 +410,8 @@ public enum IslandEvent: Sendable, Equatable {
     case memory(MemoryList)
     /// A timer ended (ADR-061). The runtime also says `message` aloud.
     case timer(id: Int, label: String, message: String)
+    /// Task 3.15: a line from the team, just before ZENO says it.
+    case workerLine(String)
     /// The answer to `context.window` (ADR-074): the app was read for the next question, or refused with `message`.
     case contextReady(app: String, ok: Bool, message: String?)
     /// What ZENO can do, once after `ready` (ADR-076).
@@ -449,6 +451,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .info: "info"
         case .memory: "memory"
         case .timer: "timer"
+        case .workerLine: "worker.line"
         case .contextReady: "context.ready"
         case .capabilities: "capabilities"
         case .planUsage: "plan.usage"
@@ -537,6 +540,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
             provider: try f.string("provider"),
             model: try f.string("model"),
             providers: try f.providers()))
+    case "worker.line":
+        return .workerLine(try f.string("line"))
     case "timer":
         return .timer(id: try f.int("id"), label: (try? f.string("label")) ?? "", message: try f.string("message"))
     case "context.ready":

@@ -273,6 +273,11 @@ final class IslandController {
         }
         if case .mediaKey(let key) = event { press(key) }
         if case .timer = event { pet.poke() } // out of hiding: the user should see it (the runtime chimed and spoke)
+        // Task 3.15: Wisp flies over to the menu-bar icon with the team's line while ZENO says it.
+        if case .workerLine(let line) = event, !model.status.isBusy {
+            pet.poke()
+            pointAtMenuIcon(IslandStatus.short(line))
+        }
         let wasBusy = model.status.isBusy
         if !helperRefusal { model.status.apply(event) }
         if case .state(.idle) = event, wasBusy {

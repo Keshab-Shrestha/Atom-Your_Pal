@@ -880,6 +880,13 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 
 **Task 3.15 — Workers on screen.** Each worker's original look in Wisp's style, a small working sign while busy, and Wisp flying over to say its one line when a goal is done.
 
+**As built (2026-10-11):** built; tested (protocol and status); the flight and the card not yet seen on the real screen.
+- Looks: each worker shows its avatar image from `assets/avatars/<worker>/` (ADR-085) when Keshab adds them, else its first letter in a disc, as before; no third-party characters, no Lab code.
+- Working sign: the compact island card now shows the marks of up to three workers at work, each with its running arc of Wisp's light, when ZENO is not listening. The island keeps the helpers list from start (it used to ask only while the Helpers window was open).
+- The line: just before ZENO says a team line (a goal done, a plan waiting), the runtime sends `worker.line`; the card shows "From the team" with it, and Wisp flies to the menu-bar icon with the line beside it (the tour's flight), then back.
+- Tests: 1 TS (island) and 1 Swift. TS 610 pass, 2 skipped; Swift 489 pass.
+- Known limits: the worker images themselves wait for Keshab's designs; the flight is skipped when Wisp is hidden or a turn is running (the line is still said).
+
 **Task 3.16 — Optional Paperclip connection.** Off unless `ZENO_PAPERCLIP_URL` is set, loopback only; Wisp creates an issue for a chosen Paperclip agent, reads its state and comments, approves or rejects its approvals; Paperclip tasks on the board marked "Paperclip"; the window warns that Paperclip agents run outside ZENO's checks and that its telemetry is on unless turned off. ZENO never installs or starts Paperclip.
 **Done when:** with Keshab's Paperclip running, a task handed to a Paperclip agent shows on the board and its result comes back; with the setting unset or a non-loopback address, nothing is sent.
 
