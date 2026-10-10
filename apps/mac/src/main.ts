@@ -81,7 +81,10 @@ function start(config: Config) {
 
   const runtime = createRuntime(config, log, { keys, settingsPath: savedPath });
   // Give the microphone and audio player a moment to release, and pending output to flush, before exiting.
-  const exit = () => setTimeout(() => process.stdout.write("", () => process.exit(0)), 100);
+  const exit = () => {
+    runtime.close(); // stops helper jobs and their claude programs
+    setTimeout(() => process.stdout.write("", () => process.exit(0)), 100);
+  };
 
   if (!island) {
     runTerminal(runtime, exit);

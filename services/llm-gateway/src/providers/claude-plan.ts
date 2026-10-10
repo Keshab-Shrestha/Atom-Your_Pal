@@ -87,7 +87,7 @@ export function scrubbedEnv(env: Record<string, string | undefined>): Record<str
   return out;
 }
 
-async function loadSdk(): Promise<ClaudeSdk> {
+export async function loadSdk(): Promise<ClaudeSdk> {
   return (await import("@anthropic-ai/claude-agent-sdk")) as unknown as ClaudeSdk;
 }
 
@@ -139,7 +139,7 @@ const resetTime = (seconds?: number) =>
   seconds ? ` It resets at ${new Date(seconds * 1000).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}.` : "";
 
 /** What Claude Code said went wrong, in provider-independent terms. `acted` = a tool has already changed something. */
-function classify(code: string | undefined, acted: boolean): { kind: ErrorKind; message: string } {
+export function classify(code: string | undefined, acted: boolean): { kind: ErrorKind; message: string } {
   const retryable = (kind: ErrorKind): ErrorKind => (acted && (kind === "unavailable" || kind === "rate_limit") ? "unknown" : kind);
   switch (code) {
     case "authentication_failed":
@@ -163,6 +163,42 @@ function classify(code: string | undefined, acted: boolean): { kind: ErrorKind; 
       return { kind: "bad_request", message: "The reply was cut off. Try asking for a shorter answer." };
     default:
       return { kind: "unknown", message: `Claude Code stopped with an error${code ? ` (${code})` : ""}.` };
+  }
+}
+
+/** The stream messages `planGuard` checks: the start (which credential) and plan usage. */
+export const isPlanMessage = (message: Record<string, any>) =>
+  (message.type === "system" && message.subtype === "init") || message.type === "rate_limit_event";
+
+/**
+ * The money rule for every run on the plan: throws if Claude Code started with an API key (billed per token), if it
+ * would charge extra usage, or if the plan limit is reached. Reports plan usage to `onUsage`.
+ */
+export function planGuard(message: Record<string, any>, onUsage?: (usage: PlanUsage) => void): void {
+  if (message.type === "system") {
+    const source = String(message.apiKeySource ?? "");
+    if (!PLAN_CREDENTIALS.has(source)) {
+      throw new ProviderError(
+        "auth",
+        `Claude Code is using an API key (${source || "unknown"}), which bills per token, so ZENO stopped. Remove the key from Claude Code or use the Claude (API) provider on purpose.`,
+      );
+    }
+    return;
+  }
+  const info = message.rate_limit_info ?? {};
+  if (onUsage) {
+    const windows = info.unifiedWindows ?? {};
+    onUsage({
+      ...(typeof windows.five_hour?.utilization === "number" ? { fiveHour: windows.five_hour.utilization } : {}),
+      ...(typeof windows.seven_day?.utilization === "number" ? { sevenDay: windows.seven_day.utilization } : {}),
+      ...(typeof info.isUsingOverage === "boolean" ? { overage: info.isUsingOverage } : {}),
+    });
+  }
+  if (info.isUsingOverage === true) {
+    throw new ProviderError("rate_limit", "Your Claude plan is used up and Claude would charge extra usage, so ZENO stopped. Switch model or wait for the plan to reset.");
+  }
+  if (info.status === "rejected") {
+    throw new ProviderError("rate_limit", `Your Claude plan limit is reached.${resetTime(info.resetsAt)}`);
   }
 }
 
@@ -348,30 +384,8 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
         } catch {
           // speaking early is a help, never a reason to fail the request
         }
-      } else if (message.type === "system" && message.subtype === "init") {
-        const source = String(message.apiKeySource ?? "");
-        if (!PLAN_CREDENTIALS.has(source)) {
-          throw new ProviderError(
-            "auth",
-            `Claude Code is using an API key (${source || "unknown"}), which bills per token, so ZENO stopped. Remove the key from Claude Code or use the Claude (API) provider on purpose.`,
-          );
-        }
-      } else if (message.type === "rate_limit_event") {
-        const info = message.rate_limit_info ?? {};
-        if (onUsage) {
-          const windows = info.unifiedWindows ?? {};
-          onUsage({
-            ...(typeof windows.five_hour?.utilization === "number" ? { fiveHour: windows.five_hour.utilization } : {}),
-            ...(typeof windows.seven_day?.utilization === "number" ? { sevenDay: windows.seven_day.utilization } : {}),
-            ...(typeof info.isUsingOverage === "boolean" ? { overage: info.isUsingOverage } : {}),
-          });
-        }
-        if (info.isUsingOverage === true) {
-          throw new ProviderError("rate_limit", "Your Claude plan is used up and Claude would charge extra usage, so ZENO stopped. Switch model or wait for the plan to reset.");
-        }
-        if (info.status === "rejected") {
-          throw new ProviderError("rate_limit", `Your Claude plan limit is reached.${resetTime(info.resetsAt)}`);
-        }
+      } else if (isPlanMessage(message)) {
+        planGuard(message, onUsage);
       } else if (message.type === "assistant" && typeof message.error === "string") {
         lastError = message.error;
       } else if (message.type === "result") {

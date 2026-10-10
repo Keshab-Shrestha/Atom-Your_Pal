@@ -28,7 +28,7 @@ import {
   type TimerInfo,
   type Timers,
 } from "@zeno/tool-engine";
-import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError, type PlanUsage } from "@zeno/llm-gateway";
+import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError, runResearch, type PlanUsage } from "@zeno/llm-gateway";
 import { createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import {
   createEpisodeRecorder,
@@ -42,7 +42,7 @@ import {
   type EpisodeRecorder,
   type MemoryStore,
 } from "@zeno/memory";
-import { openHelperStore, type HelperStore } from "@zeno/helpers";
+import { findHelper, openHelperStore, RESEARCHER_SOUL, startJobRunner, type HelperStore, type JobRun, type JobRunner } from "@zeno/helpers";
 import type { InputSource, Message } from "@zeno/contracts";
 import type { IslandHelpers, IslandMemory } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
@@ -94,6 +94,8 @@ export interface Runtime {
   capabilities(): Capability[];
   /** Called when the Claude plan reports usage (ADR-076); returns a function that stops listening. */
   onPlanUsage(listener: (usage: PlanUsage) => void): () => void;
+  /** Shutdown: stops running helper jobs (they are marked failed at the next start). */
+  close(): void;
 }
 
 export interface RuntimeOptions {
@@ -209,18 +211,19 @@ export function createRuntime(
   ];
   const toolEngine = createToolEngine({ tools, onCall: (e) => log.info("tool.call", e) });
   const planUsageListeners = new Set<(usage: PlanUsage) => void>();
+  // Plan use goes in the log so it is visible how much of the plan a day of ZENO takes. No keys, no text.
+  // ADR-076: and to the island's meters. Helper jobs report theirs here too.
+  const reportUsage = (usage: PlanUsage) => {
+    log.info("plan.usage", { ...usage });
+    for (const listener of planUsageListeners) listener(usage);
+  };
   const createModel = (choice: LlmChoice, apiKey: string) =>
     createGateway({
       provider: createProviderAdapter({
         ...choice,
         apiKey,
         tools: toolEngine,
-        // Plan use goes in the log so it is visible how much of the plan a day of ZENO takes. No keys, no text.
-        // ADR-076: and to the island's meters.
-        onUsage: (usage) => {
-          log.info("plan.usage", { ...usage });
-          for (const listener of planUsageListeners) listener(usage);
-        },
+        onUsage: reportUsage,
       }),
       // Claude Code starts its own process and may take several tool turns, so it gets longer than one API call.
       timeoutMs: choice.provider === "claude-plan" ? Math.max(config.llm.timeoutMs, PLAN_TIMEOUT_MS) : config.llm.timeoutMs,
@@ -288,9 +291,10 @@ export function createRuntime(
   // ADR-064: start the model up now (the Claude plan pre-starts Claude Code), and again after a model switch.
   core.prepare();
   const settingsPath = options.settingsPath;
+  const keys = { ...options.keys, [config.llm.provider]: config.llm.apiKey };
   const settings = createModelSettings({
     initial,
-    keys: { ...options.keys, [config.llm.provider]: config.llm.apiKey },
+    keys,
     model,
     createModel: (choice, apiKey) => {
       const next = createModel(choice, apiKey);
@@ -302,6 +306,15 @@ export function createRuntime(
     },
     log,
   });
+  // ADR-081/082, Task 3.2: helper jobs run beside the Core, on the Claude plan in use at the time each job starts.
+  const runJob: JobRun = async (job, { signal, onStep }) => {
+    const { provider, model: modelId } = settings.current();
+    const name = findHelper(job.helper)?.name ?? job.helper;
+    if (provider !== "claude-plan") throw new Error(`${name} needs the Claude plan for research.`);
+    return runResearch({ claudePath: keys["claude-plan"] ?? "", model: modelId, task: job.task, instructions: RESEARCHER_SOUL, signal, onStep, onUsage: reportUsage });
+  };
+  // Logs ids, states, timings and page counts only: never the task, report or addresses.
+  const runner: JobRunner | undefined = helpers && startJobRunner({ store: helpers, run: runJob, onRun: (e) => log.info("job.run", e) });
   const tts = createSpeaker(createKokoroSynthesizer({ voice: config.tts.voice, dtype: config.tts.dtype }));
   return {
     config,
@@ -325,6 +338,7 @@ export function createRuntime(
       planUsageListeners.add(listener);
       return () => planUsageListeners.delete(listener);
     },
+    close: () => runner?.close(),
     record: (handlers) => startRecording(config.audio, handlers),
     async micName() {
       if (config.audio.inputDevice !== ":default") return config.audio.inputDevice;

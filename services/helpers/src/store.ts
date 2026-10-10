@@ -68,6 +68,8 @@ export interface HelperStore {
   /** Queues a job. Throws HelperError for an unknown or unavailable helper, or an empty or long task. */
   addJob(helper: string, task: string): Job;
   get(id: number): Job | undefined;
+  /** Every queued job, oldest first (for the job runner). */
+  queued(): Job[];
   /** Stops a queued or running job. False when there is no such job or it has ended. */
   stop(id: number): boolean;
   /** Deletes a job and its report, stopping it first if it has not ended. False when there is none. */
@@ -180,6 +182,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const newestJobs = db.prepare(
     "SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.helper = ? ORDER BY j.id DESC LIMIT ?",
   );
+  const queuedJobs = db.prepare("SELECT * FROM jobs WHERE state = 'queued' ORDER BY id");
   const jobById = db.prepare("SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.id = ?");
   const insertJob = db.prepare("INSERT INTO jobs (helper, task, state, created_at) VALUES (?, ?, 'queued', ?)");
   const setState = db.prepare("UPDATE jobs SET state = ?, step = NULL, partial = ?, error = ?, ended_at = ? WHERE id = ?");
@@ -256,6 +259,10 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     },
 
     get,
+
+    queued() {
+      return (queuedJobs.all() as unknown as JobRow[]).map(toJob);
+    },
 
     stop(id) {
       const job = get(id);
