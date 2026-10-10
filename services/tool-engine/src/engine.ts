@@ -1,4 +1,4 @@
-import type { ToolCall, ToolResult, ToolRunner, ToolSpec } from "@zeno/contracts";
+import type { ToolCall, ToolImage, ToolResult, ToolRunner, ToolSpec } from "@zeno/contracts";
 
 /** One line of the island's "What can I ask?" page (ADR-076): a plain title and phrases that really work. */
 export interface Capability {
@@ -6,16 +6,22 @@ export interface Capability {
   examples: string[];
 }
 
-/** A capability ZENO can run for the model. `run` returns words for the model, or throws to report failure. */
-export interface Tool {
+/** Words for the model plus images (ADR-080: a screenshot). */
+export interface ToolOutput {
+  text: string;
+  images?: ToolImage[];
+}
+
+/** A capability ZENO can run for the model. `run` returns words (or `ToolOutput`: words and images) for the model, or throws to report failure. */
+export interface Tool<Out extends string | ToolOutput = string> {
   spec: ToolSpec;
   /** What the user can ask for with this tool. Every user-facing tool has one (the tool engine's tests check). */
   capability?: Capability;
-  run(input: Record<string, unknown>, signal?: AbortSignal): Promise<string> | string;
+  run(input: Record<string, unknown>, signal?: AbortSignal): Promise<Out> | Out;
 }
 
 export interface ToolEngineOptions {
-  tools: Tool[];
+  tools: Array<Tool<string | ToolOutput>>;
   /** Called after every call, including refused ones, for the log. Never receives tool output. */
   onCall?: (event: { name: string; ok: boolean; reason?: string; ms: number }) => void;
   /** Longest result handed back to the model. Longer output is cut and says so. */
@@ -38,9 +44,10 @@ export function createToolEngine(options: ToolEngineOptions): ToolRunner {
 
     async run(call: ToolCall, signal?: AbortSignal): Promise<ToolResult> {
       const started = now();
-      const finish = (content: string, ok: boolean, reason?: string): ToolResult => {
+      const finish = (content: string, ok: boolean, reason?: string, images?: ToolImage[]): ToolResult => {
         onCall?.({ name: call.name, ok, ...(reason ? { reason } : {}), ms: now() - started });
-        return ok ? { callId: call.id, content } : { callId: call.id, content, isError: true };
+        if (!ok) return { callId: call.id, content, isError: true };
+        return images?.length ? { callId: call.id, content, images } : { callId: call.id, content };
       };
 
       const tool = byName.get(call.name);
@@ -50,9 +57,10 @@ export function createToolEngine(options: ToolEngineOptions): ToolRunner {
       if (signal?.aborted) return finish("Cancelled before it ran.", false, "cancelled");
 
       try {
-        const out = String(await tool.run(call.input, signal));
+        const result = await tool.run(call.input, signal);
+        const { text: out, images } = typeof result === "object" && result !== null ? result : { text: String(result), images: undefined };
         const text = out.length > maxResultChars ? `${out.slice(0, maxResultChars)}\n[cut: ${out.length - maxResultChars} more characters]` : out;
-        return finish(text, true);
+        return finish(text, true, undefined, images);
       } catch (error) {
         return finish(`"${call.name}" failed: ${error instanceof Error ? error.message : String(error)}`, false, "failed");
       }

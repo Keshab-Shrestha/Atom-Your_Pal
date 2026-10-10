@@ -269,6 +269,10 @@ The island reads the keyboard and the pointer position system-wide, so its limit
   - Logs hold the bundle id and which fields were returned, never the title or address.
 
   The tool does not use Accessibility, even when ZENO holds it for dictation.
+- Pointing from a screenshot (ADR-080, only with `ZENO_COMPUTER=1`). The model can call `look_at_screen` when the user asks where something is. Cua Driver takes the screenshot, so ZENO itself holds no Screen Recording.
+  - **What is captured:** the main display only, downscaled to 1280 px, sent to the current model provider for that one request.
+  - **Storage:** the image is written to a temporary folder deleted in a `finally` block. It is never logged and never kept in conversation history.
+  - **The point marker:** `[POINT:x,y:label]` is parsed in code, range-checked, never spoken, and a malformed one is dropped.
 - Drop Wisp on a window (ADR-074): only while Option is held during a drag, the island reads the window list's owner, layer and frame to find and outline the window under the pointer. It never reads window titles, so it needs no Screen Recording. On the drop, the runtime reads that app once with `front_window`'s rules and keeps the result for the next request only (30 s at most, cleared by a new conversation). Logs hold the bundle id only.
 
 ---

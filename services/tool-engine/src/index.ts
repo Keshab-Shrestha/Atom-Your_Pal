@@ -1,4 +1,4 @@
-export { capabilityItems, createToolEngine, type Capability, type Tool, type ToolEngineOptions } from "./engine.ts";
+export { capabilityItems, createToolEngine, type Capability, type Tool, type ToolEngineOptions, type ToolOutput } from "./engine.ts";
 export { timeTool } from "./tools/time.ts";
 export { createNoteTools } from "./tools/notes.ts";
 export { createMediaTools, type Osascript } from "./tools/media.ts";
@@ -9,3 +9,5 @@ export { createTimers, spokenDuration, MAX_TIMER_SECONDS, type TimerInfo, type T
 export { calendarRunner, createCalendarTools, type CalendarRunner, type CalendarToolOptions } from "./tools/calendar.ts";
 export { createComputerTool, type ApprovalRequest, type ComputerAction, type ComputerToolOptions } from "./computer/tool.ts";
 export { createCuaTransport, type CuaTransport } from "./computer/cua-client.ts";
+export { createLookAtScreenTool, type LookAtScreenOptions, type ScreenShot } from "./computer/screen.ts";
+export { parsePointMarker, pointMarkerFilter, toScreenPoint, type ParsedReply, type PointTarget } from "./computer/point-marker.ts";

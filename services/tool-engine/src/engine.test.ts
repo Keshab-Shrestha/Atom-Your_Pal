@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { capabilityItems, createToolEngine, type Tool } from "./engine.ts";
+import { capabilityItems, createToolEngine, type Tool, type ToolOutput } from "./engine.ts";
 import { timeTool } from "./tools/time.ts";
 import { createAppTools } from "./tools/apps.ts";
 import { createMediaTools } from "./tools/media.ts";
@@ -10,6 +10,7 @@ import { createTimers } from "./tools/timers.ts";
 import { weatherTool } from "./tools/weather.ts";
 import { createCalendarTools } from "./tools/calendar.ts";
 import { createComputerTool } from "./computer/tool.ts";
+import { createLookAtScreenTool } from "./computer/screen.ts";
 
 const echo: Tool = {
   spec: {
@@ -73,6 +74,15 @@ test("long results are cut and say so", async () => {
   assert.equal(r.content, "aaaaaaaaaa\n[cut: 40 more characters]");
 });
 
+test("a tool can return images with its words (ADR-080); the images are passed on untouched and only the words are cut", async () => {
+  const image = { mimeType: "image/jpeg", data: "QUJD" };
+  const look: Tool<ToolOutput> = { spec: { name: "look", description: "x", inputSchema: { type: "object" } }, run: () => ({ text: "a".repeat(20), images: [image] }) };
+  const r = await createToolEngine({ tools: [look], maxResultChars: 10 }).run({ id: "c", name: "look", input: {} });
+  assert.deepEqual(r, { callId: "c", content: "aaaaaaaaaa\n[cut: 10 more characters]", images: [image] });
+  const plain: Tool<ToolOutput> = { ...look, run: () => ({ text: "words only" }) };
+  assert.deepEqual(await createToolEngine({ tools: [plain] }).run({ id: "d", name: "look", input: {} }), { callId: "d", content: "words only" });
+});
+
 test("onCall reports name, outcome and time, never the output", async () => {
   const events: unknown[] = [];
   let t = 100;
@@ -101,7 +111,7 @@ test("current_time formats in a given time zone and rejects a bad one", async ()
 // --- "What can I ask?" (ADR-076) ---
 
 /** Every tool the runtime can register (memory's tools are checked in @zeno/memory). Nothing here runs. */
-function everyTool(): Tool[] {
+function everyTool(): Array<Tool<string | ToolOutput>> {
   const never = async () => { throw new Error("not run in this test"); };
   return [
     timeTool(),
@@ -113,6 +123,7 @@ function everyTool(): Tool[] {
     weatherTool(),
     ...createCalendarTools({ run: never }),
     createComputerTool({ cua: { call: never, close: async () => {} }, approve: async () => false }),
+    createLookAtScreenTool({ cua: { call: never, close: async () => {} } }),
   ];
 }
 

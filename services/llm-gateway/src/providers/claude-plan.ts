@@ -26,7 +26,7 @@ export interface ClaudeSdk {
     name: string,
     description: string,
     shape: Record<string, ZodType>,
-    handler: (args: Record<string, unknown>) => Promise<{ content: { type: "text"; text: string }[]; isError?: boolean }>,
+    handler: (args: Record<string, unknown>) => Promise<{ content: Array<{ type: "text"; text: string } | { type: "image"; data: string; mimeType: string }>; isError?: boolean }>,
   ): unknown;
   createSdkMcpServer(options: { name: string; version?: string; tools: unknown[] }): unknown;
   /** Pre-starts a Claude Code process (ADR-064). Older SDKs and test fakes may not have it. */
@@ -258,7 +258,9 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
       sdk.tool(spec.name, spec.description, shapeOf(spec), async (input) => {
         state.acted = true;
         const result = await tools!.run({ id: randomUUID(), name: spec.name, input }, state.signal ?? controller.signal);
-        return { content: [{ type: "text" as const, text: result.content }], ...(result.isError ? { isError: true } : {}) };
+        // ADR-080: a screenshot goes after the words as MCP image content, which Claude Code shows the model.
+        const images = (result.images ?? []).map((i) => ({ type: "image" as const, data: i.data, mimeType: i.mimeType }));
+        return { content: [{ type: "text" as const, text: result.content }, ...images], ...(result.isError ? { isError: true } : {}) };
       }),
     );
     return {

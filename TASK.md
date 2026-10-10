@@ -644,7 +644,14 @@ As built:
 
 **Done when:** every setting is reachable on the new pages, and each reset touches only its page.
 
-**Task 2.F — Pointing from a screenshot (ADR-080, Cua only).**
+**Task 2.F — Pointing from a screenshot (ADR-080, Cua only).** Built 2026-10-10; tested (433 TS); the real Cua screenshot was taken once (1280×720 JPEG, about 340 ms, temp folder removed). Not yet tried by voice.
+
+As built:
+- Cua 0.28.2 captures the main display only (`get_desktop_state`), and ZENO's own windows can appear in the screenshot.
+- Images travel in tool results for all three providers.
+- The marker is held back from streamed speech like "Sources:" (`pointing.ts`).
+- A reply that is only a marker is spoken as "It's <label>."
+- The raw reply, marker included, stays in Core history, so it may appear in conversation notes.
 1. Runtime: a `look_at_screen` tool, only while `ZENO_COMPUTER=1`, using Cua's screenshot (pointer display first, 1280 px long side, never stored or logged).
 2. A pure parser for `[POINT:x,y:label]` / `[POINT:none]`, stripped before speech, with a range check against the screenshot size and the pixel → screen-point conversion per display. Tests first, including a second display.
 3. Send the existing `computer.point` event.

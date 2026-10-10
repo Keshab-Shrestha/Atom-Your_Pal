@@ -9,7 +9,7 @@ interface GeminiPart {
   thought?: boolean;
   thoughtSignature?: string;
   functionCall?: { id?: string; name?: string; args?: Record<string, unknown> };
-  functionResponse?: { id?: string; name: string; response: Record<string, unknown> };
+  functionResponse?: { id?: string; name: string; response: Record<string, unknown>; parts?: Array<{ inlineData: { mimeType: string; data: string } }> };
 }
 
 interface GeminiResult {
@@ -157,6 +157,8 @@ function toGeminiContents(messages: Message[]): Array<{ role: "user" | "model"; 
             id: r.callId,
             name: names.get(r.callId) ?? "unknown",
             response: r.isError ? { error: r.content } : { output: r.content },
+            // ADR-080: a screenshot rides along as inline data (Gemini 3 multimodal function responses).
+            ...(r.images?.length ? { parts: r.images.map((i) => ({ inlineData: { mimeType: i.mimeType, data: i.data } })) } : {}),
           },
         })),
       };

@@ -248,3 +248,31 @@ test("sends tool calls (with signature) and results (with the function name) bac
     },
   ]);
 });
+
+test("a tool result with a screenshot (ADR-080) carries the image as inline data in the function response", async () => {
+  const { client, calls } = fakeClient(() => ({ text: "Top right." }));
+  await createGeminiAdapter({ apiKey: "k", model: "m", client }).complete(
+    {
+      ...request,
+      messages: [
+        { role: "user", content: "where's wifi?" },
+        { role: "assistant", content: "", toolCalls: [{ id: "f1", name: "look_at_screen", input: {} }] },
+        { role: "user", content: "", toolResults: [{ callId: "f1", content: "1280×720", images: [{ mimeType: "image/jpeg", data: "QUJD" }] }] },
+      ],
+    },
+    signal(),
+  );
+  assert.deepEqual((calls[0] as { contents: unknown[] }).contents[2], {
+    role: "user",
+    parts: [
+      {
+        functionResponse: {
+          id: "f1",
+          name: "look_at_screen",
+          response: { output: "1280×720" },
+          parts: [{ inlineData: { mimeType: "image/jpeg", data: "QUJD" } }],
+        },
+      },
+    ],
+  });
+});

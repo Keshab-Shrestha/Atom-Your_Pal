@@ -88,7 +88,16 @@ function toClaudeMessage(m: Message): Anthropic.MessageParam {
       content: m.toolResults.map((r) => ({
         type: "tool_result" as const,
         tool_use_id: r.callId,
-        content: r.content,
+        // ADR-080: a screenshot goes after the words as an image block.
+        content: r.images?.length
+          ? [
+              { type: "text" as const, text: r.content },
+              ...r.images.map((i) => ({
+                type: "image" as const,
+                source: { type: "base64" as const, media_type: i.mimeType as Anthropic.Base64ImageSource["media_type"], data: i.data },
+              })),
+            ]
+          : r.content,
         ...(r.isError ? { is_error: true } : {}),
       })),
     };

@@ -175,3 +175,31 @@ test("sends tool calls and results back as Anthropic content blocks", async () =
     { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "failed", is_error: true }] },
   ]);
 });
+
+test("a tool result with a screenshot (ADR-080) is sent as text plus an image block", async () => {
+  const { client, calls } = fakeClient(() => ({ content: [{ type: "text", text: "Top right." }] }));
+  await createClaudeAdapter({ apiKey: "k", model: "m", client }).complete(
+    {
+      ...request,
+      messages: [
+        { role: "user", content: "where's wifi?" },
+        { role: "assistant", content: "", toolCalls: [{ id: "t1", name: "look_at_screen", input: {} }] },
+        { role: "user", content: "", toolResults: [{ callId: "t1", content: "1280×720", images: [{ mimeType: "image/jpeg", data: "QUJD" }] }] },
+      ],
+    },
+    new AbortController().signal,
+  );
+  assert.deepEqual((calls[0].body as { messages: unknown[] }).messages[2], {
+    role: "user",
+    content: [
+      {
+        type: "tool_result",
+        tool_use_id: "t1",
+        content: [
+          { type: "text", text: "1280×720" },
+          { type: "image", source: { type: "base64", media_type: "image/jpeg", data: "QUJD" } },
+        ],
+      },
+    ],
+  });
+});

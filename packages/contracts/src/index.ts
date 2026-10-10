@@ -25,11 +25,18 @@ export interface ToolCall {
   signature?: string;
 }
 
-/** What running a tool produced, in words for the model. Failures are results too (`isError`). */
+/** An image a tool hands to the model (ADR-080: a screenshot), base64. Lives only in one request; never logged or stored. */
+export interface ToolImage {
+  mimeType: string;
+  data: string;
+}
+
+/** What running a tool produced, in words for the model, plus any images. Failures are results too (`isError`). */
 export interface ToolResult {
   callId: string;
   content: string;
   isError?: boolean;
+  images?: ToolImage[];
 }
 
 /** The Core's only view of the tool engine (services/tool-engine implements it). */

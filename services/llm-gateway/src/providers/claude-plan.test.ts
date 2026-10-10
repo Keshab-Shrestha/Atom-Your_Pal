@@ -201,6 +201,17 @@ test("without tools in the request (the out-of-steps wrap-up), Claude gets none 
   assert.equal(seen[0]!.options.maxTurns, 1);
 });
 
+test("a tool result with a screenshot (ADR-080) reaches Claude as MCP image content after the text", async () => {
+  const { runner } = runnerOf((c) => ({ callId: c.id, content: "1280×720", images: [{ mimeType: "image/jpeg", data: "QUJD" }] }));
+  const { sdk, handlers } = fakeSdk(async function* () {
+    yield init();
+    const out = await handlers.computer!({ action: "look" });
+    assert.deepEqual(out, { content: [{ type: "text", text: "1280×720" }, { type: "image", data: "QUJD", mimeType: "image/jpeg" }] });
+    yield done("Top right.");
+  });
+  assert.equal((await make(sdk, { tools: runner }).complete(request({ tools: [spec] }), live())).text, "Top right.");
+});
+
 test("a tool call from Claude runs through ZENO's own tool engine, so its approvals and safety rules apply", async () => {
   const { runner, calls } = runnerOf((c) => ({ callId: c.id, content: `Clicked [${(c.input as any).element}].` }));
   const { sdk, handlers } = fakeSdk(async function* () {

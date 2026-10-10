@@ -11,6 +11,7 @@ import {
   createCalendarTools,
   createComputerTool,
   createCuaTransport,
+  createLookAtScreenTool,
   createTimers,
   createAppTools,
   createMediaTools,
@@ -20,6 +21,7 @@ import {
   timeTool,
   weatherTool,
   type Capability,
+  type ScreenShot,
   type TimerInfo,
   type Timers,
 } from "@zeno/tool-engine";
@@ -40,6 +42,7 @@ import {
 import type { InputSource, Message } from "@zeno/contracts";
 import type { IslandMemory } from "./island.ts";
 import { createWindowPointer, type WindowPointer } from "./screen-context.ts";
+import { withPointing } from "./pointing.ts";
 import { AudioError, defaultInputDevice, startRecording } from "./audio.ts";
 import { SttError, createWhisperStt, type SpeechToText } from "./stt.ts";
 import { createModelSettings, writeSavedChoice, type ModelSettings } from "./model-settings.ts";
@@ -48,6 +51,9 @@ import type { VoiceLoopEvents, VoiceLoopOptions } from "./voice-loop.ts";
 
 /** One request on the plan provider can take several tool turns, each a model call; this is its whole-request limit. */
 const PLAN_TIMEOUT_MS = 120_000;
+
+/** Points around a spot from a screenshot marker (ADR-080), about the size of a menu-bar icon. */
+const POINT_BOX = 20;
 
 /** Claude Code's own web search on the Claude plan (ADR-069): not a ZENO tool, so listed here (ADR-076). */
 const WEB_SEARCH: Capability = { title: "Search the web", examples: ["What's in the news today?", "Who won the match last night?"] };
@@ -134,6 +140,10 @@ export function createRuntime(
   }
   // ADR-074: off with the front window tool (ZENO_FRONT_WINDOW=0), whose limits it shares.
   const screen = createWindowPointer({ enabled: process.env.ZENO_FRONT_WINDOW !== "0", log });
+  // ADR-080: the screenshot the model was given this turn, so the reply's [POINT:…] marker can be checked against it.
+  const computerOn = process.env.ZENO_COMPUTER === "1";
+  let lastShot: ScreenShot | undefined;
+  const cua = computerOn ? createCuaTransport() : undefined;
   const calendarHelper = findCalendarHelper();
   log.info("calendar.helper", { available: Boolean(calendarHelper) });
   // The tools ZENO can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
@@ -166,10 +176,10 @@ export function createRuntime(
       : []),
     // ADR-054: off unless ZENO_COMPUTER=1. Steps and approvals go through the bridge to the island;
     // with no island, or no answer, an approval is a refusal.
-    ...(process.env.ZENO_COMPUTER === "1"
+    ...(cua
       ? [
           createComputerTool({
-            cua: createCuaTransport(),
+            cua,
             approve: (request, signal) => {
               log.info("computer.approval_asked");
               return computer.approve(request, signal);
@@ -178,6 +188,8 @@ export function createRuntime(
             onPoint: (target) => computer.point(target),
             onAction: (event) => log.info("computer.action", { ...event }),
           }),
+          // ADR-080: a screenshot through Cua (which holds Screen Recording), on request only. Never stored or logged.
+          createLookAtScreenTool({ cua, onShot: (shot) => (lastShot = shot), onStep: (step) => computer.step(step) }),
         ]
       : []),
   ];
@@ -216,7 +228,7 @@ export function createRuntime(
       : undefined;
   // ZENO_VOICE_ONLY=1: test speech in and out without the AI. ZENO reads back what Whisper heard, and no
   // request is made to any model. (Typed as `Core` so every caller treats it the same.)
-  const core: Core = process.env.ZENO_VOICE_ONLY === "1" ? createEchoCore() : createCore({
+  const baseCore: Core = process.env.ZENO_VOICE_ONLY === "1" ? createEchoCore() : createCore({
         model,
         tools: toolEngine,
         context: (input, context) => {
@@ -235,6 +247,19 @@ export function createRuntime(
         },
         ...(episodes ? { onExchange: (sessionId: string, turns: readonly Message[]) => episodes.update(sessionId, turns) } : {}),
       });
+  // ADR-080: with computer control on, replies lose their [POINT:…] marker before speech, and a valid one points.
+  const core: Core = computerOn
+    ? withPointing(baseCore, {
+        takeShot: () => {
+          const shot = lastShot;
+          lastShot = undefined;
+          return shot;
+        },
+        // A box around the spot, so Wisp stands on it as it does on an element (computer.point wants w and h above 0).
+        point: (t) => void computer.point({ x: t.x - POINT_BOX / 2, y: t.y - POINT_BOX / 2, w: POINT_BOX, h: POINT_BOX, label: t.label }),
+        log: (e) => log.info("pointing.marker", e),
+      })
+    : baseCore;
   // ADR-064: start the model up now (the Claude plan pre-starts Claude Code), and again after a model switch.
   core.prepare();
   const settingsPath = options.settingsPath;
