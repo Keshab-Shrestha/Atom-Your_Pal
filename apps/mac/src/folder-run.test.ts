@@ -22,12 +22,13 @@ test("paths outside are refused, risky commands ask, refused ones never ask; the
     });
     assert.equal(await check("Edit", { file_path: join(root, "a.ts") }), undefined);
     assert.match((await check("Read", { file_path: "/etc/passwd" }))!, /outside the folders/);
+    assert.match((await check("Write", { file_path: join(root, ".git") }))!, /ZENO commits the work/);
     assert.match((await check("Bash", { command: "git push" }))!, /never done/);
     assert.equal(await check("Bash", { command: "rm -rf build" }), undefined, "asked, and allowed");
     answer = false;
     assert.match((await check("Bash", { command: "npm install x" }))!, /did not allow/);
     assert.deepEqual(asked, ["Kame wants to run: rm -rf build", "Kame wants to run: npm install x"]);
-    assert.deepEqual(logged.map((e) => (e as { verdict: string }).verdict), ["allowed", "refused", "refused", "asked", "allowed", "asked", "declined"]);
+    assert.deepEqual(logged.map((e) => (e as { verdict: string }).verdict), ["allowed", "refused", "refused", "refused", "asked", "allowed", "asked", "declined"]);
     assert.ok(!JSON.stringify(logged).includes("passwd") && !JSON.stringify(logged).includes("npm"), "no paths or commands in the log");
   } finally {
     rmSync(root, { recursive: true, force: true });

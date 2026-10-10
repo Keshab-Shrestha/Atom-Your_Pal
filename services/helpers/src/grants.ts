@@ -52,11 +52,19 @@ export function checkGrant(path: string, home: string): string {
   throw new HelperError("Only folders inside your home folder or on an external drive can be granted.");
 }
 
-/** Why a file tool's path is refused, or undefined when it is inside one of the run's folders. */
-export function pathProblem(roots: readonly string[], cwd: string, p: string): string | undefined {
+/**
+ * Why a file tool's path is refused, or undefined when it is inside one of the run's folders. A change inside a `.git`
+ * folder or file is refused too: git's own data is ZENO's to write (it commits the work), never the worker's.
+ */
+export function pathProblem(roots: readonly string[], cwd: string, p: string, writing = false): string | undefined {
   const real = realish(isAbsolute(p) ? p : resolve(cwd, p));
-  return roots.some((root) => isInside(root, real)) ? undefined : `${p} is outside the folders this task may use.`;
+  if (!roots.some((root) => isInside(root, real))) return `${p} is outside the folders this task may use.`;
+  if (writing && real.split(sep).includes(".git")) return "Git's own files are not changed by hand: ZENO commits the work.";
+  return undefined;
 }
+
+/** File tools that change files. */
+export const WRITE_TOOLS: readonly string[] = ["Write", "Edit", "MultiEdit", "NotebookEdit"];
 
 /** The paths a file tool's input names, for checking. */
 export function toolPaths(name: string, input: Record<string, unknown>): string[] {

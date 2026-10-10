@@ -71,6 +71,8 @@ export interface ResearchOptions {
   files?: {
     cwd: string;
     writable: string[];
+    /** Inside `writable` but never written by a command (git's own data). */
+    denyWrite?: string[];
     denyRead: string[];
     check(name: string, input: Record<string, unknown>): Promise<string | undefined>;
   };
@@ -239,7 +241,7 @@ async function runStructured(options: ResearchOptions, mode: "research" | "plan"
                 autoAllowBashIfSandboxed: false, // every command still goes through check
                 allowUnsandboxedCommands: false,
                 network: { allowedDomains: [], strictAllowlist: true },
-                filesystem: { allowWrite: files.writable, denyRead: files.denyRead },
+                filesystem: { allowWrite: files.writable, ...(files.denyWrite?.length ? { denyWrite: files.denyWrite } : {}), denyRead: files.denyRead },
               },
             }
           : {}),

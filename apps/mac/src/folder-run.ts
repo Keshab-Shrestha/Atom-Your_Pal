@@ -3,7 +3,7 @@
 
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { classifyCommand, pathProblem, realish, toolPaths } from "@zeno/helpers";
+import { WRITE_TOOLS, classifyCommand, pathProblem, realish, toolPaths } from "@zeno/helpers";
 
 /** Never readable by sandboxed commands: keys, tokens and other apps' secrets. */
 export function denyRead(home = homedir()): string[] {
@@ -42,7 +42,7 @@ export function folderCheck(options: FolderCheckOptions) {
       return say(name, "allowed"), undefined;
     }
     for (const p of toolPaths(name, input)) {
-      const problem = pathProblem(roots, options.cwd, p);
+      const problem = pathProblem(roots, options.cwd, p, WRITE_TOOLS.includes(name));
       if (problem) return say(name, "refused"), problem;
     }
     return say(name, "allowed"), undefined;

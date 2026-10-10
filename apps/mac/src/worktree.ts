@@ -8,14 +8,17 @@ import { isAbsolute, join, relative } from "node:path";
 import { promisify } from "node:util";
 
 const run = promisify(execFile);
-const git = async (cwd: string, ...args: string[]) => (await run("git", ["-C", cwd, ...args], { timeout: 30_000 })).stdout.trim();
+// No repository hooks ever run from here (they would run outside the sandbox).
+const git = async (cwd: string, ...args: string[]) =>
+  (await run("git", ["-C", cwd, "-c", "core.hooksPath=/dev/null", ...args], { timeout: 30_000 })).stdout.trim();
 
 export interface Workdir {
   /** Where the worker works: the folder itself, or the same folder inside the task's worktree. */
   dir: string;
-  /** In a git repository: the task's branch and the repository's top folder. */
+  /** In a git repository: the task's branch, the repository's top folder and the worktree's own top folder. */
   branch?: string;
   repo?: string;
+  tree?: string;
 }
 
 /** The folder to work in for a task: in a repository, its worktree on `zeno/task-<id>` (made once, then reused). */
@@ -36,7 +39,7 @@ export async function prepareWorkdir(folder: string, taskId: number, worktrees: 
   // Real paths on both sides (git answers with them; /var is /private/var on macOS), and never a way out of the worktree.
   const inside = relative(realpathSync(repo), realpathSync(folder));
   if (inside.startsWith("..") || isAbsolute(inside)) throw new Error("The folder is not inside its repository.");
-  return { dir: join(tree, inside), branch, repo };
+  return { dir: join(tree, inside), branch, repo, tree };
 }
 
 /** Commits everything changed in the worktree on its branch, as ZENO. False when nothing changed. */

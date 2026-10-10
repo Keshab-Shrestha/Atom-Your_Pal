@@ -408,6 +408,8 @@ export function createRuntime(
       files = {
         cwd: work.dir,
         writable: roots,
+        // Git's data (the worktree's .git file, any granted repository's .git) is ZENO's alone to write.
+        denyWrite: [...(work.tree ? [join(work.tree, ".git")] : []), ...roots.map((r) => join(r, ".git"))],
         denyRead: denyRead(),
         check: folderCheck({
           roots,
