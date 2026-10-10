@@ -194,6 +194,9 @@ test("parses the helper commands", () => {
     { type: "comment.add", id: 3, text: "Keep it short" },
     { type: "thread.get", id: 3 },
     { type: "job.fresh", id: 3 },
+    { type: "helper.budget", helper: "sid", cap: 2.5 },
+    { type: "helper.budget", helper: "team", cap: null },
+    { type: "helpers.settings", planLimit: 70 },
   ];
   for (const command of good) assert.deepEqual(parseCommand(JSON.stringify(command)), { command }, JSON.stringify(command));
   assert.deepEqual(parseCommand('{"type":"helpers.list","extra":1}'), { command: { type: "helpers.list" } });

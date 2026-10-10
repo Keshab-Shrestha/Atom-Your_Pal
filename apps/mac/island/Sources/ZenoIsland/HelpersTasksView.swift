@@ -55,6 +55,9 @@ struct BoardPane: View {
                     Text("Every worker's tasks. A task that waits for another starts when that one is done.")
                         .font(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
+                if let list = model.helpers.list, let team = list.team, let limit = list.planLimit {
+                    TeamBudgets(model: model, team: team, planLimit: limit)
+                }
                 if board.isEmpty {
                     Text("No tasks yet. Choose a worker and give it one.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
                 }
@@ -115,6 +118,7 @@ private struct BoardCard: View {
                     Text(step).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color).lineLimit(1)
                 }
                 if job.isWaiting, let list = model.helpers.list { WaitingLine(job: job, list: list) }
+                if let held = job.held { HeldLine(reason: held) }
                 if job.state == .failed, let error = job.error { Text(error).font(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(2) }
             }
             Spacer(minLength: 8)
@@ -225,6 +229,7 @@ struct ThreadPane: View {
             }
             if let goal = job.goal, goal != job.task { Text("Goal: \(goal)").font(.system(size: 12)).foregroundStyle(theme.text2.color) }
             if job.state == .failed, let error = job.error { ProblemLine(text: error) }
+            if let held = job.held { HeldLine(reason: held) }
         }
     }
 }

@@ -245,6 +245,7 @@ private struct HelperPane: View {
                         AppPicker(model: model, helper: helper)
                         ModelPicker(model: model, helper: helper, models: model.helpers.list?.models ?? [])
                     }
+                    if let budget = helper.budget { BudgetPicker(model: model, helper: helper, budget: budget) }
                     VStack(alignment: .leading, spacing: 8) {
                         TaskField(model: model, helper: helper)
                         WaitsForMenu(model: model)
@@ -468,6 +469,7 @@ private struct JobRow: View {
                 .buttonStyle(.plain)
                 .help("Open the task")
                 if job.isWaiting, let list = model.helpers.list { WaitingLine(job: job, list: list) }
+                if let held = job.held { HeldLine(reason: held) }
                 if let summary = job.summary {
                     Text(summary).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
                 }

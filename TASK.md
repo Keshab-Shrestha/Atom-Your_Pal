@@ -792,6 +792,14 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 **Task 3.7 — Budgets.** Daily caps per worker and for the team from each run's reported usage; a warning at 80 %; at 100 % the worker pauses and its tasks wait as "needs you"; new runs also wait above a set plan-window level; caps and resume in the window.
 **Done when:** a worker over its cap pauses with its task in "needs you", no new run starts, and raising the cap resumes it.
 
+**As built (2026-10-11):** built; tested; seen in the gallery (`13-helpers`: Sid near its cap, the board with the team budget, plan limit and a held task); not yet tried live.
+- Spend is each run's reported cost (`total_cost_usd`): dollars of API-equivalent use, what the work would cost on the API. The plan does not charge it; it is a fair measure of how much plan a run takes across models. A `spend` table keeps each run's amount (by task and worker); a day is local midnight to midnight. Failed runs report nothing (their cost is not counted).
+- Caps (`budgets.ts`, store settings): $5 a day per worker and $15 for the team by default, each settable from $1 to $50 or "No cap" in the window (the protocol allows more than 0 up to 1000). The plan limit (default 80 %) holds new runs while the plan's five-hour window is used above it; 100 means never.
+- A runnable task (queued, nothing to wait for) is held while its worker's or the team's budget is used up or the plan is above its limit (`holdFor`, checked by the runner before each start). A run already going finishes. Held tasks carry the reason (`held`) and show under "Needs you" with an amber dot. Raising a cap, or a new day, or the plan's window easing frees them (the runner looks again on budget changes, plan usage reports and every minute).
+- Window: a worker's page shows "Budget $5 a day" and "$4.10 of $5.00 today" (amber with "80% used" from 80 %, and why it waits once used up); the board has "Team budget" and "Plan limit".
+- Tests: 9 TS (budgets 5, island 1, protocol, research cost) and 3 Swift. TS 562 pass, 2 skipped; typecheck clean; Swift 480 pass.
+- Known limits: no spoken warning at 80 % (the window shows it); a held task's reason is refreshed on the next helpers change, not when the plan's use changes; a run that fails costs plan that is not counted; there is no separate "Resume" button (raising the cap is the resume).
+
 **Task 3.8 — Plan first.** A per-worker or per-task switch: the first run plans with no write tools; the task waits as "needs you"; approve or reject by voice through Wisp's approval card or in the window; the approved plan goes to the next run.
 **Done when:** a plan-first task stops after planning, a rejection ends it, and an approval starts a run that receives the plan.
 

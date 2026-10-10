@@ -42,6 +42,9 @@ public enum IslandCommand: Sendable, Equatable {
     /// ADR-083: pin a helper to a model (`""` lets Laya choose again); allow or forbid the large model for jobs.
     case helperPin(helper: String, model: String)
     case helpersSettings(allowLarge: Bool)
+    /// Task 3.7: a worker's or the team's ("team") daily cap, nil for none; the plan limit in percent.
+    case helperBudget(helper: String, cap: Double?)
+    case helpersPlanLimit(Int)
     /// Task 3.3: save a worker's edited soul as a new version; make an older version current again.
     case soulSet(helper: String, soul: HelperSoul)
     case soulRestore(helper: String, version: Int)
@@ -74,7 +77,8 @@ public enum IslandCommand: Sendable, Equatable {
         case .jobDelete: "job.delete"
         case .reportGet: "report.get"
         case .helperPin: "helper.pin"
-        case .helpersSettings: "helpers.settings"
+        case .helpersSettings, .helpersPlanLimit: "helpers.settings"
+        case .helperBudget: "helper.budget"
         case .soulSet: "soul.set"
         case .soulRestore: "soul.restore"
         }
@@ -125,6 +129,11 @@ public enum IslandCommand: Sendable, Equatable {
             fields["model"] = model
         case .helpersSettings(let allowLarge):
             fields["allowLarge"] = allowLarge // a real JSON boolean
+        case .helperBudget(let helper, let cap):
+            fields["helper"] = helper
+            fields["cap"] = cap.map { $0 as Any } ?? NSNull()
+        case .helpersPlanLimit(let percent):
+            fields["planLimit"] = percent
         case .soulSet(let helper, let soul):
             fields["helper"] = helper
             fields["soul"] = ["name": soul.name, "personality": soul.personality, "howItWorks": soul.howItWorks,
@@ -500,7 +509,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .mediaKey(key)
     case "helpers":
         return .helpers(HelpersList(helpers: try f.helpers(), apps: try f.strings("apps"),
-                                    allowLarge: try f.optionalStrictBool("allowLarge") ?? true, models: try f.helperModels()))
+                                    allowLarge: try f.optionalStrictBool("allowLarge") ?? true, models: try f.helperModels(),
+                                    team: Fields.budget(f.values["team"]), planLimit: (f.values["planLimit"] as? NSNumber)?.intValue))
     case "thread":
         return .thread(try f.thread())
     case "report":
@@ -668,7 +678,7 @@ private struct Fields {
                 guard let job = job(entry) else { throw invalid }
                 return job
             }, pinnedModel: pinned as? String, role: h["role"] as? String ?? "", soul: soul,
-               soulVersion: (h["soulVersion"] as? NSNumber)?.intValue ?? 1, soulVersions: versions)
+               soulVersion: (h["soulVersion"] as? NSNumber)?.intValue ?? 1, soulVersions: versions, budget: Self.budget(h["budget"]))
         }
     }
 
@@ -687,7 +697,14 @@ private struct Fields {
                          blockedBy: Self.ids(j["blockedBy"]), waitingFor: Self.ids(j["waitingFor"]),
                          comments: (j["comments"] as? NSNumber)?.intValue ?? 0, goal: j["goal"] as? String,
                          parentId: (j["parentId"] as? NSNumber)?.intValue, goalId: (j["goalId"] as? NSNumber)?.intValue,
-                         goalEnded: Self.flag(j["goalEnded"]), resumable: Self.flag(j["resumable"]))
+                         goalEnded: Self.flag(j["goalEnded"]), resumable: Self.flag(j["resumable"]), held: j["held"] as? String)
+    }
+
+    /// Task 3.7: `{ "cap": number | null, "spent": number }`; anything else reads as none.
+    static func budget(_ value: Any?) -> HelperBudget? {
+        guard let b = value as? [String: Any], let spent = b["spent"] as? NSNumber, CFGetTypeID(spent) != CFBooleanGetTypeID() else { return nil }
+        let cap = b["cap"] as? NSNumber
+        return HelperBudget(cap: cap.flatMap { CFGetTypeID($0) == CFBooleanGetTypeID() ? nil : $0.doubleValue }, spent: spent.doubleValue)
     }
 
     /// An optional JSON boolean; anything else reads as false.

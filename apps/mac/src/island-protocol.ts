@@ -34,7 +34,8 @@ export type IslandCommand =
   | { type: "job.delete"; id: number }
   | { type: "report.get"; id: number }
   | { type: "helper.pin"; helper: string; model: string }
-  | { type: "helpers.settings"; allowLarge: boolean }
+  | { type: "helpers.settings"; allowLarge?: boolean; planLimit?: number }
+  | { type: "helper.budget"; helper: string; cap: number | null }
   | { type: "soul.set"; helper: string; soul: SoulItem }
   | { type: "soul.restore"; helper: string; version: number }
   | { type: "quit" };
@@ -103,6 +104,8 @@ export interface JobItem {
   goalEnded?: boolean;
   /** Task 3.6: its next run continues the last one's session ("Start fresh" forgets it). */
   resumable?: boolean;
+  /** Task 3.7: why a runnable task waits (a budget used up, the plan above its limit); it shows under "Needs you". */
+  held?: string;
   parentId?: number;
 }
 
@@ -147,6 +150,8 @@ export interface HelperItem {
   app: string | null;
   /** The pinned model id (ADR-083), or null to let Laya choose. */
   pinnedModel: string | null;
+  /** Task 3.7: the daily cap in dollars of API-equivalent use (null: none) and today's spend. */
+  budget: { cap: number | null; spent: number };
   jobs: JobItem[];
 }
 
@@ -199,7 +204,16 @@ export type IslandEvent =
   | { type: "capabilities"; items: Capability[] }
   | PlanUsageEvent
   | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[] }
-  | { type: "helpers"; helpers: HelperItem[]; apps: string[]; allowLarge?: boolean; models?: ModelItem[] }
+  | {
+      type: "helpers";
+      helpers: HelperItem[];
+      apps: string[];
+      allowLarge?: boolean;
+      models?: ModelItem[];
+      /** Task 3.7: the team's daily cap and spend, and the plan limit (percent) above which new runs wait. */
+      team?: { cap: number | null; spent: number };
+      planLimit?: number;
+    }
   | ReportEvent
   | ThreadEvent
   | { type: "error"; stage: ErrorStage; message: string; kind?: string; retryable?: boolean };
@@ -227,6 +241,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "report.get",
   "helper.pin",
   "helpers.settings",
+  "helper.budget",
   "soul.set",
   "soul.restore",
   "job.block",
@@ -313,9 +328,18 @@ export function parseCommand(line: string): ParsedLine {
     return { command: { type, helper, model } };
   }
   if (type === "helpers.settings") {
-    const { allowLarge } = value as { allowLarge?: unknown };
-    if (typeof allowLarge !== "boolean") return { error: 'helpers.settings needs "allowLarge" to be true or false.' };
-    return { command: { type, allowLarge } };
+    const { allowLarge, planLimit } = value as { allowLarge?: unknown; planLimit?: unknown };
+    if (allowLarge !== undefined && typeof allowLarge !== "boolean") return { error: 'helpers.settings needs "allowLarge" to be true or false.' };
+    if (planLimit !== undefined && typeof planLimit !== "number") return { error: 'helpers.settings needs "planLimit" to be a number.' };
+    if (allowLarge === undefined && planLimit === undefined) return { error: 'helpers.settings needs "allowLarge" or "planLimit".' };
+    return { command: { type, ...(allowLarge !== undefined ? { allowLarge } : {}), ...(planLimit !== undefined ? { planLimit } : {}) } };
+  }
+  if (type === "helper.budget") {
+    // The amount's range is the store's to refuse (stage "settings").
+    const { helper, cap } = value as { helper?: unknown; cap?: unknown };
+    if (typeof helper !== "string" || helper === "") return { error: 'helper.budget needs a "helper" string ("team" for the team).' };
+    if (cap !== null && typeof cap !== "number") return { error: 'helper.budget needs a "cap" number, or null for none.' };
+    return { command: { type, helper, cap } };
   }
   if (type === "soul.set") {
     // Lengths, names and empty fields are the store's to refuse (stage "settings"), as the protocol says.

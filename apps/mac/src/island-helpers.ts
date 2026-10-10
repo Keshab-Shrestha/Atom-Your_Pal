@@ -4,7 +4,7 @@ import { HelperError, type HelperStore, type Job, type PlanModel } from "@zeno/h
 import type { IslandHelpers } from "./island.ts";
 import type { JobItem } from "./island-protocol.ts";
 
-const toJobItem = (job: Job): JobItem => ({
+const toJobItem = (job: Job, held?: string): JobItem => ({
   id: job.id,
   task: job.task,
   state: job.state,
@@ -24,6 +24,7 @@ const toJobItem = (job: Job): JobItem => ({
   ...(job.goalId !== undefined ? { goalId: job.goalId } : {}),
   ...(job.goalEnded ? { goalEnded: true } : {}),
   ...(job.resumable ? { resumable: true } : {}),
+  ...(held ? { held } : {}),
   ...(job.parentId !== undefined ? { parentId: job.parentId } : {}),
 });
 
@@ -31,14 +32,26 @@ const toJobItem = (job: Job): JobItem => ({
  * `apps` lists installed app names (`installedApps` from the tool engine); `models` the plan's models for worker jobs
  * (ADR-083), empty when the provider is not the Claude plan.
  */
-export function islandHelpers(store: HelperStore, apps: () => Promise<string[]>, models: () => PlanModel[] = () => []): IslandHelpers {
+export function islandHelpers(
+  store: HelperStore,
+  apps: () => Promise<string[]>,
+  models: () => PlanModel[] = () => [],
+  /** Task 3.7: why a task may not start now (budgets, the plan's window), if so. */
+  held: (job: Job) => string | undefined = () => undefined,
+): IslandHelpers {
   return {
     list: () =>
       store.list().map((h) => ({
         ...h,
         soulVersions: h.soulVersions.map((v) => ({ version: v.version, createdAt: v.createdAt.toISOString() })),
-        jobs: h.jobs.map(toJobItem),
+        jobs: h.jobs.map((job) => toJobItem(job, held(job))),
       })),
+    budgets: () => {
+      const { team, planLimit } = store.budgets();
+      return { team, planLimit };
+    },
+    setBudget: (helper, cap) => store.setBudget(helper, cap),
+    setPlanLimit: (percent) => store.setPlanLimit(percent),
     apps: async () => [...(await apps())].sort((a, b) => a.localeCompare(b)),
     setApp: (helper, app) => store.setApp(helper, app),
     addJob: (helper, task, blockedBy) => void store.addJob(helper, task, blockedBy ? { blockedBy } : {}),

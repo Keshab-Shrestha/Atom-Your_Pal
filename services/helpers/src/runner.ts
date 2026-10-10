@@ -40,9 +40,13 @@ export interface JobRunnerOptions {
   timeLimitMs?: number;
   graceMs?: number;
   onRun?: (event: RunEvent) => void;
+  /** Task 3.7: whether a runnable task may start now (budgets, the plan's window). A held task waits; `poke` looks again. */
+  mayStart?: (job: Job) => boolean;
 }
 
 export interface JobRunner {
+  /** Looks again for tasks that may start (after something `mayStart` reads has changed). */
+  poke(): void;
   /** Shutdown: aborts every run and writes nothing (the store marks them failed at the next start). */
   close(): void;
 }
@@ -57,7 +61,7 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 const minutes = (ms: number) => `${Math.round(ms / 60_000)} minute${Math.round(ms / 60_000) === 1 ? "" : "s"}`;
 
 export function startJobRunner(options: JobRunnerOptions): JobRunner {
-  const { store, run, maxRunning = MAX_RUNNING, timeLimitMs = JOB_TIME_LIMIT_MS, graceMs = LATE_GRACE_MS, onRun } = options;
+  const { store, run, maxRunning = MAX_RUNNING, timeLimitMs = JOB_TIME_LIMIT_MS, graceMs = LATE_GRACE_MS, onRun, mayStart } = options;
   const running = new Map<number, Running>();
   let closed = false;
   let scheduled = false;
@@ -72,6 +76,7 @@ export function startJobRunner(options: JobRunnerOptions): JobRunner {
       for (const job of store.queued()) {
         if (running.size >= maxRunning) return;
         if ([...running.values()].some((r) => r.helper === job.helper)) continue;
+        if (mayStart && !mayStart(job)) continue;
         void drive(job);
       }
     });
@@ -135,7 +140,7 @@ export function startJobRunner(options: JobRunnerOptions): JobRunner {
 
   const unsubscribe = store.onChange((change) => {
     // A new task, or one that ended (its waiting tasks may now start), or a change to what a task waits for.
-    if ((change.action === "job" && change.state !== "running") || change.action === "blockers" || change.action === "deleted") schedule();
+    if ((change.action === "job" && change.state !== "running") || change.action === "blockers" || change.action === "deleted" || change.action === "budget") schedule();
     if ((change.action === "job" && change.state === "stopped") || change.action === "deleted") {
       const entry = running.get(change.job);
       if (!entry) return;
@@ -146,6 +151,7 @@ export function startJobRunner(options: JobRunnerOptions): JobRunner {
   schedule(); // jobs queued before the runner started (a restart)
 
   return {
+    poke: schedule,
     close() {
       if (closed) return;
       closed = true;

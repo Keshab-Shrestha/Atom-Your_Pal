@@ -75,6 +75,14 @@ export function createSchema(db: DatabaseSync) {
       ended_at TEXT,
       report TEXT
     );
+    CREATE TABLE IF NOT EXISTS spend (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id INTEGER NOT NULL,
+      helper TEXT NOT NULL,
+      dollars REAL NOT NULL,
+      at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS spend_at ON spend(at);
   `);
   // ADR-083: files from before Task 3.2b lack the model columns.
   const columns = new Set((db.prepare("PRAGMA table_info(jobs)").all() as { name: string }[]).map((c) => c.name));

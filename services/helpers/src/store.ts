@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { DEFAULT_PLAN_LIMIT, DEFAULT_TEAM_CAP, DEFAULT_WORKER_CAP, MAX_CAP, PLAN_LIMIT_RANGE, startOfDay, type Budget, type Budgets } from "./budgets.ts";
 import { createSchema, sameSoul, toJobRow, toSoul, webSources, type JobRow, type ReportRow, type SoulRow } from "./store-schema.ts";
 import {
   HELPERS,
@@ -154,6 +155,8 @@ export interface HelperView {
   app: string | null;
   /** The model Keshab pinned this helper to (ADR-083), or null to let the Decision Engine choose. */
   pinnedModel: string | null;
+  /** Task 3.7: its daily cap and today's spend. */
+  budget: Budget;
   /** Newest first, at most JOBS_PER_HELPER. */
   jobs: Job[];
 }
@@ -164,6 +167,8 @@ export type HelperChange =
   | { action: "pin"; helper: HelperId }
   | { action: "soul"; helper: HelperId; version: number }
   | { action: "settings" }
+  | { action: "budget"; helper: HelperId | "team" }
+  | { action: "spend"; helper: HelperId; job: number }
   | { action: "model"; helper: HelperId; job: number }
   | { action: "job"; helper: HelperId; job: number; state: JobState; ms?: number }
   | { action: "step"; helper: HelperId; job: number }
@@ -187,6 +192,14 @@ export interface HelperStore {
   restoreSoul(helper: string, version: number): void;
   /** Whether jobs may use the large model (ADR-083). Default true. */
   allowLarge(): boolean;
+  /** Task 3.7: every cap and today's spend, and the plan limit. */
+  budgets(): Budgets;
+  /** Sets a worker's or the team's daily cap in dollars (null: no cap). Throws HelperError for an unknown worker or a bad amount. */
+  setBudget(helper: string, cap: number | null): void;
+  /** Sets the plan's five-hour use (percent) above which new runs wait. Throws HelperError outside 10 to 100. */
+  setPlanLimit(percent: number): void;
+  /** Records what a run of a task cost (dollars of API-equivalent use). Nothing for an unknown task or a bad amount. */
+  addSpend(id: number, dollars: number): void;
   setAllowLarge(allowed: boolean): void;
   /** Records a running job's model and why. False (and nothing saved) unless the job is running. */
   setModel(id: number, model: string, reason: string): boolean;
@@ -266,6 +279,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const putPin = db.prepare("INSERT INTO helper_models (helper, model) VALUES (?, ?) ON CONFLICT (helper) DO UPDATE SET model = excluded.model");
   const dropPin = db.prepare("DELETE FROM helper_models WHERE helper = ?");
   const settingOf = db.prepare("SELECT value FROM helper_settings WHERE key = ?");
+  const insertSpend = db.prepare("INSERT INTO spend (job_id, helper, dollars, at) VALUES (?, ?, ?, ?)");
+  const spentSince = db.prepare("SELECT helper, SUM(dollars) AS total FROM spend WHERE at >= ? GROUP BY helper");
   const putSetting = db.prepare("INSERT INTO helper_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value");
   const soulRow = db.prepare("SELECT * FROM souls WHERE helper = ? AND version = ?");
   const latestSoul = db.prepare("SELECT * FROM souls WHERE helper = ? ORDER BY version DESC LIMIT 1");
@@ -446,6 +461,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
   return {
     list() {
+      const budgets = this.budgets();
       return HELPERS.map((h) => ({
         id: h.id,
         name: current(h.id).name,
@@ -459,6 +475,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         })),
         app: (appOf.get(h.id) as { app: string } | undefined)?.app ?? null,
         pinnedModel: (pinOf.get(h.id) as { model: string } | undefined)?.model ?? null,
+        budget: budgets.workers[h.id],
         jobs: (newestJobs.all(h.id, JOBS_PER_HELPER) as unknown as JobRow[]).map(toJob),
       }));
     },
@@ -496,6 +513,39 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       // The old name may have been taken by another worker since.
       const others = HELPERS.filter((h) => h.id !== known.id).map((h) => current(h.id).name);
       newSoulVersion(known.id, cleanSoul(toSoul(row), others));
+    },
+
+    budgets() {
+      const since = startOfDay(now()).toISOString();
+      const spent = new Map((spentSince.all(since) as { helper: string; total: number }[]).map((r) => [r.helper, r.total]));
+      const cap = (key: string, fallback: number) => {
+        const value = (settingOf.get(key) as { value: string } | undefined)?.value;
+        return value === undefined ? fallback : value === "none" ? null : Number(value);
+      };
+      const workers = Object.fromEntries(HELPERS.map((h) => [h.id, { cap: cap(`budget:${h.id}`, DEFAULT_WORKER_CAP), spent: spent.get(h.id) ?? 0 }])) as Budgets["workers"];
+      const team = { cap: cap("budget:team", DEFAULT_TEAM_CAP), spent: [...spent.values()].reduce((a, b) => a + b, 0) };
+      return { team, workers, planLimit: cap("planLimit", DEFAULT_PLAN_LIMIT) ?? 100 };
+    },
+
+    setBudget(helper, cap) {
+      const who = helper === "team" ? "team" : mustHelper(helper).id;
+      if (cap !== null && !(Number.isFinite(cap) && cap > 0 && cap <= MAX_CAP)) throw new HelperError(`A daily budget is more than $0 and at most $${MAX_CAP}.`);
+      putSetting.run(`budget:${who}`, cap === null ? "none" : String(cap));
+      emit({ action: "budget", helper: who });
+    },
+
+    setPlanLimit(percent) {
+      const [low, high] = PLAN_LIMIT_RANGE;
+      if (!Number.isInteger(percent) || percent < low || percent > high) throw new HelperError(`The plan limit is a whole percent from ${low} to ${high}.`);
+      putSetting.run("planLimit", String(percent));
+      emit({ action: "budget", helper: "team" });
+    },
+
+    addSpend(id, dollars) {
+      const job = get(id);
+      if (!job || !Number.isFinite(dollars) || dollars <= 0) return;
+      insertSpend.run(id, job.helper, dollars, now().toISOString());
+      emit({ action: "spend", helper: job.helper, job: id });
     },
 
     allowLarge() {

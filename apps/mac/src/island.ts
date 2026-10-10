@@ -112,6 +112,12 @@ export interface IslandHelpers {
   saveSoul(helper: string, soul: SoulItem): void;
   /** Makes an older soul version current again, as a new version. Throws, with words for the user, for an unknown one. */
   restoreSoul(helper: string, version: number): void;
+  /** Task 3.7: the team's cap and today's spend, and the plan limit. */
+  budgets(): { team: { cap: number | null; spent: number }; planLimit: number };
+  /** Throws, with words for the user, for an unknown worker or a bad amount. "team" sets the team's cap. */
+  setBudget(helper: string, cap: number | null): void;
+  /** Throws, with words for the user, outside 10 to 100. */
+  setPlanLimit(percent: number): void;
   /** Whether worker jobs may use the large model (ADR-083). */
   allowLarge(): boolean;
   setAllowLarge(allowed: boolean): void;
@@ -284,7 +290,13 @@ export function runIsland(options: IslandOptions): IslandSession {
         changeHelpers(command.type, (helpers) => helpers.pin(command.helper, command.model));
         return;
       case "helpers.settings":
-        changeHelpers(command.type, (helpers) => helpers.setAllowLarge(command.allowLarge));
+        changeHelpers(command.type, (helpers) => {
+          if (command.planLimit !== undefined) helpers.setPlanLimit(command.planLimit);
+          if (command.allowLarge !== undefined) helpers.setAllowLarge(command.allowLarge);
+        });
+        return;
+      case "helper.budget":
+        changeHelpers(command.type, (helpers) => helpers.setBudget(command.helper, command.cap));
         return;
       case "job.block":
         changeHelpers(command.type, (helpers) => helpers.setBlockers(command.id, command.blockedBy));
@@ -329,7 +341,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     void appNames().then((apps) => {
       helpersQueued = false;
       const helpers = options.helpers;
-      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models() } : {}) });
+      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets() } : {}) });
     });
   }
   function appNames(): Promise<string[]> {

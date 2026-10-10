@@ -642,10 +642,13 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
         soulVersions: [{ version: 1, createdAt: (h.events()[0] as HelpersEvent).helpers[0]!.soulVersions[0]!.createdAt }],
         app: null,
         pinnedModel: null,
+        budget: { cap: 5, spent: 0 },
         jobs: [],
       })),
       apps: ["Arc", "Brave Browser", "Notes"],
       allowLarge: true,
+      team: { cap: 15, spent: 0 },
+      planLimit: 80,
       models: [
         { id: "claude-opus-5-5", name: "Claude Opus 5.5", tier: "large" },
         { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5", tier: "medium" },
@@ -819,6 +822,19 @@ test("job.fresh forgets an ended task's session and runs it again; a running tas
   await h.send({ type: "job.fresh", id });
   const sid = (h.events().at(-1) as HelpersEvent).helpers[0]!.jobs[0]!;
   assert.deepEqual([sid.state, sid.resumable], ["queued", undefined]);
+});
+
+test("budgets: helper.budget and helpers.settings planLimit, with caps, spend and the plan limit in helpers (Task 3.7)", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  h.clear();
+  await h.send({ type: "helper.budget", helper: "sid", cap: 2 }, { type: "helper.budget", helper: "team", cap: null }, { type: "helpers.settings", planLimit: 70 });
+  const event = h.events().at(-1) as HelpersEvent;
+  assert.deepEqual([event.helpers[0]!.budget, event.team, event.planLimit], [{ cap: 2, spent: 0 }, { cap: null, spent: 0 }, 70]);
+  h.clear();
+  await h.send({ type: "helper.budget", helper: "sid", cap: -1 });
+  assert.deepEqual(h.types(), ["error"]);
+  assert.equal(store.budgets().workers.sid!.cap, 2);
 });
 
 test("helpers.settings turns the large model off and on, answered with helpers", async () => {

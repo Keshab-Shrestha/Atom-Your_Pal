@@ -48,12 +48,14 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     public var goalEnded: Bool
     /// Task 3.6: its next run continues the last one's Claude session ("Start fresh" forgets it).
     public var resumable: Bool
+    /// Task 3.7: why a runnable task waits (a budget used up, the plan above its limit).
+    public var held: String?
 
     public init(id: Int, task: String, state: JobState, createdAt: Date? = nil, endedAt: Date? = nil, step: String? = nil,
                 partial: Bool = false, title: String? = nil, summary: String? = nil, error: String? = nil,
                 model: String? = nil, modelReason: String? = nil, blockedBy: [Int] = [], waitingFor: [Int] = [],
                 comments: Int = 0, goal: String? = nil, parentId: Int? = nil, goalId: Int? = nil, goalEnded: Bool = false,
-                resumable: Bool = false) {
+                resumable: Bool = false, held: String? = nil) {
         self.id = id
         self.task = task
         self.state = state
@@ -74,6 +76,7 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
         self.goalId = goalId
         self.goalEnded = goalEnded
         self.resumable = resumable
+        self.held = held
     }
 
     public var hasReport: Bool { title != nil }
@@ -174,9 +177,12 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public var soul: HelperSoul?
     public var soulVersion: Int
     public var soulVersions: [SoulVersion]
+    /// Task 3.7: its daily cap and today's spend; nil from an older runtime.
+    public var budget: HelperBudget?
 
     public init(id: String, name: String, available: Bool, app: String?, jobs: [HelperJob], pinnedModel: String? = nil,
-                role: String = "", soul: HelperSoul? = nil, soulVersion: Int = 1, soulVersions: [SoulVersion] = []) {
+                role: String = "", soul: HelperSoul? = nil, soulVersion: Int = 1, soulVersions: [SoulVersion] = [],
+                budget: HelperBudget? = nil) {
         self.id = id
         self.name = name
         self.available = available
@@ -187,6 +193,7 @@ public struct Helper: Sendable, Equatable, Identifiable {
         self.soul = soul
         self.soulVersion = soulVersion
         self.soulVersions = soulVersions
+        self.budget = budget
     }
 
     /// The role as the window says it: "Researcher", "Financial information", "HR", ….
@@ -237,7 +244,11 @@ public enum BoardColumn: String, Sendable, Equatable, CaseIterable {
         }
     }
 
-    /// Failed tasks need you; stopped ones are done with.
+    /// Failed tasks need you, and (Task 3.7) tasks held by a budget or the plan's limit; stopped ones are done with.
+    public static func of(_ job: HelperJob) -> BoardColumn {
+        job.held != nil ? .needsYou : of(job.state)
+    }
+
     public static func of(_ state: JobState) -> BoardColumn {
         switch state {
         case .failed: .needsYou
@@ -346,12 +357,18 @@ public struct HelpersList: Sendable, Equatable {
     public var allowLarge: Bool
     /// The plan's offered models; empty when the provider is not the Claude plan (or the runtime is older).
     public var models: [HelperModel]
+    /// Task 3.7: the team's daily cap and spend, and the plan limit (percent); nil from an older runtime.
+    public var team: HelperBudget?
+    public var planLimit: Int?
 
-    public init(helpers: [Helper], apps: [String], allowLarge: Bool = true, models: [HelperModel] = []) {
+    public init(helpers: [Helper], apps: [String], allowLarge: Bool = true, models: [HelperModel] = [], team: HelperBudget? = nil,
+                planLimit: Int? = nil) {
         self.helpers = helpers
         self.apps = apps
         self.allowLarge = allowLarge
         self.models = models
+        self.team = team
+        self.planLimit = planLimit
     }
 
     /// A model's short name ("Sonnet 4.5" for "Claude Sonnet 4.5"); the id itself when it is not in `models`.
@@ -365,7 +382,7 @@ public struct HelpersList: Sendable, Equatable {
     public var board: [(column: BoardColumn, items: [BoardItem])] {
         let items = helpers.flatMap { h in h.jobs.map { BoardItem(helperId: h.id, helperName: h.name, job: $0) } }
         return BoardColumn.allCases.compactMap { column in
-            let here = items.filter { BoardColumn.of($0.job.state) == column }
+            let here = items.filter { BoardColumn.of($0.job) == column }
                 .sorted { column == .toDo ? $0.job.id < $1.job.id : $0.job.id > $1.job.id }
             return here.isEmpty ? nil : (column, here)
         }
@@ -588,6 +605,22 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.helperPin(helper: helper.id, model: modelId ?? ""))
     }
 
+    /// Task 3.7: the chosen worker's daily cap (nil: none). Nil when unchanged or from an older runtime.
+    public mutating func setBudget(_ cap: Double?) -> IslandCommand? {
+        guard let helper = selectedHelper, let budget = helper.budget, budget.cap != cap else { return nil }
+        return waiting(.helperBudget(helper: helper.id, cap: cap))
+    }
+
+    public mutating func setTeamBudget(_ cap: Double?) -> IslandCommand? {
+        guard let team = list?.team, team.cap != cap else { return nil }
+        return waiting(.helperBudget(helper: "team", cap: cap))
+    }
+
+    public mutating func setPlanLimit(_ percent: Int) -> IslandCommand? {
+        guard let limit = list?.planLimit, limit != percent, (10...100).contains(percent) else { return nil }
+        return waiting(.helpersPlanLimit(percent))
+    }
+
     /// "Allow the large model for helpers". Nil without models (the switch means nothing then) or when unchanged.
     public mutating func setAllowLarge(_ allow: Bool) -> IslandCommand? {
         guard let list, !list.models.isEmpty, list.allowLarge != allow else { return nil }
@@ -639,5 +672,32 @@ public struct HelpersState: Sendable, Equatable {
         isWaiting = true
         problem = nil
         return command
+    }
+}
+
+/// Task 3.7: a daily cap in dollars of API-equivalent use (what the work would cost on the API; the plan does not charge
+/// it) and today's spend.
+public struct HelperBudget: Sendable, Equatable {
+    public var cap: Double?
+    public var spent: Double
+
+    public init(cap: Double?, spent: Double) {
+        self.cap = cap
+        self.spent = spent
+    }
+
+    /// The caps the window offers; nil is "No cap".
+    public static let presets: [Double?] = [1, 2, 5, 10, 20, 50, nil]
+
+    public var isOver: Bool { cap.map { spent >= $0 } ?? false }
+    /// At 80 % of the cap, before it is used up.
+    public var isNear: Bool { cap.map { !isOver && spent >= $0 * 0.8 } ?? false }
+
+    public static func dollars(_ value: Double) -> String { String(format: "$%.2f", value) }
+    public static func capTitle(_ cap: Double?) -> String { cap.map { String(format: "$%.0f a day", $0) } ?? "No cap" }
+
+    /// "$1.20 of $5.00 today", or "$1.20 today" without a cap.
+    public var line: String {
+        cap.map { "\(Self.dollars(spent)) of \(Self.dollars($0)) today" } ?? "\(Self.dollars(spent)) today"
     }
 }

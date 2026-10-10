@@ -47,6 +47,7 @@ import {
   chooseJobModel,
   createDelegateTool,
   createWorkerShortcut,
+  holdFor,
   followUpBrief,
   teamContext,
   watchGoals,
@@ -57,6 +58,7 @@ import {
   tieredModels,
   withRoleNotice,
   type HelperStore,
+  type Job,
   type JobRun,
   type JobRunner,
 } from "@zeno/helpers";
@@ -235,8 +237,14 @@ export function createRuntime(
   const planUsageListeners = new Set<(usage: PlanUsage) => void>();
   // Plan use goes in the log so it is visible how much of the plan a day of ZENO takes. No keys, no text.
   // ADR-076: and to the island's meters. Helper jobs report theirs here too.
+  // Task 3.7: the plan's five-hour use in percent, last reported, so new worker runs can wait above the set limit.
+  let planUsed: number | undefined;
   const reportUsage = (usage: PlanUsage) => {
     log.info("plan.usage", { ...usage });
+    if (typeof usage.fiveHour === "number") {
+      planUsed = usage.fiveHour * 100;
+      queueMicrotask(() => runner?.poke()); // after start-up: the runner is made below
+    }
     for (const listener of planUsageListeners) listener(usage);
   };
   const createModel = (choice: LlmChoice, apiKey: string) =>
@@ -389,11 +397,17 @@ export function createRuntime(
       result = await research(fresh());
     }
     if (result.sessionId) helpers?.setSession(job.id, result.sessionId);
+    if (result.costUsd) helpers?.addSpend(job.id, result.costUsd); // Task 3.7: counts toward the day's budgets
     log.info("job.session", { helper: job.helper, job: job.id, resumed: Boolean(resume) });
     return { ...result, report: withRoleNotice(role, result.report) };
   };
   // Logs ids, states, timings and page counts only: never the task, report or addresses.
-  const runner: JobRunner | undefined = helpers && startJobRunner({ store: helpers, run: runJob, onRun: (e) => log.info("job.run", e) });
+  // Task 3.7: a task waits while its worker's or the team's budget is used up, or the plan is above its limit.
+  const held = (job: Job) => (helpers ? holdFor(job, helpers.budgets(), helpers.soul(job.helper).name, planUsed) : undefined);
+  const runner: JobRunner | undefined =
+    helpers && startJobRunner({ store: helpers, run: runJob, onRun: (e) => log.info("job.run", e), mayStart: (job) => !held(job) });
+  // A new day (budgets) or an older plan window (its use falls) frees held tasks without any change in the store.
+  if (runner) setInterval(() => runner.poke(), 60_000).unref();
   // Task 3.5: a goal whose tasks have all ended gets its combined report (one model call, no tools) and one line.
   const goalLineListeners = new Set<(line: string) => void>();
   const stopGoals =
@@ -424,7 +438,7 @@ export function createRuntime(
     tts,
     computer,
     ...(memory ? { memory, islandMemory } : {}),
-    ...(helpers ? { helpers, islandHelpers: warmOnOpen(islandHelpers(helpers, installedApps, planModels), decisions) } : {}),
+    ...(helpers ? { helpers, islandHelpers: warmOnOpen(islandHelpers(helpers, installedApps, planModels, held), decisions) } : {}),
     screen,
     timers,
     onTimer(listener) {

@@ -574,3 +574,44 @@ struct HelperWakeTests {
         #expect(TaskActivity(kind: "fresh", at: nil).title == "Set to start fresh")
     }
 }
+
+@Suite("Budgets (Task 3.7)")
+struct HelperBudgetTests {
+    static let line = HelperTaskTests.line
+        .replacingOccurrences(of: #"{"type":"helpers","apps":[],"helpers":["#, with: #"{"type":"helpers","apps":[],"team":{"cap":15,"spent":12.5},"planLimit":80,"helpers":["#)
+        .replacingOccurrences(of: #""name":"Sid","available":true,"app":null,"jobs""#, with: #""name":"Sid","available":true,"app":null,"budget":{"cap":5,"spent":5.2},"jobs""#)
+        .replacingOccurrences(of: #""id":6,"task":"Then this","state":"queued","#, with: #""id":6,"task":"Then this","state":"queued","held":"Hana's daily budget ($5.00) is used up.","#)
+
+    @Test func decodesCapsSpendAndHolds() throws {
+        guard case .helpers(let list) = try decodeEvent(Self.line) else { Issue.record("not helpers"); return }
+        #expect(list.team == HelperBudget(cap: 15, spent: 12.5) && list.planLimit == 80)
+        let sid = try #require(list.helpers.first)
+        #expect(sid.budget == HelperBudget(cap: 5, spent: 5.2) && sid.budget?.isOver == true)
+        #expect(list.helpers.last?.budget == nil) // an older runtime sends none
+        #expect(list.item(6)?.job.held == "Hana's daily budget ($5.00) is used up.")
+        #expect(list.board.first { $0.column == .needsYou }?.items.map(\.id) == [6, 3]) // held with the failed
+        #expect(throws: Never.self) { try decodeEvent(HelperTaskTests.line) } // budgets are optional
+    }
+
+    @Test func linesWarnAt80PercentAndSayWhenUsedUp() {
+        #expect(HelperBudget(cap: 5, spent: 1.2).line == "$1.20 of $5.00 today")
+        #expect(HelperBudget(cap: nil, spent: 1.2).line == "$1.20 today")
+        #expect(HelperBudget(cap: 5, spent: 4).isNear && !HelperBudget(cap: 5, spent: 3.9).isNear)
+        #expect(!HelperBudget(cap: 5, spent: 5).isNear && HelperBudget(cap: 5, spent: 5).isOver)
+        #expect(!HelperBudget(cap: nil, spent: 999).isOver)
+        #expect(HelperBudget.capTitle(5) == "$5 a day" && HelperBudget.capTitle(nil) == "No cap")
+    }
+
+    @Test func capsAndThePlanLimitAreCommands() throws {
+        var state = HelpersState()
+        state.apply(try decodeEvent(Self.line))
+        #expect(state.setBudget(5) == nil) // unchanged
+        #expect(state.setBudget(10) == .helperBudget(helper: "sid", cap: 10))
+        #expect(state.setTeamBudget(nil) == .helperBudget(helper: "team", cap: nil))
+        #expect(state.setPlanLimit(80) == nil && state.setPlanLimit(5) == nil)
+        #expect(state.setPlanLimit(60) == .helpersPlanLimit(60))
+        #expect(IslandCommand.helperBudget(helper: "team", cap: nil).line == #"{"cap":null,"helper":"team","type":"helper.budget"}"# + "\n")
+        #expect(IslandCommand.helperBudget(helper: "sid", cap: 2.5).line == #"{"cap":2.5,"helper":"sid","type":"helper.budget"}"# + "\n")
+        #expect(IslandCommand.helpersPlanLimit(60).line == #"{"planLimit":60,"type":"helpers.settings"}"# + "\n")
+    }
+}

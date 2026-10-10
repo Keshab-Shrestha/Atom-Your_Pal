@@ -31,6 +31,8 @@ export interface ResearchResult {
   pages: number;
   /** ADR-087, Task 3.6: the Claude session this run used, to resume it next time. */
   sessionId?: string;
+  /** Task 3.7: what the run cost in dollars of API-equivalent use, as Claude Code reports it (the plan does not charge it). */
+  costUsd?: number;
 }
 
 export interface ResearchOptions {
@@ -180,5 +182,6 @@ export async function runResearch(options: ResearchOptions): Promise<ResearchRes
     const { kind, message } = classify(lastError, false);
     throw new ProviderError(kind, message);
   }
-  return { report: parseReport(result.structured_output), partial: limited, pages, ...(sessionId ? { sessionId } : {}) };
+  const costUsd = typeof result.total_cost_usd === "number" && result.total_cost_usd > 0 ? result.total_cost_usd : undefined;
+  return { report: parseReport(result.structured_output), partial: limited, pages, ...(sessionId ? { sessionId } : {}), ...(costUsd ? { costUsd } : {}) };
 }
