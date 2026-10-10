@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { HAND_OFF_TOOL, RESEARCH_MAX_TURNS, RESEARCH_PAGE_LIMIT, runPlan, runResearch, type ResearchOptions } from "./claude-plan-job.ts";
+import { FILE_MAX_TURNS, FILE_TOOLS, HAND_OFF_TOOL, RESEARCH_MAX_TURNS, RESEARCH_PAGE_LIMIT, runPlan, runResearch, type ResearchOptions } from "./claude-plan-job.ts";
 import type { ClaudeSdk, PlanUsage } from "./claude-plan.ts";
 import { ProviderError } from "../gateway.ts";
 
@@ -135,6 +135,41 @@ test("the hand_off tool runs in ZENO through an in-process server; its refusals 
   });
   await research(plain.sdk);
   assert.deepEqual(plain.seen[0]!.options.mcpServers, {}, "no hand_off: no server at all");
+});
+
+test("a run in folders: file tools and Bash in the sandbox with no network; every call is checked (Task 3.11)", async () => {
+  const answers: unknown[] = [];
+  const { sdk, seen } = fakeSdk(async function* (o) {
+    yield init();
+    const ask = (name: string, input: Record<string, unknown>) => o.canUseTool(name, input, { signal: new AbortController().signal });
+    answers.push(await ask("Edit", { file_path: "/work/a.ts" }));
+    answers.push(await ask("Read", { file_path: "/etc/passwd" }));
+    answers.push(await ask("Bash", { command: "ls", dangerouslyDisableSandbox: true }));
+    answers.push(await ask("WebFetch", { url: "https://x" }));
+    yield done();
+  });
+  const checked: string[] = [];
+  await research(sdk, {
+    files: {
+      cwd: "/work",
+      writable: ["/work"],
+      denyRead: ["/Users/k/.ssh"],
+      check: async (name, input) => (checked.push(name), String(input.file_path ?? "").startsWith("/etc") ? "outside" : undefined),
+    },
+  });
+  const o = seen[0]!.options;
+  assert.deepEqual([o.cwd, o.tools, o.maxTurns], ["/work", FILE_TOOLS, FILE_MAX_TURNS]);
+  assert.deepEqual(o.sandbox, {
+    enabled: true,
+    failIfUnavailable: true,
+    autoAllowBashIfSandboxed: false,
+    allowUnsandboxedCommands: false,
+    network: { allowedDomains: [], strictAllowlist: true },
+    filesystem: { allowWrite: ["/work"], denyRead: ["/Users/k/.ssh"] },
+  });
+  assert.match(o.systemPrompt, /You work in \/work and in no other folder/);
+  assert.deepEqual(answers.map((a) => (a as { behavior: string }).behavior), ["allow", "deny", "deny", "deny"]);
+  assert.deepEqual(checked, ["Edit", "Read"], "the sandbox switch is refused before any check; web tools are not file tools");
 });
 
 test("progress in plain words, and the twelfth page is the last: further fetches are refused and the report is partial", async () => {

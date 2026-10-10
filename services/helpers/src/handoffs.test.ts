@@ -41,7 +41,7 @@ test("a third level, a fourth sub-task, a role that may not take it, itself, and
   assert.throws(() => store.handOff(penny.id, "sid", "deeper"), /A sub-task cannot hand off work again/);
   assert.equal(handOffTool(store, store.get(penny.id)!), undefined, "a sub-task gets no hand_off tool");
   assert.throws(() => store.handOff(sid.id, "sid", "x"), /cannot hand a task to itself/);
-  assert.throws(() => store.handOff(sid.id, "kame", "x"), /Kame is not ready yet/);
+  assert.throws(() => store.handOff(sid.id, "tinker", "x"), /Tinker is not ready yet/);
   store.handOff(sid.id, "hana", "a");
   store.handOff(sid.id, "quill", "b");
   assert.throws(() => store.handOff(sid.id, "hana", "c"), /at most 3 sub-tasks/);

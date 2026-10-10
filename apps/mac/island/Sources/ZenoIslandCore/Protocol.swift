@@ -43,6 +43,9 @@ public enum IslandCommand: Sendable, Equatable {
     case helperPlanFirst(helper: String, on: Bool)
     /// Task 3.9: remove a routine.
     case routineDelete(id: Int)
+    /// Task 3.11: grant a folder to a worker, or take it back.
+    case grantAdd(helper: String, path: String)
+    case grantRemove(helper: String, path: String)
     case jobDelete(id: Int)
     case reportGet(id: Int)
     /// ADR-083: pin a helper to a model (`""` lets Laya choose again); allow or forbid the large model for jobs.
@@ -84,6 +87,8 @@ public enum IslandCommand: Sendable, Equatable {
         case .planReject: "plan.reject"
         case .helperPlanFirst: "helper.planFirst"
         case .routineDelete: "routine.delete"
+        case .grantAdd: "grant.add"
+        case .grantRemove: "grant.remove"
         case .jobDelete: "job.delete"
         case .reportGet: "report.get"
         case .helperPin: "helper.pin"
@@ -132,6 +137,9 @@ public enum IslandCommand: Sendable, Equatable {
         case .commentAdd(let id, let text):
             fields["id"] = id
             fields["text"] = text
+        case .grantAdd(let helper, let path), .grantRemove(let helper, let path):
+            fields["helper"] = helper
+            fields["path"] = path
         case .helperPlanFirst(let helper, let on):
             fields["helper"] = helper
             fields["on"] = on // a real JSON boolean
@@ -692,7 +700,8 @@ private struct Fields {
                 return job
             }, pinnedModel: pinned as? String, role: h["role"] as? String ?? "", soul: soul,
                soulVersion: (h["soulVersion"] as? NSNumber)?.intValue ?? 1, soulVersions: versions, budget: Self.budget(h["budget"]),
-               planFirst: Self.flag(h["planFirst"]), routines: Self.routines(h["routines"]))
+               planFirst: Self.flag(h["planFirst"]), routines: Self.routines(h["routines"]),
+               grants: (h["grants"] as? [Any])?.compactMap { $0 as? String } ?? [])
         }
     }
 

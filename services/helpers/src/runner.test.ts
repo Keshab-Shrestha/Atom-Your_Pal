@@ -21,7 +21,7 @@ function fakeRun() {
   return { run, calls, started, call };
 }
 
-/** A store in a temp file, with jobs inserted directly (Kame and Puff cannot take jobs through addJob yet). */
+/** A store in a temp file, with jobs inserted directly. */
 function fileStore(jobs: string[]) {
   const dir = mkdtempSync(join(tmpdir(), "zeno-runner-"));
   const path = join(dir, "helpers.db");

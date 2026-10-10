@@ -77,7 +77,7 @@ test("an 'every …' the code cannot read goes to Wisp; a bad routine is refused
   const store = openHelperStore({ path: ":memory:" });
   const say = createWorkerShortcut(store);
   assert.equal(say("Sid, every so often, check the news"), undefined);
-  assert.equal(say("Kame, every day at 8, run the tests"), "Kame is not ready yet.");
+  assert.equal(say("Tinker, every day at 8, review the team"), "Tinker is not ready yet.");
   assert.equal(store.list().flatMap((h) => h.routines).length, 0);
   assert.throws(() => store.addRoutine("sid", "x", { kind: "hours", every: 0 }), /every 1 to 168 hours/);
   assert.equal(store.removeRoutine(99), false);

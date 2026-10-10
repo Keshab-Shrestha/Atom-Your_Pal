@@ -2,6 +2,7 @@
 // Microphone → Whisper → ZENO Core → LLM Gateway → provider → Kokoro → speaker.
 
 import { existsSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createCore, CoreError, type Core } from "@zeno/core";
 import { createComputerBridge, type ComputerBridge } from "./computer-bridge.ts";
@@ -49,6 +50,7 @@ import {
   createScheduleTool,
   createWorkerShortcut,
   holdFor,
+  FILE_ROLES,
   followUpBrief,
   handOffTool,
   teamContext,
@@ -68,6 +70,8 @@ import { createLayaEngine } from "@zeno/decision-engine";
 import type { InputSource, Message } from "@zeno/contracts";
 import type { IslandHelpers, IslandMemory } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
+import { denyRead, folderCheck } from "./folder-run.ts";
+import { commitWork, prepareWorkdir, type Workdir } from "./worktree.ts";
 import { createWindowPointer, type WindowPointer } from "./screen-context.ts";
 import { withPointing } from "./pointing.ts";
 import { AudioError, defaultInputDevice, startRecording } from "./audio.ts";
@@ -164,7 +168,10 @@ export function createRuntime(
       return () => memoryListeners.delete(listener);
     },
   };
-  const helpers = openHelpers(options.helpersPath ?? process.env.ZENO_HELPERS_FILE ?? "data/helpers.db", log);
+  const helpersPath = options.helpersPath ?? process.env.ZENO_HELPERS_FILE ?? "data/helpers.db";
+  const helpers = openHelpers(helpersPath, log);
+  // Task 3.11: the tasks' git worktrees live beside the helpers file, never inside a granted repository.
+  const worktrees = join(dirname(resolve(helpersPath === ":memory:" ? "data/x" : helpersPath)), "worktrees");
   const timerListeners = new Set<(timer: TimerInfo) => void>();
   const timers = createTimers({
     onFire: (timer) => {
@@ -389,8 +396,32 @@ export function createRuntime(
     const instructions = instructionsFor(soul, role);
     // ADR-087: the task with its goal, Keshab's notes and the reports of the tasks it waited for.
     const fresh = () => briefFor(job.task, helpers?.context(job.id) ?? { comments: [], earlier: [] });
+    // Task 3.11: the coder, designer and documenter work in the folders Keshab granted; the documenter without one
+    // writes up with the research tools, the others cannot start.
+    const grants = helpers?.list().find((h) => h.id === job.helper)?.grants ?? [];
+    let work: Workdir | undefined;
+    let files: Parameters<typeof runResearch>[0]["files"];
+    if (FILE_ROLES.includes(role) && grants.length) {
+      const folder = grants.find((g) => job.task.toLowerCase().includes(g.split("/").at(-1)!.toLowerCase())) ?? grants[0]!;
+      work = await prepareWorkdir(folder, job.id, worktrees);
+      const roots = [work.dir, ...grants.filter((g) => g !== folder)];
+      files = {
+        cwd: work.dir,
+        writable: roots,
+        denyRead: denyRead(),
+        check: folderCheck({
+          roots,
+          cwd: work.dir,
+          name,
+          approve: (request) => computer.approve(request),
+          onCheck: (e) => log.info("job.tool", { helper: job.helper, job: job.id, ...e }),
+        }),
+      };
+    } else if (FILE_ROLES.includes(role) && role !== "documenter") {
+      throw new Error(`${name} needs a folder to work in: grant one in the Helpers window.`);
+    }
     // Task 3.10: a top-level task may hand sub-tasks to the workers its role allows; the store checks each one.
-    const handOff = helpers && handOffTool(helpers, job);
+    const handOff = helpers && !files && handOffTool(helpers, job);
     const research = (task: string, resume?: string) =>
       runResearch({
         claudePath: keys["claude-plan"] ?? "",
@@ -402,6 +433,7 @@ export function createRuntime(
         onUsage: reportUsage,
         ...(resume ? { resume } : {}),
         ...(handOff ? { handOff } : {}),
+        ...(files ? { files } : {}),
       });
     // Task 3.8: a plan-first task's first run only plans (no tools); the plan then waits for Keshab.
     if (job.planFirst && job.planStatus !== "approved") {
@@ -423,6 +455,13 @@ export function createRuntime(
     }
     if (result.sessionId) helpers?.setSession(job.id, result.sessionId);
     if (result.costUsd) helpers?.addSpend(job.id, result.costUsd); // Task 3.7: counts toward the day's budgets
+    // Task 3.11: in a repository, ZENO commits the work on the task's own branch. Never pushed.
+    if (work?.branch) {
+      const committed = await commitWork(work.dir, `ZENO task ${job.id}: ${result.report.title}`);
+      const where = `${committed ? "The changes are committed" : "Nothing was changed"} on the branch ${work.branch} in ${work.repo}. Nothing was pushed.`;
+      log.info("job.commit", { helper: job.helper, job: job.id, committed });
+      return { ...result, report: withRoleNotice(role, { ...result.report, body: `${result.report.body}\n\n${where}` }) };
+    }
     log.info("job.session", { helper: job.helper, job: job.id, resumed: Boolean(resume) });
     return { ...result, report: withRoleNotice(role, result.report) };
   };

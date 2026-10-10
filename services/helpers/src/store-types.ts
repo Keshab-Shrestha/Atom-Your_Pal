@@ -146,6 +146,8 @@ export interface HelperView {
   planFirst: boolean;
   /** Task 3.9: its routines, oldest first. */
   routines: Routine[];
+  /** Task 3.11: the folders it may work in (real paths), in the order granted. */
+  grants: string[];
   /** Newest first, at most JOBS_PER_HELPER. */
   jobs: Job[];
 }
@@ -160,6 +162,7 @@ export type HelperChange =
   | { action: "spend"; helper: HelperId; job: number }
   | { action: "plan"; helper: HelperId; job: number; status: "awaiting" | "approved" | "rejected" }
   | { action: "routine"; helper: HelperId; routine: number; outcome: "added" | "removed" | "made" | "skipped" }
+  | { action: "grant"; helper: HelperId; granted: boolean }
   | { action: "model"; helper: HelperId; job: number }
   | { action: "job"; helper: HelperId; job: number; state: JobState; ms?: number }
   | { action: "step"; helper: HelperId; job: number }
@@ -199,6 +202,12 @@ export interface HelperStore {
   handOff(parentId: number, helper: string, task: string): Job;
   /** Task 3.10: the sub-tasks a task handed off, with their outcomes. */
   handOffs(parentId: number): HandOffOutcome[];
+  /**
+   * Task 3.11: grants a folder to a worker whose role works in folders. Throws HelperError for another role, too many
+   * grants, or a folder `checkGrant` refuses (the home folder itself, ~/Library, hidden folders, system folders).
+   */
+  addGrant(helper: string, path: string): void;
+  removeGrant(helper: string, path: string): boolean;
   /** Task 3.9: a schedule that makes a task for a worker. Throws HelperError for an unknown or unavailable worker, a bad task or schedule, or too many. */
   addRoutine(helper: string, task: string, schedule: Schedule): Routine;
   removeRoutine(id: number): boolean;
@@ -270,5 +279,7 @@ export interface HelperStore {
 export interface HelperStoreOptions {
   /** A file path, or ":memory:" for tests. */
   path: string;
+  /** Task 3.11: the home folder grants are checked against (default the user's). */
+  home?: string;
   now?: () => Date;
 }

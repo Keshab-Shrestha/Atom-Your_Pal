@@ -11,9 +11,8 @@ export interface Soul {
 
 /**
  * The team (ADR-082, Task 3.3), in the window's order. `available` and `role` are code: a soul edit never changes
- * them, and the role alone decides a worker's tools and floor. Kame and Puff wait for folder grants (Task 3.11), Tinker
- * for feedback (Task 3.13). Quill writes up with the research tools from Task 3.5 (its report is the write-up) and gains
- * folders in 3.11.
+ * them, and the role alone decides a worker's tools and floor. Kame, Puff and Quill work in the folders Keshab grants
+ * (Task 3.11; Quill without one writes up with the research tools); Tinker waits for feedback (Task 3.13).
  */
 export const HELPERS = [
   {
@@ -32,7 +31,7 @@ export const HELPERS = [
   {
     id: "kame",
     name: "Kame",
-    available: false,
+    available: true,
     role: "coder",
     soul: {
       name: "Kame",
@@ -45,7 +44,7 @@ export const HELPERS = [
   {
     id: "puff",
     name: "Puff",
-    available: false,
+    available: true,
     role: "designer",
     soul: {
       name: "Puff",

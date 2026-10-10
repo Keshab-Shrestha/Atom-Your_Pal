@@ -2,6 +2,8 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { isOver } from "./budgets.ts";
+import { homedir } from "node:os";
+import { FILE_ROLES, MAX_GRANTS, checkGrant } from "./grants.ts";
 import { DEFAULT_PLAN_LIMIT, DEFAULT_TEAM_CAP, DEFAULT_WORKER_CAP, MAX_CAP, PLAN_LIMIT_RANGE, startOfDay, type Budgets } from "./budgets.ts";
 import { isDue, routineTable } from "./routines.ts";
 import { createSchema, sameSoul, toJobRow, toSoul, webSources, type JobRow, type ReportRow, type SoulRow } from "./store-schema.ts";
@@ -40,7 +42,7 @@ import type { Activity, GoalReport, HelperChange, HelperStore, HelperStoreOption
 export { webSources } from "./store-schema.ts";
 
 export function openHelperStore(options: HelperStoreOptions): HelperStore {
-  const { path, now = () => new Date() } = options;
+  const { path, now = () => new Date(), home = homedir() } = options;
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
   createSchema(db);
@@ -125,6 +127,9 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const deleteReport = db.prepare("DELETE FROM reports WHERE job_id = ?");
 
   const routines = routineTable(db);
+  const grantsOf = db.prepare("SELECT path FROM grants WHERE helper = ? ORDER BY rowid");
+  const putGrant = db.prepare("INSERT OR IGNORE INTO grants (helper, path) VALUES (?, ?)");
+  const dropGrant = db.prepare("DELETE FROM grants WHERE helper = ? AND path = ?");
   const listeners = new Set<(change: HelperChange) => void>();
   const emit = (change: HelperChange) => {
     for (const listener of listeners) listener(change);
@@ -280,6 +285,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         budget: budgets.workers[h.id],
         planFirst: planFirstOf(h.id),
         routines: routines.list().filter((r) => r.helper === h.id),
+        grants: (grantsOf.all(h.id) as { path: string }[]).map((g) => g.path),
         jobs: (newestJobs.all(h.id, JOBS_PER_HELPER) as unknown as JobRow[]).map(toJob),
       }));
     },
@@ -343,6 +349,22 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if (!Number.isInteger(percent) || percent < low || percent > high) throw new HelperError(`The plan limit is a whole percent from ${low} to ${high}.`);
       putSetting.run("planLimit", String(percent));
       emit({ action: "budget", helper: "team" });
+    },
+
+    addGrant(helper, path) {
+      const known = mustHelper(helper);
+      if (!FILE_ROLES.includes(known.role)) throw new HelperError(`${current(known.id).name} does not work in folders.`);
+      const real = checkGrant(path, home);
+      if ((grantsOf.all(known.id) as unknown[]).length >= MAX_GRANTS) throw new HelperError(`A worker can have at most ${MAX_GRANTS} folders.`);
+      putGrant.run(known.id, real);
+      emit({ action: "grant", helper: known.id, granted: true });
+    },
+
+    removeGrant(helper, path) {
+      const known = mustHelper(helper);
+      if (Number(dropGrant.run(known.id, path).changes) === 0) return false;
+      emit({ action: "grant", helper: known.id, granted: false });
+      return true;
     },
 
     handOff(parentId, helper, raw) {

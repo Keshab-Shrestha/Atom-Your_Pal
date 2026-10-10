@@ -75,6 +75,11 @@ export function createSchema(db: DatabaseSync) {
       ended_at TEXT,
       report TEXT
     );
+    CREATE TABLE IF NOT EXISTS grants (
+      helper TEXT NOT NULL,
+      path TEXT NOT NULL,
+      PRIMARY KEY (helper, path)
+    );
     CREATE TABLE IF NOT EXISTS spend (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       job_id INTEGER NOT NULL,

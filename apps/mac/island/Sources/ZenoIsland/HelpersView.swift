@@ -247,6 +247,7 @@ private struct HelperPane: View {
                     }
                     if let budget = helper.budget { BudgetPicker(model: model, helper: helper, budget: budget) }
                     PlanFirstRow(model: model, helper: helper)
+                    if helper.worksInFolders { FoldersSection(model: model, helper: helper) }
                     VStack(alignment: .leading, spacing: 8) {
                         TaskField(model: model, helper: helper)
                         WaitsForMenu(model: model)

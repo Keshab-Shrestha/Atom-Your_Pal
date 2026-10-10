@@ -192,10 +192,14 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public var planFirst: Bool
     /// Task 3.9: its routines, oldest first.
     public var routines: [HelperRoutine]
+    /// Task 3.11: the folders it may work in.
+    public var grants: [String]
+    /// The coder, designer and documenter work in folders Keshab grants.
+    public var worksInFolders: Bool { ["coder", "designer", "documenter"].contains(role) }
 
     public init(id: String, name: String, available: Bool, app: String?, jobs: [HelperJob], pinnedModel: String? = nil,
                 role: String = "", soul: HelperSoul? = nil, soulVersion: Int = 1, soulVersions: [SoulVersion] = [],
-                budget: HelperBudget? = nil, planFirst: Bool = false, routines: [HelperRoutine] = []) {
+                budget: HelperBudget? = nil, planFirst: Bool = false, routines: [HelperRoutine] = [], grants: [String] = []) {
         self.id = id
         self.name = name
         self.available = available
@@ -209,6 +213,7 @@ public struct Helper: Sendable, Equatable, Identifiable {
         self.budget = budget
         self.planFirst = planFirst
         self.routines = routines
+        self.grants = grants
     }
 
     /// The role as the window says it: "Researcher", "Financial information", "HR", ….
@@ -643,6 +648,17 @@ public struct HelpersState: Sendable, Equatable {
               helper.pinnedModel != modelId else { return nil }
         if let modelId, !models.contains(where: { $0.id == modelId }) { return nil }
         return waiting(.helperPin(helper: helper.id, model: modelId ?? ""))
+    }
+
+    /// Task 3.11: grants the chosen worker a folder (the runtime checks which folders may be granted).
+    public mutating func addGrant(_ path: String) -> IslandCommand? {
+        guard let helper = selectedHelper, helper.worksInFolders, !path.isEmpty, !helper.grants.contains(path) else { return nil }
+        return waiting(.grantAdd(helper: helper.id, path: path))
+    }
+
+    public mutating func removeGrant(_ path: String) -> IslandCommand? {
+        guard let helper = selectedHelper, helper.grants.contains(path) else { return nil }
+        return waiting(.grantRemove(helper: helper.id, path: path))
     }
 
     /// Task 3.9: removes one of the chosen worker's routines.

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import ZenoIslandCore
 
@@ -149,5 +150,54 @@ struct RoutinesSection: View {
         guard let at = routine.lastAt else { return routine.when }
         let when = at.formatted(date: .abbreviated, time: .shortened)
         return "\(routine.when) · \(routine.lastSkipped ? "skipped \(when): the last one was still going" : "last \(when)")"
+    }
+}
+
+/// Task 3.11: the folders a coder, designer or documenter may work in. The runtime refuses the home folder itself,
+/// ~/Library, hidden folders and system folders; in a git repository the work goes on the task's own branch.
+struct FoldersSection: View {
+    let model: IslandModel
+    let helper: Helper
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Folders").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                Spacer()
+                QuietButton(title: "Add folder…", symbol: "folder.badge.plus") { choose() }
+            }
+            if helper.grants.isEmpty {
+                Text(helper.role == "documenter" ? "None: \(helper.name) writes up from the web." : "None yet: \(helper.name) needs a folder to work in.")
+                    .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+            }
+            ForEach(helper.grants, id: \.self) { path in
+                HStack(spacing: 8) {
+                    Image(systemName: "folder").font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                    Text(Self.short(path)).font(theme.idFont(.system(size: 12), size: 11.5)).foregroundStyle(theme.text.color).lineLimit(1).truncationMode(.middle)
+                    Spacer(minLength: 8)
+                    QuietButton(title: "Remove") { model.sendHelpers(model.helpers.removeGrant(path)) }
+                }
+            }
+            Text("In a git repository, \(helper.name) works on its own branch. Nothing is ever pushed.")
+                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+        }
+    }
+
+    /// "~/Developer/zeno" for a folder in the home folder.
+    static func short(_ path: String) -> String {
+        let home = NSHomeDirectory()
+        return path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
+    }
+
+    private func choose() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Grant"
+        panel.message = "Choose a folder \(helper.name) may work in."
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        model.sendHelpers(model.helpers.addGrant(url.path))
     }
 }

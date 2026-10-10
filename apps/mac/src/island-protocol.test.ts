@@ -202,6 +202,8 @@ test("parses the helper commands", () => {
     { type: "plan.reject", id: 3 },
     { type: "helper.planFirst", helper: "sid", on: false },
     { type: "routine.delete", id: 2 },
+    { type: "grant.add", helper: "kame", path: "/Users/k/Developer/app" },
+    { type: "grant.remove", helper: "kame", path: "/Users/k/Developer/app" },
   ];
   for (const command of good) assert.deepEqual(parseCommand(JSON.stringify(command)), { command }, JSON.stringify(command));
   assert.deepEqual(parseCommand('{"type":"helpers.list","extra":1}'), { command: { type: "helpers.list" } });

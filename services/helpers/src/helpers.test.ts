@@ -55,14 +55,14 @@ test("webSources keeps http and https addresses only", () => {
 
 // --- store ---
 
-test("lists the seven workers in a fixed order; Sid, Quill, Penny and Hana available, the rest not yet (Tasks 3.3, 3.5)", () => {
+test("lists the seven workers in a fixed order; all but Tinker available (Tasks 3.3, 3.5, 3.11)", () => {
   const store = openHelperStore({ path: ":memory:" });
   assert.deepEqual(
     store.list().map((h) => [h.id, h.name, h.available, h.app, h.jobs.length, h.soulVersion]),
     [
       ["sid", "Sid", true, null, 0, 1],
-      ["kame", "Kame", false, null, 0, 1],
-      ["puff", "Puff", false, null, 0, 1],
+      ["kame", "Kame", true, null, 0, 1],
+      ["puff", "Puff", true, null, 0, 1],
       ["quill", "Quill", true, null, 0, 1],
       ["penny", "Penny", true, null, 0, 1],
       ["hana", "Hana", true, null, 0, 1],
@@ -89,7 +89,7 @@ test("addJob trims, queues, and refuses an unknown or unavailable helper and an 
   assert.equal(job.createdAt.toISOString(), "2026-10-10T09:02:00.000Z");
   assert.equal(job.endedAt, undefined);
   assert.throws(() => store.addJob("bob", "x"), /no helper/);
-  assert.throws(() => store.addJob("kame", "x"), /not ready/);
+  assert.throws(() => store.addJob("tinker", "x"), /not ready/);
   assert.throws(() => store.addJob("sid", "   "), /empty/);
   assert.throws(() => store.addJob("sid", "x".repeat(MAX_TASK_CHARS + 1)), /too long/);
   store.addJob("sid", "x".repeat(MAX_TASK_CHARS)); // exactly the limit is fine

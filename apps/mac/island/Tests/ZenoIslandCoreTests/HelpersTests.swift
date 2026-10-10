@@ -674,3 +674,22 @@ struct HelperHandOffTests {
         #expect(bare.handOffs.isEmpty)
     }
 }
+
+@Suite("Folder grants (Task 3.11)")
+struct HelperGrantTests {
+    @Test func decodesGrantsAndAsksToAddOrRemove() throws {
+        let line = HelperTaskTests.line
+            .replacingOccurrences(of: #"{"id":"hana","name":"Hana","available":true,"app":null,"jobs""#,
+                                  with: #"{"id":"kame","name":"Kame","available":true,"app":null,"role":"coder","grants":["/Users/k/Developer/app"],"jobs":[]},{"id":"hana","name":"Hana","available":true,"app":null,"jobs""#)
+        var state = HelpersState()
+        state.apply(try decodeEvent(line))
+        #expect(state.addGrant("/Users/k/x") == nil) // Sid does not work in folders
+        state.selectHelper("kame")
+        let kame = try #require(state.selectedHelper)
+        #expect(kame.worksInFolders && kame.grants == ["/Users/k/Developer/app"])
+        #expect(state.addGrant("/Users/k/Developer/app") == nil) // already granted
+        #expect(state.addGrant("/Users/k/Developer/site") == .grantAdd(helper: "kame", path: "/Users/k/Developer/site"))
+        #expect(state.removeGrant("/Users/k/Developer/app") == .grantRemove(helper: "kame", path: "/Users/k/Developer/app"))
+        #expect(IslandCommand.grantAdd(helper: "kame", path: "/a b").line == #"{"helper":"kame","path":"/a b","type":"grant.add"}"# + "\n")
+    }
+}

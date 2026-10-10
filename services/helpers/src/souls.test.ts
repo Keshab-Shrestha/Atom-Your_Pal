@@ -52,10 +52,10 @@ test("restoring an older version makes a new version with its text, so the resto
 
 test("a renamed worker keeps its id; its new name shows in the list and in refusals", () => {
   const store = openHelperStore({ path: ":memory:" });
-  store.saveSoul("kame", { ...HELPERS[1].soul, name: "Shell" });
-  assert.equal(store.list()[1]!.name, "Shell");
-  assert.equal(store.list()[1]!.id, "kame");
-  assert.throws(() => store.addJob("kame", "x"), /Shell is not ready yet/);
+  store.saveSoul("tinker", { ...HELPERS[6].soul, name: "Shell" });
+  assert.equal(store.list()[6]!.name, "Shell");
+  assert.equal(store.list()[6]!.id, "tinker");
+  assert.throws(() => store.addJob("tinker", "x"), /Shell is not ready yet/);
 });
 
 test("names stay unique, so a restore that would clash with another worker is refused", () => {

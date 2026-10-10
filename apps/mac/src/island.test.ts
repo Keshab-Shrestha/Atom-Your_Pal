@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import type { ProviderKeys } from "@zeno/shared";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -645,6 +646,7 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
         budget: { cap: 5, spent: 0 },
         planFirst: false,
         routines: [],
+        grants: [],
         jobs: [],
       })),
       apps: ["Arc", "Brave Browser", "Notes"],
@@ -690,7 +692,7 @@ test("job.add queues a job for Sid; empty, long, unknown or unavailable is refus
   await h.send(
     { type: "job.add", helper: "sid", task: "   " },
     { type: "job.add", helper: "sid", task: "x".repeat(1001) },
-    { type: "job.add", helper: "kame", task: "x" },
+    { type: "job.add", helper: "tinker", task: "x" },
     { type: "job.add", helper: "bob", task: "x" },
   );
   assert.deepEqual(h.types(), ["error", "error", "error", "error"]);
@@ -888,6 +890,17 @@ test("thread.get lists the sub-tasks a task handed off (Task 3.10)", async () =>
   await h.send({ type: "thread.get", id: sid.id });
   const thread = h.events().at(-1) as Extract<IslandEvent, { type: "thread" }>;
   assert.deepEqual([thread.handOffs, thread.activity.map((a) => a.kind)], [[penny.id], ["created", "running", "handed"]]);
+});
+
+test("grant.add refuses the home folder; grant.remove takes a folder back (Task 3.11)", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  h.clear();
+  await h.send({ type: "grant.add", helper: "kame", path: homedir() });
+  assert.deepEqual(h.types(), ["error"]);
+  assert.match((h.events()[0] as { message: string }).message, /whole home folder/);
+  await h.send({ type: "grant.remove", helper: "kame", path: "/nope" });
+  assert.deepEqual(store.list()[1]!.grants, []);
 });
 
 test("helpers.settings turns the large model off and on, answered with helpers", async () => {

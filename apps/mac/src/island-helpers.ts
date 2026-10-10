@@ -70,6 +70,8 @@ export function islandHelpers(
     rejectPlan: (id) => store.rejectPlan(id),
     setPlanFirst: (helper, on) => store.setPlanFirst(helper, on),
     removeRoutine: (id) => store.removeRoutine(id),
+    addGrant: (helper, path) => store.addGrant(helper, path),
+    removeGrant: (helper, path) => store.removeGrant(helper, path),
     setBlockers: (id, blockedBy) => store.setBlockers(id, blockedBy),
     addComment: (id, text) => store.addComment(id, text),
     startFresh: (id) => store.startFresh(id),

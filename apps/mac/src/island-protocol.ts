@@ -30,6 +30,8 @@ export type IslandCommand =
   | { type: "plan.reject"; id: number }
   | { type: "helper.planFirst"; helper: string; on: boolean }
   | { type: "routine.delete"; id: number }
+  | { type: "grant.add"; helper: string; path: string }
+  | { type: "grant.remove"; helper: string; path: string }
   | { type: "job.block"; id: number; blockedBy: number[] }
   | { type: "comment.add"; id: number; text: string }
   | { type: "thread.get"; id: number }
@@ -168,6 +170,8 @@ export interface HelperItem {
   planFirst: boolean;
   /** Task 3.9: its routines: `when` in words ("Every day at 8:00 AM"), when it last came due, and whether that was skipped. */
   routines: { id: number; task: string; when: string; lastAt?: string; lastSkipped?: boolean }[];
+  /** Task 3.11: the folders it may work in (coder, designer, documenter). */
+  grants: string[];
   jobs: JobItem[];
 }
 
@@ -255,6 +259,8 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "plan.reject",
   "helper.planFirst",
   "routine.delete",
+  "grant.add",
+  "grant.remove",
   "job.stop",
   "job.fresh",
   "job.delete",
@@ -326,6 +332,13 @@ export function parseCommand(line: string): ParsedLine {
     if (blockedBy !== undefined && !isIdList(blockedBy)) return { error: 'job.add needs "blockedBy" to be a list of whole numbers.' };
     if (planFirst !== undefined && typeof planFirst !== "boolean") return { error: 'job.add needs "planFirst" to be true or false.' };
     return { command: { type, helper, task, ...(blockedBy !== undefined ? { blockedBy } : {}), ...(planFirst !== undefined ? { planFirst } : {}) } };
+  }
+  if (type === "grant.add" || type === "grant.remove") {
+    // Which folders may be granted is the store's to refuse (stage "settings").
+    const { helper, path } = value as { helper?: unknown; path?: unknown };
+    if (typeof helper !== "string" || helper === "") return { error: `${type} needs a "helper" string.` };
+    if (typeof path !== "string" || path === "" || path.length > 1024) return { error: `${type} needs a "path" string.` };
+    return { command: { type, helper, path } };
   }
   if (type === "helper.planFirst") {
     const { helper, on } = value as { helper?: unknown; on?: unknown };

@@ -103,6 +103,9 @@ export interface IslandHelpers {
   rejectPlan(id: number): void;
   /** Whether a worker's new tasks plan first. Throws, with words for the user, for an unknown worker. */
   setPlanFirst(helper: string, on: boolean): void;
+  /** Task 3.11: grants a folder. Throws, with words for the user, for a folder that cannot be granted. */
+  addGrant(helper: string, path: string): void;
+  removeGrant(helper: string, path: string): boolean;
   /** Task 3.9: removes a routine. False when there is none. */
   removeRoutine(id: number): boolean;
   /** Changes what a queued task waits for (ADR-087). Throws, with words for the user, for a started task or a circle. */
@@ -290,6 +293,13 @@ export function runIsland(options: IslandOptions): IslandSession {
         return;
       case "plan.reject":
         changeHelpers(command.type, (helpers) => helpers.rejectPlan(command.id));
+        return;
+      case "grant.add":
+        changeHelpers(command.type, (helpers) => helpers.addGrant(command.helper, command.path));
+        return;
+      case "grant.remove":
+        options.helpers?.removeGrant(command.helper, command.path); // unknown: ignored
+        sendHelpers();
         return;
       case "routine.delete":
         options.helpers?.removeRoutine(command.id); // unknown: ignored
