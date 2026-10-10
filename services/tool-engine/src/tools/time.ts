@@ -3,6 +3,7 @@ import type { Tool } from "../engine.ts";
 /** The first and harmless tool: today's date and time. Proves the tool path end to end (Task 0.6.1). */
 export function timeTool(now: () => Date = () => new Date()): Tool {
   return {
+    capability: { title: "Date and time", examples: ["What time is it?", "What's the date today?"] },
     spec: {
       name: "current_time",
       description: "Gets the current date and time on this Mac. Use it when the user asks what time or day it is.",

@@ -173,6 +173,57 @@ public struct MemoryList: Sendable, Equatable {
     }
 }
 
+/// One thing ZENO can do, with phrases to try (ADR-076), from the `capabilities` event. Only tools that are on are listed.
+public struct CapabilityItem: Sendable, Equatable {
+    public var title: String
+    public var examples: [String]
+
+    public init(title: String, examples: [String]) {
+        self.title = title
+        self.examples = examples
+    }
+
+    /// For the empty conversation: the first example of each capability, up to `limit`, so they show variety.
+    public static func firstExamples(_ items: [CapabilityItem], limit: Int = 4) -> [String] {
+        Array(items.compactMap(\.examples.first).prefix(limit))
+    }
+}
+
+/// How much of the Claude plan is used (ADR-076), from the `plan.usage` event. Fractions: 0.42 is 42%.
+/// Every field is optional: an event may report one window only.
+public struct PlanUsage: Sendable, Equatable {
+    public var fiveHour: Double?
+    public var sevenDay: Double?
+    public var overage: Bool?
+
+    public init(fiveHour: Double? = nil, sevenDay: Double? = nil, overage: Bool? = nil) {
+        self.fiveHour = fiveHour
+        self.sevenDay = sevenDay
+        self.overage = overage
+    }
+
+    /// Values outside this range are ignored, as in Coucou.
+    public static let validRange = 0.0...2.0
+
+    /// Nothing usable arrived: the meters stay hidden.
+    public var isEmpty: Bool { fiveHour == nil && sevenDay == nil }
+
+    /// A newer report: its fields replace these, fields it does not carry are kept.
+    public func merging(_ newer: PlanUsage) -> PlanUsage {
+        PlanUsage(fiveHour: newer.fiveHour ?? fiveHour, sevenDay: newer.sevenDay ?? sevenDay, overage: newer.overage ?? overage)
+    }
+
+    public enum Level: Sendable, Equatable { case normal, attention, problem }
+
+    /// The meter's colour: attention from 80%, problem from 95%.
+    public static func level(_ fraction: Double) -> Level {
+        fraction >= 0.95 ? .problem : fraction >= 0.8 ? .attention : .normal
+    }
+
+    /// What the meter shows, held to 0–100%.
+    public static func percent(_ fraction: Double) -> Int { Int((min(max(fraction, 0), 1) * 100).rounded()) }
+}
+
 public struct ReadyInfo: Sendable, Equatable {
     public var protocolVersion: Int
     public var provider: String
@@ -242,6 +293,10 @@ public enum IslandEvent: Sendable, Equatable {
     case timer(id: Int, label: String, message: String)
     /// The answer to `context.window` (ADR-074): the app was read for the next question, or refused with `message`.
     case contextReady(app: String, ok: Bool, message: String?)
+    /// What ZENO can do, once after `ready` (ADR-076).
+    case capabilities([CapabilityItem])
+    /// Claude plan usage, whenever the plan reports it (ADR-076).
+    case planUsage(PlanUsage)
     case error(RuntimeError)
     /// A newer runtime sent an event this island does not know; ignored for forward compatibility.
     case unknown(type: String)
@@ -267,6 +322,8 @@ public enum IslandEvent: Sendable, Equatable {
         case .memory: "memory"
         case .timer: "timer"
         case .contextReady: "context.ready"
+        case .capabilities: "capabilities"
+        case .planUsage: "plan.usage"
         case .error(let e): "error:\(e.stage)"
         case .unknown(let type): "unknown:\(type)"
         }
@@ -353,6 +410,10 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .contextReady(app: try f.string("app"), ok: try f.bool("ok"), message: f.optionalString("message"))
     case "memory":
         return .memory(MemoryList(enabled: try f.bool("enabled"), count: try f.int("count"), memories: try f.memories(), episodes: try f.episodes()))
+    case "capabilities":
+        return .capabilities(try f.capabilities())
+    case "plan.usage":
+        return .planUsage(PlanUsage(fiveHour: f.usageFraction("fiveHour"), sevenDay: f.usageFraction("sevenDay"), overage: f.optionalBool("overage")))
     case "error":
         return .error(RuntimeError(
             stage: try f.string("stage"),
@@ -454,6 +515,26 @@ private struct Fields {
             let exchanges = (e["exchanges"] as? NSNumber)?.intValue ?? 0
             return EpisodeItem(id: id.intValue, summary: summary, endedAt: (e["endedAt"] as? String).flatMap { iso.date(from: $0) }, exchanges: exchanges)
         }
+    }
+
+    /// The `items` of a `capabilities` event. A malformed item is skipped (and a non-text example dropped), so one bad
+    /// tool cannot hide the others.
+    func capabilities() throws -> [CapabilityItem] {
+        guard let value = values["items"] else { throw ProtocolError.missingField(event: event, field: "items") }
+        guard let entries = value as? [Any] else { throw ProtocolError.invalidValue(event: event, field: "items") }
+        return entries.compactMap { entry in
+            guard let c = entry as? [String: Any], let title = c["title"] as? String, !title.isEmpty,
+                  let examples = c["examples"] as? [Any]
+            else { return nil }
+            return CapabilityItem(title: title, examples: examples.compactMap { $0 as? String }.filter { !$0.isEmpty })
+        }
+    }
+
+    /// A usage fraction from `plan.usage`, or nil when absent, not a number, or outside `PlanUsage.validRange`.
+    func usageFraction(_ key: String) -> Double? {
+        guard let n = values[key] as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID(),
+              PlanUsage.validRange.contains(n.doubleValue) else { return nil }
+        return n.doubleValue
     }
 
     func optionalBool(_ key: String) -> Bool? {

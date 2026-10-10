@@ -36,6 +36,8 @@ function islandHarness(
     memory: IslandOptions["memory"];
     onTimer: IslandOptions["onTimer"];
     screen: IslandOptions["screen"];
+    capabilities: IslandOptions["capabilities"];
+    onPlanUsage: IslandOptions["onPlanUsage"];
   }> = {},
 ) {
   const input = new PassThrough();
@@ -83,6 +85,8 @@ function islandHarness(
     ...(over.memory ? { memory: over.memory } : {}),
     ...(over.onTimer ? { onTimer: over.onTimer } : {}),
     ...(over.screen ? { screen: over.screen } : {}),
+    ...(over.capabilities ? { capabilities: over.capabilities } : {}),
+    ...(over.onPlanUsage ? { onPlanUsage: over.onPlanUsage } : {}),
     micName: async () => "macOS default: Test Mic",
     describe: (error) => (error instanceof Error ? error.message : String(error)),
     errorDetails: (error) => ((error as { kind?: string }).kind ? { kind: (error as { kind: string }).kind, retryable: true } : {}),
@@ -674,4 +678,48 @@ test("context.window without a screen reader, or when the read fails, answers ok
   failing.clear();
   await failing.send({ type: "context.window", bundleId: "com.brave.Browser", name: "Brave Browser" });
   assert.deepEqual(failing.events(), [{ type: "context.ready", app: "Brave Browser", ok: false, message: "lsappinfo failed" }]);
+});
+
+// --- capabilities and plan.usage (ADR-076) ---
+
+test("capabilities follow ready (and info), and are sent again after a model switch", async () => {
+  const items = [{ title: "Open apps and websites", examples: ["Open Safari", "Go to YouTube"] }];
+  let provider = "gemini";
+  const settings: IslandOptions["settings"] = {
+    info: () => ({ provider, model: "m", providers: [] }),
+    setModel: (p) => {
+      provider = p;
+      return { ok: true };
+    },
+  };
+  const h = islandHarness({ settings, capabilities: () => [...items, ...(provider === "claude-plan" ? [{ title: "Search the web", examples: ["x", "y"] }] : [])] });
+  await tick(5);
+  assert.deepEqual(h.types(), ["ready", "info", "capabilities"]);
+  assert.deepEqual(h.events()[2], { type: "capabilities", items });
+  h.clear();
+  await h.send({ type: "model.set", provider: "claude-plan", model: "m" });
+  assert.deepEqual(h.types(), ["info", "capabilities"]);
+  assert.deepEqual(h.events()[1], { type: "capabilities", items: [...items, { title: "Search the web", examples: ["x", "y"] }] });
+});
+
+test("plan usage is forwarded as plan.usage, sanitised; nothing is sent once quit", async () => {
+  let report: ((usage: Record<string, unknown>) => void) | undefined;
+  let stopped = 0;
+  const h = islandHarness({
+    onPlanUsage: (listener) => {
+      report = listener;
+      return () => stopped++;
+    },
+  });
+  await tick(5);
+  h.clear();
+  report!({ fiveHour: 0.42, sevenDay: 0.12, overage: false });
+  report!({ fiveHour: 3, sevenDay: Number.NaN, overage: "yes", accessToken: "secret" });
+  report!({ fiveHour: 0.5, sevenDay: 2.5, resetsAt: 1_760_000_000 });
+  assert.deepEqual(h.events(), [
+    { type: "plan.usage", fiveHour: 0.42, sevenDay: 0.12, overage: false },
+    { type: "plan.usage", fiveHour: 0.5 },
+  ]);
+  h.session.quit();
+  assert.equal(stopped, 1);
 });

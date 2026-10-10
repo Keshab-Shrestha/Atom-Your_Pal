@@ -72,8 +72,9 @@ final class DictationController {
     // MARK: - Starting up
 
     /// Prepares the microphone and loads the speech model in the background, so the first dictation is instant.
+    /// While paused the microphone is skipped; it is prepared on resume.
     func warmUp() {
-        if let problem = capture.prepare() { log("dictation.prepare_failed", ["detail": "\(problem)"]) }
+        if !paused { prepareMicrophone() }
         loadVocabulary()
         guard modelLoading == nil else { return }
         let downloaded = DictationModel.isDownloaded
@@ -88,6 +89,22 @@ final class DictationController {
                 await MainActor.run { self.modelError = "\(error)"; self.log("dictation.model_failed", ["message": "\(error)"]) }
             }
         }
+    }
+
+    private func prepareMicrophone() {
+        if let problem = capture.prepare() { log("dictation.prepare_failed", ["detail": "\(problem)"]) }
+    }
+
+    /// The screens are asleep or the Mac is locked (ADR-076). Preparing the microphone then hung on Core Audio
+    /// (TASK.md 0.5.10), so while paused nothing prepares or starts it: not the warm-up, not a device change, not the
+    /// shortcuts. On resume it is prepared again, which also picks up a microphone that changed meanwhile.
+    private(set) var paused = false
+
+    func setPaused(_ paused: Bool) {
+        guard paused != self.paused else { return }
+        self.paused = paused
+        capture.setSuspended(paused)
+        if !paused, !isActive, talkSince == nil { prepareMicrophone() }
     }
 
     /// Test hook (`ZENO_DICTATION_FILE=a.wav,b.wav`): runs recordings through the same recognition path as a real
@@ -136,6 +153,7 @@ final class DictationController {
             return
         }
         guard case .idle = state, talkSince == nil, talkWork == nil else { onPhase(.done(.busy)); return }
+        if paused { log("dictation.ignored", ["reason": "paused"]); return }
         if conversationBusy() { onPhase(.done(.busy)); return }
 
         switch DictationCapture.permission {
@@ -229,7 +247,7 @@ final class DictationController {
     /// Starts listening for a question. False when this path cannot be used right now (model not loaded, no microphone
     /// permission, dictating): the caller falls back to the runtime's own microphone and Whisper.
     func talkBegan() -> Bool {
-        guard modelReady, case .idle = state, talkSince == nil, DictationCapture.permission == .authorized else { return false }
+        guard modelReady, !paused, case .idle = state, talkSince == nil, DictationCapture.permission == .authorized else { return false }
         talkWork?.cancel()
         talkWork = nil
         loadVocabulary()

@@ -122,6 +122,7 @@ export function createFrontWindowTool(options: FrontWindowOptions = {}): Tool {
   const frontApp = options.frontApp ?? lsappinfoFront;
 
   return {
+    capability: { title: "What's on screen", examples: ["What's this page?", "Which app am I in?"] },
     spec: {
       name: "front_window",
       description:

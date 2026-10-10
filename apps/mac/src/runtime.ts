@@ -7,6 +7,7 @@ import { createCore, CoreError, type Core } from "@zeno/core";
 import { createComputerBridge, type ComputerBridge } from "./computer-bridge.ts";
 import {
   calendarRunner,
+  capabilityItems,
   createCalendarTools,
   createComputerTool,
   createCuaTransport,
@@ -18,10 +19,11 @@ import {
   createToolEngine,
   timeTool,
   weatherTool,
+  type Capability,
   type TimerInfo,
   type Timers,
 } from "@zeno/tool-engine";
-import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError } from "@zeno/llm-gateway";
+import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError, type PlanUsage } from "@zeno/llm-gateway";
 import { createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import {
   createEpisodeRecorder,
@@ -47,6 +49,9 @@ import type { VoiceLoopEvents, VoiceLoopOptions } from "./voice-loop.ts";
 /** One request on the plan provider can take several tool turns, each a model call; this is its whole-request limit. */
 const PLAN_TIMEOUT_MS = 120_000;
 
+/** Claude Code's own web search on the Claude plan (ADR-069): not a ZENO tool, so listed here (ADR-076). */
+const WEB_SEARCH: Capability = { title: "Search the web", examples: ["What's in the news today?", "Who won the match last night?"] };
+
 export interface Runtime {
   config: Config;
   log: Logger;
@@ -70,6 +75,10 @@ export interface Runtime {
   timers: Timers;
   /** Called when a timer ends; returns a function that stops listening. */
   onTimer(listener: (timer: TimerInfo) => void): () => void;
+  /** "What can I ask?" (ADR-076): the tools that are on, plus web search when the Claude plan is in use. */
+  capabilities(): Capability[];
+  /** Called when the Claude plan reports usage (ADR-076); returns a function that stops listening. */
+  onPlanUsage(listener: (usage: PlanUsage) => void): () => void;
 }
 
 export interface RuntimeOptions {
@@ -129,52 +138,51 @@ export function createRuntime(
   log.info("calendar.helper", { available: Boolean(calendarHelper) });
   // The tools ZENO can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
   // needs them; the other providers get them from the Core.
-  const toolEngine = createToolEngine({
-    tools: [
-      timeTool(),
-      // ADR-066: open apps and web pages. Always on: no screen access, no clicks. ZENO_APPS=0 turns it off.
-      ...(process.env.ZENO_APPS === "0" ? [] : createAppTools()),
-      // ADR-068: music (Spotify or Music) and the Mac's volume. ZENO_MEDIA=0 turns it off.
-      ...(process.env.ZENO_MEDIA === "0" ? [] : createMediaTools()),
-      // ADR-070: "take a note" into Apple Notes (adding only). ZENO_NOTES=0 turns it off.
-      ...(process.env.ZENO_NOTES === "0" ? [] : createNoteTools()),
-      // ADR-072: the app in front and, in Chrome/Arc/Edge/Brave, the tab title and address. Read-only, on request.
-      // Logs the bundle id and field names only. ZENO_FRONT_WINDOW=0 turns it off.
-      ...(process.env.ZENO_FRONT_WINDOW === "0" ? [] : [createFrontWindowTool({ onRead: (e) => log.info("front_window.read", { ...e, fields: e.fields.join(",") }) })]),
-      ...timers.tools,
-      // ADR-062: Open-Meteo, no key. ZENO_WEATHER=0 turns it off; ZENO_HOME sets "here" (default: the time zone's city).
-      ...(weather ? [weather] : []),
-      // ADR-060: Calendar and Reminders when the helper is there (inside ZENO.app). ZENO_CALENDAR=0 turns it off.
-      ...(calendarHelper ? createCalendarTools({ run: calendarRunner(calendarHelper) }) : []),
-      ...(memory
-        ? createMemoryTools({
-            store: memory,
-            provenance: () => current,
-            onChange: (e) => {
-              log.info("memory.change", e);
-              for (const listener of memoryListeners) listener();
+  const tools = [
+    timeTool(),
+    // ADR-066: open apps and web pages. Always on: no screen access, no clicks. ZENO_APPS=0 turns it off.
+    ...(process.env.ZENO_APPS === "0" ? [] : createAppTools()),
+    // ADR-068: music (Spotify or Music) and the Mac's volume. ZENO_MEDIA=0 turns it off.
+    ...(process.env.ZENO_MEDIA === "0" ? [] : createMediaTools()),
+    // ADR-070: "take a note" into Apple Notes (adding only). ZENO_NOTES=0 turns it off.
+    ...(process.env.ZENO_NOTES === "0" ? [] : createNoteTools()),
+    // ADR-072: the app in front and, in Chrome/Arc/Edge/Brave, the tab title and address. Read-only, on request.
+    // Logs the bundle id and field names only. ZENO_FRONT_WINDOW=0 turns it off.
+    ...(process.env.ZENO_FRONT_WINDOW === "0" ? [] : [createFrontWindowTool({ onRead: (e) => log.info("front_window.read", { ...e, fields: e.fields.join(",") }) })]),
+    ...timers.tools,
+    // ADR-062: Open-Meteo, no key. ZENO_WEATHER=0 turns it off; ZENO_HOME sets "here" (default: the time zone's city).
+    ...(weather ? [weather] : []),
+    // ADR-060: Calendar and Reminders when the helper is there (inside ZENO.app). ZENO_CALENDAR=0 turns it off.
+    ...(calendarHelper ? createCalendarTools({ run: calendarRunner(calendarHelper) }) : []),
+    ...(memory
+      ? createMemoryTools({
+          store: memory,
+          provenance: () => current,
+          onChange: (e) => {
+            log.info("memory.change", e);
+            for (const listener of memoryListeners) listener();
+          },
+        })
+      : []),
+    // ADR-054: off unless ZENO_COMPUTER=1. Steps and approvals go through the bridge to the island;
+    // with no island, or no answer, an approval is a refusal.
+    ...(process.env.ZENO_COMPUTER === "1"
+      ? [
+          createComputerTool({
+            cua: createCuaTransport(),
+            approve: (request, signal) => {
+              log.info("computer.approval_asked");
+              return computer.approve(request, signal);
             },
-          })
-        : []),
-      // ADR-054: off unless ZENO_COMPUTER=1. Steps and approvals go through the bridge to the island;
-      // with no island, or no answer, an approval is a refusal.
-      ...(process.env.ZENO_COMPUTER === "1"
-        ? [
-            createComputerTool({
-              cua: createCuaTransport(),
-              approve: (request, signal) => {
-                log.info("computer.approval_asked");
-                return computer.approve(request, signal);
-              },
-              onStep: (step) => computer.step(step),
-              onPoint: (target) => computer.point(target),
-              onAction: (event) => log.info("computer.action", { ...event }),
-            }),
-          ]
-        : []),
-    ],
-    onCall: (e) => log.info("tool.call", e),
-  });
+            onStep: (step) => computer.step(step),
+            onPoint: (target) => computer.point(target),
+            onAction: (event) => log.info("computer.action", { ...event }),
+          }),
+        ]
+      : []),
+  ];
+  const toolEngine = createToolEngine({ tools, onCall: (e) => log.info("tool.call", e) });
+  const planUsageListeners = new Set<(usage: PlanUsage) => void>();
   const createModel = (choice: LlmChoice, apiKey: string) =>
     createGateway({
       provider: createProviderAdapter({
@@ -182,7 +190,11 @@ export function createRuntime(
         apiKey,
         tools: toolEngine,
         // Plan use goes in the log so it is visible how much of the plan a day of ZENO takes. No keys, no text.
-        onUsage: (usage) => log.info("plan.usage", { ...usage }),
+        // ADR-076: and to the island's meters.
+        onUsage: (usage) => {
+          log.info("plan.usage", { ...usage });
+          for (const listener of planUsageListeners) listener(usage);
+        },
       }),
       // Claude Code starts its own process and may take several tool turns, so it gets longer than one API call.
       timeoutMs: choice.provider === "claude-plan" ? Math.max(config.llm.timeoutMs, PLAN_TIMEOUT_MS) : config.llm.timeoutMs,
@@ -255,6 +267,12 @@ export function createRuntime(
     onTimer(listener) {
       timerListeners.add(listener);
       return () => timerListeners.delete(listener);
+    },
+    capabilities: () =>
+      capabilityItems(settings.info().provider === "claude-plan" && process.env.ZENO_WEB !== "0" ? [...tools, { capability: WEB_SEARCH }] : tools),
+    onPlanUsage(listener) {
+      planUsageListeners.add(listener);
+      return () => planUsageListeners.delete(listener);
     },
     record: (handlers) => startRecording(config.audio, handlers),
     async micName() {

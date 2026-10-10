@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MAX_COMMAND_LENGTH, createLevelThrottle, encodeEvent, parseCommand } from "./island-protocol.ts";
+import { MAX_COMMAND_LENGTH, createLevelThrottle, encodeEvent, parseCommand, planUsageEvent } from "./island-protocol.ts";
 
 test("parses every command", () => {
   for (const type of ["talk.start", "talk.send", "talk.cancel", "conversation.reset", "quit"]) {
@@ -146,4 +146,25 @@ test("encodes context.ready, with a message when refused", () => {
     encodeEvent({ type: "context.ready", app: "Terminal", ok: false, message: "ZENO doesn't read Terminal." }),
     '{"type":"context.ready","app":"Terminal","ok":false,"message":"ZENO doesn\'t read Terminal."}\n',
   );
+});
+
+test("capabilities and plan.usage encode as one JSON line each (ADR-076)", () => {
+  assert.equal(
+    encodeEvent({ type: "capabilities", items: [{ title: "Open apps and websites", examples: ["Open Safari", "Go to YouTube"] }] }),
+    '{"type":"capabilities","items":[{"title":"Open apps and websites","examples":["Open Safari","Go to YouTube"]}]}\n',
+  );
+  assert.equal(
+    encodeEvent({ type: "plan.usage", fiveHour: 0.42, sevenDay: 0.12, overage: false }),
+    '{"type":"plan.usage","fiveHour":0.42,"sevenDay":0.12,"overage":false}\n',
+  );
+});
+
+test("plan usage keeps only sane shares and a true/false overage, and nothing else from the SDK", () => {
+  assert.deepEqual(planUsageEvent({ fiveHour: 0.42, sevenDay: 0, overage: true }), { type: "plan.usage", fiveHour: 0.42, sevenDay: 0, overage: true });
+  assert.deepEqual(planUsageEvent({ fiveHour: 2, sevenDay: 2.01 }), { type: "plan.usage", fiveHour: 2 });
+  assert.deepEqual(planUsageEvent({ fiveHour: -0.1, sevenDay: Number.NaN, overage: "no" }), undefined);
+  assert.deepEqual(planUsageEvent({ fiveHour: Infinity, sevenDay: "0.5", overage: false }), { type: "plan.usage", overage: false });
+  const extra = { fiveHour: 0.3, token: "secret", resetsAt: 123 } as { fiveHour: number };
+  assert.deepEqual(planUsageEvent(extra), { type: "plan.usage", fiveHour: 0.3 });
+  assert.equal(planUsageEvent({}), undefined);
 });

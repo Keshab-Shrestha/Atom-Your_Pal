@@ -429,6 +429,7 @@ struct ConversationTab: View {
                     .foregroundStyle(theme.text2.color)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
+                EmptyConversationExamples(model: model).padding(.top, 4)
                 Spacer()
                 Composer(model: model)
             }
@@ -585,6 +586,8 @@ struct StatusTab: View {
                     Row(title: "Voice") { value(model.status.voiceLoaded ? "Loaded" : "Not loaded") }
                 }
 
+                PlanMetersCard(usage: model.planUsage)
+
                 Card("Last turn") {
                     if let t = model.status.lastTimings {
                         VStack(alignment: .leading, spacing: 5) {
@@ -739,6 +742,7 @@ struct SettingsTab: View {
     private func summary(_ page: IslandModel.SettingsPage) -> String {
         let s = model.settings
         switch page {
+        case .examples: return model.capabilities.map { $0.count == 1 ? "1 tool" : "\($0.count) tools" } ?? ""
         case .appearance: return "\(s.theme.title) · \(s.wispStyle.title)"
         case .model: return model.modelInfo?.currentModelName ?? "—"
         case .shortcuts: return s.shortcut(for: .talk)?.display ?? "Off"
@@ -756,6 +760,7 @@ struct SettingsTab: View {
 
     @ViewBuilder private func pageContent(_ page: IslandModel.SettingsPage) -> some View {
         switch page {
+        case .examples: ExamplesSection(model: model)
         case .appearance: AppearanceSection(model: model)
         case .model: ModelSection(model: model)
         case .shortcuts: ShortcutSection(model: model)
@@ -1321,6 +1326,7 @@ struct ModelSection: View {
                         .padding(11)
                 }
             }
+            if info.provider == "claude-plan" { PlanMetersCard(usage: model.planUsage) }
             let unavailable = info.providers.filter { !$0.available }
             if !unavailable.isEmpty {
                 Card("Not set up") {
@@ -1440,6 +1446,8 @@ struct RecorderButton: View {
 /// Lays out children left to right, wrapping onto new lines.
 struct FlowLayout: Layout {
     var spacing: CGFloat = 6
+    /// Each row centred instead of starting at the left edge.
+    var centered = false
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let rows = arrange(width: proposal.width ?? .infinity, subviews: subviews)
@@ -1451,7 +1459,7 @@ struct FlowLayout: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         var y = bounds.minY
         for row in arrange(width: bounds.width, subviews: subviews) {
-            var x = bounds.minX
+            var x = bounds.minX + (centered ? max(0, (bounds.width - row.width) / 2) : 0)
             for index in row.indices {
                 let size = subviews[index].sizeThatFits(.unspecified)
                 subviews[index].place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))

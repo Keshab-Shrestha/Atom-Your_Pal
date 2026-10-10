@@ -248,3 +248,9 @@ test("episode context: newest few, oldest first, never the current session", () 
   assert.match(lines[2], /Talked about d\./);
   assert.ok(!block.includes("about now"));
 });
+
+test("each memory tool says what can be asked of it, under one title (ADR-076)", () => {
+  const tools = createMemoryTools({ store: openMemoryStore({ path: ":memory:" }), provenance: () => voice });
+  assert.deepEqual([...new Set(tools.map((t) => t.capability.title))], ["Remember things"]);
+  assert.equal(new Set(tools.flatMap((t) => t.capability.examples)).size, 3);
+});

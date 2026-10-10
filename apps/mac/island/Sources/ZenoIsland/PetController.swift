@@ -68,6 +68,8 @@ final class PetController {
     private let state = PetState()
     private var brain = PetBrain(width: 800, now: PetController.now)
     private var timer: Timer?
+    /// Asleep or locked (ADR-076): no frames are drawn.
+    private var paused = false
     private var observers: [NSObjectProtocol] = []
     private let trace: (String) -> Void
 
@@ -157,7 +159,7 @@ final class PetController {
             lastTick = now
             move(to: feet)
             window.orderFrontRegardless()
-            startTimer()
+            if !paused { startTimer() }
             if observers.isEmpty { observe() }
             react(.hello)
             trace("pet shown \(brain.pinned ? "parked" : "walking")")
@@ -247,6 +249,18 @@ final class PetController {
         for o in observers { NotificationCenter.default.removeObserver(o) }
         observers.removeAll()
         setEnabled(false)
+    }
+
+    /// Stops the frame timer while the screens sleep or the Mac is locked, and starts it again after (ADR-076).
+    func setPaused(_ paused: Bool) {
+        self.paused = paused
+        if paused {
+            timer?.invalidate()
+            timer = nil
+        } else if window.isVisible, timer == nil {
+            lastTick = Self.now
+            startTimer()
+        }
     }
 
     // MARK: - Frame loop

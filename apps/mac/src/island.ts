@@ -9,6 +9,7 @@ import {
   createLevelThrottle,
   encodeEvent,
   parseCommand,
+  planUsageEvent,
   type IslandCommand,
   type IslandEvent,
   type EpisodeItem,
@@ -19,7 +20,7 @@ import type { WindowPointer } from "./screen-context.ts";
 import type { ModelSettings } from "./model-settings.ts";
 import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
-import { spokenDuration } from "@zeno/tool-engine";
+import { spokenDuration, type Capability } from "@zeno/tool-engine";
 import { createVoiceLoop, type CoreLike, type LoopNotice, type VoiceLoop, type VoiceLoopEvents, type VoiceLoopOptions } from "./voice-loop.ts";
 
 export interface IslandOptions {
@@ -41,6 +42,13 @@ export interface IslandOptions {
   memory?: IslandMemory;
   /** Wisp dropped on a window (ADR-074): reads that app once for the next request. Absent: `context.window` is refused. */
   screen?: Pick<WindowPointer, "point" | "clear">;
+  /**
+   * "What can I ask?" (ADR-076): the tools that are on, for the model in use. Sent as `capabilities` after `ready`,
+   * and again after a model switch, since Claude plan web search depends on the provider.
+   */
+  capabilities?(): Capability[];
+  /** Claude plan usage reports (ADR-076), forwarded as `plan.usage`. Returns a function that stops listening. */
+  onPlanUsage?(listener: (usage: { fiveHour?: number; sevenDay?: number; overage?: boolean }) => void): () => void;
   /** Plays a short sound before a timer is announced (optional). */
   chime?(): Promise<void>;
   /** Timers (ADR-061): subscribe to timers ending, to announce them. */
@@ -260,9 +268,15 @@ export function runIsland(options: IslandOptions): IslandSession {
   const stopMemoryUpdates = options.memory?.onChange(() => {
     if (memoryWatched) sendMemory();
   });
+  const stopPlanUsage = options.onPlanUsage?.((usage) => {
+    const event = planUsageEvent(usage);
+    if (event) send(event);
+  });
 
+  /** The model in use, then what can be asked of it. */
   function sendInfo() {
     if (options.settings) send({ type: "info", ...options.settings.info() });
+    if (options.capabilities) send({ type: "capabilities", items: options.capabilities() });
   }
 
   const lines = createInterface({ input: options.input, crlfDelay: Infinity });
@@ -284,6 +298,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     if (quitting) return;
     quitting = true;
     stopMemoryUpdates?.();
+    stopPlanUsage?.();
     stopTimers?.();
     options.log?.info("app.quit");
     options.computer?.cancelAll();

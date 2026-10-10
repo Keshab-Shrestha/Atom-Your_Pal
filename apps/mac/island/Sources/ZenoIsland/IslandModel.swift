@@ -36,6 +36,10 @@ final class IslandModel {
     var modelError: String?
     /// What ZENO keeps (ADR-058). Nil until the Memory page first asks the runtime.
     var memory: MemoryList?
+    /// What ZENO can do (ADR-076), from the runtime's `capabilities` event. Nil until it arrives: only the shortcuts show.
+    var capabilities: [CapabilityItem]?
+    /// Claude plan usage (ADR-076), merged from `plan.usage` events. Nil until one arrives: no meters.
+    var planUsage: PlanUsage?
 
     var expanded = false
     /// The panel is fading out after being closed: it still draws the expanded view until it is gone.
@@ -45,6 +49,7 @@ final class IslandModel {
     var settingsPage: SettingsPage?
 
     enum SettingsPage: String, CaseIterable, Identifiable {
+        case examples = "What can I ask?"
         case appearance = "Appearance"
         case model = "AI model"
         case shortcuts = "Shortcuts"
@@ -58,6 +63,7 @@ final class IslandModel {
 
         var symbol: String {
             switch self {
+            case .examples: "questionmark.bubble.fill"
             case .appearance: "paintpalette.fill"
             case .model: "sparkles"
             case .shortcuts: "command"
@@ -123,6 +129,12 @@ final class IslandModel {
         send(command)
     }
 
+    /// Opens Settings → What can I ask? (the link under the empty conversation).
+    func showExamples() {
+        tab = .settings
+        settingsPage = .examples
+    }
+
     func newConversation() {
         send(.conversationReset)
     }
@@ -155,6 +167,10 @@ final class IslandModel {
         switch event {
         case .memory(let list):
             memory = list
+        case .capabilities(let items):
+            capabilities = items
+        case .planUsage(let usage):
+            planUsage = (planUsage ?? PlanUsage()).merging(usage)
         case .ready:
             if memory != nil { send(.memoryList) } // a restarted runtime: ask again so updates keep coming
         case .info(let info):

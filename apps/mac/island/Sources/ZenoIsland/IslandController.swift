@@ -64,6 +64,10 @@ final class IslandController {
     /// The first-run tour (ADR-075) and the timer for its next step.
     private var tour = FirstRunTour()
     private var tourTimer: Timer?
+    /// The screens are asleep or the Mac is locked (ADR-076): Wisp stops drawing and the microphone is left alone.
+    private var sleep = SleepState()
+    /// The Talk keys went down while paused and were ignored: their release is ignored too.
+    private var talkHeldWhilePaused = false
 
     /// How long the status stays after a turn or dictation ends (Settings → Bubble → Stays).
     private var afterTurn: Double { model.settings.bubbleStay.seconds }
@@ -149,11 +153,12 @@ final class IslandController {
         observers.append(center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.model.permissions.refresh() }
         })
+        observeSleep()
         model.permissions.refresh()
         shortcuts.start()
         watchSettings()
         pet.setEnabled(model.settings.petEnabled)
-        dictation.warmUp()
+        dictation.warmUp() // skips the microphone if launched while locked
         refresh()
         let env = ProcessInfo.processInfo.environment
         if env["ZENO_BUBBLE_DEMO"] != nil { playBubbleDemo() }
@@ -181,9 +186,42 @@ final class IslandController {
         for observer in observers {
             NotificationCenter.default.removeObserver(observer)
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
+            DistributedNotificationCenter.default().removeObserver(observer)
         }
         observers = []
         panel.orderOut(nil)
+    }
+
+    // MARK: - Sleep and lock (ADR-076)
+
+    /// Screens asleep or awake (NSWorkspace) and the session locked or unlocked (distributed notifications). A launch
+    /// while locked starts paused, from the session's own flag.
+    private func observeSleep() {
+        let workspace = NSWorkspace.shared.notificationCenter
+        let screens: [(Notification.Name, SleepState.Signal)] = [
+            (NSWorkspace.screensDidSleepNotification, .screensSlept), (NSWorkspace.screensDidWakeNotification, .screensWoke),
+        ]
+        for (name, signal) in screens {
+            observers.append(workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.sleepSignal(signal) }
+            })
+        }
+        let distributed = DistributedNotificationCenter.default()
+        for (name, signal) in [("com.apple.screenIsLocked", SleepState.Signal.locked), ("com.apple.screenIsUnlocked", .unlocked)] {
+            observers.append(distributed.addObserver(forName: Notification.Name(name), object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.sleepSignal(signal) }
+            })
+        }
+        // ponytail: an undocumented session key, read once at launch; the notifications are the real source after that.
+        let session = CGSessionCopyCurrentDictionary() as? [String: Any]
+        if session?["CGSSessionScreenIsLocked"] as? Bool == true { sleepSignal(.locked) }
+    }
+
+    private func sleepSignal(_ signal: SleepState.Signal) {
+        guard sleep.apply(signal) else { return }
+        log(sleep.paused ? "system.pause" : "system.resume", [:])
+        pet.setPaused(sleep.paused)
+        dictation.setPaused(sleep.paused)
     }
 
     // MARK: - Runtime
@@ -319,6 +357,16 @@ final class IslandController {
 
     private func shortcut(_ trigger: ShortcutTrigger) {
         trace("shortcut \(trigger)")
+        // Asleep or locked: Talk does not open any microphone, the app's or the runtime's (dictation checks for itself).
+        switch trigger {
+        case .holdBegan(.talk) where sleep.paused:
+            talkHeldWhilePaused = true
+            return
+        case .holdEnded(.talk), .holdCancelled(.talk):
+            if talkHeldWhilePaused { talkHeldWhilePaused = false; return }
+        default:
+            break
+        }
         pet.poke()
         switch trigger {
         case .holdBegan(.talk):
@@ -665,6 +713,9 @@ final class IslandController {
             restartRuntime()
         case .openLog:
             openLog()
+        case .switchModel(let provider, let model):
+            log("model.switch_by_user", ["provider": provider, "model": model])
+            self.model.chooseModel(provider: provider, model: model)
         }
     }
 

@@ -35,6 +35,8 @@ final class DictationCapture: @unchecked Sendable {
     private var monoFormat: AVAudioFormat?
     private var channels = 1
     private var capturing = false
+    /// Asleep or locked (ADR-076): a device change does not prepare the new device; resuming does.
+    private var suspended = false
     private var samples: [Float] = []
     private var sinceLevel = 0
     private var levelPeak: Float = 0
@@ -120,9 +122,9 @@ final class DictationCapture: @unchecked Sendable {
         let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
             guard let self else { return }
             self.lock.lock()
-            let busy = self.capturing
+            let busy = self.capturing || self.suspended
             self.lock.unlock()
-            if busy { return } // the next dictation prepares again
+            if busy { return } // the next dictation (or resuming) prepares again
             let problem = self.prepare()
             self.onEvent?("capture.device_changed" + (problem.map { " (\($0))" } ?? ""))
         }
@@ -130,6 +132,12 @@ final class DictationCapture: @unchecked Sendable {
         AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &address, .main, block)
         lock.lock()
         deviceListener = block
+        lock.unlock()
+    }
+
+    func setSuspended(_ suspended: Bool) {
+        lock.lock()
+        self.suspended = suspended
         lock.unlock()
     }
 

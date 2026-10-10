@@ -58,6 +58,7 @@ export function createAppTools(options: AppToolOptions = {}): Tool[] {
   const listApps = options.listApps ?? installedApps;
   return [
     {
+      capability: { title: "Open apps and websites", examples: ["Open Safari"] },
       spec: {
         name: "open_app",
         description:
@@ -86,6 +87,7 @@ export function createAppTools(options: AppToolOptions = {}): Tool[] {
       },
     },
     {
+      capability: { title: "Open apps and websites", examples: ["Go to YouTube", "Search Google for pasta recipes"] },
       spec: {
         name: "open_url",
         description:

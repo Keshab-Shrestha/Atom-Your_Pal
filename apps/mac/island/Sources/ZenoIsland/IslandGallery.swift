@@ -69,6 +69,62 @@ enum IslandGallery {
         writePeek(to: directory)
         writeThemes(model: model, to: directory)
         writeSetup(to: directory, conversation: filled)
+        writeEveryday(to: directory)
+    }
+
+    /// ADR-076: What can I ask? (before and after `capabilities`), the empty conversation with examples, the plan
+    /// meters on the AI model page and in Status, and a rate-limit card offering another provider.
+    private static func writeEveryday(to directory: URL) {
+        let suite = "zeno.gallery.everyday.\(ProcessInfo.processInfo.processIdentifier)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let size = IslandMetrics().expanded
+        let info = #"{"type":"info","provider":"claude-plan","model":"claude-opus-5-5","providers":[{"id":"claude","name":"Claude","available":false,"models":[{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"}]},{"id":"claude-plan","name":"Claude (my plan)","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"},{"id":"claude-haiku-4-5-20251001","name":"Claude Haiku 4.5"}]},{"id":"gemini","name":"Gemini","available":true,"models":[{"id":"gemini-3.8-flash","name":"Gemini 3.8 Flash"}]}]}"#
+        let capabilities = #"{"type":"capabilities","items":[{"title":"Open apps and websites","examples":["Open Safari","Go to YouTube"]},{"title":"Music","examples":["Play some jazz","Skip this song","Pause the music"]},{"title":"Timers","examples":["Set a timer for 10 minutes","How long is left?"]},{"title":"Calendar and reminders","examples":["What's on my calendar today?","Remind me to call Aiko at 5"]},{"title":"Weather","examples":["Will it rain tomorrow?"]},{"title":"Notes","examples":["Make a note: buy oat milk"]}]}"#
+        func model(_ lines: [String], theme: AppTheme = .native) -> IslandModel {
+            let m = IslandModel(settings: IslandSettings(defaults: defaults))
+            m.settings.theme = theme
+            m.permissions.states = [.microphone: .granted, .inputMonitoring: .granted]
+            m.status.apply(.running(pid: 1))
+            for line in [#"{"type":"ready","protocol":1,"provider":"claude-plan","model":"claude-opus-5-5","microphone":"Mac mini Microphone","voice":true}"#, info] + lines {
+                guard let event = try? decodeEvent(line) else {
+                    FileHandle.standardError.write(Data("gallery: could not decode \(line)\n".utf8))
+                    continue
+                }
+                m.status.apply(event)
+                m.apply(event)
+            }
+            m.expanded = true
+            return m
+        }
+        func panel(_ title: String, _ m: IslandModel, tab: IslandModel.Tab, page: IslandModel.SettingsPage? = nil) -> some View {
+            m.tab = tab
+            m.settingsPage = page
+            return VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.75))
+                frozen(IslandView(model: m, snapshot: true).frame(width: size.width, height: size.height))
+            }
+        }
+        let usage = #"{"type":"plan.usage","fiveHour":0.42,"sevenDay":0.86,"overage":false}"#
+        let high = #"{"type":"plan.usage","fiveHour":0.97,"sevenDay":0.12}"#
+        let limited = model([#"{"type":"error","stage":"model","kind":"rate_limit","message":"Your Claude plan limit is reached. It resets at 3 pm.","retryable":true}"#])
+        let sheet = VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top, spacing: 18) {
+                panel("What can I ask?", model([capabilities]), tab: .settings, page: .examples)
+                panel("Before capabilities arrive: shortcuts only", model([]), tab: .settings, page: .examples)
+                panel("Empty conversation with examples", model([capabilities]), tab: .conversation)
+                panel("Settings list", model([capabilities]), tab: .settings)
+            }
+            HStack(alignment: .top, spacing: 18) {
+                panel("AI model page: 42% and 86%", model([usage]), tab: .settings, page: .model)
+                panel("Status: 97% (Luminous)", model([high], theme: .luminous), tab: .status)
+                panel("Rate limit: switch provider", limited, tab: .conversation)
+                panel("No usage yet: no meters", model([]), tab: .status)
+            }
+        }
+        .padding(24)
+        .background(Color(red: 0.36, green: 0.42, blue: 0.52))
+        save(sheet, name: "12-everyday", to: directory)
     }
 
     /// ADR-075: the permissions checklist in mixed states, a plain error card, the stopped card with its two buttons,

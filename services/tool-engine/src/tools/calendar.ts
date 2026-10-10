@@ -71,6 +71,7 @@ export function createCalendarTools(options: CalendarToolOptions): Tool[] {
   const { run, now = () => new Date(), timeZone } = options;
   return [
     {
+      capability: { title: "Calendar and reminders", examples: ["What's on my calendar today?"] },
       spec: {
         name: "calendar_events",
         description:
@@ -107,6 +108,7 @@ export function createCalendarTools(options: CalendarToolOptions): Tool[] {
       },
     },
     {
+      capability: { title: "Calendar and reminders", examples: ["What are my reminders?"] },
       spec: {
         name: "reminders_list",
         description: "Lists the user's open (not completed) reminders from Apple Reminders, soonest due first.",
@@ -122,6 +124,7 @@ export function createCalendarTools(options: CalendarToolOptions): Tool[] {
       },
     },
     {
+      capability: { title: "Calendar and reminders", examples: ["Remind me to call Mum at 6"] },
       spec: {
         name: "reminder_add",
         description:

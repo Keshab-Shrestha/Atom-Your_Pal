@@ -6,6 +6,8 @@ import { MemoryError, type Memory, type MemoryStore } from "./store.ts";
 /** Matches the Tool Engine's `Tool` (kept structural so memory does not depend on the engine). */
 export interface MemoryTool {
   spec: ToolSpec;
+  /** The "What can I ask?" line (ADR-076), as on the Tool Engine's `Tool`. */
+  capability: { title: string; examples: string[] };
   run(input: Record<string, unknown>): string;
 }
 
@@ -23,6 +25,7 @@ export function createMemoryTools(options: MemoryToolOptions): MemoryTool[] {
   const { store, provenance, onChange } = options;
   return [
     {
+      capability: { title: "Remember things", examples: ["Remember that I like oat milk"] },
       spec: {
         name: "remember",
         description:
@@ -48,6 +51,7 @@ export function createMemoryTools(options: MemoryToolOptions): MemoryTool[] {
       },
     },
     {
+      capability: { title: "Remember things", examples: ["What do you know about me?"] },
       spec: {
         name: "recall",
         description:
@@ -67,6 +71,7 @@ export function createMemoryTools(options: MemoryToolOptions): MemoryTool[] {
       },
     },
     {
+      capability: { title: "Remember things", examples: ["Forget that I like oat milk"] },
       spec: {
         name: "forget",
         description:

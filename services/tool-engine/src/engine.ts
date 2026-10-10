@@ -1,8 +1,16 @@
 import type { ToolCall, ToolResult, ToolRunner, ToolSpec } from "@zeno/contracts";
 
+/** One line of the island's "What can I ask?" page (ADR-076): a plain title and phrases that really work. */
+export interface Capability {
+  title: string;
+  examples: string[];
+}
+
 /** A capability ZENO can run for the model. `run` returns words for the model, or throws to report failure. */
 export interface Tool {
   spec: ToolSpec;
+  /** What the user can ask for with this tool. Every user-facing tool has one (the tool engine's tests check). */
+  capability?: Capability;
   run(input: Record<string, unknown>, signal?: AbortSignal): Promise<string> | string;
 }
 
@@ -67,4 +75,17 @@ function checkInput(spec: ToolSpec, input: unknown): string | undefined {
     if (declared.type !== actual) return `"${key}" must be ${declared.type}, not ${actual}`;
   }
   return undefined;
+}
+
+/**
+ * The "What can I ask?" list (ADR-076) for the tools that are on: tools with the same title become one item,
+ * examples concatenated without repeats, in the order the tools are registered. Tools without one are left out.
+ */
+export function capabilityItems(tools: ReadonlyArray<{ capability?: Capability }>): Capability[] {
+  const byTitle = new Map<string, string[]>();
+  for (const { capability } of tools) {
+    if (!capability) continue;
+    byTitle.set(capability.title, [...new Set([...(byTitle.get(capability.title) ?? []), ...capability.examples])]);
+  }
+  return [...byTitle].map(([title, examples]) => ({ title, examples }));
 }

@@ -34,6 +34,7 @@ export function createMediaTools(options: { osascript?: Osascript } = {}): Tool[
   const run = options.osascript ?? defaultOsascript;
   return [
     {
+      capability: { title: "Music and volume", examples: ["Play some music", "What song is this?"] },
       spec: {
         name: "media",
         description:
@@ -60,6 +61,7 @@ export function createMediaTools(options: { osascript?: Osascript } = {}): Tool[
       },
     },
     {
+      capability: { title: "Music and volume", examples: ["Turn the volume down to 30"] },
       spec: {
         name: "volume",
         description: "Sets or reads the Mac's sound volume (0–100), or mutes and unmutes it.",

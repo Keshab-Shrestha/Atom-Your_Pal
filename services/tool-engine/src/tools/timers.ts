@@ -62,6 +62,7 @@ export function createTimers(options: TimerOptions): Timers {
 
   const tools: Tool[] = [
     {
+      capability: { title: "Timers", examples: ["Set a timer for 10 minutes"] },
       spec: {
         name: "timer_set",
         description:
@@ -91,6 +92,7 @@ export function createTimers(options: TimerOptions): Timers {
       },
     },
     {
+      capability: { title: "Timers", examples: ["How long is left on my timer?"] },
       spec: {
         name: "timer_list",
         description: "Lists running timers with the time left on each.",
@@ -102,6 +104,7 @@ export function createTimers(options: TimerOptions): Timers {
       },
     },
     {
+      capability: { title: "Timers", examples: ["Cancel the timer"] },
       spec: {
         name: "timer_cancel",
         description: "Cancels a running timer by its number (from timer_list or timer_set), or all of them with all: true.",

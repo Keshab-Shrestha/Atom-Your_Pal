@@ -29,6 +29,7 @@ export function createNoteTools(options: { osascript?: Osascript } = {}): Tool[]
   const run = options.osascript ?? defaultOsascript;
   return [
     {
+      capability: { title: "Notes", examples: ["Take a note: buy milk", "Write down that I parked on level 3"] },
       spec: {
         name: "note_add",
         description:

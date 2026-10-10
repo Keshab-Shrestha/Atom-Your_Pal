@@ -604,7 +604,13 @@ As built:
 - each known failure shows one sentence and a working button;
 - the tour runs once and can be replayed.
 
-**Task 2.B — Everyday polish (ADR-076).**
+**Task 2.B — Everyday polish (ADR-076).** Built 2026-10-10; tested (380 Swift, 406 TS); gallery `12-everyday`; not yet tried on the real Mac.
+
+As built:
+- **Paused while asleep or locked.** Wisp's timer stops, nothing prepares the mic, and the Talk and Dictate keys are ignored. Launching while locked starts paused (`CGSSessionScreenIsLocked`, undocumented). A dictation already running when the Mac locks is not cancelled.
+- **Capabilities.** The list is re-sent after each model switch. Every user-facing tool must declare one: memory tools included, and a test enforces it. Example phrases are display only, so a click cannot run them.
+- **Plan usage.** Reports are merged field by field.
+- **Switch card.** Shown only when another provider is usable.
 1. Island: pause and resume on sleep, wake, lock and unlock.
 2. Tool engine: examples per tool, with tests requiring them. Runtime: the `capabilities` and `plan.usage` events (protocol doc updated).
 3. Island:

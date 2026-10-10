@@ -329,6 +329,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
   }
 
   return {
+    capability: { title: "Use apps for you", examples: ["Where's Bluetooth in System Settings?", "In TextEdit, make the title bold"] },
     spec: {
       name: "computer",
       description:

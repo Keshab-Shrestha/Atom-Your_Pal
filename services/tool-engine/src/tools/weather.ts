@@ -106,6 +106,7 @@ export function weatherTool(options: WeatherOptions = {}): WeatherTool {
         // a later question will try again and report the problem then
       }
     },
+    capability: { title: "Weather", examples: ["What's the weather like?", "Will it rain tomorrow in Osaka?"] },
     spec: {
       name: "weather",
       description:

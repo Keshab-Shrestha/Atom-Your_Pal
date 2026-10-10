@@ -42,6 +42,8 @@ public struct IslandStatus: Sendable, Equatable {
     /// The last known setup failure in plain words, with its one action (ADR-075). Kept until ZENO recovers (the runtime
     /// starts or becomes ready, a turn or dictation starts listening, a turn completes) or the user dismisses it.
     public private(set) var failure: PlainFailure?
+    /// The providers from the last `info`, for the rate-limit card's "Switch to" (ADR-076).
+    private var providers: [ProviderOption] = []
     /// The problem lasts until ZENO itself recovers (stopped, settings), so seeing it does not clear it.
     private var persistent = false
 
@@ -90,7 +92,9 @@ public struct IslandStatus: Sendable, Equatable {
             modelName = info.currentModelName
             provider = info.provider
             model = info.model
+            providers = info.providers
             if kind == .ready { detail = modelName }
+            if case .switchModel(let target, _) = failure?.action, target == info.provider { failure = nil } // switched
         case .turnComplete(let timings):
             lastTimings = timings
             failure = nil
@@ -136,6 +140,7 @@ public struct IslandStatus: Sendable, Equatable {
             let title = IslandStatus.errorTitle(error)
             lastProblem = Problem(title: title, message: error.message)
             failure = PlainFailure.match(error.message)
+                ?? (error.stage == "model" && error.kind == "rate_limit" ? PlainFailure.rateLimited(current: provider, providers: providers) : nil)
             set(.problem, title, IslandStatus.short(error.message))
         default:
             break

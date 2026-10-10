@@ -1,6 +1,7 @@
 // The messages between ZENO Island (Swift) and this runtime: JSON lines over stdin / stdout.
 // The specification is docs/island-protocol.md; keep the two in step.
 
+import type { Capability } from "@zeno/tool-engine";
 import type { LoopState } from "./voice-loop.ts";
 
 export const PROTOCOL_VERSION = 1;
@@ -61,6 +62,14 @@ export interface EpisodeItem {
   exchanges: number;
 }
 
+/** Claude plan usage (ADR-076): the share of each window used, 0.42 = 42%. Each field only when the SDK sent a sane one. */
+export interface PlanUsageEvent {
+  type: "plan.usage";
+  fiveHour?: number;
+  sevenDay?: number;
+  overage?: boolean;
+}
+
 export type IslandEvent =
   | { type: "ready"; protocol: number; provider: string; model: string; microphone: string; voice: boolean }
   | { type: "state"; state: LoopState }
@@ -87,6 +96,8 @@ export type IslandEvent =
   | { type: "timer"; id: number; label: string; message: string }
   | { type: "context.ready"; app: string; ok: true }
   | { type: "context.ready"; app: string; ok: false; message: string }
+  | { type: "capabilities"; items: Capability[] }
+  | PlanUsageEvent
   | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[] }
   | { type: "error"; stage: ErrorStage; message: string; kind?: string; retryable?: boolean };
 
@@ -159,6 +170,24 @@ export function parseCommand(line: string): ParsedLine {
 /** One event as a single line of JSON, ending with a newline. */
 export function encodeEvent(event: IslandEvent): string {
   return `${JSON.stringify(event)}\n`; // JSON.stringify escapes line breaks inside strings
+}
+
+/** Usage above 200% is taken as a bad value and dropped, as in Coucou. */
+const MAX_USAGE = 2;
+
+/**
+ * The `plan.usage` event from what the Claude plan provider reported (ADR-076). Only these three fields are read;
+ * a share that is not a finite number in 0..2, or an overage that is not true/false, is dropped. Undefined if nothing is left.
+ */
+export function planUsageEvent(usage: { fiveHour?: unknown; sevenDay?: unknown; overage?: unknown }): PlanUsageEvent | undefined {
+  const share = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= MAX_USAGE;
+  const event: PlanUsageEvent = {
+    type: "plan.usage",
+    ...(share(usage.fiveHour) ? { fiveHour: usage.fiveHour } : {}),
+    ...(share(usage.sevenDay) ? { sevenDay: usage.sevenDay } : {}),
+    ...(typeof usage.overage === "boolean" ? { overage: usage.overage } : {}),
+  };
+  return Object.keys(event).length > 1 ? event : undefined;
 }
 
 /**

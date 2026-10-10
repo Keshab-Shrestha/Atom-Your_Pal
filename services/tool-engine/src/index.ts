@@ -1,4 +1,4 @@
-export { createToolEngine, type Tool, type ToolEngineOptions } from "./engine.ts";
+export { capabilityItems, createToolEngine, type Capability, type Tool, type ToolEngineOptions } from "./engine.ts";
 export { timeTool } from "./tools/time.ts";
 export { createNoteTools } from "./tools/notes.ts";
 export { createMediaTools, type Osascript } from "./tools/media.ts";

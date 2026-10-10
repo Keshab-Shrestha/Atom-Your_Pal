@@ -1,7 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createToolEngine, type Tool } from "./engine.ts";
+import { capabilityItems, createToolEngine, type Tool } from "./engine.ts";
 import { timeTool } from "./tools/time.ts";
+import { createAppTools } from "./tools/apps.ts";
+import { createMediaTools } from "./tools/media.ts";
+import { createNoteTools } from "./tools/notes.ts";
+import { createFrontWindowTool } from "./tools/front-window.ts";
+import { createTimers } from "./tools/timers.ts";
+import { weatherTool } from "./tools/weather.ts";
+import { createCalendarTools } from "./tools/calendar.ts";
+import { createComputerTool } from "./computer/tool.ts";
 
 const echo: Tool = {
   spec: {
@@ -88,4 +96,55 @@ test("current_time formats in a given time zone and rejects a bad one", async ()
   assert.match(tokyo.content, /00:30:00/);
   const bad = await engine.run({ id: "2", name: "current_time", input: { timezone: "Mars/Base" } });
   assert.equal(bad.isError, true);
+});
+
+// --- "What can I ask?" (ADR-076) ---
+
+/** Every tool the runtime can register (memory's tools are checked in @zeno/memory). Nothing here runs. */
+function everyTool(): Tool[] {
+  const never = async () => { throw new Error("not run in this test"); };
+  return [
+    timeTool(),
+    ...createAppTools(),
+    ...createMediaTools({ osascript: never }),
+    ...createNoteTools({ osascript: never }),
+    createFrontWindowTool(),
+    ...createTimers({ onFire: () => {} }).tools,
+    weatherTool(),
+    ...createCalendarTools({ run: never }),
+    createComputerTool({ cua: { call: never, close: async () => {} }, approve: async () => false }),
+  ];
+}
+
+/** Tools the user never asks for by name, so they need no examples. None today; add one here on purpose. */
+const INTERNAL_TOOLS = new Set<string>();
+
+test("every user-facing tool says what can be asked of it, in two or three short examples per title", () => {
+  const tools = everyTool();
+  for (const tool of tools) {
+    if (INTERNAL_TOOLS.has(tool.spec.name)) continue;
+    const c = tool.capability;
+    assert.ok(c, `${tool.spec.name} has no capability`);
+    assert.ok(c.title.trim() && c.title.length <= 40, `${tool.spec.name}: title`);
+    assert.ok(c.examples.length >= 1, `${tool.spec.name}: no examples`);
+    for (const e of c.examples) assert.ok(e.trim() && e.length <= 50, `${tool.spec.name}: "${e}"`);
+  }
+  for (const item of capabilityItems(tools)) {
+    assert.ok(item.examples.length >= 2 && item.examples.length <= 3, `${item.title}: ${item.examples.length} examples`);
+  }
+});
+
+test("capabilityItems merges tools with one title, keeps registration order, drops repeats and tools without one", () => {
+  const t = (name: string, capability?: Tool["capability"]): Tool => ({ ...echo, spec: { ...echo.spec, name }, ...(capability ? { capability } : {}) });
+  const items = capabilityItems([
+    t("open_app", { title: "Open apps and websites", examples: ["Open Safari"] }),
+    t("weather", { title: "Weather", examples: ["What's the weather?", "What's the weather?"] }),
+    t("internal"),
+    t("open_url", { title: "Open apps and websites", examples: ["Go to YouTube", "Open Safari"] }),
+  ]);
+  assert.deepEqual(items, [
+    { title: "Open apps and websites", examples: ["Open Safari", "Go to YouTube"] },
+    { title: "Weather", examples: ["What's the weather?"] },
+  ]);
+  assert.deepEqual(capabilityItems([]), []);
 });

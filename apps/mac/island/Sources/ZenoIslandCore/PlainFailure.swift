@@ -12,6 +12,8 @@ public enum FailureAction: Sendable, Equatable {
     /// Starts the runtime again with a fresh `RestartPolicy`.
     case restartRuntime
     case openLog
+    /// Sends `model.set` with this provider and model (ADR-076): offered on a rate-limit card, never done on its own.
+    case switchModel(provider: String, model: String)
 }
 
 /// A known setup failure in plain words: one sentence and one action (ADR-075). Unknown failures have none and keep
@@ -87,6 +89,16 @@ public struct PlainFailure: Sendable, Equatable {
         case .running, .restarting: return nil
         }
         return PlainFailure(sentence: sentence, button: "Restart ZENO", action: .restartRuntime)
+    }
+
+    /// The model's limit is reached (a `rate_limit` error) and another provider is usable: "Switch to <name>" with its
+    /// first model, as the AI model page picks when the provider changes (ADR-076). Nil when no other provider is usable.
+    public static func rateLimited(current: String, providers: [ProviderOption]) -> PlainFailure? {
+        guard let other = providers.first(where: { $0.id != current && $0.available && !$0.models.isEmpty }),
+              let model = other.models.first else { return nil }
+        let name = providers.first { $0.id == current }?.name ?? "This model"
+        return PlainFailure(sentence: "\(name) has reached its limit for now.", button: "Switch to \(other.name)",
+                            action: .switchModel(provider: other.id, model: model.id))
     }
 
     /// The provider whose API key a message is about.
