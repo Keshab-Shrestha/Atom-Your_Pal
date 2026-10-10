@@ -164,30 +164,29 @@ struct HelpersStateTests {
         #expect(state.deleteJob(99) == nil)
     }
 
-    @Test func openingAReportAsksForItAndKeepsOnlyItsAnswer() throws {
+    @Test func openingATaskAsksForItsThreadAndKeepsOnlyItsAnswer() throws {
         var state = try loaded()
-        #expect(state.openReport(0) == nil) // failed, no report
-        #expect(state.openReport(1) == .reportGet(id: 1))
+        #expect(state.openThread(99) == nil) // no such task
+        #expect(state.openThread(0) == .threadGet(id: 0)) // a failed task has a thread too
+        #expect(state.openThread(1) == .threadGet(id: 1))
         #expect(state.openJob?.id == 1 && state.report == nil)
-        let other = HelperReport(id: 7, title: "x", summary: "y", body: "z", sources: [])
-        state.apply(.report(other))
-        #expect(state.report == nil) // not the open job's
+        state.apply(.thread(HelperThread(id: 7, comments: [], activity: [])))
+        #expect(state.thread == nil) // not the open task's
         let mine = HelperReport(id: 1, title: "Networking basics", summary: "s", body: "b", sources: [])
-        state.apply(.report(mine))
+        state.apply(.thread(HelperThread(id: 1, comments: [], activity: [], report: mine)))
         #expect(state.report == mine)
         state.closeReport()
         #expect(state.report == nil && state.openJobId == nil)
     }
 
-    @Test func aDeletedJobClosesItsReport() throws {
+    @Test func aDeletedTaskClosesItsThread() throws {
         var state = try loaded()
-        _ = state.openReport(1)
-        state.apply(.report(HelperReport(id: 1, title: "t", summary: "s", body: "b", sources: [])))
+        _ = state.openThread(1)
         #expect(state.deleteJob(1) == .jobDelete(id: 1))
-        #expect(state.report == nil && state.openJobId == nil)
+        #expect(state.thread == nil && state.openJobId == nil)
         // Deleted elsewhere (by voice, another window): the next list closes it too.
-        _ = state.openReport(1)
-        let without = HelpersProtocolTests.helpersLine.replacingOccurrences(of: #""partial":true,"title":"Networking basics","#, with: "")
+        _ = state.openThread(1)
+        let without = HelpersProtocolTests.helpersLine.replacingOccurrences(of: #"{"id":1,"task":"Research networking","#, with: #"{"id":9,"task":"Research networking","#)
         state.apply(try list(without))
         #expect(state.openJobId == nil)
     }
@@ -407,5 +406,118 @@ struct HelperSoulTests {
         let sent = try #require(fields["soul"] as? [String: String])
         #expect(sent == ["name": "Sid", "personality": "Curious \"and\" thorough\n", "howItWorks": "a", "rules": "b", "lessons": "c"])
         #expect(IslandCommand.soulRestore(helper: "sid", version: 2).line == #"{"helper":"sid","type":"soul.restore","version":2}"# + "\n")
+    }
+}
+
+@Suite("Tasks, board and threads (ADR-087, Task 3.4)")
+struct HelperTaskTests {
+    static let line = #"""
+    {"type":"helpers","apps":[],"helpers":[
+      {"id":"sid","name":"Sid","available":true,"app":null,"jobs":[
+        {"id":4,"task":"Old","state":"stopped","createdAt":"2026-10-10T07:00:00Z","blockedBy":[],"waitingFor":[],"comments":0},
+        {"id":3,"task":"Broken","state":"failed","createdAt":"2026-10-10T08:00:00Z","error":"x","blockedBy":[],"waitingFor":[],"comments":0},
+        {"id":2,"task":"Research IPv6","state":"running","createdAt":"2026-10-10T09:00:00Z","blockedBy":[],"waitingFor":[],"comments":0},
+        {"id":1,"task":"Research networking","state":"done","createdAt":"2026-10-10T06:00:00Z","title":"Networking basics","summary":"s",
+         "blockedBy":[],"waitingFor":[],"comments":2}]},
+      {"id":"hana","name":"Hana","available":true,"app":null,"jobs":[
+        {"id":6,"task":"Then this","state":"queued","createdAt":"2026-10-10T09:06:00Z","blockedBy":[],"waitingFor":[],"comments":0},
+        {"id":5,"task":"Write the guide","state":"queued","createdAt":"2026-10-10T09:05:00Z","blockedBy":[1,2],"waitingFor":[2],
+         "comments":1,"goal":"A networking guide","parentId":1}]}
+    ]}
+    """#.replacingOccurrences(of: "\n", with: "")
+
+    func loaded(_ line: String = Self.line) throws -> HelpersState {
+        var state = HelpersState()
+        state.apply(try decodeEvent(line))
+        return state
+    }
+
+    @Test func decodesTaskFields() throws {
+        guard case .helpers(let list) = try decodeEvent(Self.line) else { Issue.record("not helpers"); return }
+        let guide = try #require(list.item(5))
+        #expect(guide.helperName == "Hana" && guide.job.blockedBy == [1, 2] && guide.job.waitingFor == [2])
+        #expect(guide.job.comments == 1 && guide.job.goal == "A networking guide" && guide.job.parentId == 1 && guide.job.isWaiting)
+        #expect(list.item(1)?.job.shortTitle == "Networking basics")
+        #expect(list.item(6)?.job.isWaiting == false)
+    }
+
+    @Test func theBoardGroupsEveryWorkersTasks() throws {
+        guard case .helpers(let list) = try decodeEvent(Self.line) else { Issue.record("not helpers"); return }
+        let board = list.board
+        #expect(board.map(\.column) == [.needsYou, .running, .toDo, .done])
+        #expect(board.map { $0.items.map(\.id) } == [[3], [2], [5, 6], [4, 1]]) // to do in run order, the rest newest first
+        #expect(list.waitable.map(\.id) == [6, 5, 2, 1]) // not failed or stopped
+    }
+
+    @Test func aTaskCanWaitForOthersWhenAdded() throws {
+        var state = try loaded()
+        state.toggleDraftBlocker(1)
+        state.toggleDraftBlocker(3) // failed: cannot be waited for
+        state.toggleDraftBlocker(2)
+        state.toggleDraftBlocker(2)
+        #expect(state.draftBlockers == [1])
+        #expect(state.addJob("Summarise it") == .jobAdd(helper: "sid", task: "Summarise it", blockedBy: [1]))
+        #expect(state.draftBlockers.isEmpty)
+    }
+
+    @Test func aQueuedTasksBlockersCanChangeNotAStartedOnes() throws {
+        var state = try loaded()
+        _ = state.openThread(5)
+        #expect(state.toggleBlocker(2) == .jobBlock(id: 5, blockedBy: [1]))
+        #expect(state.toggleBlocker(6) == .jobBlock(id: 5, blockedBy: [1, 2, 6]))
+        #expect(state.toggleBlocker(5) == nil) // itself
+        _ = state.openThread(2)
+        #expect(state.toggleBlocker(1) == nil) // running
+    }
+
+    @Test func notesGoToTheOpenTask() throws {
+        var state = try loaded()
+        #expect(state.addComment("x") == nil) // nothing open
+        _ = state.openThread(5)
+        #expect(state.addComment("  Keep it short ") == .commentAdd(id: 5, text: "Keep it short"))
+        #expect(state.addComment("   ") == nil)
+        #expect(state.addComment(String(repeating: "a", count: 2001)) == nil)
+    }
+
+    @Test func theOpenThreadIsAskedForAgainWhenItsTaskChanges() throws {
+        var state = try loaded()
+        _ = state.openThread(5)
+        state.apply(try decodeEvent(Self.line))
+        #expect(state.takeRefresh() == nil) // nothing changed
+        state.apply(try decodeEvent(Self.line.replacingOccurrences(of: #""comments":1,"goal""#, with: #""comments":2,"goal""#)))
+        #expect(state.takeRefresh() == .threadGet(id: 5))
+        #expect(state.takeRefresh() == nil) // taken once
+    }
+
+    @Test func theBoardAndAWorkerAreTwoPlaces() throws {
+        var state = try loaded()
+        state.selectBoard()
+        #expect(state.showsBoard)
+        _ = state.openThread(5)
+        state.selectBoard()
+        #expect(state.openJobId == nil) // back to the board
+        state.selectHelper("hana")
+        #expect(!state.showsBoard && state.selectedHelperId == "hana")
+    }
+
+    @Test func decodesAThread() throws {
+        let line = #"{"type":"thread","id":5,"comments":[{"id":1,"text":"Keep it short","createdAt":"2026-10-10T09:05:00Z"}],"activity":[{"kind":"created","at":"2026-10-10T09:05:00Z"},{"kind":"commented","at":"2026-10-10T09:06:00Z"}],"report":{"title":"T","summary":"S","body":"B","sources":[{"title":"x","url":"javascript:alert(1)"},{"title":"y","url":"https://example.org/"}]}}"#
+        guard case .thread(let thread) = try decodeEvent(line) else { Issue.record("not a thread"); return }
+        #expect(thread.id == 5 && thread.comments.map(\.text) == ["Keep it short"] && thread.comments[0].createdAt != nil)
+        #expect(thread.activity.map(\.title) == ["Added", "Note added"])
+        #expect(thread.report?.id == 5 && thread.report?.sources.map(\.title) == ["y"]) // web sources only
+        let bare = #"{"type":"thread","id":5,"comments":[],"activity":[]}"#
+        guard case .thread(let empty) = try decodeEvent(bare) else { Issue.record("not a thread"); return }
+        #expect(empty.report == nil)
+        #expect(throws: ProtocolError.self) { try decodeEvent(#"{"type":"thread","id":5,"comments":"x","activity":[]}"#) }
+    }
+
+    @Test func encodesTaskCommands() throws {
+        #expect(IslandCommand.jobAdd(helper: "sid", task: "x").line == #"{"helper":"sid","task":"x","type":"job.add"}"# + "\n")
+        #expect(IslandCommand.jobAdd(helper: "sid", task: "x", blockedBy: [1, 2]).line
+            == #"{"blockedBy":[1,2],"helper":"sid","task":"x","type":"job.add"}"# + "\n")
+        #expect(IslandCommand.jobBlock(id: 5, blockedBy: []).line == #"{"blockedBy":[],"id":5,"type":"job.block"}"# + "\n")
+        #expect(IslandCommand.commentAdd(id: 5, text: "a \"b\"").line == #"{"id":5,"text":"a \"b\"","type":"comment.add"}"# + "\n")
+        #expect(IslandCommand.threadGet(id: 5).line == #"{"id":5,"type":"thread.get"}"# + "\n")
     }
 }

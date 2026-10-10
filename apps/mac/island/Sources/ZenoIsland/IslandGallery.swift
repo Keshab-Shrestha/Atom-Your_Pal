@@ -137,10 +137,12 @@ enum IslandGallery {
         let models = #"[{"id":"claude-haiku-4-5","name":"Claude Haiku 4.5","tier":"small"},{"id":"claude-sonnet-4-5","name":"Claude Sonnet 4.5","tier":"medium"},{"id":"claude-opus-5-5","name":"Claude Opus 5.5","tier":"large"}]"#
         // Task 3.3: the team of seven, with Sid's soul (version 2 carries a lesson).
         let sidSoul = #"{"name":"Sid","personality":"Curious and thorough. Always cites sources.","howItWorks":"Searches more than once, reads several good pages, compares what they say, and prefers primary and reputable sources.","rules":"Say plainly when sources disagree or when something could not be confirmed.","lessons":"Give at least three sources; two reports had only one."}"#
+        // Task 3.4: Hana's guide waits for Sid's running research.
+        let hanaJob = #"{"id":5,"task":"Write a one-page guide from Sid's IPv6 research","state":"queued","createdAt":"\#(ago(3))","blockedBy":[2],"waitingFor":[2],"comments":1}"#
         let team = [("kame", "Kame", false, "coder"), ("puff", "Puff", false, "designer"), ("quill", "Quill", false, "documenter"),
                     ("penny", "Penny", true, "financial adviser"), ("hana", "Hana", true, "hr"), ("tinker", "Tinker", false, "improver")]
             .map { id, name, available, role in
-                #"{"id":"\#(id)","name":"\#(name)","available":\#(available),"app":null,"role":"\#(role)","soul":{"name":"\#(name)","personality":"…","howItWorks":"","rules":"","lessons":""},"soulVersion":1,"soulVersions":[{"version":1,"createdAt":"\#(ago(3000))"}],"jobs":[]}"#
+                #"{"id":"\#(id)","name":"\#(name)","available":\#(available),"app":null,"role":"\#(role)","soul":{"name":"\#(name)","personality":"…","howItWorks":"","rules":"","lessons":""},"soulVersion":1,"soulVersions":[{"version":1,"createdAt":"\#(ago(3000))"}],"jobs":[\#(id == "hana" ? hanaJob : "")]}"#
             }.joined(separator: ",")
         func helpers(pinned: String, allowLarge: Bool, failed: Bool = false) -> String { #"{"type":"helpers","apps":["Brave Browser","Notes","Safari"],"allowLarge":\#(allowLarge),"models":\#(models),"helpers":[{"id":"sid","name":"Sid","available":true,"app":"Brave Browser","role":"researcher","soul":\#(sidSoul),"soulVersion":2,"soulVersions":[{"version":2,"createdAt":"\#(ago(30))"},{"version":1,"createdAt":"\#(ago(3000))"}],"pinnedModel":\#(pinned),"jobs":[\#(failed ? #"{"id":4,"task":"Compare the reviews of the new Mac mini","state":"failed","createdAt":"\#(ago(2))","endedAt":"\#(ago(1))","error":"The review pages would not load"},"# : ""){"id":3,"task":"What year was TCP/IP adopted by ARPANET?","state":"queued","createdAt":"\#(ago(1))"},{"id":2,"task":"Research how IPv6 is rolled out in home routers","state":"running","createdAt":"\#(ago(4))","step":"Reading 3 of 8 pages","model":"claude-sonnet-4-5","modelReason":"Laya: moderate"},{"id":1,"task":"Research networking basics for a beginner","state":"done","createdAt":"\#(ago(52))","endedAt":"\#(ago(41))","title":"Networking basics","summary":"How data finds its way from your Mac to a website and back.","model":"claude-haiku-4-5","modelReason":"Laya: easy"}]},\#(team)]}"# }
         let report = #"{"type":"report","id":1,"title":"Networking basics","summary":"How data finds its way from your Mac to a website and back.","body":"Every device on a network has an address. Your router hands one to your Mac, and translates between your home network and the internet.\n\nData travels in small packets. Each packet carries where it is going, and routers along the way pass it on, one hop at a time.\n\nNames like apple.com are turned into addresses by DNS before any packet is sent.","sources":[{"title":"How the Internet works","url":"https://developer.mozilla.org/en-US/docs/Learn/Common_questions/Web_mechanics/How_does_the_Internet_work"},{"title":"Internet Protocol (RFC 791)","url":"https://www.rfc-editor.org/rfc/rfc791"}]}"#
@@ -175,18 +177,23 @@ enum IslandGallery {
         let souled = model(theme)
         souled.helpers.openSoul()
         let reading = model(theme)
-        _ = reading.helpers.openReport(1)
-        if let event = try? decodeEvent(report) { reading.apply(event) }
+        _ = reading.helpers.openThread(1)
+        let reportObject = report.replacingOccurrences(of: #"{"type":"report","id":1,"#, with: "{")
+        let thread = #"{"type":"thread","id":1,"comments":[{"id":1,"text":"Keep it short, for a beginner.","createdAt":"\#(ago(53))"}],"activity":[{"kind":"created","at":"\#(ago(53))"},{"kind":"commented","at":"\#(ago(53))"},{"kind":"running","at":"\#(ago(52))"},{"kind":"done","at":"\#(ago(41))"}],"report":\#(reportObject)}"#
+        do { reading.apply(try decodeEvent(thread)) } catch { FileHandle.standardError.write(Data("gallery: thread: \(error)\n".utf8)) }
+        let boarded = model(theme)
+        boarded.helpers.selectBoard()
         let sheet = VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 18) {
                 window("Helpers: Sid's model chosen by Laya, jobs show their model", model(theme))
-                window("Sid's report", reading)
+                window("A task's thread: report, notes, activity (Task 3.4)", reading)
             }
             HStack(alignment: .top, spacing: 18) {
                 let other: AppTheme = theme == .void ? .void : .warm
                 window("\(other == .warm ? "Warm (light)" : other.title): Sid pinned to Sonnet, large model off, a failed job", model(other, pinned: #""claude-sonnet-4-5""#, allowLarge: false, failed: true))
                 window("Sid's soul (Task 3.3)", souled)
             }
+            window("The board: every worker's tasks; Hana waits for Sid (Task 3.4)", boarded)
         }
         .padding(24)
         .background(Color(red: 0.36, green: 0.42, blue: 0.52))

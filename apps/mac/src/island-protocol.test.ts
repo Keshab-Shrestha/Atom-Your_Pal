@@ -189,6 +189,10 @@ test("parses the helper commands", () => {
     { type: "soul.set", helper: "sid", soul: { name: "Sid", personality: "Curious.", howItWorks: "", rules: "", lessons: "" } },
     { type: "soul.set", helper: "sid", soul: { name: "", personality: "", howItWorks: "", rules: "", lessons: "" } }, // the store refuses
     { type: "soul.restore", helper: "sid", version: 2 },
+    { type: "job.add", helper: "hana", task: "Write it up", blockedBy: [1, 2] },
+    { type: "job.block", id: 3, blockedBy: [] },
+    { type: "comment.add", id: 3, text: "Keep it short" },
+    { type: "thread.get", id: 3 },
   ];
   for (const command of good) assert.deepEqual(parseCommand(JSON.stringify(command)), { command }, JSON.stringify(command));
   assert.deepEqual(parseCommand('{"type":"helpers.list","extra":1}'), { command: { type: "helpers.list" } });
@@ -227,6 +231,13 @@ test("helper commands with missing or wrong fields are protocol errors", () => {
     [{ type: "soul.restore", helper: "sid" }, /"version"/],
     [{ type: "soul.restore", helper: "sid", version: 0 }, /"version"/],
     [{ type: "soul.restore", version: 1 }, /"helper"/],
+    [{ type: "job.add", helper: "sid", task: "x", blockedBy: [1, "2"] }, /"blockedBy"/],
+    [{ type: "job.add", helper: "sid", task: "x", blockedBy: 1 }, /"blockedBy"/],
+    [{ type: "job.block", id: 3 }, /"blockedBy"/],
+    [{ type: "job.block", id: 0, blockedBy: [] }, /"id"/],
+    [{ type: "comment.add", id: 3 }, /"text"/],
+    [{ type: "comment.add", text: "x" }, /"id"/],
+    [{ type: "thread.get", id: -1 }, /whole number/],
   ];
   for (const [command, expected] of bad) {
     const parsed = parseCommand(JSON.stringify(command));

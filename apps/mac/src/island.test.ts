@@ -763,6 +763,28 @@ test("soul.set saves a new version and soul.restore brings an old one back; a ba
   assert.equal(store.list()[0]!.soulVersion, 3);
 });
 
+test("tasks: job.add with blockedBy, job.block refusing a circle, comment.add and thread.get (ADR-087)", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  h.clear();
+  await h.send({ type: "job.add", helper: "sid", task: "Research" }, { type: "job.add", helper: "hana", task: "Write it up", blockedBy: [1] });
+  const hana = (h.events().at(-1) as HelpersEvent).helpers.find((x) => x.id === "hana")!;
+  assert.deepEqual([hana.jobs[0]!.blockedBy, hana.jobs[0]!.waitingFor, hana.jobs[0]!.comments], [[1], [1], 0]);
+  h.clear();
+  await h.send({ type: "job.block", id: 1, blockedBy: [2] });
+  assert.deepEqual(h.types(), ["error"]);
+  assert.match((h.events()[0] as { message: string }).message, /circle/);
+  h.clear();
+  await h.send({ type: "comment.add", id: 2, text: "Keep it short" }, { type: "thread.get", id: 2 });
+  assert.deepEqual(h.types(), ["helpers", "thread"]);
+  const thread = h.events()[1] as Extract<IslandEvent, { type: "thread" }>;
+  assert.deepEqual([thread.id, thread.comments.map((c) => c.text), thread.activity.map((a) => a.kind), thread.report], [2, ["Keep it short"], ["created", "commented"], undefined]);
+  h.clear();
+  await h.send({ type: "thread.get", id: 99 });
+  assert.deepEqual(h.types(), ["error"]);
+  assert.equal(store.get(2)!.comments, 1);
+});
+
 test("helpers.settings turns the large model off and on, answered with helpers", async () => {
   const { h, store } = helperHarness();
   await tick(5);

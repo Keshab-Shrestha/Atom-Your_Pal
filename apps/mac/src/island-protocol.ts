@@ -25,7 +25,10 @@ export type IslandCommand =
   | { type: "context.window"; bundleId: string; name: string }
   | { type: "helpers.list" }
   | { type: "helper.set"; helper: string; app: string }
-  | { type: "job.add"; helper: string; task: string }
+  | { type: "job.add"; helper: string; task: string; blockedBy?: number[] }
+  | { type: "job.block"; id: number; blockedBy: number[] }
+  | { type: "comment.add"; id: number; text: string }
+  | { type: "thread.get"; id: number }
   | { type: "job.stop"; id: number }
   | { type: "job.delete"; id: number }
   | { type: "report.get"; id: number }
@@ -89,6 +92,21 @@ export interface JobItem {
   model?: string;
   /** Why that model, in plain words ("Laya: trivial", "Pinned", …). */
   modelReason?: string;
+  /** ADR-087: the tasks it waits for, those not done yet, and how many notes it has. */
+  blockedBy: number[];
+  waitingFor: number[];
+  comments: number;
+  goal?: string;
+  parentId?: number;
+}
+
+/** A task's thread (ADR-087, Task 3.4). Never logged. */
+export interface ThreadEvent {
+  type: "thread";
+  id: number;
+  comments: { id: number; text: string; createdAt: string }[];
+  activity: { kind: string; at: string }[];
+  report?: Omit<ReportEvent, "type" | "id">;
 }
 
 /** One model the Claude plan offers to worker jobs (ADR-083). */
@@ -175,6 +193,7 @@ export type IslandEvent =
   | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[] }
   | { type: "helpers"; helpers: HelperItem[]; apps: string[]; allowLarge?: boolean; models?: ModelItem[] }
   | ReportEvent
+  | ThreadEvent
   | { type: "error"; stage: ErrorStage; message: string; kind?: string; retryable?: boolean };
 
 const COMMANDS = new Set<IslandCommand["type"]>([
@@ -201,6 +220,9 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "helpers.settings",
   "soul.set",
   "soul.restore",
+  "job.block",
+  "comment.add",
+  "thread.get",
   "quit",
 ]);
 
@@ -256,7 +278,23 @@ export function parseCommand(line: string): ParsedLine {
     const { helper, task } = value as { helper?: unknown; task?: unknown };
     if (typeof helper !== "string" || helper === "") return { error: 'job.add needs a "helper" string.' };
     if (typeof task !== "string") return { error: 'job.add needs a "task" string.' };
-    return { command: { type, helper, task } };
+    const { blockedBy } = value as { blockedBy?: unknown };
+    if (blockedBy === undefined) return { command: { type, helper, task } };
+    if (!isIdList(blockedBy)) return { error: 'job.add needs "blockedBy" to be a list of whole numbers.' };
+    return { command: { type, helper, task, blockedBy } };
+  }
+  if (type === "job.block") {
+    const { id, blockedBy } = value as { id?: unknown; blockedBy?: unknown };
+    if (!isId(id)) return { error: 'job.block needs an "id" that is a whole number.' };
+    if (!isIdList(blockedBy)) return { error: 'job.block needs "blockedBy" to be a list of whole numbers.' };
+    return { command: { type, id, blockedBy } };
+  }
+  if (type === "comment.add") {
+    // An empty or long note is the store's to refuse (stage "settings").
+    const { id, text } = value as { id?: unknown; text?: unknown };
+    if (!isId(id)) return { error: 'comment.add needs an "id" that is a whole number.' };
+    if (typeof text !== "string") return { error: 'comment.add needs a "text" string.' };
+    return { command: { type, id, text } };
   }
   if (type === "helper.pin") {
     // Whether the model is offered is the helpers' to refuse (stage "settings"), as the protocol says.
@@ -288,13 +326,16 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof version !== "number" || !Number.isInteger(version) || version < 1) return { error: 'soul.restore needs a "version" that is a whole number.' };
     return { command: { type, helper, version } };
   }
-  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.delete" || type === "report.get") {
+  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.delete" || type === "report.get" || type === "thread.get") {
     const { id } = value as { id?: unknown };
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     return { command: { type, id } };
   }
   return { command: { type } as IslandCommand }; // extra fields are ignored (forward compatibility)
 }
+
+const isId = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v >= 1;
+const isIdList = (v: unknown): v is number[] => Array.isArray(v) && v.length <= 20 && v.every(isId);
 
 /** One event as a single line of JSON, ending with a newline. */
 export function encodeEvent(event: IslandEvent): string {

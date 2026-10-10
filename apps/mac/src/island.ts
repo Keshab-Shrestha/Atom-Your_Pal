@@ -18,6 +18,7 @@ import {
   type MemoryItem,
   type ReportEvent,
   type SoulItem,
+  type ThreadEvent,
 } from "./island-protocol.ts";
 import type { ComputerBridge } from "./computer-bridge.ts";
 import type { WindowPointer } from "./screen-context.ts";
@@ -93,8 +94,14 @@ export interface IslandHelpers {
   apps(): Promise<string[]>;
   /** Throws, with words for the user, for an unknown helper. */
   setApp(helper: string, app: string): void;
-  /** Throws, with words for the user, for an unknown or unavailable helper or an empty or long task. */
-  addJob(helper: string, task: string): void;
+  /** Throws, with words for the user, for an unknown or unavailable helper, an empty or long task, or bad blockers. */
+  addJob(helper: string, task: string, blockedBy?: number[]): void;
+  /** Changes what a queued task waits for (ADR-087). Throws, with words for the user, for a started task or a circle. */
+  setBlockers(id: number, blockedBy: number[]): void;
+  /** Adds Keshab's note to a task. Throws, with words for the user, for an unknown task or an empty or long note. */
+  addComment(id: number, text: string): void;
+  /** A task's thread, or undefined for an unknown task. */
+  thread(id: number): Omit<ThreadEvent, "type"> | undefined;
   /** Pins a helper to an offered model ("" unpins). Throws, with words for the user, for an unknown helper or model. */
   pin(helper: string, model: string): void;
   /** Saves an edited soul as a new version (Task 3.3). Throws, with words for the user, for an unknown helper or a bad soul. */
@@ -259,7 +266,7 @@ export function runIsland(options: IslandOptions): IslandSession {
         void setHelperApp(command.helper, command.app);
         return;
       case "job.add":
-        changeHelpers(command.type, (helpers) => helpers.addJob(command.helper, command.task));
+        changeHelpers(command.type, (helpers) => helpers.addJob(command.helper, command.task, command.blockedBy));
         return;
       case "job.stop":
         options.helpers?.stop(command.id); // unknown or finished: ignored
@@ -275,6 +282,18 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "helpers.settings":
         changeHelpers(command.type, (helpers) => helpers.setAllowLarge(command.allowLarge));
         return;
+      case "job.block":
+        changeHelpers(command.type, (helpers) => helpers.setBlockers(command.id, command.blockedBy));
+        return;
+      case "comment.add":
+        changeHelpers(command.type, (helpers) => helpers.addComment(command.id, command.text));
+        return;
+      case "thread.get": {
+        const thread = options.helpers?.thread(command.id);
+        if (thread) send({ type: "thread", ...thread });
+        else refuseHelpers(command.type, options.helpers ? "That task is gone." : HELPERS_OFF);
+        return;
+      }
       case "soul.set":
         changeHelpers(command.type, (helpers) => helpers.saveSoul(command.helper, command.soul));
         return;

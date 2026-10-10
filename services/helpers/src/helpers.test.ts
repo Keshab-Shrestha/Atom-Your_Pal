@@ -36,9 +36,9 @@ const report = {
 
 // --- state machine ---
 
-test("a job moves queued → running → done|failed|stopped, and queued → stopped; final states never move", () => {
+test("a job moves queued → running → done|failed|stopped, and queued → stopped|failed; final states never move", () => {
   const all: JobState[] = ["queued", "running", "done", "failed", "stopped"];
-  const allowed = new Set(["queued>running", "queued>stopped", "running>done", "running>failed", "running>stopped"]);
+  const allowed = new Set(["queued>running", "queued>stopped", "queued>failed", "running>done", "running>failed", "running>stopped"]);
   for (const from of all) {
     for (const to of all) {
       const ok = allowed.has(`${from}>${to}`);
@@ -193,7 +193,7 @@ test("change events carry ids, states and timings, never task or report text", (
     { action: "job", helper: "sid", job: id, state: "queued" },
     { action: "job", helper: "sid", job: id, state: "running" },
     { action: "step", helper: "sid", job: id },
-    { action: "job", helper: "sid", job: id, state: "done", ms: 60_000 },
+    { action: "job", helper: "sid", job: id, state: "done", ms: 120_000 }, // the fake clock ticks once for the start's activity line
   ]);
   stop();
   store.addJob("sid", "more");

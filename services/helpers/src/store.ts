@@ -1,12 +1,27 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { HELPERS, HelperError, cleanSoul, findHelper, isFinal, move, type HelperId, type JobState, type Soul } from "./jobs.ts";
+import {
+  HELPERS,
+  HelperError,
+  MAX_BLOCKERS,
+  cleanSoul,
+  findHelper,
+  isFinal,
+  makesCycle,
+  move,
+  type HelperId,
+  type JobState,
+  type Soul,
+  type TaskContext,
+} from "./jobs.ts";
 
 // ADR-081: helper apps, jobs and reports in one local SQLite file. Task text, reports and source addresses
 // are the user's own: kept here, never logged (callers log the change events, which carry ids and states only).
 
 export const MAX_TASK_CHARS = 1000;
+export const MAX_GOAL_CHARS = 1000;
+export const MAX_COMMENT_CHARS = 2000;
 export const JOBS_PER_HELPER = 20;
 export const CLOSED_WHILE_RUNNING = "ZENO was closed while this job ran";
 /** Soul versions listed per worker (all are kept). */
@@ -48,6 +63,41 @@ export interface Job {
   model?: string;
   /** Why that model, in plain words. */
   modelReason?: string;
+  /** ADR-087: the goal it is part of, and the task that created it. */
+  goal?: string;
+  parentId?: number;
+  /** The tasks it waits for, and those of them not done yet (it starts when this is empty). */
+  blockedBy: number[];
+  waitingFor: number[];
+  /** How many notes Keshab added. */
+  comments: number;
+}
+
+export interface Comment {
+  id: number;
+  text: string;
+  createdAt: Date;
+}
+
+/** One line of a task's activity: what happened and when (ids and states only, as in the logs). */
+export interface Activity {
+  kind: "created" | "waits" | "commented" | JobState;
+  at: Date;
+}
+
+/** A task's thread (ADR-087): Keshab's notes, what happened, and the report. */
+export interface Thread {
+  id: number;
+  comments: Comment[];
+  activity: Activity[];
+  report?: Report;
+}
+
+export interface AddJobOptions {
+  /** Tasks this one waits for: each must exist and must not have failed or been stopped. */
+  blockedBy?: readonly number[];
+  goal?: string;
+  parentId?: number;
 }
 
 export interface SoulVersion {
@@ -82,6 +132,8 @@ export type HelperChange =
   | { action: "model"; helper: HelperId; job: number }
   | { action: "job"; helper: HelperId; job: number; state: JobState; ms?: number }
   | { action: "step"; helper: HelperId; job: number }
+  | { action: "comment"; helper: HelperId; job: number }
+  | { action: "blockers"; helper: HelperId; job: number }
   | { action: "deleted"; helper: HelperId; job: number };
 
 export interface HelperStore {
@@ -102,17 +154,27 @@ export interface HelperStore {
   setAllowLarge(allowed: boolean): void;
   /** Records a running job's model and why. False (and nothing saved) unless the job is running. */
   setModel(id: number, model: string, reason: string): boolean;
-  /** Queues a job. Throws HelperError for an unknown or unavailable helper, or an empty or long task. */
-  addJob(helper: string, task: string): Job;
+  /** Queues a job. Throws HelperError for an unknown or unavailable helper, an empty or long task, or bad blockers. */
+  addJob(helper: string, task: string, options?: AddJobOptions): Job;
   get(id: number): Job | undefined;
-  /** Every queued job, oldest first (for the job runner). */
+  /** Every queued job whose blockers are all done, oldest first (for the job runner). */
   queued(): Job[];
+  /** Changes what a queued task waits for. Throws HelperError for a task that is not queued, bad blockers, or a circle. */
+  setBlockers(id: number, blockedBy: readonly number[]): void;
+  /** Adds Keshab's note to a task. Throws HelperError for an unknown task or an empty or long note. */
+  addComment(id: number, text: string): void;
+  thread(id: number): Thread | undefined;
+  /** What a task is given when it runs: its goal, notes and the reports of the tasks it waited for. */
+  context(id: number): TaskContext;
   /** Stops a queued or running job. False when there is no such job or it has ended. */
   stop(id: number): boolean;
   /** Deletes a job and its report, stopping it first if it has not ended. False when there is none. */
   remove(id: number): boolean;
   report(id: number): Report | undefined;
-  /** For the job runner (Task 3.2). These throw HelperError for an unknown job or a move its life does not allow. */
+  /**
+   * For the job runner (Task 3.2). These throw HelperError for an unknown job or a move its life does not allow.
+   * `start` claims a queued task whose blockers are done, atomically: a second claim throws.
+   */
   start(id: number): void;
   /** Records a running job's progress. False (and nothing saved) unless the job is running. */
   step(id: number, text: string): boolean;
@@ -143,6 +205,8 @@ interface JobRow {
   summary?: string | null;
   model: string | null;
   model_reason: string | null;
+  goal: string | null;
+  parent_id: number | null;
 }
 
 interface SoulRow {
@@ -172,7 +236,7 @@ interface ReportRow {
   sources: string;
 }
 
-const toJob = (row: JobRow): Job => ({
+const toJobRow = (row: JobRow): Omit<Job, "blockedBy" | "waitingFor" | "comments"> => ({
   id: row.id,
   helper: row.helper as HelperId,
   task: row.task,
@@ -186,6 +250,8 @@ const toJob = (row: JobRow): Job => ({
   ...(row.summary != null ? { summary: row.summary } : {}),
   ...(row.model ? { model: row.model } : {}),
   ...(row.model_reason ? { modelReason: row.model_reason } : {}),
+  ...(row.goal ? { goal: row.goal } : {}),
+  ...(row.parent_id != null ? { parentId: row.parent_id } : {}),
 });
 
 /** Sources with an http or https address only; anything else (javascript:, file:, junk) is dropped. */
@@ -237,6 +303,24 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS job_blockers (
+      job_id INTEGER NOT NULL,
+      blocker_id INTEGER NOT NULL,
+      PRIMARY KEY (job_id, blocker_id)
+    );
+    CREATE INDEX IF NOT EXISTS job_blockers_blocker ON job_blockers(blocker_id);
+    CREATE TABLE IF NOT EXISTS job_comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id INTEGER NOT NULL,
+      text TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS job_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      at TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS souls (
       helper TEXT NOT NULL,
       version INTEGER NOT NULL,
@@ -251,7 +335,9 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   `);
   // ADR-083: files from before Task 3.2b lack the model columns.
   const columns = new Set((db.prepare("PRAGMA table_info(jobs)").all() as { name: string }[]).map((c) => c.name));
-  for (const column of ["model", "model_reason"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);
+  for (const column of ["model", "model_reason", "goal"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);
+  // ADR-087: files from before Task 3.4 lack the task columns.
+  if (!columns.has("parent_id")) db.exec("ALTER TABLE jobs ADD COLUMN parent_id INTEGER");
   const opened = now();
   // A job cannot outlive the process that ran it.
   db.prepare("UPDATE jobs SET state = 'failed', step = NULL, error = ?, ended_at = ? WHERE state = 'running'").run(
@@ -281,9 +367,27 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const newestJobs = db.prepare(
     "SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.helper = ? ORDER BY j.id DESC LIMIT ?",
   );
-  const queuedJobs = db.prepare("SELECT * FROM jobs WHERE state = 'queued' ORDER BY id");
+  // Queued, and every task it waits for is done (a deleted one no longer holds it back).
+  const queuedJobs = db.prepare(`
+    SELECT * FROM jobs j WHERE j.state = 'queued' AND NOT EXISTS (
+      SELECT 1 FROM job_blockers b JOIN jobs x ON x.id = b.blocker_id WHERE b.job_id = j.id AND x.state != 'done'
+    ) ORDER BY j.id`);
+  const blockersOf = db.prepare("SELECT b.blocker_id AS id, x.state FROM job_blockers b JOIN jobs x ON x.id = b.blocker_id WHERE b.job_id = ? ORDER BY b.blocker_id");
+  const allBlockers = db.prepare("SELECT job_id, blocker_id FROM job_blockers");
+  const dependents = db.prepare("SELECT j.id FROM job_blockers b JOIN jobs j ON j.id = b.job_id WHERE b.blocker_id = ? AND j.state = 'queued' ORDER BY j.id");
+  const insertBlocker = db.prepare("INSERT INTO job_blockers (job_id, blocker_id) VALUES (?, ?)");
+  const clearBlockers = db.prepare("DELETE FROM job_blockers WHERE job_id = ?");
+  const dropLinks = db.prepare("DELETE FROM job_blockers WHERE job_id = ? OR blocker_id = ?");
+  const insertComment = db.prepare("INSERT INTO job_comments (job_id, text, created_at) VALUES (?, ?, ?)");
+  const commentsOf = db.prepare("SELECT id, text, created_at FROM job_comments WHERE job_id = ? ORDER BY id");
+  const commentCount = db.prepare("SELECT COUNT(*) AS n FROM job_comments WHERE job_id = ?");
+  const deleteComments = db.prepare("DELETE FROM job_comments WHERE job_id = ?");
+  const insertEvent = db.prepare("INSERT INTO job_events (job_id, kind, at) VALUES (?, ?, ?)");
+  const eventsOf = db.prepare("SELECT kind, at FROM job_events WHERE job_id = ? ORDER BY id");
+  const deleteEvents = db.prepare("DELETE FROM job_events WHERE job_id = ?");
+  const claim = db.prepare("UPDATE jobs SET state = 'running', step = NULL WHERE id = ? AND state = 'queued'");
   const jobById = db.prepare("SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.id = ?");
-  const insertJob = db.prepare("INSERT INTO jobs (helper, task, state, created_at) VALUES (?, ?, 'queued', ?)");
+  const insertJob = db.prepare("INSERT INTO jobs (helper, task, state, created_at, goal, parent_id) VALUES (?, ?, 'queued', ?, ?, ?)");
   const setState = db.prepare("UPDATE jobs SET state = ?, step = NULL, partial = ?, error = ?, ended_at = ? WHERE id = ?");
   const setStep = db.prepare("UPDATE jobs SET step = ? WHERE id = ? AND state = 'running'");
   const insertReport = db.prepare("INSERT OR REPLACE INTO reports (job_id, title, summary, body, sources) VALUES (?, ?, ?, ?, ?)");
@@ -296,10 +400,35 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     for (const listener of listeners) listener(change);
   };
 
+  const toJob = (row: JobRow): Job => {
+    const blockers = blockersOf.all(row.id) as { id: number; state: string }[];
+    return {
+      ...toJobRow(row),
+      blockedBy: blockers.map((b) => b.id),
+      waitingFor: blockers.filter((b) => b.state !== "done").map((b) => b.id),
+      comments: Number((commentCount.get(row.id) as { n: number }).n),
+    };
+  };
+
   const get = (id: number) => {
     const row = jobById.get(id) as JobRow | undefined;
     return row ? toJob(row) : undefined;
   };
+
+  const log = (id: number, kind: Activity["kind"], at = now()) => insertEvent.run(id, kind, at.toISOString());
+
+  /** Blockers checked: unique, at most MAX_BLOCKERS, each an existing task that has not failed or been stopped. */
+  function checkBlockers(raw: readonly number[], self?: number): number[] {
+    const ids = [...new Set(raw)];
+    if (ids.length > MAX_BLOCKERS) throw new HelperError(`A task can wait for at most ${MAX_BLOCKERS} others.`);
+    for (const id of ids) {
+      if (id === self) throw new HelperError("A task cannot wait for itself.");
+      const blocker = get(id);
+      if (!blocker) throw new HelperError(`There is no task ${id} to wait for.`);
+      if (blocker.state === "failed" || blocker.state === "stopped") throw new HelperError(`Task ${id} has ${blocker.state === "failed" ? "failed" : "been stopped"}; nothing can wait for it.`);
+    }
+    return ids;
+  }
 
   function mustHelper(helper: string) {
     const known = findHelper(helper);
@@ -321,12 +450,21 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     return job;
   }
 
-  /** Moves a job to a new state through the state machine, saves it and tells listeners. */
+  /**
+   * Moves a job to a new state through the state machine, saves it and tells listeners. A task that fails or is
+   * stopped fails the queued tasks waiting for it (ADR-087): they could never start.
+   */
   function transition(job: Job, to: JobState, fields: { partial?: boolean; error?: string } = {}) {
     move(job.state, to);
     const ended = isFinal(to) ? now() : undefined;
     setState.run(to, fields.partial ? 1 : 0, fields.error ?? null, ended?.toISOString() ?? null, job.id);
+    log(job.id, to, ended);
     emit({ action: "job", helper: job.helper, job: job.id, state: to, ...(ended ? { ms: ended.getTime() - job.createdAt.getTime() } : {}) });
+    if (to !== "failed" && to !== "stopped") return;
+    for (const { id } of dependents.all(job.id) as { id: number }[]) {
+      const waiting = get(id);
+      if (waiting?.state === "queued") transition(waiting, "failed", { error: `Task ${job.id}, which it waited for, ${to === "failed" ? "failed" : "was stopped"}.` });
+    }
   }
 
   function transaction(work: () => void) {
@@ -409,15 +547,80 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       return true;
     },
 
-    addJob(helper, raw) {
+    addJob(helper, raw, options = {}) {
       const known = mustHelper(helper);
       if (!known.available) throw new HelperError(`${current(known.id).name} is not ready yet.`);
       const task = raw.trim();
       if (!task) throw new HelperError("The job is empty.");
       if (task.length > MAX_TASK_CHARS) throw new HelperError(`The job is too long (${task.length} characters, limit ${MAX_TASK_CHARS}).`);
-      const id = Number(insertJob.run(known.id, task, now().toISOString()).lastInsertRowid);
+      const goal = options.goal?.trim() || null;
+      if (goal && goal.length > MAX_GOAL_CHARS) throw new HelperError(`The goal is too long (${goal.length} characters, limit ${MAX_GOAL_CHARS}).`);
+      if (options.parentId !== undefined && !get(options.parentId)) throw new HelperError(`There is no task ${options.parentId}.`);
+      // A new task cannot close a circle: everything it waits for already exists.
+      const blockers = checkBlockers(options.blockedBy ?? []);
+      let id = 0;
+      const created = now();
+      transaction(() => {
+        id = Number(insertJob.run(known.id, task, created.toISOString(), goal, options.parentId ?? null).lastInsertRowid);
+        for (const b of blockers) insertBlocker.run(id, b);
+        log(id, "created", created);
+      });
       emit({ action: "job", helper: known.id, job: id, state: "queued" });
       return mustGet(id);
+    },
+
+    setBlockers(id, raw) {
+      const job = mustGet(id);
+      if (job.state !== "queued") throw new HelperError("Only a task that has not started can change what it waits for.");
+      const blockers = checkBlockers(raw, id);
+      const edges = new Map<number, number[]>();
+      for (const { job_id, blocker_id } of allBlockers.all() as { job_id: number; blocker_id: number }[]) {
+        if (job_id !== id) edges.set(job_id, [...(edges.get(job_id) ?? []), blocker_id]);
+      }
+      if (makesCycle(edges, id, blockers)) throw new HelperError("That would make tasks wait for each other in a circle.");
+      transaction(() => {
+        clearBlockers.run(id);
+        for (const b of blockers) insertBlocker.run(id, b);
+        log(id, "waits");
+      });
+      emit({ action: "blockers", helper: job.helper, job: id });
+    },
+
+    addComment(id, raw) {
+      const job = mustGet(id);
+      const text = raw.trim();
+      if (!text) throw new HelperError("The note is empty.");
+      if (text.length > MAX_COMMENT_CHARS) throw new HelperError(`The note is too long (${text.length} characters, limit ${MAX_COMMENT_CHARS}).`);
+      transaction(() => {
+        insertComment.run(id, text, now().toISOString());
+        log(id, "commented");
+      });
+      emit({ action: "comment", helper: job.helper, job: id });
+    },
+
+    thread(id) {
+      if (!get(id)) return undefined;
+      const report = this.report(id);
+      return {
+        id,
+        comments: (commentsOf.all(id) as { id: number; text: string; created_at: string }[]).map((c) => ({ id: c.id, text: c.text, createdAt: new Date(c.created_at) })),
+        activity: (eventsOf.all(id) as { kind: Activity["kind"]; at: string }[]).map((e) => ({ kind: e.kind, at: new Date(e.at) })),
+        ...(report ? { report } : {}),
+      };
+    },
+
+    context(id) {
+      const job = mustGet(id);
+      return {
+        ...(job.goal ? { goal: job.goal } : {}),
+        comments: (commentsOf.all(id) as { text: string }[]).map((c) => c.text),
+        earlier: job.blockedBy.flatMap((b) => {
+          const blocker = get(b);
+          const report = this.report(b);
+          if (!blocker || !report) return [];
+          return [{ worker: current(blocker.helper).name, task: blocker.task, title: report.title, summary: report.summary, body: report.body, sources: report.sources }];
+        }),
+      };
     },
 
     get,
@@ -440,6 +643,9 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       transaction(() => {
         deleteReport.run(id);
         deleteJob.run(id);
+        dropLinks.run(id, id);
+        deleteComments.run(id);
+        deleteEvents.run(id);
       });
       emit({ action: "deleted", helper: job.helper, job: id });
       return true;
@@ -452,7 +658,13 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     },
 
     start(id) {
-      transition(mustGet(id), "running");
+      const job = mustGet(id);
+      move(job.state, "running"); // refuses anything but a queued task, with the usual words
+      if (job.waitingFor.length) throw new HelperError(`Task ${id} still waits for ${job.waitingFor.join(", ")}.`);
+      // The claim itself: only one caller can move it from queued.
+      if (Number(claim.run(id).changes) === 0) throw new HelperError(`Task ${id} has already started.`);
+      log(id, "running");
+      emit({ action: "job", helper: job.helper, job: id, state: "running" });
     },
 
     step(id, text) {
@@ -472,7 +684,10 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     },
 
     fail(id, error, partial = false) {
-      transition(mustGet(id), "failed", { partial, error });
+      const job = mustGet(id);
+      // Only a run fails here; a queued task fails only when what it waits for does (in transition).
+      if (job.state !== "running") throw new HelperError(`A ${job.state} job cannot become failed.`);
+      transition(job, "failed", { partial, error });
     },
 
     onChange(listener) {

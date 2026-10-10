@@ -17,6 +17,11 @@ const toJobItem = (job: Job): JobItem => ({
   ...(job.error ? { error: job.error } : {}),
   ...(job.model ? { model: job.model } : {}),
   ...(job.modelReason ? { modelReason: job.modelReason } : {}),
+  blockedBy: job.blockedBy,
+  waitingFor: job.waitingFor,
+  comments: job.comments,
+  ...(job.goal ? { goal: job.goal } : {}),
+  ...(job.parentId !== undefined ? { parentId: job.parentId } : {}),
 });
 
 /**
@@ -33,7 +38,20 @@ export function islandHelpers(store: HelperStore, apps: () => Promise<string[]>,
       })),
     apps: async () => [...(await apps())].sort((a, b) => a.localeCompare(b)),
     setApp: (helper, app) => store.setApp(helper, app),
-    addJob: (helper, task) => void store.addJob(helper, task),
+    addJob: (helper, task, blockedBy) => void store.addJob(helper, task, blockedBy ? { blockedBy } : {}),
+    setBlockers: (id, blockedBy) => store.setBlockers(id, blockedBy),
+    addComment: (id, text) => store.addComment(id, text),
+    thread: (id) => {
+      const thread = store.thread(id);
+      if (!thread) return undefined;
+      const { report } = thread;
+      return {
+        id,
+        comments: thread.comments.map((c) => ({ id: c.id, text: c.text, createdAt: c.createdAt.toISOString() })),
+        activity: thread.activity.map((a) => ({ kind: a.kind, at: a.at.toISOString() })),
+        ...(report ? { report: { title: report.title, summary: report.summary, body: report.body, sources: report.sources } } : {}),
+      };
+    },
     pin: (helper, model) => {
       if (model && !models().some((m) => m.id === model)) throw new HelperError("That model is not offered for helper jobs.");
       store.pin(helper, model);

@@ -143,6 +143,7 @@ final class IslandModel {
     func apply(_ event: IslandEvent) {
         let helperRefusal = helpers.claims(event)
         helpers.apply(event)
+        if let refresh = helpers.takeRefresh() { send(refresh) } // the open task changed: ask for its thread again
         if helperRefusal { return } // a refused helper command is shown in the Helpers window only
         conversation.apply(event)
         approval.apply(event)

@@ -43,6 +43,7 @@ import {
   type MemoryStore,
 } from "@zeno/memory";
 import {
+  briefFor,
   chooseJobModel,
   findHelper,
   instructionsFor,
@@ -355,7 +356,9 @@ export function createRuntime(
     });
     if (!soul) throw new Error(`There is no worker called ${job.helper}.`);
     const instructions = instructionsFor(soul, role);
-    const result = await runResearch({ claudePath: keys["claude-plan"] ?? "", model, task: job.task, instructions, signal, onStep, onUsage: reportUsage });
+    // ADR-087: the task with its goal, Keshab's notes and the reports of the tasks it waited for.
+    const task = briefFor(job.task, helpers?.context(job.id) ?? { comments: [], earlier: [] });
+    const result = await runResearch({ claudePath: keys["claude-plan"] ?? "", model, task, instructions, signal, onStep, onUsage: reportUsage });
     return { ...result, report: withRoleNotice(role, result.report) };
   };
   // Logs ids, states, timings and page counts only: never the task, report or addresses.

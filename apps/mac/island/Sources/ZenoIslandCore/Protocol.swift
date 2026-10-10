@@ -29,7 +29,11 @@ public enum IslandCommand: Sendable, Equatable {
     /// give it a job, stop or forget a job, ask for a job's report.
     case helpersList
     case helperSet(helper: String, app: String)
-    case jobAdd(helper: String, task: String)
+    case jobAdd(helper: String, task: String, blockedBy: [Int] = [])
+    /// ADR-087: change what a queued task waits for; add a note to a task; ask for a task's thread.
+    case jobBlock(id: Int, blockedBy: [Int])
+    case commentAdd(id: Int, text: String)
+    case threadGet(id: Int)
     case jobStop(id: Int)
     case jobDelete(id: Int)
     case reportGet(id: Int)
@@ -60,6 +64,9 @@ public enum IslandCommand: Sendable, Equatable {
         case .helpersList: "helpers.list"
         case .helperSet: "helper.set"
         case .jobAdd: "job.add"
+        case .jobBlock: "job.block"
+        case .commentAdd: "comment.add"
+        case .threadGet: "thread.get"
         case .jobStop: "job.stop"
         case .jobDelete: "job.delete"
         case .reportGet: "report.get"
@@ -98,10 +105,17 @@ public enum IslandCommand: Sendable, Equatable {
         case .helperSet(let helper, let app):
             fields["helper"] = helper
             fields["app"] = app
-        case .jobAdd(let helper, let task):
+        case .jobAdd(let helper, let task, let blockedBy):
             fields["helper"] = helper
             fields["task"] = task
-        case .jobStop(let id), .jobDelete(let id), .reportGet(let id):
+            if !blockedBy.isEmpty { fields["blockedBy"] = blockedBy }
+        case .jobBlock(let id, let blockedBy):
+            fields["id"] = id
+            fields["blockedBy"] = blockedBy
+        case .commentAdd(let id, let text):
+            fields["id"] = id
+            fields["text"] = text
+        case .jobStop(let id), .jobDelete(let id), .reportGet(let id), .threadGet(let id):
             fields["id"] = id // a JSON number
         case .helperPin(let helper, let model):
             fields["helper"] = helper
@@ -353,6 +367,7 @@ public enum IslandEvent: Sendable, Equatable {
     case helpers(HelpersList)
     /// One job's report, after `report.get`.
     case report(HelperReport)
+    case thread(HelperThread)
     case error(RuntimeError)
     /// A newer runtime sent an event this island does not know; ignored for forward compatibility.
     case unknown(type: String)
@@ -384,6 +399,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .mediaKey: "media.key"
         case .helpers: "helpers"
         case .report: "report"
+        case .thread: "thread"
         case .error(let e): "error:\(e.stage)"
         case .unknown(let type): "unknown:\(type)"
         }
@@ -482,6 +498,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
     case "helpers":
         return .helpers(HelpersList(helpers: try f.helpers(), apps: try f.strings("apps"),
                                     allowLarge: try f.optionalStrictBool("allowLarge") ?? true, models: try f.helperModels()))
+    case "thread":
+        return .thread(try f.thread())
     case "report":
         return .report(HelperReport(id: try f.int("id"), title: try f.string("title"), summary: try f.string("summary"),
                                     body: try f.string("body"), sources: try f.sources()))
@@ -662,7 +680,36 @@ private struct Fields {
         return HelperJob(id: id.intValue, task: task, state: state, createdAt: Self.date(createdAt),
                          endedAt: (j["endedAt"] as? String).flatMap(Self.date), step: j["step"] as? String, partial: partial,
                          title: j["title"] as? String, summary: j["summary"] as? String, error: j["error"] as? String,
-                         model: j["model"] as? String, modelReason: j["modelReason"] as? String)
+                         model: j["model"] as? String, modelReason: j["modelReason"] as? String,
+                         blockedBy: Self.ids(j["blockedBy"]), waitingFor: Self.ids(j["waitingFor"]),
+                         comments: (j["comments"] as? NSNumber)?.intValue ?? 0, goal: j["goal"] as? String,
+                         parentId: (j["parentId"] as? NSNumber)?.intValue)
+    }
+
+    /// A list of task ids; anything else reads as none.
+    private static func ids(_ value: Any?) -> [Int] {
+        (value as? [Any])?.compactMap { ($0 as? NSNumber).flatMap { CFGetTypeID($0) == CFBooleanGetTypeID() ? nil : $0.intValue } } ?? []
+    }
+
+    /// The `thread` event (ADR-087): notes and activity, and the report when there is one.
+    func thread() throws -> HelperThread {
+        let invalid = { (field: String) in ProtocolError.invalidValue(event: event, field: field) }
+        guard let comments = values["comments"] as? [Any] else { throw invalid("comments") }
+        guard let activity = values["activity"] as? [Any] else { throw invalid("activity") }
+        var report: HelperReport?
+        if let r = values["report"] {
+            guard let r = r as? [String: Any], let title = r["title"] as? String, let summary = r["summary"] as? String,
+                  let body = r["body"] as? String else { throw invalid("report") }
+            let sources = try Fields(event: event, values: ["sources": r["sources"] ?? []]).sources()
+            report = HelperReport(id: try int("id"), title: title, summary: summary, body: body, sources: sources)
+        }
+        return HelperThread(id: try int("id"), comments: try comments.map { entry in
+            guard let c = entry as? [String: Any], let id = c["id"] as? NSNumber, let text = c["text"] as? String else { throw invalid("comments") }
+            return TaskComment(id: id.intValue, text: text, createdAt: (c["createdAt"] as? String).flatMap(Self.date))
+        }, activity: try activity.map { entry in
+            guard let a = entry as? [String: Any], let kind = a["kind"] as? String else { throw invalid("activity") }
+            return TaskActivity(kind: kind, at: (a["at"] as? String).flatMap(Self.date))
+        }, report: report)
     }
 
     /// The optional `models` of a `helpers` event (ADR-083; absent from older runtimes). Strict like the helpers list:

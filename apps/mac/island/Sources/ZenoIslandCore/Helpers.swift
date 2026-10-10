@@ -37,10 +37,17 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     /// The model id the job runs on, once chosen, and why in plain words ("Laya: moderate", "Pinned") (ADR-083).
     public var model: String?
     public var modelReason: String?
+    /// ADR-087: the tasks it waits for, those not done yet, how many notes it has, its goal and the task that made it.
+    public var blockedBy: [Int]
+    public var waitingFor: [Int]
+    public var comments: Int
+    public var goal: String?
+    public var parentId: Int?
 
     public init(id: Int, task: String, state: JobState, createdAt: Date? = nil, endedAt: Date? = nil, step: String? = nil,
                 partial: Bool = false, title: String? = nil, summary: String? = nil, error: String? = nil,
-                model: String? = nil, modelReason: String? = nil) {
+                model: String? = nil, modelReason: String? = nil, blockedBy: [Int] = [], waitingFor: [Int] = [],
+                comments: Int = 0, goal: String? = nil, parentId: Int? = nil) {
         self.id = id
         self.task = task
         self.state = state
@@ -53,9 +60,23 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
         self.error = error
         self.model = model
         self.modelReason = modelReason
+        self.blockedBy = blockedBy
+        self.waitingFor = waitingFor
+        self.comments = comments
+        self.goal = goal
+        self.parentId = parentId
     }
 
     public var hasReport: Bool { title != nil }
+
+    /// Queued but held back by tasks not done yet.
+    public var isWaiting: Bool { state == .queued && !waitingFor.isEmpty }
+
+    /// A short name for the task in other tasks' "Waits for": its report's title, else its own words.
+    public var shortTitle: String {
+        let text = title ?? task
+        return text.count > 48 ? String(text.prefix(47)) + "…" : text
+    }
 
     /// The state badge's word: a done job that hit a limit says so.
     public var badge: String { state == .done && partial ? "Partial" : state.title }
@@ -194,6 +215,91 @@ public struct HelperModel: Sendable, Equatable, Identifiable {
     }
 }
 
+/// The task board's columns (ADR-087), in the order shown.
+public enum BoardColumn: String, Sendable, Equatable, CaseIterable {
+    case needsYou, running, toDo, done
+
+    public var title: String {
+        switch self {
+        case .needsYou: "Needs you"
+        case .running: "Running"
+        case .toDo: "To do"
+        case .done: "Done"
+        }
+    }
+
+    /// Failed tasks need you; stopped ones are done with.
+    public static func of(_ state: JobState) -> BoardColumn {
+        switch state {
+        case .failed: .needsYou
+        case .running: .running
+        case .queued: .toDo
+        case .done, .stopped: .done
+        }
+    }
+}
+
+/// One task on the board, with the worker it belongs to.
+public struct BoardItem: Sendable, Equatable, Identifiable {
+    public var helperId: String
+    public var helperName: String
+    public var job: HelperJob
+    public var id: Int { job.id }
+}
+
+/// One of Keshab's notes on a task.
+public struct TaskComment: Sendable, Equatable, Identifiable {
+    public var id: Int
+    public var text: String
+    public var createdAt: Date?
+
+    public init(id: Int, text: String, createdAt: Date?) {
+        self.id = id
+        self.text = text
+        self.createdAt = createdAt
+    }
+}
+
+/// One line of a task's activity.
+public struct TaskActivity: Sendable, Equatable {
+    public var kind: String
+    public var at: Date?
+
+    public init(kind: String, at: Date?) {
+        self.kind = kind
+        self.at = at
+    }
+
+    /// In plain words.
+    public var title: String {
+        switch kind {
+        case "created": "Added"
+        case "waits": "Changed what it waits for"
+        case "commented": "Note added"
+        case "running": "Started"
+        case "done": "Finished"
+        case "failed": "Failed"
+        case "stopped": "Stopped"
+        default: kind.prefix(1).uppercased() + kind.dropFirst()
+        }
+    }
+}
+
+/// The `thread` event: a task's notes, activity and report (ADR-087, Task 3.4).
+public struct HelperThread: Sendable, Equatable {
+    public var id: Int
+    public var comments: [TaskComment]
+    public var activity: [TaskActivity]
+    public var report: HelperReport?
+
+    public init(id: Int, comments: [TaskComment], activity: [TaskActivity], report: HelperReport? = nil) {
+        self.id = id
+        self.comments = comments
+        self.activity = activity
+        self.report = report
+    }
+}
+
 /// The `helpers` event.
 public struct HelpersList: Sendable, Equatable {
     public var helpers: [Helper]
@@ -215,6 +321,30 @@ public struct HelpersList: Sendable, Equatable {
     public func shortName(_ modelId: String) -> String {
         guard let name = models.first(where: { $0.id == modelId })?.name else { return modelId }
         return name.hasPrefix("Claude ") ? String(name.dropFirst("Claude ".count)) : name
+    }
+
+    /// Every task of every worker, in the board's columns: what needs you and what runs newest first, what is to do in
+    /// the order it will run, what is done newest first. Empty columns are left out.
+    public var board: [(column: BoardColumn, items: [BoardItem])] {
+        let items = helpers.flatMap { h in h.jobs.map { BoardItem(helperId: h.id, helperName: h.name, job: $0) } }
+        return BoardColumn.allCases.compactMap { column in
+            let here = items.filter { BoardColumn.of($0.job.state) == column }
+                .sorted { column == .toDo ? $0.job.id < $1.job.id : $0.job.id > $1.job.id }
+            return here.isEmpty ? nil : (column, here)
+        }
+    }
+
+    /// Any worker's task by id, with its worker.
+    public func item(_ id: Int) -> BoardItem? {
+        for h in helpers { if let job = h.jobs.first(where: { $0.id == id }) { return BoardItem(helperId: h.id, helperName: h.name, job: job) } }
+        return nil
+    }
+
+    /// Tasks a new task may wait for: any that has not failed or been stopped, newest first.
+    public var waitable: [BoardItem] {
+        helpers.flatMap { h in h.jobs.map { BoardItem(helperId: h.id, helperName: h.name, job: $0) } }
+            .filter { $0.job.state != .failed && $0.job.state != .stopped }
+            .sorted { $0.job.id > $1.job.id }
     }
 
     /// A job row's model line, "Sonnet 4.5 · Laya: moderate"; nil when the job has neither.
@@ -270,11 +400,19 @@ public struct HelpersState: Sendable, Equatable {
 
     public private(set) var list: HelpersList?
     public private(set) var selectedHelperId: String?
-    /// The job whose report is open.
+    /// The task whose thread is open (ADR-087), and that thread once the runtime sends it.
     public private(set) var openJobId: Int?
+    public private(set) var thread: HelperThread?
+    /// The open task as last seen, to notice when its thread needs asking for again.
+    private var openJobSeen: HelperJob?
+    /// A command the window should send after the last event (asking for the open thread again).
+    private var pendingRefresh: IslandCommand?
     /// The chosen helper's soul is open for editing (Task 3.3).
     public private(set) var isSoulOpen = false
-    public private(set) var report: HelperReport?
+    /// The board of every worker's tasks is shown instead of one worker (ADR-087).
+    public private(set) var showsBoard = false
+    /// What the next task added in the window will wait for.
+    public private(set) var draftBlockers: [Int] = []
     /// Why the runtime refused the window's last command, until the next `helpers` event.
     public private(set) var problem: String?
     /// A command from the window is waiting for its answer: a `settings` error now belongs to the window.
@@ -290,7 +428,17 @@ public struct HelpersState: Sendable, Equatable {
     }
 
     public var selectedHelper: Helper? { list?.helpers.first { $0.id == selectedHelperId } }
-    public var openJob: HelperJob? { selectedHelper?.jobs.first { $0.id == openJobId } }
+    /// The open task, whichever worker it belongs to.
+    public var openItem: BoardItem? { openJobId.flatMap { list?.item($0) } }
+    public var openJob: HelperJob? { openItem?.job }
+    /// The open task's report, once its thread has come.
+    public var report: HelperReport? { thread?.report }
+
+    /// The command the window should send now, if any (the open thread changed). Taken once.
+    public mutating func takeRefresh() -> IslandCommand? {
+        defer { pendingRefresh = nil }
+        return pendingRefresh
+    }
 
     public mutating func apply(_ event: IslandEvent) {
         switch event {
@@ -302,9 +450,15 @@ public struct HelpersState: Sendable, Equatable {
                 selectedHelperId = (newList.helpers.first(where: \.available) ?? newList.helpers.first)?.id
                 isSoulOpen = false
             }
-            if openJobId != nil, openJob?.hasReport != true { closeReport() } // deleted, or its report is gone
-        case .report(let newReport) where newReport.id == openJobId:
-            report = newReport
+            draftBlockers = draftBlockers.filter { id in newList.waitable.contains { $0.id == id } }
+            if let id = openJobId {
+                guard let job = openJob else { closeReport(); break } // deleted
+                // Its state, notes or blockers changed: ask for the thread again.
+                if job != openJobSeen { pendingRefresh = .threadGet(id: id) }
+                openJobSeen = job
+            }
+        case .thread(let newThread) where newThread.id == openJobId:
+            thread = newThread
         case .error(let error) where claims(event):
             isWaiting = false
             problem = error.message
@@ -317,9 +471,38 @@ public struct HelpersState: Sendable, Equatable {
     public mutating func selectHelper(_ id: String) {
         guard list?.helpers.contains(where: { $0.id == id }) == true, id != selectedHelperId else { return }
         selectedHelperId = id
+        showsBoard = false
+        closeReport()
+        isSoulOpen = false
+        draftBlockers = []
+        problem = nil
+    }
+
+    public mutating func selectBoard() {
+        showsBoard = true
         closeReport()
         isSoulOpen = false
         problem = nil
+    }
+
+    /// Adds or removes a task the next new task will wait for.
+    public mutating func toggleDraftBlocker(_ id: Int) {
+        if let at = draftBlockers.firstIndex(of: id) { draftBlockers.remove(at: at) }
+        else if list?.waitable.contains(where: { $0.id == id }) == true { draftBlockers.append(id) }
+    }
+
+    /// Adds Keshab's note to the open task. Nil for an empty or too long note, or no open task.
+    public mutating func addComment(_ text: String) -> IslandCommand? {
+        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let id = openJobId, !clean.isEmpty, clean.count <= 2000 else { return nil }
+        return waiting(.commentAdd(id: id, text: clean))
+    }
+
+    /// Adds or removes a task the open, not yet started task waits for.
+    public mutating func toggleBlocker(_ id: Int) -> IslandCommand? {
+        guard let job = openJob, job.state == .queued, id != job.id else { return nil }
+        let next = job.blockedBy.contains(id) ? job.blockedBy.filter { $0 != id } : job.blockedBy + [id]
+        return waiting(.jobBlock(id: job.id, blockedBy: next))
     }
 
     public mutating func openSoul() {
@@ -378,7 +561,8 @@ public struct HelpersState: Sendable, Equatable {
     public mutating func addJob(_ task: String) -> IslandCommand? {
         let clean = task.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let helper = selectedHelper, helper.available, !clean.isEmpty, clean.count <= Self.maxTaskLength else { return nil }
-        return waiting(.jobAdd(helper: helper.id, task: clean))
+        defer { draftBlockers = [] }
+        return waiting(.jobAdd(helper: helper.id, task: clean, blockedBy: draftBlockers))
     }
 
     public mutating func stopJob(_ id: Int) -> IslandCommand? {
@@ -392,18 +576,20 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.jobDelete(id: id))
     }
 
-    /// Opens a job's report: asks the runtime for it. Nil for a job without one.
-    public mutating func openReport(_ id: Int) -> IslandCommand? {
-        guard selectedHelper?.jobs.first(where: { $0.id == id })?.hasReport == true else { return nil }
+    /// Opens any worker's task: its thread, with the report if it has one. Asks the runtime for it.
+    public mutating func openThread(_ id: Int) -> IslandCommand? {
+        guard let job = list?.item(id)?.job else { return nil }
         isSoulOpen = false
         openJobId = id
-        report = nil
-        return waiting(.reportGet(id: id))
+        openJobSeen = job
+        thread = nil
+        return waiting(.threadGet(id: id))
     }
 
     public mutating func closeReport() {
         openJobId = nil
-        report = nil
+        openJobSeen = nil
+        thread = nil
     }
 
     private mutating func waiting(_ command: IslandCommand) -> IslandCommand {

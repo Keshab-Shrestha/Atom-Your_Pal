@@ -17,10 +17,12 @@ struct HelpersView: View {
             HelperSidebar(model: model).frame(width: 224)
             Rectangle().fill(palette.separator.color).frame(width: palette.isFlat ? 1 : 0.5)
             Group {
-                if let helper = model.helpers.selectedHelper {
-                    if model.helpers.openJobId != nil {
-                        ReportPane(model: model)
-                    } else if model.helpers.isSoulOpen, let soul = helper.soul {
+                if model.helpers.openJobId != nil {
+                    ThreadPane(model: model)
+                } else if model.helpers.showsBoard {
+                    BoardPane(model: model)
+                } else if let helper = model.helpers.selectedHelper {
+                    if model.helpers.isSoulOpen, let soul = helper.soul {
                         // A new version (a save or a restore) starts the form again from what is now current.
                         SoulPane(model: model, helper: helper, soul: soul).id("\(helper.id)-\(helper.soulVersion)")
                     } else {
@@ -59,9 +61,11 @@ private struct HelperSidebar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
+            Button { model.helpers.selectBoard() } label: { BoardRow(model: model, selected: model.helpers.showsBoard) }
+                .buttonStyle(.plain)
             ForEach(model.helpers.list?.helpers ?? []) { helper in
                 Button { model.helpers.selectHelper(helper.id) } label: {
-                    HelperCard(helper: helper, selected: helper.id == model.helpers.selectedHelperId)
+                    HelperCard(helper: helper, selected: !model.helpers.showsBoard && helper.id == model.helpers.selectedHelperId)
                 }
                 .buttonStyle(.plain)
             }
@@ -241,7 +245,10 @@ private struct HelperPane: View {
                         AppPicker(model: model, helper: helper)
                         ModelPicker(model: model, helper: helper, models: model.helpers.list?.models ?? [])
                     }
-                    TaskField(model: model, helper: helper)
+                    VStack(alignment: .leading, spacing: 8) {
+                        TaskField(model: model, helper: helper)
+                        WaitsForMenu(model: model)
+                    }
                     if let problem = model.helpers.problem { ProblemLine(text: problem) }
                     JobList(model: model, helper: helper)
                 } else {
@@ -451,10 +458,16 @@ private struct JobRow: View {
         HStack(alignment: .top, spacing: 12) {
             JobDot(job: job).padding(.top, 5)
             VStack(alignment: .leading, spacing: 4) {
-                Text(job.title ?? job.task)
-                    .font(.system(size: 13, weight: job.hasReport ? .semibold : .medium))
-                    .foregroundStyle(theme.text.color)
-                    .lineLimit(2)
+                Button { model.sendHelpers(model.helpers.openThread(job.id)) } label: {
+                    Text(job.title ?? job.task)
+                        .font(.system(size: 13, weight: job.hasReport ? .semibold : .medium))
+                        .foregroundStyle(theme.text.color)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                .buttonStyle(.plain)
+                .help("Open the task")
+                if job.isWaiting, let list = model.helpers.list { WaitingLine(job: job, list: list) }
                 if let summary = job.summary {
                     Text(summary).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
                 }
@@ -472,7 +485,7 @@ private struct JobRow: View {
             Spacer(minLength: 8)
             HStack(spacing: 6) {
                 if job.hasReport {
-                    ReadReportButton { model.sendHelpers(model.helpers.openReport(job.id)) }
+                    ReadReportButton { model.sendHelpers(model.helpers.openThread(job.id)) }
                 }
                 if job.state.isActive {
                     QuietButton(title: "Stop") { model.sendHelpers(model.helpers.stopJob(job.id)) }
@@ -511,7 +524,7 @@ private struct JobRow: View {
 
 /// A job's state as a dot: lit and glowing while running, a ring while queued, solid grey when done, coral when it
 /// failed, a faint grey when stopped. The state's word is its VoiceOver label.
-private struct JobDot: View {
+struct JobDot: View {
     let job: HelperJob
     @Environment(\.theme) private var theme
 
@@ -536,7 +549,7 @@ private struct JobDot: View {
 }
 
 /// A thin line of Wisp's light under a running job, as far as its step's "n of m".
-private struct ProgressLine: View {
+struct ProgressLine: View {
     let fraction: Double
     @Environment(\.theme) private var theme
 
@@ -553,7 +566,7 @@ private struct ProgressLine: View {
 }
 
 /// "Read report": the window's one lit button, outlined in Wisp's light.
-private struct ReadReportButton: View {
+struct ReadReportButton: View {
     let action: () -> Void
     private let hovering = State(initialValue: false)
     @Environment(\.theme) private var theme
@@ -654,93 +667,3 @@ struct ProblemLine: View {
     }
 }
 
-// MARK: - Right: a report
-
-private struct ReportPane: View {
-    let model: IslandModel
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        Scrollable {
-            VStack(alignment: .leading, spacing: 14) {
-                QuietButton(title: "Jobs", symbol: "chevron.left") { model.helpers.closeReport() }
-                if let report = model.helpers.report {
-                    VStack(alignment: .leading, spacing: 5) {
-                        // Void: the report's title is the window's one display line, in New York.
-                        Text(report.title).font(theme.isFlat ? .system(size: 26, weight: .regular, design: .serif) : .system(size: 20, weight: .semibold, design: .rounded))
-                            .foregroundStyle(theme.isFlat ? Color.white : theme.text.color)
-                        Text(report.summary).font(.system(size: 13)).foregroundStyle(theme.text2.color)
-                    }
-                    .padding(.bottom, 4)
-                    ForEach(Array(report.paragraphs.enumerated()), id: \.offset) { _, paragraph in
-                        Text(paragraph).font(.system(size: 13)).foregroundStyle(theme.text.color).lineSpacing(3.5)
-                    }
-                    if !report.sources.isEmpty { SourceList(sources: report.sources).padding(.top, 6) }
-                } else if let problem = model.helpers.problem {
-                    ProblemLine(text: problem)
-                } else {
-                    HStack(spacing: 8) {
-                        ProgressView().controlSize(.small)
-                        Text("Loading report…").font(.system(size: 12)).foregroundStyle(theme.text2.color)
-                    }
-                }
-            }
-            .textSelection(.enabled)
-            .frame(maxWidth: 560, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Spacing.panel + 4)
-            .padding(.top, 30)
-            .padding(.bottom, Spacing.panel)
-        }
-    }
-}
-
-private struct SourceList: View {
-    let sources: [ReportSource]
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        let shape = RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Sources").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
-            VStack(spacing: 0) {
-                ForEach(Array(sources.enumerated()), id: \.offset) { index, source in
-                    if index > 0 { Rectangle().fill(theme.separator.color).frame(height: 0.5).padding(.leading, 40) }
-                    SourceRow(source: source)
-                }
-            }
-            .background(shape.fill(theme.fill1.color))
-            .overlay(shape.strokeBorder(theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
-        }
-    }
-}
-
-private struct SourceRow: View {
-    let source: ReportSource
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        Button {
-            // The decoder keeps http(s) sources only; checked again here, right before opening.
-            if let url = ReportSource.webURL(source.url.absoluteString) { NSWorkspace.shared.open(url) }
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "link").font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.statusDots ? theme.text2.color : theme.accent.color)
-                    .frame(width: 16)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(source.title).font(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color)
-                    // The host is an identifier: SF Mono in Void's violet.
-                    Text(source.url.host ?? source.url.absoluteString).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text3))
-                }
-                .lineLimit(1)
-                Spacer(minLength: 6)
-                Image(systemName: "arrow.up.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(theme.text3.color)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(source.url.absoluteString)
-    }
-}

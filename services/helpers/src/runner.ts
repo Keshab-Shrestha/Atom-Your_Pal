@@ -134,8 +134,9 @@ export function startJobRunner(options: JobRunnerOptions): JobRunner {
   }
 
   const unsubscribe = store.onChange((change) => {
-    if (change.action === "job" && change.state === "queued") schedule();
-    else if ((change.action === "job" && change.state === "stopped") || change.action === "deleted") {
+    // A new task, or one that ended (its waiting tasks may now start), or a change to what a task waits for.
+    if ((change.action === "job" && change.state !== "running") || change.action === "blockers" || change.action === "deleted") schedule();
+    if ((change.action === "job" && change.state === "stopped") || change.action === "deleted") {
       const entry = running.get(change.job);
       if (!entry) return;
       entry.controller.abort();
