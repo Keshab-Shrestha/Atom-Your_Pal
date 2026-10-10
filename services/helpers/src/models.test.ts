@@ -19,7 +19,15 @@ const laya = (tier: TierChoice["tier"], label: TierChoice["label"], score: numbe
 const FALLBACK: TierChoice = { tier: "medium", source: "fallback" };
 
 test("the roster gives each helper a role, so floors are data", () => {
-  assert.deepEqual(HELPERS.map((h) => [h.id, h.role]), [["sid", "researcher"], ["kame", "coder"], ["puff", "designer"]]);
+  assert.deepEqual(HELPERS.map((h) => [h.id, h.role]), [
+    ["sid", "researcher"],
+    ["kame", "coder"],
+    ["puff", "designer"],
+    ["quill", "documenter"],
+    ["penny", "financial adviser"],
+    ["hana", "hr"],
+    ["tinker", "improver"],
+  ]);
 });
 
 test("tieredModels keeps Haiku, Sonnet and Opus with their tiers, in order; other models are left out", () => {

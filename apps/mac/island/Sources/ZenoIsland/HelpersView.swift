@@ -20,6 +20,9 @@ struct HelpersView: View {
                 if let helper = model.helpers.selectedHelper {
                     if model.helpers.openJobId != nil {
                         ReportPane(model: model)
+                    } else if model.helpers.isSoulOpen, let soul = helper.soul {
+                        // A new version (a save or a restore) starts the form again from what is now current.
+                        SoulPane(model: model, helper: helper, soul: soul).id("\(helper.id)-\(helper.soulVersion)")
                     } else {
                         HelperPane(model: model, helper: helper)
                     }
@@ -61,7 +64,6 @@ private struct HelperSidebar: View {
                     HelperCard(helper: helper, selected: helper.id == model.helpers.selectedHelperId)
                 }
                 .buttonStyle(.plain)
-                .disabled(!helper.available)
             }
             Spacer(minLength: 0)
             if let list = model.helpers.list { AllowLargeSwitch(model: model, list: list) }
@@ -225,17 +227,27 @@ private struct HelperPane: View {
                     HelperBadge(helper: helper, size: 42)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(helper.name).font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
-                        Text(Self.summary(helper)).font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                        Text(Self.subtitle(helper)).font(.system(size: 12)).foregroundStyle(theme.text2.color)
                             .lineLimit(1)
                     }
+                    Spacer(minLength: 8)
+                    if helper.soul != nil {
+                        QuietButton(title: "Soul", symbol: "sparkles") { model.helpers.openSoul() }
+                            .help("Who \(helper.name) is and how it works")
+                    }
                 }
-                HStack(spacing: 8) {
-                    AppPicker(model: model, helper: helper)
-                    ModelPicker(model: model, helper: helper, models: model.helpers.list?.models ?? [])
+                if helper.available {
+                    HStack(spacing: 8) {
+                        AppPicker(model: model, helper: helper)
+                        ModelPicker(model: model, helper: helper, models: model.helpers.list?.models ?? [])
+                    }
+                    TaskField(model: model, helper: helper)
+                    if let problem = model.helpers.problem { ProblemLine(text: problem) }
+                    JobList(model: model, helper: helper)
+                } else {
+                    Text("\(helper.name) is not ready for jobs yet. You can shape its soul now.")
+                        .font(.system(size: 12.5)).foregroundStyle(theme.text2.color)
                 }
-                TaskField(model: model, helper: helper)
-                if let problem = model.helpers.problem { ProblemLine(text: problem) }
-                JobList(model: model, helper: helper)
             }
             .padding(.horizontal, Spacing.panel)
             .padding(.top, 28)
@@ -243,8 +255,14 @@ private struct HelperPane: View {
         }
     }
 
-    /// Under the name: how many jobs are running, waiting and done ("1 running, 1 waiting, 1 done"). The step itself
-    /// is in the sidebar and on the job.
+    /// Under the name: the role, then the job counts ("Researcher · 1 running, 1 done").
+    static func subtitle(_ helper: Helper) -> String {
+        let summary = helper.available ? Self.summary(helper) : "Coming soon"
+        return helper.roleTitle.isEmpty ? summary : "\(helper.roleTitle) · \(summary)"
+    }
+
+    /// How many jobs are running, waiting and done ("1 running, 1 waiting, 1 done"). The step itself is in the sidebar
+    /// and on the job.
     static func summary(_ helper: Helper) -> String {
         let counts: [(JobState, String)] = [(.running, "running"), (.queued, "waiting"), (.done, "done"), (.failed, "failed")]
         let parts = counts.compactMap { state, word in
@@ -256,7 +274,7 @@ private struct HelperPane: View {
 }
 
 /// A compact pill for a pop-up menu: a quiet label, the value and an up-down chevron, as in the mock.
-private struct PillMenuLabel: View {
+struct PillMenuLabel: View {
     let label: String
     let value: String
     var dimmed = false
@@ -581,7 +599,7 @@ private struct ReadReportButton: View {
 }
 
 /// A quiet capsule button: Stop, Jobs.
-private struct QuietButton: View {
+struct QuietButton: View {
     let title: String
     var symbol: String? = nil
     let action: () -> Void
@@ -613,7 +631,7 @@ private struct QuietButton: View {
     }
 }
 
-private struct ProblemLine: View {
+struct ProblemLine: View {
     let text: String
     /// Void: lead with a red dot; off where the row's own dot already says it failed.
     var dot = true

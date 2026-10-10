@@ -130,10 +130,11 @@ struct HelpersStateTests {
         #expect(state.selectedHelper == nil)
         state.apply(try list())
         #expect(state.selectedHelperId == "sid")
-        state.selectHelper("kame") // coming soon: not selectable
-        #expect(state.selectedHelperId == "sid")
         state.selectHelper("nobody")
         #expect(state.selectedHelperId == "sid")
+        state.selectHelper("kame") // not ready for jobs, but its soul can be shaped (Task 3.3)
+        #expect(state.selectedHelperId == "kame")
+        #expect(state.addJob("x") == nil)
     }
 
     @Test func appPickerSendsHelperSet() throws {
@@ -313,5 +314,98 @@ struct HelpersProgressTests {
         #expect(HelperJob.progress(in: "Reading 3 of 0 pages") == nil)
         #expect(HelperJob.progress(in: "One of the pages") == nil)
         #expect(HelperJob.progress(in: "of 8") == nil)
+    }
+}
+
+@Suite("Helper souls (ADR-082, Task 3.3)")
+struct HelperSoulTests {
+    static let line = #"""
+    {"type":"helpers","apps":[],"helpers":[
+      {"id":"sid","name":"Scout","available":true,"app":null,"role":"researcher","jobs":[],
+       "soul":{"name":"Scout","personality":"Curious.","howItWorks":"Searches twice.","rules":"","lessons":"Three sources."},
+       "soulVersion":3,"soulVersions":[{"version":3,"createdAt":"2026-10-11T09:00:00.000Z"},{"version":2,"createdAt":"2026-10-10T09:00:00Z"},
+       {"version":1,"createdAt":"2026-10-09T09:00:00Z"}]},
+      {"id":"penny","name":"Penny","available":true,"app":null,"role":"financial adviser","jobs":[],
+       "soul":{"name":"Penny","personality":"Cautious.","howItWorks":"","rules":"","lessons":""},"soulVersion":1,
+       "soulVersions":[{"version":1,"createdAt":"2026-10-09T09:00:00Z"}]}
+    ]}
+    """#.replacingOccurrences(of: "\n", with: "")
+
+    func loaded() throws -> HelpersState {
+        var state = HelpersState()
+        state.apply(try decodeEvent(Self.line))
+        return state
+    }
+
+    @Test func decodesRoleSoulAndVersions() throws {
+        guard case .helpers(let list) = try decodeEvent(Self.line) else { Issue.record("not helpers"); return }
+        let sid = list.helpers[0]
+        #expect(sid.role == "researcher" && sid.roleTitle == "Researcher")
+        #expect(sid.soul == HelperSoul(name: "Scout", personality: "Curious.", howItWorks: "Searches twice.", lessons: "Three sources."))
+        #expect(sid.soulVersion == 3 && sid.soulVersions.map(\.version) == [3, 2, 1])
+        #expect(sid.soulVersions[0].createdAt != nil)
+        #expect(list.helpers[1].roleTitle == "Financial information")
+    }
+
+    @Test func aMalformedSoulMakesTheEventInvalid() {
+        for bad in [#""soul":{"name":"Sid"}"#, #""soul":"Sid""#, #""soulVersions":[{"version":"2"}]"#] {
+            let line = #"{"type":"helpers","apps":[],"helpers":[{"id":"sid","name":"Sid","available":true,"jobs":[],\#(bad)}]}"#
+            #expect(throws: ProtocolError.invalidValue(event: "helpers", field: "helpers")) { try decodeEvent(line) }
+        }
+    }
+
+    @Test func anOlderRuntimeWithoutSoulsStillDecodes() throws {
+        let line = #"{"type":"helpers","apps":[],"helpers":[{"id":"sid","name":"Sid","available":true,"jobs":[]}]}"#
+        guard case .helpers(let list) = try decodeEvent(line) else { Issue.record("not helpers"); return }
+        #expect(list.helpers[0].soul == nil && list.helpers[0].role == "")
+        var state = HelpersState()
+        state.apply(.helpers(list))
+        state.openSoul()
+        #expect(!state.isSoulOpen) // nothing to edit
+    }
+
+    @Test func saveSendsTheTrimmedSoulOnlyWhenChangedAndValid() throws {
+        var state = try loaded()
+        state.openSoul()
+        #expect(state.isSoulOpen)
+        let current = try #require(state.selectedHelper?.soul)
+        #expect(state.saveSoul(current) == nil) // unchanged
+        var edited = current
+        edited.lessons = "  Three sources, always.\n"
+        #expect(state.saveSoul(edited) == .soulSet(helper: "sid", soul: HelperSoul(name: "Scout", personality: "Curious.",
+                                                                              howItWorks: "Searches twice.", lessons: "Three sources, always.")))
+        #expect(state.isWaiting)
+        edited.personality = "   "
+        #expect(state.saveSoul(edited) == nil && state.problem == "The personality is empty.")
+        edited.personality = "x"
+        edited.name = String(repeating: "a", count: 21)
+        #expect(state.saveSoul(edited) == nil && state.problem?.hasPrefix("The name is too long") == true)
+    }
+
+    @Test func restoreSendsOnlyAnOlderListedVersion() throws {
+        var state = try loaded()
+        #expect(state.restoreSoul(3) == nil) // current
+        #expect(state.restoreSoul(9) == nil) // not listed
+        #expect(state.restoreSoul(1) == .soulRestore(helper: "sid", version: 1))
+    }
+
+    @Test func choosingAnotherWorkerOrAReportClosesTheSoul() throws {
+        var state = try loaded()
+        state.openSoul()
+        state.selectHelper("penny")
+        #expect(!state.isSoulOpen)
+        state.openSoul()
+        state.closeSoul()
+        #expect(!state.isSoulOpen)
+    }
+
+    @Test func encodesSoulCommands() throws {
+        let soul = HelperSoul(name: "Sid", personality: "Curious \"and\" thorough\n", howItWorks: "a", rules: "b", lessons: "c")
+        let line = IslandCommand.soulSet(helper: "sid", soul: soul).line
+        let fields = try #require(try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any])
+        #expect(fields["type"] as? String == "soul.set" && fields["helper"] as? String == "sid")
+        let sent = try #require(fields["soul"] as? [String: String])
+        #expect(sent == ["name": "Sid", "personality": "Curious \"and\" thorough\n", "howItWorks": "a", "rules": "b", "lessons": "c"])
+        #expect(IslandCommand.soulRestore(helper: "sid", version: 2).line == #"{"helper":"sid","type":"soul.restore","version":2}"# + "\n")
     }
 }

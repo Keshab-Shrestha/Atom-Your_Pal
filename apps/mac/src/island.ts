@@ -17,6 +17,7 @@ import {
   type ModelItem,
   type MemoryItem,
   type ReportEvent,
+  type SoulItem,
 } from "./island-protocol.ts";
 import type { ComputerBridge } from "./computer-bridge.ts";
 import type { WindowPointer } from "./screen-context.ts";
@@ -96,6 +97,10 @@ export interface IslandHelpers {
   addJob(helper: string, task: string): void;
   /** Pins a helper to an offered model ("" unpins). Throws, with words for the user, for an unknown helper or model. */
   pin(helper: string, model: string): void;
+  /** Saves an edited soul as a new version (Task 3.3). Throws, with words for the user, for an unknown helper or a bad soul. */
+  saveSoul(helper: string, soul: SoulItem): void;
+  /** Makes an older soul version current again, as a new version. Throws, with words for the user, for an unknown one. */
+  restoreSoul(helper: string, version: number): void;
   /** Whether worker jobs may use the large model (ADR-083). */
   allowLarge(): boolean;
   setAllowLarge(allowed: boolean): void;
@@ -269,6 +274,12 @@ export function runIsland(options: IslandOptions): IslandSession {
         return;
       case "helpers.settings":
         changeHelpers(command.type, (helpers) => helpers.setAllowLarge(command.allowLarge));
+        return;
+      case "soul.set":
+        changeHelpers(command.type, (helpers) => helpers.saveSoul(command.helper, command.soul));
+        return;
+      case "soul.restore":
+        changeHelpers(command.type, (helpers) => helpers.restoreSoul(command.helper, command.version));
         return;
       case "report.get": {
         const report = options.helpers?.report(command.id);

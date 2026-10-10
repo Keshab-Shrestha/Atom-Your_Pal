@@ -45,10 +45,11 @@ import {
 import {
   chooseJobModel,
   findHelper,
+  instructionsFor,
   openHelperStore,
-  RESEARCHER_SOUL,
   startJobRunner,
   tieredModels,
+  withRoleNotice,
   type HelperStore,
   type JobRun,
   type JobRunner,
@@ -327,13 +328,16 @@ export function createRuntime(
   const runJob: JobRun = async (job, { signal, onStep }) => {
     const { provider, model: current } = settings.current();
     const helper = findHelper(job.helper);
-    const name = helper?.name ?? job.helper;
+    // ADR-082, Task 3.3: the soul is read when the job starts, so an edit applies from the next job.
+    const soul = helpers?.soul(job.helper) ?? helper?.soul;
+    const name = soul?.name ?? job.helper;
+    const role = helper?.role ?? "";
     if (provider !== CLAUDE_PLAN) throw new Error(`${name} needs the Claude plan for research.`);
     // ADR-083: pin, else Laya; then the role's floor and the large-model switch. Stored first so the window shows it.
     const pick = await chooseJobModel({
       engine: decisions,
       task: job.task,
-      role: helper?.role ?? "",
+      role,
       pinnedModel: helpers?.list().find((h) => h.id === job.helper)?.pinnedModel,
       allowLarge: helpers?.allowLarge() ?? true,
       models: planModels(),
@@ -349,7 +353,10 @@ export function createRuntime(
       ...(pick.score !== undefined ? { score: Math.round(pick.score * 100) / 100 } : {}),
       source: pick.source,
     });
-    return runResearch({ claudePath: keys["claude-plan"] ?? "", model, task: job.task, instructions: RESEARCHER_SOUL, signal, onStep, onUsage: reportUsage });
+    if (!soul) throw new Error(`There is no worker called ${job.helper}.`);
+    const instructions = instructionsFor(soul, role);
+    const result = await runResearch({ claudePath: keys["claude-plan"] ?? "", model, task: job.task, instructions, signal, onStep, onUsage: reportUsage });
+    return { ...result, report: withRoleNotice(role, result.report) };
   };
   // Logs ids, states, timings and page counts only: never the task, report or addresses.
   const runner: JobRunner | undefined = helpers && startJobRunner({ store: helpers, run: runJob, onRun: (e) => log.info("job.run", e) });

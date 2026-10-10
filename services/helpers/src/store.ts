@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { HELPERS, HelperError, findHelper, isFinal, move, type HelperId, type JobState } from "./jobs.ts";
+import { HELPERS, HelperError, cleanSoul, findHelper, isFinal, move, type HelperId, type JobState, type Soul } from "./jobs.ts";
 
 // ADR-081: helper apps, jobs and reports in one local SQLite file. Task text, reports and source addresses
 // are the user's own: kept here, never logged (callers log the change events, which carry ids and states only).
@@ -9,6 +9,8 @@ import { HELPERS, HelperError, findHelper, isFinal, move, type HelperId, type Jo
 export const MAX_TASK_CHARS = 1000;
 export const JOBS_PER_HELPER = 20;
 export const CLOSED_WHILE_RUNNING = "ZENO was closed while this job ran";
+/** Soul versions listed per worker (all are kept). */
+export const SOUL_VERSIONS_LISTED = 10;
 
 export interface Source {
   title: string;
@@ -48,10 +50,22 @@ export interface Job {
   modelReason?: string;
 }
 
+export interface SoulVersion {
+  version: number;
+  createdAt: Date;
+}
+
 export interface HelperView {
   id: HelperId;
+  /** The soul's name. */
   name: string;
   available: boolean;
+  role: string;
+  /** The current soul (ADR-082, Task 3.3). */
+  soul: Soul;
+  soulVersion: number;
+  /** Newest first, at most SOUL_VERSIONS_LISTED. */
+  soulVersions: SoulVersion[];
   app: string | null;
   /** The model Keshab pinned this helper to (ADR-083), or null to let the Decision Engine choose. */
   pinnedModel: string | null;
@@ -63,6 +77,7 @@ export interface HelperView {
 export type HelperChange =
   | { action: "app"; helper: HelperId }
   | { action: "pin"; helper: HelperId }
+  | { action: "soul"; helper: HelperId; version: number }
   | { action: "settings" }
   | { action: "model"; helper: HelperId; job: number }
   | { action: "job"; helper: HelperId; job: number; state: JobState; ms?: number }
@@ -76,6 +91,12 @@ export interface HelperStore {
   setApp(helper: string, app: string): void;
   /** Pins a helper to a model; "" unpins. Throws HelperError for an unknown helper. The caller checks the model is offered. */
   pin(helper: string, model: string): void;
+  /** A worker's current soul. Throws HelperError for an unknown helper. */
+  soul(helper: string): Soul;
+  /** Saves an edited soul as a new version (nothing when unchanged). Throws HelperError for an unknown helper or a bad soul. */
+  saveSoul(helper: string, soul: Soul): void;
+  /** Makes an older version current again, as a new version, so the restore can itself be undone. */
+  restoreSoul(helper: string, version: number): void;
   /** Whether jobs may use the large model (ADR-083). Default true. */
   allowLarge(): boolean;
   setAllowLarge(allowed: boolean): void;
@@ -123,6 +144,25 @@ interface JobRow {
   model: string | null;
   model_reason: string | null;
 }
+
+interface SoulRow {
+  version: number;
+  name: string;
+  personality: string;
+  how_it_works: string;
+  rules: string;
+  lessons: string;
+}
+
+const toSoul = (row: SoulRow): Soul => ({
+  name: row.name,
+  personality: row.personality,
+  howItWorks: row.how_it_works,
+  rules: row.rules,
+  lessons: row.lessons,
+});
+
+const sameSoul = (a: Soul, b: Soul) => (Object.keys(a) as (keyof Soul)[]).every((k) => a[k] === b[k]);
 
 interface ReportRow {
   job_id: number;
@@ -197,14 +237,26 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS souls (
+      helper TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      personality TEXT NOT NULL,
+      how_it_works TEXT NOT NULL,
+      rules TEXT NOT NULL,
+      lessons TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (helper, version)
+    );
   `);
   // ADR-083: files from before Task 3.2b lack the model columns.
   const columns = new Set((db.prepare("PRAGMA table_info(jobs)").all() as { name: string }[]).map((c) => c.name));
   for (const column of ["model", "model_reason"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);
+  const opened = now();
   // A job cannot outlive the process that ran it.
   db.prepare("UPDATE jobs SET state = 'failed', step = NULL, error = ?, ended_at = ? WHERE state = 'running'").run(
     CLOSED_WHILE_RUNNING,
-    now().toISOString(),
+    opened.toISOString(),
   );
 
   const appOf = db.prepare("SELECT app FROM helper_apps WHERE helper = ?");
@@ -215,6 +267,16 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const dropPin = db.prepare("DELETE FROM helper_models WHERE helper = ?");
   const settingOf = db.prepare("SELECT value FROM helper_settings WHERE key = ?");
   const putSetting = db.prepare("INSERT INTO helper_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value");
+  const soulRow = db.prepare("SELECT * FROM souls WHERE helper = ? AND version = ?");
+  const latestSoul = db.prepare("SELECT * FROM souls WHERE helper = ? ORDER BY version DESC LIMIT 1");
+  const soulVersions = db.prepare("SELECT version, created_at FROM souls WHERE helper = ? ORDER BY version DESC LIMIT ?");
+  const insertSoul = db.prepare(
+    "INSERT INTO souls (helper, version, name, personality, how_it_works, rules, lessons, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+  );
+  const putSoul = (helper: HelperId, version: number, soul: Soul, at = now()) =>
+    insertSoul.run(helper, version, soul.name, soul.personality, soul.howItWorks, soul.rules, soul.lessons, at.toISOString());
+  // Version 1 of every soul is the roster's default, so it can be restored like any other.
+  for (const h of HELPERS) if (!latestSoul.get(h.id)) putSoul(h.id, 1, h.soul, opened);
   const setJobModel = db.prepare("UPDATE jobs SET model = ?, model_reason = ? WHERE id = ? AND state = 'running'");
   const newestJobs = db.prepare(
     "SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.helper = ? ORDER BY j.id DESC LIMIT ?",
@@ -238,6 +300,20 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     const row = jobById.get(id) as JobRow | undefined;
     return row ? toJob(row) : undefined;
   };
+
+  function mustHelper(helper: string) {
+    const known = findHelper(helper);
+    if (!known) throw new HelperError(`There is no helper called "${helper.slice(0, 40)}".`);
+    return known;
+  }
+
+  const current = (helper: HelperId) => latestSoul.get(helper) as unknown as SoulRow;
+
+  function newSoulVersion(helper: HelperId, soul: Soul) {
+    const version = current(helper).version + 1;
+    putSoul(helper, version, soul);
+    emit({ action: "soul", helper, version });
+  }
 
   function mustGet(id: number): Job {
     const job = get(id);
@@ -268,8 +344,15 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     list() {
       return HELPERS.map((h) => ({
         id: h.id,
-        name: h.name,
+        name: current(h.id).name,
         available: h.available,
+        role: h.role,
+        soul: toSoul(current(h.id)),
+        soulVersion: current(h.id).version,
+        soulVersions: (soulVersions.all(h.id, SOUL_VERSIONS_LISTED) as { version: number; created_at: string }[]).map((v) => ({
+          version: v.version,
+          createdAt: new Date(v.created_at),
+        })),
         app: (appOf.get(h.id) as { app: string } | undefined)?.app ?? null,
         pinnedModel: (pinOf.get(h.id) as { model: string } | undefined)?.model ?? null,
         jobs: (newestJobs.all(h.id, JOBS_PER_HELPER) as unknown as JobRow[]).map(toJob),
@@ -277,19 +360,38 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     },
 
     setApp(helper, app) {
-      const known = findHelper(helper);
-      if (!known) throw new HelperError(`There is no helper called "${helper.slice(0, 40)}".`);
+      const known = mustHelper(helper);
       if (app) putApp.run(known.id, app);
       else dropApp.run(known.id);
       emit({ action: "app", helper: known.id });
     },
 
     pin(helper, model) {
-      const known = findHelper(helper);
-      if (!known) throw new HelperError(`There is no helper called "${helper.slice(0, 40)}".`);
+      const known = mustHelper(helper);
       if (model) putPin.run(known.id, model);
       else dropPin.run(known.id);
       emit({ action: "pin", helper: known.id });
+    },
+
+    soul(helper) {
+      return toSoul(current(mustHelper(helper).id));
+    },
+
+    saveSoul(helper, input) {
+      const known = mustHelper(helper);
+      const others = HELPERS.filter((h) => h.id !== known.id).map((h) => current(h.id).name);
+      const soul = cleanSoul(input, others);
+      if (!sameSoul(soul, toSoul(current(known.id)))) newSoulVersion(known.id, soul);
+    },
+
+    restoreSoul(helper, version) {
+      const known = mustHelper(helper);
+      const row = soulRow.get(known.id, version) as SoulRow | undefined;
+      if (!row) throw new HelperError(`${current(known.id).name} has no version ${version}.`);
+      if (row.version === current(known.id).version) return;
+      // The old name may have been taken by another worker since.
+      const others = HELPERS.filter((h) => h.id !== known.id).map((h) => current(h.id).name);
+      newSoulVersion(known.id, cleanSoul(toSoul(row), others));
     },
 
     allowLarge() {
@@ -308,9 +410,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     },
 
     addJob(helper, raw) {
-      const known = findHelper(helper);
-      if (!known) throw new HelperError(`There is no helper called "${helper.slice(0, 40)}".`);
-      if (!known.available) throw new HelperError(`${known.name} is not ready yet.`);
+      const known = mustHelper(helper);
+      if (!known.available) throw new HelperError(`${current(known.id).name} is not ready yet.`);
       const task = raw.trim();
       if (!task) throw new HelperError("The job is empty.");
       if (task.length > MAX_TASK_CHARS) throw new HelperError(`The job is too long (${task.length} characters, limit ${MAX_TASK_CHARS}).`);

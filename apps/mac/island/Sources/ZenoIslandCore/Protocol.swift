@@ -36,6 +36,9 @@ public enum IslandCommand: Sendable, Equatable {
     /// ADR-083: pin a helper to a model (`""` lets Laya choose again); allow or forbid the large model for jobs.
     case helperPin(helper: String, model: String)
     case helpersSettings(allowLarge: Bool)
+    /// Task 3.3: save a worker's edited soul as a new version; make an older version current again.
+    case soulSet(helper: String, soul: HelperSoul)
+    case soulRestore(helper: String, version: Int)
 
     /// The command's `type` field. Safe for logs: never includes values.
     public var type: String {
@@ -62,6 +65,8 @@ public enum IslandCommand: Sendable, Equatable {
         case .reportGet: "report.get"
         case .helperPin: "helper.pin"
         case .helpersSettings: "helpers.settings"
+        case .soulSet: "soul.set"
+        case .soulRestore: "soul.restore"
         }
     }
 
@@ -103,6 +108,13 @@ public enum IslandCommand: Sendable, Equatable {
             fields["model"] = model
         case .helpersSettings(let allowLarge):
             fields["allowLarge"] = allowLarge // a real JSON boolean
+        case .soulSet(let helper, let soul):
+            fields["helper"] = helper
+            fields["soul"] = ["name": soul.name, "personality": soul.personality, "howItWorks": soul.howItWorks,
+                              "rules": soul.rules, "lessons": soul.lessons]
+        case .soulRestore(let helper, let version):
+            fields["helper"] = helper
+            fields["version"] = version // a JSON number
         default:
             break
         }
@@ -618,10 +630,24 @@ private struct Fields {
             let app = h["app"], pinned = h["pinnedModel"]
             guard app == nil || app is NSNull || app is String, pinned == nil || pinned is NSNull || pinned is String
             else { throw invalid }
+            // Task 3.3: role, soul and versions; absent from older runtimes, malformed when present makes it invalid.
+            var soul: HelperSoul?
+            if let raw = h["soul"] {
+                guard let s = raw as? [String: Any], let name = s["name"] as? String, let personality = s["personality"] as? String,
+                      let how = s["howItWorks"] as? String, let rules = s["rules"] as? String, let lessons = s["lessons"] as? String
+                else { throw invalid }
+                soul = HelperSoul(name: name, personality: personality, howItWorks: how, rules: rules, lessons: lessons)
+            }
+            let versions = try (h["soulVersions"] as? [Any] ?? []).map { entry -> SoulVersion in
+                guard let v = entry as? [String: Any], let n = v["version"] as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID()
+                else { throw invalid }
+                return SoulVersion(version: n.intValue, createdAt: (v["createdAt"] as? String).flatMap(Self.date))
+            }
             return Helper(id: id, name: name, available: available.boolValue, app: app as? String, jobs: try jobs.map { entry in
                 guard let job = job(entry) else { throw invalid }
                 return job
-            }, pinnedModel: pinned as? String)
+            }, pinnedModel: pinned as? String, role: h["role"] as? String ?? "", soul: soul,
+               soulVersion: (h["soulVersion"] as? NSNumber)?.intValue ?? 1, soulVersions: versions)
         }
     }
 

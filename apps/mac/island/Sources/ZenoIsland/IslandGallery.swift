@@ -124,7 +124,7 @@ enum IslandGallery {
         DesignStudy.render(to: directory)
     }
 
-    /// ADR-081: the Helpers window with Sid running one job and done with another, Kame and Puff coming soon; Sid's
+    /// ADR-081: the Helpers window with Sid running one job and done with another, the rest of the team (Task 3.3); Sid's
     /// report open; and the job list in the light Warm theme. ADR-083: Sid's model picker (Laya, then pinned), the
     /// large-model switch (on, then off) and each job's model.
     private static func writeHelpers(to directory: URL, theme: AppTheme = .void, name: String = "13-helpers") {
@@ -135,13 +135,20 @@ enum IslandGallery {
         let ago = { (minutes: Double) in iso.string(from: Date().addingTimeInterval(-minutes * 60)) }
         // ADR-083: the plan's models, the large-model switch, Sid's pin (null: Laya chooses) and each job's model.
         let models = #"[{"id":"claude-haiku-4-5","name":"Claude Haiku 4.5","tier":"small"},{"id":"claude-sonnet-4-5","name":"Claude Sonnet 4.5","tier":"medium"},{"id":"claude-opus-5-5","name":"Claude Opus 5.5","tier":"large"}]"#
-        func helpers(pinned: String, allowLarge: Bool, failed: Bool = false) -> String { #"{"type":"helpers","apps":["Brave Browser","Notes","Safari"],"allowLarge":\#(allowLarge),"models":\#(models),"helpers":[{"id":"sid","name":"Sid","available":true,"app":"Brave Browser","pinnedModel":\#(pinned),"jobs":[\#(failed ? #"{"id":4,"task":"Compare the reviews of the new Mac mini","state":"failed","createdAt":"\#(ago(2))","endedAt":"\#(ago(1))","error":"The review pages would not load"},"# : ""){"id":3,"task":"What year was TCP/IP adopted by ARPANET?","state":"queued","createdAt":"\#(ago(1))"},{"id":2,"task":"Research how IPv6 is rolled out in home routers","state":"running","createdAt":"\#(ago(4))","step":"Reading 3 of 8 pages","model":"claude-sonnet-4-5","modelReason":"Laya: moderate"},{"id":1,"task":"Research networking basics for a beginner","state":"done","createdAt":"\#(ago(52))","endedAt":"\#(ago(41))","title":"Networking basics","summary":"How data finds its way from your Mac to a website and back.","model":"claude-haiku-4-5","modelReason":"Laya: easy"}]},{"id":"kame","name":"Kame","available":false,"app":null,"jobs":[]},{"id":"puff","name":"Puff","available":false,"app":null,"jobs":[]}]}"# }
+        // Task 3.3: the team of seven, with Sid's soul (version 2 carries a lesson).
+        let sidSoul = #"{"name":"Sid","personality":"Curious and thorough. Always cites sources.","howItWorks":"Searches more than once, reads several good pages, compares what they say, and prefers primary and reputable sources.","rules":"Say plainly when sources disagree or when something could not be confirmed.","lessons":"Give at least three sources; two reports had only one."}"#
+        let team = [("kame", "Kame", false, "coder"), ("puff", "Puff", false, "designer"), ("quill", "Quill", false, "documenter"),
+                    ("penny", "Penny", true, "financial adviser"), ("hana", "Hana", true, "hr"), ("tinker", "Tinker", false, "improver")]
+            .map { id, name, available, role in
+                #"{"id":"\#(id)","name":"\#(name)","available":\#(available),"app":null,"role":"\#(role)","soul":{"name":"\#(name)","personality":"…","howItWorks":"","rules":"","lessons":""},"soulVersion":1,"soulVersions":[{"version":1,"createdAt":"\#(ago(3000))"}],"jobs":[]}"#
+            }.joined(separator: ",")
+        func helpers(pinned: String, allowLarge: Bool, failed: Bool = false) -> String { #"{"type":"helpers","apps":["Brave Browser","Notes","Safari"],"allowLarge":\#(allowLarge),"models":\#(models),"helpers":[{"id":"sid","name":"Sid","available":true,"app":"Brave Browser","role":"researcher","soul":\#(sidSoul),"soulVersion":2,"soulVersions":[{"version":2,"createdAt":"\#(ago(30))"},{"version":1,"createdAt":"\#(ago(3000))"}],"pinnedModel":\#(pinned),"jobs":[\#(failed ? #"{"id":4,"task":"Compare the reviews of the new Mac mini","state":"failed","createdAt":"\#(ago(2))","endedAt":"\#(ago(1))","error":"The review pages would not load"},"# : ""){"id":3,"task":"What year was TCP/IP adopted by ARPANET?","state":"queued","createdAt":"\#(ago(1))"},{"id":2,"task":"Research how IPv6 is rolled out in home routers","state":"running","createdAt":"\#(ago(4))","step":"Reading 3 of 8 pages","model":"claude-sonnet-4-5","modelReason":"Laya: moderate"},{"id":1,"task":"Research networking basics for a beginner","state":"done","createdAt":"\#(ago(52))","endedAt":"\#(ago(41))","title":"Networking basics","summary":"How data finds its way from your Mac to a website and back.","model":"claude-haiku-4-5","modelReason":"Laya: easy"}]},\#(team)]}"# }
         let report = #"{"type":"report","id":1,"title":"Networking basics","summary":"How data finds its way from your Mac to a website and back.","body":"Every device on a network has an address. Your router hands one to your Mac, and translates between your home network and the internet.\n\nData travels in small packets. Each packet carries where it is going, and routers along the way pass it on, one hop at a time.\n\nNames like apple.com are turned into addresses by DNS before any packet is sent.","sources":[{"title":"How the Internet works","url":"https://developer.mozilla.org/en-US/docs/Learn/Common_questions/Web_mechanics/How_does_the_Internet_work"},{"title":"Internet Protocol (RFC 791)","url":"https://www.rfc-editor.org/rfc/rfc791"}]}"#
         func model(_ theme: AppTheme, pinned: String = "null", allowLarge: Bool = true, failed: Bool = false) -> IslandModel {
             let m = IslandModel(settings: IslandSettings(defaults: defaults))
             m.settings.theme = theme
-            if let event = try? decodeEvent(helpers(pinned: pinned, allowLarge: allowLarge, failed: failed)) { m.apply(event) } else {
-                FileHandle.standardError.write(Data("gallery: could not decode helpers\n".utf8))
+            do { m.apply(try decodeEvent(helpers(pinned: pinned, allowLarge: allowLarge, failed: failed))) } catch {
+                FileHandle.standardError.write(Data("gallery: could not decode helpers: \(error)\n".utf8))
             }
             return m
         }
@@ -165,6 +172,8 @@ enum IslandGallery {
                     .overlay(shape.strokeBorder(flat ? m.settings.theme.palette.border.color : Color.white.opacity(0.1), lineWidth: flat ? 1 : 0.5))
             }
         }
+        let souled = model(theme)
+        souled.helpers.openSoul()
         let reading = model(theme)
         _ = reading.helpers.openReport(1)
         if let event = try? decodeEvent(report) { reading.apply(event) }
@@ -173,8 +182,11 @@ enum IslandGallery {
                 window("Helpers: Sid's model chosen by Laya, jobs show their model", model(theme))
                 window("Sid's report", reading)
             }
-            let other: AppTheme = theme == .void ? .void : .warm
-            window("\(other == .warm ? "Warm (light)" : other.title): Sid pinned to Sonnet, large model off, a failed job", model(other, pinned: #""claude-sonnet-4-5""#, allowLarge: false, failed: true))
+            HStack(alignment: .top, spacing: 18) {
+                let other: AppTheme = theme == .void ? .void : .warm
+                window("\(other == .warm ? "Warm (light)" : other.title): Sid pinned to Sonnet, large model off, a failed job", model(other, pinned: #""claude-sonnet-4-5""#, allowLarge: false, failed: true))
+                window("Sid's soul (Task 3.3)", souled)
+            }
         }
         .padding(24)
         .background(Color(red: 0.36, green: 0.42, blue: 0.52))

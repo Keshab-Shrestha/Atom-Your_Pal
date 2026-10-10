@@ -186,9 +186,18 @@ test("parses the helper commands", () => {
     { type: "helper.pin", helper: "sid", model: "not-offered" }, // refused later by the helpers, with stage "settings"
     { type: "helpers.settings", allowLarge: false },
     { type: "helpers.settings", allowLarge: true },
+    { type: "soul.set", helper: "sid", soul: { name: "Sid", personality: "Curious.", howItWorks: "", rules: "", lessons: "" } },
+    { type: "soul.set", helper: "sid", soul: { name: "", personality: "", howItWorks: "", rules: "", lessons: "" } }, // the store refuses
+    { type: "soul.restore", helper: "sid", version: 2 },
   ];
   for (const command of good) assert.deepEqual(parseCommand(JSON.stringify(command)), { command }, JSON.stringify(command));
   assert.deepEqual(parseCommand('{"type":"helpers.list","extra":1}'), { command: { type: "helpers.list" } });
+  const soul = { name: "Sid", personality: "x", howItWorks: "", rules: "", lessons: "", tools: ["Bash"] };
+  assert.deepEqual(parseCommand(JSON.stringify({ type: "soul.set", helper: "sid", soul })), {
+    command: { type: "soul.set", helper: "sid", soul: { name: "Sid", personality: "x", howItWorks: "", rules: "", lessons: "" } },
+  }, "fields outside the soul are dropped");
+  const long = { type: "soul.set", helper: "sid", soul: { name: "Sid", personality: "x".repeat(600), howItWorks: "\n".repeat(1500), rules: '"'.repeat(1500), lessons: "x".repeat(2000) } };
+  assert.ok("command" in parseCommand(JSON.stringify(long)), "the longest soul fits in one command");
 });
 
 test("helper commands with missing or wrong fields are protocol errors", () => {
@@ -210,6 +219,14 @@ test("helper commands with missing or wrong fields are protocol errors", () => {
     [{ type: "helper.pin", helper: "sid", model: null }, /"model"/],
     [{ type: "helpers.settings" }, /"allowLarge"/],
     [{ type: "helpers.settings", allowLarge: "false" }, /"allowLarge"/],
+    [{ type: "soul.set", soul: {} }, /"helper"/],
+    [{ type: "soul.set", helper: "sid" }, /"soul" object/],
+    [{ type: "soul.set", helper: "sid", soul: ["Sid"] }, /"soul" object/],
+    [{ type: "soul.set", helper: "sid", soul: { name: "Sid", personality: "x", howItWorks: "", rules: "" } }, /"soul\.lessons"/],
+    [{ type: "soul.set", helper: "sid", soul: { name: 1, personality: "x", howItWorks: "", rules: "", lessons: "" } }, /"soul\.name"/],
+    [{ type: "soul.restore", helper: "sid" }, /"version"/],
+    [{ type: "soul.restore", helper: "sid", version: 0 }, /"version"/],
+    [{ type: "soul.restore", version: 1 }, /"helper"/],
   ];
   for (const [command, expected] of bad) {
     const parsed = parseCommand(JSON.stringify(command));

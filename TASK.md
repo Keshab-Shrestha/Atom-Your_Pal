@@ -735,8 +735,17 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Tests: 28 TS (engine 13, models 9, store 3, island and protocol) and 6 Swift. 511 TS and 430 Swift pass; typecheck clean.
 - Known limits: a model that fell back a tier keeps Laya's label as its reason; only Haiku, Sonnet and Opus models are offered for pins; a `models` tier the island does not know stops the window updating until the island is updated.
 
-**Task 3.3 — The team and their souls.** All seven workers in the roster with their souls (role, personality, how they work, rules, lessons), editable in the window with versions. Penny and Hana available with the research tools (Hana also writes to her job folder); Kame, Puff and Quill wait for 3.5; Tinker for 3.7.
+**Task 3.3 — The team and their souls.** All seven workers in the roster with their souls (role, personality, how they work, rules, lessons), editable in the window with versions. Penny and Hana available with the research tools; Kame, Puff and Quill wait for 3.11; Tinker for 3.13. (Hana's job folder moves to 3.11, where writing to folders is built.)
 **Done when:** each worker's soul shows in the window, an edit is used by the next job, and an older version can be restored.
+
+**As built (2026-10-11):** built; tested; seen in the gallery (`13-helpers`, "Sid's soul"); not yet opened on the real screen and no live job run (plan quota).
+- Roster (`services/helpers/src/jobs.ts`): Sid researcher, Kame coder, Puff designer, Quill documenter, Penny financial information, Hana HR, Tinker improver, each with a default soul. Sid, Penny and Hana are available and run the research job (WebSearch and WebFetch only); the rest show "coming soon". `available` and `role` are code; a soul edit cannot change them.
+- Souls: a `souls` table in `data/helpers.db` (helper, version, five fields, time). Version 1 is the default, written on first open. A save adds a version (none when unchanged); a restore copies an old version into a new one, so it can be undone. Every version is kept; the newest 10 are listed. Names: letters, at most 20, unique among workers, not Wisp or ZENO. Field limits 600 / 1500 / 1500 / 2000.
+- Jobs: the runtime reads the soul when a job starts, so an edit applies from the next job. The instructions are the soul, then the role's fixed rules in code: Penny gives information, never advice, never touches accounts or trading, and every report of hers ends with "This is information, not professional financial advice." (added by code if missing); Hana never puts a private person's details into a web search.
+- Protocol: `soul.set` and `soul.restore`; the `helpers` event gains `role`, `soul`, `soulVersion` and `soulVersions`. The command limit is now 16 384 characters (the longest soul). Logs carry the helper and version only.
+- Window: every worker can be chosen; the header shows the role; "Soul" opens a form (name, personality, how it works, rules, lessons learned, each with a count), Save (⌘S) and a Versions menu that restores an older one. A worker not ready for jobs shows its soul only.
+- Tests: 9 store and instruction tests, protocol and island tests (TS 521 pass, 2 skipped; typecheck clean) and 7 Swift (463 pass).
+- Known limits: the old Sid soul text (`RESEARCHER_SOUL`) is gone, replaced by Sid's default soul; renaming a worker does not yet change how voice addresses it ("<Name>, …" comes with 3.5); the Versions menu shows numbers and dates, not the old text.
 
 **Revised by ADR-087 (2026-10-10): orchestration after Paperclip.** Tasks 3.4–3.16 replace the earlier 3.4–3.9. 3.3 is unchanged. Each is one capability with its own tests and docs.
 

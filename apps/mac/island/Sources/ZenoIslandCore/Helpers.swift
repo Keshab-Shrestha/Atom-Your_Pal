@@ -1,5 +1,5 @@
-// Helpers (ADR-081, Task 3.1): Sid, Kame and Puff, their jobs and reports, as the runtime reports them, and the
-// Helpers window's state. Task text and reports are the user's own; never logged.
+// Helpers (ADR-081, Task 3.1; the team and souls, ADR-082, Task 3.3): the workers, their souls, jobs and reports, as
+// the runtime reports them, and the Helpers window's state. Task text and reports are the user's own; never logged.
 import Foundation
 
 public enum JobState: String, Sendable, Equatable, CaseIterable {
@@ -79,24 +79,95 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     }
 }
 
+/// A worker's soul (ADR-082, Task 3.3): who it is and how it works, given to it as instructions for every job.
+public struct HelperSoul: Sendable, Equatable {
+    public static let limits = (name: 20, personality: 600, howItWorks: 1500, rules: 1500, lessons: 2000)
+
+    public var name: String
+    public var personality: String
+    public var howItWorks: String
+    public var rules: String
+    public var lessons: String
+
+    public init(name: String, personality: String, howItWorks: String = "", rules: String = "", lessons: String = "") {
+        self.name = name
+        self.personality = personality
+        self.howItWorks = howItWorks
+        self.rules = rules
+        self.lessons = lessons
+    }
+
+    /// Every field trimmed, as the runtime stores it.
+    public var trimmed: HelperSoul {
+        let t = { (s: String) in s.trimmingCharacters(in: .whitespacesAndNewlines) }
+        return HelperSoul(name: t(name), personality: t(personality), howItWorks: t(howItWorks), rules: t(rules), lessons: t(lessons))
+    }
+
+    /// Why the runtime would refuse it, for the obvious cases (the runtime checks again, and names unique); nil when fine.
+    public var problem: String? {
+        let soul = trimmed
+        if soul.name.isEmpty { return "The name is empty." }
+        if soul.personality.isEmpty { return "The personality is empty." }
+        let over = [("name", soul.name, Self.limits.name), ("personality", soul.personality, Self.limits.personality),
+                    ("how it works", soul.howItWorks, Self.limits.howItWorks), ("rules", soul.rules, Self.limits.rules),
+                    ("lessons", soul.lessons, Self.limits.lessons)].first { $0.1.count > $0.2 }
+        if let (label, text, limit) = over { return "The \(label) is too long (\(text.count) characters, limit \(limit))." }
+        return nil
+    }
+}
+
+/// One saved soul version (newest first in `Helper.soulVersions`).
+public struct SoulVersion: Sendable, Equatable, Identifiable {
+    public var version: Int
+    public var createdAt: Date?
+    public var id: Int { version }
+
+    public init(version: Int, createdAt: Date?) {
+        self.version = version
+        self.createdAt = createdAt
+    }
+}
+
 public struct Helper: Sendable, Equatable, Identifiable {
     public var id: String
     public var name: String
-    /// False for a helper not built yet: shown as "coming soon".
+    /// False for a worker not ready for jobs yet: shown as "coming soon", its soul still editable.
     public var available: Bool
     public var app: String?
     /// Newest first.
     public var jobs: [HelperJob]
     /// The model id this helper is pinned to, skipping Laya; nil when Laya chooses (ADR-083).
     public var pinnedModel: String?
+    /// "researcher", "coder", … (fixed in the runtime's code).
+    public var role: String
+    /// Nil from a runtime older than Task 3.3.
+    public var soul: HelperSoul?
+    public var soulVersion: Int
+    public var soulVersions: [SoulVersion]
 
-    public init(id: String, name: String, available: Bool, app: String?, jobs: [HelperJob], pinnedModel: String? = nil) {
+    public init(id: String, name: String, available: Bool, app: String?, jobs: [HelperJob], pinnedModel: String? = nil,
+                role: String = "", soul: HelperSoul? = nil, soulVersion: Int = 1, soulVersions: [SoulVersion] = []) {
         self.id = id
         self.name = name
         self.available = available
         self.app = app
         self.jobs = jobs
         self.pinnedModel = pinnedModel
+        self.role = role
+        self.soul = soul
+        self.soulVersion = soulVersion
+        self.soulVersions = soulVersions
+    }
+
+    /// The role as the window says it: "Researcher", "Financial information", "HR", ….
+    public var roleTitle: String {
+        switch role {
+        case "financial adviser": "Financial information"
+        case "hr": "HR"
+        case "improver": "Improver"
+        case "": ""
+        default: role.prefix(1).uppercased() + role.dropFirst()
+        }
     }
 
     /// The card's second line: the running job's step, or Idle.
@@ -201,6 +272,8 @@ public struct HelpersState: Sendable, Equatable {
     public private(set) var selectedHelperId: String?
     /// The job whose report is open.
     public private(set) var openJobId: Int?
+    /// The chosen helper's soul is open for editing (Task 3.3).
+    public private(set) var isSoulOpen = false
     public private(set) var report: HelperReport?
     /// Why the runtime refused the window's last command, until the next `helpers` event.
     public private(set) var problem: String?
@@ -225,8 +298,9 @@ public struct HelpersState: Sendable, Equatable {
             list = newList
             isWaiting = false
             problem = nil
-            if selectedHelper?.available != true {
-                selectedHelperId = newList.helpers.first(where: \.available)?.id
+            if selectedHelper == nil {
+                selectedHelperId = (newList.helpers.first(where: \.available) ?? newList.helpers.first)?.id
+                isSoulOpen = false
             }
             if openJobId != nil, openJob?.hasReport != true { closeReport() } // deleted, or its report is gone
         case .report(let newReport) where newReport.id == openJobId:
@@ -239,12 +313,44 @@ public struct HelpersState: Sendable, Equatable {
         }
     }
 
-    /// Only an available helper can be chosen.
+    /// Any listed worker can be chosen, so a worker not ready for jobs can still have its soul shaped.
     public mutating func selectHelper(_ id: String) {
-        guard list?.helpers.first(where: { $0.id == id })?.available == true, id != selectedHelperId else { return }
+        guard list?.helpers.contains(where: { $0.id == id }) == true, id != selectedHelperId else { return }
         selectedHelperId = id
         closeReport()
+        isSoulOpen = false
         problem = nil
+    }
+
+    public mutating func openSoul() {
+        guard selectedHelper?.soul != nil else { return }
+        closeReport()
+        isSoulOpen = true
+        problem = nil
+    }
+
+    public mutating func closeSoul() {
+        isSoulOpen = false
+        problem = nil
+    }
+
+    /// Saves the chosen worker's edited soul. Nil when unchanged, or with `problem` set when obviously invalid.
+    public mutating func saveSoul(_ soul: HelperSoul) -> IslandCommand? {
+        guard let helper = selectedHelper, let current = helper.soul else { return nil }
+        let clean = soul.trimmed
+        if let reason = clean.problem {
+            problem = reason
+            return nil
+        }
+        guard clean != current else { return nil }
+        return waiting(.soulSet(helper: helper.id, soul: clean))
+    }
+
+    /// Makes a listed older version current again. Nil for the current version or one not listed.
+    public mutating func restoreSoul(_ version: Int) -> IslandCommand? {
+        guard let helper = selectedHelper, version != helper.soulVersion,
+              helper.soulVersions.contains(where: { $0.version == version }) else { return nil }
+        return waiting(.soulRestore(helper: helper.id, version: version))
     }
 
     /// `app` nil means none.
@@ -289,6 +395,7 @@ public struct HelpersState: Sendable, Equatable {
     /// Opens a job's report: asks the runtime for it. Nil for a job without one.
     public mutating func openReport(_ id: Int) -> IslandCommand? {
         guard selectedHelper?.jobs.first(where: { $0.id == id })?.hasReport == true else { return nil }
+        isSoulOpen = false
         openJobId = id
         report = nil
         return waiting(.reportGet(id: id))

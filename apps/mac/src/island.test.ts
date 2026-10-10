@@ -15,7 +15,7 @@ import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
 import type { CoreLike } from "./voice-loop.ts";
 import { createComputerBridge } from "./computer-bridge.ts";
-import { openHelperStore, tieredModels } from "@zeno/helpers";
+import { HELPERS, openHelperStore, tieredModels } from "@zeno/helpers";
 import { islandHelpers } from "./island-helpers.ts";
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
@@ -630,11 +630,18 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
   assert.deepEqual(h.events(), [
     {
       type: "helpers",
-      helpers: [
-        { id: "sid", name: "Sid", available: true, app: null, pinnedModel: null, jobs: [] },
-        { id: "kame", name: "Kame", available: false, app: null, pinnedModel: null, jobs: [] },
-        { id: "puff", name: "Puff", available: false, app: null, pinnedModel: null, jobs: [] },
-      ],
+      helpers: HELPERS.map((r) => ({
+        id: r.id,
+        name: r.name,
+        available: r.available,
+        role: r.role,
+        soul: r.soul,
+        soulVersion: 1,
+        soulVersions: [{ version: 1, createdAt: (h.events()[0] as HelpersEvent).helpers[0]!.soulVersions[0]!.createdAt }],
+        app: null,
+        pinnedModel: null,
+        jobs: [],
+      })),
       apps: ["Arc", "Brave Browser", "Notes"],
       allowLarge: true,
       models: [
@@ -735,6 +742,25 @@ test("helper.pin pins Sid to an offered model and \"\" unpins; an unknown model 
   h.clear();
   await h.send({ type: "helper.pin", helper: "sid", model: "" });
   assert.equal((h.events()[0] as HelpersEvent).helpers[0]!.pinnedModel, null);
+});
+
+test("soul.set saves a new version and soul.restore brings an old one back; a bad soul is refused with stage settings", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  h.clear();
+  const soul = { ...HELPERS[0].soul, lessons: "Give three sources." };
+  await h.send({ type: "soul.set", helper: "sid", soul });
+  assert.deepEqual(h.types(), ["helpers"]);
+  const sid = (h.events()[0] as HelpersEvent).helpers[0]!;
+  assert.deepEqual([sid.soulVersion, sid.soul.lessons, sid.soulVersions.map((v) => v.version)], [2, "Give three sources.", [2, 1]]);
+  h.clear();
+  await h.send({ type: "soul.set", helper: "sid", soul: { ...soul, name: "Wisp" } }, { type: "soul.restore", helper: "sid", version: 7 });
+  assert.deepEqual(h.types(), ["error", "error"]);
+  for (const e of h.events()) assert.equal((e as { stage: string }).stage, "settings");
+  h.clear();
+  await h.send({ type: "soul.restore", helper: "sid", version: 1 });
+  assert.equal((h.events()[0] as HelpersEvent).helpers[0]!.soul.lessons, "");
+  assert.equal(store.list()[0]!.soulVersion, 3);
 });
 
 test("helpers.settings turns the large model off and on, answered with helpers", async () => {

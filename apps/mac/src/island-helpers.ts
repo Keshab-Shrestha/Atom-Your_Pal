@@ -25,7 +25,12 @@ const toJobItem = (job: Job): JobItem => ({
  */
 export function islandHelpers(store: HelperStore, apps: () => Promise<string[]>, models: () => PlanModel[] = () => []): IslandHelpers {
   return {
-    list: () => store.list().map((h) => ({ ...h, jobs: h.jobs.map(toJobItem) })),
+    list: () =>
+      store.list().map((h) => ({
+        ...h,
+        soulVersions: h.soulVersions.map((v) => ({ version: v.version, createdAt: v.createdAt.toISOString() })),
+        jobs: h.jobs.map(toJobItem),
+      })),
     apps: async () => [...(await apps())].sort((a, b) => a.localeCompare(b)),
     setApp: (helper, app) => store.setApp(helper, app),
     addJob: (helper, task) => void store.addJob(helper, task),
@@ -33,6 +38,8 @@ export function islandHelpers(store: HelperStore, apps: () => Promise<string[]>,
       if (model && !models().some((m) => m.id === model)) throw new HelperError("That model is not offered for helper jobs.");
       store.pin(helper, model);
     },
+    saveSoul: (helper, soul) => store.saveSoul(helper, soul),
+    restoreSoul: (helper, version) => store.restoreSoul(helper, version),
     allowLarge: () => store.allowLarge(),
     setAllowLarge: (allowed) => store.setAllowLarge(allowed),
     models: () => models().map(({ id, name, tier }) => ({ id, name, tier })),

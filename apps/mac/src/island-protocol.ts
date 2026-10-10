@@ -6,8 +6,8 @@ import type { LoopState } from "./voice-loop.ts";
 
 export const PROTOCOL_VERSION = 1;
 
-/** Longest command line accepted, in characters. Commands are tiny; anything bigger is a bug or abuse. */
-export const MAX_COMMAND_LENGTH = 4096;
+/** Longest command line accepted, in characters. The biggest is a soul edit (`soul.set`); anything bigger is a bug or abuse. */
+export const MAX_COMMAND_LENGTH = 16_384;
 
 export type IslandCommand =
   | { type: "talk.start" }
@@ -31,6 +31,8 @@ export type IslandCommand =
   | { type: "report.get"; id: number }
   | { type: "helper.pin"; helper: string; model: string }
   | { type: "helpers.settings"; allowLarge: boolean }
+  | { type: "soul.set"; helper: string; soul: SoulItem }
+  | { type: "soul.restore"; helper: string; version: number }
   | { type: "quit" };
 
 export type ErrorStage =
@@ -96,11 +98,26 @@ export interface ModelItem {
   tier: "small" | "medium" | "large";
 }
 
+/** A worker's soul (ADR-082, Task 3.3). Travels only over the private pipe; never logged. */
+export interface SoulItem {
+  name: string;
+  personality: string;
+  howItWorks: string;
+  rules: string;
+  lessons: string;
+}
+
 /** One helper and its newest jobs (ADR-081), in the fixed order. */
 export interface HelperItem {
   id: string;
+  /** The soul's name. */
   name: string;
   available: boolean;
+  role: string;
+  soul: SoulItem;
+  soulVersion: number;
+  /** Newest first, at most 10; `createdAt` is ISO 8601. */
+  soulVersions: { version: number; createdAt: string }[];
   app: string | null;
   /** The pinned model id (ADR-083), or null to let Laya choose. */
   pinnedModel: string | null;
@@ -182,6 +199,8 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "report.get",
   "helper.pin",
   "helpers.settings",
+  "soul.set",
+  "soul.restore",
   "quit",
 ]);
 
@@ -250,6 +269,24 @@ export function parseCommand(line: string): ParsedLine {
     const { allowLarge } = value as { allowLarge?: unknown };
     if (typeof allowLarge !== "boolean") return { error: 'helpers.settings needs "allowLarge" to be true or false.' };
     return { command: { type, allowLarge } };
+  }
+  if (type === "soul.set") {
+    // Lengths, names and empty fields are the store's to refuse (stage "settings"), as the protocol says.
+    const { helper, soul } = value as { helper?: unknown; soul?: unknown };
+    if (typeof helper !== "string" || helper === "") return { error: 'soul.set needs a "helper" string.' };
+    if (typeof soul !== "object" || soul === null || Array.isArray(soul)) return { error: 'soul.set needs a "soul" object.' };
+    const fields = ["name", "personality", "howItWorks", "rules", "lessons"] as const;
+    const s = soul as Record<string, unknown>;
+    const missing = fields.find((f) => typeof s[f] !== "string");
+    if (missing) return { error: `soul.set needs "soul.${missing}" as a string.` };
+    const clean = Object.fromEntries(fields.map((f) => [f, s[f]])) as unknown as SoulItem; // extra fields dropped
+    return { command: { type, helper, soul: clean } };
+  }
+  if (type === "soul.restore") {
+    const { helper, version } = value as { helper?: unknown; version?: unknown };
+    if (typeof helper !== "string" || helper === "") return { error: 'soul.restore needs a "helper" string.' };
+    if (typeof version !== "number" || !Number.isInteger(version) || version < 1) return { error: 'soul.restore needs a "version" that is a whole number.' };
+    return { command: { type, helper, version } };
   }
   if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.delete" || type === "report.get") {
     const { id } = value as { id?: unknown };
