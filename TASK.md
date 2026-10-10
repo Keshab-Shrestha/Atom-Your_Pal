@@ -720,6 +720,12 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Tests: 15 new (runner 9, research run 6); 483 TS pass, typecheck clean.
 - Known limits: no test yet that a conversation answers during a job (nothing in the Core waits on it); "no markdown" in a report is asked, not checked; Sid's soul is fixed until 3.3; no `ZENO_HELPERS=0` switch.
 
+**Task 3.2b — Laya chooses each job's model (ADR-083).**
+1. `services/decision-engine`: a `DecisionEngine` interface (`chooseModel(task, role) → { tier, score?, source }`) and the Laya implementation: an MCP stdio client to `laya-mcp-server`, started on the first job and kept warm, stopped on quit; the difficulty question and thresholds from ADR-083; a 5 s limit; any failure → the role's default tier. Tests with a fake Laya.
+2. Tiers to models from the plan's offered models (newest Haiku / Sonnet / Opus; missing family → next tier down); role floors; "Allow the large model" switch and a per-worker pin (protocol + Helpers window).
+3. The runner asks for the model before each job; the window shows the model and why; logs hold tier, score and source only.
+**Done when:** a lookup task runs on Haiku and a refactor task on Opus (or Sonnet with the large model off), Laya stopped makes jobs fall back without waiting, and the pin overrides Laya.
+
 **Task 3.3 — The team and their souls.** All seven workers in the roster with their souls (role, personality, how they work, rules, lessons), editable in the window with versions. Penny and Hana available with the research tools (Hana also writes to her job folder); Kame, Puff and Quill wait for 3.5; Tinker for 3.7.
 **Done when:** each worker's soul shows in the window, an edit is used by the next job, and an older version can be restored.
 

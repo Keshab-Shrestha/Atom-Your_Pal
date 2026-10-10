@@ -1708,3 +1708,44 @@ Keshab: "i want wisp to work as a god tier manager and give its task to other ag
 ### Consequences
 
 ZENO becomes a small team. The risk moves from "what can Wisp do" to "what can each worker do", and the answer stays in code: role → tools, grants → folders, approvals → risky commands. The cost is plan use that grows with the work handed out, and more to maintain: souls, grants, skills and Tinker's proposals.
+
+---
+
+## ADR-083 — Laya Chooses Each Job's Model
+
+Date: 2026-10-10. Status: **accepted** (Keshab, 2026-10-10: "when delegating tasks to other agents lets make sure we use laya (system one) to determine which model is needed for the task"). First use of the Decision Engine boundary (CLAUDE.md §10).
+
+### Context
+
+Every worker job (ADR-081, ADR-082) runs on one Claude model. A one-fact lookup does not need the model a code refactor does, and on the Claude plan the bigger model spends the plan faster (it reported 98 % of the five-hour window after one test job on 2026-10-10). Laya (`convaiinnovations/laya`, local, MCP server `~/laya/.venv/bin/laya-mcp-server`) answers structured questions about text in one forward pass, with no text generation. The `laya-system1` skill lists difficulty ranking as one of the things it does well, and approval gating as one it must never do.
+
+### Check before trusting it (2026-10-10, warm, MPS, about 0.2 s a call)
+
+A custom `score` question, lowest rung first: trivial (one fact or a quick lookup), easy (a short summary or short piece of writing), moderate (multi-step research, comparison, or a few pages of writing), hard (complex code changes, design work, or careful analysis with numbers).
+
+| Task | Score | The preset `model_router` |
+|---|---|---|
+| What year was TCP/IP adopted by ARPANET? | 0.16 | 1.25 |
+| Write a short README for a todo app | 0.86 | 1.25 |
+| Draft a friendly job description for a junior designer | 1.23 | 1.72 |
+| Research home networking and compare the top three mesh router systems | 1.66 | 1.56 |
+| Analyse paying off a loan early versus investing, with numbers | 1.75 | 1.52 |
+| Research how home Wi-Fi mesh works | 1.92 | 1.78 |
+| Design a landing page for a Nepali marketplace app | 2.05 | 1.91 |
+| Refactor the authentication module to support OAuth and add tests | 2.67 | 2.06 |
+
+The custom question spreads the tasks from 0.16 to 2.67 in a sensible order. The preset bunches them between 1.25 and 2.06, so it is not used. Scores are rankings, not probabilities.
+
+### Decision
+
+- **Before a job starts, Laya rates its task** with the question above. The score picks a tier: below 0.75 → small (Haiku); 0.75 to 2.25 → medium (Sonnet); 2.25 and above → large (Opus). Thresholds live in one place in code.
+- **A floor per role**: the coder, designer and financial adviser never go below medium. The worker's soul cannot change tiers or floors.
+- **Keshab's say wins**: a worker can be pinned to a model in the Helpers window, which skips Laya; "Allow the large model for workers" can be turned off, which caps jobs at medium.
+- **The model comes from the plan's own list**: each tier maps to the newest offered model of that family; if a family is missing, the next tier down.
+- **Behind the Decision Engine boundary.** The runner asks a `DecisionEngine` for a model; Laya is one implementation. If Laya is missing, slow (over 5 s), or fails, the job uses the role's default tier (medium), so a job never waits on Laya.
+- **Laya decides only the model.** Never what a worker may do, which folders it may touch, or whether an action needs approval (SECURITY.md §12; `laya-system1`).
+- **Visible:** the window shows each job's model and why ("Laya: moderate"); logs hold the tier, score and source (laya, pinned, fallback), never the task text.
+
+### Consequences
+
+Small jobs run faster and spend less of the plan; hard ones get the bigger model. ZENO starts Laya's server once, on the first job, and keeps it warm (its model load takes a few seconds; then about 0.2 s a call), and stops it when ZENO quits. The cost is one more local process and a classifier whose scores are rough: the floors, the pin and the fallback keep a bad score from doing harm beyond picking a smaller or larger model.
