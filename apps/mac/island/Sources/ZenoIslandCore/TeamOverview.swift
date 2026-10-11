@@ -106,7 +106,7 @@ public enum TeamIssues {
     }
 }
 
-/// ADR-090: the office floor's plan: where each pal is (its desk, or the lounge), what it is doing (the animation it
+/// ADR-090: the office floor's plan: where each pal is (its desk while it works, else the lounge), what it is doing (the animation it
 /// plays and a line in its bubble), and the hand-offs in flight (an envelope from one desk to another). Pure.
 public struct OfficePlan: Sendable, Equatable {
     public enum Spot: Sendable, Equatable { case desk(Int), lounge(Int) }
@@ -151,12 +151,17 @@ public struct OfficePlan: Sendable, Equatable {
             let held = h.jobs.first { $0.held != nil && !$0.awaitsApproval }
             let failed = h.jobs.first { $0.state == .failed }
             let celebrating = h.jobs.contains { $0.goalEnded && $0.state == .done && ($0.endedAt.map { now.timeIntervalSince($0) < Self.celebration } ?? false) }
+            // Only a worker at work sits at its PC; everyone else is in the lounge.
             var seat = Seat(helperId: h.id, name: h.name, desk: index, spot: .desk(index), animation: "idle", bubble: nil, taskId: nil, flag: nil)
             if let running {
                 seat.animation = "working"
                 seat.bubble = running.step ?? "Working"
                 seat.taskId = running.id
-            } else if let awaiting {
+                return seat
+            }
+            seat.spot = .lounge(lounge)
+            lounge += 1
+            if let awaiting {
                 seat.animation = "curious"
                 seat.bubble = "Waiting for your OK"
                 seat.taskId = awaiting.id
@@ -168,16 +173,10 @@ public struct OfficePlan: Sendable, Equatable {
                 seat.flag = .needsYou
             } else if celebrating {
                 seat.animation = "celebrate"
-                seat.spot = .lounge(lounge)
-                lounge += 1
-            } else {
-                seat.spot = .lounge(lounge)
-                lounge += 1
-                if let failed, h.jobs.first?.id == failed.id {
-                    seat.animation = "sad"
-                    seat.taskId = failed.id
-                    seat.flag = .failed
-                }
+            } else if let failed, h.jobs.first?.id == failed.id {
+                seat.animation = "sad"
+                seat.taskId = failed.id
+                seat.flag = .failed
             }
             return seat
         }

@@ -2,6 +2,7 @@
 // Microphone → Whisper → ZENO Core → LLM Gateway → provider → Kokoro → speaker.
 
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createCore, CoreError, type Core } from "@zeno/core";
@@ -56,6 +57,7 @@ import {
   teamContext,
   watchGoals,
   findHelper,
+  wantsFiles,
   instructionsFor,
   openHelperStore,
   startJobRunner,
@@ -70,7 +72,7 @@ import { createLayaEngine } from "@zeno/decision-engine";
 import type { InputSource, Message } from "@zeno/contracts";
 import type { IslandHelpers, IslandMemory } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
-import { denyRead, folderCheck } from "./folder-run.ts";
+import { askForFolder, denyRead, folderCheck } from "./folder-run.ts";
 import { commitWork, prepareWorkdir, type Workdir } from "./worktree.ts";
 import { SKILLS_PLUGIN, listSkills, prepareSkills } from "./skills.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
@@ -433,7 +435,23 @@ export function createRuntime(
     const fresh = () => briefFor(job.task, helpers?.context(job.id) ?? { comments: [], earlier: [] });
     // Task 3.11: the coder, designer and documenter work in the folders Keshab granted; the documenter without one
     // writes up with the research tools, the others cannot start.
-    const grants = helpers?.list().find((h) => h.id === job.helper)?.grants ?? [];
+    let grants = helpers?.list().find((h) => h.id === job.helper)?.grants ?? [];
+    // ADR-090: a file worker with no folder asks on Pal's card for the one its task names (or ~/Documents/ZENO);
+    // allowed, ZENO makes it and grants it. A write-up that saves nothing needs no folder.
+    if (kit === "folders" && !grants.length && helpers && (role !== "documenter" || wantsFiles(job.task))) {
+      const store = helpers;
+      grants = await askForFolder({
+        task: job.task,
+        name,
+        home: homedir(),
+        approve: (request) => computer.approve(request),
+        grant: (folder) => {
+          store.addGrant(job.helper, folder);
+          return store.list().find((h) => h.id === job.helper)?.grants ?? [];
+        },
+        onAnswer: (allowed) => log.info("job.folder", { helper: job.helper, job: job.id, allowed }),
+      });
+    }
     let work: Workdir | undefined;
     let files: Parameters<typeof runResearch>[0]["files"];
     if (kit === "folders" && grants.length) {

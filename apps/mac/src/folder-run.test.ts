@@ -1,9 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { denyRead, folderCheck } from "./folder-run.ts";
+import { openHelperStore } from "@zeno/helpers";
+import { askForFolder, denyRead, folderCheck } from "./folder-run.ts";
 
 // Task 3.11: every tool call of a run in folders, checked in code; risky commands ask on Pal's card.
 
@@ -38,4 +39,32 @@ test("paths outside are refused, risky commands ask, refused ones never ask; the
 test("sandboxed commands cannot read keys and tokens", () => {
   const paths = denyRead("/Users/k");
   for (const p of ["/Users/k/.ssh", "/Users/k/.aws", "/Users/k/Library/Keychains", "/Users/k/.claude"]) assert.ok(paths.includes(p), p);
+});
+
+// ADR-090: Quill had no folder, ran without file tools and could not save. Now it asks for the folder its task names.
+test("a file worker with no folder asks for the one its task names; allowed, it is made and granted", async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "zeno-home-")));
+  try {
+    const store = openHelperStore({ path: ":memory:", home });
+    const asked: string[] = [];
+    const task = "Save it as a text document in a folder named ZenoDoc in the user's home directory.";
+    const grants = await askForFolder({
+      task,
+      name: "Quill",
+      home,
+      approve: async (r) => (asked.push(`${r.summary} | ${r.reason}`), true),
+      grant: (folder) => (store.addGrant("quill", folder), store.list().find((h) => h.id === "quill")!.grants),
+    });
+    assert.deepEqual(grants, [join(home, "ZenoDoc")]);
+    assert.ok(existsSync(join(home, "ZenoDoc")));
+    assert.match(asked[0]!, /^Quill needs a folder to save files in \| .*~\/ZenoDoc/);
+    // Said no (or no answer): a clear error, nothing made.
+    await assert.rejects(
+      askForFolder({ task: "Save it to ~/Other", name: "Kame", home, approve: async () => false, grant: () => [] }),
+      /Kame needs a folder to save files in, and none was allowed/,
+    );
+    assert.ok(!existsSync(join(home, "Other")));
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
 });

@@ -960,6 +960,11 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Drawn without smoothing, at a whole-number scale when there is room (2× in the default window). munder-difflin was the visual reference only: its tiles are LimeZu's paid art and its cast are TV characters, so nothing of it is copied.
 - Tests: 6 Swift (paths reach every seat around furniture and only through doors, walking, pixel pals from their files, the layers) (Swift 507 pass).
 
+**Fixes after Keshab's first look (2026-10-11):**
+- Files: Quill's task to save a document in ~/ZenoDoc ran without file tools (no folder granted) and reported it could not save. Now a file worker (coder, designer, or the documenter when its task saves files) with no folder asks on Pal's card for the folder its task names (a path inside home, or "a folder named X", in Documents or on the Desktop if it says so), else ~/Documents/ZENO. Allowed: ZENO makes the folder, grants it (the usual checks: inside home, not home itself, ~/Library or hidden folders) and the worker runs with its file tools (read, write, edit, copy and move with commands). Refused or unanswered: the task fails with words saying so, and is not retried by itself.
+- Floor: only a worker at work sits at a PC; waiting, held, queued, failed and idle workers are in the lounge (their "!" and bubble go with them).
+- Tests: 2 TS (the folder offered, the ask with a real store), the floor test updated (TS 637, Swift 507 pass).
+
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.
 
 **Task 3.17 — Companies and user logins.** Separate workspaces with their own tasks, workers, budgets and history; sign-in for more than one person.

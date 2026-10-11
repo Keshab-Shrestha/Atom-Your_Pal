@@ -1,5 +1,5 @@
 import { realpathSync, statSync } from "node:fs";
-import { dirname, isAbsolute, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { HelperError } from "./jobs.ts";
 
 // ADR-082, Task 3.11: folder grants and the checks every file tool and command passes, in code. A soul, a task or a
@@ -50,6 +50,39 @@ export function checkGrant(path: string, home: string): string {
   }
   if (/^\/Volumes\/[^/]+\/.+/.test(real)) return real;
   throw new HelperError("Only folders inside your home folder or on an external drive can be granted.");
+}
+
+/** Words in a task that mean files are to be saved, so a file worker without a folder asks for one. */
+const SAVES_FILES = /\b(save|saved|saving|file|files|folder|directory|pdf|docx?|markdown|\.md|\.txt|write (it |this )?(to|into)|create (a |the )?(document|file|folder|doc))\b/i;
+
+export const wantsFiles = (task: string) => SAVES_FILES.test(task);
+
+/**
+ * ADR-090: the folder to offer a file worker that has none: a path the task names inside the home folder ("~/Notes",
+ * "/Users/me/Notes"), a folder it names ("a folder named ZenoDoc", in Documents or on the Desktop if it says so,
+ * else in the home folder), or ~/Documents/ZENO. Never the home folder itself, ~/Library or a hidden folder.
+ */
+export function folderForTask(task: string, home: string): string {
+  const fallback = join(home, "Documents", "ZENO");
+  const allowed = (p: string) => {
+    const real = resolve(p);
+    if (!isInside(home, real) || real === resolve(home)) return false;
+    const parts = real.slice(resolve(home).length + 1).split(sep);
+    return parts[0] !== "Library" && !parts.some((part) => part.startsWith("."));
+  };
+  const tidy = (p: string) => p.replace(/[.,;:!?)"'’]+$/, "");
+  const path = task.match(/(?:^|\s)(~\/[^\s"']+|\/Users\/[^\s"']+)/)?.[1];
+  if (path) {
+    const full = tidy(path.startsWith("~/") ? join(home, path.slice(2)) : path);
+    if (allowed(full)) return full;
+  }
+  const named = task.match(/\bfolder (?:named|called) ["'“]?([\w][\w .-]{0,60}?)["'”]?(?=[\s,.;:!?]|$)/i)?.[1];
+  if (named && !named.includes("..")) {
+    const base = /\bdesktop\b/i.test(task) ? join(home, "Desktop") : /\bdocuments\b/i.test(task) ? join(home, "Documents") : home;
+    const full = join(base, tidy(named.trim()));
+    if (allowed(full)) return full;
+  }
+  return fallback;
 }
 
 /**

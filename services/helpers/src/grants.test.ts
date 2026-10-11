@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkGrant, classifyCommand, openHelperStore, pathProblem, toolPaths } from "./index.ts";
+import { checkGrant, classifyCommand, folderForTask, openHelperStore, pathProblem, toolPaths, wantsFiles } from "./index.ts";
 
 // ADR-082, Task 3.11: folder grants and the checks on every file tool and command.
 
@@ -91,4 +91,20 @@ test("grants are for the coder, designer and documenter, checked when added", ()
   } finally {
     rmSync(home, { recursive: true, force: true });
   }
+});
+
+// ADR-090: the folder offered to a file worker that has none.
+test("a file worker without a folder is offered the one its task names, inside the home folder only", () => {
+  const home = "/Users/me";
+  const quill = "Create a document about the match. Save it as a text or PDF document in a folder named ZenoDoc in the user's home directory.";
+  assert.equal(folderForTask(quill, home), "/Users/me/ZenoDoc");
+  assert.equal(folderForTask("Save notes to ~/Projects/site/notes.", home), "/Users/me/Projects/site/notes");
+  assert.equal(folderForTask("Write it into /Users/me/Writing", home), "/Users/me/Writing");
+  assert.equal(folderForTask("Put it in a folder called Drafts on my Desktop", home), "/Users/me/Desktop/Drafts");
+  assert.equal(folderForTask("a folder named Reports in Documents", home), "/Users/me/Documents/Reports");
+  // Never the home folder, ~/Library, a hidden folder or somewhere else: then ~/Documents/ZENO.
+  for (const task of ["Save it to ~/", "Save it in ~/Library/Prefs", "Save to ~/.ssh/x", "Save to /etc/hosts", "a folder named ../../etc", "Write a file"]) {
+    assert.equal(folderForTask(task, home), "/Users/me/Documents/ZENO", task);
+  }
+  assert.ok(wantsFiles(quill) && wantsFiles("write it to a markdown file") && !wantsFiles("Summarise the news about IPv6"));
 });

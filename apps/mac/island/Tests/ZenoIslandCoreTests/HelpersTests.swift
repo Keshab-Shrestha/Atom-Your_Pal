@@ -905,10 +905,12 @@ struct OfficePlanTests {
         let by = Dictionary(uniqueKeysWithValues: plan.seats.map { ($0.helperId, $0) })
         #expect(plan.seats.count == 5, "an unavailable worker with no tasks is not on the floor")
         #expect(by["sid"]?.spot == .desk(0) && by["sid"]?.animation == "working" && by["sid"]?.bubble == "Reading 3 of 8 pages" && by["sid"]?.taskId == 1)
-        #expect(by["kame"]?.spot == .desk(1) && by["kame"]?.flag == .needsYou && by["kame"]?.bubble == "Waiting for your OK")
-        #expect(by["puff"]?.spot == .lounge(0) && by["puff"]?.animation == "idle")
-        #expect(by["quill"]?.spot == .lounge(1) && by["quill"]?.animation == "celebrate")
-        #expect(by["penny"]?.spot == .lounge(2) && by["penny"]?.animation == "sad" && by["penny"]?.flag == .failed)
+        // Only the worker at work is at a PC; waiting, queued, celebrating and failed ones are in the lounge.
+        #expect(by["kame"]?.spot == .lounge(0) && by["kame"]?.flag == .needsYou && by["kame"]?.bubble == "Waiting for your OK")
+        #expect(by["puff"]?.spot == .lounge(1) && by["puff"]?.animation == "idle")
+        #expect(by["quill"]?.spot == .lounge(2) && by["quill"]?.animation == "celebrate")
+        #expect(by["penny"]?.spot == .lounge(3) && by["penny"]?.animation == "sad" && by["penny"]?.flag == .failed)
+        #expect(plan.seats.filter { if case .desk = $0.spot { return true } else { return false } }.map(\.helperId) == ["sid"])
         #expect(plan.envelopes == [OfficePlan.Envelope(from: "sid", to: "puff", taskId: 3)])
         // A minute later the celebration is over.
         #expect(OfficePlan(list: list, now: now.addingTimeInterval(OfficePlan.celebration)).seats.first { $0.helperId == "quill" }?.animation == "idle")

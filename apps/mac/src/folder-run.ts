@@ -1,9 +1,10 @@
 // ADR-082, Task 3.11: what a worker in granted folders may touch. Every file tool's path is checked against the run's
 // folders; every command is classified in code; risky ones ask Keshab on Pal's approval card (no answer is a no).
 
+import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { WRITE_TOOLS, classifyCommand, pathProblem, realish, toolPaths } from "@zeno/helpers";
+import { WRITE_TOOLS, classifyCommand, folderForTask, pathProblem, realish, toolPaths } from "@zeno/helpers";
 
 /** Never readable by sandboxed commands: keys, tokens and other apps' secrets. */
 export function denyRead(home = homedir()): string[] {
@@ -47,4 +48,30 @@ export function folderCheck(options: FolderCheckOptions) {
     }
     return say(name, "allowed"), undefined;
   };
+}
+
+/**
+ * ADR-090: a file worker with no folder asks on Pal's card for the one its task names (else ~/Documents/ZENO). Allowed:
+ * ZENO makes the folder and grants it, and the worker's folders come back. Refused (or no answer): a clear error.
+ */
+export async function askForFolder(options: {
+  task: string;
+  name: string;
+  home: string;
+  approve(request: { summary: string; reason: string }): Promise<boolean>;
+  /** Grants the folder (the store checks it) and returns the worker's folders. */
+  grant(folder: string): string[];
+  onAnswer?(allowed: boolean): void;
+}): Promise<string[]> {
+  const { task, name, home } = options;
+  const folder = folderForTask(task, home);
+  const shown = folder.startsWith(home) ? `~${folder.slice(home.length)}` : folder;
+  const allowed = await options.approve({
+    summary: `${name} needs a folder to save files in`,
+    reason: `Let ${name} read, write, copy and edit files in ${shown}? ZENO makes the folder if it is missing. Change it on ${name}'s page.`,
+  });
+  options.onAnswer?.(allowed);
+  if (!allowed) throw new Error(`${name} needs a folder to save files in, and none was allowed. Grant one on ${name}'s page, then retry.`);
+  mkdirSync(folder, { recursive: true });
+  return options.grant(folder);
 }
