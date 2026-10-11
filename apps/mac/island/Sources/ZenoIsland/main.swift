@@ -54,7 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         log.info("island.start", ["version": version, "pid": Int(ProcessInfo.processInfo.processIdentifier)])
 
         let trace = self.trace
-        let settings = IslandSettings(palAvatar: AvatarImages.hasPal) // ADR-085
+        let settings = IslandSettings()
         for action in settings.unreadableShortcuts {
             log.warn("settings.shortcut_unreadable", ["action": action.rawValue])
         }

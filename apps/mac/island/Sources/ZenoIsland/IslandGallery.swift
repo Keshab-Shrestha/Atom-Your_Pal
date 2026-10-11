@@ -118,7 +118,6 @@ enum IslandGallery {
         writePet(to: directory, theme: .lantern, name: "5-pal-moods-lantern")
         writeBubbles(to: directory)
         writeApproval(to: directory)
-        writePeek(to: directory)
         writeThemes(model: model, to: directory)
         writeSetup(to: directory, conversation: filled)
         writeEveryday(to: directory)
@@ -376,8 +375,8 @@ enum IslandGallery {
 
     /// ADR-057: every surface in every theme, and every Pal style in every mood.
     private static func writeThemes(model: IslandModel, to directory: URL) {
-        let saved = (model.settings.theme, model.settings.palStyle, model.tab, model.settingsPage)
-        defer { (model.settings.theme, model.settings.palStyle, model.tab, model.settingsPage) = saved }
+        let saved = (model.settings.theme, model.tab, model.settingsPage)
+        defer { (model.settings.theme, model.tab, model.settingsPage) = saved }
         let size = IslandMetrics().expanded
         for theme in AppTheme.allCases {
             model.settings.theme = theme
@@ -429,38 +428,21 @@ enum IslandGallery {
             (.resting, "Resting"), (.floating, "Floating"), (.listening, "Listening"), (.thinking, "Thinking"),
             (.speaking, "Speaking"), (.worried, "Problem"), (.napping, "Napping"), (.carried, "Carried"),
         ]
-        // ADR-086: every Pal style flat under Void, on black and on a desktop.
-        let flat = VStack(alignment: .leading, spacing: 10) {
-            Text("Void — Pal is flat: no halo, glow or shadow; a status dot").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
-            ForEach(PalStyle.allCases, id: \.self) { style in
-                HStack(spacing: 6) {
-                    Text(style.title).font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.75)).frame(width: 70, alignment: .leading)
-                    ForEach(Array(moods.enumerated()), id: \.offset) { _, entry in
-                        PalView(mood: entry.0, time: 0.55, facing: 1, size: 64, style: style)
-                    }
-                }
-            }
-            HStack(spacing: 6) { ForEach(moods.map(\.1), id: \.self) { Text($0).font(.system(size: 10)).foregroundStyle(.white.opacity(0.5)).frame(width: 96) } }
-                .padding(.leading, 76)
-        }
-        .padding(22)
-        .background(Color.black)
-        .environment(\.theme, .void)
-        save(flat, name: "9-void-pal", to: directory)
-        for style in PalStyle.allCases {
+        // ADR-093: the 2D pixel Pal, every mood, a later moment facing left, and how it notices you.
+        do {
             let sheet = VStack(alignment: .leading, spacing: 14) {
-                Text("Pal — \(style.title)").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+                Text("Pal — 2D pixel art").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
                 HStack(spacing: 6) {
                     ForEach(Array(moods.enumerated()), id: \.offset) { _, entry in
                         VStack(spacing: 2) {
-                            PalView(mood: entry.0, time: 0.55, facing: 1, size: 88, style: style)
+                            PalView(mood: entry.0, time: 0.55, facing: 1, size: 88)
                             Text(entry.1).font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.75))
                         }
                     }
                 }
                 HStack(spacing: 6) {
                     ForEach(Array(moods.enumerated()), id: \.offset) { _, entry in
-                        PalView(mood: entry.0, time: 1.35, facing: -1, size: 88, style: style)
+                        PalView(mood: entry.0, time: 1.35, facing: -1, size: 88)
                     }
                 }
                 Text("Second row: a later moment, facing left").font(.system(size: 10)).foregroundStyle(.white.opacity(0.5))
@@ -477,7 +459,7 @@ enum IslandGallery {
                 HStack(spacing: 6) {
                     ForEach(Array(notices.enumerated()), id: \.offset) { _, n in
                         VStack(spacing: 2) {
-                            PalView(mood: n.1, time: 0.55, facing: 1, size: 88, style: style, gaze: n.2, hover: n.3, reaction: n.4, reactionProgress: n.5)
+                            PalView(mood: n.1, time: 0.55, facing: 1, size: 88, gaze: n.2, hover: n.3, reaction: n.4, reactionProgress: n.5)
                             Text(n.0).font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.75))
                         }
                     }
@@ -485,52 +467,8 @@ enum IslandGallery {
             }
             .padding(22)
             .background(LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.24, green: 0.29, blue: 0.42)], startPoint: .top, endPoint: .bottom))
-            save(sheet, name: "10-pal-\(style.title.lowercased())", to: directory)
-            writePeek(to: directory, style: style, name: "10-pal-\(style.title.lowercased())-peek")
+            save(sheet, name: "10-pal", to: directory)
         }
-    }
-
-    /// Pal hiding at a display edge (ADR-053): leaning 35-50 degrees from its feet, the body cut off by the edge.
-    private static func writePeek(to directory: URL, style: PalStyle = .ghost, name: String = "7-pal-peek") {
-        let side: CGFloat = 170
-        let unit: CGFloat = 56
-        let view: CGFloat = unit * 1.5
-        func edge(_ title: String, left: Bool, lean: PalLean, revealed: Bool) -> some View {
-            let peek = Peek(edge: left ? .left : .right, display: CGRect(x: 0, y: 0, width: side, height: side))
-            let feet = PeekLayout.feet(for: peek, y: 24, revealed: revealed)
-            let degrees = PeekLayout.rotation(for: peek, lean: lean)
-            // The view's centre, so that the feet land on `feet` (ground inset measured from the bottom).
-            let centre = CGPoint(x: feet.x, y: side - feet.y - view / 2 + PalView.groundInset(for: unit))
-            return VStack(alignment: .leading, spacing: 6) {
-                Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
-                ZStack(alignment: .topLeading) {
-                    LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.26, green: 0.31, blue: 0.45)], startPoint: .top, endPoint: .bottom)
-                    PalView(mood: .resting, time: 0.4, facing: left ? 1 : -1, size: unit, hide: PeekLayout.amount(rotation: degrees), tilt: degrees, edgeGap: -Double(PeekLayout.inset + (revealed ? PeekLayout.revealExtra : 0)) * 64 / Double(unit), style: style)
-                        .rotationEffect(.degrees(degrees), anchor: UnitPoint(x: 0.5, y: PalView.feetFraction))
-                        .position(x: centre.x, y: centre.y)
-                    Rectangle().fill(.white.opacity(0.35)).frame(width: 1.5, height: side).offset(x: left ? 0 : side - 1.5)
-                }
-                .frame(width: side, height: side)
-                .clipped()
-                .overlay(Text("display edge").font(.system(size: 9)).foregroundStyle(.white.opacity(0.5)).padding(5), alignment: left ? .bottomLeading : .bottomTrailing)
-                .accessibilityHidden(true)
-            }
-        }
-        let sheet = VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 14) {
-                edge("Left, slight (35°)", left: true, lean: .slight, revealed: false)
-                edge("Left, normal (42°)", left: true, lean: .normal, revealed: false)
-                edge("Left, deep (50°)", left: true, lean: .deep, revealed: false)
-            }
-            HStack(alignment: .top, spacing: 14) {
-                edge("Left, pointer over it", left: true, lean: .normal, revealed: true)
-                edge("Right, normal (42°)", left: false, lean: .normal, revealed: false)
-                edge("Right, pointer over it", left: false, lean: .normal, revealed: true)
-            }
-        }
-        .padding(20)
-        .background(Color(white: 0.08))
-        save(sheet, name: name, to: directory)
     }
 
     /// Computer control (ADR-054, ADR-056): the strip above the Dock while ZENO works on the Mac, the request for
@@ -564,7 +502,7 @@ enum IslandGallery {
         let pointing = VStack(alignment: .leading, spacing: 4) {
             Text("Pointing: only a label beside Pal").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
             HStack(spacing: -6) {
-                PalView(mood: .thinking, time: 0.4, facing: 1, size: 56, style: theme == .native ? .orb : (theme == .warm ? .companion : .orb))
+                PalView(mood: .thinking, time: 0.4, facing: 1, size: 56)
                     .environment(\.theme, theme.palette)
                 PointLabelView(text: "the Send button", palette: theme.palette, snapshot: true).frame(width: 150, height: 26 + 2 * PointLabelController.shadowInset)
             }
@@ -603,7 +541,7 @@ enum IslandGallery {
             case .problem: .worried
             default: .resting
             }
-            let pal = PalView(mood: mood, time: 0.4, facing: 1, size: 64, glow: mood == .listening ? 1.6 : 1).environment(\.theme, theme.palette)
+            let pal = PalView(mood: mood, time: 0.4, facing: 1, size: 64).environment(\.theme, theme.palette)
             return VStack(alignment: .leading, spacing: 0) {
                 Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7)).padding(.leading, inset)
                 VStack(spacing: below ? -inset - 4 : -inset - 8) {
@@ -777,7 +715,7 @@ enum IslandGallery {
             HStack(spacing: 6) {
                 ForEach(Array(pal.enumerated()), id: \.offset) { _, w in
                     VStack(spacing: 2) {
-                        PalView(mood: w.1, time: w.3, facing: 1, size: 72, style: .avatar, reaction: w.2, reactionProgress: 0.5)
+                        PalView(mood: w.1, time: w.3, facing: 1, size: 72, reaction: w.2, reactionProgress: 0.5)
                         Text(w.0).font(.system(size: 10.5, weight: .medium)).foregroundStyle(.white.opacity(0.75))
                     }
                 }

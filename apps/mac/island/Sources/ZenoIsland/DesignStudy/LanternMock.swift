@@ -108,7 +108,7 @@ private struct LanternHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
-                PalView(mood: page == .conversation ? .speaking : .resting, time: 0.45, facing: 1, size: 34, glow: 1.5, style: .ghost)
+                PalView(mood: page == .conversation ? .speaking : .resting, time: 0.45, facing: 1, size: 34)
                     .frame(width: 38, height: 38)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(page == .conversation ? "Speaking" : "Ready").font(Lantern.title()).foregroundStyle(Lantern.text)

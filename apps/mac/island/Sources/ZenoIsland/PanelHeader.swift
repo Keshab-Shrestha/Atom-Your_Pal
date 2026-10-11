@@ -22,7 +22,7 @@ struct PanelHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
-                HeaderPal(kind: model.status.kind, style: model.settings.palStyle)
+                HeaderPal(kind: model.status.kind)
                     .frame(width: HeaderLayout.palSlot, height: HeaderLayout.palSlot)
                 stateText
                 Spacer(minLength: 4)
@@ -101,11 +101,10 @@ private struct PencilButton: View {
     }
 }
 
-/// Pal in the header, in the user's style, showing the mood the pet shows for this state. It moves while the
+/// Pal in the header, showing the mood the pet shows for this state. It moves while the
 /// panel is open; held still in snapshots and with Reduce Motion.
 private struct HeaderPal: View {
     let kind: IslandStatus.Kind
-    let style: PalStyle
     @Environment(\.islandSnapshot) private var snapshot
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -113,7 +112,7 @@ private struct HeaderPal: View {
         let mood = PetBrain.mood(for: kind) ?? .resting
         TimelineView(.animation(minimumInterval: 1 / 30, paused: snapshot || reduceMotion)) { context in
             let time = snapshot || reduceMotion ? 0.45 : context.date.timeIntervalSinceReferenceDate
-            PalView(mood: mood, time: time, facing: 1, size: HeaderLayout.palSize, glow: 1.4, style: style)
+            PalView(mood: mood, time: time, facing: 1, size: HeaderLayout.palSize)
         }
         .accessibilityHidden(true) // the state beside it says the same in words
     }

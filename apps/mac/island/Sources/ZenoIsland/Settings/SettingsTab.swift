@@ -84,7 +84,7 @@ struct SettingsTab: View {
         let s = model.settings
         switch page {
         case .examples: return model.capabilities.map { $0.count == 1 ? "1 tool" : "\($0.count) tools" } ?? ""
-        case .appearance: return "\(s.theme.title), \(s.palStyle.title)"
+        case .appearance: return s.theme.title
         case .model: return model.modelInfo?.currentModelName ?? "—"
         case .shortcuts: return s.shortcut(for: .talk)?.display ?? "Off"
         case .dictation: return s.dictationMode.title

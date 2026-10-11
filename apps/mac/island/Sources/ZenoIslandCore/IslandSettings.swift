@@ -20,25 +20,18 @@ public final class IslandSettings {
     static let notifyOffKey = "zeno.notify.off"
     static let followUpKey = "zeno.followUp"
     static let petSpotKey = "zeno.petSpot"
-    static let palHideKey = "zeno.wispHideAfter"
     static let palSizeKey = "zeno.wisp.size"
-    static let palLeanKey = "zeno.wisp.lean"
-    static let palGlowKey = "zeno.wisp.glow"
     static let palWanderKey = "zeno.wisp.wander"
     static let palNapKey = "zeno.wisp.nap"
     static let bubbleStayKey = "zeno.bubble.stay"
     static let bubbleSizeKey = "zeno.bubble.size"
     static let bubbleOpacityKey = "zeno.bubble.opacity"
     static let panelSizeKey = "zeno.panel.size"
-    static let panelBackgroundKey = "zeno.panel.background"
     static let themeKey = "zeno.look.theme"
     /// Set once the ADR-084 move to Lantern has run, so a later choice of Quiet Native sticks.
     static let lanternMoveKey = "zeno.look.lanternDefault"
     /// Set once the ADR-086 move to Void has run, so a later choice of Lantern sticks.
     static let voidMoveKey = "zeno.look.voidDefault"
-    static let palStyleKey = "zeno.wisp.style"
-    static let avatarMoveKey = "zeno.wisp.avatarDefault"
-    static let characterMoveKey = "zeno.pal.characterDefault"
     static let palReactsKey = "zeno.wisp.reacts"
     static let palHomeDisplayKey = "zeno.wisp.homeDisplay"
     static let tourDoneKey = "zeno.tourDone"
@@ -91,17 +84,8 @@ public final class IslandSettings {
         }
     }
 
-    /// How long Pal sits idle before it tucks itself against a side edge (ADR-051). Default one minute.
-    public var palHideAfter: PalHideTimeout {
-        didSet { defaults.set(palHideAfter.rawValue, forKey: Self.palHideKey); revision += 1 }
-    }
-
     /// How big Pal is. Default medium (the original size).
     public var palSize: PalSize { didSet { store(palSize.rawValue, Self.palSizeKey) } }
-    /// How far Pal leans while hiding at an edge. Default normal (42 degrees).
-    public var palLean: PalLean { didSet { store(palLean.rawValue, Self.palLeanKey) } }
-    /// The halo's strength. Default normal.
-    public var palGlow: PalGlow { didSet { store(palGlow.rawValue, Self.palGlowKey) } }
     /// How much Pal floats about. Default normal.
     public var palWander: PalWander { didSet { store(palWander.rawValue, Self.palWanderKey) } }
     /// How long until Pal naps. Default 3 minutes.
@@ -111,11 +95,8 @@ public final class IslandSettings {
     public var bubbleSize: BubbleSize { didSet { store(bubbleSize.rawValue, Self.bubbleSizeKey) } }
     public var bubbleOpacity: BubbleOpacity { didSet { store(bubbleOpacity.rawValue, Self.bubbleOpacityKey) } }
     public var panelSize: PanelSize { didSet { store(panelSize.rawValue, Self.panelSizeKey) } }
-    public var panelBackground: PanelBackground { didSet { store(panelBackground.rawValue, Self.panelBackgroundKey) } }
     /// How ZENO's surfaces look (ADR-057). Default Void (ADR-086).
     public var theme: AppTheme { didSet { store(theme.rawValue, Self.themeKey) } }
-    /// How Pal is drawn (ADR-057). Default Orb, or Avatar when Pal's avatar images exist (ADR-085).
-    public var palStyle: PalStyle { didSet { store(palStyle.rawValue, Self.palStyleKey) } }
 
     /// Start and stop sounds. Default on.
     public var soundsEnabled: Bool {
@@ -167,13 +148,9 @@ public final class IslandSettings {
         DictationOptions(mode: dictationMode, livePreview: livePreview, removeFillers: removeFillers)
     }
 
-    /// The default Pal style: its character (ADR-089).
-    private let defaultPalStyle: PalStyle
-
-    /// `palAvatar`: Pal's avatar images exist (the app checks for `pal/neutral.png`).
-    public init(defaults: UserDefaults = .standard, palAvatar: Bool = false) {
+    /// ADR-093: Pal is always the 2D pixel character, so there is no style, glow, lean or tucking away to choose.
+    public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        defaultPalStyle = .character
         petEnabled = defaults.object(forKey: Self.petKey) as? Bool ?? true
         palReacts = defaults.object(forKey: Self.palReactsKey) as? Bool ?? true
         tourDone = defaults.bool(forKey: Self.tourDoneKey)
@@ -183,23 +160,16 @@ public final class IslandSettings {
         speakUpdates = defaults.object(forKey: Self.speakUpdatesKey) as? Bool ?? true
         notifyOff = Set(defaults.stringArray(forKey: Self.notifyOffKey) ?? [])
         followUpEnabled = defaults.object(forKey: Self.followUpKey) as? Bool ?? true
-        palHideAfter = (defaults.object(forKey: Self.palHideKey) as? Int).flatMap(PalHideTimeout.init(rawValue:)) ?? .minute1
         palSize = Self.choice(defaults, Self.palSizeKey, .medium)
-        palLean = Self.choice(defaults, Self.palLeanKey, .normal)
-        palGlow = Self.choice(defaults, Self.palGlowKey, .normal)
         palWander = Self.choice(defaults, Self.palWanderKey, .normal)
         palNap = Self.choice(defaults, Self.palNapKey, .minutes3)
         bubbleStay = Self.choice(defaults, Self.bubbleStayKey, .seconds2)
         bubbleSize = Self.choice(defaults, Self.bubbleSizeKey, .normal)
         bubbleOpacity = Self.choice(defaults, Self.bubbleOpacityKey, .normal)
         panelSize = Self.choice(defaults, Self.panelSizeKey, .normal)
-        panelBackground = Self.choice(defaults, Self.panelBackgroundKey, .glass)
         Self.moveToLanternOnce(defaults)
         Self.moveToVoidOnce(defaults)
         theme = Self.choice(defaults, Self.themeKey, .void)
-        if palAvatar { Self.moveToAvatarOnce(defaults) }
-        Self.moveToCharacterOnce(defaults)
-        palStyle = Self.choice(defaults, Self.palStyleKey, defaultPalStyle)
         dictationMode = (defaults.string(forKey: Self.dictationModeKey)).flatMap(DictationMode.init(rawValue:)) ?? .automatic
         livePreview = defaults.object(forKey: Self.livePreviewKey) as? Bool ?? true
         removeFillers = defaults.object(forKey: Self.removeFillersKey) as? Bool ?? true
@@ -282,26 +252,9 @@ public final class IslandSettings {
     // "Reset this page" (ADR-079): each resets only the settings on its own Settings page. Shortcuts use
     // `resetAllShortcuts()`. The defaults here must match `init`; the tests compare against a fresh instance.
 
-    /// Appearance: the theme and Pal's style.
+    /// Appearance: the theme.
     public func resetAppearance() {
-        theme = .void; palStyle = defaultPalStyle
-    }
-
-    /// ADR-089: Pal takes its new character once, whatever style was stored; choosing another afterwards is kept.
-    private static func moveToCharacterOnce(_ defaults: UserDefaults) {
-        guard !defaults.bool(forKey: characterMoveKey) else { return }
-        defaults.set(true, forKey: characterMoveKey)
-        defaults.set(PalStyle.character.rawValue, forKey: palStyleKey)
-    }
-
-    /// ADR-085: the first launch with Pal's avatar images, a stored Orb (the old default, which "Reset this page"
-    /// also stores) moves to Avatar once; choosing Orb again afterwards is kept. Ghost and Companion are kept.
-    private static func moveToAvatarOnce(_ defaults: UserDefaults) {
-        guard !defaults.bool(forKey: avatarMoveKey) else { return }
-        defaults.set(true, forKey: avatarMoveKey)
-        if defaults.object(forKey: palStyleKey) as? Int == PalStyle.orb.rawValue {
-            defaults.set(PalStyle.avatar.rawValue, forKey: palStyleKey)
-        }
+        theme = .void
     }
 
     /// ADR-084: Lantern replaced Quiet Native as the default. A stored Quiet Native cannot be told apart from the
@@ -335,10 +288,10 @@ public final class IslandSettings {
     /// Pal, its speech bubble and the panel. "Show Pal" stays as it is: turning Pal on or off is the
     /// controller's job (`IslandModel.setPet`), and a reset should not make Pal appear or vanish.
     public func resetPal() {
-        palSize = .medium; palGlow = .normal; palWander = .normal; palNap = .minutes3
-        palHideAfter = .minute1; palLean = .normal; palReacts = true; palHomeDisplay = .main
+        palSize = .medium; palWander = .normal; palNap = .minutes3
+        palReacts = true; palHomeDisplay = .main
         bubbleStay = .seconds2; bubbleSize = .normal; bubbleOpacity = .normal
-        panelSize = .normal; panelBackground = .glass
+        panelSize = .normal
     }
 
     private func save(_ value: Bool, _ key: String) {

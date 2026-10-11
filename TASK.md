@@ -1007,6 +1007,13 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 
 **As built (2026-10-11):** Gemini and the Claude API are removed: their adapters (`providers/claude.ts`, `gemini.ts`) and tests, the `@anthropic-ai/sdk` and `@google/genai` dependencies, their keys in `.env.example`, and the app's API-key failure messages. `PROVIDERS` holds only `claude-plan` (the default); an old `ZENO_LLM_PROVIDER=gemini` or `claude`, or a saved choice of one, runs on the plan with its default model. Settings → AI model lists only Claude (my plan). Tests rewritten for one provider (TS 601, Swift 512 pass). Publishing: a tagged source release with notes, no app binary (it records Keshab's project path and runs only here).
 
+## ADR-093 — A 2D pixel Pal, AI tools found on the Mac, and a clean-up
+
+**Part 1, the 2D pixel Pal — as built (2026-10-11):** built; tested; seen in the gallery.
+- Pal on screen (the desktop pet, the panel header, the empty chat) is the pixel character from `pal.json`, crisp at a whole-number scale (`PalView` rewritten; `PixelPalMotion`): resting breathes and blinks, listening and carried raise their arms, thinking glances side to side, speaking bobs, a problem is sad, napping closes its eyes with a "z". Reacts to you: the eyes follow the pointer, it grows a touch under it, and squish, dizzy, hello and yawn play.
+- Removed: the five styles and the Appearance page's Pal choice, Glow, Tucks away and Hiding lean (and flight lean), the "Tuck away" menu item, the panel's Size and Background settings on the Pal page, the avatar-move and character-move migrations, `PetPeek` (peeking, `PetRetreat`), and their gallery sheets and tests.
+- Tests: 3 Swift (moods, noticing and reactions, click) (Swift 494 pass).
+
 ADR-091 is done: all six parts built and tested. Next: Keshab tries them on the real Mac (macOS will ask once to allow notifications); then Tasks 3.17–3.22 each need his decision.
 
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.

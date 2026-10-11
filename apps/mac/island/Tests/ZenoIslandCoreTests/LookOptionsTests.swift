@@ -16,42 +16,33 @@ struct LookOptionsTests {
         defer { UserDefaults().removePersistentDomain(forName: name) }
         #expect(settings.palSize == .medium)
         #expect(settings.palSize.points == 56)
-        #expect(settings.palGlow == .normal)
-        #expect(settings.palLean.degrees == 42)
         #expect(settings.palWander == .normal)
         #expect(settings.palNap.seconds == 180)
         #expect(settings.bubbleStay == .seconds2)
         #expect(settings.bubbleOpacity.fill == 0.66)
         #expect(settings.panelSize.size == IslandMetrics().expanded)
-        #expect(settings.panelBackground == .glass)
     }
 
     @Test func choicesSurviveARestart() {
         let (settings, defaults, name) = fresh()
         defer { UserDefaults().removePersistentDomain(forName: name) }
         settings.palSize = .huge
-        settings.palLean = .deep
-        settings.palGlow = .bright
         settings.bubbleStay = .seconds8
         settings.panelSize = .large
-        settings.panelBackground = .solid
         let again = IslandSettings(defaults: defaults)
         #expect(again.palSize == .huge)
-        #expect(again.palLean == .deep)
-        #expect(again.palGlow == .bright)
         #expect(again.bubbleStay == .seconds8)
         #expect(again.panelSize == .large)
-        #expect(again.panelBackground == .solid)
     }
 
     @Test func anUnknownStoredValueFallsBackToTheDefault() {
         let (_, defaults, name) = fresh()
         defer { UserDefaults().removePersistentDomain(forName: name) }
         defaults.set(999, forKey: IslandSettings.palSizeKey)
-        defaults.set("big", forKey: IslandSettings.palGlowKey)
+        defaults.set("big", forKey: IslandSettings.palWanderKey)
         let settings = IslandSettings(defaults: defaults)
         #expect(settings.palSize == .medium)
-        #expect(settings.palGlow == .normal)
+        #expect(settings.palWander == .normal)
     }
 
     @Test func changingOneCountsAsAChange() {
@@ -64,15 +55,12 @@ struct LookOptionsTests {
 
     @Test func everyChoiceHasAUniqueTitle() {
         func unique<C: SettingsChoice>(_: C.Type) -> Bool { Set(C.allCases.map(\.title)).count == C.allCases.count }
-        #expect(unique(PalLean.self))
-        #expect(unique(PalSize.self) && unique(PalGlow.self) && unique(PalWander.self) && unique(PalNap.self))
+        #expect(unique(PalSize.self) && unique(PalWander.self) && unique(PalNap.self))
         #expect(unique(BubbleStay.self) && unique(BubbleSize.self) && unique(BubbleOpacity.self))
-        #expect(unique(PanelSize.self) && unique(PanelBackground.self))
+        #expect(unique(PanelSize.self))
     }
 
-    @Test func glowAndSizeAreOrdered() {
-        let glow = PalGlow.allCases.map(\.strength)
-        #expect(glow == glow.sorted())
+    @Test func sizesAreOrdered() {
         let sizes = PalSize.allCases.map(\.points)
         #expect(sizes == sizes.sorted())
         let panels = PanelSize.allCases.map(\.size.width)
@@ -104,15 +92,5 @@ struct LookOptionsTests {
         #expect(brain.mood != .napping)
         brain.step(to: 61)
         #expect(brain.mood == .napping)
-    }
-
-    @Test func hidingDepthScalesWithPalsSize() {
-        // The feet sit inside the edge in proportion to size, so the same share of a bigger Pal stays hidden.
-        let peek = Peek(edge: .left, display: CGRect(x: 0, y: 0, width: 1440, height: 900))
-        let scale: CGFloat = 92.0 / 56
-        let normal = PeekLayout.feet(for: peek, y: 50)
-        let big = PeekLayout.feet(for: peek, y: 50, scale: scale)
-        #expect(big.x > normal.x)
-        #expect(abs(big.x - normal.x * scale) < 0.001)
     }
 }

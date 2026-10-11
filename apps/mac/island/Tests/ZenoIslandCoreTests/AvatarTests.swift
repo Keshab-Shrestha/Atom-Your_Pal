@@ -83,40 +83,4 @@ struct AvatarTests {
         #expect(Set(runs.dropFirst()).count > 2) // not a metronome
         #expect(AvatarExpression.mouthOpen(at: -0.01) == AvatarExpression.mouthOpen(at: AvatarExpression.mouthCycle - 0.01))
     }
-
-    /// ADR-089: Pal's character is the default, once, whatever was stored; a choice made afterwards is kept.
-    @MainActor @Test func characterIsTheDefaultAndTakesOverOnce() {
-        let suite = "zeno.test.avatar.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
-        defaults.set(PalStyle.ghost.rawValue, forKey: "zeno.wisp.style")
-        let settings = IslandSettings(defaults: defaults, palAvatar: true)
-        #expect(settings.palStyle == .character)
-        settings.palStyle = .avatar
-        #expect(IslandSettings(defaults: defaults, palAvatar: true).palStyle == .avatar, "a later choice is kept")
-        settings.resetAppearance()
-        #expect(settings.palStyle == .character)
-    }
-
-    /// A stored Orb (the old default) moves to Avatar once when the images arrive; choosing Orb again is kept, and
-    /// Ghost or Companion are never moved.
-    @MainActor @Test func storedOrbMovesToAvatarOnce() {
-        let suite = "zeno.test.avatar.move.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
-        let before = IslandSettings(defaults: defaults)
-        before.palStyle = .orb
-        _ = IslandSettings(defaults: defaults) // no images yet: nothing moves, and the move is not used up
-        #expect(IslandSettings(defaults: defaults).palStyle == .orb)
-        let moved = IslandSettings(defaults: defaults, palAvatar: true)
-        #expect(moved.palStyle == .avatar)
-        moved.palStyle = .orb
-        #expect(IslandSettings(defaults: defaults, palAvatar: true).palStyle == .orb)
-
-        let other = "zeno.test.avatar.ghost.\(UUID().uuidString)"
-        let ghostDefaults = UserDefaults(suiteName: other)!
-        defer { ghostDefaults.removePersistentDomain(forName: other) }
-        IslandSettings(defaults: ghostDefaults).palStyle = .ghost
-        #expect(IslandSettings(defaults: ghostDefaults, palAvatar: true).palStyle == .ghost)
-    }
 }

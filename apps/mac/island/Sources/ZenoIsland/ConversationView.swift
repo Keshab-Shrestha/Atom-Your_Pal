@@ -186,7 +186,7 @@ private struct EmptyConversation: View {
                 Circle()
                     .fill(RadialGradient(colors: [light.opacity(0.22), light.opacity(0)], center: .center, startRadius: 4, endRadius: 46))
                     .opacity(theme.glow.a > 0 ? 1 : 0)
-                PalView(mood: .resting, time: 0.3, size: 44, glow: 0.8, style: model.settings.palStyle)
+                PalView(mood: .resting, time: 0.3, size: 44)
             }
             .frame(width: 92, height: 92)
             // Void's one display line, in New York (the system serif, ADR-086).

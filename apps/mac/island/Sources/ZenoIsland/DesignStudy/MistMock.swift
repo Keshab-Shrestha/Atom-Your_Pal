@@ -80,7 +80,7 @@ private struct MistHeader: View {
                 VStack(spacing: 0) {
                     ZStack {
                         Circle().fill(Mist.glow.opacity(0.5)).frame(width: 60).blur(radius: 18)
-                        PalView(mood: page == .conversation ? .speaking : .resting, time: 0.5, facing: 1, size: 40, glow: 0.7, style: .ghost)
+                        PalView(mood: page == .conversation ? .speaking : .resting, time: 0.5, facing: 1, size: 40)
                     }
                     .frame(width: 60, height: 52)
                     Text(page == .conversation ? "Speaking" : "Ready, on Claude Opus 5.5")
@@ -187,7 +187,7 @@ private struct MistSettings: View {
                 } detail: { Text("Hold to talk").font(.system(size: 11)).foregroundStyle(Mist.ink3) }
                 MistTile(title: "Pal") {
                     HStack(spacing: 6) {
-                        PalView(mood: .resting, time: 0.4, size: 22, glow: 0.4, style: .ghost).frame(width: 26, height: 26)
+                        PalView(mood: .resting, time: 0.4, size: 22).frame(width: 26, height: 26)
                         Text("Medium").font(Mist.voice(17, .medium)).foregroundStyle(Mist.ink)
                     }
                 } detail: { Text("Floats along the Dock").font(.system(size: 11)).foregroundStyle(Mist.ink3) }

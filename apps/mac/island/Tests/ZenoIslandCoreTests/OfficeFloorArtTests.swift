@@ -93,3 +93,44 @@ struct OfficeFloorArtTests {
         #expect(PixelColor(css: "#bfe3ef") == PixelColor(hex: 0xBFE3EF) && PixelColor(css: "blue") == nil)
     }
 }
+
+/// ADR-093: the on-screen Pal in 2D pixel art: its moods, how it notices you, and what a press on it does.
+@Suite("Pixel Pal on screen")
+struct PixelPalMotionTests {
+    @Test func eachMoodHasItsPose() {
+        #expect(PixelPalMotion.frame(mood: .listening, time: 0).pose == .cheer)
+        #expect(PixelPalMotion.frame(mood: .carried, time: 0).pose == .cheer)
+        #expect(PixelPalMotion.frame(mood: .worried, time: 0).pose == .sad)
+        let nap = PixelPalMotion.frame(mood: .napping, time: 0)
+        #expect(nap.pose == .blink && nap.sleeping)
+        // Thinking glances one way, then the other.
+        #expect(PixelPalMotion.frame(mood: .thinking, time: 0.1).look != PixelPalMotion.frame(mood: .thinking, time: 0.9).look)
+        // Speaking bobs quickly; resting breathes slowly.
+        let speaking = Set((0..<12).map { PixelPalMotion.frame(mood: .speaking, time: Double($0) / 12).pose })
+        #expect(speaking == [.idle, .bob])
+        #expect(!PixelPalMotion.frame(mood: .resting, time: 0.1).sleeping)
+    }
+
+    @Test func itNoticesThePointerAndReacts() {
+        #expect(PixelPalMotion.frame(mood: .resting, time: 0.1, gazeX: 2.5).look == 1)
+        #expect(PixelPalMotion.frame(mood: .resting, time: 0.1, gazeX: -2.5).look == -1)
+        #expect(PixelPalMotion.frame(mood: .resting, time: 0.1, gazeX: 0.3).look == 0)
+        #expect(PixelPalMotion.frame(mood: .listening, time: 0.1, gazeX: 2.5).look == 0, "busy: it does not follow the pointer")
+        let squish = PixelPalMotion.frame(mood: .resting, time: 0, reaction: .squish, progress: 0.5)
+        #expect(squish.squashX > 1 && squish.squashY < 1)
+        #expect(PixelPalMotion.frame(mood: .resting, time: 0, reaction: .dizzy, progress: 0.1).wobble != 0)
+        let hello = PixelPalMotion.frame(mood: .resting, time: 0, reaction: .hello, progress: 0.5)
+        #expect(hello.pose == .cheer && hello.bob < 0)
+        #expect(PixelPalMotion.frame(mood: .napping, time: 0, reaction: .yawn, progress: 0.5).pose == .blink)
+        // At the end of a reaction it is back to normal.
+        let done = PixelPalMotion.frame(mood: .resting, time: 0, reaction: .squish, progress: 1)
+        #expect(abs(done.squashX - 1) < 0.001 && abs(done.squashY - 1) < 0.001)
+    }
+
+    @Test func clickOpensAndDoubleClickNeverCloses() {
+        #expect(PetClickAction.forPress(clickCount: 1, panelOpen: false) == .open)
+        #expect(PetClickAction.forPress(clickCount: 1, panelOpen: true) == .close)
+        #expect(PetClickAction.forPress(clickCount: 2, panelOpen: true) == .none)
+        #expect(PetClickAction.forPress(clickCount: 2, panelOpen: false) == .open)
+    }
+}

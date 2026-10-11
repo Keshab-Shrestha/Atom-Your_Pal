@@ -7,13 +7,13 @@ import Testing
 @Suite("Reset this page")
 @MainActor
 struct ResetPageTests {
-    static let appearanceKeys: Set = [IslandSettings.themeKey, IslandSettings.palStyleKey]
+    static let appearanceKeys: Set = [IslandSettings.themeKey]
     static let dictationKeys: Set = [IslandSettings.dictationModeKey, IslandSettings.livePreviewKey, IslandSettings.removeFillersKey]
     static let palKeys: Set = [
-        IslandSettings.palSizeKey, IslandSettings.palGlowKey, IslandSettings.palWanderKey, IslandSettings.palNapKey,
-        IslandSettings.palHideKey, IslandSettings.palLeanKey, IslandSettings.palReactsKey, IslandSettings.palHomeDisplayKey,
+        IslandSettings.palSizeKey, IslandSettings.palWanderKey, IslandSettings.palNapKey,
+        IslandSettings.palReactsKey, IslandSettings.palHomeDisplayKey,
         IslandSettings.bubbleSizeKey, IslandSettings.bubbleOpacityKey, IslandSettings.bubbleStayKey,
-        IslandSettings.panelSizeKey, IslandSettings.panelBackgroundKey,
+        IslandSettings.panelSizeKey,
     ]
     static var shortcutKeys: Set<String> { Set(ShortcutAction.allCases.map { IslandSettings.shortcutKey($0) }) }
 
@@ -24,13 +24,12 @@ struct ResetPageTests {
         let name = "zeno.test.reset.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
         let s = IslandSettings(defaults: defaults)
-        s.theme = other(s.theme); s.palStyle = other(s.palStyle)
+        s.theme = other(s.theme)
         s.dictationMode = other(s.dictationMode); s.livePreview.toggle(); s.removeFillers.toggle()
-        s.palSize = other(s.palSize); s.palGlow = other(s.palGlow); s.palWander = other(s.palWander)
-        s.palNap = other(s.palNap); s.palHideAfter = other(s.palHideAfter); s.palLean = other(s.palLean)
+        s.palSize = other(s.palSize); s.palWander = other(s.palWander); s.palNap = other(s.palNap)
         s.palReacts.toggle(); s.palHomeDisplay = .display(uuid: "SIDE")
         s.bubbleSize = other(s.bubbleSize); s.bubbleOpacity = other(s.bubbleOpacity); s.bubbleStay = other(s.bubbleStay)
-        s.panelSize = other(s.panelSize); s.panelBackground = other(s.panelBackground)
+        s.panelSize = other(s.panelSize)
         s.petEnabled.toggle(); s.soundsEnabled.toggle(); s.followUpEnabled.toggle(); s.tourDone.toggle()
         s.petSpot = PetSpot(x: 10, y: 20)
         for action in ShortcutAction.allCases { s.setShortcut(nil, for: action) }
@@ -51,10 +50,10 @@ struct ResetPageTests {
         return (s, IslandSettings(defaults: UserDefaults(suiteName: freshName)!), changed)
     }
 
-    @Test func appearanceResetTouchesOnlyThemeAndStyle() {
+    @Test func appearanceResetTouchesOnlyTheTheme() {
         let (s, fresh, changed) = run { $0.resetAppearance() }
         #expect(changed == Self.appearanceKeys)
-        #expect(s.theme == fresh.theme && s.palStyle == fresh.palStyle)
+        #expect(s.theme == fresh.theme)
         #expect(s.dictationMode != fresh.dictationMode && s.palSize != fresh.palSize)
     }
 
@@ -68,11 +67,10 @@ struct ResetPageTests {
     @Test func palResetTouchesOnlyPalBubbleAndPanel() {
         let (s, fresh, changed) = run { $0.resetPal() }
         #expect(changed == Self.palKeys)
-        #expect(s.palSize == fresh.palSize && s.palGlow == fresh.palGlow && s.palWander == fresh.palWander)
-        #expect(s.palNap == fresh.palNap && s.palHideAfter == fresh.palHideAfter && s.palLean == fresh.palLean)
+        #expect(s.palSize == fresh.palSize && s.palWander == fresh.palWander && s.palNap == fresh.palNap)
         #expect(s.palReacts == fresh.palReacts && s.palHomeDisplay == fresh.palHomeDisplay)
         #expect(s.bubbleSize == fresh.bubbleSize && s.bubbleOpacity == fresh.bubbleOpacity && s.bubbleStay == fresh.bubbleStay)
-        #expect(s.panelSize == fresh.panelSize && s.panelBackground == fresh.panelBackground)
+        #expect(s.panelSize == fresh.panelSize)
         // Show Pal and where it is parked are left alone.
         #expect(s.petEnabled != fresh.petEnabled && s.petSpot != nil)
     }

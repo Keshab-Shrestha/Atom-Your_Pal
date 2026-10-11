@@ -5,7 +5,6 @@ public protocol SettingsChoice: CaseIterable, Hashable, Sendable {
     var title: String { get }
 }
 
-extension PalHideTimeout: SettingsChoice {}
 extension DictationMode: SettingsChoice {}
 
 /// How big Pal is drawn, in points (the original size is 56).
@@ -21,29 +20,6 @@ public enum PalSize: Int, SettingsChoice {
         case .medium: "Medium"
         case .large: "Large"
         case .huge: "Huge"
-        }
-    }
-}
-
-/// How strongly the halo around Pal glows.
-public enum PalGlow: Int, SettingsChoice {
-    case off = 0, soft, normal, bright
-
-    /// Multiplies the halo's opacity.
-    public var strength: Double {
-        switch self {
-        case .off: 0
-        case .soft: 0.5
-        case .normal: 1
-        case .bright: 1.35
-        }
-    }
-    public var title: String {
-        switch self {
-        case .off: "Off"
-        case .soft: "Soft"
-        case .normal: "Normal"
-        case .bright: "Bright"
         }
     }
 }
@@ -164,28 +140,6 @@ public enum PanelSize: Int, SettingsChoice {
         case .compact: "Small"
         case .normal: "Medium"
         case .large: "Large"
-        }
-    }
-}
-
-/// The panel's backdrop: see-through glass, or a plain dark fill.
-public enum PanelBackground: Int, SettingsChoice {
-    case glass = 0, solid
-
-    public var title: String { self == .glass ? "Glass" : "Solid" }
-}
-
-/// How far Pal leans while it hides at a screen edge (ADR-053): its head tips toward the display, the rest of
-/// it stays behind the edge.
-public enum PalLean: Int, SettingsChoice {
-    case slight = 35, normal = 42, deep = 50
-
-    public var degrees: Double { Double(rawValue) }
-    public var title: String {
-        switch self {
-        case .slight: "Slight"
-        case .normal: "Normal"
-        case .deep: "Deep"
         }
     }
 }

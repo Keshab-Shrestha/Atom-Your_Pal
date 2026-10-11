@@ -60,7 +60,7 @@ private struct LanternBubbleScene<Bubble: View>: View {
     var body: some View {
         VStack(spacing: -10) {
             bubble
-            PalView(mood: mood, time: 0.5, facing: 1, size: 56, glow: mood == .listening ? 1.6 : 1, style: .ghost)
+            PalView(mood: mood, time: 0.5, facing: 1, size: 56)
         }
         .frame(width: 380)
     }

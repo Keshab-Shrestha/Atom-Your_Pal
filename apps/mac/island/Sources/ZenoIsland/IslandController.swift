@@ -179,7 +179,6 @@ final class IslandController {
         if env["ZENO_BUBBLE_DEMO"] != nil { playBubbleDemo() }
         if env["ZENO_PANEL_DEMO"] != nil { playPanelDemo() }
         if env["ZENO_LOOK_DEMO"] != nil { playLookDemo() }
-        if env["ZENO_HIDE_DEMO"] != nil { playHideDemo() }
         if env["ZENO_WORK_DEMO"] != nil { playWorkDemo() }
         if let spots = env["ZENO_POINT_DEMO"] { playPointDemo(spots) }
         if let files = env["ZENO_DICTATION_FILE"] { dictation.selfTest(files: files.split(separator: ",").map(String.init)) }
@@ -1082,23 +1081,11 @@ final class IslandController {
         }
     }
 
-    /// Development only (`ZENO_HIDE_DEMO`): Pal hides, then shows each lean, then the user's own lean comes back.
-    private func playHideDemo() {
-        let settings = model.settings
-        let saved = settings.palLean
-        schedule([
-            (2, { [self] in pet.tuckAway() }),
-            (5, { settings.palLean = .slight }),
-            (8, { settings.palLean = .deep }),
-            (11, { settings.palLean = saved }),
-        ])
-    }
-
     /// Development only (`ZENO_LOOK_DEMO`): changes the look settings while the app runs, so the real windows can
     /// be measured, then puts the user's own values back.
     private func playLookDemo() {
         let settings = model.settings
-        let saved = (settings.palSize, settings.palGlow, settings.bubbleSize, settings.bubbleOpacity, settings.panelSize, settings.panelBackground, settings.bubbleStay)
+        let saved = (settings.palSize, settings.bubbleSize, settings.bubbleOpacity, settings.panelSize, settings.bubbleStay)
         func look(_ label: String) {
             trace("look \(label) | pal=\(Int(settings.palSize.points)) | panel frame=\(Int(panel.frame.width))x\(Int(panel.frame.height)) visible=\(panel.isVisible) expanded=\(model.expanded) | bubble=\(bubble.isVisible)")
         }
@@ -1106,20 +1093,20 @@ final class IslandController {
             (3, { look("start") }),
             (4, { settings.palSize = .huge }),
             (5.5, { look("pal huge") }),
-            (6, { settings.bubbleSize = .large; settings.bubbleOpacity = .solid; settings.palGlow = .bright }),
+            (6, { settings.bubbleSize = .large; settings.bubbleOpacity = .solid }),
             (6.5, { [self] in model.meter.reset(); dictationPhase(.listening) }),
             (8, { look("bubble large while listening") }),
             (9, { [self] in dictationPhase(.cancelled) }),
             (10, { settings.palSize = .small; settings.bubbleSize = .normal }),
             (11, { look("pal small") }),
-            (12, { settings.panelSize = .large; settings.panelBackground = .solid }),
+            (12, { settings.panelSize = .large }),
             (12.5, { [self] in setExpanded(true) }),
             (14.5, { look("panel large") }),
             (15, { settings.panelSize = .compact }),
             (16.5, { look("panel compact while open") }),
             (17, { [self] in setExpanded(false) }),
             (18.5, {
-                (settings.palSize, settings.palGlow, settings.bubbleSize, settings.bubbleOpacity, settings.panelSize, settings.panelBackground, settings.bubbleStay) = saved
+                (settings.palSize, settings.bubbleSize, settings.bubbleOpacity, settings.panelSize, settings.bubbleStay) = saved
                 look("restored")
             }),
         ])

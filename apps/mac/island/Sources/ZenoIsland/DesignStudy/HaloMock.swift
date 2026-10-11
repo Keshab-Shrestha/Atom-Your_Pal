@@ -104,7 +104,7 @@ private struct HaloStage: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            PalView(mood: page == .conversation ? .speaking : .resting, time: 0.5, facing: 1, size: 46, glow: page == .conversation ? 1.4 : 0.7, style: .ghost)
+            PalView(mood: page == .conversation ? .speaking : .resting, time: 0.5, facing: 1, size: 46)
                 .frame(width: 54, height: 54)
             VStack(alignment: .leading, spacing: 2) {
                 Text(page == .conversation ? "Speaking" : "Ready")

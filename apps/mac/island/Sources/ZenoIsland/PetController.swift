@@ -9,8 +9,6 @@ import ZenoIslandCore
 /// - Drag it anywhere, on any display: it stays there ("parked", remembered across launches). Drop it back on
 ///   the Dock walkway and it wanders again. Right-click → "Back to the Dock" sends it home.
 /// - A click or double-click opens the features panel beside it (ADR-051); Pal stands still while it is open.
-/// - After the idle timeout it tucks against a side edge, turned so only its head shows (ADR-051), and comes
-///   back when the pointer reaches it or ZENO has something to show.
 /// - Clicks pass straight through everything except Pal's body: the window only listens while the pointer is
 ///   over Pal, so the transparent margin never blocks the app underneath.
 /// - It never takes focus. It joins every Space and shows over full-screen apps. Shown only while the Pet
@@ -43,8 +41,6 @@ final class PetController {
     var onClick: (Int) -> Void = { _ in }
     /// The point on the ground under Pal now.
     var feetPoint: CGPoint { feet }
-    /// Pal is tucked against an edge.
-    var isHidden: Bool { peek != nil }
     /// Pal reached the place it was sent to point at (once per flight).
     var onArrive: () -> Void = {}
     /// Pal is out pointing at something: it flew there and stays until `endPointing`.
@@ -55,12 +51,6 @@ final class PetController {
     private let settings: IslandSettings
     private let window: NSPanel
     private let content: PetContentView
-    /// When Pal is due to tuck away.
-    private var retreat: PetRetreat
-    /// Where Pal is hiding, if it is.
-    private var peek: Peek?
-    /// How far Pal is turned now, in degrees: eases toward the hiding angle and back.
-    private var rotation = 0.0
     /// Where Pal stands to point (ADR-054), or nil. Overrides the walkway and a parked spot, never the user's hand.
     private var pointFeet: CGPoint?
     private var pointArrived = false
@@ -71,7 +61,7 @@ final class PetController {
     private let state = PetState()
     private var brain = PetBrain(width: 800, now: PetController.now)
     private var timer: Timer?
-    /// ADR-077: frames while awake, and while napping or tucked away with nothing moving.
+    /// ADR-077: frames while awake, and while napping with nothing moving.
     private static let awakeInterval = 1.0 / 30
     private static let restingInterval = 1.0 / 10
     /// Asleep or locked (ADR-076): no frames are drawn.
@@ -122,7 +112,6 @@ final class PetController {
     init(settings: IslandSettings, trace: @escaping (String) -> Void = { _ in }) {
         self.settings = settings
         self.trace = trace
-        retreat = PetRetreat(timeout: settings.palHideAfter.seconds, now: PetController.now)
         let side = settings.palSize.points * 1.5
         window = PetPanel(contentRect: NSRect(x: 0, y: 0, width: side, height: side), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
         window.isOpaque = false
@@ -134,7 +123,6 @@ final class PetController {
         window.isReleasedWhenClosed = false
         content = PetContentView(frame: NSRect(x: 0, y: 0, width: side, height: side))
         state.size = settings.palSize.points
-        state.style = settings.palStyle
         let hosting = NSHostingView(rootView: PetStage(state: state))
         hosting.frame = content.bounds
         hosting.autoresizingMask = [.width, .height]
@@ -145,8 +133,6 @@ final class PetController {
         content.onUp = { [weak self] in self?.pointerUp() }
         content.onHome = { [weak self] in self?.sendHome() }
         content.onHide = { [weak self] in self?.onHide() }
-        content.onTuck = { [weak self] in self?.tuckAway() }
-        content.isTucked = { [weak self] in self?.peek != nil }
         content.isParked = { [weak self] in self?.brain.pinned ?? false }
     }
 
@@ -158,9 +144,6 @@ final class PetController {
         if enabled {
             let now = Self.now
             brain = PetBrain(width: 800, now: now)
-            retreat.wake(at: now)
-            peek = nil
-            rotation = 0
             homeUUID = resolveHome(now: now)
             place()
             if let spot = settings.petSpot, screenContains(CGPoint(x: spot.x, y: spot.y)) {
@@ -190,24 +173,20 @@ final class PetController {
     /// ZENO's state changed.
     func update(_ kind: IslandStatus.Kind) {
         brain.update(status: kind, at: Self.now)
-        if kind != lastKind {
-            lastKind = kind
-            wake() // ZENO has something to show: Pal comes out of hiding to show it
-        }
+        if kind != lastKind { lastKind = kind }
     }
 
-    /// Something the user did (a shortcut, opening the panel): wakes a napping Pal and brings it out of hiding.
+    /// Something the user did (a shortcut, opening the window): wakes a napping Pal.
     func poke() {
         brain.poke(at: Self.now)
-        wake()
     }
 
-    /// Flies to `feet` (ADR-054) and stays there, out of hiding and awake, until `endPointing`.
+    /// Flies to `feet` (ADR-054) and stays there, awake, until `endPointing`.
     func point(at feet: CGPoint) {
         pointFeet = feet
         pointArrived = false
         settling = true
-        poke() // out of hiding and awake
+        poke() // awake
         fly(to: feet)
         if abs(feet.x - self.feet.x) > 1 { pointFacing = feet.x > self.feet.x ? 1 : -1 }
         trace("pet flying to \(Int(feet.x)),\(Int(feet.y))")
@@ -228,12 +207,10 @@ final class PetController {
         flight = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : PalFlight(from: feet, to: target, at: Self.now)
     }
 
-    /// Pal's size, glow, pace and sleepiness from the settings, applied as soon as they change.
+    /// Pal's size, pace and sleepiness from the settings, applied as soon as they change.
     private func applyLook() {
         let next = PetBrain.Tuning(wander: settings.palWander, nap: settings.palNap)
         if brain.tuning != next { brain.tuning = next }
-        state.glow = settings.palGlow.strength
-        if state.style != settings.palStyle { state.style = settings.palStyle }
         if state.palette != settings.theme.palette { state.palette = settings.theme.palette }
         let drawn = settings.palSize.points
         guard state.size != drawn else { return }
@@ -244,30 +221,8 @@ final class PetController {
         trace("pet size \(Int(drawn))")
     }
 
-    /// Restarts the idle timer, and brings Pal out if it was hiding.
-    private func wake() {
-        retreat.wake(at: Self.now)
-        guard peek != nil else { return }
-        peek = nil
-        settling = true
-        trace("pet out of hiding")
-    }
-
     /// Development only: a snapshot of where Pal is, for the live demo.
-    var debugState: String { "feet=\(Int(feet.x)),\(Int(feet.y)) hidden=\(peek != nil) edge=\(peek.map { $0.edge == .left ? "left" : "right" } ?? "-") turn=\(Int(rotation)) pointing=\(pointFeet != nil)" }
-
-    /// Tucks Pal against the nearest free edge now (the right-click menu), or does nothing if neither is free.
-    func tuckAway() {
-        guard peek == nil, window.isVisible, !dragging else { return }
-        let displays = NSScreen.screens.map(\.frame)
-        guard let chosen = PeekLayout.choose(feet: standingFeet(), displays: displays) else {
-            trace("pet cannot hide: both edges touch another display")
-            return
-        }
-        peek = chosen
-        settling = true
-        trace("pet hiding at the \(chosen.edge == .left ? "left" : "right") edge")
-    }
+    var debugState: String { "feet=\(Int(feet.x)),\(Int(feet.y)) pointing=\(pointFeet != nil)" }
 
     func stop() {
         for o in observers { NotificationCenter.default.removeObserver(o) }
@@ -303,45 +258,28 @@ final class PetController {
         let dt = CGFloat(min(max(now - lastTick, 0), 0.1))
         lastTick = now
 
-        retreat.timeout = settings.palHideAfter.seconds
         applyLook()
         let over = dragging || bodyRect().contains(NSEvent.mouseLocation)
         pointerOver = over
-        // Hiding: the brain does not wander, so Pal comes back to where it was.
-        var mood = peek != nil ? brain.mood : brain.step(to: now)
-        if peek != nil, !mood.isReacting { mood = .resting } // hiding: awake, eyes open, not a nap with z's turned sideways
-        if mood == .napping, peek != nil { mood = .resting }
+        let mood = brain.step(to: now)
         state.mood = mood
         state.facing = pointFeet != nil ? pointFacing : brain.facing
         if let flight, abs(flight.end.x - flight.start.x) > 1 { state.facing = flight.end.x > flight.start.x ? 1 : -1 }
-        state.flightLean = flight?.lean(at: now) ?? 0
         state.time = now
         if mood == .napping, lastMood != .napping { react(.yawn) }
         lastMood = mood
         notice(mood, now: now, dt: Double(dt))
 
-        if over, peek == nil { retreat.wake(at: now) } // never hides from under the pointer
-        if peek == nil, retreat.isDue(at: now, blocked: dragging || mood.isReacting || pointFeet != nil) { tuckAway() }
-        if peek != nil, retreat.timeout == 0 { wake() } // the setting was switched to Never
-
         if dragging { updateOutline() }
         if !dragging {
             let target = pointFeet ?? restingTarget()
-            let wantedTurn = peek.map { PeekLayout.rotation(for: $0, lean: settings.palLean) } ?? 0
-            rotation += (wantedTurn - rotation) * Double(1 - exp(-12 * dt))
-            if abs(wantedTurn - rotation) < 0.3 { rotation = wantedTurn }
-            state.rotation = rotation
-            state.hide = PeekLayout.amount(rotation: rotation)
-            state.tilt = rotation
-            state.edgeGap = -Double((PeekLayout.inset + (pointerOver ? PeekLayout.revealExtra : 0)) * unit) * 64 / Double(state.size)
             if let current = flight {
                 // ADR-077: along the arc, landing exactly on its end. If the target moved meanwhile (Pal's place
                 // on the walkway), the ease below covers the rest.
                 feet = current.position(at: now)
                 if current.isDone(at: now) { flight = nil }
-            } else if settling || peek != nil {
-                // An ease-out toward the target: quick at first, gentle at the end. While hiding it also
-                // eases the head out and back as the pointer comes and goes.
+            } else if settling {
+                // An ease-out toward the target: quick at first, gentle at the end.
                 // A flight to point is slower, so the eye can follow it to the place.
                 let k = 1 - exp(-(pointFeet != nil ? 5 : 14) * dt)
                 feet.x += (target.x - feet.x) * k
@@ -365,8 +303,8 @@ final class PetController {
         // Only listen to the pointer while it is over Pal (or Pal is being dragged).
         if window.ignoresMouseEvents == over { window.ignoresMouseEvents = !over }
 
-        // ADR-077: fewer frames while napping or tucked away, once nothing is moving; the timer is only replaced on a change.
-        let resting = (mood == .napping || peek != nil) && flight == nil && !settling && !pointerOver && state.reaction == nil
+        // ADR-077: fewer frames while napping, once nothing is moving; the timer is only replaced on a change.
+        let resting = mood == .napping && flight == nil && !settling && !pointerOver && state.reaction == nil
         let interval = resting ? Self.restingInterval : Self.awakeInterval
         if let timer, timer.timeInterval != interval { startTimer(interval: interval) }
 
@@ -381,10 +319,10 @@ final class PetController {
         }
     }
 
-    /// ADR-073: the eyes ease toward the pointer, the glow toward hover, and the reaction for this frame. Nothing
-    /// while the setting is off, while hiding, or while pointing; ZENO's state ends a reaction (`PalReactionPlayer`).
+    /// ADR-073: the eyes ease toward the pointer, Pal grows a touch under it, and the reaction for this frame. Nothing
+    /// while the setting is off or while pointing; ZENO's state ends a reaction (`PalReactionPlayer`).
     private func notice(_ mood: PetBrain.Mood, now: Double, dt: Double) {
-        let on = settings.palReacts && peek == nil && pointFeet == nil
+        let on = settings.palReacts && pointFeet == nil
         var wanted = (x: 0.0, y: 0.0)
         if on {
             let mouse = NSEvent.mouseLocation
@@ -419,11 +357,6 @@ final class PetController {
     /// Pal's body in screen coordinates: where a press grabs it.
     private func bodyRect() -> CGRect {
         let u = unit
-        // Hiding: only the head, tipped toward the display, is on screen.
-        if abs(rotation) > 10 {
-            let side: CGFloat = rotation > 0 ? 1 : -1
-            return CGRect(x: feet.x + side * 20 * u - 24 * u, y: feet.y + 6 * u, width: 48 * u, height: 46 * u)
-        }
         return CGRect(x: feet.x - 22 * u, y: feet.y - 4 * u, width: 44 * u, height: 54 * u)
     }
 
@@ -432,11 +365,8 @@ final class PetController {
         brain.pinned ? parkedFeet() : walkwayFeet()
     }
 
-    /// Where Pal's feet go when it is not pointing: tucked at an edge, or standing in its place.
-    private func restingTarget() -> CGPoint {
-        let normal = standingFeet()
-        return peek.map { PeekLayout.feet(for: $0, y: normal.y, revealed: pointerOver, scale: unit) } ?? normal
-    }
+    /// Where Pal's feet go when it is not pointing: its place on the Dock, or its parked spot.
+    private func restingTarget() -> CGPoint { standingFeet() }
 
     // MARK: - The walkway
 
@@ -501,14 +431,13 @@ final class PetController {
     private func checkHome(now: Double) {
         guard window.isVisible, let wanted = resolveHome(now: now), wanted != homeUUID else { return }
         let oldGone = !NSScreen.screens.contains { $0.displayUUID == homeUUID }
-        let idle = !pressed && !dragging && pointFeet == nil && peek == nil && flight == nil
+        let idle = !pressed && !dragging && pointFeet == nil && flight == nil
             && !state.mood.isReacting && state.reaction == nil
         guard brain.pinned || idle || oldGone else { return }
         trace("pet home display \(homeUUID ?? "-") -> \(wanted)")
         homeUUID = wanted
         place()
         guard !brain.pinned, !dragging, pointFeet == nil else { return } // pointing returns to the new walkway when it ends
-        peek = nil
         settling = true
         fly(to: walkwayFeet())
     }
@@ -670,25 +599,14 @@ final class PetState {
     var mood = PetBrain.Mood.resting
     var facing = 1.0
     var time = 0.0
-    /// Degrees clockwise: 0 upright, ±90 while hiding at an edge.
-    var rotation = 0.0
-    /// Drawn size and halo strength from the settings.
+    /// Drawn size from the settings, and the theme.
     var size: CGFloat = 56
-    var glow = 1.0
-    /// How Pal is drawn (Settings → Appearance), and the theme (Void draws it flat, ADR-086).
-    var style = PalStyle.orb
     var palette = ThemePalette.lantern
-    /// The hiding pose: 0 standing, ±1 hiding (the sign is the edge).
-    var hide = 0.0
-    var tilt = 0.0
-    var edgeGap = 4.5
     /// ADR-073: gaze toward the pointer, hover, and the reaction playing.
     var gaze = CGSize.zero
     var hover = 0.0
     var reaction: PalReaction?
     var reactionProgress = 0.0
-    /// ADR-077: how far Pal leans into its flight, in radians.
-    var flightLean = 0.0
 }
 
 /// Draws Pal for the current state.
@@ -696,10 +614,8 @@ struct PetStage: View {
     let state: PetState
 
     var body: some View {
-        PalView(mood: state.mood, time: state.time, facing: state.facing, size: state.size, glow: state.glow, hide: state.hide, tilt: state.tilt, edgeGap: state.edgeGap, style: state.style,
-                 gaze: state.gaze, hover: state.hover, reaction: state.reaction, reactionProgress: state.reactionProgress, flightLean: state.flightLean)
-            // Leans from the feet, so the body stays behind the edge while the head tips into the display.
-            .rotationEffect(.degrees(state.rotation), anchor: UnitPoint(x: 0.5, y: PalView.feetFraction))
+        PalView(mood: state.mood, time: state.time, facing: state.facing, size: state.size,
+                gaze: state.gaze, hover: state.hover, reaction: state.reaction, reactionProgress: state.reactionProgress)
             .environment(\.theme, state.palette)
     }
 }
@@ -711,9 +627,7 @@ final class PetContentView: NSView {
     var onUp: () -> Void = {}
     var onHome: () -> Void = {}
     var onHide: () -> Void = {}
-    var onTuck: () -> Void = {}
     var isParked: () -> Bool = { false }
-    var isTucked: () -> Bool = { false }
 
     override func hitTest(_ point: NSPoint) -> NSView? { frame.contains(point) ? self : nil }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
@@ -727,10 +641,6 @@ final class PetContentView: NSView {
         home.target = self
         home.isEnabled = isParked()
         menu.addItem(home)
-        let tuck = NSMenuItem(title: "Tuck away", action: #selector(tuckAway), keyEquivalent: "")
-        tuck.target = self
-        tuck.isEnabled = !isTucked()
-        menu.addItem(tuck)
         let hide = NSMenuItem(title: "Hide Pal", action: #selector(hidePal), keyEquivalent: "")
         hide.target = self
         menu.addItem(hide)
@@ -738,7 +648,6 @@ final class PetContentView: NSView {
     }
 
     @objc private func goHome() { onHome() }
-    @objc private func tuckAway() { onTuck() }
     @objc private func hidePal() { onHide() }
 }
 
@@ -787,7 +696,7 @@ final class WindowOutline {
     }
 }
 
-/// Pal's window. Hiding puts most of Pal past the edge of the display, so AppKit must not pull it back on.
+/// Pal's window. AppKit must not move it: ZENO places it (dragged to any display, or along the Dock).
 final class PetPanel: NSPanel {
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
 }

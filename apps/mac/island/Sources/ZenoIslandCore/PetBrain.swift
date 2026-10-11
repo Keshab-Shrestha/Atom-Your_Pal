@@ -216,3 +216,14 @@ struct SeededRandom: Sendable {
     /// A value in 0..<1.
     mutating func unit() -> Double { Double(next() >> 11) / Double(1 << 53) }
 }
+
+/// What a press on Pal does with the window (ADR-051): a double-click always ends with it open, so its second press
+/// never closes what the first opened.
+public enum PetClickAction: Sendable, Equatable {
+    case open, close, none
+
+    public static func forPress(clickCount: Int, panelOpen: Bool) -> PetClickAction {
+        if !panelOpen { return .open }
+        return clickCount >= 2 ? .none : .close
+    }
+}

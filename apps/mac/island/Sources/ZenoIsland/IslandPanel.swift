@@ -66,7 +66,7 @@ struct IslandView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background {
-            SurfaceBackground(shape: shape, glass: !snapshot && model.settings.panelBackground == .glass, systemGlassRadius: radius)
+            SurfaceBackground(shape: shape, glass: !snapshot, systemGlassRadius: radius)
         }
         .clipShape(shape)
         // ADR-084: grows from the menu-bar icon as it opens (the window drops and fades in alongside), shrinks a

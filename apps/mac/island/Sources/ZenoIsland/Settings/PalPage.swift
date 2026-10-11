@@ -2,9 +2,8 @@ import AppKit
 import SwiftUI
 import ZenoIslandCore
 
-/// The Pal page (ADR-079), in three sections: Pal itself (whether it shows, how it looks, how it moves and
-/// when it tucks away; ADR-042, ADR-051, ADR-052), its speech bubble (ADR-050, ADR-052) and the panel under the
-/// menu-bar icon (ADR-051, ADR-052, ADR-056).
+/// The Pal page (ADR-079): Pal itself (whether it shows, its size and how it moves; ADR-042, ADR-052, ADR-093)
+/// and its speech bubble (ADR-050, ADR-052).
 struct PalSection: View {
     let model: IslandModel
 
@@ -16,10 +15,8 @@ struct PalSection: View {
             }
         }
         if settings.petEnabled {
-            Card("Look") {
+            Card("Look", footer: "Pal is drawn in 2D pixel art, like the office floor.") {
                 ChoiceRow(title: "Size", selection: settings.palSize) { settings.palSize = $0 }
-                RowDivider()
-                ChoiceRow(title: "Glow", selection: settings.palGlow) { settings.palGlow = $0 }
             }
             Card("Behaviour") {
                 HomeDisplayRow(settings: settings)
@@ -29,15 +26,6 @@ struct PalSection: View {
                           selection: settings.palWander) { settings.palWander = $0 }
                 RowDivider()
                 ChoiceRow(title: "Naps after", selection: settings.palNap) { settings.palNap = $0 }
-                RowDivider()
-                ChoiceRow(title: "Tucks away after",
-                          detail: settings.palHideAfter == .never
-                              ? "Pal stays where you put it"
-                              : "Slides to a side edge and peeks out. Comes back when you point at it or ZENO has something to show",
-                          selection: settings.palHideAfter) { settings.palHideAfter = $0 }
-                RowDivider()
-                ChoiceRow(title: "Hiding lean", detail: "How far Pal tips toward the screen at an edge (\(Int(settings.palLean.degrees))°)",
-                          selection: settings.palLean) { settings.palLean = $0 }
                 RowDivider()
                 Row(title: "Reacts to you", detail: "Eyes follow the pointer; a squish when clicked, dizzy after three quick clicks") {
                     ThemedSwitch(isOn: settings.palReacts, set: { settings.palReacts = $0 }, label: "Reacts to you")
@@ -53,12 +41,7 @@ struct PalSection: View {
             ChoiceRow(title: "Stays for", detail: "After a dictation or an answer ends",
                       selection: settings.bubbleStay) { settings.bubbleStay = $0 }
         }
-        Card("Panel", footer: "Glass shows a blur of what is behind; Solid is a plain fill in the theme's colour.") {
-            ChoiceRow(title: "Size", selection: settings.panelSize) { settings.panelSize = $0 }
-            RowDivider()
-            ChoiceRow(title: "Background", selection: settings.panelBackground) { settings.panelBackground = $0 }
-        }
-        ResetPageCard(footer: "Pal, the speech bubble and the panel go back to their defaults. Show Pal stays as it is.") {
+        ResetPageCard(footer: "Pal and the speech bubble go back to their defaults. Show Pal stays as it is.") {
             settings.resetPal()
         }
     }

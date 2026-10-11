@@ -49,22 +49,18 @@ import Testing
         #expect(RGBA.white(0.5).over(RGBA(0, 0, 0)) == RGBA(0.5, 0.5, 0.5, 1))
     }
 
-    @MainActor @Test func themeAndPalStyleAreSavedAndReset() {
+    @MainActor @Test func themeIsSavedAndReset() {
         let suite = "zeno.test.theme.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
 
         let settings = IslandSettings(defaults: defaults)
         #expect(settings.theme == .void)
-        #expect(settings.palStyle == .character) // ADR-089
         settings.theme = .warm
-        settings.palStyle = .companion
         let reloaded = IslandSettings(defaults: defaults)
         #expect(reloaded.theme == .warm)
-        #expect(reloaded.palStyle == .companion)
         reloaded.resetAppearance()
         #expect(reloaded.theme == .void)
-        #expect(reloaded.palStyle == .character)
     }
 
     @MainActor @Test func unknownStoredValuesFallBack() {
@@ -72,10 +68,8 @@ import Testing
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         defaults.set(99, forKey: "zeno.look.theme")
-        defaults.set(-4, forKey: "zeno.wisp.style")
         let settings = IslandSettings(defaults: defaults)
         #expect(settings.theme == .void)
-        #expect(settings.palStyle == .character)
     }
 
     /// Lantern (ADR-084): one hue. Accent, live sound, success and the glow are all Pal's light; only attention

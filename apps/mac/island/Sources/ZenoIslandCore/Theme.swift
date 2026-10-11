@@ -43,32 +43,6 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
     public var palette: ThemePalette { ThemePalette.for(self) }
 }
 
-/// How Pal is drawn (ADR-057). Behaviour, size and placement are the same for every style.
-public enum PalStyle: Int, SettingsChoice, Identifiable {
-    /// The ghost, refined: a luminous dome with a soft hem; the eyes and glow carry the mood.
-    case ghost = 0
-    /// A floating marble of light with two eyes; the light inside it carries the mood.
-    case orb
-    /// A warmer character with a small expressive face; pose and face carry the mood.
-    case companion
-    /// Keshab's own character from exported images (ADR-085); ZENO's motion and light around it. Drawn as the orb
-    /// when the images are missing.
-    case avatar
-    /// ADR-089: Pal's character from its avatar definition (assets/pals/pal.json), drawn by ZENO: the default.
-    case character
-
-    public var id: Int { rawValue }
-    public var title: String {
-        switch self {
-        case .ghost: "Ghost"
-        case .orb: "Orb"
-        case .companion: "Companion"
-        case .avatar: "Avatar"
-        case .character: "Character"
-        }
-    }
-}
-
 /// An sRGB colour with alpha, 0...1. Core stays free of SwiftUI; the app turns these into `Color`.
 public struct RGBA: Sendable, Equatable {
     public var r: Double, g: Double, b: Double, a: Double

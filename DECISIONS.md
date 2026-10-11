@@ -1981,3 +1981,17 @@ Date: 2026-10-11. Status: **accepted** (Keshab, 2026-10-11: "we are still using 
 ### Consequences
 
 No API keys remain anywhere in ZENO, and plan use can never become billed API use by a key left in `.env`. ZENO depends on Claude Code being installed and signed in. ADR-076's "switch to another provider" offer has nothing to offer and stays hidden.
+
+## ADR-093 — A 2D Pixel Pal, AI Tools Found on the Mac, and a Clean-Up
+
+Date: 2026-10-11. Status: **accepted** (Keshab, 2026-10-11: "when i show display lets make it pixelated 2d one not 3d … features that are not required like .. glow … no leaning/hiding … the reacts to you isnt working … panel background … didnt work … auto scan for AI providers on the PC … finds all the AI providers automatically" (chose: find them and use them too), "do a full clean up of non required codes … one agent search … another agent to check if it really has no use … then only remove").
+
+### Decision
+
+1. **Pal on screen is the 2D pixel character** (`PixelPal` from `pal.json`, as on the office floor), drawn crisp at a whole-number scale; its moods and reactions (eyes following the pointer, squish, dizzy, hello, yawn) come from a pure `PixelPalMotion`. The five drawn styles (ghost, orb, companion, avatar, the 3D character), the glow, leaning (at an edge and in flight) and tucking away are removed, with their settings. The panel's Size and Background settings are removed from the Pal page: since ADR-089 "open" goes to the ZENO window, so they changed nothing you could see.
+2. **AI tools found on the Mac.** ZENO looks for the AI tools installed here (Claude Code, Codex CLI, Gemini CLI, Ollama, LM Studio), shows each as found, signed in or not found, and can run on the subscription tools it finds through their own programs: Claude Code (the default), Codex on a ChatGPT plan, Gemini CLI on a Google plan. Each is an adapter behind the LLM Gateway. Local model servers (Ollama, LM Studio) are listed but not used: CLAUDE.md §11 keeps local general-purpose models out unless a decision brings them in. This reverses ADR-092's "Claude only" for tools found on the Mac, never for API keys.
+3. **Clean-up of code nothing uses**, in two steps by two agents: one searches the codebase and lists candidates; the other checks each candidate against every use (calls, protocol, tests, build scripts, the gallery) and confirms it unused. Only confirmed code is removed, then the build and every test must pass.
+
+### Consequences
+
+Pal looks the same on screen and on the floor, with fewer settings. ZENO depends on whichever AI tool Keshab has signed in to, and says which. The codebase loses what earlier designs left behind.
