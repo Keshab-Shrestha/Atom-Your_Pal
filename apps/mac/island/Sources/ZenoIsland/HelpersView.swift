@@ -17,7 +17,9 @@ struct HelpersView: View {
             HelperSidebar(model: model).frame(width: 224)
             Rectangle().fill(palette.separator.color).frame(width: palette.isFlat ? 1 : 0.5)
             Group {
-                if model.windowPage == .chat {
+                if model.windowPage == .overview {
+                    OverviewPane(model: model)
+                } else if model.windowPage == .chat {
                     // ADR-089: the conversation, as in the panel, a readable width in the middle of the window.
                     ConversationTab(model: model)
                         .frame(maxWidth: 680)
@@ -78,6 +80,10 @@ private struct HelperSidebar: View {
           Scrollable {
            VStack(alignment: .leading, spacing: 4) {
             WindowHeader(model: model)
+            Button { model.windowPage = .overview } label: {
+                SidebarRow(symbol: "gauge.with.dots.needle.33percent", title: "Overview", detail: nil, selected: model.windowPage == .overview)
+            }
+            .buttonStyle(.plain)
             Button { model.windowPage = .chat } label: {
                 SidebarRow(symbol: "bubble.left.and.text.bubble.right", title: "Chat", detail: model.status.title, selected: model.windowPage == .chat)
             }

@@ -1925,3 +1925,27 @@ Date: 2026-10-11. Status: **accepted** (Keshab, 2026-10-11: "change wisp to pal"
 ### Consequences
 
 The characters become richer and consistent, and one window replaces two. The cost is a renderer to maintain and a large rename. Pal's look is a derivative of a third-party sample character, chosen knowingly by Keshab.
+
+---
+
+## ADR-090 — The ZENO Window Grows: Overview, Needs You, Issues, Plugins and an Office Floor
+
+Date: 2026-10-11. Status: **accepted** (Keshab, 2026-10-11: "have a features like progress situation, to do, issues and others like plugins, mcps as well from … OpenMausBot … and on board section lets have a visual where we can see how the agents are working with reference from … munder-difflin"; chose every recommended option).
+
+### Context
+
+OpenMausBot (Apache-2.0) and Munder Difflin (MIT code; its floor tiles are LimeZu art under a separate licence) are multi-agent desktop apps. Ideas are taken, not code or art; everything is built in ZENO's window, theme and pals.
+
+### Decision
+
+One page at a time, each tested and committed:
+
+1. **Overview**: progress at a glance: who is working on what (step and time), goals and how far they are, today's spend against the budgets, the plan's use, results that came in.
+2. **Needs you** ("to do"): one inbox of everything waiting on Keshab, each with its own button: plans to approve, tasks held by a budget or the plan's limit, failed tasks, Tinker's proposals, Paperclip approvals.
+3. **Issues**: failed and stopped-by-limit tasks with why, Retry (runs it again, resuming) and Start fresh. A task that fails for a reason a retry may fix (a time limit, Claude Code ending early) is retried once by itself; setup problems (no plan, no folder) never are.
+4. **Plugins**: the skills (as today) and **MCP servers**: Keshab adds a server (a command, or a URL with headers), it is saved off; Test runs the MCP handshake and lists its tools; he turns it on and picks which workers may use it. **Every tool call from a server asks on Pal's card unless Keshab marks that server Trusted.** Tokens live in the server's env or headers in ZENO's local store, are never logged and never shown back in full.
+5. **Office floor** on the Board (Floor | Columns, Floor first): each pal at its own desk, those at work animating with their step in a bubble, idle ones in a lounge, Pal at the manager's desk; a hand-off sends an envelope desk to desk; a finished goal makes the team celebrate. ZENO's own drawing.
+
+### Consequences
+
+The window becomes the place to see and steer the team. MCP servers are the first tools that do not come from a kit: they stay off until Keshab turns them on, are per worker, and ask per call unless trusted, so the kit rule ("tools are decided in code") becomes "tools are decided in code or by Keshab, never by a model or a soul".

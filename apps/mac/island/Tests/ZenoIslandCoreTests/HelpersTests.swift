@@ -795,3 +795,25 @@ struct NewAgentTests {
         #expect(state.removeAgent() == .agentRemove(id: "mika"))
     }
 }
+
+@Suite("Overview (ADR-090)")
+struct TeamOverviewTests {
+    @Test func countsWorkGoalsAndResults() throws {
+        let line = HelperTaskTests.line
+            .replacingOccurrences(of: #""id":5,"task":"Write the guide","state":"queued","#, with: #""id":5,"task":"Write the guide","state":"queued","goalId":7,"#)
+            .replacingOccurrences(of: #""id":1,"task":"Research networking","state":"done","createdAt":"2026-10-10T06:00:00Z","#,
+                                  with: #""id":1,"task":"Research networking","state":"done","createdAt":"2026-10-10T06:00:00Z","endedAt":"2026-10-10T07:00:00Z","goalId":7,"#)
+        guard case .helpers(let list) = try decodeEvent(line) else { Issue.record("not helpers"); return }
+        let now = ISO8601DateFormatter().date(from: "2026-10-10T12:00:00Z")!
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let o = TeamOverview(list: list, now: now, calendar: utc)
+        #expect(o.atWork.map(\.id) == [2] && o.running == 1)
+        #expect(o.needsYou == 1 && o.toDo == 2)
+        #expect(o.recent.map(\.id) == [1] && o.doneToday == 1)
+        #expect(o.goals.count == 1)
+        let goal = try #require(o.goals.first)
+        #expect(goal.id == 7 && goal.total == 2 && goal.done == 1 && !goal.ended && goal.fraction == 0.5)
+        #expect(goal.text == "A networking guide")
+    }
+}

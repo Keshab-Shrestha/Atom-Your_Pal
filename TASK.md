@@ -930,6 +930,10 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Tests: all suites pass (TS 623, Swift 496); the window is checked by renders.
 - Known limits: the drop-down panel's code remains (unused) until it is removed; the window's Chat page and the panel share one conversation.
 
+**The ZENO window grows (ADR-090).** Keshab: "progress situation, to do, issues and others like plugins, mcps … and on board section lets have a visual where we can see how the agents are working". Five parts, one at a time.
+
+**Part 1, Overview — as built (2026-10-11):** built; tested; seen in the gallery. A sidebar page with the board's counts (running, needs you, to do, ended today), who is at work (its character playing "working", the task, its step, how long), goals with a bar for how far they are, today's team budget and the plan's five-hour use, and the newest results; every row opens its task. `TeamOverview` (Core) computes it from the helpers list. 1 Swift test (497 pass). Fixed while testing: a goal took its name from whichever task came first, even one without it.
+
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.
 
 **Task 3.17 — Companies and user logins.** Separate workspaces with their own tasks, workers, budgets and history; sign-in for more than one person.
