@@ -146,9 +146,9 @@ test("some done, some failed: the report says so and the line counts the failure
   const goal = store.addGoal("guide", [{ helper: "sid", task: "a" }, { helper: "penny", task: "b" }]);
   run(store, goal.tasks[0]!.id, "A");
   store.start(goal.tasks[1]!.id);
-  store.fail(goal.tasks[1]!.id, "Took longer than 15 minutes");
+  store.fail(goal.tasks[1]!.id, "The rate pages would not load");
   await tick();
-  assert.match(w.calls[0]!.input, /--- Task 2, Penny: b\nIt did not finish: Took longer than 15 minutes/);
+  assert.match(w.calls[0]!.input, /--- Task 2, Penny: b\nIt did not finish: The rate pages would not load/);
   assert.equal(w.ended[0]!.line, "Your guide is ready, but 1 of 2 tasks failed. The ZENO window has the report.");
 });
 

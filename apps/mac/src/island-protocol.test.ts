@@ -211,6 +211,7 @@ test("parses the helper commands", () => {
     { type: "proposal.reject", id: 1 },
     { type: "proposal.undo", id: 1 },
     { type: "job.open", id: 3 },
+    { type: "job.retry", id: 3 },
     { type: "agent.create", name: "Rumi", role: "travel planner", kit: "research", personality: "Calm.", howItWorks: "", rules: "" },
     { type: "agent.remove", id: "rumi" },
   ];

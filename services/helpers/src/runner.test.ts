@@ -145,9 +145,10 @@ test("the time limit aborts the run: failed without a result, done and partial w
   const fake = fakeRun();
   const runner = startJobRunner({ store, run: fake.run, timeLimitMs: 20, graceMs: 20 });
   const a = store.addJob("sid", "slow, nothing back");
-  await new Promise((r) => setTimeout(r, 80));
+  await new Promise((r) => setTimeout(r, 200)); // the limit, one automatic retry (ADR-090), the limit again
   assert.equal(fake.call(a.id).context.signal.aborted, true);
   assert.equal(store.get(a.id)!.state, "failed");
+  assert.equal(store.get(a.id)!.autoRetries, 1);
   assert.match(store.get(a.id)!.error!, /^Took longer than/);
 
   const b = store.addJob("sid", "slow, partial back");

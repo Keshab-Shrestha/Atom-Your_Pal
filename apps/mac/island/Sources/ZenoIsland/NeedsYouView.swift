@@ -54,7 +54,10 @@ struct NeedsYouPane: View {
                 open(item)
             }
         case .failed:
-            card(kind: "Failed", who: item.helperName, title: item.title, detail: item.detail) { open(item) }
+            card(kind: "Failed", who: item.helperName, title: item.title, detail: item.detail) {
+                QuietButton(title: "Retry", symbol: "arrow.clockwise") { model.sendHelpers(model.helpers.retry(item.jobId!)) }
+                open(item)
+            }
         }
     }
 
@@ -76,5 +79,54 @@ struct NeedsYouPane: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
             .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+    }
+}
+
+/// ADR-090: failed tasks with why, how often they were tried, and Retry, Start fresh and Open.
+struct IssuesPane: View {
+    let model: IslandModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let issues = model.helpers.list.map(TeamIssues.all(in:)) ?? []
+        Scrollable {
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Issues").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                    Text("Tasks that failed. A failure a second try may fix is retried once by itself; the rest wait for you.")
+                        .font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+                }
+                if let problem = model.helpers.problem { ProblemLine(text: problem) }
+                if issues.isEmpty { Text("No issues.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.top, 6) }
+                ForEach(issues) { item in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 6) {
+                            JobDot(job: item.job)
+                            Text(item.helperName).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2))
+                            Text("#\(item.id)").font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color)
+                            if item.job.autoRetries > 0 { Text("tried again once").font(.system(size: 11)).foregroundStyle(theme.text3.color) }
+                            Spacer(minLength: 0)
+                            if let ended = item.job.endedAt { Text(ended, style: .relative).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color) }
+                        }
+                        Text(item.job.shortTitle).font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
+                        if let error = item.job.error { ProblemLine(text: error, dot: false) }
+                        HStack(spacing: 8) {
+                            QuietButton(title: "Retry", symbol: "arrow.clockwise") { model.sendHelpers(model.helpers.retry(item.id)) }
+                            QuietButton(title: "Open") { model.windowPage = .agents; model.sendHelpers(model.helpers.openThread(item.id)) }
+                        }
+                        .padding(.top, 4)
+                    }
+                    .padding(.horizontal, 16).padding(.vertical, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
+                        .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+                }
+            }
+            .frame(maxWidth: 680, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.panel)
+            .padding(.top, 28)
+            .padding(.bottom, Spacing.panel)
+        }
     }
 }

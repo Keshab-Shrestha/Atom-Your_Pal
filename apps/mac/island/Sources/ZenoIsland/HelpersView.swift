@@ -21,6 +21,8 @@ struct HelpersView: View {
                     OverviewPane(model: model)
                 } else if model.windowPage == .inbox {
                     NeedsYouPane(model: model)
+                } else if model.windowPage == .issues {
+                    IssuesPane(model: model)
                 } else if model.windowPage == .chat {
                     // ADR-089: the conversation, as in the panel, a readable width in the middle of the window.
                     ConversationTab(model: model)
@@ -94,6 +96,12 @@ private struct HelperSidebar: View {
                 let waiting = (model.helpers.list.map { NeedsYouItem.all(in: $0).count } ?? 0) + (model.approval.pending == nil ? 0 : 1)
                 SidebarRow(symbol: "tray", title: "Needs you", detail: waiting == 0 ? "Nothing waits" : "\(waiting) waiting", selected: model.windowPage == .inbox)
                     .overlay(alignment: .trailing) { if waiting > 0 { StatusDot(color: theme.attention.color, size: 6).padding(.trailing, 14) } }
+            }
+            .buttonStyle(.plain)
+            Button { model.windowPage = .issues } label: {
+                let issues = model.helpers.list.map { TeamIssues.all(in: $0).count } ?? 0
+                SidebarRow(symbol: "exclamationmark.triangle", title: "Issues", detail: issues == 0 ? "None" : "\(issues) failed", selected: model.windowPage == .issues)
+                    .overlay(alignment: .trailing) { if issues > 0 { StatusDot(color: theme.problem.color, size: 6).padding(.trailing, 14) } }
             }
             .buttonStyle(.plain)
             Button { model.windowPage = .agents; model.helpers.selectBoard() } label: {

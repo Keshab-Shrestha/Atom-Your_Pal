@@ -17,8 +17,10 @@ import {
   HAND_OFFS,
   HELPERS,
   HelperError,
+  MAX_AUTO_RETRIES,
   MAX_HAND_OFFS,
   MAX_LEVELS,
+  isRetryable,
   MAX_BLOCKERS,
   MAX_GOAL_TASKS,
   cleanSoul,
@@ -156,6 +158,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const requeue = db.prepare("UPDATE jobs SET state = 'queued', step = NULL, partial = 0, error = NULL, ended_at = NULL, wake_pending = 0 WHERE id = ?");
   const setPending = db.prepare("UPDATE jobs SET wake_pending = ? WHERE id = ?");
   const putSession = db.prepare("UPDATE jobs SET session_id = ? WHERE id = ?");
+  const bumpRetries = db.prepare("UPDATE jobs SET auto_retries = COALESCE(auto_retries, 0) + 1 WHERE id = ?");
   const putPlan = db.prepare(
     "UPDATE jobs SET state = 'queued', step = NULL, wake_pending = 0, plan = ?, plan_summary = ?, plan_status = 'awaiting' WHERE id = ? AND state = 'running'",
   );
@@ -291,6 +294,12 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     emit({ action: "job", helper: job.helper, job: job.id, state: to, ...(ended ? { ms: ended.getTime() - job.createdAt.getTime() } : {}) });
     // Asked again while it ran: one more run, instead of failing what waits for it.
     if (pending) return wake(get(job.id)!);
+    // ADR-090: a failure a second try may fix is retried once by itself, before anything waiting for it fails.
+    if (to === "failed" && isRetryable(fields.error) && (get(job.id)?.autoRetries ?? 0) < MAX_AUTO_RETRIES) {
+      bumpRetries.run(job.id);
+      log(job.id, "retried");
+      return wake(get(job.id)!);
+    }
     if (to !== "failed" && to !== "stopped") return;
     for (const { id } of dependents.all(job.id) as { id: number }[]) {
       const waiting = get(id);
@@ -758,6 +767,13 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         log(id, "commented");
       });
       emit({ action: "comment", helper: job.helper, job: id });
+      wake(job);
+    },
+
+    retry(id) {
+      const job = mustGet(id);
+      if (job.state !== "failed" && job.state !== "stopped") throw new HelperError("Only a failed or stopped task can be tried again.");
+      log(id, "retried");
       wake(job);
     },
 

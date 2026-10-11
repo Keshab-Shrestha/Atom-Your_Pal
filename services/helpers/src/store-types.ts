@@ -59,6 +59,8 @@ export interface Job {
   /** Task 3.13: Keshab's rating of a finished task; for a Tinker task, the task it reviews. */
   rating?: "good" | "bad";
   reviews?: number;
+  /** ADR-090: how many times a failure was retried by itself (at most MAX_AUTO_RETRIES). */
+  autoRetries: number;
   parentId?: number;
   /** The tasks it waits for, and those of them not done yet (it starts when this is empty). */
   blockedBy: number[];
@@ -75,7 +77,7 @@ export interface Comment {
 
 /** One line of a task's activity: what happened and when (ids and states only, as in the logs). */
 export interface Activity {
-  kind: "created" | "waits" | "commented" | "woken" | "fresh" | "planned" | "approved" | "rejected" | "handed" | JobState;
+  kind: "created" | "waits" | "commented" | "woken" | "fresh" | "planned" | "approved" | "rejected" | "handed" | "retried" | JobState;
   at: Date;
 }
 
@@ -233,6 +235,8 @@ export interface HelperStore {
   removeAgent(id: string): void;
   /** Agent folders that could not be read, in words. */
   agentProblems(): string[];
+  /** ADR-090: runs a failed or stopped task again (resuming its session). Throws HelperError for any other state. */
+  retry(id: number): void;
   /**
    * Task 3.13: rates a finished (done or failed) task. "Not good" asks Tinker to review it (a Tinker task, once per
    * task). Throws HelperError for an unknown or unfinished task or a long comment.

@@ -111,6 +111,8 @@ export interface IslandHelpers {
   paperclip?(): { issues: PaperclipItem[] };
   /** Task 3.14: opens a task's report in its worker's app. Absent: `job.open` is refused. Rejects with words for the user. */
   openReport?(id: number): Promise<string>;
+  /** ADR-090: runs a failed or stopped task again. Throws, with words for the user, for any other state. */
+  retry(id: number): void;
   /** Task 3.13: rate a finished task ("not good" asks Tinker to review it); answer Tinker's proposals. Each throws with words for the user. */
   rate(id: number, good: boolean, comment?: string): void;
   acceptProposal(id: number): void;
@@ -328,6 +330,9 @@ export function runIsland(options: IslandOptions): IslandSession {
         );
         return;
       }
+      case "job.retry":
+        changeHelpers(command.type, (helpers) => helpers.retry(command.id));
+        return;
       case "job.rate":
         changeHelpers(command.type, (helpers) => helpers.rate(command.id, command.good, command.comment));
         return;

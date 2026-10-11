@@ -54,6 +54,8 @@ public enum IslandCommand: Sendable, Equatable {
     case proposalUndo(id: Int)
     /// Task 3.14: open a task's report in its worker's app.
     case jobOpen(id: Int)
+    /// ADR-090: run a failed or stopped task again.
+    case jobRetry(id: Int)
     /// ADR-088: add an agent (its soul.md), or remove one Keshab added.
     case agentCreate(name: String, role: String, kit: String, soul: HelperSoul)
     case agentRemove(id: String)
@@ -106,6 +108,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .proposalReject: "proposal.reject"
         case .proposalUndo: "proposal.undo"
         case .jobOpen: "job.open"
+        case .jobRetry: "job.retry"
         case .agentCreate: "agent.create"
         case .agentRemove: "agent.remove"
         case .grantRemove: "grant.remove"
@@ -170,7 +173,7 @@ public enum IslandCommand: Sendable, Equatable {
             fields["rules"] = soul.rules
         case .agentRemove(let id):
             fields["id"] = id
-        case .proposalAccept(let id), .proposalReject(let id), .proposalUndo(let id), .jobOpen(let id):
+        case .proposalAccept(let id), .proposalReject(let id), .proposalUndo(let id), .jobOpen(let id), .jobRetry(let id):
             fields["id"] = id
         case .helperSkills(let helper, let skills):
             fields["helper"] = helper
@@ -772,7 +775,8 @@ private struct Fields {
                          parentId: (j["parentId"] as? NSNumber)?.intValue, goalId: (j["goalId"] as? NSNumber)?.intValue,
                          goalEnded: Self.flag(j["goalEnded"]), resumable: Self.flag(j["resumable"]), held: j["held"] as? String,
                          planFirst: Self.flag(j["planFirst"]), planStatus: j["planStatus"] as? String, planSummary: j["planSummary"] as? String,
-                         rating: j["rating"] as? String, reviews: (j["reviews"] as? NSNumber)?.intValue)
+                         rating: j["rating"] as? String, reviews: (j["reviews"] as? NSNumber)?.intValue,
+                         autoRetries: (j["autoRetries"] as? NSNumber)?.intValue ?? 0)
     }
 
     /// Task 3.7: `{ "cap": number | null, "spent": number }`; anything else reads as none.

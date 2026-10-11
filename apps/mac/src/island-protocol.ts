@@ -34,6 +34,7 @@ export type IslandCommand =
   | { type: "helper.skills"; helper: string; skills: string[] }
   | { type: "job.rate"; id: number; good: boolean; comment?: string }
   | { type: "job.open"; id: number }
+  | { type: "job.retry"; id: number }
   | { type: "agent.create"; name: string; role: string; kit: "research" | "folders" | "think"; personality: string; howItWorks: string; rules: string }
   | { type: "agent.remove"; id: string }
   | { type: "proposal.accept"; id: number }
@@ -127,6 +128,8 @@ export interface JobItem {
   /** Task 3.13: Keshab's rating; for a Tinker task, the task it reviews. */
   rating?: "good" | "bad";
   reviews?: number;
+  /** ADR-090: how many times a failure was retried by itself. */
+  autoRetries?: number;
   parentId?: number;
 }
 
@@ -299,6 +302,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "helper.skills",
   "job.rate",
   "job.open",
+  "job.retry",
   "agent.create",
   "agent.remove",
   "proposal.accept",
@@ -469,7 +473,7 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof version !== "number" || !Number.isInteger(version) || version < 1) return { error: 'soul.restore needs a "version" that is a whole number.' };
     return { command: { type, helper, version } };
   }
-  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "job.open" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "report.get" || type === "thread.get") {
+  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "job.open" || type === "job.retry" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "report.get" || type === "thread.get") {
     const { id } = value as { id?: unknown };
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     return { command: { type, id } };

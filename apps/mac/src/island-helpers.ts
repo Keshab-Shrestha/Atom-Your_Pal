@@ -30,6 +30,7 @@ const toJobItem = (job: Job, held?: string): JobItem => ({
   ...(job.planSummary ? { planSummary: job.planSummary } : {}),
   ...(job.rating ? { rating: job.rating } : {}),
   ...(job.reviews !== undefined ? { reviews: job.reviews } : {}),
+  ...(job.autoRetries ? { autoRetries: job.autoRetries } : {}),
   ...(job.parentId !== undefined ? { parentId: job.parentId } : {}),
 });
 
@@ -77,6 +78,7 @@ export function islandHelpers(
     removeRoutine: (id) => store.removeRoutine(id),
     createAgent: (input) => void store.createAgent(input),
     removeAgent: (id) => store.removeAgent(id),
+    retry: (id) => store.retry(id),
     rate: (id, good, comment) => store.rate(id, good, comment),
     acceptProposal: (id) => store.acceptProposal(id),
     rejectProposal: (id) => store.rejectProposal(id),

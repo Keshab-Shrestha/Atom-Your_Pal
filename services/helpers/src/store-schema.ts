@@ -106,6 +106,8 @@ export function createSchema(db: DatabaseSync) {
   // Task 3.13: Keshab's rating, and for Tinker's review tasks the task reviewed.
   for (const column of ["rating", "rating_comment"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);
   if (!columns.has("reviews")) db.exec("ALTER TABLE jobs ADD COLUMN reviews INTEGER");
+  // ADR-090: how many times a failure was retried by itself.
+  if (!columns.has("auto_retries")) db.exec("ALTER TABLE jobs ADD COLUMN auto_retries INTEGER");
   for (const column of ["plan", "plan_summary", "plan_status"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);
 }
 
@@ -137,6 +139,7 @@ export interface JobRow {
   rating: string | null;
   rating_comment: string | null;
   reviews: number | null;
+  auto_retries: number | null;
 }
 
 export interface SoulRow {
@@ -190,6 +193,7 @@ export const toJobRow = (row: JobRow): Omit<Job, "blockedBy" | "waitingFor" | "c
   ...(row.plan_summary ? { planSummary: row.plan_summary } : {}),
   ...(row.rating === "good" || row.rating === "bad" ? { rating: row.rating } : {}),
   ...(row.reviews != null ? { reviews: row.reviews } : {}),
+  autoRetries: row.auto_retries ?? 0,
 });
 
 /** Sources with an http or https address only; anything else (javascript:, file:, junk) is dropped. */

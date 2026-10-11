@@ -58,6 +58,8 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     /// Task 3.13: Keshab's rating ("good" or "bad"); for a Tinker task, the task it reviews.
     public var rating: String?
     public var reviews: Int?
+    /// ADR-090: how many times a failure was retried by itself.
+    public var autoRetries: Int
     public var isFinished: Bool { state == .done || state == .failed }
 
     public init(id: Int, task: String, state: JobState, createdAt: Date? = nil, endedAt: Date? = nil, step: String? = nil,
@@ -65,7 +67,7 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
                 model: String? = nil, modelReason: String? = nil, blockedBy: [Int] = [], waitingFor: [Int] = [],
                 comments: Int = 0, goal: String? = nil, parentId: Int? = nil, goalId: Int? = nil, goalEnded: Bool = false,
                 resumable: Bool = false, held: String? = nil, planFirst: Bool = false, planStatus: String? = nil,
-                planSummary: String? = nil, rating: String? = nil, reviews: Int? = nil) {
+                planSummary: String? = nil, rating: String? = nil, reviews: Int? = nil, autoRetries: Int = 0) {
         self.id = id
         self.task = task
         self.state = state
@@ -92,6 +94,7 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
         self.planSummary = planSummary
         self.rating = rating
         self.reviews = reviews
+        self.autoRetries = autoRetries
     }
 
     public var hasReport: Bool { title != nil }
@@ -347,6 +350,7 @@ public struct TaskActivity: Sendable, Equatable {
         case "approved": "Plan approved"
         case "rejected": "Plan rejected"
         case "handed": "Handed off a sub-task"
+        case "retried": "Tried again"
         case "running": "Started"
         case "done": "Finished"
         case "failed": "Failed"
@@ -773,6 +777,12 @@ public struct HelpersState: Sendable, Equatable {
     public mutating func deleteRoutine(_ id: Int) -> IslandCommand? {
         guard selectedHelper?.routines.contains(where: { $0.id == id }) == true else { return nil }
         return waiting(.routineDelete(id: id))
+    }
+
+    /// ADR-090: tries a failed or stopped task again.
+    public mutating func retry(_ id: Int) -> IslandCommand? {
+        guard let state = list?.item(id)?.job.state, state == .failed || state == .stopped else { return nil }
+        return waiting(.jobRetry(id: id))
     }
 
     /// ADR-090: the same answers from the Needs you inbox, for any task or worker (not only the open or chosen one).

@@ -837,3 +837,19 @@ struct NeedsYouTests {
         #expect(state.answerProposal(helper: "hana", id: 4, accept: true) == nil)
     }
 }
+
+@Suite("Issues (ADR-090)")
+struct IssuesTests {
+    @Test func listsFailuresAndRetriesThem() throws {
+        let line = HelperTaskTests.line.replacingOccurrences(of: #""error":"x","#, with: #""error":"x","autoRetries":1,"#)
+        var state = HelpersState()
+        state.apply(try decodeEvent(line))
+        let issues = TeamIssues.all(in: try #require(state.list))
+        #expect(issues.map(\.id) == [3] && issues[0].job.autoRetries == 1)
+        #expect(state.retry(3) == .jobRetry(id: 3))
+        #expect(state.retry(4) == .jobRetry(id: 4)) // stopped
+        #expect(state.retry(1) == nil) // done
+        #expect(TaskActivity(kind: "retried", at: nil).title == "Tried again")
+        #expect(IslandCommand.jobRetry(id: 3).line == #"{"id":3,"type":"job.retry"}"# + "\n")
+    }
+}

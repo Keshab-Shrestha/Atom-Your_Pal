@@ -96,3 +96,12 @@ public struct NeedsYouItem: Sendable, Equatable, Identifiable {
         return plans + proposals + held + failed.sorted { ($0.jobId ?? 0) > ($1.jobId ?? 0) }
     }
 }
+
+/// ADR-090: the Issues page: tasks that failed or were stopped by a limit, newest first.
+public enum TeamIssues {
+    public static func all(in list: HelpersList) -> [BoardItem] {
+        list.helpers.flatMap { h in h.jobs.map { BoardItem(helperId: h.id, helperName: h.name, job: $0) } }
+            .filter { $0.job.state == .failed }
+            .sorted { $0.id > $1.id }
+    }
+}
