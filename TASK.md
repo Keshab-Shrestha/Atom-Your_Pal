@@ -986,6 +986,13 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - The Dashboard (sidebar, under Overview; its row shows today's tokens): today, the last 7 days and dollars; a bar per day (new tokens solid, cached faint); the Claude plan's five-hour and seven-day use; the week by worker (ZENO's chat apart) and by model; how to use fewer.
 - Tests: 3 TS (sums by day, worker and model; the store; tokens from a result), the helpers event, 1 Swift (decoding, short numbers) (TS 641, Swift 511 pass).
 
+**Part 4, chats — as built (2026-10-11):** built; tested; seen in the gallery; not yet used live.
+- Every conversation with ZENO is a chat, saved after each exchange in the local memory file (tables `chats`, `chat_messages`; the newest 200 kept; never logged). Its title is its first words.
+- The sidebar lists the chats where the Team section was (and the separate Chat row is gone): the current one is marked; a click continues one (ZENO Core resumes that session with its saved turns, so voice and typing go to it); New chat starts fresh; a chat's menu deletes it (deleting the current one starts a new chat). The chat page's top bar shows the chat's title.
+- The team moved to the Board: a chip per worker (its pal, name, and its step or role) opens its page; New agent is there too.
+- Protocol: `chats.list`, `chat.open`, `chat.delete`; events `chats` (with `current`) and `chat.opened` (its turns).
+- Tests: 3 TS (the chat store, Core resume, the island commands), protocol, 1 Swift (decoding, replay) (TS 644, Swift 512 pass).
+
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.
 
 **Task 3.17 — Companies and user logins.** Separate workspaces with their own tasks, workers, budgets and history; sign-in for more than one person.

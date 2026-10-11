@@ -12,6 +12,7 @@ function fakeCore(reply: string, pieces?: string[], during?: () => void): Core {
     sessionId: "s1",
     history: () => [],
     reset() {},
+    resume() {},
     prepare() {},
     async handle(_input, _signal, hooks?: HandleHooks) {
       during?.();

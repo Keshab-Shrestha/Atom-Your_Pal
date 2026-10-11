@@ -66,6 +66,8 @@ export interface Core {
   history(): readonly Message[];
   /** Forgets the conversation and starts a new session. */
   reset(): void;
+  /** ADR-091: continues a saved session: its id and its turns (the newest kept within the history's bound). */
+  resume(sessionId: string, turns: readonly Message[]): void;
   /** Lets the model start up ahead of the next request (ADR-064). Safe to call any time. */
   prepare(): void;
 }
@@ -178,6 +180,15 @@ export function createCore(options: CoreOptions): Core {
     reset() {
       turns = [];
       sessionId = newId();
+    },
+
+    resume(id, saved) {
+      if (busy) throw new CoreError("Still answering the previous request");
+      sessionId = id;
+      // Whole user/assistant pairs only, so the history never starts with an answer.
+      const pairs = saved.filter((m) => m.role === "user" || m.role === "assistant");
+      const start = Math.max(0, pairs.length - maxTurns * 2);
+      turns = pairs.slice(pairs[start]?.role === "assistant" ? start + 1 : start);
     },
 
     prepare() {

@@ -17,6 +17,9 @@ export type IslandCommand =
   | { type: "model.set"; provider: string; model: string }
   | { type: "approval.answer"; id: string; approved: boolean }
   | { type: "memory.list" }
+  | { type: "chats.list" }
+  | { type: "chat.open"; id: string }
+  | { type: "chat.delete"; id: string }
   | { type: "memory.forget"; id: number }
   | { type: "memory.clear" }
   | { type: "text.send"; text: string }
@@ -151,6 +154,14 @@ export interface ThreadEvent {
   handOffs?: number[];
   /** Task 3.5: the goal the task is part of, its tasks, and the combined report once every task has ended. */
   goal?: { id: number; text: string; ended: boolean; tasks: number[]; report?: Omit<ReportEvent, "type" | "id"> };
+}
+
+/** ADR-091: one of Keshab's chats. */
+export interface ChatItem {
+  id: string;
+  title: string;
+  updatedAt: string;
+  messages: number;
 }
 
 /** ADR-091: token counts and API-equivalent dollars. */
@@ -300,6 +311,10 @@ export type IslandEvent =
   | { type: "capabilities"; items: Capability[] }
   | PlanUsageEvent
   | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[] }
+  /** ADR-091: Keshab's chats, newest first, and the one ZENO is in now (voice goes to it). */
+  | { type: "chats"; chats: ChatItem[]; current: string }
+  /** ADR-091: a chat was opened: its turns, to show. */
+  | { type: "chat.opened"; id: string; messages: { role: "user" | "assistant"; text: string }[] }
   | {
       type: "helpers";
       helpers: HelperItem[];
@@ -332,6 +347,9 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "model.set",
   "approval.answer",
   "memory.list",
+  "chats.list",
+  "chat.open",
+  "chat.delete",
   "memory.forget",
   "memory.clear",
   "text.send",
@@ -554,6 +572,11 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof helper !== "string" || helper === "") return { error: 'soul.restore needs a "helper" string.' };
     if (typeof version !== "number" || !Number.isInteger(version) || version < 1) return { error: 'soul.restore needs a "version" that is a whole number.' };
     return { command: { type, helper, version } };
+  }
+  if (type === "chat.open" || type === "chat.delete") {
+    const { id } = value as { id?: unknown };
+    if (typeof id !== "string" || !/^[\w-]{1,100}$/.test(id)) return { error: `${type} needs the chat's "id".` };
+    return { command: { type, id } };
   }
   if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "job.open" || type === "job.retry" || type === "mcp.remove" || type === "mcp.test" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "report.get" || type === "thread.get") {
     const { id } = value as { id?: unknown };

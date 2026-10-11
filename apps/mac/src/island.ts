@@ -4,6 +4,7 @@
 import { createInterface } from "node:readline";
 import type { Readable } from "node:stream";
 import type { Logger } from "@zeno/shared";
+import type { Message } from "@zeno/contracts";
 import {
   PROTOCOL_VERSION,
   createLevelThrottle,
@@ -22,6 +23,7 @@ import {
   type PaperclipItem,
   type McpItem,
   type UsageItem,
+  type ChatItem,
 } from "./island-protocol.ts";
 import type { ComputerBridge } from "./computer-bridge.ts";
 import type { WindowPointer } from "./screen-context.ts";
@@ -38,7 +40,8 @@ export interface IslandOptions {
   write(line: string): void;
   record: VoiceLoopOptions["record"];
   stt: SpeechToText;
-  core: CoreLike & { reset(): void };
+  /** ADR-091: a Core that can resume a saved chat names its session (the chat voice and typing go to). */
+  core: CoreLike & { reset(): void; resume?(id: string, turns: readonly Message[]): void; readonly sessionId?: string };
   tts: TextToSpeech;
   /** Reported in the `ready` event. */
   info: { provider: string; model: string; microphone: string };
@@ -48,6 +51,8 @@ export interface IslandOptions {
   computer?: Pick<ComputerBridge, "attach" | "answer" | "cancelAll">;
   /** What ZENO keeps (ADR-058), for Settings. Absent when memory is off: `memory.*` answers `enabled: false`. */
   memory?: IslandMemory;
+  /** ADR-091: chat sessions. Absent when memory is off. */
+  chats?: IslandChats;
   /** Helpers and their jobs (ADR-081). Absent when their file could not be opened: no helpers are listed. */
   helpers?: IslandHelpers;
   /** Pal dropped on a window (ADR-074): reads that app once for the next request. Absent: `context.window` is refused. */
@@ -89,6 +94,15 @@ export interface IslandMemory {
   forgetEpisode(id: number): boolean;
   clearEpisodes(): number;
   /** Called after ZENO keeps or forgets something by itself (the remember / forget tools). Returns an unsubscribe. */
+  onChange(listener: () => void): () => void;
+}
+
+/** ADR-091: Keshab's chat sessions with ZENO (kept on this Mac). */
+export interface IslandChats {
+  list(): ChatItem[];
+  messages(id: string): Message[];
+  remove(id: string): boolean;
+  /** Called after a chat is saved. Returns an unsubscribe. */
   onChange(listener: () => void): () => void;
 }
 
@@ -257,7 +271,39 @@ export function runIsland(options: IslandOptions): IslandSession {
         core.reset();
         options.screen?.clear();
         send({ type: "conversation.reset" });
+        if (chatsWatched) sendChats(); // ADR-091: a new chat is now the current one
         return;
+      case "chats.list":
+        chatsWatched = true;
+        sendChats();
+        return;
+      case "chat.open": {
+        // ADR-091: continue a saved chat; voice and typing go to it from now on.
+        const chats = options.chats;
+        if (!chats || !core.resume) return;
+        const turns = chats.messages(command.id);
+        if (!turns.length) {
+          sendChats();
+          return;
+        }
+        options.computer?.cancelAll();
+        loop.cancel();
+        options.screen?.clear();
+        core.resume(command.id, turns);
+        send({ type: "chat.opened", id: command.id, messages: turns.map((m) => ({ role: m.role as "user" | "assistant", text: m.content })) });
+        sendChats();
+        return;
+      }
+      case "chat.delete": {
+        options.chats?.remove(command.id);
+        if (command.id === core.sessionId) {
+          loop.cancel();
+          core.reset();
+          send({ type: "conversation.reset" });
+        }
+        sendChats();
+        return;
+      }
       case "context.window": {
         const app = command.name;
         const pointed = options.screen?.point(command.bundleId, app) ?? Promise.resolve({ ok: false as const, message: "Reading the screen is turned off." });
@@ -500,6 +546,15 @@ export function runIsland(options: IslandOptions): IslandSession {
   }
   let memoryWatched = false;
 
+  // ADR-091: the chats, sent once asked for and again after each saved exchange.
+  let chatsWatched = false;
+  function sendChats() {
+    send({ type: "chats", chats: options.chats?.list() ?? [], current: core.sessionId ?? "" });
+  }
+  const stopChatUpdates = options.chats?.onChange(() => {
+    if (chatsWatched) sendChats();
+  });
+
   // ADR-061: a timer ended. Shown at once; spoken now if ZENO is idle, else as soon as it is. Task 3.5: a goal's line
   // waits its turn the same way.
   const timerQueue: { message: string; timer?: { id: number; label: string; message: string }; after?: () => void }[] = [];
@@ -578,6 +633,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     if (quitting) return;
     quitting = true;
     stopMemoryUpdates?.();
+    stopChatUpdates?.();
     stopHelperUpdates?.();
     stopPlanUsage?.();
     stopTimers?.();

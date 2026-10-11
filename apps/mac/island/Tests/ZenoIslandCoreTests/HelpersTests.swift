@@ -985,3 +985,19 @@ struct TokenUsageTests {
         #expect([TokenTotals.short(850), TokenTotals.short(1240), TokenTotals.short(12_400), TokenTotals.short(3_100_000)] == ["850", "1.2K", "12K", "3.1M"])
     }
 }
+
+@Suite("Chats (ADR-091)")
+struct ChatTests {
+    @Test func decodesChatsAndReplaysAnOpenedChat() throws {
+        guard case .chats(let list) = try decodeEvent(#"{"type":"chats","current":"a","chats":[{"id":"a","title":"Plan my trip","updatedAt":"2026-10-11T00:00:00.000Z","messages":4},{"bad":1}]}"#) else {
+            Issue.record("not chats"); return
+        }
+        #expect(list.current == "a" && list.chats.map(\.title) == ["Plan my trip"] && list.chats[0].updatedAt != nil && list.chats[0].messages == 4)
+        var conversation = Conversation()
+        conversation.apply(.transcript("unrelated"))
+        conversation.apply(try decodeEvent(#"{"type":"chat.opened","id":"a","messages":[{"role":"user","text":"Plan my trip"},{"role":"assistant","text":"Where to?"},{"role":"user","text":"Tokyo"}]}"#))
+        #expect(conversation.turns.map(\.transcript) == ["Plan my trip", "Tokyo"])
+        #expect(conversation.turns.map(\.reply) == ["Where to?", nil] && conversation.turns.allSatisfy { $0.outcome == .answered })
+        #expect(IslandCommand.chatOpen(id: "a").line == #"{"id":"a","type":"chat.open"}"# + "\n" && IslandCommand.chatsList.line == #"{"type":"chats.list"}"# + "\n")
+    }
+}

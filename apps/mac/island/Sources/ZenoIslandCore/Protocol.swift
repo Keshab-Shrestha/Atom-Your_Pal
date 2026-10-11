@@ -30,6 +30,10 @@ public enum IslandCommand: Sendable, Equatable {
     case helpersList
     /// ADR-091: whether ZENO says reports, and timers and updates, aloud.
     case speechSet(reports: Bool, updates: Bool)
+    /// ADR-091: Keshab's chats: list them, continue one, delete one.
+    case chatsList
+    case chatOpen(id: String)
+    case chatDelete(id: String)
     case helperSet(helper: String, app: String)
     case jobAdd(helper: String, task: String, blockedBy: [Int] = [])
     /// ADR-087: change what a queued task waits for; add a note to a task; ask for a task's thread.
@@ -98,6 +102,9 @@ public enum IslandCommand: Sendable, Equatable {
         case .contextWindow: "context.window"
         case .helpersList: "helpers.list"
         case .speechSet: "speech.set"
+        case .chatsList: "chats.list"
+        case .chatOpen: "chat.open"
+        case .chatDelete: "chat.delete"
         case .helperSet: "helper.set"
         case .jobAdd: "job.add"
         case .jobBlock: "job.block"
@@ -195,6 +202,8 @@ public enum IslandCommand: Sendable, Equatable {
                 fields["transport"] = d.transport
                 fields["headers"] = Self.lines(d.headers)
             }
+        case .chatOpen(let id), .chatDelete(let id):
+            fields["id"] = id
         case .speechSet(let reports, let updates):
             fields["reports"] = reports
             fields["updates"] = updates
@@ -473,6 +482,9 @@ public enum IslandEvent: Sendable, Equatable {
     case mediaKey(MediaKey)
     /// Every helper and its recent jobs (ADR-081): after every helper command, and on changes once asked.
     case helpers(HelpersList)
+    /// ADR-091: Keshab's chats and the one ZENO is in; a chat opened, with its turns.
+    case chats(ChatList)
+    case chatOpened(id: String, lines: [ChatLine])
     /// One job's report, after `report.get`.
     case report(HelperReport)
     case thread(HelperThread)
@@ -507,6 +519,8 @@ public enum IslandEvent: Sendable, Equatable {
         case .settingsOpen: "settings.open"
         case .mediaKey: "media.key"
         case .helpers: "helpers"
+        case .chats: "chats"
+        case .chatOpened: "chat.opened"
         case .report: "report"
         case .thread: "thread"
         case .error(let e): "error:\(e.stage)"
@@ -606,6 +620,10 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
     case "media.key":
         guard let key = MediaKey(rawValue: try f.string("key")) else { throw ProtocolError.invalidValue(event: type, field: "key") }
         return .mediaKey(key)
+    case "chats":
+        return .chats(ChatList(chats: Fields.chats(f.values["chats"]), current: f.optionalString("current") ?? ""))
+    case "chat.opened":
+        return .chatOpened(id: try f.string("id"), lines: Fields.chatLines(f.values["messages"]))
     case "helpers":
         return .helpers(HelpersList(helpers: try f.helpers(), apps: try f.strings("apps"),
                                     allowLarge: try f.optionalStrictBool("allowLarge") ?? true, models: try f.helperModels(),
@@ -947,6 +965,21 @@ private struct Fields {
             throw ProtocolError.invalidValue(event: event, field: key)
         }
         return n.boolValue
+    }
+
+    /// ADR-091: the chats, newest first; a malformed entry is left out.
+    static func chats(_ value: Any?) -> [ChatInfo] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let m = entry as? [String: Any], let id = m["id"] as? String, let title = m["title"] as? String else { return nil }
+            return ChatInfo(id: id, title: title, updatedAt: (m["updatedAt"] as? String).flatMap(date), messages: (m["messages"] as? NSNumber)?.intValue ?? 0)
+        }
+    }
+
+    static func chatLines(_ value: Any?) -> [ChatLine] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let m = entry as? [String: Any], let role = m["role"] as? String, let text = m["text"] as? String else { return nil }
+            return ChatLine(fromUser: role == "user", text: text)
+        }
     }
 
     /// ISO 8601, with or without fractional seconds.

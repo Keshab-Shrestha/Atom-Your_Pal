@@ -151,6 +151,11 @@ enum IslandGallery {
             let m = IslandModel(settings: IslandSettings(defaults: defaults))
             m.settings.theme = theme
             m.windowPage = .agents // the team's pages, unless a window asks for Chat or Settings
+            m.chats = ChatList(chats: [ // ADR-091
+                ChatInfo(id: "c1", title: "Plan a weekend in Kyoto", updatedAt: Date().addingTimeInterval(-300), messages: 6),
+                ChatInfo(id: "c2", title: "What's on my calendar tomorrow?", updatedAt: Date().addingTimeInterval(-7200), messages: 2),
+                ChatInfo(id: "c3", title: "Compare Mac mini prices", updatedAt: Date().addingTimeInterval(-86_400 * 2), messages: 4),
+            ], current: "c1")
             do { m.apply(try decodeEvent(helpers(pinned: pinned, allowLarge: allowLarge, failed: failed))) } catch {
                 FileHandle.standardError.write(Data("gallery: could not decode helpers: \(error)\n".utf8))
             }

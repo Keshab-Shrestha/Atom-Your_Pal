@@ -76,7 +76,9 @@ extension HelpersView {
         switch model.windowPage {
         case .overview: return ("Overview", "gauge.with.dots.needle.33percent")
         case .dashboard: return ("Dashboard", "chart.bar.xaxis")
-        case .chat: return ("Chat", "bubble.left.and.text.bubble.right")
+        case .chat:
+            let chats = model.chats
+            return (chats?.chats.first { $0.id == chats?.current }?.title ?? "New chat", "bubble.left.and.text.bubble.right")
         case .inbox: return ("Needs you", "tray")
         case .issues: return ("Issues", "exclamationmark.triangle")
         case .plugins: return ("Plugins", "puzzlepiece.extension")
@@ -127,10 +129,7 @@ private struct HelperSidebar: View {
                 SidebarRow(symbol: "chart.bar.xaxis", title: "Dashboard", detail: today == 0 ? nil : "\(TokenTotals.short(today)) tokens today", selected: model.windowPage == .dashboard)
             }
             .buttonStyle(.plain)
-            Button { model.windowPage = .chat } label: {
-                SidebarRow(symbol: "bubble.left.and.text.bubble.right", title: "Chat", detail: model.status.title, selected: model.windowPage == .chat)
-            }
-            .buttonStyle(.plain)
+            // ADR-091: no Chat row: the chats below open the chat (ZENO's state is under its name above).
             Button { model.windowPage = .inbox } label: {
                 let waiting = (model.helpers.list.map { NeedsYouItem.all(in: $0).count } ?? 0) + (model.approval.pending == nil ? 0 : 1)
                 SidebarRow(symbol: "tray", title: "Needs you", detail: waiting == 0 ? "Nothing waits" : "\(waiting) waiting", selected: model.windowPage == .inbox)
@@ -147,21 +146,8 @@ private struct HelperSidebar: View {
                 BoardRow(model: model, selected: model.windowPage == .agents && model.helpers.showsBoard)
             }
             .buttonStyle(.plain)
-            Text("Team").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 10).padding(.top, 8)
-            ForEach(model.helpers.list?.helpers ?? []) { helper in
-                Button { model.windowPage = .agents; model.helpers.selectHelper(helper.id) } label: {
-                    HelperCard(helper: helper, selected: model.windowPage == .agents && !model.helpers.showsBoard && !model.helpers.isCreatingAgent && helper.id == model.helpers.selectedHelperId)
-                }
-                .buttonStyle(.plain)
-            }
-            if model.helpers.list != nil {
-                Button { model.windowPage = .agents; model.helpers.openNewAgent() } label: {
-                    Label("New agent", systemImage: "plus").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
-                        .padding(.horizontal, 10).padding(.vertical, 6)
-                }
-                .buttonStyle(.plain)
-                .help("Add an agent with its own role and soul")
-            }
+            // ADR-091: Keshab's chats where the team was (the team is on the Board and each worker's page).
+            ChatsList(model: model)
            }
           }
             Spacer(minLength: 0)
@@ -268,54 +254,6 @@ private struct AllowLargeSwitch: View {
         }
         .padding(.horizontal, 8)
         .opacity(enabled ? 1 : 0.6)
-    }
-}
-
-private struct HelperCard: View {
-    let helper: Helper
-    let selected: Bool
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        let running = helper.jobs.contains { $0.state == .running }
-        HStack(spacing: 11) {
-            HelperBadge(helper: helper, size: 32)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(helper.name).font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
-                Group {
-                    if helper.role == "improver" {
-                        Text("Reviews rated tasks").foregroundStyle(theme.text3.color)
-                    } else if !helper.available {
-                        Text("Coming soon").foregroundStyle(theme.text3.color)
-                    } else if running {
-                        Text(helper.activity).foregroundStyle(theme.statusDots ? theme.text2.color : theme.live.color)
-                    } else {
-                        // ADR-091: what the worker does (its role), not the app it opens.
-                        Text(helper.roleTitle.isEmpty ? (helper.app ?? "") : helper.roleTitle).foregroundStyle(theme.text3.color)
-                    }
-                }
-                .font(.system(size: 11))
-            }
-            .lineLimit(1)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 8)
-        .background {
-            if theme.isFlat {
-                // Void: the chosen helper is outlined with a hairline, not filled.
-                RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous)
-                    .strokeBorder(selected ? theme.border.color : .clear, lineWidth: 1)
-            } else {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(selected ? (theme.isDark ? theme.fill2.color : Color.white.opacity(0.85)) : Color.clear)
-                    .shadow(color: .black.opacity(selected && !theme.isDark ? 0.06 : 0), radius: 1.5, y: 0.5)
-            }
-        }
-        .opacity(helper.available ? 1 : 0.5)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
@@ -898,5 +836,60 @@ private struct NameTitle: View {
         editing.wrappedValue = false
         guard name != helper.name else { return }
         if let command = model.helpers.rename(name) { model.sendHelpers(command) }
+    }
+}
+
+/// ADR-091: Keshab's chats in the sidebar, newest first: the one ZENO is in is marked; a click continues one (voice and
+/// typing go to it), New chat starts fresh, and a chat's menu deletes it.
+private struct ChatsList: View {
+    let model: IslandModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let list = model.chats
+        HStack {
+            Text("Chats").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+            Spacer()
+            Button {
+                model.newConversation()
+                model.windowPage = .chat
+            } label: {
+                Label("New chat", systemImage: "square.and.pencil").labelStyle(.iconOnly)
+                    .font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+            }
+            .buttonStyle(.plain)
+            .help("Start a new chat")
+            .accessibilityLabel("New chat")
+        }
+        .padding(.horizontal, 10).padding(.top, 8)
+        if let list, !list.chats.isEmpty {
+            ForEach(list.chats.prefix(40)) { chat in
+                let current = chat.id == list.current
+                Button {
+                    if !current { model.send(.chatOpen(id: chat.id)) }
+                    model.windowPage = .chat
+                } label: {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(chat.title).font(.system(size: 12.5, weight: current ? .semibold : .regular)).foregroundStyle(theme.text.color).lineLimit(1)
+                        if let at = chat.updatedAt {
+                            Text(at, format: .relative(presentation: .named)).font(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .background(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous)
+                        .strokeBorder(current && model.windowPage == .chat ? (theme.isFlat ? theme.border.color : theme.separator.color) : .clear, lineWidth: 1))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    Button("Delete chat", role: .destructive) { model.send(.chatDelete(id: chat.id)) }
+                }
+                .accessibilityLabel(current ? "\(chat.title), current chat" : chat.title)
+            }
+        } else {
+            Text(list == nil ? "Loading…" : "No chats yet. Talk or type to ZENO.").font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+                .padding(.horizontal, 10).padding(.vertical, 4)
+        }
     }
 }

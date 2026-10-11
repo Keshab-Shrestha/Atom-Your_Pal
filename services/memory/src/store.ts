@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { InputSource } from "@zeno/contracts";
+import { openChats, type ChatStore } from "./chats.ts";
 
 // ADR-058: facts the user asks ZENO to keep, in one local SQLite file. Each memory has an owner, a scope,
 // provenance and a lifecycle (SECURITY.md §17). Forgetting deletes the row.
@@ -71,6 +72,8 @@ export interface MemoryStore {
   /** Deletes every episode of this owner. Returns how many were deleted. */
   clearEpisodes(): number;
   episodeCount(): number;
+  /** ADR-091: Keshab's chat sessions. */
+  readonly chats: ChatStore;
   close(): void;
 }
 
@@ -202,7 +205,10 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
 
   const count = () => Number((counter.get(owner) as { n: number }).n);
 
+  const chats = openChats(db, now);
+
   return {
+    chats,
     add(raw, provenance) {
       const text = normalizeMemoryText(raw);
       if (!text) throw new MemoryError("There is nothing to remember.");

@@ -1,4 +1,5 @@
-/// The current session's turns, for the Conversation tab (ADR-038). Session-only: never stored (ADR-030).
+import Foundation
+/// The current chat's turns, for the Conversation tab (ADR-038). The runtime keeps saved chats (ADR-091).
 /// Built from the runtime's events; the runtime keeps the real conversation.
 public struct Conversation: Sendable, Equatable {
     public struct Turn: Sendable, Equatable, Identifiable {
@@ -63,9 +64,25 @@ public struct Conversation: Sendable, Equatable {
             updateCurrent { $0.outcome = $0.reply == nil ? .failed("Stopped") : .answered }
         case .conversationReset:
             turns.removeAll()
+        case .chatOpened(_, let lines):
+            replay(lines)
         default:
             break
         }
+    }
+
+    /// ADR-091: shows a saved chat: each thing Keshab said with the answer that followed it.
+    public mutating func replay(_ lines: [ChatLine]) {
+        turns.removeAll()
+        for line in lines {
+            if line.fromUser {
+                turns.append(Turn(id: nextId, transcript: line.text, outcome: .answered))
+                nextId += 1
+            } else if let last = turns.indices.last, turns[last].reply == nil {
+                turns[last].reply = line.text
+            }
+        }
+        if turns.count > limit { turns.removeFirst(turns.count - limit) }
     }
 
     /// Changes the latest turn if it is still in progress; otherwise does nothing.
@@ -84,4 +101,41 @@ extension Conversation {
 extension Conversation.Turn {
     /// The reply is here and the turn is still going (it is being spoken): a caret of light glows after it.
     public var isStreaming: Bool { outcome == .inProgress && reply != nil }
+}
+
+/// ADR-091: one of Keshab's chats with ZENO.
+public struct ChatInfo: Sendable, Equatable, Identifiable {
+    public var id: String
+    public var title: String
+    public var updatedAt: Date?
+    public var messages: Int
+
+    public init(id: String, title: String, updatedAt: Date? = nil, messages: Int = 0) {
+        self.id = id
+        self.title = title
+        self.updatedAt = updatedAt
+        self.messages = messages
+    }
+}
+
+/// ADR-091: the chats, newest first, and the one ZENO is in now (voice and typing go to it).
+public struct ChatList: Sendable, Equatable {
+    public var chats: [ChatInfo]
+    public var current: String
+
+    public init(chats: [ChatInfo], current: String) {
+        self.chats = chats
+        self.current = current
+    }
+}
+
+/// ADR-091: one turn of a saved chat.
+public struct ChatLine: Sendable, Equatable {
+    public var fromUser: Bool
+    public var text: String
+
+    public init(fromUser: Bool, text: String) {
+        self.fromUser = fromUser
+        self.text = text
+    }
 }

@@ -102,6 +102,7 @@ function start(config: Config) {
     settings: runtime.settings,
     computer: runtime.computer,
     ...(runtime.islandMemory ? { memory: runtime.islandMemory } : {}),
+    ...(runtime.islandChats ? { chats: runtime.islandChats } : {}),
     ...(runtime.islandHelpers ? { helpers: runtime.islandHelpers } : {}),
     onTimer: runtime.onTimer,
     onGoalLine: runtime.onGoalLine,

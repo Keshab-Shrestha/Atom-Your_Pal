@@ -201,3 +201,10 @@ A complete turn:
 ### helpers: usage (ADR-091)
 
 The `helpers` event carries `usage`: `today` and `week` totals (`input`, `output`, `cacheRead`, `cacheWrite`, `dollars`, `runs`), `days` (the last 7, oldest first, each with `day` as a local `YYYY-MM-DD`), `byWorker` (`helper` id or null for ZENO's chat, and `name`) and `byModel` (`model`). Counts and model ids only.
+
+### Chats (ADR-091)
+
+- `{"type":"chats.list"}` → `{"type":"chats","chats":[{"id","title","updatedAt","messages"}],"current":"<session id>"}`, newest first; sent again after every saved exchange, a new chat or a delete.
+- `{"type":"chat.open","id":"…"}`: ZENO continues that chat (voice and typing go to it) → `{"type":"chat.opened","id":"…","messages":[{"role":"user"|"assistant","text":"…"}]}`, then `chats`.
+- `{"type":"chat.delete","id":"…"}`: deletes it; if it was the current chat, ZENO starts a new one (`conversation.reset`), then `chats`.
+- `conversation.reset` (New chat) is also followed by `chats` once the window has asked for them.

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createMemoryTools, ftsQuery, looksSecret, memoryContext, MemoryError, openMemoryStore, MAX_MEMORY_CHARS } from "./index.ts";
+import { CHAT_TITLE_LENGTH, createMemoryTools, ftsQuery, looksSecret, memoryContext, MemoryError, openMemoryStore, MAX_MEMORY_CHARS } from "./index.ts";
 
 const voice = { source: "voice" as const, requestId: "req-1" };
 
@@ -253,4 +253,22 @@ test("each memory tool says what can be asked of it, under one title (ADR-076)",
   const tools = createMemoryTools({ store: openMemoryStore({ path: ":memory:" }), provenance: () => voice });
   assert.deepEqual([...new Set(tools.map((t) => t.capability.title))], ["Remember things"]);
   assert.equal(new Set(tools.flatMap((t) => t.capability.examples)).size, 3);
+});
+
+test("chats are saved per session with a title from their first words, listed newest first, read and removed (ADR-091)", () => {
+  let clock = new Date("2026-10-11T00:00:00Z");
+  const store = openMemoryStore({ path: ":memory:", now: () => clock });
+  store.chats.save("a", [{ role: "user", content: "  Plan my\n trip to Tokyo in spring with a long title that goes past sixty characters easily" }, { role: "assistant", content: "Sure." }]);
+  clock = new Date("2026-10-11T01:00:00Z");
+  store.chats.save("b", [{ role: "user", content: "Weather?" }, { role: "assistant", content: "Sunny." }]);
+  store.chats.save("empty", []);
+  const list = store.chats.list();
+  assert.deepEqual(list.map((c) => [c.id, c.messages]), [["b", 2], ["a", 2]]);
+  assert.ok(list[1]!.title.startsWith("Plan my trip to Tokyo") && list[1]!.title.length <= CHAT_TITLE_LENGTH && list[1]!.title.endsWith("…"));
+  clock = new Date("2026-10-11T02:00:00Z");
+  store.chats.save("a", [{ role: "user", content: "Plan my trip" }, { role: "assistant", content: "Sure." }, { role: "user", content: "Tokyo" }, { role: "assistant", content: "Great." }]);
+  assert.deepEqual(store.chats.list().map((c) => c.id), ["a", "b"], "a saved exchange moves it to the top");
+  assert.deepEqual(store.chats.messages("a").map((m) => m.content), ["Plan my trip", "Sure.", "Tokyo", "Great."]);
+  assert.ok(store.chats.remove("a") && !store.chats.remove("a"));
+  assert.deepEqual([store.chats.messages("a"), store.chats.list().map((c) => c.id)], [[], ["b"]]);
 });

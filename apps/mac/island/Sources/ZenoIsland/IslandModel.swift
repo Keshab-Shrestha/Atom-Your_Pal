@@ -29,6 +29,8 @@ final class IslandModel {
     var capabilities: [CapabilityItem]?
     /// Claude plan usage (ADR-076), merged from `plan.usage` events. Nil until one arrives: no meters.
     var planUsage: PlanUsage?
+    /// ADR-091: Keshab's chats and the one ZENO is in; nil until the window asks.
+    var chats: ChatList?
     /// The ZENO window's content (ADR-081): helpers, their jobs, the report being read.
     var helpers = HelpersState()
     /// The ZENO window is open: a restarted runtime is asked for the list again.
@@ -153,6 +155,8 @@ final class IslandModel {
         approval.apply(event)
         pointing.apply(event)
         switch event {
+        case .chats(let list):
+            chats = list
         case .memory(let list):
             memory = list
         case .capabilities(let items):
@@ -163,6 +167,7 @@ final class IslandModel {
             if memory != nil { send(.memoryList) } // a restarted runtime: ask again so updates keep coming
             send(.helpersList) // Task 3.15: busy workers show on the island too, so the list is always kept
             send(.speechSet(reports: settings.speakReports, updates: settings.speakUpdates)) // ADR-091
+            if chats != nil { send(.chatsList) } // a restarted runtime: ask again
         case .info(let info):
             modelInfo = info
             pendingModel = nil

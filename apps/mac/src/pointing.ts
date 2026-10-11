@@ -22,6 +22,7 @@ export function withPointing(core: Core, options: PointingOptions): Core {
     },
     history: () => core.history(),
     reset: () => core.reset(),
+    resume: (id, turns) => core.resume(id, turns),
     prepare: () => core.prepare(),
     async handle(input, signal, hooks) {
       takeShot(); // a screenshot from an earlier turn does not count for this one

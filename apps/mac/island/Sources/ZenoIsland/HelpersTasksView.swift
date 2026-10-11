@@ -56,6 +56,8 @@ struct BoardPane: View {
                     Text("Every worker's tasks. A task that waits for another starts when that one is done.")
                         .font(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
+                // ADR-091: the team lives here now (the sidebar lists chats): each opens its page.
+                TeamChips(model: model)
                 if let list = model.helpers.list, let team = list.team, let limit = list.planLimit {
                     TeamBudgets(model: model, team: team, planLimit: limit)
                 }
@@ -508,5 +510,45 @@ struct SourceRow: View {
         }
         .buttonStyle(.plain)
         .help(source.url.absoluteString)
+    }
+}
+
+/// ADR-091: every worker as a chip (its pal, name and what it is doing), and New agent.
+private struct TeamChips: View {
+    let model: IslandModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8, alignment: .leading)], alignment: .leading, spacing: 8) {
+            ForEach(model.helpers.list?.helpers ?? []) { helper in
+                Button { model.helpers.selectHelper(helper.id) } label: {
+                    HStack(spacing: 8) {
+                        HelperBadge(helper: helper, size: 26)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(helper.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(1)
+                            Text(helper.jobs.contains { $0.state == .running } ? helper.activity : helper.roleTitle)
+                                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 8).padding(.vertical, 6)
+                    .background(RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous)
+                        .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("\(helper.name)'s page")
+            }
+            if model.helpers.list != nil {
+                Button { model.helpers.openNewAgent() } label: {
+                    Label("New agent", systemImage: "plus").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+                        .padding(.horizontal, 10).padding(.vertical, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Add an agent with its own role and soul")
+            }
+        }
     }
 }

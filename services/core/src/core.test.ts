@@ -356,3 +356,19 @@ test("shortcuts: a cancel during a shortcut fails the request and keeps no histo
   await assert.rejects(() => core.handle({ text: "pause", source: "voice" }, controller.signal), /cancelled/);
   assert.equal(core.history().length, 0);
 });
+
+test("resume continues a saved chat: its id, and its turns go to the model (ADR-091)", async () => {
+  const { model, requests } = fakeModel();
+  const core = createCore({ model, newId: ids(), maxTurns: 1 });
+  core.resume("chat-a", [
+    { role: "assistant", content: "orphan" },
+    { role: "user", content: "old" },
+    { role: "assistant", content: "older answer" },
+    { role: "user", content: "Plan my trip" },
+    { role: "assistant", content: "Where to?" },
+  ]);
+  assert.equal(core.sessionId, "chat-a");
+  assert.deepEqual(core.history().map((m) => m.content), ["Plan my trip", "Where to?"], "whole pairs within the bound");
+  await core.handle({ text: "Tokyo", source: "text" });
+  assert.deepEqual(requests[0]!.messages.map((m) => m.content), ["Plan my trip", "Where to?", "Tokyo"]);
+});

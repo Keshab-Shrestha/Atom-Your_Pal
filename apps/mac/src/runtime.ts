@@ -70,7 +70,7 @@ import {
 } from "@zeno/helpers";
 import { createLayaEngine } from "@zeno/decision-engine";
 import type { InputSource, Message } from "@zeno/contracts";
-import type { IslandHelpers, IslandMemory } from "./island.ts";
+import type { IslandChats, IslandHelpers, IslandMemory } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
 import { askForFolder, denyRead, folderCheck } from "./folder-run.ts";
 import { commitWork, prepareWorkdir, type Workdir } from "./worktree.ts";
@@ -112,6 +112,8 @@ export interface Runtime {
   memory?: MemoryStore;
   /** The memory as Settings sees it (list, forget, clear, change updates). Undefined when memory is off. */
   islandMemory?: IslandMemory;
+  /** ADR-091: Keshab's chat sessions as the ZENO window sees them. Undefined when memory is off. */
+  islandChats?: IslandChats;
   /** Helpers' apps, jobs and reports (ADR-081). Undefined when the store could not open. */
   helpers?: HelperStore;
   /** The helpers as the ZENO window sees them. Undefined when the store could not open. */
@@ -172,6 +174,27 @@ export function createRuntime(
     onChange: (listener) => {
       memoryListeners.add(listener);
       return () => memoryListeners.delete(listener);
+    },
+  };
+  // ADR-091: Keshab's chat sessions: saved after every exchange, listed, opened and deleted from the ZENO window.
+  const chatListeners = new Set<() => void>();
+  const saveChat = (sessionId: string, turns: readonly Message[]) => {
+    if (!memory) return;
+    try {
+      memory.chats.save(sessionId, turns);
+    } catch (error) {
+      log.error("chat.save_failed", { message: describe(error) });
+      return;
+    }
+    for (const listener of chatListeners) listener();
+  };
+  const islandChats: IslandChats | undefined = memory && {
+    list: () => memory.chats.list().map((c) => ({ id: c.id, title: c.title, updatedAt: c.updatedAt.toISOString(), messages: c.messages })),
+    messages: (id) => memory.chats.messages(id),
+    remove: (id) => memory.chats.remove(id),
+    onChange: (listener) => {
+      chatListeners.add(listener);
+      return () => chatListeners.delete(listener);
     },
   };
   const helpersPath = options.helpersPath ?? process.env.ZENO_HELPERS_FILE ?? "data/helpers.db";
@@ -361,7 +384,10 @@ export function createRuntime(
           return [nowLine(), team, MEMORY_GUIDANCE, facts, past, pointed].filter(Boolean).join("\n\n");
         },
         ...(shortcuts ? { shortcuts } : {}),
-        ...(episodes ? { onExchange: (sessionId: string, turns: readonly Message[]) => episodes.update(sessionId, turns) } : {}),
+        onExchange: (sessionId: string, turns: readonly Message[]) => {
+          saveChat(sessionId, turns); // ADR-091
+          episodes?.update(sessionId, turns);
+        },
       });
   // ADR-080: with computer control on, replies lose their [POINT:…] marker before speech, and a valid one points.
   const core: Core = computerOn
@@ -655,7 +681,7 @@ export function createRuntime(
     stt,
     tts,
     computer,
-    ...(memory ? { memory, islandMemory } : {}),
+    ...(memory ? { memory, islandMemory, islandChats } : {}),
     ...(helpers ? { helpers, islandHelpers: warmOnOpen(withPaperclip({
             ...islandHelpers(helpers, installedApps, planModels, held, () => listSkills()),
             openReport,

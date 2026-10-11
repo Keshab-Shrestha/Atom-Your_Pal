@@ -28,8 +28,9 @@ const clip = (durationMs = 1500): AudioClip => ({ pcm: Buffer.alloc(4), sampleRa
 function islandHarness(
   over: Partial<{
     stt: SpeechToText;
-    core: CoreLike & { reset(): void };
+    core: IslandOptions["core"];
     tts: TextToSpeech;
+    chats: IslandOptions["chats"];
     clipMs: number;
     warmUp: () => Promise<void>;
     silenceWarnMs: number;
@@ -87,6 +88,7 @@ function islandHarness(
     settings: over.settings,
     computer: over.computer,
     ...(over.memory ? { memory: over.memory } : {}),
+    ...(over.chats ? { chats: over.chats } : {}),
     ...(over.helpers ? { helpers: over.helpers } : {}),
     ...(over.onTimer ? { onTimer: over.onTimer } : {}),
     ...(over.onGoalLine ? { onGoalLine: over.onGoalLine } : {}),
@@ -891,6 +893,41 @@ test("speech.set: muted reports still show on the island but are not said; turne
   say("Kame is done.");
   await new Promise((r) => setTimeout(r, 20));
   assert.deepEqual(h.spoken, ["Kame is done."]);
+});
+
+test("chats: listed with the current one; opened, ZENO continues it; deleting the current one starts a new chat (ADR-091)", async () => {
+  const saved = new Map([["chat-a", [{ role: "user" as const, content: "Plan my trip" }, { role: "assistant" as const, content: "Where to?" }]]]);
+  let session = "chat-new";
+  const resumed: string[] = [];
+  const h = islandHarness({
+    core: {
+      handle: async () => ({ text: "x" }),
+      reset: () => void (session = "chat-reset"),
+      resume: (id, turns) => void ((session = id), resumed.push(`${id}:${turns.length}`)),
+      get sessionId() {
+        return session;
+      },
+    },
+    chats: {
+      list: () => [...saved.keys()].map((id) => ({ id, title: "Plan my trip", updatedAt: "2026-10-11T00:00:00.000Z", messages: saved.get(id)!.length })),
+      messages: (id) => saved.get(id) ?? [],
+      remove: (id) => saved.delete(id),
+      onChange: () => () => {},
+    },
+  });
+  await tick(5);
+  h.clear();
+  await h.send({ type: "chats.list" });
+  assert.deepEqual(h.events(), [{ type: "chats", chats: [{ id: "chat-a", title: "Plan my trip", updatedAt: "2026-10-11T00:00:00.000Z", messages: 2 }], current: "chat-new" }]);
+  h.clear();
+  await h.send({ type: "chat.open", id: "chat-a" });
+  assert.deepEqual(resumed, ["chat-a:2"]);
+  assert.deepEqual(h.events()[0], { type: "chat.opened", id: "chat-a", messages: [{ role: "user", text: "Plan my trip" }, { role: "assistant", text: "Where to?" }] });
+  assert.equal((h.events()[1] as { current: string }).current, "chat-a");
+  h.clear();
+  await h.send({ type: "chat.delete", id: "chat-a" });
+  assert.deepEqual(h.types(), ["conversation.reset", "chats"]);
+  assert.deepEqual(h.events()[1], { type: "chats", chats: [], current: "chat-reset" });
 });
 
 test("routines in helpers, and routine.delete (Task 3.9)", async () => {
