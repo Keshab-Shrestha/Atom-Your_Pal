@@ -75,11 +75,6 @@ public struct PixelCanvas: Sendable, Equatable {
         rect(x + w - 1, y, 1, h, c)
     }
 
-    /// Draws another canvas on this one at (x, y); its clear pixels leave this one as it was.
-    public mutating func stamp(_ other: PixelCanvas, _ x: Int, _ y: Int) {
-        for yy in 0..<other.height { for xx in 0..<other.width { set(x + xx, y + yy, other[xx, yy]) } }
-    }
-
     public func cgImage() -> CGImage? {
         var bytes = [UInt8]()
         bytes.reserveCapacity(width * height * 4)

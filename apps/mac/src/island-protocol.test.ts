@@ -180,7 +180,6 @@ test("parses the helper commands", () => {
     { type: "job.add", helper: "sid", task: "" }, // refused later by the store, with stage "settings"
     { type: "job.stop", id: 12 },
     { type: "job.delete", id: 12 },
-    { type: "report.get", id: 12 },
     { type: "helper.pin", helper: "sid", model: "claude-sonnet-5-5" },
     { type: "helper.pin", helper: "sid", model: "" },
     { type: "helper.pin", helper: "sid", model: "not-offered" }, // refused later by the helpers, with stage "settings"
@@ -250,7 +249,6 @@ test("helper commands with missing or wrong fields are protocol errors", () => {
     [{ type: "job.stop" }, /whole number/],
     [{ type: "job.stop", id: "12" }, /whole number/],
     [{ type: "job.delete", id: 1.5 }, /whole number/],
-    [{ type: "report.get", id: 0 }, /whole number/],
     [{ type: "helper.pin", model: "x" }, /"helper"/],
     [{ type: "helper.pin", helper: "", model: "x" }, /"helper"/],
     [{ type: "helper.pin", helper: "sid" }, /"model"/],

@@ -635,7 +635,7 @@ export function createRuntime(
     if (!paperclip) return island;
     return {
       ...island,
-      paperclip: () => ({ issues: paperclip.tracker.list() }),
+      paperclip: () => ({ issues: paperclip.tracker.list().map(({ told: _told, ...item }) => item) }),
       onChange: (listener) => {
         const stop = island.onChange(listener);
         paperclipListeners.add(listener);

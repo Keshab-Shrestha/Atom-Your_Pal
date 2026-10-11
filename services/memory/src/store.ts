@@ -71,7 +71,6 @@ export interface MemoryStore {
   removeEpisode(id: number): boolean;
   /** Deletes every episode of this owner. Returns how many were deleted. */
   clearEpisodes(): number;
-  episodeCount(): number;
   /** ADR-091: Keshab's chat sessions. */
   readonly chats: ChatStore;
   close(): void;
@@ -190,7 +189,6 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
   );
   const deleteEpisode = db.prepare("DELETE FROM episodes WHERE owner = ? AND id = ?");
   const clearAllEpisodes = db.prepare("DELETE FROM episodes WHERE owner = ?");
-  const countEpisodes = db.prepare("SELECT count(*) AS n FROM episodes WHERE owner = ?");
 
   const insert = db.prepare("INSERT INTO memories (text, owner, scope, source, request_id, created_at) VALUES (?, ?, 'personal', ?, ?, ?)");
   const byText = db.prepare("SELECT * FROM memories WHERE owner = ? AND lower(text) = lower(?)");
@@ -267,10 +265,6 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
 
     clearEpisodes() {
       return Number(clearAllEpisodes.run(owner).changes);
-    },
-
-    episodeCount() {
-      return Number((countEpisodes.get(owner) as { n: number }).n);
     },
 
     close() {

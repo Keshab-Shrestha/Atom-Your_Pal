@@ -160,10 +160,6 @@ export function islandHelpers(
     models: () => models().map(({ id, name, tier }) => ({ id, name, tier })),
     stop: (id) => store.stop(id),
     remove: (id) => store.remove(id),
-    report: (id) => {
-      const report = store.report(id);
-      return report && { id, title: report.title, summary: report.summary, body: report.body, sources: report.sources };
-    },
     onChange: (listener) => store.onChange(listener),
   };
 }

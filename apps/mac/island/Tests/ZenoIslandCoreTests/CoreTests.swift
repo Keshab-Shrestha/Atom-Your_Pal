@@ -31,15 +31,15 @@ struct ProtocolTests {
             (#"{"type":"transcript","text":"What is the capital of Japan?"}"#, .transcript("What is the capital of Japan?")),
             (#"{"type":"reply","text":"Line one.\nLine two."}"#, .reply("Line one.\nLine two.")),
             (#"{"type":"turn.complete","speechMs":1840,"transcriptionMs":560,"modelMs":1420,"firstSoundMs":910,"requestId":"r1"}"#,
-             .turnComplete(TurnTimings(speechMs: 1840, transcriptionMs: 560, modelMs: 1420, firstSoundMs: 910, requestId: "r1"))),
+             .turnComplete(TurnTimings(speechMs: 1840, transcriptionMs: 560, modelMs: 1420, firstSoundMs: 910))),
             (#"{"type":"turn.complete","speechMs":1,"transcriptionMs":2,"modelMs":3}"#,
-             .turnComplete(TurnTimings(speechMs: 1, transcriptionMs: 2, modelMs: 3, firstSoundMs: nil, requestId: nil))),
+             .turnComplete(TurnTimings(speechMs: 1, transcriptionMs: 2, modelMs: 3, firstSoundMs: nil))),
             (#"{"type":"notice","kind":"too_short","message":"Too short."}"#, .notice(kind: "too_short", message: "Too short.")),
             (#"{"type":"conversation.reset"}"#, .conversationReset),
             (#"{"type":"error","stage":"model","message":"quota","kind":"rate_limit","retryable":true}"#,
-             .error(RuntimeError(stage: "model", message: "quota", kind: "rate_limit", retryable: true))),
+             .error(RuntimeError(stage: "model", message: "quota", kind: "rate_limit"))),
             (#"{"type":"error","stage":"config","message":"ANTHROPIC_API_KEY is required"}"#,
-             .error(RuntimeError(stage: "config", message: "ANTHROPIC_API_KEY is required", kind: nil, retryable: nil))),
+             .error(RuntimeError(stage: "config", message: "ANTHROPIC_API_KEY is required", kind: nil))),
         ]
         for (line, expected) in cases {
             #expect(try decodeEvent(line) == expected, "\(line)")

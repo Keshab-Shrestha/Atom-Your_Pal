@@ -115,10 +115,6 @@ public struct ThemePalette: Sendable, Equatable {
     public var problem: RGBA
     public var success: RGBA
 
-    /// The user's own message in the conversation.
-    public var userBubble: RGBA
-    public var onUserBubble: RGBA
-
     /// Concentric corner radii: the surface, a card inside it, a control inside a card.
     public var radiusSurface: CGFloat
     public var radiusCard: CGFloat
@@ -181,7 +177,6 @@ public struct ThemePalette: Sendable, Equatable {
         live: RGBA(hex: 0x70B8FF),
         attention: RGBA(hex: 0xFFCA16), onAttention: RGBA(hex: 0x000000),
         problem: RGBA(hex: 0xFF9592), success: RGBA(hex: 0x3AD389),
-        userBubble: .white(0), onUserBubble: RGBA(hex: 0xA1A4A5),
         radiusSurface: 24, radiusCard: 16, radiusControl: 6,
         surfaceStyle: .flat, buttonStyle: .ghost, usesGlow: false, usesShadows: false, monoIdentifiers: true,
         statusDots: true, borderHover: RGBA(hex: 0x6E727A), identifier: RGBA(hex: 0xBAA7FF), cornerGap: 8)
@@ -198,7 +193,6 @@ public struct ThemePalette: Sendable, Equatable {
         live: RGBA(hex: 0x8FD3FF),
         attention: RGBA(hex: 0xFFC069), onAttention: RGBA(hex: 0x2B1A00),
         problem: RGBA(hex: 0xFF8A7A), success: RGBA(hex: 0x8FD3FF),
-        userBubble: .white(0.055), onUserBubble: RGBA(hex: 0xA7B4CC),
         radiusSurface: 26, radiusCard: 14, radiusControl: 9,
         surfaceTop: RGBA(hex: 0x161F3A), glow: RGBA(hex: 0x8FD3FF))
 
@@ -214,7 +208,6 @@ public struct ThemePalette: Sendable, Equatable {
         live: RGBA(hex: 0x1F6FA8),
         attention: RGBA(hex: 0xA05E00), onAttention: .white(1),
         problem: RGBA(hex: 0xB42318), success: RGBA(hex: 0x1F6FA8),
-        userBubble: .ink(0x1B2A44, 0.05), onUserBubble: RGBA(hex: 0x4A5670),
         radiusSurface: 26, radiusCard: 14, radiusControl: 9,
         surfaceTop: RGBA(hex: 0xFAFCFE), glow: RGBA(hex: 0x8FD3FF, alpha: 0.9))
 
@@ -229,7 +222,6 @@ public struct ThemePalette: Sendable, Equatable {
         live: RGBA(hex: 0x5BD6E8),
         attention: RGBA(hex: 0xFFB547), onAttention: RGBA(hex: 0x2B1A00),
         problem: RGBA(hex: 0xFF8A65), success: RGBA(hex: 0x5FD38D),
-        userBubble: RGBA(hex: 0x5BD6E8, alpha: 0.18), onUserBubble: .white(0.95),
         radiusSurface: 18, radiusCard: 10, radiusControl: 6,
         glow: RGBA(hex: 0x5BD6E8, alpha: 0.5))
 
@@ -244,7 +236,6 @@ public struct ThemePalette: Sendable, Equatable {
         live: RGBA(hex: 0x6FE7FF),
         attention: RGBA(hex: 0xFFB86B), onAttention: RGBA(hex: 0x2A1600),
         problem: RGBA(hex: 0xFF7A6B), success: RGBA(hex: 0x62E6B4),
-        userBubble: RGBA(hex: 0x8EA2FF, alpha: 0.22), onUserBubble: .white(0.96),
         radiusSurface: 22, radiusCard: 12, radiusControl: 8,
         glow: RGBA(hex: 0x7EEBFF, alpha: 0.5))
 
@@ -259,6 +250,5 @@ public struct ThemePalette: Sendable, Equatable {
         live: RGBA(hex: 0x08776A),
         attention: RGBA(hex: 0x8F5600), onAttention: .white(1),
         problem: RGBA(hex: 0xB83F22), success: RGBA(hex: 0x167A53),
-        userBubble: RGBA(hex: 0xFF7A59, alpha: 0.14), onUserBubble: RGBA(hex: 0x1D1B18),
         radiusSurface: 22, radiusCard: 14, radiusControl: 10)
 }

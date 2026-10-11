@@ -2,16 +2,10 @@ import AppKit
 import SwiftUI
 import ZenoIslandCore
 
-/// The island window: borderless, on every Space and over full-screen apps. Compact, it never takes
-/// keyboard focus. Expanded, it can become key after a click (for the shortcut recorder) without
-/// activating ZENO, so the app you were using stays active (ADR-040).
+/// The island window: borderless, on every Space and over full-screen apps. It never takes keyboard focus,
+/// so the app you were using stays active (ADR-040).
 /// It is positioned by `IslandController`; it does not move itself.
 final class IslandPanel: NSPanel {
-    /// Set by the controller while expanded.
-    var acceptsKeyFocus = false
-    /// Called for Esc while the panel is key.
-    var onCancel: () -> Void = {}
-
     init() {
         super.init(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
         isFloatingPanel = true // must come before `level`: setting it resets the level to .floating
@@ -32,13 +26,11 @@ final class IslandPanel: NSPanel {
 
     static let islandLevel = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.mainMenuWindow)) + 2)
 
-    override var canBecomeKey: Bool { acceptsKeyFocus }
+    override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 
     /// The hidden position is past the left edge of the display; do not let AppKit pull it back on screen.
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
-
-    override func cancelOperation(_ sender: Any?) { onCancel() }
 }
 
 /// The island's content on dark glass: the compact card, or the expanded view after a click (ADR-038).
@@ -48,7 +40,6 @@ struct IslandView: View {
     /// which only the window server can draw.
     var snapshot = false
     static let cornerRadius: CGFloat = 16
-    static let expandedCornerRadius: CGFloat = 22
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {

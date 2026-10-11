@@ -20,7 +20,6 @@ struct LookOptionsTests {
         #expect(settings.palNap.seconds == 180)
         #expect(settings.bubbleStay == .seconds2)
         #expect(settings.bubbleOpacity.fill == 0.66)
-        #expect(settings.panelSize.size == IslandMetrics().expanded)
     }
 
     @Test func choicesSurviveARestart() {
@@ -28,11 +27,9 @@ struct LookOptionsTests {
         defer { UserDefaults().removePersistentDomain(forName: name) }
         settings.palSize = .huge
         settings.bubbleStay = .seconds8
-        settings.panelSize = .large
         let again = IslandSettings(defaults: defaults)
         #expect(again.palSize == .huge)
         #expect(again.bubbleStay == .seconds8)
-        #expect(again.panelSize == .large)
     }
 
     @Test func anUnknownStoredValueFallsBackToTheDefault() {
@@ -57,14 +54,11 @@ struct LookOptionsTests {
         func unique<C: SettingsChoice>(_: C.Type) -> Bool { Set(C.allCases.map(\.title)).count == C.allCases.count }
         #expect(unique(PalSize.self) && unique(PalWander.self) && unique(PalNap.self))
         #expect(unique(BubbleStay.self) && unique(BubbleSize.self) && unique(BubbleOpacity.self))
-        #expect(unique(PanelSize.self))
     }
 
     @Test func sizesAreOrdered() {
         let sizes = PalSize.allCases.map(\.points)
         #expect(sizes == sizes.sorted())
-        let panels = PanelSize.allCases.map(\.size.width)
-        #expect(panels == panels.sorted())
     }
 
     @Test func stayPutPalNeverFloatsOff() {

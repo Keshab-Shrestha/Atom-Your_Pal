@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { isLink, listSkills, prepareSkills } from "./skills.ts";
+import { listSkills, prepareSkills } from "./skills.ts";
 
 // Task 3.12: only the skills chosen for a worker are linked into its plugin.
 
@@ -32,7 +32,7 @@ test("a worker's plugin links exactly the chosen skills, and rebuilding drops th
   try {
     assert.deepEqual(prepareSkills(plugin, ["pdf", "council", "missing", "../etc"], dir).names, ["pdf", "council"]);
     assert.deepEqual(readdirSync(join(plugin, "skills")).sort(), ["council", "pdf"]);
-    assert.ok(isLink(join(plugin, "skills", "pdf")));
+    assert.ok(lstatSync(join(plugin, "skills", "pdf")).isSymbolicLink());
     assert.equal(JSON.parse(readFileSync(join(plugin, ".claude-plugin", "plugin.json"), "utf8")).name, "zeno-skills");
     prepareSkills(plugin, ["pdf"], dir);
     assert.deepEqual(readdirSync(join(plugin, "skills")), ["pdf"]);

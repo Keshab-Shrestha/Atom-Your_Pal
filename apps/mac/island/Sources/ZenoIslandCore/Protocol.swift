@@ -26,7 +26,7 @@ public enum IslandCommand: Sendable, Equatable {
     /// The user dropped Pal on a window to ask about it (ADR-074): its app, never the window's title.
     case contextWindow(bundleId: String, name: String)
     /// Helpers (ADR-081): ask for the list (and its changes from then on), give a helper its app (`""` for none),
-    /// give it a job, stop or forget a job, ask for a job's report.
+    /// give it a job, stop or forget a job.
     case helpersList
     /// ADR-091: whether ZENO says reports, and timers and updates, aloud.
     case speechSet(reports: Bool, updates: Bool)
@@ -78,7 +78,6 @@ public enum IslandCommand: Sendable, Equatable {
     case agentRemove(id: String)
     case grantRemove(helper: String, path: String)
     case jobDelete(id: Int)
-    case reportGet(id: Int)
     /// ADR-083: pin a helper to a model (`""` lets Laya choose again); allow or forbid the large model for jobs.
     case helperPin(helper: String, model: String)
     case helpersSettings(allowLarge: Bool)
@@ -142,7 +141,6 @@ public enum IslandCommand: Sendable, Equatable {
         case .agentRemove: "agent.remove"
         case .grantRemove: "grant.remove"
         case .jobDelete: "job.delete"
-        case .reportGet: "report.get"
         case .helperPin: "helper.pin"
         case .helpersSettings, .helpersPlanLimit: "helpers.settings"
         case .helperBudget: "helper.budget"
@@ -238,7 +236,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .helperPlanFirst(let helper, let on):
             fields["helper"] = helper
             fields["on"] = on // a real JSON boolean
-        case .jobStop(let id), .jobFresh(let id), .planApprove(let id), .planReject(let id), .routineDelete(let id), .jobDelete(let id), .reportGet(let id), .threadGet(let id):
+        case .jobStop(let id), .jobFresh(let id), .planApprove(let id), .planReject(let id), .routineDelete(let id), .jobDelete(let id), .threadGet(let id):
             fields["id"] = id // a JSON number
         case .helperPin(let helper, let model):
             fields["helper"] = helper
@@ -431,7 +429,6 @@ public struct TurnTimings: Sendable, Equatable {
     public var transcriptionMs: Int
     public var modelMs: Int
     public var firstSoundMs: Int?
-    public var requestId: String?
 }
 
 /// Something ZENO will not do until the user says yes (ADR-054). Wording comes from the runtime and carries
@@ -456,7 +453,6 @@ public struct RuntimeError: Sendable, Equatable {
     /// Plain language, free of credentials.
     public var message: String
     public var kind: String?
-    public var retryable: Bool?
 }
 
 /// Events the runtime sends to the island.
@@ -504,8 +500,6 @@ public enum IslandEvent: Sendable, Equatable {
     /// ADR-091: ZENO's task branches; one branch's changes as a patch.
     case git([GitBranch])
     case gitDiff(GitDiff)
-    /// One job's report, after `report.get`.
-    case report(HelperReport)
     case thread(HelperThread)
     case error(RuntimeError)
     /// A newer runtime sent an event this island does not know; ignored for forward compatibility.
@@ -542,7 +536,6 @@ public enum IslandEvent: Sendable, Equatable {
         case .git: "git"
         case .gitDiff: "git.diff"
         case .chatOpened: "chat.opened"
-        case .report: "report"
         case .thread: "thread"
         case .error(let e): "error:\(e.stage)"
         case .unknown(let type): "unknown:\(type)"
@@ -603,8 +596,7 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
             speechMs: try f.int("speechMs"),
             transcriptionMs: try f.int("transcriptionMs"),
             modelMs: try f.int("modelMs"),
-            firstSoundMs: f.optionalInt("firstSoundMs"),
-            requestId: f.optionalString("requestId")))
+            firstSoundMs: f.optionalInt("firstSoundMs")))
     case "notice":
         return .notice(kind: try f.string("kind"), message: try f.string("message"))
     case "conversation.reset":
@@ -663,15 +655,11 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
                                     }))
     case "thread":
         return .thread(try f.thread())
-    case "report":
-        return .report(HelperReport(id: try f.int("id"), title: try f.string("title"), summary: try f.string("summary"),
-                                    body: try f.string("body"), sources: try f.sources()))
     case "error":
         return .error(RuntimeError(
             stage: try f.string("stage"),
             message: try f.string("message"),
-            kind: f.optionalString("kind"),
-            retryable: f.optionalBool("retryable")))
+            kind: f.optionalString("kind")))
     default:
         return .unknown(type: String(type.prefix(40)))
     }
@@ -1044,7 +1032,7 @@ private struct Fields {
         return iso.date(from: string)
     }
 
-    /// The `sources` of a `report` event. A source that is not an http(s) address is dropped: nothing else is opened.
+    /// The `sources` of a report. A source that is not an http(s) address is dropped: nothing else is opened.
     func sources() throws -> [ReportSource] {
         guard let value = values["sources"] else { throw ProtocolError.missingField(event: event, field: "sources") }
         let invalid = ProtocolError.invalidValue(event: event, field: "sources")

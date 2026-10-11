@@ -17,10 +17,25 @@ export function settingsPath(env: Record<string, string | undefined> = process.e
   return env.ZENO_ISLAND_SETTINGS?.trim() || DEFAULT_SETTINGS_PATH;
 }
 
-/** What is missing for a provider, as a clause: an API key to add, or for the plan provider the `claude` program to sign in. */
-export function missingKeyAdvice(_provider: keyof typeof PROVIDERS): string {
-  // ADR-092: the Claude plan is the only provider; what it needs is the signed-in `claude` program.
-  return "the signed-in `claude` program was not found (install Claude Code and run `claude auth login`)";
+/** ADR-093: for each provider's program, what is missing (a clause) and how to get it (an instruction). */
+const SIGN_IN: Record<keyof typeof PROVIDERS, { missing: string; todo: string }> = {
+  "claude-plan": {
+    missing: "the signed-in `claude` program was not found (install Claude Code and run `claude auth login`)",
+    todo: "Install Claude Code and run `claude auth login`",
+  },
+  codex: {
+    missing: "Codex was not found or is not signed in (run `codex login`)",
+    todo: "Install Codex and run `codex login`",
+  },
+  "gemini-cli": {
+    missing: "the Gemini CLI was not found or is not signed in (run `gemini` and sign in with Google)",
+    todo: "Install the Gemini CLI, run `gemini` and sign in with Google",
+  },
+};
+
+/** What is missing for a provider, as a clause: its program, found and signed in. */
+export function missingKeyAdvice(provider: keyof typeof PROVIDERS): string {
+  return SIGN_IN[provider].missing;
 }
 
 const shorten = (text: string) => (text.length > 40 ? `${text.slice(0, 40)}…` : text);
@@ -140,7 +155,7 @@ export function createModelSettings(options: ModelSettingsOptions): ModelSetting
       }
       const { name } = PROVIDERS[provider];
       const apiKey = keys[provider];
-      if (!apiKey) return { error: `Install Claude Code and run \`claude auth login\` to use ${name}, then restart ZENO.` };
+      if (!apiKey) return { error: `${SIGN_IN[provider].todo} to use ${name}, then restart ZENO.` };
       if (!offeredModels(provider, initial).some((m) => m.id === modelId)) {
         return { error: `"${shorten(modelId)}" is not a ${name} model ZENO offers. Choose one from the list.` };
       }

@@ -303,8 +303,6 @@ final class DictationController {
     private var followUp: Task<Void, Never>?
     /// The answer came without keys: if it turns out to be noise, end quietly rather than say "Hold the keys".
     private var quietIfNothing = false
-    /// True while the microphone is open for an answer to ZENO's question.
-    var isFollowingUp: Bool { followUp != nil }
 
     /// ZENO just asked something: listen for an answer without keys. Ends by itself when the user stops speaking
     /// (the answer is sent like Talk) or when nobody speaks within a few seconds (closed quietly, nothing sent).

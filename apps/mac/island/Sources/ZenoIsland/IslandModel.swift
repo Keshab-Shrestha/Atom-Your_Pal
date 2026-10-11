@@ -41,8 +41,6 @@ final class IslandModel {
     }
     /// Settings home has already cascaded in since the panel opened (ADR-084).
     @ObservationIgnored var settingsCascaded = false
-    /// The panel is fading out after being closed: it still draws the expanded view until it is gone.
-    var closing = false
     /// The panel's content at full size (ADR-084). False for the moment it opens, so it can grow in from the menu-bar
     /// icon, and while it closes. Set by the controller, inside the open and close animations.
     var presented = true
@@ -56,8 +54,8 @@ final class IslandModel {
     /// The Settings page open inside the Settings tab; nil shows the list of pages (ADR-057).
     var settingsPage: SettingsPage?
 
-    /// Draw the expanded view (open, or fading out).
-    var showsExpanded: Bool { expanded || closing }
+    /// Draw the expanded view.
+    var showsExpanded: Bool { expanded }
 
     let settings: IslandSettings
     let recorder: ShortcutRecorder

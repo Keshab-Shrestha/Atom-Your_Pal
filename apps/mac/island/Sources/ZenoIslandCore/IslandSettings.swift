@@ -26,7 +26,6 @@ public final class IslandSettings {
     static let bubbleStayKey = "zeno.bubble.stay"
     static let bubbleSizeKey = "zeno.bubble.size"
     static let bubbleOpacityKey = "zeno.bubble.opacity"
-    static let panelSizeKey = "zeno.panel.size"
     static let themeKey = "zeno.look.theme"
     /// Set once the ADR-084 move to Lantern has run, so a later choice of Quiet Native sticks.
     static let lanternMoveKey = "zeno.look.lanternDefault"
@@ -94,7 +93,6 @@ public final class IslandSettings {
     public var bubbleStay: BubbleStay { didSet { store(bubbleStay.rawValue, Self.bubbleStayKey) } }
     public var bubbleSize: BubbleSize { didSet { store(bubbleSize.rawValue, Self.bubbleSizeKey) } }
     public var bubbleOpacity: BubbleOpacity { didSet { store(bubbleOpacity.rawValue, Self.bubbleOpacityKey) } }
-    public var panelSize: PanelSize { didSet { store(panelSize.rawValue, Self.panelSizeKey) } }
     /// How ZENO's surfaces look (ADR-057). Default Void (ADR-086).
     public var theme: AppTheme { didSet { store(theme.rawValue, Self.themeKey) } }
 
@@ -166,7 +164,6 @@ public final class IslandSettings {
         bubbleStay = Self.choice(defaults, Self.bubbleStayKey, .seconds2)
         bubbleSize = Self.choice(defaults, Self.bubbleSizeKey, .normal)
         bubbleOpacity = Self.choice(defaults, Self.bubbleOpacityKey, .normal)
-        panelSize = Self.choice(defaults, Self.panelSizeKey, .normal)
         Self.moveToLanternOnce(defaults)
         Self.moveToVoidOnce(defaults)
         theme = Self.choice(defaults, Self.themeKey, .void)
@@ -291,7 +288,6 @@ public final class IslandSettings {
         palSize = .medium; palWander = .normal; palNap = .minutes3
         palReacts = true; palHomeDisplay = .main
         bubbleStay = .seconds2; bubbleSize = .normal; bubbleOpacity = .normal
-        panelSize = .normal
     }
 
     private func save(_ value: Bool, _ key: String) {

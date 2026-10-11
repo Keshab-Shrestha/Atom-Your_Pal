@@ -5,8 +5,6 @@ import { HelperError } from "./jobs.ts";
 // ADR-082, Task 3.11: folder grants and the checks every file tool and command passes, in code. A soul, a task or a
 // page can never widen them.
 
-/** Roles that work in granted folders (the coder, designer and documenter). */
-export const FILE_ROLES: readonly string[] = ["coder", "designer", "documenter"];
 export const MAX_GRANTS = 8;
 
 /** The real path of `p`, or of its nearest existing ancestor joined with the rest (for a file not written yet). */

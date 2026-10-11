@@ -163,7 +163,6 @@ struct HoldToTalkTests {
         kb.wait(0.5)
         kb.fired += kb.matcher.handle(.reset, at: kb.now)
         #expect(kb.fired == [.holdBegan(.talk), .holdCancelled(.talk)])
-        #expect(!kb.matcher.isHolding)
         kb.holdControlOption()
         kb.wait(0.5)
         #expect(kb.fired.last == .holdBegan(.talk))

@@ -162,7 +162,7 @@ test("an episode per session is updated in place; the oldest are pruned", () => 
   const store = openMemoryStore({ path: ":memory:", maxEpisodes: 2, now: clock() });
   store.saveEpisode("s1", "The user planned a trip.", 1);
   const updated = store.saveEpisode("s1", "The user planned a trip to Osaka in May.", 3);
-  assert.equal(store.episodeCount(), 1);
+  assert.equal(store.episodes().length, 1);
   assert.equal(updated.summary, "The user planned a trip to Osaka in May.");
   assert.equal(updated.exchanges, 3);
   store.saveEpisode("s2", "Second.", 1);
@@ -178,7 +178,7 @@ test("episodes and memories are deleted separately", () => {
   store.add("A fact.", voice);
   const e = store.saveEpisode("s1", "A conversation.", 1);
   store.clear();
-  assert.equal(store.episodeCount(), 1);
+  assert.equal(store.episodes().length, 1);
   assert.equal(store.removeEpisode(e.id), true);
   assert.equal(store.removeEpisode(e.id), false);
 });
@@ -234,7 +234,7 @@ test("recorder: a failing model is reported, never thrown; an empty session is s
   recorder.update("s1", convo(1));
   await recorder.idle();
   assert.equal(errors.length, 1);
-  assert.equal(store.episodeCount(), 0);
+  assert.equal(store.episodes().length, 0);
 });
 
 test("episode context: newest few, oldest first, never the current session", () => {

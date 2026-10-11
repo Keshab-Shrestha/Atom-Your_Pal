@@ -6,72 +6,74 @@ import Testing
 struct MenuPanelLayoutTests {
     // The Mac mini's main display: 1920 × 1080 points, menu bar 24 points tall (its bottom at y = 1056;
     // AppKit coordinates grow upward). ZENO's icon is centred at x = 1500.
-    let layout = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: 1500)
+    // A tall panel-sized card, so clamping to the display is tested at a real panel's size.
+    static let tall: IslandMetrics = { var m = IslandMetrics(); m.wide = CGSize(width: 380, height: 460); return m }()
+    let layout = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: 1500, metrics: Self.tall)
 
     @Test func thePanelHangsCentredUnderTheIcon() {
-        let frame = layout.frame(.expanded)
+        let frame = layout.frame(.wide)
         #expect(frame == CGRect(x: 1310, y: 590, width: 380, height: 460))
         #expect(frame.midX == 1500)
         #expect(frame.maxY == 1050) // 6 below the menu bar: never over it
     }
 
     @Test func theStatusCardHangsFromTheSamePlace() {
-        let compact = layout.frame(.compact), expanded = layout.frame(.expanded)
-        #expect(compact.midX == expanded.midX && compact.maxY == expanded.maxY)
+        let compact = layout.frame(.compact), wide = layout.frame(.wide)
+        #expect(compact.midX == wide.midX && compact.maxY == wide.maxY)
         #expect(compact.size == CGSize(width: 232, height: 52))
     }
 
     @Test func anIconNearTheRightEdgeKeepsThePanelOnTheDisplay() {
-        let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: 1900)
-        #expect(g.frame(.expanded).maxX == 1912)
+        let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: 1900, metrics: Self.tall)
+        #expect(g.frame(.wide).maxX == 1912)
     }
 
     @Test func anIconNearTheLeftEdgeKeepsThePanelOnTheDisplay() {
-        let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: 30)
-        #expect(g.frame(.expanded).minX == 8)
+        let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: 30, metrics: Self.tall)
+        #expect(g.frame(.wide).minX == 8)
     }
 
     @Test func anUnknownIconPlaceUsesTheTopRight() {
-        let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056)
-        #expect(g.frame(.expanded).maxX == 1912)
-        let nan = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: .nan)
-        #expect(nan.frame(.expanded) == g.frame(.expanded))
+        let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, metrics: Self.tall)
+        #expect(g.frame(.wide).maxX == 1912)
+        let nan = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: .nan, metrics: Self.tall)
+        #expect(nan.frame(.wide) == g.frame(.wide))
     }
 
     /// ADR-084: the panel grows out of the icon: from its centre, from under the icon when slid sideways, and from the
     /// top-right corner when the icon's place is unknown.
     @Test func thePanelOpensFromTheIcon() {
-        #expect(layout.openAnchorX(.expanded) == 0.5)
-        let right = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: 1900)
-        #expect(abs(right.openAnchorX(.expanded) - (1900 - 1532) / 380) < 0.0001)
-        #expect(MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056).openAnchorX(.expanded) == 1)
-        let edge = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: 1919)
+        #expect(layout.openAnchorX(.wide) == 0.5)
+        let right = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: 1900, metrics: Self.tall)
+        #expect(abs(right.openAnchorX(.wide) - (1900 - 1532) / 380) < 0.0001)
+        #expect(MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, metrics: Self.tall).openAnchorX(.wide) == 1)
+        let edge = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: 1919, metrics: Self.tall)
         #expect((0...1).contains(edge.openAnchorX(.compact)))
     }
 
     @Test func followsATallerMenuBar() {
         // A MacBook with a notch: the menu bar is 37 points tall.
-        let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1512, height: 982), menuBarBottom: 945, iconMidX: 1200)
-        #expect(g.frame(.expanded).maxY == 939)
+        let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1512, height: 982), menuBarBottom: 945, iconMidX: 1200, metrics: Self.tall)
+        #expect(g.frame(.wide).maxY == 939)
     }
 
     @Test func aHiddenMenuBarUsesTheTopOfTheDisplay() {
-        let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), iconMidX: 1500)
+        let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), iconMidX: 1500, metrics: Self.tall)
         #expect(g.menuBarBottom == 1080)
         #expect(g.frame(.compact).maxY == 1074)
     }
 
     @Test func followsADisplayThatIsNotAtTheOrigin() {
-        let g = MenuPanelLayout(screen: CGRect(x: 1920, y: 200, width: 2560, height: 1440), menuBarBottom: 1615, iconMidX: 4300)
-        let frame = g.frame(.expanded)
+        let g = MenuPanelLayout(screen: CGRect(x: 1920, y: 200, width: 2560, height: 1440), menuBarBottom: 1615, iconMidX: 4300, metrics: Self.tall)
+        let frame = g.frame(.wide)
         #expect(frame.maxX == 4472 && frame.maxY == 1609)
     }
 
     @Test func neverLargerThanASmallDisplay() {
-        let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 300, height: 400), menuBarBottom: 376, iconMidX: 200)
-        let expanded = g.frame(.expanded)
-        #expect(expanded.width == 284 && expanded.minX == 8)
-        #expect(expanded.height == 362 && expanded.minY == 8)
+        let g = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 300, height: 400), menuBarBottom: 376, iconMidX: 200, metrics: Self.tall)
+        let wide = g.frame(.wide)
+        #expect(wide.width == 284 && wide.minX == 8)
+        #expect(wide.height == 362 && wide.minY == 8)
     }
 }
 
@@ -107,7 +109,7 @@ struct IslandStatusTests {
         var status = IslandStatus()
         status.apply(ready)
         status.apply(.state(.thinking))
-        status.apply(.error(RuntimeError(stage: "model", message: "Gemini's daily free limit is used up. Try again after 16:00.", kind: "rate_limit", retryable: true)))
+        status.apply(.error(RuntimeError(stage: "model", message: "Gemini's daily free limit is used up. Try again after 16:00.", kind: "rate_limit")))
         #expect(status.kind == .problem && status.title == "Model limit reached")
         #expect(status.detail == "Gemini's daily free limit is used up")
         status.apply(.state(.idle))

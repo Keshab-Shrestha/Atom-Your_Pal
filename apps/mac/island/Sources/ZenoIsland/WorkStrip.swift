@@ -50,11 +50,6 @@ final class MenuBarIcon: NSObject {
         return (screen, window.frame.midX)
     }
 
-    /// The icon looks pressed while the panel is open, like other menu-bar items.
-    func setHighlighted(_ on: Bool) {
-        item.button?.highlight(on)
-    }
-
     func remove() {
         NSStatusBar.system.removeStatusItem(item)
     }

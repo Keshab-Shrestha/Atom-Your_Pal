@@ -85,9 +85,6 @@ public struct ShortcutMatcher: Sendable {
         pending.map { $0.since + delay(for: $0.action) }
     }
 
-    /// Whether a hold is in progress.
-    public var isHolding: Bool { activeModifierHold != nil || activeKeyHold != nil }
-
     /// Replaces the shortcuts. A hold in progress is cancelled if its shortcut changed.
     public mutating func setShortcuts(_ new: [ShortcutAction: KeyCombo]) -> [ShortcutTrigger] {
         var out: [ShortcutTrigger] = []

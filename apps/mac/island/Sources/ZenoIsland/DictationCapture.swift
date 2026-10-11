@@ -295,18 +295,4 @@ final class DictationCapture: @unchecked Sendable {
         let status = AudioObjectGetPropertyData(device, &address, 0, nil, &size, &asbd)
         return status == noErr && asbd.mSampleRate > 0 && asbd.mChannelsPerFrame > 0 ? asbd : nil
     }
-
-    /// The name of the default microphone, for the island and the log.
-    static func defaultInputName() -> String {
-        let id = defaultInputDevice()
-        guard id != 0 else { return "" }
-        var name: Unmanaged<CFString>?
-        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioDevicePropertyDeviceNameCFString,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain)
-        let status = AudioObjectGetPropertyData(id, &address, 0, nil, &size, &name)
-        return status == noErr ? (name?.takeRetainedValue() as String? ?? "") : ""
-    }
 }

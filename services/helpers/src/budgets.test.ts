@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_PLAN_LIMIT, DEFAULT_TEAM_CAP, DEFAULT_WORKER_CAP, holdFor, isNear, isOver, openHelperStore, startJobRunner, type HelperStore, type Job, type JobRun, type RunOutcome } from "./index.ts";
+import { DEFAULT_PLAN_LIMIT, DEFAULT_TEAM_CAP, DEFAULT_WORKER_CAP, holdFor, isOver, openHelperStore, startJobRunner, type HelperStore, type Job, type JobRun, type RunOutcome } from "./index.ts";
 
 // ADR-087, Task 3.7: budgets.
 
@@ -53,7 +53,7 @@ test("a runnable task is held when its worker's or the team's budget is used up,
   assert.equal(hold(a), undefined);
   store.setBudget("sid", 1);
   store.addSpend(a.id, 0.85);
-  assert.ok(isNear(store.budgets().workers.sid!) && !isOver(store.budgets().workers.sid!), "the warning at 80 %");
+  assert.ok(!isOver(store.budgets().workers.sid!), "not over at 85 %");
   store.addSpend(a.id, 0.15);
   assert.equal(hold(store.get(a.id)!), "Sid's daily budget ($1.00) is used up.");
   assert.equal(hold(store.get(waiting.id)!), undefined, "a task still waiting is not held: it waits anyway");

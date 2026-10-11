@@ -35,8 +35,6 @@ public struct SpeechEndpoint: Equatable, Sendable {
         self.startSeconds = startSeconds
     }
 
-    public var heardSpeech: Bool { speechStartedAt != nil }
-
     /// `elapsed`: seconds since the microphone opened; `rms`: loudness of the audio since the last update.
     public mutating func update(elapsed: Double, rms: Float) -> Decision {
         let loud = rms >= speechRMS

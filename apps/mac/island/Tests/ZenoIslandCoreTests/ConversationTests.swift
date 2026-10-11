@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Conversation")
 struct ConversationTests {
-    let timings = TurnTimings(speechMs: 1840, transcriptionMs: 560, modelMs: 1420, firstSoundMs: 910, requestId: "r1")
+    let timings = TurnTimings(speechMs: 1840, transcriptionMs: 560, modelMs: 1420, firstSoundMs: 910)
 
     func applying(_ events: [IslandEvent], to conversation: Conversation = Conversation()) -> Conversation {
         var c = conversation

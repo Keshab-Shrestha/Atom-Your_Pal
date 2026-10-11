@@ -45,9 +45,6 @@ public enum SettingsHome {
     ]
     /// The page the now card's "Change model" opens.
     public static let changeModel = SettingsPage.model
-
-    /// Every page reachable from home, in order: the card's link first, then the rows.
-    public static var reachable: [SettingsPage] { [changeModel] + groups.flatMap { $0 } }
 }
 
 /// What the "now" card says: everything the Status tab showed, in words, ready to draw. Built from the runtime's

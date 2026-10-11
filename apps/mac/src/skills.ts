@@ -2,7 +2,7 @@
 // builds a small local plugin per worker linking just those, and the run loads that plugin and nothing else (no user
 // settings). Skill content is data for the task; it can never widen a worker's tools.
 
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -59,6 +59,3 @@ export function prepareSkills(pluginDir: string, names: readonly string[], dir =
   }
   return { pluginDir, names: linked };
 }
-
-/** Whether a path is one of the plugin's links (for tests). */
-export const isLink = (p: string) => lstatSync(p).isSymbolicLink();

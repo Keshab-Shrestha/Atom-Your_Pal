@@ -3,8 +3,6 @@ import assert from "node:assert/strict";
 import type { IslandEvent } from "./island-protocol.ts";
 import { createComputerBridge, stepText } from "./computer-bridge.ts";
 
-const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
-
 function setup(over: { timeoutMs?: number } = {}) {
   const events: IslandEvent[] = [];
   let n = 0;

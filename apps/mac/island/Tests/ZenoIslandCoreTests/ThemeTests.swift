@@ -16,8 +16,6 @@ import Testing
         #expect(RGBA.contrast(p.onAccent, p.accent) >= 4.5, "label on accent")
         #expect(RGBA.contrast(p.onAccent, p.accentEnd) >= 4.5, "label on accent gradient end")
         #expect(RGBA.contrast(p.onAttention, p.attention) >= 4.5, "label on Allow")
-        let userBubble = p.userBubble.over(bg)
-        #expect(on(p.onUserBubble, userBubble) >= 4.5, "your message")
         // Coloured text on the surface: status lines, problems.
         #expect(on(p.problem, bg) >= 4.5, "problem text")
         #expect(on(p.success, bg) >= 4.5, "success text")

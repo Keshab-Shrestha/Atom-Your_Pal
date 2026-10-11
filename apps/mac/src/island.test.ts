@@ -13,7 +13,6 @@ import { runIsland, type IslandOptions } from "./island.ts";
 import { createModelSettings, writeSavedChoice } from "./model-settings.ts";
 import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
-import type { CoreLike } from "./voice-loop.ts";
 import { createComputerBridge } from "./computer-bridge.ts";
 import { BUILT_IN_KITS, HELPERS, openHelperStore, tieredModels } from "@zeno/helpers";
 import { islandHelpers } from "./island-helpers.ts";
@@ -170,7 +169,6 @@ test("a full turn over the wire: start, send, transcript, reply, spoken, complet
   assert.deepEqual(ev[5], { type: "reply", text: "reply to what is the capital of Japan" });
   const done = ev[7] as Extract<IslandEvent, { type: "turn.complete" }>;
   assert.equal(done.speechMs, 1500);
-  assert.equal(done.requestId, "req-1");
   assert.equal(typeof done.transcriptionMs, "number");
   assert.equal(typeof done.firstSoundMs, "number");
   assert.deepEqual(h.spoken, ["reply to what is the capital of Japan"]);
@@ -445,6 +443,9 @@ test("without the claude program, model.set says to install it and sign in", asy
   h.clear();
   await h.send({ type: "model.set", provider: "claude-plan", model: "claude-opus-5-5" });
   assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "Install Claude Code and run `claude auth login` to use Claude (my plan), then restart ZENO." }]);
+  h.clear();
+  await h.send({ type: "model.set", provider: "codex", model: "codex-default" });
+  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "Install Codex and run `codex login` to use Codex (my ChatGPT plan), then restart ZENO." }]);
 });
 
 test("a malformed model.set is a protocol error", async () => {
@@ -1114,31 +1115,7 @@ test("a job's model and reason are sent once chosen; models is empty when the pr
   assert.deepEqual([job.model, job.modelReason], ["claude-haiku-4-5-20251001", "Laya: trivial"]);
 });
 
-test("report.get sends the report; a job without one is an error with stage settings", async () => {
-  const { h, store } = helperHarness();
-  await tick(5);
-  const id = store.addJob("sid", "research networking").id;
-  store.start(id);
-  store.finish(id, {
-    title: "Networking",
-    summary: "The basics.",
-    body: "One.\n\nTwo.",
-    sources: [
-      { title: "MDN", url: "https://developer.mozilla.org/" },
-      { title: "Bad", url: "javascript:alert(1)" },
-    ],
-  });
-  const other = store.addJob("sid", "another").id;
-  h.clear();
-  await h.send({ type: "report.get", id }, { type: "report.get", id: other }, { type: "report.get", id: 999 });
-  assert.deepEqual(h.events(), [
-    { type: "report", id, title: "Networking", summary: "The basics.", body: "One.\n\nTwo.", sources: [{ title: "MDN", url: "https://developer.mozilla.org/" }] },
-    { type: "error", stage: "settings", message: "That job has no report." },
-    { type: "error", stage: "settings", message: "That job has no report." },
-  ]);
-});
-
-test("with helpers off: helpers.list and stop/delete answer an empty list; set, add and report are refused", async () => {
+test("with helpers off: helpers.list and stop/delete answer an empty list; set, add, pin and settings are refused", async () => {
   const h = islandHarness();
   await tick(5);
   h.clear();
@@ -1149,11 +1126,10 @@ test("with helpers off: helpers.list and stop/delete answer an empty list; set, 
   await h.send(
     { type: "helper.set", helper: "sid", app: "Notes" },
     { type: "job.add", helper: "sid", task: "x" },
-    { type: "report.get", id: 1 },
     { type: "helper.pin", helper: "sid", model: "" },
     { type: "helpers.settings", allowLarge: false },
   );
-  assert.deepEqual(h.types(), ["error", "error", "error", "error", "error"]);
+  assert.deepEqual(h.types(), ["error", "error", "error", "error"]);
   for (const e of h.events()) assert.deepEqual(e, { type: "error", stage: "settings", message: "Helpers are off: their file could not be opened." });
 });
 

@@ -10,7 +10,7 @@ import Testing
 
     /// Every Settings page opens from home exactly once: AI model from "Change model", the rest from rows.
     @Test func everySettingsPageIsReachableFromHome() {
-        let reachable = SettingsHome.reachable
+        let reachable = [SettingsHome.changeModel] + SettingsHome.groups.flatMap { $0 }
         #expect(Set(reachable) == Set(SettingsPage.allCases))
         #expect(reachable.count == SettingsPage.allCases.count)
         #expect(SettingsHome.changeModel == .model)
@@ -65,6 +65,6 @@ import Testing
         let facts = NowFacts(status: status, info: nil, usage: nil)
         #expect(facts.lastTurn == "AI reply in 1.3 s")
         #expect(facts.timings.map(\.title) == ["You spoke", "Transcribing", "AI reply"])
-        #expect(NowFacts.summary(TurnTimings(speechMs: 1, transcriptionMs: 600, modelMs: 1800, firstSoundMs: nil, requestId: nil)) == "heard 0.6 s · AI 1.8 s")
+        #expect(NowFacts.summary(TurnTimings(speechMs: 1, transcriptionMs: 600, modelMs: 1800, firstSoundMs: nil)) == "heard 0.6 s · AI 1.8 s")
     }
 }

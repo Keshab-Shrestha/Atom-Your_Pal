@@ -20,7 +20,7 @@ public struct IslandMetrics: Sendable, Equatable {
 /// slid sideways when that would cross the display's edge. AppKit coordinates: origin at the bottom left, y up.
 public struct MenuPanelLayout: Sendable, Equatable {
     public enum Presentation: Sendable, Equatable {
-        case compact, wide, expanded
+        case compact, wide
     }
 
     /// The full frame of the display the icon is on.
@@ -44,7 +44,6 @@ public struct MenuPanelLayout: Sendable, Equatable {
         switch presentation {
         case .compact: base = metrics.compact
         case .wide: base = metrics.wide
-        case .expanded: base = metrics.expanded
         }
         let room = CGSize(width: screen.width - 2 * metrics.screenMargin,
                           height: menuBarBottom - metrics.topGap - screen.minY - metrics.screenMargin)

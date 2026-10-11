@@ -25,7 +25,6 @@ struct FollowUpTests {
         var e = SpeechEndpoint()
         let (d, _) = run(&e, [0.002, 0.2] + Array(repeating: 0.002, count: 70))
         #expect(d == .giveUp)
-        #expect(!e.heardSpeech)
     }
 
     @Test func finishesAfterSpeechThenQuiet() {
@@ -33,7 +32,6 @@ struct FollowUpTests {
         let speech: [Float] = Array(repeating: 0.05, count: 12) + [0.004, 0.05, 0.05] // a short pause does not end it
         let (d, t) = run(&e, Array(repeating: 0.002, count: 5) + speech + Array(repeating: 0.002, count: 20))
         #expect(d == .finish)
-        #expect(e.heardSpeech)
         #expect(t > 2.9 && t < 3.15) // quiet from 2.1 s, plus 0.9 s (one tick of float slack)
     }
 

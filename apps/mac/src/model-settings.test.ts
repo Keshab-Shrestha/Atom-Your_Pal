@@ -103,6 +103,17 @@ test("without the claude program it says to install it and sign in, not to add a
   assert.equal(h.built.length, 0);
 });
 
+test("Codex and the Gemini CLI each name their own program to install and sign in to (ADR-093)", () => {
+  const h = settingsHarness({ keys: {} });
+  const codex = h.settings.setModel("codex", "codex-default");
+  const gemini = h.settings.setModel("gemini-cli", "gemini-default");
+  assert.deepEqual([codex, gemini], [
+    { error: "Install Codex and run `codex login` to use Codex (my ChatGPT plan), then restart ZENO." },
+    { error: "Install the Gemini CLI, run `gemini` and sign in with Google to use Gemini CLI (my Google sign-in), then restart ZENO." },
+  ]);
+  assert.equal(h.built.length, 0);
+});
+
 test("a failed save still switches and is logged as a warning", () => {
   const h = settingsHarness({
     save: () => {
@@ -140,6 +151,8 @@ test("an unusable settings file is ignored with a warning, never an exception", 
     ['{"llm":{"provider":"gemini","model":"gemini-3.6-flash"}}', PLAN, /chooses gemini, which ZENO no longer uses/],
     ['{"llm":{"provider":"claude","model":"claude-opus-5-5"}}', PLAN, /chooses claude, which ZENO no longer uses/],
     ['{"llm":{"provider":"claude-plan","model":"claude-sonnet-5-5"}}', {}, /claude auth login/],
+    ['{"llm":{"provider":"codex","model":"codex-default"}}', {}, /but Codex was not found or is not signed in \(run `codex login`\)/],
+    ['{"llm":{"provider":"gemini-cli","model":"gemini-default"}}', {}, /but the Gemini CLI was not found or is not signed in \(run `gemini` and sign in with Google\)/],
   ];
   cases.forEach(([content, keys, expected], i) => {
     const path = join(dir, `island-${i}.json`);

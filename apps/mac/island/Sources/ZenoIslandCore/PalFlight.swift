@@ -9,8 +9,6 @@ public struct PalFlight: Sendable, Equatable {
     /// How high the control point sits above the midpoint, as a share of the distance, and its cap in points.
     public static let arcShare: CGFloat = 0.25
     public static let maxArc: CGFloat = 160
-    /// The most Pal leans while flying, in radians (clockwise when heading right).
-    public static let maxLean = 0.15
     /// Shorter than this, there is nowhere to fly.
     static let minDistance: CGFloat = 0.5
 
@@ -47,22 +45,6 @@ public struct PalFlight: Sendable, Equatable {
         let s = CGFloat(Self.smoothstep(progress(at: time)))
         let a = (1 - s) * (1 - s), b = 2 * (1 - s) * s, c = s * s
         return CGPoint(x: a * start.x + b * control.x + c * end.x, y: a * start.y + b * control.y + c * end.y)
-    }
-
-    /// The direction of travel along the curve at `time`, in radians (atan2, y up): positive while rising.
-    public func tangentAngle(at time: Double) -> Double {
-        let s = CGFloat(Self.smoothstep(progress(at: time)))
-        let dx = 2 * (1 - s) * (control.x - start.x) + 2 * s * (end.x - control.x)
-        let dy = 2 * (1 - s) * (control.y - start.y) + 2 * s * (end.y - control.y)
-        return Double(atan2(dy, dx))
-    }
-
-    /// How far Pal leans into its flight at `time`, in radians clockwise: forward with the horizontal part of the
-    /// tangent, scaled by how fast it is going, so it is upright at lift-off and on landing.
-    public func lean(at time: Double) -> Double {
-        if isDone(at: time) { return 0 }
-        let u = progress(at: time)
-        return Self.maxLean * cos(tangentAngle(at: time)) * 4 * u * (1 - u)
     }
 
     private func progress(at time: Double) -> Double {

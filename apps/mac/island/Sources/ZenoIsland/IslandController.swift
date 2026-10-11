@@ -100,10 +100,8 @@ final class IslandController {
         model.permissionButton = { [weak self] row in self?.permissionButton(row) }
         model.replayTour = { [weak self] in self?.replayTour() }
         model.openHelpers = { [weak self] in
-            self?.setExpanded(false) // the panel floats above every window
             self?.helpersWindow.show(page: .agents)
         }
-        panel.onCancel = { [weak self] in self?.setExpanded(false) }
         menuIcon.onClick = { [weak self] in self?.toggleWindow() }
         menuIcon.isPalShown = { [weak model] in model?.settings.petEnabled ?? false }
         menuIcon.onShowPal = { [weak model] enabled in model?.setPet(enabled) }
@@ -143,10 +141,6 @@ final class IslandController {
             helpersWindow.show(page: .agents)
             if let task { model.sendHelpers(model.helpers.openThread(task)) }
         }
-        // A click in another app closes the panel.
-        if let outside = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown], handler: { [weak self] _ in
-            MainActor.assumeIsolated { self?.clickedOutside() }
-        }) { monitors.append(outside) }
         // While a shortcut is being recorded, its keys go to the recorder and nowhere else.
         // Local monitors run on the main thread, so the event never leaves it.
         if let keys = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp, .flagsChanged], handler: { [weak self] event in
@@ -503,7 +497,7 @@ final class IslandController {
     /// Pal's bubble: only when the status needs words (a problem, a notice, a question), never while it points or
     /// while the strip is up.
     private func updateBubble() {
-        let wanted = pet.isShown && !model.expanded && !workTurn && model.pointing.target == nil && statusWanted && model.status.needsBubble
+        let wanted = pet.isShown && !workTurn && model.pointing.target == nil && statusWanted && model.status.needsBubble
         if wanted {
             if !bubble.isVisible { trace("bubble show") }
             bubble.show(at: pet.feetPoint)
@@ -514,9 +508,8 @@ final class IslandController {
         }
     }
 
-    /// The panel window: open (expanded), the status card (Pal off, a turn running), or off screen.
+    /// The panel window: the status card (Pal off, a turn running), or off screen.
     private func wantedPresentation() -> MenuPanelLayout.Presentation? {
-        if model.expanded { return .expanded }
         guard !pet.isShown, !workTurn, statusWanted else { return nil }
         let wide = model.status.kind == .listening && model.settings.livePreview && dictating
         return wide ? .wide : .compact
@@ -571,7 +564,6 @@ final class IslandController {
                     guard let self, generation == self.panelGeneration else { return }
                     self.panel.orderOut(nil)
                     self.panel.alphaValue = 1
-                    self.model.closing = false
                     self.model.status.acknowledge()
                     self.model.meter.reset()
                 }
@@ -728,22 +720,7 @@ final class IslandController {
         // drop-down panel stays closed (the island shows its compact card).
         if expanded {
             helpersWindow.show(page: model.tab == .settings ? .settings : .chat)
-            return
         }
-        guard expanded != model.expanded else { return }
-        trace(expanded ? "expand" : "collapse")
-        if !expanded {
-            model.recorder.stop()
-            panel.resignKey()
-        }
-        model.expanded = expanded
-        if expanded { model.permissions.refresh() } // the first-launch card shows what is still missing
-        panel.acceptsKeyFocus = expanded
-        menuIcon.setHighlighted(expanded)
-        // Closing to nothing: keep drawing the expanded view while it fades.
-        model.closing = !expanded && wantedPresentation() == nil
-        refresh()
-        if expanded { panel.makeKey() } // key, without activating ZENO: the app you were in stays active
     }
 
     /// A press on Pal that was not a drag: opens the panel under the icon, or closes it (ADR-051, ADR-056).
@@ -754,12 +731,6 @@ final class IslandController {
         case .close: setExpanded(false)
         case .none: break
         }
-    }
-
-    private func clickedOutside() {
-        guard model.expanded else { return }
-        // Global monitors only see clicks in other apps, so this was not on the panel, the icon or Pal.
-        setExpanded(false)
     }
 
     // MARK: - Setup and errors (ADR-075)
@@ -861,7 +832,7 @@ final class IslandController {
 
     private func replayTour() {
         guard pet.isShown, !tour.isRunning else { return }
-        setExpanded(false)
+        pet.poke()
         log("tour.replay", [:])
         schedule([(0.4, { [self] in if !tour.isRunning, pet.isShown { runTourStep(tour.start()) } })])
     }
@@ -929,8 +900,7 @@ final class IslandController {
 
     /// The panel hangs from the icon; if the icon's place is unknown, from the top-right of the main display.
     private func layout() -> MenuPanelLayout {
-        var metrics = IslandMetrics()
-        metrics.expanded = model.settings.panelSize.size
+        let metrics = IslandMetrics()
         if let anchor = menuIcon.anchor {
             return MenuPanelLayout(screen: anchor.screen.frame, menuBarBottom: Self.menuBarBottom(of: anchor.screen), iconMidX: anchor.midX, metrics: metrics)
         }
@@ -1085,7 +1055,7 @@ final class IslandController {
     /// be measured, then puts the user's own values back.
     private func playLookDemo() {
         let settings = model.settings
-        let saved = (settings.palSize, settings.bubbleSize, settings.bubbleOpacity, settings.panelSize, settings.bubbleStay)
+        let saved = (settings.palSize, settings.bubbleSize, settings.bubbleOpacity, settings.bubbleStay)
         func look(_ label: String) {
             trace("look \(label) | pal=\(Int(settings.palSize.points)) | panel frame=\(Int(panel.frame.width))x\(Int(panel.frame.height)) visible=\(panel.isVisible) expanded=\(model.expanded) | bubble=\(bubble.isVisible)")
         }
@@ -1099,14 +1069,8 @@ final class IslandController {
             (9, { [self] in dictationPhase(.cancelled) }),
             (10, { settings.palSize = .small; settings.bubbleSize = .normal }),
             (11, { look("pal small") }),
-            (12, { settings.panelSize = .large }),
-            (12.5, { [self] in setExpanded(true) }),
-            (14.5, { look("panel large") }),
-            (15, { settings.panelSize = .compact }),
-            (16.5, { look("panel compact while open") }),
-            (17, { [self] in setExpanded(false) }),
             (18.5, {
-                (settings.palSize, settings.bubbleSize, settings.bubbleOpacity, settings.panelSize, settings.bubbleStay) = saved
+                (settings.palSize, settings.bubbleSize, settings.bubbleOpacity, settings.bubbleStay) = saved
                 look("restored")
             }),
         ])

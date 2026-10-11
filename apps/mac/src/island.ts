@@ -17,7 +17,6 @@ import {
   type HelperItem,
   type ModelItem,
   type MemoryItem,
-  type ReportEvent,
   type SoulItem,
   type ThreadEvent,
   type PaperclipItem,
@@ -187,7 +186,6 @@ export interface IslandHelpers {
   models(): ModelItem[];
   stop(id: number): boolean;
   remove(id: number): boolean;
-  report(id: number): Omit<ReportEvent, "type"> | undefined;
   /** Called after every change to helpers or jobs. Returns an unsubscribe. */
   onChange(listener: () => void): () => void;
 }
@@ -247,7 +245,6 @@ export function runIsland(options: IslandOptions): IslandSession {
           transcriptionMs: t.transcription,
           modelMs: t.model,
           firstSoundMs: t.firstSound,
-          requestId: t.requestId,
         }),
       onNotice: (notice) => send({ type: "notice", kind: notice.kind, message: islandNoticeText(notice) }),
       onError: (stage, error) => send({ type: "error", stage, message: describe(error), ...errorDetails(error) }),
@@ -525,12 +522,6 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "soul.restore":
         changeHelpers(command.type, (helpers) => helpers.restoreSoul(command.helper, command.version));
         return;
-      case "report.get": {
-        const report = options.helpers?.report(command.id);
-        if (report) send({ type: "report", ...report });
-        else refuseHelpers(command.type, options.helpers ? "That job has no report." : HELPERS_OFF);
-        return;
-      }
       case "quit":
         quit();
         return;

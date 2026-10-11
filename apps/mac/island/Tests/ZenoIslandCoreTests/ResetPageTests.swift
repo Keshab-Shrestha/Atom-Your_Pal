@@ -13,7 +13,6 @@ struct ResetPageTests {
         IslandSettings.palSizeKey, IslandSettings.palWanderKey, IslandSettings.palNapKey,
         IslandSettings.palReactsKey, IslandSettings.palHomeDisplayKey,
         IslandSettings.bubbleSizeKey, IslandSettings.bubbleOpacityKey, IslandSettings.bubbleStayKey,
-        IslandSettings.panelSizeKey,
     ]
     static var shortcutKeys: Set<String> { Set(ShortcutAction.allCases.map { IslandSettings.shortcutKey($0) }) }
 
@@ -29,7 +28,6 @@ struct ResetPageTests {
         s.palSize = other(s.palSize); s.palWander = other(s.palWander); s.palNap = other(s.palNap)
         s.palReacts.toggle(); s.palHomeDisplay = .display(uuid: "SIDE")
         s.bubbleSize = other(s.bubbleSize); s.bubbleOpacity = other(s.bubbleOpacity); s.bubbleStay = other(s.bubbleStay)
-        s.panelSize = other(s.panelSize)
         s.petEnabled.toggle(); s.soundsEnabled.toggle(); s.followUpEnabled.toggle(); s.tourDone.toggle()
         s.petSpot = PetSpot(x: 10, y: 20)
         for action in ShortcutAction.allCases { s.setShortcut(nil, for: action) }
@@ -70,7 +68,6 @@ struct ResetPageTests {
         #expect(s.palSize == fresh.palSize && s.palWander == fresh.palWander && s.palNap == fresh.palNap)
         #expect(s.palReacts == fresh.palReacts && s.palHomeDisplay == fresh.palHomeDisplay)
         #expect(s.bubbleSize == fresh.bubbleSize && s.bubbleOpacity == fresh.bubbleOpacity && s.bubbleStay == fresh.bubbleStay)
-        #expect(s.panelSize == fresh.panelSize)
         // Show Pal and where it is parked are left alone.
         #expect(s.petEnabled != fresh.petEnabled && s.petSpot != nil)
     }

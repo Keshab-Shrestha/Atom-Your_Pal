@@ -11,14 +11,13 @@ struct HelpersProtocolTests {
         return try #require(try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any])
     }
 
-    @Test func encodesTheSixCommands() throws {
+    @Test func encodesTheFiveCommands() throws {
         #expect(IslandCommand.helpersList.line == #"{"type":"helpers.list"}"# + "\n")
         #expect(IslandCommand.helperSet(helper: "sid", app: "Brave Browser").line
             == #"{"app":"Brave Browser","helper":"sid","type":"helper.set"}"# + "\n")
         #expect(IslandCommand.helperSet(helper: "sid", app: "").line == #"{"app":"","helper":"sid","type":"helper.set"}"# + "\n")
         #expect(IslandCommand.jobStop(id: 12).line == #"{"id":12,"type":"job.stop"}"# + "\n") // a number, not "12"
         #expect(IslandCommand.jobDelete(id: 12).line == #"{"id":12,"type":"job.delete"}"# + "\n")
-        #expect(IslandCommand.reportGet(id: 3).line == #"{"id":3,"type":"report.get"}"# + "\n")
         let task = "research \"IPv6\"\\ \n → नेपाल 🎙 / {}"
         let add = try fields(.jobAdd(helper: "sid", task: task))
         #expect(add["type"] as? String == "job.add" && add["helper"] as? String == "sid" && add["task"] as? String == task)
@@ -76,30 +75,6 @@ struct HelpersProtocolTests {
              .invalidValue(event: "helpers", field: "helpers")), // id as text
             (#"{"type":"helpers","helpers":[{\#(helper),"jobs":[{"id":1,"task":"t","state":"done"}]}],"apps":[]}"#,
              .invalidValue(event: "helpers", field: "helpers")), // no createdAt
-        ]
-        for (line, expected) in cases {
-            #expect(throws: expected, "\(line)") { try decodeEvent(line) }
-        }
-    }
-
-    @Test func decodesAReportKeepingOnlyWebSources() throws {
-        let line = #"{"type":"report","id":1,"title":"Networking basics","summary":"How packets travel.","body":"First.\n\nSecond.\n\n\n","sources":[{"title":"RFC 791","url":"https://www.rfc-editor.org/rfc/rfc791"},{"title":"Old","url":"http://example.com/a"},{"title":"Script","url":"javascript:alert(1)"},{"title":"File","url":"file:///etc/passwd"}]}"#
-        guard case .report(let report) = try decodeEvent(line) else { Issue.record("not a report"); return }
-        #expect(report.id == 1 && report.title == "Networking basics" && report.summary == "How packets travel.")
-        #expect(report.paragraphs == ["First.", "Second."])
-        #expect(report.sources.map(\.title) == ["RFC 791", "Old"])
-        #expect(report.sources[0].url.absoluteString == "https://www.rfc-editor.org/rfc/rfc791")
-    }
-
-    @Test func rejectsMalformedReports() {
-        let cases: [(String, ProtocolError)] = [
-            (#"{"type":"report","title":"t","summary":"s","body":"b","sources":[]}"#, .missingField(event: "report", field: "id")),
-            (#"{"type":"report","id":1,"title":"t","summary":"s","sources":[]}"#, .missingField(event: "report", field: "body")),
-            (#"{"type":"report","id":1,"title":"t","summary":"s","body":"b"}"#, .missingField(event: "report", field: "sources")),
-            (#"{"type":"report","id":1,"title":"t","summary":"s","body":"b","sources":"x"}"#, .invalidValue(event: "report", field: "sources")),
-            (#"{"type":"report","id":1,"title":"t","summary":"s","body":"b","sources":[{"title":"t"}]}"#,
-             .invalidValue(event: "report", field: "sources")),
-            (#"{"type":"report","id":true,"title":"t","summary":"s","body":"b","sources":[]}"#, .invalidValue(event: "report", field: "id")),
         ]
         for (line, expected) in cases {
             #expect(throws: expected, "\(line)") { try decodeEvent(line) }

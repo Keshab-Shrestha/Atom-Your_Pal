@@ -26,7 +26,6 @@ import {
   MAX_BLOCKERS,
   MAX_GOAL_TASKS,
   cleanSoul,
-  findHelper,
   isFinal,
   makesCycle,
   move,
@@ -47,7 +46,7 @@ export const CLOSED_WHILE_RUNNING = "ZENO was closed while this job ran";
 export const SOUL_VERSIONS_LISTED = 10;
 
 export type * from "./store-types.ts";
-import type { Activity, GoalReport, HelperChange, HelperStore, HelperStoreOptions, Job, Report, Source } from "./store-types.ts";
+import type { Activity, GoalReport, HelperChange, HelperStore, HelperStoreOptions, Job, Source } from "./store-types.ts";
 
 export { webSources } from "./store-schema.ts";
 

@@ -68,25 +68,5 @@ struct PalFlightTests {
         let f = PalFlight(from: start, to: start, at: 4)
         #expect(f.isDone(at: 4))
         #expect(f.position(at: 4) == start)
-        #expect(f.lean(at: 4) == 0)
-    }
-
-    @Test func theTangentClimbsThenDescends() {
-        let f = PalFlight(from: start, to: end, at: 0)
-        #expect(f.tangentAngle(at: 0.01) > 0) // rising
-        #expect(abs(f.tangentAngle(at: f.duration / 2)) < 0.001) // level at the top
-        #expect(f.tangentAngle(at: f.duration - 0.01) < 0) // coming down
-        let back = PalFlight(from: end, to: start, at: 0)
-        #expect(abs(abs(back.tangentAngle(at: back.duration / 2)) - .pi) < 0.001) // level, heading left
-    }
-
-    @Test func theLeanIsSmallFollowsTheDirectionAndFadesAtBothEnds() {
-        let right = PalFlight(from: start, to: end, at: 0)
-        let left = PalFlight(from: end, to: start, at: 0)
-        #expect(right.lean(at: right.duration / 2) > 0)
-        #expect(left.lean(at: left.duration / 2) < 0)
-        #expect(abs(right.lean(at: right.duration / 2)) <= PalFlight.maxLean + 0.0001)
-        #expect(right.lean(at: 0) == 0)
-        #expect(right.lean(at: right.duration) == 0)
     }
 }

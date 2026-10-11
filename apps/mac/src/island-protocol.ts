@@ -59,7 +59,6 @@ export type IslandCommand =
   | { type: "job.stop"; id: number }
   | { type: "job.fresh"; id: number }
   | { type: "job.delete"; id: number }
-  | { type: "report.get"; id: number }
   | { type: "helper.pin"; helper: string; model: string }
   | { type: "helpers.settings"; allowLarge?: boolean; planLimit?: number }
   | { type: "helper.budget"; helper: string; cap: number | null }
@@ -231,7 +230,6 @@ export interface PaperclipItem {
   status: string;
   createdAt: string;
   result?: string;
-  told?: boolean;
 }
 
 /** One model the Claude plan offers to worker jobs (ADR-083). */
@@ -314,7 +312,6 @@ export type IslandEvent =
       transcriptionMs: number;
       modelMs: number;
       firstSoundMs?: number;
-      requestId?: string;
     }
   | { type: "notice"; kind: NoticeKind; message: string }
   | { type: "conversation.reset" }
@@ -356,7 +353,6 @@ export type IslandEvent =
       /** Task 3.16: the tasks handed to Keshab's Paperclip; absent when the connection is off. */
       paperclip?: { issues: PaperclipItem[] };
     }
-  | ReportEvent
   | ThreadEvent
   /** Task 3.15: a line from the team (a goal done, a plan waiting), sent just before ZENO says it. */
   | { type: "worker.line"; line: string }
@@ -409,7 +405,6 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "job.stop",
   "job.fresh",
   "job.delete",
-  "report.get",
   "helper.pin",
   "helpers.settings",
   "helper.budget",
@@ -613,7 +608,7 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof id !== "string" || !/^[\w-]{1,100}$/.test(id)) return { error: `${type} needs the chat's "id".` };
     return { command: { type, id } };
   }
-  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "job.open" || type === "job.retry" || type === "mcp.remove" || type === "mcp.test" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "report.get" || type === "thread.get") {
+  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "job.open" || type === "job.retry" || type === "mcp.remove" || type === "mcp.test" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "thread.get") {
     const { id } = value as { id?: unknown };
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     return { command: { type, id } };

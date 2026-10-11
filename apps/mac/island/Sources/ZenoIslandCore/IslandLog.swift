@@ -3,7 +3,7 @@ import Foundation
 /// Appends operational events to ZENO's log (`logs/zeno.log`), in the same JSON-lines format as the
 /// runtime. Like the runtime, it records events and timings, never what was said or replied.
 public final class IslandLog: @unchecked Sendable {
-    public enum Level: String, Sendable { case debug, info, warn, error }
+    public enum Level: String, Sendable { case info, warn, error }
 
     private let url: URL?
     private let queue = DispatchQueue(label: "zeno.island.log")

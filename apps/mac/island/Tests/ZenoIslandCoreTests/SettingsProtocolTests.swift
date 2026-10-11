@@ -131,7 +131,7 @@ struct IslandStatusDetailTests {
         var status = IslandStatus()
         status.apply(ready)
         let message = "Gemini's daily free limit is used up. Try again after 16:00, or switch to Claude in Settings."
-        status.apply(.error(RuntimeError(stage: "model", message: message, kind: "rate_limit", retryable: true)))
+        status.apply(.error(RuntimeError(stage: "model", message: message, kind: "rate_limit")))
         #expect(status.lastProblem == IslandStatus.Problem(title: "Model limit reached", message: message))
         status.acknowledge()
         status.apply(.state(.listening))
@@ -143,8 +143,8 @@ struct IslandStatusDetailTests {
 
     @Test func keepsTheLastTimings() {
         var status = IslandStatus()
-        let first = TurnTimings(speechMs: 1, transcriptionMs: 2, modelMs: 3, firstSoundMs: 4, requestId: "r1")
-        let second = TurnTimings(speechMs: 5, transcriptionMs: 6, modelMs: 7, firstSoundMs: nil, requestId: nil)
+        let first = TurnTimings(speechMs: 1, transcriptionMs: 2, modelMs: 3, firstSoundMs: 4)
+        let second = TurnTimings(speechMs: 5, transcriptionMs: 6, modelMs: 7, firstSoundMs: nil)
         status.apply(.turnComplete(first))
         #expect(status.lastTimings == first)
         status.apply(.turnComplete(second))

@@ -123,23 +123,3 @@ public enum BubbleOpacity: Int, SettingsChoice {
         }
     }
 }
-
-/// The features panel's size.
-public enum PanelSize: Int, SettingsChoice {
-    case compact = 0, normal, large
-
-    public var size: CGSize {
-        switch self {
-        case .compact: CGSize(width: 340, height: 400)
-        case .normal: CGSize(width: 380, height: 460)
-        case .large: CGSize(width: 440, height: 580)
-        }
-    }
-    public var title: String {
-        switch self {
-        case .compact: "Small"
-        case .normal: "Medium"
-        case .large: "Large"
-        }
-    }
-}

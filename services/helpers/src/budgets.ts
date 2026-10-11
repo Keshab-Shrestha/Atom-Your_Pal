@@ -9,8 +9,6 @@ export const DEFAULT_WORKER_CAP = 5;
 export const DEFAULT_TEAM_CAP = 15;
 /** New runs wait while the plan's five-hour window is used above this (percent). */
 export const DEFAULT_PLAN_LIMIT = 80;
-/** The share of a cap at which the window warns. */
-export const BUDGET_WARNING = 0.8;
 /** The highest cap the window offers, and the range of the plan limit. */
 export const MAX_CAP = 1000;
 export const PLAN_LIMIT_RANGE = [10, 100] as const;
@@ -29,7 +27,6 @@ export interface Budgets {
 }
 
 export const isOver = (b: Budget) => b.cap !== null && b.spent >= b.cap;
-export const isNear = (b: Budget) => b.cap !== null && !isOver(b) && b.spent >= b.cap * BUDGET_WARNING;
 
 export const dollars = (n: number) => `$${n.toFixed(2)}`;
 
