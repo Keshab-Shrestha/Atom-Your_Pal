@@ -1,6 +1,6 @@
 // ADR-081: the helper store as the island sees it (wire shapes, ISO dates, sorted app names).
 
-import { HelperError, describeSchedule, type HelperStore, type Job, type PlanModel } from "@zeno/helpers";
+import { HelperError, describeSchedule, describeWake, nextDue, type HelperStore, type Job, type PlanModel } from "@zeno/helpers";
 import type { IslandHelpers } from "./island.ts";
 import type { JobItem, SkillDraftItem, SkillEditItem } from "./island-protocol.ts";
 
@@ -62,10 +62,12 @@ export function islandHelpers(
   held: (job: Job) => string | undefined = () => undefined,
   /** Task 3.12, ADR-094: the skills to choose from, Keshab's and ZENO's (default: none, for tests). */
   skills: () => { name: string; description: string; source?: "yours" | "zeno" }[] = () => [],
+  /** ADR-094: the clock for routines' next times (tests pass their own). */
+  now: () => Date = () => new Date(),
 ): IslandHelpers {
   return {
     list: () =>
-      store.list().map((h) => ({
+      store.list().map(({ wakeUp, ...h }) => ({
         ...h,
         soulVersions: h.soulVersions.map((v) => ({ version: v.version, createdAt: v.createdAt.toISOString() })),
         routines: h.routines.map((r) => ({
@@ -74,7 +76,19 @@ export function islandHelpers(
           when: describeSchedule(r.schedule),
           ...(r.lastAt ? { lastAt: r.lastAt.toISOString() } : {}),
           ...(r.lastSkipped ? { lastSkipped: true } : {}),
+          ...(r.paused ? { paused: true } : { nextAt: nextDue(r.schedule, r.createdAt, now()).toISOString() }),
         })),
+        ...(wakeUp
+          ? {
+              wakeUp: {
+                every: wakeUp.every,
+                when: describeWake(wakeUp.every),
+                ...(wakeUp.paused ? { paused: true } : {}),
+                ...(wakeUp.lastAt ? { lastAt: wakeUp.lastAt.toISOString() } : {}),
+                nextAt: wakeUp.nextAt.toISOString(),
+              },
+            }
+          : {}),
         proposals: h.proposals.map((p) => ({ id: p.id, field: p.field, text: p.text, reason: p.reason, jobId: p.jobId, state: p.state, createdAt: p.createdAt.toISOString() })),
         jobs: h.jobs.map((job) => toJobItem(job, held(job))),
       })),
@@ -92,6 +106,12 @@ export function islandHelpers(
     rejectPlan: (id) => store.rejectPlan(id),
     setPlanFirst: (helper, on) => store.setPlanFirst(helper, on),
     removeRoutine: (id) => store.removeRoutine(id),
+    pauseRoutine: (id, paused) => store.pauseRoutine(id, paused),
+    teamTasks: () => store.teamTasks().map((t) => ({ id: t.id, task: t.task, ...(t.role ? { role: t.role } : {}), createdAt: t.createdAt.toISOString() })),
+    addTeamTask: (task, role) => void store.addTeamTask(task, role ?? null),
+    removeTeamTask: (id) => store.removeTeamTask(id),
+    setWakeUp: (helper, every) => store.setWakeUp(helper, every === "off" ? null : every),
+    pauseWakeUp: (helper, paused) => store.pauseWakeUp(helper, paused),
     createAgent: (input) => void store.createAgent(input),
     removeAgent: (id) => store.removeAgent(id),
     agentProblems: () => store.agentProblems().map(({ id, problem }) => ({ id, problem })),

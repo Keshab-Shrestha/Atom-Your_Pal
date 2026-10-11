@@ -22,6 +22,7 @@ import {
   type PaperclipItem,
   type McpItem,
   type SkillDraftItem,
+  type TeamTaskItem,
   type SkillEditItem,
   type UsageItem,
   type ChatItem,
@@ -172,6 +173,15 @@ export interface IslandHelpers {
   removeGrant(helper: string, path: string): boolean;
   /** Task 3.9: removes a routine. False when there is none. */
   removeRoutine(id: number): boolean;
+  /** ADR-094: pauses or resumes a routine. Throws, with words for the user, for an unknown one. */
+  pauseRoutine(id: number, paused: boolean): void;
+  /** ADR-094: the team tasks waiting to be taken; post one (no role: anyone; throws with words for the user) or take one back. */
+  teamTasks(): TeamTaskItem[];
+  addTeamTask(task: string, role?: string): void;
+  removeTeamTask(id: number): boolean;
+  /** ADR-094: a worker's wake-ups ("off" turns them off), and pausing them. Throw, with words for the user. */
+  setWakeUp(helper: string, every: "off" | "15m" | "1h" | "4h" | "1d"): void;
+  pauseWakeUp(helper: string, paused: boolean): void;
   /** Changes what a queued task waits for (ADR-087). Throws, with words for the user, for a started task or a circle. */
   setBlockers(id: number, blockedBy: number[]): void;
   /** Adds Keshab's note to a task, which wakes it (Task 3.6). Throws, with words for the user, for an unknown task or an empty or long note. */
@@ -509,6 +519,22 @@ export function runIsland(options: IslandOptions): IslandSession {
         options.helpers?.removeRoutine(command.id); // unknown: ignored
         sendHelpers();
         return;
+      case "routine.pause":
+        changeHelpers(command.type, (helpers) => helpers.pauseRoutine(command.id, command.paused));
+        return;
+      case "team.add":
+        changeHelpers(command.type, (helpers) => helpers.addTeamTask(command.task, command.role));
+        return;
+      case "team.delete":
+        options.helpers?.removeTeamTask(command.id); // taken or gone: ignored
+        sendHelpers();
+        return;
+      case "helper.wakeUp":
+        changeHelpers(command.type, (helpers) => helpers.setWakeUp(command.helper, command.every));
+        return;
+      case "helper.wakeUp.pause":
+        changeHelpers(command.type, (helpers) => helpers.pauseWakeUp(command.helper, command.paused));
+        return;
       case "helper.planFirst":
         changeHelpers(command.type, (helpers) => helpers.setPlanFirst(command.helper, command.on));
         return;
@@ -570,7 +596,7 @@ export function runIsland(options: IslandOptions): IslandSession {
       helpersQueued = false;
       const helpers = options.helpers;
       const agentProblems = helpers?.agentProblems() ?? [];
-      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets(), skills: helpers.skills(), skillDrafts: helpers.skillDrafts(), skillEdits: helpers.skillEdits(), mcp: helpers.mcp(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}), ...(agentProblems.length ? { agentProblems } : {}) });
+      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets(), skills: helpers.skills(), skillDrafts: helpers.skillDrafts(), skillEdits: helpers.skillEdits(), mcp: helpers.mcp(), teamTasks: helpers.teamTasks(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}), ...(agentProblems.length ? { agentProblems } : {}) });
     });
   }
   function appNames(): Promise<string[]> {

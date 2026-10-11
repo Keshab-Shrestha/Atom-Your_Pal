@@ -49,6 +49,7 @@ import {
   chooseJobModel,
   createDelegateTool,
   createScheduleTool,
+  createTeamTaskTool,
   createWorkerShortcut,
   holdFor,
   followUpBrief,
@@ -76,6 +77,7 @@ import { askForFolder, denyRead, folderCheck } from "./folder-run.ts";
 import { commitWork, prepareWorkdir, type Workdir } from "./worktree.ts";
 import { SKILLS_PLUGIN, listSkills, prepareSkills, userSkillsDir } from "./skills.ts";
 import { runTinker } from "./tinker.ts";
+import { SCHEDULER_TICK_MS, scheduleTick } from "./scheduler.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { mcpCheck, sdkConfig, testMcpServer } from "./mcp-servers.ts";
 import { scanAiTools } from "./ai-tools.ts";
@@ -320,6 +322,8 @@ export function createRuntime(
     ...(helpers ? [createDelegateTool({ store: helpers, onDelegated: (e) => log.info("goal.delegated", e) })] : []),
     // Task 3.9: routines by voice in any wording. Logs the routine id and worker only.
     ...(helpers ? [createScheduleTool({ store: helpers, onScheduled: (e) => log.info("routine.scheduled", e) })] : []),
+    // ADR-094: work no single worker fits waits for whoever wakes. Logs the team task id only.
+    ...(helpers ? [createTeamTaskTool({ store: helpers, onPosted: (e) => log.info("team.posted", e) })] : []),
   ];
   const toolEngine = createToolEngine({ tools, onCall: (e) => log.info("tool.call", e) });
   const planUsageListeners = new Set<(usage: PlanUsage) => void>();
@@ -655,17 +659,12 @@ export function createRuntime(
       },
     };
   }
-  // Task 3.9: routines come due on the clock. At start, one catch-up for each that came due while ZENO was closed.
+  // Task 3.9, ADR-094: routines come due and workers wake on the clock. At start, one catch-up for each that came due
+  // while ZENO was closed.
   if (helpers) {
-    const runRoutines = () => {
-      try {
-        helpers.runRoutines();
-      } catch (error) {
-        log.warn("routines.failed", { ...errorFields(error) });
-      }
-    };
-    runRoutines();
-    setInterval(runRoutines, 30_000).unref();
+    const tick = () => scheduleTick(helpers, planUsed, log, (error) => ({ ...errorFields(error) }));
+    tick();
+    setInterval(tick, SCHEDULER_TICK_MS).unref();
   }
   // Task 3.5: a goal whose tasks have all ended gets its combined report (one model call, no tools) and one line.
   const goalLineListeners = new Set<(line: string, after?: () => void) => void>();

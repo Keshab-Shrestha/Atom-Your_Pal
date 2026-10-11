@@ -212,6 +212,8 @@ public struct Helper: Sendable, Equatable, Identifiable {
     /// ADR-088: what it may use ("research", "folders", "think"; nil from an older runtime), and whether Keshab added it.
     public var kit: String?
     public var custom: Bool
+    /// ADR-094: its wake-ups; nil when off (the default) or from an older runtime.
+    public var wakeUp: HelperWakeUp?
     /// The coder, designer and documenter work in folders Keshab grants.
     public var worksInFolders: Bool { kit.map { $0 == "folders" } ?? ["coder", "designer", "documenter"].contains(role) }
     /// ADR-088: the kit in words.
@@ -225,7 +227,8 @@ public struct Helper: Sendable, Equatable, Identifiable {
 
     public init(id: String, name: String, available: Bool, app: String?, jobs: [HelperJob], pinnedModel: String? = nil,
                 role: String = "", soul: HelperSoul? = nil, soulVersion: Int = 1, soulVersions: [SoulVersion] = [],
-                budget: HelperBudget? = nil, planFirst: Bool = false, routines: [HelperRoutine] = [], grants: [String] = [], skills: [String] = [], proposals: [SoulProposal] = [], kit: String? = nil, custom: Bool = false) {
+                budget: HelperBudget? = nil, planFirst: Bool = false, routines: [HelperRoutine] = [], grants: [String] = [], skills: [String] = [], proposals: [SoulProposal] = [], kit: String? = nil, custom: Bool = false,
+                wakeUp: HelperWakeUp? = nil) {
         self.id = id
         self.name = name
         self.available = available
@@ -244,7 +247,11 @@ public struct Helper: Sendable, Equatable, Identifiable {
         self.proposals = proposals
         self.kit = kit
         self.custom = custom
+        self.wakeUp = wakeUp
     }
+
+    /// ADR-094: may it take tasks (and so wake up for team tasks)? Tinker reviews only.
+    public var takesTasks: Bool { available && role != "improver" }
 
     /// The role as the window says it: "Researcher", "Financial information", "HR", ….
     public var roleTitle: String {
@@ -463,10 +470,12 @@ public struct HelpersList: Sendable, Equatable {
     public var usage: TokenUsageSummary?
     /// ADR-093: agent folders that could not be loaded; empty when every one loaded.
     public var agentProblems: [AgentProblem]
+    /// ADR-094: the team tasks waiting to be taken, oldest first.
+    public var teamTasks: [TeamTask]
 
     public init(helpers: [Helper], apps: [String], allowLarge: Bool = true, models: [HelperModel] = [], team: HelperBudget? = nil,
                 planLimit: Int? = nil, paperclip: [PaperclipTask]? = nil, mcp: [McpServerItem] = [], usage: TokenUsageSummary? = nil, skills: [SkillInfo] = [],
-                skillDrafts: [SkillDraftItem] = [], skillEdits: [SkillEditItem] = [], agentProblems: [AgentProblem] = []) {
+                skillDrafts: [SkillDraftItem] = [], skillEdits: [SkillEditItem] = [], agentProblems: [AgentProblem] = [], teamTasks: [TeamTask] = []) {
         self.helpers = helpers
         self.apps = apps
         self.allowLarge = allowLarge
@@ -480,6 +489,12 @@ public struct HelpersList: Sendable, Equatable {
         self.skillDrafts = skillDrafts
         self.skillEdits = skillEdits
         self.agentProblems = agentProblems
+        self.teamTasks = teamTasks
+    }
+
+    /// ADR-094: the roles a team task can be posted for: those of workers that take tasks, sorted, each once.
+    public var teamRoles: [String] {
+        Array(Set(helpers.filter(\.takesTasks).map(\.role).filter { !$0.isEmpty })).sorted()
     }
 
     /// A model's short name ("Sonnet 4.5" for "Claude Sonnet 4.5"); the id itself when it is not in `models`.
@@ -578,6 +593,8 @@ public struct HelpersState: Sendable, Equatable {
     public private(set) var showsBoard = false
     /// What the next task added in the window will wait for.
     public private(set) var draftBlockers: [Int] = []
+    /// ADR-094: where the next task goes: nil to the chosen worker, "" to the team (anyone), or a role on the team.
+    public private(set) var postTo: String?
     /// Why the runtime refused the window's last command, until the next `helpers` event.
     public private(set) var problem: String?
     /// A command from the window is waiting for its answer: a `settings` error now belongs to the window.
@@ -658,7 +675,15 @@ public struct HelpersState: Sendable, Equatable {
         closeReport()
         isSoulOpen = false
         draftBlockers = []
+        postTo = nil
         problem = nil
+    }
+
+    /// ADR-094: the next task goes to the chosen worker (nil), the team ("") or a role on the team. A role no worker
+    /// has is ignored.
+    public mutating func setPostTo(_ target: String?) {
+        guard let target, !target.isEmpty else { postTo = target; return }
+        if list?.teamRoles.contains(target) == true { postTo = target }
     }
 
     /// ADR-088: the "New agent" form is open.
@@ -851,6 +876,40 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.routineDelete(id: id))
     }
 
+    /// ADR-094, the Scheduled page: any worker's routine, paused or resumed, or deleted.
+    public mutating func pauseRoutine(_ id: Int, paused: Bool) -> IslandCommand? {
+        guard let routine = routine(id), routine.paused != paused else { return nil }
+        return waiting(.routinePause(id: id, paused: paused))
+    }
+
+    public mutating func deleteAnyRoutine(_ id: Int) -> IslandCommand? {
+        guard routine(id) != nil else { return nil }
+        return waiting(.routineDelete(id: id))
+    }
+
+    private func routine(_ id: Int) -> HelperRoutine? {
+        list?.helpers.lazy.compactMap { $0.routines.first { $0.id == id } }.first
+    }
+
+    /// ADR-094: a worker's wake-ups: "off", "15m", "1h", "4h" or "1d". Nil when unchanged or the worker takes no tasks.
+    public mutating func setWakeUp(_ helperId: String, every: String) -> IslandCommand? {
+        guard let helper = list?.helpers.first(where: { $0.id == helperId }), helper.takesTasks,
+              HelperWakeUp.choices.contains(where: { $0.every == every }) || every == "off",
+              (helper.wakeUp?.every ?? "off") != every else { return nil }
+        return waiting(.helperWakeUp(helper: helperId, every: every))
+    }
+
+    public mutating func pauseWakeUp(_ helperId: String, paused: Bool) -> IslandCommand? {
+        guard let wake = list?.helpers.first(where: { $0.id == helperId })?.wakeUp, wake.paused != paused else { return nil }
+        return waiting(.helperWakeUpPause(helper: helperId, paused: paused))
+    }
+
+    /// ADR-094: takes a waiting team task back.
+    public mutating func deleteTeamTask(_ id: Int) -> IslandCommand? {
+        guard list?.teamTasks.contains(where: { $0.id == id }) == true else { return nil }
+        return waiting(.teamDelete(id: id))
+    }
+
     /// ADR-090: MCP servers: add (checked by the runtime), remove, test, turn on or off, trust, choose workers.
     public mutating func addMcp(_ draft: McpServerDraft) -> IslandCommand? {
         let name = draft.name.trimmingCharacters(in: .whitespaces)
@@ -925,6 +984,8 @@ public struct HelpersState: Sendable, Equatable {
     public mutating func addJob(_ task: String) -> IslandCommand? {
         let clean = task.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let helper = selectedHelper, helper.available, !clean.isEmpty, clean.count <= Self.maxTaskLength else { return nil }
+        // ADR-094: posted to the team, it waits for a worker that wakes up (no blockers: it runs as that worker's task).
+        if let role = postTo { return waiting(.teamAdd(task: clean, role: role.isEmpty ? nil : role)) }
         defer { draftBlockers = [] }
         return waiting(.jobAdd(helper: helper.id, task: clean, blockedBy: draftBlockers))
     }
@@ -1005,13 +1066,18 @@ public struct HelperRoutine: Sendable, Equatable, Identifiable {
     public var lastAt: Date?
     /// The last time it came due, its previous task was still going, so it made none.
     public var lastSkipped: Bool
+    /// ADR-094: paused (it makes nothing), and when it next comes due (nil while paused or from an older runtime).
+    public var paused: Bool
+    public var nextAt: Date?
 
-    public init(id: Int, task: String, when: String, lastAt: Date? = nil, lastSkipped: Bool = false) {
+    public init(id: Int, task: String, when: String, lastAt: Date? = nil, lastSkipped: Bool = false, paused: Bool = false, nextAt: Date? = nil) {
         self.id = id
         self.task = task
         self.when = when
         self.lastAt = lastAt
         self.lastSkipped = lastSkipped
+        self.paused = paused
+        self.nextAt = nextAt
     }
 }
 

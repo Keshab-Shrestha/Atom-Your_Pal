@@ -6,6 +6,7 @@ import type { SkillDraft, SkillDraftState, SkillDraftTarget, SkillEdit, SkillEdi
 import type { AgentProblem, Kit } from "./agents.ts";
 import type { McpServer, McpServerInput } from "./mcp.ts";
 import type { UsageEntry, UsageSummary } from "./usage.ts";
+import type { TeamTask, WakeEvery, WakeUp, Woken } from "./team.ts";
 
 // The helper store's public shapes (split from store.ts): jobs as tasks, threads, goals, the store's operations.
 
@@ -162,6 +163,8 @@ export interface HelperView {
   planFirst: boolean;
   /** Task 3.9: its routines, oldest first. */
   routines: Routine[];
+  /** ADR-094: its wake-ups; absent when off (the default). */
+  wakeUp?: WakeUp;
   /** Task 3.11: the folders it may work in (real paths), in the order granted. */
   grants: string[];
   /** Task 3.12: the skills from ~/.claude/skills chosen for it, sorted. */
@@ -181,7 +184,9 @@ export type HelperChange =
   | { action: "budget"; helper: HelperId | "team" }
   | { action: "spend"; helper: HelperId; job: number }
   | { action: "plan"; helper: HelperId; job: number; status: "awaiting" | "approved" | "rejected" }
-  | { action: "routine"; helper: HelperId; routine: number; outcome: "added" | "removed" | "made" | "skipped" }
+  | { action: "routine"; helper: HelperId; routine: number; outcome: "added" | "removed" | "made" | "skipped" | "paused" | "resumed" }
+  | { action: "team"; task: number; change: "added" | "removed" | "taken"; helper?: HelperId; job?: number }
+  | { action: "wakeUp"; helper: HelperId; change: "set" | "off" | "paused" | "resumed" | "woke"; job?: number }
   | { action: "grant"; helper: HelperId; granted: boolean }
   | { action: "skills"; helper: HelperId; count: number }
   | { action: "agent"; helper: HelperId; added: boolean }
@@ -308,6 +313,25 @@ export interface HelperStore {
   /** Task 3.9: a schedule that makes a task for a worker. Throws HelperError for an unknown or unavailable worker, a bad task or schedule, or too many. */
   addRoutine(helper: string, task: string, schedule: Schedule): Routine;
   removeRoutine(id: number): boolean;
+  /** ADR-094: pauses or resumes a routine (a resumed one does not make up missed times). Throws HelperError for an unknown one. */
+  pauseRoutine(id: number, paused: boolean): void;
+  /** ADR-094: the team tasks waiting to be taken, oldest first. */
+  teamTasks(): TeamTask[];
+  /**
+   * ADR-094: posts a task to the team, for any worker or only one role. Throws HelperError for a bad task, a role no
+   * worker has, or too many waiting.
+   */
+  addTeamTask(task: string, role?: string | null): TeamTask;
+  removeTeamTask(id: number): boolean;
+  /** ADR-094: a worker's wake-ups on (how often) or off (null). Throws HelperError for an unknown worker or one that takes no tasks. */
+  setWakeUp(helper: string, every: WakeEvery | null): void;
+  /** Throws HelperError when the worker has no wake-ups. */
+  pauseWakeUp(helper: string, paused: boolean): void;
+  /**
+   * ADR-094: wakes the workers whose time has come. One that is idle, within its and the team's budget and below the
+   * plan's limit (`planUsed`, percent, when known) takes the oldest team task its role may do, as its own task.
+   */
+  runWakeUps(planUsed?: number): Woken[];
   /**
    * Makes a task for each routine that came due since it last did (missed times count once). One whose last task is
    * still to do or running is skipped this time. Returns what was made and skipped, by routine id.

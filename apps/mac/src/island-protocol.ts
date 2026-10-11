@@ -38,6 +38,12 @@ export type IslandCommand =
   | { type: "plan.reject"; id: number }
   | { type: "helper.planFirst"; helper: string; on: boolean }
   | { type: "routine.delete"; id: number }
+  /** ADR-094: pause or resume a routine; post a task to the team (no role: anyone) or take one back; a worker's wake-ups. */
+  | { type: "routine.pause"; id: number; paused: boolean }
+  | { type: "team.add"; task: string; role?: string }
+  | { type: "team.delete"; id: number }
+  | { type: "helper.wakeUp"; helper: string; every: "off" | "15m" | "1h" | "4h" | "1d" }
+  | { type: "helper.wakeUp.pause"; helper: string; paused: boolean }
   | { type: "grant.add"; helper: string; path: string }
   | { type: "helper.skills"; helper: string; skills: string[] }
   | { type: "job.rate"; id: number; good: boolean; comment?: string }
@@ -295,8 +301,13 @@ export interface HelperItem {
   budget: { cap: number | null; spent: number };
   /** Task 3.8: its new tasks plan first. */
   planFirst: boolean;
-  /** Task 3.9: its routines: `when` in words ("Every day at 8:00 AM"), when it last came due, and whether that was skipped. */
-  routines: { id: number; task: string; when: string; lastAt?: string; lastSkipped?: boolean }[];
+  /**
+   * Task 3.9: its routines: `when` in words ("Every day at 8:00 AM"), when it last came due, and whether that was skipped.
+   * ADR-094: whether it is paused, and when it next comes due (absent while paused).
+   */
+  routines: { id: number; task: string; when: string; lastAt?: string; lastSkipped?: boolean; paused?: boolean; nextAt?: string }[];
+  /** ADR-094: its wake-ups (absent: off): how often, in words, paused, the last and next wake. */
+  wakeUp?: WakeUpItem;
   /** Task 3.11: the folders it may work in (coder, designer, documenter). */
   grants: string[];
   /** Task 3.12: the skills chosen for it. */
@@ -304,6 +315,23 @@ export interface HelperItem {
   /** Task 3.13: Tinker's proposals for its soul: `field` changed to `text`, why, the task reviewed, and their state. */
   proposals: { id: number; field: string; text: string; reason: string; jobId: number; state: string; createdAt: string }[];
   jobs: JobItem[];
+}
+
+/** ADR-094: a worker's wake-ups. `nextAt` is ISO 8601 (the time it would wake, also while paused). */
+export interface WakeUpItem {
+  every: "15m" | "1h" | "4h" | "1d";
+  when: string;
+  paused?: boolean;
+  lastAt?: string;
+  nextAt: string;
+}
+
+/** ADR-094: a task posted to the team, waiting to be taken (no `role`: anyone). Task text never logged. */
+export interface TeamTaskItem {
+  id: number;
+  task: string;
+  role?: string;
+  createdAt: string;
 }
 
 /** One job's report (ADR-081). Never logged. */
@@ -383,6 +411,8 @@ export type IslandEvent =
       paperclip?: { issues: PaperclipItem[] };
       /** ADR-093: agent folders whose soul.md could not be loaded (folder name and why); absent when there are none. */
       agentProblems?: { id: string; problem: string }[];
+      /** ADR-094: the team tasks waiting to be taken, oldest first. */
+      teamTasks?: TeamTaskItem[];
     }
   | ThreadEvent
   /** Task 3.15: a line from the team (a goal done, a plan waiting), sent just before ZENO says it. */
@@ -418,6 +448,11 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "plan.reject",
   "helper.planFirst",
   "routine.delete",
+  "routine.pause",
+  "team.add",
+  "team.delete",
+  "helper.wakeUp",
+  "helper.wakeUp.pause",
   "grant.add",
   "helper.skills",
   "job.rate",
@@ -580,6 +615,31 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof on !== "boolean") return { error: 'helper.planFirst needs "on" to be true or false.' };
     return { command: { type, helper, on } };
   }
+  if (type === "routine.pause") {
+    const { id, paused } = value as { id?: unknown; paused?: unknown };
+    if (!isId(id)) return { error: 'routine.pause needs an "id" that is a whole number.' };
+    if (typeof paused !== "boolean") return { error: 'routine.pause needs "paused" to be true or false.' };
+    return { command: { type, id, paused } };
+  }
+  if (type === "team.add") {
+    // An empty or long task, and a role no worker has, are the store's to refuse (stage "settings").
+    const { task, role } = value as { task?: unknown; role?: unknown };
+    if (typeof task !== "string") return { error: 'team.add needs a "task" string.' };
+    if (role !== undefined && (typeof role !== "string" || role.length > 40)) return { error: 'team.add needs "role" to be a role name (or left out for anyone).' };
+    return { command: { type, task, ...(role ? { role } : {}) } };
+  }
+  if (type === "helper.wakeUp") {
+    const { helper, every } = value as { helper?: unknown; every?: unknown };
+    if (typeof helper !== "string" || helper === "") return { error: 'helper.wakeUp needs a "helper" string.' };
+    if (every !== "off" && every !== "15m" && every !== "1h" && every !== "4h" && every !== "1d") return { error: 'helper.wakeUp needs "every": "off", "15m", "1h", "4h" or "1d".' };
+    return { command: { type, helper, every } };
+  }
+  if (type === "helper.wakeUp.pause") {
+    const { helper, paused } = value as { helper?: unknown; paused?: unknown };
+    if (typeof helper !== "string" || helper === "") return { error: 'helper.wakeUp.pause needs a "helper" string.' };
+    if (typeof paused !== "boolean") return { error: 'helper.wakeUp.pause needs "paused" to be true or false.' };
+    return { command: { type, helper, paused } };
+  }
   if (type === "job.block") {
     const { id, blockedBy } = value as { id?: unknown; blockedBy?: unknown };
     if (!isId(id)) return { error: 'job.block needs an "id" that is a whole number.' };
@@ -645,7 +705,7 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof id !== "string" || !/^[\w-]{1,100}$/.test(id)) return { error: `${type} needs the chat's "id".` };
     return { command: { type, id } };
   }
-  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "job.open" || type === "job.retry" || type === "mcp.remove" || type === "mcp.test" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "thread.get" || type === "skill.make" || type === "skill.approve" || type === "skill.reject" || type === "skill.edit.accept" || type === "skill.edit.reject" || type === "skill.edit.undo") {
+  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "team.delete" || type === "job.open" || type === "job.retry" || type === "mcp.remove" || type === "mcp.test" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "thread.get" || type === "skill.make" || type === "skill.approve" || type === "skill.reject" || type === "skill.edit.accept" || type === "skill.edit.reject" || type === "skill.edit.undo") {
     const { id } = value as { id?: unknown };
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     return { command: { type, id } };

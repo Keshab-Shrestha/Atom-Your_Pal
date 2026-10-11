@@ -12,6 +12,7 @@ import { DEFAULT_PLAN_LIMIT, DEFAULT_TEAM_CAP, DEFAULT_WORKER_CAP, MAX_CAP, PLAN
 import { isDue, routineTable } from "./routines.ts";
 import { SOUL_FIELDS, proposalTable } from "./feedback.ts";
 import { skillStore } from "./skill-drafts.ts";
+import { teamStore } from "./team.ts";
 import { mcpTable } from "./mcp.ts";
 import { usageTable } from "./usage.ts";
 import { createSchema, sameSoul, toJobRow, toSoul, webSources, type JobRow, type ReportRow, type SoulRow } from "./store-schema.ts";
@@ -357,6 +358,19 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     return true;
   }
 
+  /** Task 3.7: every cap and today's spend, and the plan limit. */
+  function budgets(): Budgets {
+    const since = startOfDay(now()).toISOString();
+    const spent = new Map((spentSince.all(since) as { helper: string; total: number }[]).map((r) => [r.helper, r.total]));
+    const cap = (key: string, fallback: number) => {
+      const value = (settingOf.get(key) as { value: string } | undefined)?.value;
+      return value === undefined ? fallback : value === "none" ? null : Number(value);
+    };
+    const workers = Object.fromEntries(roster().map((h) => [h.id, { cap: cap(`budget:${h.id}`, DEFAULT_WORKER_CAP), spent: spent.get(h.id) ?? 0 }])) as Budgets["workers"];
+    const team = { cap: cap("budget:team", DEFAULT_TEAM_CAP), spent: [...spent.values()].reduce((a, b) => a + b, 0) };
+    return { team, workers, planLimit: cap("planLimit", DEFAULT_PLAN_LIMIT) ?? 100 };
+  }
+
   const skills = skillStore({
     db,
     now,
@@ -374,10 +388,24 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     askTinker: (jobId, task, kind, skill) => askTinker(jobId, task, kind, skill ?? null),
   });
 
+  // ADR-094 part B: team tasks and wake-ups. A taken task is an ordinary task of the worker (plan first, budgets apply).
+  const team = teamStore({
+    db,
+    now,
+    emit,
+    transaction,
+    members: () => roster().map((m) => ({ id: m.id, name: current(m.id).name, role: m.role, takesTasks: m.available && m.role !== "improver" })),
+    budgets: () => budgets(),
+    cleanTask,
+    cleanRole,
+    insertTask: (helper, task) => insertTask(helper, task, [], { goal: null, parentId: null, goalId: null }),
+  });
+
 
   return {
     list() {
-      const budgets = this.budgets();
+      const all = budgets();
+      const wakeUps = team.wakeUps();
       return roster().map((h) => ({
         id: h.id,
         name: current(h.id).name,
@@ -393,9 +421,10 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         })),
         app: (appOf.get(h.id) as { app: string } | undefined)?.app ?? null,
         pinnedModel: (pinOf.get(h.id) as { model: string } | undefined)?.model ?? null,
-        budget: budgets.workers[h.id],
+        budget: all.workers[h.id],
         planFirst: planFirstOf(h.id),
         routines: routines.list().filter((r) => r.helper === h.id),
+        ...(wakeUps.has(h.id) ? { wakeUp: wakeUps.get(h.id)! } : {}),
         grants: (grantsOf.all(h.id) as { path: string }[]).map((g) => g.path),
         skills: (skillsOf.all(h.id) as { skill: string }[]).map((s) => s.skill),
         proposals: proposals.list(h.id),
@@ -440,16 +469,21 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       writeBack(known);
     },
 
-    budgets() {
-      const since = startOfDay(now()).toISOString();
-      const spent = new Map((spentSince.all(since) as { helper: string; total: number }[]).map((r) => [r.helper, r.total]));
-      const cap = (key: string, fallback: number) => {
-        const value = (settingOf.get(key) as { value: string } | undefined)?.value;
-        return value === undefined ? fallback : value === "none" ? null : Number(value);
-      };
-      const workers = Object.fromEntries(roster().map((h) => [h.id, { cap: cap(`budget:${h.id}`, DEFAULT_WORKER_CAP), spent: spent.get(h.id) ?? 0 }])) as Budgets["workers"];
-      const team = { cap: cap("budget:team", DEFAULT_TEAM_CAP), spent: [...spent.values()].reduce((a, b) => a + b, 0) };
-      return { team, workers, planLimit: cap("planLimit", DEFAULT_PLAN_LIMIT) ?? 100 };
+    budgets,
+
+    teamTasks: team.teamTasks,
+    addTeamTask: (task, role) => team.addTeamTask(task, role),
+    removeTeamTask: team.removeTeamTask,
+    setWakeUp: team.setWakeUp,
+    pauseWakeUp: team.pauseWakeUp,
+    runWakeUps: team.runWakeUps,
+
+    pauseRoutine(id, paused) {
+      const routine = routines.get(id);
+      if (!routine) throw new HelperError("There is no such routine.");
+      if (routine.paused === paused) return;
+      routines.pause(id, paused, now());
+      emit({ action: "routine", helper: routine.helper, routine: id, outcome: paused ? "paused" : "resumed" });
     },
 
     setBudget(helper, cap) {
@@ -665,7 +699,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       const made: number[] = [];
       const skipped: number[] = [];
       for (const r of routines.list()) {
-        if (!isDue(r, at)) continue;
+        if (r.paused || !isDue(r, at)) continue;
         const last = r.lastTaskId === undefined ? undefined : get(r.lastTaskId);
         let taskId: number | null = null;
         if (!last || isFinal(last.state)) {

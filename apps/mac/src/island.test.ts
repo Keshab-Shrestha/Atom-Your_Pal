@@ -657,6 +657,7 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
       skillDrafts: [],
       skillEdits: [],
       mcp: [],
+      teamTasks: [],
       models: [
         { id: "claude-opus-5-5", name: "Claude Opus 5.5", tier: "large" },
         { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5", tier: "medium" },
@@ -964,9 +965,36 @@ test("routines in helpers, and routine.delete (Task 3.9)", async () => {
   const r = store.addRoutine("sid", "News", { kind: "daily", minute: 480 });
   h.clear();
   await h.send({ type: "helpers.list" });
-  assert.deepEqual((h.events().at(-1) as HelpersEvent).helpers[0]!.routines, [{ id: r.id, task: "News", when: "Every day at 8:00 AM" }]);
+  const [sent] = (h.events().at(-1) as HelpersEvent).helpers[0]!.routines;
+  const { nextAt, ...rest } = sent!;
+  assert.deepEqual(rest, { id: r.id, task: "News", when: "Every day at 8:00 AM" });
+  assert.ok(new Date(nextAt!).getTime() > Date.now(), "ADR-094: when it next comes due");
+  // ADR-094: paused, it has no next time.
+  await h.send({ type: "routine.pause", id: r.id, paused: true });
+  assert.deepEqual((h.events().at(-1) as HelpersEvent).helpers[0]!.routines, [{ id: r.id, task: "News", when: "Every day at 8:00 AM", paused: true }]);
   await h.send({ type: "routine.delete", id: r.id });
   assert.deepEqual((h.events().at(-1) as HelpersEvent).helpers[0]!.routines, []);
+});
+
+test("ADR-094: team tasks and wake-ups over the protocol", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  h.clear();
+  await h.send({ type: "team.add", task: "Compare note apps", role: "researcher" });
+  const posted = (h.events().at(-1) as HelpersEvent).teamTasks!;
+  assert.deepEqual(posted.map(({ createdAt: _c, ...t }) => t), [{ id: 1, task: "Compare note apps", role: "researcher" }]);
+  await h.send({ type: "team.add", task: "x", role: "astronaut" });
+  assert.match((h.events().at(-1) as { message: string }).message, /No worker is a astronaut/);
+  await h.send({ type: "team.delete", id: 1 });
+  assert.deepEqual((h.events().at(-1) as HelpersEvent).teamTasks, []);
+  await h.send({ type: "helper.wakeUp", helper: "sid", every: "1h" });
+  const wake = (h.events().at(-1) as HelpersEvent).helpers[0]!.wakeUp!;
+  assert.deepEqual([wake.every, wake.when, wake.paused, wake.lastAt], ["1h", "Every hour", undefined, undefined]);
+  await h.send({ type: "helper.wakeUp.pause", helper: "sid", paused: true });
+  assert.equal((h.events().at(-1) as HelpersEvent).helpers[0]!.wakeUp!.paused, true);
+  await h.send({ type: "helper.wakeUp", helper: "sid", every: "off" });
+  assert.equal((h.events().at(-1) as HelpersEvent).helpers[0]!.wakeUp, undefined);
+  assert.equal(store.list()[0]!.wakeUp, undefined);
 });
 
 test("thread.get lists the sub-tasks a task handed off (Task 3.10)", async () => {

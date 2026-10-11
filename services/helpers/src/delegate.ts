@@ -117,6 +117,50 @@ export function createScheduleTool(options: ScheduleToolOptions) {
   };
 }
 
+export interface TeamTaskToolOptions {
+  store: HelperStore;
+  /** For the log: the team task id only. */
+  onPosted?(event: { teamTask: number }): void;
+}
+
+/**
+ * ADR-094: the `post_to_team` tool, for work no single worker fits: it waits on the Board until a worker (of the role,
+ * if given) wakes up and takes it. The store checks the task and the role.
+ */
+export function createTeamTaskTool(options: TeamTaskToolOptions) {
+  const { store } = options;
+  return {
+    spec: {
+      name: "post_to_team",
+      description:
+        "Post a task to the team instead of one worker, when no single worker fits or whoever is free may do it. It waits " +
+        "until a worker whose wake-ups are on wakes and takes it. task: exactly what to do and deliver. role (optional): one " +
+        'of the roles in "Your team" (such as researcher); leave it out for anyone. Prefer delegate when one worker clearly fits.',
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          task: { type: "string", description: "What to do and deliver" },
+          role: { type: "string", description: "A role from the team, or leave out for anyone" },
+        },
+        required: ["task"],
+      },
+    },
+    capability: { title: "Post to the team", examples: ["Post a task to the team: compare three note-taking apps"] },
+    run(input: Record<string, unknown>): string {
+      const role = typeof input.role === "string" && input.role.trim() && input.role.trim().toLowerCase() !== "anyone" ? input.role : null;
+      const posted = store.addTeamTask(String(input.task ?? ""), role);
+      options.onPosted?.({ teamTask: posted.id });
+      const wakers = store.list().filter((w) => w.wakeUp && !w.wakeUp.paused && (!posted.role || w.role === posted.role));
+      const who = posted.role ? `a ${posted.role}` : "any worker";
+      return (
+        `Posted to the team as team task ${posted.id}, for ${who}. ` +
+        (wakers.length ? `${wakers.map((w) => w.name).join(", ")} wake${wakers.length === 1 ? "s" : ""} up by themselves and may take it. ` : "No worker that may take it wakes up by itself yet: Keshab can turn wake-ups on on a worker's page in the ZENO window. ") +
+        "Tell the user in one short sentence."
+      );
+    },
+  };
+}
+
 /** The tool's words as a schedule; throws HelperError with what is wrong. */
 function scheduleFrom(input: Record<string, unknown>): Schedule {
   const minute = () => {

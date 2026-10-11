@@ -15,6 +15,9 @@ export interface Routine {
   lastAt?: Date;
   lastTaskId?: number;
   lastSkipped: boolean;
+  /** ADR-094: paused routines make no tasks; a resumed one counts from when it was resumed (missed times are not made up). */
+  paused: boolean;
+  resumedAt?: Date;
 }
 
 export const MAX_ROUTINES = 20;
@@ -47,9 +50,21 @@ export function lastDue(s: Schedule, createdAt: Date, to: Date): Date | undefine
 }
 
 /** Whether it came due since it last did (or since it was made): missed times while ZENO was closed count once. */
-export function isDue(r: Pick<Routine, "schedule" | "createdAt" | "lastAt">, now: Date): boolean {
+export function isDue(r: Pick<Routine, "schedule" | "createdAt" | "lastAt" | "resumedAt">, now: Date): boolean {
   const due = lastDue(r.schedule, r.createdAt, now);
-  return due !== undefined && due > (r.lastAt ?? r.createdAt);
+  const since = Math.max((r.lastAt ?? r.createdAt).getTime(), r.resumedAt?.getTime() ?? 0);
+  return due !== undefined && due.getTime() > since;
+}
+
+/** ADR-094: the first time the schedule comes due after `from` (for the Scheduled page). */
+export function nextDue(s: Schedule, createdAt: Date, from: Date): Date {
+  if (s.kind === "hours") {
+    const k = Math.max(0, Math.floor((from.getTime() - createdAt.getTime()) / (s.every * HOUR)));
+    return new Date(createdAt.getTime() + (k + 1) * s.every * HOUR);
+  }
+  const at = lastDue(s, createdAt, from)!; // daily and weekly always have one
+  at.setDate(at.getDate() + (s.kind === "daily" ? 1 : 7));
+  return at;
 }
 
 const clock = (minute: number) => {
@@ -105,6 +120,8 @@ interface RoutineRow {
   last_at: string | null;
   last_task_id: number | null;
   last_skipped: number;
+  paused: number | null;
+  resumed_at: string | null;
 }
 
 const toRoutine = (row: RoutineRow): Routine => ({
@@ -116,6 +133,8 @@ const toRoutine = (row: RoutineRow): Routine => ({
   ...(row.last_at ? { lastAt: new Date(row.last_at) } : {}),
   ...(row.last_task_id != null ? { lastTaskId: row.last_task_id } : {}),
   lastSkipped: row.last_skipped === 1,
+  paused: row.paused === 1,
+  ...(row.resumed_at ? { resumedAt: new Date(row.resumed_at) } : {}),
 });
 
 /** The routines table, for the store. The store checks the worker and the task text before `add`. */
@@ -130,10 +149,15 @@ export function routineTable(db: DatabaseSync) {
     last_task_id INTEGER,
     last_skipped INTEGER NOT NULL DEFAULT 0
   )`);
+  // ADR-094: files from before the Scheduled page lack pause.
+  const columns = new Set((db.prepare("PRAGMA table_info(routines)").all() as { name: string }[]).map((c) => c.name));
+  if (!columns.has("paused")) db.exec("ALTER TABLE routines ADD COLUMN paused INTEGER");
+  if (!columns.has("resumed_at")) db.exec("ALTER TABLE routines ADD COLUMN resumed_at TEXT");
   const all = db.prepare("SELECT * FROM routines ORDER BY id");
   const one = db.prepare("SELECT * FROM routines WHERE id = ?");
   const insert = db.prepare("INSERT INTO routines (helper, task, schedule, created_at) VALUES (?, ?, ?, ?)");
   const drop = db.prepare("DELETE FROM routines WHERE id = ?");
+  const setPaused = db.prepare("UPDATE routines SET paused = ?, resumed_at = COALESCE(?, resumed_at) WHERE id = ?");
   const mark = db.prepare("UPDATE routines SET last_at = ?, last_task_id = COALESCE(?, last_task_id), last_skipped = ? WHERE id = ?");
   return {
     list: () => (all.all() as unknown as RoutineRow[]).map(toRoutine),
@@ -147,5 +171,6 @@ export function routineTable(db: DatabaseSync) {
     },
     remove: (id: number) => Number(drop.run(id).changes) > 0,
     mark: (id: number, at: Date, taskId: number | null, skipped: boolean) => void mark.run(at.toISOString(), taskId, skipped ? 1 : 0, id),
+    pause: (id: number, paused: boolean, at: Date) => Number(setPaused.run(paused ? 1 : 0, paused ? null : at.toISOString(), id).changes) > 0,
   };
 }

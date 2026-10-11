@@ -55,6 +55,13 @@ public enum IslandCommand: Sendable, Equatable {
     case helperPlanFirst(helper: String, on: Bool)
     /// Task 3.9: remove a routine.
     case routineDelete(id: Int)
+    /// ADR-094: pause or resume a routine; post a task to the team (nil role: anyone) or take one back; a worker's
+    /// wake-ups ("off", "15m", "1h", "4h", "1d") and pausing them.
+    case routinePause(id: Int, paused: Bool)
+    case teamAdd(task: String, role: String?)
+    case teamDelete(id: Int)
+    case helperWakeUp(helper: String, every: String)
+    case helperWakeUpPause(helper: String, paused: Bool)
     /// Task 3.11: grant a folder to a worker, or take it back.
     case grantAdd(helper: String, path: String)
     /// Task 3.12: the skills chosen for a worker (the whole list).
@@ -132,6 +139,11 @@ public enum IslandCommand: Sendable, Equatable {
         case .planReject: "plan.reject"
         case .helperPlanFirst: "helper.planFirst"
         case .routineDelete: "routine.delete"
+        case .routinePause: "routine.pause"
+        case .teamAdd: "team.add"
+        case .teamDelete: "team.delete"
+        case .helperWakeUp: "helper.wakeUp"
+        case .helperWakeUpPause: "helper.wakeUp.pause"
         case .grantAdd: "grant.add"
         case .helperSkills: "helper.skills"
         case .jobRate: "job.rate"
@@ -250,8 +262,20 @@ public enum IslandCommand: Sendable, Equatable {
         case .helperPlanFirst(let helper, let on):
             fields["helper"] = helper
             fields["on"] = on // a real JSON boolean
-        case .jobStop(let id), .jobFresh(let id), .planApprove(let id), .planReject(let id), .routineDelete(let id), .jobDelete(let id), .threadGet(let id):
+        case .jobStop(let id), .jobFresh(let id), .planApprove(let id), .planReject(let id), .routineDelete(let id), .jobDelete(let id), .threadGet(let id), .teamDelete(let id):
             fields["id"] = id // a JSON number
+        case .routinePause(let id, let paused):
+            fields["id"] = id
+            fields["paused"] = paused // a real JSON boolean
+        case .teamAdd(let task, let role):
+            fields["task"] = task
+            if let role, !role.isEmpty { fields["role"] = role }
+        case .helperWakeUp(let helper, let every):
+            fields["helper"] = helper
+            fields["every"] = every
+        case .helperWakeUpPause(let helper, let paused):
+            fields["helper"] = helper
+            fields["paused"] = paused
         case .helperPin(let helper, let model):
             fields["helper"] = helper
             fields["model"] = model
@@ -669,7 +693,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
                                     },
                                     skillDrafts: Fields.skillDrafts(f.values["skillDrafts"]),
                                     skillEdits: Fields.skillEdits(f.values["skillEdits"]),
-                                    agentProblems: Fields.agentProblems(f.values["agentProblems"])))
+                                    agentProblems: Fields.agentProblems(f.values["agentProblems"]),
+                                    teamTasks: Fields.teamTasks(f.values["teamTasks"])))
     case "thread":
         return .thread(try f.thread())
     case "error":
@@ -837,7 +862,8 @@ private struct Fields {
                planFirst: Self.flag(h["planFirst"]), routines: Self.routines(h["routines"]),
                grants: (h["grants"] as? [Any])?.compactMap { $0 as? String } ?? [],
                skills: (h["skills"] as? [Any])?.compactMap { $0 as? String } ?? [],
-               proposals: Self.proposals(h["proposals"]), kit: h["kit"] as? String, custom: Self.flag(h["custom"]))
+               proposals: Self.proposals(h["proposals"]), kit: h["kit"] as? String, custom: Self.flag(h["custom"]),
+               wakeUp: Self.wakeUp(h["wakeUp"]))
         }
     }
 
@@ -950,7 +976,23 @@ private struct Fields {
             guard let r = entry as? [String: Any], let id = r["id"] as? NSNumber, let task = r["task"] as? String, let when = r["when"] as? String
             else { return nil }
             return HelperRoutine(id: id.intValue, task: task, when: when, lastAt: (r["lastAt"] as? String).flatMap(Self.date),
-                                 lastSkipped: flag(r["lastSkipped"]))
+                                 lastSkipped: flag(r["lastSkipped"]), paused: flag(r["paused"]), nextAt: (r["nextAt"] as? String).flatMap(Self.date))
+        }
+    }
+
+    /// ADR-094: a worker's wake-ups; absent (off, or an older runtime) or malformed is nil.
+    static func wakeUp(_ value: Any?) -> HelperWakeUp? {
+        guard let w = value as? [String: Any], let every = w["every"] as? String, let when = w["when"] as? String,
+              let nextAt = (w["nextAt"] as? String).flatMap(Self.date) else { return nil }
+        return HelperWakeUp(every: every, when: when, paused: flag(w["paused"]), lastAt: (w["lastAt"] as? String).flatMap(Self.date), nextAt: nextAt)
+    }
+
+    /// ADR-094: the team tasks waiting to be taken; absent (an older runtime) is empty. A malformed entry is left out.
+    static func teamTasks(_ value: Any?) -> [TeamTask] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let t = entry as? [String: Any], let id = t["id"] as? NSNumber, CFGetTypeID(id) != CFBooleanGetTypeID(), let task = t["task"] as? String
+            else { return nil }
+            return TeamTask(id: id.intValue, task: task, role: t["role"] as? String, createdAt: (t["createdAt"] as? String).flatMap(Self.date))
         }
     }
 

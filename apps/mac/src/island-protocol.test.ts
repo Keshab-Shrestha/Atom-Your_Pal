@@ -301,3 +301,20 @@ test("git.push and git.diff take only a full path and a ZENO task branch; chats 
     assert.match(parsed.error, expected);
   }
 });
+
+test("ADR-094: team tasks, wake-ups and routine pause parse; bad values are refused", () => {
+  assert.deepEqual(parseCommand('{"type":"team.add","task":"Compare apps"}'), { command: { type: "team.add", task: "Compare apps" } });
+  assert.deepEqual(parseCommand('{"type":"team.add","task":"x","role":"coder"}'), { command: { type: "team.add", task: "x", role: "coder" } });
+  assert.deepEqual(parseCommand('{"type":"team.add","task":"x","role":""}'), { command: { type: "team.add", task: "x" } }, "empty role: anyone");
+  assert.ok("error" in parseCommand('{"type":"team.add","role":"coder"}'));
+  assert.ok("error" in parseCommand('{"type":"team.add","task":"x","role":7}'));
+  assert.deepEqual(parseCommand('{"type":"team.delete","id":3}'), { command: { type: "team.delete", id: 3 } });
+  assert.ok("error" in parseCommand('{"type":"team.delete","id":"3"}'));
+  assert.deepEqual(parseCommand('{"type":"helper.wakeUp","helper":"sid","every":"4h"}'), { command: { type: "helper.wakeUp", helper: "sid", every: "4h" } });
+  assert.deepEqual(parseCommand('{"type":"helper.wakeUp","helper":"sid","every":"off"}'), { command: { type: "helper.wakeUp", helper: "sid", every: "off" } });
+  assert.ok("error" in parseCommand('{"type":"helper.wakeUp","helper":"sid","every":"2h"}'));
+  assert.deepEqual(parseCommand('{"type":"helper.wakeUp.pause","helper":"sid","paused":true}'), { command: { type: "helper.wakeUp.pause", helper: "sid", paused: true } });
+  assert.ok("error" in parseCommand('{"type":"helper.wakeUp.pause","helper":"sid","paused":"yes"}'));
+  assert.deepEqual(parseCommand('{"type":"routine.pause","id":2,"paused":false}'), { command: { type: "routine.pause", id: 2, paused: false } });
+  assert.ok("error" in parseCommand('{"type":"routine.pause","id":2}'));
+});

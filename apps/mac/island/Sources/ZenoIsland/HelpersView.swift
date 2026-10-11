@@ -31,6 +31,8 @@ struct HelpersView: View {
                     NeedsYouPane(model: model)
                 } else if model.windowPage == .issues {
                     IssuesPane(model: model)
+                } else if model.windowPage == .scheduled {
+                    ScheduledPane(model: model)
                 } else if model.windowPage == .plugins {
                     PluginsPane(model: model)
                 } else if model.windowPage == .chat {
@@ -81,6 +83,7 @@ extension HelpersView {
             return (chats?.chats.first { $0.id == chats?.current }?.title ?? "New chat", "bubble.left.and.text.bubble.right")
         case .inbox: return ("Needs you", "tray")
         case .issues: return ("Issues", "exclamationmark.triangle")
+        case .scheduled: return ("Scheduled", "clock")
         case .plugins: return ("Plugins", "puzzlepiece.extension")
         case .settings: return ("Settings", "gearshape")
         case .agents: break
@@ -144,6 +147,11 @@ private struct HelperSidebar: View {
             .buttonStyle(.plain)
             Button { model.windowPage = .agents; model.helpers.selectBoard() } label: {
                 BoardRow(model: model, selected: model.windowPage == .agents && model.helpers.showsBoard)
+            }
+            .buttonStyle(.plain)
+            // ADR-094: everything that runs by itself, below Issues and Board.
+            Button { model.windowPage = .scheduled } label: {
+                SidebarRow(symbol: "clock", title: "Scheduled", detail: model.helpers.list.map(ScheduledRow.detail) ?? nil, selected: model.windowPage == .scheduled)
             }
             .buttonStyle(.plain)
             // ADR-091: Keshab's chats where the team was (the team is on the Board and each worker's page).
@@ -359,10 +367,15 @@ private struct HelperPane: View {
                     if let budget = helper.budget { BudgetPicker(model: model, helper: helper, budget: budget) }
                     SkillsPicker(model: model, helper: helper, skills: model.helpers.list?.skills ?? [])
                     PlanFirstRow(model: model, helper: helper)
+                    WakeUpRow(model: model, helper: helper)
                     if helper.worksInFolders { FoldersSection(model: model, helper: helper) }
                     VStack(alignment: .leading, spacing: 8) {
                         TaskField(model: model, helper: helper)
-                        WaitsForMenu(model: model)
+                        HStack(spacing: 8) {
+                            PostToMenu(model: model, helper: helper)
+                            // A team task runs as whoever takes it, with nothing to wait for.
+                            if model.helpers.postTo == nil { WaitsForMenu(model: model) }
+                        }
                     }
                     if let problem = model.helpers.problem { ProblemLine(text: problem) }
                     JobList(model: model, helper: helper)
@@ -496,10 +509,10 @@ private struct TaskField: View {
         let ready = !draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         HStack(spacing: 8) {
             if snapshot { // ImageRenderer cannot draw a text field
-                Text("Give \(helper.name) a task").font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
+                Text(placeholder).font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                TextField("Give \(helper.name) a task", text: draft.projectedValue)
+                TextField(placeholder, text: draft.projectedValue)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12.5))
                     .foregroundStyle(theme.text.color)
@@ -532,6 +545,9 @@ private struct TaskField: View {
         }
         .overlay { if !theme.isFlat { Capsule().strokeBorder(theme.separator.color, lineWidth: 0.6) } }
     }
+
+    /// ADR-094: "Post a task to the team" while the team is chosen.
+    private var placeholder: String { model.helpers.postTo == nil ? "Give \(helper.name) a task" : "Post a task to the team" }
 
     private func add() {
         guard let command = model.helpers.addJob(draft.wrappedValue) else { return }
