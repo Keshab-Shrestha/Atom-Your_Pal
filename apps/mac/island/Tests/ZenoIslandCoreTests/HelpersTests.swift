@@ -878,3 +878,39 @@ struct McpTests {
         #expect(IslandCommand.mcpTest(id: 2).line == #"{"id":2,"type":"mcp.test"}"# + "\n")
     }
 }
+
+@Suite("Office floor (ADR-090)")
+struct OfficePlanTests {
+    @Test func palsSitAtDesksOrRestInTheLoungeAndEnvelopesTravel() {
+        let now = Date()
+        var running = HelperJob(id: 1, task: "t", state: .running)
+        running.step = "Reading 3 of 8 pages"
+        var awaiting = HelperJob(id: 2, task: "t", state: .queued)
+        awaiting.planStatus = "awaiting"
+        var sub = HelperJob(id: 3, task: "t", state: .queued)
+        sub.parentId = 1
+        var won = HelperJob(id: 4, task: "t", state: .done)
+        won.goalEnded = true
+        won.endedAt = now.addingTimeInterval(-10)
+        let failed = HelperJob(id: 5, task: "t", state: .failed)
+        let list = HelpersList(helpers: [
+            Helper(id: "sid", name: "Sid", available: true, app: nil, jobs: [running]),
+            Helper(id: "kame", name: "Kame", available: true, app: nil, jobs: [awaiting]),
+            Helper(id: "puff", name: "Puff", available: true, app: nil, jobs: [sub]),
+            Helper(id: "quill", name: "Quill", available: true, app: nil, jobs: [won]),
+            Helper(id: "penny", name: "Penny", available: true, app: nil, jobs: [failed]),
+            Helper(id: "gone", name: "Gone", available: false, app: nil, jobs: []),
+        ], apps: [])
+        let plan = OfficePlan(list: list, now: now)
+        let by = Dictionary(uniqueKeysWithValues: plan.seats.map { ($0.helperId, $0) })
+        #expect(plan.seats.count == 5, "an unavailable worker with no tasks is not on the floor")
+        #expect(by["sid"]?.spot == .desk(0) && by["sid"]?.animation == "working" && by["sid"]?.bubble == "Reading 3 of 8 pages" && by["sid"]?.taskId == 1)
+        #expect(by["kame"]?.spot == .desk(1) && by["kame"]?.flag == .needsYou && by["kame"]?.bubble == "Waiting for your OK")
+        #expect(by["puff"]?.spot == .lounge(0) && by["puff"]?.animation == "idle")
+        #expect(by["quill"]?.spot == .lounge(1) && by["quill"]?.animation == "celebrate")
+        #expect(by["penny"]?.spot == .lounge(2) && by["penny"]?.animation == "sad" && by["penny"]?.flag == .failed)
+        #expect(plan.envelopes == [OfficePlan.Envelope(from: "sid", to: "puff", taskId: 3)])
+        // A minute later the celebration is over.
+        #expect(OfficePlan(list: list, now: now.addingTimeInterval(OfficePlan.celebration)).seats.first { $0.helperId == "quill" }?.animation == "idle")
+    }
+}

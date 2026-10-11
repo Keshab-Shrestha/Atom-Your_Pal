@@ -947,6 +947,12 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Tests: 8 TS (store 3, run-time 4 with a real MCP server, gateway 1), island and protocol, 1 Swift (TS 637, Swift 500 pass).
 - Known limits: OAuth sign-in for URL servers is not built (tokens go in headers); a server is not re-tested by itself when its command changes (remove and add again).
 
+**Part 5, Office floor — as built (2026-10-11):** built; tested (the plan is pure and tested); seen in the gallery; not yet watched live.
+- The Board opens on Floor (Floor | Columns, kept while ZENO runs). Each worker has its own desk; one at work sits there playing "working" with its step in a bubble, and its monitor lights. One waiting for an OK or held sits at its desk with an amber dot and says why. Idle workers rest in the lounge; a failed last task shows "sad" with a red dot; a goal finished in the last minute makes its workers celebrate.
+- Pal sits at the manager's desk in its own office, with its mood from ZENO's state. A hand-off not yet done sends an envelope from the desk that handed it off to the worker doing it.
+- Clicking a worker opens its task (or its page). Pals walk between lounge and desk when their state changes. ZENO's own drawing: no art from the reference project.
+- Tests: 1 Swift (Swift 501 pass).
+
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.
 
 **Task 3.17 — Companies and user logins.** Separate workspaces with their own tasks, workers, budgets and history; sign-in for more than one person.

@@ -49,6 +49,8 @@ final class IslandModel {
     var tab = Tab.conversation
     /// ADR-089: the page the ZENO window shows.
     var windowPage = WindowPage.chat
+    /// ADR-090: the Board shows the office floor (else the columns).
+    var boardFloor = true
     /// The Settings page open inside the Settings tab; nil shows the list of pages (ADR-057).
     var settingsPage: SettingsPage?
 

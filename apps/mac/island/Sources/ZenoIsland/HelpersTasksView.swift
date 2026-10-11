@@ -58,11 +58,17 @@ struct BoardPane: View {
                 if let list = model.helpers.list, let team = list.team, let limit = list.planLimit {
                     TeamBudgets(model: model, team: team, planLimit: limit)
                 }
+                // ADR-090: the office floor, or the columns.
+                HStack(spacing: 6) {
+                    ViewChoice(title: "Floor", symbol: "person.3", selected: model.boardFloor) { model.boardFloor = true }
+                    ViewChoice(title: "Columns", symbol: "rectangle.split.3x1", selected: !model.boardFloor) { model.boardFloor = false }
+                }
+                if model.boardFloor { OfficeFloor(model: model) }
                 if board.isEmpty {
                     Text("No tasks yet. Choose a worker and give it one.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
                 }
                 if let tasks = model.helpers.list?.paperclip { PaperclipSection(tasks: tasks) }
-                ForEach(board, id: \.column) { group in
+                ForEach(model.boardFloor ? [] : board, id: \.column) { group in
                     VStack(alignment: .leading, spacing: 8) {
                         Text("\(group.column.title) · \(group.items.count)")
                             .font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
