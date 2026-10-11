@@ -927,3 +927,47 @@ struct OfficePlanTests {
         #expect(OfficePlan(list: list, now: now.addingTimeInterval(OfficePlan.celebration)).seats.first { $0.helperId == "quill" }?.animation == "idle")
     }
 }
+
+@Suite("Notifications (ADR-091)")
+struct NoticeTests {
+    func list(_ jobs: [HelperJob], spent: Double = 0, team: Double = 0) -> HelpersList {
+        HelpersList(helpers: [Helper(id: "sid", name: "Sid", available: true, app: nil, jobs: jobs, budget: HelperBudget(cap: 5, spent: spent))],
+                    apps: [], team: HelperBudget(cap: 10, spent: team), planLimit: 80)
+    }
+
+    @Test func onlyWhatIsNewIsNotifiedNeverThePast() {
+        var watcher = NoticeWatcher()
+        var old = HelperJob(id: 1, task: "t", state: .done)
+        old.title = "Old report"
+        #expect(watcher.notices(for: list([old])).isEmpty, "the first list only learns")
+        var running = HelperJob(id: 2, task: "secret task text", state: .running)
+        #expect(watcher.notices(for: list([old, running])).isEmpty)
+        running.state = .done
+        running.title = "Networking basics"
+        let done = watcher.notices(for: list([old, running]))
+        #expect(done.map(\.kind) == [.done] && done[0].title == "Sid finished" && done[0].body == "Networking basics" && done[0].taskId == 2)
+        #expect(!done[0].body.contains("secret"), "never the task's own text")
+        #expect(watcher.notices(for: list([old, running])).isEmpty, "each once")
+        var failed = HelperJob(id: 3, task: "t", state: .failed)
+        failed.error = "The pages would not load\nmore detail"
+        var plan = HelperJob(id: 4, task: "t", state: .queued)
+        plan.planStatus = "awaiting"
+        var held = HelperJob(id: 5, task: "t", state: .queued)
+        held.held = "The team's budget is used up."
+        let next = watcher.notices(for: list([old, running, failed, plan, held]))
+        #expect(next.map(\.kind) == [.failed, .needsYou, .needsYou])
+        #expect(next[0].body == "The pages would not load")
+    }
+
+    @Test func budgetsAndThePlanWarnAt80AndWhenFullAgainAfterTheyReset() {
+        var watcher = NoticeWatcher()
+        _ = watcher.notices(for: list([], spent: 1))
+        let warn = watcher.notices(for: list([], spent: 4.1))
+        #expect(warn.map(\.title) == ["Sid's budget is 82% used"] && warn[0].body == "$4.10 of $5.00 today")
+        #expect(watcher.notices(for: list([], spent: 5, team: 10)).map(\.title) == ["Sid's budget is used up", "The team's budget is used up"])
+        _ = watcher.notices(for: list([], spent: 0))
+        #expect(watcher.notices(for: list([], spent: 4.5)).count == 1, "a new day warns again")
+        let plan = watcher.notices(for: list([], spent: 4.5), plan: PlanUsage(fiveHour: 0.86))
+        #expect(plan.map(\.title) == ["The Claude plan is at 86%"] && plan[0].body.contains("wait above 80%"))
+    }
+}

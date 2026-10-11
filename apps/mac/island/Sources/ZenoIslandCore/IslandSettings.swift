@@ -17,6 +17,7 @@ public final class IslandSettings {
     static let soundsKey = "zeno.soundsEnabled"
     static let speakReportsKey = "zeno.speech.reports"
     static let speakUpdatesKey = "zeno.speech.updates"
+    static let notifyOffKey = "zeno.notify.off"
     static let followUpKey = "zeno.followUp"
     static let petSpotKey = "zeno.petSpot"
     static let palHideKey = "zeno.wispHideAfter"
@@ -131,6 +132,17 @@ public final class IslandSettings {
         didSet { save(speakUpdates, Self.speakUpdatesKey) }
     }
 
+    /// ADR-091: the kinds of notification turned off (all are on at first).
+    public private(set) var notifyOff: Set<String> {
+        didSet { defaults.set(notifyOff.sorted(), forKey: Self.notifyOffKey) }
+    }
+
+    public func notifies(_ kind: AppNotice.Kind) -> Bool { !notifyOff.contains(kind.rawValue) }
+
+    public func setNotifies(_ kind: AppNotice.Kind, _ on: Bool) {
+        if on { notifyOff.remove(kind.rawValue) } else { notifyOff.insert(kind.rawValue) }
+    }
+
     static let dictationModeKey = "zeno.dictation.mode"
     static let livePreviewKey = "zeno.dictation.livePreview"
     static let removeFillersKey = "zeno.dictation.removeFillers"
@@ -169,6 +181,7 @@ public final class IslandSettings {
         soundsEnabled = defaults.object(forKey: Self.soundsKey) as? Bool ?? true
         speakReports = defaults.object(forKey: Self.speakReportsKey) as? Bool ?? true
         speakUpdates = defaults.object(forKey: Self.speakUpdatesKey) as? Bool ?? true
+        notifyOff = Set(defaults.stringArray(forKey: Self.notifyOffKey) ?? [])
         followUpEnabled = defaults.object(forKey: Self.followUpKey) as? Bool ?? true
         palHideAfter = (defaults.object(forKey: Self.palHideKey) as? Int).flatMap(PalHideTimeout.init(rawValue:)) ?? .minute1
         palSize = Self.choice(defaults, Self.palSizeKey, .medium)

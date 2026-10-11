@@ -29,6 +29,15 @@ struct GeneralSection: View {
             }
         }
         .onAppear { login.refresh() }
+        // ADR-091: which macOS notifications ZENO posts.
+        Card("Notifications", footer: "Shown by macOS. Titles and short reasons only, never a report's text. Allow ZENO in System Settings → Notifications if none appear.") {
+            ForEach(Array(AppNotice.Kind.allCases.enumerated()), id: \.element) { index, kind in
+                if index > 0 { RowDivider() }
+                Row(title: kind.title, detail: Self.detail(kind)) {
+                    ThemedSwitch(isOn: settings.notifies(kind), set: { settings.setNotifies(kind, $0) }, label: kind.title)
+                }
+            }
+        }
         PermissionsCard(model: model)
             .onAppear { model.permissions.startPolling() }
             .onDisappear { model.permissions.stopPolling() }
@@ -37,6 +46,17 @@ struct GeneralSection: View {
                 PillButton(title: "Replay") { model.replayTour() }
                     .disabled(!settings.petEnabled)
             }
+        }
+    }
+}
+
+extension GeneralSection {
+    static func detail(_ kind: AppNotice.Kind) -> String {
+        switch kind {
+        case .needsYou: "A plan, a held task, a proposal, or ZENO asking for your OK"
+        case .done: "A worker finished, with its report's title"
+        case .failed: "A task failed, and why"
+        case .budget: "A budget or the Claude plan passing 80%, or used up"
         }
     }
 }

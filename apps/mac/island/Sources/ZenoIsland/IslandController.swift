@@ -24,6 +24,8 @@ final class IslandController {
     private let pointLabel = PointLabelController()
     /// The ZENO window (ADR-081).
     private let helpersWindow: MainWindowController
+    /// ADR-091: ZENO's macOS notifications.
+    private let notifier: Notifier
     /// Talk was started by its shortcut and not yet sent or cancelled.
     private var talking = false
     /// This Talk is going through the app's own microphone and Parakeet (ADR-063), not the runtime's.
@@ -83,6 +85,7 @@ final class IslandController {
         bubble = BubbleController(model: model)
         strip = WorkStripController(model: model)
         helpersWindow = MainWindowController(model: model)
+        notifier = Notifier(settings: settings)
         shortcuts = ShortcutEngine(settings: settings, recorder: model.recorder, log: log)
         pet = PetController(settings: settings, trace: trace)
         dictation = DictationController(vocabularyURL: IslandController.vocabularyURL)
@@ -134,6 +137,12 @@ final class IslandController {
     }
 
     func start() {
+        // ADR-091: a clicked notification opens the window, on its task when it names one.
+        notifier.onOpen = { [weak self] task in
+            guard let self else { return }
+            helpersWindow.show(page: .agents)
+            if let task { model.sendHelpers(model.helpers.openThread(task)) }
+        }
         // A click in another app closes the panel.
         if let outside = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown], handler: { [weak self] _ in
             MainActor.assumeIsolated { self?.clickedOutside() }
@@ -247,6 +256,12 @@ final class IslandController {
         if localListening, case .state(.idle) = event { return } // the turn we interrupted, ending
         let helperRefusal = model.helpers.claims(event) // shown in the ZENO window, not as ZENO's status
         if case .micLevel = event {} else { model.apply(event) }
+        // ADR-091: what is new in the team, and an OK asked for, become notifications.
+        switch event {
+        case .helpers, .planUsage: notifier.update(model.helpers.list, plan: model.planUsage)
+        case .approvalRequest(let request): notifier.approval(request)
+        default: break
+        }
         switch event {
         case .micLevel(let peak):
             // 20 updates a second: only the meter changes, and only while it is shown.

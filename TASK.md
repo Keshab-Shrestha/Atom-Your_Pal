@@ -975,6 +975,12 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - The chat's top bar has Sounds: speak the team's reports, speak timers and updates, start and stop sounds. Muted lines still show on the island and Pal still flies over; they are not chimed or said (`speech.set`, sent when ZENO connects and on each change).
 - Tests: 1 TS (muted reports are shown, not said), protocol, 1 Swift (rename, speech.set) (TS 638, Swift 508 pass).
 
+**Part 2, notifications — as built (2026-10-11):** built; tested; not yet seen on the real Mac (macOS asks once to allow them).
+- ZENO.app posts macOS notifications (UserNotifications; a development build posts none): a worker finished (its report's title), a task failed (why, first line), something needs Keshab (a plan for his OK, a held task, a soul proposal, and an approval card while ZENO is not in front), and a budget (a worker's or the team's) or the Claude plan's five hours passing 80% or used up.
+- Only what is new: the first team list after start is learned, not announced; each thing once; a budget warns again after it resets. Never a task's or report's text beyond the title.
+- Clicking one opens the ZENO window on its task. Settings → General → Notifications turns each kind off.
+- Tests: 2 Swift (what is new, budgets and the plan) (Swift 510 pass).
+
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.
 
 **Task 3.17 — Companies and user logins.** Separate workspaces with their own tasks, workers, budgets and history; sign-in for more than one person.
