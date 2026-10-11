@@ -82,7 +82,7 @@ struct MenuPanelLayoutTests {
 struct IslandStatusTests {
     let ready = IslandEvent.ready(ReadyInfo(protocolVersion: 1, provider: "gemini", model: "gemini-3.6-flash", microphone: ":Webcam", voice: true))
 
-    /// ADR-093: "Listening…" until the microphone is capturing, then "Speak now" (in the bubble too); gone when listening ends.
+    /// ADR-093: "Listening…" until the microphone is capturing, then "Speak now" (shown on Pal, not in a bubble); gone when listening ends.
     @Test func speakNowOnceTheMicrophoneIsCapturing() throws {
         var status = IslandStatus()
         status.apply(ready)
@@ -91,7 +91,7 @@ struct IslandStatusTests {
         status.apply(.state(.listening))
         #expect(status.title == "Listening…" && !status.micLive && !status.needsBubble)
         status.apply(try decodeEvent(#"{"type":"mic.ready"}"#))
-        #expect(status.title == "Speak now" && status.micLive && status.needsBubble && status.showsLevel)
+        #expect(status.title == "Speak now" && status.micLive && !status.needsBubble && status.showsLevel)
         status.apply(.contextReady(app: "Safari", ok: true, message: nil)) // the line under it changes, the cue stays
         #expect(status.title == "Speak now" && status.detail == "Ask about Safari")
         status.apply(.state(.transcribing))

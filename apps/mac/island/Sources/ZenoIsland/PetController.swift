@@ -171,9 +171,10 @@ final class PetController {
     }
 
     /// ZENO's state changed.
-    func update(_ kind: IslandStatus.Kind) {
+    func update(_ kind: IslandStatus.Kind, micLive: Bool = false) {
         brain.update(status: kind, at: Self.now)
         if kind != lastKind { lastKind = kind }
+        state.micLive = micLive // ADR-093: "Speak now" shows on Pal
     }
 
     /// Something the user did (a shortcut, opening the window): wakes a napping Pal.
@@ -607,6 +608,8 @@ final class PetState {
     var hover = 0.0
     var reaction: PalReaction?
     var reactionProgress = 0.0
+    /// ADR-093: the microphone is capturing while Pal listens.
+    var micLive = false
 }
 
 /// Draws Pal for the current state.
@@ -615,7 +618,7 @@ struct PetStage: View {
 
     var body: some View {
         PalView(mood: state.mood, time: state.time, facing: state.facing, size: state.size,
-                gaze: state.gaze, hover: state.hover, reaction: state.reaction, reactionProgress: state.reactionProgress)
+                gaze: state.gaze, hover: state.hover, reaction: state.reaction, reactionProgress: state.reactionProgress, micLive: state.micLive)
             .environment(\.theme, state.palette)
     }
 }

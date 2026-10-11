@@ -27,10 +27,12 @@ struct PalView: View {
     var hover: Double = 0
     var reaction: PalReaction?
     var reactionProgress: Double = 0
+    /// ADR-093: the microphone is capturing while Pal listens ("Speak now").
+    var micLive = false
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let frame = PixelPalMotion.frame(mood: mood, time: time, gazeX: gaze.width, reaction: reaction, progress: reactionProgress)
+        let frame = PixelPalMotion.frame(mood: mood, time: time, gazeX: gaze.width, micLive: micLive, reaction: reaction, progress: reactionProgress)
         let pixel = max(1, (size / CGFloat(PixelPal.size)).rounded())
         let sprite = CGFloat(PixelPal.size) * pixel
         let feetY = Self.margin(for: size) + size * 61 / 64
@@ -45,6 +47,18 @@ struct PalView: View {
                     .scaleEffect(x: (flipped ? -1 : 1) * frame.squashX * (1 + hover * 0.05), y: frame.squashY * (1 + hover * 0.05), anchor: UnitPoint(x: 0.5, y: Self.spriteFeet / CGFloat(PixelPal.size)))
                     .rotationEffect(.degrees(frame.wobble), anchor: UnitPoint(x: 0.5, y: Self.spriteFeet / CGFloat(PixelPal.size)))
                     .offset(x: (size * 1.5 - sprite) / 2, y: feetY - Self.spriteFeet * pixel + CGFloat(frame.bob) * pixel)
+            }
+            if frame.hearing {
+                // Three pixel sound bars beside Pal's head, rising and falling: what you say now is heard.
+                HStack(alignment: .bottom, spacing: pixel) {
+                    ForEach(0..<3, id: \.self) { i in
+                        Rectangle().fill(theme.live.color)
+                            .frame(width: pixel * 2, height: pixel * CGFloat(2 + (Int(time * 8) + i * 2) % 5))
+                    }
+                }
+                .frame(height: pixel * 7, alignment: .bottom)
+                .offset(x: size * 1.5 / 2 + sprite * 0.3, y: feetY - sprite * 0.7)
+                .accessibilityLabel("Speak now")
             }
             if frame.sleeping {
                 Text("z")

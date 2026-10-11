@@ -382,7 +382,7 @@ final class IslandController {
     }
 
     private func statusChanged() {
-        pet.update(model.status.kind)
+        pet.update(model.status.kind, micLive: model.status.micLive)
         if model.status.title != lastTitle {
             lastTitle = model.status.title
             trace("status \(model.status.title) — \(model.status.detail)")

@@ -59,12 +59,12 @@ public struct IslandStatus: Sendable, Equatable {
     private var awaitingMic = false
 
     /// Pal's bubble has something to say: a problem, a notice, a question, or a microphone that hears nothing.
-    /// Thinking and speaking show on Pal itself, so they get no bubble (Keshab, 2026-10-10); listening gets one once
-    /// the microphone is live, so "Speak now" is seen (ADR-093), or when there is a line to read.
+    /// Listening, thinking and speaking show on Pal itself, so they get no bubble (Keshab, 2026-10-10; "Speak now"
+    /// is Pal raising its arms with sound bars, ADR-093), unless there is a line to read.
     public var needsBubble: Bool {
         switch kind {
         case .notice, .problem, .asking: true
-        case .listening: micLive || !detail.isEmpty
+        case .listening: !detail.isEmpty
         default: false
         }
     }

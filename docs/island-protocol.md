@@ -105,7 +105,7 @@ Holding Ctrl+Option maps to `talk.start` on press and `talk.send` on release. Pr
 |---|---|---|
 | `ready` | `protocol`, `provider`, `model`, `microphone`, `voice` | Started. `voice` is `false` if the voice failed to load (an `error` with stage `speech` comes first); replies still arrive as text |
 | `state` | `state` | One of `idle`, `listening`, `transcribing`, `thinking`, `speaking` |
-| `mic.ready` | — | The microphone is capturing. Speech from now on is recorded. The island shows a turn as "Listening…" until this arrives, then "Speak now" (in Pal's bubble, or the card under the menu-bar icon with Pal off) until listening ends (ADR-093). Ignored outside a turn's listening (a dictation opens its own microphone) |
+| `mic.ready` | — | The microphone is capturing. Speech from now on is recorded. The island shows a turn as "Listening…" until this arrives, then "Speak now": Pal raises its arms with pixel sound bars (no bubble), and the card under the menu-bar icon says it when Pal is off. |
 | `mic.level` | `peak` | Loudest sample since the last `mic.level`, 0–1. At most 20 per second, only while listening |
 | `mic.silent` | `microphone` | The microphone has heard only near-silence for 2.5 s while listening. Probably the wrong device. Sent once per turn |
 | `transcript` | `text` | What the user said |

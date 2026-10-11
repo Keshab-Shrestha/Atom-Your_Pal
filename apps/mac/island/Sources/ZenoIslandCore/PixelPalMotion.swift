@@ -16,6 +16,8 @@ public struct PixelPalFrame: Sendable, Equatable {
     public var wobble: Double
     /// Napping: "z"s drift up beside it.
     public var sleeping: Bool
+    /// ADR-093: listening with the microphone capturing ("Speak now"): sound bars pulse beside it.
+    public var hearing: Bool = false
 }
 
 public enum PixelPalMotion {
@@ -24,7 +26,8 @@ public enum PixelPalMotion {
 
     /// The frame for `mood` at `time` seconds; `gazeX` from `PalGaze` while Pal notices the pointer; a reaction playing
     /// and how far through it is (0...1).
-    public static func frame(mood: PetBrain.Mood, time: Double, gazeX: Double = 0, reaction: PalReaction? = nil, progress: Double = 0) -> PixelPalFrame {
+    /// `micLive`: the microphone is capturing (`mic.ready`); until then a listening Pal waits, then it says "speak now".
+    public static func frame(mood: PetBrain.Mood, time: Double, gazeX: Double = 0, micLive: Bool = false, reaction: PalReaction? = nil, progress: Double = 0) -> PixelPalFrame {
         var f = PixelPalFrame(pose: .idle, look: 0, bob: 0, squashX: 1, squashY: 1, wobble: 0, sleeping: false)
         let beat = Int((time * 2).rounded(.down))
         switch mood {
@@ -33,8 +36,10 @@ public enum PixelPalMotion {
             // A blink now and then: one frame in every few seconds.
             if Int((time * 8).rounded(.down)) % 37 == 0 { f.pose = .blink }
         case .listening:
-            f.pose = .cheer
-            f.bob = beat % 2
+            // Waiting for the microphone: still, eyes ahead. Capturing: arms up and sound bars ("speak now").
+            f.pose = micLive ? .cheer : .idle
+            f.bob = micLive ? beat % 2 : 0
+            f.hearing = micLive
         case .thinking:
             f.pose = beat % 4 < 2 ? .idle : .bob
             f.look = (Int((time / 0.8).rounded(.down)) % 2 == 0) ? -1 : 1

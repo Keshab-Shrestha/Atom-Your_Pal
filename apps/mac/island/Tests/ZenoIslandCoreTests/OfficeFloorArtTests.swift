@@ -98,7 +98,7 @@ struct OfficeFloorArtTests {
 @Suite("Pixel Pal on screen")
 struct PixelPalMotionTests {
     @Test func eachMoodHasItsPose() {
-        #expect(PixelPalMotion.frame(mood: .listening, time: 0).pose == .cheer)
+        #expect(PixelPalMotion.frame(mood: .listening, time: 0, micLive: true).pose == .cheer)
         #expect(PixelPalMotion.frame(mood: .carried, time: 0).pose == .cheer)
         #expect(PixelPalMotion.frame(mood: .worried, time: 0).pose == .sad)
         let nap = PixelPalMotion.frame(mood: .napping, time: 0)
@@ -129,6 +129,15 @@ struct PixelPalMotionTests {
 
     /// ADR-093: a click opens the ZENO window, a second click (window open and in front) closes it; a double-click's
     /// second press finds it open and leaves it.
+    /// ADR-093: while listening Pal waits until the microphone is capturing, then raises its arms with sound bars.
+    @Test func speakNowShowsOnPal() {
+        let waiting = PixelPalMotion.frame(mood: .listening, time: 0.1)
+        #expect(waiting.pose == .idle && !waiting.hearing)
+        let live = PixelPalMotion.frame(mood: .listening, time: 0.1, micLive: true)
+        #expect(live.pose == .cheer && live.hearing)
+        #expect(!PixelPalMotion.frame(mood: .speaking, time: 0.1, micLive: true).hearing, "only while listening")
+    }
+
     @Test func clickOpensAndDoubleClickNeverCloses() {
         #expect(PetClickAction.forPress(clickCount: 1, windowOpen: false) == .open)
         #expect(PetClickAction.forPress(clickCount: 1, windowOpen: true) == .close)
