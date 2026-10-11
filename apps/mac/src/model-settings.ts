@@ -8,6 +8,7 @@ import { dirname } from "node:path";
 import type { SwitchableModel } from "@zeno/llm-gateway";
 import { LLM_PROVIDER_IDS, PROVIDERS, RETIRED_PROVIDERS, isLlmProvider, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import type { InfoEvent } from "./island-protocol.ts";
+import type { AiToolItem } from "./ai-tools.ts";
 
 /** Where the settings file lives, relative to the project root (the working directory, like logs/). */
 export const DEFAULT_SETTINGS_PATH = "config/island.json";
@@ -82,6 +83,8 @@ export interface ModelSettings {
   info(): Omit<InfoEvent, "type">;
   /** Validates and applies a choice. On an error nothing changes. */
   setModel(provider: string, model: string): SetModelResult;
+  /** ADR-093: looks for the AI tools on this Mac again; `info()` then lists them. */
+  scanTools?(): Promise<void>;
 }
 
 export interface ModelSettingsOptions {
@@ -96,11 +99,16 @@ export interface ModelSettingsOptions {
   /** Persists a choice; throws on failure. */
   save(choice: LlmChoice): void;
   log?: Pick<Logger, "info" | "warn">;
+  /** ADR-093: finds the AI tools on this Mac (found, signed in). */
+  scan?(): Promise<AiToolItem[]>;
 }
 
 export function createModelSettings(options: ModelSettingsOptions): ModelSettings {
   const { initial, keys, model, log } = options;
   let current: LlmChoice = { ...initial };
+  let tools: AiToolItem[] = [];
+  /** A provider can be chosen when its program is here and is not known to be signed out. */
+  const usable = (id: keyof typeof PROVIDERS) => Boolean(keys[id]) && tools.find((t) => t.provider === id)?.signedIn !== false;
 
   return {
     current: () => ({ ...current }),
@@ -112,10 +120,17 @@ export function createModelSettings(options: ModelSettingsOptions): ModelSetting
         providers: LLM_PROVIDER_IDS.map((id) => ({
           id,
           name: PROVIDERS[id].name,
-          available: Boolean(keys[id]),
+          available: usable(id),
           models: offeredModels(id, initial),
         })),
+        tools,
       };
+    },
+
+    async scanTools() {
+      if (!options.scan) return;
+      tools = await options.scan();
+      log?.info("tools.scan", { found: tools.filter((t) => t.found).map((t) => t.id).join(",") });
     },
 
     setModel(provider, modelId) {

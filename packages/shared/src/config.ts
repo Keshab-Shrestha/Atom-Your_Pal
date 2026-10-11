@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 
 const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
@@ -7,10 +7,15 @@ export type LogLevel = (typeof LOG_LEVELS)[number];
 /** Claude on the user's own Claude plan (no API key; the signed-in `claude` program does the work). */
 export const CLAUDE_PLAN = "claude-plan";
 
+/** ADR-093: Codex on the user's ChatGPT plan, and the Gemini CLI on the user's Google sign-in. */
+export const CODEX = "codex";
+export const GEMINI_CLI = "gemini-cli";
+
 /**
- * The LLM providers: display name, where its "key" comes from, the default model, and the models offered in ZENO
- * Island's settings (id → display name), newest first. ADR-092: ZENO runs on the user's own Claude plan only; the
- * gateway still takes any provider, so another can be added back behind it.
+ * The LLM providers: display name, where its "key" comes from (the path of the signed-in program: not a secret), the
+ * default model, and the models offered in ZENO Island's settings (id → display name). ADR-092: no API keys. ADR-093:
+ * the subscription tools found on this Mac; Claude Code is the default. Codex and the Gemini CLI answer in chat only:
+ * ZENO's tools and the team stay on Claude.
  */
 export const PROVIDERS = {
   "claude-plan": {
@@ -23,6 +28,18 @@ export const PROVIDERS = {
       { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" },
       { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },
     ],
+  },
+  codex: {
+    name: "Codex (my ChatGPT plan)",
+    keyVar: "ZENO_CODEX_PATH",
+    defaultModel: "codex-default",
+    models: [{ id: "codex-default", name: "Codex's own model" }],
+  },
+  "gemini-cli": {
+    name: "Gemini CLI (my Google sign-in)",
+    keyVar: "ZENO_GEMINI_PATH",
+    defaultModel: "gemini-default",
+    models: [{ id: "gemini-default", name: "Gemini CLI's own model" }],
   },
 } as const;
 
@@ -48,6 +65,40 @@ export function findClaudeProgram(
   return places.find(exists);
 }
 
+/**
+ * ADR-093: a signed-in AI program by name: its `ZENO_*_PATH` first (never second-guessed), then the usual places and
+ * PATH, then copies bundled in editor extensions (the newest first), as Codex ships inside the ChatGPT extension.
+ */
+export function findProgram(
+  name: string,
+  explicitVar: string,
+  env: Env = process.env,
+  exists: (path: string) => boolean = (path) => existsSync(path),
+  home: string = homedir(),
+  list: (dir: string) => string[] = (dir) => {
+    try {
+      return readdirSync(dir);
+    } catch {
+      return [];
+    }
+  },
+): string | undefined {
+  const explicit = env[explicitVar]?.trim();
+  if (explicit) return exists(explicit) ? explicit : undefined;
+  const places = [`${home}/.local/bin/${name}`, `/opt/homebrew/bin/${name}`, `/usr/local/bin/${name}`];
+  for (const dir of (env.PATH ?? "").split(":").filter(Boolean)) places.push(`${dir}/${name}`);
+  for (const editor of [`${home}/.vscode/extensions`, `${home}/.cursor/extensions`]) {
+    const bundled = list(editor)
+      .filter((d) => d.startsWith("openai.chatgpt-"))
+      .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+    for (const d of bundled) places.push(`${editor}/${d}/bin/macos-aarch64/${name}`, `${editor}/${d}/bin/macos-x86_64/${name}`);
+  }
+  return places.find(exists);
+}
+
+export const findCodexProgram = (env: Env = process.env) => findProgram("codex", "ZENO_CODEX_PATH", env);
+export const findGeminiProgram = (env: Env = process.env) => findProgram("gemini", "ZENO_GEMINI_PATH", env);
+
 export const LLM_PROVIDER_IDS = Object.keys(PROVIDERS) as LlmProvider[];
 
 export function isLlmProvider(value: string): value is LlmProvider {
@@ -57,11 +108,19 @@ export function isLlmProvider(value: string): value is LlmProvider {
 /** The API key of every provider that has one in the environment. Secrets: never log or send these. */
 export type ProviderKeys = Partial<Record<LlmProvider, string>>;
 
-export function readProviderKeys(env: Env = process.env, findClaude: (env: Env) => string | undefined = findClaudeProgram): ProviderKeys {
+export function readProviderKeys(
+  env: Env = process.env,
+  findClaude: (env: Env) => string | undefined = findClaudeProgram,
+  findOthers: { codex?: (env: Env) => string | undefined; gemini?: (env: Env) => string | undefined } = { codex: findCodexProgram, gemini: findGeminiProgram },
+): ProviderKeys {
   const keys: ProviderKeys = {};
-  // No key: the plan is available when the signed-in `claude` program is. Its "key" is that program's path.
+  // No keys: each provider is available when its signed-in program is. Its "key" is that program's path.
   const found = findClaude(env);
   if (found) keys[CLAUDE_PLAN] = found;
+  const codex = findOthers.codex?.(env);
+  if (codex) keys[CODEX] = codex;
+  const gemini = findOthers.gemini?.(env);
+  if (gemini) keys[GEMINI_CLI] = gemini;
   return keys;
 }
 
@@ -155,15 +214,17 @@ export function loadConfig(env: Env = process.env, options: LoadConfigOptions = 
   const retired = (RETIRED_PROVIDERS as readonly string[]).includes(named ?? "");
   const envProvider = retired ? CLAUDE_PLAN : oneOf("ZENO_LLM_PROVIDER", LLM_PROVIDER_IDS, CLAUDE_PLAN);
   const provider = options.llm?.provider ?? envProvider;
-  const { defaultModel } = PROVIDERS[provider];
+  const { defaultModel, models } = PROVIDERS[provider];
   const asked = options.llm?.model ?? read("ZENO_LLM_MODEL", defaultModel);
-  const model = asked.startsWith("claude-") ? asked : defaultModel;
+  // A model that is not this provider's (a Gemini model left in .env, say) gives way to its default.
+  const ownModel = provider === CLAUDE_PLAN ? asked.startsWith("claude-") : (models as readonly { id: string }[]).some((m) => m.id === asked);
+  const model = ownModel ? asked : defaultModel;
 
   const config: Config = {
     llm: {
       provider,
-      // No key: Claude on the user's plan uses the signed-in `claude` program.
-      apiKey: findClaudeProgram(env) ?? "",
+      // No key: the signed-in program's path (Claude Code, Codex or the Gemini CLI).
+      apiKey: (provider === CODEX ? findCodexProgram(env) : provider === GEMINI_CLI ? findGeminiProgram(env) : findClaudeProgram(env)) ?? "",
       model,
       timeoutMs: positiveInt("ZENO_LLM_TIMEOUT_MS", 30_000),
     },

@@ -48,11 +48,11 @@ function settingsHarness(over: { initial?: LlmChoice; keys?: ProviderKeys; save?
 const ask = (model: Model) =>
   model.complete({ system: "", messages: [], context: { requestId: "r", sessionId: "s", source: "voice", receivedAt: new Date(0) } });
 
-test("info offers only Claude on the plan, its models, and never the program's path", () => {
+test("info offers Claude on the plan first, then the other signed-in tools, and never a program's path (ADR-093)", () => {
   const { settings } = settingsHarness();
   const info = settings.info();
   assert.deepEqual([info.provider, info.model], ["claude-plan", "claude-sonnet-5-5"]);
-  assert.deepEqual(info.providers.map((p) => [p.id, p.name, p.available, p.models.length]), [["claude-plan", "Claude (my plan)", true, 3]]);
+  assert.deepEqual(info.providers.map((p) => [p.id, p.available, p.models.length]), [["claude-plan", true, 3], ["codex", false, 1], ["gemini-cli", false, 1]]);
   assert.ok(noPath(JSON.stringify(info)));
   assert.equal(settingsHarness({ keys: {} }).settings.info().providers[0]!.available, false);
 });
@@ -80,7 +80,7 @@ test("a valid choice replaces the model, is saved and logged without the path", 
 test("refused choices explain the fix and change nothing; Gemini and the Claude API are gone (ADR-092)", async () => {
   const h = settingsHarness();
   const cases: [string, string, RegExp][] = [
-    ["gemini", "gemini-3.6-flash", /Unknown AI provider "gemini"\. Choose Claude \(my plan\)\./],
+    ["gemini", "gemini-3.6-flash", /Unknown AI provider "gemini"\. Choose Claude \(my plan\) or Codex/],
     ["claude", "claude-opus-5-5", /Unknown AI provider "claude"/],
     ["claude-plan", "gpt-9", /"gpt-9" is not a Claude \(my plan\) model ZENO offers/],
     ["__proto__", "x", /Unknown AI provider/],
@@ -154,7 +154,7 @@ test("at startup an old .env naming Gemini or the Claude API still runs on the p
   const path = join(tempDir(), "island.json");
   writeSavedChoice(path, { provider: "claude-plan", model: "claude-opus-5-5" });
   const env = { ZENO_LLM_PROVIDER: "gemini", ZENO_LLM_MODEL: "gemini-3.5-flash", GEMINI_API_KEY: "test-key-0000", ZENO_CLAUDE_PATH: CLAUDE };
-  const keys = readProviderKeys(env, () => CLAUDE);
+  const keys = readProviderKeys(env, () => CLAUDE, {});
   assert.deepEqual(keys, PLAN, "API keys in .env are not providers any more");
   assert.equal(loadConfig(env, { llm: readSavedChoice(path, keys).choice }).llm.model, "claude-opus-5-5");
   const plain = loadConfig(env);
@@ -166,4 +166,25 @@ test("the settings file location can be changed with ZENO_ISLAND_SETTINGS", () =
   assert.equal(settingsPath({}), DEFAULT_SETTINGS_PATH);
   assert.equal(settingsPath({ ZENO_ISLAND_SETTINGS: " " }), "config/island.json");
   assert.equal(settingsPath({ ZENO_ISLAND_SETTINGS: "/tmp/x.json" }), "/tmp/x.json");
+});
+
+test("a tool known to be signed out cannot be chosen; the scan's list comes with info (ADR-093)", async () => {
+  const model = createSwitchableModel({ complete: async () => ({ text: "x" }) });
+  const settings = createModelSettings({
+    initial: { provider: "claude-plan", model: "claude-sonnet-5-5" },
+    keys: { "claude-plan": CLAUDE, codex: "/x/codex", "gemini-cli": "/x/gemini" },
+    model,
+    createModel: () => ({ complete: async () => ({ text: "y" }) }),
+    save: () => {},
+    scan: async () => [
+      { id: "codex", name: "Codex", found: true, signedIn: false, provider: "codex", note: "Found, not signed in" },
+      { id: "gemini-cli", name: "Gemini CLI", found: true, provider: "gemini-cli", note: "Found" },
+    ],
+  });
+  assert.deepEqual(settings.info().providers.map((p) => p.available), [true, true, true], "before the scan: found is enough");
+  await settings.scanTools?.();
+  const info = settings.info();
+  assert.deepEqual(info.providers.map((p) => [p.id, p.available]), [["claude-plan", true], ["codex", false], ["gemini-cli", true]]);
+  assert.equal(info.tools?.length, 2);
+  assert.ok(!JSON.stringify(info).includes("/x/codex"), "paths are never sent");
 });

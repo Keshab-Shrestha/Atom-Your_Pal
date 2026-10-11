@@ -52,7 +52,7 @@ test("reports every problem at once", () => {
     (error: unknown) => {
       assert.ok(error instanceof ConfigError);
       assert.equal(error.problems.length, 4);
-      assert.match(error.message, /ZENO_LLM_PROVIDER must be one of claude-plan, got "openai"/);
+      assert.match(error.message, /ZENO_LLM_PROVIDER must be one of claude-plan, codex, gemini-cli, got "openai"/);
       assert.match(error.message, /ZENO_LLM_TIMEOUT_MS must be a positive integer, got "soon"/);
       assert.match(error.message, /ZENO_AUDIO_SAMPLE_RATE must be a positive integer, got "-1"/);
       assert.match(error.message, /ZENO_LOG_LEVEL must be one of debug, info, warn, error, got "loud"/);
@@ -73,7 +73,7 @@ test("never includes API keys in error messages", () => {
 });
 
 test("ADR-092: API keys in .env are not providers; Gemini and the Claude API settings run on the plan", () => {
-  assert.deepEqual(readProviderKeys({ ANTHROPIC_API_KEY: "x", GEMINI_API_KEY: "y" }, () => undefined), {});
+  assert.deepEqual(readProviderKeys({ ANTHROPIC_API_KEY: "x", GEMINI_API_KEY: "y" }, () => undefined, {}), {});
   for (const provider of ["gemini", "claude"]) {
     const config = loadConfig({ ZENO_LLM_PROVIDER: provider, ZENO_LLM_MODEL: "gemini-3.6-flash", ANTHROPIC_API_KEY: "sk-ant-nope-nope-nope" });
     assert.deepEqual([config.llm.provider, config.llm.model], ["claude-plan", "claude-sonnet-5-5"]);

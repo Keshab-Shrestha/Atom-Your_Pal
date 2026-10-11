@@ -1014,6 +1014,12 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Removed: the five styles and the Appearance page's Pal choice, Glow, Tucks away and Hiding lean (and flight lean), the "Tuck away" menu item, the panel's Size and Background settings on the Pal page, the avatar-move and character-move migrations, `PetPeek` (peeking, `PetRetreat`), and their gallery sheets and tests.
 - Tests: 3 Swift (moods, noticing and reactions, click) (Swift 494 pass).
 
+**Part 2, AI tools found on the Mac — as built (2026-10-11):** built; tested; checked live on this Mac.
+- At start, and on Settings → AI model → Scan, ZENO looks for Claude Code, Codex (also inside the ChatGPT VS Code/Cursor extension), the Gemini CLI, Ollama and LM Studio, and shows each as found, signed in (Claude via `claude auth status`, Codex via `codex login status`, the Gemini CLI by its saved sign-in existing; no login file is read) or not found.
+- ZENO can run on Codex (ChatGPT plan, `codex exec` read-only, nothing kept) and the Gemini CLI (Google sign-in, `gemini -p` in plan mode) as well as Claude Code (the default). They answer in chat only: ZENO's tools and the team stay on Claude. API keys are taken out of their environment, so they always use the sign-in. A tool known to be signed out cannot be chosen. Ollama and LM Studio are listed but not used (CLAUDE.md §11).
+- Live on this Mac: Claude Code and Codex found and signed in (a real Codex answer in about 7 s); the Gemini CLI found, not signed in (ZENO says so: "run `gemini` and sign in with Google"); Ollama found and not used.
+- Tests: 10 TS (adapters with a fake runner; the scan with a fake disk; finding Codex in the editor extension; signed-out tools unavailable), protocol, 1 Swift (TS 609, Swift 495 pass).
+
 ADR-091 is done: all six parts built and tested. Next: Keshab tries them on the real Mac (macOS will ask once to allow notifications); then Tasks 3.17–3.22 each need his decision.
 
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.

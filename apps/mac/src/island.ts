@@ -47,7 +47,7 @@ export interface IslandOptions {
   /** Reported in the `ready` event. */
   info: { provider: string; model: string; microphone: string };
   /** The AI model choice: sent as `info` after `ready`, changed by `model.set`. Without it, `model.set` is refused. */
-  settings?: Pick<ModelSettings, "info" | "setModel">;
+  settings?: Pick<ModelSettings, "info" | "setModel" | "scanTools">;
   /** Computer control (ADR-054): shows what ZENO is doing and asks before risky actions. Absent when it is off. */
   computer?: Pick<ComputerBridge, "attach" | "answer" | "cancelAll">;
   /** What ZENO keeps (ADR-058), for Settings. Absent when memory is off: `memory.*` answers `enabled: false`. */
@@ -391,6 +391,10 @@ export function runIsland(options: IslandOptions): IslandSession {
         sendMemory();
         return;
       }
+      case "tools.scan":
+        // ADR-093: look for the AI tools on this Mac again, then send the choices.
+        void options.settings?.scanTools?.().then(sendInfo, (error: unknown) => options.log?.warn("tools.scan_failed", { message: describe(error) }));
+        return;
       case "speech.set":
         // ADR-091: muted kinds still show (the island card, Pal's line); they are not said or chimed.
         speech = { reports: command.reports, updates: command.updates };
@@ -706,6 +710,8 @@ export function runIsland(options: IslandOptions): IslandSession {
       const llm = model ? { provider: model.provider, model: model.model } : {};
       send({ type: "ready", protocol: PROTOCOL_VERSION, ...options.info, ...llm, voice });
       sendInfo();
+      // ADR-093: find the AI tools on this Mac, then send the choices again with them.
+      void options.settings?.scanTools?.().then(sendInfo, (error: unknown) => options.log?.warn("tools.scan_failed", { message: describe(error) }));
     });
 
   return { loop, quit };

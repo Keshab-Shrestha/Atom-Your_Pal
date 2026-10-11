@@ -30,6 +30,8 @@ public enum IslandCommand: Sendable, Equatable {
     case helpersList
     /// ADR-091: whether ZENO says reports, and timers and updates, aloud.
     case speechSet(reports: Bool, updates: Bool)
+    /// ADR-093: look for the AI tools on this Mac again.
+    case toolsScan
     /// ADR-091: Keshab's chats: list them, continue one, delete one.
     case chatsList
     case chatOpen(id: String)
@@ -106,6 +108,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .contextWindow: "context.window"
         case .helpersList: "helpers.list"
         case .speechSet: "speech.set"
+        case .toolsScan: "tools.scan"
         case .chatsList: "chats.list"
         case .chatOpen: "chat.open"
         case .chatDelete: "chat.delete"
@@ -295,11 +298,14 @@ public struct ModelInfo: Sendable, Equatable {
     public var provider: String
     public var model: String
     public var providers: [ProviderOption]
+    /// ADR-093: the AI tools found on this Mac.
+    public var tools: [AiTool]
 
-    public init(provider: String, model: String, providers: [ProviderOption]) {
+    public init(provider: String, model: String, providers: [ProviderOption], tools: [AiTool] = []) {
         self.provider = provider
         self.model = model
         self.providers = providers
+        self.tools = tools
     }
 
     public var currentProvider: ProviderOption? { providers.first { $0.id == provider } }
@@ -617,7 +623,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .info(ModelInfo(
             provider: try f.string("provider"),
             model: try f.string("model"),
-            providers: try f.providers()))
+            providers: try f.providers(),
+            tools: Fields.tools(f.values["tools"])))
     case "worker.line":
         return .workerLine(try f.string("line"))
     case "timer":
@@ -986,6 +993,15 @@ private struct Fields {
         return n.boolValue
     }
 
+    /// ADR-093: the AI tools found on this Mac; a malformed entry is left out.
+    static func tools(_ value: Any?) -> [AiTool] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let m = entry as? [String: Any], let id = m["id"] as? String, let name = m["name"] as? String else { return nil }
+            let signedIn = (m["signedIn"] as? NSNumber).map(\.boolValue)
+            return AiTool(id: id, name: name, found: flag(m["found"]), signedIn: signedIn, provider: m["provider"] as? String, note: m["note"] as? String ?? "")
+        }
+    }
+
     /// ADR-091: ZENO's task branches; a malformed entry is left out.
     static func branches(_ value: Any?) -> [GitBranch] {
         (value as? [Any] ?? []).compactMap { entry in
@@ -1050,5 +1066,26 @@ extension IslandCommand {
     /// A multi-line field as its non-empty lines.
     static func lines(_ text: String) -> [String] {
         text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+    }
+}
+
+/// ADR-093: an AI tool found (or looked for) on this Mac.
+public struct AiTool: Sendable, Equatable, Identifiable {
+    public var id: String
+    public var name: String
+    public var found: Bool
+    /// Nil when the tool cannot be asked without reading its login.
+    public var signedIn: Bool?
+    /// The provider ZENO runs it as; nil for tools ZENO does not use (local models).
+    public var provider: String?
+    public var note: String
+
+    public init(id: String, name: String, found: Bool, signedIn: Bool? = nil, provider: String? = nil, note: String = "") {
+        self.id = id
+        self.name = name
+        self.found = found
+        self.signedIn = signedIn
+        self.provider = provider
+        self.note = note
     }
 }

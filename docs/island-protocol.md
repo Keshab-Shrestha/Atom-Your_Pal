@@ -214,3 +214,7 @@ The `helpers` event carries `usage`: `today` and `week` totals (`input`, `output
 - `{"type":"git.list"}` → `{"type":"git","branches":[{"repo","repoName","branch":"zeno/task-7","task":7,"title","base","commits":[{"sha","subject","at"}],"files":[{"path","added","removed"}],"remote","pushed":"no"|"yes"|"changed"}]}` for the repositories inside granted folders.
 - `{"type":"git.push","repo":"/full/path","branch":"zeno/task-7"}`: sent only after Keshab confirms; pushes that branch to `origin` (never forced), then `git` again; a refusal is an `error` with stage `settings`.
 - `{"type":"git.diff","repo":"…","branch":"…"}` → `{"type":"git.diff","repo","branch","text","truncated"}`.
+
+### AI tools (ADR-093)
+
+The `info` event carries `tools`: each AI tool ZENO looked for on this Mac, `{"id","name","found","signedIn"?,"provider"?,"note"}` (`signedIn` absent when the tool cannot be asked; `provider` absent for tools ZENO does not use). `{"type":"tools.scan"}` looks again and is answered with `info`. Providers now include `codex` and `gemini-cli`.

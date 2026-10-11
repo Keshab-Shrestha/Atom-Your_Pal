@@ -31,6 +31,7 @@ export type IslandCommand =
   | { type: "context.window"; bundleId: string; name: string }
   | { type: "helpers.list" }
   | { type: "speech.set"; reports: boolean; updates: boolean }
+  | { type: "tools.scan" }
   | { type: "helper.set"; helper: string; app: string }
   | { type: "job.add"; helper: string; task: string; blockedBy?: number[]; planFirst?: boolean }
   | { type: "plan.approve"; id: number }
@@ -83,6 +84,8 @@ export interface InfoEvent {
   provider: string;
   model: string;
   providers: { id: string; name: string; available: boolean; models: { id: string; name: string }[] }[];
+  /** ADR-093: the AI tools found on this Mac (found, signed in, what ZENO does with them). */
+  tools?: { id: string; name: string; found: boolean; signedIn?: boolean; provider?: string; note: string }[];
 }
 
 /** One kept memory, for Settings (ADR-058). Travels only over the private pipe; never logged. */
@@ -381,6 +384,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "context.window",
   "helpers.list",
   "speech.set",
+  "tools.scan",
   "helper.set",
   "job.add",
   "plan.approve",

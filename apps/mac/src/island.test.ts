@@ -374,7 +374,7 @@ const turn = async (h: ReturnType<typeof islandHarness>) => {
   await tick(5);
 };
 
-test("ready is followed by info with the model and the one provider, Claude on the plan", async () => {
+test("ready is followed by info with the model and the providers, Claude on the plan first (ADR-093)", async () => {
   const h = modelHarness();
   await tick(2);
   const [ready, info] = h.events();
@@ -382,7 +382,11 @@ test("ready is followed by info with the model and the one provider, Claude on t
   assert.equal(info.type, "info");
   if (info.type !== "info") return;
   assert.deepEqual([info.provider, info.model], ["claude-plan", "claude-sonnet-5-5"]);
-  assert.deepEqual(info.providers.map((p) => ({ id: p.id, name: p.name, available: p.available })), [{ id: "claude-plan", name: "Claude (my plan)", available: true }]);
+  assert.deepEqual(info.providers.map((p) => ({ id: p.id, available: p.available })), [
+    { id: "claude-plan", available: true },
+    { id: "codex", available: false },
+    { id: "gemini-cli", available: false },
+  ]);
   assert.ok(info.providers[0]!.models.some((m) => m.id === "claude-haiku-4-5-20251001" && m.name === "Claude Haiku 4.5"));
 });
 
@@ -425,8 +429,8 @@ test("model.set refusals are settings errors with the fix, and nothing changes (
     { type: "model.set", provider: "claude-plan", model: "gpt-9" },
   );
   assert.deepEqual(h.events(), [
-    { type: "error", stage: "settings", message: 'Unknown AI provider "gemini". Choose Claude (my plan).' },
-    { type: "error", stage: "settings", message: 'Unknown AI provider "claude". Choose Claude (my plan).' },
+    { type: "error", stage: "settings", message: 'Unknown AI provider "gemini". Choose Claude (my plan) or Codex (my ChatGPT plan) or Gemini CLI (my Google sign-in).' },
+    { type: "error", stage: "settings", message: 'Unknown AI provider "claude". Choose Claude (my plan) or Codex (my ChatGPT plan) or Gemini CLI (my Google sign-in).' },
     { type: "error", stage: "settings", message: '"gpt-9" is not a Claude (my plan) model ZENO offers. Choose one from the list.' },
   ]);
   assert.equal(existsSync(h.path), false);

@@ -57,13 +57,20 @@ struct ModelSection: View {
                 }
             }
             if info.provider == "claude-plan" { PlanMetersCard(usage: model.planUsage) }
-            let unavailable = info.providers.filter { !$0.available }
-            if !unavailable.isEmpty {
-                Card("Not set up") {
-                    ForEach(Array(unavailable.enumerated()), id: \.element.id) { index, provider in
-                        if index > 0 { RowDivider() }
-                        Row(title: provider.name, detail: provider.id == "claude-plan" ? "Claude Code not found or not signed in" : "No API key in .env") { EmptyView() }
+            // ADR-093: the AI tools on this Mac, found or not, and what ZENO does with them.
+            Card("Found on this Mac", footer: "Codex and the Gemini CLI answer in chat only: ZENO's tools and the team stay on Claude. Local models (Ollama, LM Studio) are not used.") {
+                if info.tools.isEmpty {
+                    Row(title: "Looking for AI tools…") { ProgressView().controlSize(.small) }
+                }
+                ForEach(Array(info.tools.enumerated()), id: \.element.id) { index, tool in
+                    if index > 0 { RowDivider() }
+                    Row(title: tool.name, detail: tool.note) {
+                        StatusDot(color: tool.found ? (tool.signedIn == false ? theme.attention.color : tool.provider == nil ? theme.text3.color : theme.success.color) : theme.text3.color, size: 7)
                     }
+                }
+                RowDivider()
+                Row(title: "Look again", detail: "After installing or signing in to a tool") {
+                    PillButton(title: "Scan") { model.send(.toolsScan) }
                 }
             }
         } else {
@@ -75,7 +82,11 @@ struct ModelSection: View {
 
     private func providerNote(_ provider: ProviderOption?) -> String? {
         guard let provider else { return nil }
-        if provider.id == "claude-plan" { return "Runs on your Claude plan, no API key needed." }
-        return nil
+        switch provider.id {
+        case "claude-plan": return "Runs on your Claude plan, no API key needed."
+        case "codex": return "Runs on your ChatGPT plan through Codex. Chat only: ZENO's tools stay with Claude."
+        case "gemini-cli": return "Runs on your Google sign-in through the Gemini CLI. Chat only: ZENO's tools stay with Claude."
+        default: return nil
+        }
     }
 }

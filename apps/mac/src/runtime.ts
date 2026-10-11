@@ -78,6 +78,7 @@ import { commitWork, prepareWorkdir, type Workdir } from "./worktree.ts";
 import { SKILLS_PLUGIN, listSkills, prepareSkills } from "./skills.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { mcpCheck, sdkConfig, testMcpServer } from "./mcp-servers.ts";
+import { scanAiTools } from "./ai-tools.ts";
 import { checkIssues, createPaperclip, createPaperclipTools, issueTracker, paperclipBase } from "./paperclip.ts";
 import { createWindowPointer, type WindowPointer } from "./screen-context.ts";
 import { withPointing } from "./pointing.ts";
@@ -444,6 +445,7 @@ export function createRuntime(
       if (settingsPath) writeSavedChoice(settingsPath, choice);
     },
     log,
+    scan: () => scanAiTools(), // ADR-093
   });
   // ADR-083: Laya rates each job's difficulty. Its server starts on the first job, stays warm, and stops in close().
   // ZENO_LAYA=0 turns it off (every job then gets the role's default tier).

@@ -87,7 +87,7 @@ ZENO runtime (Node.js, TypeScript)
   ├── Speech: Whisper (hearing), Kokoro (voice), Parakeet (dictation), all on the Mac
   ├── ZENO Core: requests, chats, tools, memory
   ├── Helpers: workers, souls, tasks, budgets, routines, grants (SQLite)
-  ├── LLM Gateway: Claude on your own Claude plan (through Claude Code)
+  ├── LLM Gateway: Claude Code (your Claude plan), or Codex / Gemini CLI for chat
   └── Policy in code: folder checks, approvals, budgets, the sandbox
 ```
 
@@ -124,6 +124,8 @@ claude auth login
 ```
 
 ZENO finds the `claude` program by itself (set `ZENO_CLAUDE_PATH` in `.env` if it is somewhere unusual). Choose the model (Opus, Sonnet or Haiku) in the app under Settings → AI model. Using your plan this way is meant for your own use on your own Mac.
+
+ZENO also looks for the other AI tools on your Mac and shows them under Settings → AI model → Found on this Mac. If you have **Codex** (signed in with ChatGPT, also inside the ChatGPT editor extension) or the **Gemini CLI** (signed in with Google), you can chat with ZENO on them instead; ZENO's tools and the team stay on Claude. Local model apps such as Ollama are listed but not used.
 
 ### 4. Build and open the app
 

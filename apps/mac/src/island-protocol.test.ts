@@ -214,6 +214,7 @@ test("parses the helper commands", () => {
     { type: "job.retry", id: 3 },
     { type: "speech.set", reports: false, updates: true },
     { type: "git.list" },
+    { type: "tools.scan" },
     { type: "git.push", repo: "/Users/me/site", branch: "zeno/task-7" },
     { type: "git.diff", repo: "/Users/me/site", branch: "zeno/task-7" },
     { type: "chats.list" },
