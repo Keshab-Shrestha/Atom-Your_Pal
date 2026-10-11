@@ -183,7 +183,16 @@ struct HelperBadge: View {
     var body: some View {
         let working = helper.jobs.contains { $0.state == .running }
         Group {
-            if let image = AvatarImages.image(helper.id, AvatarExpression.helper(helper)) {
+            if let character = PalLibrary.character(for: helper.id) {
+                // ADR-089: the worker's own character; it plays "working" while busy.
+                if working {
+                    TimelineView(.animation(minimumInterval: 1.0 / 20)) { context in
+                        PalPortrait(character: character, animation: "working", time: context.date.timeIntervalSinceReferenceDate, size: size * 1.18, glow: theme.usesGlow)
+                    }
+                } else {
+                    PalPortrait(character: character, animation: "idle", time: 0.6, size: size * 1.18, glow: theme.usesGlow)
+                }
+            } else if let image = AvatarImages.image(helper.id, AvatarExpression.helper(helper)) {
                 // Exports leave room around the character: a little larger, so it fills the disc.
                 Image(nsImage: image).resizable().scaledToFit().scaleEffect(1.15)
             } else {

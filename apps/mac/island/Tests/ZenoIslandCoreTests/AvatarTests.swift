@@ -84,16 +84,18 @@ struct AvatarTests {
         #expect(AvatarExpression.mouthOpen(at: -0.01) == AvatarExpression.mouthOpen(at: AvatarExpression.mouthCycle - 0.01))
     }
 
-    @MainActor @Test func avatarIsTheDefaultOnlyWithPalsImages() {
+    /// ADR-089: Pal's character is the default, once, whatever was stored; a choice made afterwards is kept.
+    @MainActor @Test func characterIsTheDefaultAndTakesOverOnce() {
         let suite = "zeno.test.avatar.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
-        #expect(IslandSettings(defaults: defaults).palStyle == .orb)
-        let withImages = IslandSettings(defaults: defaults, palAvatar: true)
-        #expect(withImages.palStyle == .avatar)
-        withImages.palStyle = .ghost
-        withImages.resetAppearance()
-        #expect(withImages.palStyle == .avatar)
+        defaults.set(PalStyle.ghost.rawValue, forKey: "zeno.wisp.style")
+        let settings = IslandSettings(defaults: defaults, palAvatar: true)
+        #expect(settings.palStyle == .character)
+        settings.palStyle = .avatar
+        #expect(IslandSettings(defaults: defaults, palAvatar: true).palStyle == .avatar, "a later choice is kept")
+        settings.resetAppearance()
+        #expect(settings.palStyle == .character)
     }
 
     /// A stored Orb (the old default) moves to Avatar once when the images arrive; choosing Orb again is kept, and

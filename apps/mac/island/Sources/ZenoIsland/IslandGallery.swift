@@ -108,6 +108,7 @@ enum IslandGallery {
         write(model, size: expanded, name: "4-empty-conversation", to: directory)
         model.conversation = filled
         // ADR-086: Void is the default; each sheet that changed with it is also drawn in Lantern ("-lantern").
+        writePals(to: directory)
         writePet(to: directory)
         writePet(to: directory, theme: .lantern, name: "5-pal-moods-lantern")
         writeBubbles(to: directory)
@@ -593,6 +594,45 @@ enum IslandGallery {
     }
 
     /// Pal in every mood, each at three moments, on a desktop-like strip above a Dock-coloured bar.
+    /// ADR-089: Pal's character in its animations, large, on the dark desktop and on a light one; then the team.
+    private static func writePals(to directory: URL) {
+        guard let pal = PalLibrary.pal else {
+            FileHandle.standardError.write(Data("gallery: no assets/pals/pal.json\n".utf8))
+            return
+        }
+        let animations = ["idle", "listening", "thinking", "happy", "working", "sleeping", "surprised", "angry"]
+        let team = ["pal", "sid", "kame", "puff", "quill", "penny", "hana", "tinker", "rumi"]
+        func row(dark: Bool) -> some View {
+            HStack(spacing: 6) {
+                ForEach(animations, id: \.self) { name in
+                    VStack(spacing: 2) {
+                        PalPortrait(character: pal, animation: name, time: 1.4, size: 150)
+                        Text(name).font(.system(size: 12, weight: .medium)).foregroundStyle(dark ? .white.opacity(0.8) : .black.opacity(0.7))
+                    }
+                }
+            }
+            .padding(16)
+            .background(dark ? Color(red: 0.07, green: 0.08, blue: 0.11) : Color(red: 0.93, green: 0.93, blue: 0.95))
+        }
+        let sheet = VStack(alignment: .leading, spacing: 0) {
+            row(dark: true)
+            row(dark: false)
+            HStack(spacing: 6) {
+                ForEach(team, id: \.self) { id in
+                    VStack(spacing: 2) {
+                        if let character = id == "pal" ? pal : PalLibrary.character(for: id) {
+                            PalPortrait(character: character, animation: id == "kame" ? "working" : "idle", time: 6.0, size: 130)
+                        }
+                        Text(id.capitalized).font(.system(size: 12, weight: .medium)).foregroundStyle(.white.opacity(0.8))
+                    }
+                }
+            }
+            .padding(16)
+            .background(Color(red: 0.12, green: 0.14, blue: 0.2))
+        }
+        save(sheet, name: "16-pals", to: directory)
+    }
+
     private static func writePet(to directory: URL, theme: AppTheme = .void, name: String = "5-pal-moods") {
         let moods: [(PetBrain.Mood, String)] = [
             (.resting, "Resting"), (.floating, "Floating"), (.listening, "Listening"), (.thinking, "Thinking"),

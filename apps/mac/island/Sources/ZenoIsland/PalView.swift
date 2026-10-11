@@ -69,12 +69,16 @@ struct PalView: View {
         return AvatarImages.image("pal", AvatarExpression.pal(mood: mood, reaction: reaction, mouthOpen: mouthOpen))
     }
 
-    /// The style motion, light and extras follow. An avatar image moves like the ghost (full squash, head tilt,
-    /// shadow); Avatar without its image is drawn as the orb, the default style.
+    /// The style motion, light and extras follow. An avatar image and the character move like the ghost (full squash,
+    /// head tilt, shadow); Avatar without its image, or the character without its file, is drawn as the orb.
     private var look: PalStyle {
+        if style == .character { return character == nil ? .orb : .ghost }
         guard style == .avatar else { return style }
         return avatar == nil ? .orb : .ghost
     }
+
+    /// ADR-089: Pal's character, when that is the style and its definition was found.
+    private var character: PalDefinition? { style == .character ? PalLibrary.pal : nil }
 
     /// The image in a 60-point square (exports are centred with a little room, so the character's feet land near
     /// y = 57 like every style), behind it a soft halo in the mood's light, nudged a point toward the pointer.
@@ -110,7 +114,7 @@ struct PalView: View {
 
     private var ink: Color {
         switch look {
-        case .ghost, .avatar: Self.ghostInk
+        case .ghost, .avatar, .character: Self.ghostInk
         case .orb: Self.orbInk
         case .companion: Self.companionInk
         }
@@ -119,14 +123,14 @@ struct PalView: View {
     /// The body colour used for the hand on the display edge.
     private var handFill: Color {
         switch look {
-        case .ghost, .avatar: Self.ghostBody
+        case .ghost, .avatar, .character: Self.ghostBody
         case .orb: Self.hex(0xC9D2FF)
         case .companion: Self.hex(0xE4F6F0)
         }
     }
     private var handLine: Color {
         switch look {
-        case .ghost, .avatar: Self.ghostGlow.opacity(0.75)
+        case .ghost, .avatar, .character: Self.ghostGlow.opacity(0.75)
         case .orb: .white.opacity(0.8)
         case .companion: Self.mintRim.opacity(0.9)
         }
@@ -227,7 +231,7 @@ struct PalView: View {
         case .thinking: Self.thinkLight
         default:
             switch look {
-            case .ghost, .avatar: Self.ghostGlow
+            case .ghost, .avatar, .character: Self.ghostGlow
             case .orb: Self.hex(0x7F9BFF)
             case .companion: Self.hex(0x8FE3CF)
             }
@@ -302,11 +306,15 @@ struct PalView: View {
         figure.scaleBy(x: squash.x * reactionSquash.x, y: squash.y * reactionSquash.y)
         figure.translateBy(x: -32, y: -pivotY)
 
-        if let avatar {
+        if let character {
+            // ADR-089: the character in the design space, feet at y = 57 like every style, its own expressions.
+            let pose = PalPose.at(character, animation: PalAnimation.name(mood: mood, reaction: reaction), time: time)
+            PalFigure.draw(character, pose: pose, time: time, in: figure, rect: CGRect(x: 1, y: 3, width: 62, height: 54), glow: !flat)
+        } else if let avatar {
             drawAvatar(avatar, in: &figure)
         } else {
             switch look {
-            case .ghost, .avatar: drawGhost(in: &figure)
+            case .ghost, .avatar, .character: drawGhost(in: &figure)
             case .orb: drawOrb(in: &figure, base: context, bob: bob)
             case .companion: drawCompanion(in: &figure)
             }

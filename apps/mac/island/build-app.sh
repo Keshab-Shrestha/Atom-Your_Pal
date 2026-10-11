@@ -55,6 +55,17 @@ if [ -d "$root/assets/avatars" ]; then
   done
 fi
 
+# Pal characters (ADR-089): assets/pals/<id>.json → Resources/pals/.
+pals=0
+if [ -d "$root/assets/pals" ]; then
+  mkdir -p "$app/Contents/Resources/pals"
+  for json in "$root"/assets/pals/*.json; do
+    [ -f "$json" ] || continue
+    cp "$json" "$app/Contents/Resources/pals/"
+    pals=$((pals + 1))
+  done
+fi
+
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -101,6 +112,7 @@ echo "  project: $root"
 echo "  node:    $node ($("$node" --version))"
 echo "  signed:  $signed"
 echo "  avatars: $avatars image(s)"
+echo "  pals:    $pals character(s)"
 
 if [ "${1:-}" = "--open" ]; then
   open "$app"

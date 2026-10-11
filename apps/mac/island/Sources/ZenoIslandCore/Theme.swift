@@ -54,6 +54,8 @@ public enum PalStyle: Int, SettingsChoice, Identifiable {
     /// Keshab's own character from exported images (ADR-085); ZENO's motion and light around it. Drawn as the orb
     /// when the images are missing.
     case avatar
+    /// ADR-089: Pal's character from its avatar definition (assets/pals/pal.json), drawn by ZENO: the default.
+    case character
 
     public var id: Int { rawValue }
     public var title: String {
@@ -62,6 +64,7 @@ public enum PalStyle: Int, SettingsChoice, Identifiable {
         case .orb: "Orb"
         case .companion: "Companion"
         case .avatar: "Avatar"
+        case .character: "Character"
         }
     }
 }

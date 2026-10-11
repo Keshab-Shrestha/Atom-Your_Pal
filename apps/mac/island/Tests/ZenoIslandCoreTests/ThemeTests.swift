@@ -56,7 +56,7 @@ import Testing
 
         let settings = IslandSettings(defaults: defaults)
         #expect(settings.theme == .void)
-        #expect(settings.palStyle == .orb)
+        #expect(settings.palStyle == .character) // ADR-089
         settings.theme = .warm
         settings.palStyle = .companion
         let reloaded = IslandSettings(defaults: defaults)
@@ -64,7 +64,7 @@ import Testing
         #expect(reloaded.palStyle == .companion)
         reloaded.resetAppearance()
         #expect(reloaded.theme == .void)
-        #expect(reloaded.palStyle == .orb)
+        #expect(reloaded.palStyle == .character)
     }
 
     @MainActor @Test func unknownStoredValuesFallBack() {
@@ -75,7 +75,7 @@ import Testing
         defaults.set(-4, forKey: "zeno.wisp.style")
         let settings = IslandSettings(defaults: defaults)
         #expect(settings.theme == .void)
-        #expect(settings.palStyle == .orb)
+        #expect(settings.palStyle == .character)
     }
 
     /// Lantern (ADR-084): one hue. Accent, live sound, success and the glow are all Pal's light; only attention

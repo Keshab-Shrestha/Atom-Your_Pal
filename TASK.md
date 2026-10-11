@@ -911,6 +911,17 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Tests: 10 TS (agents 6, provider 1, island 1, protocol, older expectations) and 1 Swift. TS 623 pass, 2 skipped; typecheck clean; Swift 491 pass.
 - Known limits: role and kit are changed by editing soul.md (the window's Soul form edits the soul only); built-in workers' souls stay in ZENO's store, not in soul.md files; agents live in `data/` (local, not in git).
 
+**Pal and the pals redrawn (ADR-089).** Keshab: "change wisp to pal", "add a new pal … with the following script", "redraw all the pals animation with reference to this pasted json format … premium looking".
+
+**As built (2026-10-11):** built; tested; seen in the gallery (`16-pals`); not yet seen on the real screen.
+- Wisp is Pal everywhere, code included (files, types, words); saved settings keep their stored `zeno.wisp.*` names.
+- `assets/pals/pal.json` is Keshab's "Strobi copy" avatar definition, as pasted. `scripts/make-pals.py` makes each worker's from it: Sid sea-glass blue with tall ears, Kame mint with low nubs and a broader body, Puff blush pink with long ears, Quill warm paper with one ear folded, Penny gold with small wide ears, Hana lavender with round ears, Tinker apricot with an antenna. An agent Keshab adds gets Pal's shape in colours chosen by its id. `build-app.sh` copies them into the app.
+- `PalCharacter.swift` (Core): the format (body, nodes, colours, 28 expressions, 23 animations); an animation's steps loop, each easing in (smoothstep) and holding; blinks at the intervals each animation allows; the expression's own colours and motion (shake, slow drift). ZENO's moments pick an animation: idle, listening, thinking, happy while speaking, sleeping, confused for a problem, surprised when carried; reactions: celebrate, confused, surprised, drowsy; a worker at work plays "working".
+- `PalFigure.swift`: ZENO's own renderer. The rounded body turns with the head (nod, turn, tilt) and its far side falls into shade; nodes are placed in 3D and drawn back to front; light from the top left, a rim of light, a gloss on the body, glossy eyes with two catchlights, drawn a little larger than the numbers so they read at small sizes. No Lab code.
+- "Character" is the new default style (Settings → Appearance), taken once whatever was stored; the earlier styles stay. The Helpers window and the island card show each worker's character, playing "working" while busy.
+- Tests: 5 Swift (format, steps and looping, colours and motion, blinks, mapping) and updated default-style tests. Swift 496 pass; TS 623 pass.
+- Known limits: the 3D is drawn as shaded shapes (a box seen turned, not a modelled mesh); feet and ears are seen from the front only; Void's flat rule does not apply to the characters (their shading is part of the character; no glow).
+
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.
 
 **Task 3.17 — Companies and user logins.** Separate workspaces with their own tasks, workers, budgets and history; sign-in for more than one person.

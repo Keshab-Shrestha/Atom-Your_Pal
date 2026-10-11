@@ -45,6 +45,7 @@ struct AppearanceSection: View {
         case .companion: "A small character with a face: its pose and face show the mood"
         case .avatar: AvatarImages.hasPal ? "Your own character, from the images in assets/avatars: its face shows the mood"
             : "Your own character: add its images to assets/avatars and rebuild. Until then, the orb"
+        case .character: "Pal's character from assets/pals/pal.json: 28 expressions and their animations show the mood"
         }
     }
 }

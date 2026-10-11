@@ -35,6 +35,7 @@ public final class IslandSettings {
     static let voidMoveKey = "zeno.look.voidDefault"
     static let palStyleKey = "zeno.wisp.style"
     static let avatarMoveKey = "zeno.wisp.avatarDefault"
+    static let characterMoveKey = "zeno.pal.characterDefault"
     static let palReactsKey = "zeno.wisp.reacts"
     static let palHomeDisplayKey = "zeno.wisp.homeDisplay"
     static let tourDoneKey = "zeno.tourDone"
@@ -142,13 +143,13 @@ public final class IslandSettings {
         DictationOptions(mode: dictationMode, livePreview: livePreview, removeFillers: removeFillers)
     }
 
-    /// The default Pal style: Avatar when its images exist (ADR-085), else Orb.
+    /// The default Pal style: its character (ADR-089).
     private let defaultPalStyle: PalStyle
 
     /// `palAvatar`: Pal's avatar images exist (the app checks for `pal/neutral.png`).
     public init(defaults: UserDefaults = .standard, palAvatar: Bool = false) {
         self.defaults = defaults
-        defaultPalStyle = palAvatar ? .avatar : .orb
+        defaultPalStyle = .character
         petEnabled = defaults.object(forKey: Self.petKey) as? Bool ?? true
         palReacts = defaults.object(forKey: Self.palReactsKey) as? Bool ?? true
         tourDone = defaults.bool(forKey: Self.tourDoneKey)
@@ -170,6 +171,7 @@ public final class IslandSettings {
         Self.moveToVoidOnce(defaults)
         theme = Self.choice(defaults, Self.themeKey, .void)
         if palAvatar { Self.moveToAvatarOnce(defaults) }
+        Self.moveToCharacterOnce(defaults)
         palStyle = Self.choice(defaults, Self.palStyleKey, defaultPalStyle)
         dictationMode = (defaults.string(forKey: Self.dictationModeKey)).flatMap(DictationMode.init(rawValue:)) ?? .automatic
         livePreview = defaults.object(forKey: Self.livePreviewKey) as? Bool ?? true
@@ -256,6 +258,13 @@ public final class IslandSettings {
     /// Appearance: the theme and Pal's style.
     public func resetAppearance() {
         theme = .void; palStyle = defaultPalStyle
+    }
+
+    /// ADR-089: Pal takes its new character once, whatever style was stored; choosing another afterwards is kept.
+    private static func moveToCharacterOnce(_ defaults: UserDefaults) {
+        guard !defaults.bool(forKey: characterMoveKey) else { return }
+        defaults.set(true, forKey: characterMoveKey)
+        defaults.set(PalStyle.character.rawValue, forKey: palStyleKey)
     }
 
     /// ADR-085: the first launch with Pal's avatar images, a stored Orb (the old default, which "Reset this page"
