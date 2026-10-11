@@ -4,6 +4,7 @@ import type { Routine, Schedule } from "./routines.ts";
 import type { Proposal, ReviewTarget, SoulField } from "./feedback.ts";
 import type { Kit } from "./agents.ts";
 import type { McpServer, McpServerInput } from "./mcp.ts";
+import type { UsageEntry, UsageSummary } from "./usage.ts";
 
 // The helper store's public shapes (split from store.ts): jobs as tasks, threads, goals, the store's operations.
 
@@ -181,6 +182,7 @@ export type HelperChange =
   | { action: "skills"; helper: HelperId; count: number }
   | { action: "agent"; helper: HelperId; added: boolean }
   | { action: "mcp"; server: number; change: "added" | "removed" | "set" | "tested" }
+  | { action: "usage" }
   | { action: "rating"; helper: HelperId; job: number; good: boolean }
   | { action: "proposal"; helper: HelperId; proposal: number; state: "pending" | "accepted" | "rejected" | "undone" }
   | { action: "model"; helper: HelperId; job: number }
@@ -238,6 +240,10 @@ export interface HelperStore {
   /** Agent folders that could not be read, in words. */
   agentProblems(): string[];
   /** ADR-090: MCP servers (secrets included: for the runtime only, never for the island or the log). */
+  /** ADR-091: records the tokens one run used (a job or a chat answer). */
+  addUsage(entry: UsageEntry): void;
+  /** ADR-091: today and the last 7 days, by day, worker and model. */
+  usage(): UsageSummary;
   mcpServers(): McpServer[];
   /** Saves a server, switched off. Throws HelperError for a bad name, command, address or line, or too many. */
   addMcpServer(input: McpServerInput): McpServer;

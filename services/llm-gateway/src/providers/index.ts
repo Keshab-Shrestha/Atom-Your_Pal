@@ -1,7 +1,7 @@
 import type { ToolRunner } from "@zeno/contracts";
 import type { ProviderAdapter } from "../gateway.ts";
 import { createClaudeAdapter } from "./claude.ts";
-import { createClaudePlanAdapter, type PlanUsage } from "./claude-plan.ts";
+import { createClaudePlanAdapter, type PlanUsage, type TokenUsage } from "./claude-plan.ts";
 import { createGeminiAdapter } from "./gemini.ts";
 
 export const PROVIDERS = ["claude", "claude-plan", "gemini"] as const;
@@ -16,6 +16,8 @@ export interface ProviderSettings {
   tools?: ToolRunner;
   /** For "claude-plan" only: told how much of the plan is used. */
   onUsage?: (usage: PlanUsage) => void;
+  /** For "claude-plan" only (ADR-091): told the tokens each answer used. */
+  onTokens?: (tokens: TokenUsage, model: string) => void;
 }
 
 /** Builds the configured provider adapter. The only place that knows every provider. */
@@ -29,6 +31,7 @@ export function createProviderAdapter(settings: ProviderSettings): ProviderAdapt
         model: settings.model,
         ...(settings.tools ? { tools: settings.tools } : {}),
         ...(settings.onUsage ? { onUsage: settings.onUsage } : {}),
+        ...(settings.onTokens ? { onTokens: settings.onTokens } : {}),
       });
     case "gemini":
       return createGeminiAdapter({ apiKey: settings.apiKey, model: settings.model });

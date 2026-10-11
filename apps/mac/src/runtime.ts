@@ -30,7 +30,7 @@ import {
   type TimerInfo,
   type Timers,
 } from "@zeno/tool-engine";
-import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError, runPlan, runResearch, runReview, type PlanUsage } from "@zeno/llm-gateway";
+import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError, runPlan, runResearch, runReview, type PlanUsage, type TokenUsage } from "@zeno/llm-gateway";
 import { CLAUDE_PLAN, createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import {
   createEpisodeRecorder,
@@ -291,6 +291,8 @@ export function createRuntime(
         apiKey,
         tools: toolEngine,
         onUsage: reportUsage,
+        // ADR-091: ZENO's own answers count on the Dashboard too.
+        onTokens: (tokens, model) => helpers?.addUsage({ source: "chat", model, ...tokens, ...(tokens.costUsd ? { dollars: tokens.costUsd } : {}) }),
       }),
       // Claude Code starts its own process and may take several tool turns, so it gets longer than one API call.
       timeoutMs: choice.provider === "claude-plan" ? Math.max(config.llm.timeoutMs, PLAN_TIMEOUT_MS) : config.llm.timeoutMs,
@@ -510,20 +512,26 @@ export function createRuntime(
         // ADR-088: a "think" agent has no tools at all (the documenter without a folder still writes up from the web).
         ...(kit === "think" ? { thinkOnly: true } : {}),
       });
+    // ADR-091: every run's tokens, for the Dashboard.
+    const countTokens = (tokens: TokenUsage | undefined) => {
+      if (tokens) helpers?.addUsage({ source: "job", helper: job.helper, job: job.id, model, ...tokens, ...(tokens.costUsd ? { dollars: tokens.costUsd } : {}) });
+    };
     // Task 3.13: Tinker reviews a task Keshab rated as not good: no tools, one proposed soul change (or none).
     if (role === "improver") {
       const target = helpers?.reviewTarget(job.id);
       if (!target) throw new Error("The task to review is gone.");
-      const { review, costUsd } = await runReview({ claudePath: keys["claude-plan"] ?? "", model, task: reviewBrief(target), instructions, signal, onStep, onUsage: reportUsage });
+      const { review, costUsd, tokens } = await runReview({ claudePath: keys["claude-plan"] ?? "", model, task: reviewBrief(target), instructions, signal, onStep, onUsage: reportUsage });
       if (costUsd) helpers?.addSpend(job.id, costUsd);
+      countTokens(tokens);
       if (!review.change || !review.text.trim()) return { report: { title: `No change for ${target.worker}`, summary: review.reason, body: review.reason, sources: [] } };
       helpers?.addProposal(job.id, review);
       return { report: { title: `A change for ${target.worker}'s ${review.field}`, summary: review.reason, body: review.text, sources: [] } };
     }
     // Task 3.8: a plan-first task's first run only plans (no tools); the plan then waits for Keshab.
     if (job.planFirst && job.planStatus !== "approved") {
-      const { plan, costUsd } = await runPlan({ claudePath: keys["claude-plan"] ?? "", model, task: fresh(), instructions, signal, onStep, onUsage: reportUsage });
+      const { plan, costUsd, tokens } = await runPlan({ claudePath: keys["claude-plan"] ?? "", model, task: fresh(), instructions, signal, onStep, onUsage: reportUsage });
       if (costUsd) helpers?.addSpend(job.id, costUsd);
+      countTokens(tokens);
       return { plan };
     }
     // Task 3.6: asked again, the run continues its last session with only what is new. A session Claude Code no
@@ -540,6 +548,7 @@ export function createRuntime(
     }
     if (result.sessionId) helpers?.setSession(job.id, result.sessionId);
     if (result.costUsd) helpers?.addSpend(job.id, result.costUsd); // Task 3.7: counts toward the day's budgets
+    countTokens(result.tokens);
     // Task 3.11: in a repository, ZENO commits the work on the task's own branch. Never pushed.
     if (work?.branch) {
       const committed = await commitWork(work.dir, `ZENO task ${job.id}: ${result.report.title}`);

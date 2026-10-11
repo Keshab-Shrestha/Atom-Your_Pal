@@ -981,6 +981,11 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Clicking one opens the ZENO window on its task. Settings → General → Notifications turns each kind off.
 - Tests: 2 Swift (what is new, budgets and the plan) (Swift 510 pass).
 
+**Part 3, tokens and the Dashboard — as built (2026-10-11):** built; tested; seen in the gallery; counts start from now (earlier runs were not recorded).
+- Every Claude run records its tokens (input, output, cache read, cache write) and API-equivalent dollars from Claude Code's result: each worker's task (research, plan, review, file runs) and each of ZENO's own chat answers. Table `usage` in the local helpers file: counts and model ids only, kept 90 days.
+- The Dashboard (sidebar, under Overview; its row shows today's tokens): today, the last 7 days and dollars; a bar per day (new tokens solid, cached faint); the Claude plan's five-hour and seven-day use; the week by worker (ZENO's chat apart) and by model; how to use fewer.
+- Tests: 3 TS (sums by day, worker and model; the store; tokens from a result), the helpers event, 1 Swift (decoding, short numbers) (TS 641, Swift 511 pass).
+
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.
 
 **Task 3.17 — Companies and user logins.** Separate workspaces with their own tasks, workers, budgets and history; sign-in for more than one person.

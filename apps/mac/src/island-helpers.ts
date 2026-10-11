@@ -79,6 +79,11 @@ export function islandHelpers(
     createAgent: (input) => void store.createAgent(input),
     removeAgent: (id) => store.removeAgent(id),
     retry: (id) => store.retry(id),
+    usage: () => {
+      const summary = store.usage();
+      const names = new Map(store.list().map((h) => [h.id, h.name]));
+      return { ...summary, byWorker: summary.byWorker.map((w) => ({ ...w, name: w.helper === null ? "ZENO chat" : (names.get(w.helper) ?? w.helper) })) };
+    },
     mcp: () =>
       store.mcpServers().map((s) => ({
         id: s.id,

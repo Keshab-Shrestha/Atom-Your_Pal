@@ -1,7 +1,7 @@
 import { tmpdir } from "node:os";
 import { z } from "zod";
 import { ProviderError } from "../gateway.ts";
-import { classify, isPlanMessage, loadSdk, planGuard, scrubbedEnv, type ClaudeSdk, type PlanUsage } from "./claude-plan.ts";
+import { classify, isPlanMessage, loadSdk, planGuard, scrubbedEnv, tokensOf, type ClaudeSdk, type PlanUsage, type TokenUsage } from "./claude-plan.ts";
 
 /**
  * A worker's research job on the user's Claude plan (ADR-081, ADR-082, Task 3.2): one separate Claude Code session per
@@ -48,6 +48,8 @@ export type JobReview = z.infer<typeof ReviewSchema>;
 export interface PlanResult {
   plan: JobPlan;
   costUsd?: number;
+  /** ADR-091: the tokens the run used. */
+  tokens?: TokenUsage;
 }
 
 export interface ResearchResult {
@@ -60,6 +62,8 @@ export interface ResearchResult {
   sessionId?: string;
   /** Task 3.7: what the run cost in dollars of API-equivalent use, as Claude Code reports it (the plan does not charge it). */
   costUsd?: number;
+  /** ADR-091: the tokens the run used. */
+  tokens?: TokenUsage;
 }
 
 export interface ResearchOptions {
@@ -185,15 +189,15 @@ export function parseReport(value: unknown): ResearchReport {
 
 export async function runResearch(options: ResearchOptions): Promise<ResearchResult> {
   const out = await runStructured(options, "research");
-  return { report: parseReport(out.structured), partial: out.limited, pages: out.pages, ...(out.sessionId ? { sessionId: out.sessionId } : {}), ...(out.costUsd ? { costUsd: out.costUsd } : {}) };
+  return { report: parseReport(out.structured), partial: out.limited, pages: out.pages, ...(out.sessionId ? { sessionId: out.sessionId } : {}), ...(out.costUsd ? { costUsd: out.costUsd } : {}), ...(out.tokens ? { tokens: out.tokens } : {}) };
 }
 
 /** Task 3.13: Tinker's review: no tools at all, one proposed soul change (or none) back, nothing kept for resuming. */
-export async function runReview(options: Omit<ResearchOptions, "resume" | "pageLimit">): Promise<{ review: JobReview; costUsd?: number }> {
+export async function runReview(options: Omit<ResearchOptions, "resume" | "pageLimit">): Promise<{ review: JobReview; costUsd?: number; tokens?: TokenUsage }> {
   const out = await runStructured(options, "review");
   const parsed = ReviewSchema.safeParse(out.structured);
   if (!parsed.success) throw new ProviderError("bad_request", "The review came back in the wrong shape.");
-  return { review: parsed.data, ...(out.costUsd ? { costUsd: out.costUsd } : {}) };
+  return { review: parsed.data, ...(out.costUsd ? { costUsd: out.costUsd } : {}), ...(out.tokens ? { tokens: out.tokens } : {}) };
 }
 
 /** Task 3.8: a plan-first task's first run: no tools at all, a short plan back, nothing kept for resuming. */
@@ -201,7 +205,7 @@ export async function runPlan(options: Omit<ResearchOptions, "resume" | "pageLim
   const out = await runStructured(options, "plan");
   const parsed = PlanSchema.safeParse(out.structured);
   if (!parsed.success) throw new ProviderError("bad_request", "The plan came back in the wrong shape.");
-  return { plan: parsed.data, ...(out.costUsd ? { costUsd: out.costUsd } : {}) };
+  return { plan: parsed.data, ...(out.costUsd ? { costUsd: out.costUsd } : {}), ...(out.tokens ? { tokens: out.tokens } : {}) };
 }
 
 /** Task 3.11: Claude Code's file tools and Bash, for a run in granted folders. */
@@ -377,5 +381,6 @@ async function runStructured(options: ResearchOptions, mode: "research" | "plan"
     throw new ProviderError(kind, message);
   }
   const costUsd = typeof result.total_cost_usd === "number" && result.total_cost_usd > 0 ? result.total_cost_usd : undefined;
-  return { structured: result.structured_output as unknown, limited, pages, sessionId, costUsd };
+  const tokens = tokensOf(result);
+  return { structured: result.structured_output as unknown, limited, pages, sessionId, costUsd, ...(tokens ? { tokens } : {}) };
 }

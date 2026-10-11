@@ -197,3 +197,7 @@ A complete turn:
 ### speech.set (ADR-091)
 
 `{"type":"speech.set","reports":true,"updates":false}`: whether ZENO says the team's reports, and timers and other updates, aloud. A muted line still shows (the island's card, Pal's line); it is not chimed or spoken. The island sends it when ZENO connects and whenever Keshab changes it. No answer.
+
+### helpers: usage (ADR-091)
+
+The `helpers` event carries `usage`: `today` and `week` totals (`input`, `output`, `cacheRead`, `cacheWrite`, `dollars`, `runs`), `days` (the last 7, oldest first, each with `day` as a local `YYYY-MM-DD`), `byWorker` (`helper` id or null for ZENO's chat, and `name`) and `byModel` (`model`). Counts and model ids only.

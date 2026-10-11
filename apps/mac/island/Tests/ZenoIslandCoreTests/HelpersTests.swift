@@ -971,3 +971,17 @@ struct NoticeTests {
         #expect(plan.map(\.title) == ["The Claude plan is at 86%"] && plan[0].body.contains("wait above 80%"))
     }
 }
+
+@Suite("Dashboard tokens (ADR-091)")
+struct TokenUsageTests {
+    @Test func decodesUsageAndShortensNumbers() throws {
+        let line = HelperTaskTests.line.replacingOccurrences(of: #"{"type":"helpers","apps":[],"#,
+            with: #"{"type":"helpers","apps":[],"usage":{"today":{"input":10,"output":5,"cacheRead":100,"cacheWrite":2,"dollars":0.5,"runs":1},"week":{"input":10,"output":5,"cacheRead":100,"cacheWrite":2,"dollars":0.5,"runs":1},"days":[{"day":"2026-10-11","input":10,"output":5,"cacheRead":100,"cacheWrite":2,"dollars":0.5,"runs":1}],"byWorker":[{"helper":null,"name":"ZENO chat","input":10,"output":5,"cacheRead":100,"cacheWrite":2,"dollars":0.5,"runs":1}],"byModel":[{"model":"claude-sonnet-5-5","input":1,"output":0,"cacheRead":0,"cacheWrite":0,"dollars":0,"runs":1},{"bad":1}]},"#)
+        var state = HelpersState()
+        state.apply(try decodeEvent(line))
+        let usage = try #require(state.list?.usage)
+        #expect(usage.today.total == 117 && usage.today.fresh == 17 && usage.days.first?.day == "2026-10-11")
+        #expect(usage.byWorker.first?.helper == nil && usage.byWorker.first?.name == "ZENO chat" && usage.byModel.map(\.model) == ["claude-sonnet-5-5"])
+        #expect([TokenTotals.short(850), TokenTotals.short(1240), TokenTotals.short(12_400), TokenTotals.short(3_100_000)] == ["850", "1.2K", "12K", "3.1M"])
+    }
+}

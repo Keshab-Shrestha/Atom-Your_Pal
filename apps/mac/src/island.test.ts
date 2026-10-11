@@ -629,7 +629,10 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
   await tick(5);
   h.clear();
   await h.send({ type: "helpers.list" });
-  assert.deepEqual(h.events(), [
+  // ADR-091: the week's tokens depend on today's date; checked on their own.
+  const { usage, ...sent } = h.events()[0] as HelpersEvent;
+  assert.deepEqual([usage?.days.length, usage?.week.runs, usage?.byWorker], [7, 0, []]);
+  assert.deepEqual([sent], [
     {
       type: "helpers",
       helpers: HELPERS.map((r) => ({

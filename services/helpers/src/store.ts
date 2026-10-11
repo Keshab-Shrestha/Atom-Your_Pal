@@ -12,6 +12,7 @@ import { DEFAULT_PLAN_LIMIT, DEFAULT_TEAM_CAP, DEFAULT_WORKER_CAP, MAX_CAP, PLAN
 import { isDue, routineTable } from "./routines.ts";
 import { SOUL_FIELDS, proposalTable } from "./feedback.ts";
 import { mcpTable } from "./mcp.ts";
+import { usageTable } from "./usage.ts";
 import { createSchema, sameSoul, toJobRow, toSoul, webSources, type JobRow, type ReportRow, type SoulRow } from "./store-schema.ts";
 import {
   BUILT_IN_KITS,
@@ -187,6 +188,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const routines = routineTable(db);
   const proposals = proposalTable(db);
   const mcp = mcpTable(db);
+  const tokens = usageTable(db, now);
   const putRating = db.prepare("UPDATE jobs SET rating = ?, rating_comment = ? WHERE id = ?");
   const reviewOf = db.prepare("SELECT id FROM jobs WHERE reviews = ? LIMIT 1");
   const insertReview = db.prepare("INSERT INTO jobs (helper, task, state, created_at, reviews) VALUES ('tinker', ?, 'queued', ?, ?)");
@@ -771,6 +773,12 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       emit({ action: "comment", helper: job.helper, job: id });
       wake(job);
     },
+
+    addUsage(entry) {
+      tokens.add(entry);
+      emit({ action: "usage" });
+    },
+    usage: () => tokens.summary(),
 
     mcpServers: () => mcp.list(),
 

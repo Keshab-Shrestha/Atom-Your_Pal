@@ -440,9 +440,11 @@ public struct HelpersList: Sendable, Equatable {
     public var paperclip: [PaperclipTask]?
     /// ADR-090: Keshab's MCP servers.
     public var mcp: [McpServerItem]
+    /// ADR-091: tokens used today and in the last 7 days; nil from an older runtime.
+    public var usage: TokenUsageSummary?
 
     public init(helpers: [Helper], apps: [String], allowLarge: Bool = true, models: [HelperModel] = [], team: HelperBudget? = nil,
-                planLimit: Int? = nil, paperclip: [PaperclipTask]? = nil, mcp: [McpServerItem] = [], skills: [SkillInfo] = []) {
+                planLimit: Int? = nil, paperclip: [PaperclipTask]? = nil, mcp: [McpServerItem] = [], usage: TokenUsageSummary? = nil, skills: [SkillInfo] = []) {
         self.helpers = helpers
         self.apps = apps
         self.allowLarge = allowLarge
@@ -451,6 +453,7 @@ public struct HelpersList: Sendable, Equatable {
         self.planLimit = planLimit
         self.paperclip = paperclip
         self.mcp = mcp
+        self.usage = usage
         self.skills = skills
     }
 
@@ -1075,4 +1078,68 @@ public struct McpServerDraft: Sendable, Equatable {
     public var headers = ""
 
     public init() {}
+}
+
+/// ADR-091: tokens one or more runs used, and their API-equivalent dollars (the plan does not charge them).
+public struct TokenTotals: Sendable, Equatable {
+    public var input: Int, output: Int, cacheRead: Int, cacheWrite: Int
+    public var dollars: Double
+    public var runs: Int
+
+    public init(input: Int = 0, output: Int = 0, cacheRead: Int = 0, cacheWrite: Int = 0, dollars: Double = 0, runs: Int = 0) {
+        self.input = input
+        self.output = output
+        self.cacheRead = cacheRead
+        self.cacheWrite = cacheWrite
+        self.dollars = dollars
+        self.runs = runs
+    }
+
+    public var total: Int { input + output + cacheRead + cacheWrite }
+    /// Everything but what was read back from the cache (which counts far less toward the plan's limits).
+    public var fresh: Int { input + output + cacheWrite }
+
+    /// 850, 12.4K, 3.1M.
+    public static func short(_ n: Int) -> String {
+        switch n {
+        case ..<1000: "\(n)"
+        case ..<1_000_000: String(format: n < 10000 ? "%.1fK" : "%.0fK", Double(n) / 1000)
+        default: String(format: "%.1fM", Double(n) / 1_000_000)
+        }
+    }
+}
+
+public struct DayTokens: Sendable, Equatable {
+    /// YYYY-MM-DD, local.
+    public var day: String
+    public var totals: TokenTotals
+}
+
+public struct WorkerTokens: Sendable, Equatable {
+    /// Nil: ZENO's own chat.
+    public var helper: String?
+    public var name: String
+    public var totals: TokenTotals
+}
+
+public struct ModelTokens: Sendable, Equatable {
+    public var model: String
+    public var totals: TokenTotals
+}
+
+/// ADR-091: the Dashboard's tokens: today, the week, each of the last 7 days, each worker and each model.
+public struct TokenUsageSummary: Sendable, Equatable {
+    public var today: TokenTotals
+    public var week: TokenTotals
+    public var days: [DayTokens]
+    public var byWorker: [WorkerTokens]
+    public var byModel: [ModelTokens]
+
+    public init(today: TokenTotals, week: TokenTotals, days: [DayTokens] = [], byWorker: [WorkerTokens] = [], byModel: [ModelTokens] = []) {
+        self.today = today
+        self.week = week
+        self.days = days
+        self.byWorker = byWorker
+        self.byModel = byModel
+    }
 }

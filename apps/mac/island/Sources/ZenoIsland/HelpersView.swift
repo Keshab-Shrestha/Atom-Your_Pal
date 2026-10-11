@@ -25,6 +25,8 @@ struct HelpersView: View {
             Group {
                 if model.windowPage == .overview {
                     OverviewPane(model: model)
+                } else if model.windowPage == .dashboard {
+                    DashboardPane(model: model)
                 } else if model.windowPage == .inbox {
                     NeedsYouPane(model: model)
                 } else if model.windowPage == .issues {
@@ -73,6 +75,7 @@ extension HelpersView {
     static func page(_ model: IslandModel) -> (title: String, symbol: String) {
         switch model.windowPage {
         case .overview: return ("Overview", "gauge.with.dots.needle.33percent")
+        case .dashboard: return ("Dashboard", "chart.bar.xaxis")
         case .chat: return ("Chat", "bubble.left.and.text.bubble.right")
         case .inbox: return ("Needs you", "tray")
         case .issues: return ("Issues", "exclamationmark.triangle")
@@ -117,6 +120,11 @@ private struct HelperSidebar: View {
             WindowHeader(model: model)
             Button { model.windowPage = .overview } label: {
                 SidebarRow(symbol: "gauge.with.dots.needle.33percent", title: "Overview", detail: nil, selected: model.windowPage == .overview)
+            }
+            .buttonStyle(.plain)
+            Button { model.windowPage = .dashboard } label: {
+                let today = model.helpers.list?.usage?.today.total ?? 0
+                SidebarRow(symbol: "chart.bar.xaxis", title: "Dashboard", detail: today == 0 ? nil : "\(TokenTotals.short(today)) tokens today", selected: model.windowPage == .dashboard)
             }
             .buttonStyle(.plain)
             Button { model.windowPage = .chat } label: {

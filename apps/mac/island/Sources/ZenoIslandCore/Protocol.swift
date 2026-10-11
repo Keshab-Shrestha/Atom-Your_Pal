@@ -612,6 +612,7 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
                                     team: Fields.budget(f.values["team"]), planLimit: (f.values["planLimit"] as? NSNumber)?.intValue,
                                     paperclip: Fields.paperclip(f.values["paperclip"]),
                                     mcp: Fields.mcp(f.values["mcp"]),
+                                    usage: Fields.usage(f.values["usage"]),
                                     skills: (f.values["skills"] as? [Any] ?? []).compactMap { entry in
                                         guard let s = entry as? [String: Any], let name = s["name"] as? String else { return nil }
                                         return SkillInfo(name: name, description: s["description"] as? String ?? "")
@@ -817,6 +818,24 @@ private struct Fields {
         guard let b = value as? [String: Any], let spent = b["spent"] as? NSNumber, CFGetTypeID(spent) != CFBooleanGetTypeID() else { return nil }
         let cap = b["cap"] as? NSNumber
         return HelperBudget(cap: cap.flatMap { CFGetTypeID($0) == CFBooleanGetTypeID() ? nil : $0.doubleValue }, spent: spent.doubleValue)
+    }
+
+    /// ADR-091: the Dashboard's tokens; nil when absent or malformed.
+    static func usage(_ value: Any?) -> TokenUsageSummary? {
+        guard let u = value as? [String: Any], let today = totals(u["today"]), let week = totals(u["week"]) else { return nil }
+        let list = { (k: String) in (u[k] as? [Any]) ?? [] }
+        return TokenUsageSummary(
+            today: today, week: week,
+            days: list("days").compactMap { d in (d as? [String: Any]).flatMap { m in totals(m).flatMap { t in (m["day"] as? String).map { DayTokens(day: $0, totals: t) } } } },
+            byWorker: list("byWorker").compactMap { w in (w as? [String: Any]).flatMap { m in totals(m).map { WorkerTokens(helper: m["helper"] as? String, name: m["name"] as? String ?? "", totals: $0) } } },
+            byModel: list("byModel").compactMap { x in (x as? [String: Any]).flatMap { m in totals(m).flatMap { t in (m["model"] as? String).map { ModelTokens(model: $0, totals: t) } } } })
+    }
+
+    private static func totals(_ value: Any?) -> TokenTotals? {
+        guard let m = value as? [String: Any] else { return nil }
+        let n = { (k: String) in (m[k] as? NSNumber)?.intValue ?? 0 }
+        return TokenTotals(input: n("input"), output: n("output"), cacheRead: n("cacheRead"), cacheWrite: n("cacheWrite"),
+                           dollars: (m["dollars"] as? NSNumber)?.doubleValue ?? 0, runs: n("runs"))
     }
 
     /// ADR-090: Keshab's MCP servers (never a secret value); a malformed entry is left out.

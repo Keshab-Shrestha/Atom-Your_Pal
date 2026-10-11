@@ -153,6 +153,25 @@ export interface ThreadEvent {
   goal?: { id: number; text: string; ended: boolean; tasks: number[]; report?: Omit<ReportEvent, "type" | "id"> };
 }
 
+/** ADR-091: token counts and API-equivalent dollars. */
+export interface UsageTotalsItem {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  dollars: number;
+  runs: number;
+}
+
+/** ADR-091: the Dashboard's tokens: today, the week, each day, each worker (name; null for ZENO's chat), each model. */
+export interface UsageItem {
+  today: UsageTotalsItem;
+  week: UsageTotalsItem;
+  days: (UsageTotalsItem & { day: string })[];
+  byWorker: (UsageTotalsItem & { helper: string | null; name: string })[];
+  byModel: (UsageTotalsItem & { model: string })[];
+}
+
 /** ADR-090: an MCP server as the island sees it: never a secret value. */
 export interface McpItem {
   id: number;
@@ -294,6 +313,8 @@ export type IslandEvent =
       skills?: { name: string; description: string }[];
       /** ADR-090: Keshab's MCP servers; secrets never: only the names of env variables and headers. */
       mcp?: McpItem[];
+      /** ADR-091: tokens used today and in the last 7 days (counts and model ids only). */
+      usage?: UsageItem;
       /** Task 3.16: the tasks handed to Keshab's Paperclip; absent when the connection is off. */
       paperclip?: { issues: PaperclipItem[] };
     }

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ModelRequest, ToolCall, ToolResult, ToolRunner, ToolSpec } from "@zeno/contracts";
-import { createClaudePlanAdapter, scrubbedEnv, type ClaudeSdk, type PlanUsage } from "./claude-plan.ts";
+import { createClaudePlanAdapter, scrubbedEnv, tokensOf, type ClaudeSdk, type PlanUsage } from "./claude-plan.ts";
 import { createProviderAdapter } from "./index.ts";
 import { ProviderError } from "../gateway.ts";
 
@@ -427,4 +427,12 @@ test("withoutSources / sourcesFilter: a web search's Sources list is never spoke
   for (const piece of ["Line one.\n", "So", " it goes."]) g.push(piece);
   g.flush();
   assert.equal(plain, "Line one.\nSo it goes.");
+});
+
+test("the tokens a run used, from Claude Code's result (ADR-091)", () => {
+  const result = { usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 100, cache_creation_input_tokens: 2 }, total_cost_usd: 0.01 };
+  assert.deepEqual(tokensOf(result), { input: 10, output: 5, cacheRead: 100, cacheWrite: 2, costUsd: 0.01 });
+  assert.equal(tokensOf({ usage: { input_tokens: 0 } }), undefined);
+  assert.equal(tokensOf({}), undefined);
+  assert.deepEqual(tokensOf({ usage: { input_tokens: -3, output_tokens: 4.4 } }), { input: 0, output: 4, cacheRead: 0, cacheWrite: 0 });
 });

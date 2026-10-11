@@ -47,6 +47,26 @@ export interface PlanUsage {
   overage?: boolean;
 }
 
+/** ADR-091: the tokens one Claude Code run used, and its API-equivalent cost (the plan does not charge it). */
+export interface TokenUsage {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  costUsd?: number;
+}
+
+/** The tokens in a Claude Code result message; undefined when it names none. */
+export function tokensOf(result: Record<string, any> | undefined): TokenUsage | undefined {
+  const u = result?.usage;
+  if (!u || typeof u !== "object") return undefined;
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.round(v) : 0);
+  const t: TokenUsage = { input: n(u.input_tokens), output: n(u.output_tokens), cacheRead: n(u.cache_read_input_tokens), cacheWrite: n(u.cache_creation_input_tokens) };
+  if (t.input + t.output + t.cacheRead + t.cacheWrite === 0) return undefined;
+  const cost = result?.total_cost_usd;
+  return typeof cost === "number" && cost > 0 ? { ...t, costUsd: cost } : t;
+}
+
 export interface ClaudePlanOptions {
   /** Full path of the signed-in `claude` program. */
   claudePath: string;
@@ -56,6 +76,8 @@ export interface ClaudePlanOptions {
   /** Most Claude Code turns in one request; each tool call takes one. */
   maxTurns?: number;
   onUsage?: (usage: PlanUsage) => void;
+  /** ADR-091: told the tokens each answer used. */
+  onTokens?: (tokens: TokenUsage, model: string) => void;
   sdk?: ClaudeSdk;
   /** The environment to start from. Default: this process's. */
   env?: Record<string, string | undefined>;
@@ -482,6 +504,8 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
         const { kind, message } = classify(lastError, acted);
         throw new ProviderError(kind, message);
       }
+      const tokens = tokensOf(result);
+      if (tokens) options.onTokens?.(tokens, model);
       const text = typeof result.result === "string" ? withoutSources(result.result.trim()) : "";
       if (!text) throw new ProviderError("unknown", emptyReplyReason("claude-plan", "none"));
       return { text };

@@ -21,6 +21,7 @@ import {
   type ThreadEvent,
   type PaperclipItem,
   type McpItem,
+  type UsageItem,
 } from "./island-protocol.ts";
 import type { ComputerBridge } from "./computer-bridge.ts";
 import type { WindowPointer } from "./screen-context.ts";
@@ -112,6 +113,8 @@ export interface IslandHelpers {
   paperclip?(): { issues: PaperclipItem[] };
   /** Task 3.14: opens a task's report in its worker's app. Absent: `job.open` is refused. Rejects with words for the user. */
   openReport?(id: number): Promise<string>;
+  /** ADR-091: the Dashboard's tokens. */
+  usage?(): UsageItem;
   /** ADR-090: Keshab's MCP servers, without secrets; add, remove, set, and test (runs the server, lists its tools). */
   mcp(): McpItem[];
   addMcp(input: { name: string; kind: "command" | "url"; command?: string; args?: string[]; env?: string[]; url?: string; transport?: "http" | "sse"; headers?: string[] }): void;
@@ -455,7 +458,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     void appNames().then((apps) => {
       helpersQueued = false;
       const helpers = options.helpers;
-      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets(), skills: helpers.skills(), mcp: helpers.mcp(), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}) });
+      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets(), skills: helpers.skills(), mcp: helpers.mcp(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}) });
     });
   }
   function appNames(): Promise<string[]> {
