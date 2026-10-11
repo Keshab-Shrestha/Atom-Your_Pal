@@ -775,6 +775,17 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.routineDelete(id: id))
     }
 
+    /// ADR-090: the same answers from the Needs you inbox, for any task or worker (not only the open or chosen one).
+    public mutating func answerPlan(_ id: Int, approve: Bool) -> IslandCommand? {
+        guard list?.item(id)?.job.awaitsApproval == true else { return nil }
+        return waiting(approve ? .planApprove(id: id) : .planReject(id: id))
+    }
+
+    public mutating func answerProposal(helper: String, id: Int, accept: Bool) -> IslandCommand? {
+        guard list?.helpers.first(where: { $0.id == helper })?.proposals.first(where: { $0.id == id })?.state == "pending" else { return nil }
+        return waiting(accept ? .proposalAccept(id: id) : .proposalReject(id: id))
+    }
+
     /// Task 3.8: approve or reject the open task's waiting plan; nil when no plan waits.
     public mutating func approvePlan() -> IslandCommand? {
         guard let job = openJob, job.awaitsApproval else { return nil }

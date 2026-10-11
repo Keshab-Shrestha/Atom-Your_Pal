@@ -817,3 +817,23 @@ struct TeamOverviewTests {
         #expect(goal.text == "A networking guide")
     }
 }
+
+@Suite("Needs you (ADR-090)")
+struct NeedsYouTests {
+    @Test func gathersPlansProposalsHoldsAndFailures() throws {
+        let line = HelperTaskTests.line
+            .replacingOccurrences(of: #""name":"Sid","available":true,"app":null,"jobs""#,
+                                  with: #""name":"Sid","available":true,"app":null,"proposals":[{"id":4,"field":"lessons","text":"Three sources.","reason":"Thin.","jobId":1,"state":"pending","createdAt":"x"}],"jobs""#)
+            .replacingOccurrences(of: #""id":6,"task":"Then this","state":"queued","#, with: #""id":6,"task":"Then this","state":"queued","planStatus":"awaiting","planSummary":"Search, then compare.","#)
+        var state = HelpersState()
+        state.apply(try decodeEvent(line))
+        let items = NeedsYouItem.all(in: try #require(state.list))
+        #expect(items.map(\.kind) == [.plan, .proposal, .failed])
+        #expect(items[0].jobId == 6 && items[0].detail == "Search, then compare.")
+        #expect(items[2].detail == "x" && items[2].jobId == 3)
+        #expect(state.answerPlan(6, approve: true) == .planApprove(id: 6))
+        #expect(state.answerPlan(5, approve: true) == nil) // no plan waits there
+        #expect(state.answerProposal(helper: "sid", id: 4, accept: false) == .proposalReject(id: 4))
+        #expect(state.answerProposal(helper: "hana", id: 4, accept: true) == nil)
+    }
+}

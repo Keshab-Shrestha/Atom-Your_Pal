@@ -50,3 +50,49 @@ public struct TeamOverview: Sendable, Equatable {
         goals = byGoal.values.sorted { a, b in a.ended != b.ended ? !a.ended : a.id > b.id }
     }
 }
+
+/// ADR-090: one thing waiting on Keshab, with what it is about.
+public struct NeedsYouItem: Sendable, Equatable, Identifiable {
+    public enum Kind: Sendable, Equatable {
+        /// A plan-first task's plan, to approve or reject.
+        case plan
+        /// Tinker's proposed change to a worker's soul.
+        case proposal
+        /// A runnable task held by a budget or the plan's limit.
+        case held
+        /// A task that failed.
+        case failed
+    }
+
+    public var id: String
+    public var kind: Kind
+    public var helperId: String
+    public var helperName: String
+    public var title: String
+    public var detail: String
+    public var jobId: Int?
+    public var proposalId: Int?
+
+    /// Everything waiting, in the order it is best answered: plans, proposals, held tasks, failures (newest first).
+    public static func all(in list: HelpersList) -> [NeedsYouItem] {
+        var plans: [NeedsYouItem] = [], proposals: [NeedsYouItem] = [], held: [NeedsYouItem] = [], failed: [NeedsYouItem] = []
+        for h in list.helpers {
+            for p in h.proposals where p.state == "pending" {
+                proposals.append(NeedsYouItem(id: "proposal-\(p.id)", kind: .proposal, helperId: h.id, helperName: h.name,
+                                              title: "\(p.fieldTitle): \(p.text)", detail: p.reason, jobId: nil, proposalId: p.id))
+            }
+            for j in h.jobs.sorted(by: { $0.id > $1.id }) {
+                if j.awaitsApproval {
+                    plans.append(NeedsYouItem(id: "plan-\(j.id)", kind: .plan, helperId: h.id, helperName: h.name, title: j.shortTitle,
+                                              detail: j.planSummary ?? "A plan waits for your OK.", jobId: j.id))
+                } else if let reason = j.held {
+                    held.append(NeedsYouItem(id: "held-\(j.id)", kind: .held, helperId: h.id, helperName: h.name, title: j.shortTitle, detail: reason, jobId: j.id))
+                } else if j.state == .failed {
+                    failed.append(NeedsYouItem(id: "failed-\(j.id)", kind: .failed, helperId: h.id, helperName: h.name, title: j.shortTitle,
+                                               detail: j.error ?? "It failed.", jobId: j.id))
+                }
+            }
+        }
+        return plans + proposals + held + failed.sorted { ($0.jobId ?? 0) > ($1.jobId ?? 0) }
+    }
+}

@@ -934,6 +934,8 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 
 **Part 1, Overview — as built (2026-10-11):** built; tested; seen in the gallery. A sidebar page with the board's counts (running, needs you, to do, ended today), who is at work (its character playing "working", the task, its step, how long), goals with a bar for how far they are, today's team budget and the plan's five-hour use, and the newest results; every row opens its task. `TeamOverview` (Core) computes it from the helpers list. 1 Swift test (497 pass). Fixed while testing: a goal took its name from whichever task came first, even one without it.
 
+**Part 2, Needs you — as built (2026-10-11):** built; tested; seen in the gallery. A sidebar page (with a count and an amber dot) listing everything waiting on Keshab, each with its buttons: Pal's approval card (Allow, Decline), plans (Approve, Reject, Open), Tinker's proposals (Accept, Reject), tasks held by a budget or the plan's limit (Budgets, Open), failed tasks (Open). `NeedsYouItem` (Core) gathers them; plan and proposal answers work for any task or worker from here. 1 Swift test (498 pass). Paperclip's approvals stay with Wisp's `paperclip_check` / `paperclip_decide` (not in the window yet).
+
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.
 
 **Task 3.17 — Companies and user logins.** Separate workspaces with their own tasks, workers, budgets and history; sign-in for more than one person.

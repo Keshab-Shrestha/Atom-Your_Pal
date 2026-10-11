@@ -196,6 +196,8 @@ enum IslandGallery {
         setting.windowPage = .settings
         let overviewing = model(theme)
         overviewing.windowPage = .overview
+        let inboxing = model(theme, failed: true)
+        inboxing.windowPage = .inbox
         let sheet = VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 18) {
                 window("Helpers: Sid's model chosen by Laya, jobs show their model", model(theme))
@@ -218,6 +220,7 @@ enum IslandGallery {
                 window("One window: Settings (ADR-089)", setting)
                 window("Overview (ADR-090)", overviewing)
             }
+            window("Needs you (ADR-090)", inboxing)
         }
         .padding(24)
         .background(Color(red: 0.36, green: 0.42, blue: 0.52))
