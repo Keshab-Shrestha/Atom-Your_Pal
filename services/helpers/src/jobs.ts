@@ -1,6 +1,6 @@
 // ADR-081/082: the team, their souls and the life of a job. Pure: no storage, no clock.
 
-/** A worker's soul (ADR-082): who it is and how it works. Editable in the Helpers window, kept with versions. */
+/** A worker's soul (ADR-082): who it is and how it works. Editable in the ZENO window, kept with versions. */
 export interface Soul {
   name: string;
   personality: string;

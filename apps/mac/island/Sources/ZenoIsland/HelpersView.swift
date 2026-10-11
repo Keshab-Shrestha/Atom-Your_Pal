@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import ZenoIslandCore
 
-/// The Helpers window's content (ADR-081), in Lantern (ADR-084): a darker sidebar of helpers as discs; the chosen
+/// The ZENO window's content (ADR-081), in Lantern (ADR-084): a darker sidebar of helpers as discs; the chosen
 /// helper with its "Opens in" and "Model" pills, a task field and one list of jobs, or the report being read.
 /// The logic lives in `HelpersState`; these views only draw it.
 struct HelpersView: View {
@@ -17,7 +17,18 @@ struct HelpersView: View {
             HelperSidebar(model: model).frame(width: 224)
             Rectangle().fill(palette.separator.color).frame(width: palette.isFlat ? 1 : 0.5)
             Group {
-                if model.helpers.isCreatingAgent {
+                if model.windowPage == .chat {
+                    // ADR-089: the conversation, as in the panel, a readable width in the middle of the window.
+                    ConversationTab(model: model)
+                        .frame(maxWidth: 680)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, HelpersView.titleBarRoom - 8)
+                } else if model.windowPage == .settings {
+                    SettingsTab(model: model)
+                        .frame(maxWidth: 640)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, HelpersView.titleBarRoom - 8)
+                } else if model.helpers.isCreatingAgent {
                     NewAgentPane(model: model)
                 } else if model.helpers.openJobId != nil {
                     ThreadPane(model: model)
@@ -66,16 +77,24 @@ private struct HelperSidebar: View {
           // ADR-088: the team can grow, so the list scrolls; the switch stays at the bottom.
           Scrollable {
            VStack(alignment: .leading, spacing: 4) {
-            Button { model.helpers.selectBoard() } label: { BoardRow(model: model, selected: model.helpers.showsBoard) }
-                .buttonStyle(.plain)
+            WindowHeader(model: model)
+            Button { model.windowPage = .chat } label: {
+                SidebarRow(symbol: "bubble.left.and.text.bubble.right", title: "Chat", detail: model.status.title, selected: model.windowPage == .chat)
+            }
+            .buttonStyle(.plain)
+            Button { model.windowPage = .agents; model.helpers.selectBoard() } label: {
+                BoardRow(model: model, selected: model.windowPage == .agents && model.helpers.showsBoard)
+            }
+            .buttonStyle(.plain)
+            Text("Team").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 10).padding(.top, 8)
             ForEach(model.helpers.list?.helpers ?? []) { helper in
-                Button { model.helpers.selectHelper(helper.id) } label: {
-                    HelperCard(helper: helper, selected: !model.helpers.showsBoard && !model.helpers.isCreatingAgent && helper.id == model.helpers.selectedHelperId)
+                Button { model.windowPage = .agents; model.helpers.selectHelper(helper.id) } label: {
+                    HelperCard(helper: helper, selected: model.windowPage == .agents && !model.helpers.showsBoard && !model.helpers.isCreatingAgent && helper.id == model.helpers.selectedHelperId)
                 }
                 .buttonStyle(.plain)
             }
             if model.helpers.list != nil {
-                Button { model.helpers.openNewAgent() } label: {
+                Button { model.windowPage = .agents; model.helpers.openNewAgent() } label: {
                     Label("New agent", systemImage: "plus").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
                         .padding(.horizontal, 10).padding(.vertical, 6)
                 }
@@ -85,7 +104,11 @@ private struct HelperSidebar: View {
            }
           }
             Spacer(minLength: 0)
-            if let list = model.helpers.list { AllowLargeSwitch(model: model, list: list) }
+            Button { model.windowPage = .settings } label: {
+                SidebarRow(symbol: "gearshape", title: "Settings", detail: nil, selected: model.windowPage == .settings)
+            }
+            .buttonStyle(.plain)
+            if let list = model.helpers.list, model.windowPage == .agents { AllowLargeSwitch(model: model, list: list) }
         }
         .padding(.horizontal, 14)
         .padding(.top, HelpersView.titleBarRoom)
@@ -94,6 +117,64 @@ private struct HelperSidebar: View {
         // Darker than the window: the list sits back, the chosen helper comes forward. Void: one black, the hairline
         // between them is enough.
         .background((theme.isFlat ? Color.clear : theme.isDark ? Color.black.opacity(0.2) : theme.fill1.color).ignoresSafeArea())
+    }
+}
+
+/// ADR-089: the top of the ZENO window's sidebar: Pal, its character playing ZENO's state, and the state in words.
+private struct WindowHeader: View {
+    let model: IslandModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(spacing: 10) {
+            if let pal = PalLibrary.pal {
+                TimelineView(.animation(minimumInterval: 1.0 / 24)) { context in
+                    PalPortrait(character: pal, animation: PalAnimation.name(mood: PetBrain.mood(for: model.status.kind) ?? .resting, reaction: nil),
+                                time: context.date.timeIntervalSinceReferenceDate, size: 44, glow: theme.usesGlow)
+                }
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text("ZENO").font(.system(size: 14, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                Text(model.status.title).font(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 6)
+        .padding(.bottom, 8)
+    }
+}
+
+/// ADR-089: a page of the ZENO window in the sidebar: Chat, Settings.
+struct SidebarRow: View {
+    let symbol: String
+    let title: String
+    let detail: String?
+    let selected: Bool
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(spacing: 11) {
+            Image(systemName: symbol).font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color)
+                .frame(width: 32, height: 32)
+                .overlay { if theme.isFlat { Circle().strokeBorder(theme.border.color, lineWidth: 1) } }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
+                if let detail { Text(detail).font(.system(size: 11)).foregroundStyle(theme.text3.color).lineLimit(1) }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 8)
+        .background {
+            if theme.isFlat {
+                RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous).strokeBorder(selected ? theme.border.color : .clear, lineWidth: 1)
+            } else {
+                RoundedRectangle(cornerRadius: 12, style: .continuous).fill(selected ? (theme.isDark ? theme.fill2.color : Color.white.opacity(0.85)) : Color.clear)
+            }
+        }
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 }
 

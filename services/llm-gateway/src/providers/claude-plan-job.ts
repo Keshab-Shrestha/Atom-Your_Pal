@@ -98,7 +98,7 @@ export interface ResearchOptions {
   /** The worker's soul: who it is and how it works. The output contract is added here. */
   instructions: string;
   signal: AbortSignal;
-  /** Progress in plain words, for the Helpers window. */
+  /** Progress in plain words, for the ZENO window. */
   onStep?: (text: string) => void;
   onUsage?: (usage: PlanUsage) => void;
   maxTurns?: number;

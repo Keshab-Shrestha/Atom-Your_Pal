@@ -22,8 +22,8 @@ final class IslandController {
     private let strip: WorkStripController
     /// The short label beside Pal while it points.
     private let pointLabel = PointLabelController()
-    /// The Helpers window (ADR-081).
-    private let helpersWindow: HelpersWindowController
+    /// The ZENO window (ADR-081).
+    private let helpersWindow: MainWindowController
     /// Talk was started by its shortcut and not yet sent or cancelled.
     private var talking = false
     /// This Talk is going through the app's own microphone and Parakeet (ADR-063), not the runtime's.
@@ -82,7 +82,7 @@ final class IslandController {
         model = IslandModel(settings: settings)
         bubble = BubbleController(model: model)
         strip = WorkStripController(model: model)
-        helpersWindow = HelpersWindowController(model: model)
+        helpersWindow = MainWindowController(model: model)
         shortcuts = ShortcutEngine(settings: settings, recorder: model.recorder, log: log)
         pet = PetController(settings: settings, trace: trace)
         dictation = DictationController(vocabularyURL: IslandController.vocabularyURL)
@@ -98,13 +98,10 @@ final class IslandController {
         model.replayTour = { [weak self] in self?.replayTour() }
         model.openHelpers = { [weak self] in
             self?.setExpanded(false) // the panel floats above every window
-            self?.helpersWindow.show()
+            self?.helpersWindow.show(page: .agents)
         }
         panel.onCancel = { [weak self] in self?.setExpanded(false) }
-        menuIcon.onClick = { [weak self] in
-            guard let self else { return }
-            self.setExpanded(!self.model.expanded)
-        }
+        menuIcon.onClick = { [weak self] in self?.toggleWindow() }
         menuIcon.isPalShown = { [weak model] in model?.settings.petEnabled ?? false }
         menuIcon.onShowPal = { [weak model] enabled in model?.setPet(enabled) }
         menuIcon.onHelpers = { [weak model] in model?.openHelpers() }
@@ -248,7 +245,7 @@ final class IslandController {
 
     func apply(_ event: IslandEvent) {
         if localListening, case .state(.idle) = event { return } // the turn we interrupted, ending
-        let helperRefusal = model.helpers.claims(event) // shown in the Helpers window, not as ZENO's status
+        let helperRefusal = model.helpers.claims(event) // shown in the ZENO window, not as ZENO's status
         if case .micLevel = event {} else { model.apply(event) }
         switch event {
         case .micLevel(let peak):
@@ -423,7 +420,7 @@ final class IslandController {
             talking = false
             if talkingLocally { dictation.talkCancelled() } else { model.send(.talkCancel) }
         case .pressed(.toggleIsland):
-            setExpanded(!model.expanded)
+            toggleWindow()
         case .pressed(.cancel):
             talking = false
             if dictation.isActive { dictation.cancel() } else { stopWork() }
@@ -706,8 +703,19 @@ final class IslandController {
 
     // MARK: - Opening and closing the panel
 
+    /// ADR-089: the menu-bar icon and the toggle shortcut open the ZENO window, or close it when it is in front.
+    private func toggleWindow() {
+        if helpersWindow.isVisible, NSApp.isActive { helpersWindow.close() } else { setExpanded(true) }
+    }
+
     private func setExpanded(_ expanded: Bool) {
         pet.poke()
+        // ADR-089: chat, the board and Settings live in the ZENO window, so "open" opens it on the page asked for; the
+        // drop-down panel stays closed (the island shows its compact card).
+        if expanded {
+            helpersWindow.show(page: model.tab == .settings ? .settings : .chat)
+            return
+        }
         guard expanded != model.expanded else { return }
         trace(expanded ? "expand" : "collapse")
         if !expanded {

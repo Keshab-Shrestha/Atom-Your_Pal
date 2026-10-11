@@ -115,7 +115,7 @@ struct HelpersProtocolTests {
     }
 }
 
-@Suite("Helpers window state (ADR-081)")
+@Suite("ZENO window state (ADR-081)")
 struct HelpersStateTests {
     func list(_ line: String = HelpersProtocolTests.helpersLine) throws -> IslandEvent { try decodeEvent(line) }
 
@@ -751,7 +751,7 @@ struct HelperOpenTests {
 @Suite("Workers on screen (Task 3.15)")
 struct WorkersOnScreenTests {
     @Test func aLineFromTheTeamShowsWhenIdle() throws {
-        guard case .workerLine(let line) = try decodeEvent(#"{"type":"worker.line","line":"Your networking guide is ready. The Helpers window has the report."}"#) else {
+        guard case .workerLine(let line) = try decodeEvent(#"{"type":"worker.line","line":"Your networking guide is ready. The ZENO window has the report."}"#) else {
             Issue.record("not a worker line"); return
         }
         var status = IslandStatus()

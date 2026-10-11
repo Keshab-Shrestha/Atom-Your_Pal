@@ -196,7 +196,7 @@ enum PalFigure {
     }
 }
 
-/// A pal on its own (the Helpers window, the island card, the gallery): its character playing `animation`.
+/// A pal on its own (the ZENO window, the island card, the gallery): its character playing `animation`.
 struct PalPortrait: View {
     let character: PalDefinition
     var animation = "idle"

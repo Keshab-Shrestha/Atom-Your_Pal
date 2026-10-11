@@ -2,10 +2,11 @@ import AppKit
 import SwiftUI
 import ZenoIslandCore
 
-/// The Helpers window (ADR-081): a real Mac window. While it is open ZENO has a Dock icon and a menu bar (so ⌘W,
-/// ⌘C and ⌘V work in it); closing it puts the app back the way it was (a background app).
+/// The ZENO window (ADR-089; it began as the ZENO window, ADR-081): chat, the board and the team, and Settings in one
+/// real Mac window with a sidebar. While it is open ZENO has a Dock icon and a menu bar (so ⌘W, ⌘C and ⌘V work in
+/// it); closing it puts the app back the way it was (a background app).
 @MainActor
-final class HelpersWindowController: NSObject, NSWindowDelegate {
+final class MainWindowController: NSObject, NSWindowDelegate {
     private let model: IslandModel
     private var window: NSWindow?
     private var previousPolicy = NSApplication.ActivationPolicy.accessory
@@ -15,7 +16,11 @@ final class HelpersWindowController: NSObject, NSWindowDelegate {
         self.model = model
     }
 
-    func show() {
+    var isVisible: Bool { window?.isVisible == true }
+
+    /// Opens the window on `page` (nil keeps the page it shows).
+    func show(page: WindowPage? = nil) {
+        if let page { model.windowPage = page }
         let window = self.window ?? makeWindow()
         self.window = window
         if !model.helpersWindowOpen {
@@ -34,6 +39,8 @@ final class HelpersWindowController: NSObject, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    func close() { window?.performClose(nil) }
+
     func windowWillClose(_ notification: Notification) {
         model.helpersWindowOpen = false
         model.helpers.closeReport()
@@ -42,19 +49,19 @@ final class HelpersWindowController: NSObject, NSWindowDelegate {
     }
 
     private func makeWindow() -> NSWindow {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 520),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 920, height: 640),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                               backing: .buffered, defer: false)
-        window.title = "Helpers"
+        window.title = "ZENO"
         // ADR-084: the content runs under a clear title bar, so the sidebar reaches the top with the window's buttons on it.
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.isReleasedWhenClosed = false
-        window.minSize = NSSize(width: 600, height: 400)
+        window.minSize = NSSize(width: 760, height: 500)
         window.contentView = NSHostingView(rootView: HelpersView(model: model))
         window.delegate = self
-        if !window.setFrameUsingName("ZenoHelpers") { window.center() }
-        window.setFrameAutosaveName("ZenoHelpers")
+        if !window.setFrameUsingName("ZenoMain") { window.center() }
+        window.setFrameAutosaveName("ZenoMain")
         return window
     }
 

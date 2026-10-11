@@ -125,7 +125,7 @@ enum IslandGallery {
         DesignStudy.render(to: directory)
     }
 
-    /// ADR-081: the Helpers window with Sid running one job and done with another, the rest of the team (Task 3.3); Sid's
+    /// ADR-081: the ZENO window with Sid running one job and done with another, the rest of the team (Task 3.3); Sid's
     /// report open; and the job list in the light Warm theme. ADR-083: Sid's model picker (Laya, then pinned), the
     /// large-model switch (on, then off) and each job's model.
     private static func writeHelpers(to directory: URL, theme: AppTheme = .void, name: String = "13-helpers") {
@@ -150,6 +150,7 @@ enum IslandGallery {
         func model(_ theme: AppTheme, pinned: String = "null", allowLarge: Bool = true, failed: Bool = false) -> IslandModel {
             let m = IslandModel(settings: IslandSettings(defaults: defaults))
             m.settings.theme = theme
+            m.windowPage = .agents // the team's pages, unless a window asks for Chat or Settings
             do { m.apply(try decodeEvent(helpers(pinned: pinned, allowLarge: allowLarge, failed: failed))) } catch {
                 FileHandle.standardError.write(Data("gallery: could not decode helpers: \(error)\n".utf8))
             }
@@ -188,6 +189,11 @@ enum IslandGallery {
         kamed.helpers.selectHelper("kame")
         let creating = model(theme)
         creating.helpers.openNewAgent()
+        creating.windowPage = .agents
+        let chatting = model(theme)
+        chatting.windowPage = .chat
+        let setting = model(theme)
+        setting.windowPage = .settings
         let sheet = VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 18) {
                 window("Helpers: Sid's model chosen by Laya, jobs show their model", model(theme))
@@ -202,7 +208,11 @@ enum IslandGallery {
                 window("The board: team budget and plan limit; a held task; Hana waits for Sid (Tasks 3.4, 3.7)", boarded)
                 window("Kame: a granted folder, its own branch (Task 3.11)", kamed)
             }
-            window("New agent: its own role, kit and soul.md (ADR-088)", creating)
+            HStack(alignment: .top, spacing: 18) {
+                window("New agent: its own role, kit and soul.md (ADR-088)", creating)
+                window("One window: Chat (ADR-089)", chatting)
+            }
+            window("One window: Settings (ADR-089)", setting)
         }
         .padding(24)
         .background(Color(red: 0.36, green: 0.42, blue: 0.52))

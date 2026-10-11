@@ -286,4 +286,4 @@ Phase 1 (Memory) started on 2026-10-04 at Keshab's request ("skip the tests… c
 
 > Build the smallest system that can become the larger system.
 
-**ADR-089 (2026-10-11):** Wisp is now Pal, in the app, its words and the code (saved settings keep their stored `zeno.wisp.*` names). Earlier entries above say Wisp as written then.
+**ADR-089 (2026-10-11):** Wisp is now Pal, in the app, its words and the code (saved settings keep their stored `zeno.wisp.*` names). Earlier entries above say Wisp as written then. Pal and every worker are now drawn from avatar definitions (Pal is Keshab's "Strobi copy"), and chat, the board and agents, and Settings are in one ZENO window.

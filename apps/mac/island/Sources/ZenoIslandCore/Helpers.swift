@@ -1,5 +1,5 @@
 // Helpers (ADR-081, Task 3.1; the team and souls, ADR-082, Task 3.3): the workers, their souls, jobs and reports, as
-// the runtime reports them, and the Helpers window's state. Task text and reports are the user's own; never logged.
+// the runtime reports them, and the ZENO window's state. Task text and reports are the user's own; never logged.
 import Foundation
 
 public enum JobState: String, Sendable, Equatable, CaseIterable {
@@ -108,7 +108,7 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     /// The state badge's word: a done job that hit a limit says so.
     public var badge: String { state == .done && partial ? "Partial" : state.title }
 
-    /// How far a running job is, from its step's "n of m" ("Reading 3 of 8 pages" is 3/8), for the Helpers window's
+    /// How far a running job is, from its step's "n of m" ("Reading 3 of 8 pages" is 3/8), for the ZENO window's
     /// line of light (ADR-084). Nil when the job is not running or its step has no count it can trust.
     public var progress: Double? {
         guard state == .running, let step else { return nil }
@@ -523,7 +523,7 @@ public struct HelperReport: Sendable, Equatable {
     }
 }
 
-/// What the Helpers window shows: the runtime's list, the chosen helper, and the report being read. Actions return
+/// What the ZENO window shows: the runtime's list, the chosen helper, and the report being read. Actions return
 /// the command to send (or nil when there is nothing to send), so the window's logic is testable without a screen.
 public struct HelpersState: Sendable, Equatable {
     public static let maxTaskLength = 1000

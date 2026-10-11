@@ -922,6 +922,14 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Tests: 5 Swift (format, steps and looping, colours and motion, blinks, mapping) and updated default-style tests. Swift 496 pass; TS 623 pass.
 - Known limits: the 3D is drawn as shaded shapes (a box seen turned, not a modelled mesh); feet and ears are seen from the front only; Void's flat rule does not apply to the characters (their shading is part of the character; no glow).
 
+**One window (ADR-089).** Keshab: "i want to have the chats, settings, agents all in one window".
+
+**As built (2026-10-11):** built; tested; seen in the gallery (`13-helpers`: Chat, Settings, the board, a worker); not yet used on the real screen.
+- The Helpers window is now the ZENO window (`MainWindow.swift`, 920×640, remembers its place): its sidebar has Pal (its character playing ZENO's state) with the state in words, Chat, Board, the team with New agent, and Settings at the bottom. Chat is the conversation and composer from the panel; Settings is the panel's Settings, both at a readable width.
+- Opening ZENO opens this window on the page asked for: a click on the island card, the menu-bar icon, Pal, the toggle shortcut (which closes it when it is in front), "open settings" by voice, a setup problem (Chat) or the model card (Settings). The drop-down panel stays closed; the compact card, the menu-bar icon and Pal stay for quick status and talking. The menu-bar menu says "Open ZENO…". ZENO's words say "the ZENO window" instead of "the Helpers window".
+- Tests: all suites pass (TS 623, Swift 496); the window is checked by renders.
+- Known limits: the drop-down panel's code remains (unused) until it is removed; the window's Chat page and the panel share one conversation.
+
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.
 
 **Task 3.17 — Companies and user logins.** Separate workspaces with their own tasks, workers, budgets and history; sign-in for more than one person.

@@ -2,14 +2,14 @@ import SwiftUI
 import ZenoIslandCore
 
 // Direction A, Lantern, beyond the panel: Pal's bubble on the desktop, the work strip asking for approval, and the
-// Helpers window. Same rule throughout: Pal's light marks what is live; amber marks what needs you.
+// ZENO window. Same rule throughout: Pal's light marks what is live; amber marks what needs you.
 
 struct LanternExtrasSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("A. Lantern, on the desktop").font(.system(size: 22, weight: .semibold, design: .rounded)).foregroundStyle(.white)
-                Text("Pal's bubble, the approval strip and the Helpers window in the same light.")
+                Text("Pal's bubble, the approval strip and the ZENO window in the same light.")
                     .font(.system(size: 13)).foregroundStyle(.white.opacity(0.72))
             }
             HStack(alignment: .top, spacing: 36) {
@@ -157,7 +157,7 @@ private struct LanternApproval: View {
     }
 }
 
-// MARK: - Helpers window
+// MARK: - ZENO window
 
 private struct LanternHelpers: View {
     var body: some View {

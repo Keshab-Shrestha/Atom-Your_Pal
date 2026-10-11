@@ -29,9 +29,9 @@ final class IslandModel {
     var capabilities: [CapabilityItem]?
     /// Claude plan usage (ADR-076), merged from `plan.usage` events. Nil until one arrives: no meters.
     var planUsage: PlanUsage?
-    /// The Helpers window's content (ADR-081): helpers, their jobs, the report being read.
+    /// The ZENO window's content (ADR-081): helpers, their jobs, the report being read.
     var helpers = HelpersState()
-    /// The Helpers window is open: a restarted runtime is asked for the list again.
+    /// The ZENO window is open: a restarted runtime is asked for the list again.
     var helpersWindowOpen = false
 
     var expanded = false {
@@ -47,6 +47,8 @@ final class IslandModel {
     /// Where the panel grows from, as a fraction of its width (0 left, 1 right). Set by the controller.
     var openAnchorX = 1.0
     var tab = Tab.conversation
+    /// ADR-089: the page the ZENO window shows.
+    var windowPage = WindowPage.chat
     /// The Settings page open inside the Settings tab; nil shows the list of pages (ADR-057).
     var settingsPage: SettingsPage?
 
@@ -83,7 +85,7 @@ final class IslandModel {
     @ObservationIgnored var permissionButton: (PermissionRow) -> Void = { _ in }
     /// Settings → General → Replay the tour. Set by the controller.
     @ObservationIgnored var replayTour: () -> Void = {}
-    /// Opens the Helpers window (ADR-081). Set by the controller.
+    /// Opens the ZENO window (ADR-081). Set by the controller.
     @ObservationIgnored var openHelpers: () -> Void = {}
 
     init(settings: IslandSettings) {
@@ -127,7 +129,7 @@ final class IslandModel {
     }
     func forgetAllEpisodes() { send(.episodeClear) }
 
-    /// Sends what a Helpers window action produced, if anything.
+    /// Sends what a ZENO window action produced, if anything.
     func sendHelpers(_ command: IslandCommand?) {
         if let command { send(command) }
     }
@@ -144,7 +146,7 @@ final class IslandModel {
         let helperRefusal = helpers.claims(event)
         helpers.apply(event)
         if let refresh = helpers.takeRefresh() { send(refresh) } // the open task changed: ask for its thread again
-        if helperRefusal { return } // a refused helper command is shown in the Helpers window only
+        if helperRefusal { return } // a refused helper command is shown in the ZENO window only
         conversation.apply(event)
         approval.apply(event)
         pointing.apply(event)
@@ -169,4 +171,9 @@ final class IslandModel {
             break
         }
     }
+}
+
+/// ADR-089: the ZENO window's pages: the conversation, the board and the team, and Settings.
+enum WindowPage: Equatable {
+    case chat, agents, settings
 }

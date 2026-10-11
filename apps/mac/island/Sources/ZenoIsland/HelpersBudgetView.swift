@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import ZenoIslandCore
 
-// Task 3.7: budgets in the Helpers window. Spend is API-equivalent dollars (what the work would cost on the API; the
+// Task 3.7: budgets in the ZENO window. Spend is API-equivalent dollars (what the work would cost on the API; the
 // Claude plan does not charge it).
 
 /// A worker's daily cap and today's spend, with a warning at 80 % and a note when it is used up.

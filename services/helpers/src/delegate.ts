@@ -112,7 +112,7 @@ export function createScheduleTool(options: ScheduleToolOptions) {
       if (!worker) throw new HelperError(`There is no worker called "${String(input.worker).slice(0, 40)}". The team: ${workers.map((w) => w.name).join(", ")}.`);
       const routine = store.addRoutine(worker.id, String(input.task ?? ""), scheduleFrom(input));
       options.onScheduled?.({ routine: routine.id, helper: worker.id });
-      return `Routine made: ${worker.name}, ${describeSchedule(routine.schedule).toLowerCase()}. Keshab can remove it in the Helpers window.`;
+      return `Routine made: ${worker.name}, ${describeSchedule(routine.schedule).toLowerCase()}. Keshab can remove it in the ZENO window.`;
     },
   };
 }

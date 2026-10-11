@@ -82,7 +82,7 @@ test("a woken task opens its goal again, which ends again with a new line", asyn
   store.start(task!.id);
   store.finish(task!.id, report("Mesh 2"));
   await tick();
-  assert.deepEqual(lines, ["Sid is done. The Helpers window has the report.", "Sid is done. The Helpers window has the report."]);
+  assert.deepEqual(lines, ["Sid is done. The ZENO window has the report.", "Sid is done. The ZENO window has the report."]);
   assert.equal(store.goal(goal.id)!.report?.title, "Mesh 2");
 });
 

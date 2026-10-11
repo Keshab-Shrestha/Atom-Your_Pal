@@ -68,7 +68,7 @@ export function goalLine(goal: Goal, nameOf: (helper: string) => string): string
   const done = tasks.filter((t) => t.state === "done").length;
   const failed = tasks.filter((t) => t.state === "failed").length;
   if (!done && !failed) return undefined;
-  const where = "The Helpers window has";
+  const where = "The ZENO window has";
   if (tasks.length === 1) {
     const name = nameOf(tasks[0]!.helper);
     return done ? `${name} is done. ${where} the report.` : `${name} couldn't finish. ${where} the reason.`;

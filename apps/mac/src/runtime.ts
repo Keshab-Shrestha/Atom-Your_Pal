@@ -111,7 +111,7 @@ export interface Runtime {
   islandMemory?: IslandMemory;
   /** Helpers' apps, jobs and reports (ADR-081). Undefined when the store could not open. */
   helpers?: HelperStore;
-  /** The helpers as the Helpers window sees them. Undefined when the store could not open. */
+  /** The helpers as the ZENO window sees them. Undefined when the store could not open. */
   islandHelpers?: IslandHelpers;
   /** Pal dropped on a window (ADR-074): that app's read, held for the next request only. */
   screen: WindowPointer;
@@ -324,7 +324,7 @@ export function createRuntime(
     const report = helpers?.report(taskId);
     if (!helpers || !job || !report) throw new Error("That task has no report.");
     const worker = helpers.list().find((h) => h.id === job.helper)!;
-    if (!worker.app) throw new Error(`Choose where ${worker.name} opens things in the Helpers window first.`);
+    if (!worker.app) throw new Error(`Choose where ${worker.name} opens things in the ZENO window first.`);
     const said = await openInApp(worker.app, taskId, report, openDeps);
     log.info("report.opened", { helper: job.helper, job: taskId });
     return said;
@@ -454,7 +454,7 @@ export function createRuntime(
         }),
       };
     } else if (kit === "folders" && role !== "documenter") {
-      throw new Error(`${name} needs a folder to work in: grant one in the Helpers window.`);
+      throw new Error(`${name} needs a folder to work in: grant one in the ZENO window.`);
     }
     // Task 3.10: a top-level task may hand sub-tasks to the workers its role allows; the store checks each one.
     const handOff = helpers && !files && handOffTool(helpers, job);
@@ -574,7 +574,7 @@ export function createRuntime(
     const name = helpers.soul(job.helper).name;
     const ask = () =>
       void computer
-        .approve({ summary: `${name}'s plan: ${job.planSummary}`, reason: "Allow starts the work. Decline leaves the plan waiting in the Helpers window." })
+        .approve({ summary: `${name}'s plan: ${job.planSummary}`, reason: "Allow starts the work. Decline leaves the plan waiting in the ZENO window." })
         .then((ok) => {
           log.info("plan.answer", { helper: job.helper, job: job.id, approved: ok });
           if (!ok) return;
@@ -756,7 +756,7 @@ export function nowLine(now = new Date()): string {
   return `It is now ${text} (${zone}, UTC${offset}).`;
 }
 
-/** ADR-083: Laya takes about 5 s to start, so it starts when the Helpers window opens, not on the first job. */
+/** ADR-083: Laya takes about 5 s to start, so it starts when the ZENO window opens, not on the first job. */
 function warmOnOpen(island: IslandHelpers, decisions: { warm(): void }): IslandHelpers {
   return {
     ...island,
