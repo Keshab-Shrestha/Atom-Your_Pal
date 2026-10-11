@@ -20,6 +20,9 @@ export type IslandCommand =
   | { type: "chats.list" }
   | { type: "chat.open"; id: string }
   | { type: "chat.delete"; id: string }
+  | { type: "git.list" }
+  | { type: "git.push"; repo: string; branch: string }
+  | { type: "git.diff"; repo: string; branch: string }
   | { type: "memory.forget"; id: number }
   | { type: "memory.clear" }
   | { type: "text.send"; text: string }
@@ -154,6 +157,20 @@ export interface ThreadEvent {
   handOffs?: number[];
   /** Task 3.5: the goal the task is part of, its tasks, and the combined report once every task has ended. */
   goal?: { id: number; text: string; ended: boolean; tasks: number[]; report?: Omit<ReportEvent, "type" | "id"> };
+}
+
+/** ADR-091: one of ZENO's task branches, with the task's title. */
+export interface GitBranchItem {
+  repo: string;
+  repoName: string;
+  branch: string;
+  task: number;
+  title?: string;
+  base: string;
+  commits: { sha: string; subject: string; at: string }[];
+  files: { path: string; added: number | null; removed: number | null }[];
+  remote?: string;
+  pushed: "no" | "yes" | "changed";
 }
 
 /** ADR-091: one of Keshab's chats. */
@@ -313,6 +330,9 @@ export type IslandEvent =
   | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[] }
   /** ADR-091: Keshab's chats, newest first, and the one ZENO is in now (voice goes to it). */
   | { type: "chats"; chats: ChatItem[]; current: string }
+  /** ADR-091: ZENO's task branches, like pull requests; a branch's changes as a patch. */
+  | { type: "git"; branches: GitBranchItem[] }
+  | { type: "git.diff"; repo: string; branch: string; text: string; truncated: boolean }
   /** ADR-091: a chat was opened: its turns, to show. */
   | { type: "chat.opened"; id: string; messages: { role: "user" | "assistant"; text: string }[] }
   | {
@@ -350,6 +370,9 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "chats.list",
   "chat.open",
   "chat.delete",
+  "git.list",
+  "git.push",
+  "git.diff",
   "memory.forget",
   "memory.clear",
   "text.send",
@@ -572,6 +595,14 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof helper !== "string" || helper === "") return { error: 'soul.restore needs a "helper" string.' };
     if (typeof version !== "number" || !Number.isInteger(version) || version < 1) return { error: 'soul.restore needs a "version" that is a whole number.' };
     return { command: { type, helper, version } };
+  }
+  if (type === "git.push" || type === "git.diff") {
+    // Which repositories and branches are allowed is the runtime's to check (only ZENO's task branches, in granted folders).
+    const { repo, branch } = value as { repo?: unknown; branch?: unknown };
+    if (typeof repo !== "string" || !repo.startsWith("/") || repo.length > 1000 || typeof branch !== "string" || !/^zeno\/task-\d{1,9}$/.test(branch)) {
+      return { error: `${type} needs a "repo" (a full path) and a "branch" (zeno/task-<id>).` };
+    }
+    return { command: { type, repo, branch } };
   }
   if (type === "chat.open" || type === "chat.delete") {
     const { id } = value as { id?: unknown };

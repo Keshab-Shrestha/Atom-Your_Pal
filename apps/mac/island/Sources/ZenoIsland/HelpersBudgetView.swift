@@ -179,7 +179,7 @@ struct FoldersSection: View {
                     QuietButton(title: "Remove") { model.sendHelpers(model.helpers.removeGrant(path)) }
                 }
             }
-            Text("In a git repository, \(helper.name) works on its own branch. Nothing is ever pushed.")
+            Text("In a git repository, \(helper.name) works on its own branch. It never pushes: you can push its branch from the Dashboard.")
                 .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
         }
     }

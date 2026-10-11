@@ -208,3 +208,9 @@ The `helpers` event carries `usage`: `today` and `week` totals (`input`, `output
 - `{"type":"chat.open","id":"…"}`: ZENO continues that chat (voice and typing go to it) → `{"type":"chat.opened","id":"…","messages":[{"role":"user"|"assistant","text":"…"}]}`, then `chats`.
 - `{"type":"chat.delete","id":"…"}`: deletes it; if it was the current chat, ZENO starts a new one (`conversation.reset`), then `chats`.
 - `conversation.reset` (New chat) is also followed by `chats` once the window has asked for them.
+
+### Git (ADR-091)
+
+- `{"type":"git.list"}` → `{"type":"git","branches":[{"repo","repoName","branch":"zeno/task-7","task":7,"title","base","commits":[{"sha","subject","at"}],"files":[{"path","added","removed"}],"remote","pushed":"no"|"yes"|"changed"}]}` for the repositories inside granted folders.
+- `{"type":"git.push","repo":"/full/path","branch":"zeno/task-7"}`: sent only after Keshab confirms; pushes that branch to `origin` (never forced), then `git` again; a refusal is an `error` with stage `settings`.
+- `{"type":"git.diff","repo":"…","branch":"…"}` → `{"type":"git.diff","repo","branch","text","truncated"}`.

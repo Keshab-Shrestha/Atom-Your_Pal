@@ -24,6 +24,7 @@ import {
   type McpItem,
   type UsageItem,
   type ChatItem,
+  type GitBranchItem,
 } from "./island-protocol.ts";
 import type { ComputerBridge } from "./computer-bridge.ts";
 import type { WindowPointer } from "./screen-context.ts";
@@ -53,6 +54,8 @@ export interface IslandOptions {
   memory?: IslandMemory;
   /** ADR-091: chat sessions. Absent when memory is off. */
   chats?: IslandChats;
+  /** ADR-091: ZENO's task branches. */
+  git?: IslandGit;
   /** Helpers and their jobs (ADR-081). Absent when their file could not be opened: no helpers are listed. */
   helpers?: IslandHelpers;
   /** Pal dropped on a window (ADR-074): reads that app once for the next request. Absent: `context.window` is refused. */
@@ -95,6 +98,13 @@ export interface IslandMemory {
   clearEpisodes(): number;
   /** Called after ZENO keeps or forgets something by itself (the remember / forget tools). Returns an unsubscribe. */
   onChange(listener: () => void): () => void;
+}
+
+/** ADR-091: ZENO's task branches; pushing one is Keshab's alone (the window asks him to confirm first). */
+export interface IslandGit {
+  list(): Promise<GitBranchItem[]>;
+  push(repo: string, branch: string): Promise<void>;
+  diff(repo: string, branch: string): Promise<{ text: string; truncated: boolean }>;
 }
 
 /** ADR-091: Keshab's chat sessions with ZENO (kept on this Mac). */
@@ -273,6 +283,35 @@ export function runIsland(options: IslandOptions): IslandSession {
         send({ type: "conversation.reset" });
         if (chatsWatched) sendChats(); // ADR-091: a new chat is now the current one
         return;
+      case "git.list": {
+        const git = options.git;
+        if (!git) return send({ type: "git", branches: [] });
+        void git.list().then((branches) => send({ type: "git", branches }), (error: unknown) => refuseHelpers(command.type, describe(error)));
+        return;
+      }
+      case "git.push": {
+        // ADR-091: Keshab clicked Push and confirmed. Logs the task branch's number only.
+        const git = options.git;
+        if (!git) return refuseHelpers(command.type, "Git is not available.");
+        options.log?.info("git.push", { task: Number(command.branch.split("-").at(-1)) });
+        void git.push(command.repo, command.branch).then(
+          () => git.list().then((branches) => send({ type: "git", branches })),
+          (error: unknown) => {
+            options.log?.warn("git.push_failed", { task: Number(command.branch.split("-").at(-1)) });
+            refuseHelpers(command.type, describe(error));
+          },
+        );
+        return;
+      }
+      case "git.diff": {
+        const git = options.git;
+        if (!git) return;
+        void git.diff(command.repo, command.branch).then(
+          (d) => send({ type: "git.diff", repo: command.repo, branch: command.branch, ...d }),
+          (error: unknown) => refuseHelpers(command.type, describe(error)),
+        );
+        return;
+      }
       case "chats.list":
         chatsWatched = true;
         sendChats();

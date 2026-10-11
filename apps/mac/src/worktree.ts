@@ -1,6 +1,6 @@
 // ADR-082, Task 3.11: a worker never touches the current branch of a git repository. ZENO (not the model) makes a
 // worktree on the task's own branch, `zeno/task-<id>`, outside the repository's folder, and commits the work there
-// after the run. Nothing is ever pushed.
+// after the run. Workers never push (ADR-091: Keshab can push a branch from the Dashboard, see git-branches.ts).
 
 import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, realpathSync } from "node:fs";
@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 
 const run = promisify(execFile);
 // No repository hooks ever run from here (they would run outside the sandbox).
-const git = async (cwd: string, ...args: string[]) =>
+export const git = async (cwd: string, ...args: string[]) =>
   (await run("git", ["-C", cwd, "-c", "core.hooksPath=/dev/null", ...args], { timeout: 30_000 })).stdout.trim();
 
 export interface Workdir {

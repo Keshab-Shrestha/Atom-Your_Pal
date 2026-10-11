@@ -208,6 +208,10 @@ enum IslandGallery {
         let dashing = model(theme)
         dashing.windowPage = .dashboard
         dashing.planUsage = PlanUsage(fiveHour: 0.62, sevenDay: 0.31)
+        dashing.helpers.apply(.git([GitBranch(repo: "/Users/k/Developer/site", repoName: "site", branch: "zeno/task-12", task: 12, title: "Add a dark mode toggle",
+                                              base: "origin/main", commits: [GitCommit(sha: "3f9c2a1", subject: "ZENO task 12: Add a dark mode toggle", at: nil)],
+                                              files: [GitFile(path: "src/theme.css", added: 42, removed: 3), GitFile(path: "src/App.tsx", added: 18, removed: 6)],
+                                              remote: "git@github.com:keshab/site.git", pushed: .no)]))
         let sheet = VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 18) {
                 window("Helpers: Sid's model chosen by Laya, jobs show their model", model(theme))
@@ -239,6 +243,9 @@ enum IslandGallery {
         .padding(24)
         .background(Color(red: 0.36, green: 0.42, blue: 0.52))
         save(sheet, name: name, to: directory)
+        // ADR-091: the Dashboard on its own, tall enough for tokens and git.
+        save(DashboardPane(model: dashing).environment(\.islandSnapshot, true).environment(\.theme, theme.palette).themed(theme.palette)
+            .frame(width: 700, height: 1650).background(theme.palette.surfaceSolid.color), name: name + "-dashboard", to: directory)
         // ADR-090: the office floor on its own, at the Board's width.
         save(OfficeFloor(model: boarded).environment(\.islandSnapshot, true).environment(\.theme, theme.palette).frame(width: 660)
             .padding(16).background(Color.black), name: name + "-floor", to: directory)

@@ -70,7 +70,8 @@ import {
 } from "@zeno/helpers";
 import { createLayaEngine } from "@zeno/decision-engine";
 import type { InputSource, Message } from "@zeno/contracts";
-import type { IslandChats, IslandHelpers, IslandMemory } from "./island.ts";
+import type { IslandChats, IslandGit, IslandHelpers, IslandMemory } from "./island.ts";
+import { branchDiff, pushBranch, repositoriesOf, zenoBranches } from "./git-branches.ts";
 import { islandHelpers } from "./island-helpers.ts";
 import { askForFolder, denyRead, folderCheck } from "./folder-run.ts";
 import { commitWork, prepareWorkdir, type Workdir } from "./worktree.ts";
@@ -118,6 +119,8 @@ export interface Runtime {
   helpers?: HelperStore;
   /** The helpers as the ZENO window sees them. Undefined when the store could not open. */
   islandHelpers?: IslandHelpers;
+  /** ADR-091: ZENO's task branches, and Keshab's push. Undefined when the helpers store could not open. */
+  islandGit?: IslandGit;
   /** Pal dropped on a window (ADR-074): that app's read, held for the next request only. */
   screen: WindowPointer;
   /** Countdown timers (ADR-061). */
@@ -201,6 +204,28 @@ export function createRuntime(
   // ADR-088: agents Keshab adds live beside the helpers file, each data/agents/<id>/soul.md.
   const agentsDir = join(dirname(resolve(helpersPath === ":memory:" ? "data/x" : helpersPath)), "agents");
   const helpers = openHelpers(helpersPath, log, helpersPath === ":memory:" ? undefined : agentsDir);
+  // ADR-091: ZENO's task branches in the repositories Keshab granted; pushing one is his alone, asked from the window.
+  const grantedRepos = () => repositoriesOf([...new Set((helpers?.list() ?? []).flatMap((h) => h.grants ?? []))]);
+  const allowedRepo = async (repo: string) => {
+    if (!(await grantedRepos()).includes(repo)) throw new Error("That repository is not in a folder you granted.");
+  };
+  const islandGit: IslandGit | undefined = helpers && {
+    list: async () => {
+      const branches = (await Promise.all((await grantedRepos()).map((r) => zenoBranches(r).catch(() => [])))).flat();
+      return branches.map((b) => {
+        const title = helpers.report(b.task)?.title ?? helpers.get(b.task)?.task.split("\n")[0]?.slice(0, 80);
+        return { ...b, ...(title ? { title } : {}) };
+      });
+    },
+    push: async (repo, branch) => {
+      await allowedRepo(repo);
+      await pushBranch(repo, branch);
+    },
+    diff: async (repo, branch) => {
+      await allowedRepo(repo);
+      return branchDiff(repo, branch);
+    },
+  };
   // Task 3.11: the tasks' git worktrees live beside the helpers file, never inside a granted repository.
   const worktrees = join(dirname(resolve(helpersPath === ":memory:" ? "data/x" : helpersPath)), "worktrees");
   // ADR-087, Task 3.16: Keshab's own Paperclip, only when ZENO_PAPERCLIP_URL names a loopback address. Anything else
@@ -682,6 +707,7 @@ export function createRuntime(
     tts,
     computer,
     ...(memory ? { memory, islandMemory, islandChats } : {}),
+    ...(islandGit ? { islandGit } : {}),
     ...(helpers ? { helpers, islandHelpers: warmOnOpen(withPaperclip({
             ...islandHelpers(helpers, installedApps, planModels, held, () => listSkills()),
             openReport,

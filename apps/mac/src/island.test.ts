@@ -31,6 +31,7 @@ function islandHarness(
     core: IslandOptions["core"];
     tts: TextToSpeech;
     chats: IslandOptions["chats"];
+    git: IslandOptions["git"];
     clipMs: number;
     warmUp: () => Promise<void>;
     silenceWarnMs: number;
@@ -89,6 +90,7 @@ function islandHarness(
     computer: over.computer,
     ...(over.memory ? { memory: over.memory } : {}),
     ...(over.chats ? { chats: over.chats } : {}),
+    ...(over.git ? { git: over.git } : {}),
     ...(over.helpers ? { helpers: over.helpers } : {}),
     ...(over.onTimer ? { onTimer: over.onTimer } : {}),
     ...(over.onGoalLine ? { onGoalLine: over.onGoalLine } : {}),
@@ -928,6 +930,40 @@ test("chats: listed with the current one; opened, ZENO continues it; deleting th
   await h.send({ type: "chat.delete", id: "chat-a" });
   assert.deepEqual(h.types(), ["conversation.reset", "chats"]);
   assert.deepEqual(h.events()[1], { type: "chats", chats: [], current: "chat-reset" });
+});
+
+test("git: branches listed; a push runs and the list comes back; a refused push says why (ADR-091)", async () => {
+  const branch = { repo: "/r", repoName: "r", branch: "zeno/task-7", task: 7, base: "origin/main", commits: [], files: [], pushed: "no" as const };
+  const pushed: string[] = [];
+  let refuse = false;
+  const h = islandHarness({
+    git: {
+      list: async () => [{ ...branch, pushed: pushed.length ? ("yes" as const) : ("no" as const) }],
+      push: async (repo, b) => {
+        if (refuse) throw new Error("The push failed: rejected");
+        pushed.push(`${repo} ${b}`);
+      },
+      diff: async () => ({ text: "+two", truncated: false }),
+    },
+  });
+  await tick(5);
+  h.clear();
+  await h.send({ type: "git.list" });
+  await tick(5);
+  assert.deepEqual(h.events(), [{ type: "git", branches: [branch] }]);
+  h.clear();
+  await h.send({ type: "git.push", repo: "/r", branch: "zeno/task-7" });
+  await tick(5);
+  assert.deepEqual([pushed, (h.events()[0] as { branches: { pushed: string }[] }).branches[0]!.pushed], [["/r zeno/task-7"], "yes"]);
+  h.clear();
+  await h.send({ type: "git.diff", repo: "/r", branch: "zeno/task-7" });
+  await tick(5);
+  assert.deepEqual(h.events(), [{ type: "git.diff", repo: "/r", branch: "zeno/task-7", text: "+two", truncated: false }]);
+  refuse = true;
+  h.clear();
+  await h.send({ type: "git.push", repo: "/r", branch: "zeno/task-7" });
+  await tick(5);
+  assert.match((h.events()[0] as { message: string }).message, /The push failed: rejected/);
 });
 
 test("routines in helpers, and routine.delete (Task 3.9)", async () => {

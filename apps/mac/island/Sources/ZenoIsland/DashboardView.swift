@@ -44,6 +44,12 @@ struct DashboardPane: View {
                 } else {
                     quiet("Waiting for ZENO…")
                 }
+                // ADR-091: the branches workers made, like pull requests; Keshab pushes one.
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Git: the team's branches").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
+                    if let problem = model.helpers.problem { ProblemLine(text: problem) }
+                    GitSection(model: model)
+                }
             }
             .frame(maxWidth: 680, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -186,5 +192,135 @@ private struct PlanMeters: View {
             }
             .frame(height: 5)
         }
+    }
+}
+
+/// ADR-091: each `zeno/task-<id>` branch in the repositories Keshab granted: its task, commits and files, whether it is
+/// on the remote, its changes on request, and Push, which asks him to confirm first. Workers never push.
+private struct GitSection: View {
+    let model: IslandModel
+    /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
+    private let confirming = State<GitBranch?>(initialValue: nil)
+    @Environment(\.theme) private var theme
+
+    init(model: IslandModel) { self.model = model }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let branches = model.helpers.git {
+                if branches.isEmpty {
+                    Text("No branches yet. When Kame, Puff or Quill work in a git repository you granted, each task's branch shows here.")
+                        .font(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 4)
+                }
+                ForEach(branches) { branch in
+                    GitBranchCard(model: model, branch: branch) { confirming.wrappedValue = branch }
+                }
+            } else {
+                Text("Looking for branches…").font(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 4)
+            }
+        }
+        .onAppear { model.sendHelpers(model.helpers.gitCommand(.gitList)) }
+        .alert("Push \(confirming.wrappedValue?.branch ?? "")?", isPresented: Binding(get: { confirming.wrappedValue != nil }, set: { if !$0 { confirming.wrappedValue = nil } }), presenting: confirming.wrappedValue) { branch in
+            Button("Push") { model.sendHelpers(model.helpers.gitCommand(.gitPush(repo: branch.repo, branch: branch.branch))) }
+            Button("Cancel", role: .cancel) {}
+        } message: { branch in
+            Text("Sends its \(branch.commits.count) commit\(branch.commits.count == 1 ? "" : "s") to origin (\(branch.remote ?? "")). Never forced. Workers never push; only you can, from here.")
+        }
+    }
+}
+
+private struct GitBranchCard: View {
+    let model: IslandModel
+    let branch: GitBranch
+    let push: () -> Void
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let diff = model.helpers.gitDiff.flatMap { $0.repo == branch.repo && $0.branch == branch.branch ? $0 : nil }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                StatusDot(color: branch.pushed == .yes ? theme.success.color : branch.pushed == .changed ? theme.attention.color : theme.text3.color, size: 6)
+                Text(branch.repoName).font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
+                Text(branch.branch).font(theme.idFont(.system(size: 11.5), size: 11)).foregroundStyle(theme.idColor(theme.text2))
+                Spacer(minLength: 8)
+                Text(branch.pushed == .yes ? "Pushed" : branch.pushed == .changed ? "Changed since push" : "Not pushed")
+                    .font(.system(size: 11)).foregroundStyle(theme.text3.color)
+            }
+            if let title = branch.title { Text("Task \(branch.task): \(title)").font(.system(size: 12.5)).foregroundStyle(theme.text2.color).lineLimit(1) }
+            HStack(spacing: 6) {
+                Text("\(branch.commits.count) commit\(branch.commits.count == 1 ? "" : "s") on \(branch.base) · \(branch.files.count) file\(branch.files.count == 1 ? "" : "s")")
+                Text("+\(branch.added)").foregroundStyle(theme.success.color)
+                Text("−\(branch.removed)").foregroundStyle(theme.problem.color)
+            }
+            .font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color)
+            VStack(alignment: .leading, spacing: 3) {
+                ForEach(Array(branch.commits.prefix(4).enumerated()), id: \.offset) { _, commit in
+                    HStack(spacing: 8) {
+                        Text(commit.sha).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text3))
+                        Text(commit.subject).font(.system(size: 12)).foregroundStyle(theme.text.color).lineLimit(1)
+                    }
+                }
+                if branch.commits.count > 4 { Text("and \(branch.commits.count - 4) more").font(.system(size: 11)).foregroundStyle(theme.text3.color) }
+                ForEach(Array(branch.files.prefix(6).enumerated()), id: \.offset) { _, file in
+                    HStack(spacing: 8) {
+                        Image(systemName: "doc").font(.system(size: 10)).foregroundStyle(theme.text3.color)
+                        Text(file.path).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color).lineLimit(1).truncationMode(.middle)
+                        Spacer(minLength: 4)
+                        if let a = file.added, let r = file.removed {
+                            Text("+\(a)").foregroundStyle(theme.success.color)
+                            Text("−\(r)").foregroundStyle(theme.problem.color)
+                        } else {
+                            Text("binary").foregroundStyle(theme.text3.color)
+                        }
+                    }
+                    .font(theme.idFont(.system(size: 10.5), size: 10))
+                }
+                if branch.files.count > 6 { Text("and \(branch.files.count - 6) more files").font(.system(size: 11)).foregroundStyle(theme.text3.color) }
+            }
+            .padding(.top, 2)
+            HStack(spacing: 8) {
+                QuietButton(title: diff == nil ? "Show changes" : "Hide changes", symbol: "chevron.left.forwardslash.chevron.right") {
+                    if diff == nil { model.sendHelpers(model.helpers.gitCommand(.gitDiff(repo: branch.repo, branch: branch.branch))) } else { model.helpers.gitDiff = nil }
+                }
+                QuietButton(title: "Push…", symbol: "arrow.up.circle") { push() }
+                    .disabled(!branch.canPush)
+                    .opacity(branch.canPush ? 1 : 0.5)
+                    .help(branch.remote == nil ? "This repository has no remote named origin." : branch.pushed == .yes ? "Already on the remote." : "Push this branch to origin")
+                Spacer()
+                if let remote = branch.remote { Text(remote).font(theme.idFont(.system(size: 10.5), size: 10)).foregroundStyle(theme.text3.color).lineLimit(1).truncationMode(.middle) }
+            }
+            if let diff { DiffText(diff: diff) }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
+            .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+    }
+}
+
+/// A patch, its added lines green and removed ones red; the first 400 lines.
+private struct DiffText: View {
+    let diff: GitDiff
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let lines = diff.text.split(separator: "\n", omittingEmptySubsequences: false).prefix(400)
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                Text(line.isEmpty ? " " : String(line))
+                    .font(.system(size: 10.5, design: .monospaced))
+                    .foregroundStyle(line.hasPrefix("+") && !line.hasPrefix("+++") ? theme.success.color
+                        : line.hasPrefix("-") && !line.hasPrefix("---") ? theme.problem.color
+                        : line.hasPrefix("@@") ? theme.live.color : theme.text2.color)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if diff.truncated || diff.text.split(separator: "\n").count > 400 {
+                Text("The rest is cut off here.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color).padding(.top, 4)
+            }
+        }
+        .padding(10)
+        .textSelection(.enabled)
+        .background(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous).fill(theme.fill1.color))
     }
 }

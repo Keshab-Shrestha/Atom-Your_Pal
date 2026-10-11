@@ -34,6 +34,10 @@ public enum IslandCommand: Sendable, Equatable {
     case chatsList
     case chatOpen(id: String)
     case chatDelete(id: String)
+    /// ADR-091: ZENO's task branches; push one (Keshab confirmed); a branch's changes.
+    case gitList
+    case gitPush(repo: String, branch: String)
+    case gitDiff(repo: String, branch: String)
     case helperSet(helper: String, app: String)
     case jobAdd(helper: String, task: String, blockedBy: [Int] = [])
     /// ADR-087: change what a queued task waits for; add a note to a task; ask for a task's thread.
@@ -105,6 +109,9 @@ public enum IslandCommand: Sendable, Equatable {
         case .chatsList: "chats.list"
         case .chatOpen: "chat.open"
         case .chatDelete: "chat.delete"
+        case .gitList: "git.list"
+        case .gitPush: "git.push"
+        case .gitDiff: "git.diff"
         case .helperSet: "helper.set"
         case .jobAdd: "job.add"
         case .jobBlock: "job.block"
@@ -204,6 +211,9 @@ public enum IslandCommand: Sendable, Equatable {
             }
         case .chatOpen(let id), .chatDelete(let id):
             fields["id"] = id
+        case .gitPush(let repo, let branch), .gitDiff(let repo, let branch):
+            fields["repo"] = repo
+            fields["branch"] = branch
         case .speechSet(let reports, let updates):
             fields["reports"] = reports
             fields["updates"] = updates
@@ -485,6 +495,9 @@ public enum IslandEvent: Sendable, Equatable {
     /// ADR-091: Keshab's chats and the one ZENO is in; a chat opened, with its turns.
     case chats(ChatList)
     case chatOpened(id: String, lines: [ChatLine])
+    /// ADR-091: ZENO's task branches; one branch's changes as a patch.
+    case git([GitBranch])
+    case gitDiff(GitDiff)
     /// One job's report, after `report.get`.
     case report(HelperReport)
     case thread(HelperThread)
@@ -520,6 +533,8 @@ public enum IslandEvent: Sendable, Equatable {
         case .mediaKey: "media.key"
         case .helpers: "helpers"
         case .chats: "chats"
+        case .git: "git"
+        case .gitDiff: "git.diff"
         case .chatOpened: "chat.opened"
         case .report: "report"
         case .thread: "thread"
@@ -620,6 +635,10 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
     case "media.key":
         guard let key = MediaKey(rawValue: try f.string("key")) else { throw ProtocolError.invalidValue(event: type, field: "key") }
         return .mediaKey(key)
+    case "git":
+        return .git(Fields.branches(f.values["branches"]))
+    case "git.diff":
+        return .gitDiff(GitDiff(repo: try f.string("repo"), branch: try f.string("branch"), text: try f.string("text"), truncated: f.optionalBool("truncated") ?? false))
     case "chats":
         return .chats(ChatList(chats: Fields.chats(f.values["chats"]), current: f.optionalString("current") ?? ""))
     case "chat.opened":
@@ -965,6 +984,24 @@ private struct Fields {
             throw ProtocolError.invalidValue(event: event, field: key)
         }
         return n.boolValue
+    }
+
+    /// ADR-091: ZENO's task branches; a malformed entry is left out.
+    static func branches(_ value: Any?) -> [GitBranch] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let m = entry as? [String: Any], let repo = m["repo"] as? String, let branch = m["branch"] as? String, let task = m["task"] as? NSNumber else { return nil }
+            let commits = (m["commits"] as? [Any] ?? []).compactMap { c -> GitCommit? in
+                guard let c = c as? [String: Any], let sha = c["sha"] as? String else { return nil }
+                return GitCommit(sha: sha, subject: c["subject"] as? String ?? "", at: (c["at"] as? String).flatMap(date))
+            }
+            let files = (m["files"] as? [Any] ?? []).compactMap { x -> GitFile? in
+                guard let x = x as? [String: Any], let path = x["path"] as? String else { return nil }
+                return GitFile(path: path, added: (x["added"] as? NSNumber)?.intValue, removed: (x["removed"] as? NSNumber)?.intValue)
+            }
+            return GitBranch(repo: repo, repoName: m["repoName"] as? String ?? repo, branch: branch, task: task.intValue, title: m["title"] as? String,
+                             base: m["base"] as? String ?? "", commits: commits, files: files, remote: m["remote"] as? String,
+                             pushed: GitBranch.Pushed(rawValue: m["pushed"] as? String ?? "") ?? .no)
+        }
     }
 
     /// ADR-091: the chats, newest first; a malformed entry is left out.

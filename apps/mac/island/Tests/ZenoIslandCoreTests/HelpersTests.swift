@@ -1001,3 +1001,21 @@ struct ChatTests {
         #expect(IslandCommand.chatOpen(id: "a").line == #"{"id":"a","type":"chat.open"}"# + "\n" && IslandCommand.chatsList.line == #"{"type":"chats.list"}"# + "\n")
     }
 }
+
+@Suite("Git branches (ADR-091)")
+struct GitBranchTests {
+    @Test func decodesBranchesAndKnowsWhenOneCanBePushed() throws {
+        let event = try decodeEvent(#"{"type":"git","branches":[{"repo":"/r","repoName":"r","branch":"zeno/task-7","task":7,"title":"Notes","base":"origin/main","commits":[{"sha":"abc1234","subject":"ZENO task 7","at":"2026-10-11T00:00:00+09:00"}],"files":[{"path":"a.md","added":2,"removed":1},{"path":"b.png","added":null,"removed":null}],"remote":"git@github.com:k/r.git","pushed":"no"},{"bad":1}]}"#)
+        var state = HelpersState()
+        state.apply(event)
+        let b = try #require(state.git?.first)
+        #expect(state.git?.count == 1 && b.task == 7 && b.title == "Notes" && b.commits.first?.at != nil)
+        #expect(b.files.map(\.added) == [2, nil] && b.added == 2 && b.removed == 1 && b.canPush)
+        var pushed = b
+        pushed.pushed = .yes
+        var noRemote = b
+        noRemote.remote = nil
+        #expect(!pushed.canPush && !noRemote.canPush)
+        #expect(IslandCommand.gitPush(repo: "/r", branch: "zeno/task-7").line == #"{"branch":"zeno/task-7","repo":"/r","type":"git.push"}"# + "\n")
+    }
+}

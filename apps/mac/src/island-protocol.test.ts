@@ -213,6 +213,12 @@ test("parses the helper commands", () => {
     { type: "job.open", id: 3 },
     { type: "job.retry", id: 3 },
     { type: "speech.set", reports: false, updates: true },
+    { type: "git.list" },
+    { type: "git.push", repo: "/Users/me/site", branch: "zeno/task-7" },
+    { type: "git.diff", repo: "/Users/me/site", branch: "zeno/task-7" },
+    { type: "chats.list" },
+    { type: "chat.open", id: "4f1c-aa" },
+    { type: "chat.delete", id: "4f1c-aa" },
     { type: "mcp.add", name: "notes", kind: "command", command: "notes-mcp", args: ["--stdio"], env: ["T=1"] },
     { type: "mcp.add", name: "linear", kind: "url", url: "https://x/mcp", transport: "sse", headers: ["A: b"] },
     { type: "mcp.set", id: 1, enabled: true, trusted: false, workers: ["sid"] },
@@ -270,5 +276,21 @@ test("helper commands with missing or wrong fields are protocol errors", () => {
     const parsed = parseCommand(JSON.stringify(command));
     assert.ok("error" in parsed, JSON.stringify(command));
     assert.match(parsed.error, expected, JSON.stringify(command));
+  }
+});
+
+test("git.push and git.diff take only a full path and a ZENO task branch; chats take an id (ADR-091)", () => {
+  const cases: [object, RegExp][] = [
+    [{ type: "git.push", repo: "/r", branch: "main" }, /zeno\/task-<id>/],
+    [{ type: "git.push", repo: "/r", branch: "zeno/task-7; rm -rf /" }, /zeno\/task-<id>/],
+    [{ type: "git.push", repo: "relative/path", branch: "zeno/task-7" }, /full path/],
+    [{ type: "git.diff", branch: "zeno/task-7" }, /full path/],
+    [{ type: "chat.open", id: "../x" }, /chat's "id"/],
+    [{ type: "chat.delete" }, /chat's "id"/],
+  ];
+  for (const [command, expected] of cases) {
+    const parsed = parseCommand(JSON.stringify(command));
+    assert.ok("error" in parsed, JSON.stringify(command));
+    assert.match(parsed.error, expected);
   }
 });

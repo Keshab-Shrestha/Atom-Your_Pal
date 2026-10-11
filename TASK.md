@@ -993,6 +993,13 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Protocol: `chats.list`, `chat.open`, `chat.delete`; events `chats` (with `current`) and `chat.opened` (its turns).
 - Tests: 3 TS (the chat store, Core resume, the island commands), protocol, 1 Swift (decoding, replay) (TS 644, Swift 512 pass).
 
+**Part 5, Git — as built (2026-10-11):** built; tested with real git repositories (a local bare remote); seen in the gallery; not yet pushed to Keshab's own remote.
+- The Dashboard's Git section lists every `zeno/task-<id>` branch in the repositories Keshab granted, like a pull request: repository and branch, the task's title, its commits on the base (the remote's default branch, else the current one), changed files with lines added and removed, the remote's address (credentials taken out) and whether it is pushed (Not pushed, Pushed, Changed since push).
+- Show changes: the patch, added lines green and removed red (first 400 lines; long patches cut).
+- Push…: only after Keshab confirms in a dialog naming the branch, its commits and the remote. ZENO pushes `refs/heads/zeno/task-N` to `origin` only: never forced, no hooks, never waiting for a password (a remote that needs one fails with words). The runtime refuses any other branch, a repository outside the granted folders, or one with no `origin`. Workers and models still never push.
+- Protocol: `git.list`, `git.push`, `git.diff`; events `git` and `git.diff`. Logs: the task number only.
+- Tests: 2 TS (branches, files, pushed states, push, refusals with real git; remote addresses without credentials), island and protocol (only zeno/task-* and full paths), 1 Swift (decoding, when it can be pushed) (TS 647, Swift 513 pass).
+
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.
 
 **Task 3.17 — Companies and user logins.** Separate workspaces with their own tasks, workers, budgets and history; sign-in for more than one person.

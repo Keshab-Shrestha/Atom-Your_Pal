@@ -557,6 +557,12 @@ public struct HelpersState: Sendable, Equatable {
     public private(set) var problem: String?
     /// A command from the window is waiting for its answer: a `settings` error now belongs to the window.
     public private(set) var isWaiting = false
+    /// ADR-091: ZENO's task branches (nil until asked), and the one whose changes are shown.
+    public private(set) var git: [GitBranch]?
+    public var gitDiff: GitDiff?
+
+    /// ADR-091: a git command from the window; its refusal shows as the window's problem.
+    public mutating func gitCommand(_ command: IslandCommand) -> IslandCommand { waiting(command) }
 
     public init() {}
 
@@ -602,6 +608,12 @@ public struct HelpersState: Sendable, Equatable {
                 if job != openJobSeen { pendingRefresh = .threadGet(id: id) }
                 openJobSeen = job
             }
+        case .git(let branches):
+            // ADR-091: the branches came (again, after a push): whatever the window asked is done.
+            git = branches
+            isWaiting = false
+        case .gitDiff(let diff):
+            gitDiff = diff
         case .thread(let newThread) where newThread.id == openJobId:
             thread = newThread
         case .error(let error) where claims(event):
@@ -1141,5 +1153,82 @@ public struct TokenUsageSummary: Sendable, Equatable {
         self.days = days
         self.byWorker = byWorker
         self.byModel = byModel
+    }
+}
+
+/// ADR-091: one of ZENO's task branches, like a pull request.
+public struct GitBranch: Sendable, Equatable, Identifiable {
+    public enum Pushed: String, Sendable { case no, yes, changed }
+
+    public var id: String { "\(repo)#\(branch)" }
+    public var repo: String
+    public var repoName: String
+    public var branch: String
+    public var task: Int
+    public var title: String?
+    public var base: String
+    public var commits: [GitCommit]
+    public var files: [GitFile]
+    /// `origin`'s address, without credentials; nil when there is none (then it cannot be pushed).
+    public var remote: String?
+    public var pushed: Pushed
+
+    public init(repo: String, repoName: String, branch: String, task: Int, title: String? = nil, base: String = "", commits: [GitCommit] = [],
+                files: [GitFile] = [], remote: String? = nil, pushed: Pushed = .no) {
+        self.repo = repo
+        self.repoName = repoName
+        self.branch = branch
+        self.task = task
+        self.title = title
+        self.base = base
+        self.commits = commits
+        self.files = files
+        self.remote = remote
+        self.pushed = pushed
+    }
+
+    /// It can be pushed: it has a remote and something the remote does not have.
+    public var canPush: Bool { remote != nil && pushed != .yes && !commits.isEmpty }
+    public var added: Int { files.compactMap(\.added).reduce(0, +) }
+    public var removed: Int { files.compactMap(\.removed).reduce(0, +) }
+}
+
+public struct GitCommit: Sendable, Equatable {
+    public var sha: String
+    public var subject: String
+    public var at: Date?
+
+    public init(sha: String, subject: String, at: Date? = nil) {
+        self.sha = sha
+        self.subject = subject
+        self.at = at
+    }
+}
+
+public struct GitFile: Sendable, Equatable {
+    public var path: String
+    /// Nil for a binary file.
+    public var added: Int?
+    public var removed: Int?
+
+    public init(path: String, added: Int?, removed: Int?) {
+        self.path = path
+        self.added = added
+        self.removed = removed
+    }
+}
+
+/// ADR-091: a branch's changes since its base, as a patch (cut when long).
+public struct GitDiff: Sendable, Equatable {
+    public var repo: String
+    public var branch: String
+    public var text: String
+    public var truncated: Bool
+
+    public init(repo: String, branch: String, text: String, truncated: Bool) {
+        self.repo = repo
+        self.branch = branch
+        self.text = text
+        self.truncated = truncated
     }
 }
