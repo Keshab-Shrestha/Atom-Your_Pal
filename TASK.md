@@ -965,6 +965,16 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Floor: only a worker at work sits at a PC; waiting, held, queued, failed and idle workers are in the lounge (their "!" and bubble go with them).
 - Tests: 2 TS (the folder offered, the ask with a real store), the floor test updated (TS 637, Swift 507 pass).
 
+## ADR-091 — Chats, a Dashboard, Git, Notifications and an Icon
+
+**Part 1, window fixes — as built (2026-10-11):** built; tested; seen in the gallery.
+- A worker's row in the sidebar shows its job (its role, such as Researcher), not "No app".
+- Rename: a pencil by the worker's name on its page; Enter saves a new soul version with the name (checked like any soul: length, unique).
+- A top bar over the main pane with the page's name (and the worker's role); it moves the window like a title bar, and a double click zooms it.
+- The office floor keeps its shape and fits both the Board's width and the window's height (no more overflowing in full screen).
+- The chat's top bar has Sounds: speak the team's reports, speak timers and updates, start and stop sounds. Muted lines still show on the island and Pal still flies over; they are not chimed or said (`speech.set`, sent when ZENO connects and on each change).
+- Tests: 1 TS (muted reports are shown, not said), protocol, 1 Swift (rename, speech.set) (TS 638, Swift 508 pass).
+
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.
 
 **Task 3.17 — Companies and user logins.** Separate workspaces with their own tasks, workers, budgets and history; sign-in for more than one person.

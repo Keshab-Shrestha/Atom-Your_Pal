@@ -1949,3 +1949,22 @@ One page at a time, each tested and committed:
 ### Consequences
 
 The window becomes the place to see and steer the team. MCP servers are the first tools that do not come from a kit: they stay off until Keshab turns them on, are per worker, and ask per call unless trusted, so the kit rule ("tools are decided in code") becomes "tools are decided in code or by Keshab, never by a model or a soul".
+
+## ADR-091 — Chats, a Dashboard, Git, Notifications and an Icon
+
+Date: 2026-10-11. Status: **accepted** (Keshab, 2026-10-11: "on the teams section i see No app i want that to change to particular pal job description … multiple chat session system and replacing the teams section … a dashboard with token used. git push section like github … change our pal names … no top rail … the board is too big … turn off the sounds for the reports … concerned about the token Usage … proper Notification … a proper icon"; voice goes to the open chat; Push on his click; notifications for needs you, done, failed and budget alerts; an icon like the app).
+
+### Decision
+
+One part at a time, each tested and committed:
+
+1. **Window fixes**: a worker's row shows its job (its role), not "No app"; every pal can be renamed (built-ins by a new soul version, the name checked as today); the main pane gets a top bar (the page's name, draggable like a title bar); the office floor fits the Board's width and the window's height; the chat has switches for speaking reports and spoken updates.
+2. **Notifications** (macOS, from ZENO.app): something needs Keshab, a task is done (its report's title), a task failed (why), and budget or plan use passing 80% or holding tasks. Each kind can be turned off in Settings. Titles only; no report text.
+3. **Tokens and a Dashboard**: every run records its input, output and cache tokens and cost (from the Agent SDK's result); the Dashboard shows today and the last 7 days by worker and by model, against the budgets and the plan's use.
+4. **Chats**: several chat sessions, kept in the local store; the sidebar lists them where the Team section was (the team stays on the Board and on each worker's page). Voice goes to the open chat (with the window closed, the last one used). New chat starts fresh.
+5. **Git**: the worker branches ZENO made (Task 3.11), with their commits and changed files, like a pull request. **Push** sends a branch to its repository's own remote only when Keshab clicks it and confirms; workers still never push. The remote and branch are shown before he confirms; ZENO never force-pushes.
+6. **Icon**: ZENO.app gets an icon in the app's own look: Pal on the black Void tile with its graphite hairline.
+
+### Consequences
+
+The window becomes ZENO's home for talking, watching the team and its cost. Pushing is the first action that sends code off the Mac: only by Keshab's click, never by a worker or a model, and never forced.

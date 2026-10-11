@@ -28,6 +28,8 @@ public enum IslandCommand: Sendable, Equatable {
     /// Helpers (ADR-081): ask for the list (and its changes from then on), give a helper its app (`""` for none),
     /// give it a job, stop or forget a job, ask for a job's report.
     case helpersList
+    /// ADR-091: whether ZENO says reports, and timers and updates, aloud.
+    case speechSet(reports: Bool, updates: Bool)
     case helperSet(helper: String, app: String)
     case jobAdd(helper: String, task: String, blockedBy: [Int] = [])
     /// ADR-087: change what a queued task waits for; add a note to a task; ask for a task's thread.
@@ -95,6 +97,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .textSend: "text.send"
         case .contextWindow: "context.window"
         case .helpersList: "helpers.list"
+        case .speechSet: "speech.set"
         case .helperSet: "helper.set"
         case .jobAdd: "job.add"
         case .jobBlock: "job.block"
@@ -192,6 +195,9 @@ public enum IslandCommand: Sendable, Equatable {
                 fields["transport"] = d.transport
                 fields["headers"] = Self.lines(d.headers)
             }
+        case .speechSet(let reports, let updates):
+            fields["reports"] = reports
+            fields["updates"] = updates
         case .mcpSet(let id, let enabled, let trusted, let workers):
             fields["id"] = id
             if let enabled { fields["enabled"] = enabled }

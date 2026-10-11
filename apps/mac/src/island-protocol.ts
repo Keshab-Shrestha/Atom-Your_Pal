@@ -24,6 +24,7 @@ export type IslandCommand =
   | { type: "episode.clear" }
   | { type: "context.window"; bundleId: string; name: string }
   | { type: "helpers.list" }
+  | { type: "speech.set"; reports: boolean; updates: boolean }
   | { type: "helper.set"; helper: string; app: string }
   | { type: "job.add"; helper: string; task: string; blockedBy?: number[]; planFirst?: boolean }
   | { type: "plan.approve"; id: number }
@@ -317,6 +318,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "episode.clear",
   "context.window",
   "helpers.list",
+  "speech.set",
   "helper.set",
   "job.add",
   "plan.approve",
@@ -448,6 +450,11 @@ export function parseCommand(line: string): ParsedLine {
     if (trusted !== undefined && typeof trusted !== "boolean") return { error: 'mcp.set needs "trusted" to be true or false.' };
     if (workers !== undefined && !(Array.isArray(workers) && workers.length <= 40 && workers.every((w) => typeof w === "string"))) return { error: 'mcp.set needs "workers", a list of worker ids.' };
     return { command: { type, id, ...(enabled !== undefined ? { enabled } : {}), ...(trusted !== undefined ? { trusted } : {}), ...(workers !== undefined ? { workers } : {}) } };
+  }
+  if (type === "speech.set") {
+    const { reports, updates } = value as { reports?: unknown; updates?: unknown };
+    if (typeof reports !== "boolean" || typeof updates !== "boolean") return { error: 'speech.set needs "reports" and "updates", each true or false.' };
+    return { command: { type, reports, updates } };
   }
   if (type === "job.rate") {
     const { id, good, comment } = value as { id?: unknown; good?: unknown; comment?: unknown };

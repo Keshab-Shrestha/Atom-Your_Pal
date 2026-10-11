@@ -162,6 +162,7 @@ final class IslandModel {
         case .ready:
             if memory != nil { send(.memoryList) } // a restarted runtime: ask again so updates keep coming
             send(.helpersList) // Task 3.15: busy workers show on the island too, so the list is always kept
+            send(.speechSet(reports: settings.speakReports, updates: settings.speakUpdates)) // ADR-091
         case .info(let info):
             modelInfo = info
             pendingModel = nil

@@ -707,6 +707,13 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.soulSet(helper: helper.id, soul: clean))
     }
 
+    /// ADR-091: renames the open worker: a new soul version with the new name (checked like any soul).
+    public mutating func rename(_ name: String) -> IslandCommand? {
+        guard var soul = selectedHelper?.soul else { return nil }
+        soul.name = name
+        return saveSoul(soul)
+    }
+
     /// Makes a listed older version current again. Nil for the current version or one not listed.
     public mutating func restoreSoul(_ version: Int) -> IslandCommand? {
         guard let helper = selectedHelper, version != helper.soulVersion,

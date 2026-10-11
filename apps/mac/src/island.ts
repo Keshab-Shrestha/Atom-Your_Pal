@@ -303,6 +303,10 @@ export function runIsland(options: IslandOptions): IslandSession {
         sendMemory();
         return;
       }
+      case "speech.set":
+        // ADR-091: muted kinds still show (the island card, Pal's line); they are not said or chimed.
+        speech = { reports: command.reports, updates: command.updates };
+        return;
       case "helpers.list":
         helpersWatched = true; // from now on, every job change is sent too
         sendHelpers();
@@ -497,6 +501,7 @@ export function runIsland(options: IslandOptions): IslandSession {
   // waits its turn the same way.
   const timerQueue: { message: string; timer?: { id: number; label: string; message: string }; after?: () => void }[] = [];
   let announcing = false;
+  let speech = { reports: true, updates: true };
   async function announce() {
     if (announcing || quitting) return;
     announcing = true;
@@ -507,16 +512,19 @@ export function runIsland(options: IslandOptions): IslandSession {
           continue;
         }
         const { message, timer, after } = timerQueue.shift()!;
-        await options.chime?.();
+        const spoken = timer ? speech.updates : speech.reports;
+        if (spoken) await options.chime?.();
         // Task 3.15: Pal flies over with the line while ZENO says it.
         if (!timer) send({ type: "worker.line", line: message });
-        send({ type: "state", state: "speaking" });
-        try {
-          await tts.speak(message);
-        } catch (error) {
-          options.log?.warn(timer ? "timer.speak_failed" : "goal.speak_failed", { message: describe(error) });
+        if (spoken) {
+          send({ type: "state", state: "speaking" });
+          try {
+            await tts.speak(message);
+          } catch (error) {
+            options.log?.warn(timer ? "timer.speak_failed" : "goal.speak_failed", { message: describe(error) });
+          }
+          if (loop.state === "idle") send({ type: "state", state: "idle" });
         }
-        if (loop.state === "idle") send({ type: "state", state: "idle" });
         // Last, so the island's "Timer done" stays up after the speaking ends.
         if (timer) send({ type: "timer", ...timer });
         after?.();

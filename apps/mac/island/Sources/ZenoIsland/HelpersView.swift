@@ -16,6 +16,12 @@ struct HelpersView: View {
         HStack(spacing: 0) {
             HelperSidebar(model: model).frame(width: 224)
             Rectangle().fill(palette.separator.color).frame(width: palette.isFlat ? 1 : 0.5)
+            VStack(spacing: 0) {
+            // ADR-091: a top bar over every page, with the page's name; it moves the window.
+            let page = Self.page(model)
+            WindowTopBar(title: page.title, symbol: page.symbol) {
+                if model.windowPage == .chat { ChatSoundsMenu(model: model) }
+            }
             Group {
                 if model.windowPage == .overview {
                     OverviewPane(model: model)
@@ -30,12 +36,12 @@ struct HelpersView: View {
                     ConversationTab(model: model)
                         .frame(maxWidth: 680)
                         .frame(maxWidth: .infinity)
-                        .padding(.top, HelpersView.titleBarRoom - 8)
+                        .padding(.top, 8)
                 } else if model.windowPage == .settings {
                     SettingsTab(model: model)
                         .frame(maxWidth: 640)
                         .frame(maxWidth: .infinity)
-                        .padding(.top, HelpersView.titleBarRoom - 8)
+                        .padding(.top, 8)
                 } else if model.helpers.isCreatingAgent {
                     NewAgentPane(model: model)
                 } else if model.helpers.openJobId != nil {
@@ -54,10 +60,33 @@ struct HelpersView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
         }
         .background(Rectangle().fill(palette.surfaceFill(solid: true)).ignoresSafeArea())
         .ignoresSafeArea(edges: .top)
         .themed(palette)
+    }
+}
+
+extension HelpersView {
+    /// The open page's name and symbol, for the top bar.
+    static func page(_ model: IslandModel) -> (title: String, symbol: String) {
+        switch model.windowPage {
+        case .overview: return ("Overview", "gauge.with.dots.needle.33percent")
+        case .chat: return ("Chat", "bubble.left.and.text.bubble.right")
+        case .inbox: return ("Needs you", "tray")
+        case .issues: return ("Issues", "exclamationmark.triangle")
+        case .plugins: return ("Plugins", "puzzlepiece.extension")
+        case .settings: return ("Settings", "gearshape")
+        case .agents: break
+        }
+        if model.helpers.isCreatingAgent { return ("New agent", "person.badge.plus") }
+        if model.helpers.openJobId != nil { return ("Task", "text.page") }
+        if model.helpers.showsBoard { return ("Board", "square.grid.2x2") }
+        if let helper = model.helpers.selectedHelper {
+            return (helper.roleTitle.isEmpty ? helper.name : "\(helper.name) · \(helper.roleTitle)", "person.crop.circle")
+        }
+        return ("ZENO", "sparkles")
     }
 }
 
@@ -253,9 +282,8 @@ private struct HelperCard: View {
                     } else if running {
                         Text(helper.activity).foregroundStyle(theme.statusDots ? theme.text2.color : theme.live.color)
                     } else {
-                        // The app is an identifier: SF Mono in Void.
-                        Text(helper.app ?? "No app").foregroundStyle(theme.text3.color)
-                            .font(helper.app == nil ? .system(size: 11) : theme.idFont(.system(size: 11), size: 10.5))
+                        // ADR-091: what the worker does (its role), not the app it opens.
+                        Text(helper.roleTitle.isEmpty ? (helper.app ?? "") : helper.roleTitle).foregroundStyle(theme.text3.color)
                     }
                 }
                 .font(.system(size: 11))
@@ -366,7 +394,7 @@ private struct HelperPane: View {
                 HStack(spacing: 14) {
                     HelperBadge(helper: helper, size: 42)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(helper.name).font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                        NameTitle(model: model, helper: helper)
                         Text(Self.subtitle(helper)).font(.system(size: 12)).foregroundStyle(theme.text2.color)
                             .lineLimit(1)
                     }
@@ -815,3 +843,52 @@ struct ProblemLine: View {
     }
 }
 
+
+/// ADR-091: a worker's name, with a pencil to rename it (a new soul version; the name is checked like any soul's).
+private struct NameTitle: View {
+    let model: IslandModel
+    let helper: Helper
+    /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
+    private let editing = State(initialValue: false)
+    private let draft = State(initialValue: "")
+    @Environment(\.theme) private var theme
+
+    init(model: IslandModel, helper: Helper) {
+        self.model = model
+        self.helper = helper
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if editing.wrappedValue {
+                TextField("Name", text: draft.projectedValue)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 18, weight: .semibold, design: theme.titleDesign))
+                    .frame(maxWidth: 220)
+                    .onSubmit(save)
+                    .onExitCommand { editing.wrappedValue = false }
+                QuietButton(title: "Save", symbol: "checkmark") { save() }
+            } else {
+                Text(helper.name).font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                if helper.soul != nil {
+                    Button {
+                        draft.wrappedValue = helper.name
+                        editing.wrappedValue = true
+                    } label: {
+                        Image(systemName: "pencil").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Rename \(helper.name)")
+                    .accessibilityLabel("Rename \(helper.name)")
+                }
+            }
+        }
+    }
+
+    private func save() {
+        let name = draft.wrappedValue.trimmingCharacters(in: .whitespaces)
+        editing.wrappedValue = false
+        guard name != helper.name else { return }
+        if let command = model.helpers.rename(name) { model.sendHelpers(command) }
+    }
+}

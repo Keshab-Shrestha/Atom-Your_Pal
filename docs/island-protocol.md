@@ -193,3 +193,7 @@ A complete turn:
 - The transcript and reply travel only over this private pipe between two processes of the same app. No port or socket is opened.
 - Neither side writes the transcript or reply to a log (SECURITY.md). stderr never contains them.
 - The same holds for memory text: the logs record memory ids and counts only.
+
+### speech.set (ADR-091)
+
+`{"type":"speech.set","reports":true,"updates":false}`: whether ZENO says the team's reports, and timers and other updates, aloud. A muted line still shows (the island's card, Pal's line); it is not chimed or spoken. The island sends it when ZENO connects and whenever Keshab changes it. No answer.

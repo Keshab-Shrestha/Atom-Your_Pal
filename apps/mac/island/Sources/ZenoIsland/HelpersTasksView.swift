@@ -48,6 +48,7 @@ struct BoardPane: View {
 
     var body: some View {
         let board = model.helpers.list?.board ?? []
+        GeometryReader { viewport in
         Scrollable {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -63,7 +64,10 @@ struct BoardPane: View {
                     ViewChoice(title: "Floor", symbol: "person.3", selected: model.boardFloor) { model.boardFloor = true }
                     ViewChoice(title: "Columns", symbol: "rectangle.split.3x1", selected: !model.boardFloor) { model.boardFloor = false }
                 }
-                if model.boardFloor { OfficeFloor(model: model) }
+                // ADR-091: the floor keeps its shape and fits the Board's width and the window's height.
+                if model.boardFloor {
+                    OfficeFloor(model: model).frame(maxHeight: max(220, viewport.size.height - 48)).frame(maxWidth: .infinity)
+                }
                 if board.isEmpty {
                     Text("No tasks yet. Choose a worker and give it one.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
                 }
@@ -79,6 +83,7 @@ struct BoardPane: View {
             .padding(.horizontal, Spacing.panel)
             .padding(.top, 28)
             .padding(.bottom, Spacing.panel)
+        }
         }
     }
 }

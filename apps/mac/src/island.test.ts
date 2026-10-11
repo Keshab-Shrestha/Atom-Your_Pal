@@ -874,6 +874,22 @@ test("a line with something to do after it: done once it has been said (Task 3.8
   assert.deepEqual([h.spoken, asked], [["Sid has a plan ready for your OK."], 1]);
 });
 
+test("speech.set: muted reports still show on the island but are not said; turned on, they are (ADR-091)", async () => {
+  let say!: (line: string, after?: () => void) => void;
+  const h = islandHarness({ onGoalLine: (listener) => ((say = listener), () => {}) });
+  await new Promise((r) => setTimeout(r, 5));
+  await h.send({ type: "speech.set", reports: false, updates: true });
+  let done = 0;
+  say("Sid's report is ready.", () => done++);
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepEqual([h.spoken, done], [[], 1], "not said, but what follows it still happens");
+  assert.ok(h.events().some((e) => e.type === "worker.line"), "still shown");
+  await h.send({ type: "speech.set", reports: true, updates: true });
+  say("Kame is done.");
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepEqual(h.spoken, ["Kame is done."]);
+});
+
 test("routines in helpers, and routine.delete (Task 3.9)", async () => {
   const { h, store } = helperHarness();
   await tick(5);

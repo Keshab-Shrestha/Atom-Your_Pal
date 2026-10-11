@@ -363,6 +363,17 @@ struct HelperSoulTests {
         #expect(!state.isSoulOpen) // nothing to edit
     }
 
+    /// ADR-091: renaming a worker saves its soul with the new name, checked like any soul.
+    @Test func renameSavesANewSoulVersionWithTheName() throws {
+        var state = try loaded()
+        var expected = try #require(state.selectedHelper?.soul)
+        expected.name = "Ace"
+        #expect(state.rename("  Ace ") == .soulSet(helper: "sid", soul: expected.trimmed))
+        var again = try loaded()
+        #expect(again.rename(String(repeating: "a", count: 21)) == nil && again.problem?.hasPrefix("The name is too long") == true)
+        #expect(IslandCommand.speechSet(reports: false, updates: true).line == #"{"reports":false,"type":"speech.set","updates":true}"# + "\n")
+    }
+
     @Test func saveSendsTheTrimmedSoulOnlyWhenChangedAndValid() throws {
         var state = try loaded()
         state.openSoul()
