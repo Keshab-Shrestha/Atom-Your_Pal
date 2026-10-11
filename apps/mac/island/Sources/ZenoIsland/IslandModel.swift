@@ -175,5 +175,5 @@ final class IslandModel {
 
 /// ADR-089: the ZENO window's pages: the conversation, the board and the team, and Settings.
 enum WindowPage: Equatable {
-    case overview, chat, inbox, issues, agents, settings
+    case overview, chat, inbox, issues, agents, plugins, settings
 }

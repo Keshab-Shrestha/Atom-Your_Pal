@@ -56,6 +56,11 @@ public enum IslandCommand: Sendable, Equatable {
     case jobOpen(id: Int)
     /// ADR-090: run a failed or stopped task again.
     case jobRetry(id: Int)
+    /// ADR-090: Keshab's MCP servers.
+    case mcpAdd(McpServerDraft)
+    case mcpRemove(id: Int)
+    case mcpSet(id: Int, enabled: Bool?, trusted: Bool?, workers: [String]?)
+    case mcpTest(id: Int)
     /// ADR-088: add an agent (its soul.md), or remove one Keshab added.
     case agentCreate(name: String, role: String, kit: String, soul: HelperSoul)
     case agentRemove(id: String)
@@ -109,6 +114,10 @@ public enum IslandCommand: Sendable, Equatable {
         case .proposalUndo: "proposal.undo"
         case .jobOpen: "job.open"
         case .jobRetry: "job.retry"
+        case .mcpAdd: "mcp.add"
+        case .mcpRemove: "mcp.remove"
+        case .mcpSet: "mcp.set"
+        case .mcpTest: "mcp.test"
         case .agentCreate: "agent.create"
         case .agentRemove: "agent.remove"
         case .grantRemove: "grant.remove"
@@ -171,9 +180,26 @@ public enum IslandCommand: Sendable, Equatable {
             fields["personality"] = soul.personality
             fields["howItWorks"] = soul.howItWorks
             fields["rules"] = soul.rules
+        case .mcpAdd(let d):
+            fields["name"] = d.name
+            fields["kind"] = d.kind
+            if d.kind == "command" {
+                fields["command"] = d.command
+                fields["args"] = Self.lines(d.args)
+                fields["env"] = Self.lines(d.env)
+            } else {
+                fields["url"] = d.url
+                fields["transport"] = d.transport
+                fields["headers"] = Self.lines(d.headers)
+            }
+        case .mcpSet(let id, let enabled, let trusted, let workers):
+            fields["id"] = id
+            if let enabled { fields["enabled"] = enabled }
+            if let trusted { fields["trusted"] = trusted }
+            if let workers { fields["workers"] = workers }
         case .agentRemove(let id):
             fields["id"] = id
-        case .proposalAccept(let id), .proposalReject(let id), .proposalUndo(let id), .jobOpen(let id), .jobRetry(let id):
+        case .proposalAccept(let id), .proposalReject(let id), .proposalUndo(let id), .jobOpen(let id), .jobRetry(let id), .mcpRemove(let id), .mcpTest(let id):
             fields["id"] = id
         case .helperSkills(let helper, let skills):
             fields["helper"] = helper
@@ -579,6 +605,7 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
                                     allowLarge: try f.optionalStrictBool("allowLarge") ?? true, models: try f.helperModels(),
                                     team: Fields.budget(f.values["team"]), planLimit: (f.values["planLimit"] as? NSNumber)?.intValue,
                                     paperclip: Fields.paperclip(f.values["paperclip"]),
+                                    mcp: Fields.mcp(f.values["mcp"]),
                                     skills: (f.values["skills"] as? [Any] ?? []).compactMap { entry in
                                         guard let s = entry as? [String: Any], let name = s["name"] as? String else { return nil }
                                         return SkillInfo(name: name, description: s["description"] as? String ?? "")
@@ -786,6 +813,18 @@ private struct Fields {
         return HelperBudget(cap: cap.flatMap { CFGetTypeID($0) == CFBooleanGetTypeID() ? nil : $0.doubleValue }, spent: spent.doubleValue)
     }
 
+    /// ADR-090: Keshab's MCP servers (never a secret value); a malformed entry is left out.
+    static func mcp(_ value: Any?) -> [McpServerItem] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let m = entry as? [String: Any], let id = m["id"] as? NSNumber, let name = m["name"] as? String, let kind = m["kind"] as? String else { return nil }
+            let strings = { (k: String) in (m[k] as? [Any])?.compactMap { $0 as? String } ?? [] }
+            return McpServerItem(id: id.intValue, name: name, kind: kind, command: m["command"] as? String, args: strings("args"), url: m["url"] as? String,
+                                 transport: m["transport"] as? String ?? "http", envKeys: strings("envKeys"), headerKeys: strings("headerKeys"),
+                                 enabled: flag(m["enabled"]), trusted: flag(m["trusted"]), workers: strings("workers"), tools: strings("tools"),
+                                 tested: m["testedAt"] is String, problem: m["problem"] as? String)
+        }
+    }
+
     /// Task 3.16: the tasks handed to Keshab's Paperclip; nil when the connection is off.
     static func paperclip(_ value: Any?) -> [PaperclipTask]? {
         guard let p = value as? [String: Any], let issues = p["issues"] as? [Any] else { return nil }
@@ -909,5 +948,12 @@ private struct Fields {
     func optionalBool(_ key: String) -> Bool? {
         guard let n = values[key] as? NSNumber, CFGetTypeID(n) == CFBooleanGetTypeID() else { return nil }
         return n.boolValue
+    }
+}
+
+extension IslandCommand {
+    /// A multi-line field as its non-empty lines.
+    static func lines(_ text: String) -> [String] {
+        text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
     }
 }

@@ -74,6 +74,7 @@ import { denyRead, folderCheck } from "./folder-run.ts";
 import { commitWork, prepareWorkdir, type Workdir } from "./worktree.ts";
 import { SKILLS_PLUGIN, listSkills, prepareSkills } from "./skills.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
+import { mcpCheck, sdkConfig, testMcpServer } from "./mcp-servers.ts";
 import { checkIssues, createPaperclip, createPaperclipTools, issueTracker, paperclipBase } from "./paperclip.ts";
 import { createWindowPointer, type WindowPointer } from "./screen-context.ts";
 import { withPointing } from "./pointing.ts";
@@ -458,6 +459,19 @@ export function createRuntime(
     }
     // Task 3.10: a top-level task may hand sub-tasks to the workers its role allows; the store checks each one.
     const handOff = helpers && !files && handOffTool(helpers, job);
+    // ADR-090: Keshab's MCP servers that are on and given to this worker; every call asks unless the server is trusted.
+    const servers = (helpers?.mcpServers() ?? []).filter((s) => s.enabled && s.workers.includes(job.helper));
+    const mcp = servers.length
+      ? {
+          servers: Object.fromEntries(servers.map((s) => [s.name, sdkConfig(s)])),
+          check: mcpCheck({
+            servers,
+            worker: name,
+            approve: (request) => computer.approve(request),
+            onCheck: (e) => log.info("job.mcp", { helper: job.helper, job: job.id, ...e }),
+          }),
+        }
+      : undefined;
     // Task 3.12: only the skills chosen for this worker, through its own small plugin.
     const chosen = helpers?.list().find((h) => h.id === job.helper)?.skills ?? [];
     const skills = chosen.length ? { ...prepareSkills(join(dirname(worktrees), "skills", job.helper), chosen), plugin: SKILLS_PLUGIN } : undefined;
@@ -474,6 +488,7 @@ export function createRuntime(
         ...(handOff ? { handOff } : {}),
         ...(files ? { files } : {}),
         ...(skills?.names.length ? { skills } : {}),
+        ...(mcp ? { mcp } : {}),
         // ADR-088: a "think" agent has no tools at all (the documenter without a folder still writes up from the web).
         ...(kit === "think" ? { thinkOnly: true } : {}),
       });
@@ -614,7 +629,18 @@ export function createRuntime(
     tts,
     computer,
     ...(memory ? { memory, islandMemory } : {}),
-    ...(helpers ? { helpers, islandHelpers: warmOnOpen(withPaperclip({ ...islandHelpers(helpers, installedApps, planModels, held, () => listSkills()), openReport }), decisions) } : {}),
+    ...(helpers ? { helpers, islandHelpers: warmOnOpen(withPaperclip({
+            ...islandHelpers(helpers, installedApps, planModels, held, () => listSkills()),
+            openReport,
+            // ADR-090: a test starts the server (or connects), lists its tools, and records the outcome. Logs ids only.
+            testMcp: async (id: number) => {
+              const server = helpers.mcpServers().find((s) => s.id === id);
+              if (!server) throw new Error("There is no such server.");
+              const outcome = await testMcpServer(server);
+              helpers.recordMcpTest(id, outcome);
+              log.info("mcp.test", { server: id, ok: "tools" in outcome, tools: "tools" in outcome ? outcome.tools.length : 0 });
+            },
+          }), decisions) } : {}),
     screen,
     timers,
     onTimer(listener) {

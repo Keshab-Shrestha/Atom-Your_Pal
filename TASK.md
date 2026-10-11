@@ -938,6 +938,15 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 
 **Part 3, Issues — as built (2026-10-11):** built; tested. A sidebar page listing failed tasks (why, when, "tried again once") with Retry and Open; Needs you's failed rows get Retry too. `job.retry` runs a failed or stopped task again (resuming its session). A failure a second try may fix (a time limit, Claude Code ending early or answering in the wrong shape, ZENO closed mid-run) is retried once by itself (`MAX_AUTO_RETRIES`), before anything waiting on it fails; setup problems and the plan's limits never are. Activity "Tried again". 3 TS tests, protocol, and 1 Swift (TS 626, Swift 499 pass). Two older tests now expect the automatic retry.
 
+**Part 4, Plugins — as built (2026-10-11):** built; tested (a real stdio MCP server started by the test; fakes for the run); seen in the gallery; no real server tried by Keshab yet.
+- MCP servers (`services/helpers/src/mcp.ts`, table `mcp_servers` in the local helpers file): a server runs a command (program, arguments, `KEY=value` environment) or connects to a URL (Streamable HTTP or SSE, `Name: value` headers). Checked when added (a lower-case name not "zeno", no tokens in the address), saved switched off. At most 20.
+- Test (`mcp.test`, `mcp-servers.ts`): starts the command (or connects), completes the MCP handshake and lists the tools, within 15 s; a failure is said in words without the server's own output. A server turns on only after a test listed its tools.
+- Per worker: Keshab picks which workers may use it. A run gets its servers in the Agent SDK's `mcpServers`; every call to one of their tools goes through ZENO's check: a Trusted server's tools run; any other asks on Pal's card (no answer is a no). Plan and review runs get none. Logs keep the server and the verdict only.
+- Secrets: environment values and header values stay in the local file; the window gets only their names ("Private: NOTES_TOKEN"); nothing is logged.
+- The Plugins page lists the servers (status dot, command or address, tools, Test, Remove, On, Trusted, Workers), an Add server form, and every skill with the workers that use it. The sidebar's page rows are more compact.
+- Tests: 8 TS (store 3, run-time 4 with a real MCP server, gateway 1), island and protocol, 1 Swift (TS 637, Swift 500 pass).
+- Known limits: OAuth sign-in for URL servers is not built (tokens go in headers); a server is not re-tested by itself when its command changes (remove and add again).
+
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.
 
 **Task 3.17 — Companies and user logins.** Separate workspaces with their own tasks, workers, budgets and history; sign-in for more than one person.

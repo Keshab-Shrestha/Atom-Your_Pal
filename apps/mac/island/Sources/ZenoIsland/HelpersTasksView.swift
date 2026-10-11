@@ -15,8 +15,8 @@ struct BoardRow: View {
         let needsYou = model.helpers.list?.board.first { $0.column == .needsYou }?.items.count ?? 0
         let running = model.helpers.list?.board.first { $0.column == .running }?.items.count ?? 0
         HStack(spacing: 11) {
-            Image(systemName: "square.grid.2x2").font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color)
-                .frame(width: 32, height: 32)
+            Image(systemName: "square.grid.2x2").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+                .frame(width: 26, height: 26)
                 .overlay { if theme.isFlat { Circle().strokeBorder(theme.border.color, lineWidth: 1) } }
             VStack(alignment: .leading, spacing: 1) {
                 Text("Board").font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
@@ -27,7 +27,7 @@ struct BoardRow: View {
             if needsYou > 0 { StatusDot(color: theme.problem.color, size: 6) }
         }
         .padding(.horizontal, 9)
-        .padding(.vertical, 8)
+        .padding(.vertical, 4)
         .background {
             if theme.isFlat {
                 RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous).strokeBorder(selected ? theme.border.color : .clear, lineWidth: 1)

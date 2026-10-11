@@ -657,6 +657,7 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
       team: { cap: 15, spent: 0 },
       planLimit: 80,
       skills: [],
+      mcp: [],
       models: [
         { id: "claude-opus-5-5", name: "Claude Opus 5.5", tier: "large" },
         { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5", tier: "medium" },
@@ -987,6 +988,23 @@ test("agent.create adds an agent with its soul.md; agent.remove takes it out (AD
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("MCP servers in helpers never carry a secret value; mcp.add, mcp.set and mcp.remove (ADR-090)", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  await h.send({ type: "mcp.add", name: "notes", kind: "command", command: "notes-mcp", env: ["NOTES_TOKEN=supersecret"] });
+  const item = (h.events().at(-1) as HelpersEvent).mcp![0]!;
+  assert.deepEqual([item.name, item.envKeys, item.enabled], ["notes", ["NOTES_TOKEN"], false]);
+  assert.ok(!JSON.stringify(h.events()).includes("supersecret"), "never sent to the island");
+  h.clear();
+  await h.send({ type: "mcp.set", id: item.id, enabled: true });
+  assert.match((h.events()[0] as { message: string }).message, /Test the server first/);
+  store.recordMcpTest(item.id, { tools: ["search"] });
+  await h.send({ type: "mcp.set", id: item.id, enabled: true, workers: ["sid"] });
+  assert.deepEqual((h.events().at(-1) as HelpersEvent).mcp![0]!.workers, ["sid"]);
+  await h.send({ type: "mcp.remove", id: item.id });
+  assert.deepEqual((h.events().at(-1) as HelpersEvent).mcp, []);
 });
 
 test("helpers.settings turns the large model off and on, answered with helpers", async () => {

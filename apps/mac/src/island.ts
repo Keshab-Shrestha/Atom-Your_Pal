@@ -20,6 +20,7 @@ import {
   type SoulItem,
   type ThreadEvent,
   type PaperclipItem,
+  type McpItem,
 } from "./island-protocol.ts";
 import type { ComputerBridge } from "./computer-bridge.ts";
 import type { WindowPointer } from "./screen-context.ts";
@@ -111,6 +112,12 @@ export interface IslandHelpers {
   paperclip?(): { issues: PaperclipItem[] };
   /** Task 3.14: opens a task's report in its worker's app. Absent: `job.open` is refused. Rejects with words for the user. */
   openReport?(id: number): Promise<string>;
+  /** ADR-090: Keshab's MCP servers, without secrets; add, remove, set, and test (runs the server, lists its tools). */
+  mcp(): McpItem[];
+  addMcp(input: { name: string; kind: "command" | "url"; command?: string; args?: string[]; env?: string[]; url?: string; transport?: "http" | "sse"; headers?: string[] }): void;
+  removeMcp(id: number): boolean;
+  setMcp(id: number, change: { enabled?: boolean; trusted?: boolean; workers?: string[] }): void;
+  testMcp?(id: number): Promise<void>;
   /** ADR-090: runs a failed or stopped task again. Throws, with words for the user, for any other state. */
   retry(id: number): void;
   /** Task 3.13: rate a finished task ("not good" asks Tinker to review it); answer Tinker's proposals. Each throws with words for the user. */
@@ -330,6 +337,25 @@ export function runIsland(options: IslandOptions): IslandSession {
         );
         return;
       }
+      case "mcp.add":
+        changeHelpers(command.type, (helpers) => helpers.addMcp(command));
+        return;
+      case "mcp.remove":
+        options.helpers?.removeMcp(command.id); // unknown: ignored
+        sendHelpers();
+        return;
+      case "mcp.set":
+        changeHelpers(command.type, (helpers) => helpers.setMcp(command.id, command));
+        return;
+      case "mcp.test": {
+        const helpers = options.helpers;
+        if (!helpers?.testMcp) return refuseHelpers(command.type, HELPERS_OFF);
+        void helpers.testMcp(command.id).then(
+          () => sendHelpers(),
+          (error: unknown) => refuseHelpers(command.type, describe(error)),
+        );
+        return;
+      }
       case "job.retry":
         changeHelpers(command.type, (helpers) => helpers.retry(command.id));
         return;
@@ -425,7 +451,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     void appNames().then((apps) => {
       helpersQueued = false;
       const helpers = options.helpers;
-      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets(), skills: helpers.skills(), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}) });
+      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets(), skills: helpers.skills(), mcp: helpers.mcp(), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}) });
     });
   }
   function appNames(): Promise<string[]> {

@@ -220,6 +220,25 @@ test("a think agent has no tools at all (ADR-088)", async () => {
   assert.equal((answer as { behavior: string }).behavior, "deny");
 });
 
+test("Keshab's MCP servers join the run; each of their tools is checked (ADR-090)", async () => {
+  const answers: string[] = [];
+  const { sdk, seen } = fakeSdk(async function* (o) {
+    yield init();
+    for (const tool of ["mcp__notes__search", "mcp__mail__send", "mcp__stranger__x"]) {
+      answers.push((await o.canUseTool(tool, {}, { signal: new AbortController().signal })).behavior);
+    }
+    yield done();
+  });
+  await research(sdk, {
+    mcp: {
+      servers: { notes: { type: "stdio", command: "notes" }, mail: { type: "http", url: "https://x" } },
+      check: async (tool) => (tool.includes("mail") ? "Keshab did not allow this tool call." : undefined),
+    },
+  });
+  assert.deepEqual(Object.keys(seen[0]!.options.mcpServers).sort(), ["mail", "notes"]);
+  assert.deepEqual(answers, ["allow", "deny", "deny"]);
+});
+
 test("progress in plain words, and the twelfth page is the last: further fetches are refused and the report is partial", async () => {
   const steps: string[] = [];
   const answers: string[] = [];

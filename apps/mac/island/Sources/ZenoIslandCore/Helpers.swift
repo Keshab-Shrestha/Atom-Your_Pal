@@ -438,9 +438,11 @@ public struct HelpersList: Sendable, Equatable {
     public var skills: [SkillInfo]
     /// Task 3.16: the tasks handed to Keshab's Paperclip; nil when the connection is off.
     public var paperclip: [PaperclipTask]?
+    /// ADR-090: Keshab's MCP servers.
+    public var mcp: [McpServerItem]
 
     public init(helpers: [Helper], apps: [String], allowLarge: Bool = true, models: [HelperModel] = [], team: HelperBudget? = nil,
-                planLimit: Int? = nil, paperclip: [PaperclipTask]? = nil, skills: [SkillInfo] = []) {
+                planLimit: Int? = nil, paperclip: [PaperclipTask]? = nil, mcp: [McpServerItem] = [], skills: [SkillInfo] = []) {
         self.helpers = helpers
         self.apps = apps
         self.allowLarge = allowLarge
@@ -448,6 +450,7 @@ public struct HelpersList: Sendable, Equatable {
         self.team = team
         self.planLimit = planLimit
         self.paperclip = paperclip
+        self.mcp = mcp
         self.skills = skills
     }
 
@@ -779,6 +782,20 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.routineDelete(id: id))
     }
 
+    /// ADR-090: MCP servers: add (checked by the runtime), remove, test, turn on or off, trust, choose workers.
+    public mutating func addMcp(_ draft: McpServerDraft) -> IslandCommand? {
+        let name = draft.name.trimmingCharacters(in: .whitespaces)
+        if name.isEmpty || (draft.kind == "command" ? draft.command.trimmingCharacters(in: .whitespaces).isEmpty : draft.url.trimmingCharacters(in: .whitespaces).isEmpty) {
+            problem = draft.kind == "command" ? "A server needs a name and a command." : "A server needs a name and an address."
+            return nil
+        }
+        return waiting(.mcpAdd(draft))
+    }
+
+    public mutating func mcpCommand(_ command: IslandCommand) -> IslandCommand? { waiting(command) }
+
+    public mutating func clearProblem() { problem = nil }
+
     /// ADR-090: tries a failed or stopped task again.
     public mutating func retry(_ id: Int) -> IslandCommand? {
         guard let state = list?.item(id)?.job.state, state == .failed || state == .stopped else { return nil }
@@ -992,4 +1009,63 @@ public struct PaperclipTask: Sendable, Equatable, Identifiable {
     }
 
     public var isDone: Bool { ["done", "cancelled", "canceled"].contains(status) }
+}
+
+/// ADR-090: one of Keshab's MCP servers, as the window sees it (never a secret value).
+public struct McpServerItem: Sendable, Equatable, Identifiable {
+    public var id: Int
+    public var name: String
+    /// "command" or "url".
+    public var kind: String
+    public var command: String?
+    public var args: [String]
+    public var url: String?
+    public var transport: String
+    public var envKeys: [String]
+    public var headerKeys: [String]
+    public var enabled: Bool
+    public var trusted: Bool
+    public var workers: [String]
+    public var tools: [String]
+    public var tested: Bool
+    public var problem: String?
+
+    public init(id: Int, name: String, kind: String, command: String? = nil, args: [String] = [], url: String? = nil, transport: String = "http",
+                envKeys: [String] = [], headerKeys: [String] = [], enabled: Bool = false, trusted: Bool = false, workers: [String] = [],
+                tools: [String] = [], tested: Bool = false, problem: String? = nil) {
+        self.id = id
+        self.name = name
+        self.kind = kind
+        self.command = command
+        self.args = args
+        self.url = url
+        self.transport = transport
+        self.envKeys = envKeys
+        self.headerKeys = headerKeys
+        self.enabled = enabled
+        self.trusted = trusted
+        self.workers = workers
+        self.tools = tools
+        self.tested = tested
+        self.problem = problem
+    }
+
+    /// Ready to turn on: a test listed its tools.
+    public var canTurnOn: Bool { tested && problem == nil }
+}
+
+/// ADR-090: the Add server form.
+public struct McpServerDraft: Sendable, Equatable {
+    public var name = ""
+    /// "command" or "url".
+    public var kind = "command"
+    public var command = ""
+    /// One per line.
+    public var args = ""
+    public var env = ""
+    public var url = ""
+    public var transport = "http"
+    public var headers = ""
+
+    public init() {}
 }

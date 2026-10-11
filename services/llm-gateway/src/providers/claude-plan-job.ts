@@ -85,6 +85,11 @@ export interface ResearchOptions {
    * that plugin and no other skills; a Skill call for any other name is refused.
    */
   skills?: { pluginDir: string; plugin: string; names: string[] };
+  /**
+   * ADR-090: MCP servers Keshab gave this worker (Agent SDK configs by name). Every call to one of their tools goes
+   * through `check`, which returns why it is refused (after asking Keshab, unless the server is trusted) or undefined.
+   */
+  mcp?: { servers: Record<string, Record<string, unknown>>; check(tool: string, input: Record<string, unknown>): Promise<string | undefined> };
   /** ADR-088: a "think" agent: no tools at all; it writes the report from what it knows. */
   thinkOnly?: boolean;
   files?: {
@@ -243,6 +248,15 @@ async function runStructured(options: ResearchOptions, mode: "research" | "plan"
   // anything but the two web tools and the report itself is refused (none should exist: `tools` lists only these).
   const skillNames = new Set(options.skills?.names ?? []);
   const canUseTool = async (name: string, input: Record<string, unknown>) => {
+    // ADR-090: a tool from one of Keshab's MCP servers: asked about per call unless the server is trusted.
+    if (options.mcp && !planning && name.startsWith("mcp__") && !name.startsWith("mcp__zeno__")) {
+      const server = name.split("__")[1] ?? "";
+      if (!(server in options.mcp.servers)) return { behavior: "deny", message: "That server is not one of this worker's." };
+      const problem = await options.mcp.check(name, input);
+      if (problem) return { behavior: "deny", message: problem };
+      step(`Using ${server}`);
+      return { behavior: "allow", updatedInput: input };
+    }
     if (name === "Skill") {
       const asked = String(input.skill ?? input.name ?? "").replace(/^[^:]+:/, "");
       if (!planning && skillNames.has(asked)) return (step(`Using the ${asked} skill`), { behavior: "allow", updatedInput: input });
@@ -310,7 +324,9 @@ async function runStructured(options: ResearchOptions, mode: "research" | "plan"
         settingSources: [],
         strictMcpConfig: true,
         // Task 3.10: only ZENO's own hand_off tool, in this process; nothing from the account or the Mac.
-        mcpServers: options.handOff && !planning ? { zeno: handOffServer(sdk, options.handOff) } : {},
+        mcpServers: planning
+          ? {}
+          : { ...(options.mcp?.servers ?? {}), ...(options.handOff ? { zeno: handOffServer(sdk, options.handOff) } : {}) },
         // Task 3.6: kept by Claude Code on this Mac (its own project folder for the temporary directory), so the next
         // run of the task can resume it. ZENO stores only the id.
         persistSession: !planning,

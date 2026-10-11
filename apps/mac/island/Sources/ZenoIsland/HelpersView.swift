@@ -23,6 +23,8 @@ struct HelpersView: View {
                     NeedsYouPane(model: model)
                 } else if model.windowPage == .issues {
                     IssuesPane(model: model)
+                } else if model.windowPage == .plugins {
+                    PluginsPane(model: model)
                 } else if model.windowPage == .chat {
                     // ADR-089: the conversation, as in the panel, a readable width in the middle of the window.
                     ConversationTab(model: model)
@@ -126,6 +128,11 @@ private struct HelperSidebar: View {
            }
           }
             Spacer(minLength: 0)
+            Button { model.windowPage = .plugins } label: {
+                let on = model.helpers.list?.mcp.filter(\.enabled).count ?? 0
+                SidebarRow(symbol: "puzzlepiece.extension", title: "Plugins", detail: on == 0 ? nil : "\(on) on", selected: model.windowPage == .plugins)
+            }
+            .buttonStyle(.plain)
             Button { model.windowPage = .settings } label: {
                 SidebarRow(symbol: "gearshape", title: "Settings", detail: nil, selected: model.windowPage == .settings)
             }
@@ -176,17 +183,17 @@ struct SidebarRow: View {
 
     var body: some View {
         HStack(spacing: 11) {
-            Image(systemName: symbol).font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text2.color)
-                .frame(width: 32, height: 32)
+            Image(systemName: symbol).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+                .frame(width: 26, height: 26)
                 .overlay { if theme.isFlat { Circle().strokeBorder(theme.border.color, lineWidth: 1) } }
             VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
-                if let detail { Text(detail).font(.system(size: 11)).foregroundStyle(theme.text3.color).lineLimit(1) }
+                Text(title).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color)
+                if let detail { Text(detail).font(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1) }
             }
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 9)
-        .padding(.vertical, 8)
+        .padding(.vertical, 4)
         .background {
             if theme.isFlat {
                 RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous).strokeBorder(selected ? theme.border.color : .clear, lineWidth: 1)

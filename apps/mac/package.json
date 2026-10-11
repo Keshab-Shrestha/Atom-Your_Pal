@@ -4,12 +4,13 @@
   "type": "module",
   "dependencies": {
     "@huggingface/transformers": "3.8.1",
+    "@modelcontextprotocol/sdk": "1.31.0",
+    "@zeno/contracts": "workspace:*",
     "@zeno/core": "workspace:*",
     "@zeno/decision-engine": "workspace:*",
-    "@zeno/llm-gateway": "workspace:*",
     "@zeno/helpers": "workspace:*",
+    "@zeno/llm-gateway": "workspace:*",
     "@zeno/memory": "workspace:*",
-    "@zeno/contracts": "workspace:*",
     "@zeno/shared": "workspace:*",
     "@zeno/tool-engine": "workspace:*",
     "kokoro-js": "^1.2.1"

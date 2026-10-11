@@ -11,6 +11,7 @@ export const MAX_SKILLS = 10;
 import { DEFAULT_PLAN_LIMIT, DEFAULT_TEAM_CAP, DEFAULT_WORKER_CAP, MAX_CAP, PLAN_LIMIT_RANGE, startOfDay, type Budgets } from "./budgets.ts";
 import { isDue, routineTable } from "./routines.ts";
 import { SOUL_FIELDS, proposalTable } from "./feedback.ts";
+import { mcpTable } from "./mcp.ts";
 import { createSchema, sameSoul, toJobRow, toSoul, webSources, type JobRow, type ReportRow, type SoulRow } from "./store-schema.ts";
 import {
   BUILT_IN_KITS,
@@ -185,6 +186,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
   const routines = routineTable(db);
   const proposals = proposalTable(db);
+  const mcp = mcpTable(db);
   const putRating = db.prepare("UPDATE jobs SET rating = ?, rating_comment = ? WHERE id = ?");
   const reviewOf = db.prepare("SELECT id FROM jobs WHERE reviews = ? LIMIT 1");
   const insertReview = db.prepare("INSERT INTO jobs (helper, task, state, created_at, reviews) VALUES ('tinker', ?, 'queued', ?, ?)");
@@ -768,6 +770,40 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       });
       emit({ action: "comment", helper: job.helper, job: id });
       wake(job);
+    },
+
+    mcpServers: () => mcp.list(),
+
+    addMcpServer(input) {
+      const id = mcp.add(input);
+      emit({ action: "mcp", server: id, change: "added" });
+      return mcp.get(id)!;
+    },
+
+    removeMcpServer(id) {
+      if (!mcp.remove(id)) return false;
+      emit({ action: "mcp", server: id, change: "removed" });
+      return true;
+    },
+
+    setMcpServer(id, change) {
+      const server = mcp.get(id);
+      if (!server) throw new HelperError("There is no such server.");
+      const team = roster().map((m) => m.id);
+      const workers = change.workers ? [...new Set(change.workers)] : server.workers;
+      const unknown = workers.find((w) => !team.includes(w));
+      if (unknown !== undefined) throw new HelperError(`There is no worker called "${unknown.slice(0, 40)}".`);
+      const enabled = change.enabled ?? server.enabled;
+      if (enabled && !server.enabled && (!server.testedAt || server.problem)) throw new HelperError("Test the server first: it turns on once a test lists its tools.");
+      mcp.flags(id, enabled, change.trusted ?? server.trusted, workers);
+      emit({ action: "mcp", server: id, change: "set" });
+    },
+
+    recordMcpTest(id, outcome) {
+      if (!mcp.get(id)) return;
+      if ("tools" in outcome) mcp.tested(id, outcome.tools.slice(0, 200), now(), null);
+      else mcp.tested(id, [], now(), outcome.problem.slice(0, 300));
+      emit({ action: "mcp", server: id, change: "tested" });
     },
 
     retry(id) {

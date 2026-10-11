@@ -35,6 +35,10 @@ export type IslandCommand =
   | { type: "job.rate"; id: number; good: boolean; comment?: string }
   | { type: "job.open"; id: number }
   | { type: "job.retry"; id: number }
+  | { type: "mcp.add"; name: string; kind: "command" | "url"; command?: string; args?: string[]; env?: string[]; url?: string; transport?: "http" | "sse"; headers?: string[] }
+  | { type: "mcp.remove"; id: number }
+  | { type: "mcp.set"; id: number; enabled?: boolean; trusted?: boolean; workers?: string[] }
+  | { type: "mcp.test"; id: number }
   | { type: "agent.create"; name: string; role: string; kit: "research" | "folders" | "think"; personality: string; howItWorks: string; rules: string }
   | { type: "agent.remove"; id: string }
   | { type: "proposal.accept"; id: number }
@@ -146,6 +150,25 @@ export interface ThreadEvent {
   handOffs?: number[];
   /** Task 3.5: the goal the task is part of, its tasks, and the combined report once every task has ended. */
   goal?: { id: number; text: string; ended: boolean; tasks: number[]; report?: Omit<ReportEvent, "type" | "id"> };
+}
+
+/** ADR-090: an MCP server as the island sees it: never a secret value. */
+export interface McpItem {
+  id: number;
+  name: string;
+  kind: "command" | "url";
+  command?: string;
+  args: string[];
+  url?: string;
+  transport: "http" | "sse";
+  envKeys: string[];
+  headerKeys: string[];
+  enabled: boolean;
+  trusted: boolean;
+  workers: string[];
+  tools: string[];
+  testedAt?: string;
+  problem?: string;
 }
 
 /** Task 3.16: a task ZENO handed to Keshab's Paperclip. Titles and results never logged. */
@@ -268,6 +291,8 @@ export type IslandEvent =
       planLimit?: number;
       /** Task 3.12: Keshab's skills in ~/.claude/skills, for choosing. */
       skills?: { name: string; description: string }[];
+      /** ADR-090: Keshab's MCP servers; secrets never: only the names of env variables and headers. */
+      mcp?: McpItem[];
       /** Task 3.16: the tasks handed to Keshab's Paperclip; absent when the connection is off. */
       paperclip?: { issues: PaperclipItem[] };
     }
@@ -303,6 +328,10 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "job.rate",
   "job.open",
   "job.retry",
+  "mcp.add",
+  "mcp.remove",
+  "mcp.set",
+  "mcp.test",
   "agent.create",
   "agent.remove",
   "proposal.accept",
@@ -395,6 +424,31 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof id !== "string" || !id) return { error: 'agent.remove needs an "id" string.' };
     return { command: { type, id } };
   }
+  if (type === "mcp.add") {
+    // Names, commands, addresses and lines are the store's to refuse (stage "settings").
+    const v = value as Record<string, unknown>;
+    const lines = (k: string) => (Array.isArray(v[k]) && (v[k] as unknown[]).every((x) => typeof x === "string") ? (v[k] as string[]).slice(0, 40) : undefined);
+    if (typeof v.name !== "string" || (v.kind !== "command" && v.kind !== "url")) return { error: 'mcp.add needs a "name" and a "kind" ("command" or "url").' };
+    return {
+      command: {
+        type, name: v.name, kind: v.kind,
+        ...(typeof v.command === "string" ? { command: v.command } : {}),
+        ...(lines("args") ? { args: lines("args") } : {}),
+        ...(lines("env") ? { env: lines("env") } : {}),
+        ...(typeof v.url === "string" ? { url: v.url } : {}),
+        ...(v.transport === "sse" || v.transport === "http" ? { transport: v.transport } : {}),
+        ...(lines("headers") ? { headers: lines("headers") } : {}),
+      },
+    };
+  }
+  if (type === "mcp.set") {
+    const { id, enabled, trusted, workers } = value as { id?: unknown; enabled?: unknown; trusted?: unknown; workers?: unknown };
+    if (!isId(id)) return { error: 'mcp.set needs an "id" that is a whole number.' };
+    if (enabled !== undefined && typeof enabled !== "boolean") return { error: 'mcp.set needs "enabled" to be true or false.' };
+    if (trusted !== undefined && typeof trusted !== "boolean") return { error: 'mcp.set needs "trusted" to be true or false.' };
+    if (workers !== undefined && !(Array.isArray(workers) && workers.length <= 40 && workers.every((w) => typeof w === "string"))) return { error: 'mcp.set needs "workers", a list of worker ids.' };
+    return { command: { type, id, ...(enabled !== undefined ? { enabled } : {}), ...(trusted !== undefined ? { trusted } : {}), ...(workers !== undefined ? { workers } : {}) } };
+  }
   if (type === "job.rate") {
     const { id, good, comment } = value as { id?: unknown; good?: unknown; comment?: unknown };
     if (!isId(id)) return { error: 'job.rate needs an "id" that is a whole number.' };
@@ -473,7 +527,7 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof version !== "number" || !Number.isInteger(version) || version < 1) return { error: 'soul.restore needs a "version" that is a whole number.' };
     return { command: { type, helper, version } };
   }
-  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "job.open" || type === "job.retry" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "report.get" || type === "thread.get") {
+  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "job.open" || type === "job.retry" || type === "mcp.remove" || type === "mcp.test" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "report.get" || type === "thread.get") {
     const { id } = value as { id?: unknown };
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     return { command: { type, id } };

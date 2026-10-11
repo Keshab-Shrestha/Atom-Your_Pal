@@ -853,3 +853,28 @@ struct IssuesTests {
         #expect(IslandCommand.jobRetry(id: 3).line == #"{"id":3,"type":"job.retry"}"# + "\n")
     }
 }
+
+@Suite("Plugins and MCP servers (ADR-090)")
+struct McpTests {
+    @Test func decodesServersAndAsksForChanges() throws {
+        let line = HelperTaskTests.line.replacingOccurrences(of: #"{"type":"helpers","apps":[],"#,
+            with: #"{"type":"helpers","apps":[],"mcp":[{"id":2,"name":"notes","kind":"command","command":"notes-mcp","args":[],"transport":"http","envKeys":["NOTES_TOKEN"],"headerKeys":[],"enabled":false,"trusted":false,"workers":[],"tools":["search"],"testedAt":"2026-10-11T00:00:00Z"},{"bad":1}],"#)
+        var state = HelpersState()
+        state.apply(try decodeEvent(line))
+        let server = try #require(state.list?.mcp.first)
+        #expect(state.list?.mcp.count == 1 && server.canTurnOn && server.envKeys == ["NOTES_TOKEN"] && server.tools == ["search"])
+        var empty = McpServerDraft()
+        empty.name = "x"
+        #expect(state.addMcp(empty) == nil && state.problem != nil)
+        var draft = McpServerDraft()
+        draft.name = "notes2"
+        draft.command = "notes-mcp"
+        draft.args = "--stdio\n\n -v "
+        draft.env = "T=1"
+        let added = state.addMcp(draft)
+        let command = try #require(added)
+        #expect(command.line.contains(#""args":["--stdio","-v"]"#) && command.line.contains(#""env":["T=1"]"#) && command.line.contains(#""type":"mcp.add""#))
+        #expect(IslandCommand.mcpSet(id: 2, enabled: true, trusted: nil, workers: ["sid"]).line == #"{"enabled":true,"id":2,"type":"mcp.set","workers":["sid"]}"# + "\n")
+        #expect(IslandCommand.mcpTest(id: 2).line == #"{"id":2,"type":"mcp.test"}"# + "\n")
+    }
+}

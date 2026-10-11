@@ -3,6 +3,7 @@ import type { HandOffOutcome, HelperId, JobState, Soul, TaskContext } from "./jo
 import type { Routine, Schedule } from "./routines.ts";
 import type { Proposal, ReviewTarget, SoulField } from "./feedback.ts";
 import type { Kit } from "./agents.ts";
+import type { McpServer, McpServerInput } from "./mcp.ts";
 
 // The helper store's public shapes (split from store.ts): jobs as tasks, threads, goals, the store's operations.
 
@@ -179,6 +180,7 @@ export type HelperChange =
   | { action: "grant"; helper: HelperId; granted: boolean }
   | { action: "skills"; helper: HelperId; count: number }
   | { action: "agent"; helper: HelperId; added: boolean }
+  | { action: "mcp"; server: number; change: "added" | "removed" | "set" | "tested" }
   | { action: "rating"; helper: HelperId; job: number; good: boolean }
   | { action: "proposal"; helper: HelperId; proposal: number; state: "pending" | "accepted" | "rejected" | "undone" }
   | { action: "model"; helper: HelperId; job: number }
@@ -235,6 +237,15 @@ export interface HelperStore {
   removeAgent(id: string): void;
   /** Agent folders that could not be read, in words. */
   agentProblems(): string[];
+  /** ADR-090: MCP servers (secrets included: for the runtime only, never for the island or the log). */
+  mcpServers(): McpServer[];
+  /** Saves a server, switched off. Throws HelperError for a bad name, command, address or line, or too many. */
+  addMcpServer(input: McpServerInput): McpServer;
+  removeMcpServer(id: number): boolean;
+  /** Turns a server on or off, trusts it or not, and picks its workers. Throws HelperError for an unknown server or worker, or turning on one never tested. */
+  setMcpServer(id: number, change: { enabled?: boolean; trusted?: boolean; workers?: string[] }): void;
+  /** The outcome of a test: its tools, or why it failed. */
+  recordMcpTest(id: number, outcome: { tools: string[] } | { problem: string }): void;
   /** ADR-090: runs a failed or stopped task again (resuming its session). Throws HelperError for any other state. */
   retry(id: number): void;
   /**

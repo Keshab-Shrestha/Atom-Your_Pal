@@ -212,6 +212,11 @@ test("parses the helper commands", () => {
     { type: "proposal.undo", id: 1 },
     { type: "job.open", id: 3 },
     { type: "job.retry", id: 3 },
+    { type: "mcp.add", name: "notes", kind: "command", command: "notes-mcp", args: ["--stdio"], env: ["T=1"] },
+    { type: "mcp.add", name: "linear", kind: "url", url: "https://x/mcp", transport: "sse", headers: ["A: b"] },
+    { type: "mcp.set", id: 1, enabled: true, trusted: false, workers: ["sid"] },
+    { type: "mcp.test", id: 1 },
+    { type: "mcp.remove", id: 1 },
     { type: "agent.create", name: "Rumi", role: "travel planner", kit: "research", personality: "Calm.", howItWorks: "", rules: "" },
     { type: "agent.remove", id: "rumi" },
   ];
