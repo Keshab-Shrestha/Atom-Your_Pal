@@ -301,6 +301,13 @@ test("an empty reply explains itself instead of returning nothing", async () => 
   await assert.rejects(make(sdk).complete(request(), live()), (e: any) => e instanceof ProviderError && /no text/i.test(e.message));
 });
 
+test("an empty reply says why when the SDK gives a stop reason: declined, or cut off", async () => {
+  const refused = fakeSdk(() => msgs(init(), done("", { stop_reason: "refusal" }))).sdk;
+  await assert.rejects(make(refused).complete(request(), live()), (e: any) => /declined/.test(e.message) && /refusal/.test(e.message));
+  const cut = fakeSdk(() => msgs(init(), done("", { stop_reason: "max_tokens" }))).sdk;
+  await assert.rejects(make(cut).complete(request(), live()), (e: any) => /cut off/.test(e.message) && /max_tokens/.test(e.message));
+});
+
 test("an error from the SDK itself (the binary will not start) is an outage, and keeps no secret in its message", async () => {
   const { sdk } = fakeSdk(async function* () {
     throw new Error("spawn failed with ANTHROPIC_API_KEY=sk-ant-zzzzzzzzzzzz");

@@ -61,8 +61,10 @@ test("a folder dropped in by hand is an agent; a broken one is named, not loaded
     const ids = store.list().map((h) => h.id);
     assert.ok(ids.includes("mika") && !ids.includes("bad") && !ids.includes("clash"));
     assert.equal(store.list().find((h) => h.id === "mika")!.kit, "think");
-    assert.equal(store.agentProblems().length, 2);
-    assert.ok(store.agentProblems().some((p) => /already called Sid/.test(p)));
+    const problems = store.agentProblems();
+    assert.deepEqual(problems.map((p) => p.id), ["bad", "clash"]);
+    assert.match(problems.find((p) => p.id === "bad")!.problem, /front matter/);
+    assert.match(problems.find((p) => p.id === "clash")!.problem, /already called Sid/);
   } finally {
     done();
   }

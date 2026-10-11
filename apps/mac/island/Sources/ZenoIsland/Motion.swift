@@ -40,8 +40,8 @@ enum Motion {
 
     /// The light breathing while listening or thinking: one half-breath; repeat it with autoreverse. Nil with
     /// Reduce Motion: the glow holds still.
-    static func breathe(_ reduceMotion: Bool, slow: Bool = false) -> Animation? {
-        reduceMotion ? nil : .easeInOut(duration: slow ? 1.8 : 1.2)
+    static func breathe(_ reduceMotion: Bool) -> Animation? {
+        reduceMotion ? nil : .easeInOut(duration: 1.2)
     }
 
     /// Content hand-off between tabs and pages: the old content leaves first, then the new one settles in.

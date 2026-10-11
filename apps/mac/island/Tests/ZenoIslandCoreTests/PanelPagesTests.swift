@@ -3,11 +3,6 @@ import Testing
 
 /// ADR-084 (Task 4.4): the Status tab is gone, so Settings home must carry every page and every Status fact.
 @Suite struct PanelPagesTests {
-    @Test func twoWordTabs() {
-        #expect(PanelTab.allCases == [.conversation, .settings])
-        #expect(PanelTab.allCases.map(\.rawValue) == ["Conversation", "Settings"])
-    }
-
     /// Every Settings page opens from home exactly once: AI model from "Change model", the rest from rows.
     @Test func everySettingsPageIsReachableFromHome() {
         let reachable = [SettingsHome.changeModel] + SettingsHome.groups.flatMap { $0 }

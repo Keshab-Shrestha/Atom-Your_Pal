@@ -2,7 +2,7 @@ import type { Budget, Budgets } from "./budgets.ts";
 import type { HandOffOutcome, HelperId, JobState, Soul, TaskContext } from "./jobs.ts";
 import type { Routine, Schedule } from "./routines.ts";
 import type { Proposal, ReviewTarget, SoulField } from "./feedback.ts";
-import type { Kit } from "./agents.ts";
+import type { AgentProblem, Kit } from "./agents.ts";
 import type { McpServer, McpServerInput } from "./mcp.ts";
 import type { UsageEntry, UsageSummary } from "./usage.ts";
 
@@ -237,8 +237,8 @@ export interface HelperStore {
   createAgent(input: { name: string; role: string; kit: Kit; personality: string; howItWorks?: string; rules?: string }): HelperView;
   /** Moves an agent Keshab added out of the team (its folder to agents-removed/), stopping its tasks. */
   removeAgent(id: string): void;
-  /** Agent folders that could not be read, in words. */
-  agentProblems(): string[];
+  /** Agent folders that could not be read, each with its folder name and why (ADR-093: logged and shown on the Board). */
+  agentProblems(): AgentProblem[];
   /** ADR-090: MCP servers (secrets included: for the runtime only, never for the island or the log). */
   /** ADR-091: records the tokens one run used (a job or a chat answer). */
   addUsage(entry: UsageEntry): void;

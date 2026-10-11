@@ -6,15 +6,13 @@ import ZenoIslandCore
 /// then exits. Starts no runtime, no microphone and no network; settings go to a throwaway defaults suite.
 @MainActor
 enum IslandGallery {
+    /// The width a single card (Settings' now card, a setup card) is drawn at: the old panel's width.
+    private static let cardWidth: CGFloat = 380
+
     static func render(to directory: URL) {
         let suite = "zeno.gallery.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
-        // The design study alone (ZENO_ISLAND_GALLERY_ONLY=design), for quick iteration on sheet 14.
-        if ProcessInfo.processInfo.environment["ZENO_ISLAND_GALLERY_ONLY"] == "design" {
-            DesignStudy.render(to: directory)
-            return
-        }
         // ADR-091: the app's icon alone (scripts/make-icon.sh).
         if ProcessInfo.processInfo.environment["ZENO_ISLAND_GALLERY_ONLY"] == "icon" {
             AppIconArt.render(to: directory)
@@ -51,82 +49,30 @@ enum IslandGallery {
             model.status.apply(event)
             model.apply(event)
         }
-        let filled = model.conversation
-
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let compact = IslandMetrics().compact
-        let expanded = IslandMetrics().expanded
-
-        write(model, size: compact, name: "1-compact", to: directory)
-        model.expanded = true
-        for tab in IslandModel.Tab.allCases {
-            model.tab = tab
-            write(model, size: expanded, name: "2-\(tab.rawValue.lowercased())", to: directory)
-        }
-        // ADR-084: the header's Pal and light while speaking (brightest) and listening (with the live level).
-        model.tab = .conversation
-        for (state, level) in [("speaking", 0.0), ("listening", 0.3)] {
-            if let event = try? decodeEvent(#"{"type":"state","state":"\#(state)"}"#) { model.status.apply(event) }
-            for i in 0..<14 { model.meter.add(level * (0.05 + 0.95 * abs(sin(Double(i) * 0.9)))) }
-            write(model, size: expanded, name: "2-conversation-\(state)", to: directory)
-        }
-        // ADR-084: a reply still being spoken, with the caret of light after it; the older turns recede.
-        let spoken = model.conversation
-        model.conversation = Conversation()
-        for line in [#"{"type":"transcript","text":"What's on my calendar this afternoon?"}"#,
-                     #"{"type":"reply","text":"You have a design review at 3 and a call with Aiko at 4:30. Nothing after that."}"#,
-                     #"{"type":"turn.complete","speechMs":2400,"transcriptionMs":610,"modelMs":1840,"firstSoundMs":2710}"#,
-                     #"{"type":"state","state":"idle"}"#,
-                     #"{"type":"transcript","text":"Remind me at 4:15 to send the deck."}"#,
-                     #"{"type":"reply","text":"Done. I'll remind you at 4:15 to send the deck before your call."}"#,
-                     #"{"type":"state","state":"speaking"}"#] {
-            if let event = try? decodeEvent(line) { model.conversation.apply(event); model.status.apply(event) }
-        }
-        write(model, size: expanded, name: "2-conversation-streaming", to: directory)
-        model.conversation = spoken
-        if let idle = try? decodeEvent(#"{"type":"state","state":"idle"}"#) { model.status.apply(idle) }
-        model.meter.reset()
-        // The Settings tab is taller than the window and scrolls: render it tall once, so the lower cards can be reviewed.
-        model.tab = .settings
-        write(model, size: CGSize(width: expanded.width, height: 2000), name: "2-settings-full", to: directory)
+        // ADR-093: the drop-down panel is gone (since ADR-089 "open" goes to the ZENO window, drawn in sheet 13); the
+        // compact card under the menu-bar icon (Pal off) is what the island itself still shows.
+        write(model, size: IslandMetrics().compact, name: "1-compact", to: directory)
         // ADR-084: the now card with "Last turn" opened to every stage, and with the plan meters and a problem.
         let palette = model.settings.theme.palette
         let nowCard = NowCard(model: model, timingsOpen: true)
             .padding(Spacing.panel)
-            .frame(width: expanded.width)
+            .frame(width: cardWidth)
             .background(palette.surfaceFill(solid: true))
             .themed(palette)
         save(nowCard, name: "2-settings-now-last-turn", to: directory)
-        // ADR-079: the Pal page (Pal, Speech bubble, Panel) down to its "Reset this page" row.
-        model.settingsPage = .pal
-        write(model, size: CGSize(width: expanded.width, height: 1300), name: "2-settings-pal-full", to: directory)
-        // ADR-078: a chosen home display that is unplugged.
-        model.settings.palHomeDisplay = .display(uuid: "UNPLUGGED")
-        write(model, size: CGSize(width: expanded.width, height: 700), name: "2-settings-pal-home-unplugged", to: directory)
-        model.settings.palHomeDisplay = .main
-        model.settingsPage = nil
-        model.recorder.start(.talk)
-        write(model, size: expanded, name: "3-recording-shortcut", to: directory)
-        model.recorder.stop()
-        model.tab = .conversation
-        model.conversation = Conversation()
-        write(model, size: expanded, name: "4-empty-conversation", to: directory)
-        model.conversation = filled
         // ADR-086: Void is the default; each sheet that changed with it is also drawn in Lantern ("-lantern").
         writePals(to: directory)
         writePet(to: directory)
         writePet(to: directory, theme: .lantern, name: "5-pal-moods-lantern")
         writeBubbles(to: directory)
         writeApproval(to: directory)
-        writeThemes(model: model, to: directory)
-        writeSetup(to: directory, conversation: filled)
-        writeEveryday(to: directory)
+        writeThemes(to: directory)
+        writeSetup(to: directory)
         writeHelpers(to: directory)
         writeHelpers(to: directory, theme: .lantern, name: "13-helpers-lantern")
         writeMenuBar(to: directory)
         writeMenuBar(to: directory, flat: false, name: "15-menu-bar-item-lantern")
-        writeAvatars(to: directory)
-        DesignStudy.render(to: directory)
     }
 
     /// ADR-081: the ZENO window with Sid running one job and done with another, the rest of the team (Task 3.3); Sid's
@@ -255,68 +201,11 @@ enum IslandGallery {
             .padding(16).background(Color.black), name: name + "-floor", to: directory)
     }
 
-    /// ADR-076: What can I ask? (before and after `capabilities`), the empty conversation with examples, the plan
-    /// meters on the AI model page and in Status, and a rate-limit card offering another provider.
-    private static func writeEveryday(to directory: URL) {
-        let suite = "zeno.gallery.everyday.\(ProcessInfo.processInfo.processIdentifier)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
-        let size = IslandMetrics().expanded
-        let info = #"{"type":"info","provider":"claude-plan","model":"claude-opus-5-5","providers":[{"id":"claude-plan","name":"Claude (my plan)","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"},{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"},{"id":"claude-haiku-4-5-20251001","name":"Claude Haiku 4.5"}]}]}"#
-        let capabilities = #"{"type":"capabilities","items":[{"title":"Open apps and websites","examples":["Open Safari","Go to YouTube"]},{"title":"Music","examples":["Play some jazz","Skip this song","Pause the music"]},{"title":"Timers","examples":["Set a timer for 10 minutes","How long is left?"]},{"title":"Calendar and reminders","examples":["What's on my calendar today?","Remind me to call Aiko at 5"]},{"title":"Weather","examples":["Will it rain tomorrow?"]},{"title":"Notes","examples":["Make a note: buy oat milk"]}]}"#
-        func model(_ lines: [String], theme: AppTheme = .lantern) -> IslandModel {
-            let m = IslandModel(settings: IslandSettings(defaults: defaults))
-            m.settings.theme = theme
-            m.permissions.states = [.microphone: .granted, .inputMonitoring: .granted]
-            m.status.apply(.running(pid: 1))
-            for line in [#"{"type":"ready","protocol":1,"provider":"claude-plan","model":"claude-opus-5-5","microphone":"Mac mini Microphone","voice":true}"#, info] + lines {
-                guard let event = try? decodeEvent(line) else {
-                    FileHandle.standardError.write(Data("gallery: could not decode \(line)\n".utf8))
-                    continue
-                }
-                m.status.apply(event)
-                m.apply(event)
-            }
-            m.expanded = true
-            return m
-        }
-        func panel(_ title: String, _ m: IslandModel, tab: IslandModel.Tab, page: IslandModel.SettingsPage? = nil) -> some View {
-            m.tab = tab
-            m.settingsPage = page
-            return VStack(alignment: .leading, spacing: 6) {
-                Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.75))
-                frozen(IslandView(model: m, snapshot: true).frame(width: size.width, height: size.height))
-            }
-        }
-        let usage = #"{"type":"plan.usage","fiveHour":0.42,"sevenDay":0.86,"overage":false}"#
-        let high = #"{"type":"plan.usage","fiveHour":0.97,"sevenDay":0.12}"#
-        let limited = model([#"{"type":"error","stage":"model","kind":"rate_limit","message":"Your Claude plan limit is reached. It resets at 3 pm.","retryable":true}"#])
-        let sheet = VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top, spacing: 18) {
-                panel("What can I ask?", model([capabilities]), tab: .settings, page: .examples)
-                panel("Before capabilities arrive: shortcuts only", model([]), tab: .settings, page: .examples)
-                panel("Empty conversation with examples", model([capabilities]), tab: .conversation)
-                panel("Settings list", model([capabilities]), tab: .settings)
-            }
-            HStack(alignment: .top, spacing: 18) {
-                panel("AI model page: 42% and 86%", model([usage]), tab: .settings, page: .model)
-                panel("Now card: 97% (Luminous)", model([high], theme: .luminous), tab: .settings)
-                panel("Rate limit: switch provider", limited, tab: .conversation)
-                panel("No usage yet: no meters", model([]), tab: .settings)
-            }
-        }
-        .padding(24)
-        .background(Color(red: 0.36, green: 0.42, blue: 0.52))
-        save(sheet, name: "12-everyday", to: directory)
-    }
-
-    /// ADR-075: the permissions checklist in mixed states, a plain error card, the stopped card with its two buttons,
-    /// and the panel as a new user first sees it.
-    private static func writeSetup(to directory: URL, conversation: Conversation) {
+    /// ADR-075: the permissions checklist in mixed states, a plain error card, and the stopped card with its two buttons.
+    private static func writeSetup(to directory: URL) {
         let suite = "zeno.gallery.setup.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
-        let size = IslandMetrics().expanded
         func model(_ theme: AppTheme = .lantern) -> IslandModel {
             let m = IslandModel(settings: IslandSettings(defaults: defaults))
             m.settings.theme = theme
@@ -331,7 +220,7 @@ enum IslandGallery {
         func card(_ title: String, _ m: IslandModel, _ content: some View) -> some View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.75))
-                content.padding(12).frame(width: size.width)
+                content.padding(12).frame(width: cardWidth)
                     .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(m.settings.theme.palette.surfaceSolid.color))
                     .themed(m.settings.theme.palette)
             }
@@ -356,69 +245,12 @@ enum IslandGallery {
         .padding(24)
         .background(Color(red: 0.36, green: 0.42, blue: 0.52))
         save(sheet, name: "11-setup-cards", to: directory)
-
-        // The panel on first launch: the stopped card and the first-launch card above an empty conversation.
-        let first = model()
-        first.status.apply(.failed("ZENO's runtime keeps stopping: it exited with code 1"))
-        first.expanded = true
-        write(first, size: size, name: "11-setup-panel", to: directory)
-        // A plain error above a conversation already under way.
-        let busy = model()
-        busy.permissions.states[.inputMonitoring] = .granted
-        if let event = try? decodeEvent(#"{"type":"error","stage":"transcription","message":"Whisper model not found at \"models/ggml-small.en.bin\". Download it with: curl -L -o models/ggml-small.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin"}"#) {
-            busy.status.apply(event)
-        }
-        busy.conversation = conversation
-        busy.expanded = true
-        write(busy, size: size, name: "11-setup-panel-conversation", to: directory)
     }
 
-    /// ADR-057: every surface in every theme, and every Pal style in every mood.
-    private static func writeThemes(model: IslandModel, to directory: URL) {
-        let saved = (model.settings.theme, model.tab, model.settingsPage)
-        defer { (model.settings.theme, model.tab, model.settingsPage) = saved }
-        let size = IslandMetrics().expanded
+    /// ADR-057: the strip and the bubble in every theme, and Pal in every mood.
+    private static func writeThemes(to directory: URL) {
         for theme in AppTheme.allCases {
-            model.settings.theme = theme
             let name = "9-\(theme.title.lowercased().replacingOccurrences(of: " ", with: "-"))"
-            var panels: [AnyView] = []
-            model.expanded = true
-            let restore = model.conversation
-            for (tab, page) in [(IslandModel.Tab.conversation, nil), (.settings, nil), (.settings, IslandModel.SettingsPage.appearance),
-                                (.settings, .model), (.settings, .pal), (.settings, .examples)] as [(IslandModel.Tab, IslandModel.SettingsPage?)] {
-                model.tab = tab
-                model.settingsPage = page
-                panels.append(frozen(IslandView(model: model, snapshot: true).frame(width: size.width, height: size.height)))
-            }
-            model.conversation = Conversation()
-            model.tab = .conversation
-            panels.append(frozen(IslandView(model: model, snapshot: true).frame(width: size.width, height: size.height)))
-            model.conversation = restore
-            // Memory (ADR-058): a few kept facts, then nothing kept.
-            let savedMemory = model.memory
-            model.tab = .settings
-            model.settingsPage = .memory
-            let now = Date()
-            model.memory = MemoryList(enabled: true, count: 3, memories: [
-                MemoryItem(id: 3, text: "Keshab takes his coffee black, no sugar.", createdAt: now.addingTimeInterval(-300), source: "voice"),
-                MemoryItem(id: 2, text: "Keshab's sister is called Asha and she lives in Osaka.", createdAt: now.addingTimeInterval(-86_400 * 2), source: "voice"),
-                MemoryItem(id: 1, text: "Keshab prefers replies in short sentences.", createdAt: now.addingTimeInterval(-86_400 * 9), source: "text"),
-            ], episodes: [
-                EpisodeItem(id: 2, summary: "The user is planning a November weekend in Kyoto, avoiding crowds; Fushimi Inari at 7 am on Saturday. Dates still open.", endedAt: now.addingTimeInterval(-3_600 * 3), exchanges: 4),
-            ])
-            panels.append(frozen(IslandView(model: model, snapshot: true).frame(width: size.width, height: size.height)))
-            model.memory = MemoryList(enabled: true, count: 0, memories: [])
-            panels.append(frozen(IslandView(model: model, snapshot: true).frame(width: size.width, height: size.height)))
-            model.memory = savedMemory
-            let sheet = VStack(alignment: .leading, spacing: 18) {
-                Text("\(theme.title) — panel").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
-                HStack(alignment: .top, spacing: 18) { ForEach(0..<5, id: \.self) { panels[$0] } }
-                HStack(alignment: .top, spacing: 18) { ForEach(5..<9, id: \.self) { panels[$0] } }
-            }
-            .padding(24)
-            .background(Color(red: 0.36, green: 0.42, blue: 0.52))
-            save(sheet, name: name + "-panel", to: directory)
-
             // The strip, the bubble and the point label in this theme.
             writeApproval(to: directory, theme: theme, name: name + "-strip")
             writeBubbles(to: directory, theme: theme, name: name + "-bubble")
@@ -525,7 +357,7 @@ enum IslandGallery {
     }
 
     /// Pal's speech bubble in the states that get one (IslandStatus.needsBubble): dictating with live words and
-    /// hands-free (lit), a notice and an approval (amber), a problem (coral), and flipped below Pal near the top.
+    /// hands-free (lit), a turn's "Speak now", a notice and an approval (amber), a problem (coral), and flipped below Pal near the top.
     private static func writeBubbles(to directory: URL, theme: AppTheme = .void, name: String = "6-pal-bubble") {
         let suite = "zeno.gallery.bubble.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
@@ -562,6 +394,12 @@ enum IslandGallery {
                 scene("Hands-free") { m in
                     m.status.apply(DictationPhase.listeningHandsFree)
                     for v in [0.3, 0.7, 0.4, 0.9, 0.6, 0.2, 0.5, 0.8] { m.meter.add(v) }
+                }
+                // ADR-093: a turn's microphone is capturing (mic.ready).
+                scene("Talking: speak now") { m in
+                    m.status.apply(IslandEvent.state(.listening))
+                    m.status.apply(IslandEvent.micReady)
+                    for v in [0.05, 0.1, 0.4, 0.7, 0.3] { m.meter.add(v) }
                 }
                 scene("Needs your OK") { m in
                     if let ask = try? decodeEvent(#"{"type":"approval.request","id":"a1","summary":"Click \"Send\" in Mail","reason":"It sends"}"#) { m.status.apply(ask) }
@@ -693,52 +531,6 @@ enum IslandGallery {
         .padding(24)
         .background(Color(red: 0.36, green: 0.42, blue: 0.52))
         save(sheet, name: name, to: directory)
-    }
-
-    /// ADR-085: Pal's avatar for each expression and every helper's four, from whatever images exist
-    /// (`ZENO_AVATARS_DIR`, else the repo's assets/avatars). A missing image shows today's drawing.
-    private static func writeAvatars(to directory: URL) {
-        let pal: [(String, PetBrain.Mood, PalReaction?, Double)] = [
-            ("neutral", .resting, nil, 0.3), ("happy (hello)", .resting, .hello, 0.3), ("listening", .listening, nil, 0.3),
-            ("thinking", .thinking, nil, 0.3), ("speaking", .speaking, nil, 0.01), ("speaking-closed", .speaking, nil, 0.1),
-            ("worried", .worried, nil, 0.3), ("sleepy", .napping, nil, 0.3), ("surprised", .carried, nil, 0.3),
-        ]
-        let helpers = ["sid", "kame", "puff", "quill", "penny", "hana", "tinker"]
-        let jobs: [(String, [JobState])] = [("neutral", []), ("working", [.running]), ("happy", [.done]), ("worried", [.failed])]
-        let caption = AvatarImages.hasPal
-            ? "From \(AvatarImages.directory?.path ?? "?")"
-            : "no avatar images yet: Pal is drawn as the orb, helpers as their letter"
-        let palette = AppTheme.lantern.palette
-        let sheet = VStack(alignment: .leading, spacing: 14) {
-            Text("Avatars (ADR-085)").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
-            Text(caption).font(.system(size: 11)).foregroundStyle(.white.opacity(0.7))
-            HStack(spacing: 6) {
-                ForEach(Array(pal.enumerated()), id: \.offset) { _, w in
-                    VStack(spacing: 2) {
-                        PalView(mood: w.1, time: w.3, facing: 1, size: 72, reaction: w.2, reactionProgress: 0.5)
-                        Text(w.0).font(.system(size: 10.5, weight: .medium)).foregroundStyle(.white.opacity(0.75))
-                    }
-                }
-            }
-            HStack(alignment: .top, spacing: 16) {
-                ForEach(helpers, id: \.self) { id in
-                    VStack(spacing: 6) {
-                        Text(id.capitalized).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.85))
-                        ForEach(Array(jobs.enumerated()), id: \.offset) { _, job in
-                            HStack(spacing: 11) {
-                                HelperBadge(helper: Helper(id: id, name: id.capitalized, available: true, app: nil,
-                                                           jobs: job.1.map { HelperJob(id: 1, task: "", state: $0) }), size: 40)
-                                Text(job.0).font(.system(size: 10)).foregroundStyle(.white.opacity(0.6)).frame(width: 46, alignment: .leading)
-                            }
-                        }
-                    }
-                }
-            }
-            .themed(palette)
-        }
-        .padding(22)
-        .background(LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.24, green: 0.29, blue: 0.42)], startPoint: .top, endPoint: .bottom))
-        save(sheet, name: "16-avatars", to: directory)
     }
 
     /// Draws a view now, so a sheet can show one model in several states (views hold the live model).

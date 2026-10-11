@@ -774,6 +774,8 @@ function openHelpers(path: string, log: Logger, agentsDir?: string): HelperStore
     const store = openHelperStore({ path, ...(agentsDir ? { agentsDir } : {}) });
     store.onChange((change) => log.info("helpers.change", change));
     log.info("helpers.open");
+    // ADR-093: a broken data/agents/<id>/soul.md would otherwise just drop that agent; the Board shows these too.
+    for (const { id, problem } of store.agentProblems()) log.warn("helpers.agent_problem", { id, problem });
     return store;
   } catch (error) {
     log.error("helpers.unavailable", { ...errorFields(error) });

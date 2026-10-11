@@ -1995,3 +1995,8 @@ Date: 2026-10-11. Status: **accepted** (Keshab, 2026-10-11: "when i show display
 ### Consequences
 
 Pal looks the same on screen and on the floor, with fewer settings. ZENO depends on whichever AI tool Keshab has signed in to, and says which. The codebase loses what earlier designs left behind.
+
+### Keshab's decisions on the clean-up's waiting items (2026-10-11)
+
+- **Removed:** the drop-down panel's views and the gallery sheets that drew it (the window replaced it in ADR-089); custom PNG avatars (ADR-085: workers show their pixel character or letter); the DesignStudy mock-ups; the `ZENO_PANEL_DEMO` script; the empty placeholder folders (created when their phase needs them, which amends PROJECT_STRUCTURE.md's "do not delete placeholders").
+- **Wired up:** a "Speak now" cue once the microphone is capturing (`mic.ready`); this shows Pal's bubble while a turn listens, a narrow change to "listening gets no bubble" (2026-10-10) so Keshab sees the microphone is live. Broken agent files are logged and shown on the Board. An empty reply names a refusal or a cut-off. A second click on Pal closes the ZENO window, like the menu-bar icon.

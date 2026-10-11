@@ -33,7 +33,7 @@ final class IslandPanel: NSPanel {
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
 }
 
-/// The island's content on dark glass: the compact card, or the expanded view after a click (ADR-038).
+/// The island's content on dark glass: the compact card (ADR-038). A click on it opens the ZENO window (ADR-089).
 struct IslandView: View {
     let model: IslandModel
     /// For development snapshots (`ZENO_ISLAND_SNAPSHOTS`): a plain dark fill instead of the glass,
@@ -44,33 +44,24 @@ struct IslandView: View {
 
     var body: some View {
         let palette = model.settings.theme.palette
-        let radius = model.showsExpanded ? palette.radiusSurface : IslandView.cornerRadius
+        let radius = IslandView.cornerRadius
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        ZStack(alignment: .topLeading) {
-            if model.showsExpanded {
-                ExpandedView(model: model)
-                    .transition(.opacity)
-            } else {
-                CompactView(model: model)
-                    .transition(.opacity)
+        CompactView(model: model)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background {
+                SurfaceBackground(shape: shape, glass: !snapshot, systemGlassRadius: radius)
             }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background {
-            SurfaceBackground(shape: shape, glass: !snapshot, systemGlassRadius: radius)
-        }
-        .clipShape(shape)
-        // ADR-084: grows from the menu-bar icon as it opens (the window drops and fades in alongside), shrinks a
-        // little as it leaves. With Reduce Motion it only fades (the window's alpha).
-        .scaleEffect(model.presented || reduceMotion ? 1 : (model.expanded ? 0.96 : 0.98), anchor: UnitPoint(x: model.openAnchorX, y: 0))
-        .themed(palette)
-        .environment(\.islandSnapshot, snapshot)
-        .animation(.easeOut(duration: 0.16), value: model.showsExpanded)
+            .clipShape(shape)
+            // ADR-084: grows from the menu-bar icon as it opens (the window drops and fades in alongside), shrinks a
+            // little as it leaves. With Reduce Motion it only fades (the window's alpha).
+            .scaleEffect(model.presented || reduceMotion ? 1 : 0.98, anchor: UnitPoint(x: model.openAnchorX, y: 0))
+            .themed(palette)
+            .environment(\.islandSnapshot, snapshot)
     }
 }
 
 /// The compact card (ADR-038): ZENO's state, a short detail line and, while listening, a live waveform.
-/// Clicking it opens the expanded view.
+/// Clicking it opens the ZENO window (ADR-089).
 struct CompactView: View {
     let model: IslandModel
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.

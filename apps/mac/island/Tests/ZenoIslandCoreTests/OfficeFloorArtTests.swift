@@ -127,11 +127,13 @@ struct PixelPalMotionTests {
         #expect(abs(done.squashX - 1) < 0.001 && abs(done.squashY - 1) < 0.001)
     }
 
+    /// ADR-093: a click opens the ZENO window, a second click (window open and in front) closes it; a double-click's
+    /// second press finds it open and leaves it.
     @Test func clickOpensAndDoubleClickNeverCloses() {
-        #expect(PetClickAction.forPress(clickCount: 1, panelOpen: false) == .open)
-        #expect(PetClickAction.forPress(clickCount: 1, panelOpen: true) == .close)
-        #expect(PetClickAction.forPress(clickCount: 2, panelOpen: true) == .none)
-        #expect(PetClickAction.forPress(clickCount: 2, panelOpen: false) == .open)
+        #expect(PetClickAction.forPress(clickCount: 1, windowOpen: false) == .open)
+        #expect(PetClickAction.forPress(clickCount: 1, windowOpen: true) == .close)
+        #expect(PetClickAction.forPress(clickCount: 2, windowOpen: true) == .none)
+        #expect(PetClickAction.forPress(clickCount: 2, windowOpen: false) == .open)
     }
 }
 

@@ -1,33 +1,7 @@
 import SwiftUI
-import ZenoIslandCore
 
-/// The panel under the menu-bar icon (ADR-038, ADR-040, ADR-056, ADR-057, ADR-084): a header with Pal and ZENO's
-/// state, then word tabs for the conversation and Settings (whose "now" card is what the Status tab was). Every colour comes from the user's theme.
-struct ExpandedView: View {
-    let model: IslandModel
-    @Environment(\.theme) private var theme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        VStack(spacing: 0) {
-            PanelHeader(model: model)
-
-            // Inset, so the header's hairline never draws a square box edge to edge.
-            Capsule().fill(theme.separator.color).frame(height: theme.isFlat ? 1 : 0.5).padding(.horizontal, Spacing.panel)
-
-            ZStack(alignment: .top) {
-                switch model.tab {
-                case .conversation: ConversationTab(model: model).transition(Motion.handOff(reduceMotion))
-                case .settings: SettingsTab(model: model).transition(Motion.handOff(reduceMotion))
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        }
-        .background { PanelGlow(kind: model.status.kind) }
-    }
-}
-
-// MARK: - Building blocks
+// Scrolling and snapshot helpers shared by the window's pages, the compact card and the gallery. They lived beside the
+// drop-down panel's view until ADR-093 removed it.
 
 private struct SnapshotKey: EnvironmentKey { static let defaultValue = false }
 

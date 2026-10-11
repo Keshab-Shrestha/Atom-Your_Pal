@@ -82,6 +82,28 @@ struct MenuPanelLayoutTests {
 struct IslandStatusTests {
     let ready = IslandEvent.ready(ReadyInfo(protocolVersion: 1, provider: "gemini", model: "gemini-3.6-flash", microphone: ":Webcam", voice: true))
 
+    /// ADR-093: "Listening…" until the microphone is capturing, then "Speak now" (in the bubble too); gone when listening ends.
+    @Test func speakNowOnceTheMicrophoneIsCapturing() throws {
+        var status = IslandStatus()
+        status.apply(ready)
+        status.apply(.micReady) // not listening: nothing to cue
+        #expect(status.title == "Ready" && !status.micLive)
+        status.apply(.state(.listening))
+        #expect(status.title == "Listening…" && !status.micLive && !status.needsBubble)
+        status.apply(try decodeEvent(#"{"type":"mic.ready"}"#))
+        #expect(status.title == "Speak now" && status.micLive && status.needsBubble && status.showsLevel)
+        status.apply(.contextReady(app: "Safari", ok: true, message: nil)) // the line under it changes, the cue stays
+        #expect(status.title == "Speak now" && status.detail == "Ask about Safari")
+        status.apply(.state(.transcribing))
+        #expect(status.title == "Transcribing" && !status.micLive && !status.needsBubble)
+        status.apply(.micReady) // late, after listening ended
+        #expect(status.title == "Transcribing" && !status.micLive)
+        // A dictation opens its own microphone and keeps its own words.
+        status.apply(DictationPhase.listening)
+        status.apply(.micReady)
+        #expect(status.title == "Dictating" && !status.micLive)
+    }
+
     @Test func followsATurn() {
         var status = IslandStatus()
         #expect(status.kind == .starting && status.title == "Starting")
@@ -90,7 +112,7 @@ struct IslandStatusTests {
         #expect(!status.isBusy && !status.showsLevel)
 
         status.apply(.state(.listening))
-        #expect(status.title == "Listening" && status.isBusy && status.showsLevel)
+        #expect(status.title == "Listening…" && status.isBusy && status.showsLevel)
         status.apply(.micSilent(microphone: ":Webcam"))
         #expect(status.detail == "Can't hear you. Check the microphone")
         status.apply(.state(.transcribing))

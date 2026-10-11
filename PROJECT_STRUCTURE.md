@@ -10,7 +10,8 @@ Folders are filled only when the current task needs them.
 
 ## 1. Current Scaffold
 
-These folders exist now. Most are empty placeholders.
+The planned layout. Folders marked "not created yet" were empty placeholders, removed in ADR-093; each is created when
+its phase needs it.
 
 ```text
 zeno/
@@ -24,20 +25,20 @@ zeno/
 ├── services/
 │   ├── core/
 │   ├── memory/
-│   ├── knowledge/
-│   ├── retrieval/
+│   ├── knowledge/           (not created yet)
+│   ├── retrieval/           (not created yet)
 │   ├── decision-engine/
 │   ├── llm-gateway/
 │   ├── tool-engine/
-│   ├── capability-manager/
-│   ├── device-manager/
-│   └── api/
+│   ├── capability-manager/  (not created yet)
+│   ├── device-manager/      (not created yet)
+│   └── api/                 (not created yet)
 │
 ├── packages/
 │   ├── contracts/
-│   ├── protocol/
-│   ├── database/
-│   ├── auth/
+│   ├── protocol/            (not created yet)
+│   ├── database/            (not created yet)
+│   ├── auth/                (not created yet)
 │   └── shared/
 │
 ├── infrastructure/
@@ -63,11 +64,12 @@ zeno/
 An empty folder is a reserved location, not a commitment to build it.
 
 - Do not add code to a folder until the current task requires it.
-- Do not delete placeholder folders because they are empty.
+- Do not delete placeholder folders because they are empty. Exception (ADR-093, Keshab, 2026-10-11): the empty
+  service and package placeholders were removed; they are created when their phase needs them.
 - Do not create new top-level folders without recording a decision in DECISIONS.md.
 - Sub-folders are created only when needed.
 
-Git does not track empty folders. Each placeholder receives a `.gitkeep` file when the repository is initialized (Task 0.1).
+Git does not track empty folders. Each remaining placeholder receives a `.gitkeep` file when the repository is initialized (Task 0.1). The 8 folders marked "not created yet" were removed in ADR-093; they are created when their phase needs them.
 
 ---
 
@@ -101,12 +103,12 @@ Modules may become separate services later only when scale requires it.
 | `services/llm-gateway/` | Provider-independent LLM access and provider adapters | 0 |
 | `services/memory/` | Persistent memory | 1 |
 | `services/tool-engine/` | Controlled tool execution | 2 |
-| `services/capability-manager/` | Capability registration, validation, health | 2+ |
+| `services/capability-manager/` | Capability registration, validation, health (not created yet) | 2+ |
 | `services/decision-engine/` | Decision Engine abstraction (Laya / Jev) | 4–5 |
-| `services/knowledge/` | Knowledge ownership and scopes | 6 |
-| `services/retrieval/` | Authorization-aware retrieval | 6 |
-| `services/device-manager/` | Device registry and nodes | 7+ |
-| `services/api/` | External API | Later |
+| `services/knowledge/` | Knowledge ownership and scopes (not created yet) | 6 |
+| `services/retrieval/` | Authorization-aware retrieval (not created yet) | 6 |
+| `services/device-manager/` | Device registry and nodes (not created yet) | 7+ |
+| `services/api/` | External API (not created yet) | Later |
 
 ### packages/ — shared code
 
@@ -114,9 +116,9 @@ Modules may become separate services later only when scale requires it.
 |---|---|---|
 | `packages/shared/` | Configuration loading, logging, errors — until they earn their own package | 0 |
 | `packages/contracts/` | Shared types and interfaces between modules (e.g. request/response models) | 0 |
-| `packages/protocol/` | Device-to-ZENO communication protocol | 7+ |
-| `packages/database/` | Persistence layer | 1 |
-| `packages/auth/` | Identity and authentication | Later |
+| `packages/protocol/` | Device-to-ZENO communication protocol (not created yet) | 7+ |
+| `packages/database/` | Persistence layer (not created yet) | 1 |
+| `packages/auth/` | Identity and authentication (not created yet) | Later |
 
 ### Other
 

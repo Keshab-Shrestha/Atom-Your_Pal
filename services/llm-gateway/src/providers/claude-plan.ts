@@ -507,7 +507,8 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
       const tokens = tokensOf(result);
       if (tokens) options.onTokens?.(tokens, model);
       const text = typeof result.result === "string" ? withoutSources(result.result.trim()) : "";
-      if (!text) throw new ProviderError("unknown", emptyReplyReason("claude-plan", "none"));
+      // ADR-093: the SDK's stop reason ("refusal", "max_tokens", …) lets the message say declined or cut off.
+      if (!text) throw new ProviderError("unknown", emptyReplyReason(result.stop_reason));
       return { text };
     },
   };

@@ -52,7 +52,7 @@ export function formatSoulMd(agent: Omit<AgentFile, "id">): string {
 /** soul.md read back. Missing sections are empty; an unknown kit reads as think (no tools). Throws HelperError when unreadable. */
 export function parseSoulMd(id: string, text: string): AgentFile {
   const m = /^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/.exec(text.replace(/\r\n?/g, "\n"));
-  if (!m) throw new HelperError(`${id}/soul.md needs front matter (name, role, kit) between --- lines.`);
+  if (!m) throw new HelperError("soul.md needs front matter (name, role, kit) between --- lines."); // the folder is named beside it
   const front = Object.fromEntries(
     m[1]!.split("\n").flatMap((line) => {
       const kv = /^(\w+)\s*:\s*(.*)$/.exec(line.trim());
@@ -79,18 +79,24 @@ export function parseSoulMd(id: string, text: string): AgentFile {
   return { id, role: front.role ?? "", kit, soul };
 }
 
+/** An agent folder that could not be loaded: its folder name and why, in words (about the file, never a task). */
+export interface AgentProblem {
+  id: string;
+  problem: string;
+}
+
 /** Every agent folder with a readable soul.md, by folder name. Unreadable ones are skipped (and named in `problems`). */
-export function loadAgents(dir: string): { agents: AgentFile[]; problems: string[] } {
+export function loadAgents(dir: string): { agents: AgentFile[]; problems: AgentProblem[] } {
   if (!existsSync(dir)) return { agents: [], problems: [] };
   const agents: AgentFile[] = [];
-  const problems: string[] = [];
+  const problems: AgentProblem[] = [];
   for (const id of readdirSync(dir).sort()) {
     const file = join(dir, id, "soul.md");
     if (!ID.test(id) || !existsSync(file)) continue;
     try {
       agents.push(parseSoulMd(id, readFileSync(file, "utf8")));
     } catch (error) {
-      problems.push(error instanceof Error ? error.message : String(error));
+      problems.push({ id, problem: error instanceof Error ? error.message : String(error) });
     }
   }
   return { agents: agents.slice(0, MAX_AGENTS), problems };

@@ -480,7 +480,7 @@ final class PetController {
             drop()
         } else if wasClick {
             react(PalReaction.forClick(count: pressCount))
-            onClick(pressCount) // pressed and let go without moving: open (or close) the features panel
+            onClick(pressCount) // pressed and let go without moving: open (or close) the ZENO window
         }
     }
 

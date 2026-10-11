@@ -3,6 +3,9 @@
 Status: proposal, October 2026. Nothing here is built into the live app yet. The mockups are gallery-only views in
 `apps/mac/island/Sources/ZenoIsland/DesignStudy/` and render as sheet `14-design-study-*` (see the end of this file).
 
+Update (ADR-093, 2026-10-11): the directions were decided (ADR-084, ADR-086) and the DesignStudy mock-ups, sheet 14 and
+`ZENO_ISLAND_GALLERY_ONLY=design` were removed; they remain in git history (commit 149bedd and earlier).
+
 The brief, in Keshab's words: keep every feature, rebuild the look and feel from zero, with "those swift motions and
 colour accents and the premium feel" of Coucou and Clicky. The design should grow from Wisp, ZENO's strongest asset.
 
@@ -60,11 +63,11 @@ assets, names or characters.
 Renders: `scratchpad/gallery/` (2-conversation, 2-settings-full, 5-wisp-moods, 6-wisp-bubble, 8-computer-control,
 9-*-panel, 12-everyday, 13-helpers).
 
-**The panel header** (`ExpandedView.swift:12-36`). A green waveform glyph (`Theme.tint(.ready)` = `success`
+**The panel header** (`ExpandedView.swift:12-36` (file removed in ADR-093; see 149bedd)). A green waveform glyph (`Theme.tint(.ready)` = `success`
 `#5FD38D`, `Theme.swift` native palette) says "Ready". Green appears nowhere else in Wisp's world. Wisp, the actual
 character, is absent from the header. Two grey icon circles sit on the right.
 
-**The tab bar** (`ExpandedView.swift:88-122`). A full-width grey segmented control, the most generic macOS/iOS widget
+**The tab bar** (`ExpandedView.swift:88-122` (file removed in ADR-093; see 149bedd)). A full-width grey segmented control, the most generic macOS/iOS widget
 there is. It takes a whole row and says nothing about ZENO.
 
 **Conversation** (`ConversationView.swift:134-200`). User messages are teal chat bubbles (`userBubble` = accent at
@@ -323,18 +326,7 @@ removing.
 
 ## 5. Mockup files
 
-Gallery-only SwiftUI (nothing in the live app imports them; they read no model):
-
-* `apps/mac/island/Sources/ZenoIsland/DesignStudy/DesignStudy.swift`: sheet entry, sample copy, wallpapers, menu bar.
-* `.../DesignStudy/LanternMock.swift`: A, panel in conversation and Settings, Wisp glyph, streaming text.
-* `.../DesignStudy/LanternExtras.swift`: A, bubble states, approval strip, Helpers window.
-* `.../DesignStudy/MistMock.swift`: B.
-* `.../DesignStudy/HaloMock.swift`: C.
-
-Render: `cd apps/mac/island && swift build && ZENO_ISLAND_GALLERY=<dir> .build/debug/ZenoIsland` (all sheets, the
-study last), or add `ZENO_ISLAND_GALLERY_ONLY=design` for the study alone. Output:
-`14-design-study-a-lantern.png`, `14-design-study-b-mist.png`, `14-design-study-c-halo.png`,
-`14-design-study-a-lantern-bubble-helpers.png`.
+The mock-up files were removed in ADR-093 (2026-10-11). They remain in git history at commit 149bedd.
 
 Mockups use flat fills where the real app would use blur (`ImageRenderer` cannot draw materials) and a drawn composer
 in place of the live text field (which renders as a placeholder in snapshots).

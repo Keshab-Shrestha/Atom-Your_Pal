@@ -422,6 +422,20 @@ public struct HelperGoal: Sendable, Equatable {
     }
 }
 
+/// ADR-093: an agent folder whose soul.md could not be loaded: its folder name and why, shown on the Board.
+public struct AgentProblem: Sendable, Equatable {
+    public var id: String
+    public var problem: String
+
+    public init(id: String, problem: String) {
+        self.id = id
+        self.problem = problem
+    }
+
+    /// "bad: soul.md needs front matter …", as the Board lists it.
+    public var line: String { "\(id): \(problem)" }
+}
+
 /// The `helpers` event.
 public struct HelpersList: Sendable, Equatable {
     public var helpers: [Helper]
@@ -442,9 +456,12 @@ public struct HelpersList: Sendable, Equatable {
     public var mcp: [McpServerItem]
     /// ADR-091: tokens used today and in the last 7 days; nil from an older runtime.
     public var usage: TokenUsageSummary?
+    /// ADR-093: agent folders that could not be loaded; empty when every one loaded.
+    public var agentProblems: [AgentProblem]
 
     public init(helpers: [Helper], apps: [String], allowLarge: Bool = true, models: [HelperModel] = [], team: HelperBudget? = nil,
-                planLimit: Int? = nil, paperclip: [PaperclipTask]? = nil, mcp: [McpServerItem] = [], usage: TokenUsageSummary? = nil, skills: [SkillInfo] = []) {
+                planLimit: Int? = nil, paperclip: [PaperclipTask]? = nil, mcp: [McpServerItem] = [], usage: TokenUsageSummary? = nil, skills: [SkillInfo] = [],
+                agentProblems: [AgentProblem] = []) {
         self.helpers = helpers
         self.apps = apps
         self.allowLarge = allowLarge
@@ -455,6 +472,7 @@ public struct HelpersList: Sendable, Equatable {
         self.mcp = mcp
         self.usage = usage
         self.skills = skills
+        self.agentProblems = agentProblems
     }
 
     /// A model's short name ("Sonnet 4.5" for "Claude Sonnet 4.5"); the id itself when it is not in `models`.

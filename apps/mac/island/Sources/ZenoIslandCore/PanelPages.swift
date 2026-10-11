@@ -1,12 +1,10 @@
-// ADR-084 (Lantern, Task 4.4): the panel has two word tabs, Conversation and Settings. The old Status tab lives on as
-// the "now" card at the top of Settings, and every Settings page is reachable from Settings home: from a row, or (AI
-// model) from the card's "Change model".
+// ADR-084 (Lantern, Task 4.4): the old Status tab lives on as the "now" card at the top of Settings, and every Settings
+// page is reachable from Settings home: from a row, or (AI model) from the card's "Change model".
 
-/// The panel's tabs.
-public enum PanelTab: String, CaseIterable, Identifiable, Sendable {
-    case conversation = "Conversation"
-    case settings = "Settings"
-    public var id: String { rawValue }
+/// Conversation or Settings: which ZENO window page "open" shows (ADR-089). Once the drop-down panel's word tabs,
+/// removed with the panel (ADR-093).
+public enum PanelTab: Sendable {
+    case conversation, settings
 }
 
 /// One page inside the Settings tab (ADR-057).

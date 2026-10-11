@@ -4,7 +4,7 @@ import ZenoIslandCore
 /// Everything the island's views show, and the actions they can take. Owned by `IslandController`.
 @MainActor @Observable
 final class IslandModel {
-    /// Conversation and Settings (ADR-084: the Status tab became Settings' "now" card).
+    /// Conversation or Settings: the window page "open" goes to (ADR-089).
     typealias Tab = PanelTab
     typealias SettingsPage = ZenoIslandCore.SettingsPage
 
@@ -36,15 +36,13 @@ final class IslandModel {
     /// The ZENO window is open: a restarted runtime is asked for the list again.
     var helpersWindowOpen = false
 
-    var expanded = false {
-        didSet { if expanded && !oldValue { settingsCascaded = false } } // each opening cascades Settings once
-    }
-    /// Settings home has already cascaded in since the panel opened (ADR-084).
+    /// Settings home has already cascaded in (ADR-084): once per launch, now that the drop-down panel that reset it on
+    /// each opening is gone (ADR-093).
     @ObservationIgnored var settingsCascaded = false
-    /// The panel's content at full size (ADR-084). False for the moment it opens, so it can grow in from the menu-bar
+    /// The card's content at full size (ADR-084). False for the moment it opens, so it can grow in from the menu-bar
     /// icon, and while it closes. Set by the controller, inside the open and close animations.
     var presented = true
-    /// Where the panel grows from, as a fraction of its width (0 left, 1 right). Set by the controller.
+    /// Where the card grows from, as a fraction of its width (0 left, 1 right). Set by the controller.
     var openAnchorX = 1.0
     var tab = Tab.conversation
     /// ADR-089: the page the ZENO window shows.
@@ -53,9 +51,6 @@ final class IslandModel {
     var boardFloor = true
     /// The Settings page open inside the Settings tab; nil shows the list of pages (ADR-057).
     var settingsPage: SettingsPage?
-
-    /// Draw the expanded view.
-    var showsExpanded: Bool { expanded }
 
     let settings: IslandSettings
     let recorder: ShortcutRecorder
@@ -77,7 +72,7 @@ final class IslandModel {
 
     /// Sends a command to the runtime. Set by the app.
     @ObservationIgnored var send: (IslandCommand) -> Void = { _ in }
-    /// Opens or closes the expanded view. Set by the controller.
+    /// `true` opens the ZENO window (ADR-089; the compact card's click). Set by the controller.
     @ObservationIgnored var setExpanded: (Bool) -> Void = { _ in }
     /// The work strip's Stop button: the same as Esc. Set by the controller.
     @ObservationIgnored var stopWork: () -> Void = {}

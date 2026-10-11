@@ -17,6 +17,8 @@ final class MainWindowController: NSObject, NSWindowDelegate {
     }
 
     var isVisible: Bool { window?.isVisible == true }
+    /// Open and in front (ZENO is the active app): a click on the menu-bar icon or Pal then closes it.
+    var isInFront: Bool { isVisible && NSApp.isActive }
 
     /// Opens the window on `page` (nil keeps the page it shows).
     func show(page: WindowPage? = nil) {

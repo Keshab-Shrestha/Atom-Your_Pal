@@ -11,6 +11,15 @@ struct BubbleRuleTests {
         }
     }
 
+    /// ADR-093: listening gets the bubble once the microphone is live, so "Speak now" is seen.
+    @Test func aLiveMicrophoneShowsSpeakNow() throws {
+        var status = IslandStatus()
+        status.apply(try decodeEvent(#"{"type":"state","state":"listening"}"#))
+        #expect(!status.needsBubble)
+        status.apply(try decodeEvent(#"{"type":"mic.ready"}"#))
+        #expect(status.needsBubble && status.title == "Speak now")
+    }
+
     @Test func problemsNoticesQuestionsAndASilentMicShowIt() throws {
         var status = IslandStatus()
         status.apply(try decodeEvent(#"{"type":"state","state":"listening"}"#))

@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import { isOver } from "./budgets.ts";
 import { homedir } from "node:os";
 import { MAX_GRANTS, checkGrant } from "./grants.ts";
-import { KITS, MAX_AGENTS, agentId, cleanRole, loadAgents, retireAgent, writeAgent, type Kit } from "./agents.ts";
+import { KITS, MAX_AGENTS, agentId, cleanRole, loadAgents, retireAgent, writeAgent, type AgentProblem, type Kit } from "./agents.ts";
 
 /** Task 3.12: most skills a worker may have. */
 export const MAX_SKILLS = 10;
@@ -92,7 +92,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     custom: boolean;
   }
   const builtIns: Member[] = HELPERS.map((h) => ({ id: h.id, available: h.available as boolean, role: h.role, kit: BUILT_IN_KITS[h.role] ?? "think", custom: false }));
-  let rosterProblems: string[] = [];
+  let rosterProblems: AgentProblem[] = [];
 
   /**
    * The team: the built-in workers, then every agent folder with a valid soul.md. An agent's file is its current
@@ -111,7 +111,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         role = cleanRole(agent.role || "assistant");
         soul = cleanSoul(agent.soul, members.map((m) => current(m.id).name));
       } catch (error) {
-        rosterProblems.push(`${agent.id}/soul.md: ${error instanceof Error ? error.message : String(error)}`);
+        rosterProblems.push({ id: agent.id, problem: error instanceof Error ? error.message : String(error) });
         continue;
       }
       const last = latestSoul.get(agent.id) as unknown as SoulRow | undefined;

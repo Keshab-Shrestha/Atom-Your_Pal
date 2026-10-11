@@ -58,6 +58,13 @@ struct BoardPane: View {
                 }
                 // ADR-091: the team lives here now (the sidebar lists chats): each opens its page.
                 TeamChips(model: model)
+                // ADR-093: an agent whose soul.md is broken is missing from the team; say which and why.
+                if let problems = model.helpers.list?.agentProblems, !problems.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Not loaded (data/agents/<folder>/soul.md)").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                        ForEach(problems, id: \.line) { ProblemLine(text: $0.line) }
+                    }
+                }
                 if let list = model.helpers.list, let team = list.team, let limit = list.planLimit {
                     TeamBudgets(model: model, team: team, planLimit: limit)
                 }

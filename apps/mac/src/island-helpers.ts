@@ -78,6 +78,7 @@ export function islandHelpers(
     removeRoutine: (id) => store.removeRoutine(id),
     createAgent: (input) => void store.createAgent(input),
     removeAgent: (id) => store.removeAgent(id),
+    agentProblems: () => store.agentProblems().map(({ id, problem }) => ({ id, problem })),
     retry: (id) => store.retry(id),
     usage: () => {
       const summary = store.usage();

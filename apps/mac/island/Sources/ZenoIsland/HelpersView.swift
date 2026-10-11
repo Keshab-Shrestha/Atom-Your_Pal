@@ -257,8 +257,8 @@ private struct AllowLargeSwitch: View {
     }
 }
 
-/// A helper's mark (ADR-085): its avatar image for what it is doing, else its first letter, in a disc. While it
-/// works, an arc of Pal's light runs round it (a still ring with Reduce Motion).
+/// A helper's mark: its own pixel character (ADR-089), else its first letter, in a disc. While it works, an arc of
+/// Pal's light runs round it (a still ring with Reduce Motion). Custom PNG avatars (ADR-085) were removed (ADR-093).
 struct HelperBadge: View {
     let helper: Helper
     let size: CGFloat
@@ -276,9 +276,6 @@ struct HelperBadge: View {
                 } else {
                     PalPortrait(character: character, animation: "idle", time: 0.6, size: size * 1.18, glow: theme.usesGlow)
                 }
-            } else if let image = AvatarImages.image(helper.id, AvatarExpression.helper(helper)) {
-                // Exports leave room around the character: a little larger, so it fills the disc.
-                Image(nsImage: image).resizable().scaledToFit().scaleEffect(1.15)
             } else {
                 Text(helper.name.prefix(1).uppercased())
                     .font(.system(size: size * 0.42, weight: .semibold, design: .rounded))

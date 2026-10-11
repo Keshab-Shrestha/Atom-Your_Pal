@@ -762,6 +762,17 @@ struct PaperclipTests {
 
 @Suite("New agents (ADR-088)")
 struct NewAgentTests {
+    /// ADR-093: agent folders that could not be loaded arrive in `helpers`; absent means none, a malformed entry is left out.
+    @Test func agentProblemsAreDecodedForTheBoard() throws {
+        guard case .helpers(let none) = try decodeEvent(HelperTaskTests.line) else { Issue.record("not helpers"); return }
+        #expect(none.agentProblems.isEmpty)
+        let broken = HelperTaskTests.line.replacingOccurrences(of: #"{"type":"helpers","apps":[],"#,
+            with: #"{"type":"helpers","apps":[],"agentProblems":[{"id":"bad","problem":"soul.md needs front matter (name, role, kit) between --- lines."},{"id":3},"x"],"#)
+        guard case .helpers(let list) = try decodeEvent(broken) else { Issue.record("not helpers"); return }
+        #expect(list.agentProblems == [AgentProblem(id: "bad", problem: "soul.md needs front matter (name, role, kit) between --- lines.")])
+        #expect(list.agentProblems.first?.line == "bad: soul.md needs front matter (name, role, kit) between --- lines.")
+    }
+
     @Test func createsAndRemovesAgents() throws {
         let line = HelperTaskTests.line.replacingOccurrences(of: #"{"id":"hana","name":"Hana","available":true,"app":null,"jobs""#,
             with: #"{"id":"rumi","name":"Rumi","available":true,"app":null,"role":"travel planner","kit":"think","custom":true,"jobs":[]},{"id":"hana","name":"Hana","available":true,"app":null,"jobs""#)

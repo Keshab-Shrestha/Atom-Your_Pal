@@ -132,6 +132,8 @@ export interface IslandHelpers {
   /** ADR-088: add an agent (its folder and soul.md) or remove one Keshab added. Throw with words for the user. */
   createAgent(input: { name: string; role: string; kit: "research" | "folders" | "think"; personality: string; howItWorks: string; rules: string }): void;
   removeAgent(id: string): void;
+  /** ADR-093: agent folders whose soul.md could not be loaded, for the Board (folder name and why, never task text). */
+  agentProblems(): { id: string; problem: string }[];
   /** Task 3.16: the tasks handed to Keshab's Paperclip, for the board. Absent when the connection is off. */
   paperclip?(): { issues: PaperclipItem[] };
   /** Task 3.14: opens a task's report in its worker's app. Absent: `job.open` is refused. Rejects with words for the user. */
@@ -538,7 +540,8 @@ export function runIsland(options: IslandOptions): IslandSession {
     void appNames().then((apps) => {
       helpersQueued = false;
       const helpers = options.helpers;
-      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets(), skills: helpers.skills(), mcp: helpers.mcp(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}) });
+      const agentProblems = helpers?.agentProblems() ?? [];
+      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets(), skills: helpers.skills(), mcp: helpers.mcp(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}), ...(agentProblems.length ? { agentProblems } : {}) });
     });
   }
   function appNames(): Promise<string[]> {

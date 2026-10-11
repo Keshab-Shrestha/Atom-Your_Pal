@@ -1,13 +1,11 @@
 import CoreGraphics
 
-/// Sizes for the panel (ADR-038, ADR-056). Points, not pixels.
+/// Sizes for the status card under the menu-bar icon (ADR-038, ADR-056). Points, not pixels.
 public struct IslandMetrics: Sendable, Equatable {
     /// The status card shown under the menu-bar icon during a turn when Pal is off.
     public var compact = CGSize(width: 232, height: 52)
     /// The same card, wider, while dictating with the live preview: room for the words being heard.
     public var wide = CGSize(width: 340, height: 52)
-    /// The panel opened from the menu-bar icon or Pal (Conversation, Status, Settings).
-    public var expanded = CGSize(width: 380, height: 460)
     /// Gap between the menu bar and the top of the panel.
     public var topGap: CGFloat = 6
     /// Smallest gap kept to the sides and bottom of the display.

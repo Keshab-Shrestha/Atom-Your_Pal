@@ -352,6 +352,8 @@ export type IslandEvent =
       usage?: UsageItem;
       /** Task 3.16: the tasks handed to Keshab's Paperclip; absent when the connection is off. */
       paperclip?: { issues: PaperclipItem[] };
+      /** ADR-093: agent folders whose soul.md could not be loaded (folder name and why); absent when there are none. */
+      agentProblems?: { id: string; problem: string }[];
     }
   | ThreadEvent
   /** Task 3.15: a line from the team (a goal done, a plan waiting), sent just before ZENO says it. */

@@ -652,7 +652,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
                                     skills: (f.values["skills"] as? [Any] ?? []).compactMap { entry in
                                         guard let s = entry as? [String: Any], let name = s["name"] as? String else { return nil }
                                         return SkillInfo(name: name, description: s["description"] as? String ?? "")
-                                    }))
+                                    },
+                                    agentProblems: Fields.agentProblems(f.values["agentProblems"])))
     case "thread":
         return .thread(try f.thread())
     case "error":
@@ -879,6 +880,14 @@ private struct Fields {
                                  transport: m["transport"] as? String ?? "http", envKeys: strings("envKeys"), headerKeys: strings("headerKeys"),
                                  enabled: flag(m["enabled"]), trusted: flag(m["trusted"]), workers: strings("workers"), tools: strings("tools"),
                                  tested: m["testedAt"] is String, problem: m["problem"] as? String)
+        }
+    }
+
+    /// ADR-093: agent folders that could not be loaded; absent (an older runtime, or none) is empty. A malformed entry is left out.
+    static func agentProblems(_ value: Any?) -> [AgentProblem] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let p = entry as? [String: Any], let id = p["id"] as? String, let problem = p["problem"] as? String else { return nil }
+            return AgentProblem(id: id, problem: problem)
         }
     }
 

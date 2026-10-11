@@ -52,12 +52,19 @@ public struct IslandStatus: Sendable, Equatable {
     /// The meter follows the microphone only while listening.
     public var showsLevel: Bool { kind == .listening }
 
+    /// ADR-093: the runtime's microphone is capturing (`mic.ready`): what is said now is heard. Until then a turn shows
+    /// "Listening…"; from then on "Speak now". Cleared whenever the state changes (listening ended).
+    public private(set) var micLive = false
+    /// A turn is listening and its microphone has not said it is capturing yet.
+    private var awaitingMic = false
+
     /// Pal's bubble has something to say: a problem, a notice, a question, or a microphone that hears nothing.
-    /// Listening, thinking and speaking show on Pal itself, so they get no bubble (Keshab, 2026-10-10).
+    /// Thinking and speaking show on Pal itself, so they get no bubble (Keshab, 2026-10-10); listening gets one once
+    /// the microphone is live, so "Speak now" is seen (ADR-093), or when there is a line to read.
     public var needsBubble: Bool {
         switch kind {
         case .notice, .problem, .asking: true
-        case .listening: !detail.isEmpty
+        case .listening: micLive || !detail.isEmpty
         default: false
         }
     }
@@ -115,7 +122,8 @@ public struct IslandStatus: Sendable, Equatable {
                 if !needsAttention { set(.ready, "Ready", modelName) }
             case .listening:
                 failure = nil
-                set(.listening, "Listening", "")
+                set(.listening, "Listening…", "") // until the microphone is capturing (mic.ready)
+                awaitingMic = true
             case .transcribing: set(.transcribing, "Transcribing", "")
             case .thinking: set(.thinking, "Thinking", modelName)
             case .speaking: set(.speaking, "Speaking", "")
@@ -130,6 +138,13 @@ public struct IslandStatus: Sendable, Equatable {
         case .approvalClosed:
             // Back to working, unless the turn has already moved on.
             if kind == .asking { set(.thinking, "Thinking", modelName) }
+        case .micReady:
+            // ADR-093: only a turn's listening; a dictation has its own words and opens its microphone itself.
+            if awaitingMic {
+                awaitingMic = false
+                micLive = true
+                title = "Speak now"
+            }
         case .micSilent:
             if kind == .listening { detail = "Can't hear you. Check the microphone" }
         case .notice(let noticeKind, _):
@@ -208,6 +223,8 @@ public struct IslandStatus: Sendable, Equatable {
 
     private mutating func set(_ kind: Kind, _ title: String, _ detail: String, persistent: Bool = false) {
         self.preview = ""
+        self.micLive = false
+        self.awaitingMic = false
         self.kind = kind
         self.title = title
         self.detail = detail

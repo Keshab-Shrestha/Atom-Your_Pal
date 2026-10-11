@@ -171,7 +171,6 @@ final class IslandController {
         refresh()
         let env = ProcessInfo.processInfo.environment
         if env["ZENO_BUBBLE_DEMO"] != nil { playBubbleDemo() }
-        if env["ZENO_PANEL_DEMO"] != nil { playPanelDemo() }
         if env["ZENO_LOOK_DEMO"] != nil { playLookDemo() }
         if env["ZENO_WORK_DEMO"] != nil { playWorkDemo() }
         if let spots = env["ZENO_POINT_DEMO"] { playPointDemo(spots) }
@@ -661,6 +660,7 @@ final class IslandController {
         case .listening:
             localListening = false
             apply(.state(.listening))
+            apply(.micReady) // ADR-093: this microphone is already capturing (talkBegan started it): "Speak now"
             localListening = true
         case .heard(let text):
             localListening = false
@@ -711,7 +711,7 @@ final class IslandController {
 
     /// ADR-089: the menu-bar icon and the toggle shortcut open the ZENO window, or close it when it is in front.
     private func toggleWindow() {
-        if helpersWindow.isVisible, NSApp.isActive { helpersWindow.close() } else { setExpanded(true) }
+        if helpersWindow.isInFront { helpersWindow.close() } else { setExpanded(true) }
     }
 
     private func setExpanded(_ expanded: Bool) {
@@ -723,12 +723,15 @@ final class IslandController {
         }
     }
 
-    /// A press on Pal that was not a drag: opens the panel under the icon, or closes it (ADR-051, ADR-056).
+    /// A press on Pal that was not a drag: opens the ZENO window, or closes it when it is in front, like the menu-bar
+    /// icon (ADR-051, ADR-089, ADR-093).
     private func palClicked(_ count: Int) {
         trace("pal click \(count)")
-        switch PetClickAction.forPress(clickCount: count, panelOpen: model.expanded) {
+        switch PetClickAction.forPress(clickCount: count, windowOpen: helpersWindow.isInFront) {
         case .open: setExpanded(true)
-        case .close: setExpanded(false)
+        case .close:
+            pet.poke()
+            helpersWindow.close()
         case .none: break
         }
     }
@@ -983,7 +986,7 @@ final class IslandController {
     }
 
     private func note(_ label: String) {
-        trace("demo \(label) | \(pet.debugState) | panel=\(current.map { "\($0)" } ?? "off") frame=\(panel.isVisible ? "\(panel.frame.integral)" : "-") expanded=\(model.expanded) | icon=\(menuIcon.anchor.map { "\(Int($0.midX))" } ?? "?")")
+        trace("demo \(label) | \(pet.debugState) | panel=\(current.map { "\($0)" } ?? "off") frame=\(panel.isVisible ? "\(panel.frame.integral)" : "-") window=\(helpersWindow.isVisible) | icon=\(menuIcon.anchor.map { "\(Int($0.midX))" } ?? "?")")
     }
 
     /// Development only (`ZENO_BUBBLE_DEMO=1`): plays a dictation's phases through the real controller, with no
@@ -995,23 +998,6 @@ final class IslandController {
             (9, { [self] in dictationPhase(.listeningHandsFree) }),
             (12, { [self] in dictationPhase(.transcribing) }),
             (14, { [self] in dictationPhase(.done(.typed(words: 6))) }),
-        ])
-    }
-
-    /// Development only (`ZENO_PANEL_DEMO=1`): opens and closes the panel from the icon and from Pal, and checks
-    /// that Pal does not move while it is open (ADR-056).
-    private func playPanelDemo() {
-        schedule([
-            (3, { [self] in note("start") }),
-            (4, { [self] in menuIcon.onClick(); note("icon click opens") }),
-            (5.5, { [self] in note("open") }),
-            (6, { [self] in menuIcon.onClick(); note("icon click closes") }),
-            (7.5, { [self] in note("closed") }),
-            (8, { [self] in palClicked(1); note("pal click opens") }),
-            (9.5, { [self] in note("open from pal") }),
-            (12, { [self] in note("pal while open (should have moved freely)") }),
-            (12.5, { [self] in setExpanded(false); note("closing") }),
-            (14, { [self] in note("closed again") }),
         ])
     }
 
@@ -1057,7 +1043,7 @@ final class IslandController {
         let settings = model.settings
         let saved = (settings.palSize, settings.bubbleSize, settings.bubbleOpacity, settings.bubbleStay)
         func look(_ label: String) {
-            trace("look \(label) | pal=\(Int(settings.palSize.points)) | panel frame=\(Int(panel.frame.width))x\(Int(panel.frame.height)) visible=\(panel.isVisible) expanded=\(model.expanded) | bubble=\(bubble.isVisible)")
+            trace("look \(label) | pal=\(Int(settings.palSize.points)) | panel frame=\(Int(panel.frame.width))x\(Int(panel.frame.height)) visible=\(panel.isVisible) | bubble=\(bubble.isVisible)")
         }
         schedule([
             (3, { look("start") }),

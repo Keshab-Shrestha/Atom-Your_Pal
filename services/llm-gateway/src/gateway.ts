@@ -40,10 +40,10 @@ export class ProviderError extends Error {
 }
 
 /**
- * Explains why a provider sent no text, in words a user can act on. Both providers report a
- * reason code; the common ones are translated, anything else is passed on as-is.
+ * Explains why a provider sent no text, in words a user can act on. The provider reports a reason code (the Agent
+ * SDK result's `stop_reason`); the common ones are translated, anything else is passed on as-is.
  */
-export function emptyReplyReason(provider: string, reason: string | null | undefined): string {
+export function emptyReplyReason(reason: string | null | undefined): string {
   const code = reason ?? "none";
   if (/^(SAFETY|PROHIBITED_CONTENT|BLOCKLIST|SPII|IMAGE_SAFETY|refusal|OTHER)$/i.test(code)) {
     return `The model declined to answer this (reason: ${code}). Try asking differently.`;
