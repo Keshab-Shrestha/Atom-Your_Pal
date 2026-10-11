@@ -345,6 +345,18 @@ public enum OfficeArt {
         return c
     }
 
+    /// ADR-094: a blank wooden sign on two legs, the size of `rect` (its words are drawn live).
+    public static func sign(_ rect: CGRect) -> PixelCanvas {
+        let w = Int(rect.width), h = Int(rect.height), board = h - 4
+        var c = PixelCanvas(width: w, height: h)
+        for x in [4, w - 6] { c.rect(x, board - 1, 2, 5, P.deskEdge) }
+        c.rect(0, 0, w, board, P.outline)
+        c.rect(1, 1, w - 2, board - 2, P.deskFront)
+        c.rect(2, 2, w - 4, board - 4, P.paper)
+        c.rect(2, board - 3, w - 4, 1, P.trim)
+        return c
+    }
+
     /// One note on the "Needs you" board.
     public static func note(_ index: Int) -> PixelCanvas {
         let colors: [UInt32] = [0xFFE27A, 0xFFB86B, 0xF7A8C8, 0xA8E0A0, 0xA8D2F0]

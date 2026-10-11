@@ -6,7 +6,8 @@ import ZenoIslandCore
 /// waiting for Keshab has an amber "!" (a note goes up on the "Needs you" board); idle ones rest in the lounge; a
 /// failed last task shows a red "!"; a finished goal makes its workers cheer. Pal runs the floor from its office. Pals
 /// walk between the lounge and their desk when their state changes, and a hand-off sends an envelope desk to desk.
-/// Drawn without smoothing, at a whole-number scale when there is room, so the pixels stay crisp.
+/// Drawn without smoothing, at a whole-number scale when there is room, so the pixels stay crisp. ADR-094: twelve seats
+/// and ten lounge spots; a "+N" sign stands in for the rest and opens "All agents".
 struct OfficeFloor: View {
     let model: IslandModel
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
@@ -42,13 +43,16 @@ struct OfficeFloor: View {
         .overlay(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
             .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(plan.seats.map { "\($0.name): \($0.bubble ?? ($0.spot == .desk($0.desk) ? "at the desk" : "in the lounge"))" }.joined(separator: ", "))
+        .accessibilityLabel((plan.seats.map { "\($0.name): \($0.bubble ?? ($0.spot == .desk($0.desk) ? "at the desk" : "in the lounge"))" }
+            + OfficeScene.signs(plan).map(\.text)).joined(separator: ", "))
     }
 
     /// A worker clicked: its task, or its page. Pal: the chat.
     private func tap(_ point: CGPoint, plan: OfficePlan) {
         let pal = OfficeMap.managerSeat
         if abs(point.x - pal.x) < 12, point.y > pal.y - 20, point.y < pal.y + 8 { model.windowPage = .chat; return }
+        // ADR-094: a "+N" sign: everyone, searchable.
+        if OfficeScene.signs(plan).contains(where: { $0.rect.contains(point) }) { model.showsAllAgents = true; return }
         for seat in plan.seats {
             guard let at = walker.wrappedValue.positions[seat.helperId], abs(point.x - at.x) < 12, point.y > at.y - 20, point.y < at.y + 10 else { continue }
             if let task = seat.taskId { model.sendHelpers(model.helpers.openThread(task)) } else { model.helpers.selectHelper(seat.helperId) }
@@ -152,10 +156,12 @@ struct OfficeScene {
                 cg.restoreGState()
             }
             blit(PixelImages.background, 0, 0)
-            // Notes on the "Needs you" board, one per worker waiting for Keshab.
-            let waiting = plan.seats.filter { $0.flag == .needsYou }.count
-            for i in 0..<min(waiting, 10) {
+            // Notes on the "Needs you" board, one per worker waiting for Keshab (drawn or not).
+            for i in 0..<min(plan.needsYou, 10) {
                 blit(PixelImages.image("note.\(i)") { OfficeArt.note(i) }, CGFloat(163 + (i % 5) * 7), CGFloat(9 + (i / 5) * 7))
+            }
+            for sign in Self.signs(plan) {
+                blit(PixelImages.image("sign") { OfficeArt.sign(sign.rect) }, sign.rect.minX, sign.rect.minY)
             }
             for a in actors.sorted(by: { $0.point.y < $1.point.y }) {
                 blit(PixelImages.pal(a.id, a.look, a.pose, a.eyes), (a.point.x - 16).rounded(), (a.point.y - 18).rounded())
@@ -186,14 +192,35 @@ struct OfficeScene {
                 blit(PixelImages.image("envelope") { OfficeArt.envelope() }, (x - 5).rounded(), (y - 26).rounded())
             }
         }
+        for sign in Self.signs(plan) { signText(&context, sign, scale: s) }
         for a in actors { nameplate(&context, a, scale: s) }
         if palBusy || plan.seats.contains(where: { $0.animation == "working" }) {
             bubble(&context, "Running the floor", over: OfficeMap.managerSeat, raise: 0, scale: s)
         }
         for a in actors {
             guard let text = a.seat?.bubble, !a.walking else { continue }
+            // ADR-094: the four meeting seats are a tile apart, too close for four bubbles; their steps show on a click.
+            if case .desk(let d) = a.seat?.spot, d >= OfficeMap.desks.count { continue }
             bubble(&context, text, over: a.point, raise: (a.seat?.desk ?? 0) % 2 == 1 ? 1 : 0, scale: s)
         }
+    }
+
+    /// ADR-094: the "+N" signs for workers left off the floor.
+    struct Sign {
+        var text: String
+        var rect: CGRect
+    }
+
+    static func signs(_ plan: OfficePlan) -> [Sign] {
+        (plan.moreAtWork > 0 ? [Sign(text: "+\(plan.moreAtWork) at work", rect: OfficeMap.atWorkSign)] : [])
+            + (plan.moreIdle > 0 ? [Sign(text: "+\(plan.moreIdle) more", rect: OfficeMap.loungeSign)] : [])
+    }
+
+    /// A sign's words, in the nameplates' type, centred on its board.
+    private func signText(_ context: inout GraphicsContext, _ sign: Sign, scale s: CGFloat) {
+        let text = context.resolve(Text(sign.text).font(.system(size: 3.6 * s, weight: .bold, design: .monospaced))
+            .foregroundStyle(Color(red: 0.17, green: 0.18, blue: 0.23)))
+        context.draw(text, at: CGPoint(x: sign.rect.midX * s, y: (sign.rect.minY + (sign.rect.height - 4) / 2 - 0.5) * s))
     }
 
     /// Everyone on the floor this frame: where, in which pose.
@@ -275,7 +302,9 @@ struct OfficeScene {
         if let spot = a.seat?.spot, case .desk = spot, !a.walking { atDesk = true }
         let below: CGFloat = atDesk ? 20 : 12
         let centre = CGPoint(x: a.point.x * s, y: (a.point.y + below) * s + size.height / 2)
-        let rect = CGRect(x: centre.x - size.width / 2 - 2 * s / 2, y: centre.y - size.height / 2, width: size.width + 2 * s, height: size.height).integral
+        var rect = CGRect(x: centre.x - size.width / 2 - 2 * s / 2, y: centre.y - size.height / 2, width: size.width + 2 * s, height: size.height).integral
+        // ADR-094: the lounge's bottom row stands at the floor's edge; keep its names on the floor.
+        rect.origin.y = min(rect.origin.y, (CGFloat(OfficeMap.height) - 2) * s - rect.height)
         context.fill(Path(rect), with: .color(Color(red: 0.12, green: 0.13, blue: 0.17).opacity(0.78)))
         context.draw(text, at: CGPoint(x: rect.midX, y: rect.midY))
     }

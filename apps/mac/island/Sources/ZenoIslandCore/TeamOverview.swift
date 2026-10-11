@@ -152,50 +152,60 @@ public struct OfficePlan: Sendable, Equatable {
         public var taskId: Int
     }
 
+    /// Who is drawn, in the team's order.
     public var seats: [Seat]
     public var envelopes: [Envelope]
+    /// ADR-094: workers at work with no seat left (a "+N at work" sign by the desks), and idle ones past the lounge's
+    /// ten spots (a "+N more" sign on its wall).
+    public var moreAtWork: Int
+    public var moreIdle: Int
+    /// Everyone waiting for Keshab, drawn or not (a note each on the "Needs you" board).
+    public var needsYou: Int
 
     /// How long after a goal ends its workers celebrate.
     public static let celebration: TimeInterval = 60
+    /// ADR-094: eight desks and four meeting seats; ten lounge spots.
+    public static let seatLimit = OfficeMap.desks.count + OfficeMap.meetingSeats.count
+    public static let loungeLimit = OfficeMap.loungeSpots.count
 
     public init(list: HelpersList, now: Date = Date()) {
         let team = list.helpers.filter { $0.available || !$0.jobs.isEmpty }
-        var lounge = 0
-        seats = team.enumerated().map { index, h in
-            let running = h.jobs.first { $0.state == .running }
-            let awaiting = h.jobs.first { $0.awaitsApproval }
-            let held = h.jobs.first { $0.held != nil && !$0.awaitsApproval }
-            let failed = h.jobs.first { $0.state == .failed }
-            let celebrating = h.jobs.contains { $0.goalEnded && $0.state == .done && ($0.endedAt.map { now.timeIntervalSince($0) < Self.celebration } ?? false) }
-            // Only a worker at work sits at its PC; everyone else is in the lounge.
-            var seat = Seat(helperId: h.id, name: h.name, desk: index, spot: .desk(index), animation: "idle", bubble: nil, taskId: nil, flag: nil)
-            if let running {
-                seat.animation = "working"
-                seat.bubble = running.step ?? "Working"
-                seat.taskId = running.id
-                return seat
-            }
-            seat.spot = .lounge(lounge)
-            lounge += 1
-            if let awaiting {
-                seat.animation = "curious"
-                seat.bubble = "Waiting for your OK"
-                seat.taskId = awaiting.id
-                seat.flag = .needsYou
-            } else if let held {
-                seat.animation = "bored"
-                seat.bubble = held.held
-                seat.taskId = held.id
-                seat.flag = .needsYou
-            } else if celebrating {
-                seat.animation = "celebrate"
-            } else if let failed, h.jobs.first?.id == failed.id {
-                seat.animation = "sad"
-                seat.taskId = failed.id
-                seat.flag = .failed
+        let everyone = team.enumerated().map { index, h in Self.seat(h, index: index, now: now) }
+        // ADR-094: in the order they started, each worker at work takes its own seat (its place in the team, wrapping
+        // past twelve) or the next free one, so a team of twelve or fewer sits as before and nobody moves while the
+        // ones who started earlier keep working. Past twelve, the latest to start wait behind the sign.
+        let atWork = team.indices.filter { TeamRoster.isWorking(team[$0]) }
+            .sorted { (TeamRoster.startedAt(team[$0]), $0) < (TeamRoster.startedAt(team[$1]), $1) }
+        var deskOf: [Int: Int] = [:]
+        for index in atWork.prefix(Self.seatLimit) {
+            let taken = Set(deskOf.values)
+            deskOf[index] = (0..<Self.seatLimit).map { (index + $0) % Self.seatLimit }.first { !taken.contains($0) }
+        }
+        // The lounge: everyone idle when they fit (in the team's order, as before); else the ten who matter most: waiting
+        // for Keshab or failed first, then the most recently active.
+        let idle = team.indices.filter { !TeamRoster.isWorking(team[$0]) }
+        let shown = idle.count <= Self.loungeLimit ? idle : Array(idle.sorted { a, b in
+            let (fa, fb) = (everyone[a].flag != nil, everyone[b].flag != nil)
+            if fa != fb { return fa }
+            let (la, lb) = (TeamRoster.lastActive(team[a]) ?? .distantPast, TeamRoster.lastActive(team[b]) ?? .distantPast)
+            return la != lb ? la > lb : a < b
+        }.prefix(Self.loungeLimit))
+        let loungeOf = Dictionary(uniqueKeysWithValues: shown.enumerated().map { ($1, $0) })
+        seats = everyone.enumerated().compactMap { index, seat in
+            var seat = seat
+            if let desk = deskOf[index] {
+                seat.desk = desk
+                seat.spot = .desk(desk)
+            } else if let spot = loungeOf[index] {
+                seat.spot = .lounge(spot)
+            } else {
+                return nil
             }
             return seat
         }
+        moreAtWork = atWork.count - deskOf.count
+        moreIdle = idle.count - shown.count
+        needsYou = everyone.filter { $0.flag == .needsYou }.count
         // A sub-task not finished yet: its envelope travels from the worker that handed it off to the one doing it.
         let byJob = Dictionary(list.helpers.flatMap { h in h.jobs.map { ($0.id, h.id) } }, uniquingKeysWith: { a, _ in a })
         envelopes = list.helpers.flatMap { h in
@@ -204,5 +214,38 @@ public struct OfficePlan: Sendable, Equatable {
                 return Envelope(from: from, to: h.id, taskId: job.id)
             }
         }
+    }
+
+    /// One worker's animation, bubble, task and flag; its spot is chosen by `init`.
+    private static func seat(_ h: Helper, index: Int, now: Date) -> Seat {
+        let running = h.jobs.first { $0.state == .running }
+        let awaiting = h.jobs.first { $0.awaitsApproval }
+        let held = h.jobs.first { $0.held != nil && !$0.awaitsApproval }
+        let failed = h.jobs.first { $0.state == .failed }
+        let celebrating = h.jobs.contains { $0.goalEnded && $0.state == .done && ($0.endedAt.map { now.timeIntervalSince($0) < Self.celebration } ?? false) }
+        // Only a worker at work sits at its PC; everyone else is in the lounge.
+        var seat = Seat(helperId: h.id, name: h.name, desk: index % seatLimit, spot: .lounge(0), animation: "idle", bubble: nil, taskId: nil, flag: nil)
+        if let running {
+            seat.animation = "working"
+            seat.bubble = running.step ?? "Working"
+            seat.taskId = running.id
+        } else if let awaiting {
+            seat.animation = "curious"
+            seat.bubble = "Waiting for your OK"
+            seat.taskId = awaiting.id
+            seat.flag = .needsYou
+        } else if let held {
+            seat.animation = "bored"
+            seat.bubble = held.held
+            seat.taskId = held.id
+            seat.flag = .needsYou
+        } else if celebrating {
+            seat.animation = "celebrate"
+        } else if let failed, h.jobs.first?.id == failed.id {
+            seat.animation = "sad"
+            seat.taskId = failed.id
+            seat.flag = .failed
+        }
+        return seat
     }
 }

@@ -96,6 +96,16 @@ struct BoardPane: View {
             .padding(.bottom, Spacing.panel)
         }
         }
+        // ADR-094: "All agents", over the Board, from its chip or a "+N" sign on the floor.
+        .overlay(alignment: .top) {
+            if model.showsAllAgents {
+                ZStack(alignment: .top) {
+                    Color.black.opacity(0.18).contentShape(Rectangle()).onTapGesture { model.showsAllAgents = false }
+                    AllAgentsList(model: model).padding(.top, 64)
+                }
+            }
+        }
+        .onDisappear { model.showsAllAgents = false }
     }
 }
 
@@ -522,20 +532,23 @@ struct SourceRow: View {
     }
 }
 
-/// ADR-091: every worker as a chip (its pal, name and what it is doing), and New agent.
+/// ADR-091: every worker as a chip (its pal, name and what it is doing), and New agent. ADR-094: only who matters now
+/// (`TeamRoster.chips`, at most twelve); "All agents (N)" opens the rest.
 private struct TeamChips: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let everyone = model.helpers.list?.helpers ?? []
+        let chips = model.helpers.list.map { TeamRoster.chips(in: $0) } ?? []
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8, alignment: .leading)], alignment: .leading, spacing: 8) {
-            ForEach(model.helpers.list?.helpers ?? []) { helper in
+            ForEach(chips) { helper in
                 Button { model.helpers.selectHelper(helper.id) } label: {
                     HStack(spacing: 8) {
                         HelperBadge(helper: helper, size: 26)
                         VStack(alignment: .leading, spacing: 0) {
                             Text(helper.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(1)
-                            Text(helper.jobs.contains { $0.state == .running } ? helper.activity : helper.roleTitle)
+                            Text(TeamRoster.isWorking(helper) ? helper.activity : helper.roleTitle)
                                 .font(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1)
                         }
                         Spacer(minLength: 0)
@@ -548,16 +561,115 @@ private struct TeamChips: View {
                 .buttonStyle(.plain)
                 .help("\(helper.name)'s page")
             }
+            if chips.count < everyone.count {
+                quiet("All agents (\(everyone.count))", symbol: "magnifyingglass", help: "Every agent, by name or role") { model.showsAllAgents = true }
+            }
             if model.helpers.list != nil {
-                Button { model.helpers.openNewAgent() } label: {
-                    Label("New agent", systemImage: "plus").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
-                        .padding(.horizontal, 10).padding(.vertical, 12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help("Add an agent with its own role and soul")
+                quiet("New agent", symbol: "plus", help: "Add an agent with its own role and soul") { model.helpers.openNewAgent() }
             }
         }
+    }
+
+    private func quiet(_ title: String, symbol: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+                .padding(.horizontal, 10).padding(.vertical, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+    }
+}
+
+/// ADR-094: every agent, A to Z, searchable by name or role; one opens its page, as a chip does. Escape closes it.
+private struct AllAgentsList: View {
+    let model: IslandModel
+    /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
+    private let query = State(initialValue: "")
+    /// Focus the search field on open so typing works without a click.
+    private let searchFocused = FocusState<Bool>()
+    @Environment(\.theme) private var theme
+    @Environment(\.islandSnapshot) private var snapshot
+
+    private static let rowHeight: CGFloat = 42
+
+    init(model: IslandModel) { self.model = model }
+
+    var body: some View {
+        let everyone = model.helpers.list?.helpers ?? []
+        let found = TeamRoster.search(everyone, query.wrappedValue)
+        let shape = RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("All agents · \(everyone.count)").font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
+                Spacer(minLength: 0)
+                Button { model.showsAllAgents = false } label: {
+                    Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(theme.text3.color)
+                        .frame(width: 22, height: 22).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
+                .help("Close")
+                .accessibilityLabel("Close")
+            }
+            HStack(spacing: 7) {
+                Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                if snapshot { // ImageRenderer cannot draw a text field
+                    Text("Search by name or role").font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    TextField("Search by name or role", text: query.projectedValue)
+                        .textFieldStyle(.plain).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
+                        .focused(searchFocused.projectedValue)
+                        .onAppear { searchFocused.wrappedValue = true }
+                        .onSubmit { if found.count == 1 { open(found[0]) } }
+                        .accessibilityLabel("Search agents by name or role")
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 32)
+            .background(RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous)
+                .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+            if found.isEmpty {
+                Text("No agent's name or role has “\(query.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines))”.")
+                    .font(.system(size: 12)).foregroundStyle(theme.text3.color).padding(.vertical, 6)
+            } else {
+                Scrollable {
+                    VStack(spacing: 0) { ForEach(found) { row($0) } }
+                }
+                .frame(height: min(330, CGFloat(found.count) * Self.rowHeight))
+            }
+        }
+        .padding(14)
+        .frame(width: 380)
+        .background(shape.fill(theme.surfaceSolid.color))
+        .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
+        .shadow(color: .black.opacity(0.25), radius: 18, y: 6)
+    }
+
+    private func row(_ helper: Helper) -> some View {
+        Button { open(helper) } label: {
+            HStack(spacing: 9) {
+                HelperBadge(helper: helper, size: 24)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(helper.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color)
+                    Text(TeamRoster.isWorking(helper) ? "\(helper.roleTitle) · \(helper.activity)" : helper.roleTitle)
+                        .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                }
+                .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 4)
+            .frame(height: Self.rowHeight)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("\(helper.name)'s page")
+    }
+
+    private func open(_ helper: Helper) {
+        model.showsAllAgents = false
+        model.helpers.selectHelper(helper.id)
     }
 }

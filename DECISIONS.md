@@ -2020,7 +2020,7 @@ Date: 2026-10-12. Status: **accepted** (Keshab, 2026-10-12: "is there auto skill
 
 **C. Room for many agents.**
 1. *Board:* the team chips show only who matters now: working, waiting for Keshab, or used in the last day, at most 12. "All agents (N)" opens a searchable list (by name or role) for the rest; New agent stays.
-2. *Floor:* desks for workers at work (8 desks and 4 meeting seats); beyond that a "+N at work" sign by the desks. The lounge shows at most 10 idle pals; the rest are a "+N more" sign on the lounge wall. Clicking a sign opens the same searchable list. Pal's office is unchanged.
+2. *Floor:* desks for workers at work (8 desks and 4 meeting seats); beyond that a "+N at work" sign by the desks. The lounge shows at most 10 idle pals; the rest are a "+N more" sign by the lounge door. Clicking a sign opens the same searchable list. Pal's office is unchanged.
 
 ### Consequences
 

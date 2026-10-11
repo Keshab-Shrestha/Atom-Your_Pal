@@ -48,6 +48,12 @@ public enum OfficeMap {
     public static let loungeSpots: [Tile] = [Tile(15, 10), Tile(17, 10), Tile(15, 8), Tile(17, 8), Tile(18, 11), Tile(14, 11),
                                              Tile(16, 12), Tile(13, 9), Tile(18, 9), Tile(14, 12)]
 
+    /// ADR-094: the "+N at work" sign, standing right of the top row of desks, and the "+N more" sign, standing at the
+    /// lounge's wall by its door (above the pals' "!" and bubbles), in map pixels. Drawn only when someone is left out;
+    /// a click opens "All agents".
+    public static let atWorkSign = CGRect(x: 287, y: 77, width: 30, height: 15)
+    public static let loungeSign = CGRect(x: 226, y: 84, width: 30, height: 15)
+
     /// Tiles nobody walks on: furniture, and Pal's office (Pal stays at its desk).
     public static let blocked: Set<Tile> = {
         var tiles = Set<Tile>()

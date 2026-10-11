@@ -157,6 +157,32 @@ enum IslandGallery {
         plugging.windowPage = .plugins
         let scheduling = model(theme) // ADR-094
         scheduling.windowPage = .scheduled
+        // ADR-094: fifty agents: fourteen at work, three failed, five used in the last hour, the rest idle. The Board shows
+        // twelve chips and All agents; the floor twelve seats, ten in the lounge and a "+N" sign for each of the rest.
+        let crowdNames = ["Ada", "Bo", "Cy", "Dee", "Eli", "Fay", "Gus", "Hal", "Ivy", "Jo", "Kai", "Lu", "Max", "Nia", "Oz", "Pia", "Quin",
+                          "Ray", "Sol", "Tia", "Uma", "Vic", "Wren", "Xia", "Yuri", "Zed", "Abe", "Bea", "Cal", "Dot", "Ed", "Flo", "Gil",
+                          "Hope", "Ike", "Jay", "Kit", "Lin", "Mo", "Ned", "Ola", "Pip", "Rex", "Sky", "Ted", "Una", "Val", "Wes", "Yan", "Zoe"]
+        let crowdRoles = ["researcher", "coder", "designer", "documenter", "financial adviser", "hr", "travel planner", "writer"]
+        let crowdSteps = ["Reading 3 of 8 pages", "Writing the tests", "Drawing the icons", "Checking the numbers", "Comparing flights"]
+        let crowdHelpers = crowdNames.enumerated().map { i, name -> String in
+            let job = i < 14 ? #"{"id":\#(1000 + i),"task":"Task \#(i)","state":"running","createdAt":"\#(ago(Double(i * 3 + 1)))","step":"\#(crowdSteps[i % crowdSteps.count])"}"#
+                : i < 17 ? #"{"id":\#(1000 + i),"task":"Task \#(i)","state":"failed","createdAt":"\#(ago(90))","endedAt":"\#(ago(80))","error":"The page would not load"}"#
+                : i < 22 ? #"{"id":\#(1000 + i),"task":"Task \#(i)","state":"done","createdAt":"\#(ago(Double(i * 2 + 10)))","endedAt":"\#(ago(Double(i * 2)))","title":"Report \#(i)"}"#
+                : ""
+            return #"{"id":"\#(name.lowercased())","name":"\#(name)","available":true,"app":null,"role":"\#(crowdRoles[i % crowdRoles.count])","jobs":[\#(job)]}"#
+        }.joined(separator: ",")
+        func crowd(listOpen: Bool) -> IslandModel {
+            let m = IslandModel(settings: IslandSettings(defaults: defaults))
+            m.settings.theme = theme
+            m.windowPage = .agents
+            do { m.apply(try decodeEvent(#"{"type":"helpers","apps":[],"helpers":[\#(crowdHelpers)]}"#)) } catch {
+                FileHandle.standardError.write(Data("gallery: could not decode the crowd: \(error)\n".utf8))
+            }
+            m.helpers.selectBoard()
+            m.showsAllAgents = listOpen
+            return m
+        }
+        let crowded = crowd(listOpen: false)
         let dashing = model(theme)
         dashing.windowPage = .dashboard
         dashing.planUsage = PlanUsage(fiveHour: 0.62, sevenDay: 0.31)
@@ -194,6 +220,10 @@ enum IslandGallery {
                 window("Dashboard: tokens (ADR-091)", dashing)
                 window("Scheduled: routines, wake-ups, team tasks waiting (ADR-094)", scheduling)
             }
+            HStack(alignment: .top, spacing: 18) {
+                window("Fifty agents: chips for who matters now, then All agents (ADR-094)", crowded)
+                window("All agents: everyone, searchable by name or role (ADR-094)", crowd(listOpen: true))
+            }
         }
         .padding(24)
         .background(Color(red: 0.36, green: 0.42, blue: 0.52))
@@ -204,6 +234,9 @@ enum IslandGallery {
         // ADR-090: the office floor on its own, at the Board's width.
         save(OfficeFloor(model: boarded).environment(\.islandSnapshot, true).environment(\.theme, theme.palette).frame(width: 660)
             .padding(16).background(Color.black), name: name + "-floor", to: directory)
+        // ADR-094: the floor with fifty agents: twelve seated, ten in the lounge, "+2 at work" and "+26 more".
+        save(OfficeFloor(model: crowded).environment(\.islandSnapshot, true).environment(\.theme, theme.palette).frame(width: 660)
+            .padding(16).background(Color.black), name: name + "-floor-crowd", to: directory)
     }
 
     /// ADR-075: the permissions checklist in mixed states, a plain error card, and the stopped card with its two buttons.

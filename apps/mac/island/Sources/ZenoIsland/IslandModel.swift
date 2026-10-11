@@ -49,6 +49,8 @@ final class IslandModel {
     var windowPage = WindowPage.chat
     /// ADR-090: the Board shows the office floor (else the columns).
     var boardFloor = true
+    /// ADR-094: the Board's "All agents" list is open (from its chip or a "+N" sign on the floor).
+    var showsAllAgents = false
     /// The Settings page open inside the Settings tab; nil shows the list of pages (ADR-057).
     var settingsPage: SettingsPage?
 
