@@ -15,6 +15,11 @@ enum IslandGallery {
             DesignStudy.render(to: directory)
             return
         }
+        // ADR-091: the app's icon alone (scripts/make-icon.sh).
+        if ProcessInfo.processInfo.environment["ZENO_ISLAND_GALLERY_ONLY"] == "icon" {
+            AppIconArt.render(to: directory)
+            return
+        }
 
         let model = IslandModel(settings: IslandSettings(defaults: defaults))
         let lines = [

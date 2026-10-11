@@ -55,6 +55,13 @@ if [ -d "$root/assets/avatars" ]; then
   done
 fi
 
+# The app's icon (ADR-091): assets/icon/ZENO.icns (scripts/make-icon.sh makes it).
+icon=""
+if [ -f "$root/assets/icon/ZENO.icns" ]; then
+  cp "$root/assets/icon/ZENO.icns" "$app/Contents/Resources/ZENO.icns"
+  icon="<key>CFBundleIconFile</key><string>ZENO</string>"
+fi
+
 # Pal characters (ADR-089): assets/pals/<id>.json → Resources/pals/.
 pals=0
 if [ -d "$root/assets/pals" ]; then
@@ -80,6 +87,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>$(date +%Y%m%d%H%M)</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
+  $icon
   <key>NSHighResolutionCapable</key><true/>
   <key>NSCalendarsFullAccessUsageDescription</key><string>ZENO reads your calendar only when you ask about your schedule.</string>
   <key>NSCalendarsUsageDescription</key><string>ZENO reads your calendar only when you ask about your schedule.</string>
@@ -113,6 +121,7 @@ echo "  node:    $node ($("$node" --version))"
 echo "  signed:  $signed"
 echo "  avatars: $avatars image(s)"
 echo "  pals:    $pals character(s)"
+if [ -n "$icon" ]; then echo "  icon:    ZENO.icns"; else echo "  icon:    none (run scripts/make-icon.sh)"; fi
 
 if [ "${1:-}" = "--open" ]; then
   open "$app"

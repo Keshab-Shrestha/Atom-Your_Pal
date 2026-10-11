@@ -1000,6 +1000,11 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Protocol: `git.list`, `git.push`, `git.diff`; events `git` and `git.diff`. Logs: the task number only.
 - Tests: 2 TS (branches, files, pushed states, push, refusals with real git; remote addresses without credentials), island and protocol (only zeno/task-* and full paths), 1 Swift (decoding, when it can be pushed) (TS 647, Swift 513 pass).
 
+**Part 6, the icon — as built (2026-10-11):** built; installed in ZENO.app.
+- Pal on the black Void tile with its graphite hairline and a faint glow of Pal's light, drawn by ZENO (`AppIconArt.swift`, rendered with `ZENO_ISLAND_GALLERY_ONLY=icon`). `scripts/make-icon.sh` makes `assets/icon/ZENO.icns` (16 to 1024 px); `build-app.sh` copies it into the app and names it in `CFBundleIconFile`.
+
+ADR-091 is done: all six parts built and tested. Next: Keshab tries them on the real Mac (macOS will ask once to allow notifications); then Tasks 3.17–3.22 each need his decision.
+
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.
 
 **Task 3.17 — Companies and user logins.** Separate workspaces with their own tasks, workers, budgets and history; sign-in for more than one person.
