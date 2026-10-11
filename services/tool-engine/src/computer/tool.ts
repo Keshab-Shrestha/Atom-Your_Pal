@@ -24,7 +24,7 @@ export interface ComputerToolOptions {
   /** One call per action, for the log. Receives no typed text and no screen content. */
   onAction?: (event: ComputerAction) => void;
   /**
-   * Wisp flies to this place on screen and the bubble shows the label (the `point` action). Returns false if there is no
+   * Pal flies to this place on screen and the bubble shows the label (the `point` action). Returns false if there is no
    * island to show it. Coordinates are screen points, origin at the top-left of the main display, as Cua reports them.
    */
   onPoint?: (target: { x: number; y: number; w: number; h: number; label: string }) => boolean | void;
@@ -339,7 +339,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         "Use `set_value` to set a slider, stepper or choice to a value in one step (text holds the value), instead of clicking toward it. " +
         "Add `look_after: true` to a click, type, key, scroll or set_value to get the new screen in the same reply. " +
         "Each reply says whether the action was confirmed; if it says it probably did nothing, look before trying again. " +
-        "Use `point` with an element number (and a short label) to show the user where something is: Wisp flies to it. " +
+        "Use `point` with an element number (and a short label) to show the user where something is: Pal flies to it. " +
         "Point when the user asks where something is or how to do it, instead of doing it for them. " +
         "ZENO asks the user before sending, buying, deleting or changing anything, and never types passwords. " +
         "If the user declines, stop and say so.",

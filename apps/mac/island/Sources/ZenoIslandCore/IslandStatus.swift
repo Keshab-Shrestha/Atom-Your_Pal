@@ -52,8 +52,8 @@ public struct IslandStatus: Sendable, Equatable {
     /// The meter follows the microphone only while listening.
     public var showsLevel: Bool { kind == .listening }
 
-    /// Wisp's bubble has something to say: a problem, a notice, a question, or a microphone that hears nothing.
-    /// Listening, thinking and speaking show on Wisp itself, so they get no bubble (Keshab, 2026-10-10).
+    /// Pal's bubble has something to say: a problem, a notice, a question, or a microphone that hears nothing.
+    /// Listening, thinking and speaking show on Pal itself, so they get no bubble (Keshab, 2026-10-10).
     public var needsBubble: Bool {
         switch kind {
         case .notice, .problem, .asking: true
@@ -195,7 +195,7 @@ public struct IslandStatus: Sendable, Equatable {
     /// The user closed the error card.
     public mutating func dismissFailure() { failure = nil }
 
-    /// A line from the island itself in Wisp's bubble, e.g. the first-run tour (ADR-075).
+    /// A line from the island itself in Pal's bubble, e.g. the first-run tour (ADR-075).
     public mutating func say(_ title: String, _ detail: String) { set(.notice, title, detail) }
 
     /// The words heard so far while dictating (the live preview). Empty outside listening.

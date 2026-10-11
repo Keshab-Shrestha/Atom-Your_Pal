@@ -1,4 +1,4 @@
-/// How brightly Wisp's light falls across the top of the panel for each state (ADR-084, design study §3 A):
+/// How brightly Pal's light falls across the top of the panel for each state (ADR-084, design study §3 A):
 /// one hue, many brightnesses. Dim at rest, brighter and breathing while listening, a slower breath while
 /// thinking, brightest while speaking. The theme's glow colour and strength are applied by the view.
 public struct PanelLight: Sendable, Equatable {
@@ -18,7 +18,7 @@ public struct PanelLight: Sendable, Equatable {
         // Waiting on the user: the light holds at the thinking level; the amber is elsewhere (bubble, strip).
         case .asking: (brightness, breath) = (0.24, .still)
         case .notice: (brightness, breath) = (0.18, .still)
-        // Something went wrong: the light dims; Wisp's worried face says the rest.
+        // Something went wrong: the light dims; Pal's worried face says the rest.
         case .problem: (brightness, breath) = (0.10, .still)
         }
     }

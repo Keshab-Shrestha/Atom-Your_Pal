@@ -1,7 +1,7 @@
 import SwiftUI
 import ZenoIslandCore
 
-// ADR-084 (Lantern, Task 4.5): your words are quiet slips, Wisp's replies are plain full-width text, the light stays
+// ADR-084 (Lantern, Task 4.5): your words are quiet slips, Pal's replies are plain full-width text, the light stays
 // with the newest words (older turns recede) and glows at the caret while a reply is being spoken. The composer is
 // a capsule with a lit microphone and the hold shortcut in its placeholder.
 
@@ -174,7 +174,7 @@ struct ConversationTab: View {
     }
 }
 
-/// Before the first turn: Wisp in a pool of its own light, what to do, and a few phrases to try.
+/// Before the first turn: Pal in a pool of its own light, what to do, and a few phrases to try.
 private struct EmptyConversation: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
@@ -186,7 +186,7 @@ private struct EmptyConversation: View {
                 Circle()
                     .fill(RadialGradient(colors: [light.opacity(0.22), light.opacity(0)], center: .center, startRadius: 4, endRadius: 46))
                     .opacity(theme.glow.a > 0 ? 1 : 0)
-                WispView(mood: .resting, time: 0.3, size: 44, glow: 0.8, style: model.settings.wispStyle)
+                PalView(mood: .resting, time: 0.3, size: 44, glow: 0.8, style: model.settings.palStyle)
             }
             .frame(width: 92, height: 92)
             // Void's one display line, in New York (the system serif, ADR-086).
@@ -282,7 +282,7 @@ struct TurnView: View {
     }
 }
 
-/// Wisp's reply at reading size. While it is being spoken, a caret of Wisp's light glows after the last word: the
+/// Pal's reply at reading size. While it is being spoken, a caret of Pal's light glows after the last word: the
 /// same text is laid out twice, the lower copy invisible except for the caret's glow, so the glow sits exactly on it.
 private struct ReplyText: View {
     let text: String

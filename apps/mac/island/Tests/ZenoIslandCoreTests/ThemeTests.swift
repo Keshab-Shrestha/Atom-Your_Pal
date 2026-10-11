@@ -49,22 +49,22 @@ import Testing
         #expect(RGBA.white(0.5).over(RGBA(0, 0, 0)) == RGBA(0.5, 0.5, 0.5, 1))
     }
 
-    @MainActor @Test func themeAndWispStyleAreSavedAndReset() {
+    @MainActor @Test func themeAndPalStyleAreSavedAndReset() {
         let suite = "zeno.test.theme.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
 
         let settings = IslandSettings(defaults: defaults)
         #expect(settings.theme == .void)
-        #expect(settings.wispStyle == .orb)
+        #expect(settings.palStyle == .orb)
         settings.theme = .warm
-        settings.wispStyle = .companion
+        settings.palStyle = .companion
         let reloaded = IslandSettings(defaults: defaults)
         #expect(reloaded.theme == .warm)
-        #expect(reloaded.wispStyle == .companion)
+        #expect(reloaded.palStyle == .companion)
         reloaded.resetAppearance()
         #expect(reloaded.theme == .void)
-        #expect(reloaded.wispStyle == .orb)
+        #expect(reloaded.palStyle == .orb)
     }
 
     @MainActor @Test func unknownStoredValuesFallBack() {
@@ -75,10 +75,10 @@ import Testing
         defaults.set(-4, forKey: "zeno.wisp.style")
         let settings = IslandSettings(defaults: defaults)
         #expect(settings.theme == .void)
-        #expect(settings.wispStyle == .orb)
+        #expect(settings.palStyle == .orb)
     }
 
-    /// Lantern (ADR-084): one hue. Accent, live sound, success and the glow are all Wisp's light; only attention
+    /// Lantern (ADR-084): one hue. Accent, live sound, success and the glow are all Pal's light; only attention
     /// and problems differ. Lantern Day keeps the glow but draws text and controls in a deeper blue for contrast.
     @Test func lanternHasOneLight() {
         let night = ThemePalette.lantern, day = ThemePalette.lanternDay

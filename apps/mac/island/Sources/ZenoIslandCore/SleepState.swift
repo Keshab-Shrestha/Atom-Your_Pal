@@ -1,5 +1,5 @@
 /// Whether the Mac's screens are asleep or the session is locked (ADR-076). While either is true the island pauses:
-/// Wisp's frame timer stops and the microphone is not prepared (preparing it while locked hung on Core Audio,
+/// Pal's frame timer stops and the microphone is not prepared (preparing it while locked hung on Core Audio,
 /// TASK.md 0.5.10). Everything resumes once both are false.
 public struct SleepState: Sendable, Equatable {
     public enum Signal: Sendable, Equatable {

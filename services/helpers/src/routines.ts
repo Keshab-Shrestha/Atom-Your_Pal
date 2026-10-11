@@ -68,7 +68,7 @@ const NUM = "(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm|a\\.m\\.|p\\.m\\.)?";
 
 /**
  * "every morning at 8, summarise networking news", "every Monday at 9:30 am: …", "every 3 hours, …", "daily at 7 …".
- * Returns undefined for anything else (Wisp's `schedule` tool handles other wordings).
+ * Returns undefined for anything else (Pal's `schedule` tool handles other wordings).
  */
 export function parseRoutine(text: string): { schedule: Schedule; task: string } | undefined {
   const s = text.trim();

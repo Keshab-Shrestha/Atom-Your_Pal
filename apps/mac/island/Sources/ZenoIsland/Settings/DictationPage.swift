@@ -10,7 +10,7 @@ struct DictationSection: View {
         Card {
             ChoiceRow(title: "Start and stop", detail: settings.dictationMode.detail, selection: settings.dictationMode) { settings.dictationMode = $0 }
             RowDivider()
-            Row(title: "Live preview", detail: "Show your words above Wisp while you speak") {
+            Row(title: "Live preview", detail: "Show your words above Pal while you speak") {
                 ThemedSwitch(isOn: settings.livePreview, set: { settings.livePreview = $0 }, label: "Live preview")
             }
             RowDivider()

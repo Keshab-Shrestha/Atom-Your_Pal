@@ -105,7 +105,7 @@ struct CompactView: View {
 }
 
 /// The state glyph, title, detail (or the words heard so far while dictating) and level meter.
-/// Shared by the compact card and Wisp's speech bubble.
+/// Shared by the compact card and Pal's speech bubble.
 struct StatusRow: View {
     let model: IslandModel
     @Environment(\.theme) private var theme

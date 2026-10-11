@@ -20,7 +20,7 @@ export interface LookAtScreenOptions {
   cua: CuaTransport;
   /** Told about every screenshot handed to the model, so the reply's marker can be checked against it. */
   onShot?: (shot: ScreenShot) => void;
-  /** Wisp's bubble shows "Looking at the screen". */
+  /** Pal's bubble shows "Looking at the screen". */
   onStep?: (step: { action: string }) => void;
   /** Writes `input` (a PNG) to `output` as a JPEG no longer than `maxSide` on its long side; returns its size. Default: `sips`. */
   shrink?: (input: string, output: string, maxSide: number) => Promise<{ width: number; height: number }>;
@@ -71,7 +71,7 @@ export function createLookAtScreenTool(options: LookAtScreenOptions): Tool<ToolO
           `This is a screenshot of the user's main display only, ${width}×${height} pixels. ` +
           "Find what the user asked about. Answer in one short spoken sentence saying where it is, then end the reply with " +
           "[POINT:x,y:label], where x and y are pixel coordinates in this image (from its top-left corner) of the thing's centre " +
-          'and label is a few words such as "the Wi-Fi icon"; Wisp flies there. If it is not on this screen, say so and end with [POINT:none]. ' +
+          'and label is a few words such as "the Wi-Fi icon"; Pal flies there. If it is not on this screen, say so and end with [POINT:none]. ' +
           "The marker is never spoken or shown, so do not mention it or the coordinates.",
         images: [{ mimeType: "image/jpeg", data }],
       };
@@ -85,7 +85,7 @@ export function createLookAtScreenTool(options: LookAtScreenOptions): Tool<ToolO
     spec: {
       name: "look_at_screen",
       description:
-        "Takes one screenshot of the user's main display so you can show them where something is: Wisp flies to it. " +
+        "Takes one screenshot of the user's main display so you can show them where something is: Pal flies to it. " +
         "Use it only when the user asks where something on screen is or to be shown something, never otherwise.",
       inputSchema: { type: "object", properties: {} },
     },

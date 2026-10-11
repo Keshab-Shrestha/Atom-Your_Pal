@@ -48,7 +48,7 @@ export interface IslandOptions {
   memory?: IslandMemory;
   /** Helpers and their jobs (ADR-081). Absent when their file could not be opened: no helpers are listed. */
   helpers?: IslandHelpers;
-  /** Wisp dropped on a window (ADR-074): reads that app once for the next request. Absent: `context.window` is refused. */
+  /** Pal dropped on a window (ADR-074): reads that app once for the next request. Absent: `context.window` is refused. */
   screen?: Pick<WindowPointer, "point" | "clear">;
   /**
    * "What can I ask?" (ADR-076): the tools that are on, for the model in use. Sent as `capabilities` after `ready`,
@@ -61,7 +61,7 @@ export interface IslandOptions {
   chime?(): Promise<void>;
   /** Timers (ADR-061): subscribe to timers ending, to announce them. */
   onTimer?(listener: (timer: { id: number; label: string; seconds: number }) => void): () => void;
-  /** Goals Wisp handed out (Task 3.5) and plans waiting (Task 3.8): a line to say when idle, then `after`. */
+  /** Goals Pal handed out (Task 3.5) and plans waiting (Task 3.8): a line to say when idle, then `after`. */
   onGoalLine?(listener: (line: string, after?: () => void) => void): () => void;
   micName(): Promise<string>;
   /** Plain-language error text for the user. */
@@ -477,7 +477,7 @@ export function runIsland(options: IslandOptions): IslandSession {
         }
         const { message, timer, after } = timerQueue.shift()!;
         await options.chime?.();
-        // Task 3.15: Wisp flies over with the line while ZENO says it.
+        // Task 3.15: Pal flies over with the line while ZENO says it.
         if (!timer) send({ type: "worker.line", line: message });
         send({ type: "state", state: "speaking" });
         try {

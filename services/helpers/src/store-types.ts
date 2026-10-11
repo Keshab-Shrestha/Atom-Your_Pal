@@ -99,7 +99,7 @@ export interface GoalReport {
   sources: Source[];
 }
 
-/** What Wisp hands the team in one go (Task 3.5): a goal and its tasks. */
+/** What Pal hands the team in one go (Task 3.5): a goal and its tasks. */
 export interface Goal {
   id: number;
   text: string;

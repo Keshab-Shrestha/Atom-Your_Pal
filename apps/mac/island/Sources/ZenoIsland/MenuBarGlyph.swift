@@ -1,9 +1,9 @@
 import AppKit
 import ZenoIslandCore
 
-/// Wisp's silhouette for the menu bar (ADR-084), drawn here rather than taken from any icon set. It is Wisp's own
-/// ghost body (`WispView`'s round, egg-shaped head whose sides draw in toward the hem), with the hem as one soft
-/// wave trailing into a tail that sweeps down to the left as if Wisp were drifting right, and Wisp's tall eyes,
+/// Pal's silhouette for the menu bar (ADR-084), drawn here rather than taken from any icon set. It is Pal's own
+/// ghost body (`PalView`'s round, egg-shaped head whose sides draw in toward the hem), with the hem as one soft
+/// wave trailing into a tail that sweeps down to the left as if Pal were drifting right, and Pal's tall eyes,
 /// glancing the way it floats, cut out so the bar shows through. No flat bottom, no row of even feet.
 @MainActor
 enum MenuBarGlyph {
@@ -49,7 +49,7 @@ enum MenuBarGlyph {
         context.restoreGState()
     }
 
-    /// Body colour and glow. Plain is black (a template: macOS recolours it). Lit is Wisp's light with its glow; on a
+    /// Body colour and glow. Plain is black (a template: macOS recolours it). Lit is Pal's light with its glow; on a
     /// light bar the body is the deeper Lantern Day blue so it still reads, with the same glow around it.
     private static func colours(_ light: MenuBarLight, dark: Bool) -> (NSColor, NSColor?) {
         let night = ThemePalette.lantern, day = ThemePalette.lanternDay
@@ -73,7 +73,7 @@ enum MenuBarGlyph {
         }
     }
 
-    /// The outline in a y-down rect, from Wisp's 64-point drawing space (the body spans x 9.5...52, y 7...59).
+    /// The outline in a y-down rect, from Pal's 64-point drawing space (the body spans x 9.5...52, y 7...59).
     static func silhouette(in r: CGRect) -> CGPath {
         func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
             CGPoint(x: r.minX + (x - 9.5) / 42.5 * r.width, y: r.minY + (y - 7) / 52 * r.height)
@@ -92,7 +92,7 @@ enum MenuBarGlyph {
         path.addCurve(to: p(12.5, 30.5), control1: p(14.5, 40), control2: p(12.5, 36))
         path.addCurve(to: p(32, 8), control1: p(12.5, 18.5), control2: p(18.5, 8))
         path.closeSubpath()
-        // Wisp's eyes: tall ovals, a little to the right, looking where it drifts.
+        // Pal's eyes: tall ovals, a little to the right, looking where it drifts.
         for x in [27.6, 40.4] as [CGFloat] {
             let centre = p(x, 28.5)
             let size = CGSize(width: 6.4 / 42.5 * r.width, height: 9.4 / 52 * r.height)

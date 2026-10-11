@@ -1,15 +1,15 @@
 import CoreGraphics
 import Foundation
 
-/// Wisp's flight to point at something and back (ADR-077): a quadratic Bézier from `start` to `end` whose control
-/// point is the midpoint raised above the straight line, so Wisp arcs up and comes down onto the place. Progress is
+/// Pal's flight to point at something and back (ADR-077): a quadratic Bézier from `start` to `end` whose control
+/// point is the midpoint raised above the straight line, so Pal arcs up and comes down onto the place. Progress is
 /// eased with smoothstep, so it lifts off and lands gently. Screen points in AppKit coordinates (y up); times in
 /// seconds on any steady clock.
-public struct WispFlight: Sendable, Equatable {
+public struct PalFlight: Sendable, Equatable {
     /// How high the control point sits above the midpoint, as a share of the distance, and its cap in points.
     public static let arcShare: CGFloat = 0.25
     public static let maxArc: CGFloat = 160
-    /// The most Wisp leans while flying, in radians (clockwise when heading right).
+    /// The most Pal leans while flying, in radians (clockwise when heading right).
     public static let maxLean = 0.15
     /// Shorter than this, there is nowhere to fly.
     static let minDistance: CGFloat = 0.5
@@ -41,7 +41,7 @@ public struct WispFlight: Sendable, Equatable {
         distance < Self.minDistance || time >= startTime + duration
     }
 
-    /// Where Wisp's feet are at `time`: `start` before it begins, exactly `end` once it is done.
+    /// Where Pal's feet are at `time`: `start` before it begins, exactly `end` once it is done.
     public func position(at time: Double) -> CGPoint {
         if isDone(at: time) { return end }
         let s = CGFloat(Self.smoothstep(progress(at: time)))
@@ -57,7 +57,7 @@ public struct WispFlight: Sendable, Equatable {
         return Double(atan2(dy, dx))
     }
 
-    /// How far Wisp leans into its flight at `time`, in radians clockwise: forward with the horizontal part of the
+    /// How far Pal leans into its flight at `time`, in radians clockwise: forward with the horizontal part of the
     /// tangent, scaled by how fast it is going, so it is upright at lift-off and on landing.
     public func lean(at time: Double) -> Double {
         if isDone(at: time) { return 0 }

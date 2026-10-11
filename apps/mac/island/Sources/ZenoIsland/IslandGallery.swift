@@ -58,7 +58,7 @@ enum IslandGallery {
             model.tab = tab
             write(model, size: expanded, name: "2-\(tab.rawValue.lowercased())", to: directory)
         }
-        // ADR-084: the header's Wisp and light while speaking (brightest) and listening (with the live level).
+        // ADR-084: the header's Pal and light while speaking (brightest) and listening (with the live level).
         model.tab = .conversation
         for (state, level) in [("speaking", 0.0), ("listening", 0.3)] {
             if let event = try? decodeEvent(#"{"type":"state","state":"\#(state)"}"#) { model.status.apply(event) }
@@ -92,13 +92,13 @@ enum IslandGallery {
             .background(palette.surfaceFill(solid: true))
             .themed(palette)
         save(nowCard, name: "2-settings-now-last-turn", to: directory)
-        // ADR-079: the Wisp page (Wisp, Speech bubble, Panel) down to its "Reset this page" row.
-        model.settingsPage = .wisp
-        write(model, size: CGSize(width: expanded.width, height: 1300), name: "2-settings-wisp-full", to: directory)
+        // ADR-079: the Pal page (Pal, Speech bubble, Panel) down to its "Reset this page" row.
+        model.settingsPage = .pal
+        write(model, size: CGSize(width: expanded.width, height: 1300), name: "2-settings-pal-full", to: directory)
         // ADR-078: a chosen home display that is unplugged.
-        model.settings.wispHomeDisplay = .display(uuid: "UNPLUGGED")
-        write(model, size: CGSize(width: expanded.width, height: 700), name: "2-settings-wisp-home-unplugged", to: directory)
-        model.settings.wispHomeDisplay = .main
+        model.settings.palHomeDisplay = .display(uuid: "UNPLUGGED")
+        write(model, size: CGSize(width: expanded.width, height: 700), name: "2-settings-pal-home-unplugged", to: directory)
+        model.settings.palHomeDisplay = .main
         model.settingsPage = nil
         model.recorder.start(.talk)
         write(model, size: expanded, name: "3-recording-shortcut", to: directory)
@@ -109,7 +109,7 @@ enum IslandGallery {
         model.conversation = filled
         // ADR-086: Void is the default; each sheet that changed with it is also drawn in Lantern ("-lantern").
         writePet(to: directory)
-        writePet(to: directory, theme: .lantern, name: "5-wisp-moods-lantern")
+        writePet(to: directory, theme: .lantern, name: "5-pal-moods-lantern")
         writeBubbles(to: directory)
         writeApproval(to: directory)
         writePeek(to: directory)
@@ -326,10 +326,10 @@ enum IslandGallery {
         write(busy, size: size, name: "11-setup-panel-conversation", to: directory)
     }
 
-    /// ADR-057: every surface in every theme, and every Wisp style in every mood.
+    /// ADR-057: every surface in every theme, and every Pal style in every mood.
     private static func writeThemes(model: IslandModel, to directory: URL) {
-        let saved = (model.settings.theme, model.settings.wispStyle, model.tab, model.settingsPage)
-        defer { (model.settings.theme, model.settings.wispStyle, model.tab, model.settingsPage) = saved }
+        let saved = (model.settings.theme, model.settings.palStyle, model.tab, model.settingsPage)
+        defer { (model.settings.theme, model.settings.palStyle, model.tab, model.settingsPage) = saved }
         let size = IslandMetrics().expanded
         for theme in AppTheme.allCases {
             model.settings.theme = theme
@@ -338,7 +338,7 @@ enum IslandGallery {
             model.expanded = true
             let restore = model.conversation
             for (tab, page) in [(IslandModel.Tab.conversation, nil), (.settings, nil), (.settings, IslandModel.SettingsPage.appearance),
-                                (.settings, .model), (.settings, .wisp), (.settings, .examples)] as [(IslandModel.Tab, IslandModel.SettingsPage?)] {
+                                (.settings, .model), (.settings, .pal), (.settings, .examples)] as [(IslandModel.Tab, IslandModel.SettingsPage?)] {
                 model.tab = tab
                 model.settingsPage = page
                 panels.append(frozen(IslandView(model: model, snapshot: true).frame(width: size.width, height: size.height)))
@@ -381,14 +381,14 @@ enum IslandGallery {
             (.resting, "Resting"), (.floating, "Floating"), (.listening, "Listening"), (.thinking, "Thinking"),
             (.speaking, "Speaking"), (.worried, "Problem"), (.napping, "Napping"), (.carried, "Carried"),
         ]
-        // ADR-086: every Wisp style flat under Void, on black and on a desktop.
+        // ADR-086: every Pal style flat under Void, on black and on a desktop.
         let flat = VStack(alignment: .leading, spacing: 10) {
-            Text("Void — Wisp is flat: no halo, glow or shadow; a status dot").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
-            ForEach(WispStyle.allCases, id: \.self) { style in
+            Text("Void — Pal is flat: no halo, glow or shadow; a status dot").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+            ForEach(PalStyle.allCases, id: \.self) { style in
                 HStack(spacing: 6) {
                     Text(style.title).font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.75)).frame(width: 70, alignment: .leading)
                     ForEach(Array(moods.enumerated()), id: \.offset) { _, entry in
-                        WispView(mood: entry.0, time: 0.55, facing: 1, size: 64, style: style)
+                        PalView(mood: entry.0, time: 0.55, facing: 1, size: 64, style: style)
                     }
                 }
             }
@@ -398,26 +398,26 @@ enum IslandGallery {
         .padding(22)
         .background(Color.black)
         .environment(\.theme, .void)
-        save(flat, name: "9-void-wisp", to: directory)
-        for style in WispStyle.allCases {
+        save(flat, name: "9-void-pal", to: directory)
+        for style in PalStyle.allCases {
             let sheet = VStack(alignment: .leading, spacing: 14) {
-                Text("Wisp — \(style.title)").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+                Text("Pal — \(style.title)").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
                 HStack(spacing: 6) {
                     ForEach(Array(moods.enumerated()), id: \.offset) { _, entry in
                         VStack(spacing: 2) {
-                            WispView(mood: entry.0, time: 0.55, facing: 1, size: 88, style: style)
+                            PalView(mood: entry.0, time: 0.55, facing: 1, size: 88, style: style)
                             Text(entry.1).font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.75))
                         }
                     }
                 }
                 HStack(spacing: 6) {
                     ForEach(Array(moods.enumerated()), id: \.offset) { _, entry in
-                        WispView(mood: entry.0, time: 1.35, facing: -1, size: 88, style: style)
+                        PalView(mood: entry.0, time: 1.35, facing: -1, size: 88, style: style)
                     }
                 }
                 Text("Second row: a later moment, facing left").font(.system(size: 10)).foregroundStyle(.white.opacity(0.5))
                 // ADR-073: looking at the pointer, hovered, and each reaction at its peak.
-                let notices: [(String, PetBrain.Mood, CGSize, Double, WispReaction?, Double)] = [
+                let notices: [(String, PetBrain.Mood, CGSize, Double, PalReaction?, Double)] = [
                     ("Looks up-left", .resting, CGSize(width: -2.2, height: -1.2), 0, nil, 0),
                     ("Looks right", .resting, CGSize(width: 2.5, height: 0), 0, nil, 0),
                     ("Hovered", .resting, .zero, 1, nil, 0),
@@ -429,7 +429,7 @@ enum IslandGallery {
                 HStack(spacing: 6) {
                     ForEach(Array(notices.enumerated()), id: \.offset) { _, n in
                         VStack(spacing: 2) {
-                            WispView(mood: n.1, time: 0.55, facing: 1, size: 88, style: style, gaze: n.2, hover: n.3, reaction: n.4, reactionProgress: n.5)
+                            PalView(mood: n.1, time: 0.55, facing: 1, size: 88, style: style, gaze: n.2, hover: n.3, reaction: n.4, reactionProgress: n.5)
                             Text(n.0).font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.75))
                         }
                     }
@@ -437,28 +437,28 @@ enum IslandGallery {
             }
             .padding(22)
             .background(LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.24, green: 0.29, blue: 0.42)], startPoint: .top, endPoint: .bottom))
-            save(sheet, name: "10-wisp-\(style.title.lowercased())", to: directory)
-            writePeek(to: directory, style: style, name: "10-wisp-\(style.title.lowercased())-peek")
+            save(sheet, name: "10-pal-\(style.title.lowercased())", to: directory)
+            writePeek(to: directory, style: style, name: "10-pal-\(style.title.lowercased())-peek")
         }
     }
 
-    /// Wisp hiding at a display edge (ADR-053): leaning 35-50 degrees from its feet, the body cut off by the edge.
-    private static func writePeek(to directory: URL, style: WispStyle = .ghost, name: String = "7-wisp-peek") {
+    /// Pal hiding at a display edge (ADR-053): leaning 35-50 degrees from its feet, the body cut off by the edge.
+    private static func writePeek(to directory: URL, style: PalStyle = .ghost, name: String = "7-pal-peek") {
         let side: CGFloat = 170
         let unit: CGFloat = 56
         let view: CGFloat = unit * 1.5
-        func edge(_ title: String, left: Bool, lean: WispLean, revealed: Bool) -> some View {
+        func edge(_ title: String, left: Bool, lean: PalLean, revealed: Bool) -> some View {
             let peek = Peek(edge: left ? .left : .right, display: CGRect(x: 0, y: 0, width: side, height: side))
             let feet = PeekLayout.feet(for: peek, y: 24, revealed: revealed)
             let degrees = PeekLayout.rotation(for: peek, lean: lean)
             // The view's centre, so that the feet land on `feet` (ground inset measured from the bottom).
-            let centre = CGPoint(x: feet.x, y: side - feet.y - view / 2 + WispView.groundInset(for: unit))
+            let centre = CGPoint(x: feet.x, y: side - feet.y - view / 2 + PalView.groundInset(for: unit))
             return VStack(alignment: .leading, spacing: 6) {
                 Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
                 ZStack(alignment: .topLeading) {
                     LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.26, green: 0.31, blue: 0.45)], startPoint: .top, endPoint: .bottom)
-                    WispView(mood: .resting, time: 0.4, facing: left ? 1 : -1, size: unit, hide: PeekLayout.amount(rotation: degrees), tilt: degrees, edgeGap: -Double(PeekLayout.inset + (revealed ? PeekLayout.revealExtra : 0)) * 64 / Double(unit), style: style)
-                        .rotationEffect(.degrees(degrees), anchor: UnitPoint(x: 0.5, y: WispView.feetFraction))
+                    PalView(mood: .resting, time: 0.4, facing: left ? 1 : -1, size: unit, hide: PeekLayout.amount(rotation: degrees), tilt: degrees, edgeGap: -Double(PeekLayout.inset + (revealed ? PeekLayout.revealExtra : 0)) * 64 / Double(unit), style: style)
+                        .rotationEffect(.degrees(degrees), anchor: UnitPoint(x: 0.5, y: PalView.feetFraction))
                         .position(x: centre.x, y: centre.y)
                     Rectangle().fill(.white.opacity(0.35)).frame(width: 1.5, height: side).offset(x: left ? 0 : side - 1.5)
                 }
@@ -486,7 +486,7 @@ enum IslandGallery {
     }
 
     /// Computer control (ADR-054, ADR-056): the strip above the Dock while ZENO works on the Mac, the request for
-    /// approval in it, how it ends, and the label beside Wisp while it points.
+    /// approval in it, how it ends, and the label beside Pal while it points.
     private static func writeApproval(to directory: URL, theme: AppTheme = .void, name: String = "8-computer-control") {
         let suite = "zeno.gallery.approval.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
@@ -514,9 +514,9 @@ enum IslandGallery {
         let askLong = #"{"type":"approval.request","id":"a2","summary":"Click \"Delete this project and all of the files inside it permanently\" in Finder","reason":"it may send, buy, delete or change something"}"#
         let idle = #"{"type":"state","state":"idle"}"#
         let pointing = VStack(alignment: .leading, spacing: 4) {
-            Text("Pointing: only a label beside Wisp").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+            Text("Pointing: only a label beside Pal").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
             HStack(spacing: -6) {
-                WispView(mood: .thinking, time: 0.4, facing: 1, size: 56, style: theme == .native ? .orb : (theme == .warm ? .companion : .orb))
+                PalView(mood: .thinking, time: 0.4, facing: 1, size: 56, style: theme == .native ? .orb : (theme == .warm ? .companion : .orb))
                     .environment(\.theme, theme.palette)
                 PointLabelView(text: "the Send button", palette: theme.palette, snapshot: true).frame(width: 150, height: 26 + 2 * PointLabelController.shadowInset)
             }
@@ -538,9 +538,9 @@ enum IslandGallery {
         save(sheet, name: name, to: directory)
     }
 
-    /// Wisp's speech bubble in the states that get one (IslandStatus.needsBubble): dictating with live words and
-    /// hands-free (lit), a notice and an approval (amber), a problem (coral), and flipped below Wisp near the top.
-    private static func writeBubbles(to directory: URL, theme: AppTheme = .void, name: String = "6-wisp-bubble") {
+    /// Pal's speech bubble in the states that get one (IslandStatus.needsBubble): dictating with live words and
+    /// hands-free (lit), a notice and an approval (amber), a problem (coral), and flipped below Pal near the top.
+    private static func writeBubbles(to directory: URL, theme: AppTheme = .void, name: String = "6-pal-bubble") {
         let suite = "zeno.gallery.bubble.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -555,13 +555,13 @@ enum IslandGallery {
             case .problem: .worried
             default: .resting
             }
-            let wisp = WispView(mood: mood, time: 0.4, facing: 1, size: 64, glow: mood == .listening ? 1.6 : 1).environment(\.theme, theme.palette)
+            let pal = PalView(mood: mood, time: 0.4, facing: 1, size: 64, glow: mood == .listening ? 1.6 : 1).environment(\.theme, theme.palette)
             return VStack(alignment: .leading, spacing: 0) {
                 Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7)).padding(.leading, inset)
                 VStack(spacing: below ? -inset - 4 : -inset - 8) {
-                    if below { wisp }
+                    if below { pal }
                     BubbleView(model: model, state: state, snapshot: true)
-                    if !below { wisp }
+                    if !below { pal }
                 }
                 .frame(width: BubbleLayout.size.width + 2 * inset)
             }
@@ -584,7 +584,7 @@ enum IslandGallery {
             VStack(alignment: .leading, spacing: 18) {
                 scene("A notice") { m in m.status.apply(DictationPhase.done(.noSpeech)) }
                 scene("A problem") { m in m.status.apply(DictationPhase.done(.failed(title: "Microphone problem", message: "The microphone stopped. Check it in System Settings"))) }
-                scene("Near the top: flips below Wisp", below: true) { m in m.status.apply(DictationPhase.done(.copied(reason: "A password field is focused. Paste it yourself"))) }
+                scene("Near the top: flips below Pal", below: true) { m in m.status.apply(DictationPhase.done(.copied(reason: "A password field is focused. Paste it yourself"))) }
             }
         }
         .padding(24)
@@ -592,8 +592,8 @@ enum IslandGallery {
         save(sheet, name: name, to: directory)
     }
 
-    /// Wisp in every mood, each at three moments, on a desktop-like strip above a Dock-coloured bar.
-    private static func writePet(to directory: URL, theme: AppTheme = .void, name: String = "5-wisp-moods") {
+    /// Pal in every mood, each at three moments, on a desktop-like strip above a Dock-coloured bar.
+    private static func writePet(to directory: URL, theme: AppTheme = .void, name: String = "5-pal-moods") {
         let moods: [(PetBrain.Mood, String)] = [
             (.resting, "Resting"), (.floating, "Floating"), (.listening, "Listening"), (.thinking, "Thinking"),
             (.speaking, "Speaking"), (.worried, "Problem"), (.napping, "Napping"), (.carried, "Carried"),
@@ -607,7 +607,7 @@ enum IslandGallery {
                         .foregroundStyle(.white)
                         .frame(width: 80, alignment: .leading)
                     ForEach(Array(moments.enumerated()), id: \.offset) { i, t in
-                        WispView(mood: entry.0, time: t, facing: i == 2 ? -1 : 1, size: 96)
+                        PalView(mood: entry.0, time: t, facing: i == 2 ? -1 : 1, size: 96)
                     }
                 }
             }
@@ -618,7 +618,7 @@ enum IslandGallery {
         save(sheet, name: name, to: directory)
     }
 
-    /// ADR-084: the menu-bar item, Wisp's glyph in each of its four looks on a light and a dark menu bar, at 1x
+    /// ADR-084: the menu-bar item, Pal's glyph in each of its four looks on a light and a dark menu bar, at 1x
     /// and 4x. The plain glyph is a template, tinted here the way macOS tints it.
     private static func writeMenuBar(to directory: URL, flat: Bool = true, name: String = "15-menu-bar-item") {
         let lights: [(MenuBarLight, String)] = [(.plain, "Ready, thinking, speaking"), (.lit, "Listening"), (.attention, "Needs you"), (.problem, "Problem")]
@@ -670,27 +670,27 @@ enum IslandGallery {
         save(sheet, name: name, to: directory)
     }
 
-    /// ADR-085: Wisp's avatar for each expression and every helper's four, from whatever images exist
+    /// ADR-085: Pal's avatar for each expression and every helper's four, from whatever images exist
     /// (`ZENO_AVATARS_DIR`, else the repo's assets/avatars). A missing image shows today's drawing.
     private static func writeAvatars(to directory: URL) {
-        let wisp: [(String, PetBrain.Mood, WispReaction?, Double)] = [
+        let pal: [(String, PetBrain.Mood, PalReaction?, Double)] = [
             ("neutral", .resting, nil, 0.3), ("happy (hello)", .resting, .hello, 0.3), ("listening", .listening, nil, 0.3),
             ("thinking", .thinking, nil, 0.3), ("speaking", .speaking, nil, 0.01), ("speaking-closed", .speaking, nil, 0.1),
             ("worried", .worried, nil, 0.3), ("sleepy", .napping, nil, 0.3), ("surprised", .carried, nil, 0.3),
         ]
         let helpers = ["sid", "kame", "puff", "quill", "penny", "hana", "tinker"]
         let jobs: [(String, [JobState])] = [("neutral", []), ("working", [.running]), ("happy", [.done]), ("worried", [.failed])]
-        let caption = AvatarImages.hasWisp
+        let caption = AvatarImages.hasPal
             ? "From \(AvatarImages.directory?.path ?? "?")"
-            : "no avatar images yet: Wisp is drawn as the orb, helpers as their letter"
+            : "no avatar images yet: Pal is drawn as the orb, helpers as their letter"
         let palette = AppTheme.lantern.palette
         let sheet = VStack(alignment: .leading, spacing: 14) {
             Text("Avatars (ADR-085)").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
             Text(caption).font(.system(size: 11)).foregroundStyle(.white.opacity(0.7))
             HStack(spacing: 6) {
-                ForEach(Array(wisp.enumerated()), id: \.offset) { _, w in
+                ForEach(Array(pal.enumerated()), id: \.offset) { _, w in
                     VStack(spacing: 2) {
-                        WispView(mood: w.1, time: w.3, facing: 1, size: 72, style: .avatar, reaction: w.2, reactionProgress: 0.5)
+                        PalView(mood: w.1, time: w.3, facing: 1, size: 72, style: .avatar, reaction: w.2, reactionProgress: 0.5)
                         Text(w.0).font(.system(size: 10.5, weight: .medium)).foregroundStyle(.white.opacity(0.75))
                     }
                 }

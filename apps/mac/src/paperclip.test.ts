@@ -39,7 +39,7 @@ function fakePaperclip() {
   return { calls, issues, comments, client: createPaperclip("http://localhost:3100/api", { fetch }) };
 }
 
-test("Wisp hands a task to a Paperclip agent; the board tracks it; its result comes back once, said in one line", async () => {
+test("Pal hands a task to a Paperclip agent; the board tracks it; its result comes back once, said in one line", async () => {
   const dir = mkdtempSync(join(tmpdir(), "zeno-pc-"));
   try {
     const pc = fakePaperclip();

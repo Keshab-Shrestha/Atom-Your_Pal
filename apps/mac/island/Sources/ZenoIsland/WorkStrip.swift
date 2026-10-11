@@ -3,18 +3,18 @@ import SwiftUI
 import ZenoIslandCore
 
 // ADR-056: ZENO's fixed homes. The menu-bar icon opens the panel; the work strip above the Dock shows what ZENO is
-// doing on the Mac and asks before risky actions; a short label sits beside Wisp while it points.
+// doing on the Mac and asks before risky actions; a short label sits beside Pal while it points.
 
 // MARK: - Menu-bar icon
 
-/// ZENO's menu-bar icon: Wisp's silhouette, lit by ZENO's state. A click opens or closes the panel;
-/// right-click (or Control-click) shows Open ZENO, Helpers…, Show Wisp and Quit ZENO.
+/// ZENO's menu-bar icon: Pal's silhouette, lit by ZENO's state. A click opens or closes the panel;
+/// right-click (or Control-click) shows Open ZENO, Helpers…, Show Pal and Quit ZENO.
 @MainActor
 final class MenuBarIcon: NSObject {
     var onClick: () -> Void = {}
-    var onShowWisp: (Bool) -> Void = { _ in }
+    var onShowPal: (Bool) -> Void = { _ in }
     var onHelpers: () -> Void = {}
-    var isWispShown: () -> Bool = { false }
+    var isPalShown: () -> Bool = { false }
     private let item: NSStatusItem
     private var kind: IslandStatus.Kind?
     private var flat = false
@@ -33,8 +33,8 @@ final class MenuBarIcon: NSObject {
         update(.starting, title: "Starting")
     }
 
-    /// Shows ZENO's state on Wisp's glyph (ADR-084): plain (template) most of the time, Wisp's light while
-    /// listening, amber when Wisp needs you, coral on a problem.
+    /// Shows ZENO's state on Pal's glyph (ADR-084): plain (template) most of the time, Pal's light while
+    /// listening, amber when Pal needs you, coral on a problem.
     /// `flat`: Void's flat colours, no glow (ADR-086).
     func update(_ kind: IslandStatus.Kind, title: String, flat: Bool = false) {
         item.button?.setAccessibilityValue(title)
@@ -76,10 +76,10 @@ final class MenuBarIcon: NSObject {
         let helpers = NSMenuItem(title: "Helpers…", action: #selector(openHelpers), keyEquivalent: "")
         helpers.target = self
         menu.addItem(helpers)
-        let wisp = NSMenuItem(title: "Show Wisp", action: #selector(toggleWisp), keyEquivalent: "")
-        wisp.target = self
-        wisp.state = isWispShown() ? .on : .off
-        menu.addItem(wisp)
+        let pal = NSMenuItem(title: "Show Pal", action: #selector(togglePal), keyEquivalent: "")
+        pal.target = self
+        pal.state = isPalShown() ? .on : .off
+        menu.addItem(pal)
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "Quit ZENO", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
@@ -92,7 +92,7 @@ final class MenuBarIcon: NSObject {
 
     @objc private func openPanel() { onClick() }
     @objc private func openHelpers() { onHelpers() }
-    @objc private func toggleWisp() { onShowWisp(!isWispShown()) }
+    @objc private func togglePal() { onShowPal(!isPalShown()) }
     @objc private func quit() { NSApp.terminate(nil) }
 }
 
@@ -254,7 +254,7 @@ private struct AskingView: View {
     }
 }
 
-/// The strip's mark: Wisp's light while working, a check when done, a small square when stopped, coral when it
+/// The strip's mark: Pal's light while working, a check when done, a small square when stopped, coral when it
 /// failed. No icon circle: the light itself says it is live.
 struct WorkGlyph: View {
     let outcome: WorkStripState.Outcome
@@ -285,7 +285,7 @@ struct WorkGlyph: View {
     }
 }
 
-/// A dot of Wisp's light that breathes while ZENO works (`Motion.breathe`); still with Reduce Motion and in snapshots.
+/// A dot of Pal's light that breathes while ZENO works (`Motion.breathe`); still with Reduce Motion and in snapshots.
 private struct WorkingLight: View {
     let color: Color
     @Environment(\.theme) private var theme
@@ -303,7 +303,7 @@ private struct WorkingLight: View {
     }
 }
 
-/// The strip's window: bottom centre of the main display, above the Dock and Wisp's walkway. It can be clicked
+/// The strip's window: bottom centre of the main display, above the Dock and Pal's walkway. It can be clicked
 /// but never takes focus, so the app ZENO is working in keeps it.
 @MainActor
 final class WorkStripController {
@@ -321,7 +321,7 @@ final class WorkStripController {
         panel.backgroundColor = .clear
         panel.hasShadow = false
         panel.isFloatingPanel = true // before `level`: setting it resets the level
-        panel.level = NSWindow.Level(rawValue: NSWindow.Level.floating.rawValue + 2) // over Wisp
+        panel.level = NSWindow.Level(rawValue: NSWindow.Level.floating.rawValue + 2) // over Pal
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = true
@@ -339,7 +339,7 @@ final class WorkStripController {
     /// - Parameters:
     ///   - show: the strip should be up.
     ///   - asking: an approval request is waiting: the strip is taller.
-    ///   - clearance: room kept free above the Dock for Wisp.
+    ///   - clearance: room kept free above the Dock for Pal.
     func update(show: Bool, asking: Bool, clearance: CGFloat) {
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         if show {
@@ -404,7 +404,7 @@ final class WorkStripController {
 
 // MARK: - Point label
 
-/// The short label beside Wisp while it points (ADR-056): what the place is, nothing more.
+/// The short label beside Pal while it points (ADR-056): what the place is, nothing more.
 struct PointLabelView: View {
     let text: String
     var palette = ThemePalette.lantern
@@ -440,8 +440,8 @@ final class PointLabelController {
     private let hosting: NSHostingView<PointLabelView>
     private var text = ""
     private var feet = CGPoint.zero
-    private var wispHeight: CGFloat = 54
-    private var wispHalfWidth: CGFloat = 22
+    private var palHeight: CGFloat = 54
+    private var palHalfWidth: CGFloat = 22
     private(set) var isVisible = false
 
     init() {
@@ -450,7 +450,7 @@ final class PointLabelController {
         panel.backgroundColor = .clear
         panel.hasShadow = false
         panel.ignoresMouseEvents = true // it only shows; clicks reach what is under it
-        panel.level = NSWindow.Level(rawValue: NSWindow.Level.floating.rawValue + 1) // over Wisp
+        panel.level = NSWindow.Level(rawValue: NSWindow.Level.floating.rawValue + 1) // over Pal
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
         panel.isReleasedWhenClosed = false
         panel.animationBehavior = .none
@@ -459,11 +459,11 @@ final class PointLabelController {
         panel.contentView = hosting
     }
 
-    func show(_ text: String, palette: ThemePalette, feet: CGPoint, wispHeight: CGFloat, wispHalfWidth: CGFloat) {
+    func show(_ text: String, palette: ThemePalette, feet: CGPoint, palHeight: CGFloat, palHalfWidth: CGFloat) {
         self.text = text
         self.feet = feet
-        self.wispHeight = wispHeight
-        self.wispHalfWidth = wispHalfWidth
+        self.palHeight = palHeight
+        self.palHalfWidth = palHalfWidth
         hosting.rootView = PointLabelView(text: text, palette: palette)
         reposition()
         guard !isVisible else { return }
@@ -476,7 +476,7 @@ final class PointLabelController {
         }
     }
 
-    /// Wisp moved.
+    /// Pal moved.
     func follow(_ feet: CGPoint) {
         self.feet = feet
         if isVisible { reposition() }
@@ -504,7 +504,7 @@ final class PointLabelController {
     private func reposition() {
         guard let bounds = BubbleController.displayBounds(containing: feet) else { return }
         let measured = (text as NSString).size(withAttributes: [.font: Self.font]).width + 32
-        let frame = PointLabelLayout.frame(feet: feet, wispHeight: wispHeight, wispHalfWidth: wispHalfWidth,
+        let frame = PointLabelLayout.frame(feet: feet, palHeight: palHeight, palHalfWidth: palHalfWidth,
                                            width: ceil(measured), in: bounds)
             .insetBy(dx: -Self.shadowInset, dy: -Self.shadowInset)
         if panel.frame != frame { panel.setFrame(frame, display: true) }

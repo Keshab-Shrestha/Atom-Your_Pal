@@ -99,7 +99,7 @@ struct WorkStripLayoutTests {
         #expect(f.minY == 68) // 8 above the Dock
     }
 
-    @Test func keepsWispsWalkwayClear() {
+    @Test func keepsPalsWalkwayClear() {
         let f = WorkStripLayout.frame(size: WorkStripLayout.size, visible: visible, clearance: 90)
         #expect(f.minY == 158)
     }
@@ -116,28 +116,28 @@ struct WorkStripLayoutTests {
 struct PointLabelLayoutTests {
     let bounds = CGRect(x: 0, y: 0, width: 1920, height: 1050)
 
-    @Test func besideWispOnTheRoomierSide() {
-        let left = PointLabelLayout.frame(feet: CGPoint(x: 300, y: 500), wispHeight: 54, wispHalfWidth: 22, width: 120, in: bounds)
-        #expect(left.minX == 328) // right of Wisp: more room there
-        let right = PointLabelLayout.frame(feet: CGPoint(x: 1800, y: 500), wispHeight: 54, wispHalfWidth: 22, width: 120, in: bounds)
-        #expect(right.maxX == 1772) // left of Wisp
+    @Test func besidePalOnTheRoomierSide() {
+        let left = PointLabelLayout.frame(feet: CGPoint(x: 300, y: 500), palHeight: 54, palHalfWidth: 22, width: 120, in: bounds)
+        #expect(left.minX == 328) // right of Pal: more room there
+        let right = PointLabelLayout.frame(feet: CGPoint(x: 1800, y: 500), palHeight: 54, palHalfWidth: 22, width: 120, in: bounds)
+        #expect(right.maxX == 1772) // left of Pal
     }
 
     @Test func inTheTopRightCornerItStaysOnTheDisplay() {
-        // A target right under the menu bar at the far right: Wisp hangs just under it.
-        let f = PointLabelLayout.frame(feet: CGPoint(x: 1890, y: 990), wispHeight: 54, wispHalfWidth: 22, width: 200, in: bounds)
+        // A target right under the menu bar at the far right: Pal hangs just under it.
+        let f = PointLabelLayout.frame(feet: CGPoint(x: 1890, y: 990), palHeight: 54, palHalfWidth: 22, width: 200, in: bounds)
         #expect(f.maxX <= 1912 && f.minX >= 8)
         #expect(f.maxY <= 1042)
     }
 
     @Test func inTheTopLeftCornerItStaysOnTheDisplay() {
-        let f = PointLabelLayout.frame(feet: CGPoint(x: 30, y: 990), wispHeight: 54, wispHalfWidth: 22, width: 200, in: bounds)
+        let f = PointLabelLayout.frame(feet: CGPoint(x: 30, y: 990), palHeight: 54, palHalfWidth: 22, width: 200, in: bounds)
         #expect(f.minX >= 8 && f.maxY <= 1042)
-        #expect(f.minX >= 30 + 22) // beside Wisp, not over it
+        #expect(f.minX >= 30 + 22) // beside Pal, not over it
     }
 
     @Test func aLongLabelIsHeldToTheMaximumWidth() {
-        let f = PointLabelLayout.frame(feet: CGPoint(x: 900, y: 500), wispHeight: 54, wispHalfWidth: 22, width: 900, in: bounds)
+        let f = PointLabelLayout.frame(feet: CGPoint(x: 900, y: 500), palHeight: 54, palHalfWidth: 22, width: 900, in: bounds)
         #expect(f.width == PointLabelLayout.maxWidth)
     }
 }

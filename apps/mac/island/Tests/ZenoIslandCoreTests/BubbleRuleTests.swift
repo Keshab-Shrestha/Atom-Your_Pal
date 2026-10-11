@@ -1,7 +1,7 @@
 import Testing
 @testable import ZenoIslandCore
 
-@Suite("Wisp's bubble only when it has words to say")
+@Suite("Pal's bubble only when it has words to say")
 struct BubbleRuleTests {
     @Test func turnStatesShowNoBubble() throws {
         var status = IslandStatus()

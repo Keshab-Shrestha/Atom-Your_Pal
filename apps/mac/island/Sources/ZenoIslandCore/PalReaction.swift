@@ -1,16 +1,16 @@
 import Foundation
 
-/// Where Wisp's eyes look while ZENO is idle (ADR-073): toward the pointer, a few design points at most.
-public enum WispGaze {
-    /// Beyond this distance (screen points) Wisp does not notice the pointer.
+/// Where Pal's eyes look while ZENO is idle (ADR-073): toward the pointer, a few design points at most.
+public enum PalGaze {
+    /// Beyond this distance (screen points) Pal does not notice the pointer.
     public static let range = 400.0
-    /// The furthest the eyes move, in Wisp's 64-point design space.
+    /// The furthest the eyes move, in Pal's 64-point design space.
     public static let maxOffset = 2.5
-    /// Within this distance the glance shrinks, so the eyes do not swing while the pointer is on Wisp.
+    /// Within this distance the glance shrinks, so the eyes do not swing while the pointer is on Pal.
     static let fullGlanceDistance = 80.0
 
-    /// The eye offset for a pointer `dx`, `dy` screen points from Wisp's eyes (screen y up). The result is in design
-    /// points with y down. Zero beyond `range`, and zero unless Wisp is awake and idle (floating or resting).
+    /// The eye offset for a pointer `dx`, `dy` screen points from Pal's eyes (screen y up). The result is in design
+    /// points with y down. Zero beyond `range`, and zero unless Pal is awake and idle (floating or resting).
     public static func offset(dx: Double, dy: Double, mood: PetBrain.Mood) -> (x: Double, y: Double) {
         guard mood == .floating || mood == .resting else { return (0, 0) }
         let distance = hypot(dx, dy)
@@ -20,8 +20,8 @@ public enum WispGaze {
     }
 }
 
-/// A short reaction Wisp plays while ZENO is idle (ADR-073). Shown by body, light and face only.
-public enum WispReaction: Sendable, Equatable {
+/// A short reaction Pal plays while ZENO is idle (ADR-073). Shown by body, light and face only.
+public enum PalReaction: Sendable, Equatable {
     /// A click: a quick squash-and-stretch.
     case squish
     /// Three fast clicks: swirling eyes and a wobble.
@@ -45,25 +45,25 @@ public enum WispReaction: Sendable, Equatable {
     public var moves: Bool { self != .yawn }
 
     /// The reaction a click gives. The third click of a quick run does nothing to the panel (ADR-051), so it is free.
-    public static func forClick(count: Int) -> WispReaction { count >= 3 ? .dizzy : .squish }
+    public static func forClick(count: Int) -> PalReaction { count >= 3 ? .dizzy : .squish }
 }
 
 /// Plays one reaction at a time. ZENO's state always wins: a turn, a problem or being carried ends a reaction at once.
-public struct WispReactionPlayer: Sendable {
-    private var current: WispReaction?
+public struct PalReactionPlayer: Sendable {
+    private var current: PalReaction?
     private var startedAt = 0.0
 
     public init() {}
 
     /// Starts `reaction`, replacing any other. Ignored while ZENO is busy, and for moving reactions under Reduce Motion.
-    public mutating func start(_ reaction: WispReaction, at now: Double, mood: PetBrain.Mood, reduceMotion: Bool) {
+    public mutating func start(_ reaction: PalReaction, at now: Double, mood: PetBrain.Mood, reduceMotion: Bool) {
         guard !mood.isReacting, !(reduceMotion && reaction.moves) else { return }
         current = reaction
         startedAt = now
     }
 
     /// The reaction showing now and how far through it is (0...1), or nil.
-    public mutating func active(at now: Double, mood: PetBrain.Mood) -> (reaction: WispReaction, progress: Double)? {
+    public mutating func active(at now: Double, mood: PetBrain.Mood) -> (reaction: PalReaction, progress: Double)? {
         guard let reaction = current else { return nil }
         let progress = (now - startedAt) / reaction.duration
         guard !mood.isReacting, progress >= 0, progress <= 1 else {

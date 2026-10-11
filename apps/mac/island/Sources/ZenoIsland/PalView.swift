@@ -1,46 +1,46 @@
 import SwiftUI
 import ZenoIslandCore
 
-/// Wisp (ADR-042, ADR-057), drawn in one of three styles: the refined ghost, the orb of light, or the warmer
+/// Pal (ADR-042, ADR-057), drawn in one of three styles: the refined ghost, the orb of light, or the warmer
 /// companion; or as Keshab's avatar images (ADR-085) with the same motion and light. Every motion is a pure
 /// function of `time`, so one `TimelineView` drives it and the gallery can render any moment exactly. Moods are
 /// carried by the body, the light and the face — never by stickers (no z's, sweat drops or cheeks).
 ///
-/// Void (ADR-086, the theme in the environment has no glow): Wisp is flat. No halo, glow, ground shadow, gloss or
+/// Void (ADR-086, the theme in the environment has no glow): Pal is flat. No halo, glow, ground shadow, gloss or
 /// soft shading, the body in one colour; the state shows by the face and a small status dot. The motion is the same.
 ///
 /// Drawn in a 64×64 design space, scaled to `size`, with a margin of `size / 4` on every side so rings and glow
 /// are never clipped. The view is therefore `size * 1.5` square. The feet (or the bottom of the orb's float) sit
 /// at y = 57 in every style, so placement, hiding and pointing work the same for all of them.
-struct WispView: View {
+struct PalView: View {
     /// The margin around the drawing for a given size.
     static func margin(for size: CGFloat) -> CGFloat { size / 4 }
-    /// Where Wisp's feet are as a fraction of the view's height, from the top (the pivot for leaning).
+    /// Where Pal's feet are as a fraction of the view's height, from the top (the pivot for leaning).
     static let feetFraction: CGFloat = (1.0 / 4 + 61.0 / 64) / 1.5
-    /// Where Wisp's feet are, as a fraction of the view's height measured from the bottom.
+    /// Where Pal's feet are, as a fraction of the view's height measured from the bottom.
     static func groundInset(for size: CGFloat) -> CGFloat { size * 1.5 - (margin(for: size) + size * 61 / 64) }
 
     var mood: PetBrain.Mood
     /// Seconds, from any steady clock.
     var time: Double
-    /// +1 facing right, -1 facing left: the eyes look the way Wisp floats.
+    /// +1 facing right, -1 facing left: the eyes look the way Pal floats.
     var facing: Double = 1
     var size: CGFloat = 64
-    /// Multiplies the halo's opacity (Settings → Wisp → Glow). 1 is the original look.
+    /// Multiplies the halo's opacity (Settings → Pal → Glow). 1 is the original look.
     var glow: Double = 1
     /// The hiding pose (ADR-053): 0 standing, 1 hiding at the left edge, -1 at the right edge. In between while
-    /// Wisp leans in. The eyes glance toward the display and a hand grips the edge.
+    /// Pal leans in. The eyes glance toward the display and a hand grips the edge.
     var hide: Double = 0
-    /// Degrees Wisp is leaned (clockwise) and how far inward of its feet the display edge lies, in design points.
+    /// Degrees Pal is leaned (clockwise) and how far inward of its feet the display edge lies, in design points.
     var tilt: Double = 0
     var edgeGap: Double = 4.5
-    /// How Wisp is drawn (Settings → Appearance → Wisp).
-    var style: WispStyle = .ghost
+    /// How Pal is drawn (Settings → Appearance → Pal).
+    var style: PalStyle = .ghost
     /// ADR-073, while ZENO is idle: where the eyes look toward the pointer (design points, y down), how much the
-    /// pointer is over Wisp (0...1), and the reaction playing with how far through it is (0...1).
+    /// pointer is over Pal (0...1), and the reaction playing with how far through it is (0...1).
     var gaze = CGSize.zero
     var hover: Double = 0
-    var reaction: WispReaction?
+    var reaction: PalReaction?
     var reactionProgress: Double = 0
     /// ADR-077: extra lean along the curved flight, in radians clockwise.
     var flightLean: Double = 0
@@ -57,7 +57,7 @@ struct WispView: View {
             draw(in: &context)
         }
         .frame(width: size * 1.5, height: size * 1.5)
-        .accessibilityLabel("ZENO's pet, Wisp")
+        .accessibilityLabel("ZENO's pet, Pal")
     }
 
     // MARK: - Avatar (ADR-085)
@@ -66,12 +66,12 @@ struct WispView: View {
     private var avatar: NSImage? {
         guard style == .avatar else { return nil }
         let mouthOpen = AvatarExpression.mouthOpen(at: time)
-        return AvatarImages.image("wisp", AvatarExpression.wisp(mood: mood, reaction: reaction, mouthOpen: mouthOpen))
+        return AvatarImages.image("pal", AvatarExpression.pal(mood: mood, reaction: reaction, mouthOpen: mouthOpen))
     }
 
     /// The style motion, light and extras follow. An avatar image moves like the ghost (full squash, head tilt,
     /// shadow); Avatar without its image is drawn as the orb, the default style.
-    private var look: WispStyle {
+    private var look: PalStyle {
         guard style == .avatar else { return style }
         return avatar == nil ? .orb : .ghost
     }
@@ -143,7 +143,7 @@ struct WispView: View {
         case .speaking: -abs(sin(time * .pi * 2.75)) * 1.2 // a small bounce with the syllables
         default: sin(time * 2 * .pi / 2.2) * 1.6
         }
-        // A problem makes Wisp sink a little; hello is a small hop.
+        // A problem makes Pal sink a little; hello is a small hop.
         return base + (mood == .worried ? 2.5 : 0) - (reaction == .hello ? 6 * beat : 0)
     }
 
@@ -243,12 +243,12 @@ struct WispView: View {
     // MARK: - Hiding pose
 
     private var hideAmount: Double { min(1, abs(hide)) }
-    /// +1 when the display is to Wisp's right (hiding at the left edge), -1 at the right edge.
+    /// +1 when the display is to Pal's right (hiding at the left edge), -1 at the right edge.
     private var hideSide: Double { hide < 0 ? -1 : 1 }
 
     /// A little hand that holds on to the display's edge: its fingers lie over the edge into the display, one
-    /// above the other, while the arm and the rest of Wisp stay behind it. Drawn upright (against the lean) so the
-    /// fingers stay level with the edge however far Wisp tips.
+    /// above the other, while the arm and the rest of Pal stay behind it. Drawn upright (against the lean) so the
+    /// fingers stay level with the edge however far Pal tips.
     private func drawEdgeHand(in context: inout GraphicsContext, bob: Double) {
         guard hideAmount > 0.05 else { return }
         var hand = context
@@ -280,7 +280,7 @@ struct WispView: View {
     // MARK: - Drawing
 
     private func draw(in context: inout GraphicsContext) {
-        // Ground shadow (a coloured floor glow for the orb): shrinks as Wisp rises. None while carried or hiding.
+        // Ground shadow (a coloured floor glow for the orb): shrinks as Pal rises. None while carried or hiding.
         let lift = -bob
         let shadowWidth = 28 - lift * 1.2
         if mood != .carried, hideAmount < 0.5, !flat {
@@ -326,7 +326,7 @@ struct WispView: View {
         }
     }
 
-    /// Void: the state as a small flat dot beside Wisp's hem (no glow), bobbing with it. None at rest.
+    /// Void: the state as a small flat dot beside Pal's hem (no glow), bobbing with it. None at rest.
     private func drawStatusDot(in context: GraphicsContext, bob: Double) {
         guard let color = statusColor, hideAmount < 0.5 else { return }
         let r = 3.2
@@ -663,7 +663,7 @@ struct WispView: View {
                     with: .color(light.opacity(brightness)))
             }
         case (_, .speaking):
-            // Sound waves on the side Wisp faces.
+            // Sound waves on the side Pal faces.
             for (i, delay) in [0.0, 0.25].enumerated() {
                 let p = ((time + 1 - delay).truncatingRemainder(dividingBy: 1.0))
                 let opacity = sin(p * .pi)

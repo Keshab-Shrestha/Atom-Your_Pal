@@ -1,10 +1,10 @@
 import CoreGraphics
 
-/// Which display Wisp's Dock walkway is on (ADR-078). Stored in UserDefaults as `storageValue`.
-public enum WispHomeDisplay: Equatable, Hashable, Sendable {
+/// Which display Pal's Dock walkway is on (ADR-078). Stored in UserDefaults as `storageValue`.
+public enum PalHomeDisplay: Equatable, Hashable, Sendable {
     /// The display with the menu bar (default, as before ADR-078).
     case main
-    /// The display the pointer has stayed on for `WispHomeResolver.pointerDwell` seconds.
+    /// The display the pointer has stayed on for `PalHomeResolver.pointerDwell` seconds.
     case pointer
     /// A chosen display, by its display UUID, so it survives a restart and a rearranged layout.
     case display(uuid: String)
@@ -46,7 +46,7 @@ public struct HomeDisplay: Equatable, Sendable {
     }
 }
 
-public struct WispHomeResolution: Equatable, Sendable {
+public struct PalHomeResolution: Equatable, Sendable {
     /// Index into the displays given.
     public let index: Int
     /// The chosen display is not connected, so the main display is used (Settings says "not connected").
@@ -58,32 +58,32 @@ public struct WispHomeResolution: Equatable, Sendable {
     }
 }
 
-/// Picks Wisp's home display from the connected displays (ADR-078). Pure: the app feeds it `NSScreen` and the pointer.
-public enum WispHomeResolver {
-    /// How long the pointer must stay on another display before Wisp's home follows it, in seconds.
+/// Picks Pal's home display from the connected displays (ADR-078). Pure: the app feeds it `NSScreen` and the pointer.
+public enum PalHomeResolver {
+    /// How long the pointer must stay on another display before Pal's home follows it, in seconds.
     public static let pointerDwell: Double = 3
 
     /// - Parameters:
     ///   - pointerIndex: the display the pointer is on, or nil if it is on none.
     ///   - pointerDwell: how long the pointer has been on that display, in seconds.
-    ///   - currentHome: where Wisp's home is now, or nil if it has none yet (or that display is gone).
+    ///   - currentHome: where Pal's home is now, or nil if it has none yet (or that display is gone).
     /// - Returns: nil only when there are no displays.
-    public static func resolve(_ choice: WispHomeDisplay, displays: [HomeDisplay], pointerIndex: Int?,
-                               pointerDwell: Double, currentHome: Int?) -> WispHomeResolution? {
+    public static func resolve(_ choice: PalHomeDisplay, displays: [HomeDisplay], pointerIndex: Int?,
+                               pointerDwell: Double, currentHome: Int?) -> PalHomeResolution? {
         guard !displays.isEmpty else { return nil }
         let main = displays.firstIndex(where: \.isMain) ?? 0
         switch choice {
         case .main:
-            return WispHomeResolution(index: main, chosenMissing: false)
+            return PalHomeResolution(index: main, chosenMissing: false)
         case .display(let uuid):
             let found = displays.firstIndex { $0.uuid == uuid }
-            return WispHomeResolution(index: found ?? main, chosenMissing: found == nil)
+            return PalHomeResolution(index: found ?? main, chosenMissing: found == nil)
         case .pointer:
             let current = currentHome.flatMap { displays.indices.contains($0) ? $0 : nil } ?? main
             if let pointerIndex, displays.indices.contains(pointerIndex), pointerDwell >= Self.pointerDwell {
-                return WispHomeResolution(index: pointerIndex, chosenMissing: false)
+                return PalHomeResolution(index: pointerIndex, chosenMissing: false)
             }
-            return WispHomeResolution(index: current, chosenMissing: false)
+            return PalHomeResolution(index: current, chosenMissing: false)
         }
     }
 }

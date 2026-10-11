@@ -33,7 +33,7 @@ enum Motion {
         reduceMotion ? plain : .timingCurve(0.45, 0, 0.2, 1, duration: 0.26)
     }
 
-    /// Wisp's light easing between brightness levels when the state changes (Coucou's glow timing).
+    /// Pal's light easing between brightness levels when the state changes (Coucou's glow timing).
     static func glow(_ reduceMotion: Bool) -> Animation {
         reduceMotion ? plain : .easeInOut(duration: 0.4)
     }

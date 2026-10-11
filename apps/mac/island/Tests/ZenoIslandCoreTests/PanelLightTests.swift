@@ -22,7 +22,7 @@ import Testing
         #expect(all.allSatisfy { (0...1).contains(PanelLight($0).brightness) })
     }
 
-    /// The header's Wisp shows the pet's mood for each state; idle states rest.
+    /// The header's Pal shows the pet's mood for each state; idle states rest.
     @Test func headerMoodMatchesThePet() {
         #expect(PetBrain.mood(for: .listening) == .listening)
         #expect(PetBrain.mood(for: .asking) == .thinking)

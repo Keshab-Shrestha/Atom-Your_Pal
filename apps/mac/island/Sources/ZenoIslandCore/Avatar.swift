@@ -8,14 +8,14 @@ public enum AvatarExpression: String, Sendable, Equatable, CaseIterable {
     /// Helpers only: a job is running.
     case working
 
-    /// Wisp's nine, in the README's order.
-    public static let wisp: [AvatarExpression] = [.neutral, .happy, .listening, .thinking, .speaking, .speakingClosed, .worried, .sleepy, .surprised]
+    /// Pal's nine, in the README's order.
+    public static let pal: [AvatarExpression] = [.neutral, .happy, .listening, .thinking, .speaking, .speakingClosed, .worried, .sleepy, .surprised]
     /// Each helper's four.
     public static let helper: [AvatarExpression] = [.neutral, .working, .happy, .worried]
 
     public var fileName: String { rawValue + ".png" }
 
-    /// The images to try, in order. Nil from all of them means "draw today's Wisp or helper mark".
+    /// The images to try, in order. Nil from all of them means "draw today's Pal or helper mark".
     public var fallbacks: [AvatarExpression] {
         switch self {
         case .neutral: [.neutral]
@@ -24,8 +24,8 @@ public enum AvatarExpression: String, Sendable, Equatable, CaseIterable {
         }
     }
 
-    /// Wisp's expression for its mood, the reaction playing (if any) and, while speaking, whether the mouth is open.
-    public static func wisp(mood: PetBrain.Mood, reaction: WispReaction?, mouthOpen: Bool) -> AvatarExpression {
+    /// Pal's expression for its mood, the reaction playing (if any) and, while speaking, whether the mouth is open.
+    public static func pal(mood: PetBrain.Mood, reaction: PalReaction?, mouthOpen: Bool) -> AvatarExpression {
         switch reaction {
         case .hello: return .happy
         case .squish, .dizzy: return .surprised
@@ -63,7 +63,7 @@ public enum AvatarExpression: String, Sendable, Equatable, CaseIterable {
     }
 
     /// While speaking: open and closed mouth turns, about 6.4 a second, of uneven length so it reads as speech rather than
-    /// a metronome. A pure function of time, like the rest of Wisp's motion.
+    /// a metronome. A pure function of time, like the rest of Pal's motion.
     public static func mouthOpen(at time: Double) -> Bool {
         var t = time.truncatingRemainder(dividingBy: mouthCycle)
         if t < 0 { t += mouthCycle }

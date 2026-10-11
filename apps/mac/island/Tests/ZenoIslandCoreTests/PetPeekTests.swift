@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import ZenoIslandCore
 
-@Suite("Wisp tucks away")
+@Suite("Pal tucks away")
 struct PetPeekTests {
     private let main = CGRect(x: 0, y: 0, width: 1440, height: 900)
 
@@ -13,7 +13,7 @@ struct PetPeekTests {
 
     @Test func skipsAnEdgeThatTouchesAnotherDisplay() {
         let right = CGRect(x: 1440, y: 0, width: 1920, height: 1080)
-        // On the left display the right edge is shared: only the left edge is free, even though Wisp is nearer the right.
+        // On the left display the right edge is shared: only the left edge is free, even though Pal is nearer the right.
         #expect(PeekLayout.choose(feet: CGPoint(x: 1400, y: 50), displays: [main, right])?.edge == .left)
         // On the right display it is the other way round.
         #expect(PeekLayout.choose(feet: CGPoint(x: 1500, y: 50), displays: [main, right])?.edge == .right)
@@ -31,13 +31,13 @@ struct PetPeekTests {
     }
 
     @Test func aNeighbourOnlyBlocksAtTheHeightWhereItIs() {
-        // A small display beside the top half only: Wisp low down can still hide at that edge.
+        // A small display beside the top half only: Pal low down can still hide at that edge.
         let beside = CGRect(x: 1440, y: 600, width: 800, height: 600)
         #expect(PeekLayout.choose(feet: CGPoint(x: 1400, y: 50), displays: [main, beside])?.edge == .right)
         #expect(PeekLayout.choose(feet: CGPoint(x: 1400, y: 700), displays: [main, beside])?.edge == .left)
     }
 
-    @Test func noDisplayUnderWispMeansNoPeek() {
+    @Test func noDisplayUnderPalMeansNoPeek() {
         #expect(PeekLayout.choose(feet: CGPoint(x: -500, y: 50), displays: [main]) == nil)
     }
 
@@ -67,7 +67,7 @@ struct PetPeekTests {
         #expect(!retreat.isDue(at: 1_000_000, blocked: false))
     }
 
-    @Test func aBusyWispDoesNotRetreat() {
+    @Test func aBusyPalDoesNotRetreat() {
         let retreat = PetRetreat(timeout: 15, now: 0)
         #expect(!retreat.isDue(at: 500, blocked: true))
         #expect(retreat.isDue(at: 500, blocked: false))
@@ -85,21 +85,21 @@ struct PetPeekTests {
     }
 
     @Test func timeoutChoicesAreOrdered() {
-        let seconds = WispHideTimeout.allCases.map(\.seconds)
+        let seconds = PalHideTimeout.allCases.map(\.seconds)
         #expect(seconds == seconds.sorted())
-        #expect(WispHideTimeout.never.seconds == 0)
-        #expect(WispHideTimeout.allCases.map(\.title) == ["Never", "15 s", "30 s", "1 min", "5 min"])
+        #expect(PalHideTimeout.never.seconds == 0)
+        #expect(PalHideTimeout.allCases.map(\.title) == ["Never", "15 s", "30 s", "1 min", "5 min"])
     }
 
-    @Test func theFeaturesPanelStaysOnScreenBesideWisp() {
+    @Test func theFeaturesPanelStaysOnScreenBesidePal() {
         let bounds = CGRect(x: 0, y: 0, width: 1440, height: 870) // below the menu bar
         let size = CGSize(width: 380, height: 460)
-        // Standing on the Dock: the panel sits above Wisp.
+        // Standing on the Dock: the panel sits above Pal.
         let low = BubbleLayout.place(feet: CGPoint(x: 700, y: 80), gap: 6, size: size, in: bounds)
         #expect(low.side == .above)
         #expect(low.frame.maxY <= bounds.maxY - 8)
         #expect(low.frame.minY >= 80)
-        // Parked near the top: it drops below Wisp instead.
+        // Parked near the top: it drops below Pal instead.
         let high = BubbleLayout.place(feet: CGPoint(x: 700, y: 700), gap: 6, size: size, in: bounds)
         #expect(high.side == .below)
         #expect(high.frame.maxY <= 700)
@@ -110,7 +110,7 @@ struct PetPeekTests {
 
     @Test func leanStaysInsideTheRequestedRange() {
         let left = Peek(edge: .left, display: main)
-        for lean in WispLean.allCases {
+        for lean in PalLean.allCases {
             let degrees = abs(PeekLayout.rotation(for: left, lean: lean))
             #expect(degrees >= 35 && degrees <= 50)
         }
@@ -125,8 +125,8 @@ struct PetPeekTests {
         #expect(PeekLayout.amount(rotation: 90) == 1)      // never more than full
     }
 
-    @Test func hoveringNeverPullsWispOffTheEdge() {
-        // Wisp's body reaches about 17 pt each side of its feet at the default size.
+    @Test func hoveringNeverPullsPalOffTheEdge() {
+        // Pal's body reaches about 17 pt each side of its feet at the default size.
         let peek = Peek(edge: .left, display: main)
         #expect(PeekLayout.feet(for: peek, y: 50, revealed: true).x <= 17)
         #expect(PeekLayout.feet(for: peek, y: 50, revealed: true).x > PeekLayout.feet(for: peek, y: 50).x)
@@ -134,7 +134,7 @@ struct PetPeekTests {
 
     @Test func feetSitJustInsideTheEdgeSoTheBodyIsCutOff() {
         let peek = Peek(edge: .left, display: main)
-        // Close enough that half of Wisp (about 22 pt wide each side of the feet) is still beyond the edge.
+        // Close enough that half of Pal (about 22 pt wide each side of the feet) is still beyond the edge.
         #expect(PeekLayout.feet(for: peek, y: 50).x > 0 && PeekLayout.feet(for: peek, y: 50).x < 22)
         // Pointing at it slides the head further in, but never out of the hiding place.
         #expect(PeekLayout.feet(for: peek, y: 50, revealed: true).x > PeekLayout.feet(for: peek, y: 50).x)

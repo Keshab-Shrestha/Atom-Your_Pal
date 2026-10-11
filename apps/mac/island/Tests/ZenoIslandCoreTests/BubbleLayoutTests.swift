@@ -2,24 +2,24 @@ import Foundation
 import Testing
 @testable import ZenoIslandCore
 
-@Suite("Wisp's speech bubble")
+@Suite("Pal's speech bubble")
 struct BubbleLayoutTests {
     private let screen = CGRect(x: 0, y: 0, width: 1440, height: 860) // the area below the menu bar
     private func place(_ x: CGFloat, _ y: CGFloat) -> BubblePlacement {
         BubbleLayout.place(feet: CGPoint(x: x, y: y), in: screen)
     }
 
-    @Test func sitsAboveWispCenteredOnIt() {
+    @Test func sitsAbovePalCenteredOnIt() {
         let p = place(700, 100)
         #expect(p.side == .above)
         #expect(p.frame.midX == CGFloat(700))
-        let expected: CGFloat = 100 + 54 + 4 // feet + Wisp's height + gap
-        #expect(p.frame.minY == expected, "clear of Wisp's head")
+        let expected: CGFloat = 100 + 54 + 4 // feet + Pal's height + gap
+        #expect(p.frame.minY == expected, "clear of Pal's head")
         #expect(p.frame.size == BubbleLayout.size)
         #expect(p.tailX == BubbleLayout.size.width / 2)
     }
 
-    @Test func slidesSidewaysAtTheEdgesButTheTailStillPointsAtWisp() {
+    @Test func slidesSidewaysAtTheEdgesButTheTailStillPointsAtPal() {
         let left = place(30, 100)
         #expect(left.frame.minX == 8)
         #expect(left.frame.minX + left.tailX == 30 || left.tailX == BubbleLayout.tailInset)
@@ -29,7 +29,7 @@ struct BubbleLayoutTests {
         #expect(right.tailX == BubbleLayout.size.width - BubbleLayout.tailInset, "clamped clear of the corner")
     }
 
-    @Test func dropsBelowWispNearTheTopOfTheDisplay() {
+    @Test func dropsBelowPalNearTheTopOfTheDisplay() {
         let p = place(700, 800)
         #expect(p.side == .below)
         let expected: CGFloat = 800 - 4
@@ -42,7 +42,7 @@ struct BubbleLayoutTests {
         #expect(p.frame.maxY <= tiny.maxY - 8)
     }
 
-    @Test func followsWispOnASecondDisplay() {
+    @Test func followsPalOnASecondDisplay() {
         let second = CGRect(x: 1440, y: 0, width: 1920, height: 1080)
         let p = BubbleLayout.place(feet: CGPoint(x: 2200, y: 300), in: second)
         #expect(p.frame.midX == 2200 && p.side == .above)

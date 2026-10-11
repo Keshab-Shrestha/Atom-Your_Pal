@@ -198,7 +198,7 @@ private struct TimingBar: View {
     }
 }
 
-/// A text link in Wisp's light, e.g. "Change model".
+/// A text link in Pal's light, e.g. "Change model".
 struct LinkButton: View {
     let title: String
     let action: () -> Void

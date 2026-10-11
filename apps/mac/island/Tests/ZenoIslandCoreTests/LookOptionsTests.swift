@@ -14,12 +14,12 @@ struct LookOptionsTests {
     @Test func defaultsKeepTheOriginalLook() {
         let (settings, _, name) = fresh()
         defer { UserDefaults().removePersistentDomain(forName: name) }
-        #expect(settings.wispSize == .medium)
-        #expect(settings.wispSize.points == 56)
-        #expect(settings.wispGlow == .normal)
-        #expect(settings.wispLean.degrees == 42)
-        #expect(settings.wispWander == .normal)
-        #expect(settings.wispNap.seconds == 180)
+        #expect(settings.palSize == .medium)
+        #expect(settings.palSize.points == 56)
+        #expect(settings.palGlow == .normal)
+        #expect(settings.palLean.degrees == 42)
+        #expect(settings.palWander == .normal)
+        #expect(settings.palNap.seconds == 180)
         #expect(settings.bubbleStay == .seconds2)
         #expect(settings.bubbleOpacity.fill == 0.66)
         #expect(settings.panelSize.size == IslandMetrics().expanded)
@@ -29,16 +29,16 @@ struct LookOptionsTests {
     @Test func choicesSurviveARestart() {
         let (settings, defaults, name) = fresh()
         defer { UserDefaults().removePersistentDomain(forName: name) }
-        settings.wispSize = .huge
-        settings.wispLean = .deep
-        settings.wispGlow = .bright
+        settings.palSize = .huge
+        settings.palLean = .deep
+        settings.palGlow = .bright
         settings.bubbleStay = .seconds8
         settings.panelSize = .large
         settings.panelBackground = .solid
         let again = IslandSettings(defaults: defaults)
-        #expect(again.wispSize == .huge)
-        #expect(again.wispLean == .deep)
-        #expect(again.wispGlow == .bright)
+        #expect(again.palSize == .huge)
+        #expect(again.palLean == .deep)
+        #expect(again.palGlow == .bright)
         #expect(again.bubbleStay == .seconds8)
         #expect(again.panelSize == .large)
         #expect(again.panelBackground == .solid)
@@ -47,11 +47,11 @@ struct LookOptionsTests {
     @Test func anUnknownStoredValueFallsBackToTheDefault() {
         let (_, defaults, name) = fresh()
         defer { UserDefaults().removePersistentDomain(forName: name) }
-        defaults.set(999, forKey: IslandSettings.wispSizeKey)
-        defaults.set("big", forKey: IslandSettings.wispGlowKey)
+        defaults.set(999, forKey: IslandSettings.palSizeKey)
+        defaults.set("big", forKey: IslandSettings.palGlowKey)
         let settings = IslandSettings(defaults: defaults)
-        #expect(settings.wispSize == .medium)
-        #expect(settings.wispGlow == .normal)
+        #expect(settings.palSize == .medium)
+        #expect(settings.palGlow == .normal)
     }
 
     @Test func changingOneCountsAsAChange() {
@@ -64,22 +64,22 @@ struct LookOptionsTests {
 
     @Test func everyChoiceHasAUniqueTitle() {
         func unique<C: SettingsChoice>(_: C.Type) -> Bool { Set(C.allCases.map(\.title)).count == C.allCases.count }
-        #expect(unique(WispLean.self))
-        #expect(unique(WispSize.self) && unique(WispGlow.self) && unique(WispWander.self) && unique(WispNap.self))
+        #expect(unique(PalLean.self))
+        #expect(unique(PalSize.self) && unique(PalGlow.self) && unique(PalWander.self) && unique(PalNap.self))
         #expect(unique(BubbleStay.self) && unique(BubbleSize.self) && unique(BubbleOpacity.self))
         #expect(unique(PanelSize.self) && unique(PanelBackground.self))
     }
 
     @Test func glowAndSizeAreOrdered() {
-        let glow = WispGlow.allCases.map(\.strength)
+        let glow = PalGlow.allCases.map(\.strength)
         #expect(glow == glow.sorted())
-        let sizes = WispSize.allCases.map(\.points)
+        let sizes = PalSize.allCases.map(\.points)
         #expect(sizes == sizes.sorted())
         let panels = PanelSize.allCases.map(\.size.width)
         #expect(panels == panels.sorted())
     }
 
-    @Test func stayPutWispNeverFloatsOff() {
+    @Test func stayPutPalNeverFloatsOff() {
         var brain = PetBrain(width: 800, now: 0, tuning: PetBrain.Tuning(wander: .stayPut, nap: .never))
         let start = brain.x
         var t = 0.0
@@ -88,8 +88,8 @@ struct LookOptionsTests {
         #expect(brain.mood != .napping) // never naps either
     }
 
-    @Test func livelyWispCoversGroundFasterThanCalm() {
-        func distance(_ wander: WispWander) -> Double {
+    @Test func livelyPalCoversGroundFasterThanCalm() {
+        func distance(_ wander: PalWander) -> Double {
             var brain = PetBrain(width: 2000, now: 0, tuning: PetBrain.Tuning(wander: wander, nap: .never))
             var t = 0.0, moved = 0.0, last = brain.x
             while t < 90 { t += 0.05; brain.step(to: t); moved += abs(brain.x - last); last = brain.x }
@@ -106,8 +106,8 @@ struct LookOptionsTests {
         #expect(brain.mood == .napping)
     }
 
-    @Test func hidingDepthScalesWithWispsSize() {
-        // The feet sit inside the edge in proportion to size, so the same share of a bigger Wisp stays hidden.
+    @Test func hidingDepthScalesWithPalsSize() {
+        // The feet sit inside the edge in proportion to size, so the same share of a bigger Pal stays hidden.
         let peek = Peek(edge: .left, display: CGRect(x: 0, y: 0, width: 1440, height: 900))
         let scale: CGFloat = 92.0 / 56
         let normal = PeekLayout.feet(for: peek, y: 50)

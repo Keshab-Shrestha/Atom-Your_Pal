@@ -8,20 +8,20 @@ import Testing
 private let primary = ScreenArea(frame: CGRect(x: 0, y: 0, width: 1920, height: 1080), visible: CGRect(x: 0, y: 60, width: 1920, height: 990))
 private let second = ScreenArea(frame: CGRect(x: 1920, y: 0, width: 1920, height: 1080), visible: CGRect(x: 1920, y: 0, width: 1920, height: 1080))
 private let screens = [primary, second]
-private let wispHeight: CGFloat = 54
+private let palHeight: CGFloat = 54
 private let half: CGFloat = 22
 
 private func flight(_ x: Double, _ y: Double, _ w: Double, _ h: Double, on displays: [ScreenArea] = screens) -> PointFlight? {
-    PointPlacement.flight(to: PointTarget(x: x, y: y, w: w, h: h, label: "here"), screens: displays, wispHeight: wispHeight, wispHalfWidth: half)
+    PointPlacement.flight(to: PointTarget(x: x, y: y, w: w, h: h, label: "here"), screens: displays, palHeight: palHeight, palHalfWidth: half)
 }
 
-@Suite("Pointing: where Wisp stands")
+@Suite("Pointing: where Pal stands")
 struct PointPlacementTests {
     @Test func convertsFromTheDriversTopLeftOriginAndStandsOnTheElement() throws {
         // Cua: 90×24 at (100, 500), y measured down from the top. AppKit: its top edge is at 1080 − 500 = 580.
         let f = try #require(flight(100, 500, 90, 24))
         #expect(f.feet.x == 145)
-        #expect(f.feet.y == 582) // just above the top edge: Wisp stands on it
+        #expect(f.feet.y == 582) // just above the top edge: Pal stands on it
         #expect(f.bubbleSide == .above)
     }
 
@@ -29,7 +29,7 @@ struct PointPlacementTests {
         let f = try #require(flight(2133, 85, 90, 24)) // TextEdit's button, measured live
         #expect(f.feet.x >= 1920 && f.feet.x <= 3840)
         #expect(f.feet.x == 2178)
-        // 85 pt from the top of the display: no room above for Wisp (54) and its bubble (60), so Wisp hangs
+        // 85 pt from the top of the display: no room above for Pal (54) and its bubble (60), so Pal hangs
         // under the element's bottom edge (1080 − 85 − 24 = 971), 6 pt clear of it.
         #expect(f.bubbleSide == .below)
         #expect(abs(f.feet.y - 911) < 0.001) // 971 − 6 − 54
@@ -41,17 +41,17 @@ struct PointPlacementTests {
         #expect(abs(f.feet.y - 682) < 0.001) // the element's top edge, 680, plus 2
     }
 
-    @Test func nearTheTopWispStandsBelowSoTheBubbleHasRoom() throws {
+    @Test func nearTheTopPalStandsBelowSoTheBubbleHasRoom() throws {
         let f = try #require(flight(900, 60, 80, 20)) // just under the menu bar
         #expect(f.bubbleSide == .below)
         let element = CGRect(x: 900, y: 1080 - 60 - 20, width: 80, height: 20)
-        #expect(f.feet.y + wispHeight <= element.minY) // Wisp hangs under it
+        #expect(f.feet.y + palHeight <= element.minY) // Pal hangs under it
     }
 
     @Test func anItemInTheMenuBarIsPointedAtFromBelow() throws {
         let f = try #require(flight(1700, 4, 40, 22))
         #expect(f.bubbleSide == .below)
-        #expect(f.feet.y + wispHeight < 1080 - 4 - 22 + 1)
+        #expect(f.feet.y + palHeight < 1080 - 4 - 22 + 1)
     }
 
     @Test func anItemInTheDockIsPointedAtFromAbove() throws {
@@ -60,7 +60,7 @@ struct PointPlacementTests {
         #expect(f.feet.y >= 1080 - 1040 - 30)
     }
 
-    @Test func keepsWispOffTheEdgeOfTheDisplay() throws {
+    @Test func keepsPalOffTheEdgeOfTheDisplay() throws {
         let left = try #require(flight(0, 500, 20, 20))
         #expect(left.feet.x >= half + 8)
         let right = try #require(flight(3830, 500, 10, 20))
@@ -84,19 +84,19 @@ struct PointPlacementTests {
     @Test func aHugeElementStillGetsAPlaceOnScreen() throws {
         let f = try #require(flight(0, 30, 1920, 990)) // a whole window
         #expect(primary.visible.contains(f.feet))
-        #expect(f.feet.y + wispHeight <= primary.visible.maxY)
+        #expect(f.feet.y + palHeight <= primary.visible.maxY)
     }
 
-    @Test func neverCoversTheElementWithWispOrItsBubble() throws {
+    @Test func neverCoversTheElementWithPalOrItsBubble() throws {
         // Every small element on a grid over both displays, including corners, the menu bar and the Dock.
         for x in stride(from: 0.0, through: 3800.0, by: 97) {
             for y in stride(from: 0.0, through: 1060.0, by: 53) {
                 for (w, h) in [(20.0, 20.0), (90.0, 24.0), (120.0, 60.0)] {
                     guard let f = flight(x, y, w, h) else { continue }
                     let element = CGRect(x: x, y: 1080 - y - h, width: w, height: h)
-                    let body = CGRect(x: f.feet.x - half, y: f.feet.y, width: 2 * half, height: wispHeight)
-                    #expect(!body.intersects(element), "Wisp covers the element at \(x),\(y) \(w)×\(h)")
-                    let bubble = BubbleLayout.place(feet: f.feet, bodyHeight: wispHeight, in: (screens.first { $0.frame.contains(CGPoint(x: element.midX, y: element.midY)) } ?? primary).visible, prefer: f.bubbleSide)
+                    let body = CGRect(x: f.feet.x - half, y: f.feet.y, width: 2 * half, height: palHeight)
+                    #expect(!body.intersects(element), "Pal covers the element at \(x),\(y) \(w)×\(h)")
+                    let bubble = BubbleLayout.place(feet: f.feet, bodyHeight: palHeight, in: (screens.first { $0.frame.contains(CGPoint(x: element.midX, y: element.midY)) } ?? primary).visible, prefer: f.bubbleSide)
                     #expect(bubble.side == f.bubbleSide, "bubble ignored the side at \(x),\(y)")
                     #expect(!bubble.frame.intersects(element), "bubble covers the element at \(x),\(y) \(w)×\(h)")
                 }
@@ -199,7 +199,7 @@ struct PointingStateTests {
         for event in [IslandEvent.state(.thinking), .state(.speaking), .state(.idle), .computerStep("Looking at Mail"), .reply("here"), .micLevel(0.4)] {
             state.apply(event)
         }
-        #expect(state.target == a) // the turn ending does not end the point: Wisp stays a moment so it is seen
+        #expect(state.target == a) // the turn ending does not end the point: Pal stays a moment so it is seen
     }
 
     @Test func clearEndsIt() {

@@ -13,12 +13,12 @@ with a little room around it. One file per expression.
 
 One folder per character, lower case, files named by expression:
 
-    assets/avatars/wisp/neutral.png
-    assets/avatars/wisp/listening.png
+    assets/avatars/pal/neutral.png
+    assets/avatars/pal/listening.png
     ...
     assets/avatars/sid/neutral.png
 
-### Wisp (all nine)
+### Pal (all nine)
 
 | File | When ZENO shows it |
 |---|---|

@@ -1,14 +1,14 @@
 import CoreGraphics
 
-/// Where Wisp's speech bubble goes (ADR-050): above Wisp, centred on it, kept on the display.
-/// Near the top of the display it drops below Wisp instead. The bubble's tail always points at Wisp,
+/// Where Pal's speech bubble goes (ADR-050): above Pal, centred on it, kept on the display.
+/// Near the top of the display it drops below Pal instead. The bubble's tail always points at Pal,
 /// even when the bubble itself had to slide sideways to stay on screen.
 /// AppKit coordinates: origin at the bottom left, y grows upward.
 public struct BubblePlacement: Sendable, Equatable {
     public enum Side: Sendable, Equatable {
-        /// The bubble sits above Wisp; its tail is on the bottom edge.
+        /// The bubble sits above Pal; its tail is on the bottom edge.
         case above
-        /// The bubble sits below Wisp; its tail is on the top edge.
+        /// The bubble sits below Pal; its tail is on the top edge.
         case below
     }
 
@@ -36,8 +36,8 @@ public enum BubbleLayout {
     public static let tailInset: CGFloat = 28
 
     /// - Parameters:
-    ///   - feet: the point on the ground under Wisp.
-    ///   - bodyHeight: how tall Wisp stands above `feet`.
+    ///   - feet: the point on the ground under Pal.
+    ///   - bodyHeight: how tall Pal stands above `feet`.
     ///   - bounds: the area the bubble must stay inside (the display, below the menu bar).
     ///   - prefer: the side to use if it fits; otherwise the usual choice.
     public static func place(feet: CGPoint, bodyHeight: CGFloat = 54, gap: CGFloat = 4,
@@ -54,7 +54,7 @@ public enum BubbleLayout {
         let belowFits = belowY >= bounds.minY + margin
         let side: BubblePlacement.Side
         let y: CGFloat
-        // A preferred side wins when it fits (pointing: the bubble must not cover what Wisp points at).
+        // A preferred side wins when it fits (pointing: the bubble must not cover what Pal points at).
         let useAbove = prefer == .above && aboveFits ? true : prefer == .below && belowFits ? false : (aboveFits || !belowFits)
         if useAbove {
             side = .above

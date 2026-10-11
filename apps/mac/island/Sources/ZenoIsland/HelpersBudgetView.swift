@@ -306,7 +306,7 @@ struct PaperclipSection: View {
             Text("Paperclip's agents run outside ZENO's checks: Paperclip decides their tools and folders. Its telemetry is on unless PAPERCLIP_TELEMETRY_DISABLED=1 is set where it runs.")
                 .font(.system(size: 10.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true).padding(.leading, 4)
             if tasks.isEmpty {
-                Text("No tasks yet. Ask Wisp to hand one to a Paperclip agent.").font(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.leading, 4)
+                Text("No tasks yet. Ask Pal to hand one to a Paperclip agent.").font(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.leading, 4)
             }
             ForEach(tasks) { task in
                 VStack(alignment: .leading, spacing: 3) {

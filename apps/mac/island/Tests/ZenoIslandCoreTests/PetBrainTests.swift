@@ -149,7 +149,7 @@ struct PetBrainTests {
         #expect(abs(brain.x - x) <= 38 * 0.25 + 0.001)
     }
 
-    @Test func shrinkingTheWalkwayKeepsWispOnIt() {
+    @Test func shrinkingTheWalkwayKeepsPalOnIt() {
         var brain = PetBrain(width: 2000, now: 0)
         #expect(brain.x == 1600)
         brain.resize(width: 500)
@@ -261,7 +261,7 @@ struct PetBrainTests {
         #expect(moods.contains(.floating))
     }
 
-    @Test func sendingHomeWakesANappingWisp() {
+    @Test func sendingHomeWakesANappingPal() {
         var brain = PetBrain(width: 1000, now: 0)
         brain.drop(homeX: nil, at: 0)
         _ = run(&brain, from: 0, to: 181)

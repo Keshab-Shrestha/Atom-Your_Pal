@@ -37,7 +37,7 @@ function setup(core: Core) {
   return { wrapped, points, logged, setShot: (s: ScreenShot) => (shot = s) };
 }
 
-test("a pointing reply is spoken and shown without its marker, and Wisp is sent to the place", async () => {
+test("a pointing reply is spoken and shown without its marker, and Pal is sent to the place", async () => {
   let ctx!: ReturnType<typeof setup>;
   const core = fakeCore("It's the fan icon, top right. [POINT:1200,10:the fan icon]", ["It's the fan icon, top right. [PO", "INT:1200,10:the fan icon]"], () => ctx.setShot(main));
   ctx = setup(core);

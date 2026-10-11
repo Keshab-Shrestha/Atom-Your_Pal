@@ -96,7 +96,7 @@ public struct WorkStripState: Sendable, Equatable {
     }
 }
 
-/// Where the work strip goes (ADR-056): centred at the bottom of the main display, above the Dock and above Wisp's
+/// Where the work strip goes (ADR-056): centred at the bottom of the main display, above the Dock and above Pal's
 /// walkway, so it covers neither. AppKit coordinates.
 public enum WorkStripLayout {
     /// The strip alone, and with an approval request.
@@ -105,7 +105,7 @@ public enum WorkStripLayout {
 
     /// - Parameters:
     ///   - visible: the main display's visible frame (without the menu bar and Dock).
-    ///   - clearance: room kept free above the Dock for Wisp walking there (0 when Wisp is off).
+    ///   - clearance: room kept free above the Dock for Pal walking there (0 when Pal is off).
     public static func frame(size: CGSize, visible: CGRect, clearance: CGFloat, margin: CGFloat = 8) -> CGRect {
         let width = min(size.width, max(0, visible.width - 2 * margin))
         let x = visible.midX - width / 2
@@ -115,24 +115,24 @@ public enum WorkStripLayout {
     }
 }
 
-/// Where the short label goes while Wisp points (ADR-056): beside Wisp's head, on the side away from the display's
-/// nearer edge so it is never cut off, and never over the place pointed at (Wisp stands on or under it).
+/// Where the short label goes while Pal points (ADR-056): beside Pal's head, on the side away from the display's
+/// nearer edge so it is never cut off, and never over the place pointed at (Pal stands on or under it).
 public enum PointLabelLayout {
     public static let height: CGFloat = 26
     public static let maxWidth: CGFloat = 220
 
     /// - Parameters:
-    ///   - feet: where Wisp stands.
-    ///   - wispHeight / wispHalfWidth: Wisp's size.
+    ///   - feet: where Pal stands.
+    ///   - palHeight / palHalfWidth: Pal's size.
     ///   - width: the label's measured width (clamped to `maxWidth`).
     ///   - bounds: the display, below the menu bar.
-    public static func frame(feet: CGPoint, wispHeight: CGFloat, wispHalfWidth: CGFloat, width: CGFloat,
+    public static func frame(feet: CGPoint, palHeight: CGFloat, palHalfWidth: CGFloat, width: CGFloat,
                              in bounds: CGRect, gap: CGFloat = 6, margin: CGFloat = 8) -> CGRect {
         let w = min(max(width, height), maxWidth, max(0, bounds.width - 2 * margin))
         // Beside the head, vertically centred on its upper half.
-        let y = min(max(feet.y + wispHeight * 0.55 - height / 2, bounds.minY + margin), bounds.maxY - margin - height)
-        let rightX = feet.x + wispHalfWidth + gap
-        let leftX = feet.x - wispHalfWidth - gap - w
+        let y = min(max(feet.y + palHeight * 0.55 - height / 2, bounds.minY + margin), bounds.maxY - margin - height)
+        let rightX = feet.x + palHalfWidth + gap
+        let leftX = feet.x - palHalfWidth - gap - w
         let rightFits = rightX + w <= bounds.maxX - margin
         let leftFits = leftX >= bounds.minX + margin
         // The roomier side; on the right by default.

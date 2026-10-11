@@ -23,7 +23,7 @@ public enum IslandCommand: Sendable, Equatable {
     case episodeClear
     /// A typed request: answered and spoken like a voice turn.
     case textSend(String)
-    /// The user dropped Wisp on a window to ask about it (ADR-074): its app, never the window's title.
+    /// The user dropped Pal on a window to ask about it (ADR-074): its app, never the window's title.
     case contextWindow(bundleId: String, name: String)
     /// Helpers (ADR-081): ask for the list (and its changes from then on), give a helper its app (`""` for none),
     /// give it a job, stop or forget a job, ask for a job's report.
@@ -413,7 +413,7 @@ public enum IslandEvent: Sendable, Equatable {
     case conversationReset
     /// ZENO is about to do something on the Mac, in plain words (ADR-054).
     case computerStep(String)
-    /// ZENO shows the user a place on screen: Wisp flies there and the bubble says what it is (ADR-054).
+    /// ZENO shows the user a place on screen: Pal flies there and the bubble says what it is (ADR-054).
     case computerPoint(PointTarget)
     /// ZENO is waiting for the user to allow or decline an action.
     case approvalRequest(ApprovalRequest)

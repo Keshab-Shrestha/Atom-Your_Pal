@@ -2,13 +2,13 @@ import Foundation
 
 /// One step of the first-run tour (ADR-075).
 public enum TourStep: Sendable, Equatable {
-    /// Wisp's hello bounce (ADR-073).
+    /// Pal's hello bounce (ADR-073).
     case hello
-    /// Wisp's bubble says this.
+    /// Pal's bubble says this.
     case say(title: String, detail: String)
-    /// Wisp flies to the menu-bar icon with this label beside it (ADR-054 pointing).
+    /// Pal flies to the menu-bar icon with this label beside it (ADR-054 pointing).
     case point(label: String)
-    /// Wisp flies back.
+    /// Pal flies back.
     case back
     case done
 }
@@ -24,15 +24,15 @@ public struct FirstRunTour: Sendable, Equatable {
 
     public static let script: [Beat] = [
         Beat(step: .hello, after: 0),
-        Beat(step: .say(title: "Hi, I'm Wisp.", detail: "Hold Control + Option and talk to me."), after: 1),
+        Beat(step: .say(title: "Hi, I'm Pal.", detail: "Hold Control + Option and talk to me."), after: 1),
         Beat(step: .point(label: "Settings and our chats live here"), after: 4.5),
         Beat(step: .back, after: 5),
         Beat(step: .done, after: 1.5),
     ]
 
-    /// On launch: only with Wisp shown, once the runtime is ready, and only if it has not run before.
-    public static func shouldStart(wispShown: Bool, tourDone: Bool, runtimeReady: Bool) -> Bool {
-        wispShown && !tourDone && runtimeReady
+    /// On launch: only with Pal shown, once the runtime is ready, and only if it has not run before.
+    public static func shouldStart(palShown: Bool, tourDone: Bool, runtimeReady: Bool) -> Bool {
+        palShown && !tourDone && runtimeReady
     }
 
     /// The step running now; nil when the tour is not running.
@@ -60,7 +60,7 @@ public struct FirstRunTour: Sendable, Equatable {
         return Self.script[next].step
     }
 
-    /// The user talked or dictated: the tour ends. True if it was running (the caller then sends Wisp back and
+    /// The user talked or dictated: the tour ends. True if it was running (the caller then sends Pal back and
     /// stores `tourDone`).
     public mutating func userTalked() -> Bool {
         defer { index = nil }

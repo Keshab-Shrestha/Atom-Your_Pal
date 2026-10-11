@@ -32,8 +32,8 @@ struct GeneralSection: View {
         PermissionsCard(model: model)
             .onAppear { model.permissions.startPolling() }
             .onDisappear { model.permissions.stopPolling() }
-        Card(footer: settings.petEnabled ? nil : "Turn on Wisp to see the tour.") {
-            Row(title: "Replay the tour", detail: "Wisp shows where to talk and where your settings live") {
+        Card(footer: settings.petEnabled ? nil : "Turn on Pal to see the tour.") {
+            Row(title: "Replay the tour", detail: "Pal shows where to talk and where your settings live") {
                 PillButton(title: "Replay") { model.replayTour() }
                     .disabled(!settings.petEnabled)
             }

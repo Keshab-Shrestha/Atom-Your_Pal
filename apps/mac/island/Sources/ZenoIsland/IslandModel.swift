@@ -59,10 +59,10 @@ final class IslandModel {
     let loginItem = LoginItem()
     /// The permissions checklist (ADR-075). Read from macOS, never saved by ZENO.
     let permissions = PermissionChecker()
-    /// Shows or hides Wisp. Set by the controller.
+    /// Shows or hides Pal. Set by the controller.
     @ObservationIgnored var petChanged: (Bool) -> Void = { _ in }
 
-    /// Turns the pet on or off: saves the setting and shows or hides Wisp at once.
+    /// Turns the pet on or off: saves the setting and shows or hides Pal at once.
     func setPet(_ enabled: Bool) {
         settings.petEnabled = enabled
         petChanged(enabled)

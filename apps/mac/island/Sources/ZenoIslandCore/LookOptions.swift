@@ -5,15 +5,15 @@ public protocol SettingsChoice: CaseIterable, Hashable, Sendable {
     var title: String { get }
 }
 
-extension WispHideTimeout: SettingsChoice {}
+extension PalHideTimeout: SettingsChoice {}
 extension DictationMode: SettingsChoice {}
 
-/// How big Wisp is drawn, in points (the original size is 56).
-public enum WispSize: Int, SettingsChoice {
+/// How big Pal is drawn, in points (the original size is 56).
+public enum PalSize: Int, SettingsChoice {
     case small = 44, medium = 56, large = 72, huge = 92
 
     public var points: CGFloat { CGFloat(rawValue) }
-    /// Relative to the original size: things placed around Wisp (the bubble's gap) scale with it.
+    /// Relative to the original size: things placed around Pal (the bubble's gap) scale with it.
     public var scale: CGFloat { points / 56 }
     public var title: String {
         switch self {
@@ -25,8 +25,8 @@ public enum WispSize: Int, SettingsChoice {
     }
 }
 
-/// How strongly the halo around Wisp glows.
-public enum WispGlow: Int, SettingsChoice {
+/// How strongly the halo around Pal glows.
+public enum PalGlow: Int, SettingsChoice {
     case off = 0, soft, normal, bright
 
     /// Multiplies the halo's opacity.
@@ -48,8 +48,8 @@ public enum WispGlow: Int, SettingsChoice {
     }
 }
 
-/// How much Wisp floats about when idle.
-public enum WispWander: Int, SettingsChoice {
+/// How much Pal floats about when idle.
+public enum PalWander: Int, SettingsChoice {
     case stayPut = 0, calm, normal, lively
 
     /// Points per second.
@@ -72,8 +72,8 @@ public enum WispWander: Int, SettingsChoice {
     }
 }
 
-/// How long with no activity before Wisp falls asleep.
-public enum WispNap: Int, SettingsChoice {
+/// How long with no activity before Pal falls asleep.
+public enum PalNap: Int, SettingsChoice {
     case never = 0
     case minute1 = 60
     case minutes3 = 180
@@ -91,8 +91,8 @@ public enum WispNap: Int, SettingsChoice {
 }
 
 extension PetBrain.Tuning {
-    /// Wisp's pace and sleepiness from the settings.
-    public init(wander: WispWander, nap: WispNap) {
+    /// Pal's pace and sleepiness from the settings.
+    public init(wander: PalWander, nap: PalNap) {
         self.init()
         speed = wander.speed
         wanders = wander.wanders
@@ -175,9 +175,9 @@ public enum PanelBackground: Int, SettingsChoice {
     public var title: String { self == .glass ? "Glass" : "Solid" }
 }
 
-/// How far Wisp leans while it hides at a screen edge (ADR-053): its head tips toward the display, the rest of
+/// How far Pal leans while it hides at a screen edge (ADR-053): its head tips toward the display, the rest of
 /// it stays behind the edge.
-public enum WispLean: Int, SettingsChoice {
+public enum PalLean: Int, SettingsChoice {
     case slight = 35, normal = 42, deep = 50
 
     public var degrees: Double { Double(rawValue) }

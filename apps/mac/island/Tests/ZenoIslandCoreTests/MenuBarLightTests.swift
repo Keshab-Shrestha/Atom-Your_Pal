@@ -2,7 +2,7 @@ import Testing
 @testable import ZenoIslandCore
 
 @Suite struct MenuBarLightTests {
-    /// ADR-084: one Wisp glyph; lit while listening, amber when Wisp needs you, coral on a problem, plain otherwise.
+    /// ADR-084: one Pal glyph; lit while listening, amber when Pal needs you, coral on a problem, plain otherwise.
     @Test func eachStateLightsTheGlyphOrLeavesItPlain() {
         let expected: [(IslandStatus.Kind, MenuBarLight)] = [
             (.starting, .plain), (.ready, .plain), (.listening, .lit), (.transcribing, .plain), (.thinking, .plain),

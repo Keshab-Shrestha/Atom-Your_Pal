@@ -7,10 +7,10 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
     /// Flat black with 1 px graphite hairlines, ghost buttons and mono identifiers; colour only on small status dots,
     /// no glow or shadow anywhere (ADR-086, after Resend's style). The default. Listed first.
     case void = 5
-    /// Night glass in cool greys; the only colour is Wisp's own light, and state is how brightly it burns
+    /// Night glass in cool greys; the only colour is Pal's own light, and state is how brightly it burns
     /// (ADR-084). Raw values keep older stored choices valid.
     case lantern = 3
-    /// Lantern in daylight: pale cool glass, ink text, the light kept for Wisp's glow.
+    /// Lantern in daylight: pale cool glass, ink text, the light kept for Pal's glow.
     case lanternDay = 4
     /// Dark glass and system-like controls, one teal accent. Looks like it shipped with macOS.
     case native = 0
@@ -33,8 +33,8 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
     public var detail: String {
         switch self {
         case .void: "Flat black with hairlines; colour only where it shows a status"
-        case .lantern: "Night glass lit only by Wisp's light"
-        case .lanternDay: "Pale glass by day, with Wisp's light"
+        case .lantern: "Night glass lit only by Pal's light"
+        case .lanternDay: "Pale glass by day, with Pal's light"
         case .native: "Dark glass with one teal accent, like a built-in Mac app"
         case .luminous: "Near-black glass with a cyan-to-violet glow"
         case .warm: "Light paper glass with a coral accent"
@@ -43,8 +43,8 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
     public var palette: ThemePalette { ThemePalette.for(self) }
 }
 
-/// How Wisp is drawn (ADR-057). Behaviour, size and placement are the same for every style.
-public enum WispStyle: Int, SettingsChoice, Identifiable {
+/// How Pal is drawn (ADR-057). Behaviour, size and placement are the same for every style.
+public enum PalStyle: Int, SettingsChoice, Identifiable {
     /// The ghost, refined: a luminous dome with a soft hem; the eyes and glow carry the mood.
     case ghost = 0
     /// A floating marble of light with two eyes; the light inside it carries the mood.
@@ -147,7 +147,7 @@ public struct ThemePalette: Sendable, Equatable {
     public var radiusCard: CGFloat
     public var radiusControl: CGFloat
 
-    /// Lantern (ADR-084): the top of the surface's vertical gradient (nil: a flat surface), and Wisp's light
+    /// Lantern (ADR-084): the top of the surface's vertical gradient (nil: a flat surface), and Pal's light
     /// falling on the panel from the header. The glow's alpha scales the state's brightness; 0 draws none.
     public var surfaceTop: RGBA? = nil
     public var glow = RGBA(0, 0, 0, 0)
@@ -157,7 +157,7 @@ public struct ThemePalette: Sendable, Equatable {
     public var surfaceStyle = SurfaceStyle.glass
     /// Filled buttons, or ghost buttons (transparent, a 1 px hairline that brightens on hover).
     public var buttonStyle = ButtonLook.filled
-    /// Glows (lit rims, pools of light, glowing dots and carets, Wisp's halo) and drop shadows.
+    /// Glows (lit rims, pools of light, glowing dots and carets, Pal's halo) and drop shadows.
     public var usesGlow = true
     public var usesShadows = true
     /// Identifiers (model and app names, timings, shortcuts, job details) in SF Mono.
@@ -210,7 +210,7 @@ public struct ThemePalette: Sendable, Equatable {
         statusDots: true, borderHover: RGBA(hex: 0x6E727A), identifier: RGBA(hex: 0xBAA7FF), cornerGap: 8)
 
     /// Lantern (ADR-084, design study §3 A): night glass, cool greys, one light (#8FD3FF). Amber only when
-    /// Wisp needs you, coral only when something went wrong; ready and success are the light too.
+    /// Pal needs you, coral only when something went wrong; ready and success are the light too.
     public static let lantern = ThemePalette(
         isDark: true,
         surface: RGBA(hex: 0x10162A, alpha: 0.82), surfaceSolid: RGBA(hex: 0x10162A),
@@ -226,7 +226,7 @@ public struct ThemePalette: Sendable, Equatable {
         surfaceTop: RGBA(hex: 0x161F3A), glow: RGBA(hex: 0x8FD3FF))
 
     /// Lantern Day: pale cool glass and ink. Text and controls use a deep light-blue (#1F6FA8) and amber #A05E00
-    /// (the study's #A86200 is only 4.4:1 on this surface) so they read; the glow stays Wisp's own #8FD3FF.
+    /// (the study's #A86200 is only 4.4:1 on this surface) so they read; the glow stays Pal's own #8FD3FF.
     public static let lanternDay = ThemePalette(
         isDark: false,
         surface: RGBA(hex: 0xF3F6FB, alpha: 0.88), surfaceSolid: RGBA(hex: 0xF3F6FB),
@@ -241,7 +241,7 @@ public struct ThemePalette: Sendable, Equatable {
         radiusSurface: 26, radiusCard: 14, radiusControl: 9,
         surfaceTop: RGBA(hex: 0xFAFCFE), glow: RGBA(hex: 0x8FD3FF, alpha: 0.9))
 
-    /// A: dark Liquid-Glass, system-like, one teal accent from Wisp's glow.
+    /// A: dark Liquid-Glass, system-like, one teal accent from Pal's glow.
     public static let native = ThemePalette(
         isDark: true,
         surface: RGBA(hex: 0x202226, alpha: 0.72), surfaceSolid: RGBA(hex: 0x1E2024),

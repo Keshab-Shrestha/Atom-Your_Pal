@@ -201,7 +201,7 @@ export async function checkIssues(client: Paperclip, tracker: ReturnType<typeof 
 export interface PaperclipToolOptions {
   client: Paperclip;
   tracker: ReturnType<typeof issueTracker>;
-  /** Keshab's OK on Wisp's approval card before any Paperclip approval is answered (no answer is a no). */
+  /** Keshab's OK on Pal's approval card before any Paperclip approval is answered (no answer is a no). */
   confirm(request: { summary: string; reason: string }): Promise<boolean>;
   /** Something the board shows changed. */
   onChange?(): void;
@@ -211,7 +211,7 @@ export interface PaperclipToolOptions {
 
 const OUTSIDE = "Paperclip's agents run outside ZENO's checks: Paperclip decides their tools and folders.";
 
-/** Wisp's three Paperclip tools (Tools for the tool engine, by shape). Registered only when the connection is on. */
+/** Pal's three Paperclip tools (Tools for the tool engine, by shape). Registered only when the connection is on. */
 export function createPaperclipTools(options: PaperclipToolOptions): Tool[] {
   const { client, tracker } = options;
   return [

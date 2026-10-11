@@ -767,7 +767,7 @@ test("soul.set saves a new version and soul.restore brings an old one back; a ba
   const sid = (h.events()[0] as HelpersEvent).helpers[0]!;
   assert.deepEqual([sid.soulVersion, sid.soul.lessons, sid.soulVersions.map((v) => v.version)], [2, "Give three sources.", [2, 1]]);
   h.clear();
-  await h.send({ type: "soul.set", helper: "sid", soul: { ...soul, name: "Wisp" } }, { type: "soul.restore", helper: "sid", version: 7 });
+  await h.send({ type: "soul.set", helper: "sid", soul: { ...soul, name: "Pal" } }, { type: "soul.restore", helper: "sid", version: 7 });
   assert.deepEqual(h.types(), ["error", "error"]);
   for (const e of h.events()) assert.equal((e as { stage: string }).stage, "settings");
   h.clear();
@@ -980,7 +980,7 @@ test("agent.create adds an agent with its soul.md; agent.remove takes it out (AD
     const rumi = (h.events().at(-1) as HelpersEvent).helpers.at(-1)!;
     assert.deepEqual([rumi.id, rumi.role, rumi.kit, rumi.custom], ["rumi", "travel planner", "think", true]);
     h.clear();
-    await h.send({ type: "agent.create", name: "Wisp", role: "x", kit: "think", personality: "P", howItWorks: "", rules: "" });
+    await h.send({ type: "agent.create", name: "Pal", role: "x", kit: "think", personality: "P", howItWorks: "", rules: "" });
     assert.match((h.events()[0] as { message: string }).message, /taken by ZENO/);
     await h.send({ type: "agent.remove", id: "rumi" });
     assert.ok(!(h.events().at(-1) as HelpersEvent).helpers.some((x) => x.id === "rumi"));

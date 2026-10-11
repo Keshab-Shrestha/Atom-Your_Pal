@@ -1908,3 +1908,20 @@ The team was seven workers fixed in code (ADR-082). Keshab wants to add his own 
 ### Consequences
 
 The team can grow without code changes, and each new agent works everywhere the built-in ones do. The safety boundary stays the same: the kit, checked in code, decides what an agent may touch. The cost is a second place a soul lives (a file), kept in step with the store by reading the file whenever the team is listed or a task starts.
+
+---
+
+## ADR-089 — Wisp Becomes Pal: Strobi's Look, Premium Characters, One Window
+
+Date: 2026-10-11. Status: **accepted** (Keshab, 2026-10-11: "change wisp to pal", "add a new pal that will be on our screen with the following script", "redraw all the pals animation with reference to this pasted json format … premium looking", "i want to have the chats, settings, agents all in one window"). Changes ADR-085 and ADR-074's naming.
+
+### Decision
+
+- **Wisp is renamed Pal**, everywhere: what Keshab sees and hears, and the code (types, files). Saved settings keep their stored names (`zeno.wisp.*`) so nothing is lost. Older ADRs keep the name as written history.
+- **Pal's look is Keshab's "Strobi copy"** avatar definition (`bible-strong/avatar-definition`, schema 1), pasted by Keshab: a rounded white body, two ears, two arms, two feet, blue eyes, 28 expressions and 23 animations. Keshab chose this knowing it is a copy of the Lab's sample character Strobi; this overrides ADR-085's rule against the Lab's sample characters for Pal. The definition is data in `assets/pals/pal.json`; **ZENO draws it with its own renderer** (no Lab code, engine or package, so ADR-085's AGPL point still holds).
+- **Every pal in that style:** the workers get definitions in the same format, each its own shape and colours, drawn by the same renderer with the same expressions and animations; ZENO's states pick an animation (idle, listening, thinking, working, sleeping, happy, …).
+- **One window:** chat, the board and agents, and settings live in one ZENO window with a sidebar. The island card, the menu-bar icon and Pal on screen stay for quick status and talking.
+
+### Consequences
+
+The characters become richer and consistent, and one window replaces two. The cost is a renderer to maintain and a large rename. Pal's look is a derivative of a third-party sample character, chosen knowingly by Keshab.

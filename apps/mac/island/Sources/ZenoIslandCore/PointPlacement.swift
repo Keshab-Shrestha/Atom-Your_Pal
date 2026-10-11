@@ -31,7 +31,7 @@ public struct ScreenArea: Sendable, Equatable {
     }
 }
 
-/// Where Wisp stands to point, and which side of Wisp its bubble goes.
+/// Where Pal stands to point, and which side of Pal its bubble goes.
 public struct PointFlight: Sendable, Equatable {
     public var feet: CGPoint
     public var bubbleSide: BubblePlacement.Side
@@ -43,11 +43,11 @@ public struct PointFlight: Sendable, Equatable {
 }
 
 public enum PointPlacement {
-    /// Wisp stands on the element's top edge with its bubble above; if that does not fit, hangs under the element
+    /// Pal stands on the element's top edge with its bubble above; if that does not fit, hangs under the element
     /// with the bubble below; for an element too big for either (a whole window), stands inside its top.
-    /// Returns nil when the place is nonsense or on no display, so Wisp never flies off into nowhere.
+    /// Returns nil when the place is nonsense or on no display, so Pal never flies off into nowhere.
     public static func flight(to target: PointTarget, screens: [ScreenArea],
-                              wispHeight: CGFloat, wispHalfWidth: CGFloat,
+                              palHeight: CGFloat, palHalfWidth: CGFloat,
                               bubbleHeight: CGFloat = BubbleLayout.size.height,
                               gap: CGFloat = 6, margin: CGFloat = 8) -> PointFlight? {
         guard let primary = screens.first else { return nil }
@@ -59,24 +59,24 @@ public enum PointPlacement {
         guard let area = screens.first(where: { $0.frame.contains(centre) }) else { return nil }
         let visible = area.visible
 
-        let low = visible.minX + wispHalfWidth + margin
-        let high = visible.maxX - wispHalfWidth - margin
+        let low = visible.minX + palHalfWidth + margin
+        let high = visible.maxX - palHalfWidth - margin
         let x = high >= low ? min(max(element.midX, low), high) : element.midX
 
-        let tailGap: CGFloat = 4 // between Wisp and its bubble
-        // Above: Wisp stands on the top edge.
+        let tailGap: CGFloat = 4 // between Pal and its bubble
+        // Above: Pal stands on the top edge.
         let aboveY = element.maxY + 2
-        if aboveY + wispHeight + tailGap + bubbleHeight <= visible.maxY - margin {
+        if aboveY + palHeight + tailGap + bubbleHeight <= visible.maxY - margin {
             return PointFlight(feet: CGPoint(x: x, y: aboveY), bubbleSide: .above)
         }
-        // Below: Wisp hangs under the bottom edge, its bubble under it.
-        let belowY = element.minY - gap - wispHeight
+        // Below: Pal hangs under the bottom edge, its bubble under it.
+        let belowY = element.minY - gap - palHeight
         if belowY - tailGap - bubbleHeight >= visible.minY + margin {
             return PointFlight(feet: CGPoint(x: x, y: belowY), bubbleSide: .below)
         }
         // Too big for either: inside its top, kept on the display.
-        let insideY = min(max(element.maxY - wispHeight - gap, visible.minY + margin), visible.maxY - margin - wispHeight)
-        let side: BubblePlacement.Side = insideY + wispHeight + tailGap + bubbleHeight <= visible.maxY - margin ? .above : .below
+        let insideY = min(max(element.maxY - palHeight - gap, visible.minY + margin), visible.maxY - margin - palHeight)
+        let side: BubblePlacement.Side = insideY + palHeight + tailGap + bubbleHeight <= visible.maxY - margin ? .above : .below
         return PointFlight(feet: CGPoint(x: x, y: insideY), bubbleSide: side)
     }
 }

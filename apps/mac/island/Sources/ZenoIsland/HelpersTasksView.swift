@@ -365,7 +365,7 @@ private struct ReportSection: View {
     }
 }
 
-/// Task 3.5: the goal Wisp made this task part of, how far its tasks are, and the combined report once they have ended.
+/// Task 3.5: the goal Pal made this task part of, how far its tasks are, and the combined report once they have ended.
 private struct GoalSection: View {
     let goal: HelperGoal
     let list: HelpersList?

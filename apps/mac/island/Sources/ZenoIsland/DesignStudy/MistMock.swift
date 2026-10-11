@@ -1,9 +1,9 @@
 import SwiftUI
 import ZenoIslandCore
 
-// Direction B, Mist: a pale, cool daylight glass with Wisp's own ink (#1B2A44, the colour of its eyes) as the only
-// accent. Wisp's words are set in New York, so its voice reads differently from the interface around it. The glow
-// belongs to Wisp alone and to the live microphone.
+// Direction B, Mist: a pale, cool daylight glass with Pal's own ink (#1B2A44, the colour of its eyes) as the only
+// accent. Pal's words are set in New York, so its voice reads differently from the interface around it. The glow
+// belongs to Pal alone and to the live microphone.
 
 enum Mist {
     static let base = hx(0xEDF1F6)
@@ -57,10 +57,10 @@ private struct MistSurface: View {
     }
 }
 
-/// The menu-bar item: Wisp in ink, the way template icons sit in a light menu bar.
+/// The menu-bar item: Pal in ink, the way template icons sit in a light menu bar.
 private struct MistMenuItem: View {
     var body: some View {
-        WispGlyph().fill(Mist.ink, style: FillStyle(eoFill: true)).frame(width: 14, height: 15)
+        PalGlyph().fill(Mist.ink, style: FillStyle(eoFill: true)).frame(width: 14, height: 15)
             .frame(width: 26, height: 22)
             .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(hx(0x1B2A44, 0.10)))
     }
@@ -80,7 +80,7 @@ private struct MistHeader: View {
                 VStack(spacing: 0) {
                     ZStack {
                         Circle().fill(Mist.glow.opacity(0.5)).frame(width: 60).blur(radius: 18)
-                        WispView(mood: page == .conversation ? .speaking : .resting, time: 0.5, facing: 1, size: 40, glow: 0.7, style: .ghost)
+                        PalView(mood: page == .conversation ? .speaking : .resting, time: 0.5, facing: 1, size: 40, glow: 0.7, style: .ghost)
                     }
                     .frame(width: 60, height: 52)
                     Text(page == .conversation ? "Speaking" : "Ready, on Claude Opus 5.5")
@@ -185,9 +185,9 @@ private struct MistSettings: View {
                 MistTile(title: "Shortcuts") {
                     HStack(spacing: 5) { MistKey("⌃"); MistKey("⌥") }
                 } detail: { Text("Hold to talk").font(.system(size: 11)).foregroundStyle(Mist.ink3) }
-                MistTile(title: "Wisp") {
+                MistTile(title: "Pal") {
                     HStack(spacing: 6) {
-                        WispView(mood: .resting, time: 0.4, size: 22, glow: 0.4, style: .ghost).frame(width: 26, height: 26)
+                        PalView(mood: .resting, time: 0.4, size: 22, glow: 0.4, style: .ghost).frame(width: 26, height: 26)
                         Text("Medium").font(Mist.voice(17, .medium)).foregroundStyle(Mist.ink)
                     }
                 } detail: { Text("Floats along the Dock").font(.system(size: 11)).foregroundStyle(Mist.ink3) }

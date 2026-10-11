@@ -29,7 +29,7 @@ public enum WindowPick {
     }
 }
 
-/// What a drop of Wisp does: Option held over a window asks about it; anything else parks Wisp as before (ADR-043).
+/// What a drop of Pal does: Option held over a window asks about it; anything else parks Pal as before (ADR-043).
 public enum PetDrop: Sendable, Equatable {
     case park
     case ask(WindowInfo)
@@ -41,7 +41,7 @@ public enum PetDrop: Sendable, Equatable {
 }
 
 extension PetBrain {
-    /// Puts Wisp down where it was picked up, after it was dropped on a window to ask (ADR-074): a parked Wisp stays
+    /// Puts Pal down where it was picked up, after it was dropped on a window to ask (ADR-074): a parked Pal stays
     /// parked, a walking one keeps its place on the walkway.
     public mutating func putBack(at now: Double) {
         drop(homeX: pinned ? nil : x, at: now)

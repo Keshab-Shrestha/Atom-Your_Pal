@@ -3,24 +3,24 @@ import SwiftUI
 import ZenoIslandCore
 
 /// Gives each part of ZENO's face a fixed home (ADR-056):
-/// - the panel (Conversation, Status, Settings) hangs below ZENO's menu-bar icon; a click on the icon or on Wisp,
+/// - the panel (Conversation, Status, Settings) hangs below ZENO's menu-bar icon; a click on the icon or on Pal,
 ///   or the shortcut, opens it, and a click elsewhere, Esc or the collapse button closes it;
-/// - the status goes in Wisp's bubble, or — with Wisp off — in a small card under the icon during a turn;
+/// - the status goes in Pal's bubble, or — with Pal off — in a small card under the icon during a turn;
 /// - while ZENO works on the Mac, a strip at the bottom centre shows the step, Stop, and any approval request;
-/// - while Wisp points, a short label sits beside it and nothing else is near it.
+/// - while Pal points, a short label sits beside it and nothing else is near it.
 @MainActor
 final class IslandController {
     let model: IslandModel
     let shortcuts: ShortcutEngine
-    /// Wisp, shown while the Pet setting is on (ADR-042).
+    /// Pal, shown while the Pet setting is on (ADR-042).
     let pet: PetController
     private let panel = IslandPanel()
     private let menuIcon = MenuBarIcon()
-    /// Wisp's speech bubble (ADR-050): status for talk and dictation while Wisp is shown.
+    /// Pal's speech bubble (ADR-050): status for talk and dictation while Pal is shown.
     private let bubble: BubbleController
     /// What ZENO is doing on the Mac, Stop, and approval requests (ADR-054, ADR-056).
     private let strip: WorkStripController
-    /// The short label beside Wisp while it points.
+    /// The short label beside Pal while it points.
     private let pointLabel = PointLabelController()
     /// The Helpers window (ADR-081).
     private let helpersWindow: HelpersWindowController
@@ -48,16 +48,16 @@ final class IslandController {
     private var monitors: [Any] = []
     private var observers: [NSObjectProtocol] = []
     private var lastTitle = ""
-    /// Wisp reached the place it points at: its label shows from then on.
+    /// Pal reached the place it points at: its label shows from then on.
     private var pointArrived = false
     /// Development only: when set, a PNG of the panel is written here each time its title changes.
     private let snapshotDirectory = ProcessInfo.processInfo.environment["ZENO_ISLAND_SNAPSHOTS"].map { URL(fileURLWithPath: $0) }
     private var snapshotCount = 0
     private let trace: (String) -> Void
     private let log: (String, [String: Any]) -> Void
-    /// The runtime said `ready` and has not stopped since: a dropped Wisp can ask it something (ADR-074).
+    /// The runtime said `ready` and has not stopped since: a dropped Pal can ask it something (ADR-074).
     private var runtimeReady = false
-    /// The app Wisp was last dropped on, until the runtime answers `context.ready`.
+    /// The app Pal was last dropped on, until the runtime answers `context.ready`.
     private var pointedBundleId: String?
     /// Starts the runtime again with a fresh restart policy (ADR-075). Set by the app.
     var restartRuntime: () -> Void = {}
@@ -66,7 +66,7 @@ final class IslandController {
     /// The first-run tour (ADR-075) and the timer for its next step.
     private var tour = FirstRunTour()
     private var tourTimer: Timer?
-    /// The screens are asleep or the Mac is locked (ADR-076): Wisp stops drawing and the microphone is left alone.
+    /// The screens are asleep or the Mac is locked (ADR-076): Pal stops drawing and the microphone is left alone.
     private var sleep = SleepState()
     /// The Talk keys went down while paused and were ignored: their release is ignored too.
     private var talkHeldWhilePaused = false
@@ -105,8 +105,8 @@ final class IslandController {
             guard let self else { return }
             self.setExpanded(!self.model.expanded)
         }
-        menuIcon.isWispShown = { [weak model] in model?.settings.petEnabled ?? false }
-        menuIcon.onShowWisp = { [weak model] enabled in model?.setPet(enabled) }
+        menuIcon.isPalShown = { [weak model] in model?.settings.petEnabled ?? false }
+        menuIcon.onShowPal = { [weak model] enabled in model?.setPet(enabled) }
         menuIcon.onHelpers = { [weak model] in model?.openHelpers() }
         shortcuts.onTrigger = { [weak self] trigger in self?.shortcut(trigger) }
         dictation.onPhase = { [weak self] phase in self?.dictationPhase(phase) }
@@ -123,7 +123,7 @@ final class IslandController {
         model.petChanged = { [weak self] enabled in
             guard let self else { return }
             self.pet.setEnabled(enabled)
-            self.refresh() // the status moves between Wisp's bubble and the card under the icon
+            self.refresh() // the status moves between Pal's bubble and the card under the icon
         }
         pet.onMove = { [weak self] feet in
             guard let self else { return }
@@ -131,8 +131,8 @@ final class IslandController {
             self.pointLabel.follow(feet)
         }
         pet.onArrive = { [weak self] in self?.arrivedAtPoint() }
-        pet.onClick = { [weak self] count in self?.wispClicked(count) }
-        pet.onHide = { [weak model] in model?.setPet(false) } // right-click → Hide Wisp
+        pet.onClick = { [weak self] count in self?.palClicked(count) }
+        pet.onHide = { [weak model] in model?.setPet(false) } // right-click → Hide Pal
         pet.onPointAt = { [weak self] app in self?.pointedAt(app) }
     }
 
@@ -262,7 +262,7 @@ final class IslandController {
         }
         if case .ready = event {
             runtimeReady = true
-            schedule([(1.5, { [self] in maybeStartTour() })]) // after Wisp's launch hello
+            schedule([(1.5, { [self] in maybeStartTour() })]) // after Pal's launch hello
         }
         if case .contextReady(_, let ok, _) = event { contextReady(ok: ok) } // before the status: it opens the microphone
         model.work.apply(event, now: Self.now)
@@ -273,7 +273,7 @@ final class IslandController {
         }
         if case .mediaKey(let key) = event { press(key) }
         if case .timer = event { pet.poke() } // out of hiding: the user should see it (the runtime chimed and spoke)
-        // Task 3.15: Wisp flies over to the menu-bar icon with the team's line while ZENO says it.
+        // Task 3.15: Pal flies over to the menu-bar icon with the team's line while ZENO says it.
         if case .workerLine(let line) = event, !model.status.isBusy {
             pet.poke()
             pointAtMenuIcon(IslandStatus.short(line))
@@ -323,23 +323,23 @@ final class IslandController {
         }
     }
 
-    // MARK: - Drop Wisp on a window (ADR-074)
+    // MARK: - Drop Pal on a window (ADR-074)
 
-    /// Wisp was dropped with Option on this app's window: bring the app to the front, then ask the runtime to read it.
+    /// Pal was dropped with Option on this app's window: bring the app to the front, then ask the runtime to read it.
     private func pointedAt(_ app: NSRunningApplication) {
         let name = app.localizedName ?? "this app"
         guard let bundleId = app.bundleIdentifier else {
-            log("wisp.pointed.refused", ["reason": "no_bundle_id"])
+            log("pal.pointed.refused", ["reason": "no_bundle_id"])
             refusePoint(name, "ZENO doesn't read \(name).")
             return
         }
         guard runtimeReady else {
-            log("wisp.pointed.refused", ["bundleId": bundleId, "reason": "not_connected"])
+            log("pal.pointed.refused", ["bundleId": bundleId, "reason": "not_connected"])
             refusePoint(name, "ZENO isn't running.")
             return
         }
-        log("wisp.pointed", ["bundleId": bundleId])
-        trace("wisp pointed")
+        log("pal.pointed", ["bundleId": bundleId])
+        trace("pal pointed")
         pointedBundleId = bundleId
         Task { [weak self] in
             await Self.bringToFront(app)
@@ -358,7 +358,7 @@ final class IslandController {
         let bundleId = pointedBundleId
         pointedBundleId = nil
         guard ok else {
-            if let bundleId { log("wisp.pointed.refused", ["bundleId": bundleId]) }
+            if let bundleId { log("pal.pointed.refused", ["bundleId": bundleId]) }
             return
         }
         guard talkLocally, !talking, !dictating, !model.status.isBusy, dictation.followUpBegan() else { return }
@@ -476,20 +476,20 @@ final class IslandController {
         model.status.isBusy || talking || dictating || Self.now < statusUntil
     }
 
-    /// This turn works on the Mac: the strip has the floor, Wisp's bubble and the card stay away.
+    /// This turn works on the Mac: the strip has the floor, Pal's bubble and the card stay away.
     private var workTurn: Bool { model.work.active }
 
     private func updateStrip() {
         let now = Self.now
         let show = model.work.isShown(at: now)
-        if model.approval.pending != nil { pet.poke() } // the question is for the user: Wisp comes out of hiding
-        let clearance = pet.isShown ? 54 * model.settings.wispSize.scale + 10 : 0
+        if model.approval.pending != nil { pet.poke() } // the question is for the user: Pal comes out of hiding
+        let clearance = pet.isShown ? 54 * model.settings.palSize.scale + 10 : 0
         if show != strip.isVisible { trace(show ? "strip show" : "strip hide") }
         strip.update(show: show, asking: model.approval.pending != nil, clearance: clearance)
         if show, model.approval.pending != nil { trace("strip asking \(strip.frame.integral)") }
     }
 
-    /// Wisp's bubble: only when the status needs words (a problem, a notice, a question), never while it points or
+    /// Pal's bubble: only when the status needs words (a problem, a notice, a question), never while it points or
     /// while the strip is up.
     private func updateBubble() {
         let wanted = pet.isShown && !model.expanded && !workTurn && model.pointing.target == nil && statusWanted && model.status.needsBubble
@@ -503,7 +503,7 @@ final class IslandController {
         }
     }
 
-    /// The panel window: open (expanded), the status card (Wisp off, a turn running), or off screen.
+    /// The panel window: open (expanded), the status card (Pal off, a turn running), or off screen.
     private func wantedPresentation() -> MenuPanelLayout.Presentation? {
         if model.expanded { return .expanded }
         guard !pet.isShown, !workTurn, statusWanted else { return nil }
@@ -588,20 +588,20 @@ final class IslandController {
 
     // MARK: - Pointing (ADR-054, ADR-056)
 
-    /// How long Wisp stays at the place once it gets there, so the user has time to look.
+    /// How long Pal stays at the place once it gets there, so the user has time to look.
     private static let pointDwell: Double = 7
     private var pointTimer: Timer?
 
-    /// The model named a place: Wisp flies there. Its label shows on arrival, beside it.
+    /// The model named a place: Pal flies there. Its label shows on arrival, beside it.
     private func startPointing(_ target: PointTarget) {
-        guard pet.isShown else { // no Wisp: nothing to fly. The strip says what it is.
-            trace("point without Wisp: \(target.label)")
+        guard pet.isShown else { // no Pal: nothing to fly. The strip says what it is.
+            trace("point without Pal: \(target.label)")
             return
         }
         let areas = NSScreen.screens.map { ScreenArea(frame: $0.frame, visible: $0.visibleFrame) }
-        let scale = model.settings.wispSize.scale
-        // No bubble goes with Wisp now (ADR-056): it only needs room for itself.
-        guard let flight = PointPlacement.flight(to: target, screens: areas, wispHeight: 54 * scale, wispHalfWidth: 22 * scale,
+        let scale = model.settings.palSize.scale
+        // No bubble goes with Pal now (ADR-056): it only needs room for itself.
+        guard let flight = PointPlacement.flight(to: target, screens: areas, palHeight: 54 * scale, palHalfWidth: 22 * scale,
                                                  bubbleHeight: 0) else {
             trace("point off every display, not flown to")
             model.pointing.clear()
@@ -615,7 +615,7 @@ final class IslandController {
         trace("point \(target.label) feet=\(Int(flight.feet.x)),\(Int(flight.feet.y))")
     }
 
-    /// Wisp got there: the label shows and the dwell starts.
+    /// Pal got there: the label shows and the dwell starts.
     private func arrivedAtPoint() {
         pointArrived = true
         pointTimer?.invalidate()
@@ -634,11 +634,11 @@ final class IslandController {
         statusChanged()
     }
 
-    /// Keeps Wisp and its label in step with the pointing state: it ended (a new turn, a reset, the dwell) → go back.
+    /// Keeps Pal and its label in step with the pointing state: it ended (a new turn, a reset, the dwell) → go back.
     private func updatePointing() {
         if let target = model.pointing.target, pet.isShown, pointArrived {
-            let scale = model.settings.wispSize.scale
-            pointLabel.show(PointingState.line(for: target), palette: model.settings.theme.palette, feet: pet.feetPoint, wispHeight: 54 * scale, wispHalfWidth: 22 * scale)
+            let scale = model.settings.palSize.scale
+            pointLabel.show(PointingState.line(for: target), palette: model.settings.theme.palette, feet: pet.feetPoint, palHeight: 54 * scale, palHalfWidth: 22 * scale)
             if !pointLabel.isVisible { trace("point label show") }
             return
         }
@@ -724,9 +724,9 @@ final class IslandController {
         if expanded { panel.makeKey() } // key, without activating ZENO: the app you were in stays active
     }
 
-    /// A press on Wisp that was not a drag: opens the panel under the icon, or closes it (ADR-051, ADR-056).
-    private func wispClicked(_ count: Int) {
-        trace("wisp click \(count)")
+    /// A press on Pal that was not a drag: opens the panel under the icon, or closes it (ADR-051, ADR-056).
+    private func palClicked(_ count: Int) {
+        trace("pal click \(count)")
         switch PetClickAction.forPress(clickCount: count, panelOpen: model.expanded) {
         case .open: setExpanded(true)
         case .close: setExpanded(false)
@@ -736,7 +736,7 @@ final class IslandController {
 
     private func clickedOutside() {
         guard model.expanded else { return }
-        // Global monitors only see clicks in other apps, so this was not on the panel, the icon or Wisp.
+        // Global monitors only see clicks in other apps, so this was not on the panel, the icon or Pal.
         setExpanded(false)
     }
 
@@ -832,7 +832,7 @@ final class IslandController {
     private func maybeStartTour() {
         guard !tour.isRunning, !model.settings.tourDone else { return }
         guard !talking, !dictating, !model.status.isBusy else { return skipTour() } // the user talked first
-        guard FirstRunTour.shouldStart(wispShown: pet.isShown, tourDone: model.settings.tourDone, runtimeReady: runtimeReady) else { return }
+        guard FirstRunTour.shouldStart(palShown: pet.isShown, tourDone: model.settings.tourDone, runtimeReady: runtimeReady) else { return }
         log("tour.start", [:])
         runTourStep(tour.start())
     }
@@ -852,7 +852,7 @@ final class IslandController {
             model.status.say(title, detail)
             statusChanged()
         case .point(let label):
-            model.status.acknowledge() // the greeting is over; the label beside Wisp takes over
+            model.status.acknowledge() // the greeting is over; the label beside Pal takes over
             pointAtMenuIcon(label)
         case .back:
             if model.pointing.target != nil { finishPointing() }
@@ -871,7 +871,7 @@ final class IslandController {
         tourTimer = timer
     }
 
-    /// Wisp flies to ZENO's menu-bar icon, the same way it points for the model (ADR-054).
+    /// Pal flies to ZENO's menu-bar icon, the same way it points for the model (ADR-054).
     private func pointAtMenuIcon(_ label: String) {
         guard let anchor = menuIcon.anchor, let primary = NSScreen.screens.first else {
             trace("tour: menu-bar icon not on screen")
@@ -928,7 +928,7 @@ final class IslandController {
         return fromVisible
     }
 
-    /// Re-applies the look settings whenever one changes (the bubble and the panel; Wisp reads its own each frame).
+    /// Re-applies the look settings whenever one changes (the bubble and the panel; Pal reads its own each frame).
     private func watchSettings() {
         withObservationTracking {
             _ = model.settings.revision
@@ -1006,8 +1006,8 @@ final class IslandController {
         ])
     }
 
-    /// Development only (`ZENO_PANEL_DEMO=1`): opens and closes the panel from the icon and from Wisp, and checks
-    /// that Wisp does not move while it is open (ADR-056).
+    /// Development only (`ZENO_PANEL_DEMO=1`): opens and closes the panel from the icon and from Pal, and checks
+    /// that Pal does not move while it is open (ADR-056).
     private func playPanelDemo() {
         schedule([
             (3, { [self] in note("start") }),
@@ -1015,9 +1015,9 @@ final class IslandController {
             (5.5, { [self] in note("open") }),
             (6, { [self] in menuIcon.onClick(); note("icon click closes") }),
             (7.5, { [self] in note("closed") }),
-            (8, { [self] in wispClicked(1); note("wisp click opens") }),
-            (9.5, { [self] in note("open from wisp") }),
-            (12, { [self] in note("wisp while open (should have moved freely)") }),
+            (8, { [self] in palClicked(1); note("pal click opens") }),
+            (9.5, { [self] in note("open from pal") }),
+            (12, { [self] in note("pal while open (should have moved freely)") }),
             (12.5, { [self] in setExpanded(false); note("closing") }),
             (14, { [self] in note("closed again") }),
         ])
@@ -1059,15 +1059,15 @@ final class IslandController {
         }
     }
 
-    /// Development only (`ZENO_HIDE_DEMO`): Wisp hides, then shows each lean, then the user's own lean comes back.
+    /// Development only (`ZENO_HIDE_DEMO`): Pal hides, then shows each lean, then the user's own lean comes back.
     private func playHideDemo() {
         let settings = model.settings
-        let saved = settings.wispLean
+        let saved = settings.palLean
         schedule([
             (2, { [self] in pet.tuckAway() }),
-            (5, { settings.wispLean = .slight }),
-            (8, { settings.wispLean = .deep }),
-            (11, { settings.wispLean = saved }),
+            (5, { settings.palLean = .slight }),
+            (8, { settings.palLean = .deep }),
+            (11, { settings.palLean = saved }),
         ])
     }
 
@@ -1075,20 +1075,20 @@ final class IslandController {
     /// be measured, then puts the user's own values back.
     private func playLookDemo() {
         let settings = model.settings
-        let saved = (settings.wispSize, settings.wispGlow, settings.bubbleSize, settings.bubbleOpacity, settings.panelSize, settings.panelBackground, settings.bubbleStay)
+        let saved = (settings.palSize, settings.palGlow, settings.bubbleSize, settings.bubbleOpacity, settings.panelSize, settings.panelBackground, settings.bubbleStay)
         func look(_ label: String) {
-            trace("look \(label) | wisp=\(Int(settings.wispSize.points)) | panel frame=\(Int(panel.frame.width))x\(Int(panel.frame.height)) visible=\(panel.isVisible) expanded=\(model.expanded) | bubble=\(bubble.isVisible)")
+            trace("look \(label) | pal=\(Int(settings.palSize.points)) | panel frame=\(Int(panel.frame.width))x\(Int(panel.frame.height)) visible=\(panel.isVisible) expanded=\(model.expanded) | bubble=\(bubble.isVisible)")
         }
         schedule([
             (3, { look("start") }),
-            (4, { settings.wispSize = .huge }),
-            (5.5, { look("wisp huge") }),
-            (6, { settings.bubbleSize = .large; settings.bubbleOpacity = .solid; settings.wispGlow = .bright }),
+            (4, { settings.palSize = .huge }),
+            (5.5, { look("pal huge") }),
+            (6, { settings.bubbleSize = .large; settings.bubbleOpacity = .solid; settings.palGlow = .bright }),
             (6.5, { [self] in model.meter.reset(); dictationPhase(.listening) }),
             (8, { look("bubble large while listening") }),
             (9, { [self] in dictationPhase(.cancelled) }),
-            (10, { settings.wispSize = .small; settings.bubbleSize = .normal }),
-            (11, { look("wisp small") }),
+            (10, { settings.palSize = .small; settings.bubbleSize = .normal }),
+            (11, { look("pal small") }),
             (12, { settings.panelSize = .large; settings.panelBackground = .solid }),
             (12.5, { [self] in setExpanded(true) }),
             (14.5, { look("panel large") }),
@@ -1096,7 +1096,7 @@ final class IslandController {
             (16.5, { look("panel compact while open") }),
             (17, { [self] in setExpanded(false) }),
             (18.5, {
-                (settings.wispSize, settings.wispGlow, settings.bubbleSize, settings.bubbleOpacity, settings.panelSize, settings.panelBackground, settings.bubbleStay) = saved
+                (settings.palSize, settings.palGlow, settings.bubbleSize, settings.bubbleOpacity, settings.panelSize, settings.panelBackground, settings.bubbleStay) = saved
                 look("restored")
             }),
         ])

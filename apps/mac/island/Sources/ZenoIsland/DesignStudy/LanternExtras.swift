@@ -1,15 +1,15 @@
 import SwiftUI
 import ZenoIslandCore
 
-// Direction A, Lantern, beyond the panel: Wisp's bubble on the desktop, the work strip asking for approval, and the
-// Helpers window. Same rule throughout: Wisp's light marks what is live; amber marks what needs you.
+// Direction A, Lantern, beyond the panel: Pal's bubble on the desktop, the work strip asking for approval, and the
+// Helpers window. Same rule throughout: Pal's light marks what is live; amber marks what needs you.
 
 struct LanternExtrasSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("A. Lantern, on the desktop").font(.system(size: 22, weight: .semibold, design: .rounded)).foregroundStyle(.white)
-                Text("Wisp's bubble, the approval strip and the Helpers window in the same light.")
+                Text("Pal's bubble, the approval strip and the Helpers window in the same light.")
                     .font(.system(size: 13)).foregroundStyle(.white.opacity(0.72))
             }
             HStack(alignment: .top, spacing: 36) {
@@ -53,20 +53,20 @@ struct LanternExtrasSheet: View {
     }
 }
 
-/// Wisp on the desktop with its bubble above. The bubble grows out of the tail, where Wisp is.
+/// Pal on the desktop with its bubble above. The bubble grows out of the tail, where Pal is.
 private struct LanternBubbleScene<Bubble: View>: View {
     let mood: PetBrain.Mood
     @ViewBuilder let bubble: Bubble
     var body: some View {
         VStack(spacing: -10) {
             bubble
-            WispView(mood: mood, time: 0.5, facing: 1, size: 56, glow: mood == .listening ? 1.6 : 1, style: .ghost)
+            PalView(mood: mood, time: 0.5, facing: 1, size: 56, glow: mood == .listening ? 1.6 : 1, style: .ghost)
         }
         .frame(width: 380)
     }
 }
 
-/// Night glass, a capsule-cornered body and a short tail. Lit: Wisp's light runs along the top rim while it listens.
+/// Night glass, a capsule-cornered body and a short tail. Lit: Pal's light runs along the top rim while it listens.
 private struct LanternBubble<Content: View>: View {
     let lit: Bool
     var attention = false
@@ -105,7 +105,7 @@ private struct Triangle: Shape {
     }
 }
 
-/// The microphone as Wisp's light: bars that brighten with the voice, the newest on the right.
+/// The microphone as Pal's light: bars that brighten with the voice, the newest on the right.
 private struct LightMeter: View {
     let levels: [Double]
     var body: some View {
@@ -125,7 +125,7 @@ private struct LanternApproval: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Circle().fill(Lantern.amber).frame(width: 7, height: 7).shadow(color: Lantern.amber, radius: 4)
-                Text("Wisp needs your OK").font(.system(size: 11.5, weight: .medium)).foregroundStyle(Lantern.amber)
+                Text("Pal needs your OK").font(.system(size: 11.5, weight: .medium)).foregroundStyle(Lantern.amber)
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text("Click \u{201C}Send\u{201D} in Mail").font(Lantern.title(16)).foregroundStyle(Lantern.text)
@@ -239,7 +239,7 @@ private struct LanternHelpers: View {
     }
 }
 
-/// A helper's mark: a letter in a dark disc. While it works, Wisp's light runs round it.
+/// A helper's mark: a letter in a dark disc. While it works, Pal's light runs round it.
 private struct HelperAvatar: View {
     let initial: String
     let working: Bool

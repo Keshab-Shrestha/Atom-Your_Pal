@@ -11,7 +11,7 @@ extension RGBA {
     var nsColor: NSColor { NSColor(srgbRed: r, green: g, blue: b, alpha: a) }
 }
 
-// Views outside a themed surface (the gallery's loose Wisps) keep Lantern's look; every real surface sets its own.
+// Views outside a themed surface (the gallery's loose Pals) keep Lantern's look; every real surface sets its own.
 private struct ThemeKey: EnvironmentKey { static let defaultValue = ThemePalette.lantern }
 
 extension EnvironmentValues {

@@ -113,7 +113,7 @@ export interface Runtime {
   helpers?: HelperStore;
   /** The helpers as the Helpers window sees them. Undefined when the store could not open. */
   islandHelpers?: IslandHelpers;
-  /** Wisp dropped on a window (ADR-074): that app's read, held for the next request only. */
+  /** Pal dropped on a window (ADR-074): that app's read, held for the next request only. */
   screen: WindowPointer;
   /** Countdown timers (ADR-061). */
   timers: Timers;
@@ -124,8 +124,8 @@ export interface Runtime {
   /** Called when the Claude plan reports usage (ADR-076); returns a function that stops listening. */
   onPlanUsage(listener: (usage: PlanUsage) => void): () => void;
   /**
-   * Called with a line to say when a goal Wisp handed out has ended (Task 3.5), or a plan waits for Keshab (Task 3.8,
-   * then `after` asks on Wisp's approval card). Returns a function that stops listening.
+   * Called with a line to say when a goal Pal handed out has ended (Task 3.5), or a plan waits for Keshab (Task 3.8,
+   * then `after` asks on Pal's approval card). Returns a function that stops listening.
    */
   onGoalLine(listener: (line: string, after?: () => void) => void): () => void;
   /** Shutdown: stops running helper jobs (they are marked failed at the next start) and Laya's server. */
@@ -262,7 +262,7 @@ export function createRuntime(
           createLookAtScreenTool({ cua, onShot: (shot) => (lastShot = shot), onStep: (step) => computer.step(step) }),
         ]
       : []),
-    // ADR-082/087, Task 3.5: Wisp hands work to the team. Logs the goal id and task count only.
+    // ADR-082/087, Task 3.5: Pal hands work to the team. Logs the goal id and task count only.
     ...(helpers ? [createDelegateTool({ store: helpers, onDelegated: (e) => log.info("goal.delegated", e) })] : []),
     // Task 3.9: routines by voice in any wording. Logs the routine id and worker only.
     ...(helpers ? [createScheduleTool({ store: helpers, onScheduled: (e) => log.info("routine.scheduled", e) })] : []),
@@ -342,8 +342,8 @@ export function createRuntime(
         tools: toolEngine,
         context: (input, context) => {
           current = { source: input.source, requestId: context.requestId };
-          const pointed = screen.take(); // ADR-074: the window Wisp was dropped on, for this request only
-          const team = helpers ? teamContext(helpers.list()) : undefined; // Task 3.5: who Wisp can delegate to
+          const pointed = screen.take(); // ADR-074: the window Pal was dropped on, for this request only
+          const team = helpers ? teamContext(helpers.list()) : undefined; // Task 3.5: who Pal can delegate to
           if (!memory) return [nowLine(), team, pointed].filter(Boolean).join("\n\n");
           const facts = memoryContext(input.text, { store: memory });
           const past = episodes ? episodeContext(memory, context.sessionId) : undefined;
@@ -366,7 +366,7 @@ export function createRuntime(
           lastShot = undefined;
           return shot;
         },
-        // A box around the spot, so Wisp stands on it as it does on an element (computer.point wants w and h above 0).
+        // A box around the spot, so Pal stands on it as it does on an element (computer.point wants w and h above 0).
         point: (t) => void computer.point({ x: t.x - POINT_BOX / 2, y: t.y - POINT_BOX / 2, w: POINT_BOX, h: POINT_BOX, label: t.label }),
         log: (e) => log.info("pointing.marker", e),
       })
@@ -565,7 +565,7 @@ export function createRuntime(
   }
   // Task 3.5: a goal whose tasks have all ended gets its combined report (one model call, no tools) and one line.
   const goalLineListeners = new Set<(line: string, after?: () => void) => void>();
-  // Task 3.8: a plan waits for Keshab: one line, then Wisp's approval card. Allow approves; Decline or no answer leaves
+  // Task 3.8: a plan waits for Keshab: one line, then Pal's approval card. Allow approves; Decline or no answer leaves
   // it waiting in the window (never a rejection). Logs ids only.
   helpers?.onChange((change) => {
     if (change.action !== "plan" || change.status !== "awaiting") return;

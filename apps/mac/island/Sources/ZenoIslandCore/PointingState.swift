@@ -1,6 +1,6 @@
 import Foundation
 
-/// The place ZENO is showing the user, if any (ADR-054, Task 0.6.4). Pure state: the controller flies Wisp to
+/// The place ZENO is showing the user, if any (ADR-054, Task 0.6.4). Pure state: the controller flies Pal to
 /// `target` and the bubble says `line`. It ends with a new turn, a reset, an error or a runtime restart; the turn
 /// merely finishing does not end it, so the user has a moment to look.
 public struct PointingState: Sendable, Equatable {

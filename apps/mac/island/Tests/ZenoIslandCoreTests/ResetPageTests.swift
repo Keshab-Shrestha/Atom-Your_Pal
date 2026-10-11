@@ -7,11 +7,11 @@ import Testing
 @Suite("Reset this page")
 @MainActor
 struct ResetPageTests {
-    static let appearanceKeys: Set = [IslandSettings.themeKey, IslandSettings.wispStyleKey]
+    static let appearanceKeys: Set = [IslandSettings.themeKey, IslandSettings.palStyleKey]
     static let dictationKeys: Set = [IslandSettings.dictationModeKey, IslandSettings.livePreviewKey, IslandSettings.removeFillersKey]
-    static let wispKeys: Set = [
-        IslandSettings.wispSizeKey, IslandSettings.wispGlowKey, IslandSettings.wispWanderKey, IslandSettings.wispNapKey,
-        IslandSettings.wispHideKey, IslandSettings.wispLeanKey, IslandSettings.wispReactsKey, IslandSettings.wispHomeDisplayKey,
+    static let palKeys: Set = [
+        IslandSettings.palSizeKey, IslandSettings.palGlowKey, IslandSettings.palWanderKey, IslandSettings.palNapKey,
+        IslandSettings.palHideKey, IslandSettings.palLeanKey, IslandSettings.palReactsKey, IslandSettings.palHomeDisplayKey,
         IslandSettings.bubbleSizeKey, IslandSettings.bubbleOpacityKey, IslandSettings.bubbleStayKey,
         IslandSettings.panelSizeKey, IslandSettings.panelBackgroundKey,
     ]
@@ -24,11 +24,11 @@ struct ResetPageTests {
         let name = "zeno.test.reset.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
         let s = IslandSettings(defaults: defaults)
-        s.theme = other(s.theme); s.wispStyle = other(s.wispStyle)
+        s.theme = other(s.theme); s.palStyle = other(s.palStyle)
         s.dictationMode = other(s.dictationMode); s.livePreview.toggle(); s.removeFillers.toggle()
-        s.wispSize = other(s.wispSize); s.wispGlow = other(s.wispGlow); s.wispWander = other(s.wispWander)
-        s.wispNap = other(s.wispNap); s.wispHideAfter = other(s.wispHideAfter); s.wispLean = other(s.wispLean)
-        s.wispReacts.toggle(); s.wispHomeDisplay = .display(uuid: "SIDE")
+        s.palSize = other(s.palSize); s.palGlow = other(s.palGlow); s.palWander = other(s.palWander)
+        s.palNap = other(s.palNap); s.palHideAfter = other(s.palHideAfter); s.palLean = other(s.palLean)
+        s.palReacts.toggle(); s.palHomeDisplay = .display(uuid: "SIDE")
         s.bubbleSize = other(s.bubbleSize); s.bubbleOpacity = other(s.bubbleOpacity); s.bubbleStay = other(s.bubbleStay)
         s.panelSize = other(s.panelSize); s.panelBackground = other(s.panelBackground)
         s.petEnabled.toggle(); s.soundsEnabled.toggle(); s.followUpEnabled.toggle(); s.tourDone.toggle()
@@ -42,7 +42,7 @@ struct ResetPageTests {
         let (s, defaults, name) = everythingChanged()
         defer { defaults.removePersistentDomain(forName: name) }
         let before = defaults.persistentDomain(forName: name) ?? [:]
-        #expect(before.count >= Self.wispKeys.count, "the suite holds the changed settings")
+        #expect(before.count >= Self.palKeys.count, "the suite holds the changed settings")
         reset(s)
         let after = defaults.persistentDomain(forName: name) ?? [:]
         let changed = Set(before.keys).union(after.keys).filter { before[$0] as? NSObject != after[$0] as? NSObject }
@@ -54,8 +54,8 @@ struct ResetPageTests {
     @Test func appearanceResetTouchesOnlyThemeAndStyle() {
         let (s, fresh, changed) = run { $0.resetAppearance() }
         #expect(changed == Self.appearanceKeys)
-        #expect(s.theme == fresh.theme && s.wispStyle == fresh.wispStyle)
-        #expect(s.dictationMode != fresh.dictationMode && s.wispSize != fresh.wispSize)
+        #expect(s.theme == fresh.theme && s.palStyle == fresh.palStyle)
+        #expect(s.dictationMode != fresh.dictationMode && s.palSize != fresh.palSize)
     }
 
     @Test func dictationResetTouchesOnlyDictation() {
@@ -65,15 +65,15 @@ struct ResetPageTests {
         #expect(s.theme != fresh.theme)
     }
 
-    @Test func wispResetTouchesOnlyWispBubbleAndPanel() {
-        let (s, fresh, changed) = run { $0.resetWisp() }
-        #expect(changed == Self.wispKeys)
-        #expect(s.wispSize == fresh.wispSize && s.wispGlow == fresh.wispGlow && s.wispWander == fresh.wispWander)
-        #expect(s.wispNap == fresh.wispNap && s.wispHideAfter == fresh.wispHideAfter && s.wispLean == fresh.wispLean)
-        #expect(s.wispReacts == fresh.wispReacts && s.wispHomeDisplay == fresh.wispHomeDisplay)
+    @Test func palResetTouchesOnlyPalBubbleAndPanel() {
+        let (s, fresh, changed) = run { $0.resetPal() }
+        #expect(changed == Self.palKeys)
+        #expect(s.palSize == fresh.palSize && s.palGlow == fresh.palGlow && s.palWander == fresh.palWander)
+        #expect(s.palNap == fresh.palNap && s.palHideAfter == fresh.palHideAfter && s.palLean == fresh.palLean)
+        #expect(s.palReacts == fresh.palReacts && s.palHomeDisplay == fresh.palHomeDisplay)
         #expect(s.bubbleSize == fresh.bubbleSize && s.bubbleOpacity == fresh.bubbleOpacity && s.bubbleStay == fresh.bubbleStay)
         #expect(s.panelSize == fresh.panelSize && s.panelBackground == fresh.panelBackground)
-        // Show Wisp and where it is parked are left alone.
+        // Show Pal and where it is parked are left alone.
         #expect(s.petEnabled != fresh.petEnabled && s.petSpot != nil)
     }
 
@@ -84,7 +84,7 @@ struct ResetPageTests {
     }
 
     @Test func pagesDoNotShareKeys() {
-        let all = [Self.appearanceKeys, Self.dictationKeys, Self.wispKeys, Self.shortcutKeys]
+        let all = [Self.appearanceKeys, Self.dictationKeys, Self.palKeys, Self.shortcutKeys]
         #expect(all.map(\.count).reduce(0, +) == all.reduce(Set<String>()) { $0.union($1) }.count)
     }
 }

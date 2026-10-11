@@ -1,7 +1,7 @@
 import { BRIEF_REPORT_CHARS, isFinal } from "./jobs.ts";
 import type { Goal, GoalReport, HelperStore, Report, Source } from "./store.ts";
 
-// ADR-082/087, Task 3.5: when every task of a goal has ended, Wisp writes one combined report and says one line.
+// ADR-082/087, Task 3.5: when every task of a goal has ended, Pal writes one combined report and says one line.
 
 /** Most sources kept on a combined report. */
 export const GOAL_SOURCES = 20;
@@ -61,7 +61,7 @@ export function joinedReport(goal: string, parts: readonly Part[]): GoalReport {
 
 /**
  * The one line ZENO says when a goal ends, or undefined when Keshab stopped every task. One task speaks of its
- * worker; several speak of the goal, which Wisp names as a result ("home networking guide").
+ * worker; several speak of the goal, which Pal names as a result ("home networking guide").
  */
 export function goalLine(goal: Goal, nameOf: (helper: string) => string): string | undefined {
   const { tasks } = goal;

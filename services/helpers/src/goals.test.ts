@@ -15,7 +15,7 @@ import {
   type HelperStore,
 } from "./index.ts";
 
-// ADR-082/087, Task 3.5: Wisp the manager.
+// ADR-082/087, Task 3.5: Pal the manager.
 
 const report = (title: string, url = "https://example.org/") => ({ title, summary: `${title} in one line.`, body: `All about ${title}.`, sources: [{ title: "Src", url }] });
 const tick = () => new Promise((r) => setTimeout(r, 5));

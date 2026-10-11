@@ -349,7 +349,7 @@ test("an unknown refusal still passes Cua's own message along", async () => {
 
 type Pointed = { x: number; y: number; w: number; h: number; label: string };
 
-test("point sends the element's place on screen and a label to Wisp, and clicks nothing", async () => {
+test("point sends the element's place on screen and a label to Pal, and clicks nothing", async () => {
   const pointed: Pointed[] = [];
   const s = setup({ point: (p) => pointed.push(p) });
   await sees(s);

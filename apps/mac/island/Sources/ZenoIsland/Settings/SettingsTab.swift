@@ -84,11 +84,11 @@ struct SettingsTab: View {
         let s = model.settings
         switch page {
         case .examples: return model.capabilities.map { $0.count == 1 ? "1 tool" : "\($0.count) tools" } ?? ""
-        case .appearance: return "\(s.theme.title), \(s.wispStyle.title)"
+        case .appearance: return "\(s.theme.title), \(s.palStyle.title)"
         case .model: return model.modelInfo?.currentModelName ?? "—"
         case .shortcuts: return s.shortcut(for: .talk)?.display ?? "Off"
         case .dictation: return s.dictationMode.title
-        case .wisp: return s.petEnabled ? s.wispSize.title : "Off"
+        case .pal: return s.petEnabled ? s.palSize.title : "Off"
         case .memory:
             guard let memory = model.memory else { return "" }
             if !memory.enabled { return "Off" }
@@ -104,7 +104,7 @@ struct SettingsTab: View {
         case .model: ModelSection(model: model)
         case .shortcuts: ShortcutSection(model: model)
         case .dictation: DictationSection(model: model)
-        case .wisp: WispSection(model: model)
+        case .pal: PalSection(model: model)
         case .memory: MemorySection(model: model)
         case .general: GeneralSection(model: model)
         }

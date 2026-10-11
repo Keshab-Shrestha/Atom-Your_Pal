@@ -1,5 +1,5 @@
 // ADR-082, Task 3.11: what a worker in granted folders may touch. Every file tool's path is checked against the run's
-// folders; every command is classified in code; risky ones ask Keshab on Wisp's approval card (no answer is a no).
+// folders; every command is classified in code; risky ones ask Keshab on Pal's approval card (no answer is a no).
 
 import { homedir } from "node:os";
 import { join } from "node:path";

@@ -45,7 +45,7 @@ cp "$binary" "$app/Contents/MacOS/ZENO"
 helper="$here/.build/release/ZenoCalendar"
 [ -x "$helper" ] && cp "$helper" "$app/Contents/MacOS/zeno-calendar" || echo "warning: calendar helper not built" >&2
 # Avatar images (ADR-085): assets/avatars/<character>/<expression>.png → Resources/avatars/…, PNGs only (no README).
-# With none, nothing is copied and ZENO draws its own Wisp and helper marks.
+# With none, nothing is copied and ZENO draws its own Pal and helper marks.
 avatars=0
 if [ -d "$root/assets/avatars" ]; then
   for png in $(cd "$root/assets" && find avatars -mindepth 2 -maxdepth 2 -type f -name '*.png' | sort); do

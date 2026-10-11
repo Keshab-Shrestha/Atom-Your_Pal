@@ -1,4 +1,4 @@
-/// Wisp's behaviour (ADR-042), kept free of AppKit and the clock so every rule is unit-tested:
+/// Pal's behaviour (ADR-042), kept free of AppKit and the clock so every rule is unit-tested:
 /// the window calls `update(status:at:)` when ZENO's state changes and `step(to:)` once per frame.
 ///
 /// - Idle: floats to a random spot along the bottom of the screen, rests there a few seconds, floats on.
@@ -11,7 +11,7 @@ public struct PetBrain: Sendable {
     public enum Mood: Sendable, Equatable {
         case floating, resting, napping, listening, thinking, speaking, worried, carried
 
-        /// Moods that hold Wisp still: a ZENO turn, a problem, or being carried.
+        /// Moods that hold Pal still: a ZENO turn, a problem, or being carried.
         public var isReacting: Bool {
             switch self {
             case .listening, .thinking, .speaking, .worried, .carried: true
@@ -25,11 +25,11 @@ public struct PetBrain: Sendable {
         public var speed: Double = 38
         /// How long a rest between floats lasts, in seconds.
         public var restSeconds: ClosedRange<Double> = 2.5...7
-        /// Seconds with no ZENO activity before Wisp naps.
+        /// Seconds with no ZENO activity before Pal naps.
         public var napAfter: Double = 180
-        /// The shortest float: closer targets are skipped, so Wisp never shuffles in place.
+        /// The shortest float: closer targets are skipped, so Pal never shuffles in place.
         public var minimumTrip: Double = 60
-        /// False: Wisp rests where it is instead of floating along the Dock.
+        /// False: Pal rests where it is instead of floating along the Dock.
         public var wanders = true
 
         public init() {}
@@ -38,16 +38,16 @@ public struct PetBrain: Sendable {
     public private(set) var mood = Mood.resting
     /// Parked by the user somewhere other than the Dock walkway: never wanders. `x` is not used while parked.
     public private(set) var pinned = false
-    /// Centre of Wisp along the walkway, 0...width.
+    /// Centre of Pal along the walkway, 0...width.
     public private(set) var x: Double
     /// +1 facing right, -1 facing left.
     public private(set) var facing: Double = 1
-    /// Changes take effect on the next step (the settings can change while Wisp runs).
+    /// Changes take effect on the next step (the settings can change while Pal runs).
     public var tuning: Tuning
 
     private var width: Double
     private var target: Double?
-    /// The mood ZENO's current state asks for, shown again when Wisp is put down.
+    /// The mood ZENO's current state asks for, shown again when Pal is put down.
     private var statusMood: Mood?
     private var restUntil: Double
     private var lastActivity: Double
@@ -68,15 +68,15 @@ public struct PetBrain: Sendable {
         restUntil = now + tuning.restSeconds.lowerBound
     }
 
-    /// The walkway changed size (screen resolution or Dock changed): keep Wisp on it.
+    /// The walkway changed size (screen resolution or Dock changed): keep Pal on it.
     public mutating func resize(width: Double) {
         self.width = max(width, 0)
         x = min(max(x, 0), self.width)
         if let t = target { target = min(max(t, 0), self.width) }
     }
 
-    /// The mood a ZENO state asks for; nil for idle states (Wisp keeps wandering, resting or napping). Also the
-    /// panel header's Wisp (ADR-084), which shows `.resting` for nil.
+    /// The mood a ZENO state asks for; nil for idle states (Pal keeps wandering, resting or napping). Also the
+    /// panel header's Pal (ADR-084), which shows `.resting` for nil.
     public static func mood(for status: IslandStatus.Kind) -> Mood? {
         switch status {
         case .listening: .listening
@@ -108,14 +108,14 @@ public struct PetBrain: Sendable {
         }
     }
 
-    /// The user picked Wisp up.
+    /// The user picked Pal up.
     public mutating func grab(at now: Double) {
         mood = .carried
         target = nil
         lastActivity = now
     }
 
-    /// The user put Wisp down. `homeX` is its place on the Dock walkway if it was put down there (it wanders
+    /// The user put Pal down. `homeX` is its place on the Dock walkway if it was put down there (it wanders
     /// from that spot); nil if it was put down anywhere else (it stays parked).
     public mutating func drop(homeX: Double?, at now: Double) {
         lastActivity = now
@@ -128,14 +128,14 @@ public struct PetBrain: Sendable {
         }
     }
 
-    /// Send a parked Wisp back to wandering the Dock walkway (it starts from wherever `x` is).
+    /// Send a parked Pal back to wandering the Dock walkway (it starts from wherever `x` is).
     public mutating func goHome(at now: Double) {
         pinned = false
         poke(at: now)
         if mood == .resting { rest(at: now) }
     }
 
-    /// Something happened that should wake Wisp (a shortcut, opening the island) without a state change.
+    /// Something happened that should wake Pal (a shortcut, opening the island) without a state change.
     public mutating func poke(at now: Double) {
         lastActivity = now
         if mood == .napping { rest(at: now) }
@@ -144,7 +144,7 @@ public struct PetBrain: Sendable {
     /// Advances to `now` and returns the mood to draw. Call once per frame.
     @discardableResult
     public mutating func step(to now: Double) -> Mood {
-        let dt = max(0, min(now - lastStep, 0.25)) // a stalled frame never teleports Wisp
+        let dt = max(0, min(now - lastStep, 0.25)) // a stalled frame never teleports Pal
         lastStep = now
         if mood.isReacting || mood == .napping { return mood }
 

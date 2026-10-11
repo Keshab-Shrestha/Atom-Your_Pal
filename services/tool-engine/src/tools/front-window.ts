@@ -88,7 +88,7 @@ export interface AppRead {
 
 /**
  * Reads the given app once: its name and, in Chrome, Arc, Edge or Brave, the open tab's title and address. Blocked
- * apps are not read; private windows give no title or address. Used by `front_window` and by pointing Wisp at a
+ * apps are not read; private windows give no title or address. Used by `front_window` and by pointing Pal at a
  * window (ADR-074), which names the app itself.
  */
 export async function readApp(front: FrontApp, options: { osascript?: Osascript } = {}): Promise<AppRead> {

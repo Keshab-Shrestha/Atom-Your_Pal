@@ -1,7 +1,7 @@
 import SwiftUI
 import ZenoIslandCore
 
-// Direction A, Lantern: deep night glass, cool greys, and one colour, Wisp's own light (#8FD3FF). Listening,
+// Direction A, Lantern: deep night glass, cool greys, and one colour, Pal's own light (#8FD3FF). Listening,
 // thinking and speaking change how bright and how alive that light is, never its hue. Amber and coral appear only
 // for "needs you" and "went wrong".
 
@@ -25,15 +25,15 @@ enum Lantern {
     static func title(_ size: CGFloat = 15) -> Font { .system(size: size, weight: .semibold, design: .rounded) }
 }
 
-/// The panel surface: night glass lit from Wisp's corner, a rim that catches light at the top, a two-layer shadow.
+/// The panel surface: night glass lit from Pal's corner, a rim that catches light at the top, a two-layer shadow.
 struct LanternSurface: View {
-    /// How brightly Wisp burns: about 0.15 at rest, 0.3 listening, 0.4 speaking.
+    /// How brightly Pal burns: about 0.15 at rest, 0.3 listening, 0.4 speaking.
     var brightness: Double = 0.3
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Lantern.radiusPanel, style: .continuous)
         ZStack {
             shape.fill(LinearGradient(colors: [Lantern.nightTop, Lantern.night], startPoint: .top, endPoint: .bottom))
-            // Wisp's light falling on the glass from the header.
+            // Pal's light falling on the glass from the header.
             shape.fill(RadialGradient(colors: [Lantern.light.opacity(brightness), Lantern.light.opacity(brightness * 0.28), Lantern.light.opacity(0.0)],
                                       center: UnitPoint(x: 0.1, y: 0.06), startRadius: 2, endRadius: 280))
             shape.strokeBorder(LinearGradient(colors: [.white.opacity(0.16), .white.opacity(0.05)], startPoint: .top, endPoint: .bottom), lineWidth: 0.8)
@@ -66,12 +66,12 @@ struct LanternPanel: View {
     }
 }
 
-/// The menu-bar item: a tiny Wisp silhouette in template white; while ZENO listens it gains the light.
+/// The menu-bar item: a tiny Pal silhouette in template white; while ZENO listens it gains the light.
 struct LanternMenuItem: View {
     let listening: Bool
 
     var body: some View {
-        WispGlyph()
+        PalGlyph()
             .fill(listening ? Lantern.light : Color.white.opacity(0.92), style: FillStyle(eoFill: true))
             .frame(width: 14, height: 15)
             .shadow(color: Lantern.light.opacity(listening ? 0.9 : 0), radius: 4)
@@ -80,8 +80,8 @@ struct LanternMenuItem: View {
     }
 }
 
-/// Wisp's outline as a single shape: a dome with a three-scallop hem. Used for the menu-bar item.
-struct WispGlyph: Shape {
+/// Pal's outline as a single shape: a dome with a three-scallop hem. Used for the menu-bar item.
+struct PalGlyph: Shape {
     func path(in r: CGRect) -> Path {
         var p = Path()
         let w = r.width, h = r.height, x = r.minX, y = r.minY
@@ -108,7 +108,7 @@ private struct LanternHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
-                WispView(mood: page == .conversation ? .speaking : .resting, time: 0.45, facing: 1, size: 34, glow: 1.5, style: .ghost)
+                PalView(mood: page == .conversation ? .speaking : .resting, time: 0.45, facing: 1, size: 34, glow: 1.5, style: .ghost)
                     .frame(width: 38, height: 38)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(page == .conversation ? "Speaking" : "Ready").font(Lantern.title()).foregroundStyle(Lantern.text)
@@ -172,7 +172,7 @@ private struct LanternConversation: View {
                               font: .system(size: 13.5), color: Lantern.text, caret: Lantern.light)
                     .lineSpacing(3.5)
                     .background(alignment: .leading) {
-                        // A faint pool of light under the reply Wisp is speaking now.
+                        // A faint pool of light under the reply Pal is speaking now.
                         Ellipse().fill(Lantern.light.opacity(0.10)).frame(width: 300, height: 90).blur(radius: 28).offset(x: -30)
                     }
             }
@@ -199,7 +199,7 @@ private struct LanternAsk: View {
     }
 }
 
-/// A reply still arriving: settled words, the newest ones fading in, and a point of Wisp's light where the next word
+/// A reply still arriving: settled words, the newest ones fading in, and a point of Pal's light where the next word
 /// lands. The glow is the same text drawn again with only the light visible, blurred behind it, so it sits exactly on
 /// the caret wherever the line wraps.
 struct StreamingText: View {
@@ -233,7 +233,7 @@ struct StreamingText: View {
 private struct LanternComposer: View {
     var body: some View {
         HStack(spacing: 10) {
-            Text("Ask Wisp, or hold ⌃⌥ to talk").font(.system(size: 12.5)).foregroundStyle(Lantern.text3)
+            Text("Ask Pal, or hold ⌃⌥ to talk").font(.system(size: 12.5)).foregroundStyle(Lantern.text3)
             Spacer()
             ZStack {
                 Circle().fill(RadialGradient(colors: [Lantern.lightCore, Lantern.light, Lantern.light.opacity(0.5)], center: .center, startRadius: 1, endRadius: 15))

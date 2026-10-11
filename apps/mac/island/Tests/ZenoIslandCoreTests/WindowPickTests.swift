@@ -2,7 +2,7 @@ import CoreGraphics
 import Testing
 @testable import ZenoIslandCore
 
-@Suite("Drop Wisp on a window (ADR-074)")
+@Suite("Drop Pal on a window (ADR-074)")
 struct WindowPickTests {
     let me: Int32 = 100
     func window(_ pid: Int32, _ rect: CGRect, layer: Int = 0, onScreen: Bool = true) -> WindowInfo {
@@ -48,7 +48,7 @@ struct WindowPickTests {
         #expect(WindowPick.appKitRect(CGRect(x: 0, y: -500, width: 100, height: 100), primaryHeight: 900).minY == 1300)
     }
 
-    @Test func puttingWispBackLeavesItsSpotAlone() {
+    @Test func puttingPalBackLeavesItsSpotAlone() {
         var walking = PetBrain(width: 1000, now: 0)
         let x = walking.x
         walking.grab(at: 1)

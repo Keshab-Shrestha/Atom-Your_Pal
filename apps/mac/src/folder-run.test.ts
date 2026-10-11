@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { denyRead, folderCheck } from "./folder-run.ts";
 
-// Task 3.11: every tool call of a run in folders, checked in code; risky commands ask on Wisp's card.
+// Task 3.11: every tool call of a run in folders, checked in code; risky commands ask on Pal's card.
 
 test("paths outside are refused, risky commands ask, refused ones never ask; the log keeps verdicts only", async () => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "zeno-run-")));

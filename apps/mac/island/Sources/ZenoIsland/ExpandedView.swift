@@ -1,7 +1,7 @@
 import SwiftUI
 import ZenoIslandCore
 
-/// The panel under the menu-bar icon (ADR-038, ADR-040, ADR-056, ADR-057, ADR-084): a header with Wisp and ZENO's
+/// The panel under the menu-bar icon (ADR-038, ADR-040, ADR-056, ADR-057, ADR-084): a header with Pal and ZENO's
 /// state, then word tabs for the conversation and Settings (whose "now" card is what the Status tab was). Every colour comes from the user's theme.
 struct ExpandedView: View {
     let model: IslandModel

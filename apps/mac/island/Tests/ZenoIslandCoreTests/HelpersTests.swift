@@ -522,7 +522,7 @@ struct HelperTaskTests {
     }
 }
 
-@Suite("Goals Wisp hands out (Task 3.5)")
+@Suite("Goals Pal hands out (Task 3.5)")
 struct HelperGoalTests {
     @Test func decodesAThreadsGoalAndItsCombinedReport() throws {
         let line = #"{"type":"thread","id":5,"comments":[],"activity":[],"goal":{"id":2,"text":"networking guide","ended":true,"tasks":[1,5],"report":{"title":"T","summary":"S","body":"B","sources":[{"title":"x","url":"file:///etc/passwd"},{"title":"y","url":"https://example.org/"}]}}}"#

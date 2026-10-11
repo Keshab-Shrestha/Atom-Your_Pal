@@ -9,17 +9,17 @@ import ZenoIslandCore
 enum DesignStudy {
     static func render(to directory: URL) {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        save(StudySheet(title: "A. Lantern", idea: "Wisp's light is the only colour. State is shown by how bright it burns.",
+        save(StudySheet(title: "A. Lantern", idea: "Pal's light is the only colour. State is shown by how bright it burns.",
                         wallpaper: .night) {
             LanternPanel(page: .conversation)
             LanternPanel(page: .settings)
         }, name: "14-design-study-a-lantern", to: directory)
-        save(StudySheet(title: "B. Mist", idea: "Daylight and ink. Wisp speaks in a serif voice; the glow lives only on Wisp.",
+        save(StudySheet(title: "B. Mist", idea: "Daylight and ink. Pal speaks in a serif voice; the glow lives only on Pal.",
                         wallpaper: .day) {
             MistPanel(page: .conversation)
             MistPanel(page: .settings)
         }, name: "14-design-study-b-mist", to: directory)
-        save(StudySheet(title: "C. Halo", idea: "A black island that grows from the menu bar. Its rim carries Wisp's state colour.",
+        save(StudySheet(title: "C. Halo", idea: "A black island that grows from the menu bar. Its rim carries Pal's state colour.",
                         wallpaper: .dusk) {
             HaloPanel(page: .conversation)
             HaloPanel(page: .settings)
@@ -63,7 +63,7 @@ enum StudyCopy {
     ]
     static let look: [Page] = [
         Page(symbol: "paintpalette", title: "Appearance", value: "Lantern, Ghost"),
-        Page(symbol: "face.smiling", title: "Wisp", value: "Medium"),
+        Page(symbol: "face.smiling", title: "Pal", value: "Medium"),
     ]
     static let mind: [Page] = [
         Page(symbol: "brain", title: "Memory", value: "3 facts"),

@@ -2,7 +2,7 @@ import { HAND_OFFS, HelperError, MAX_GOAL_TASKS, MAX_HAND_OFFS } from "./jobs.ts
 import { WEEKDAYS, describeSchedule, parseRoutine, type Schedule } from "./routines.ts";
 import type { GoalPart, HelperStore, HelperView, Job } from "./store.ts";
 
-// ADR-082/087, Task 3.5: Wisp hands work to the team. The model proposes; code checks every part (the store refuses an
+// ADR-082/087, Task 3.5: Pal hands work to the team. The model proposes; code checks every part (the store refuses an
 // unknown or unavailable worker, bad tasks and bad waits) before anything is created.
 
 const TASK_INPUT = "1 to 6 tasks, each an object {worker, task, after}";
@@ -198,7 +198,7 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 /**
  * ADR-081: a sentence addressed to a worker by name settles in code, without the model: "Sid, research mesh Wi-Fi",
  * "Ask Sid to research mesh Wi-Fi", "Sid, stop". A name needs a comma or colon after it (or "ask/tell … to"), so
- * "Penny for your thoughts" stays a sentence for Wisp.
+ * "Penny for your thoughts" stays a sentence for Pal.
  */
 export function matchWorkerCommand(text: string, workers: readonly HelperView[]): WorkerCommand | undefined {
   const s = text.trim().replace(/^(?:hey\s+)?zeno[,\s]+/i, "");
@@ -227,7 +227,7 @@ export function createWorkerShortcut(
     const workers = store.list();
     const command = matchWorkerCommand(text, workers);
     if (!command) return undefined;
-    // Task 3.9: "Sid, every morning at 8, summarise networking news" makes a routine; other "every …" wordings go to Wisp.
+    // Task 3.9: "Sid, every morning at 8, summarise networking news" makes a routine; other "every …" wordings go to Pal.
     if ("task" in command && /^(?:every|each|daily|weekly)\b/i.test(command.task)) {
       const routine = parseRoutine(command.task);
       if (!routine) return undefined;

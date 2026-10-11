@@ -174,7 +174,7 @@ private struct HelperCard: View {
 }
 
 /// A helper's mark (ADR-085): its avatar image for what it is doing, else its first letter, in a disc. While it
-/// works, an arc of Wisp's light runs round it (a still ring with Reduce Motion).
+/// works, an arc of Pal's light runs round it (a still ring with Reduce Motion).
 struct HelperBadge: View {
     let helper: Helper
     let size: CGFloat
@@ -201,7 +201,7 @@ struct HelperBadge: View {
     }
 }
 
-/// Wisp's light running round a working helper's disc: a 70% arc that fades in from its tail and turns once every
+/// Pal's light running round a working helper's disc: a 70% arc that fades in from its tail and turns once every
 /// 1.6 s. Still with Reduce Motion (a full, quiet ring) and in snapshots (the arc).
 private struct WorkingArc: View {
     let lineWidth: CGFloat
@@ -577,7 +577,7 @@ struct JobDot: View {
     }
 }
 
-/// A thin line of Wisp's light under a running job, as far as its step's "n of m".
+/// A thin line of Pal's light under a running job, as far as its step's "n of m".
 struct ProgressLine: View {
     let fraction: Double
     @Environment(\.theme) private var theme
@@ -594,7 +594,7 @@ struct ProgressLine: View {
     }
 }
 
-/// "Read report": the window's one lit button, outlined in Wisp's light.
+/// "Read report": the window's one lit button, outlined in Pal's light.
 struct ReadReportButton: View {
     let action: () -> Void
     private let hovering = State(initialValue: false)

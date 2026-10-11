@@ -73,7 +73,7 @@ test("routine wordings", () => {
   assert.equal(describeSchedule({ kind: "hours", every: 1 }), "Every hour");
 });
 
-test("an 'every …' the code cannot read goes to Wisp; a bad routine is refused in words", () => {
+test("an 'every …' the code cannot read goes to Pal; a bad routine is refused in words", () => {
   const store = openHelperStore({ path: ":memory:" });
   const say = createWorkerShortcut(store);
   assert.equal(say("Sid, every so often, check the news"), undefined);

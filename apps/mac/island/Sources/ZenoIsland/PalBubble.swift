@@ -8,7 +8,7 @@ final class BubbleState {
     var visible = false
     /// Where the tail's tip is, from the bubble's left edge.
     var tailX: CGFloat = BubbleLayout.size.width / 2
-    /// The bubble is below Wisp, so the tail is on top.
+    /// The bubble is below Pal, so the tail is on top.
     var tailOnTop = false
     /// Settings → Bubble → Size: the bubble is drawn at its normal size and scaled.
     var scale: CGFloat = 1
@@ -50,7 +50,7 @@ struct BubbleShape: Shape {
     }
 }
 
-/// How the bubble is lit (ADR-084): Wisp's light while listening, amber when Wisp needs you, coral for a problem,
+/// How the bubble is lit (ADR-084): Pal's light while listening, amber when Pal needs you, coral for a problem,
 /// otherwise plain night glass with a white hairline.
 enum BubbleTone: Equatable {
     case plain, lit, attention, problem
@@ -74,7 +74,7 @@ enum BubbleTone: Equatable {
         }
     }
 
-    /// The light pooled inside the glass at the tail, where Wisp is, and the glow around it. Lantern's glow is Wisp's
+    /// The light pooled inside the glass at the tail, where Pal is, and the glow around it. Lantern's glow is Pal's
     /// own light even where controls use a deeper blue (Lantern Day).
     func light(_ palette: ThemePalette) -> Color? {
         switch self {
@@ -86,8 +86,8 @@ enum BubbleTone: Equatable {
     }
 }
 
-/// ZENO's status as a speech bubble over Wisp (ADR-050), in Lantern's night glass (ADR-084): no icon circle, since
-/// Wisp is right below it. It grows out of the tail, where Wisp is, and shrinks back into it.
+/// ZENO's status as a speech bubble over Pal (ADR-050), in Lantern's night glass (ADR-084): no icon circle, since
+/// Pal is right below it. It grows out of the tail, where Pal is, and shrinks back into it.
 struct BubbleView: View {
     let model: IslandModel
     let state: BubbleState
@@ -175,8 +175,8 @@ private struct BubbleGlass: View {
     }
 }
 
-/// What the bubble says. Dictating: the words heard so far, with the meter in Wisp's light. Otherwise the title and
-/// a line under it, led by an amber dot (Wisp needs you), a coral dot (a problem) or a check (done).
+/// What the bubble says. Dictating: the words heard so far, with the meter in Pal's light. Otherwise the title and
+/// a line under it, led by an amber dot (Pal needs you), a coral dot (a problem) or a check (done).
 private struct BubbleContent: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
@@ -249,7 +249,7 @@ private struct GlowDot: View {
     }
 }
 
-/// The microphone as Wisp's light (ADR-084): bars that rise with the voice, brighter towards the newest on the right.
+/// The microphone as Pal's light (ADR-084): bars that rise with the voice, brighter towards the newest on the right.
 struct BubbleMeter: View {
     let levels: [Double]
     let color: Color
@@ -271,7 +271,7 @@ struct BubbleMeter: View {
     }
 }
 
-/// The window that carries the bubble: transparent, click-through, never takes focus, and follows Wisp.
+/// The window that carries the bubble: transparent, click-through, never takes focus, and follows Pal.
 @MainActor
 final class BubbleController {
     /// Room around the bubble for its shadow and the glow of its light.
@@ -293,7 +293,7 @@ final class BubbleController {
         panel.backgroundColor = .clear
         panel.hasShadow = false
         panel.ignoresMouseEvents = true // the bubble only shows; clicks reach whatever is under it
-        panel.level = NSWindow.Level(rawValue: NSWindow.Level.floating.rawValue + 1) // over Wisp
+        panel.level = NSWindow.Level(rawValue: NSWindow.Level.floating.rawValue + 1) // over Pal
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
         panel.isReleasedWhenClosed = false
         let hosting = NSHostingView(rootView: BubbleView(model: model, state: state))
@@ -301,7 +301,7 @@ final class BubbleController {
         panel.contentView = hosting
     }
 
-    /// Shows the bubble over Wisp, who stands at `feet`.
+    /// Shows the bubble over Pal, who stands at `feet`.
     func show(at feet: CGPoint) {
         hiding?.cancel()
         hiding = nil
@@ -333,7 +333,7 @@ final class BubbleController {
         if panel.isVisible { reposition() }
     }
 
-    /// Wisp moved.
+    /// Pal moved.
     func follow(_ feet: CGPoint) {
         self.feet = feet
         if panel.isVisible { reposition() }
@@ -345,7 +345,7 @@ final class BubbleController {
         panel.orderOut(nil)
     }
 
-    /// The area a window next to Wisp must stay inside: the display `point` is on, below its menu bar.
+    /// The area a window next to Pal must stay inside: the display `point` is on, below its menu bar.
     static func displayBounds(containing point: CGPoint) -> CGRect? {
         let screens = NSScreen.screens
         guard let screen = screens.first(where: { $0.frame.insetBy(dx: -1, dy: -1).contains(point) }) ?? screens.first else { return nil }
@@ -357,9 +357,9 @@ final class BubbleController {
         guard let bounds = Self.displayBounds(containing: feet) else { return }
         let settings = model.settings
         let scale = settings.bubbleSize.scale
-        let wisp = settings.wispSize.scale // a bigger Wisp stands taller: the bubble clears its head
+        let pal = settings.palSize.scale // a bigger Pal stands taller: the bubble clears its head
         let size = CGSize(width: BubbleLayout.size.width * scale, height: BubbleLayout.size.height * scale)
-        let placement = BubbleLayout.place(feet: feet, bodyHeight: 54 * wisp, size: size, in: bounds)
+        let placement = BubbleLayout.place(feet: feet, bodyHeight: 54 * pal, size: size, in: bounds)
         let tailOnTop = placement.side == .below
         // The tail is drawn in the bubble's own (unscaled) coordinates.
         let tailX = placement.tailX / scale

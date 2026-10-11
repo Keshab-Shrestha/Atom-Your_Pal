@@ -110,7 +110,7 @@ export const HELPERS = [
 
 /** Longest text per soul field. */
 export const SOUL_LIMITS: Readonly<Record<keyof Soul, number>> = { name: 20, personality: 600, howItWorks: 1500, rules: 1500, lessons: 2000 };
-const RESERVED_NAMES = new Set(["wisp", "zeno"]);
+const RESERVED_NAMES = new Set(["pal", "zeno"]);
 
 /** How each role is named in the instructions. */
 const ROLE_TITLES: Readonly<Record<string, string>> = {
@@ -227,7 +227,7 @@ export function findHelper(id: string) {
 export const MAX_BLOCKERS = 6;
 /**
  * Task 3.10: which roles a worker may hand a sub-task to, by its own role. Code, never a soul. Workers never hand work
- * back up to Wisp.
+ * back up to Pal.
  */
 export const HAND_OFFS: Readonly<Record<string, readonly string[]>> = {
   researcher: ["financial adviser", "documenter", "hr"],
@@ -238,7 +238,7 @@ export const HAND_OFFS: Readonly<Record<string, readonly string[]>> = {
 /** A task and its sub-tasks: two levels; a sub-task cannot hand off again. */
 export const MAX_LEVELS = 2;
 export const MAX_HAND_OFFS = 3;
-/** Most tasks in one goal Wisp hands the team (ADR-082: up to six parts). */
+/** Most tasks in one goal Pal hands the team (ADR-082: up to six parts). */
 export const MAX_GOAL_TASKS = 6;
 /** How much of an earlier report's body a later task is given. */
 export const BRIEF_REPORT_CHARS = 8000;

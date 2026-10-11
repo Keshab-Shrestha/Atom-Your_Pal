@@ -190,7 +190,7 @@ struct FirstRunTourTests {
     @Test func stepsGoHelloSayPointBackDone() {
         #expect(FirstRunTour.script.map(\.step) == [
             .hello,
-            .say(title: "Hi, I'm Wisp.", detail: "Hold Control + Option and talk to me."),
+            .say(title: "Hi, I'm Pal.", detail: "Hold Control + Option and talk to me."),
             .point(label: "Settings and our chats live here"),
             .back,
             .done,
@@ -198,11 +198,11 @@ struct FirstRunTourTests {
         #expect(FirstRunTour.script.allSatisfy { $0.after >= 0 })
     }
 
-    @Test func startsOnlyWithWispShownTheRuntimeReadyAndNotDone() {
-        #expect(FirstRunTour.shouldStart(wispShown: true, tourDone: false, runtimeReady: true))
-        #expect(!FirstRunTour.shouldStart(wispShown: false, tourDone: false, runtimeReady: true))
-        #expect(!FirstRunTour.shouldStart(wispShown: true, tourDone: true, runtimeReady: true))
-        #expect(!FirstRunTour.shouldStart(wispShown: true, tourDone: false, runtimeReady: false))
+    @Test func startsOnlyWithPalShownTheRuntimeReadyAndNotDone() {
+        #expect(FirstRunTour.shouldStart(palShown: true, tourDone: false, runtimeReady: true))
+        #expect(!FirstRunTour.shouldStart(palShown: false, tourDone: false, runtimeReady: true))
+        #expect(!FirstRunTour.shouldStart(palShown: true, tourDone: true, runtimeReady: true))
+        #expect(!FirstRunTour.shouldStart(palShown: true, tourDone: false, runtimeReady: false))
     }
 
     @Test func runsEachStepOnceThenStops() {

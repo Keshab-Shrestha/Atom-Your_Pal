@@ -160,7 +160,7 @@ final class IslandSettingsTests {
         #expect(settings.revision == 0)
     }
 
-    @Test func remembersWhereWispWasParked() {
+    @Test func remembersWherePalWasParked() {
         let first = IslandSettings(defaults: defaults)
         first.petSpot = PetSpot(x: 1234.5, y: 410)
         #expect(IslandSettings(defaults: defaults).petSpot == PetSpot(x: 1234.5, y: 410))

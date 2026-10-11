@@ -1,5 +1,5 @@
-/// The menu-bar item's Wisp glyph (ADR-084): one silhouette for every state, never a different symbol. Only three
-/// moments colour it: Wisp's light while listening, amber when Wisp needs you, coral when something went wrong.
+/// The menu-bar item's Pal glyph (ADR-084): one silhouette for every state, never a different symbol. Only three
+/// moments colour it: Pal's light while listening, amber when Pal needs you, coral when something went wrong.
 /// Everything else is the plain template glyph, which follows the menu bar's own appearance.
 public enum MenuBarLight: Sendable, Equatable {
     case plain, lit, attention, problem

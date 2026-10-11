@@ -43,7 +43,7 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     public var comments: Int
     public var goal: String?
     public var parentId: Int?
-    /// Task 3.5: the goal Wisp made it part of, and whether that goal has ended with its combined report.
+    /// Task 3.5: the goal Pal made it part of, and whether that goal has ended with its combined report.
     public var goalId: Int?
     public var goalEnded: Bool
     /// Task 3.6: its next run continues the last one's Claude session ("Start fresh" forgets it).
@@ -394,7 +394,7 @@ public struct JobPlan: Sendable, Equatable {
     }
 }
 
-/// What Wisp handed the team in one go (Task 3.5): its tasks, and the combined report once they have all ended.
+/// What Pal handed the team in one go (Task 3.5): its tasks, and the combined report once they have all ended.
 public struct HelperGoal: Sendable, Equatable {
     public var id: Int
     public var text: String

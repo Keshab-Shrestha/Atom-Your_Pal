@@ -17,12 +17,12 @@ public final class IslandSettings {
     static let soundsKey = "zeno.soundsEnabled"
     static let followUpKey = "zeno.followUp"
     static let petSpotKey = "zeno.petSpot"
-    static let wispHideKey = "zeno.wispHideAfter"
-    static let wispSizeKey = "zeno.wisp.size"
-    static let wispLeanKey = "zeno.wisp.lean"
-    static let wispGlowKey = "zeno.wisp.glow"
-    static let wispWanderKey = "zeno.wisp.wander"
-    static let wispNapKey = "zeno.wisp.nap"
+    static let palHideKey = "zeno.wispHideAfter"
+    static let palSizeKey = "zeno.wisp.size"
+    static let palLeanKey = "zeno.wisp.lean"
+    static let palGlowKey = "zeno.wisp.glow"
+    static let palWanderKey = "zeno.wisp.wander"
+    static let palNapKey = "zeno.wisp.nap"
     static let bubbleStayKey = "zeno.bubble.stay"
     static let bubbleSizeKey = "zeno.bubble.size"
     static let bubbleOpacityKey = "zeno.bubble.opacity"
@@ -33,10 +33,10 @@ public final class IslandSettings {
     static let lanternMoveKey = "zeno.look.lanternDefault"
     /// Set once the ADR-086 move to Void has run, so a later choice of Lantern sticks.
     static let voidMoveKey = "zeno.look.voidDefault"
-    static let wispStyleKey = "zeno.wisp.style"
+    static let palStyleKey = "zeno.wisp.style"
     static let avatarMoveKey = "zeno.wisp.avatarDefault"
-    static let wispReactsKey = "zeno.wisp.reacts"
-    static let wispHomeDisplayKey = "zeno.wisp.homeDisplay"
+    static let palReactsKey = "zeno.wisp.reacts"
+    static let palHomeDisplayKey = "zeno.wisp.homeDisplay"
     static let tourDoneKey = "zeno.tourDone"
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -54,14 +54,14 @@ public final class IslandSettings {
         didSet { save(followUpEnabled, Self.followUpKey) }
     }
 
-    /// Wisp notices you while ZENO is idle: eyes follow the pointer, small reactions to clicks (ADR-073). Default on.
-    public var wispReacts: Bool {
-        didSet { save(wispReacts, Self.wispReactsKey) }
+    /// Pal notices you while ZENO is idle: eyes follow the pointer, small reactions to clicks (ADR-073). Default on.
+    public var palReacts: Bool {
+        didSet { save(palReacts, Self.palReactsKey) }
     }
 
-    /// Which display Wisp's walkway is on (ADR-078). Default the main display.
-    public var wispHomeDisplay: WispHomeDisplay {
-        didSet { defaults.set(wispHomeDisplay.storageValue, forKey: Self.wispHomeDisplayKey); revision += 1 }
+    /// Which display Pal's walkway is on (ADR-078). Default the main display.
+    public var palHomeDisplay: PalHomeDisplay {
+        didSet { defaults.set(palHomeDisplay.storageValue, forKey: Self.palHomeDisplayKey); revision += 1 }
     }
 
     /// The first-run tour has run, or the user talked before it could (ADR-075). Default false.
@@ -74,8 +74,8 @@ public final class IslandSettings {
         didSet { save(petEnabled, Self.petKey) }
     }
 
-    /// Where the user parked Wisp: the point on the ground under it, in screen coordinates (x centred).
-    /// Nil = not parked; Wisp wanders the Dock walkway.
+    /// Where the user parked Pal: the point on the ground under it, in screen coordinates (x centred).
+    /// Nil = not parked; Pal wanders the Dock walkway.
     public var petSpot: PetSpot? {
         didSet {
             if let petSpot {
@@ -87,21 +87,21 @@ public final class IslandSettings {
         }
     }
 
-    /// How long Wisp sits idle before it tucks itself against a side edge (ADR-051). Default one minute.
-    public var wispHideAfter: WispHideTimeout {
-        didSet { defaults.set(wispHideAfter.rawValue, forKey: Self.wispHideKey); revision += 1 }
+    /// How long Pal sits idle before it tucks itself against a side edge (ADR-051). Default one minute.
+    public var palHideAfter: PalHideTimeout {
+        didSet { defaults.set(palHideAfter.rawValue, forKey: Self.palHideKey); revision += 1 }
     }
 
-    /// How big Wisp is. Default medium (the original size).
-    public var wispSize: WispSize { didSet { store(wispSize.rawValue, Self.wispSizeKey) } }
-    /// How far Wisp leans while hiding at an edge. Default normal (42 degrees).
-    public var wispLean: WispLean { didSet { store(wispLean.rawValue, Self.wispLeanKey) } }
+    /// How big Pal is. Default medium (the original size).
+    public var palSize: PalSize { didSet { store(palSize.rawValue, Self.palSizeKey) } }
+    /// How far Pal leans while hiding at an edge. Default normal (42 degrees).
+    public var palLean: PalLean { didSet { store(palLean.rawValue, Self.palLeanKey) } }
     /// The halo's strength. Default normal.
-    public var wispGlow: WispGlow { didSet { store(wispGlow.rawValue, Self.wispGlowKey) } }
-    /// How much Wisp floats about. Default normal.
-    public var wispWander: WispWander { didSet { store(wispWander.rawValue, Self.wispWanderKey) } }
-    /// How long until Wisp naps. Default 3 minutes.
-    public var wispNap: WispNap { didSet { store(wispNap.rawValue, Self.wispNapKey) } }
+    public var palGlow: PalGlow { didSet { store(palGlow.rawValue, Self.palGlowKey) } }
+    /// How much Pal floats about. Default normal.
+    public var palWander: PalWander { didSet { store(palWander.rawValue, Self.palWanderKey) } }
+    /// How long until Pal naps. Default 3 minutes.
+    public var palNap: PalNap { didSet { store(palNap.rawValue, Self.palNapKey) } }
     /// How long the speech bubble stays after something finishes. Default 2 seconds.
     public var bubbleStay: BubbleStay { didSet { store(bubbleStay.rawValue, Self.bubbleStayKey) } }
     public var bubbleSize: BubbleSize { didSet { store(bubbleSize.rawValue, Self.bubbleSizeKey) } }
@@ -110,8 +110,8 @@ public final class IslandSettings {
     public var panelBackground: PanelBackground { didSet { store(panelBackground.rawValue, Self.panelBackgroundKey) } }
     /// How ZENO's surfaces look (ADR-057). Default Void (ADR-086).
     public var theme: AppTheme { didSet { store(theme.rawValue, Self.themeKey) } }
-    /// How Wisp is drawn (ADR-057). Default Orb, or Avatar when Wisp's avatar images exist (ADR-085).
-    public var wispStyle: WispStyle { didSet { store(wispStyle.rawValue, Self.wispStyleKey) } }
+    /// How Pal is drawn (ADR-057). Default Orb, or Avatar when Pal's avatar images exist (ADR-085).
+    public var palStyle: PalStyle { didSet { store(palStyle.rawValue, Self.palStyleKey) } }
 
     /// Start and stop sounds. Default on.
     public var soundsEnabled: Bool {
@@ -142,25 +142,25 @@ public final class IslandSettings {
         DictationOptions(mode: dictationMode, livePreview: livePreview, removeFillers: removeFillers)
     }
 
-    /// The default Wisp style: Avatar when its images exist (ADR-085), else Orb.
-    private let defaultWispStyle: WispStyle
+    /// The default Pal style: Avatar when its images exist (ADR-085), else Orb.
+    private let defaultPalStyle: PalStyle
 
-    /// `wispAvatar`: Wisp's avatar images exist (the app checks for `wisp/neutral.png`).
-    public init(defaults: UserDefaults = .standard, wispAvatar: Bool = false) {
+    /// `palAvatar`: Pal's avatar images exist (the app checks for `pal/neutral.png`).
+    public init(defaults: UserDefaults = .standard, palAvatar: Bool = false) {
         self.defaults = defaults
-        defaultWispStyle = wispAvatar ? .avatar : .orb
+        defaultPalStyle = palAvatar ? .avatar : .orb
         petEnabled = defaults.object(forKey: Self.petKey) as? Bool ?? true
-        wispReacts = defaults.object(forKey: Self.wispReactsKey) as? Bool ?? true
+        palReacts = defaults.object(forKey: Self.palReactsKey) as? Bool ?? true
         tourDone = defaults.bool(forKey: Self.tourDoneKey)
-        wispHomeDisplay = defaults.string(forKey: Self.wispHomeDisplayKey).map(WispHomeDisplay.init(storageValue:)) ?? .main
+        palHomeDisplay = defaults.string(forKey: Self.palHomeDisplayKey).map(PalHomeDisplay.init(storageValue:)) ?? .main
         soundsEnabled = defaults.object(forKey: Self.soundsKey) as? Bool ?? true
         followUpEnabled = defaults.object(forKey: Self.followUpKey) as? Bool ?? true
-        wispHideAfter = (defaults.object(forKey: Self.wispHideKey) as? Int).flatMap(WispHideTimeout.init(rawValue:)) ?? .minute1
-        wispSize = Self.choice(defaults, Self.wispSizeKey, .medium)
-        wispLean = Self.choice(defaults, Self.wispLeanKey, .normal)
-        wispGlow = Self.choice(defaults, Self.wispGlowKey, .normal)
-        wispWander = Self.choice(defaults, Self.wispWanderKey, .normal)
-        wispNap = Self.choice(defaults, Self.wispNapKey, .minutes3)
+        palHideAfter = (defaults.object(forKey: Self.palHideKey) as? Int).flatMap(PalHideTimeout.init(rawValue:)) ?? .minute1
+        palSize = Self.choice(defaults, Self.palSizeKey, .medium)
+        palLean = Self.choice(defaults, Self.palLeanKey, .normal)
+        palGlow = Self.choice(defaults, Self.palGlowKey, .normal)
+        palWander = Self.choice(defaults, Self.palWanderKey, .normal)
+        palNap = Self.choice(defaults, Self.palNapKey, .minutes3)
         bubbleStay = Self.choice(defaults, Self.bubbleStayKey, .seconds2)
         bubbleSize = Self.choice(defaults, Self.bubbleSizeKey, .normal)
         bubbleOpacity = Self.choice(defaults, Self.bubbleOpacityKey, .normal)
@@ -169,8 +169,8 @@ public final class IslandSettings {
         Self.moveToLanternOnce(defaults)
         Self.moveToVoidOnce(defaults)
         theme = Self.choice(defaults, Self.themeKey, .void)
-        if wispAvatar { Self.moveToAvatarOnce(defaults) }
-        wispStyle = Self.choice(defaults, Self.wispStyleKey, defaultWispStyle)
+        if palAvatar { Self.moveToAvatarOnce(defaults) }
+        palStyle = Self.choice(defaults, Self.palStyleKey, defaultPalStyle)
         dictationMode = (defaults.string(forKey: Self.dictationModeKey)).flatMap(DictationMode.init(rawValue:)) ?? .automatic
         livePreview = defaults.object(forKey: Self.livePreviewKey) as? Bool ?? true
         removeFillers = defaults.object(forKey: Self.removeFillersKey) as? Bool ?? true
@@ -253,18 +253,18 @@ public final class IslandSettings {
     // "Reset this page" (ADR-079): each resets only the settings on its own Settings page. Shortcuts use
     // `resetAllShortcuts()`. The defaults here must match `init`; the tests compare against a fresh instance.
 
-    /// Appearance: the theme and Wisp's style.
+    /// Appearance: the theme and Pal's style.
     public func resetAppearance() {
-        theme = .void; wispStyle = defaultWispStyle
+        theme = .void; palStyle = defaultPalStyle
     }
 
-    /// ADR-085: the first launch with Wisp's avatar images, a stored Orb (the old default, which "Reset this page"
+    /// ADR-085: the first launch with Pal's avatar images, a stored Orb (the old default, which "Reset this page"
     /// also stores) moves to Avatar once; choosing Orb again afterwards is kept. Ghost and Companion are kept.
     private static func moveToAvatarOnce(_ defaults: UserDefaults) {
         guard !defaults.bool(forKey: avatarMoveKey) else { return }
         defaults.set(true, forKey: avatarMoveKey)
-        if defaults.object(forKey: wispStyleKey) as? Int == WispStyle.orb.rawValue {
-            defaults.set(WispStyle.avatar.rawValue, forKey: wispStyleKey)
+        if defaults.object(forKey: palStyleKey) as? Int == PalStyle.orb.rawValue {
+            defaults.set(PalStyle.avatar.rawValue, forKey: palStyleKey)
         }
     }
 
@@ -296,11 +296,11 @@ public final class IslandSettings {
         dictationMode = .automatic; livePreview = true; removeFillers = true
     }
 
-    /// Wisp, its speech bubble and the panel. "Show Wisp" stays as it is: turning Wisp on or off is the
-    /// controller's job (`IslandModel.setPet`), and a reset should not make Wisp appear or vanish.
-    public func resetWisp() {
-        wispSize = .medium; wispGlow = .normal; wispWander = .normal; wispNap = .minutes3
-        wispHideAfter = .minute1; wispLean = .normal; wispReacts = true; wispHomeDisplay = .main
+    /// Pal, its speech bubble and the panel. "Show Pal" stays as it is: turning Pal on or off is the
+    /// controller's job (`IslandModel.setPet`), and a reset should not make Pal appear or vanish.
+    public func resetPal() {
+        palSize = .medium; palGlow = .normal; palWander = .normal; palNap = .minutes3
+        palHideAfter = .minute1; palLean = .normal; palReacts = true; palHomeDisplay = .main
         bubbleStay = .seconds2; bubbleSize = .normal; bubbleOpacity = .normal
         panelSize = .normal; panelBackground = .glass
     }

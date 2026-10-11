@@ -1,20 +1,20 @@
 import SwiftUI
 import ZenoIslandCore
 
-// ADR-084 (Lantern, Task 4.3): the panel's header is Wisp itself, live in its current mood, with the state in
-// rounded type and the model under it. Tabs are words with Wisp's light lying under the selected one, and the
-// light falls from Wisp across the top of the panel, brighter or breathing with the state.
+// ADR-084 (Lantern, Task 4.3): the panel's header is Pal itself, live in its current mood, with the state in
+// rounded type and the model under it. Tabs are words with Pal's light lying under the selected one, and the
+// light falls from Pal across the top of the panel, brighter or breathing with the state.
 
-/// Where the header's Wisp sits, from the panel's top-left corner: the centre of its 38 pt slot. The glow is
-/// centred here so the light comes from Wisp.
+/// Where the header's Pal sits, from the panel's top-left corner: the centre of its 38 pt slot. The glow is
+/// centred here so the light comes from Pal.
 private enum HeaderLayout {
     static let padding = EdgeInsets(top: 14, leading: Spacing.panel, bottom: 8, trailing: Spacing.panel)
-    static let wispSlot: CGFloat = 38
-    static let wispSize: CGFloat = 34
-    static var wispCentre: CGPoint { CGPoint(x: padding.leading + wispSlot / 2, y: padding.top + wispSlot / 2) }
+    static let palSlot: CGFloat = 38
+    static let palSize: CGFloat = 34
+    static var palCentre: CGPoint { CGPoint(x: padding.leading + palSlot / 2, y: padding.top + palSlot / 2) }
 }
 
-/// Wisp, the state and model, Helpers and Close; then the tabs.
+/// Pal, the state and model, Helpers and Close; then the tabs.
 struct PanelHeader: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
@@ -22,8 +22,8 @@ struct PanelHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
-                HeaderWisp(kind: model.status.kind, style: model.settings.wispStyle)
-                    .frame(width: HeaderLayout.wispSlot, height: HeaderLayout.wispSlot)
+                HeaderPal(kind: model.status.kind, style: model.settings.palStyle)
+                    .frame(width: HeaderLayout.palSlot, height: HeaderLayout.palSlot)
                 stateText
                 Spacer(minLength: 4)
                 if model.status.showsLevel {
@@ -101,11 +101,11 @@ private struct PencilButton: View {
     }
 }
 
-/// Wisp in the header, in the user's style, showing the mood the pet shows for this state. It moves while the
+/// Pal in the header, in the user's style, showing the mood the pet shows for this state. It moves while the
 /// panel is open; held still in snapshots and with Reduce Motion.
-private struct HeaderWisp: View {
+private struct HeaderPal: View {
     let kind: IslandStatus.Kind
-    let style: WispStyle
+    let style: PalStyle
     @Environment(\.islandSnapshot) private var snapshot
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -113,13 +113,13 @@ private struct HeaderWisp: View {
         let mood = PetBrain.mood(for: kind) ?? .resting
         TimelineView(.animation(minimumInterval: 1 / 30, paused: snapshot || reduceMotion)) { context in
             let time = snapshot || reduceMotion ? 0.45 : context.date.timeIntervalSinceReferenceDate
-            WispView(mood: mood, time: time, facing: 1, size: HeaderLayout.wispSize, glow: 1.4, style: style)
+            PalView(mood: mood, time: time, facing: 1, size: HeaderLayout.palSize, glow: 1.4, style: style)
         }
         .accessibilityHidden(true) // the state beside it says the same in words
     }
 }
 
-/// The light from the header's Wisp falling across the panel: a radial glow in the theme's glow colour, as bright
+/// The light from the header's Pal falling across the panel: a radial glow in the theme's glow colour, as bright
 /// as the state asks (`PanelLight`), easing between levels and breathing while listening or thinking.
 struct PanelGlow: View {
     let kind: IslandStatus.Kind
@@ -141,7 +141,7 @@ struct PanelGlow: View {
             .opacity(light.brightness * theme.glow.a)
             .breathing(breathe)
             .animation(Motion.glow(reduceMotion), value: light.brightness)
-            .position(HeaderLayout.wispCentre)
+            .position(HeaderLayout.palCentre)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
@@ -158,7 +158,7 @@ private extension View {
     }
 }
 
-/// The tabs as words. The selected word is bright and a small bar of Wisp's light lies under it, sliding to the
+/// The tabs as words. The selected word is bright and a small bar of Pal's light lies under it, sliding to the
 /// next word on the settle spring; the others brighten on hover.
 struct WordTabs: View {
     @Binding var selection: IslandModel.Tab

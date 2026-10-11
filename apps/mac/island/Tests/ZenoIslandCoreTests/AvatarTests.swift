@@ -3,34 +3,34 @@ import Testing
 @testable import ZenoIslandCore
 
 /// Avatars (ADR-085): which image each moment shows, the files' names, the fallbacks, the speaking mouth, and the
-/// Avatar style becoming the default once Wisp's images exist.
+/// Avatar style becoming the default once Pal's images exist.
 @Suite("Avatars")
 struct AvatarTests {
     @Test func fileNamesMatchTheSpec() {
-        #expect(AvatarExpression.wisp.map(\.fileName) == [
+        #expect(AvatarExpression.pal.map(\.fileName) == [
             "neutral.png", "happy.png", "listening.png", "thinking.png", "speaking.png", "speaking-closed.png",
             "worried.png", "sleepy.png", "surprised.png",
         ])
         #expect(AvatarExpression.helper.map(\.fileName) == ["neutral.png", "working.png", "happy.png", "worried.png"])
     }
 
-    @Test func wispMoods() {
+    @Test func palMoods() {
         let expected: [(PetBrain.Mood, AvatarExpression)] = [
             (.resting, .neutral), (.floating, .neutral), (.listening, .listening), (.thinking, .thinking),
             (.worried, .worried), (.napping, .sleepy), (.carried, .surprised),
         ]
         for (mood, expression) in expected {
-            #expect(AvatarExpression.wisp(mood: mood, reaction: nil, mouthOpen: true) == expression)
+            #expect(AvatarExpression.pal(mood: mood, reaction: nil, mouthOpen: true) == expression)
         }
-        #expect(AvatarExpression.wisp(mood: .speaking, reaction: nil, mouthOpen: true) == .speaking)
-        #expect(AvatarExpression.wisp(mood: .speaking, reaction: nil, mouthOpen: false) == .speakingClosed)
+        #expect(AvatarExpression.pal(mood: .speaking, reaction: nil, mouthOpen: true) == .speaking)
+        #expect(AvatarExpression.pal(mood: .speaking, reaction: nil, mouthOpen: false) == .speakingClosed)
     }
 
     @Test func reactionsWinOverTheIdleMood() {
-        #expect(AvatarExpression.wisp(mood: .resting, reaction: .hello, mouthOpen: false) == .happy)
-        #expect(AvatarExpression.wisp(mood: .resting, reaction: .squish, mouthOpen: false) == .surprised)
-        #expect(AvatarExpression.wisp(mood: .floating, reaction: .dizzy, mouthOpen: false) == .surprised)
-        #expect(AvatarExpression.wisp(mood: .napping, reaction: .yawn, mouthOpen: false) == .sleepy)
+        #expect(AvatarExpression.pal(mood: .resting, reaction: .hello, mouthOpen: false) == .happy)
+        #expect(AvatarExpression.pal(mood: .resting, reaction: .squish, mouthOpen: false) == .surprised)
+        #expect(AvatarExpression.pal(mood: .floating, reaction: .dizzy, mouthOpen: false) == .surprised)
+        #expect(AvatarExpression.pal(mood: .napping, reaction: .yawn, mouthOpen: false) == .sleepy)
     }
 
     @Test func fallbacksEndAtNeutral() {
@@ -57,8 +57,8 @@ struct AvatarTests {
 
     @Test func pathsStayInsideTheFolder() {
         #expect(AvatarExpression.working.path(character: "sid") == "sid/working.png")
-        #expect(AvatarExpression.speakingClosed.path(character: "wisp") == "wisp/speaking-closed.png")
-        for bad in ["", "../wisp", "a/b", "Sid", ".", String(repeating: "a", count: 33)] {
+        #expect(AvatarExpression.speakingClosed.path(character: "pal") == "pal/speaking-closed.png")
+        for bad in ["", "../pal", "a/b", "Sid", ".", String(repeating: "a", count: 33)] {
             #expect(AvatarExpression.neutral.path(character: bad) == nil)
         }
     }
@@ -84,16 +84,16 @@ struct AvatarTests {
         #expect(AvatarExpression.mouthOpen(at: -0.01) == AvatarExpression.mouthOpen(at: AvatarExpression.mouthCycle - 0.01))
     }
 
-    @MainActor @Test func avatarIsTheDefaultOnlyWithWispsImages() {
+    @MainActor @Test func avatarIsTheDefaultOnlyWithPalsImages() {
         let suite = "zeno.test.avatar.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
-        #expect(IslandSettings(defaults: defaults).wispStyle == .orb)
-        let withImages = IslandSettings(defaults: defaults, wispAvatar: true)
-        #expect(withImages.wispStyle == .avatar)
-        withImages.wispStyle = .ghost
+        #expect(IslandSettings(defaults: defaults).palStyle == .orb)
+        let withImages = IslandSettings(defaults: defaults, palAvatar: true)
+        #expect(withImages.palStyle == .avatar)
+        withImages.palStyle = .ghost
         withImages.resetAppearance()
-        #expect(withImages.wispStyle == .avatar)
+        #expect(withImages.palStyle == .avatar)
     }
 
     /// A stored Orb (the old default) moves to Avatar once when the images arrive; choosing Orb again is kept, and
@@ -103,18 +103,18 @@ struct AvatarTests {
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let before = IslandSettings(defaults: defaults)
-        before.wispStyle = .orb
+        before.palStyle = .orb
         _ = IslandSettings(defaults: defaults) // no images yet: nothing moves, and the move is not used up
-        #expect(IslandSettings(defaults: defaults).wispStyle == .orb)
-        let moved = IslandSettings(defaults: defaults, wispAvatar: true)
-        #expect(moved.wispStyle == .avatar)
-        moved.wispStyle = .orb
-        #expect(IslandSettings(defaults: defaults, wispAvatar: true).wispStyle == .orb)
+        #expect(IslandSettings(defaults: defaults).palStyle == .orb)
+        let moved = IslandSettings(defaults: defaults, palAvatar: true)
+        #expect(moved.palStyle == .avatar)
+        moved.palStyle = .orb
+        #expect(IslandSettings(defaults: defaults, palAvatar: true).palStyle == .orb)
 
         let other = "zeno.test.avatar.ghost.\(UUID().uuidString)"
         let ghostDefaults = UserDefaults(suiteName: other)!
         defer { ghostDefaults.removePersistentDomain(forName: other) }
-        IslandSettings(defaults: ghostDefaults).wispStyle = .ghost
-        #expect(IslandSettings(defaults: ghostDefaults, wispAvatar: true).wispStyle == .ghost)
+        IslandSettings(defaults: ghostDefaults).palStyle = .ghost
+        #expect(IslandSettings(defaults: ghostDefaults, palAvatar: true).palStyle == .ghost)
     }
 }

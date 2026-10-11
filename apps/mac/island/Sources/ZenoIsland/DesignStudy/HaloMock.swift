@@ -2,7 +2,7 @@ import SwiftUI
 import ZenoIslandCore
 
 // Direction C, Halo: a true-black island that grows out of the menu bar (square shoulders, deep rounded hem). Its rim
-// is lit in the colour of what Wisp is doing, one colour at a time: listening cyan, thinking violet, speaking ice,
+// is lit in the colour of what Pal is doing, one colour at a time: listening cyan, thinking violet, speaking ice,
 // asking amber, a problem coral, done mint. At rest the rim goes dark. Big rounded type names the state.
 
 enum Halo {
@@ -70,12 +70,12 @@ private struct HaloSurface: View {
     }
 }
 
-/// The menu-bar item: a small pill that fills with the state's colour while Wisp is busy (and stays template white at rest).
+/// The menu-bar item: a small pill that fills with the state's colour while Pal is busy (and stays template white at rest).
 private struct HaloMenuItem: View {
     let color: Color?
     var body: some View {
         HStack(spacing: 5) {
-            WispGlyph().fill(color == nil ? Color.white : Color.black, style: FillStyle(eoFill: true)).frame(width: 12, height: 13)
+            PalGlyph().fill(color == nil ? Color.white : Color.black, style: FillStyle(eoFill: true)).frame(width: 12, height: 13)
             if color != nil {
                 HaloBars(color: .black).frame(width: 14, height: 10)
             }
@@ -104,7 +104,7 @@ private struct HaloStage: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            WispView(mood: page == .conversation ? .speaking : .resting, time: 0.5, facing: 1, size: 46, glow: page == .conversation ? 1.4 : 0.7, style: .ghost)
+            PalView(mood: page == .conversation ? .speaking : .resting, time: 0.5, facing: 1, size: 46, glow: page == .conversation ? 1.4 : 0.7, style: .ghost)
                 .frame(width: 54, height: 54)
             VStack(alignment: .leading, spacing: 2) {
                 Text(page == .conversation ? "Speaking" : "Ready")
