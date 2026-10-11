@@ -953,6 +953,13 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 - Clicking a worker opens its task (or its page). Pals walk between lounge and desk when their state changes. ZENO's own drawing: no art from the reference project.
 - Tests: 1 Swift (Swift 501 pass).
 
+**Part 5 redone in 2D pixel art (2026-10-11, Keshab: "something like munder-difflin … 2d … for office and pals as well"):** built; tested; seen in the gallery; not yet watched live.
+- A top-down pixel office of 20 × 13 tiles of 16 px, drawn pixel by pixel in code (`OfficeArt`): a sage tiled floor, a cream wall with windows, a clock, a calendar and the "Needs you" board (a note per worker waiting for Keshab), Pal's carpeted office with a bookshelf, eight wooden desks with monitors and chairs, a meeting table with four more seats on a rug, and a lounge on planks (vending machine, counter with coffee machine and microwave, fridge, sofa, coffee table), plants, a printer and a water cooler.
+- Pals in pixel art (`PixelPal`), rasterised from each pal's own file: body, ears or antenna, arms and feet where the file puts them, in its colours, outlined and lit from the top left. Poses: idle, breathing, blink, typing (hands on the keyboard, monitor lit), walking, cheering with confetti, sad with a tear.
+- Pals walk between the lounge and their desk along the way through the office (breadth-first over free tiles, through the lounge's doors, `OfficeMap`/`OfficeWalk`). Pixel speech bubbles show the step ("Running the floor" over Pal while anyone works); "!" in amber (needs you) or red (failed); envelopes fly on hand-offs; names on small plates.
+- Drawn without smoothing, at a whole-number scale when there is room (2× in the default window). munder-difflin was the visual reference only: its tiles are LimeZu's paid art and its cast are TV characters, so nothing of it is copied.
+- Tests: 6 Swift (paths reach every seat around furniture and only through doors, walking, pixel pals from their files, the layers) (Swift 507 pass).
+
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.
 
 **Task 3.17 — Companies and user logins.** Separate workspaces with their own tasks, workers, budgets and history; sign-in for more than one person.

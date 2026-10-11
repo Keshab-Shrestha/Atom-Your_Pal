@@ -230,6 +230,9 @@ enum IslandGallery {
         .padding(24)
         .background(Color(red: 0.36, green: 0.42, blue: 0.52))
         save(sheet, name: name, to: directory)
+        // ADR-090: the office floor on its own, at the Board's width.
+        save(OfficeFloor(model: boarded).environment(\.islandSnapshot, true).environment(\.theme, theme.palette).frame(width: 660)
+            .padding(16).background(Color.black), name: name + "-floor", to: directory)
     }
 
     /// ADR-076: What can I ask? (before and after `capabilities`), the empty conversation with examples, the plan
