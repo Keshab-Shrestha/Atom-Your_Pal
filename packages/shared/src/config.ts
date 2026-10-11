@@ -4,25 +4,15 @@ import { homedir } from "node:os";
 const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
-/**
- * Supported LLM providers: display name, the env variable holding the key, the default model, and the
- * models offered in ZENO Island's settings (id → display name), newest first.
- */
 /** Claude on the user's own Claude plan (no API key; the signed-in `claude` program does the work). */
 export const CLAUDE_PLAN = "claude-plan";
 
+/**
+ * The LLM providers: display name, where its "key" comes from, the default model, and the models offered in ZENO
+ * Island's settings (id → display name), newest first. ADR-092: ZENO runs on the user's own Claude plan only; the
+ * gateway still takes any provider, so another can be added back behind it.
+ */
 export const PROVIDERS = {
-  claude: {
-    name: "Claude",
-    keyVar: "ANTHROPIC_API_KEY",
-    defaultModel: "claude-sonnet-5",
-    models: [
-      { id: "claude-opus-5-5", name: "Claude Opus 5.5" },
-      { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" },
-      { id: "claude-sonnet-5", name: "Claude Sonnet 5" },
-      { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },
-    ],
-  },
   "claude-plan": {
     // Its "key" is the path of the `claude` program (ZENO_CLAUDE_PATH, or found automatically), not a secret.
     name: "Claude (my plan)",
@@ -34,20 +24,10 @@ export const PROVIDERS = {
       { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },
     ],
   },
-  gemini: {
-    name: "Gemini",
-    keyVar: "GEMINI_API_KEY",
-    defaultModel: "gemini-3.6-flash",
-    models: [
-      { id: "gemini-3.8-flash", name: "Gemini 3.8 Flash" },
-      { id: "gemini-3.7-flash", name: "Gemini 3.7 Flash" },
-      { id: "gemini-3.6-flash", name: "Gemini 3.6 Flash" },
-      { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash" },
-      { id: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash-Lite" },
-      { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
-    ],
-  },
 } as const;
+
+/** ADR-092: providers ZENO had before; a setting that still names one runs on the Claude plan instead. */
+export const RETIRED_PROVIDERS = ["claude", "gemini"] as const;
 export type LlmProvider = keyof typeof PROVIDERS;
 
 type Env = Record<string, string | undefined>;
@@ -79,16 +59,9 @@ export type ProviderKeys = Partial<Record<LlmProvider, string>>;
 
 export function readProviderKeys(env: Env = process.env, findClaude: (env: Env) => string | undefined = findClaudeProgram): ProviderKeys {
   const keys: ProviderKeys = {};
-  for (const id of LLM_PROVIDER_IDS) {
-    if (id === CLAUDE_PLAN) {
-      // No key: this provider is available when the signed-in `claude` program is. Its "key" is that program's path.
-      const found = findClaude(env);
-      if (found) keys[id] = found;
-      continue;
-    }
-    const value = env[PROVIDERS[id].keyVar]?.trim();
-    if (value) keys[id] = value;
-  }
+  // No key: the plan is available when the signed-in `claude` program is. Its "key" is that program's path.
+  const found = findClaude(env);
+  if (found) keys[CLAUDE_PLAN] = found;
   return keys;
 }
 
@@ -177,16 +150,20 @@ export function loadConfig(env: Env = process.env, options: LoadConfigOptions = 
     return value as T;
   };
 
-  const envProvider = oneOf("ZENO_LLM_PROVIDER", LLM_PROVIDER_IDS, "claude");
+  // ADR-092: a provider ZENO no longer has ("claude", "gemini") runs on the plan; its model too, unless it is Claude's.
+  const named = env.ZENO_LLM_PROVIDER?.trim();
+  const retired = (RETIRED_PROVIDERS as readonly string[]).includes(named ?? "");
+  const envProvider = retired ? CLAUDE_PLAN : oneOf("ZENO_LLM_PROVIDER", LLM_PROVIDER_IDS, CLAUDE_PLAN);
   const provider = options.llm?.provider ?? envProvider;
-  const { keyVar, defaultModel } = PROVIDERS[provider];
-  const model = options.llm?.model ?? read("ZENO_LLM_MODEL", defaultModel);
+  const { defaultModel } = PROVIDERS[provider];
+  const asked = options.llm?.model ?? read("ZENO_LLM_MODEL", defaultModel);
+  const model = asked.startsWith("claude-") ? asked : defaultModel;
 
   const config: Config = {
     llm: {
       provider,
-      // Only the selected provider's key is required. Claude on the user's plan has no key: it uses the signed-in `claude`.
-      apiKey: provider === CLAUDE_PLAN ? (findClaudeProgram(env) ?? "") : read(keyVar),
+      // No key: Claude on the user's plan uses the signed-in `claude` program.
+      apiKey: findClaudeProgram(env) ?? "",
       model,
       timeoutMs: positiveInt("ZENO_LLM_TIMEOUT_MS", 30_000),
     },

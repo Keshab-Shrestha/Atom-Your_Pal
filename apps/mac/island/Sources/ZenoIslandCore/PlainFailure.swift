@@ -38,9 +38,6 @@ public struct PlainFailure: Sendable, Equatable {
     /// - "Claude Code is not signed in. Run `claude auth login` …" and "Claude Code was not found. Install it, then run
     ///   `claude auth login` …" (services/llm-gateway/src/providers/claude-plan.ts); "Install Claude Code and run
     ///   `claude auth login` to use …" (apps/mac/src/model-settings.ts).
-    /// - "<KEY> is required (set it in .env)" (packages/shared/src/config.ts), "Add <KEY> to .env to use …"
-    ///   (model-settings.ts), "… Check <KEY> in .env." (providers/claude.ts, gemini.ts), for ANTHROPIC_API_KEY and
-    ///   GEMINI_API_KEY.
     /// - "Whisper model not found at …" (apps/mac/src/stt.ts); the dictation title "Speech model missing"
     ///   (DictationController, Parakeet).
     /// - The dictation title "Microphone is off" (DictationController); "ZENO is not allowed to use the microphone."
@@ -53,11 +50,6 @@ public struct PlainFailure: Sendable, Equatable {
             }
             return PlainFailure(sentence: "Claude Code isn't installed, so your Claude plan can't be used.", button: "How to set up",
                                 action: .showCommand("Install Claude Code, then sign in with: claude auth login"))
-        }
-        if let provider = keyProvider(in: message) {
-            let rejected = message.contains("Check ") && !message.contains("is required")
-            return PlainFailure(sentence: rejected ? "\(provider) rejected its API key." : "There's no \(provider) API key in .env.",
-                                button: "Choose another model", action: .openModelSettings)
         }
         if message.contains("Whisper model not found") {
             let marker = "Download it with: "
@@ -99,12 +91,5 @@ public struct PlainFailure: Sendable, Equatable {
         let name = providers.first { $0.id == current }?.name ?? "This model"
         return PlainFailure(sentence: "\(name) has reached its limit for now.", button: "Switch to \(other.name)",
                             action: .switchModel(provider: other.id, model: model.id))
-    }
-
-    /// The provider whose API key a message is about.
-    private static func keyProvider(in message: String) -> String? {
-        if message.contains("ANTHROPIC_API_KEY") { return "Claude" }
-        if message.contains("GEMINI_API_KEY") { return "Gemini" }
-        return nil
     }
 }

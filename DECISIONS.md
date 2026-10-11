@@ -1968,3 +1968,16 @@ One part at a time, each tested and committed:
 ### Consequences
 
 The window becomes ZENO's home for talking, watching the team and its cost. Pushing is the first action that sends code off the Mac: only by Keshab's click, never by a worker or a model, and never forced.
+
+## ADR-092 — Claude on the Plan Only; a Source Release
+
+Date: 2026-10-11. Status: **accepted** (Keshab, 2026-10-11: "we are still using gemini and Claude API in choose the AI lets remove that .. from the app itself, and lets add our publish as well if my data isnt involved in the built app"; chose a source release).
+
+### Decision
+
+1. **One provider.** ZENO runs on Keshab's own Claude plan through the signed-in `claude` program. The Gemini and Claude API adapters, their SDKs and their keys are removed from the runtime and the app; Settings → AI model offers only Claude (my plan) and its models. The LLM Gateway stays: a provider is one adapter behind it, so another can be added back by a later decision. An `.env` or saved setting that still names `gemini` or `claude` runs on the plan (a Gemini model falls back to the plan's default) instead of failing.
+2. **Publishing is a source release.** The built ZENO.app holds none of Keshab's data (no memory, chats, keys or helper database), but it records his project folder and Node path and only runs from this repository on his Mac, signed with a local identity (not notarized). So a release is the tagged source with release notes; no app binary is attached. A portable app would be its own decision.
+
+### Consequences
+
+No API keys remain anywhere in ZENO, and plan use can never become billed API use by a key left in `.env`. ZENO depends on Claude Code being installed and signed in. ADR-076's "switch to another provider" offer has nothing to offer and stays hidden.

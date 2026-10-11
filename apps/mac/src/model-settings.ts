@@ -1,4 +1,4 @@
-// ZENO Island's runtime settings: which AI provider and model to use (ADR-038, ADR-040).
+// ZENO Island's runtime settings: which Claude model to use on the plan (ADR-038, ADR-040, ADR-092).
 // The choice is switched live by the `model.set` command and saved in config/island.json, which
 // overrides ZENO_LLM_PROVIDER / ZENO_LLM_MODEL at the next start. API keys stay in .env: they are
 // never written to the settings file, sent to the island, logged or put in a message.
@@ -6,7 +6,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { SwitchableModel } from "@zeno/llm-gateway";
-import { CLAUDE_PLAN, LLM_PROVIDER_IDS, PROVIDERS, isLlmProvider, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
+import { LLM_PROVIDER_IDS, PROVIDERS, RETIRED_PROVIDERS, isLlmProvider, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import type { InfoEvent } from "./island-protocol.ts";
 
 /** Where the settings file lives, relative to the project root (the working directory, like logs/). */
@@ -17,9 +17,9 @@ export function settingsPath(env: Record<string, string | undefined> = process.e
 }
 
 /** What is missing for a provider, as a clause: an API key to add, or for the plan provider the `claude` program to sign in. */
-export function missingKeyAdvice(provider: keyof typeof PROVIDERS): string {
-  if (provider === CLAUDE_PLAN) return "the signed-in `claude` program was not found (install Claude Code and run `claude auth login`)";
-  return `${PROVIDERS[provider].keyVar} is not in .env`;
+export function missingKeyAdvice(_provider: keyof typeof PROVIDERS): string {
+  // ADR-092: the Claude plan is the only provider; what it needs is the signed-in `claude` program.
+  return "the signed-in `claude` program was not found (install Claude Code and run `claude auth login`)";
 }
 
 const shorten = (text: string) => (text.length > 40 ? `${text.slice(0, 40)}…` : text);
@@ -40,6 +40,9 @@ export function readSavedChoice(path: string, keys: ProviderKeys): { choice?: Ll
   const llm = (value as { llm?: { provider?: unknown; model?: unknown } } | null)?.llm;
   if (typeof llm?.provider !== "string" || typeof llm.model !== "string" || llm.model.trim() === "") {
     return { warning: `Ignoring ${path}: expected {"llm":{"provider":"…","model":"…"}}. Using the model from .env.` };
+  }
+  if ((RETIRED_PROVIDERS as readonly string[]).includes(llm.provider)) {
+    return { warning: `Ignoring ${path}: it chooses ${llm.provider}, which ZENO no longer uses (it runs on your Claude plan).` };
   }
   if (!isLlmProvider(llm.provider)) {
     return { warning: `Ignoring ${path}: unknown provider "${shorten(llm.provider)}". Using the model from .env.` };
@@ -120,16 +123,9 @@ export function createModelSettings(options: ModelSettingsOptions): ModelSetting
         const names = LLM_PROVIDER_IDS.map((id) => PROVIDERS[id].name).join(" or ");
         return { error: `Unknown AI provider "${shorten(provider)}". Choose ${names}.` };
       }
-      const { name, keyVar } = PROVIDERS[provider];
+      const { name } = PROVIDERS[provider];
       const apiKey = keys[provider];
-      if (!apiKey) {
-        return {
-          error:
-            provider === CLAUDE_PLAN
-              ? `Install Claude Code and run \`claude auth login\` to use ${name}, then restart ZENO.`
-              : `Add ${keyVar} to .env to use ${name}, then restart ZENO.`,
-        };
-      }
+      if (!apiKey) return { error: `Install Claude Code and run \`claude auth login\` to use ${name}, then restart ZENO.` };
       if (!offeredModels(provider, initial).some((m) => m.id === modelId)) {
         return { error: `"${shorten(modelId)}" is not a ${name} model ZENO offers. Choose one from the list.` };
       }

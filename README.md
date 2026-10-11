@@ -70,7 +70,7 @@ ZENO is not a chatbot. The language model is one part of it, reached through a g
 | Risky steps ask first | Deleting, installing, untrusted MCP tools, and controlling the computer each wait for your OK on Pal's card. |
 | Code never leaves on its own | Workers commit to their own `zeno/task-<id>` branch. Only you can push, from the Dashboard, never forced. |
 | Your words stay yours | Speech is transcribed on the Mac. Logs hold ids, states and timings, never your text. Memory, chats and tokens stay in local files. |
-| Secrets stay secret | API keys live in `.env` (ignored by git). MCP tokens are never logged or shown in full. |
+| Secrets stay secret | No API keys at all: ZENO uses your signed-in Claude Code and never reads its login. MCP tokens are never logged or shown in full. |
 
 Full details: [SECURITY.md](SECURITY.md).
 
@@ -87,7 +87,7 @@ ZENO runtime (Node.js, TypeScript)
   ├── Speech: Whisper (hearing), Kokoro (voice), Parakeet (dictation), all on the Mac
   ├── ZENO Core: requests, chats, tools, memory
   ├── Helpers: workers, souls, tasks, budgets, routines, grants (SQLite)
-  ├── LLM Gateway: Claude on your plan, the Claude API, or Gemini
+  ├── LLM Gateway: Claude on your own Claude plan (through Claude Code)
   └── Policy in code: folder checks, approvals, budgets, the sandbox
 ```
 
@@ -115,17 +115,15 @@ curl -L -o models/ggml-small.en.bin https://huggingface.co/ggerganov/whisper.cpp
 
 `pnpm voice:check` tests speech output and input on their own, with no AI.
 
-### 3. Choose the AI
+### 3. Sign in to Claude
 
-Pick a provider in the app under Settings → AI model, or set `ZENO_LLM_PROVIDER` in `.env` (`cp .env.example .env`).
+ZENO and its team run on **your own Claude plan**, through Claude Code. There are no API keys to add.
 
-| Provider | `ZENO_LLM_PROVIDER` | What it needs |
-|---|---|---|
-| Claude on your own Claude plan (what the team runs on) | `claude-plan` | No key. Claude Code installed and signed in (`claude auth login`). Set `ZENO_CLAUDE_PATH` if `claude` is not found. |
-| Gemini | `gemini` | `GEMINI_API_KEY` in `.env` |
-| Claude API | `claude` | `ANTHROPIC_API_KEY` in `.env` |
+```sh
+claude auth login
+```
 
-Only the selected provider needs a key. Keys stay in `.env`, which git ignores.
+ZENO finds the `claude` program by itself (set `ZENO_CLAUDE_PATH` in `.env` if it is somewhere unusual). Choose the model (Opus, Sonnet or Haiku) in the app under Settings → AI model. Using your plan this way is meant for your own use on your own Mac.
 
 ### 4. Build and open the app
 

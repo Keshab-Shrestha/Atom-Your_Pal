@@ -23,8 +23,8 @@ enum IslandGallery {
 
         let model = IslandModel(settings: IslandSettings(defaults: defaults))
         let lines = [
-            #"{"type":"ready","protocol":1,"provider":"gemini","model":"gemini-3.6-flash","microphone":"Mac mini Microphone","voice":true}"#,
-            #"{"type":"info","provider":"gemini","model":"gemini-3.6-flash","providers":[{"id":"claude","name":"Claude","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"},{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"},{"id":"claude-sonnet-5","name":"Claude Sonnet 5"},{"id":"claude-haiku-4-5-20251001","name":"Claude Haiku 4.5"}]},{"id":"claude-plan","name":"Claude (my plan)","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"},{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"},{"id":"claude-haiku-4-5-20251001","name":"Claude Haiku 4.5"}]},{"id":"gemini","name":"Gemini","available":true,"models":[{"id":"gemini-3.8-flash","name":"Gemini 3.8 Flash"},{"id":"gemini-3.7-flash","name":"Gemini 3.7 Flash"},{"id":"gemini-3.6-flash","name":"Gemini 3.6 Flash"},{"id":"gemini-3.5-flash","name":"Gemini 3.5 Flash"},{"id":"gemini-3.5-flash-lite","name":"Gemini 3.5 Flash-Lite"},{"id":"gemini-2.5-pro","name":"Gemini 2.5 Pro"}]}]}"#,
+            #"{"type":"ready","protocol":1,"provider":"claude-plan","model":"claude-sonnet-5-5","microphone":"Mac mini Microphone","voice":true}"#,
+            #"{"type":"info","provider":"claude-plan","model":"claude-sonnet-5-5","providers":[{"id":"claude-plan","name":"Claude (my plan)","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"},{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"},{"id":"claude-haiku-4-5-20251001","name":"Claude Haiku 4.5"}]}]}"#,
             #"{"type":"state","state":"listening"}"#,
             #"{"type":"state","state":"transcribing"}"#,
             #"{"type":"transcript","text":"What's on my calendar this afternoon?"}"#,
@@ -263,7 +263,7 @@ enum IslandGallery {
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let size = IslandMetrics().expanded
-        let info = #"{"type":"info","provider":"claude-plan","model":"claude-opus-5-5","providers":[{"id":"claude","name":"Claude","available":false,"models":[{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"}]},{"id":"claude-plan","name":"Claude (my plan)","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"},{"id":"claude-haiku-4-5-20251001","name":"Claude Haiku 4.5"}]},{"id":"gemini","name":"Gemini","available":true,"models":[{"id":"gemini-3.8-flash","name":"Gemini 3.8 Flash"}]}]}"#
+        let info = #"{"type":"info","provider":"claude-plan","model":"claude-opus-5-5","providers":[{"id":"claude-plan","name":"Claude (my plan)","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"},{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"},{"id":"claude-haiku-4-5-20251001","name":"Claude Haiku 4.5"}]}]}"#
         let capabilities = #"{"type":"capabilities","items":[{"title":"Open apps and websites","examples":["Open Safari","Go to YouTube"]},{"title":"Music","examples":["Play some jazz","Skip this song","Pause the music"]},{"title":"Timers","examples":["Set a timer for 10 minutes","How long is left?"]},{"title":"Calendar and reminders","examples":["What's on my calendar today?","Remind me to call Aiko at 5"]},{"title":"Weather","examples":["Will it rain tomorrow?"]},{"title":"Notes","examples":["Make a note: buy oat milk"]}]}"#
         func model(_ lines: [String], theme: AppTheme = .lantern) -> IslandModel {
             let m = IslandModel(settings: IslandSettings(defaults: defaults))

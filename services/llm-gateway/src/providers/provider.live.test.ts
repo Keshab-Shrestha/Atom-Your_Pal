@@ -4,8 +4,8 @@ import { loadConfig } from "@zeno/shared";
 import { createGateway } from "../gateway.ts";
 import { createProviderAdapter } from "./index.ts";
 
-// Calls the real provider API selected by ZENO_LLM_PROVIDER (costs a few tokens).
-// Run with: pnpm test:live   (or ZENO_LLM_PROVIDER=gemini pnpm test:live)
+// Calls Claude on the signed-in plan through the gateway (uses a little of the plan).
+// Run with: pnpm test:live
 const enabled = process.env.ZENO_LIVE_TESTS === "1";
 
 test("live: the configured provider answers through the gateway", { skip: !enabled && "set ZENO_LIVE_TESTS=1 (pnpm test:live)" }, async (t) => {

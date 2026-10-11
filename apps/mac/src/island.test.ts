@@ -338,12 +338,11 @@ test("the island closing stdin ends the session", async () => {
 
 type ModelRequest = Parameters<SwitchableModel["complete"]>[0];
 
-// Placeholder values, not real credentials.
-const CLAUDE_KEY = "test-claude-key-0000";
-const GEMINI_KEY = "test-gemini-key-0000";
+// ADR-092: Claude on the plan only; its "key" is the claude program's path (never sent or logged).
+const CLAUDE = "/Users/k/.local/bin/claude";
 
 /** The real Core and switchable model with fake gateways that record which model answered what. */
-function modelHarness(keys: ProviderKeys = { claude: CLAUDE_KEY, gemini: GEMINI_KEY }) {
+function modelHarness(keys: ProviderKeys = { "claude-plan": CLAUDE }) {
   const path = join(mkdtempSync(join(tmpdir(), "zeno-island-")), "config", "island.json");
   const requests: { model: string; request: ModelRequest }[] = [];
   const logs: string[] = [];
@@ -353,10 +352,10 @@ function modelHarness(keys: ProviderKeys = { claude: CLAUDE_KEY, gemini: GEMINI_
       return { text: `${name} says hi` };
     },
   });
-  const model = createSwitchableModel(fakeGateway("gemini-3.6-flash"));
+  const model = createSwitchableModel(fakeGateway("claude-sonnet-5-5"));
   const core = createCore({ model });
   const settings = createModelSettings({
-    initial: { provider: "gemini", model: "gemini-3.6-flash" },
+    initial: { provider: "claude-plan", model: "claude-sonnet-5-5" },
     keys,
     model,
     createModel: (choice, apiKey) => {
@@ -375,24 +374,16 @@ const turn = async (h: ReturnType<typeof islandHarness>) => {
   await tick(5);
 };
 
-test("ready is followed by info with the model and the choices", async () => {
-  const h = modelHarness({ gemini: GEMINI_KEY });
+test("ready is followed by info with the model and the one provider, Claude on the plan", async () => {
+  const h = modelHarness();
   await tick(2);
   const [ready, info] = h.events();
-  assert.deepEqual(ready, { type: "ready", protocol: 1, provider: "gemini", model: "gemini-3.6-flash", microphone: ":default", voice: true });
+  assert.deepEqual(ready, { type: "ready", protocol: 1, provider: "claude-plan", model: "claude-sonnet-5-5", microphone: ":default", voice: true });
   assert.equal(info.type, "info");
   if (info.type !== "info") return;
-  assert.equal(info.provider, "gemini");
-  assert.equal(info.model, "gemini-3.6-flash");
-  assert.deepEqual(
-    info.providers.map((p) => ({ id: p.id, name: p.name, available: p.available })),
-    [
-      { id: "claude", name: "Claude", available: false },
-      { id: "claude-plan", name: "Claude (my plan)", available: false },
-      { id: "gemini", name: "Gemini", available: true },
-    ],
-  );
-  assert.ok(info.providers[2]!.models.some((m) => m.id === "gemini-3.5-flash-lite" && m.name === "Gemini 3.5 Flash-Lite"));
+  assert.deepEqual([info.provider, info.model], ["claude-plan", "claude-sonnet-5-5"]);
+  assert.deepEqual(info.providers.map((p) => ({ id: p.id, name: p.name, available: p.available })), [{ id: "claude-plan", name: "Claude (my plan)", available: true }]);
+  assert.ok(info.providers[0]!.models.some((m) => m.id === "claude-haiku-4-5-20251001" && m.name === "Claude Haiku 4.5"));
 });
 
 test("model.set switches the next request, keeps the conversation, saves the choice and sends info", async () => {
@@ -400,24 +391,16 @@ test("model.set switches the next request, keeps the conversation, saves the cho
   await tick(2);
   await turn(h);
   h.clear();
-  await h.send({ type: "model.set", provider: "claude", model: "claude-opus-5-5" });
+  await h.send({ type: "model.set", provider: "claude-plan", model: "claude-opus-5-5" });
   const info = h.events();
   assert.equal(info.length, 1);
-  assert.equal(info[0].type, "info");
-  assert.deepEqual(info[0].type === "info" && [info[0].provider, info[0].model], ["claude", "claude-opus-5-5"]);
-  assert.deepEqual(JSON.parse(readFileSync(h.path, "utf8")), { llm: { provider: "claude", model: "claude-opus-5-5" } });
-  assert.ok(h.logs.includes(JSON.stringify({ event: "model.set", provider: "claude", model: "claude-opus-5-5" })));
-
+  assert.deepEqual(info[0].type === "info" && [info[0].provider, info[0].model], ["claude-plan", "claude-opus-5-5"]);
+  assert.deepEqual(JSON.parse(readFileSync(h.path, "utf8")), { llm: { provider: "claude-plan", model: "claude-opus-5-5" } });
+  assert.ok(h.logs.includes(JSON.stringify({ event: "model.set", provider: "claude-plan", model: "claude-opus-5-5" })));
   await turn(h);
-  assert.deepEqual(
-    h.requests.map((r) => r.model),
-    ["gemini-3.6-flash", "claude-opus-5-5"],
-  );
+  assert.deepEqual(h.requests.map((r) => r.model), ["claude-sonnet-5-5", "claude-opus-5-5"]);
   // The new model sees the earlier exchange.
-  assert.deepEqual(
-    h.requests[1].request.messages.map((m) => m.content),
-    ["what is the capital of Japan", "gemini-3.6-flash says hi", "what is the capital of Japan"],
-  );
+  assert.deepEqual(h.requests[1].request.messages.map((m) => m.content), ["what is the capital of Japan", "claude-sonnet-5-5 says hi", "what is the capital of Japan"]);
   assert.equal(h.core.history().length, 4);
 });
 
@@ -425,56 +408,58 @@ test("model.set during a turn applies to the next request; the turn in flight fi
   const h = modelHarness();
   await tick(2);
   await h.send({ type: "talk.start" });
-  await h.send({ type: "model.set", provider: "gemini", model: "gemini-3.8-flash" });
+  await h.send({ type: "model.set", provider: "claude-plan", model: "claude-haiku-4-5-20251001" });
   assert.equal(h.session.loop.state, "listening"); // the turn was not interrupted
   await h.send({ type: "talk.send" });
   await tick(5);
-  assert.deepEqual(h.requests.map((r) => r.model), ["gemini-3.8-flash"]);
+  assert.deepEqual(h.requests.map((r) => r.model), ["claude-haiku-4-5-20251001"]);
 });
 
-test("model.set refusals are settings errors with the fix, and nothing changes", async () => {
-  const h = modelHarness({ gemini: GEMINI_KEY });
+test("model.set refusals are settings errors with the fix, and nothing changes (Gemini and the Claude API are gone)", async () => {
+  const h = modelHarness();
   await tick(2);
   h.clear();
   await h.send(
-    { type: "model.set", provider: "openai", model: "gpt-9" },
+    { type: "model.set", provider: "gemini", model: "gemini-3.6-flash" },
     { type: "model.set", provider: "claude", model: "claude-opus-5-5" },
-    { type: "model.set", provider: "gemini", model: "gemini-9-ultra" },
+    { type: "model.set", provider: "claude-plan", model: "gpt-9" },
   );
   assert.deepEqual(h.events(), [
-    { type: "error", stage: "settings", message: 'Unknown AI provider "openai". Choose Claude or Claude (my plan) or Gemini.' },
-    { type: "error", stage: "settings", message: "Add ANTHROPIC_API_KEY to .env to use Claude, then restart ZENO." },
-    { type: "error", stage: "settings", message: '"gemini-9-ultra" is not a Gemini model ZENO offers. Choose one from the list.' },
+    { type: "error", stage: "settings", message: 'Unknown AI provider "gemini". Choose Claude (my plan).' },
+    { type: "error", stage: "settings", message: 'Unknown AI provider "claude". Choose Claude (my plan).' },
+    { type: "error", stage: "settings", message: '"gpt-9" is not a Claude (my plan) model ZENO offers. Choose one from the list.' },
   ]);
   assert.equal(existsSync(h.path), false);
   await turn(h);
-  assert.deepEqual(h.requests.map((r) => r.model), ["gemini-3.6-flash"]);
+  assert.deepEqual(h.requests.map((r) => r.model), ["claude-sonnet-5-5"]);
   assert.equal(h.session.loop.state, "idle"); // the runtime keeps running
+});
+
+test("without the claude program, model.set says to install it and sign in", async () => {
+  const h = modelHarness({});
+  await tick(2);
+  h.clear();
+  await h.send({ type: "model.set", provider: "claude-plan", model: "claude-opus-5-5" });
+  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "Install Claude Code and run `claude auth login` to use Claude (my plan), then restart ZENO." }]);
 });
 
 test("a malformed model.set is a protocol error", async () => {
   const h = modelHarness();
   await tick(2);
   h.clear();
-  await h.send({ type: "model.set", provider: "claude" });
+  await h.send({ type: "model.set", provider: "claude-plan" });
   assert.deepEqual(h.events(), [{ type: "error", stage: "protocol", message: 'model.set needs a "model" string.' }]);
 });
 
-test("no event ever carries an API key", async () => {
+test("no event ever carries the claude program's path", async () => {
   const h = modelHarness();
   await tick(2);
   await turn(h);
-  await h.send(
-    { type: "model.set", provider: "claude", model: "claude-sonnet-5-5" },
-    { type: "model.set", provider: "gemini", model: "nope" },
-    { type: "model.set", provider: "nope", model: "nope" },
-  );
+  await h.send({ type: "model.set", provider: "claude-plan", model: "claude-opus-5-5" }, { type: "model.set", provider: "nope", model: "nope" });
   await turn(h);
   const wire = JSON.stringify(h.events());
   assert.ok(wire.includes('"info"') && wire.includes('"settings"'));
-  assert.ok(!wire.includes(CLAUDE_KEY) && !wire.includes(GEMINI_KEY));
-  assert.ok(!h.logs.join("").includes(CLAUDE_KEY) && !h.logs.join("").includes(GEMINI_KEY));
-  assert.ok(!readFileSync(h.path, "utf8").includes(CLAUDE_KEY));
+  assert.ok(!wire.includes(CLAUDE) && !h.logs.join("").includes(CLAUDE) && !readFileSync(h.path, "utf8").includes(CLAUDE));
 });
 
 test("computer control: a request reaches the island, and its answer reaches the tool", async () => {

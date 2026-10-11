@@ -440,3 +440,7 @@ The AI must not be allowed to silently install arbitrary code with unrestricted 
 > Intelligence should be powerful. Authority should be controlled.
 
 The architecture must preserve this separation.
+
+## Providers (ADR-092)
+
+ZENO runs on Keshab's own Claude plan only, through the signed-in `claude` program (Claude Code). It holds no API keys: Gemini and the Claude API were removed from the app and the runtime. ZENO never reads or stores Claude Code's login, and strips `ANTHROPIC_API_KEY` (and other providers' keys) from the environment it gives Claude Code, so a key left in `.env` can never turn plan use into billed API use. Using the plan this way is for Keshab's own use on his own Mac.

@@ -5,36 +5,24 @@ import { ConfigError, findClaudeProgram, loadConfig, readProviderKeys } from "./
 // Placeholder values, not real credentials.
 const CLAUDE_KEY = "test-claude-key-0000";
 const GEMINI_KEY = "test-gemini-key-0000";
+const NO_CLAUDE = { ZENO_CLAUDE_PATH: "/definitely/not/here" };
 
-test("applies defaults when only the Anthropic key is set", () => {
-  const config = loadConfig({ ANTHROPIC_API_KEY: CLAUDE_KEY });
+test("defaults: Claude on the plan, with the claude program in the key slot (empty when it is not found)", () => {
+  const config = loadConfig(NO_CLAUDE);
   assert.deepEqual(config, {
-    llm: { provider: "claude", apiKey: CLAUDE_KEY, model: "claude-sonnet-5", timeoutMs: 30_000 },
+    llm: { provider: "claude-plan", apiKey: "", model: "claude-sonnet-5-5", timeoutMs: 30_000 },
     audio: { inputDevice: ":default", sampleRate: 16_000 },
     stt: { modelPath: "models/ggml-small.en.bin", language: "en", vocabulary: "ZENO" },
     tts: { voice: "af_heart", dtype: "fp32" },
     log: { level: "info", file: "logs/zeno.log" },
   });
-});
-
-test("gemini uses its own key and default model", () => {
-  const config = loadConfig({ ZENO_LLM_PROVIDER: "gemini", GEMINI_API_KEY: GEMINI_KEY, ANTHROPIC_API_KEY: CLAUDE_KEY });
-  assert.deepEqual(config.llm, { provider: "gemini", apiKey: GEMINI_KEY, model: "gemini-3.6-flash", timeoutMs: 30_000 });
-});
-
-test("only the selected provider's key is required", () => {
-  assert.doesNotThrow(() => loadConfig({ ZENO_LLM_PROVIDER: "gemini", GEMINI_API_KEY: GEMINI_KEY }));
-  assert.throws(() => loadConfig({ ZENO_LLM_PROVIDER: "gemini", ANTHROPIC_API_KEY: CLAUDE_KEY }), (error: unknown) => {
-    assert.ok(error instanceof ConfigError);
-    assert.deepEqual(error.problems, ["GEMINI_API_KEY is required (set it in .env)"]);
-    return true;
-  });
+  assert.equal(loadConfig({ ZENO_CLAUDE_PATH: process.execPath }).llm.apiKey, process.execPath);
 });
 
 test("reads overrides from the environment", () => {
   const config = loadConfig({
-    ANTHROPIC_API_KEY: CLAUDE_KEY,
-    ZENO_LLM_MODEL: "some-model",
+    ...NO_CLAUDE,
+    ZENO_LLM_MODEL: "claude-opus-5-5",
     ZENO_LLM_TIMEOUT_MS: "5000",
     ZENO_AUDIO_INPUT_DEVICE: ":1",
     ZENO_AUDIO_SAMPLE_RATE: "48000",
@@ -44,22 +32,12 @@ test("reads overrides from the environment", () => {
     ZENO_LOG_LEVEL: "debug",
   });
   assert.deepEqual(config.tts, { voice: "bf_emma", dtype: "fp32" });
-  assert.equal(config.llm.model, "some-model");
+  assert.equal(config.llm.model, "claude-opus-5-5");
   assert.equal(config.llm.timeoutMs, 5000);
   assert.equal(config.audio.inputDevice, ":1");
   assert.equal(config.audio.sampleRate, 48000);
   assert.equal(config.stt.modelPath, "models/other.bin");
   assert.equal(config.log.level, "debug");
-});
-
-test("missing or blank API key is an error", () => {
-  for (const value of [undefined, "", "   "]) {
-    assert.throws(() => loadConfig({ ANTHROPIC_API_KEY: value }), (error: unknown) => {
-      assert.ok(error instanceof ConfigError);
-      assert.deepEqual(error.problems, ["ANTHROPIC_API_KEY is required (set it in .env)"]);
-      return true;
-    });
-  }
 });
 
 test("reports every problem at once", () => {
@@ -73,9 +51,8 @@ test("reports every problem at once", () => {
       }),
     (error: unknown) => {
       assert.ok(error instanceof ConfigError);
-      assert.equal(error.problems.length, 5);
-      assert.match(error.message, /ZENO_LLM_PROVIDER must be one of claude, claude-plan, gemini, got "openai"/);
-      assert.match(error.message, /ANTHROPIC_API_KEY is required/);
+      assert.equal(error.problems.length, 4);
+      assert.match(error.message, /ZENO_LLM_PROVIDER must be one of claude-plan, got "openai"/);
       assert.match(error.message, /ZENO_LLM_TIMEOUT_MS must be a positive integer, got "soon"/);
       assert.match(error.message, /ZENO_AUDIO_SAMPLE_RATE must be a positive integer, got "-1"/);
       assert.match(error.message, /ZENO_LOG_LEVEL must be one of debug, info, warn, error, got "loud"/);
@@ -95,20 +72,14 @@ test("never includes API keys in error messages", () => {
   );
 });
 
-test("reads the key of every provider present, ignoring blank ones", () => {
-  const noClaudeProgram = () => undefined;
-  assert.deepEqual(readProviderKeys({ ANTHROPIC_API_KEY: ` ${CLAUDE_KEY} `, GEMINI_API_KEY: GEMINI_KEY }, noClaudeProgram), {
-    claude: CLAUDE_KEY,
-    gemini: GEMINI_KEY,
-  });
-  assert.deepEqual(readProviderKeys({ ANTHROPIC_API_KEY: "  " }, noClaudeProgram), {});
-});
-
-test("an explicit model choice overrides ZENO_LLM_PROVIDER / ZENO_LLM_MODEL and requires that provider's key", () => {
-  const env = { ZENO_LLM_PROVIDER: "claude", ZENO_LLM_MODEL: "claude-sonnet-5", ANTHROPIC_API_KEY: CLAUDE_KEY, GEMINI_API_KEY: GEMINI_KEY };
-  const config = loadConfig(env, { llm: { provider: "gemini", model: "gemini-3.8-flash" } });
-  assert.deepEqual(config.llm, { provider: "gemini", apiKey: GEMINI_KEY, model: "gemini-3.8-flash", timeoutMs: 30_000 });
-  assert.throws(() => loadConfig({ ANTHROPIC_API_KEY: CLAUDE_KEY }, { llm: { provider: "gemini", model: "gemini-3.8-flash" } }), /GEMINI_API_KEY is required/);
+test("ADR-092: API keys in .env are not providers; Gemini and the Claude API settings run on the plan", () => {
+  assert.deepEqual(readProviderKeys({ ANTHROPIC_API_KEY: "x", GEMINI_API_KEY: "y" }, () => undefined), {});
+  for (const provider of ["gemini", "claude"]) {
+    const config = loadConfig({ ZENO_LLM_PROVIDER: provider, ZENO_LLM_MODEL: "gemini-3.6-flash", ANTHROPIC_API_KEY: "sk-ant-nope-nope-nope" });
+    assert.deepEqual([config.llm.provider, config.llm.model], ["claude-plan", "claude-sonnet-5-5"]);
+    assert.ok(!config.llm.apiKey.includes("sk-ant"));
+  }
+  assert.throws(() => loadConfig({ ZENO_LLM_PROVIDER: "openai" }), /ZENO_LLM_PROVIDER must be one of claude-plan/);
 });
 
 // ---- Claude on the user's plan: no key, the signed-in `claude` program instead
@@ -127,7 +98,6 @@ test("the claude program is found from ZENO_CLAUDE_PATH first, then the usual pl
 test("claude-plan counts as available when the program exists, with the path in its key slot", () => {
   const keys = readProviderKeys({ ZENO_CLAUDE_PATH: process.execPath });
   assert.equal(keys["claude-plan"], process.execPath);
-  assert.equal(keys.claude, undefined);
   assert.equal(readProviderKeys({ ZENO_CLAUDE_PATH: "/definitely/not/here" })["claude-plan"], undefined);
 });
 

@@ -1003,6 +1003,10 @@ Keshab's answers: research, then open in its app; ZENO's own window; flies over 
 **Part 6, the icon — as built (2026-10-11):** built; installed in ZENO.app.
 - Pal on the black Void tile with its graphite hairline and a faint glow of Pal's light, drawn by ZENO (`AppIconArt.swift`, rendered with `ZENO_ISLAND_GALLERY_ONLY=icon`). `scripts/make-icon.sh` makes `assets/icon/ZENO.icns` (16 to 1024 px); `build-app.sh` copies it into the app and names it in `CFBundleIconFile`.
 
+## ADR-092 — Claude on the plan only; a source release
+
+**As built (2026-10-11):** Gemini and the Claude API are removed: their adapters (`providers/claude.ts`, `gemini.ts`) and tests, the `@anthropic-ai/sdk` and `@google/genai` dependencies, their keys in `.env.example`, and the app's API-key failure messages. `PROVIDERS` holds only `claude-plan` (the default); an old `ZENO_LLM_PROVIDER=gemini` or `claude`, or a saved choice of one, runs on the plan with its default model. Settings → AI model lists only Claude (my plan). Tests rewritten for one provider (TS 601, Swift 512 pass). Publishing: a tagged source release with notes, no app binary (it records Keshab's project path and runs only here).
+
 ADR-091 is done: all six parts built and tested. Next: Keshab tries them on the real Mac (macOS will ask once to allow notifications); then Tasks 3.17–3.22 each need his decision.
 
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.

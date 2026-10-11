@@ -94,22 +94,10 @@ struct PlainFailureTests {
         #expect(switching.sentence == f.sentence)
     }
 
-    @Test(arguments: [
-        "Invalid configuration:\n  - GEMINI_API_KEY is required (set it in .env)", // packages/shared/src/config.ts
-        "Add GEMINI_API_KEY to .env to use Gemini, then restart ZENO.",               // apps/mac/src/model-settings.ts
-    ])
-    func missingKeyOffersAnotherModel(message: String) throws {
-        let f = try #require(PlainFailure.match(message))
-        #expect(f.action == .openModelSettings)
-        #expect(f.button == "Choose another model")
-        #expect(f.sentence == "There's no Gemini API key in .env.")
-    }
-
-    @Test func rejectedKeyNamesTheProvider() throws {
-        // services/llm-gateway/src/providers/claude.ts
-        let f = try #require(PlainFailure.match("Model key rejected (401). Check ANTHROPIC_API_KEY in .env."))
-        #expect(f.sentence == "Claude rejected its API key.")
-        #expect(f.action == .openModelSettings)
+    /// ADR-092: ZENO no longer uses API keys, so a message about one is not a known failure.
+    @Test func apiKeyMessagesAreNoLongerKnownFailures() {
+        #expect(PlainFailure.match("Add GEMINI_API_KEY to .env to use Gemini, then restart ZENO.") == nil)
+        #expect(PlainFailure.match("Model key rejected (401). Check ANTHROPIC_API_KEY in .env.") == nil)
     }
 
     @Test func parakeetModelMissingSaysItDownloadsOnFirstUse() throws {
@@ -149,8 +137,8 @@ struct PlainFailureTests {
     }
 
     @Test func configErrorUsesTheKnownSentenceAndRestarts() throws {
-        let known = try #require(PlainFailure.forStatus(.configError("Invalid configuration:\n  - ANTHROPIC_API_KEY is required (set it in .env)")))
-        #expect(known.sentence.hasPrefix("There's no Claude API key in .env."))
+        let known = try #require(PlainFailure.forStatus(.configError("Invalid configuration:\n  - Whisper model not found at \"models/x.bin\". Download it with: curl -L -o models/x.bin https://example.com/x.bin")))
+        #expect(known.sentence.hasPrefix("The Whisper speech"))
         #expect(known.action == .restartRuntime)
         #expect(known.offersLog)
         let other = try #require(PlainFailure.forStatus(.configError("Invalid configuration:\n  - ZENO_LOG_LEVEL must be one of …")))

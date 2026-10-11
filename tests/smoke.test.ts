@@ -26,31 +26,31 @@ function events(stdout: string) {
 }
 
 test("ZENO starts with valid configuration", () => {
-  const result = startZeno({ ZENO_LLM_PROVIDER: "claude", ANTHROPIC_API_KEY: "test-key" });
+  const result = startZeno({ ZENO_LLM_PROVIDER: "claude-plan" });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /ZENO: started/);
 });
 
 test("ZENO exits with a clear error when configuration is invalid", () => {
-  const result = startZeno({ ZENO_LLM_PROVIDER: "claude", ANTHROPIC_API_KEY: "" });
+  const result = startZeno({ ZENO_LLM_PROVIDER: "openai" });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Invalid configuration:/);
-  assert.match(result.stderr, /ANTHROPIC_API_KEY is required/);
+  assert.match(result.stderr, /ZENO_LLM_PROVIDER must be one of claude-plan/);
 });
 
 test("island mode: invalid configuration is a config error event and exit code 78", () => {
-  const result = startZeno({ ZENO_LLM_PROVIDER: "claude", ANTHROPIC_API_KEY: "" }, ["--island"]);
+  const result = startZeno({ ZENO_LLM_PROVIDER: "openai" }, ["--island"]);
   assert.equal(result.status, 78);
   const [event, ...rest] = events(result.stdout);
   assert.equal(event.type, "error");
   assert.equal(event.stage, "config");
-  assert.match(String(event.message), /ANTHROPIC_API_KEY is required/);
+  assert.match(String(event.message), /ZENO_LLM_PROVIDER must be one of claude-plan/);
   assert.deepEqual(rest, []);
 });
 
 test("island mode: stdout carries only events; closing stdin exits cleanly", () => {
   // Bad command then end of input: the runtime reports the bad line, then leaves because the island went away.
-  const result = startZeno({ ZENO_LLM_PROVIDER: "claude", ANTHROPIC_API_KEY: "test-key" }, ["--island"], "not json\n");
+  const result = startZeno({ ZENO_LLM_PROVIDER: "claude-plan" }, ["--island"], "not json\n");
   assert.equal(result.status, 0, result.stderr);
   const all = events(result.stdout); // throws if anything else reached stdout
   assert.deepEqual(all[0], { type: "error", stage: "protocol", message: "Command is not valid JSON." });

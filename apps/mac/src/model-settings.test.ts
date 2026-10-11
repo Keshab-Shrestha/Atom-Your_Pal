@@ -14,13 +14,12 @@ import {
   writeSavedChoice,
 } from "./model-settings.ts";
 
-// Placeholder values, not real credentials.
-const CLAUDE_KEY = "test-claude-key-0000";
-const GEMINI_KEY = "test-gemini-key-0000";
-const BOTH: ProviderKeys = { claude: CLAUDE_KEY, gemini: GEMINI_KEY };
+// ADR-092: ZENO runs on the user's own Claude plan; the "key" is the signed-in `claude` program's path (not secret, never sent).
+const CLAUDE = "/Users/k/.local/bin/claude";
+const PLAN: ProviderKeys = { "claude-plan": CLAUDE };
 
 const tempDir = () => mkdtempSync(join(tmpdir(), "zeno-settings-"));
-const noKeys = (text: string) => !text.includes(CLAUDE_KEY) && !text.includes(GEMINI_KEY);
+const noPath = (text: string) => !text.includes(CLAUDE);
 
 type Model = Parameters<SwitchableModel["replace"]>[0];
 
@@ -30,8 +29,8 @@ function settingsHarness(over: { initial?: LlmChoice; keys?: ProviderKeys; save?
   const logs: string[] = [];
   const model = createSwitchableModel({ complete: async () => ({ text: "initial" }) });
   const settings = createModelSettings({
-    initial: over.initial ?? { provider: "gemini", model: "gemini-3.6-flash" },
-    keys: over.keys ?? BOTH,
+    initial: over.initial ?? { provider: "claude-plan", model: "claude-sonnet-5-5" },
+    keys: over.keys ?? PLAN,
     model,
     createModel: (choice, apiKey): Model => {
       built.push({ choice, apiKey });
@@ -49,65 +48,59 @@ function settingsHarness(over: { initial?: LlmChoice; keys?: ProviderKeys; save?
 const ask = (model: Model) =>
   model.complete({ system: "", messages: [], context: { requestId: "r", sessionId: "s", source: "voice", receivedAt: new Date(0) } });
 
-test("info lists both providers, their availability and models, and never the keys", () => {
-  const { settings } = settingsHarness({ keys: { gemini: GEMINI_KEY } });
+test("info offers only Claude on the plan, its models, and never the program's path", () => {
+  const { settings } = settingsHarness();
   const info = settings.info();
-  assert.equal(info.provider, "gemini");
-  assert.equal(info.model, "gemini-3.6-flash");
-  assert.deepEqual(
-    info.providers.map((p) => [p.id, p.name, p.available, p.models.length]),
-    [
-      ["claude", "Claude", false, 4],
-      ["claude-plan", "Claude (my plan)", false, 3],
-      ["gemini", "Gemini", true, 6],
-    ],
-  );
-  assert.deepEqual(info.providers[0]!.models[0], { id: "claude-opus-5-5", name: "Claude Opus 5.5" });
-  assert.ok(noKeys(JSON.stringify(settingsHarness().settings.info())));
+  assert.deepEqual([info.provider, info.model], ["claude-plan", "claude-sonnet-5-5"]);
+  assert.deepEqual(info.providers.map((p) => [p.id, p.name, p.available, p.models.length]), [["claude-plan", "Claude (my plan)", true, 3]]);
+  assert.ok(noPath(JSON.stringify(info)));
+  assert.equal(settingsHarness({ keys: {} }).settings.info().providers[0]!.available, false);
 });
 
 test("the configured model is offered even when it is not in the table", () => {
-  const custom = { provider: "gemini" as const, model: "gemini-experimental" };
-  assert.deepEqual(offeredModels("gemini", custom).at(-1), { id: "gemini-experimental", name: "gemini-experimental" });
-  assert.equal(offeredModels("claude", custom).length, 4);
-  assert.equal(offeredModels("gemini", { provider: "gemini", model: "gemini-2.5-pro" }).length, 6); // no duplicate
-  assert.deepEqual(offeredModels("openai", custom), []);
-
+  const custom = { provider: "claude-plan" as const, model: "claude-experimental" };
+  assert.deepEqual(offeredModels("claude-plan", custom).at(-1), { id: "claude-experimental", name: "claude-experimental" });
+  assert.equal(offeredModels("claude-plan", { provider: "claude-plan", model: "claude-opus-5-5" }).length, 3); // no duplicate
+  assert.deepEqual(offeredModels("gemini", custom), []);
   const { settings } = settingsHarness({ initial: custom });
-  assert.deepEqual(settings.setModel("gemini", "gemini-3.8-flash"), { ok: true });
-  assert.deepEqual(settings.setModel("gemini", "gemini-experimental"), { ok: true }); // can switch back to it
+  assert.deepEqual(settings.setModel("claude-plan", "claude-opus-5-5"), { ok: true });
+  assert.deepEqual(settings.setModel("claude-plan", "claude-experimental"), { ok: true }); // can switch back to it
 });
 
-test("a valid choice replaces the model, is saved and logged without keys", async () => {
+test("a valid choice replaces the model, is saved and logged without the path", async () => {
   const h = settingsHarness();
-  assert.deepEqual(h.settings.setModel("claude", "claude-opus-5-5"), { ok: true });
-  assert.deepEqual(h.built, [{ choice: { provider: "claude", model: "claude-opus-5-5" }, apiKey: CLAUDE_KEY }]);
-  assert.equal((await ask(h.model)).text, "claude/claude-opus-5-5");
-  assert.deepEqual(h.saved, [{ provider: "claude", model: "claude-opus-5-5" }]);
-  assert.deepEqual(h.settings.current(), { provider: "claude", model: "claude-opus-5-5" });
-  assert.equal(h.settings.info().provider, "claude");
-  assert.deepEqual(h.logs, [JSON.stringify({ event: "model.set", provider: "claude", model: "claude-opus-5-5" })]);
+  assert.deepEqual(h.settings.setModel("claude-plan", "claude-opus-5-5"), { ok: true });
+  assert.deepEqual(h.built, [{ choice: { provider: "claude-plan", model: "claude-opus-5-5" }, apiKey: CLAUDE }]);
+  assert.equal((await ask(h.model)).text, "claude-plan/claude-opus-5-5");
+  assert.deepEqual(h.saved, [{ provider: "claude-plan", model: "claude-opus-5-5" }]);
+  assert.deepEqual(h.settings.current(), { provider: "claude-plan", model: "claude-opus-5-5" });
+  assert.deepEqual(h.logs, [JSON.stringify({ event: "model.set", provider: "claude-plan", model: "claude-opus-5-5" })]);
 });
 
-test("refused choices explain the fix and change nothing", async () => {
-  const h = settingsHarness({ keys: { gemini: GEMINI_KEY } });
+test("refused choices explain the fix and change nothing; Gemini and the Claude API are gone (ADR-092)", async () => {
+  const h = settingsHarness();
   const cases: [string, string, RegExp][] = [
-    ["openai", "gpt-9", /Unknown AI provider "openai"\. Choose Claude or Claude \(my plan\) or Gemini\./],
-    ["claude", "claude-opus-5-5", /^Add ANTHROPIC_API_KEY to \.env to use Claude/],
-    ["gemini", "gemini-9-ultra", /"gemini-9-ultra" is not a Gemini model ZENO offers/],
-    ["gemini", "claude-opus-5-5", /not a Gemini model/],
+    ["gemini", "gemini-3.6-flash", /Unknown AI provider "gemini"\. Choose Claude \(my plan\)\./],
+    ["claude", "claude-opus-5-5", /Unknown AI provider "claude"/],
+    ["claude-plan", "gpt-9", /"gpt-9" is not a Claude \(my plan\) model ZENO offers/],
     ["__proto__", "x", /Unknown AI provider/],
   ];
   for (const [provider, model, expected] of cases) {
     const result = h.settings.setModel(provider, model);
     assert.ok("error" in result, provider);
     assert.match(result.error, expected);
-    assert.ok(noKeys(result.error));
   }
-  assert.deepEqual(h.built, []);
-  assert.deepEqual(h.saved, []);
-  assert.deepEqual(h.settings.current(), { provider: "gemini", model: "gemini-3.6-flash" });
+  assert.deepEqual([h.built, h.saved], [[], []]);
   assert.equal((await ask(h.model)).text, "initial");
+});
+
+test("without the claude program it says to install it and sign in, not to add a key", () => {
+  const h = settingsHarness({ keys: {} });
+  const result = h.settings.setModel("claude-plan", "claude-sonnet-5-5");
+  assert.ok("error" in result);
+  assert.match(result.error, /claude auth login/);
+  assert.doesNotMatch(result.error, /\.env/);
+  assert.equal(h.built.length, 0);
 });
 
 test("a failed save still switches and is logged as a warning", () => {
@@ -116,115 +109,61 @@ test("a failed save still switches and is logged as a warning", () => {
       throw new Error("EACCES: permission denied");
     },
   });
-  assert.deepEqual(h.settings.setModel("gemini", "gemini-3.8-flash"), { ok: true });
-  assert.equal(h.settings.current().model, "gemini-3.8-flash");
+  assert.deepEqual(h.settings.setModel("claude-plan", "claude-haiku-4-5-20251001"), { ok: true });
+  assert.equal(h.settings.current().model, "claude-haiku-4-5-20251001");
   assert.match(h.logs.at(-1) ?? "", /settings\.save_failed.*permission denied/);
 });
 
-test("writes the settings file atomically, creating its directory, without keys", () => {
+test("writes the settings file atomically, creating its directory", () => {
   const dir = tempDir();
   const path = join(dir, "config", "island.json");
-  writeSavedChoice(path, { provider: "claude", model: "claude-sonnet-5-5" });
-  writeSavedChoice(path, { provider: "gemini", model: "gemini-3.7-flash" });
-  assert.deepEqual(JSON.parse(readFileSync(path, "utf8")), { llm: { provider: "gemini", model: "gemini-3.7-flash" } });
+  writeSavedChoice(path, { provider: "claude-plan", model: "claude-sonnet-5-5" });
+  writeSavedChoice(path, { provider: "claude-plan", model: "claude-opus-5-5" });
+  assert.deepEqual(JSON.parse(readFileSync(path, "utf8")), { llm: { provider: "claude-plan", model: "claude-opus-5-5" } });
   assert.deepEqual(readdirSync(join(dir, "config")), ["island.json"]); // no temporary file left behind
-  assert.ok(noKeys(readFileSync(path, "utf8")));
 });
 
-test("reads a saved choice back", () => {
+test("reads a saved choice back; a missing file is silent", () => {
   const path = join(tempDir(), "island.json");
-  writeSavedChoice(path, { provider: "claude", model: "claude-haiku-4-5-20251001" });
-  assert.deepEqual(readSavedChoice(path, BOTH), { choice: { provider: "claude", model: "claude-haiku-4-5-20251001" } });
-});
-
-test("a missing settings file is silent", () => {
-  assert.deepEqual(readSavedChoice(join(tempDir(), "nope", "island.json"), BOTH), {});
+  writeSavedChoice(path, { provider: "claude-plan", model: "claude-haiku-4-5-20251001" });
+  assert.deepEqual(readSavedChoice(path, PLAN), { choice: { provider: "claude-plan", model: "claude-haiku-4-5-20251001" } });
+  assert.deepEqual(readSavedChoice(join(tempDir(), "nope", "island.json"), PLAN), {});
 });
 
 test("an unusable settings file is ignored with a warning, never an exception", () => {
   const dir = tempDir();
-  const cases: [string, RegExp][] = [
-    ["{ not json", /not valid JSON/],
-    ["[]", /expected \{"llm"/],
-    ["null", /expected \{"llm"/],
-    ['{"llm":{"provider":"gemini"}}', /expected \{"llm"/],
-    ['{"llm":{"provider":"gemini","model":7}}', /expected \{"llm"/],
-    ['{"llm":{"provider":"openai","model":"gpt-9"}}', /unknown provider "openai"/],
-    ['{"llm":{"provider":"claude","model":"claude-opus-5-5"}}', /chooses Claude, but ANTHROPIC_API_KEY is not in \.env/],
+  const cases: [string, ProviderKeys, RegExp][] = [
+    ["{ not json", PLAN, /not valid JSON/],
+    ["[]", PLAN, /expected \{"llm"/],
+    ['{"llm":{"provider":"claude-plan"}}', PLAN, /expected \{"llm"/],
+    ['{"llm":{"provider":"openai","model":"gpt-9"}}', PLAN, /unknown provider "openai"/],
+    ['{"llm":{"provider":"gemini","model":"gemini-3.6-flash"}}', PLAN, /chooses gemini, which ZENO no longer uses/],
+    ['{"llm":{"provider":"claude","model":"claude-opus-5-5"}}', PLAN, /chooses claude, which ZENO no longer uses/],
+    ['{"llm":{"provider":"claude-plan","model":"claude-sonnet-5-5"}}', {}, /claude auth login/],
   ];
-  cases.forEach(([content, expected], i) => {
+  cases.forEach(([content, keys, expected], i) => {
     const path = join(dir, `island-${i}.json`);
     writeFileSync(path, content);
-    const result = readSavedChoice(path, { gemini: GEMINI_KEY });
+    const result = readSavedChoice(path, keys);
     assert.equal(result.choice, undefined, content);
     assert.match(result.warning ?? "", expected, content);
-    assert.ok(noKeys(result.warning ?? ""));
   });
 });
 
-test("at startup a valid saved choice overrides ZENO_LLM_PROVIDER / ZENO_LLM_MODEL", () => {
+test("at startup an old .env naming Gemini or the Claude API still runs on the plan (ADR-092)", () => {
   const path = join(tempDir(), "island.json");
-  writeSavedChoice(path, { provider: "claude", model: "claude-opus-5-5" });
-  const env = { ZENO_LLM_PROVIDER: "gemini", ZENO_LLM_MODEL: "gemini-3.5-flash", GEMINI_API_KEY: GEMINI_KEY, ANTHROPIC_API_KEY: CLAUDE_KEY };
-  const keys = readProviderKeys(env, () => undefined);
-  assert.deepEqual(keys, BOTH);
-  const config = loadConfig(env, { llm: readSavedChoice(path, keys).choice });
-  assert.deepEqual(config.llm, { provider: "claude", apiKey: CLAUDE_KEY, model: "claude-opus-5-5", timeoutMs: 30_000 });
-});
-
-test("at startup an ignored settings file leaves the .env choice in place", () => {
-  const dir = tempDir();
-  const broken = join(dir, "broken.json");
-  writeFileSync(broken, "{");
-  const noKey = join(dir, "no-key.json");
-  writeSavedChoice(noKey, { provider: "claude", model: "claude-opus-5-5" });
-  const env = { ZENO_LLM_PROVIDER: "gemini", GEMINI_API_KEY: GEMINI_KEY };
-  for (const path of [broken, noKey]) {
-    const config = loadConfig(env, { llm: readSavedChoice(path, readProviderKeys(env)).choice });
-    assert.deepEqual(config.llm, { provider: "gemini", apiKey: GEMINI_KEY, model: "gemini-3.6-flash", timeoutMs: 30_000 });
-  }
+  writeSavedChoice(path, { provider: "claude-plan", model: "claude-opus-5-5" });
+  const env = { ZENO_LLM_PROVIDER: "gemini", ZENO_LLM_MODEL: "gemini-3.5-flash", GEMINI_API_KEY: "test-key-0000", ZENO_CLAUDE_PATH: CLAUDE };
+  const keys = readProviderKeys(env, () => CLAUDE);
+  assert.deepEqual(keys, PLAN, "API keys in .env are not providers any more");
+  assert.equal(loadConfig(env, { llm: readSavedChoice(path, keys).choice }).llm.model, "claude-opus-5-5");
+  const plain = loadConfig(env);
+  assert.deepEqual([plain.llm.provider, plain.llm.model], ["claude-plan", "claude-sonnet-5-5"], "a Gemini model is not used");
+  assert.equal(loadConfig({ ZENO_LLM_PROVIDER: "claude", ZENO_LLM_MODEL: "claude-haiku-4-5-20251001" }).llm.model, "claude-haiku-4-5-20251001");
 });
 
 test("the settings file location can be changed with ZENO_ISLAND_SETTINGS", () => {
   assert.equal(settingsPath({}), DEFAULT_SETTINGS_PATH);
   assert.equal(settingsPath({ ZENO_ISLAND_SETTINGS: " " }), "config/island.json");
   assert.equal(settingsPath({ ZENO_ISLAND_SETTINGS: "/tmp/x.json" }), "/tmp/x.json");
-});
-
-// ---- Claude on the user's plan
-
-const PLAN: ProviderKeys = { gemini: GEMINI_KEY, "claude-plan": "/Users/k/.local/bin/claude" };
-
-test("the plan provider is offered when the claude program is found, and its path is not secret but is not sent either", () => {
-  const { settings } = settingsHarness({ keys: PLAN });
-  const entry = settings.info().providers.find((p) => p.id === "claude-plan")!;
-  assert.equal(entry.available, true);
-  assert.equal(entry.name, "Claude (my plan)");
-  assert.ok(!JSON.stringify(settings.info()).includes("/Users/k/.local/bin/claude"));
-});
-
-test("switching to the plan provider builds it with the program's path", async () => {
-  const h = settingsHarness({ keys: PLAN });
-  assert.deepEqual(h.settings.setModel("claude-plan", "claude-sonnet-5-5"), { ok: true });
-  assert.deepEqual(h.built, [{ choice: { provider: "claude-plan", model: "claude-sonnet-5-5" }, apiKey: "/Users/k/.local/bin/claude" }]);
-  assert.deepEqual(h.saved, [{ provider: "claude-plan", model: "claude-sonnet-5-5" }]);
-});
-
-test("without the claude program the plan provider says to install it and sign in, not to add a key to .env", () => {
-  const h = settingsHarness({ keys: { gemini: GEMINI_KEY } });
-  const result = h.settings.setModel("claude-plan", "claude-sonnet-5-5");
-  assert.ok("error" in result);
-  assert.match((result as { error: string }).error, /claude auth login/);
-  assert.doesNotMatch((result as { error: string }).error, /\.env/);
-  assert.equal(h.built.length, 0);
-});
-
-test("a saved choice of the plan provider is ignored with a clear warning when claude is not there, and kept when it is", () => {
-  const dir = tempDir();
-  const path = join(dir, "island.json");
-  writeSavedChoice(path, { provider: "claude-plan", model: "claude-sonnet-5-5" });
-  const missing = readSavedChoice(path, { gemini: GEMINI_KEY });
-  assert.equal(missing.choice, undefined);
-  assert.match(missing.warning ?? "", /claude auth login/);
-  assert.deepEqual(readSavedChoice(path, PLAN).choice, { provider: "claude-plan", model: "claude-sonnet-5-5" });
 });
