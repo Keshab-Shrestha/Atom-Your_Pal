@@ -717,6 +717,59 @@ struct HelperFeedbackTests {
     }
 }
 
+@Suite("Skills that grow (ADR-094)")
+struct SkillsThatGrowTests {
+    static let line = HelperTaskTests.line.replacingOccurrences(of: #"{"type":"helpers","#, with: #"{"type":"helpers","skills":[{"name":"pdf","description":"PDFs","source":"yours"},{"name":"compare-laptops","description":"Laptops","source":"zeno"},{"name":"old"}],"skillDrafts":[{"id":2,"jobId":1,"helper":"sid","name":"networking-basics","description":"Explaining networking.","preview":"1. Start simple.","state":"pending","createdAt":"x"},{"id":1,"jobId":9,"helper":"sid","name":"x","description":"d","preview":"p","state":"approved","createdAt":"x"},{"bad":true}],"skillEdits":[{"id":5,"skill":"compare-laptops","jobId":3,"reason":"Two was too few.","before":"2. Two.","after":"2. Three.","state":"pending","createdAt":"x"},{"id":4,"skill":"compare-laptops","jobId":3,"reason":"r","before":"a","after":"b","state":"accepted","createdAt":"x"}],"#)
+
+    @Test func decodesDraftsEditsAndWhereEachSkillComesFrom() throws {
+        var state = HelpersState()
+        state.apply(try decodeEvent(Self.line))
+        let list = try #require(state.list)
+        #expect(list.skills.map(\.sourceTitle) == ["yours", "made by ZENO", "yours"], "an older runtime sends no source: Keshab's")
+        #expect(list.skillDrafts.map(\.id) == [2, 1] && list.skillDrafts[0].preview == "1. Start simple.")
+        #expect(list.skillEdits.map(\.state) == ["pending", "accepted"] && list.skillEdits[0].before == "2. Two.")
+        var older = HelpersState()
+        older.apply(try decodeEvent(HelperTaskTests.line))
+        #expect(older.list?.skillDrafts.isEmpty == true && older.list?.skillEdits.isEmpty == true)
+    }
+
+    @Test func answersDraftsAndEditsAndMakesASkillFromADoneTask() throws {
+        var state = HelpersState()
+        state.apply(try decodeEvent(Self.line))
+        #expect(state.answerSkillDraft(2, approve: true) == .skillApprove(id: 2))
+        #expect(state.answerSkillDraft(2, approve: false) == .skillReject(id: 2))
+        #expect(state.answerSkillDraft(1, approve: true) == nil) // answered already
+        #expect(state.answerSkillEdit(5, accept: true) == .skillEditAccept(id: 5))
+        #expect(state.answerSkillEdit(4, accept: false) == nil)
+        #expect(state.undoSkillEdit(4) == .skillEditUndo(id: 4) && state.undoSkillEdit(5) == nil)
+        _ = state.openThread(1)
+        #expect(state.makeSkill() == nil, "task 1 has its draft already")
+        _ = state.openThread(3)
+        #expect(state.makeSkill() == nil, "a failed task does not become a skill")
+        var other = HelpersState()
+        other.apply(try decodeEvent(HelperTaskTests.line))
+        _ = other.openThread(1)
+        #expect(other.makeSkill() == .skillMake(id: 1))
+        #expect(IslandCommand.skillEditUndo(id: 4).line == #"{"id":4,"type":"skill.edit.undo"}"# + "\n")
+        #expect(IslandCommand.skillMake(id: 1).line == #"{"id":1,"type":"skill.make"}"# + "\n")
+    }
+
+    @Test func pendingDraftsAndEditsNeedYouAndAreNotifiedByNameOnly() throws {
+        var state = HelpersState()
+        state.apply(try decodeEvent(Self.line))
+        let list = try #require(state.list)
+        let items = NeedsYouItem.all(in: list)
+        #expect(items.map(\.kind) == [.skillDraft, .skillEdit, .failed])
+        #expect(items[0].title == "New skill: networking-basics" && items[0].helperName == "Sid" && items[0].skillItemId == 2)
+        #expect(items[1].title == "Edit to the compare-laptops skill" && items[1].detail == "Two was too few." && items[1].skillItemId == 5)
+        var watcher = NoticeWatcher()
+        _ = watcher.notices(for: HelpersList(helpers: list.helpers, apps: []))
+        let notices = watcher.notices(for: list).filter { $0.key.hasPrefix("skill-") }
+        #expect(notices.map(\.title) == ["Tinker drafted a skill: networking-basics", "Tinker suggests an edit to compare-laptops"])
+        #expect(notices.allSatisfy { $0.kind == .needsYou && !$0.body.contains("Start simple") && !$0.body.contains("Three") })
+    }
+}
+
 @Suite("Open in the worker's app (Task 3.14)")
 struct HelperOpenTests {
     @Test func aFinishedReportOpensInItsWorkersApp() throws {

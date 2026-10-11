@@ -61,6 +61,8 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     /// ADR-090: how many times a failure was retried by itself.
     public var autoRetries: Int
     public var isFinished: Bool { state == .done || state == .failed }
+    /// ADR-094: a done task (not one of Tinker's) can become a skill.
+    public var canBecomeSkill: Bool { state == .done && reviews == nil }
 
     public init(id: Int, task: String, state: JobState, createdAt: Date? = nil, endedAt: Date? = nil, step: String? = nil,
                 partial: Bool = false, title: String? = nil, summary: String? = nil, error: String? = nil,
@@ -448,8 +450,11 @@ public struct HelpersList: Sendable, Equatable {
     /// Task 3.7: the team's daily cap and spend, and the plan limit (percent); nil from an older runtime.
     public var team: HelperBudget?
     public var planLimit: Int?
-    /// Task 3.12: Keshab's skills in ~/.claude/skills.
+    /// Task 3.12: the skills to choose from (Keshab's in ~/.claude/skills and, ADR-094, ZENO's own).
     public var skills: [SkillInfo]
+    /// ADR-094: Tinker's skill drafts and edits: every pending one and the newest few others.
+    public var skillDrafts: [SkillDraftItem]
+    public var skillEdits: [SkillEditItem]
     /// Task 3.16: the tasks handed to Keshab's Paperclip; nil when the connection is off.
     public var paperclip: [PaperclipTask]?
     /// ADR-090: Keshab's MCP servers.
@@ -461,7 +466,7 @@ public struct HelpersList: Sendable, Equatable {
 
     public init(helpers: [Helper], apps: [String], allowLarge: Bool = true, models: [HelperModel] = [], team: HelperBudget? = nil,
                 planLimit: Int? = nil, paperclip: [PaperclipTask]? = nil, mcp: [McpServerItem] = [], usage: TokenUsageSummary? = nil, skills: [SkillInfo] = [],
-                agentProblems: [AgentProblem] = []) {
+                skillDrafts: [SkillDraftItem] = [], skillEdits: [SkillEditItem] = [], agentProblems: [AgentProblem] = []) {
         self.helpers = helpers
         self.apps = apps
         self.allowLarge = allowLarge
@@ -472,6 +477,8 @@ public struct HelpersList: Sendable, Equatable {
         self.mcp = mcp
         self.usage = usage
         self.skills = skills
+        self.skillDrafts = skillDrafts
+        self.skillEdits = skillEdits
         self.agentProblems = agentProblems
     }
 
@@ -798,6 +805,28 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.proposalUndo(id: id))
     }
 
+    /// ADR-094: asks Tinker for a skill from the open task, if it is done, not one of Tinker's own and has no draft yet.
+    public mutating func makeSkill() -> IslandCommand? {
+        guard let job = openJob, job.canBecomeSkill, list?.skillDrafts.contains(where: { $0.jobId == job.id }) != true else { return nil }
+        return waiting(.skillMake(id: job.id))
+    }
+
+    /// ADR-094: approve or reject a pending skill draft; accept, reject or undo a skill edit.
+    public mutating func answerSkillDraft(_ id: Int, approve: Bool) -> IslandCommand? {
+        guard list?.skillDrafts.first(where: { $0.id == id })?.state == "pending" else { return nil }
+        return waiting(approve ? .skillApprove(id: id) : .skillReject(id: id))
+    }
+
+    public mutating func answerSkillEdit(_ id: Int, accept: Bool) -> IslandCommand? {
+        guard list?.skillEdits.first(where: { $0.id == id })?.state == "pending" else { return nil }
+        return waiting(accept ? .skillEditAccept(id: id) : .skillEditReject(id: id))
+    }
+
+    public mutating func undoSkillEdit(_ id: Int) -> IslandCommand? {
+        guard list?.skillEdits.first(where: { $0.id == id })?.state == "accepted" else { return nil }
+        return waiting(.skillEditUndo(id: id))
+    }
+
     /// Task 3.12: adds or removes one of Keshab's skills for the chosen worker.
     public mutating func toggleSkill(_ name: String) -> IslandCommand? {
         guard let helper = selectedHelper, helper.available, list?.skills.contains(where: { $0.name == name }) == true else { return nil }
@@ -986,15 +1015,64 @@ public struct HelperRoutine: Sendable, Equatable, Identifiable {
     }
 }
 
-/// Task 3.12: one of Keshab's skills.
+/// Task 3.12: one of the skills a worker can be given: Keshab's ("yours") or, ADR-094, made by ZENO ("zeno").
 public struct SkillInfo: Sendable, Equatable, Identifiable {
     public var name: String
     public var description: String
+    public var source: String
     public var id: String { name }
 
-    public init(name: String, description: String) {
+    public init(name: String, description: String, source: String = "yours") {
         self.name = name
         self.description = description
+        self.source = source
+    }
+
+    public var sourceTitle: String { source == "zeno" ? "made by ZENO" : "yours" }
+}
+
+/// ADR-094: Tinker's draft of a new skill from a task, waiting for Keshab's OK (or answered).
+public struct SkillDraftItem: Sendable, Equatable, Identifiable {
+    public var id: Int
+    public var jobId: Int
+    public var helper: String
+    public var name: String
+    public var description: String
+    /// The start of its steps.
+    public var preview: String
+    /// "pending", "approved" or "rejected".
+    public var state: String
+
+    public init(id: Int, jobId: Int, helper: String, name: String, description: String, preview: String, state: String) {
+        self.id = id
+        self.jobId = jobId
+        self.helper = helper
+        self.name = name
+        self.description = description
+        self.preview = preview
+        self.state = state
+    }
+}
+
+/// ADR-094: Tinker's edit to one of ZENO's skills: why, and a compact before and after.
+public struct SkillEditItem: Sendable, Equatable, Identifiable {
+    public var id: Int
+    public var skill: String
+    public var jobId: Int
+    public var reason: String
+    public var before: String
+    public var after: String
+    /// "pending", "accepted", "rejected" or "undone".
+    public var state: String
+
+    public init(id: Int, skill: String, jobId: Int, reason: String, before: String, after: String, state: String) {
+        self.id = id
+        self.skill = skill
+        self.jobId = jobId
+        self.reason = reason
+        self.before = before
+        self.after = after
+        self.state = state
     }
 }
 

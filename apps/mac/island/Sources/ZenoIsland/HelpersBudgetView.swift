@@ -210,10 +210,11 @@ struct SkillsPicker: View {
 
     var body: some View {
         Menu {
-            if skills.isEmpty { Text("No skills in ~/.claude/skills") }
+            if skills.isEmpty { Text("No skills yet") }
             ForEach(skills) { skill in
+                let title = skill.source == "zeno" ? "\(skill.name) (made by ZENO)" : skill.name
                 Button { model.sendHelpers(model.helpers.toggleSkill(skill.name)) } label: {
-                    if helper.skills.contains(skill.name) { Label(skill.name, systemImage: "checkmark") } else { Text(skill.name) }
+                    if helper.skills.contains(skill.name) { Label(title, systemImage: "checkmark") } else { Text(title) }
                 }
                 .help(skill.description)
             }
@@ -273,7 +274,7 @@ struct RateSection: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("How did it go?").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             if let rating = job.rating {
-                Text(rating == "good" ? "You rated it good." : "You rated it not good; Tinker reviews it.")
+                Text(rating != "good" ? "You rated it not good; Tinker reviews it." : job.canBecomeSkill ? "You rated it good; Tinker drafts a skill from it." : "You rated it good.")
                     .font(.system(size: 12)).foregroundStyle(theme.text2.color)
             } else {
                 if snapshot {
@@ -289,6 +290,15 @@ struct RateSection: View {
                         model.sendHelpers(model.helpers.rate(good: false, comment: comment.wrappedValue))
                         comment.wrappedValue = ""
                     }
+                }
+            }
+            // ADR-094: a done task can become a skill; Tinker drafts it and it waits for your OK on the Plugins page.
+            if job.canBecomeSkill {
+                if let draft = model.helpers.list?.skillDrafts.first(where: { $0.jobId == job.id }) {
+                    Text("Skill draft \(draft.name): \(draft.state == "pending" ? "waits for you on the Plugins page" : draft.state).")
+                        .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                } else if job.rating != "good" {
+                    QuietButton(title: "Make a skill", symbol: "wand.and.stars") { model.sendHelpers(model.helpers.makeSkill()) }
                 }
             }
         }

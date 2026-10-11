@@ -209,6 +209,12 @@ test("parses the helper commands", () => {
     { type: "proposal.accept", id: 1 },
     { type: "proposal.reject", id: 1 },
     { type: "proposal.undo", id: 1 },
+    { type: "skill.make", id: 4 },
+    { type: "skill.approve", id: 1 },
+    { type: "skill.reject", id: 1 },
+    { type: "skill.edit.accept", id: 2 },
+    { type: "skill.edit.reject", id: 2 },
+    { type: "skill.edit.undo", id: 2 },
     { type: "job.open", id: 3 },
     { type: "job.retry", id: 3 },
     { type: "speech.set", reports: false, updates: true },
@@ -270,6 +276,8 @@ test("helper commands with missing or wrong fields are protocol errors", () => {
     [{ type: "comment.add", id: 3 }, /"text"/],
     [{ type: "comment.add", text: "x" }, /"id"/],
     [{ type: "thread.get", id: -1 }, /whole number/],
+    [{ type: "skill.approve", id: "1" }, /skill.approve needs an "id"/],
+    [{ type: "skill.edit.undo" }, /whole number/],
   ];
   for (const [command, expected] of bad) {
     const parsed = parseCommand(JSON.stringify(command));

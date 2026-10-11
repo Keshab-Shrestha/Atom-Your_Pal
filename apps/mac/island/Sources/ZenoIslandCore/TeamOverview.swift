@@ -58,6 +58,10 @@ public struct NeedsYouItem: Sendable, Equatable, Identifiable {
         case plan
         /// Tinker's proposed change to a worker's soul.
         case proposal
+        /// ADR-094: Tinker's draft of a new skill, to approve or reject.
+        case skillDraft
+        /// ADR-094: Tinker's edit to one of ZENO's skills, to accept or reject.
+        case skillEdit
         /// A runnable task held by a budget or the plan's limit.
         case held
         /// A task that failed.
@@ -72,10 +76,22 @@ public struct NeedsYouItem: Sendable, Equatable, Identifiable {
     public var detail: String
     public var jobId: Int?
     public var proposalId: Int?
+    /// ADR-094: the skill draft or skill edit to answer.
+    public var skillItemId: Int?
 
-    /// Everything waiting, in the order it is best answered: plans, proposals, held tasks, failures (newest first).
+    /// Everything waiting, in the order it is best answered: plans, proposals, skill drafts and edits, held tasks,
+    /// failures (newest first).
     public static func all(in list: HelpersList) -> [NeedsYouItem] {
         var plans: [NeedsYouItem] = [], proposals: [NeedsYouItem] = [], held: [NeedsYouItem] = [], failed: [NeedsYouItem] = []
+        let names = Dictionary(list.helpers.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
+        let drafts = list.skillDrafts.filter { $0.state == "pending" }.map { d in
+            NeedsYouItem(id: "skill-draft-\(d.id)", kind: .skillDraft, helperId: d.helper, helperName: names[d.helper] ?? d.helper,
+                         title: "New skill: \(d.name)", detail: d.description, jobId: d.jobId, skillItemId: d.id)
+        }
+        let edits = list.skillEdits.filter { $0.state == "pending" }.map { e in
+            NeedsYouItem(id: "skill-edit-\(e.id)", kind: .skillEdit, helperId: "tinker", helperName: names["tinker"] ?? "Tinker",
+                         title: "Edit to the \(e.skill) skill", detail: e.reason, jobId: e.jobId, skillItemId: e.id)
+        }
         for h in list.helpers {
             for p in h.proposals where p.state == "pending" {
                 proposals.append(NeedsYouItem(id: "proposal-\(p.id)", kind: .proposal, helperId: h.id, helperName: h.name,
@@ -93,7 +109,7 @@ public struct NeedsYouItem: Sendable, Equatable, Identifiable {
                 }
             }
         }
-        return plans + proposals + held + failed.sorted { ($0.jobId ?? 0) > ($1.jobId ?? 0) }
+        return plans + proposals + drafts + edits + held + failed.sorted { ($0.jobId ?? 0) > ($1.jobId ?? 0) }
     }
 }
 

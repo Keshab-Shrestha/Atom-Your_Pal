@@ -2000,3 +2000,28 @@ Pal looks the same on screen and on the floor, with fewer settings. ZENO depends
 
 - **Removed:** the drop-down panel's views and the gallery sheets that drew it (the window replaced it in ADR-089); custom PNG avatars (ADR-085: workers show their pixel character or letter); the DesignStudy mock-ups; the `ZENO_PANEL_DEMO` script; the empty placeholder folders (created when their phase needs them, which amends PROJECT_STRUCTURE.md's "do not delete placeholders").
 - **Wired up:** a "Speak now" cue once the microphone is capturing (`mic.ready`); it shows on Pal itself (arms up, pixel sound bars), with no bubble: Keshab kept the 2026-10-10 rule that listening gets no bubble.
+
+## ADR-094 — Skills That Grow, Workers That Wake, a Scheduled Page, and Room for Many Agents
+
+Date: 2026-10-12. Status: **accepted** (Keshab, 2026-10-12: "is there auto skill creation and skill improvement like hermes agent and auto task delegation … like paperclip?" — "all three please and for scheduled tasks .. a clear section named scheduled below Issues and board … in the board section .. lets not display every agents .. suppose we have 50 agents … the floor section will look crowded"). Built as worker → independent checker → fix only what is confirmed, as Keshab asked.
+
+### Decision
+
+**A. Skills that grow (like Hermes Agent), always with Keshab's OK.**
+1. *ZENO's own skills* live in `data/skills/<name>/SKILL.md` (local, gitignored). `~/.claude/skills` stays read-only: ZENO never writes there. Workers can be given skills from either place, as today.
+2. *Creating:* when Keshab rates a task good, or clicks "Make a skill" on a done task, Tinker (the improver, no tools) writes a draft skill from that task's brief and report: a name, a one-line description and the steps. The draft waits in Needs you and on the Plugins page; nothing uses it until Keshab approves it (then it is a ZENO skill he can give to workers). Reject marks it rejected and keeps it, so a task makes at most one draft.
+3. *Improving:* each run records which skills it used (the Agent SDK's Skill tool calls). When a task that used a ZENO skill is rated bad, or fails for a reason a retry does not fix, Tinker proposes an edit to that skill with its reason. Keshab accepts, rejects or later undoes it (the previous version is kept; Undo is refused if the skill changed since), as with soul proposals. Skills from `~/.claude/skills` are never edited.
+4. Limits: at most one draft per task, a skill's text at most 8,000 characters, names lower-case with dashes; a model never adds or changes a skill without Keshab's click.
+
+**B. Delegation that runs itself (like Paperclip), inside the same limits.**
+1. *Team tasks:* a task can be posted to the team instead of one worker, optionally for a role ("anyone", "researcher", "coder"…). It waits on the Board under "Team" until a worker takes it.
+2. *Wake-ups (heartbeats):* each worker can wake on its own schedule (off by default; every 15 minutes, hourly, every 4 hours or daily). On waking, if it is idle and within its budget and the plan's limit, it takes the oldest team task its role may do (one per wake-up) and runs it as its own. Pal's delegation, hand-offs, blockers and plan-first all apply as before.
+3. *Scheduled page:* a sidebar page "Scheduled", below Issues and Board, lists everything that runs by itself: every worker's routines and wake-ups, each with its next time, last run, Pause/Resume and Delete, and the team tasks waiting to be taken.
+
+**C. Room for many agents.**
+1. *Board:* the team chips show only who matters now: working, waiting for Keshab, or used in the last day, at most 12. "All agents (N)" opens a searchable list (by name or role) for the rest; New agent stays.
+2. *Floor:* desks for workers at work (8 desks and 4 meeting seats); beyond that a "+N at work" sign by the desks. The lounge shows at most 10 idle pals; the rest are a "+N more" sign on the lounge wall. Clicking a sign opens the same searchable list. Pal's office is unchanged.
+
+### Consequences
+
+The team learns: good work becomes reusable skills and weak skills get better, but only through Keshab's approvals, so the model never changes what workers can do on its own. Work can wait for whoever is free, and everything that runs on a clock is in one place. The window stays readable with 50 agents.

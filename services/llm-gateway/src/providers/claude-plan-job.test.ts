@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { FILE_MAX_TURNS, FILE_TOOLS, HAND_OFF_TOOL, RESEARCH_MAX_TURNS, RESEARCH_PAGE_LIMIT, runPlan, runResearch, runReview, type ResearchOptions } from "./claude-plan-job.ts";
+import { FILE_MAX_TURNS, FILE_TOOLS, HAND_OFF_TOOL, RESEARCH_MAX_TURNS, RESEARCH_PAGE_LIMIT, runPlan, runResearch, runReview, runSkillDraft, runSkillEdit, type ResearchOptions } from "./claude-plan-job.ts";
 import type { ClaudeSdk, PlanUsage } from "./claude-plan.ts";
 import { ProviderError } from "../gateway.ts";
 
@@ -193,6 +193,48 @@ test("only the worker's skills load, through its plugin; a Skill call for anothe
   });
   await research(plain.sdk);
   assert.equal(plain.seen[0]!.options.plugins, undefined);
+});
+
+test("each skill a run is allowed to use is reported; refused ones are not (ADR-094)", async () => {
+  const used: string[] = [];
+  const { sdk } = fakeSdk(async function* (o) {
+    yield init();
+    for (const skill of ["zeno-skills:pdf", "zeno-skills:council"]) await o.canUseTool("Skill", { skill }, { signal: new AbortController().signal });
+    yield done();
+  });
+  await research(sdk, { skills: { pluginDir: "/p", plugin: "zeno-skills", names: ["pdf"] }, onSkill: (name) => used.push(name) });
+  assert.deepEqual(used, ["pdf"]);
+});
+
+test("Tinker drafts a skill and proposes skill edits with no tools, in their own shapes (ADR-094)", async () => {
+  const draft = { name: "compare-laptops", description: "Use when comparing laptops.", body: "1. List needs." };
+  const one = fakeSdk(async function* () {
+    yield init();
+    yield done(draft);
+  });
+  const base = { claudePath: "/bin/claude", model: "m", task: "Make", instructions: "You are Tinker.", signal: new AbortController().signal, env: {} };
+  assert.deepEqual(await runSkillDraft({ ...base, sdk: one.sdk }), { draft });
+  const o = one.seen[0]!.options;
+  assert.deepEqual([o.tools, o.persistSession, o.mcpServers, o.plugins, o.outputFormat.schema.required], [[], false, {}, undefined, ["name", "description", "body"]]);
+  assert.match(o.systemPrompt, /turns one task that Keshab rated as good into a reusable skill/);
+  const bad = fakeSdk(async function* () {
+    yield init();
+    yield done({ ...draft, name: "Not A Name" });
+  });
+  await assert.rejects(runSkillDraft({ ...base, sdk: bad.sdk }), /skill came back in the wrong shape/);
+  const long = fakeSdk(async function* () {
+    yield init();
+    yield done({ ...draft, body: "x".repeat(8001) });
+  });
+  await assert.rejects(runSkillDraft({ ...base, sdk: long.sdk }), /wrong shape/);
+  const edit = { change: true, body: "1. List needs.\n2. Compare three.", reason: "It stopped at two." };
+  const two = fakeSdk(async function* () {
+    yield init();
+    yield done(edit);
+  });
+  assert.deepEqual(await runSkillEdit({ ...base, sdk: two.sdk }), { edit });
+  assert.deepEqual(two.seen[0]!.options.outputFormat.schema.required, ["change", "body", "reason"]);
+  assert.match(two.seen[0]!.options.systemPrompt, /improves one of ZENO's skills/);
 });
 
 test("Tinker's review uses no tools and returns one proposed change (Task 3.13)", async () => {

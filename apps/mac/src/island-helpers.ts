@@ -2,7 +2,23 @@
 
 import { HelperError, describeSchedule, type HelperStore, type Job, type PlanModel } from "@zeno/helpers";
 import type { IslandHelpers } from "./island.ts";
-import type { JobItem } from "./island-protocol.ts";
+import type { JobItem, SkillDraftItem, SkillEditItem } from "./island-protocol.ts";
+
+/** ADR-094: how much of a draft's steps, and of each side of an edit, the window shows. */
+const PREVIEW_CHARS = 400;
+const CHANGE_LINES = 6;
+
+const cut = (text: string) => (text.length > PREVIEW_CHARS ? `${text.slice(0, PREVIEW_CHARS - 1)}…` : text);
+
+/** A compact before and after: from the first line that differs, a few lines of each. */
+export function compactChange(before: string, after: string): { before: string; after: string } {
+  const a = before.split("\n");
+  const b = after.split("\n");
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  const part = (lines: string[]) => cut(lines.slice(i, i + CHANGE_LINES).join("\n"));
+  return { before: part(a), after: part(b) };
+}
 
 const toJobItem = (job: Job, held?: string): JobItem => ({
   id: job.id,
@@ -44,8 +60,8 @@ export function islandHelpers(
   models: () => PlanModel[] = () => [],
   /** Task 3.7: why a task may not start now (budgets, the plan's window), if so. */
   held: (job: Job) => string | undefined = () => undefined,
-  /** Task 3.12: Keshab's skills (default: none, for tests). */
-  skills: () => { name: string; description: string }[] = () => [],
+  /** Task 3.12, ADR-094: the skills to choose from, Keshab's and ZENO's (default: none, for tests). */
+  skills: () => { name: string; description: string; source?: "yours" | "zeno" }[] = () => [],
 ): IslandHelpers {
   return {
     list: () =>
@@ -113,10 +129,20 @@ export function islandHelpers(
     rejectProposal: (id) => store.rejectProposal(id),
     undoProposal: (id) => store.undoProposal(id),
     skills,
+    skillDrafts: (): SkillDraftItem[] =>
+      store.skillDrafts().map((d) => ({ id: d.id, jobId: d.jobId, helper: d.helper, name: d.name, description: d.description, preview: cut(d.body), state: d.state, createdAt: d.createdAt.toISOString() })),
+    skillEdits: (): SkillEditItem[] =>
+      store.skillEdits().map((e) => ({ id: e.id, skill: e.skill, jobId: e.jobId, reason: e.reason, ...compactChange(e.oldBody, e.newBody), state: e.state, createdAt: e.createdAt.toISOString() })),
+    makeSkill: (id) => store.makeSkill(id),
+    approveSkillDraft: (id) => store.approveSkillDraft(id),
+    rejectSkillDraft: (id) => store.rejectSkillDraft(id),
+    acceptSkillEdit: (id) => store.acceptSkillEdit(id),
+    rejectSkillEdit: (id) => store.rejectSkillEdit(id),
+    undoSkillEdit: (id) => store.undoSkillEdit(id),
     setSkills: (helper, names) => {
       const known = new Set(skills().map((s) => s.name));
       const missing = names.find((n) => !known.has(n));
-      if (missing !== undefined) throw new HelperError(`There is no skill called "${missing.slice(0, 40)}" in ~/.claude/skills.`);
+      if (missing !== undefined) throw new HelperError(`There is no skill called "${missing.slice(0, 40)}" in ~/.claude/skills or ZENO's skills.`);
       store.setSkills(helper, names);
     },
     addGrant: (helper, path) => store.addGrant(helper, path),

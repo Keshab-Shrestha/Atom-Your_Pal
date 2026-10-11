@@ -1,5 +1,5 @@
 import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { isOver } from "./budgets.ts";
 import { homedir } from "node:os";
@@ -11,6 +11,7 @@ export const MAX_SKILLS = 10;
 import { DEFAULT_PLAN_LIMIT, DEFAULT_TEAM_CAP, DEFAULT_WORKER_CAP, MAX_CAP, PLAN_LIMIT_RANGE, startOfDay, type Budgets } from "./budgets.ts";
 import { isDue, routineTable } from "./routines.ts";
 import { SOUL_FIELDS, proposalTable } from "./feedback.ts";
+import { skillStore } from "./skill-drafts.ts";
 import { mcpTable } from "./mcp.ts";
 import { usageTable } from "./usage.ts";
 import { createSchema, sameSoul, toJobRow, toSoul, webSources, type JobRow, type ReportRow, type SoulRow } from "./store-schema.ts";
@@ -51,7 +52,7 @@ import type { Activity, GoalReport, HelperChange, HelperStore, HelperStoreOption
 export { webSources } from "./store-schema.ts";
 
 export function openHelperStore(options: HelperStoreOptions): HelperStore {
-  const { path, now = () => new Date(), home = homedir(), agentsDir } = options;
+  const { path, now = () => new Date(), home = homedir(), agentsDir, skillsDir } = options;
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
   createSchema(db);
@@ -189,8 +190,9 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const mcp = mcpTable(db);
   const tokens = usageTable(db, now);
   const putRating = db.prepare("UPDATE jobs SET rating = ?, rating_comment = ? WHERE id = ?");
-  const reviewOf = db.prepare("SELECT id FROM jobs WHERE reviews = ? LIMIT 1");
-  const insertReview = db.prepare("INSERT INTO jobs (helper, task, state, created_at, reviews) VALUES ('tinker', ?, 'queued', ?, ?)");
+  // One Tinker task per task and kind (and skill, for edits): a soul review has no kind.
+  const tinkerOf = db.prepare("SELECT id FROM jobs WHERE reviews = ? AND COALESCE(review_kind, '') = ? AND COALESCE(review_skill, '') = ? LIMIT 1");
+  const insertReview = db.prepare("INSERT INTO jobs (helper, task, state, created_at, reviews, review_kind, review_skill) VALUES ('tinker', ?, 'queued', ?, ?, ?, ?)");
   const grantsOf = db.prepare("SELECT path FROM grants WHERE helper = ? ORDER BY rowid");
   const skillsOf = db.prepare("SELECT skill FROM helper_skills WHERE helper = ? ORDER BY skill");
   const clearSkills = db.prepare("DELETE FROM helper_skills WHERE helper = ?");
@@ -304,6 +306,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       return wake(get(job.id)!);
     }
     if (to !== "failed" && to !== "stopped") return;
+    // ADR-094: a failure a retry does not fix, in a task that used one of ZENO's skills, asks Tinker to improve it.
+    if (to === "failed" && job.helper !== "tinker") skills.askEdits(job);
     for (const { id } of dependents.all(job.id) as { id: number }[]) {
       const waiting = get(id);
       if (waiting?.state !== "queued") continue;
@@ -340,6 +344,36 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       throw error;
     }
   }
+  /** Task 3.13, ADR-094: queues one Tinker task about a task; false when that one exists already. Budgets apply as to any task. */
+  function askTinker(jobId: number, task: string, kind: "skill" | "edit" | null, skill: string | null = null): boolean {
+    if (tinkerOf.get(jobId, kind ?? "", skill ?? "")) return false;
+    let id = 0;
+    transaction(() => {
+      const at = now();
+      id = Number(insertReview.run(task, at.toISOString(), jobId, kind, skill).lastInsertRowid);
+      log(id, "created", at);
+    });
+    emit({ action: "job", helper: "tinker", job: id, state: "queued" });
+    return true;
+  }
+
+  const skills = skillStore({
+    db,
+    now,
+    ...(skillsDir ? { skillsDir } : {}),
+    userSkillsDir: join(home, ".claude", "skills"),
+    emit,
+    get,
+    mustGet,
+    report: (id) => {
+      const row = reportById.get(id) as ReportRow | undefined;
+      return row ? { jobId: row.job_id, title: row.title, summary: row.summary, body: row.body, sources: [] } : undefined;
+    },
+    ratingComment: (id) => (jobById.get(id) as { rating_comment?: string | null } | undefined)?.rating_comment ?? undefined,
+    worker: (helper) => ({ name: current(helper).name, role: mustHelper(helper).role }),
+    askTinker: (jobId, task, kind, skill) => askTinker(jobId, task, kind, skill ?? null),
+  });
+
 
   return {
     list() {
@@ -476,15 +510,15 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if (comment && comment.length > MAX_COMMENT_CHARS) throw new HelperError(`The comment is too long (limit ${MAX_COMMENT_CHARS}).`);
       putRating.run(good ? "good" : "bad", comment, id);
       emit({ action: "rating", helper: job.helper, job: id, good });
-      // One review per task: Tinker's task waits in the queue like any other (budgets apply).
-      if (good || reviewOf.get(id)) return;
-      let reviewId = 0;
-      transaction(() => {
-        const at = now();
-        reviewId = Number(insertReview.run(`Review task ${id} (${current(job.helper).name})`, at.toISOString(), id).lastInsertRowid);
-        log(reviewId, "created", at);
-      });
-      emit({ action: "job", helper: "tinker", job: reviewId, state: "queued" });
+      // ADR-094: good work may become a skill (Tinker drafts it once per task; Keshab approves it).
+      if (good) {
+        if (job.state === "done") skills.askDraft(job);
+        return;
+      }
+      // One review per task: Tinker's task waits in the queue like any other (budgets apply). ADR-094: and one edit
+      // for each of ZENO's skills the task used.
+      askTinker(id, `Review task ${id} (${current(job.helper).name})`, null);
+      skills.askEdits(job);
     },
 
     reviewTarget(tinkerTaskId) {
@@ -538,9 +572,24 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       emit({ action: "proposal", helper: p.helper, proposal: id, state: "undone" });
     },
 
-    setSkills(helper, skills) {
+    makeSkill: skills.makeSkill,
+    skillDraftTarget: skills.skillDraftTarget,
+    skillEditTarget: skills.skillEditTarget,
+    addSkillDraft: skills.addSkillDraft,
+    approveSkillDraft: skills.approveSkillDraft,
+    rejectSkillDraft: skills.rejectSkillDraft,
+    addSkillEdit: skills.addSkillEdit,
+    acceptSkillEdit: skills.acceptSkillEdit,
+    rejectSkillEdit: skills.rejectSkillEdit,
+    undoSkillEdit: skills.undoSkillEdit,
+    recordSkillUse: skills.recordSkillUse,
+    skillsUsed: skills.skillsUsed,
+    skillDrafts: skills.skillDrafts,
+    skillEdits: skills.skillEdits,
+
+    setSkills(helper, chosen) {
       const known = mustHelper(helper);
-      const names = [...new Set(skills)];
+      const names = [...new Set(chosen)];
       if (names.length > MAX_SKILLS) throw new HelperError(`A worker can have at most ${MAX_SKILLS} skills.`);
       const bad = names.find((n) => !/^[a-z0-9][a-z0-9._-]{0,63}$/i.test(n));
       if (bad !== undefined) throw new HelperError(`"${bad.slice(0, 40)}" is not a skill name.`);

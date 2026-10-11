@@ -1,6 +1,8 @@
 // ADR-082, Task 3.12: skills from ~/.claude/skills for a worker. Only the ones Keshab chose for it are loaded: ZENO
 // builds a small local plugin per worker linking just those, and the run loads that plugin and nothing else (no user
 // settings). Skill content is data for the task; it can never widen a worker's tools.
+// ADR-094: ZENO's own skills (data/skills/<name>/SKILL.md, approved by Keshab) can be chosen too. A name in both places
+// is Keshab's: ZENO's is used only when it does not clash.
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -12,6 +14,8 @@ export const SKILL_NAME = /^[a-z0-9][a-z0-9._-]{0,63}$/i;
 export interface SkillInfo {
   name: string;
   description: string;
+  /** "yours": from ~/.claude/skills; "zeno": made by ZENO (ADR-094). */
+  source: "yours" | "zeno";
 }
 
 export const userSkillsDir = () => join(homedir(), ".claude", "skills");
@@ -28,20 +32,27 @@ function describe(file: string): string {
   }
 }
 
-/** The skills Keshab has: folders with a SKILL.md and a plain name, sorted. Unreadable entries are left out. */
-export function listSkills(dir = userSkillsDir()): SkillInfo[] {
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((name) => SKILL_NAME.test(name) && existsSync(join(dir, name, "SKILL.md")))
-    .sort((a, b) => a.localeCompare(b))
-    .map((name) => ({ name, description: describe(join(dir, name, "SKILL.md")) }));
+/** Folders with a SKILL.md and a plain name. */
+function skillNames(dir: string | undefined): string[] {
+  if (!dir || !existsSync(dir)) return [];
+  return readdirSync(dir).filter((name) => SKILL_NAME.test(name) && existsSync(join(dir, name, "SKILL.md")));
+}
+
+/** Keshab's skills and ZENO's (those whose name is not one of his), sorted by name. Unreadable entries are left out. */
+export function listSkills(dir = userSkillsDir(), zenoDir?: string): SkillInfo[] {
+  const yours = skillNames(dir);
+  const zeno = skillNames(zenoDir).filter((name) => !yours.includes(name));
+  return [
+    ...yours.map((name) => ({ name, description: describe(join(dir, name, "SKILL.md")), source: "yours" as const })),
+    ...zeno.map((name) => ({ name, description: describe(join(zenoDir!, name, "SKILL.md")), source: "zeno" as const })),
+  ].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
- * The worker's plugin folder, rebuilt with links to exactly `names` (each must be one of Keshab's skills). Returns
- * the folder and the names actually linked.
+ * The worker's plugin folder, rebuilt with links to exactly `names` (each one of Keshab's skills or, when he has none
+ * of that name, ZENO's). Returns the folder and the names actually linked.
  */
-export function prepareSkills(pluginDir: string, names: readonly string[], dir = userSkillsDir()): { pluginDir: string; names: string[] } {
+export function prepareSkills(pluginDir: string, names: readonly string[], dir = userSkillsDir(), zenoDir?: string): { pluginDir: string; names: string[] } {
   const skills = join(pluginDir, "skills");
   rmSync(skills, { recursive: true, force: true }); // only links live here: nothing of the skills themselves is removed
   mkdirSync(skills, { recursive: true });
@@ -52,8 +63,9 @@ export function prepareSkills(pluginDir: string, names: readonly string[], dir =
   );
   const linked: string[] = [];
   for (const name of names) {
-    const source = join(dir, name);
-    if (!SKILL_NAME.test(name) || !existsSync(join(source, "SKILL.md"))) continue;
+    if (!SKILL_NAME.test(name)) continue;
+    const source = [dir, zenoDir].filter((d): d is string => Boolean(d)).map((d) => join(d, name)).find((d) => existsSync(join(d, "SKILL.md")));
+    if (!source) continue;
     symlinkSync(realpathSync(source), join(skills, name));
     linked.push(name);
   }

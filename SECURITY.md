@@ -433,6 +433,13 @@ Before installing a capability:
 
 The AI must not be allowed to silently install arbitrary code with unrestricted privileges.
 
+
+### Skills that grow (ADR-094)
+
+- ZENO writes skills only in its own folder, `data/skills/<name>/SKILL.md`. It never writes, edits or removes anything in `~/.claude/skills`; a skill there, or one of ZENO's shadowed by one of Keshab's of the same name, is never edited.
+- A model never adds or changes a skill by itself: Tinker's drafts and edits wait in the store until Keshab approves, accepts or undoes them in the window. Tinker's runs have no tools; the task, its report and the skill are marked as data, never instructions.
+- Names are checked in code (lower case, digits and dashes for new skills; a plain folder name for any skill, never a path), steps are at most 8,000 characters, and a new skill whose name is already taken is refused.
+- A skill is text for a worker's task: it never adds a tool (Task 3.12). Logs carry ids, states and skill names only, never task text, reports or a skill's steps.
 ---
 
 ## 24. Security Principle

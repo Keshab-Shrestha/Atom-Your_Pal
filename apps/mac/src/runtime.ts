@@ -30,7 +30,7 @@ import {
   type TimerInfo,
   type Timers,
 } from "@zeno/tool-engine";
-import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError, runPlan, runResearch, runReview, type PlanUsage, type TokenUsage } from "@zeno/llm-gateway";
+import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError, runPlan, runResearch, type PlanUsage, type TokenUsage } from "@zeno/llm-gateway";
 import { CLAUDE_PLAN, createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import {
   createEpisodeRecorder,
@@ -51,7 +51,6 @@ import {
   createScheduleTool,
   createWorkerShortcut,
   holdFor,
-  reviewBrief,
   followUpBrief,
   handOffTool,
   teamContext,
@@ -75,7 +74,8 @@ import { branchDiff, pushBranch, repositoriesOf, zenoBranches } from "./git-bran
 import { islandHelpers } from "./island-helpers.ts";
 import { askForFolder, denyRead, folderCheck } from "./folder-run.ts";
 import { commitWork, prepareWorkdir, type Workdir } from "./worktree.ts";
-import { SKILLS_PLUGIN, listSkills, prepareSkills } from "./skills.ts";
+import { SKILLS_PLUGIN, listSkills, prepareSkills, userSkillsDir } from "./skills.ts";
+import { runTinker } from "./tinker.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { mcpCheck, sdkConfig, testMcpServer } from "./mcp-servers.ts";
 import { scanAiTools } from "./ai-tools.ts";
@@ -204,7 +204,9 @@ export function createRuntime(
   const helpersPath = options.helpersPath ?? process.env.ZENO_HELPERS_FILE ?? "data/helpers.db";
   // ADR-088: agents Keshab adds live beside the helpers file, each data/agents/<id>/soul.md.
   const agentsDir = join(dirname(resolve(helpersPath === ":memory:" ? "data/x" : helpersPath)), "agents");
-  const helpers = openHelpers(helpersPath, log, helpersPath === ":memory:" ? undefined : agentsDir);
+  // ADR-094: ZENO's own skills, approved by Keshab, live beside it too: data/skills/<name>/SKILL.md.
+  const skillsDir = helpersPath === ":memory:" ? undefined : join(dirname(resolve(helpersPath)), "skills");
+  const helpers = openHelpers(helpersPath, log, helpersPath === ":memory:" ? undefined : agentsDir, skillsDir);
   // ADR-091: ZENO's task branches in the repositories Keshab granted; pushing one is his alone, asked from the window.
   const grantedRepos = () => repositoriesOf([...new Set((helpers?.list() ?? []).flatMap((h) => h.grants ?? []))]);
   const allowedRepo = async (repo: string) => {
@@ -547,7 +549,12 @@ export function createRuntime(
       : undefined;
     // Task 3.12: only the skills chosen for this worker, through its own small plugin.
     const chosen = helpers?.list().find((h) => h.id === job.helper)?.skills ?? [];
-    const skills = chosen.length ? { ...prepareSkills(join(dirname(worktrees), "skills", job.helper), chosen), plugin: SKILLS_PLUGIN } : undefined;
+    const skills = chosen.length ? { ...prepareSkills(join(dirname(worktrees), "skill-plugins", job.helper), chosen, userSkillsDir(), skillsDir), plugin: SKILLS_PLUGIN } : undefined;
+    // ADR-094: which skills the run used, so a bad outcome can lead to an edit of one of ZENO's.
+    const onSkill = (skill: string) => {
+      helpers?.recordSkillUse(job.id, skill);
+      log.info("job.skill", { helper: job.helper, job: job.id, skill });
+    };
     const research = (task: string, resume?: string) =>
       runResearch({
         claudePath: keys["claude-plan"] ?? "",
@@ -560,7 +567,7 @@ export function createRuntime(
         ...(resume ? { resume } : {}),
         ...(handOff ? { handOff } : {}),
         ...(files ? { files } : {}),
-        ...(skills?.names.length ? { skills } : {}),
+        ...(skills?.names.length ? { skills, onSkill } : {}),
         ...(mcp ? { mcp } : {}),
         // ADR-088: a "think" agent has no tools at all (the documenter without a folder still writes up from the web).
         ...(kit === "think" ? { thinkOnly: true } : {}),
@@ -569,16 +576,18 @@ export function createRuntime(
     const countTokens = (tokens: TokenUsage | undefined) => {
       if (tokens) helpers?.addUsage({ source: "job", helper: job.helper, job: job.id, model, ...tokens, ...(tokens.costUsd ? { dollars: tokens.costUsd } : {}) });
     };
-    // Task 3.13: Tinker reviews a task Keshab rated as not good: no tools, one proposed soul change (or none).
+    // Task 3.13, ADR-094: Tinker reviews a soul, drafts a skill or proposes a skill edit: no tools, one answer.
     if (role === "improver") {
-      const target = helpers?.reviewTarget(job.id);
-      if (!target) throw new Error("The task to review is gone.");
-      const { review, costUsd, tokens } = await runReview({ claudePath: keys["claude-plan"] ?? "", model, task: reviewBrief(target), instructions, signal, onStep, onUsage: reportUsage });
-      if (costUsd) helpers?.addSpend(job.id, costUsd);
-      countTokens(tokens);
-      if (!review.change || !review.text.trim()) return { report: { title: `No change for ${target.worker}`, summary: review.reason, body: review.reason, sources: [] } };
-      helpers?.addProposal(job.id, review);
-      return { report: { title: `A change for ${target.worker}'s ${review.field}`, summary: review.reason, body: review.text, sources: [] } };
+      if (!helpers) throw new Error("Tinker needs the helpers file.");
+      return runTinker({
+        store: helpers,
+        job,
+        run: { claudePath: keys["claude-plan"] ?? "", model, instructions, signal, onStep, onUsage: reportUsage },
+        count: (costUsd, tokens) => {
+          if (costUsd) helpers.addSpend(job.id, costUsd);
+          countTokens(tokens);
+        },
+      });
     }
     // Task 3.8: a plan-first task's first run only plans (no tools); the plan then waits for Keshab.
     if (job.planFirst && job.planStatus !== "approved") {
@@ -711,7 +720,7 @@ export function createRuntime(
     ...(memory ? { memory, islandMemory, islandChats } : {}),
     ...(islandGit ? { islandGit } : {}),
     ...(helpers ? { helpers, islandHelpers: warmOnOpen(withPaperclip({
-            ...islandHelpers(helpers, installedApps, planModels, held, () => listSkills()),
+            ...islandHelpers(helpers, installedApps, planModels, held, () => listSkills(userSkillsDir(), skillsDir)),
             openReport,
             // ADR-090: a test starts the server (or connects), lists its tools, and records the outcome. Logs ids only.
             testMcp: async (id: number) => {
@@ -769,9 +778,9 @@ function openMemory(path: string, log: Logger): MemoryStore | undefined {
  * Opens the helper store (ADR-081), or returns undefined if the file cannot be opened (ZENO still runs; the
  * island is told there are no helpers). Every change is logged by ids, state and timing only, never task or report text.
  */
-function openHelpers(path: string, log: Logger, agentsDir?: string): HelperStore | undefined {
+function openHelpers(path: string, log: Logger, agentsDir?: string, skillsDir?: string): HelperStore | undefined {
   try {
-    const store = openHelperStore({ path, ...(agentsDir ? { agentsDir } : {}) });
+    const store = openHelperStore({ path, ...(agentsDir ? { agentsDir } : {}), ...(skillsDir ? { skillsDir } : {}) });
     store.onChange((change) => log.info("helpers.change", change));
     log.info("helpers.open");
     // ADR-093: a broken data/agents/<id>/soul.md would otherwise just drop that agent; the Board shows these too.

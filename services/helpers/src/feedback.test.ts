@@ -17,7 +17,7 @@ function ratedBad() {
   return { store, id, tinker };
 }
 
-test("a poorly rated task asks Tinker to review it, once; a good one does not", () => {
+test("a poorly rated task asks Tinker to review it, once; a good one asks for a skill draft instead (ADR-094)", () => {
   const { store, id, tinker } = ratedBad();
   assert.deepEqual([tinker.task, tinker.reviews, tinker.state], [`Review task ${id} (Sid)`, id, "queued"]);
   assert.equal(store.get(id)!.rating, "bad");
@@ -27,7 +27,7 @@ test("a poorly rated task asks Tinker to review it, once; a good one does not", 
   store.start(good.id);
   store.finish(good.id, report);
   store.rate(good.id, true);
-  assert.equal(store.list()[6]!.jobs.length, 1);
+  assert.deepEqual(store.list()[6]!.jobs.map((j) => [j.reviews, j.reviewKind]), [[good.id, "skill"], [id, undefined]]);
   assert.throws(() => store.rate(store.addJob("sid", "x").id, true), /Only a finished task/);
   assert.throws(() => store.addJob("tinker", "do it"), /only reviews tasks you rate as not good/);
 });

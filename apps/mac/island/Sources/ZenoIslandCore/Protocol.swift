@@ -64,6 +64,13 @@ public enum IslandCommand: Sendable, Equatable {
     case proposalAccept(id: Int)
     case proposalReject(id: Int)
     case proposalUndo(id: Int)
+    /// ADR-094: ask Tinker for a skill from a done task; answer its skill drafts and skill edits.
+    case skillMake(id: Int)
+    case skillApprove(id: Int)
+    case skillReject(id: Int)
+    case skillEditAccept(id: Int)
+    case skillEditReject(id: Int)
+    case skillEditUndo(id: Int)
     /// Task 3.14: open a task's report in its worker's app.
     case jobOpen(id: Int)
     /// ADR-090: run a failed or stopped task again.
@@ -131,6 +138,12 @@ public enum IslandCommand: Sendable, Equatable {
         case .proposalAccept: "proposal.accept"
         case .proposalReject: "proposal.reject"
         case .proposalUndo: "proposal.undo"
+        case .skillMake: "skill.make"
+        case .skillApprove: "skill.approve"
+        case .skillReject: "skill.reject"
+        case .skillEditAccept: "skill.edit.accept"
+        case .skillEditReject: "skill.edit.reject"
+        case .skillEditUndo: "skill.edit.undo"
         case .jobOpen: "job.open"
         case .jobRetry: "job.retry"
         case .mcpAdd: "mcp.add"
@@ -225,7 +238,8 @@ public enum IslandCommand: Sendable, Equatable {
             if let workers { fields["workers"] = workers }
         case .agentRemove(let id):
             fields["id"] = id
-        case .proposalAccept(let id), .proposalReject(let id), .proposalUndo(let id), .jobOpen(let id), .jobRetry(let id), .mcpRemove(let id), .mcpTest(let id):
+        case .proposalAccept(let id), .proposalReject(let id), .proposalUndo(let id), .jobOpen(let id), .jobRetry(let id), .mcpRemove(let id), .mcpTest(let id),
+             .skillMake(let id), .skillApprove(let id), .skillReject(let id), .skillEditAccept(let id), .skillEditReject(let id), .skillEditUndo(let id):
             fields["id"] = id
         case .helperSkills(let helper, let skills):
             fields["helper"] = helper
@@ -651,8 +665,10 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
                                     usage: Fields.usage(f.values["usage"]),
                                     skills: (f.values["skills"] as? [Any] ?? []).compactMap { entry in
                                         guard let s = entry as? [String: Any], let name = s["name"] as? String else { return nil }
-                                        return SkillInfo(name: name, description: s["description"] as? String ?? "")
+                                        return SkillInfo(name: name, description: s["description"] as? String ?? "", source: s["source"] as? String ?? "yours")
                                     },
+                                    skillDrafts: Fields.skillDrafts(f.values["skillDrafts"]),
+                                    skillEdits: Fields.skillEdits(f.values["skillEdits"]),
                                     agentProblems: Fields.agentProblems(f.values["agentProblems"])))
     case "thread":
         return .thread(try f.thread())
@@ -898,6 +914,24 @@ private struct Fields {
             guard let i = entry as? [String: Any], let id = i["id"] as? String, let title = i["title"] as? String, let agent = i["agent"] as? String,
                   let status = i["status"] as? String else { return nil }
             return PaperclipTask(id: id, identifier: i["identifier"] as? String, title: title, agent: agent, status: status, result: i["result"] as? String)
+        }
+    }
+
+    /// ADR-094: Tinker's skill drafts; absent (an older runtime) is empty. A malformed entry is left out.
+    static func skillDrafts(_ value: Any?) -> [SkillDraftItem] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let d = entry as? [String: Any], let id = d["id"] as? NSNumber, let name = d["name"] as? String, let state = d["state"] as? String else { return nil }
+            return SkillDraftItem(id: id.intValue, jobId: (d["jobId"] as? NSNumber)?.intValue ?? 0, helper: d["helper"] as? String ?? "", name: name,
+                                  description: d["description"] as? String ?? "", preview: d["preview"] as? String ?? "", state: state)
+        }
+    }
+
+    /// ADR-094: Tinker's edits to ZENO's skills; absent (an older runtime) is empty. A malformed entry is left out.
+    static func skillEdits(_ value: Any?) -> [SkillEditItem] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let e = entry as? [String: Any], let id = e["id"] as? NSNumber, let skill = e["skill"] as? String, let state = e["state"] as? String else { return nil }
+            return SkillEditItem(id: id.intValue, skill: skill, jobId: (e["jobId"] as? NSNumber)?.intValue ?? 0, reason: e["reason"] as? String ?? "",
+                                 before: e["before"] as? String ?? "", after: e["after"] as? String ?? "", state: state)
         }
     }
 

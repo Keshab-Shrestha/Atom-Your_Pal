@@ -40,13 +40,17 @@ struct PluginsPane: View {
                 }
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Skills").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                    // ADR-094: Tinker's drafts and edits wait here; nothing is used or changed before you answer.
+                    ForEach((list?.skillDrafts ?? []).filter { $0.state == "pending" }) { draft in SkillDraftCard(model: model, draft: draft) }
+                    ForEach((list?.skillEdits ?? []).filter { $0.state == "pending" || $0.state == "accepted" }) { edit in SkillEditCard(model: model, edit: edit) }
                     let skills = list?.skills ?? []
-                    if skills.isEmpty { Text("No skills in ~/.claude/skills.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color) }
+                    if skills.isEmpty { Text("No skills yet: yours come from ~/.claude/skills, and ZENO's from tasks you rate good.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color) }
                     ForEach(skills) { skill in
                         let users = (list?.helpers ?? []).filter { $0.skills.contains(skill.name) }.map(\.name)
                         VStack(alignment: .leading, spacing: 2) {
-                            HStack {
+                            HStack(spacing: 8) {
                                 Text(skill.name).font(theme.idFont(.system(size: 12.5, weight: .medium), size: 12)).foregroundStyle(theme.text.color)
+                                Text(skill.sourceTitle).font(.system(size: 10.5)).foregroundStyle(skill.source == "zeno" ? theme.accent.color : theme.text3.color)
                                 Spacer()
                                 Text(users.isEmpty ? "No worker" : users.joined(separator: ", ")).font(.system(size: 11)).foregroundStyle(users.isEmpty ? theme.text3.color : theme.text2.color)
                             }
@@ -54,7 +58,7 @@ struct PluginsPane: View {
                         }
                         .padding(.vertical, 4)
                     }
-                    Text("Choose a worker's skills on its page.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                    Text("Choose a worker's skills on its page. ZENO writes only its own skills, never those in ~/.claude/skills.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                 }
             }
             .frame(maxWidth: 680, alignment: .leading)
@@ -180,5 +184,74 @@ private struct ServerCard: View {
             Text(label).font(.system(size: 12)).foregroundStyle(enabled ? theme.text.color : theme.text3.color)
         }
         .opacity(enabled ? 1 : 0.6)
+    }
+}
+
+/// ADR-094: Tinker's draft of a new skill: its name, when to use it and the start of its steps; Approve or Reject.
+private struct SkillDraftCard: View {
+    let model: IslandModel
+    let draft: SkillDraftItem
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        SkillCard {
+            HStack(spacing: 8) {
+                Text("New skill").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                Text(draft.name).font(theme.idFont(.system(size: 13, weight: .semibold), size: 12.5)).foregroundStyle(theme.text.color)
+                Spacer(minLength: 8)
+                QuietButton(title: "Approve", symbol: "checkmark") { model.sendHelpers(model.helpers.answerSkillDraft(draft.id, approve: true)) }
+                QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerSkillDraft(draft.id, approve: false)) }
+            }
+            Text(draft.description).font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+            Text(draft.preview).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(6)
+            Text("From task #\(draft.jobId). Nothing uses it until you approve it.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+        }
+    }
+}
+
+/// ADR-094: Tinker's edit to one of ZENO's skills: why, and a compact before and after; Accept, Reject or (once accepted) Undo.
+private struct SkillEditCard: View {
+    let model: IslandModel
+    let edit: SkillEditItem
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        SkillCard {
+            HStack(spacing: 8) {
+                Text(edit.state == "accepted" ? "Edited" : "Edit").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                Text(edit.skill).font(theme.idFont(.system(size: 13, weight: .semibold), size: 12.5)).foregroundStyle(theme.text.color)
+                Spacer(minLength: 8)
+                if edit.state == "pending" {
+                    QuietButton(title: "Accept", symbol: "checkmark") { model.sendHelpers(model.helpers.answerSkillEdit(edit.id, accept: true)) }
+                    QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerSkillEdit(edit.id, accept: false)) }
+                } else {
+                    QuietButton(title: "Undo", symbol: "arrow.uturn.backward") { model.sendHelpers(model.helpers.undoSkillEdit(edit.id)) }
+                }
+            }
+            Text(edit.reason).font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+            side("Before", edit.before)
+            side("After", edit.after)
+        }
+    }
+
+    private func side(_ label: String, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(label).font(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text3.color).frame(width: 44, alignment: .leading)
+            Text(text.isEmpty ? "(nothing)" : text).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color).lineLimit(6)
+        }
+    }
+}
+
+/// The card frame the skill drafts and edits share with the server cards.
+private struct SkillCard<Content: View>: View {
+    @ViewBuilder let content: Content
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) { content }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
+                .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
     }
 }

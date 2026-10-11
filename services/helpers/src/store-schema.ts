@@ -109,6 +109,8 @@ export function createSchema(db: DatabaseSync) {
   // ADR-090: how many times a failure was retried by itself.
   if (!columns.has("auto_retries")) db.exec("ALTER TABLE jobs ADD COLUMN auto_retries INTEGER");
   for (const column of ["plan", "plan_summary", "plan_status"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);
+  // ADR-094: what a Tinker task does besides reviewing a soul ("skill": draft one, "edit": edit one), and which skill.
+  for (const column of ["review_kind", "review_skill"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);
 }
 
 export interface JobRow {
@@ -139,6 +141,8 @@ export interface JobRow {
   rating: string | null;
   rating_comment: string | null;
   reviews: number | null;
+  review_kind: string | null;
+  review_skill: string | null;
   auto_retries: number | null;
 }
 
@@ -193,6 +197,8 @@ export const toJobRow = (row: JobRow): Omit<Job, "blockedBy" | "waitingFor" | "c
   ...(row.plan_summary ? { planSummary: row.plan_summary } : {}),
   ...(row.rating === "good" || row.rating === "bad" ? { rating: row.rating } : {}),
   ...(row.reviews != null ? { reviews: row.reviews } : {}),
+  ...(row.review_kind === "skill" || row.review_kind === "edit" ? { reviewKind: row.review_kind } : {}),
+  ...(row.review_skill ? { reviewSkill: row.review_skill } : {}),
   autoRetries: row.auto_retries ?? 0,
 });
 

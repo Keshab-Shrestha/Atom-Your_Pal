@@ -48,6 +48,18 @@ struct NeedsYouPane: View {
                 QuietButton(title: "Accept", symbol: "checkmark") { model.sendHelpers(model.helpers.answerProposal(helper: item.helperId, id: item.proposalId!, accept: true)) }
                 QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerProposal(helper: item.helperId, id: item.proposalId!, accept: false)) }
             }
+        case .skillDraft:
+            card(kind: "Tinker drafted a skill", who: item.helperName, title: item.title, detail: item.detail) {
+                QuietButton(title: "Approve", symbol: "checkmark") { model.sendHelpers(model.helpers.answerSkillDraft(item.skillItemId!, approve: true)) }
+                QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerSkillDraft(item.skillItemId!, approve: false)) }
+                QuietButton(title: "Plugins") { model.windowPage = .plugins }
+            }
+        case .skillEdit:
+            card(kind: "Tinker suggests a skill edit", who: item.helperName, title: item.title, detail: item.detail) {
+                QuietButton(title: "Accept", symbol: "checkmark") { model.sendHelpers(model.helpers.answerSkillEdit(item.skillItemId!, accept: true)) }
+                QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerSkillEdit(item.skillItemId!, accept: false)) }
+                QuietButton(title: "Plugins") { model.windowPage = .plugins }
+            }
         case .held:
             card(kind: "Held", who: item.helperName, title: item.title, detail: item.detail) {
                 QuietButton(title: "Budgets") { model.windowPage = .agents; model.helpers.selectBoard() }

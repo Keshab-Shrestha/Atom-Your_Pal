@@ -21,6 +21,8 @@ import {
   type ThreadEvent,
   type PaperclipItem,
   type McpItem,
+  type SkillDraftItem,
+  type SkillEditItem,
   type UsageItem,
   type ChatItem,
   type GitBranchItem,
@@ -153,8 +155,17 @@ export interface IslandHelpers {
   acceptProposal(id: number): void;
   rejectProposal(id: number): void;
   undoProposal(id: number): void;
-  /** Task 3.12: Keshab's skills, and a worker's choice of them. Throws, with words for the user, for an unknown skill. */
-  skills(): { name: string; description: string }[];
+  /** Task 3.12: the skills (Keshab's and, ADR-094, ZENO's), and a worker's choice of them. Throws, with words for the user, for an unknown skill. */
+  skills(): { name: string; description: string; source?: "yours" | "zeno" }[];
+  /** ADR-094: Tinker's skill drafts and edits (pending and recent), and the answers to them. Each answer throws with words for the user. */
+  skillDrafts(): SkillDraftItem[];
+  skillEdits(): SkillEditItem[];
+  makeSkill(id: number): void;
+  approveSkillDraft(id: number): void;
+  rejectSkillDraft(id: number): void;
+  acceptSkillEdit(id: number): void;
+  rejectSkillEdit(id: number): void;
+  undoSkillEdit(id: number): void;
   setSkills(helper: string, skills: string[]): void;
   /** Task 3.11: grants a folder. Throws, with words for the user, for a folder that cannot be granted. */
   addGrant(helper: string, path: string): void;
@@ -469,6 +480,24 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "helper.skills":
         changeHelpers(command.type, (helpers) => helpers.setSkills(command.helper, command.skills));
         return;
+      case "skill.make":
+        changeHelpers(command.type, (helpers) => helpers.makeSkill(command.id));
+        return;
+      case "skill.approve":
+        changeHelpers(command.type, (helpers) => helpers.approveSkillDraft(command.id));
+        return;
+      case "skill.reject":
+        changeHelpers(command.type, (helpers) => helpers.rejectSkillDraft(command.id));
+        return;
+      case "skill.edit.accept":
+        changeHelpers(command.type, (helpers) => helpers.acceptSkillEdit(command.id));
+        return;
+      case "skill.edit.reject":
+        changeHelpers(command.type, (helpers) => helpers.rejectSkillEdit(command.id));
+        return;
+      case "skill.edit.undo":
+        changeHelpers(command.type, (helpers) => helpers.undoSkillEdit(command.id));
+        return;
       case "grant.add":
         changeHelpers(command.type, (helpers) => helpers.addGrant(command.helper, command.path));
         return;
@@ -541,7 +570,7 @@ export function runIsland(options: IslandOptions): IslandSession {
       helpersQueued = false;
       const helpers = options.helpers;
       const agentProblems = helpers?.agentProblems() ?? [];
-      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets(), skills: helpers.skills(), mcp: helpers.mcp(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}), ...(agentProblems.length ? { agentProblems } : {}) });
+      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets(), skills: helpers.skills(), skillDrafts: helpers.skillDrafts(), skillEdits: helpers.skillEdits(), mcp: helpers.mcp(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}), ...(agentProblems.length ? { agentProblems } : {}) });
     });
   }
   function appNames(): Promise<string[]> {

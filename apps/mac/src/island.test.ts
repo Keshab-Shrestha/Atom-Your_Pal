@@ -14,7 +14,7 @@ import { createModelSettings, writeSavedChoice } from "./model-settings.ts";
 import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
 import { createComputerBridge } from "./computer-bridge.ts";
-import { BUILT_IN_KITS, HELPERS, openHelperStore, tieredModels } from "@zeno/helpers";
+import { BUILT_IN_KITS, HELPERS, openHelperStore, skillFile, tieredModels } from "@zeno/helpers";
 import { islandHelpers } from "./island-helpers.ts";
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
@@ -654,6 +654,8 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
       team: { cap: 15, spent: 0 },
       planLimit: 80,
       skills: [],
+      skillDrafts: [],
+      skillEdits: [],
       mcp: [],
       models: [
         { id: "claude-opus-5-5", name: "Claude Opus 5.5", tier: "large" },
@@ -1023,6 +1025,49 @@ test("job.rate asks Tinker to review; proposal.accept, proposal.undo and proposa
   h.clear();
   await h.send({ type: "proposal.reject", id: p.id });
   assert.deepEqual(h.types(), ["error"]);
+});
+
+test("skill.make, skill.approve and skill.reject; skill.edit.accept, .undo and .reject; drafts and edits in the helpers event (ADR-094)", async () => {
+  const home = mkdtempSync(join(tmpdir(), "zeno-home-"));
+  const skillsDir = mkdtempSync(join(tmpdir(), "zeno-skills-"));
+  try {
+    const store = openHelperStore({ path: ":memory:", home, skillsDir });
+    const h = islandHarness({ helpers: islandHelpers(store, async () => []) });
+    await tick(5);
+    const { id } = store.addJob("sid", "Compare laptops");
+    store.start(id);
+    store.finish(id, { title: "T", summary: "S", body: "B", sources: [] });
+    await h.send({ type: "skill.make", id });
+    const tinker = (h.events().at(-1) as HelpersEvent).helpers[6]!.jobs[0]!;
+    assert.equal(tinker.reviews, id);
+    const draft = store.addSkillDraft(tinker.id, { name: "compare-laptops", description: "Comparing laptops.", body: `Steps.\n${"x".repeat(900)}` });
+    await h.send({ type: "skill.approve", id: draft.id });
+    const event = h.events().at(-1) as HelpersEvent;
+    assert.deepEqual([event.skillDrafts![0]!.state, event.skillDrafts![0]!.preview.length], ["approved", 400]);
+    assert.ok(existsSync(join(skillsDir, "compare-laptops", "SKILL.md")));
+    h.clear();
+    await h.send({ type: "skill.make", id });
+    await h.send({ type: "skill.reject", id: draft.id });
+    assert.deepEqual(h.types(), ["error", "error"]);
+    assert.match((h.events()[0] as { message: string }).message, /has drafted/);
+
+    writeFileSync(join(skillsDir, "compare-laptops", "SKILL.md"), skillFile("compare-laptops", "Comparing laptops.", "1. Search.\n2. Compare two."));
+    store.recordSkillUse(id, "compare-laptops");
+    await h.send({ type: "job.rate", id, good: false });
+    const edit = store.list()[6]!.jobs.find((j) => j.reviewKind === "edit")!;
+    const e = store.addSkillEdit(edit.id, { body: "1. Search.\n2. Compare three.", reason: "Two was too few." });
+    await h.send({ type: "skill.edit.accept", id: e.id });
+    const after = (h.events().at(-1) as HelpersEvent).skillEdits![0]!;
+    assert.deepEqual([after.state, after.before, after.after, after.reason], ["accepted", "2. Compare two.", "2. Compare three.", "Two was too few."]);
+    await h.send({ type: "skill.edit.undo", id: e.id });
+    assert.match(readFileSync(join(skillsDir, "compare-laptops", "SKILL.md"), "utf8"), /Compare two\.\n$/);
+    h.clear();
+    await h.send({ type: "skill.edit.reject", id: e.id });
+    assert.deepEqual(h.types(), ["error"]);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+    rmSync(skillsDir, { recursive: true, force: true });
+  }
 });
 
 test("job.open opens through the runtime; its words come back as an error when it cannot (Task 3.14)", async () => {

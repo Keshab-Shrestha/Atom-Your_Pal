@@ -2,6 +2,7 @@ import type { Budget, Budgets } from "./budgets.ts";
 import type { HandOffOutcome, HelperId, JobState, Soul, TaskContext } from "./jobs.ts";
 import type { Routine, Schedule } from "./routines.ts";
 import type { Proposal, ReviewTarget, SoulField } from "./feedback.ts";
+import type { SkillDraft, SkillDraftState, SkillDraftTarget, SkillEdit, SkillEditState, SkillEditTarget } from "./skill-drafts.ts";
 import type { AgentProblem, Kit } from "./agents.ts";
 import type { McpServer, McpServerInput } from "./mcp.ts";
 import type { UsageEntry, UsageSummary } from "./usage.ts";
@@ -61,6 +62,9 @@ export interface Job {
   /** Task 3.13: Keshab's rating of a finished task; for a Tinker task, the task it reviews. */
   rating?: "good" | "bad";
   reviews?: number;
+  /** ADR-094: a Tinker task that drafts a skill from the task it is about ("skill") or edits one it used ("edit", `reviewSkill`). */
+  reviewKind?: "skill" | "edit";
+  reviewSkill?: string;
   /** ADR-090: how many times a failure was retried by itself (at most MAX_AUTO_RETRIES). */
   autoRetries: number;
   parentId?: number;
@@ -185,6 +189,8 @@ export type HelperChange =
   | { action: "usage" }
   | { action: "rating"; helper: HelperId; job: number; good: boolean }
   | { action: "proposal"; helper: HelperId; proposal: number; state: "pending" | "accepted" | "rejected" | "undone" }
+  | { action: "skillDraft"; draft: number; job: number; skill: string; state: SkillDraftState }
+  | { action: "skillEdit"; edit: number; job: number; skill: string; state: SkillEditState }
   | { action: "model"; helper: HelperId; job: number }
   | { action: "job"; helper: HelperId; job: number; state: JobState; ms?: number }
   | { action: "step"; helper: HelperId; job: number }
@@ -267,6 +273,36 @@ export interface HelperStore {
   acceptProposal(id: number): void;
   rejectProposal(id: number): void;
   undoProposal(id: number): void;
+  /**
+   * ADR-094: asks Tinker to draft a skill from a done task (at most one draft per task; rating a done task good asks
+   * too). Throws HelperError for an unknown, unfinished or Tinker task, or one that has its draft already.
+   */
+  makeSkill(id: number): void;
+  /** What Tinker reads for one of its draft tasks, or undefined when the task is gone. Throws HelperError for another kind of task. */
+  skillDraftTarget(tinkerTaskId: number): SkillDraftTarget | undefined;
+  /** What Tinker reads for one of its edit tasks, or undefined when the task is gone or the skill is not ZENO's any more. */
+  skillEditTarget(tinkerTaskId: number): SkillEditTarget | undefined;
+  /** Saves Tinker's draft for Keshab's OK. Throws HelperError for a bad name, description or steps, or a second draft. */
+  addSkillDraft(tinkerTaskId: number, draft: { name: string; description: string; body: string }): SkillDraft;
+  /**
+   * Approve writes data/skills/<name>/SKILL.md (front matter and steps); a name already used by one of Keshab's skills
+   * or ZENO's is refused. Reject only marks it. Both throw HelperError when no draft waits.
+   */
+  approveSkillDraft(id: number): void;
+  rejectSkillDraft(id: number): void;
+  /** Saves Tinker's edit (the whole new steps) for Keshab's OK. Throws HelperError unless the skill is one of ZENO's own. */
+  addSkillEdit(tinkerTaskId: number, edit: { body: string; reason: string }): SkillEdit;
+  /** Accept writes the new steps (keeping what was there for undo); reject marks it; undo (after accept) restores the old steps. */
+  acceptSkillEdit(id: number): void;
+  rejectSkillEdit(id: number): void;
+  undoSkillEdit(id: number): void;
+  /** Records that a run of a task used a skill (Skill tool calls). Bad names and unknown tasks are ignored. */
+  recordSkillUse(jobId: number, skill: string): void;
+  /** The skills a task's runs used, sorted. */
+  skillsUsed(jobId: number): string[];
+  /** Every pending draft and edit, and the newest few others, newest first. */
+  skillDrafts(): SkillDraft[];
+  skillEdits(): SkillEdit[];
   /** Task 3.12: the worker's skills, replacing what it had. Throws HelperError for a bad name or more than MAX_SKILLS. The caller checks they exist. */
   setSkills(helper: string, skills: readonly string[]): void;
   /** Task 3.9: a schedule that makes a task for a worker. Throws HelperError for an unknown or unavailable worker, a bad task or schedule, or too many. */
@@ -344,5 +380,7 @@ export interface HelperStoreOptions {
   home?: string;
   /** ADR-088: the folder of agents Keshab added (each `<id>/soul.md`). Without it, only the built-in workers. */
   agentsDir?: string;
+  /** ADR-094: ZENO's own skills folder (each `<name>/SKILL.md`). Without it, drafts cannot be approved. */
+  skillsDir?: string;
   now?: () => Date;
 }

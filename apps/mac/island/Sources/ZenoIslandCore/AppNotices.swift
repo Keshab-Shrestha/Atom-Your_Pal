@@ -77,6 +77,13 @@ public struct NoticeWatcher: Sendable {
             }
             if let budget = h.budget { out += budgetNotices(budget, who: "\(h.name)'s", key: h.id) }
         }
+        // ADR-094: a new skill draft or skill edit: its name only, never its steps.
+        for d in list.skillDrafts where d.state == "pending" {
+            out.append(AppNotice(kind: .needsYou, title: "Tinker drafted a skill: \(d.name)", body: "Open Plugins to approve or reject it.", key: "skill-draft-\(d.id)"))
+        }
+        for e in list.skillEdits where e.state == "pending" {
+            out.append(AppNotice(kind: .needsYou, title: "Tinker suggests an edit to \(e.skill)", body: "Open Plugins to accept or reject it.", key: "skill-edit-\(e.id)"))
+        }
         if let team = list.team { out += budgetNotices(team, who: "The team's", key: "team") }
         if let used = plan?.fiveHour, used >= warnAt {
             let percent = Int((used * 100).rounded())

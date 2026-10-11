@@ -52,6 +52,8 @@ export type IslandCommand =
   | { type: "proposal.accept"; id: number }
   | { type: "proposal.reject"; id: number }
   | { type: "proposal.undo"; id: number }
+  /** ADR-094: ask Tinker for a skill from a done task; answer its skill drafts and skill edits. */
+  | { type: "skill.make" | "skill.approve" | "skill.reject" | "skill.edit.accept" | "skill.edit.reject" | "skill.edit.undo"; id: number }
   | { type: "grant.remove"; helper: string; path: string }
   | { type: "job.block"; id: number; blockedBy: number[] }
   | { type: "comment.add"; id: number; text: string }
@@ -203,6 +205,30 @@ export interface UsageItem {
 }
 
 /** ADR-090: an MCP server as the island sees it: never a secret value. */
+/** ADR-094: Tinker's draft of a new skill, with a short preview of its steps. */
+export interface SkillDraftItem {
+  id: number;
+  jobId: number;
+  helper: string;
+  name: string;
+  description: string;
+  preview: string;
+  state: "pending" | "approved" | "rejected";
+  createdAt: string;
+}
+
+/** ADR-094: Tinker's edit to one of ZENO's skills: why, and a compact before and after (from the first changed line). */
+export interface SkillEditItem {
+  id: number;
+  skill: string;
+  jobId: number;
+  reason: string;
+  before: string;
+  after: string;
+  state: "pending" | "accepted" | "rejected" | "undone";
+  createdAt: string;
+}
+
 export interface McpItem {
   id: number;
   name: string;
@@ -344,8 +370,11 @@ export type IslandEvent =
       /** Task 3.7: the team's daily cap and spend, and the plan limit (percent) above which new runs wait. */
       team?: { cap: number | null; spent: number };
       planLimit?: number;
-      /** Task 3.12: Keshab's skills in ~/.claude/skills, for choosing. */
-      skills?: { name: string; description: string }[];
+      /** Task 3.12: the skills to choose from: Keshab's in ~/.claude/skills ("yours") and, ADR-094, ZENO's own ("zeno"). */
+      skills?: { name: string; description: string; source?: "yours" | "zeno" }[];
+      /** ADR-094: Tinker's skill drafts and skill edits: every pending one and the newest few others. */
+      skillDrafts?: SkillDraftItem[];
+      skillEdits?: SkillEditItem[];
       /** ADR-090: Keshab's MCP servers; secrets never: only the names of env variables and headers. */
       mcp?: McpItem[];
       /** ADR-091: tokens used today and in the last 7 days (counts and model ids only). */
@@ -403,6 +432,12 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "proposal.accept",
   "proposal.reject",
   "proposal.undo",
+  "skill.make",
+  "skill.approve",
+  "skill.reject",
+  "skill.edit.accept",
+  "skill.edit.reject",
+  "skill.edit.undo",
   "grant.remove",
   "job.stop",
   "job.fresh",
@@ -610,7 +645,7 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof id !== "string" || !/^[\w-]{1,100}$/.test(id)) return { error: `${type} needs the chat's "id".` };
     return { command: { type, id } };
   }
-  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "job.open" || type === "job.retry" || type === "mcp.remove" || type === "mcp.test" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "thread.get") {
+  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "job.open" || type === "job.retry" || type === "mcp.remove" || type === "mcp.test" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "thread.get" || type === "skill.make" || type === "skill.approve" || type === "skill.reject" || type === "skill.edit.accept" || type === "skill.edit.reject" || type === "skill.edit.undo") {
     const { id } = value as { id?: unknown };
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     return { command: { type, id } };
