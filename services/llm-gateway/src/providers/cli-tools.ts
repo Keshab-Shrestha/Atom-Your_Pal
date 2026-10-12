@@ -73,7 +73,7 @@ export function createCodexAdapter(options: CliToolOptions): ProviderAdapter {
   return {
     name: "codex",
     async complete(request, signal) {
-      const dir = mkdtempSync(join(tmpdir(), "zeno-codex-"));
+      const dir = mkdtempSync(join(tmpdir(), "atom-codex-"));
       const out = join(dir, "reply.txt");
       try {
         const args = ["exec", "--sandbox", "read-only", "--skip-git-repo-check", "--ephemeral", "--output-last-message", out];
@@ -106,7 +106,7 @@ export function createGeminiCliAdapter(options: CliToolOptions): ProviderAdapter
   return {
     name: "gemini-cli",
     async complete(request, signal) {
-      const dir = mkdtempSync(join(tmpdir(), "zeno-gemini-"));
+      const dir = mkdtempSync(join(tmpdir(), "atom-gemini-"));
       try {
         // A fresh folder each time: --skip-trust lets the CLI run headless there (it would otherwise ask).
         const args = ["--prompt", promptText(request), "--output-format", "json", "--approval-mode", "plan", "--skip-trust"];

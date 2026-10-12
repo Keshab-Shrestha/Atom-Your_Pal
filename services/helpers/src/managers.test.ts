@@ -20,7 +20,7 @@ import {
 // ADR-095: Managers: soul files, the first-start migration, Keshab's commands, budgets, and ATOM's hand-over.
 
 function setup(seed?: (agentsDir: string) => void) {
-  const root = mkdtempSync(join(tmpdir(), "zeno-managers-"));
+  const root = mkdtempSync(join(tmpdir(), "atom-managers-"));
   const agentsDir = join(root, "agents");
   seed?.(agentsDir);
   const path = join(root, "helpers.db");

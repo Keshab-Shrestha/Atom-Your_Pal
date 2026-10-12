@@ -4,7 +4,7 @@
 
 import { execFile } from "node:child_process";
 import { GatewayError } from "@atom/llm-gateway";
-import { ConfigError, createLogger, loadConfig, readProviderKeys, type Config } from "@atom/shared";
+import { ConfigError, createLogger, loadConfig, migrateLegacyLog, readProviderKeys, type Config } from "@atom/shared";
 import { encodeEvent, type ErrorStage } from "./island-protocol.ts";
 import { runIsland } from "./island.ts";
 import { readSavedChoice, settingsPath } from "./model-settings.ts";
@@ -51,6 +51,7 @@ const config = readConfig();
 if (config) start(config);
 
 function start(config: Config) {
+  migrateLegacyLog(config.log.file, "logs/zeno.log"); // ADR-105: once; the Swift side still writes logs/zeno.log (TODO in the Swift step)
   const log = createLogger({ level: config.log.level, file: config.log.file });
   log.info("app.start", {
     mode: island ? "island" : "terminal",

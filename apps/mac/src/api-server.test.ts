@@ -8,7 +8,7 @@ import { createApiServer, parsePort, readOrCreateToken, type ApiServerOptions } 
 
 // ADR-098 item 5: the local API. Real loopback server on a random port, fake store, no real ATOM.
 
-const dir = mkdtempSync(join(tmpdir(), "zeno-api-"));
+const dir = mkdtempSync(join(tmpdir(), "atom-api-"));
 after(() => rmSync(dir, { recursive: true, force: true }));
 
 const log = { debug() {}, info() {}, warn() {}, error() {} } as unknown as ApiServerOptions["log"];

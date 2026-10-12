@@ -17,7 +17,7 @@ export function sdkConfig(server: McpServer): Record<string, unknown> {
 
 /** Starts (or connects to) the server, completes the MCP handshake and lists its tools. Never throws. */
 export async function testMcpServer(server: McpServer, timeoutMs = MCP_TEST_TIMEOUT_MS): Promise<{ tools: string[] } | { problem: string }> {
-  const client = new Client({ name: "zeno", version: "1.0.0" });
+  const client = new Client({ name: "atom", version: "1.0.0" });
   const transport =
     server.kind === "command"
       ? new StdioClientTransport({ command: server.command!, args: server.args, env: { ...getDefaultEnvironment(), ...server.env }, stderr: "ignore" })

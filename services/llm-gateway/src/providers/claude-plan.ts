@@ -118,7 +118,7 @@ export interface ChatSessions {
 /** A short hash of an answer, to see that a chat's last answer is the one its session gave. */
 export const answerTail = (text: string) => createHash("sha256").update(text.trim()).digest("hex").slice(0, 16);
 
-const SERVER = "zeno";
+const SERVER = "atom";
 const DEFAULT_MAX_TURNS = 12;
 /** The only credentials that mean "the user's plan". Anything else could be billed per token. */
 const PLAN_CREDENTIALS = new Set(["none", "oauth"]);

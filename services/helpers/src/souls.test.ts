@@ -97,7 +97,7 @@ test("only the newest versions are listed; every version is kept", () => {
 });
 
 test("souls survive a restart", () => {
-  const dir = mkdtempSync(join(tmpdir(), "zeno-souls-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-souls-"));
   try {
     const path = join(dir, "helpers.db");
     const first = openHelperStore({ path });

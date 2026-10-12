@@ -18,7 +18,7 @@ import { createVoiceLoop, type TurnTimings } from "./voice-loop.ts";
 const enabled = readEnv(process.env, "ATOM_LIVE_TESTS") === "1";
 
 function speech(text: string): AudioClip {
-  const dir = mkdtempSync(join(tmpdir(), "zeno-e2e-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-e2e-"));
   try {
     execFileSync("say", ["-o", join(dir, "q.aiff"), text]);
     execFileSync("ffmpeg", ["-loglevel", "error", "-i", join(dir, "q.aiff"), "-ac", "1", "-ar", "16000", "-f", "s16le", join(dir, "q.pcm")]);

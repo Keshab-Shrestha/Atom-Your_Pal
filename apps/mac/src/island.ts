@@ -1,12 +1,12 @@
-// Island mode (`main.ts --island`): ZENO Island drives the voice loop with JSON-line commands on
+// Island mode (`main.ts --island`): ATOM Island drives the voice loop with JSON-line commands on
 // stdin and receives JSON-line events on stdout. Specification: docs/island-protocol.md.
 
 import type { HubCommands } from "./hub-commands.ts";
 import { chatWriter, readOnlyMessage } from "./chat-owner.ts";
 import { createInterface } from "node:readline";
 import type { Readable } from "node:stream";
-import type { Logger } from "@zeno/shared";
-import type { Message } from "@zeno/contracts";
+import type { Logger } from "@atom/shared";
+import type { Message } from "@atom/contracts";
 import {
   PROTOCOL_VERSION,
   createLevelThrottle,
@@ -40,7 +40,7 @@ import type { WindowPointer } from "./screen-context.ts";
 import type { ModelSettings } from "./model-settings.ts";
 import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
-import { spokenDuration, type Capability } from "@zeno/tool-engine";
+import { spokenDuration, type Capability } from "@atom/tool-engine";
 import type { ApiServer } from "./api-server.ts";
 import { createVoiceLoop, type CoreLike, type LoopNotice, type VoiceLoop, type VoiceLoopEvents, type VoiceLoopOptions } from "./voice-loop.ts";
 
@@ -54,7 +54,7 @@ export interface IslandOptions {
   /** ADR-091: a Core that can resume a saved chat names its session (the chat voice and typing go to). */
   core: CoreLike & { reset(): void; resume?(id: string, turns: readonly Message[]): void; readonly sessionId?: string };
   tts: TextToSpeech;
-  /** Reported in the `ready` event. ADR-098: `telegram` is true when ZENO's Telegram bot is set up in .env. */
+  /** Reported in the `ready` event. ADR-098: `telegram` is true when ATOM's Telegram bot is set up in .env. */
   info: { provider: string; model: string; microphone: string; telegram?: boolean };
   /** ADR-098: Settings' "Send to Telegram" switch. Absent when Telegram is not set up: `telegram.set` does nothing. */
   telegram?: { setPush(on: boolean): void };
@@ -62,13 +62,13 @@ export interface IslandOptions {
   api?: Pick<ApiServer, "set">;
   /** The AI model choice: sent as `info` after `ready`, changed by `model.set`. Without it, `model.set` is refused. */
   settings?: Pick<ModelSettings, "info" | "setModel" | "scanTools" | "refreshModels">;
-  /** Computer control (ADR-054): shows what ZENO is doing and asks before risky actions. Absent when it is off. */
+  /** Computer control (ADR-054): shows what ATOM is doing and asks before risky actions. Absent when it is off. */
   computer?: Pick<ComputerBridge, "attach" | "answer" | "cancelAll">;
-  /** What ZENO keeps (ADR-058), for Settings. Absent when memory is off: `memory.*` answers `enabled: false`. */
+  /** What ATOM keeps (ADR-058), for Settings. Absent when memory is off: `memory.*` answers `enabled: false`. */
   memory?: IslandMemory;
   /** ADR-091: chat sessions. Absent when memory is off. */
   chats?: IslandChats;
-  /** ADR-091: ZENO's task branches. */
+  /** ADR-091: ATOM's task branches. */
   git?: IslandGit;
   /** Helpers and their jobs (ADR-081). Absent when their file could not be opened: no helpers are listed. */
   helpers?: IslandHelpers;
@@ -115,18 +115,18 @@ export interface IslandMemory {
   /** ADR-097: starts keeping a chat (the summary and index are written in the background). False when there is no such chat. */
   keepChat?(id: string): boolean;
   dropChat?(id: string): boolean;
-  /** Called after ZENO keeps or forgets something by itself (the remember / forget tools). Returns an unsubscribe. */
+  /** Called after ATOM keeps or forgets something by itself (the remember / forget tools). Returns an unsubscribe. */
   onChange(listener: () => void): () => void;
 }
 
-/** ADR-091: ZENO's task branches; pushing one is Keshab's alone (the window asks him to confirm first). */
+/** ADR-091: ATOM's task branches; pushing one is Keshab's alone (the window asks him to confirm first). */
 export interface IslandGit {
   list(): Promise<GitBranchItem[]>;
   push(repo: string, branch: string): Promise<void>;
   diff(repo: string, branch: string): Promise<{ text: string; truncated: boolean }>;
 }
 
-/** ADR-091: Keshab's chat sessions with ZENO (kept on this Mac). */
+/** ADR-091: Keshab's chat sessions with ATOM (kept on this Mac). */
 export interface IslandChats {
   list(): ChatItem[];
   messages(id: string): Message[];
@@ -190,7 +190,7 @@ export interface IslandHelpers {
   acceptProposal(id: number): void;
   rejectProposal(id: number): void;
   undoProposal(id: number): void;
-  /** Task 3.12: the skills (Keshab's and, ADR-094, ZENO's), and a worker's choice of them. Throws, with words for the user, for an unknown skill. */
+  /** Task 3.12: the skills (Keshab's and, ADR-094, ATOM's), and a worker's choice of them. Throws, with words for the user, for an unknown skill. */
   skills(): { name: string; description: string; source?: "yours" | "zeno" | "hub" }[];
   /** B3.5, ADR-102: the skills hub (search, preview, approve, reject, uninstall, update); absent: the commands are refused. */
   hub?: HubCommands;
@@ -472,7 +472,7 @@ export function runIsland(options: IslandOptions): IslandSession {
         return;
       }
       case "memory.list":
-        memoryWatched = true; // from now on, changes ZENO makes by itself are sent too
+        memoryWatched = true; // from now on, changes ATOM makes by itself are sent too
         sendMemory();
         return;
       case "memory.forget":
@@ -878,7 +878,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     if (chatsWatched) sendChats();
   });
 
-  // ADR-061: a timer ended. Shown at once; spoken now if ZENO is idle, else as soon as it is. Task 3.5: a goal's line
+  // ADR-061: a timer ended. Shown at once; spoken now if ATOM is idle, else as soon as it is. Task 3.5: a goal's line
   // waits its turn the same way.
   const timerQueue: { message: string; timer?: { id: number; label: string; message: string }; after?: () => void }[] = [];
   let announcing = false;
@@ -895,7 +895,7 @@ export function runIsland(options: IslandOptions): IslandSession {
         const { message, timer, after } = timerQueue.shift()!;
         const spoken = timer ? speech.updates : speech.reports;
         if (spoken && speech.chime) await options.chime?.();
-        // Task 3.15: Pal flies over with the line while ZENO says it.
+        // Task 3.15: Pal flies over with the line while ATOM says it.
         if (!timer) send({ type: "worker.line", line: message });
         if (spoken) {
           send({ type: "state", state: "speaking" });

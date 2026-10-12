@@ -390,7 +390,7 @@ How the job is done:
   - sources: an empty list.`;
 
 /** Task 3.10: the hand_off tool's name as Claude Code sees it. */
-export const HAND_OFF_TOOL = "mcp__zeno__hand_off";
+export const HAND_OFF_TOOL = "mcp__atom__hand_off";
 
 function handOffServer(sdk: ClaudeSdk, handOff: NonNullable<ResearchOptions["handOff"]>) {
   const tool = sdk.tool("hand_off", handOff.description, { worker: z.string(), task: z.string() }, async (input) => {
@@ -400,7 +400,7 @@ function handOffServer(sdk: ClaudeSdk, handOff: NonNullable<ResearchOptions["han
       return { content: [{ type: "text" as const, text: error instanceof Error ? error.message : String(error) }], isError: true };
     }
   });
-  return sdk.createSdkMcpServer({ name: "zeno", version: "1.0.0", tools: [tool] });
+  return sdk.createSdkMcpServer({ name: "atom", version: "1.0.0", tools: [tool] });
 }
 
 /** ADR-098 item 4: told to a run with the browser. */
@@ -592,7 +592,7 @@ async function runStructured(options: ResearchOptions, mode: Mode) {
       return { behavior: "allow", updatedInput: input };
     }
     // ADR-090: a tool from one of Keshab's MCP servers: asked about per call unless the server is trusted.
-    if (options.mcp && !planning && name.startsWith("mcp__") && !name.startsWith("mcp__zeno__")) {
+    if (options.mcp && !planning && name.startsWith("mcp__") && !name.startsWith("mcp__atom__")) {
       const server = name.split("__")[1] ?? "";
       if (!(server in options.mcp.servers)) return { behavior: "deny", message: "That server is not one of this worker's." };
       const problem = await options.mcp.check(name, input);
@@ -724,7 +724,7 @@ async function runStructured(options: ResearchOptions, mode: Mode) {
           ? {}
           : {
               ...(options.mcp?.servers ?? {}),
-              ...(options.handOff ? { zeno: handOffServer(sdk, options.handOff) } : {}),
+              ...(options.handOff ? { atom: handOffServer(sdk, options.handOff) } : {}),
               ...(browserOn ? { [browserOn.name]: browserOn.server } : {}),
             },
         // Task 3.6: kept by Claude Code on this Mac (its own project folder for the temporary directory), so the next

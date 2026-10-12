@@ -27,7 +27,7 @@ function fakeSdk(answers: unknown[]) {
 }
 
 function setup() {
-  const root = mkdtempSync(join(tmpdir(), "zeno-manager-run-"));
+  const root = mkdtempSync(join(tmpdir(), "atom-manager-run-"));
   const store = openHelperStore({ path: ":memory:", agentsDir: join(root, "agents") });
   store.createAgent({ name: "Ada", role: "researcher", kit: "think", personality: "Sharp." });
   store.setManagerMode("research", "plan");

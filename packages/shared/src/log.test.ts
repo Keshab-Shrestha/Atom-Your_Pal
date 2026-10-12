@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createLogger } from "./log.ts";
+import { createLogger, migrateLegacyLog } from "./log.ts";
 
 const fixed = () => new Date("2026-10-01T12:00:00.000Z");
 
@@ -21,7 +21,7 @@ test("writes one JSON object per line, filtered by level", () => {
 });
 
 test("creates the log folder and appends", () => {
-  const dir = mkdtempSync(join(tmpdir(), "zeno-log-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-log-"));
   try {
     const file = join(dir, "nested", "zeno.log");
     const log = createLogger({ level: "debug", file, now: fixed });
@@ -41,4 +41,18 @@ test("a write failure is reported once and never throws", (t) => {
   log.error("b");
   assert.equal(messages.length, 1);
   assert.match(messages[0], /Logging disabled: cannot write \/x\/zeno.log \(read-only\)/);
+});
+
+test("migrateLegacyLog renames the old log only when the new one is absent", () => {
+  const dir = mkdtempSync(join(tmpdir(), "atom-log-"));
+  const old = join(dir, "zeno.log");
+  const next = join(dir, "atom.log");
+  writeFileSync(old, "old\n");
+  migrateLegacyLog(next, old);
+  assert.equal(readFileSync(next, "utf8"), "old\n");
+  assert.equal(existsSync(old), false);
+  writeFileSync(old, "newer legacy\n");
+  migrateLegacyLog(next, old);
+  assert.equal(readFileSync(next, "utf8"), "old\n", "an existing new log is never replaced");
+  assert.equal(existsSync(old), true);
 });

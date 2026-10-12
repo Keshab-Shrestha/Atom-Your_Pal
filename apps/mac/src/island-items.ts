@@ -1,6 +1,6 @@
 // Item and event shapes of the island protocol (moved from island-protocol.ts; docs/island-protocol.md is the specification).
 
-import type { Capability } from "@zeno/tool-engine";
+import type { Capability } from "@atom/tool-engine";
 
 /**
  * ADR-097: a schedule from the window's form: the worker, the task, and one of the store's three kinds. `minute` is
@@ -38,7 +38,7 @@ export interface InfoEvent {
   provider: string;
   model: string;
   providers: { id: string; name: string; available: boolean; models: { id: string; name: string }[] }[];
-  /** ADR-093: the AI tools found on this Mac (found, signed in, what ZENO does with them). */
+  /** ADR-093: the AI tools found on this Mac (found, signed in, what ATOM does with them). */
   tools?: { id: string; name: string; found: boolean; signedIn?: boolean; provider?: string; note: string }[];
 }
 
@@ -137,7 +137,7 @@ export interface ThreadEvent {
   plan?: { summary: string; steps: string };
   /** Task 3.10: the sub-tasks this task handed off. */
   handOffs?: number[];
-  /** ADR-098 item 8: the ZENO-made skills a done task's runs used (each can take it as a test case). */
+  /** ADR-098 item 8: the ATOM-made skills a done task's runs used (each can take it as a test case). */
   testSkills?: string[];
   /** B3.1: the run's tool calls, the newest 100, oldest first (redacted summaries; absent when none were recorded). */
   toolCalls?: { id: string; agent?: string; tool: string; input: string; state: "started" | "ok" | "error"; result?: string; at: string; ms?: number }[];
@@ -153,7 +153,7 @@ export interface ThreadEvent {
   goal?: { id: number; text: string; ended: boolean; tasks: number[]; report?: Omit<ReportEvent, "type" | "id"> };
 }
 
-/** ADR-091: one of ZENO's task branches, with the task's title. */
+/** ADR-091: one of ATOM's task branches, with the task's title. */
 export interface GitBranchItem {
   repo: string;
   repoName: string;
@@ -176,7 +176,7 @@ export interface MemoryChatItem {
   updatedAt?: string;
   messages: number;
   kept: boolean;
-  /** True while ZENO writes the summary and the index. */
+  /** True while ATOM writes the summary and the index. */
   indexing?: boolean;
   /** ISO 8601. */
   keptAt?: string;
@@ -201,14 +201,14 @@ export interface UsageTotalsItem {
   runs: number;
 }
 
-/** ADR-091: the Dashboard's tokens: today, the week, each day, each worker (name; null for ZENO's chat), each model. */
+/** ADR-091: the Dashboard's tokens: today, the week, each day, each worker (name; null for ATOM's chat), each model. */
 export interface UsageItem {
   today: UsageTotalsItem;
   week: UsageTotalsItem;
   days: (UsageTotalsItem & { day: string })[];
   byWorker: (UsageTotalsItem & { helper: string | null; name: string })[];
   byModel: (UsageTotalsItem & { model: string })[];
-  /** ADR-098 item 9: ZENO's last chat answers read nothing from the prompt cache. */
+  /** ADR-098 item 9: ATOM's last chat answers read nothing from the prompt cache. */
   chatCacheCold?: boolean;
 }
 
@@ -241,7 +241,7 @@ export interface SkillDraftItem {
   createdAt: string;
 }
 
-/** ADR-094: Tinker's edit to one of ZENO's skills: why, and a compact before and after (from the first changed line). */
+/** ADR-094: Tinker's edit to one of ATOM's skills: why, and a compact before and after (from the first changed line). */
 export interface SkillEditItem {
   id: number;
   skill: string;
@@ -294,7 +294,7 @@ export interface McpItem {
   problem?: string;
 }
 
-/** Task 3.16: a task ZENO handed to Keshab's Paperclip. Titles and results never logged. */
+/** Task 3.16: a task ATOM handed to Keshab's Paperclip. Titles and results never logged. */
 export interface PaperclipItem {
   id: string;
   identifier?: string;

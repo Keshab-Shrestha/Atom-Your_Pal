@@ -257,7 +257,7 @@ export function loadConfig(env: Env = process.env, options: LoadConfigOptions = 
     },
     log: {
       level: oneOf("ATOM_LOG_LEVEL", LOG_LEVELS, "info"),
-      file: read("ATOM_LOG_FILE", "logs/zeno.log"),
+      file: read("ATOM_LOG_FILE", "logs/atom.log"),
     },
   };
 

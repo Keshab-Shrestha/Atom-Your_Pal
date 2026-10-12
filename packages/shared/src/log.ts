@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, renameSync } from "node:fs";
 import { dirname } from "node:path";
 import type { LogLevel } from "./config.ts";
 
@@ -50,4 +50,14 @@ export function createLogger(options: LoggerOptions): Logger {
     }
   };
   return { debug: log("debug"), info: log("info"), warn: log("warn"), error: log("error") };
+}
+
+/** ADR-105: the log was `logs/zeno.log`. Once, at start: rename it to the new name when the new file is not there yet. */
+export function migrateLegacyLog(file: string, legacyFile: string): void {
+  if (file === legacyFile || existsSync(file) || !existsSync(legacyFile)) return;
+  try {
+    renameSync(legacyFile, file);
+  } catch {
+    // Not fatal: the log starts fresh at the new name.
+  }
 }

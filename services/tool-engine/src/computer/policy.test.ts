@@ -13,6 +13,9 @@ test("never controls terminals, password managers, system settings, or agents", 
     ["com.apple.systempreferences", "System Settings"],
     ["com.nousresearch.hermes", "Hermes"],
     ["com.trycua.driver", "Cua Driver"],
+    ["com.zeno.island", "old ATOM app"],
+    ["dev.zeno.island", "old ATOM app"],
+    ["dev.atom.island", "ATOM app"],
   ];
   for (const [bundle, name] of blocked) assert.match(appBlock(bundle, name) ?? "", /never/i, bundle);
 });

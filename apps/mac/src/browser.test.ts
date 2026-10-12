@@ -8,7 +8,7 @@ import { BROWSER_SERVER, acquireBrowser, browserCheck, browserServer } from "./b
 
 // ADR-098 item 4: the browser policy (pure; no browser starts).
 
-const root = mkdtempSync(join(tmpdir(), "zeno-browser-"));
+const root = mkdtempSync(join(tmpdir(), "atom-browser-"));
 after(() => rmSync(root, { recursive: true, force: true }));
 const grant = join(root, "grant");
 mkdirSync(grant);

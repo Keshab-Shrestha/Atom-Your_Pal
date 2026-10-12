@@ -24,8 +24,8 @@ function fakeSdk(structured: unknown) {
 }
 
 function setup() {
-  const home = mkdtempSync(join(tmpdir(), "zeno-home-"));
-  const skillsDir = mkdtempSync(join(tmpdir(), "zeno-skills-"));
+  const home = mkdtempSync(join(tmpdir(), "atom-home-"));
+  const skillsDir = mkdtempSync(join(tmpdir(), "atom-skills-"));
   const store = openHelperStore({ path: ":memory:", home, skillsDir });
   const { id } = store.addJob("sid", "Compare laptops");
   store.start(id);

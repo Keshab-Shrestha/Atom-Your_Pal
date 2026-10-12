@@ -9,7 +9,7 @@ import { askForFolder, checkpointBefore, denyRead, folderCheck } from "./folder-
 // Task 3.11: every tool call of a run in folders, checked in code; risky commands ask on Pal's card.
 
 test("paths outside are refused, risky commands ask, refused ones never ask; the log keeps verdicts only", async () => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "zeno-run-")));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-run-")));
   try {
     const asked: string[] = [];
     let answer = true;
@@ -43,7 +43,7 @@ test("sandboxed commands cannot read keys and tokens", () => {
 
 // ADR-090: Quill had no folder, ran without file tools and could not save. Now it asks for the folder its task names.
 test("a file worker with no folder asks for the one its task names; allowed, it is made and granted", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "zeno-home-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-home-")));
   try {
     const store = openHelperStore({ path: ":memory:", home });
     const asked: string[] = [];
@@ -71,7 +71,7 @@ test("a file worker with no folder asks for the one its task names; allowed, it 
 
 // B3.4: the before-hook runs for tools that change files, after the checks pass, and never fails the run.
 test("before runs only for file-changing tools whose paths passed; a throw does not fail the call", async () => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "zeno-run-")));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-run-")));
   try {
     const seen: [string, string[]][] = [];
     const failed: string[] = [];
@@ -111,7 +111,7 @@ test("before runs only for file-changing tools whose paths passed; a throw does 
 });
 
 test("checkpointBefore keeps files outside the git worktree and leaves the worktree to git", () => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "zeno-run-")));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-run-")));
   try {
     const tree = join(root, "tree");
     const other = join(root, "other");

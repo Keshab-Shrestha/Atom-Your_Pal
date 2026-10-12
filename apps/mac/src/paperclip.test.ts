@@ -40,7 +40,7 @@ function fakePaperclip() {
 }
 
 test("Pal hands a task to a Paperclip agent; the board tracks it; its result comes back once, said in one line", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "zeno-pc-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-pc-"));
   try {
     const pc = fakePaperclip();
     const tracker = issueTracker(join(dir, "paperclip.json"));
@@ -65,7 +65,7 @@ test("Pal hands a task to a Paperclip agent; the board tracks it; its result com
 });
 
 test("an approval is answered only after Keshab's OK on the card", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "zeno-pc-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-pc-"));
   try {
     const pc = fakePaperclip();
     let ok = false;

@@ -22,7 +22,9 @@ const BLOCKED_BUNDLES = [
   /^com\.nousresearch\./i, // Hermes
   /^com\.trycua\./i, // Cua itself
   /^com\.anthropic\./i, // Claude desktop and Claude Code
-  /^com\.zeno\./i, // ATOM's own island
+  /^com\.zeno\./i, // the island under its old name
+  /^dev\.zeno\./i, // ADR-105: the bundle id ZENO moves to
+  /^dev\.atom\./i, // ATOM's own island
 ];
 
 /** Why an app is off limits, or undefined if ATOM may control it. An app with no bundle id is not trusted. */

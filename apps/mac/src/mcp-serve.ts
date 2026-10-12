@@ -1,7 +1,7 @@
 // ADR-098 item 5: ATOM as an MCP server over stdio, for Claude Code, Hermes and other MCP clients. A thin client of the
 // local HTTP API (api-server.ts): it reads the token in data/api-token and calls http://127.0.0.1:<ATOM_API_PORT>.
 // ATOM must be running with Settings → General → "Local API" on.
-//   claude mcp add zeno -- node /path/to/zeno/apps/mac/src/mcp-serve.ts
+//   claude mcp add atom -- node /path/to/atom/apps/mac/src/mcp-serve.ts
 // stdout carries only MCP messages; nothing else is written there.
 
 import { readFileSync } from "node:fs";
@@ -54,21 +54,21 @@ async function api(method: "GET" | "POST", path: string, body?: object): Promise
 
 const TOOLS: ToolDef[] = [
   {
-    name: "zeno_give_goal",
+    name: "atom_give_goal",
     description: "Give a goal to ATOM. ATOM hands it to its team of workers, who work in the background. Returns goalId (null when ATOM answered without handing it out) and ATOM's answer.",
     properties: { goal: { type: "string", description: "What to get done, in plain words" } },
     required: ["goal"],
     call: (a) => api("POST", "/v1/goals", { goal: str(a.goal) }),
   },
   {
-    name: "zeno_goal_status",
+    name: "atom_goal_status",
     description: "A goal's status (running or ended), its tasks and, once it has ended, its combined report.",
-    properties: { goalId: { type: "number", description: "The goalId from zeno_give_goal" } },
+    properties: { goalId: { type: "number", description: "The goalId from atom_give_goal" } },
     required: ["goalId"],
     call: (a) => api("GET", `/v1/goals/${id(a.goalId)}`),
   },
   {
-    name: "zeno_chat",
+    name: "atom_chat",
     description: "Say one thing to ATOM and get its answer. Turns with the same chatId continue one conversation.",
     properties: {
       text: { type: "string", description: "What to say" },
@@ -78,29 +78,29 @@ const TOOLS: ToolDef[] = [
     call: (a) => api("POST", "/v1/chat", { text: str(a.text), ...(a.chatId ? { chatId: str(a.chatId) } : {}) }),
   },
   {
-    name: "zeno_list_tasks",
+    name: "atom_list_tasks",
     description: "ATOM's tasks, newest first. Optionally only those in one state.",
     properties: { state: { type: "string", description: "Optional state", enum: ["queued", "running", "done", "failed", "stopped"] } },
     call: (a) => api("GET", `/v1/tasks${a.state ? `?state=${encodeURIComponent(str(a.state))}` : ""}`),
   },
   {
-    name: "zeno_task_report",
+    name: "atom_task_report",
     description: "One task and its report (title, summary, body and sources), when it has one.",
     properties: { taskId: { type: "number", description: "The task's number" } },
     required: ["taskId"],
     call: (a) => api("GET", `/v1/tasks/${id(a.taskId)}`),
   },
   {
-    name: "zeno_needs_you",
+    name: "atom_needs_you",
     description: "What waits for Keshab's answer in ATOM (questions, plans, proposals, held and failed tasks), with the actions each one takes. Keshab answers them in ATOM or on Telegram.",
     properties: {},
     call: () => api("GET", "/v1/needs"),
   },
   {
-    name: "zeno_answer_need",
-    description: "Answer one thing that waits in ATOM (see zeno_needs_you). Give its key and one of its actions, such as allow, decline, approve, reject, accept or retry.",
+    name: "atom_answer_need",
+    description: "Answer one thing that waits in ATOM (see atom_needs_you). Give its key and one of its actions, such as allow, decline, approve, reject, accept or retry.",
     properties: {
-      key: { type: "string", description: "The key from zeno_needs_you" },
+      key: { type: "string", description: "The key from atom_needs_you" },
       action: { type: "string", description: "One of the actions listed for that key" },
     },
     required: ["key", "action"],
@@ -108,7 +108,7 @@ const TOOLS: ToolDef[] = [
   },
 ];
 
-const server = new Server({ name: "zeno", version: "1.0.0" }, { capabilities: { tools: {} } });
+const server = new Server({ name: "atom", version: "1.0.0" }, { capabilities: { tools: {} } });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: TOOLS.map((t) => ({ name: t.name, description: t.description, inputSchema: { type: "object" as const, properties: t.properties, ...(t.required ? { required: t.required } : {}) } })),

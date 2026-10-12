@@ -8,13 +8,13 @@ const match = (text: string) => matchShortcut(text, { apps: APPS });
 
 test("Keshab's commands match, with capitals, punctuation, 'please', 'ATOM' and 'Zeno'", () => {
   const cases: Array<[string, string, Record<string, unknown>]> = [
-    ["Open settings.", "open_zeno_settings", {}],
-    ["open ATOM's settings", "open_zeno_settings", {}],
+    ["Open settings.", "open_atom_settings", {}],
+    ["open ATOM's settings", "open_atom_settings", {}],
     ["Open system settings", "open_app", { name: "System Settings" }],
     ["Open Brave.", "open_app", { name: "Brave Browser" }],
     ["Atom, open brave browser please", "open_app", { name: "Brave Browser" }],
     ["Zeno, open brave browser please", "open_app", { name: "Brave Browser" }],
-    ["open zeno's settings", "open_zeno_settings", {}],
+    ["open zeno's settings", "open_atom_settings", {}],
     ["Open Finder", "open_app", { name: "Finder" }],
     ["open notes", "open_app", { name: "Notes" }],
     ["Please open my journal!", "open_app", { name: "Journal" }],

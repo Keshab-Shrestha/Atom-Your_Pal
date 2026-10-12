@@ -61,7 +61,7 @@ export function stdioLaya(path: string): LayaConnect {
       env: { LAYA_DEVICE: "mps", LAYA_PRELOAD: "1", LAYA_MODELS: "english" },
       stderr: "ignore",
     });
-    const client = new Client({ name: "zeno", version: "1.0.0" });
+    const client = new Client({ name: "atom", version: "1.0.0" });
     try {
       await client.connect(transport);
     } catch (error) {

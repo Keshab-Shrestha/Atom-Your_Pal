@@ -7,20 +7,20 @@ export interface IslandToolOptions {
   playPause: () => boolean;
 }
 
-const noIsland = "the ZENO window is not running";
+const noIsland = "the ATOM window is not running";
 
 /**
- * Task 2.x (ADR-071): two things only the island can do. Opening ZENO's own Settings, and pressing the Mac's
+ * Task 2.x (ADR-071): two things only the island can do. Opening ATOM's own Settings, and pressing the Mac's
  * play/pause key, which reaches whatever is playing (YouTube in Brave, Spotify, Music). The key is a toggle and needs
- * the Accessibility permission ZENO holds for dictation; without it the island says so.
+ * the Accessibility permission ATOM holds for dictation; without it the island says so.
  */
 export function createIslandTools(options: IslandToolOptions): Tool[] {
   return [
     {
       capability: { title: "Open apps and websites", examples: ["Open settings"] },
       spec: {
-        name: "open_zeno_settings",
-        description: "Opens ZENO's own Settings panel. For the Mac's System Settings use open_app instead.",
+        name: "open_atom_settings",
+        description: "Opens ATOM's own Settings panel. For the Mac's System Settings use open_app instead.",
         inputSchema: { type: "object", properties: {} },
       },
       run() {

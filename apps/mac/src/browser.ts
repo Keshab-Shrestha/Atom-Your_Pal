@@ -9,8 +9,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isInside, realish } from "@atom/helpers";
 
-/** The MCP server's name: its tools are `mcp__zeno-browser__browser_*`. Keshab's own servers may not use it. */
-export const BROWSER_SERVER = "zeno-browser";
+/** The MCP server's name: its tools are `mcp__atom-browser__browser_*`. Keshab's own servers may not use it. */
+export const BROWSER_SERVER = "atom-browser";
 
 /** The Agent SDK config that starts Playwright's MCP server for one agent's run. */
 export function browserServer(dataDir: string, helper: string): Record<string, unknown> {

@@ -14,8 +14,8 @@ const file = (name = "compare-things", t = text(), sha = SHA) => ({ repo: "anthr
 const kinds = (t: string) => reviewFlags(t).map((f) => f.kind);
 
 function setup() {
-  const home = mkdtempSync(join(tmpdir(), "zeno-home-"));
-  const skillsDir = mkdtempSync(join(tmpdir(), "zeno-skills-"));
+  const home = mkdtempSync(join(tmpdir(), "atom-home-"));
+  const skillsDir = mkdtempSync(join(tmpdir(), "atom-skills-"));
   const store = openHelperStore({ path: ":memory:", home, skillsDir });
   const changes: HelperChange[] = [];
   store.onChange((c) => changes.push(c));

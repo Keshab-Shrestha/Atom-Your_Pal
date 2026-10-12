@@ -1,6 +1,6 @@
 // The commands from the island, their allowlist and the parser (moved from island-protocol.ts; docs/island-protocol.md is the specification).
 
-import type { Capability } from "@zeno/tool-engine";
+import type { Capability } from "@atom/tool-engine";
 import type { RoutineInput, SoulItem } from "./island-items.ts";
 
 /** Longest command line accepted, in characters. The biggest is a soul edit (`soul.set`); anything bigger is a bug or abuse. */
@@ -81,7 +81,7 @@ export type IslandCommand =
   | { type: "proposal.accept"; id: number }
   | { type: "proposal.reject"; id: number }
   | { type: "proposal.undo"; id: number }
-  // ADR-098 item 8: save a done task as a test case (for its agent's soul or a ZENO-made skill its run used), delete one,
+  // ADR-098 item 8: save a done task as a test case (for its agent's soul or a ATOM-made skill its run used), delete one,
   // and run the test cases of a pending soul proposal ("soul") or skill edit ("skill") again.
   | { type: "testcase.save"; jobId: number; kind: "soul" | "skill"; target: string }
   | { type: "testcase.delete"; id: number }
@@ -512,7 +512,7 @@ export function parseCommand(line: string): ParsedLine {
     return { command: { type, helper, version } };
   }
   if (type === "git.push" || type === "git.diff") {
-    // Which repositories and branches are allowed is the runtime's to check (only ZENO's task branches, in granted folders).
+    // Which repositories and branches are allowed is the runtime's to check (only ATOM's task branches, in granted folders).
     const { repo, branch } = value as { repo?: unknown; branch?: unknown };
     if (typeof repo !== "string" || !repo.startsWith("/") || repo.length > 1000 || typeof branch !== "string" || !/^zeno\/task-\d{1,9}$/.test(branch)) {
       return { error: `${type} needs a "repo" (a full path) and a "branch" (zeno/task-<id>).` };

@@ -148,7 +148,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
       if (target) target.justTyped = keep;
       return `\n\n${seen}`;
     } catch (error) {
-      if (error instanceof Refused || (error as Error)?.name !== "AbortError") return "\n\nZENO could not read the window again. Look again.";
+      if (error instanceof Refused || (error as Error)?.name !== "AbortError") return "\n\nATOM could not read the window again. Look again.";
       throw error;
     }
   }

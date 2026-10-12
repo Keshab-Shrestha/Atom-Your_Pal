@@ -10,8 +10,8 @@ import { openHelperStore, parseSkillFile, skillDraftBrief, skillEditBrief, skill
 const report = { title: "Laptops compared", summary: "Three picks.", body: "Body.", sources: [] };
 
 function setup() {
-  const home = mkdtempSync(join(tmpdir(), "zeno-home-"));
-  const skillsDir = mkdtempSync(join(tmpdir(), "zeno-skills-"));
+  const home = mkdtempSync(join(tmpdir(), "atom-home-"));
+  const skillsDir = mkdtempSync(join(tmpdir(), "atom-skills-"));
   const store = openHelperStore({ path: ":memory:", home, skillsDir });
   const done = (task = "Compare three laptops") => {
     const { id } = store.addJob("sid", task);

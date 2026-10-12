@@ -263,7 +263,7 @@ test("a store file from before the source column still loads; its goals have no 
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
   const { DatabaseSync } = await import("node:sqlite");
-  const dir = mkdtempSync(join(tmpdir(), "zeno-goals-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-goals-"));
   try {
     const path = join(dir, "helpers.db");
     const first = openHelperStore({ path });

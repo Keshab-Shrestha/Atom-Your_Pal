@@ -15,7 +15,7 @@ const report = { title: 'Mesh "Wi-Fi"', summary: "Mesh beats extenders.", body: 
 
 function fake() {
   const calls: { app?: string; args?: string[]; script?: string }[] = [];
-  const dir = mkdtempSync(join(tmpdir(), "zeno-open-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-open-"));
   const deps: OpenDeps = {
     open: async (app, args) => void calls.push({ app, args }),
     osascript: async (script) => void calls.push({ script }),

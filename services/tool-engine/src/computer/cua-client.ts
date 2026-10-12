@@ -134,7 +134,7 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
         pending.delete(message.id);
         message.error ? p.reject(new Error(String(message.error.message ?? "Cua Driver error"))) : p.resolve(message.result);
       });
-      request(proc, "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "zeno", version: "0" } }, 15_000)
+      request(proc, "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "atom", version: "0" } }, 15_000)
         .then(() => {
           started = true;
           child = proc;

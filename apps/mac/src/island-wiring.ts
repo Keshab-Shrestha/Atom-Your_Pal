@@ -1,15 +1,15 @@
-// Pieces of the island's helper wiring, moved out of runtime.ts without changes: ZENO's task branches (ADR-091) and
+// Pieces of the island's helper wiring, moved out of runtime.ts without changes: ATOM's task branches (ADR-091) and
 // the board's Paperclip section (Task 3.16).
 
-import type { HelperStore } from "@zeno/helpers";
+import type { HelperStore } from "@atom/helpers";
 import type { IslandGit, IslandHelpers } from "./island.ts";
 import { branchDiff, pushBranch, repositoriesOf, zenoBranches } from "./git-branches.ts";
 import type { createPaperclip, issueTracker } from "./paperclip.ts";
 
-/** The Paperclip connection createRuntime builds when ZENO_PAPERCLIP_URL is set. */
+/** The Paperclip connection createRuntime builds when ATOM_PAPERCLIP_URL is set. */
 export type Paperclip = { client: ReturnType<typeof createPaperclip>; tracker: ReturnType<typeof issueTracker> };
 
-/** ADR-091: ZENO's task branches in the repositories Keshab granted; pushing one is his alone, asked from the window. */
+/** ADR-091: ATOM's task branches in the repositories Keshab granted; pushing one is his alone, asked from the window. */
 export function createIslandGit(helpers: HelperStore): IslandGit {
   const grantedRepos = () => repositoriesOf([...new Set((helpers?.list() ?? []).flatMap((h) => h.grants ?? []))]);
   const allowedRepo = async (repo: string) => {

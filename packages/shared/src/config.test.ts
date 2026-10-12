@@ -14,7 +14,7 @@ test("defaults: Claude on the plan, with the claude program in the key slot (emp
     audio: { inputDevice: ":default", sampleRate: 16_000 },
     stt: { modelPath: "models/ggml-small.en.bin", language: "en", vocabulary: "ATOM" },
     tts: { voice: "af_heart", dtype: "fp32" },
-    log: { level: "info", file: "logs/zeno.log" },
+    log: { level: "info", file: "logs/atom.log" },
   });
   assert.equal(loadConfig({ ATOM_CLAUDE_PATH: process.execPath }).llm.apiKey, process.execPath);
 });

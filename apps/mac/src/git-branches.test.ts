@@ -11,7 +11,7 @@ import { branchDiff, cleanRemote, pushBranch, repositoriesOf, zenoBranches } fro
 const sh = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, "-c", "user.name=T", "-c", "user.email=t@t", ...args], { encoding: "utf8" }).trim();
 
 function setup() {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "zeno-git-")));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-git-")));
   const remote = join(root, "remote.git");
   execFileSync("git", ["init", "--bare", "-b", "main", remote]);
   const repo = join(root, "site");

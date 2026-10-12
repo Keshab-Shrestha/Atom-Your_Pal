@@ -273,7 +273,7 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  * "Penny for your thoughts" stays a sentence for Pal.
  */
 export function matchWorkerCommand(text: string, workers: readonly HelperView[]): WorkerCommand | undefined {
-  const s = text.trim().replace(/^(?:hey\s+)?zeno[,\s]+/i, "");
+  const s = text.trim().replace(/^(?:hey\s+)?(?:atom|zeno)[,\s]+/i, "");
   for (const w of workers) {
     const name = escape(w.name);
     const m = new RegExp(`^(?:${name}\\s*[,:]|(?:please\\s+)?(?:ask|tell)\\s+${name}\\s+to)\\s+(.+)$`, "is").exec(s);

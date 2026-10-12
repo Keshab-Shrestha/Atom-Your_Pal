@@ -9,7 +9,7 @@ import { openHelperStore, SUB_AGENTS_LISTED, type HelperChange } from "./index.t
 // ADR-095: the sub-agents a task's runs started, listed on the task (and so in the `helpers` event).
 
 test("a sub-agent's start and end are kept on its task, cut short; the change carries ids, names and states only", () => {
-  const store = openHelperStore({ path: ":memory:", home: mkdtempSync(join(tmpdir(), "zeno-home-")) });
+  const store = openHelperStore({ path: ":memory:", home: mkdtempSync(join(tmpdir(), "atom-home-")) });
   const changes: HelperChange[] = [];
   store.onChange((c) => changes.push(c));
   const { id } = store.addJob("sid", "Compare laptops");
@@ -40,8 +40,8 @@ test("a sub-agent's start and end are kept on its task, cut short; the change ca
 });
 
 test("the newest twelve are listed; one still working when ATOM closed has failed", () => {
-  const path = join(mkdtempSync(join(tmpdir(), "zeno-subagents-")), "helpers.db");
-  const home = mkdtempSync(join(tmpdir(), "zeno-home-"));
+  const path = join(mkdtempSync(join(tmpdir(), "atom-subagents-")), "helpers.db");
+  const home = mkdtempSync(join(tmpdir(), "atom-home-"));
   const store = openHelperStore({ path, home });
   const { id } = store.addJob("sid", "Compare laptops");
   for (let i = 1; i <= SUB_AGENTS_LISTED + 2; i++) store.recordSubAgent(id, { id: `a${i}`, name: "reader", state: "started", description: `#${i}` });
@@ -53,8 +53,8 @@ test("the newest twelve are listed; one still working when ATOM closed has faile
 });
 
 test("only the newest twelve are kept on disk: older ones are dropped as new ones start", () => {
-  const path = join(mkdtempSync(join(tmpdir(), "zeno-subagents-")), "helpers.db");
-  const store = openHelperStore({ path, home: mkdtempSync(join(tmpdir(), "zeno-home-")) });
+  const path = join(mkdtempSync(join(tmpdir(), "atom-subagents-")), "helpers.db");
+  const store = openHelperStore({ path, home: mkdtempSync(join(tmpdir(), "atom-home-")) });
   const { id } = store.addJob("sid", "Compare laptops");
   for (let i = 1; i <= 20; i++) store.recordSubAgent(id, { id: `a${i}`, name: "reader", state: "started", description: `#${i}` });
   const db = new DatabaseSync(path);

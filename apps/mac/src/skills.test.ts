@@ -8,7 +8,7 @@ import { listSkills, prepareSkills } from "./skills.ts";
 // Task 3.12: only the skills chosen for a worker are linked into its plugin.
 
 function skillsDir() {
-  const dir = mkdtempSync(join(tmpdir(), "zeno-skills-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-skills-"));
   for (const [name, desc] of [["pdf", "Read and write PDFs."], ["council", '"Four voices."'], ["no-skill-md", ""]] as const) {
     mkdirSync(join(dir, name));
     if (desc) writeFileSync(join(dir, name, "SKILL.md"), `---\nname: ${name}\ndescription: ${desc}\n---\n\n# ${name}\n`);
@@ -28,12 +28,12 @@ test("Keshab's skills are the folders with a SKILL.md, with their descriptions",
 
 test("a worker's plugin links exactly the chosen skills, and rebuilding drops the others without touching the skills", () => {
   const dir = skillsDir();
-  const plugin = mkdtempSync(join(tmpdir(), "zeno-plugin-"));
+  const plugin = mkdtempSync(join(tmpdir(), "atom-plugin-"));
   try {
     assert.deepEqual(prepareSkills(plugin, ["pdf", "council", "missing", "../etc"], dir).names, ["pdf", "council"]);
     assert.deepEqual(readdirSync(join(plugin, "skills")).sort(), ["council", "pdf"]);
     assert.ok(lstatSync(join(plugin, "skills", "pdf")).isSymbolicLink());
-    assert.equal(JSON.parse(readFileSync(join(plugin, ".claude-plugin", "plugin.json"), "utf8")).name, "zeno-skills");
+    assert.equal(JSON.parse(readFileSync(join(plugin, ".claude-plugin", "plugin.json"), "utf8")).name, "atom-skills");
     prepareSkills(plugin, ["pdf"], dir);
     assert.deepEqual(readdirSync(join(plugin, "skills")), ["pdf"]);
     assert.ok(existsSync(join(dir, "council", "SKILL.md")), "the skill itself is untouched");
@@ -46,8 +46,8 @@ test("a worker's plugin links exactly the chosen skills, and rebuilding drops th
 
 test("ATOM's own skills are listed and linked too, unless Keshab has one of the same name (ADR-094)", () => {
   const dir = skillsDir();
-  const zeno = mkdtempSync(join(tmpdir(), "zeno-own-"));
-  const plugin = mkdtempSync(join(tmpdir(), "zeno-plugin-"));
+  const zeno = mkdtempSync(join(tmpdir(), "atom-own-"));
+  const plugin = mkdtempSync(join(tmpdir(), "atom-plugin-"));
   try {
     for (const name of ["compare-laptops", "pdf"]) {
       mkdirSync(join(zeno, name));
@@ -67,7 +67,7 @@ test("ATOM's own skills are listed and linked too, unless Keshab has one of the 
 
 test("a ATOM skill whose name is in the hub list has source \"hub\" (B3.5)", () => {
   const dir = skillsDir();
-  const zeno = mkdtempSync(join(tmpdir(), "zeno-own-"));
+  const zeno = mkdtempSync(join(tmpdir(), "atom-own-"));
   try {
     for (const name of ["made-here", "from-hub"]) {
       mkdirSync(join(zeno, name));

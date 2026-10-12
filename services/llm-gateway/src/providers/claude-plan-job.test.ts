@@ -125,7 +125,10 @@ test("the hand_off tool runs in ATOM through an in-process server; its refusals 
       },
     },
   });
-  assert.deepEqual(seen[0]!.options.mcpServers, { zeno: { server: "zeno", tools: [{ name: "hand_off" }] } });
+  assert.deepEqual(seen[0]!.options.mcpServers, { atom: { server: "atom", tools: [{ name: "hand_off" }] } });
+  // The failure mode: a tool that exists but is not in the names the run allows. Registered names must be exactly the allowed one.
+  const registered = Object.entries(seen[0]!.options.mcpServers as Record<string, { tools: { name: string }[] }>).flatMap(([server, s]) => s.tools.map((t) => `mcp__${server}__${t.name}`));
+  assert.deepEqual(registered, [HAND_OFF_TOOL]);
   assert.equal((allowed as { behavior: string }).behavior, "allow");
   assert.deepEqual(await made[0]!.handler({ worker: "Penny", task: "Costs" }), { content: [{ type: "text", text: "Task 2 is with Penny." }] });
   assert.deepEqual(await made[0]!.handler({ worker: "Kame", task: "x" }), { content: [{ type: "text", text: "Kame is not ready yet." }], isError: true });
@@ -176,15 +179,15 @@ test("only the worker's skills load, through its plugin; a Skill call for anothe
   const answers: string[] = [];
   const { sdk, seen } = fakeSdk(async function* (o) {
     yield init();
-    for (const skill of ["zeno-skills:pdf", "pdf", "zeno-skills:council"]) {
+    for (const skill of ["atom-skills:pdf", "pdf", "atom-skills:council"]) {
       answers.push((await o.canUseTool("Skill", { skill }, { signal: new AbortController().signal })).behavior);
     }
     yield done();
   });
-  await research(sdk, { skills: { pluginDir: "/data/skills/sid", plugin: "zeno-skills", names: ["pdf"] } });
+  await research(sdk, { skills: { pluginDir: "/data/skills/sid", plugin: "atom-skills", names: ["pdf"] } });
   const o = seen[0]!.options;
   assert.deepEqual(o.plugins, [{ type: "local", path: "/data/skills/sid", skipMcpDiscovery: true }]);
-  assert.deepEqual(o.skills, ["zeno-skills:pdf"]);
+  assert.deepEqual(o.skills, ["atom-skills:pdf"]);
   assert.deepEqual(o.settingSources, [], "no user settings, so no other skills");
   assert.deepEqual(answers, ["allow", "allow", "deny"]);
   const plain = fakeSdk(async function* () {
@@ -199,10 +202,10 @@ test("each skill a run is allowed to use is reported; refused ones are not (ADR-
   const used: string[] = [];
   const { sdk } = fakeSdk(async function* (o) {
     yield init();
-    for (const skill of ["zeno-skills:pdf", "zeno-skills:council"]) await o.canUseTool("Skill", { skill }, { signal: new AbortController().signal });
+    for (const skill of ["atom-skills:pdf", "atom-skills:council"]) await o.canUseTool("Skill", { skill }, { signal: new AbortController().signal });
     yield done();
   });
-  await research(sdk, { skills: { pluginDir: "/p", plugin: "zeno-skills", names: ["pdf"] }, onSkill: (name) => used.push(name) });
+  await research(sdk, { skills: { pluginDir: "/p", plugin: "atom-skills", names: ["pdf"] }, onSkill: (name) => used.push(name) });
   assert.deepEqual(used, ["pdf"]);
 });
 
@@ -410,7 +413,7 @@ test("onToolCall: a throwing listener never fails the run, and the step text sti
 function browserTurn() {
   const log: string[] = [];
   const browser = {
-    name: "zeno-browser",
+    name: "atom-browser",
     server: {},
     check: async () => ({ step: "x" }),
     seen: () => {},

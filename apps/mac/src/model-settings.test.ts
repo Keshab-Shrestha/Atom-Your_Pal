@@ -18,7 +18,7 @@ import {
 const CLAUDE = "/Users/k/.local/bin/claude";
 const PLAN: ProviderKeys = { "claude-plan": CLAUDE };
 
-const tempDir = () => mkdtempSync(join(tmpdir(), "zeno-settings-"));
+const tempDir = () => mkdtempSync(join(tmpdir(), "atom-settings-"));
 const noPath = (text: string) => !text.includes(CLAUDE);
 
 type Model = Parameters<SwitchableModel["replace"]>[0];

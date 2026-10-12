@@ -53,7 +53,7 @@ export function createLookAtScreenTool(options: LookAtScreenOptions): Tool<ToolO
     onStep?.({ action: "look" });
     const size = (await cua.call("get_screen_size", {}, signal)).data;
     if (!positive(size.width) || !positive(size.height)) throw new Error("Cua could not report the screen size.");
-    const dir = await mkdtemp(join(tmpdir(), "zeno-look-"));
+    const dir = await mkdtemp(join(tmpdir(), "atom-look-"));
     try {
       const raw = join(dir, "screen.png");
       const small = join(dir, "screen.jpg");

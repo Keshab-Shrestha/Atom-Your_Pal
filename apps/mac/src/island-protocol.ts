@@ -1,7 +1,7 @@
-// The messages between ZENO Island (Swift) and this runtime: JSON lines over stdin / stdout.
+// The messages between ATOM Island (Swift) and this runtime: JSON lines over stdin / stdout.
 // The specification is docs/island-protocol.md; keep the two in step.
 
-import type { Capability } from "@zeno/tool-engine";
+import type { Capability } from "@atom/tool-engine";
 import type { LoopState } from "./voice-loop.ts";
 
 export const PROTOCOL_VERSION = 1;
@@ -43,10 +43,10 @@ export type IslandEvent =
   | { type: "capabilities"; items: Capability[] }
   | PlanUsageEvent
   | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[]; chats?: MemoryChatItem[] }
-  /** ADR-091: Keshab's chats, newest first, and the one ZENO is in now (voice goes to it). */
+  /** ADR-091: Keshab's chats, newest first, and the one ATOM is in now (voice goes to it). */
   /** ADR-097: `currentProvider` / `currentModel`: the current chat's own model; absent when it uses the default. */
   | { type: "chats"; chats: ChatItem[]; current: string; currentProvider?: string; currentModel?: string }
-  /** ADR-091: ZENO's task branches, like pull requests; a branch's changes as a patch. */
+  /** ADR-091: ATOM's task branches, like pull requests; a branch's changes as a patch. */
   | { type: "git"; branches: GitBranchItem[] }
   | { type: "git.diff"; repo: string; branch: string; text: string; truncated: boolean }
   /** ADR-091: a chat was opened: its turns, to show. */
@@ -65,7 +65,7 @@ export type IslandEvent =
       /** ADR-098 item 7: "Use Codex when the Claude plan limit is reached", and whether Codex is found and signed in. */
       codexFallback?: boolean;
       codexReady?: boolean;
-      /** Task 3.12: the skills to choose from: Keshab's in ~/.claude/skills ("yours") and, ADR-094, ZENO's own ("zeno"). */
+      /** Task 3.12: the skills to choose from: Keshab's in ~/.claude/skills ("yours") and, ADR-094, ATOM's own ("zeno"). */
       skills?: { name: string; description: string; source?: "yours" | "zeno" | "hub" }[];
       /** B3.5: the skills hub; absent when there is nothing to show. */
       skillHub?: SkillHubItem;
@@ -89,7 +89,7 @@ export type IslandEvent =
     }
   | ThreadEvent
   | SearchResultsEvent
-  /** Task 3.15: a line from the team (a goal done, a plan waiting), sent just before ZENO says it. */
+  /** Task 3.15: a line from the team (a goal done, a plan waiting), sent just before ATOM says it. */
   | { type: "worker.line"; line: string }
   | { type: "error"; stage: ErrorStage; message: string; kind?: string; retryable?: boolean };
 

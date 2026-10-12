@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync,
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-export const SKILLS_PLUGIN = "zeno-skills";
+export const SKILLS_PLUGIN = "atom-skills";
 export const SKILL_NAME = /^[a-z0-9][a-z0-9._-]{0,63}$/i;
 
 export interface SkillInfo {

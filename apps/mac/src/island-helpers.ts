@@ -1,6 +1,6 @@
 // ADR-081: the helper store as the island sees it (wire shapes, ISO dates, sorted app names).
 
-import { HelperError, describeSchedule, describeWake, nextDue, type HelperStore, type Job, type PlanModel, type Schedule, type TaskSearchHit, type TestKind } from "@zeno/helpers";
+import { HelperError, describeSchedule, describeWake, nextDue, type HelperStore, type Job, type PlanModel, type Schedule, type TaskSearchHit, type TestKind } from "@atom/helpers";
 import type { IslandHelpers } from "./island.ts";
 import type { JobItem, ManagerItem, RoutineInput, SkillDraftItem, SkillEditItem, TestCaseItem, TestsItem } from "./island-protocol.ts";
 
@@ -106,7 +106,7 @@ export function islandHelpers(
   models: () => PlanModel[] = () => [],
   /** Task 3.7: why a task may not start now (budgets, the plan's window), if so. */
   held: (job: Job) => string | undefined = () => undefined,
-  /** Task 3.12, ADR-094: the skills to choose from, Keshab's and ZENO's (default: none, for tests). */
+  /** Task 3.12, ADR-094: the skills to choose from, Keshab's and ATOM's (default: none, for tests). */
   skills: () => { name: string; description: string; source?: "yours" | "zeno" | "hub" }[] = () => [],
   /** ADR-094: the clock for routines' next times (tests pass their own). */
   now: () => Date = () => new Date(),
@@ -182,7 +182,7 @@ export function islandHelpers(
     usage: () => {
       const summary = store.usage();
       const names = new Map([...store.list(), ...store.managers()].map((h) => [h.id, h.name]));
-      return { ...summary, byWorker: summary.byWorker.map((w) => ({ ...w, name: w.helper === null ? "ZENO chat" : (names.get(w.helper) ?? w.helper) })) };
+      return { ...summary, byWorker: summary.byWorker.map((w) => ({ ...w, name: w.helper === null ? "ATOM chat" : (names.get(w.helper) ?? w.helper) })) };
     },
     mcp: () =>
       store.mcpServers().map((s) => ({
@@ -232,7 +232,7 @@ export function islandHelpers(
     setSkills: (helper, names) => {
       const known = new Set(skills().map((s) => s.name));
       const missing = names.find((n) => !known.has(n));
-      if (missing !== undefined) throw new HelperError(`There is no skill called "${missing.slice(0, 40)}" in ~/.claude/skills or ZENO's skills.`);
+      if (missing !== undefined) throw new HelperError(`There is no skill called "${missing.slice(0, 40)}" in ~/.claude/skills or ATOM's skills.`);
       store.setSkills(helper, names);
     },
     addGrant: (helper, path) => store.addGrant(helper, path),
@@ -254,7 +254,7 @@ export function islandHelpers(
       if (failed.length) throw new HelperError(`${failed.length} of ${results.length} files not undone: ${[...new Set(failed.map((r) => r.reason ?? r.result))].join(", ")}.`);
     },
     thread: (id) => {
-      // ADR-098 item 8: the ZENO-made skills a done task's runs used.
+      // ADR-098 item 8: the ATOM-made skills a done task's runs used.
       const testSkillsOf = (jobId: number) => {
         if (store.get(jobId)?.state !== "done") return {};
         const zeno = new Set(skills().filter((s) => s.source === "zeno").map((s) => s.name));

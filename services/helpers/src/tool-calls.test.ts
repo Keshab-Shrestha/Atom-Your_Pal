@@ -8,7 +8,7 @@ import { openHelperStore, toolCallTable, TOOL_CALLS_KEPT, TOOL_CALLS_LISTED, typ
 
 // B3.1: the activity timeline's table and the store around it.
 
-const open = () => openHelperStore({ path: ":memory:", home: mkdtempSync(join(tmpdir(), "zeno-home-")) });
+const open = () => openHelperStore({ path: ":memory:", home: mkdtempSync(join(tmpdir(), "atom-home-")) });
 const call = (id: string, over: Partial<ToolCallEvent> = {}): ToolCallEvent => ({ id, tool: "Read", input: "/a.ts", state: "started", at: "2026-10-13T10:00:00.000Z", ...over });
 
 test("a call is recorded, ended with its result and length, and listed oldest first", () => {

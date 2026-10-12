@@ -48,7 +48,7 @@ test("the agents option per kit: web → searcher and reader, folders → coder 
   });
   await runResearch(base(sdk));
   await runResearch(base(sdk, { files: files([]) }));
-  await runResearch(base(sdk, { skills: { pluginDir: "/p", plugin: "zeno-skills", names: ["pdf"] }, onSkill: () => {} }));
+  await runResearch(base(sdk, { skills: { pluginDir: "/p", plugin: "atom-skills", names: ["pdf"] }, onSkill: () => {} }));
   const [web, folders, skilled] = seen as [Options, Options, Options];
   assert.deepEqual(Object.keys(web.agents), ["searcher", "reader"]);
   assert.deepEqual(Object.keys(folders.agents), ["coder", "checker"]);
@@ -129,7 +129,7 @@ test("a sub-agent's tool calls go through the same checks: the page limit, the f
     const sub = { signal: signal(), toolUseID: "t", agentID: "sub-r1" };
     for (let i = 0; i < 3; i++) answers.push((await o.canUseTool("WebFetch", { url: "https://x" }, sub)).behavior);
     answers.push((await o.canUseTool("Bash", { command: "ls" }, sub)).behavior);
-    answers.push((await o.canUseTool("mcp__zeno__hand_off", { worker: "x", task: "y" }, sub)).behavior);
+    answers.push((await o.canUseTool("mcp__atom__hand_off", { worker: "x", task: "y" }, sub)).behavior);
     answers.push((await o.canUseTool("SubagentHandback", { message: "done" }, sub)).behavior);
     answers.push((await o.canUseTool("WebFetch", { url: "https://x" }, { signal: signal(), toolUseID: "p" })).behavior); // the run's own: limit shared
     yield done;

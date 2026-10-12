@@ -109,7 +109,7 @@ export function codexJobArgs(options: Pick<CodexJobOptions, "web" | "files">, ou
 /** Runs one worker task on Codex and gives back its report and tokens. Throws ProviderError with words for Keshab. */
 export async function runCodexJob(options: CodexJobOptions): Promise<CodexJobResult> {
   const run = options.run ?? defaultRunner;
-  const dir = mkdtempSync(join(tmpdir(), "zeno-codex-job-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-codex-job-"));
   const out = join(dir, "report.json");
   try {
     const prompt = `${options.instructions}\n\n${contract(options)}\n\nThe task:\n\n${options.task}`;

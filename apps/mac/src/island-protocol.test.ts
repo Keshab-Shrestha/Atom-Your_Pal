@@ -143,8 +143,8 @@ test("rejects context.window without both strings, or with overlong ones", () =>
 test("encodes context.ready, with a message when refused", () => {
   assert.equal(encodeEvent({ type: "context.ready", app: "Brave Browser", ok: true }), '{"type":"context.ready","app":"Brave Browser","ok":true}\n');
   assert.equal(
-    encodeEvent({ type: "context.ready", app: "Terminal", ok: false, message: "ZENO doesn't read Terminal." }),
-    '{"type":"context.ready","app":"Terminal","ok":false,"message":"ZENO doesn\'t read Terminal."}\n',
+    encodeEvent({ type: "context.ready", app: "Terminal", ok: false, message: "ATOM doesn't read Terminal." }),
+    '{"type":"context.ready","app":"Terminal","ok":false,"message":"ATOM doesn\'t read Terminal."}\n',
   );
 });
 
@@ -307,7 +307,7 @@ test("helper commands with missing or wrong fields are protocol errors", () => {
   }
 });
 
-test("git.push and git.diff take only a full path and a ZENO task branch; chats take an id (ADR-091)", () => {
+test("git.push and git.diff take only a full path and a ATOM task branch; chats take an id (ADR-091)", () => {
   const cases: [object, RegExp][] = [
     [{ type: "git.push", repo: "/r", branch: "main" }, /zeno\/task-<id>/],
     [{ type: "git.push", repo: "/r", branch: "zeno/task-7; rm -rf /" }, /zeno\/task-<id>/],

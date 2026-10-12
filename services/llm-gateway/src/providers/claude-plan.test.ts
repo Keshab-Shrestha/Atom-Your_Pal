@@ -184,10 +184,12 @@ test("ATOM's tools are offered to Claude as one in-process server; of Claude Cod
   const { sdk, seen } = fakeSdk(() => msgs(init(), done("ok")));
   await make(sdk, { tools: runner }).complete(request({ tools: [spec] }), live());
   const o = seen[0]!.options;
-  assert.deepEqual(o.allowedTools, ["mcp__zeno__computer", "WebSearch"], "plus Claude Code's web search (ADR-069)");
-  assert.equal(o.mcpServers.zeno.name, "zeno");
-  assert.equal(o.mcpServers.zeno.tools.length, 1);
-  assert.equal(o.mcpServers.zeno.tools[0].name, "computer");
+  assert.deepEqual(o.allowedTools, ["mcp__atom__computer", "WebSearch"], "plus Claude Code's web search (ADR-069)");
+  assert.equal(o.mcpServers.atom.name, "atom");
+  const registered = Object.entries(o.mcpServers as Record<string, { tools: { name: string }[] }>).flatMap(([server, s]) => s.tools.map((t) => `mcp__${server}__${t.name}`));
+  assert.deepEqual(registered, o.allowedTools.filter((n: string) => n.startsWith("mcp__")), "every registered tool is allowed, and every allowed MCP tool is registered");
+  assert.equal(o.mcpServers.atom.tools.length, 1);
+  assert.equal(o.mcpServers.atom.tools[0].name, "computer");
   assert.deepEqual(o.tools, ["WebSearch"]);
   assert.ok(o.maxTurns > 1);
   assert.equal(o.permissionMode, "default");
@@ -243,7 +245,7 @@ test("the tool's input schema reaches Claude with its types and descriptions", a
   const { runner } = runnerOf((c) => ({ callId: c.id, content: "ok" }));
   const { sdk, seen } = fakeSdk(() => msgs(init(), done("ok")));
   await make(sdk, { tools: runner }).complete(request({ tools: [spec] }), live());
-  const shape = seen[0]!.options.mcpServers.zeno.tools[0].shape;
+  const shape = seen[0]!.options.mcpServers.atom.tools[0].shape;
   assert.deepEqual(Object.keys(shape).sort(), ["action", "element", "keys", "look_after"]);
   assert.equal(shape.action.safeParse("click").success, true);
   assert.equal(shape.action.safeParse(5).success, false);

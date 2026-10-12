@@ -71,7 +71,7 @@ export function createHubClient(options: HubClientOptions = {}) {
     stamps.push(t);
     let res: Response;
     try {
-      res = await doFetch(u.href, { redirect: "error", signal, headers: { accept: "application/vnd.github+json, text/plain", "user-agent": "zeno-skills-hub" } });
+      res = await doFetch(u.href, { redirect: "error", signal, headers: { accept: "application/vnd.github+json, text/plain", "user-agent": "atom-skills-hub" } });
     } catch (error) {
       if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) throw new HubError("GitHub did not answer in time.");
       throw new HubError("GitHub could not be reached, or it redirected the request.");

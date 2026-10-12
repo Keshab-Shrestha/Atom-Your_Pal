@@ -52,7 +52,7 @@ test("forgetting deletes the row and its search entry", () => {
 });
 
 test("another owner's memories are never returned", () => {
-  const dir = mkdtempSync(join(tmpdir(), "zeno-mem-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-mem-"));
   try {
     const path = join(dir, "m.db");
     const mine = openMemoryStore({ path });
@@ -69,7 +69,7 @@ test("another owner's memories are never returned", () => {
 });
 
 test("memories survive closing and reopening the file", () => {
-  const dir = mkdtempSync(join(tmpdir(), "zeno-mem-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-mem-"));
   try {
     const path = join(dir, "nested", "memory.db");
     const first = openMemoryStore({ path });

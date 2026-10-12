@@ -9,7 +9,7 @@ import { CHECKPOINT_FILE_BYTES, checkpointTable, CHECKPOINT_JOB_FILES, isSecretL
 // B3.4, ADR-101: checkpoint and undo of a run's file edits.
 
 function setup() {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "zeno-cp-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-cp-")));
   const dir = join(home, "data", "checkpoints");
   const folder = join(home, "work");
   mkdirSync(folder);
@@ -352,7 +352,7 @@ test("bashRan: true only when Bash was called and the task had a folder or kept 
 });
 
 test("a store without a checkpoints folder keeps nothing and never fails", () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "zeno-cp-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-cp-")));
   try {
     const store = openHelperStore({ path: ":memory:", home });
     const { id } = store.addJob("kame", "x");

@@ -1,12 +1,12 @@
-import type { ProviderKeys } from "@zeno/shared";
+import type { ProviderKeys } from "@atom/shared";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
-import { createCore } from "@zeno/core";
-import { createSwitchableModel, type SwitchableModel } from "@zeno/llm-gateway";
+import { createCore } from "@atom/core";
+import { createSwitchableModel, type SwitchableModel } from "@atom/llm-gateway";
 import type { AudioClip, AudioError, Recording } from "./audio.ts";
 import type { IslandEvent } from "./island-protocol.ts";
 import { runIsland, type IslandOptions } from "./island.ts";
@@ -14,7 +14,7 @@ import { createModelSettings, writeSavedChoice } from "./model-settings.ts";
 import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
 import { createComputerBridge } from "./computer-bridge.ts";
-import { BUILT_IN_KITS, HELPERS, openHelperStore, skillFile, tieredModels } from "@zeno/helpers";
+import { BUILT_IN_KITS, HELPERS, openHelperStore, skillFile, tieredModels } from "@atom/helpers";
 import { islandHelpers } from "./island-helpers.ts";
 import { createHubCommands } from "./hub-commands.ts";
 
@@ -204,7 +204,7 @@ test("talk.start while listening is ignored; talk.send while idle is ignored", a
   assert.equal(h.recordings[0].stopped, false);
 });
 
-test("talk.start while ZENO is speaking interrupts and starts listening", async () => {
+test("talk.start while ATOM is speaking interrupts and starts listening", async () => {
   let stopped = false;
   const h = islandHarness({
     tts: {
@@ -342,7 +342,7 @@ const CLAUDE = "/Users/k/.local/bin/claude";
 
 /** The real Core and switchable model with fake gateways that record which model answered what. */
 function modelHarness(keys: ProviderKeys = { "claude-plan": CLAUDE }) {
-  const path = join(mkdtempSync(join(tmpdir(), "zeno-island-")), "config", "island.json");
+  const path = join(mkdtempSync(join(tmpdir(), "atom-island-")), "config", "island.json");
   const requests: { model: string; request: ModelRequest }[] = [];
   const logs: string[] = [];
   const fakeGateway = (name: string) => ({
@@ -443,10 +443,10 @@ test("without the claude program, model.set says to install it and sign in", asy
   await tick(2);
   h.clear();
   await h.send({ type: "model.set", provider: "claude-plan", model: "claude-opus-5-5" });
-  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "Install Claude Code and run `claude auth login` to use Claude (my plan), then restart ZENO." }]);
+  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "Install Claude Code and run `claude auth login` to use Claude (my plan), then restart ATOM." }]);
   h.clear();
   await h.send({ type: "model.set", provider: "codex", model: "codex-default" });
-  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "Install Codex and run `codex login` to use Codex (my ChatGPT plan), then restart ZENO." }]);
+  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "Install Codex and run `codex login` to use Codex (my ChatGPT plan), then restart ATOM." }]);
 });
 
 test("a malformed model.set is a protocol error", async () => {
@@ -551,7 +551,7 @@ function fakeMemory() {
         return () => listeners.delete(listener);
       },
     },
-    /** ZENO kept something by itself (the remember tool). */
+    /** ATOM kept something by itself (the remember tool). */
     changed: () => {
       items = [{ id: 3, text: "Keshab is in Tokyo.", createdAt: "2026-10-04T02:00:00.000Z", source: "voice" }, ...items];
       for (const l of listeners) l();
@@ -573,7 +573,7 @@ test("memory.list sends what is kept, newest first; nothing is sent before the i
   assert.deepEqual(event.memories.map((m) => m.id), [3, 2, 1]);
 });
 
-test("after memory.list, changes ZENO makes by itself are sent; forget and clear answer with the new list", async () => {
+test("after memory.list, changes ATOM makes by itself are sent; forget and clear answer with the new list", async () => {
   const fake = fakeMemory();
   const h = islandHarness({ memory: fake.memory });
   await tick(5);
@@ -907,7 +907,7 @@ test("speech.set: muted reports still show on the island but are not said; turne
   assert.deepEqual(h.spoken, ["Kame is done."]);
 });
 
-test("chats: listed with the current one; opened, ZENO continues it; deleting the current one starts a new chat (ADR-091)", async () => {
+test("chats: listed with the current one; opened, ATOM continues it; deleting the current one starts a new chat (ADR-091)", async () => {
   const saved = new Map([["chat-a", [{ role: "user" as const, content: "Plan my trip" }, { role: "assistant" as const, content: "Where to?" }]]]);
   let session = "chat-new";
   const resumed: string[] = [];
@@ -1116,8 +1116,8 @@ test("job.rate asks Tinker to review; proposal.accept, proposal.undo and proposa
 });
 
 test("skill.make, skill.approve and skill.reject; skill.edit.accept, .undo and .reject; drafts and edits in the helpers event (ADR-094)", async () => {
-  const home = mkdtempSync(join(tmpdir(), "zeno-home-"));
-  const skillsDir = mkdtempSync(join(tmpdir(), "zeno-skills-"));
+  const home = mkdtempSync(join(tmpdir(), "atom-home-"));
+  const skillsDir = mkdtempSync(join(tmpdir(), "atom-skills-"));
   try {
     const store = openHelperStore({ path: ":memory:", home, skillsDir });
     const h = islandHarness({ helpers: islandHelpers(store, async () => []) });
@@ -1159,7 +1159,7 @@ test("skill.make, skill.approve and skill.reject; skill.edit.accept, .undo and .
 });
 
 test("a task's sub-agents travel in the helpers event, as each starts and ends (ADR-095)", async () => {
-  const store = openHelperStore({ path: ":memory:", home: mkdtempSync(join(tmpdir(), "zeno-home-")) });
+  const store = openHelperStore({ path: ":memory:", home: mkdtempSync(join(tmpdir(), "atom-home-")) });
   const h = islandHarness({ helpers: islandHelpers(store, async () => []) });
   await tick(5);
   await h.send({ type: "helpers.list" }); // the window watches from now on
@@ -1206,7 +1206,7 @@ test("the helpers event carries Paperclip's tasks only when the connection is on
 });
 
 test("the helpers event names agent folders that could not be loaded, and leaves the field out when there are none (ADR-093)", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "zeno-ag-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-ag-"));
   try {
     mkdirSync(join(dir, "bad"));
     writeFileSync(join(dir, "bad", "soul.md"), "no front matter");
@@ -1225,7 +1225,7 @@ test("the helpers event names agent folders that could not be loaded, and leaves
 });
 
 test("agent.create adds an agent with its soul.md; agent.remove takes it out (ADR-088)", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "zeno-ag-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-ag-"));
   try {
     const store = openHelperStore({ path: ":memory:", agentsDir: dir });
     const h = islandHarness({ helpers: islandHelpers(store, async () => []) });
@@ -1235,7 +1235,7 @@ test("agent.create adds an agent with its soul.md; agent.remove takes it out (AD
     assert.deepEqual([rumi.id, rumi.role, rumi.kit, rumi.custom], ["rumi", "travel planner", "think", true]);
     h.clear();
     await h.send({ type: "agent.create", name: "Pal", role: "x", kit: "think", personality: "P", howItWorks: "", rules: "" });
-    assert.match((h.events()[0] as { message: string }).message, /taken by ZENO/);
+    assert.match((h.events()[0] as { message: string }).message, /taken by ATOM/);
     await h.send({ type: "agent.remove", id: "rumi" });
     assert.ok(!(h.events().at(-1) as HelpersEvent).helpers.some((x) => x.id === "rumi"));
   } finally {
@@ -1244,7 +1244,7 @@ test("agent.create adds an agent with its soul.md; agent.remove takes it out (AD
 });
 
 test("helpers lists the Managers with their Agents; manager.* and agent.manager change them (ADR-095)", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "zeno-mg-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-mg-"));
   try {
     const store = openHelperStore({ path: ":memory:", agentsDir: dir });
     const h = islandHarness({ helpers: islandHelpers(store, async () => []) });
@@ -1334,7 +1334,7 @@ test("with helpers off: helpers.list and stop/delete answer an empty list; set, 
 
 // --- timers (ADR-061) ---
 
-test("a timer ending is shown and spoken, in that order, then ZENO is idle again", async () => {
+test("a timer ending is shown and spoken, in that order, then ATOM is idle again", async () => {
   let fire!: (t: { id: number; label: string; seconds: number }) => void;
   const h = islandHarness({ onTimer: (listener) => ((fire = listener), () => {}) });
   await new Promise((r) => setTimeout(r, 5));
@@ -1357,7 +1357,7 @@ test("a timer ending is shown and spoken, in that order, then ZENO is idle again
 
 // --- goals (Task 3.5) ---
 
-test("a goal's line waits until ZENO is idle, then is spoken without a timer notice", async () => {
+test("a goal's line waits until ATOM is idle, then is spoken without a timer notice", async () => {
   let say!: (line: string) => void;
   let answer!: () => void;
   const h = islandHarness({
@@ -1366,12 +1366,12 @@ test("a goal's line waits until ZENO is idle, then is spoken without a timer not
   });
   await new Promise((r) => setTimeout(r, 5));
   await h.send({ type: "text.send", text: "hello" });
-  say("Your guide is ready. The ZENO window has the report.");
+  say("Your guide is ready. The ATOM window has the report.");
   await new Promise((r) => setTimeout(r, 20));
-  assert.deepEqual(h.spoken, [], "not while ZENO is thinking");
+  assert.deepEqual(h.spoken, [], "not while ATOM is thinking");
   answer();
   await new Promise((r) => setTimeout(r, 700));
-  assert.deepEqual(h.spoken, ["the reply", "Your guide is ready. The ZENO window has the report."]);
+  assert.deepEqual(h.spoken, ["the reply", "Your guide is ready. The ATOM window has the report."]);
   assert.ok(!h.events().some((e) => e.type === "timer"));
   const line = h.events().findIndex((e) => e.type === "worker.line");
   assert.ok(line >= 0 && h.events()[line + 1]?.type === "state", "the line goes to the island just before it is said (Task 3.15)");
@@ -1399,7 +1399,7 @@ test("context.window reads the named app and answers context.ready", async () =>
   let clears = 0;
   const h = islandHarness({
     screen: {
-      point: async (bundleId, name) => (points.push(`${bundleId}|${name}`), bundleId === "com.apple.Terminal" ? { ok: false, message: "ZENO doesn't read Terminal." } : { ok: true }),
+      point: async (bundleId, name) => (points.push(`${bundleId}|${name}`), bundleId === "com.apple.Terminal" ? { ok: false, message: "ATOM doesn't read Terminal." } : { ok: true }),
       clear: () => clears++,
     },
   });
@@ -1410,7 +1410,7 @@ test("context.window reads the named app and answers context.ready", async () =>
   assert.deepEqual(points, ["com.brave.Browser|Brave Browser", "com.apple.Terminal|Terminal"]);
   assert.deepEqual(h.events(), [
     { type: "context.ready", app: "Brave Browser", ok: true },
-    { type: "context.ready", app: "Terminal", ok: false, message: "ZENO doesn't read Terminal." },
+    { type: "context.ready", app: "Terminal", ok: false, message: "ATOM doesn't read Terminal." },
   ]);
   await h.send({ type: "conversation.reset" });
   assert.equal(clears, 1);
@@ -1495,7 +1495,7 @@ test("thread.get lists the run's tool calls (B3.1), and a new call sends the ope
 
 // B3.4, ADR-101: the thread lists the files a run changed, and job.undo puts them back.
 test("thread has checkpoints and bashRan; job.undo restores, refuses a conflict in words, and the next thread shows it", async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "zeno-undo-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-undo-")));
   try {
     const folder = join(home, "work");
     mkdirSync(folder);
@@ -1553,9 +1553,9 @@ test("job.undo without helpers is refused", async () => {
 });
 
 test("skill.hub.*: search, preview and approve reach the helpers event as skillHub; refusals are errors; no hub means refused (B3.5)", async () => {
-  const skillsDir = mkdtempSync(join(tmpdir(), "zeno-skills-"));
+  const skillsDir = mkdtempSync(join(tmpdir(), "atom-skills-"));
   try {
-    const store = openHelperStore({ path: ":memory:", home: mkdtempSync(join(tmpdir(), "zeno-home-")), skillsDir });
+    const store = openHelperStore({ path: ":memory:", home: mkdtempSync(join(tmpdir(), "atom-home-")), skillsDir });
     const sha = "9".repeat(40);
     const client = {
       searchHub: async () => [{ name: "pdf-tools", description: "PDFs.", repo: "anthropics/skills", path: "skills/pdf-tools/SKILL.md", sha, source: 0 }],

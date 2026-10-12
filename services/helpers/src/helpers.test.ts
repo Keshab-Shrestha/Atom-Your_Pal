@@ -201,7 +201,7 @@ test("change events carry ids, states and timings, never task or report text", (
 });
 
 test("survives a restart: the app, jobs and reports are kept; a job left running becomes failed", () => {
-  const dir = mkdtempSync(join(tmpdir(), "zeno-helpers-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-helpers-"));
   try {
     const path = join(dir, "nested", "helpers.db");
     const first = openHelperStore({ path });
@@ -230,7 +230,7 @@ test("survives a restart: the app, jobs and reports are kept; a job left running
 // --- models (ADR-083) ---
 
 test("pin and allowLarge persist across a restart; an unknown helper cannot be pinned", () => {
-  const dir = mkdtempSync(join(tmpdir(), "zeno-helpers-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-helpers-"));
   try {
     const path = join(dir, "helpers.db");
     const first = openHelperStore({ path });
@@ -273,7 +273,7 @@ test("setModel records a running job's model and reason, and nothing for a job t
 });
 
 test("a file from before Task 3.2b gains the model columns and keeps its jobs", () => {
-  const dir = mkdtempSync(join(tmpdir(), "zeno-helpers-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-helpers-"));
   try {
     const path = join(dir, "helpers.db");
     const old = new DatabaseSync(path);

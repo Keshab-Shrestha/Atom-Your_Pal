@@ -16,6 +16,9 @@ test("bad servers are refused in words", () => {
   for (const [input, why] of [
     [{ name: "Bad Name!", kind: "command", command: "x" }, /lower case/],
     [{ name: "zeno", kind: "command", command: "x" }, /ATOM's own/],
+    [{ name: "atom", kind: "command", command: "x" }, /ATOM's own/],
+    [{ name: "atom-browser", kind: "command", command: "x" }, /ATOM's own/],
+    [{ name: "zeno-browser", kind: "command", command: "x" }, /ATOM's own/],
     [{ name: "a", kind: "command", command: "" }, /command to run/],
     [{ name: "a", kind: "command", command: "x", env: ["not a pair"] }, /KEY=value/],
     [{ name: "a", kind: "url", url: "ftp://x" }, /https/],

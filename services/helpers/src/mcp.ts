@@ -45,6 +45,8 @@ export interface McpServerInput {
 
 export const MAX_MCP_SERVERS = 20;
 const NAME = /^[a-z0-9][a-z0-9_-]{0,31}$/;
+/** ATOM's own MCP servers, new names and old (ADR-105): Keshab's servers may not use them. */
+const RESERVED_SERVER_NAMES = new Set(["atom", "atom-browser", "zeno", "zeno-browser"]);
 const ENV_KEY = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
 const HEADER_KEY = /^[A-Za-z0-9-]{1,64}$/;
 
@@ -52,7 +54,7 @@ const HEADER_KEY = /^[A-Za-z0-9-]{1,64}$/;
 export function cleanMcpInput(input: McpServerInput, taken: readonly string[]): Omit<McpServer, "id" | "enabled" | "trusted" | "workers" | "tools"> {
   const name = input.name.trim().toLowerCase().replace(/\s+/g, "-");
   if (!NAME.test(name)) throw new HelperError("A server's name is lower case letters, digits, - or _ (at most 32).");
-  if (name === "zeno" || name === "zeno-browser") throw new HelperError("That name is ATOM's own.");
+  if (RESERVED_SERVER_NAMES.has(name)) throw new HelperError("That name is ATOM's own.");
   if (taken.includes(name)) throw new HelperError(`There is already a server called ${name}.`);
   const pairs = (lines: string[] | undefined, sep: string, key: RegExp, what: string) =>
     Object.fromEntries(

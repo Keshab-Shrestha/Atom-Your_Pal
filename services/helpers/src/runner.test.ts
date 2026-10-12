@@ -23,7 +23,7 @@ function fakeRun() {
 
 /** A store in a temp file, with jobs inserted directly. */
 function fileStore(jobs: string[]) {
-  const dir = mkdtempSync(join(tmpdir(), "zeno-runner-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-runner-"));
   const path = join(dir, "helpers.db");
   const store = openHelperStore({ path });
   const db = new DatabaseSync(path);

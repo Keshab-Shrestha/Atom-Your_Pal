@@ -2307,6 +2307,33 @@ A routine can start by webhook (ADR for schedules). A person can ask for a secon
 - A second secret needs a screen to set it and a place to store it. It gives little gain, because a caller on this Mac that has the bearer token already has full API access.
 - Revisit this decision if the API ever listens beyond loopback.
 
+## ADR-104 — Smooth 2D Pal and Office Floor (2026-10-13)
+
+### Status
+
+Accepted. Built and tested. Seen in the gallery PNGs only, not in the real app.
+
+### Context
+
+ADR-090 and ADR-093 drew Pal and the office floor as pixel art. Keshab chose smooth vector art with the same characters.
+
+### Decision
+
+1. Pal and the office floor are vector shapes in SwiftUI. Nothing is a bitmap. Nothing is scaled with nearest-neighbour.
+2. `PalDrawing` draws a pal from its own file: soft outline, gradient, rim of light, glossy eyes, blush.
+3. `OfficeDrawing` draws the floor in map units. The plan, the desk positions and the hit areas stay the same.
+4. `PalStance` (was `PixelPal`) keeps only the numbers: poses, body, feet, arms, head nodes. `PalStanceMotion` (was `PixelPalMotion`) keeps the moods, timing and reactions.
+5. The pixel code is removed: `PixelCanvas`, `OfficeArt`, `PixelImages`, the sprite rasteriser.
+6. Text on the floor uses a rounded font, not monospaced.
+
+### Consequences
+
+- Poses still change at the old rate. The shapes are smooth, the frame steps are not.
+- Pal on screen is drawn at exactly its size. The old art snapped to whole pixel scales.
+- The pal definition files are unchanged.
+- Three old tests (sprite pixels, layers, pixel blending) are replaced by one test of `PalStance`.
+- The menu bar glyph is not changed.
+
 ## ADR-105 — Rename ZENO to ATOM (2026-10-13)
 
 ### Status

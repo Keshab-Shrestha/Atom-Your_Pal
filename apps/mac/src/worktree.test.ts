@@ -11,7 +11,7 @@ import { commitWork, prepareWorkdir } from "./worktree.ts";
 const sh = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
 
 test("a repository gets a worktree on zeno/task-N; the work is committed there and the current branch is untouched", async () => {
-  const root = mkdtempSync(join(tmpdir(), "zeno-wt-"));
+  const root = mkdtempSync(join(tmpdir(), "atom-wt-"));
   try {
     const repo = join(root, "repo");
     mkdirSync(join(repo, "app"), { recursive: true });
@@ -37,7 +37,7 @@ test("a repository gets a worktree on zeno/task-N; the work is committed there a
 });
 
 test("a plain folder is worked in directly", async () => {
-  const root = mkdtempSync(join(tmpdir(), "zeno-wt-"));
+  const root = mkdtempSync(join(tmpdir(), "atom-wt-"));
   try {
     assert.deepEqual(await prepareWorkdir(root, 3, join(root, "wt")), { dir: root });
   } finally {

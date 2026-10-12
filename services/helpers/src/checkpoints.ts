@@ -252,7 +252,7 @@ export function checkpointTable(db: DatabaseSync, dir: string | undefined, home:
   function restore(row: Row, mode: number | undefined) {
     const snap = snapPath(row);
     if (!existsSync(snap) || sha256File(snap) !== row.sha_before) throw new Error("snapshot damaged");
-    const temp = join(dirname(row.path), `.zeno-undo-${process.pid}-${row.id}`);
+    const temp = join(dirname(row.path), `.atom-undo-${process.pid}-${row.id}`);
     try {
       copyFileSync(snap, temp);
       chmodSync(temp, mode !== undefined ? mode & 0o7777 : 0o644);

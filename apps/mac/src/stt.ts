@@ -66,7 +66,7 @@ export function createWhisperStt(options: WhisperOptions): SpeechToText {
         );
       }
 
-      const dir = await mkdtemp(join(tmpdir(), "zeno-stt-"));
+      const dir = await mkdtemp(join(tmpdir(), "atom-stt-"));
       const wavPath = join(dir, "input.wav");
       try {
         await writeFile(wavPath, toWav(clip));

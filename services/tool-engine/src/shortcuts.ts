@@ -55,7 +55,7 @@ const firstMatch = (patterns: RegExp[], s: string) => patterns.map((re) => re.ex
  */
 export function matchShortcut(text: string, context: { apps: readonly string[] }): ShortcutMatch | undefined {
   const s = normalize(text);
-  if (SETTINGS.test(s)) return { name: "zeno_settings", call: { name: "open_zeno_settings", input: {} } };
+  if (SETTINGS.test(s)) return { name: "atom_settings", call: { name: "open_atom_settings", input: {} } };
   if (PLAY_PAUSE.test(s)) return { name: "play_pause", call: { name: "play_pause", input: {} } };
 
   const youtube = query(firstMatch(YOUTUBE, s) ?? "");

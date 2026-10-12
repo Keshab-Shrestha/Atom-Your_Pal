@@ -8,7 +8,7 @@ import { checkGrant, classifyCommand, folderForTask, openHelperStore, pathProble
 // ADR-082, Task 3.11: folder grants and the checks on every file tool and command.
 
 function fakeHome() {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), "zeno-home-")));
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-home-")));
   for (const d of ["Developer/app", "Library/Keys", ".ssh", "Documents/.secret/x", "outside"]) mkdirSync(join(home, d), { recursive: true });
   writeFileSync(join(home, "Developer", "notes.txt"), "x");
   return home;

@@ -88,7 +88,7 @@ const MODEL = "models/ggml-base.en.bin";
 const canRunReal = existsSync(MODEL) && process.platform === "darwin";
 
 test("real whisper.cpp transcribes synthesized speech", { skip: !canRunReal && "whisper model not downloaded" }, async () => {
-  const dir = mkdtempSync(join(tmpdir(), "zeno-stt-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "atom-stt-test-"));
   const wav = join(dir, "speech.wav");
   execFileSync("say", ["-o", wav, "--data-format=LEI16@16000", "What is the weather like today?"]);
   // Decode to raw PCM (say's WAV has extra chunks, so the header is not a fixed size).
