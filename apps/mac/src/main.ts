@@ -3,8 +3,8 @@
 //   node apps/mac/src/main.ts --island   driven by ATOM Island over stdin / stdout (island.ts)
 
 import { execFile } from "node:child_process";
-import { GatewayError } from "@zeno/llm-gateway";
-import { ConfigError, createLogger, loadConfig, readProviderKeys, type Config } from "@zeno/shared";
+import { GatewayError } from "@atom/llm-gateway";
+import { ConfigError, createLogger, loadConfig, readProviderKeys, type Config } from "@atom/shared";
 import { encodeEvent, type ErrorStage } from "./island-protocol.ts";
 import { runIsland } from "./island.ts";
 import { readSavedChoice, settingsPath } from "./model-settings.ts";

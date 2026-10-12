@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { Core } from "@zeno/core";
+import type { Core } from "@atom/core";
 
 // ADR-098: which chat a turn belongs to. ATOM's tools run through one shared runner (the Claude plan holds it), so a
 // tool cannot be given a Core. It reads the chat of the turn it runs in. Two turns at once keep two values.

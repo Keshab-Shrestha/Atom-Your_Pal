@@ -7,7 +7,7 @@ import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { CLAUDE_PLAN, CODEX, GEMINI_CLI, findClaudeProgram, findProgram } from "@zeno/shared";
+import { CLAUDE_PLAN, CODEX, GEMINI_CLI, findClaudeProgram, findProgram } from "@atom/shared";
 
 export interface AiToolItem {
   id: "claude-code" | "codex" | "gemini-cli" | "ollama" | "lm-studio";

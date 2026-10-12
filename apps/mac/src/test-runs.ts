@@ -2,8 +2,8 @@
 // dry run (no tools, effort low): once with the old text, once with the new; then a judge compares both answers with
 // the saved report. Results go to the store; nothing here accepts or rejects the change.
 
-import { runTestAnswer, runTestJudge, type ClaudeSdk, type PlanUsage, type TokenUsage } from "@zeno/llm-gateway";
-import { testAnswerBrief, testJudgeBrief, type HelperStore, type TestKind } from "@zeno/helpers";
+import { runTestAnswer, runTestJudge, type ClaudeSdk, type PlanUsage, type TokenUsage } from "@atom/llm-gateway";
+import { testAnswerBrief, testJudgeBrief, type HelperStore, type TestKind } from "@atom/helpers";
 
 export const NOT_RUN_PLAN_LIMIT = "Not run: plan limit";
 

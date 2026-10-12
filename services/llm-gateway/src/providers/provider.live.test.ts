@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { loadConfig, readEnv } from "@zeno/shared";
+import { loadConfig, readEnv } from "@atom/shared";
 import { createGateway } from "../gateway.ts";
 import { createProviderAdapter } from "./index.ts";
 

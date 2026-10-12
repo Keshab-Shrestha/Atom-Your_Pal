@@ -1,4 +1,4 @@
-import type { ToolSpec } from "@zeno/contracts";
+import type { ToolSpec } from "@atom/contracts";
 import { MemoryError, type Memory, type MemoryStore } from "./store.ts";
 
 // ADR-058: what the model sees of memory, and the three tools it uses to change it.

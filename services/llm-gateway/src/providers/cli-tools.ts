@@ -8,7 +8,7 @@ import { execFile } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ModelRequest } from "@zeno/contracts";
+import type { ModelRequest } from "@atom/contracts";
 import { ProviderError, systemText, type ProviderAdapter } from "../gateway.ts";
 
 export const CLI_TIMEOUT_MS = 120_000;

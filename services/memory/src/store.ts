@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import type { InputSource } from "@zeno/contracts";
+import type { InputSource } from "@atom/contracts";
 import { openChats, type ChatStore } from "./chats.ts";
 import { openChatIndex, type ChatIndex } from "./chat-index.ts";
 

@@ -2,8 +2,8 @@
 // headings; if that fails, a deterministic digest is used, so keeping never fails. Every request then gets the best
 // matching lines (hybrid search, top-down). Logs carry ids, counts and states only, never chat text.
 
-import { chatSections, digestBrief, fallbackDigest, keptChatContext, type ChatDigest, type Embed, type MemoryStore } from "@zeno/memory";
-import type { Logger } from "@zeno/shared";
+import { chatSections, digestBrief, fallbackDigest, keptChatContext, type ChatDigest, type Embed, type MemoryStore } from "@atom/memory";
+import type { Logger } from "@atom/shared";
 import type { Embedder } from "./embedder.ts";
 import type { MemoryChatItem } from "./island-protocol.ts";
 

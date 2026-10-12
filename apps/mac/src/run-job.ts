@@ -3,8 +3,8 @@
 
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { GatewayError, runCodexJob, runPlan, runResearch, RunInterrupted, type PlanUsage, type TokenUsage } from "@zeno/llm-gateway";
-import { CLAUDE_PLAN, type Logger, type ProviderKeys } from "@zeno/shared";
+import { GatewayError, runCodexJob, runPlan, runResearch, RunInterrupted, type PlanUsage, type TokenUsage } from "@atom/llm-gateway";
+import { CLAUDE_PLAN, type Logger, type ProviderKeys } from "@atom/shared";
 import {
   briefFor,
   chooseJobModel,
@@ -20,8 +20,8 @@ import {
   type Job,
   type JobRun,
   type TestKind,
-} from "@zeno/helpers";
-import type { createLayaEngine } from "@zeno/decision-engine";
+} from "@atom/helpers";
+import type { createLayaEngine } from "@atom/decision-engine";
 import type { ComputerBridge } from "./computer-bridge.ts";
 import type { ModelSettings } from "./model-settings.ts";
 import type { TaskSteering } from "./task-steering.ts";

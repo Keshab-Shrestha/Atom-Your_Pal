@@ -3,7 +3,7 @@
 
 import { rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { createCore, type Core } from "@zeno/core";
+import { createCore, type Core } from "@atom/core";
 import { turnChat, withTurnChat } from "./turn-chat.ts";
 import { createComputerBridge, type ComputerBridge } from "./computer-bridge.ts";
 import {
@@ -28,9 +28,9 @@ import {
   type ScreenShot,
   type TimerInfo,
   type Timers,
-} from "@zeno/tool-engine";
-import { createGateway, createProviderAdapter, createSwitchableModel, listPlanModels, runChatDigest, type ChatSession, type ChatSessions, type PlanUsage } from "@zeno/llm-gateway";
-import { CLAUDE_PLAN, createLogger, readEnv, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
+} from "@atom/tool-engine";
+import { createGateway, createProviderAdapter, createSwitchableModel, listPlanModels, runChatDigest, type ChatSession, type ChatSessions, type PlanUsage } from "@atom/llm-gateway";
+import { CLAUDE_PLAN, createLogger, readEnv, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@atom/shared";
 import {
   createEpisodeRecorder,
   createMemoryTools,
@@ -41,7 +41,7 @@ import {
   memoryContext,
   type EpisodeRecorder,
   type MemoryStore,
-} from "@zeno/memory";
+} from "@atom/memory";
 import {
   createDelegateTool,
   createScheduleTool,
@@ -60,9 +60,9 @@ import {
   type Job,
   type JobRun,
   type JobRunner,
-} from "@zeno/helpers";
-import { createLayaEngine } from "@zeno/decision-engine";
-import type { InputSource, LanguageModel, Message, RequestContext } from "@zeno/contracts";
+} from "@atom/helpers";
+import { createLayaEngine } from "@atom/decision-engine";
+import type { InputSource, LanguageModel, Message, RequestContext } from "@atom/contracts";
 import type { IslandChats, IslandGit, IslandHelpers, IslandMemory } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
 import { taskSteering, type TaskSteering } from "./task-steering.ts";

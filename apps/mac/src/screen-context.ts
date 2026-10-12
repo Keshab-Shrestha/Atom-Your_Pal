@@ -1,8 +1,8 @@
 // ADR-074: the user dropped Pal on a window. That app is read once and the result rides along with the next
 // request only, as screen content. Deterministic: the user pointed on purpose, so code reads, not the model.
 
-import type { Logger } from "@zeno/shared";
-import { readApp, type AppRead, type FrontApp } from "@zeno/tool-engine";
+import type { Logger } from "@atom/shared";
+import { readApp, type AppRead, type FrontApp } from "@atom/tool-engine";
 
 /** How long a read waits for the question before it is dropped. */
 export const SCREEN_CONTEXT_TTL_MS = 30_000;

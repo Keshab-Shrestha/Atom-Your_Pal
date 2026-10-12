@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { ModelRequest, ToolCall, ToolResult, ToolRunner, ToolSpec } from "@zeno/contracts";
+import type { ModelRequest, ToolCall, ToolResult, ToolRunner, ToolSpec } from "@atom/contracts";
 import { createClaudePlanAdapter, scrubbedEnv, tokensOf, type ClaudeSdk, type PlanUsage } from "./claude-plan.ts";
 import { createProviderAdapter } from "./index.ts";
 import { ProviderError } from "../gateway.ts";

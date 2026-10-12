@@ -1,7 +1,7 @@
 // ADR-098: ATOM's own Telegram bot, over the Bot API with Node's fetch. One chat only (ATOM_TELEGRAM_CHAT_ID); every
 // other chat is ignored. The log gets method names, error codes and counts: never message text, never the token.
 
-import type { Logger } from "@zeno/shared";
+import type { Logger } from "@atom/shared";
 
 const API = "https://api.telegram.org";
 /** Telegram's limit for one message. */

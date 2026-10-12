@@ -1,8 +1,8 @@
 // ADR-080: the runtime's half of pointing from a screenshot. The reply's [POINT:…] marker is taken off before anything
 // is spoken (streamed or not) or shown, and a valid one sends Pal to the place.
 
-import type { Core } from "@zeno/core";
-import { parsePointMarker, pointMarkerFilter, type ParsedReply, type PointTarget, type ScreenShot } from "@zeno/tool-engine";
+import type { Core } from "@atom/core";
+import { parsePointMarker, pointMarkerFilter, type ParsedReply, type PointTarget, type ScreenShot } from "@atom/tool-engine";
 
 export interface PointingOptions {
   /** The screenshot handed to the model since the last call, then forgets it. */

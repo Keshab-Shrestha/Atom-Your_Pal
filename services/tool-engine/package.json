@@ -1,9 +1,9 @@
 {
-  "name": "@zeno/tool-engine",
+  "name": "@atom/tool-engine",
   "private": true,
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
-    "@zeno/contracts": "workspace:*"
+    "@atom/contracts": "workspace:*"
   }
 }

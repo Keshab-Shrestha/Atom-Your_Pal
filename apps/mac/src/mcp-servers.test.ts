@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
-import type { McpServer } from "@zeno/helpers";
+import type { McpServer } from "@atom/helpers";
 import { mcpCheck, sdkConfig, testMcpServer } from "./mcp-servers.ts";
 
 // ADR-090: Keshab's MCP servers at run time.

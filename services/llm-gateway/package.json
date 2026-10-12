@@ -1,12 +1,12 @@
 {
-  "name": "@zeno/llm-gateway",
+  "name": "@atom/llm-gateway",
   "private": true,
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.287",
-    "@zeno/contracts": "workspace:*",
-    "@zeno/shared": "workspace:*",
+    "@atom/contracts": "workspace:*",
+    "@atom/shared": "workspace:*",
     "zod": "^4.6.5"
   }
 }

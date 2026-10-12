@@ -1,4 +1,4 @@
-import type { LanguageModel } from "@zeno/contracts";
+import type { LanguageModel } from "@atom/contracts";
 
 export interface SwitchableModel extends LanguageModel {
   /** Uses `next` for every request from now on. A request already in flight finishes on the old model. */

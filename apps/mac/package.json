@@ -1,19 +1,19 @@
 {
-  "name": "@zeno/mac",
+  "name": "@atom/mac",
   "private": true,
   "type": "module",
   "dependencies": {
     "@huggingface/transformers": "3.8.1",
     "@modelcontextprotocol/sdk": "1.31.0",
     "@playwright/mcp": "0.0.83",
-    "@zeno/contracts": "workspace:*",
-    "@zeno/core": "workspace:*",
-    "@zeno/decision-engine": "workspace:*",
-    "@zeno/helpers": "workspace:*",
-    "@zeno/llm-gateway": "workspace:*",
-    "@zeno/memory": "workspace:*",
-    "@zeno/shared": "workspace:*",
-    "@zeno/tool-engine": "workspace:*",
+    "@atom/contracts": "workspace:*",
+    "@atom/core": "workspace:*",
+    "@atom/decision-engine": "workspace:*",
+    "@atom/helpers": "workspace:*",
+    "@atom/llm-gateway": "workspace:*",
+    "@atom/memory": "workspace:*",
+    "@atom/shared": "workspace:*",
+    "@atom/tool-engine": "workspace:*",
     "kokoro-js": "^1.2.1"
   }
 }

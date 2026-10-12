@@ -7,7 +7,7 @@
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isInside, realish } from "@zeno/helpers";
+import { isInside, realish } from "@atom/helpers";
 
 /** The MCP server's name: its tools are `mcp__zeno-browser__browser_*`. Keshab's own servers may not use it. */
 export const BROWSER_SERVER = "zeno-browser";

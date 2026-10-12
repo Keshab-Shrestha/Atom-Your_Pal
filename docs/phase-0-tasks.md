@@ -204,7 +204,7 @@ Completed:
   - routes to the language model (the only route in Phase 0), sending a short system prompt written for spoken replies plus the session history
   - keeps session-only history (ADR-030), bounded to the last 20 exchanges; failed requests are not recorded
   - rejects empty input, empty replies, and a second request while one is in flight; a reply arriving after `reset()` is not added to the new session
-- The Core depends only on `@zeno/contracts`; it knows nothing about Claude, Whisper or audio
+- The Core depends only on `@atom/contracts`; it knows nothing about Claude, Whisper or audio
 - Tests: 8 tests with a fake model (30/30 total pass, typecheck passes)
 
 Not yet wired into `apps/mac`: the Core needs a real model, which arrives with the LLM Gateway (Tasks 0.6–0.7). The full chain is connected in Task 0.9.

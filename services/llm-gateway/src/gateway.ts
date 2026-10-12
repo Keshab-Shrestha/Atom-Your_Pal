@@ -1,4 +1,4 @@
-import type { LanguageModel, ModelRequest, ModelResponse, PrepareRequest } from "@zeno/contracts";
+import type { LanguageModel, ModelRequest, ModelResponse, PrepareRequest } from "@atom/contracts";
 
 /** The full instructions for providers that take one system text: the standing part, then this request's additions. */
 export function systemText(request: Pick<ModelRequest, "system" | "systemExtra">): string {

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
-import type { ModelRequest } from "@zeno/contracts";
+import type { ModelRequest } from "@atom/contracts";
 import { createCodexAdapter, createGeminiCliAdapter, promptText, signedInEnv, type CliRunner } from "./cli-tools.ts";
 
 // ADR-093: ATOM's chat on Codex (ChatGPT plan) or the Gemini CLI (Google sign-in), headless and read-only.

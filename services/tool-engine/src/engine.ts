@@ -1,4 +1,4 @@
-import type { ToolCall, ToolImage, ToolResult, ToolRunner, ToolSpec } from "@zeno/contracts";
+import type { ToolCall, ToolImage, ToolResult, ToolRunner, ToolSpec } from "@atom/contracts";
 
 /** One line of the island's "What can I ask?" page (ADR-076): a plain title and phrases that really work. */
 export interface Capability {

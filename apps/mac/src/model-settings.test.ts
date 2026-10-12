@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createSwitchableModel, type SwitchableModel } from "@zeno/llm-gateway";
-import { loadConfig, readProviderKeys, type LlmChoice, type ProviderKeys } from "@zeno/shared";
+import { createSwitchableModel, type SwitchableModel } from "@atom/llm-gateway";
+import { loadConfig, readProviderKeys, type LlmChoice, type ProviderKeys } from "@atom/shared";
 import {
   DEFAULT_SETTINGS_PATH,
   createModelSettings,

@@ -5,7 +5,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import type { Tool } from "@zeno/tool-engine";
+import type { Tool } from "@atom/tool-engine";
 
 export const PAPERCLIP_TIMEOUT_MS = 10_000;
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);

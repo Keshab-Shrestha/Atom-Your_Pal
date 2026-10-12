@@ -3,11 +3,11 @@
 
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { CoreError, type Core } from "@zeno/core";
-import { GatewayError } from "@zeno/llm-gateway";
-import { readEnv, type Logger } from "@zeno/shared";
-import { openMemoryStore, type MemoryStore } from "@zeno/memory";
-import { openHelperStore, type HelperStore } from "@zeno/helpers";
+import { CoreError, type Core } from "@atom/core";
+import { GatewayError } from "@atom/llm-gateway";
+import { readEnv, type Logger } from "@atom/shared";
+import { openMemoryStore, type MemoryStore } from "@atom/memory";
+import { openHelperStore, type HelperStore } from "@atom/helpers";
 import type { IslandHelpers } from "./island.ts";
 import { AudioError } from "./audio.ts";
 import { SttError } from "./stt.ts";

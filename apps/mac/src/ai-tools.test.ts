@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findProgram } from "@zeno/shared";
+import { findProgram } from "@atom/shared";
 import { scanAiTools, type ScanDeps } from "./ai-tools.ts";
 
 // ADR-093: the AI tools found on this Mac, signed in or not, and which ATOM can use.

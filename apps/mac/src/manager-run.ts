@@ -3,8 +3,8 @@
 // either asks one of them for its one revision (a note that wakes that task) or passes a summary up to ATOM. After the
 // revision it passes up whatever comes back. The store checks every task and the one-revision limit again.
 
-import { runManagerReview, runManagerSplit, type ClaudeSdk, type PlanUsage, type TokenUsage } from "@zeno/llm-gateway";
-import { managerInstructions, managerReviewBrief, managerSplitBrief, type HelperStore, type Job, type ReportInput, type Source } from "@zeno/helpers";
+import { runManagerReview, runManagerSplit, type ClaudeSdk, type PlanUsage, type TokenUsage } from "@atom/llm-gateway";
+import { managerInstructions, managerReviewBrief, managerSplitBrief, type HelperStore, type Job, type ReportInput, type Source } from "@atom/helpers";
 
 export interface ManagerRun {
   store: HelperStore;

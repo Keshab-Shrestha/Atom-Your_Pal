@@ -1,9 +1,9 @@
-import type { ToolRunner } from "@zeno/contracts";
+import type { ToolRunner } from "@atom/contracts";
 import type { ProviderAdapter } from "../gateway.ts";
 import { createClaudePlanAdapter, type ChatSessions, type PlanUsage, type TokenUsage } from "./claude-plan.ts";
 import { createCodexAdapter, createGeminiCliAdapter } from "./cli-tools.ts";
 
-/** ADR-092, ADR-093: the signed-in tools on this Mac; Claude Code is the default. (Also in @zeno/shared's PROVIDERS.) */
+/** ADR-092, ADR-093: the signed-in tools on this Mac; Claude Code is the default. (Also in @atom/shared's PROVIDERS.) */
 export const PROVIDERS = ["claude-plan", "codex", "gemini-cli"] as const;
 export type ProviderName = (typeof PROVIDERS)[number];
 

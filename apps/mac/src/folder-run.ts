@@ -4,7 +4,7 @@
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
-import { DENY_READ_DIRS, WRITE_TOOLS, classifyCommand, folderForTask, isInside, pathProblem, realish, toolPaths } from "@zeno/helpers";
+import { DENY_READ_DIRS, WRITE_TOOLS, classifyCommand, folderForTask, isInside, pathProblem, realish, toolPaths } from "@atom/helpers";
 
 /** Never readable by sandboxed commands: keys, tokens and other apps' secrets. */
 export function denyRead(home = homedir()): string[] {

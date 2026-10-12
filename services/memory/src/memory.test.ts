@@ -150,7 +150,7 @@ test("clear deletes every memory of this owner only", () => {
 // --- episodes (ADR-059) ---
 
 import { createEpisodeRecorder, episodeContext, SUMMARY_PROMPT } from "./index.ts";
-import type { LanguageModel, Message, ModelRequest } from "@zeno/contracts";
+import type { LanguageModel, Message, ModelRequest } from "@atom/contracts";
 
 const convo = (n: number): Message[] =>
   Array.from({ length: n }, (_, i) => [

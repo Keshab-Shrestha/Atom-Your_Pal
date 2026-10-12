@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Core } from "@zeno/core";
-import { openHelperStore, createDelegateTool } from "@zeno/helpers";
+import type { Core } from "@atom/core";
+import { openHelperStore, createDelegateTool } from "@atom/helpers";
 import { turnChat, withTurnChat } from "./turn-chat.ts";
 
 // ADR-098: two surfaces at once, one shared delegate tool, each goal keeps its own chat.

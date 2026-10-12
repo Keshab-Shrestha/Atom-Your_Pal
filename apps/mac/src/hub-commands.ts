@@ -2,8 +2,8 @@
 // skill-hub.ts and the checks and writes are in the store; this joins them. Logs: ids, names, repo and sha only, never
 // a skill's text, a URL found in one, or a search.
 
-import type { HelperStore } from "@zeno/helpers";
-import type { Logger } from "@zeno/shared";
+import type { HelperStore } from "@atom/helpers";
+import type { Logger } from "@atom/shared";
 import type { SkillHubItem } from "./island-protocol.ts";
 import { HUB_SOURCES, HubError, createHubClient, type HubClient, type HubHit } from "./skill-hub.ts";
 

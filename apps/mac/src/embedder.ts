@@ -3,7 +3,7 @@
 // file (about 23 MB, quantized) downloads once from Hugging Face into models/huggingface and is read from there after.
 
 import { resolve } from "node:path";
-import type { Logger } from "@zeno/shared";
+import type { Logger } from "@atom/shared";
 
 export const EMBED_MODEL_ID = "Xenova/all-MiniLM-L6-v2";
 /** After a failed load (for example offline), wait this long before trying again. */

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { LanguageModel, ModelRequest, ModelResponse, ToolRunner } from "@zeno/contracts";
+import type { LanguageModel, ModelRequest, ModelResponse, ToolRunner } from "@atom/contracts";
 import { CoreError, DEFAULT_SYSTEM_PROMPT, createCore } from "./core.ts";
 
 function fakeModel(reply: (req: ModelRequest) => string | Promise<string> = (r) => `echo: ${r.messages.at(-1)!.content}`) {

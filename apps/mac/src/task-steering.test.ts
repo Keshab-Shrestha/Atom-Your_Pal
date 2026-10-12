@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { HelperError, MAX_COMMENT_CHARS } from "@zeno/helpers";
+import { HelperError, MAX_COMMENT_CHARS } from "@atom/helpers";
 import { taskSteering } from "./task-steering.ts";
 
 // ADR-098 item 3: steer and interrupt, against a fake store and a fake live run.

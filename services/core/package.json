@@ -1,9 +1,9 @@
 {
-  "name": "@zeno/core",
+  "name": "@atom/core",
   "private": true,
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
-    "@zeno/contracts": "workspace:*"
+    "@atom/contracts": "workspace:*"
   }
 }

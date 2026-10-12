@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import type { Message } from "@zeno/contracts";
+import type { Message } from "@atom/contracts";
 import { chatSearch, type ChatSearchHit } from "./chat-search.ts";
 
 // ADR-091: Keshab's chat sessions with ATOM, kept on this Mac (in the memory file) so he can go back to one. A chat is

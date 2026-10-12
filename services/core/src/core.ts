@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { LanguageModel, Message, RequestContext, ToolRunner, ZenoInput, ZenoResponse } from "@zeno/contracts";
+import type { LanguageModel, Message, RequestContext, ToolRunner, ZenoInput, ZenoResponse } from "@atom/contracts";
 
 export const DEFAULT_SYSTEM_PROMPT =
   "You are ATOM, a voice assistant. Your replies are spoken aloud, so answer in short, " +

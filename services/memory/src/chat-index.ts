@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import type { Message } from "@zeno/contracts";
+import type { Message } from "@atom/contracts";
 import { ftsQuery, STOP_WORDS } from "./store.ts";
 
 // ADR-097 item 3: chats Keshab keeps in memory, at three depths: a summary of the chat (level 1), its topic sections with

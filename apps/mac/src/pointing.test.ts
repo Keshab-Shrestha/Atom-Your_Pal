@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Core, HandleHooks } from "@zeno/core";
-import type { PointTarget, ScreenShot } from "@zeno/tool-engine";
+import type { Core, HandleHooks } from "@atom/core";
+import type { PointTarget, ScreenShot } from "@atom/tool-engine";
 import { withPointing } from "./pointing.ts";
 
 const main: ScreenShot = { width: 1280, height: 720, display: { x: 0, y: 0, width: 1920, height: 1080 } };

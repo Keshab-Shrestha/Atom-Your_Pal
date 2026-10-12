@@ -1,4 +1,4 @@
-import { TIERS, type DecisionEngine, type Tier, type TierChoice } from "@zeno/decision-engine";
+import { TIERS, type DecisionEngine, type Tier, type TierChoice } from "@atom/decision-engine";
 
 // ADR-083: which model a worker job runs on. Keshab's pin wins and skips the Decision Engine; otherwise the engine's
 // tier, raised to the role's floor and capped at medium when the large model is off, picks the newest offered model of

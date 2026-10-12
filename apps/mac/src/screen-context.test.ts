@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { AppRead, FrontApp } from "@zeno/tool-engine";
+import type { AppRead, FrontApp } from "@atom/tool-engine";
 import { createPendingContext, createWindowPointer } from "./screen-context.ts";
 
 test("pending context is taken once, then gone", () => {

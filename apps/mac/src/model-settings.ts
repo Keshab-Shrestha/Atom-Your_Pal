@@ -5,8 +5,8 @@
 
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import type { SwitchableModel } from "@zeno/llm-gateway";
-import { readEnv, LLM_PROVIDER_IDS, PROVIDERS, RETIRED_PROVIDERS, isLlmProvider, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
+import type { SwitchableModel } from "@atom/llm-gateway";
+import { readEnv, LLM_PROVIDER_IDS, PROVIDERS, RETIRED_PROVIDERS, isLlmProvider, type LlmChoice, type Logger, type ProviderKeys } from "@atom/shared";
 import type { InfoEvent } from "./island-protocol.ts";
 import type { AiToolItem } from "./ai-tools.ts";
 

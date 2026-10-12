@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { z, type ZodType } from "zod";
-import type { Message, ModelRequest, ModelResponse, ToolRunner, ToolSpec } from "@zeno/contracts";
-import { readEnv } from "@zeno/shared";
+import type { Message, ModelRequest, ModelResponse, ToolRunner, ToolSpec } from "@atom/contracts";
+import { readEnv } from "@atom/shared";
 import { emptyReplyReason, ProviderError, redactSecrets, type ErrorKind, type ProviderAdapter } from "../gateway.ts";
 
 /**

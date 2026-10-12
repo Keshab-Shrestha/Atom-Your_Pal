@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { TierChoice } from "@zeno/decision-engine";
+import type { TierChoice } from "@atom/decision-engine";
 import { HELPERS, chooseJobModel, modelForTier, resolveModel, tieredModels, type PlanModel } from "./index.ts";
 
 // The Claude plan's table (packages/shared PROVIDERS), newest first, plus an unknown model.

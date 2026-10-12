@@ -184,28 +184,28 @@ importers:
       '@playwright/mcp':
         specifier: 0.0.83
         version: 0.0.83
-      '@zeno/contracts':
+      '@atom/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      '@zeno/core':
+      '@atom/core':
         specifier: workspace:*
         version: link:../../services/core
-      '@zeno/decision-engine':
+      '@atom/decision-engine':
         specifier: workspace:*
         version: link:../../services/decision-engine
-      '@zeno/helpers':
+      '@atom/helpers':
         specifier: workspace:*
         version: link:../../services/helpers
-      '@zeno/llm-gateway':
+      '@atom/llm-gateway':
         specifier: workspace:*
         version: link:../../services/llm-gateway
-      '@zeno/memory':
+      '@atom/memory':
         specifier: workspace:*
         version: link:../../services/memory
-      '@zeno/shared':
+      '@atom/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@zeno/tool-engine':
+      '@atom/tool-engine':
         specifier: workspace:*
         version: link:../../services/tool-engine
       kokoro-js:
@@ -218,7 +218,7 @@ importers:
 
   services/core:
     dependencies:
-      '@zeno/contracts':
+      '@atom/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
 
@@ -227,13 +227,13 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: 1.31.0
         version: 1.31.0(zod@4.6.5)
-      '@zeno/shared':
+      '@atom/shared':
         specifier: workspace:*
         version: link:../../packages/shared
 
   services/helpers:
     dependencies:
-      '@zeno/decision-engine':
+      '@atom/decision-engine':
         specifier: workspace:*
         version: link:../decision-engine
 
@@ -242,10 +242,10 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.3.287
         version: 0.3.287(@anthropic-ai/sdk@0.129.0(zod@4.6.5))(@modelcontextprotocol/sdk@1.31.0(zod@4.6.5))(zod@4.6.5)
-      '@zeno/contracts':
+      '@atom/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      '@zeno/shared':
+      '@atom/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       zod:
@@ -254,13 +254,13 @@ importers:
 
   services/memory:
     dependencies:
-      '@zeno/contracts':
+      '@atom/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
 
   services/tool-engine:
     dependencies:
-      '@zeno/contracts':
+      '@atom/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
 

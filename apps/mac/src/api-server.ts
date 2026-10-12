@@ -8,8 +8,8 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { dirname, resolve } from "node:path";
-import { HelperError, type HelperStore, type Job, type JobState } from "@zeno/helpers";
-import type { Logger } from "@zeno/shared";
+import { HelperError, type HelperStore, type Job, type JobState } from "@atom/helpers";
+import type { Logger } from "@atom/shared";
 import { answerNeed, needsYou, type TelegramBotOptions } from "./telegram-bot.ts";
 
 export const DEFAULT_API_PORT = 4790;

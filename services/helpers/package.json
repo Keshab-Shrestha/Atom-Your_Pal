@@ -1,9 +1,9 @@
 {
-  "name": "@zeno/helpers",
+  "name": "@atom/helpers",
   "private": true,
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
-    "@zeno/decision-engine": "workspace:*"
+    "@atom/decision-engine": "workspace:*"
   }
 }

@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { readEnv, type Logger } from "@zeno/shared";
+import { readEnv, type Logger } from "@atom/shared";
 import { DEFAULT_TIER, DIFFICULTY_RUNGS, tierFromScore, type DecisionEngine, type TierChoice } from "./engine.ts";
 
 // ADR-083: Laya (local, MCP server over stdio) rates each job's difficulty in one forward pass. The server starts on

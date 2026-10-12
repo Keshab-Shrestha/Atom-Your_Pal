@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { ModelRequest, ModelResponse } from "@zeno/contracts";
+import type { ModelRequest, ModelResponse } from "@atom/contracts";
 import { GatewayError, ProviderError, createGateway, redactSecrets, type ProviderAdapter } from "./gateway.ts";
 
 const request: ModelRequest = {

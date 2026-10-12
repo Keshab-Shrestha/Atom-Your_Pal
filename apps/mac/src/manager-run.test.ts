@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ClaudeSdk } from "@zeno/llm-gateway";
-import { openHelperStore, type HelperStore, type Job } from "@zeno/helpers";
+import type { ClaudeSdk } from "@atom/llm-gateway";
+import { openHelperStore, type HelperStore, type Job } from "@atom/helpers";
 import { runManager } from "./manager-run.ts";
 
 // ADR-095: a "plan" Manager's runs with a fake Claude Code that answers in the asked shape, one answer per run.

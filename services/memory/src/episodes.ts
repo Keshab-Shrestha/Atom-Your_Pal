@@ -1,4 +1,4 @@
-import type { LanguageModel, Message } from "@zeno/contracts";
+import type { LanguageModel, Message } from "@atom/contracts";
 import type { Episode, MemoryStore } from "./store.ts";
 
 // ADR-059: a short summary of each conversation, made in the background after a reply, so the next conversation

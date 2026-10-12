@@ -2,8 +2,8 @@
 // reports. ATOM sends what needs him, finished goals and the results of schedules marked "Send result to Telegram".
 // Every button maps to a command the ATOM window already has. Logs command names, button kinds and counts only.
 
-import type { HelperStore, Job } from "@zeno/helpers";
-import type { Logger } from "@zeno/shared";
+import type { HelperStore, Job } from "@atom/helpers";
+import type { Logger } from "@atom/shared";
 import type { ApprovalAsk } from "./computer-bridge.ts";
 import { testsOf } from "./island-helpers.ts";
 import type { TaskSteering } from "./task-steering.ts";

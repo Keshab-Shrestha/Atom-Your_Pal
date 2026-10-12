@@ -1,4 +1,4 @@
-import type { ToolCall, ToolRunner } from "@zeno/contracts";
+import type { ToolCall, ToolRunner } from "@atom/contracts";
 
 /** A sentence claimed by a shortcut: its name (for the log) and the tool call it stands for. */
 export interface ShortcutMatch {

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openHelperStore } from "@zeno/helpers";
+import { openHelperStore } from "@atom/helpers";
 import { createHubCommands } from "./hub-commands.ts";
 import { HubError, type HubClient } from "./skill-hub.ts";
 

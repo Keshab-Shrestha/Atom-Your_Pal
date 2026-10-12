@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ClaudeSdk } from "@zeno/llm-gateway";
-import { openHelperStore, skillFile } from "@zeno/helpers";
+import type { ClaudeSdk } from "@atom/llm-gateway";
+import { openHelperStore, skillFile } from "@atom/helpers";
 import { runTinker } from "./tinker.ts";
 
 // ADR-094: Tinker's soul review, draft and edit runs, with a fake Claude Code that answers in the asked shape.

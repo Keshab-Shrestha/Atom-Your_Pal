@@ -9,7 +9,7 @@
 // 3. MIC   You speak for a few seconds; Whisper transcribes what the microphone heard.
 // Nothing is sent over the network and nothing is logged or saved.
 
-import { readEnv } from "@zeno/shared";
+import { readEnv } from "@atom/shared";
 import { startRecording, type AudioClip } from "./audio.ts";
 import { createWhisperStt } from "./stt.ts";
 import { createKokoroSynthesizer, createSpeaker } from "./tts.ts";

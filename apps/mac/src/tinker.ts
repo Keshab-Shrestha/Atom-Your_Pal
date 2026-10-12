@@ -2,8 +2,8 @@
 // change, a draft turns a task rated good into a skill, an edit improves one of ATOM's skills after a task that used it
 // went badly. Whatever Tinker writes waits for Keshab's OK in the store; nothing here changes a soul or a skill.
 
-import { runReview, runSkillDraft, runSkillEdit, type ClaudeSdk, type PlanUsage, type TokenUsage } from "@zeno/llm-gateway";
-import { reviewBrief, skillDraftBrief, skillEditBrief, type HelperStore, type Job, type ReportInput } from "@zeno/helpers";
+import { runReview, runSkillDraft, runSkillEdit, type ClaudeSdk, type PlanUsage, type TokenUsage } from "@atom/llm-gateway";
+import { reviewBrief, skillDraftBrief, skillEditBrief, type HelperStore, type Job, type ReportInput } from "@atom/helpers";
 
 export interface TinkerRun {
   store: HelperStore;

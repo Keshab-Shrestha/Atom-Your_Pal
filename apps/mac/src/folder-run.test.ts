@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openHelperStore } from "@zeno/helpers";
+import { openHelperStore } from "@atom/helpers";
 import { askForFolder, checkpointBefore, denyRead, folderCheck } from "./folder-run.ts";
 
 // Task 3.11: every tool call of a run in folders, checked in code; risky commands ask on Pal's card.

@@ -110,7 +110,7 @@ test("current_time formats in a given time zone and rejects a bad one", async ()
 
 // --- "What can I ask?" (ADR-076) ---
 
-/** Every tool the runtime can register (memory's tools are checked in @zeno/memory). Nothing here runs. */
+/** Every tool the runtime can register (memory's tools are checked in @atom/memory). Nothing here runs. */
 function everyTool(): Array<Tool<string | ToolOutput>> {
   const never = async () => { throw new Error("not run in this test"); };
   return [

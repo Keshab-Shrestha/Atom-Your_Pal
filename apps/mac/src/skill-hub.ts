@@ -1,8 +1,8 @@
 // B3.5, ADR-102: the only network code of the skills hub. It reads from a pinned list of public repos on two GitHub
 // hosts, with no account and no token. It fetches ONE file per skill (SKILL.md at a pinned commit), never a script, and
-// never runs anything. The text is checked, previewed and approved by the store (@zeno/helpers skill-hub).
+// never runs anything. The text is checked, previewed and approved by the store (@atom/helpers skill-hub).
 
-import { HUB_PATH, SKILL_DRAFT_NAME, parseSkillFile } from "@zeno/helpers";
+import { HUB_PATH, SKILL_DRAFT_NAME, parseSkillFile } from "@atom/helpers";
 
 /** Adding a source needs a code change. */
 export const HUB_SOURCES: readonly { repo: string }[] = [{ repo: "anthropics/skills" }];
