@@ -13,6 +13,10 @@ public enum IslandCommand: Sendable, Equatable {
     case talkStart, talkSend, talkCancel, conversationReset, quit
     /// Switch the AI model (ADR-040). Answered with `info`, or an `error` with stage `settings`.
     case modelSet(provider: String, model: String)
+    /// ADR-097: ask for the providers' model lists again (answered with `info`).
+    case modelRefresh
+    /// ADR-097: a chat's own model (`id` "" for the chat in use; provider and model "" for the default again).
+    case chatModel(id: String, provider: String, model: String)
     /// The user's answer to an `approval.request` (ADR-054).
     case approvalAnswer(id: String, approved: Bool)
     /// Memory (ADR-058): ask for the list (and its changes from then on), forget one, or forget everything.
@@ -29,13 +33,20 @@ public enum IslandCommand: Sendable, Equatable {
     /// give it a job, stop or forget a job.
     case helpersList
     /// ADR-091: whether ZENO says reports, and timers and updates, aloud.
-    case speechSet(reports: Bool, updates: Bool)
+    case speechSet(reports: Bool, updates: Bool, chime: Bool)
+    /// ADR-098: Settings' "Send to Telegram" switch.
+    case telegramSet(push: Bool)
+    /// ADR-098 item 5: Settings' "Local API" switch. The runtime answers with an `api` event.
+    case apiSet(on: Bool)
     /// ADR-093: look for the AI tools on this Mac again.
     case toolsScan
     /// ADR-091: Keshab's chats: list them, continue one, delete one.
     case chatsList
     case chatOpen(id: String)
     case chatDelete(id: String)
+    /// ADR-097: keep a chat in memory (summary, sections and exact lines), or remove it from memory.
+    case memoryKeepChat(id: String)
+    case memoryDropChat(id: String)
     /// ADR-091: ZENO's task branches; push one (Keshab confirmed); a branch's changes.
     case gitList
     case gitPush(repo: String, branch: String)
@@ -45,7 +56,14 @@ public enum IslandCommand: Sendable, Equatable {
     /// ADR-087: change what a queued task waits for; add a note to a task; ask for a task's thread.
     case jobBlock(id: Int, blockedBy: [Int])
     case commentAdd(id: Int, text: String)
+    /// ADR-098 item 3: a message to a running task (it reads it at its next step); interrupt its current step.
+    case jobSteer(id: Int, text: String)
+    case jobInterrupt(id: Int)
     case threadGet(id: Int)
+    /// ADR-098: one search over chats, tasks and reports (answered with `search.results`); a task's labels.
+    case search(query: String)
+    case jobLabelAdd(id: Int, label: String)
+    case jobLabelRemove(id: Int, label: String)
     case jobStop(id: Int)
     /// Task 3.6: forget a task's Claude session; an ended task runs again from the start.
     case jobFresh(id: Int)
@@ -53,11 +71,16 @@ public enum IslandCommand: Sendable, Equatable {
     case planApprove(id: Int)
     case planReject(id: Int)
     case helperPlanFirst(helper: String, on: Bool)
+    /// ADR-098: whether a worker's runs get the browser.
+    case helperBrowser(helper: String, on: Bool)
     /// Task 3.9: remove a routine.
     case routineDelete(id: Int)
     /// ADR-094: pause or resume a routine; post a task to the team (nil role: anyone) or take one back; a worker's
     /// wake-ups ("off", "15m", "1h", "4h", "1d") and pausing them.
     case routinePause(id: Int, paused: Bool)
+    /// ADR-097: Keshab's own schedule from the Scheduled page, new or changed.
+    case routineAdd(RoutineDraft)
+    case routineUpdate(id: Int, RoutineDraft)
     case teamAdd(task: String, role: String?)
     case teamDelete(id: Int)
     case helperWakeUp(helper: String, every: String)
@@ -78,6 +101,10 @@ public enum IslandCommand: Sendable, Equatable {
     case skillEditAccept(id: Int)
     case skillEditReject(id: Int)
     case skillEditUndo(id: Int)
+    /// ADR-098 item 8: save a done task as a test case, delete one, run a proposal's or skill edit's test cases again.
+    case testcaseSave(jobId: Int, kind: String, target: String)
+    case testcaseDelete(id: Int)
+    case testcaseRun(kind: String, id: Int)
     /// Task 3.14: open a task's report in its worker's app.
     case jobOpen(id: Int)
     /// ADR-090: run a failed or stopped task again.
@@ -107,6 +134,8 @@ public enum IslandCommand: Sendable, Equatable {
     case helpersPlanLimit(Int)
     /// ADR-095: "Runs at once", the team-wide limit (1 to 10).
     case helpersMaxRunning(Int)
+    /// ADR-098 item 7: "Use Codex when the Claude plan limit is reached" (default off).
+    case helpersCodexFallback(Bool)
     /// Task 3.3: save a worker's edited soul as a new version; make an older version current again.
     case soulSet(helper: String, soul: HelperSoul)
     case soulRestore(helper: String, version: Int)
@@ -120,6 +149,8 @@ public enum IslandCommand: Sendable, Equatable {
         case .conversationReset: "conversation.reset"
         case .quit: "quit"
         case .modelSet: "model.set"
+        case .modelRefresh: "model.refresh"
+        case .chatModel: "chat.model"
         case .approvalAnswer: "approval.answer"
         case .memoryList: "memory.list"
         case .memoryClear: "memory.clear"
@@ -130,10 +161,14 @@ public enum IslandCommand: Sendable, Equatable {
         case .contextWindow: "context.window"
         case .helpersList: "helpers.list"
         case .speechSet: "speech.set"
+        case .telegramSet: "telegram.set"
+        case .apiSet: "api.set"
         case .toolsScan: "tools.scan"
         case .chatsList: "chats.list"
         case .chatOpen: "chat.open"
         case .chatDelete: "chat.delete"
+        case .memoryKeepChat: "memory.keepChat"
+        case .memoryDropChat: "memory.dropChat"
         case .gitList: "git.list"
         case .gitPush: "git.push"
         case .gitDiff: "git.diff"
@@ -141,14 +176,22 @@ public enum IslandCommand: Sendable, Equatable {
         case .jobAdd: "job.add"
         case .jobBlock: "job.block"
         case .commentAdd: "comment.add"
+        case .jobSteer: "job.steer"
+        case .jobInterrupt: "job.interrupt"
         case .threadGet: "thread.get"
+        case .search: "search"
+        case .jobLabelAdd: "job.label.add"
+        case .jobLabelRemove: "job.label.remove"
         case .jobStop: "job.stop"
         case .jobFresh: "job.fresh"
         case .planApprove: "plan.approve"
         case .planReject: "plan.reject"
         case .helperPlanFirst: "helper.planFirst"
+        case .helperBrowser: "helper.browser"
         case .routineDelete: "routine.delete"
         case .routinePause: "routine.pause"
+        case .routineAdd: "routine.add"
+        case .routineUpdate: "routine.update"
         case .teamAdd: "team.add"
         case .teamDelete: "team.delete"
         case .helperWakeUp: "helper.wakeUp"
@@ -165,6 +208,9 @@ public enum IslandCommand: Sendable, Equatable {
         case .skillEditAccept: "skill.edit.accept"
         case .skillEditReject: "skill.edit.reject"
         case .skillEditUndo: "skill.edit.undo"
+        case .testcaseSave: "testcase.save"
+        case .testcaseDelete: "testcase.delete"
+        case .testcaseRun: "testcase.run"
         case .jobOpen: "job.open"
         case .jobRetry: "job.retry"
         case .mcpAdd: "mcp.add"
@@ -181,7 +227,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .grantRemove: "grant.remove"
         case .jobDelete: "job.delete"
         case .helperPin: "helper.pin"
-        case .helpersSettings, .helpersPlanLimit, .helpersMaxRunning: "helpers.settings"
+        case .helpersSettings, .helpersPlanLimit, .helpersMaxRunning, .helpersCodexFallback: "helpers.settings"
         case .helperBudget: "helper.budget"
         case .soulSet: "soul.set"
         case .soulRestore: "soul.restore"
@@ -223,9 +269,14 @@ public enum IslandCommand: Sendable, Equatable {
         case .jobBlock(let id, let blockedBy):
             fields["id"] = id
             fields["blockedBy"] = blockedBy
-        case .commentAdd(let id, let text):
+        case .commentAdd(let id, let text), .jobSteer(let id, let text):
             fields["id"] = id
             fields["text"] = text
+        case .search(let query):
+            fields["query"] = String(query.prefix(200))
+        case .jobLabelAdd(let id, let label), .jobLabelRemove(let id, let label):
+            fields["id"] = id
+            fields["label"] = label
         case .jobRate(let id, let good, let comment):
             fields["id"] = id
             fields["good"] = good // a real JSON boolean
@@ -249,14 +300,23 @@ public enum IslandCommand: Sendable, Equatable {
                 fields["transport"] = d.transport
                 fields["headers"] = Self.lines(d.headers)
             }
-        case .chatOpen(let id), .chatDelete(let id):
+        case .chatModel(let id, let provider, let model):
+            fields["id"] = id
+            fields["provider"] = provider
+            fields["model"] = model
+        case .chatOpen(let id), .chatDelete(let id), .memoryKeepChat(let id), .memoryDropChat(let id):
             fields["id"] = id
         case .gitPush(let repo, let branch), .gitDiff(let repo, let branch):
             fields["repo"] = repo
             fields["branch"] = branch
-        case .speechSet(let reports, let updates):
+        case .telegramSet(let push):
+            fields["push"] = push
+        case .apiSet(let on):
+            fields["on"] = on
+        case .speechSet(let reports, let updates, let chime):
             fields["reports"] = reports
             fields["updates"] = updates
+            fields["chime"] = chime
         case .mcpSet(let id, let enabled, let trusted, let workers):
             fields["id"] = id
             if let enabled { fields["enabled"] = enabled }
@@ -282,17 +342,31 @@ public enum IslandCommand: Sendable, Equatable {
         case .helperSkills(let helper, let skills):
             fields["helper"] = helper
             fields["skills"] = skills
+        case .testcaseSave(let jobId, let kind, let target):
+            fields["jobId"] = jobId
+            fields["kind"] = kind
+            fields["target"] = target
+        case .testcaseDelete(let id):
+            fields["id"] = id
+        case .testcaseRun(let kind, let id):
+            fields["proposalKind"] = kind
+            fields["id"] = id
         case .grantAdd(let helper, let path), .grantRemove(let helper, let path):
             fields["helper"] = helper
             fields["path"] = path
-        case .helperPlanFirst(let helper, let on):
+        case .helperPlanFirst(let helper, let on), .helperBrowser(let helper, let on):
             fields["helper"] = helper
             fields["on"] = on // a real JSON boolean
-        case .jobStop(let id), .jobFresh(let id), .planApprove(let id), .planReject(let id), .routineDelete(let id), .jobDelete(let id), .threadGet(let id), .teamDelete(let id):
+        case .jobStop(let id), .jobInterrupt(let id), .jobFresh(let id), .planApprove(let id), .planReject(let id), .routineDelete(let id), .jobDelete(let id), .threadGet(let id), .teamDelete(let id):
             fields["id"] = id // a JSON number
         case .routinePause(let id, let paused):
             fields["id"] = id
             fields["paused"] = paused // a real JSON boolean
+        case .routineAdd(let draft):
+            Self.routineFields(draft, into: &fields)
+        case .routineUpdate(let id, let draft):
+            fields["id"] = id
+            Self.routineFields(draft, into: &fields)
         case .teamAdd(let task, let role):
             fields["task"] = task
             if let role, !role.isEmpty { fields["role"] = role }
@@ -314,6 +388,8 @@ public enum IslandCommand: Sendable, Equatable {
             fields["planLimit"] = percent
         case .helpersMaxRunning(let count):
             fields["maxRunning"] = count
+        case .helpersCodexFallback(let on):
+            fields["codexFallback"] = on // a real JSON boolean
         case .soulSet(let helper, let soul):
             fields["helper"] = helper
             fields["soul"] = ["name": soul.name, "personality": soul.personality, "howItWorks": soul.howItWorks,
@@ -329,6 +405,25 @@ public enum IslandCommand: Sendable, Equatable {
               let json = String(data: data, encoding: .utf8)
         else { preconditionFailure("command \(type) could not be encoded") }
         return json + "\n"
+    }
+
+    /// ADR-097: a schedule's fields: only the numbers its kind uses, and an hourly one's first time.
+    private static func routineFields(_ draft: RoutineDraft, into fields: inout [String: Any]) {
+        fields["helper"] = draft.helper
+        fields["task"] = draft.task
+        fields["kind"] = draft.schedule.kind.rawValue
+        switch draft.schedule.kind {
+        case .daily:
+            fields["minute"] = draft.schedule.minute
+        case .weekly:
+            fields["minute"] = draft.schedule.minute
+            fields["weekday"] = draft.schedule.weekday
+        case .hours:
+            fields["every"] = draft.schedule.every
+            fields["startAt"] = ISO8601DateFormatter().string(from: draft.startAt)
+        }
+        fields["notifyTelegram"] = draft.notifyTelegram // ADR-098
+        fields["webhook"] = draft.webhook // ADR-098 item 5
     }
 }
 
@@ -373,6 +468,16 @@ public struct ModelInfo: Sendable, Equatable {
     }
 
     public var currentProvider: ProviderOption? { providers.first { $0.id == provider } }
+
+    /// ADR-097: a model id typed as "Custom model…": 1 to 100 letters, digits, ".", "_", ":" or "-" (as the runtime checks).
+    public static func isValidModelId(_ id: String) -> Bool {
+        id.count <= 100 && id.range(of: "^[A-Za-z0-9._:-]+$", options: .regularExpression) != nil
+    }
+
+    /// ADR-097: a model's name from its provider's list, else the id itself.
+    public func modelName(provider: String, model: String) -> String {
+        providers.first { $0.id == provider }?.models.first { $0.id == model }?.name ?? model
+    }
 
     /// The model's name from the list, else one derived from its id.
     public var currentModelName: String {
@@ -421,12 +526,37 @@ public struct MemoryList: Sendable, Equatable {
     public var memories: [MemoryItem]
     /// Notes from recent conversations, newest first. Empty from an older runtime.
     public var episodes: [EpisodeItem]
+    /// ADR-097: recent chats (newest first), then kept chats no longer in the chat list. Empty from an older runtime.
+    public var chats: [MemoryChatItem]
 
-    public init(enabled: Bool, count: Int, memories: [MemoryItem], episodes: [EpisodeItem] = []) {
+    public init(enabled: Bool, count: Int, memories: [MemoryItem], episodes: [EpisodeItem] = [], chats: [MemoryChatItem] = []) {
         self.enabled = enabled
         self.count = count
         self.memories = memories
         self.episodes = episodes
+        self.chats = chats
+    }
+}
+
+/// ADR-097: a recent or kept chat on the Memory page. Never written to a log.
+public struct MemoryChatItem: Sendable, Equatable, Identifiable {
+    public var id: String
+    public var title: String
+    public var updatedAt: Date?
+    public var messages: Int
+    public var kept: Bool
+    /// True while ZENO writes the chat's summary and index.
+    public var indexing: Bool
+    public var keptAt: Date?
+
+    public init(id: String, title: String, updatedAt: Date?, messages: Int, kept: Bool, indexing: Bool = false, keptAt: Date? = nil) {
+        self.id = id
+        self.title = title
+        self.updatedAt = updatedAt
+        self.messages = messages
+        self.kept = kept
+        self.indexing = indexing
+        self.keptAt = keptAt
     }
 }
 
@@ -488,6 +618,23 @@ public struct ReadyInfo: Sendable, Equatable {
     public var microphone: String
     /// False if the voice failed to load; replies still arrive as text.
     public var voice: Bool
+    /// ADR-098: ZENO's Telegram bot is set up in .env (false from an older runtime).
+    public var telegram: Bool = false
+}
+
+/// ADR-098 item 5: the local API's state. `tokenFile` is a path; the island reads the file only for "Copy token".
+public struct ApiStatus: Sendable, Equatable {
+    public var on: Bool
+    public var port: Int
+    public var tokenFile: String
+    public var error: String?
+
+    public init(on: Bool, port: Int, tokenFile: String, error: String? = nil) {
+        self.on = on
+        self.port = port
+        self.tokenFile = tokenFile
+        self.error = error
+    }
 }
 
 public struct TurnTimings: Sendable, Equatable {
@@ -567,6 +714,10 @@ public enum IslandEvent: Sendable, Equatable {
     case git([GitBranch])
     case gitDiff(GitDiff)
     case thread(HelperThread)
+    /// ADR-098: the answer to `search`.
+    case searchResults(SearchResults)
+    /// ADR-098 item 5: the local API's state, after `api.set`.
+    case api(ApiStatus)
     case error(RuntimeError)
     /// A newer runtime sent an event this island does not know; ignored for forward compatibility.
     case unknown(type: String)
@@ -603,6 +754,8 @@ public enum IslandEvent: Sendable, Equatable {
         case .gitDiff: "git.diff"
         case .chatOpened: "chat.opened"
         case .thread: "thread"
+        case .searchResults: "search.results"
+        case .api: "api"
         case .error(let e): "error:\(e.stage)"
         case .unknown(let type): "unknown:\(type)"
         }
@@ -641,7 +794,10 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
             provider: try f.string("provider"),
             model: try f.string("model"),
             microphone: try f.string("microphone"),
-            voice: try f.bool("voice")))
+            voice: try f.bool("voice"),
+            telegram: f.optionalBool("telegram") ?? false))
+    case "api":
+        return .api(ApiStatus(on: try f.bool("on"), port: try f.int("port"), tokenFile: f.optionalString("tokenFile") ?? "", error: f.optionalString("error")))
     case "state":
         let raw = try f.string("state")
         guard let state = LoopState(rawValue: raw) else { throw ProtocolError.invalidValue(event: type, field: "state") }
@@ -690,7 +846,7 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
     case "context.ready":
         return .contextReady(app: try f.string("app"), ok: try f.bool("ok"), message: f.optionalString("message"))
     case "memory":
-        return .memory(MemoryList(enabled: try f.bool("enabled"), count: try f.int("count"), memories: try f.memories(), episodes: try f.episodes()))
+        return .memory(MemoryList(enabled: try f.bool("enabled"), count: try f.int("count"), memories: try f.memories(), episodes: try f.episodes(), chats: try f.memoryChats()))
     case "capabilities":
         return .capabilities(try f.capabilities())
     case "plan.usage":
@@ -705,7 +861,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
     case "git.diff":
         return .gitDiff(GitDiff(repo: try f.string("repo"), branch: try f.string("branch"), text: try f.string("text"), truncated: f.optionalBool("truncated") ?? false))
     case "chats":
-        return .chats(ChatList(chats: Fields.chats(f.values["chats"]), current: f.optionalString("current") ?? ""))
+        return .chats(ChatList(chats: Fields.chats(f.values["chats"]), current: f.optionalString("current") ?? "",
+                               currentProvider: f.optionalString("currentProvider"), currentModel: f.optionalString("currentModel")))
     case "chat.opened":
         return .chatOpened(id: try f.string("id"), lines: Fields.chatLines(f.values["messages"]))
     case "helpers":
@@ -724,9 +881,15 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
                                     skillEdits: Fields.skillEdits(f.values["skillEdits"]),
                                     agentProblems: Fields.agentProblems(f.values["agentProblems"]),
                                     teamTasks: Fields.teamTasks(f.values["teamTasks"]),
-                                    managers: f.managers()))
+                                    managers: f.managers(),
+                                    codexFallback: f.optionalBool("codexFallback") ?? false,
+                                    codexReady: f.optionalBool("codexReady") ?? false,
+                                    testCases: Fields.testCases(f.values["testCases"])))
     case "thread":
         return .thread(try f.thread())
+    case "search.results":
+        return .searchResults(SearchResults(query: f.optionalString("query") ?? "", chats: Fields.searchHits(f.values["chats"]),
+                                            tasks: Fields.searchHits(f.values["tasks"]), reports: Fields.searchHits(f.values["reports"])))
     case "error":
         return .error(RuntimeError(
             stage: try f.string("stage"),
@@ -812,6 +975,30 @@ private struct Fields {
         }
     }
 
+    /// ADR-097: the optional `chats` list of a `memory` event (absent from older runtimes).
+    func memoryChats() throws -> [MemoryChatItem] {
+        guard let value = values["chats"] else { return [] }
+        let invalid = ProtocolError.invalidValue(event: event, field: "chats")
+        guard let entries = value as? [Any] else { throw invalid }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return try entries.map { entry in
+            guard let c = entry as? [String: Any],
+                  let id = c["id"] as? String,
+                  let title = c["title"] as? String
+            else { throw invalid }
+            return MemoryChatItem(
+                id: id,
+                title: title,
+                updatedAt: (c["updatedAt"] as? String).flatMap { iso.date(from: $0) },
+                messages: (c["messages"] as? NSNumber)?.intValue ?? 0,
+                kept: (c["kept"] as? Bool) ?? false,
+                indexing: (c["indexing"] as? Bool) ?? false,
+                keptAt: (c["keptAt"] as? String).flatMap { iso.date(from: $0) }
+            )
+        }
+    }
+
     /// The optional `episodes` list of a `memory` event (absent from older runtimes).
     func episodes() throws -> [EpisodeItem] {
         guard let value = values["episodes"] else { return [] }
@@ -893,7 +1080,7 @@ private struct Fields {
                grants: (h["grants"] as? [Any])?.compactMap { $0 as? String } ?? [],
                skills: (h["skills"] as? [Any])?.compactMap { $0 as? String } ?? [],
                proposals: Self.proposals(h["proposals"]), kit: h["kit"] as? String, custom: Self.flag(h["custom"]),
-               wakeUp: Self.wakeUp(h["wakeUp"]), manager: h["manager"] as? String)
+               wakeUp: Self.wakeUp(h["wakeUp"]), manager: h["manager"] as? String, browser: Self.flag(h["browser"]))
         }
     }
 
@@ -929,9 +1116,21 @@ private struct Fields {
                          comments: (j["comments"] as? NSNumber)?.intValue ?? 0, goal: j["goal"] as? String,
                          parentId: (j["parentId"] as? NSNumber)?.intValue, goalId: (j["goalId"] as? NSNumber)?.intValue,
                          goalEnded: Self.flag(j["goalEnded"]), resumable: Self.flag(j["resumable"]), held: j["held"] as? String,
+                         interrupted: Self.flag(j["interrupted"]),
                          planFirst: Self.flag(j["planFirst"]), planStatus: j["planStatus"] as? String, planSummary: j["planSummary"] as? String,
                          rating: j["rating"] as? String, reviews: (j["reviews"] as? NSNumber)?.intValue,
-                         autoRetries: (j["autoRetries"] as? NSNumber)?.intValue ?? 0, subAgents: Self.subAgents(j["subAgents"]))
+                         autoRetries: (j["autoRetries"] as? NSNumber)?.intValue ?? 0, subAgents: Self.subAgents(j["subAgents"]),
+                         labels: (j["labels"] as? [Any] ?? []).compactMap { $0 as? String })
+    }
+
+    /// ADR-098: search results of one kind; a malformed one is left out. Chat ids are strings, task ids numbers.
+    static func searchHits(_ value: Any?) -> [SearchHit] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let h = entry as? [String: Any], let title = h["title"] as? String else { return nil }
+            let id: String
+            if let s = h["id"] as? String { id = s } else if let n = h["id"] as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() { id = String(n.intValue) } else { return nil }
+            return SearchHit(id: id, title: title, snippet: h["snippet"] as? String ?? "", at: (h["at"] as? String).flatMap(Self.date))
+        }
     }
 
     /// ADR-095: a task's sub-agents; a malformed one is left out, anything else reads as none.
@@ -958,7 +1157,8 @@ private struct Fields {
             today: today, week: week,
             days: list("days").compactMap { d in (d as? [String: Any]).flatMap { m in totals(m).flatMap { t in (m["day"] as? String).map { DayTokens(day: $0, totals: t) } } } },
             byWorker: list("byWorker").compactMap { w in (w as? [String: Any]).flatMap { m in totals(m).map { WorkerTokens(helper: m["helper"] as? String, name: m["name"] as? String ?? "", totals: $0) } } },
-            byModel: list("byModel").compactMap { x in (x as? [String: Any]).flatMap { m in totals(m).flatMap { t in (m["model"] as? String).map { ModelTokens(model: $0, totals: t) } } } })
+            byModel: list("byModel").compactMap { x in (x as? [String: Any]).flatMap { m in totals(m).flatMap { t in (m["model"] as? String).map { ModelTokens(model: $0, totals: t) } } } },
+            chatCacheCold: u["chatCacheCold"] as? Bool ?? false)
     }
 
     private static func totals(_ value: Any?) -> TokenTotals? {
@@ -1012,7 +1212,7 @@ private struct Fields {
         (value as? [Any] ?? []).compactMap { entry in
             guard let e = entry as? [String: Any], let id = e["id"] as? NSNumber, let skill = e["skill"] as? String, let state = e["state"] as? String else { return nil }
             return SkillEditItem(id: id.intValue, skill: skill, jobId: (e["jobId"] as? NSNumber)?.intValue ?? 0, reason: e["reason"] as? String ?? "",
-                                 before: e["before"] as? String ?? "", after: e["after"] as? String ?? "", state: state)
+                                 before: e["before"] as? String ?? "", after: e["after"] as? String ?? "", state: state, tests: Self.tests(e["tests"]))
         }
     }
 
@@ -1021,8 +1221,20 @@ private struct Fields {
         (value as? [Any] ?? []).compactMap { entry in
             guard let p = entry as? [String: Any], let id = p["id"] as? NSNumber, let field = p["field"] as? String, let text = p["text"] as? String,
                   let reason = p["reason"] as? String, let state = p["state"] as? String else { return nil }
-            return SoulProposal(id: id.intValue, field: field, text: text, reason: reason, jobId: (p["jobId"] as? NSNumber)?.intValue ?? 0, state: state)
+            return SoulProposal(id: id.intValue, field: field, text: text, reason: reason, jobId: (p["jobId"] as? NSNumber)?.intValue ?? 0, state: state,
+                                tests: Self.tests(p["tests"]))
         }
+    }
+
+    /// ADR-097: a routine's schedule as numbers; nil when absent or malformed.
+    static func routineSchedule(_ value: Any?) -> RoutineSchedule? {
+        guard let s = value as? [String: Any], let kind = (s["kind"] as? String).flatMap(RoutineSchedule.Kind.init(rawValue:)) else { return nil }
+        let number = { (key: String) in (s[key] as? NSNumber)?.intValue }
+        var schedule = RoutineSchedule(kind: kind)
+        if let minute = number("minute") { schedule.minute = minute }
+        if let weekday = number("weekday") { schedule.weekday = weekday }
+        if let every = number("every") { schedule.every = every }
+        return schedule
     }
 
     /// Task 3.9: a helper's routines; a malformed entry is left out.
@@ -1031,7 +1243,8 @@ private struct Fields {
             guard let r = entry as? [String: Any], let id = r["id"] as? NSNumber, let task = r["task"] as? String, let when = r["when"] as? String
             else { return nil }
             return HelperRoutine(id: id.intValue, task: task, when: when, lastAt: (r["lastAt"] as? String).flatMap(Self.date),
-                                 lastSkipped: flag(r["lastSkipped"]), paused: flag(r["paused"]), nextAt: (r["nextAt"] as? String).flatMap(Self.date))
+                                 lastSkipped: flag(r["lastSkipped"]), paused: flag(r["paused"]), nextAt: (r["nextAt"] as? String).flatMap(Self.date),
+                                 schedule: routineSchedule(r["schedule"]), notifyTelegram: flag(r["notifyTelegram"]), webhook: flag(r["webhook"]))
         }
     }
 
@@ -1090,12 +1303,13 @@ private struct Fields {
         }
         return HelperThread(id: try int("id"), comments: try comments.map { entry in
             guard let c = entry as? [String: Any], let id = c["id"] as? NSNumber, let text = c["text"] as? String else { throw invalid("comments") }
-            return TaskComment(id: id.intValue, text: text, createdAt: (c["createdAt"] as? String).flatMap(Self.date))
+            return TaskComment(id: id.intValue, text: text, createdAt: (c["createdAt"] as? String).flatMap(Self.date),
+                               delivery: c["delivery"] as? String)
         }, activity: try activity.map { entry in
             guard let a = entry as? [String: Any], let kind = a["kind"] as? String else { throw invalid("activity") }
             return TaskActivity(kind: kind, at: (a["at"] as? String).flatMap(Self.date))
         }, report: try report(values["report"], id: try int("id"), field: "report"), goal: goal, plan: plan,
-           handOffs: Self.ids(values["handOffs"]))
+           handOffs: Self.ids(values["handOffs"]), testSkills: values["testSkills"] as? [String] ?? [])
     }
 
     /// The optional `models` of a `helpers` event (ADR-083; absent from older runtimes). Strict like the helpers list:
@@ -1215,5 +1429,27 @@ public struct AiTool: Sendable, Equatable, Identifiable {
         self.signedIn = signedIn
         self.provider = provider
         self.note = note
+    }
+}
+
+// ADR-098 item 8: test cases and test runs; absent (an older runtime) is empty or nil. A malformed entry is left out.
+extension Fields {
+    static func testCases(_ value: Any?) -> [TestCaseItem] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let c = entry as? [String: Any], let id = c["id"] as? NSNumber, let kind = c["kind"] as? String, let target = c["target"] as? String else { return nil }
+            return TestCaseItem(id: id.intValue, kind: kind, target: target, jobId: (c["jobId"] as? NSNumber)?.intValue ?? 0, task: c["task"] as? String ?? "")
+        }
+    }
+
+    static func tests(_ value: Any?) -> TestRunSummary? {
+        guard let t = value as? [String: Any] else { return nil }
+        let count = { (key: String) in (t[key] as? NSNumber)?.intValue ?? 0 }
+        let results: [TestCaseResult] = (t["results"] as? [Any] ?? []).compactMap { entry in
+            guard let r = entry as? [String: Any], let caseId = r["caseId"] as? NSNumber, let state = r["state"] as? String else { return nil }
+            return TestCaseResult(caseId: caseId.intValue, task: r["task"] as? String ?? "", state: state, better: r["better"] as? String, reason: r["reason"] as? String,
+                                  oldAnswer: r["oldAnswer"] as? String, newAnswer: r["newAnswer"] as? String)
+        }
+        return TestRunSummary(better: count("better"), same: count("same"), worse: count("worse"), notRun: count("notRun"), failed: count("failed"),
+                              running: count("running"), results: results)
     }
 }

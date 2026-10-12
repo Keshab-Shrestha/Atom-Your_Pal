@@ -77,15 +77,29 @@ export function writeSavedChoice(path: string, choice: LlmChoice): void {
   renameSync(temporary, path);
 }
 
+/** ADR-097: a model id Keshab types ("Custom model…"): 1 to 100 letters, digits, ".", "_", ":" or "-". */
+export const CUSTOM_MODEL_PATTERN = /^[A-Za-z0-9._:-]{1,100}$/;
+
+export function isValidModelId(id: string): boolean {
+  return CUSTOM_MODEL_PATTERN.test(id);
+}
+
 /**
- * The models offered for a provider: the table in PROVIDERS, plus the model configured at startup
- * (from .env or config/island.json) when it is not in the table, so it can always be chosen again.
+ * The models offered for a provider: its live list (ADR-097: the Claude plan's, from the Agent SDK) or else the table
+ * in PROVIDERS, plus the model configured at startup (from .env or config/island.json) and any other choice in use
+ * (`extra`, such as a custom model id) when they are not in the list, so they can always be chosen again.
  */
-export function offeredModels(provider: string, configured: LlmChoice): { id: string; name: string }[] {
+export function offeredModels(
+  provider: string,
+  configured: LlmChoice,
+  live?: readonly { id: string; name: string }[],
+  extra: readonly LlmChoice[] = [],
+): { id: string; name: string }[] {
   if (!isLlmProvider(provider)) return [];
-  const models: { id: string; name: string }[] = PROVIDERS[provider].models.map(({ id, name }) => ({ id, name }));
-  if (configured.provider === provider && !models.some((m) => m.id === configured.model)) {
-    models.push({ id: configured.model, name: configured.model });
+  const base = live?.length ? live : PROVIDERS[provider].models;
+  const models: { id: string; name: string }[] = base.map(({ id, name }) => ({ id, name }));
+  for (const choice of [configured, ...extra]) {
+    if (choice.provider === provider && !models.some((m) => m.id === choice.model)) models.push({ id: choice.model, name: choice.model });
   }
   return models;
 }
@@ -98,6 +112,10 @@ export interface ModelSettings {
   info(): Omit<InfoEvent, "type">;
   /** Validates and applies a choice. On an error nothing changes. */
   setModel(provider: string, model: string): SetModelResult;
+  /** ADR-097: validates a choice without applying it (a chat's own model): an offered model or a valid custom id. */
+  check(provider: string, model: string): { choice: LlmChoice } | { error: string };
+  /** ADR-097: asks the Claude plan for its models again; on a failure the last list (or the table) stays. */
+  refreshModels?(): Promise<void>;
   /** ADR-093: looks for the AI tools on this Mac again; `info()` then lists them. */
   scanTools?(): Promise<void>;
 }
@@ -116,12 +134,30 @@ export interface ModelSettingsOptions {
   log?: Pick<Logger, "info" | "warn">;
   /** ADR-093: finds the AI tools on this Mac (found, signed in). */
   scan?(): Promise<AiToolItem[]>;
+  /** ADR-097: the Claude plan's models, live (Agent SDK `supportedModels()`), given the `claude` program's path. */
+  listPlanModels?(claudePath: string): Promise<{ id: string; name: string }[]>;
 }
 
 export function createModelSettings(options: ModelSettingsOptions): ModelSettings {
   const { initial, keys, model, log } = options;
   let current: LlmChoice = { ...initial };
   let tools: AiToolItem[] = [];
+  /** ADR-097: the last live model list per provider; absent means the table in PROVIDERS. */
+  const live: Partial<Record<keyof typeof PROVIDERS, { id: string; name: string }[]>> = {};
+  const offered = (id: string) => offeredModels(id, initial, isLlmProvider(id) ? live[id] : undefined, [current]);
+
+  function check(provider: string, modelId: string): { choice: LlmChoice } | { error: string } {
+    if (!isLlmProvider(provider)) {
+      const names = LLM_PROVIDER_IDS.map((id) => PROVIDERS[id].name).join(" or ");
+      return { error: `Unknown AI provider "${shorten(provider)}". Choose ${names}.` };
+    }
+    const { name } = PROVIDERS[provider];
+    if (!keys[provider]) return { error: `${SIGN_IN[provider].todo} to use ${name}, then restart ZENO.` };
+    if (!offered(provider).some((m) => m.id === modelId) && !isValidModelId(modelId)) {
+      return { error: `"${shorten(modelId)}" is not a model id: use 1 to 100 letters, digits, ".", "_", ":" or "-".` };
+    }
+    return { choice: { provider, model: modelId } };
+  }
   /** A provider can be chosen when its program is here and is not known to be signed out. */
   const usable = (id: keyof typeof PROVIDERS) => Boolean(keys[id]) && tools.find((t) => t.provider === id)?.signedIn !== false;
 
@@ -136,7 +172,7 @@ export function createModelSettings(options: ModelSettingsOptions): ModelSetting
           id,
           name: PROVIDERS[id].name,
           available: usable(id),
-          models: offeredModels(id, initial),
+          models: offered(id),
         })),
         tools,
       };
@@ -148,22 +184,27 @@ export function createModelSettings(options: ModelSettingsOptions): ModelSetting
       log?.info("tools.scan", { found: tools.filter((t) => t.found).map((t) => t.id).join(",") });
     },
 
-    setModel(provider, modelId) {
-      if (!isLlmProvider(provider)) {
-        const names = LLM_PROVIDER_IDS.map((id) => PROVIDERS[id].name).join(" or ");
-        return { error: `Unknown AI provider "${shorten(provider)}". Choose ${names}.` };
-      }
-      const { name } = PROVIDERS[provider];
-      const apiKey = keys[provider];
-      if (!apiKey) return { error: `${SIGN_IN[provider].todo} to use ${name}, then restart ZENO.` };
-      if (!offeredModels(provider, initial).some((m) => m.id === modelId)) {
-        return { error: `"${shorten(modelId)}" is not a ${name} model ZENO offers. Choose one from the list.` };
-      }
+    check,
 
-      const choice: LlmChoice = { provider, model: modelId };
-      model.replace(options.createModel(choice, apiKey));
+    async refreshModels() {
+      const claudePath = keys["claude-plan"];
+      if (!options.listPlanModels || !claudePath) return;
+      try {
+        const found = await options.listPlanModels(claudePath);
+        if (found.length) live["claude-plan"] = found;
+        log?.info("models.refresh", { provider: "claude-plan", count: found.length });
+      } catch (error) {
+        log?.warn("models.refresh_failed", { provider: "claude-plan", message: error instanceof Error ? error.message : String(error) });
+      }
+    },
+
+    setModel(provider, modelId) {
+      const checked = check(provider, modelId);
+      if ("error" in checked) return checked;
+      const { choice } = checked;
+      model.replace(options.createModel(choice, keys[choice.provider]!));
       current = choice;
-      log?.info("model.set", { provider, model: modelId });
+      log?.info("model.set", { provider: choice.provider, model: modelId });
 
       // The switch has happened either way; failing to save only loses the choice at the next start.
       try {

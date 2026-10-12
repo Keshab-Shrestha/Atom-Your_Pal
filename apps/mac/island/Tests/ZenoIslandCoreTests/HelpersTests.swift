@@ -346,7 +346,7 @@ struct HelperSoulTests {
         #expect(state.rename("  Ace ") == .soulSet(helper: "sid", soul: expected.trimmed))
         var again = try loaded()
         #expect(again.rename(String(repeating: "a", count: 21)) == nil && again.problem?.hasPrefix("The name is too long") == true)
-        #expect(IslandCommand.speechSet(reports: false, updates: true).line == #"{"reports":false,"type":"speech.set","updates":true}"# + "\n")
+        #expect(IslandCommand.speechSet(reports: false, updates: true, chime: true).line == #"{"chime":true,"reports":false,"type":"speech.set","updates":true}"# + "\n")
     }
 
     @Test func saveSendsTheTrimmedSoulOnlyWhenChangedAndValid() throws {

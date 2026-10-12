@@ -51,8 +51,8 @@ export function modelForTier(models: readonly PlanModel[], tier: Tier): string |
 }
 
 /** The engine's choice after the role's floor and the large-model switch. Pure. */
-export function resolveModel(input: { role: string; choice: TierChoice; allowLarge: boolean; models: readonly PlanModel[] }): ModelPick {
-  const { role, choice, allowLarge, models } = input;
+export function resolveModel(input: { role: string; choice: TierChoice; allowLarge: boolean; models: readonly PlanModel[]; cap?: Tier }): ModelPick {
+  const { role, choice, allowLarge, models, cap } = input;
   let tier = choice.tier;
   let reason = choice.source === "laya" ? `Laya: ${choice.label ?? tier}` : "Laya unavailable";
   const floor = ROLE_FLOORS[role];
@@ -63,6 +63,11 @@ export function resolveModel(input: { role: string; choice: TierChoice; allowLar
   if (!allowLarge && tier === "large") {
     tier = "medium";
     reason = "Large model off";
+  }
+  // ADR-098 item 9: Managers and Tinker plan and review without tools, so Sonnet is enough unless Keshab pins a model.
+  if (cap && rank(tier) > rank(cap)) {
+    tier = cap;
+    reason = "Role maximum";
   }
   const model = modelForTier(models, tier);
   return { ...(model ? { model } : {}), tier, ...(choice.score !== undefined ? { score: choice.score } : {}), source: choice.source, reason };
@@ -76,9 +81,11 @@ export async function chooseJobModel(input: {
   pinnedModel: string | null | undefined;
   allowLarge: boolean;
   models: readonly PlanModel[];
+  /** ADR-098 item 9: the highest tier without a pin (Managers and Tinker: medium). */
+  cap?: Tier;
 }): Promise<ModelPick> {
-  const { engine, task, role, pinnedModel, allowLarge, models } = input;
+  const { engine, task, role, pinnedModel, allowLarge, models, cap } = input;
   const pinned = pinnedModel ? models.find((m) => m.id === pinnedModel) : undefined;
   if (pinned) return { model: pinned.id, tier: pinned.tier, source: "pinned", reason: "Pinned" };
-  return resolveModel({ role, choice: await engine.chooseTier(task, role), allowLarge, models });
+  return resolveModel({ role, choice: await engine.chooseTier(task, role), allowLarge, models, ...(cap ? { cap } : {}) });
 }

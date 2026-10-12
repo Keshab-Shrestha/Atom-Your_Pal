@@ -1,6 +1,6 @@
 import type { ToolRunner } from "@zeno/contracts";
 import type { ProviderAdapter } from "../gateway.ts";
-import { createClaudePlanAdapter, type PlanUsage, type TokenUsage } from "./claude-plan.ts";
+import { createClaudePlanAdapter, type ChatSessions, type PlanUsage, type TokenUsage } from "./claude-plan.ts";
 import { createCodexAdapter, createGeminiCliAdapter } from "./cli-tools.ts";
 
 /** ADR-092, ADR-093: the signed-in tools on this Mac; Claude Code is the default. (Also in @zeno/shared's PROVIDERS.) */
@@ -18,6 +18,8 @@ export interface ProviderSettings {
   onUsage?: (usage: PlanUsage) => void;
   /** For "claude-plan" only (ADR-091): told the tokens each answer used. */
   onTokens?: (tokens: TokenUsage, model: string) => void;
+  /** For "claude-plan" only (ADR-098 item 9): each chat's own Claude Code session. */
+  chatSessions?: ChatSessions;
 }
 
 /** Builds the configured provider adapter. The only place that knows every provider. */
@@ -30,6 +32,7 @@ export function createProviderAdapter(settings: ProviderSettings): ProviderAdapt
         ...(settings.tools ? { tools: settings.tools } : {}),
         ...(settings.onUsage ? { onUsage: settings.onUsage } : {}),
         ...(settings.onTokens ? { onTokens: settings.onTokens } : {}),
+        ...(settings.chatSessions ? { chatSessions: settings.chatSessions } : {}),
       });
     case "codex":
       return createCodexAdapter({ program: settings.apiKey, model: settings.model });

@@ -2075,3 +2075,81 @@ Keshab said: "i want back button if possible on many sections like when i am in 
 ### Consequences
 
 Keshab can always go back to the previous page. He can always see how to save a change. ZENO keeps the history only while the window is open. ZENO does not store the history.
+
+## ADR-097 — Model Choice, Own Schedules, Memory From Chats, Sounds Settings
+
+Date: 2026-10-12. Status: **accepted**.
+
+Keshab said: "My AI models are there but i cant choose the models myself", "let me be able to create a schedule myself", "Memory section let me select the chat to save .. and lets have a advance depth level rag system from memory", "In setting lets have a whole section for sounds". His choices: hybrid memory search (keywords and local embeddings); a model chosen in a chat applies to that chat only.
+
+### Decision
+
+1. **Model choice.**
+   - ZENO asks each provider for its model list. The Claude plan gives its list through the Agent SDK. Codex and the Gemini CLI give a known list plus a custom model name.
+   - Keshab chooses the default model in Settings → Model.
+   - Each chat has a model menu in its top bar. The menu changes the model for that chat only.
+   - Voice and new chats use the default model.
+2. **Own schedules.**
+   - The Scheduled page has a "New schedule" button.
+   - The form has the agent, the task text, the repeat time and the first run time.
+   - Keshab can edit and delete each schedule.
+3. **Memory from chats.**
+   - The Memory page lists recent chats. Keshab selects the chats to keep in memory.
+   - ZENO keeps each selected chat at 3 depths: a summary of the chat, its topic sections and its exact lines.
+   - A search uses keywords (SQLite full-text search) and meaning (a small local embedding model). ZENO merges the two results.
+   - The search starts at the summaries. It goes deeper only in the chats that match.
+   - The embedding model runs on the Mac. It is not a general LLM (CLAUDE.md §11).
+4. **Sounds settings.**
+   - Settings has a Sounds page.
+   - The page has one switch for each sound: start and stop sounds, spoken reports, spoken timers and updates, notification sounds and Pal sounds.
+   - Each switch takes effect immediately.
+
+### Consequences
+
+Keshab controls the model, the schedules, the memory and the sounds directly. The memory search adds one dependency and one model file of approximately 25 MB.
+
+## ADR-098 — Features From Hermes Agent, Paperclip and jcode
+
+Date: 2026-10-12. Status: **accepted**.
+
+Keshab said: "lets add all features from hermes or paperclip … and about jcode lets add those features as well … i want all the features".
+
+### Decision
+
+1. **Telegram for ATOM.**
+   - ZENO connects to a Telegram bot. Keshab makes a new bot for ZENO. Hermes keeps its own bot.
+   - The bot token is in `.env` as `ZENO_TELEGRAM_BOT_TOKEN`. The allowed chat is `ZENO_TELEGRAM_CHAT_ID`. ZENO ignores all other chats.
+   - Keshab can talk to ATOM, read Needs you, approve or decline work and read reports.
+   - The feature is off until both values are in `.env`.
+2. **Results to the phone.** A schedule can send its result to Telegram. Each schedule has a switch for this.
+3. **Steer a running task.**
+   - Keshab can send a message to a running task. The worker reads the message at its next step.
+   - Keshab can interrupt a task. The worker stops the current step and waits for a message.
+4. **Browser for workers.**
+   - An agent can get a browser grant. Then it can open pages, click, type and fill forms.
+   - The browser uses its own profile in `data/browser-profile`. It does not use Keshab's browser.
+   - Each login and each form submit to a new site asks Keshab first.
+5. **ZENO as a server.**
+   - ZENO gives a local HTTP API and an MCP server. Other tools (Hermes, Claude Code) can give goals to ATOM and read results.
+   - The API listens only on 127.0.0.1. Each request needs the token in `data/api-token`.
+   - A webhook call can start a schedule.
+6. **Search and labels.**
+   - The window has one search for chats, tasks and reports.
+   - Keshab can add labels to tasks. The Board can filter by label.
+7. **Codex fallback.**
+   - When the Claude plan limit stops work, ZENO can run the held task on Codex.
+   - A switch in Settings turns this on. The switch is off by default.
+   - Codex gets the same folder grant and the same budget as the agent.
+8. **Test cases for souls and skills.**
+   - Keshab can save a task as a test case for an agent or a skill.
+   - Before Keshab approves a Tinker change, ZENO runs the test cases with the new text. ZENO shows the old and new results side by side.
+9. **Token savings (from jcode).**
+   - Sub-agents use cheaper models: the searcher and the reader use Haiku with low effort; the checker uses Sonnet.
+   - Runs without tools (plan, Tinker, Manager split and review) use low effort.
+   - Managers and Tinker use Sonnet at most, unless Keshab chooses a model.
+   - Each chat keeps one Claude session. ZENO sends only the new turn.
+   - Fixed chat context goes into the cached part of the prompt. The Dashboard shows the cache hit rate.
+
+### Consequences
+
+ZENO gets the main features of Hermes Agent and Paperclip. Keshab can use ZENO from the phone and from other tools. Each new way to act stays inside the grants, the budgets and Keshab's approvals.

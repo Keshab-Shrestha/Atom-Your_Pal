@@ -40,6 +40,8 @@ export function holdFor(job: Job, budgets: Budgets, workerName: string, planUsed
   if (job.state !== "queued" || job.waitingFor.length) return undefined;
   // Task 3.8: a plan waits for Keshab before anything else.
   if (job.planStatus === "awaiting") return `${workerName}'s plan waits for your OK.`;
+  // ADR-098 item 3: interrupted, it waits for Keshab's next message.
+  if (job.interrupted) return "Interrupted — waiting for you.";
   const own = budgets.workers[job.helper];
   if (own && isOver(own)) return `${workerName}'s daily budget (${dollars(own.cap!)}) is used up.`;
   if (isOver(budgets.team)) return `The team's daily budget (${dollars(budgets.team.cap!)}) is used up.`;

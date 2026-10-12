@@ -138,6 +138,25 @@ struct PlanFirstRow: View {
     }
 }
 
+/// ADR-098: the worker's runs get ZENO's browser. New sites, typing and submits still ask Keshab first.
+struct BrowserRow: View {
+    let model: IslandModel
+    let helper: Helper
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Browser").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
+                Text("Opens pages in ZENO's own browser. Each new site and each form asks you first.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+            }
+            Spacer(minLength: 4)
+            ThemedSwitch(isOn: helper.browser, set: { model.sendHelpers(model.helpers.setBrowser($0)) }, label: "Browser")
+        }
+        .frame(maxWidth: 320, alignment: .leading)
+    }
+}
+
 /// Task 3.9: the worker's routines: when, what, and how the last one went; each can be removed.
 struct RoutinesSection: View {
     let model: IslandModel
@@ -255,6 +274,10 @@ struct ProposalsSection: View {
                     Text("\(p.fieldTitle): \(p.text)").font(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color)
                         .fixedSize(horizontal: false, vertical: true)
                     Text(p.reason).font(.system(size: 11.5)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
+                    // ADR-098 item 8: how the change does on this agent's test cases.
+                    TestRunView(model: model, kind: "soul", id: p.id, tests: p.tests,
+                                hasCases: !(model.helpers.list?.testCases(kind: "soul", target: model.helpers.selectedHelper?.id ?? "").isEmpty ?? true),
+                                pending: p.state == "pending")
                     HStack(spacing: 8) {
                         if p.state == "pending" {
                             QuietButton(title: "Accept", symbol: "checkmark") { model.sendHelpers(model.helpers.answerProposal(p.id, accept: true)) }
@@ -315,6 +338,7 @@ struct RateSection: View {
                     QuietButton(title: "Make a skill", symbol: "wand.and.stars") { model.sendHelpers(model.helpers.makeSkill()) }
                 }
             }
+            SaveTestCaseSection(model: model, job: job) // ADR-098 item 8
         }
     }
 }

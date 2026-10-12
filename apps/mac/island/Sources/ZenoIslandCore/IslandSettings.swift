@@ -17,6 +17,10 @@ public final class IslandSettings {
     static let soundsKey = "zeno.soundsEnabled"
     static let speakReportsKey = "zeno.speech.reports"
     static let speakUpdatesKey = "zeno.speech.updates"
+    static let speechChimeKey = "zeno.speech.chime"
+    static let notifySoundKey = "zeno.notify.sound"
+    static let telegramPushKey = "zeno.telegram.push"
+    static let localApiKey = "zeno.api.on"
     static let notifyOffKey = "zeno.notify.off"
     static let followUpKey = "zeno.followUp"
     static let petSpotKey = "zeno.petSpot"
@@ -111,6 +115,26 @@ public final class IslandSettings {
         didSet { save(speakUpdates, Self.speakUpdatesKey) }
     }
 
+    /// ADR-097: the chime before ZENO says a report, timer or update. Off: it only speaks. Default on.
+    public var speechChime: Bool {
+        didSet { save(speechChime, Self.speechChimeKey) }
+    }
+
+    /// ADR-097: ZENO's macOS notifications play the system sound. Off: they show without it. Default on.
+    public var notificationSounds: Bool {
+        didSet { save(notificationSounds, Self.notifySoundKey) }
+    }
+
+    /// ADR-098: ZENO sends Needs you, finished goals and schedule results to Telegram by itself. Default on.
+    public var telegramPush: Bool {
+        didSet { save(telegramPush, Self.telegramPushKey) }
+    }
+
+    /// ADR-098 item 5: the local HTTP API (127.0.0.1, token in data/api-token) listens. Default off.
+    public var localApi: Bool {
+        didSet { save(localApi, Self.localApiKey) }
+    }
+
     /// ADR-091: the kinds of notification turned off (all are on at first).
     public private(set) var notifyOff: Set<String> {
         didSet { defaults.set(notifyOff.sorted(), forKey: Self.notifyOffKey) }
@@ -156,6 +180,10 @@ public final class IslandSettings {
         soundsEnabled = defaults.object(forKey: Self.soundsKey) as? Bool ?? true
         speakReports = defaults.object(forKey: Self.speakReportsKey) as? Bool ?? true
         speakUpdates = defaults.object(forKey: Self.speakUpdatesKey) as? Bool ?? true
+        speechChime = defaults.object(forKey: Self.speechChimeKey) as? Bool ?? true
+        notificationSounds = defaults.object(forKey: Self.notifySoundKey) as? Bool ?? true
+        telegramPush = defaults.object(forKey: Self.telegramPushKey) as? Bool ?? true
+        localApi = defaults.bool(forKey: Self.localApiKey)
         notifyOff = Set(defaults.stringArray(forKey: Self.notifyOffKey) ?? [])
         followUpEnabled = defaults.object(forKey: Self.followUpKey) as? Bool ?? true
         palSize = Self.choice(defaults, Self.palSizeKey, .medium)

@@ -122,10 +122,15 @@ public struct ChatInfo: Sendable, Equatable, Identifiable {
 public struct ChatList: Sendable, Equatable {
     public var chats: [ChatInfo]
     public var current: String
+    /// ADR-097: the current chat's own model; nil when it uses the default.
+    public var currentProvider: String?
+    public var currentModel: String?
 
-    public init(chats: [ChatInfo], current: String) {
+    public init(chats: [ChatInfo], current: String, currentProvider: String? = nil, currentModel: String? = nil) {
         self.chats = chats
         self.current = current
+        self.currentProvider = currentProvider
+        self.currentModel = currentModel
     }
 }
 

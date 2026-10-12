@@ -52,7 +52,7 @@ const HEADER_KEY = /^[A-Za-z0-9-]{1,64}$/;
 export function cleanMcpInput(input: McpServerInput, taken: readonly string[]): Omit<McpServer, "id" | "enabled" | "trusted" | "workers" | "tools"> {
   const name = input.name.trim().toLowerCase().replace(/\s+/g, "-");
   if (!NAME.test(name)) throw new HelperError("A server's name is lower case letters, digits, - or _ (at most 32).");
-  if (name === "zeno") throw new HelperError("That name is ZENO's own.");
+  if (name === "zeno" || name === "zeno-browser") throw new HelperError("That name is ZENO's own.");
   if (taken.includes(name)) throw new HelperError(`There is already a server called ${name}.`);
   const pairs = (lines: string[] | undefined, sep: string, key: RegExp, what: string) =>
     Object.fromEntries(

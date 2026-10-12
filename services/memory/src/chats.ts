@@ -1,5 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { Message } from "@zeno/contracts";
+import { chatSearch, type ChatSearchHit } from "./chat-search.ts";
 
 // ADR-091: Keshab's chat sessions with ZENO, kept on this Mac (in the memory file) so he can go back to one. A chat is
 // ZENO Core's session: its id, a title from its first words and its turns. Never logged; the newest 200 are kept.
@@ -19,6 +20,22 @@ export interface ChatStore {
   list(limit?: number): ChatSummary[];
   messages(id: string): Message[];
   remove(id: string): boolean;
+  /** ADR-097: the chat's own provider and model; undefined when it uses the default. */
+  model(id: string): { provider: string; model: string } | undefined;
+  /** ADR-097: sets the chat's own model (undefined: the default again). False when the chat is not saved yet. */
+  setModel(id: string, choice: { provider: string; model: string } | undefined): boolean;
+  /** ADR-098 item 9: the chat's Claude Code session (its id, model and last answer's hash); undefined when none. */
+  session(id: string): ChatSessionRef | undefined;
+  /** ADR-098 item 9: sets the chat's session. False when the chat is not saved yet. */
+  setSession(id: string, session: ChatSessionRef): boolean;
+  /** ADR-098: chats whose messages match the words (titles are a chat's first words), best first. */
+  search(query: string): ChatSearchHit[];
+}
+
+export interface ChatSessionRef {
+  id: string;
+  model: string;
+  tail: string;
 }
 
 export const MAX_CHATS = 200;
@@ -49,6 +66,17 @@ export function openChats(db: DatabaseSync, now: () => Date): ChatStore {
     );
     CREATE INDEX IF NOT EXISTS chats_updated ON chats(updated_at);
   `);
+  // ADR-097: a chat's own model; NULL uses the default. Added to files made before it.
+  const columns = (db.prepare("PRAGMA table_info(chats)").all() as { name: string }[]).map((c) => c.name);
+  if (!columns.includes("provider")) db.exec("ALTER TABLE chats ADD COLUMN provider TEXT");
+  if (!columns.includes("model")) db.exec("ALTER TABLE chats ADD COLUMN model TEXT");
+  // ADR-098 item 9: the chat's Claude Code session as JSON; NULL starts a fresh one.
+  if (!columns.includes("session")) db.exec("ALTER TABLE chats ADD COLUMN session TEXT");
+  const readSession = db.prepare("SELECT session FROM chats WHERE id = ?");
+  const writeSession = db.prepare("UPDATE chats SET session = ? WHERE id = ?");
+  const finder = chatSearch(db);
+  const readModel = db.prepare("SELECT provider, model FROM chats WHERE id = ?");
+  const writeModel = db.prepare("UPDATE chats SET provider = ?, model = ? WHERE id = ?");
   const upsert = db.prepare(
     "INSERT INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET title = excluded.title, updated_at = excluded.updated_at",
   );
@@ -99,5 +127,31 @@ export function openChats(db: DatabaseSync, now: () => Date): ChatStore {
       clear.run(id);
       return Number(drop.run(id).changes) > 0;
     },
+
+    model(id) {
+      const row = readModel.get(id) as { provider: string | null; model: string | null } | undefined;
+      return row?.provider && row.model ? { provider: row.provider, model: row.model } : undefined;
+    },
+
+    session(id) {
+      const row = readSession.get(id) as { session: string | null } | undefined;
+      if (!row?.session) return undefined;
+      try {
+        const s = JSON.parse(row.session) as Partial<ChatSessionRef>;
+        return typeof s.id === "string" && typeof s.model === "string" && typeof s.tail === "string" ? { id: s.id, model: s.model, tail: s.tail } : undefined;
+      } catch {
+        return undefined; // a damaged entry only means a fresh session
+      }
+    },
+
+    setSession(id, session) {
+      return Number(writeSession.run(JSON.stringify({ id: session.id, model: session.model, tail: session.tail }), id).changes) > 0;
+    },
+
+    setModel(id, choice) {
+      return Number(writeModel.run(choice?.provider ?? null, choice?.model ?? null, id).changes) > 0;
+    },
+
+    search: (query) => finder.search(query),
   };
 }

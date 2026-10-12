@@ -18,6 +18,10 @@ export interface Routine {
   /** ADR-094: paused routines make no tasks; a resumed one counts from when it was resumed (missed times are not made up). */
   paused: boolean;
   resumedAt?: Date;
+  /** ADR-098: when its task ends, ZENO sends the result to Telegram. Default false. */
+  notifyTelegram: boolean;
+  /** ADR-098 item 5: a call to the local API's webhook may start it now. Default false. */
+  webhook: boolean;
 }
 
 export const MAX_ROUTINES = 20;
@@ -54,6 +58,14 @@ export function isDue(r: Pick<Routine, "schedule" | "createdAt" | "lastAt" | "re
   const due = lastDue(r.schedule, r.createdAt, now);
   const since = Math.max((r.lastAt ?? r.createdAt).getTime(), r.resumedAt?.getTime() ?? 0);
   return due !== undefined && due.getTime() > since;
+}
+
+/**
+ * ADR-097: the `createdAt` that makes an hourly schedule first come due at `startAt` (one period before it). Other kinds,
+ * or no start, keep `fallback`.
+ */
+export function anchorFor(s: Schedule, startAt: Date | undefined, fallback: Date): Date {
+  return s.kind === "hours" && startAt ? new Date(startAt.getTime() - s.every * HOUR) : fallback;
 }
 
 /** ADR-094: the first time the schedule comes due after `from` (for the Scheduled page). */
@@ -122,6 +134,8 @@ interface RoutineRow {
   last_skipped: number;
   paused: number | null;
   resumed_at: string | null;
+  notify_telegram: number | null;
+  webhook: number | null;
 }
 
 const toRoutine = (row: RoutineRow): Routine => ({
@@ -135,6 +149,8 @@ const toRoutine = (row: RoutineRow): Routine => ({
   lastSkipped: row.last_skipped === 1,
   paused: row.paused === 1,
   ...(row.resumed_at ? { resumedAt: new Date(row.resumed_at) } : {}),
+  notifyTelegram: row.notify_telegram === 1,
+  webhook: row.webhook === 1,
 });
 
 /** The routines table, for the store. The store checks the worker and the task text before `add`. */
@@ -153,12 +169,19 @@ export function routineTable(db: DatabaseSync) {
   const columns = new Set((db.prepare("PRAGMA table_info(routines)").all() as { name: string }[]).map((c) => c.name));
   if (!columns.has("paused")) db.exec("ALTER TABLE routines ADD COLUMN paused INTEGER");
   if (!columns.has("resumed_at")) db.exec("ALTER TABLE routines ADD COLUMN resumed_at TEXT");
+  // ADR-098: send the result to Telegram.
+  if (!columns.has("notify_telegram")) db.exec("ALTER TABLE routines ADD COLUMN notify_telegram INTEGER");
+  // ADR-098 item 5: the local API's webhook may start it.
+  if (!columns.has("webhook")) db.exec("ALTER TABLE routines ADD COLUMN webhook INTEGER");
   const all = db.prepare("SELECT * FROM routines ORDER BY id");
   const one = db.prepare("SELECT * FROM routines WHERE id = ?");
   const insert = db.prepare("INSERT INTO routines (helper, task, schedule, created_at) VALUES (?, ?, ?, ?)");
   const drop = db.prepare("DELETE FROM routines WHERE id = ?");
   const setPaused = db.prepare("UPDATE routines SET paused = ?, resumed_at = COALESCE(?, resumed_at) WHERE id = ?");
   const mark = db.prepare("UPDATE routines SET last_at = ?, last_task_id = COALESCE(?, last_task_id), last_skipped = ? WHERE id = ?");
+  const change = db.prepare("UPDATE routines SET helper = ?, task = ?, schedule = ?, created_at = ?, resumed_at = ? WHERE id = ?");
+  const setNotify = db.prepare("UPDATE routines SET notify_telegram = ? WHERE id = ?");
+  const setWebhook = db.prepare("UPDATE routines SET webhook = ? WHERE id = ?");
   return {
     list: () => (all.all() as unknown as RoutineRow[]).map(toRoutine),
     get: (id: number) => {
@@ -171,6 +194,13 @@ export function routineTable(db: DatabaseSync) {
     },
     remove: (id: number) => Number(drop.run(id).changes) > 0,
     mark: (id: number, at: Date, taskId: number | null, skipped: boolean) => void mark.run(at.toISOString(), taskId, skipped ? 1 : 0, id),
+    /** ADR-097: a new worker, task or schedule. It counts from `at` (no missed time comes due); `createdAt` is the hourly anchor. */
+    update: (id: number, helper: HelperId, task: string, schedule: Schedule, createdAt: Date, at: Date) =>
+      Number(change.run(helper, task, JSON.stringify(checkSchedule(schedule)), createdAt.toISOString(), at.toISOString(), id).changes) > 0,
+    /** ADR-098: whether its result goes to Telegram. */
+    notify: (id: number, on: boolean) => Number(setNotify.run(on ? 1 : 0, id).changes) > 0,
+    /** ADR-098 item 5: whether a webhook call may start it. */
+    webhook: (id: number, on: boolean) => Number(setWebhook.run(on ? 1 : 0, id).changes) > 0,
     pause: (id: number, paused: boolean, at: Date) => Number(setPaused.run(paused ? 1 : 0, paused ? null : at.toISOString(), id).changes) > 0,
   };
 }

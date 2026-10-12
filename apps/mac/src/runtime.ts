@@ -30,7 +30,7 @@ import {
   type TimerInfo,
   type Timers,
 } from "@zeno/tool-engine";
-import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError, runPlan, runResearch, type PlanUsage, type TokenUsage } from "@zeno/llm-gateway";
+import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError, listPlanModels, runChatDigest, runCodexJob, runPlan, runResearch, RunInterrupted, type ChatSession, type ChatSessions, type PlanUsage, type TokenUsage } from "@zeno/llm-gateway";
 import { CLAUDE_PLAN, createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import {
   createEpisodeRecorder,
@@ -52,6 +52,7 @@ import {
   createTeamTaskTool,
   createWorkerShortcut,
   holdFor,
+  JOB_TIME_LIMIT_MS,
   followUpBrief,
   handOffTool,
   teamContext,
@@ -62,25 +63,35 @@ import {
   openHelperStore,
   startJobRunner,
   tieredModels,
+  modelForTier,
+  isOver,
   withRoleNotice,
+  type TestKind,
   type HelperStore,
   type Job,
   type JobRun,
   type JobRunner,
 } from "@zeno/helpers";
 import { createLayaEngine } from "@zeno/decision-engine";
-import type { InputSource, Message } from "@zeno/contracts";
+import type { InputSource, LanguageModel, Message, RequestContext } from "@zeno/contracts";
 import type { IslandChats, IslandGit, IslandHelpers, IslandMemory } from "./island.ts";
 import { branchDiff, pushBranch, repositoriesOf, zenoBranches } from "./git-branches.ts";
 import { islandHelpers } from "./island-helpers.ts";
+import { taskSteering, type TaskSteering } from "./task-steering.ts";
 import { askForFolder, denyRead, folderCheck } from "./folder-run.ts";
 import { commitWork, prepareWorkdir, type Workdir } from "./worktree.ts";
 import { SKILLS_PLUGIN, listSkills, prepareSkills, userSkillsDir } from "./skills.ts";
 import { runTinker } from "./tinker.ts";
+import { NOT_RUN_PLAN_LIMIT, runTestCases } from "./test-runs.ts";
+import { createEmbedder } from "./embedder.ts";
+import { createKeptChats } from "./kept-chats.ts";
 import { runManager } from "./manager-run.ts";
+import { TELEGRAM_CHAT, startTelegramBot, type TelegramBot } from "./telegram-bot.ts";
+import { createApiServer, type ApiServer } from "./api-server.ts";
 import { SCHEDULER_TICK_MS, scheduleTick } from "./scheduler.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { mcpCheck, sdkConfig, testMcpServer } from "./mcp-servers.ts";
+import { BROWSER_SERVER, browserCheck, browserServer } from "./browser.ts";
 import { scanAiTools } from "./ai-tools.ts";
 import { checkIssues, createPaperclip, createPaperclipTools, issueTracker, paperclipBase } from "./paperclip.ts";
 import { createWindowPointer, type WindowPointer } from "./screen-context.ts";
@@ -140,6 +151,12 @@ export interface Runtime {
    * then `after` asks on Pal's approval card). Returns a function that stops listening.
    */
   onGoalLine(listener: (line: string, after?: () => void) => void): () => void;
+  /** ADR-098: ZENO's Telegram bot. Undefined unless ZENO_TELEGRAM_BOT_TOKEN and ZENO_TELEGRAM_CHAT_ID are both set. */
+  telegram?: TelegramBot;
+  /** ADR-098 item 3: Keshab's messages to running tasks, and interrupts. Undefined when the helpers store could not open. */
+  steering?: TaskSteering;
+  /** ADR-098 item 5: the local HTTP API, off until Settings turns it on. Undefined with ZENO_VOICE_ONLY=1. */
+  api?: ApiServer;
   /** Shutdown: stops running helper jobs (they are marked failed at the next start) and Laya's server. */
   close(): void;
 }
@@ -170,6 +187,32 @@ export function createRuntime(
   // The request a memory tool is running for, for provenance. Set by the Core's context hook, which runs first.
   let current: { source: InputSource; requestId?: string } = { source: "voice" };
   const memoryListeners = new Set<() => void>();
+  // ADR-097: chats kept in memory. The digest is one no-tools run of the plan's small model; on any other provider, or
+  // if it fails, the deterministic digest is used.
+  const keptChats =
+    memory &&
+    createKeptChats({
+      memory,
+      embedder: createEmbedder({ log }),
+      digest: async (brief) => {
+        const small = modelForTier(planModels(), "small");
+        if (!small) throw new Error("The Claude plan is not the model in use.");
+        const { digest, tokens } = await runChatDigest({
+          claudePath: keys["claude-plan"] ?? "",
+          model: small,
+          task: brief,
+          instructions: "You are ZENO's memory keeper.",
+          signal: AbortSignal.timeout(120_000),
+          onUsage: reportUsage,
+        });
+        if (tokens) helpers?.addUsage({ source: "chat", model: small, ...tokens, ...(tokens.costUsd ? { dollars: tokens.costUsd } : {}) });
+        return digest;
+      },
+      changed: () => {
+        for (const listener of memoryListeners) listener();
+      },
+      log,
+    });
   const islandMemory: IslandMemory | undefined = memory && {
     list: () => memory.recent(DEFAULT_MAX_MEMORIES).map((m) => ({ id: m.id, text: m.text, createdAt: m.createdAt.toISOString(), source: m.source })),
     count: () => memory.count(),
@@ -178,6 +221,9 @@ export function createRuntime(
     episodes: () => memory.episodes(DEFAULT_MAX_EPISODES).map((e) => ({ id: e.id, summary: e.summary, endedAt: e.endedAt.toISOString(), exchanges: e.exchanges })),
     forgetEpisode: (id) => memory.removeEpisode(id),
     clearEpisodes: () => memory.clearEpisodes(),
+    chats: () => keptChats!.chats(),
+    keepChat: (id) => keptChats!.keep(id),
+    dropChat: (id) => keptChats!.drop(id),
     onChange: (listener) => {
       memoryListeners.add(listener);
       return () => memoryListeners.delete(listener);
@@ -185,10 +231,26 @@ export function createRuntime(
   };
   // ADR-091: Keshab's chat sessions: saved after every exchange, listed, opened and deleted from the ZENO window.
   const chatListeners = new Set<() => void>();
+  // ADR-097: a model chosen for a chat that is not saved yet; it goes into the chat's row at its first save.
+  const unsavedChatModels = new Map<string, LlmChoice>();
+  // ADR-098 item 9: each chat's Claude Code session. A chat's first answer comes before its first save, so its session
+  // waits here until then.
+  const unsavedChatSessions = new Map<string, ChatSession>();
+  const chatSessions: ChatSessions | undefined = memory && {
+    get: (id) => memory.chats.session(id) ?? unsavedChatSessions.get(id),
+    set: (id, session) => {
+      if (memory.chats.setSession(id, session)) unsavedChatSessions.delete(id);
+      else unsavedChatSessions.set(id, session);
+    },
+  };
   const saveChat = (sessionId: string, turns: readonly Message[]) => {
     if (!memory) return;
     try {
       memory.chats.save(sessionId, turns);
+      const own = unsavedChatModels.get(sessionId);
+      if (own && memory.chats.setModel(sessionId, own)) unsavedChatModels.delete(sessionId);
+      const session = unsavedChatSessions.get(sessionId);
+      if (session && memory.chats.setSession(sessionId, session)) unsavedChatSessions.delete(sessionId);
     } catch (error) {
       log.error("chat.save_failed", { message: describe(error) });
       return;
@@ -196,9 +258,26 @@ export function createRuntime(
     for (const listener of chatListeners) listener();
   };
   const islandChats: IslandChats | undefined = memory && {
-    list: () => memory.chats.list().map((c) => ({ id: c.id, title: c.title, updatedAt: c.updatedAt.toISOString(), messages: c.messages })),
+    list: () => memory.chats.list().map((c) => ({ id: c.id, title: c.id === TELEGRAM_CHAT ? "Telegram" : c.title, updatedAt: c.updatedAt.toISOString(), messages: c.messages })),
     messages: (id) => memory.chats.messages(id),
     remove: (id) => memory.chats.remove(id),
+    modelOf: (id) => memory.chats.model(id) ?? unsavedChatModels.get(id),
+    search: (query) => memory.chats.search(query).map((c) => ({ id: c.id, title: c.title, snippet: c.snippet, at: c.updatedAt.toISOString() })),
+    setModel: (id, provider, modelId) => {
+      if (!id) return { error: "There is no chat to give a model to." };
+      let own: LlmChoice | undefined;
+      if (provider || modelId) {
+        const checked = settings.check(provider, modelId);
+        if ("error" in checked) return checked;
+        own = checked.choice;
+      }
+      if (!memory.chats.setModel(id, own)) {
+        if (own) unsavedChatModels.set(id, own);
+        else unsavedChatModels.delete(id);
+      }
+      log.info("chat.model", { provider: own?.provider ?? "default", model: own?.model ?? "default" });
+      return { ok: true };
+    },
     onChange: (listener) => {
       chatListeners.add(listener);
       return () => chatListeners.delete(listener);
@@ -349,12 +428,41 @@ export function createRuntime(
         onUsage: reportUsage,
         // ADR-091: ZENO's own answers count on the Dashboard too.
         onTokens: (tokens, model) => helpers?.addUsage({ source: "chat", model, ...tokens, ...(tokens.costUsd ? { dollars: tokens.costUsd } : {}) }),
+        ...(chatSessions ? { chatSessions } : {}), // ADR-098 item 9
       }),
       // Claude Code starts its own process and may take several tool turns, so it gets longer than one API call.
       timeoutMs: choice.provider === "claude-plan" ? Math.max(config.llm.timeoutMs, PLAN_TIMEOUT_MS) : config.llm.timeoutMs,
     });
   const initial = { provider: config.llm.provider, model: config.llm.model };
   const model = createSwitchableModel(createModel(initial, config.llm.apiKey));
+  // ADR-097: a typed turn in a chat with its own model uses that model; voice, new chats and the rest use the default.
+  // One gateway per chosen model, made when first needed and kept.
+  const chatGateways = new Map<string, LanguageModel>();
+  const modelForTurn = (context: RequestContext): LanguageModel => {
+    if (context.source !== "text") return model;
+    const own = islandChats?.modelOf?.(context.sessionId);
+    if (!own) return model;
+    const checked = settings.check(own.provider, own.model);
+    if ("error" in checked) {
+      log.warn("chat.model_unusable", { reason: checked.error });
+      return model;
+    }
+    const { choice } = checked;
+    const fallback = settings.current();
+    if (choice.provider === fallback.provider && choice.model === fallback.model) return model;
+    const key = `${choice.provider}\n${choice.model}`;
+    let gateway = chatGateways.get(key);
+    if (!gateway) {
+      gateway = createModel(choice, keys[choice.provider]!);
+      chatGateways.set(key, gateway);
+    }
+    return gateway;
+  };
+  const coreModel: LanguageModel = {
+    complete: (request, signal) => modelForTurn(request.context).complete(request, signal),
+    prepare: (request) => model.prepare?.(request),
+    close: () => model.close?.(),
+  };
   // ADR-059: a short summary of each conversation, written in the background with the same model (no tools).
   const episodes: EpisodeRecorder | undefined =
     memory && process.env.ZENO_EPISODES !== "0"
@@ -398,30 +506,38 @@ export function createRuntime(
       : undefined;
   // ZENO_VOICE_ONLY=1: test speech in and out without the AI. ZENO reads back what Whisper heard, and no
   // request is made to any model. (Typed as `Core` so every caller treats it the same.)
-  const baseCore: Core = process.env.ZENO_VOICE_ONLY === "1" ? createEchoCore() : createCore({
-        model,
+  // ADR-098: one Core setup, used for the window's Core and the Telegram chat's own Core.
+  const makeCore = (): Core => createCore({
+        model: coreModel,
         tools: toolEngine,
-        context: (input, context) => {
+        context: async (input, context) => {
           current = { source: input.source, requestId: context.requestId };
           const pointed = screen.take(); // ADR-074: the window Pal was dropped on, for this request only
-          const team = helpers ? teamContext(helpers.list(), helpers.managers()) : undefined; // Task 3.5, ADR-095: who ATOM can hand work to
-          if (!memory) return [nowLine(), team, pointed].filter(Boolean).join("\n\n");
+          if (!memory) return [nowLine(), pointed].filter(Boolean).join("\n\n");
           const facts = memoryContext(input.text, { store: memory });
           const past = episodes ? episodeContext(memory, context.sessionId) : undefined;
+          const keptLines = await keptChats?.context(input.text).catch((error: unknown) => {
+            log.warn("memory.kept_search_failed", { requestId: context.requestId, message: describe(error) });
+            return undefined;
+          }); // ADR-097
           log.debug("memory.context", {
             requestId: context.requestId,
             kept: memory.count(),
             used: facts ? facts.split("\n").length - 1 : 0,
             episodes: past ? past.split("\n").length - 1 : 0,
           });
-          return [nowLine(), team, MEMORY_GUIDANCE, facts, past, pointed].filter(Boolean).join("\n\n");
+          return [nowLine(), facts, keptLines, past, pointed].filter(Boolean).join("\n\n");
         },
+        // ADR-098 item 9: what rarely changes goes with the system prompt, where Claude caches it.
+        // Task 3.5, ADR-095: who ATOM can hand work to; ADR-058: how to use memory.
+        standing: () => [helpers ? teamContext(helpers.list(), helpers.managers()) : undefined, memory ? MEMORY_GUIDANCE : undefined].filter(Boolean).join("\n\n"),
         ...(shortcuts ? { shortcuts } : {}),
         onExchange: (sessionId: string, turns: readonly Message[]) => {
           saveChat(sessionId, turns); // ADR-091
           episodes?.update(sessionId, turns);
         },
       });
+  const baseCore: Core = process.env.ZENO_VOICE_ONLY === "1" ? createEchoCore() : makeCore();
   // ADR-080: with computer control on, replies lose their [POINT:…] marker before speech, and a valid one points.
   const core: Core = computerOn
     ? withPointing(baseCore, {
@@ -453,10 +569,13 @@ export function createRuntime(
     },
     log,
     scan: () => scanAiTools(), // ADR-093
+    listPlanModels: (claudePath) => listPlanModels(claudePath), // ADR-097
   });
   // ADR-083: Laya rates each job's difficulty. Its server starts on the first job, stays warm, and stops in close().
   // ZENO_LAYA=0 turns it off (every job then gets the role's default tier).
   const decisions = createLayaEngine({ log });
+  // ADR-098 item 3: Keshab's messages to running tasks, and interrupts (the ZENO window; Telegram may call the same).
+  const steering = helpers ? taskSteering(helpers, log) : undefined;
   /** The Claude plan's models for worker jobs, by tier; empty on any other provider. */
   const planModels = () =>
     settings.current().provider === CLAUDE_PLAN ? tieredModels(settings.info().providers.find((p) => p.id === CLAUDE_PLAN)?.models ?? []) : [];
@@ -473,6 +592,8 @@ export function createRuntime(
     const name = soul?.name ?? job.helper;
     const role = member?.role ?? findHelper(job.helper)?.role ?? "";
     const kit = member?.kit ?? "think";
+    // ADR-098 item 7: the runner let this task start on Codex (held only by the Claude plan's limit).
+    const onCodex = codexJobs.delete(job.id);
     if (provider !== CLAUDE_PLAN) throw new Error(`${name} needs the Claude plan for research.`);
     // ADR-083: pin, else Laya; then the role's floor and the large-model switch. Stored first so the window shows it.
     const pick = await chooseJobModel({
@@ -482,6 +603,8 @@ export function createRuntime(
       pinnedModel: helpers?.list().find((h) => h.id === job.helper)?.pinnedModel,
       allowLarge: helpers?.allowLarge() ?? true,
       models: planModels(),
+      // ADR-098 item 9: Managers and Tinker run on Sonnet at most, unless pinned.
+      ...(role === "improver" || helpers?.managers().some((m) => m.id === job.helper) ? { cap: "medium" as const } : {}),
     });
     const model = pick.model ?? current;
     helpers?.setModel(job.id, model, pick.reason);
@@ -569,6 +692,19 @@ export function createRuntime(
           }),
         }
       : undefined;
+    // ADR-098 item 4: an agent with the browser grant (not a "think" agent) gets ZENO's browser; each run has its own
+    // answers (a site Keshab allowed stays allowed for that run only). Logs ids, tools and origins, never typed text.
+    const browserOn = kit !== "think" && Boolean(member?.browser);
+    const browser = () => ({
+      name: BROWSER_SERVER,
+      server: browserServer(dirname(worktrees), job.helper),
+      ...browserCheck({
+        name,
+        grants,
+        approve: (request) => computer.approve(request),
+        onCheck: (e) => log.info("job.browser", { helper: job.helper, job: job.id, ...e }),
+      }),
+    });
     // Task 3.12: only the skills chosen for this worker, through its own small plugin.
     const chosen = helpers?.list().find((h) => h.id === job.helper)?.skills ?? [];
     const skills = chosen.length ? { ...prepareSkills(skillPlugin(job), chosen, userSkillsDir(), skillsDir), plugin: SKILLS_PLUGIN } : undefined;
@@ -592,7 +728,9 @@ export function createRuntime(
         ...(skills?.names.length ? { skills, onSkill } : {}),
         // ADR-095: the sub-agents it starts, for the task's thread (the store's change logs ids, names and states only).
         onSubAgent: (event) => helpers?.recordSubAgent(job.id, event),
+        ...(steering ? { steering: steering.track(job.id) } : {}),
         ...(mcp ? { mcp } : {}),
+        ...(browserOn ? { browser: browser() } : {}),
         // ADR-088: a "think" agent has no tools at all (the documenter without a folder still writes up from the web).
         ...(kit === "think" ? { thinkOnly: true } : {}),
       });
@@ -611,6 +749,8 @@ export function createRuntime(
           if (costUsd) helpers.addSpend(job.id, costUsd);
           countTokens(tokens);
         },
+        // ADR-098 item 8: the new proposal or edit is tested inside this task, so it counts on Tinker's budget.
+        test: (testKind, id) => runTests(testKind, id, signal, job.id).catch(() => undefined),
       });
     }
     // Task 3.8: a plan-first task's first run only plans (no tools); the plan then waits for Keshab.
@@ -620,17 +760,44 @@ export function createRuntime(
       countTokens(tokens);
       return { plan };
     }
+    // ADR-098 item 3: Keshab interrupted the run: its session is kept, and the task waits for his next message.
+    const interrupted = (error: unknown) => {
+      if (!(error instanceof RunInterrupted)) throw error;
+      if (error.sessionId) helpers?.setSession(job.id, error.sessionId);
+      return { interrupted: true };
+    };
     // Task 3.6: asked again, the run continues its last session with only what is new. A session Claude Code no
     // longer has (or any other failure to resume, except the plan's limits) falls back to one fresh run.
-    const resume = helpers?.resumeOf(job.id);
-    let result;
-    try {
+    const resume = onCodex ? undefined : helpers?.resumeOf(job.id);
+    let result: Awaited<ReturnType<typeof research>>;
+    // ADR-098 item 7: on Codex, the same brief and report; its tokens count on the Dashboard as "codex", $0 to budgets.
+    if (onCodex) {
+      helpers?.setModel(job.id, "codex", CODEX_REASON);
+      onStep(CODEX_REASON);
+      log.info("job.codex", { helper: job.helper, job: job.id, kit, folder: Boolean(files) });
+      const out = await runCodexJob({
+        program: keys.codex ?? "",
+        instructions,
+        task: fresh(),
+        web: kit !== "think",
+        ...(files ? { files: { cwd: files.cwd, others: files.writable.filter((dir) => dir !== files!.cwd) } } : {}),
+        timeoutMs: JOB_TIME_LIMIT_MS,
+        signal,
+      });
+      if (out.tokens) helpers?.addUsage({ source: "job", helper: job.helper, job: job.id, model: "codex", ...out.tokens });
+      result = { report: out.report, partial: false, pages: 0 };
+    } else try {
       result = await research(resume ? followUpBrief(resume.notes, helpers?.handOffs(job.id)) : fresh(), resume?.sessionId);
     } catch (error) {
+      if (error instanceof RunInterrupted) return interrupted(error);
       const kind = error instanceof GatewayError || (error instanceof Error && "kind" in error) ? (error as { kind?: string }).kind : undefined;
       if (!resume || signal.aborted || kind === "rate_limit" || kind === "auth" || kind === "cancelled") throw error;
       log.warn("job.resume_failed", { helper: job.helper, job: job.id, kind });
-      result = await research(fresh());
+      try {
+        result = await research(fresh());
+      } catch (fresher) {
+        return interrupted(fresher);
+      }
     }
     if (result.sessionId) helpers?.setSession(job.id, result.sessionId);
     if (result.costUsd) helpers?.addSpend(job.id, result.costUsd); // Task 3.7: counts toward the day's budgets
@@ -647,10 +814,82 @@ export function createRuntime(
   };
   // Logs ids, states, timings and page counts only: never the task, report or addresses.
   // Task 3.7: a task waits while its worker's or the team's budget is used up, or the plan is above its limit.
-  const held = (job: Job) => (helpers ? holdFor(job, helpers.budgets(), helpers.soul(job.helper).name, planUsed) : undefined);
+  const CODEX_REASON = "Ran on Codex (Claude plan limit reached)";
+  /** Tasks the runner let start on Codex; runOne takes each id out as it starts. */
+  const codexJobs = new Set<number>();
+  let codexReady = false;
+  const holdOf = (job: Job) => (helpers ? holdFor(job, helpers.budgets(), helpers.soul(job.helper).name, planUsed) : undefined);
+  // ADR-098 item 7: with the switch on and Codex signed in, a worker task held only by the Claude plan's limit (not a
+  // budget, not a plan waiting for Keshab; never Tinker or a Manager) starts on Codex instead, in a normal run slot.
+  const codexMay = (job: Job) => {
+    if (!helpers || !codexReady || !keys.codex || !helpers.codexFallback()) return false;
+    if (job.planFirst && job.planStatus !== "approved") return false;
+    const role = helpers.list().find((h) => h.id === job.helper)?.role;
+    if (!role || role === "improver" || helpers.managers().some((m) => m.id === job.helper)) return false;
+    return !holdFor(job, helpers.budgets(), helpers.soul(job.helper).name); // without the plan's use: held by nothing else
+  };
+  const held = (job: Job) => {
+    const why = holdOf(job);
+    return why && codexMay(job) ? undefined : why;
+  };
+  // ADR-098 item 8: test runs wait for the plan's limit and Tinker's (or the team's) budget like any run.
+  const testHeld = () => {
+    if (!helpers) return undefined;
+    const b = helpers.budgets();
+    if (planUsed !== undefined && b.planLimit < 100 && planUsed >= b.planLimit) return NOT_RUN_PLAN_LIMIT;
+    const own = b.workers["tinker"];
+    return (own && isOver(own)) || isOver(b.team) ? "Not run: budget used up" : undefined;
+  };
+  /** Runs a soul proposal's or skill edit's test cases on Sonnet at most; the cost counts on the Tinker task that made it. */
+  const runTests = async (kind: TestKind, id: number, signal: AbortSignal, tinkerJob = helpers?.tinkerTaskOf(kind, id)) => {
+    if (!helpers) throw new Error("Test cases need the helpers file.");
+    if (settings.current().provider !== CLAUDE_PLAN) throw new Error("Test cases run on the Claude plan.");
+    const model = modelForTier(planModels(), "medium") ?? settings.current().model;
+    try {
+      await runTestCases({
+        store: helpers,
+        kind,
+        id,
+        run: { claudePath: keys["claude-plan"] ?? "", model, signal, onUsage: reportUsage },
+        held: testHeld,
+        count: (costUsd, tokens) => {
+          if (costUsd && tinkerJob !== undefined) helpers.addSpend(tinkerJob, costUsd);
+          if (tokens) helpers.addUsage({ source: "job", helper: "tinker", ...(tinkerJob !== undefined ? { job: tinkerJob } : {}), model, ...tokens, ...(tokens.costUsd ? { dollars: tokens.costUsd } : {}) });
+        },
+        onEvent: (e) => log.info("test.run", e),
+      });
+    } catch (error) {
+      log.warn("test.failed", { ...errorFields(error), testKind: kind, id });
+      throw error;
+    }
+  };
   const runner: JobRunner | undefined =
     helpers &&
-    startJobRunner({ store: helpers, run: runJob, maxRunning: () => helpers.maxRunning(), onRun: (e) => log.info("job.run", e), mayStart: (job) => !held(job) });
+    startJobRunner({
+      store: helpers,
+      run: runJob,
+      maxRunning: () => helpers.maxRunning(),
+      onRun: (e) => log.info("job.run", e),
+      mayStart: (job) => {
+        if (!holdOf(job)) return true;
+        if (!codexMay(job)) return false;
+        codexJobs.add(job.id); // the runner starts it at once (it asks only with a free slot)
+        return true;
+      },
+    });
+  /** Codex found (keys.codex) and signed in: looked at on start and when the switch is turned on. Logs the answer only. */
+  function checkCodex() {
+    if (!keys.codex) return;
+    void scanAiTools().then(
+      (items) => {
+        codexReady = items.some((item) => item.id === "codex" && item.signedIn === true);
+        log.info("codex.ready", { ready: codexReady });
+        runner?.poke();
+      },
+      () => (codexReady = false),
+    );
+  }
+  checkCodex();
   // A new day (budgets) or an older plan window (its use falls) frees held tasks without any change in the store.
   if (runner) setInterval(() => runner.poke(), 60_000).unref();
   // Task 3.16: the Paperclip tasks ZENO handed over are looked at every minute; a finished one is said once.
@@ -729,6 +968,49 @@ export function createRuntime(
       onFallback: (e) => log.warn("goal.report_fallback", e),
     });
   const tts = createSpeaker(createKokoroSynthesizer({ voice: config.tts.voice, dtype: config.tts.dtype }));
+  // ADR-098: ZENO's own Telegram bot, only when both .env values are set. Its turns go to a Core of their own, saved as
+  // the chat "Telegram". The token and the messages are never logged.
+  const telegramToken = process.env.ZENO_TELEGRAM_BOT_TOKEN?.trim();
+  const telegramChat = process.env.ZENO_TELEGRAM_CHAT_ID?.trim();
+  let telegram: TelegramBot | undefined;
+  if (telegramToken && telegramChat && process.env.ZENO_VOICE_ONLY !== "1") {
+    const telegramCore = makeCore();
+    telegramCore.resume(TELEGRAM_CHAT, memory?.chats.messages(TELEGRAM_CHAT) ?? []);
+    telegram = startTelegramBot({
+      token: telegramToken,
+      chatId: telegramChat,
+      log,
+      ask: async (text) => (await telegramCore.handle({ text, source: "text" })).text,
+      ...(helpers ? { helpers } : {}),
+      held,
+      approvals: computer,
+      describe,
+    });
+  }
+  // ADR-098 item 5: the local API. Its turns go to a Core of their own, saved as the chat "api" (or "api-<chatId>"). It
+  // listens only after Settings' "Local API" switch is on.
+  let apiCore: Core | undefined;
+  let apiChat = "";
+  const api: ApiServer | undefined =
+    process.env.ZENO_VOICE_ONLY === "1"
+      ? undefined
+      : createApiServer({
+          log,
+          port: process.env.ZENO_API_PORT,
+          ask: async (text, chatId) => {
+            const chat = chatId ? `api-${chatId}` : "api";
+            apiCore ??= makeCore();
+            if (apiChat !== chat) {
+              apiCore.resume(chat, memory?.chats.messages(chat) ?? []);
+              apiChat = chat;
+            }
+            return (await apiCore.handle({ text, source: "text" })).text;
+          },
+          ...(helpers ? { helpers } : {}),
+          held,
+          approvals: computer,
+          describe,
+        });
   return {
     config,
     log,
@@ -742,6 +1024,15 @@ export function createRuntime(
     ...(helpers ? { helpers, islandHelpers: warmOnOpen(withPaperclip({
             ...islandHelpers(helpers, installedApps, planModels, held, () => listSkills(userSkillsDir(), skillsDir)),
             openReport,
+            ...(steering ? { steer: steering.steer, interrupt: steering.interrupt } : {}),
+            // ADR-098 item 8: "Run tests" on a pending soul proposal or skill edit.
+            runTests: (kind: TestKind, id: number) => runTests(kind, id, AbortSignal.timeout(JOB_TIME_LIMIT_MS)),
+            // ADR-098 item 7: the Codex switch, and whether Codex is found and signed in (the switch shows only then).
+            codex: () => ({ codexFallback: helpers.codexFallback(), codexReady: codexReady && Boolean(keys.codex) }),
+            setCodexFallback: (on: boolean) => {
+              helpers.setCodexFallback(on);
+              if (on) checkCodex();
+            },
             // ADR-090: a test starts the server (or connects), lists its tools, and records the outcome. Logs ids only.
             testMcp: async (id: number) => {
               const server = helpers.mcpServers().find((s) => s.id === id);
@@ -767,7 +1058,12 @@ export function createRuntime(
       goalLineListeners.add(listener);
       return () => goalLineListeners.delete(listener);
     },
+    ...(telegram ? { telegram } : {}),
+    ...(steering ? { steering } : {}),
+    ...(api ? { api } : {}),
     close: () => {
+      telegram?.stop();
+      api?.stop();
       stopGoals?.();
       runner?.close();
       void decisions.close();

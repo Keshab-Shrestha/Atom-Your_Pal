@@ -1118,6 +1118,193 @@ ADR-091 is done: all six parts built and tested. Next: Keshab tries them on the 
 **Later (not planned):** steering a running run, retries, workers driving apps through computer control.
 
 
+## ADR-097 item 1 — as built (2026-10-12)
+
+Model choice. Keshab chooses the default model and the model of each chat.
+
+- The Claude plan gives its live model list. The runtime asks the Agent SDK (`listPlanModels` in `services/llm-gateway/src/providers/claude-plan.ts`) at start and on Refresh. The request sends no prompt and uses no tools, no settings and no connectors. If the request fails, the runtime uses the table in `PROVIDERS`.
+- Codex and the Gemini CLI have a known list in `packages/shared/src/config.ts`. Each list starts with the program's own model.
+- `apps/mac/src/model-settings.ts`: `offeredModels` uses the live list. `check` accepts a model from the list or a valid custom model id. `refreshModels` gets the live list again.
+- Settings → Model shows the live list, a "Custom model…" entry with a Save button, and a Refresh button.
+- Each chat keeps its own provider and model in `memory.db` (columns `chats.provider` and `chats.model`). A chat without them uses the default.
+- The chat page has a Model menu in its top bar. The menu sends `chat.model`. The choice applies to that chat only.
+- The runtime sends a typed turn to the chat's own model (`modelForTurn` in `apps/mac/src/runtime.ts`). Voice turns and new chats use the default model.
+- Protocol: `model.refresh`, `chat.model`, and `currentProvider` / `currentModel` in `chats` (docs/island-protocol.md).
+- Not done: tests for the new code. Keshab asked for build only.
+
+## ADR-097 items 2 and 4 — as built (2026-10-12)
+
+Own schedules. Keshab makes, edits and deletes schedules on the Scheduled page.
+
+- The Scheduled page has a "New schedule" button. The button opens a form: the agent, the task, the repeat and the time. The agent menu lists only the agents that take tasks.
+- The repeat is one of the three kinds that the store has: every day at a time, every week on a day at a time, or every 1 to 168 hours. An hourly schedule also has a first run time.
+- Each routine card has an Edit button. Edit opens the same form with the routine's values. Save sends the change.
+- The form uses the shared `SaveButton` ("Create" or "Save", ⌘S) and `.tracksEdits`. Leaving the page with unsaved text asks "Discard changes?". The form closes when ZENO answers without a problem.
+- Store: `addRoutine` takes an optional `startAt`. The new `updateRoutine` changes the worker, the task and the schedule. A changed routine counts from now, so a changed time does not come due at once. `anchorFor` in `services/helpers/src/routines.ts` sets the hourly anchor.
+- Protocol: `routine.add` and `routine.update`, and `schedule` (the numbers) in each routine (docs/island-protocol.md). The runtime checks the shape; the store checks the worker, the task and the numbers.
+- Swift: `RoutineSchedule` and `RoutineDraft` (`Scheduled.swift`), `HelpersState.saveRoutine`, `ScheduleFormCard` (`ScheduledView.swift`).
+- Not done: a "weekdays only" repeat. The store has no such kind.
+
+Sounds settings. Settings has a Sounds page with one switch for each sound. Each switch takes effect at once.
+
+| Switch | Sound | Setting |
+|---|---|---|
+| Speak the team's reports | ZENO says a goal's report aloud | `speakReports` (existing), sent in `speech.set` |
+| Speak timers and updates | ZENO says timers and other updates aloud | `speakUpdates` (existing), sent in `speech.set` |
+| Chime before speaking | The Glass chime before a spoken line | `speechChime` (new), sent as `chime` in `speech.set` |
+| Start and stop sounds | The Tink and Pop tones of dictation | `soundsEnabled` (existing) |
+| Notification sounds | The macOS sound of ZENO's notifications | `notificationSounds` (new) |
+
+- The page is `Settings/SoundsPage.swift`. The Start and stop sounds switch moved there from General.
+- The chat's Sounds menu uses the same settings. It also has the two new switches and a "Sound settings…" link.
+- ATOM makes no sound of its own. ATOM shows a spoken line in its bubble while ZENO says it. The two Speak switches control that speech. So the page has no separate ATOM switch.
+- Not done: tests for the new code. Keshab asked for build only.
+
+## ADR-097 item 3 — as built (2026-10-12)
+
+Memory from chats. Keshab chooses the chats to keep in memory. ZENO searches the kept chats for every request.
+
+- The Memory page has a "Recent chats" card. Each chat shows its title, date and message count. Tick "Keep in memory" on each chat to keep, then click Save. A kept chat shows "Kept" and a Remove button. The card uses the shared `SaveButton` and `.tracksEdits`.
+- Protocol: `memory.keepChat` and `memory.dropChat`, and `chats` in the `memory` event (docs/island-protocol.md).
+- ZENO keeps each kept chat at 3 depths in `data/memory.db`: a summary (level 1), sections of 8 messages with a heading each (level 2), and the exact lines, cut to 800 characters or less (level 3). The tables are `kept_chats`, `kept_sections`, `kept_lines` and the full-text table `kept_fts`. The code is `services/memory/src/chat-index.ts`.
+- The summary and the headings come from one run of the plan's small model without tools (`runChatDigest` in `claude-plan-job.ts`). If the run fails, or the Claude plan is not in use, ZENO makes the digest from the first lines and keywords. Keeping a chat never fails because of the model.
+- The search uses keywords (SQLite FTS5) and meaning (the local model `Xenova/all-MiniLM-L6-v2`, through `@huggingface/transformers`, which ZENO already uses). Reciprocal rank fusion merges the two results. The search starts at the summaries. It searches the sections of the best 3 chats only, then the lines of the best 3 sections only.
+- The embedding model loads in the background. A request does not wait for it: until it is ready, the search uses keywords only. If the model cannot load, ZENO logs it and uses keywords only. Vectors that are missing are added when the model is ready.
+- Each request gets the best kept lines, with their chat title and section heading, in the system prompt (1,500 characters or less). The Core's context hook can now be async.
+- Not done: tests for the new code (Keshab asked for build only). A kept chat is a copy: turns added to the chat after keeping are not in memory. Remove and keep the chat again to add them.
+
+## ADR-098 item 9 — as built (2026-10-12)
+
+Token savings from jcode. ZENO sends fewer tokens to Claude, and the cache holds more of them.
+
+- Sub-agents use cheaper models. The searcher and the reader use Haiku with low effort. The checker uses Sonnet. The coder uses the model of its run. The code is `subAgentsFor` in `services/llm-gateway/src/providers/sub-agents.ts`.
+- Runs without tools use low effort. These runs are the plan, Tinker's review, the skill draft and edit, the Manager split and review, and the chat digest. The code is `runStructured` in `claude-plan-job.ts`.
+- Managers and Tinker use Sonnet at most. A model that Keshab pins on an agent stays. The code is the `cap` input of `chooseJobModel` in `services/helpers/src/models.ts`. The reason in the window is "Role maximum".
+- Each chat keeps one Claude Code session. A typed turn in a chat resumes the session and sends only the new turn and the context for this request. The `chats` table has a new column `session` (JSON: session id, model, hash of the last answer). ZENO resumes the session only when the model is the same and the last answer in the chat is the answer from that session. Otherwise, ZENO starts a new session with the whole chat and keeps its id.
+- If a resume fails before Claude does anything, ZENO starts a new session with the whole chat.
+- Voice turns do not change. They use the pre-started process and no session. A typed chat turn does not use the pre-started process, because that process keeps no session.
+- The team list and the memory guidance are now in the system prompt (the `standing` option of `createCore`). The per-turn text has only the time, the memory facts, the kept-chat lines, the episodes and the pointed window. A chat session renders its system prompt each time (`snapshot: false`), so a changed team list arrives on the next turn.
+- After an answer with tools, the adapter pre-starts the next process with the instructions of that answer. Thus a changed team list does not stop the pre-start.
+- The Dashboard shows the cache hit rate for 7 days and for today, and for each day under its bar. The cache hit rate is cache reads ÷ (input + cache reads + cache writes). The Dashboard shows "Cache went cold" when the last 3 chat answers read 0 cached tokens (`chatCacheCold` in the `usage` summary).
+- Not done: tests for the new code (Keshab asked for build only). A long chat session is not cut to 20 exchanges: Claude Code compacts it when it is full.
+
+## ADR-098 items 1–2 — as built (2026-10-12)
+
+Telegram for ATOM, and results to the phone. ZENO uses its own bot. Hermes keeps its bot.
+
+- Set up: make a new bot with @BotFather. Add `ZENO_TELEGRAM_BOT_TOKEN` and `ZENO_TELEGRAM_CHAT_ID` to `.env`. Restart ZENO. The feature is off until both values are set.
+- `apps/mac/src/telegram.ts` (`startTelegram`, `splitMessage`) talks to the Bot API with Node's `fetch`. It uses long polling (`getUpdates` with offset and a 50 s timeout), `sendMessage` (plain text, split at 4096 characters) and `answerCallbackQuery`. Errors back off from 1 s to 60 s. `stop()` aborts the call in flight.
+- ZENO serves only the chat in `ZENO_TELEGRAM_CHAT_ID`. ZENO ignores other chats and logs only a count. The log never holds the token or message text.
+- `apps/mac/src/telegram-bot.ts` (`startTelegramBot`, `needsYou`) holds ZENO's side:
+  - Plain text is an ATOM chat turn. The turn goes to a Core of its own (`makeCore` in `runtime.ts`), with the chat id `telegram`. The ZENO window lists this chat as "Telegram". Turns run one at a time.
+  - `/needs` sends each Needs you item with its buttons: ATOM's questions (Allow, Decline), plans (Approve, Reject), Tinker's proposals, skill drafts and skill edits (Accept or Approve, Reject), held tasks, and failed tasks (Retry). At most 10 items. Each button calls the same store command as the window.
+  - `/tasks` lists running and waiting tasks (at most 20 lines). `/report <number>` sends a task's report, cut at 3500 characters. `/help` lists the commands.
+  - Push: a new Needs you item (not a failure), a finished goal (its title and summary), and the result of a schedule with "Send result to Telegram" on.
+- The computer bridge has `pending()` and `onAsk()`, so ATOM's questions also go to Telegram.
+- Routines have `notifyTelegram` (store column `notify_telegram`, default off). `routine.add` and `routine.update` take it. The Scheduled form has a "Send result to Telegram" switch.
+- Settings → General has a Telegram card. It shows "Connected" or "Not set up" (with the two `.env` names) and the "Send to Telegram" switch. The switch is on by default. The island sends it as `telegram.set` when ZENO connects and when it changes. The `ready` event has `telegram`.
+- The "Send to Telegram" switch controls all sends that ZENO starts, also schedule results. Replies to Keshab's messages always go.
+- Not done: tests (Keshab asked for build only). A Telegram turn and a window turn on the same chat at the same time can disagree on the history: open the Telegram chat in the window only to read it.
+
+## ADR-098 item 4 — as built (2026-10-12)
+
+A browser for workers.
+
+- Turn on the Browser switch on the worker's page. The store keeps the setting `browser:<id>`. The protocol command is `helper.browser`. Each helper in `helpers` has `browser`.
+- With the switch on, each run of the worker gets Playwright's MCP server (`@playwright/mcp` 0.0.83, Apache-2.0) under the name `zeno-browser`. A "think" worker does not get it. Sub-agents do not get it.
+- The launch command is `node <@playwright/mcp>/cli.js --browser chromium --user-data-dir data/browser-profile/<id> --output-dir data/browser-files/<id> --no-webmcp`. The browser is headed, so Keshab can watch it.
+- Install the browser once: `node apps/mac/node_modules/@playwright/mcp/cli.js install-browser chromium`. Without it, the first browser call fails with an install message.
+- `browserCheck` in `apps/mac/src/browser.ts` checks each browser call. The first visit to each site and the first typing or submit on each site ask Keshab on ATOM's card. The answer lasts for the run. Uploads come only from the worker's granted folders. The check refuses a call that names a file. A PostToolUse hook gives each result to the check, so it knows the page's origin and the last snapshot.
+- The task's step shows the tool and the origin, for example "Browser: click on https://example.com".
+- The gateway option is `browser` in `runResearch` (`claude-plan-job.ts`). The runtime makes a new check for each run.
+- Not done: tests (Keshab asked for build only). A password field cannot be told from other fields, so all typing on a new site asks. The same worker in two runs at once shares one profile, and the second browser does not start. A switch for a headless browser is not there.
+
+## ADR-098 item 6 — as built (2026-10-12)
+
+One search, and labels on tasks.
+
+- The search field is at the top of the window's sidebar. Edit → Find (⌘F) puts the cursor in it. Esc or the clear button empties it.
+- While the field has words, the sidebar shows the results in place of its pages: Chats, Tasks and Reports. Each result has a title, a short snippet and a date. Each kind has at most 20 results. The search starts 250 ms after the last key.
+- A chat result opens the chat. A task or report result opens the task's thread. Both go through `model.navigate`, so Back and "Discard changes?" work.
+- Each database has SQLite FTS5 tables. Triggers keep them in step with their tables. An older file gets its FTS tables filled once at start.
+  - `memory.db`: `chat_fts` (one row per chat message). The code is `services/memory/src/chat-search.ts`.
+  - `helpers.db`: `task_fts` (task text), `note_fts` (task notes) and `report_fts` (title, summary, body). The code is `services/helpers/src/search.ts`.
+- All words must match. Each word also matches as the start of a longer word. Each word is quoted, so FTS syntax does not get through. A query has at most 200 characters.
+- Labels: the table `job_labels` (job_id, label). A label has 1 to 24 characters: a to z, digits, dash and space. A task has at most 6 labels. A deleted task loses its labels (trigger). A label search finds part of a label.
+- The task thread has a Labels section: chips with × to remove, and an "Add label" field with the Add button. Return saves.
+- The Board has a Label menu. It lists the labels in use. Choose a label to see only its tasks, as columns. Choose "All" to see all tasks.
+- Protocol: `search` → `search.results`, `job.label.add`, `job.label.remove`. Each job in `helpers` has `labels`. The log has counts only (`search` with `chats`, `tasks`, `reports`), never the query.
+- Not done: tests (Keshab asked for build only). A task result that is older than the Board shows (the newest 20 per worker) shows dim and does not open. Chat titles are searched through the first message only.
+
+## ADR-098 item 7 — as built (2026-10-12)
+
+Codex when the Claude plan limit stops work.
+
+- The switch is "Use Codex when the Claude plan limit is reached", in Settings → General, in the Team card. It is off by default. The store keeps the setting `codexFallback`. The protocol command is `helpers.settings` with `codexFallback`. The `helpers` event has `codexFallback` and `codexReady`.
+- The switch shows only when Codex is found and signed in (`codexReady`). The runtime asks `codex login status` at start and when Keshab turns the switch on. ZENO also finds Codex in the ChatGPT app now (`/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex`).
+- With the switch on, the runner starts a task on Codex when only the Claude plan's limit holds it. Budgets still hold tasks. A plan that waits for Keshab, Tinker and Managers stay on Claude. The Codex run uses a normal run slot. The task does not show as held.
+- `runCodexJob` (`services/llm-gateway/src/providers/codex-job.ts`) sends the same brief: the soul, the task (`briefFor`) and a report contract. Codex replies with one JSON object. `parseReport` checks it, as for Claude runs.
+- Commands by kit:
+  - think: `codex exec --json --ephemeral --skip-git-repo-check --ignore-user-config --output-last-message <file> --sandbox read-only -c web_search="disabled" <prompt>`
+  - research, and a write-up without a folder: the same with `-c web_search="live"`.
+  - folders: `codex exec --json --ephemeral --skip-git-repo-check --ignore-user-config --output-last-message <file> --sandbox workspace-write -c sandbox_workspace_write.network_access=false --cd <worktree> [--add-dir <other granted folder>] <prompt>`. ZENO commits the changes on the task's branch, as for Claude.
+- stdin is closed. API keys are removed (`signedInEnv`). The time limit is the job limit (15 minutes).
+- The thread shows the model "codex" with the reason "Ran on Codex (Claude plan limit reached)". The step says the same.
+- The tokens come from the `turn.completed` events of `--json`. They go to the usage table with the model `codex` and $0. ZENO adds no spend, so budgets count $0.
+- The log has `job.codex` (task id, kit, folder yes or no) and `codex.ready`.
+- Not done: tests (Keshab asked for build only). A Codex run does not resume an earlier session. Hand-off, skills, MCP servers, the browser and sub-agents are not given to Codex. Wake-ups still wait at the plan's limit. The usage table has no provider column, so the model `codex` marks these runs. Codex output over 16 MB fails the run.
+
+## ADR-098 item 5 — as built (2026-10-12)
+
+ZENO as a server: a local HTTP API, an MCP server and webhooks for schedules.
+
+- The API is `apps/mac/src/api-server.ts` (`createApiServer`). It uses Node's `http`. It has no framework.
+- Turn it on in Settings → General → "Local API". It is off by default. The island keeps the switch (`zeno.api.on`) and sends `api.set` when ZENO connects and when the switch changes. The runtime answers with the `api` event (on, port, token file, error).
+- The API listens on 127.0.0.1 only. The port is `ZENO_API_PORT` (default 4790).
+- Each request needs `Authorization: Bearer <token>`. The token is in `data/api-token` (32 random bytes as hex, mode 0600). ZENO makes it at the first start. ZENO compares SHA-256 digests in constant time. A wrong token gets 401. The log has the count only.
+- "Copy token" reads the file when clicked and puts the token on the clipboard. The token is never in the log or the protocol.
+- Endpoints: `POST /v1/goals`, `GET /v1/goals/:id`, `POST /v1/chat`, `GET /v1/tasks`, `GET /v1/tasks/:id`, `GET /v1/needs`, `POST /v1/needs/:key`, `POST /v1/hooks/:routineId`. Each answer is `{ok, data, error}`. A body is at most 64 KB.
+- Goals and chat turns go to a Core of their own (`makeCore`, as for Telegram). The chat is `api`, or `api-<chatId>`. One turn runs at a time. A goal's id comes from the store's `goal` change during the turn.
+- Needs you uses `needsYou` and `answerNeed` from `telegram-bot.ts`. `answerNeed` is the Telegram button code, moved out so both use it. The action is the button's word in lower case (`approve`, `reject`, `allow`, `decline`, `accept`, `retry`).
+- Webhooks: each routine has a `webhook` column (default off). The Scheduled form has the switch "Can be started by webhook". In edit mode the form shows the path. `HelperStore.startRoutine(id)` makes the task now. A routine without the switch gets 403. A routine whose last task has not ended gets 409.
+- The log has `api.request` (method, route pattern, status, ms), `api.unauthorized` (count), `api.start`, `api.stop` and `api.start_failed`. It never has bodies, goals, answers or the token.
+- The MCP server is `apps/mac/src/mcp-serve.ts`. It uses `@modelcontextprotocol/sdk` (already a dependency) over stdio. It is a client of the API and reads `data/api-token`. Tools: `zeno_give_goal`, `zeno_goal_status`, `zeno_chat`, `zeno_list_tasks`, `zeno_task_report`, `zeno_needs_you`. Add it with `claude mcp add zeno -- node <ZENO folder>/apps/mac/src/mcp-serve.ts`.
+- Docs: README "Use ZENO from other tools", SECURITY.md "Local API and MCP server", docs/island-protocol.md "Local API".
+- Not done: tests (Keshab asked for build only). No `pnpm zeno:mcp` script: pnpm writes a line to stdout, and that breaks the MCP stream. A goal that another surface makes during an API goal turn can get its id. The MCP server has no tool to answer Needs you. Terminal mode has no switch, so the API is off there.
+
+## ADR-098 item 3 — as built (2026-10-12)
+
+Steer or interrupt a running task.
+
+- Open the thread of a running task. The field "Tell <agent>…" sends a message. Click Send or push Return. The protocol command is `job.steer` (`id`, `text` of 1 to 2000 characters).
+- The worker reads the message at its next step. The run does not stop. The runtime gives each worker run its input as a stream (Agent SDK streaming input: `query({ prompt: AsyncIterable<SDKUserMessage> })`, sdk.d.ts line 3245; `priority` at line 6228). Each message has `priority: "next"` and `client_composed: true`, so the CLI does not read `@file` mentions or run slash commands.
+- ZENO keeps the message as a task note with `delivery: "live"`. The thread shows it as "Keshab (while running)". A resumed run does not get a "live" note again.
+- Some runs cannot take a message: plan, Manager and Tinker runs, and a run that has its result. Then ZENO keeps the message with `delivery: "after"`, and the task runs once more after this run. The thread shows "Keshab (after this run: the run could not take it)".
+- The CLI takes a message between steps. When the run ends before a step follows the message, ZENO changes the message to "after" (`steerUnread`). This is a guess from step boundaries: a message can then go to the worker two times.
+- The Interrupt button is next to Stop on a running task. The protocol command is `job.interrupt` (`id`). It calls the SDK's `Query.interrupt()` (sdk.d.ts line 2858). Then the input stream ends, and the run ends with `RunInterrupted`.
+- The runtime keeps the session id. The store moves the task back to `queued` with `interrupted` = 1 (`HelperStore.interrupt`). The task is held with "Interrupted — waiting for you." It shows under Needs you. The activity line is "Interrupted".
+- The field on an interrupted task is "Tell <agent> what to do next". The message wakes the task. The next run resumes the same Claude session with the message (`resumeOf`, `followUpBrief`). When a note waited already at the interrupt, the task runs again at once.
+- Stop still ends the task, also an interrupted task.
+- Code: `apps/mac/src/task-steering.ts` (`taskSteering`: `track`, `steer`, `interrupt`). The runtime has `steering` (for Telegram later). The island helpers have `steer` and `interrupt`. The gateway option is `steering` in `runResearch` (`LiveRun`, `RunSteering`, `RunInterrupted` in `claude-plan-job.ts`). The runner outcome is `interrupted`.
+- The log has `job.steer` (task id, state, live yes or no) and `job.interrupt` (task id, ok). It never has the message.
+- Not done: tests (Keshab asked for build only). Telegram does not call steer or interrupt yet. A Codex run cannot be steered. The thread has no "Kept for after this run" line for an ordinary note.
+
+## ADR-098 item 8 — as built (2026-10-12)
+
+Test cases for souls and skills.
+
+- Open the thread of a done task. "Save as test case" saves the task for its agent. When the run used a ZENO-made skill, "Save for <skill>" saves the task for that skill. The protocol command is `testcase.save` (`jobId`, `kind` `soul` or `skill`, `target`).
+- The store keeps each test case in the table `test_cases`: id, target kind, target (agent id or skill name), task id, task text, the original report (cut to 4000 characters) and the time. A target keeps 10 test cases at most. The store refuses the 11th with a clear message. It also refuses a task that is not done, a task with no report, a wrong target and a second save of the same task for the same target.
+- The agent page and each ZENO-made skill on the Plugins page list the test cases ("Test cases · 2 of 10"). Delete removes one (`testcase.delete`, `id`).
+- When Tinker saves a soul proposal or a skill edit, and the target has test cases, the Tinker task runs the test cases before it ends. ZENO takes the newest 3 cases. For each case, ZENO makes two dry runs: one with the current soul or skill text, one with the proposed text. Then a judge run compares the two answers with the saved report. The judge gives `better` (`old`, `new` or `same`) and a reason (200 characters at most).
+- Each run has no tools: `tools` [], `strictMcpConfig`, `settingSources` [], effort "low" (the `runStructured` pattern, modes `testAnswer` and `testJudge`). The model is Sonnet at most (`modelForTier(..., "medium")`).
+- The cost counts on the Tinker task that made the change, so it counts on Tinker's budget. When the plan is above its limit, a case is "Not run: plan limit". When Tinker's or the team's budget is used up, a case is "Not run: budget used up". A plan-limit error in a run stops the remaining cases.
+- The store keeps the results per proposal or edit in the table `test_results` (state, verdict, reason, the two answers cut to 4000 characters). A new run replaces the old results.
+- The proposal card (agent page and Needs you) and the skill edit card (Plugins page and Needs you) show "Test cases: 2 better, 1 same". "Compare" opens the old and the new answer side by side for each case (cut to 800 characters), with the judge's reason. "Run tests" runs the cases again (`testcase.run`, `proposalKind`, `id`). Accept and Reject do not change.
+- Code: `services/helpers/src/test-cases.ts` (`testCaseTable`, briefs, limits). Store: `saveTestCase`, `deleteTestCase`, `testCases`, `testInputs`, `startTestRun`, `finishTestCase`, `testResults`, `tinkerTaskOf`. Gateway: `runTestAnswer`, `runTestJudge` in `claude-plan-job.ts`. Runtime: `apps/mac/src/test-runs.ts` (`runTestCases`), the `test` hook of `runTinker`, and `runTests` in `runtime.ts`. Window: `TestCaseViews.swift` (`TestRunView`, `TestCasesList`, `SaveTestCaseSection`) and `TestCases.swift` (Core).
+- The log has `test.run` (kind, id and counts) and `test.failed` (kind, id and the error kind). The change events have ids, targets and states only. The log never has a task, a report or an answer.
+- Not done: tests (Keshab asked for build only). Telegram does not show test results. A run that ZENO closes in the middle stays "running" until "Run tests" runs it again.
+
 ## Phase 4 — Lantern: the Redesign (ADR-084, 2026-10-10)
 
 Design: `docs/design/design-study.md` §3 A (tokens, type, motion) and §4 (rollout). Mockups: gallery sheets `14-design-study-*`. Each step changes how things look and move, never what they do; each ends with its tests, a gallery render shown to Keshab, and docs.

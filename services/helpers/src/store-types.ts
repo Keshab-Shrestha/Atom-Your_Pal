@@ -8,6 +8,8 @@ import type { McpServer, McpServerInput } from "./mcp.ts";
 import type { UsageEntry, UsageSummary } from "./usage.ts";
 import type { TeamTask, WakeEvery, WakeUp, Woken } from "./team.ts";
 import type { SubAgent, SubAgentEvent, SubAgentState } from "./sub-agents.ts";
+import type { TaskSearchHit } from "./search.ts";
+import type { TestBetter, TestCase, TestInputs, TestKind, TestResult, TestState } from "./test-cases.ts";
 
 // The helper store's public shapes (split from store.ts): jobs as tasks, threads, goals, the store's operations.
 
@@ -56,6 +58,8 @@ export interface Job {
   resumable: boolean;
   /** Asked again while running: one more run follows this one. */
   wakePending: boolean;
+  /** ADR-098 item 3: Keshab interrupted its run; it waits ("to do", held) for his next message, which resumes it. */
+  interrupted?: boolean;
   /** Task 3.8: its first run only plans; the plan waits for Keshab ("awaiting"), then goes to the next run ("approved"). */
   planFirst: boolean;
   planStatus?: "awaiting" | "approved";
@@ -77,18 +81,25 @@ export interface Job {
   comments: number;
   /** ADR-095: the sub-agents its runs started (the newest), absent when none. */
   subAgents?: SubAgent[];
+  /** ADR-098: its labels, sorted; absent when none. */
+  labels?: string[];
 }
 
 export interface Comment {
   id: number;
   text: string;
   createdAt: Date;
+  /**
+   * ADR-098 item 3: a message Keshab sent to the running task: "live" reached the run at its next step; "after" could
+   * not, so the task runs once more after this run. Absent for an ordinary note.
+   */
+  delivery?: "live" | "after";
 }
 
 /** One line of a task's activity: what happened and when (ids and states only, as in the logs). */
 export interface Activity {
   /** ADR-095: "split" (a Manager handed its part to its Agents) and "revised" (it asked one of them for its one revision). */
-  kind: "created" | "waits" | "commented" | "woken" | "fresh" | "planned" | "approved" | "rejected" | "handed" | "retried" | "split" | "revised" | JobState;
+  kind: "created" | "waits" | "commented" | "woken" | "fresh" | "planned" | "approved" | "rejected" | "handed" | "retried" | "split" | "revised" | "interrupted" | JobState;
   at: Date;
 }
 
@@ -165,6 +176,8 @@ export interface HelperView {
   budget: Budget;
   /** Task 3.8: its new tasks plan first. */
   planFirst: boolean;
+  /** ADR-098: its runs get the browser (Playwright, ZENO's own profile). Default false. */
+  browser: boolean;
   /** Task 3.9: its routines, oldest first. */
   routines: Routine[];
   /** ADR-094: its wake-ups; absent when off (the default). */
@@ -211,7 +224,7 @@ export type HelperChange =
   | { action: "budget"; helper: HelperId | "team" }
   | { action: "spend"; helper: HelperId; job: number }
   | { action: "plan"; helper: HelperId; job: number; status: "awaiting" | "approved" | "rejected" }
-  | { action: "routine"; helper: HelperId; routine: number; outcome: "added" | "removed" | "made" | "skipped" | "paused" | "resumed" }
+  | { action: "routine"; helper: HelperId; routine: number; outcome: "added" | "changed" | "removed" | "made" | "skipped" | "paused" | "resumed" }
   | { action: "team"; task: number; change: "added" | "removed" | "taken"; helper?: HelperId; job?: number }
   | { action: "wakeUp"; helper: HelperId; change: "set" | "off" | "paused" | "resumed" | "woke"; job?: number }
   | { action: "grant"; helper: HelperId; granted: boolean }
@@ -228,10 +241,13 @@ export type HelperChange =
   | { action: "job"; helper: HelperId; job: number; state: JobState; ms?: number }
   | { action: "step"; helper: HelperId; job: number }
   | { action: "comment"; helper: HelperId; job: number }
+  | { action: "label"; helper: HelperId; job: number }
   | { action: "blockers"; helper: HelperId; job: number }
   | { action: "deleted"; helper: HelperId; job: number }
   | { action: "subAgent"; helper: HelperId; job: number; name: string; state: SubAgentState }
-  | { action: "goal"; goal: number; tasks: number; ended: boolean };
+  | { action: "goal"; goal: number; tasks: number; ended: boolean }
+  | { action: "testCase"; kind: TestKind; target: string; testCase: number; change: "saved" | "deleted" }
+  | { action: "testRun"; kind: TestKind; item: number; case?: number; state: TestState | "started" };
 
 export interface HelperStore {
   /** Every helper in the fixed order, with its newest jobs. */
@@ -248,6 +264,9 @@ export interface HelperStore {
   restoreSoul(helper: string, version: number): void;
   /** Whether jobs may use the large model (ADR-083). Default true. */
   allowLarge(): boolean;
+  /** ADR-098 item 7: a task held only by the Claude plan's limit runs on Codex instead. Default false. */
+  codexFallback(): boolean;
+  setCodexFallback(on: boolean): void;
   /** Task 3.7: every cap and today's spend, and the plan limit. */
   budgets(): Budgets;
   /** Sets a worker's or the team's daily cap in dollars (null: no cap). Throws HelperError for an unknown worker or a bad amount. */
@@ -370,10 +389,42 @@ export interface HelperStore {
   /** Every pending draft and edit, and the newest few others, newest first. */
   skillDrafts(): SkillDraft[];
   skillEdits(): SkillEdit[];
+  /**
+   * ADR-098 item 8: saves a done task as a test case for its agent's soul ("soul", target its agent id) or for a
+   * ZENO-made skill its run used ("skill", target the skill's name). Throws HelperError for another task or target, a
+   * task saved already for that target, or an 11th case (MAX_TEST_CASES).
+   */
+  saveTestCase(jobId: number, kind: TestKind, target: string): TestCase;
+  deleteTestCase(id: number): void;
+  /** Every test case, newest first. */
+  testCases(): TestCase[];
+  /**
+   * What a test run of a pending soul proposal ("soul") or skill edit ("skill") needs: the newest TEST_CASES_RUN cases
+   * and the system text with the old and with the new text. Throws HelperError when nothing waits there.
+   */
+  testInputs(kind: TestKind, id: number): TestInputs;
+  /** A test run's start (each case "running") and each case's outcome. */
+  startTestRun(kind: TestKind, id: number, cases: TestCase[]): void;
+  finishTestCase(kind: TestKind, id: number, testCase: TestCase, outcome: { state: TestState; better?: TestBetter; reason?: string; oldAnswer?: string; newAnswer?: string }): void;
+  testResults(kind: TestKind, id: number): TestResult[];
+  /** The Tinker task that made a soul proposal or skill edit (its test runs count on that task's spend), if it still exists. */
+  tinkerTaskOf(kind: TestKind, id: number): number | undefined;
   /** Task 3.12: the worker's skills, replacing what it had. Throws HelperError for a bad name or more than MAX_SKILLS. The caller checks they exist. */
   setSkills(helper: string, skills: readonly string[]): void;
   /** Task 3.9: a schedule that makes a task for a worker. Throws HelperError for an unknown or unavailable worker, a bad task or schedule, or too many. */
-  addRoutine(helper: string, task: string, schedule: Schedule): Routine;
+  addRoutine(helper: string, task: string, schedule: Schedule, startAt?: Date, notifyTelegram?: boolean, webhook?: boolean): Routine;
+  /**
+   * ADR-097: changes a routine's worker, task and schedule (`startAt`: an hourly one's next time). It counts from now: a
+   * changed time does not come due at once. Throws HelperError as `addRoutine` does, and for an unknown routine.
+   * ADR-098: `notifyTelegram` sends its result to Telegram, and `webhook` lets the local API start it; undefined keeps
+   * the current choice.
+   */
+  updateRoutine(id: number, helper: string, task: string, schedule: Schedule, startAt?: Date, notifyTelegram?: boolean, webhook?: boolean): Routine;
+  /**
+   * ADR-098 item 5: makes the routine's task now (a webhook call). Its schedule does not change. Throws HelperError for an
+   * unknown routine, an unavailable worker, or when its last task has not ended.
+   */
+  startRoutine(id: number): Job;
   removeRoutine(id: number): boolean;
   /** ADR-094: pauses or resumes a routine (a resumed one does not make up missed times). Throws HelperError for an unknown one. */
   pauseRoutine(id: number, paused: boolean): void;
@@ -401,6 +452,13 @@ export interface HelperStore {
   runRoutines(): { made: number[]; skipped: number[] };
   /** Task 3.8: whether a worker's new tasks plan first. Throws HelperError for an unknown worker. */
   setPlanFirst(helper: string, on: boolean): void;
+  /** ADR-098: whether a worker's runs get the browser. Throws HelperError for an unknown worker. */
+  setBrowser(helper: string, on: boolean): void;
+  /**
+   * ADR-098 item 3, for the runner: Keshab interrupted the run. The task goes back to "to do", held until his next
+   * note (which resumes its session); when a note already waits, it runs again at once.
+   */
+  interrupt(id: number): void;
   /** For the runner: a plan-first run's plan. The task goes back to "to do", held until Keshab approves. */
   savePlan(id: number, plan: { summary: string; steps: string }): void;
   /** Approves a task's waiting plan, so its next run does the job with it. Throws HelperError when no plan waits. */
@@ -428,9 +486,20 @@ export interface HelperStore {
   /**
    * Adds Keshab's note to a task and wakes it (Task 3.6): an ended task runs again; a running one runs once more when
    * it ends (several notes meanwhile make one more run); a queued one gets the note in its brief. Throws HelperError
-   * for an unknown task or an empty or long note.
+   * for an unknown task or an empty or long note. ADR-098 item 3: an interrupted task runs again with it. `delivery`
+   * marks Keshab's message to a running task: "live" (the run took it, so nothing wakes) or "after" (one more run).
    */
-  addComment(id: number, text: string): void;
+  addComment(id: number, text: string, delivery?: "live" | "after"): void;
+  /** ADR-098 item 3: the last `count` "live" messages the run may not have read become "after": one more run. */
+  steerUnread(id: number, count: number): void;
+  /** ADR-098: adds a label to a task (returns it cleaned). Throws HelperError for an unknown task, a bad label or a seventh. */
+  addLabel(id: number, label: string): string;
+  /** ADR-098: removes a task's label. Throws HelperError for an unknown task. */
+  removeLabel(id: number, label: string): void;
+  /** ADR-098: every label on some task, sorted. */
+  labels(): string[];
+  /** ADR-098: tasks (task text, labels, notes) and reports matching the words, best first, at most 20 of each. */
+  search(query: string): { tasks: TaskSearchHit[]; reports: TaskSearchHit[] };
   /** Forgets a task's Claude session; an ended task runs again, fresh. Throws HelperError for an unknown or running task. */
   startFresh(id: number): void;
   /** Keeps the session a run used, so the next run resumes it. False (nothing saved) for an unknown task. */

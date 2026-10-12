@@ -8,6 +8,10 @@ export const PROTOCOL_VERSION = 1;
 
 /** Longest command line accepted, in characters. The biggest is a soul edit (`soul.set`); anything bigger is a bug or abuse. */
 export const MAX_COMMAND_LENGTH = 16_384;
+/** ADR-098: the longest search query, in characters. */
+export const MAX_SEARCH_QUERY = 200;
+/** ADR-098 item 3: longest message to a running task (as a note). */
+export const MAX_STEER_CHARS = 2000;
 
 export type IslandCommand =
   | { type: "talk.start" }
@@ -15,11 +19,18 @@ export type IslandCommand =
   | { type: "talk.cancel" }
   | { type: "conversation.reset" }
   | { type: "model.set"; provider: string; model: string }
+  /** ADR-097: ask the providers for their model lists again (answered with `info`). */
+  | { type: "model.refresh" }
+  /** ADR-097: a chat's own model ("" for the chat in use; provider and model "" for the default again). */
+  | { type: "chat.model"; id: string; provider: string; model: string }
   | { type: "approval.answer"; id: string; approved: boolean }
   | { type: "memory.list" }
   | { type: "chats.list" }
   | { type: "chat.open"; id: string }
   | { type: "chat.delete"; id: string }
+  /** ADR-097: keep a chat in memory (summary, sections and exact lines, searched for every request), or remove it. */
+  | { type: "memory.keepChat"; id: string }
+  | { type: "memory.dropChat"; id: string }
   | { type: "git.list" }
   | { type: "git.push"; repo: string; branch: string }
   | { type: "git.diff"; repo: string; branch: string }
@@ -30,16 +41,25 @@ export type IslandCommand =
   | { type: "episode.clear" }
   | { type: "context.window"; bundleId: string; name: string }
   | { type: "helpers.list" }
-  | { type: "speech.set"; reports: boolean; updates: boolean }
+  /** ADR-091; ADR-097 adds `chime` (absent: on), the chime before a spoken line. */
+  | { type: "speech.set"; reports: boolean; updates: boolean; chime?: boolean }
+  /** ADR-098: Settings' "Send to Telegram" switch: pushes (Needs you, goal summaries, schedule results) on or off. */
+  | { type: "telegram.set"; push: boolean }
+  /** ADR-098 item 5: Settings' "Local API" switch. The runtime answers with an `api` event. */
+  | { type: "api.set"; on: boolean }
   | { type: "tools.scan" }
   | { type: "helper.set"; helper: string; app: string }
   | { type: "job.add"; helper: string; task: string; blockedBy?: number[]; planFirst?: boolean }
   | { type: "plan.approve"; id: number }
   | { type: "plan.reject"; id: number }
   | { type: "helper.planFirst"; helper: string; on: boolean }
+  | { type: "helper.browser"; helper: string; on: boolean }
   | { type: "routine.delete"; id: number }
   /** ADR-094: pause or resume a routine; post a task to the team (no role: anyone) or take one back; a worker's wake-ups. */
   | { type: "routine.pause"; id: number; paused: boolean }
+  /** ADR-097: Keshab's own schedule from the Scheduled page, new or changed. */
+  | ({ type: "routine.add" } & RoutineInput)
+  | ({ type: "routine.update"; id: number } & RoutineInput)
   | { type: "team.add"; task: string; role?: string }
   | { type: "team.delete"; id: number }
   | { type: "helper.wakeUp"; helper: string; every: "off" | "15m" | "1h" | "4h" | "1d" }
@@ -64,21 +84,52 @@ export type IslandCommand =
   | { type: "proposal.accept"; id: number }
   | { type: "proposal.reject"; id: number }
   | { type: "proposal.undo"; id: number }
+  // ADR-098 item 8: save a done task as a test case (for its agent's soul or a ZENO-made skill its run used), delete one,
+  // and run the test cases of a pending soul proposal ("soul") or skill edit ("skill") again.
+  | { type: "testcase.save"; jobId: number; kind: "soul" | "skill"; target: string }
+  | { type: "testcase.delete"; id: number }
+  | { type: "testcase.run"; proposalKind: "soul" | "skill"; id: number }
   /** ADR-094: ask Tinker for a skill from a done task; answer its skill drafts and skill edits. */
   | { type: "skill.make" | "skill.approve" | "skill.reject" | "skill.edit.accept" | "skill.edit.reject" | "skill.edit.undo"; id: number }
   | { type: "grant.remove"; helper: string; path: string }
   | { type: "job.block"; id: number; blockedBy: number[] }
   | { type: "comment.add"; id: number; text: string }
+  /** ADR-098 item 3: Keshab's message to a running task (1 to 2000 characters), and an interrupt. */
+  | { type: "job.steer"; id: number; text: string }
+  | { type: "job.interrupt"; id: number }
+  /** ADR-098: one search over chats, tasks (with notes and labels) and reports; answered with `search.results`. */
+  | { type: "search"; query: string }
+  /** ADR-098: a task's labels (1 to 24 characters: a to z, digits, dash, space; at most 6). */
+  | { type: "job.label.add" | "job.label.remove"; id: number; label: string }
   | { type: "thread.get"; id: number }
   | { type: "job.stop"; id: number }
   | { type: "job.fresh"; id: number }
   | { type: "job.delete"; id: number }
   | { type: "helper.pin"; helper: string; model: string }
-  | { type: "helpers.settings"; allowLarge?: boolean; planLimit?: number; maxRunning?: number }
+  | { type: "helpers.settings"; allowLarge?: boolean; planLimit?: number; maxRunning?: number; codexFallback?: boolean }
   | { type: "helper.budget"; helper: string; cap: number | null }
   | { type: "soul.set"; helper: string; soul: SoulItem }
   | { type: "soul.restore"; helper: string; version: number }
   | { type: "quit" };
+
+/**
+ * ADR-097: a schedule from the window's form: the worker, the task, and one of the store's three kinds. `minute` is
+ * minutes after local midnight (daily, weekly); `weekday` is 0 (Sunday) to 6; `every` is 1 to 168 hours. `startAt`
+ * (ISO 8601) is an hourly schedule's first time. The store checks the numbers, the worker and the task.
+ */
+export interface RoutineInput {
+  helper: string;
+  task: string;
+  kind: "daily" | "weekly" | "hours";
+  minute?: number;
+  weekday?: number;
+  every?: number;
+  startAt?: string;
+  /** ADR-098: send the result of each task it makes to Telegram. Left out on update: no change. */
+  notifyTelegram?: boolean;
+  /** ADR-098 item 5: the local API's webhook may start it. Left out on update: no change. */
+  webhook?: boolean;
+}
 
 export type ErrorStage =
   | "microphone"
@@ -148,6 +199,8 @@ export interface JobItem {
   resumable?: boolean;
   /** Task 3.7: why a runnable task waits (a budget used up, the plan above its limit); it shows under "Needs you". */
   held?: string;
+  /** ADR-098 item 3: Keshab interrupted its run; it waits ("queued", held) for his next message. */
+  interrupted?: boolean;
   /** Task 3.8: plan first; the plan's state and one-line summary once written. */
   planFirst?: boolean;
   planStatus?: "awaiting" | "approved";
@@ -160,19 +213,42 @@ export interface JobItem {
   parentId?: number;
   /** ADR-095: the sub-agents its runs started (newest 12): name, state, short description and result. Never logged. */
   subAgents?: { name: string; state: "started" | "done" | "failed"; description: string; result?: string }[];
+  /** ADR-098: its labels, sorted; absent when none. */
+  labels?: string[];
+}
+
+/** ADR-098: one search result: what to open (a chat id, or a task id for tasks and reports), a title, a snippet, a date. Never logged. */
+export interface SearchHitItem<Id> {
+  id: Id;
+  title: string;
+  snippet: string;
+  /** ISO 8601. */
+  at: string;
+}
+
+/** ADR-098: the results of one `search`, by kind, at most 20 of each; `query` is the query answered. */
+export interface SearchResultsEvent {
+  type: "search.results";
+  query: string;
+  chats: SearchHitItem<string>[];
+  tasks: SearchHitItem<number>[];
+  reports: SearchHitItem<number>[];
 }
 
 /** A task's thread (ADR-087, Task 3.4). Never logged. */
 export interface ThreadEvent {
   type: "thread";
   id: number;
-  comments: { id: number; text: string; createdAt: string }[];
+  /** ADR-098 item 3: `delivery` marks a message to the running task: "live" (it took it) or "after" (runs once more). */
+  comments: { id: number; text: string; createdAt: string; delivery?: "live" | "after" }[];
   activity: { kind: string; at: string }[];
   report?: Omit<ReportEvent, "type" | "id">;
   /** Task 3.8: the plan a plan-first run wrote. */
   plan?: { summary: string; steps: string };
   /** Task 3.10: the sub-tasks this task handed off. */
   handOffs?: number[];
+  /** ADR-098 item 8: the ZENO-made skills a done task's runs used (each can take it as a test case). */
+  testSkills?: string[];
   /** Task 3.5: the goal the task is part of, its tasks, and the combined report once every task has ended. */
   goal?: { id: number; text: string; ended: boolean; tasks: number[]; report?: Omit<ReportEvent, "type" | "id"> };
 }
@@ -192,6 +268,20 @@ export interface GitBranchItem {
 }
 
 /** ADR-091: one of Keshab's chats. */
+/** ADR-097: a recent or kept chat, for the Memory page. Titles travel only over the private pipe; never logged. */
+export interface MemoryChatItem {
+  id: string;
+  title: string;
+  /** ISO 8601. Absent for a kept chat no longer in the chat list. */
+  updatedAt?: string;
+  messages: number;
+  kept: boolean;
+  /** True while ZENO writes the summary and the index. */
+  indexing?: boolean;
+  /** ISO 8601. */
+  keptAt?: string;
+}
+
 export interface ChatItem {
   id: string;
   title: string;
@@ -216,6 +306,8 @@ export interface UsageItem {
   days: (UsageTotalsItem & { day: string })[];
   byWorker: (UsageTotalsItem & { helper: string | null; name: string })[];
   byModel: (UsageTotalsItem & { model: string })[];
+  /** ADR-098 item 9: ZENO's last chat answers read nothing from the prompt cache. */
+  chatCacheCold?: boolean;
 }
 
 /** ADR-090: an MCP server as the island sees it: never a secret value. */
@@ -241,6 +333,29 @@ export interface SkillEditItem {
   after: string;
   state: "pending" | "accepted" | "rejected" | "undone";
   createdAt: string;
+  /** ADR-098 item 8: its test cases' outcome, when it has any. */
+  tests?: TestsItem;
+}
+
+/** ADR-098 item 8: one saved test case (task text cut; the saved report is never sent). */
+export interface TestCaseItem {
+  id: number;
+  kind: "soul" | "skill";
+  target: string;
+  jobId: number;
+  task: string;
+  createdAt: string;
+}
+
+/** ADR-098 item 8: a soul proposal's or skill edit's test run: counts, and per case the cut answers and the judge's reason. */
+export interface TestsItem {
+  better: number;
+  same: number;
+  worse: number;
+  notRun: number;
+  failed: number;
+  running: number;
+  results: { caseId: number; task: string; state: "running" | "done" | "failed" | "skipped"; better?: "old" | "new" | "same"; reason?: string; oldAnswer?: string; newAnswer?: string }[];
 }
 
 export interface McpItem {
@@ -309,11 +424,13 @@ export interface HelperItem {
   budget: { cap: number | null; spent: number };
   /** Task 3.8: its new tasks plan first. */
   planFirst: boolean;
+  /** ADR-098: its runs get the browser (default false). */
+  browser?: boolean;
   /**
    * Task 3.9: its routines: `when` in words ("Every day at 8:00 AM"), when it last came due, and whether that was skipped.
    * ADR-094: whether it is paused, and when it next comes due (absent while paused).
    */
-  routines: { id: number; task: string; when: string; lastAt?: string; lastSkipped?: boolean; paused?: boolean; nextAt?: string }[];
+  routines: { id: number; task: string; when: string; lastAt?: string; lastSkipped?: boolean; paused?: boolean; nextAt?: string; schedule?: RoutineSchedule; notifyTelegram?: boolean; webhook?: boolean }[];
   /** ADR-094: its wake-ups (absent: off): how often, in words, paused, the last and next wake. */
   wakeUp?: WakeUpItem;
   /** Task 3.11: the folders it may work in (coder, designer, documenter). */
@@ -321,7 +438,7 @@ export interface HelperItem {
   /** Task 3.12: the skills chosen for it. */
   skills: string[];
   /** Task 3.13: Tinker's proposals for its soul: `field` changed to `text`, why, the task reviewed, and their state. */
-  proposals: { id: number; field: string; text: string; reason: string; jobId: number; state: string; createdAt: string }[];
+  proposals: { id: number; field: string; text: string; reason: string; jobId: number; state: string; createdAt: string; tests?: TestsItem }[];
   /** ADR-095: its Manager's id; absent when it has none. */
   manager?: string;
   jobs: JobItem[];
@@ -342,6 +459,14 @@ export interface ManagerItem {
 }
 
 /** ADR-094: a worker's wake-ups. `nextAt` is ISO 8601 (the time it would wake, also while paused). */
+/** ADR-097: a routine's schedule as numbers, so the window's form can show it for editing. */
+export interface RoutineSchedule {
+  kind: "daily" | "weekly" | "hours";
+  minute?: number;
+  weekday?: number;
+  every?: number;
+}
+
 export interface WakeUpItem {
   every: "15m" | "1h" | "4h" | "1d";
   when: string;
@@ -377,8 +502,10 @@ export interface PlanUsageEvent {
 }
 
 export type IslandEvent =
-  | { type: "ready"; protocol: number; provider: string; model: string; microphone: string; voice: boolean }
+  | { type: "ready"; protocol: number; provider: string; model: string; microphone: string; voice: boolean; telegram?: boolean }
   | { type: "state"; state: LoopState }
+  /** ADR-098 item 5: the local API's state after `api.set`. `tokenFile` is a path: the island reads it only for "Copy token". */
+  | { type: "api"; on: boolean; port: number; tokenFile: string; error?: string }
   | { type: "mic.ready" }
   | { type: "mic.level"; peak: number }
   | { type: "mic.silent"; microphone: string }
@@ -405,9 +532,10 @@ export type IslandEvent =
   | { type: "context.ready"; app: string; ok: false; message: string }
   | { type: "capabilities"; items: Capability[] }
   | PlanUsageEvent
-  | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[] }
+  | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[]; chats?: MemoryChatItem[] }
   /** ADR-091: Keshab's chats, newest first, and the one ZENO is in now (voice goes to it). */
-  | { type: "chats"; chats: ChatItem[]; current: string }
+  /** ADR-097: `currentProvider` / `currentModel`: the current chat's own model; absent when it uses the default. */
+  | { type: "chats"; chats: ChatItem[]; current: string; currentProvider?: string; currentModel?: string }
   /** ADR-091: ZENO's task branches, like pull requests; a branch's changes as a patch. */
   | { type: "git"; branches: GitBranchItem[] }
   | { type: "git.diff"; repo: string; branch: string; text: string; truncated: boolean }
@@ -424,11 +552,16 @@ export type IslandEvent =
       planLimit?: number;
       /** ADR-095: "Runs at once", the team-wide limit on runs at the same time. */
       maxRunning?: number;
+      /** ADR-098 item 7: "Use Codex when the Claude plan limit is reached", and whether Codex is found and signed in. */
+      codexFallback?: boolean;
+      codexReady?: boolean;
       /** Task 3.12: the skills to choose from: Keshab's in ~/.claude/skills ("yours") and, ADR-094, ZENO's own ("zeno"). */
       skills?: { name: string; description: string; source?: "yours" | "zeno" }[];
       /** ADR-094: Tinker's skill drafts and skill edits: every pending one and the newest few others. */
       skillDrafts?: SkillDraftItem[];
       skillEdits?: SkillEditItem[];
+      /** ADR-098 item 8: every saved test case, newest first. */
+      testCases?: TestCaseItem[];
       /** ADR-090: Keshab's MCP servers; secrets never: only the names of env variables and headers. */
       mcp?: McpItem[];
       /** ADR-091: tokens used today and in the last 7 days (counts and model ids only). */
@@ -443,6 +576,7 @@ export type IslandEvent =
       managers?: ManagerItem[];
     }
   | ThreadEvent
+  | SearchResultsEvent
   /** Task 3.15: a line from the team (a goal done, a plan waiting), sent just before ZENO says it. */
   | { type: "worker.line"; line: string }
   | { type: "error"; stage: ErrorStage; message: string; kind?: string; retryable?: boolean };
@@ -453,11 +587,15 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "talk.cancel",
   "conversation.reset",
   "model.set",
+  "model.refresh",
+  "chat.model",
   "approval.answer",
   "memory.list",
   "chats.list",
   "chat.open",
   "chat.delete",
+  "memory.keepChat",
+  "memory.dropChat",
   "git.list",
   "git.push",
   "git.diff",
@@ -469,14 +607,19 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "context.window",
   "helpers.list",
   "speech.set",
+  "telegram.set",
+  "api.set",
   "tools.scan",
   "helper.set",
   "job.add",
   "plan.approve",
   "plan.reject",
   "helper.planFirst",
+  "helper.browser",
   "routine.delete",
   "routine.pause",
+  "routine.add",
+  "routine.update",
   "team.add",
   "team.delete",
   "helper.wakeUp",
@@ -506,6 +649,9 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "skill.edit.accept",
   "skill.edit.reject",
   "skill.edit.undo",
+  "testcase.save",
+  "testcase.delete",
+  "testcase.run",
   "grant.remove",
   "job.stop",
   "job.fresh",
@@ -517,6 +663,11 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "soul.restore",
   "job.block",
   "comment.add",
+  "job.steer",
+  "job.interrupt",
+  "search",
+  "job.label.add",
+  "job.label.remove",
   "thread.get",
   "quit",
 ]);
@@ -543,6 +694,12 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof provider !== "string") return { error: 'model.set needs a "provider" string.' };
     if (typeof model !== "string") return { error: 'model.set needs a "model" string.' };
     return { command: { type, provider, model } };
+  }
+  if (type === "chat.model") {
+    const { id, provider, model } = value as { id?: unknown; provider?: unknown; model?: unknown };
+    if (typeof id !== "string" || !/^[\w-]{0,100}$/.test(id)) return { error: 'chat.model needs the chat\'s "id" ("" for the chat in use).' };
+    if (typeof provider !== "string" || typeof model !== "string") return { error: 'chat.model needs "provider" and "model" strings ("" for the default).' };
+    return { command: { type, id, provider, model } };
   }
   if (type === "approval.answer") {
     const { id, approved } = value as { id?: unknown; approved?: unknown };
@@ -644,10 +801,21 @@ export function parseCommand(line: string): ParsedLine {
     if (workers !== undefined && !(Array.isArray(workers) && workers.length <= 40 && workers.every((w) => typeof w === "string"))) return { error: 'mcp.set needs "workers", a list of worker ids.' };
     return { command: { type, id, ...(enabled !== undefined ? { enabled } : {}), ...(trusted !== undefined ? { trusted } : {}), ...(workers !== undefined ? { workers } : {}) } };
   }
+  if (type === "api.set") {
+    const { on } = value as { on?: unknown };
+    if (typeof on !== "boolean") return { error: 'api.set needs "on" to be true or false.' };
+    return { command: { type, on } };
+  }
+  if (type === "telegram.set") {
+    const { push } = value as { push?: unknown };
+    if (typeof push !== "boolean") return { error: 'telegram.set needs "push" to be true or false.' };
+    return { command: { type, push } };
+  }
   if (type === "speech.set") {
-    const { reports, updates } = value as { reports?: unknown; updates?: unknown };
+    const { reports, updates, chime } = value as { reports?: unknown; updates?: unknown; chime?: unknown };
     if (typeof reports !== "boolean" || typeof updates !== "boolean") return { error: 'speech.set needs "reports" and "updates", each true or false.' };
-    return { command: { type, reports, updates } };
+    if (chime !== undefined && typeof chime !== "boolean") return { error: 'speech.set needs "chime" to be true or false (or left out).' };
+    return { command: { type, reports, updates, ...(chime !== undefined ? { chime } : {}) } };
   }
   if (type === "job.rate") {
     const { id, good, comment } = value as { id?: unknown; good?: unknown; comment?: unknown };
@@ -669,10 +837,10 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof path !== "string" || path === "" || path.length > 1024) return { error: `${type} needs a "path" string.` };
     return { command: { type, helper, path } };
   }
-  if (type === "helper.planFirst") {
+  if (type === "helper.planFirst" || type === "helper.browser") {
     const { helper, on } = value as { helper?: unknown; on?: unknown };
-    if (typeof helper !== "string" || helper === "") return { error: 'helper.planFirst needs a "helper" string.' };
-    if (typeof on !== "boolean") return { error: 'helper.planFirst needs "on" to be true or false.' };
+    if (typeof helper !== "string" || helper === "") return { error: `${type} needs a "helper" string.` };
+    if (typeof on !== "boolean") return { error: `${type} needs "on" to be true or false.` };
     return { command: { type, helper, on } };
   }
   if (type === "routine.pause") {
@@ -680,6 +848,13 @@ export function parseCommand(line: string): ParsedLine {
     if (!isId(id)) return { error: 'routine.pause needs an "id" that is a whole number.' };
     if (typeof paused !== "boolean") return { error: 'routine.pause needs "paused" to be true or false.' };
     return { command: { type, id, paused } };
+  }
+  if (type === "routine.add" || type === "routine.update") {
+    const id = (value as { id?: unknown }).id;
+    if (type === "routine.update" && !isId(id)) return { error: 'routine.update needs an "id" that is a whole number.' };
+    const input = routineInput(type, value as Record<string, unknown>);
+    if ("error" in input) return input;
+    return { command: type === "routine.update" ? { type, id: id as number, ...input } : { type, ...input } };
   }
   if (type === "team.add") {
     // An empty or long task, and a role no worker has, are the store's to refuse (stage "settings").
@@ -713,6 +888,24 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof text !== "string") return { error: 'comment.add needs a "text" string.' };
     return { command: { type, id, text } };
   }
+  if (type === "job.steer") {
+    const { id, text } = value as { id?: unknown; text?: unknown };
+    if (!isId(id)) return { error: 'job.steer needs an "id" that is a whole number.' };
+    if (typeof text !== "string" || !text.trim() || text.trim().length > MAX_STEER_CHARS) return { error: `job.steer needs a "text" of 1 to ${MAX_STEER_CHARS} characters.` };
+    return { command: { type, id, text } };
+  }
+  if (type === "search") {
+    const { query } = value as { query?: unknown };
+    if (typeof query !== "string" || query.length > MAX_SEARCH_QUERY) return { error: `search needs a "query" string of at most ${MAX_SEARCH_QUERY} characters.` };
+    return { command: { type, query } };
+  }
+  if (type === "job.label.add" || type === "job.label.remove") {
+    // Which labels are allowed is the store's to refuse (stage "settings").
+    const { id, label } = value as { id?: unknown; label?: unknown };
+    if (!isId(id)) return { error: `${type} needs an "id" that is a whole number.` };
+    if (typeof label !== "string" || label.length > 100) return { error: `${type} needs a "label" string.` };
+    return { command: { type, id, label } };
+  }
   if (type === "helper.pin") {
     // Whether the model is offered is the helpers' to refuse (stage "settings"), as the protocol says.
     const { helper, model } = value as { helper?: unknown; model?: unknown };
@@ -722,12 +915,13 @@ export function parseCommand(line: string): ParsedLine {
   }
   if (type === "helpers.settings") {
     // The ranges are the store's to refuse (stage "settings").
-    const { allowLarge, planLimit, maxRunning } = value as { allowLarge?: unknown; planLimit?: unknown; maxRunning?: unknown };
+    const { allowLarge, planLimit, maxRunning, codexFallback } = value as { allowLarge?: unknown; planLimit?: unknown; maxRunning?: unknown; codexFallback?: unknown };
     if (allowLarge !== undefined && typeof allowLarge !== "boolean") return { error: 'helpers.settings needs "allowLarge" to be true or false.' };
     if (planLimit !== undefined && typeof planLimit !== "number") return { error: 'helpers.settings needs "planLimit" to be a number.' };
     if (maxRunning !== undefined && typeof maxRunning !== "number") return { error: 'helpers.settings needs "maxRunning" to be a number.' };
-    if (allowLarge === undefined && planLimit === undefined && maxRunning === undefined) {
-      return { error: 'helpers.settings needs "allowLarge", "planLimit" or "maxRunning".' };
+    if (codexFallback !== undefined && typeof codexFallback !== "boolean") return { error: 'helpers.settings needs "codexFallback" to be true or false.' };
+    if (allowLarge === undefined && planLimit === undefined && maxRunning === undefined && codexFallback === undefined) {
+      return { error: 'helpers.settings needs "allowLarge", "planLimit", "maxRunning" or "codexFallback".' };
     }
     return {
       command: {
@@ -735,6 +929,7 @@ export function parseCommand(line: string): ParsedLine {
         ...(allowLarge !== undefined ? { allowLarge } : {}),
         ...(planLimit !== undefined ? { planLimit } : {}),
         ...(maxRunning !== undefined ? { maxRunning } : {}),
+        ...(codexFallback !== undefined ? { codexFallback } : {}),
       },
     };
   }
@@ -771,17 +966,57 @@ export function parseCommand(line: string): ParsedLine {
     }
     return { command: { type, repo, branch } };
   }
-  if (type === "chat.open" || type === "chat.delete") {
+  if (type === "chat.open" || type === "chat.delete" || type === "memory.keepChat" || type === "memory.dropChat") {
     const { id } = value as { id?: unknown };
     if (typeof id !== "string" || !/^[\w-]{1,100}$/.test(id)) return { error: `${type} needs the chat's "id".` };
     return { command: { type, id } };
   }
-  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "team.delete" || type === "job.open" || type === "job.retry" || type === "mcp.remove" || type === "mcp.test" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "thread.get" || type === "skill.make" || type === "skill.approve" || type === "skill.reject" || type === "skill.edit.accept" || type === "skill.edit.reject" || type === "skill.edit.undo") {
+  if (type === "testcase.save") {
+    const { jobId, kind, target } = value as { jobId?: unknown; kind?: unknown; target?: unknown };
+    if (typeof jobId !== "number" || !Number.isInteger(jobId) || jobId < 1) return { error: 'testcase.save needs a "jobId" that is a whole number.' };
+    if (kind !== "soul" && kind !== "skill") return { error: 'testcase.save needs "kind": "soul" or "skill".' };
+    if (typeof target !== "string" || target === "" || target.length > 100) return { error: 'testcase.save needs a "target" string.' };
+    return { command: { type, jobId, kind, target } };
+  }
+  if (type === "testcase.run") {
+    const { proposalKind, id } = value as { proposalKind?: unknown; id?: unknown };
+    if (proposalKind !== "soul" && proposalKind !== "skill") return { error: 'testcase.run needs "proposalKind": "soul" or "skill".' };
+    if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: 'testcase.run needs an "id" that is a whole number.' };
+    return { command: { type, proposalKind, id } };
+  }
+  if (type === "testcase.delete") {
+    const { id } = value as { id?: unknown };
+    if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: 'testcase.delete needs an "id" that is a whole number.' };
+    return { command: { type, id } };
+  }
+  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.interrupt" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "team.delete" || type === "job.open" || type === "job.retry" || type === "mcp.remove" || type === "mcp.test" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "thread.get" || type === "skill.make" || type === "skill.approve" || type === "skill.reject" || type === "skill.edit.accept" || type === "skill.edit.reject" || type === "skill.edit.undo") {
     const { id } = value as { id?: unknown };
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     return { command: { type, id } };
   }
   return { command: { type } as IslandCommand }; // extra fields are ignored (forward compatibility)
+}
+
+/** ADR-097: the shape of a schedule from the form. The numbers' ranges, the worker and the task are the store's to refuse. */
+function routineInput(type: string, v: Record<string, unknown>): RoutineInput | { error: string } {
+  const { helper, task, kind, minute, weekday, every, startAt, notifyTelegram, webhook } = v;
+  const whole = (n: unknown) => n === undefined || (typeof n === "number" && Number.isInteger(n));
+  if (typeof helper !== "string" || helper === "") return { error: `${type} needs a "helper" string.` };
+  if (typeof task !== "string") return { error: `${type} needs a "task" string.` };
+  if (kind !== "daily" && kind !== "weekly" && kind !== "hours") return { error: `${type} needs "kind": "daily", "weekly" or "hours".` };
+  if (!whole(minute) || !whole(weekday) || !whole(every)) return { error: `${type} needs "minute", "weekday" and "every" to be whole numbers.` };
+  if (startAt !== undefined && (typeof startAt !== "string" || Number.isNaN(Date.parse(startAt)))) return { error: `${type} needs "startAt" to be an ISO 8601 time.` };
+  if (notifyTelegram !== undefined && typeof notifyTelegram !== "boolean") return { error: `${type} needs "notifyTelegram" to be true or false (or left out).` };
+  if (webhook !== undefined && typeof webhook !== "boolean") return { error: `${type} needs "webhook" to be true or false (or left out).` };
+  return {
+    helper, task, kind,
+    ...(minute !== undefined ? { minute: minute as number } : {}),
+    ...(weekday !== undefined ? { weekday: weekday as number } : {}),
+    ...(every !== undefined ? { every: every as number } : {}),
+    ...(startAt !== undefined ? { startAt: startAt as string } : {}),
+    ...(notifyTelegram !== undefined ? { notifyTelegram } : {}),
+    ...(webhook !== undefined ? { webhook } : {}),
+  };
 }
 
 const isId = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v >= 1;

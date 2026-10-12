@@ -82,6 +82,8 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     public var resumable: Bool
     /// Task 3.7: why a runnable task waits (a budget used up, the plan above its limit).
     public var held: String?
+    /// ADR-098 item 3: Keshab interrupted its run; it waits for his next message.
+    public var interrupted: Bool
     /// Task 3.8: its first run only plans; "awaiting" (Keshab's OK) or "approved", and the plan in one line.
     public var planFirst: Bool
     public var planStatus: String?
@@ -94,6 +96,8 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     public var autoRetries: Int
     /// ADR-095: the sub-agents its runs started (the newest).
     public var subAgents: [HelperSubAgent]
+    /// ADR-098: its labels, sorted.
+    public var labels: [String]
     public var isFinished: Bool { state == .done || state == .failed }
     /// ADR-094: a done task (not one of Tinker's) can become a skill.
     public var canBecomeSkill: Bool { state == .done && reviews == nil }
@@ -102,9 +106,9 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
                 partial: Bool = false, title: String? = nil, summary: String? = nil, error: String? = nil,
                 model: String? = nil, modelReason: String? = nil, blockedBy: [Int] = [], waitingFor: [Int] = [],
                 comments: Int = 0, goal: String? = nil, parentId: Int? = nil, goalId: Int? = nil, goalEnded: Bool = false,
-                resumable: Bool = false, held: String? = nil, planFirst: Bool = false, planStatus: String? = nil,
+                resumable: Bool = false, held: String? = nil, interrupted: Bool = false, planFirst: Bool = false, planStatus: String? = nil,
                 planSummary: String? = nil, rating: String? = nil, reviews: Int? = nil, autoRetries: Int = 0,
-                subAgents: [HelperSubAgent] = []) {
+                subAgents: [HelperSubAgent] = [], labels: [String] = []) {
         self.id = id
         self.task = task
         self.state = state
@@ -126,6 +130,7 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
         self.goalEnded = goalEnded
         self.resumable = resumable
         self.held = held
+        self.interrupted = interrupted
         self.planFirst = planFirst
         self.planStatus = planStatus
         self.planSummary = planSummary
@@ -133,6 +138,7 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
         self.reviews = reviews
         self.autoRetries = autoRetries
         self.subAgents = subAgents
+        self.labels = labels
     }
 
     public var hasReport: Bool { title != nil }
@@ -237,6 +243,8 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public var budget: HelperBudget?
     /// Task 3.8: its new tasks plan first.
     public var planFirst: Bool
+    /// ADR-098: its runs get ZENO's browser (false from an older runtime).
+    public var browser: Bool
     /// Task 3.9: its routines, oldest first.
     public var routines: [HelperRoutine]
     /// Task 3.11: the folders it may work in.
@@ -266,7 +274,7 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public init(id: String, name: String, available: Bool, app: String?, jobs: [HelperJob], pinnedModel: String? = nil,
                 role: String = "", soul: HelperSoul? = nil, soulVersion: Int = 1, soulVersions: [SoulVersion] = [],
                 budget: HelperBudget? = nil, planFirst: Bool = false, routines: [HelperRoutine] = [], grants: [String] = [], skills: [String] = [], proposals: [SoulProposal] = [], kit: String? = nil, custom: Bool = false,
-                wakeUp: HelperWakeUp? = nil, manager: String? = nil) {
+                wakeUp: HelperWakeUp? = nil, manager: String? = nil, browser: Bool = false) {
         self.id = id
         self.name = name
         self.available = available
@@ -279,6 +287,7 @@ public struct Helper: Sendable, Equatable, Identifiable {
         self.soulVersions = soulVersions
         self.budget = budget
         self.planFirst = planFirst
+        self.browser = browser
         self.routines = routines
         self.grants = grants
         self.skills = skills
@@ -402,11 +411,14 @@ public struct TaskComment: Sendable, Equatable, Identifiable {
     public var id: Int
     public var text: String
     public var createdAt: Date?
+    /// ADR-098 item 3: a message to the running task: "live" (it took it) or "after" (it runs once more after the run).
+    public var delivery: String?
 
-    public init(id: Int, text: String, createdAt: Date?) {
+    public init(id: Int, text: String, createdAt: Date?, delivery: String? = nil) {
         self.id = id
         self.text = text
         self.createdAt = createdAt
+        self.delivery = delivery
     }
 }
 
@@ -434,6 +446,7 @@ public struct TaskActivity: Sendable, Equatable {
         case "handed": "Handed off a sub-task"
         case "split": "Split the work across its agents" // ADR-095: a Manager's run
         case "revised": "Asked for a revision"
+        case "interrupted": "Interrupted"
         case "retried": "Tried again"
         case "running": "Started"
         case "done": "Finished"
@@ -454,9 +467,12 @@ public struct HelperThread: Sendable, Equatable {
     public var plan: JobPlan?
     /// Task 3.10: the sub-tasks it handed off, oldest first.
     public var handOffs: [Int]
+    /// ADR-098 item 8: the ZENO-made skills a done task's runs used (each can take the task as a test case).
+    public var testSkills: [String]
 
     public init(id: Int, comments: [TaskComment], activity: [TaskActivity], report: HelperReport? = nil, goal: HelperGoal? = nil,
-                plan: JobPlan? = nil, handOffs: [Int] = []) {
+                plan: JobPlan? = nil, handOffs: [Int] = [], testSkills: [String] = []) {
+        self.testSkills = testSkills
         self.id = id
         self.comments = comments
         self.activity = activity
@@ -551,11 +567,18 @@ public struct HelpersList: Sendable, Equatable {
     public var teamTasks: [TeamTask]
     /// ADR-095: the Managers; empty when there are none (or from an older runtime): then the Board and floor show workers.
     public var managers: [HelperManager]
+    /// ADR-098 item 8: every saved test case, newest first.
+    public var testCases: [TestCaseItem]
+    /// ADR-098 item 7: "Use Codex when the Claude plan limit is reached" (default off), and whether Codex is found and
+    /// signed in (the switch shows only then). False from an older runtime.
+    public var codexFallback: Bool
+    public var codexReady: Bool
 
     public init(helpers: [Helper], apps: [String], allowLarge: Bool = true, models: [HelperModel] = [], team: HelperBudget? = nil,
                 planLimit: Int? = nil, maxRunning: Int? = nil, paperclip: [PaperclipTask]? = nil, mcp: [McpServerItem] = [], usage: TokenUsageSummary? = nil, skills: [SkillInfo] = [],
                 skillDrafts: [SkillDraftItem] = [], skillEdits: [SkillEditItem] = [], agentProblems: [AgentProblem] = [], teamTasks: [TeamTask] = [],
-                managers: [HelperManager] = []) {
+                managers: [HelperManager] = [], codexFallback: Bool = false, codexReady: Bool = false, testCases: [TestCaseItem] = []) {
+        self.testCases = testCases
         self.helpers = helpers
         self.apps = apps
         self.allowLarge = allowLarge
@@ -572,6 +595,8 @@ public struct HelpersList: Sendable, Equatable {
         self.agentProblems = agentProblems
         self.teamTasks = teamTasks
         self.managers = managers
+        self.codexFallback = codexFallback
+        self.codexReady = codexReady
     }
 
     /// ADR-095: a Manager's Agents, in the team's order.
@@ -859,6 +884,32 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.commentAdd(id: id, text: clean))
     }
 
+    /// ADR-098 item 3: Keshab's message to the open task while it runs or waits after an interrupt. Nil for an empty or
+    /// too long message, or no open task.
+    public mutating func steer(_ text: String) -> IslandCommand? {
+        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let id = openJobId, !clean.isEmpty, clean.count <= 2000 else { return nil }
+        return waiting(.jobSteer(id: id, text: clean))
+    }
+
+    /// ADR-098 item 3: stops a running task's current step; it then waits for Keshab's message.
+    public mutating func interruptJob(_ id: Int) -> IslandCommand? {
+        guard list?.item(id)?.job.state == .running else { return nil }
+        return waiting(.jobInterrupt(id: id))
+    }
+
+    /// ADR-098: adds a label to the open task (the runtime checks it and refuses with words); removes one.
+    public mutating func addLabel(_ text: String) -> IslandCommand? {
+        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let id = openJobId, !clean.isEmpty, clean.count <= TaskLabels.maxLength * 2 else { return nil }
+        return waiting(.jobLabelAdd(id: id, label: clean))
+    }
+
+    public mutating func removeLabel(_ label: String) -> IslandCommand? {
+        guard let id = openJobId else { return nil }
+        return waiting(.jobLabelRemove(id: id, label: label))
+    }
+
     /// Adds or removes a task the open, not yet started task waits for.
     public mutating func toggleBlocker(_ id: Int) -> IslandCommand? {
         guard let job = openJob, job.state == .queued, id != job.id else { return nil }
@@ -970,6 +1021,23 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.skillEditUndo(id: id))
     }
 
+    /// ADR-098 item 8: saves the open done task as a test case for its agent ("soul") or a ZENO-made skill it used ("skill").
+    public mutating func saveTestCase(kind: String, target: String) -> IslandCommand? {
+        guard let job = openJob, job.state == .done, job.reviews == nil,
+              list?.testCases.contains(where: { $0.jobId == job.id && $0.kind == kind && $0.target == target }) != true else { return nil }
+        return waiting(.testcaseSave(jobId: job.id, kind: kind, target: target))
+    }
+
+    public mutating func deleteTestCase(_ id: Int) -> IslandCommand? {
+        guard list?.testCases.contains(where: { $0.id == id }) == true else { return nil }
+        return waiting(.testcaseDelete(id: id))
+    }
+
+    /// ADR-098 item 8: runs a pending soul proposal's ("soul") or skill edit's ("skill") test cases again.
+    public mutating func runTests(kind: String, id: Int) -> IslandCommand? {
+        waiting(.testcaseRun(kind: kind, id: id))
+    }
+
     /// Task 3.12: adds or removes one of Keshab's skills for the chosen worker.
     public mutating func toggleSkill(_ name: String) -> IslandCommand? {
         guard let helper = selectedHelper, helper.available, list?.skills.contains(where: { $0.name == name }) == true else { return nil }
@@ -998,6 +1066,20 @@ public struct HelpersState: Sendable, Equatable {
     public mutating func pauseRoutine(_ id: Int, paused: Bool) -> IslandCommand? {
         guard let routine = routine(id), routine.paused != paused else { return nil }
         return waiting(.routinePause(id: id, paused: paused))
+    }
+
+    /// ADR-097: Keshab's own schedule, new (`id` nil) or changed. Nil, with a problem, without a task or a worker that
+    /// takes tasks.
+    public mutating func saveRoutine(_ id: Int?, _ draft: RoutineDraft) -> IslandCommand? {
+        var clean = draft
+        clean.task = draft.task.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.task.isEmpty { problem = "A schedule needs a task."; return nil }
+        guard list?.helpers.contains(where: { $0.id == clean.helper && $0.takesTasks }) == true else {
+            problem = "Choose an agent that takes tasks."
+            return nil
+        }
+        if let id { return waiting(.routineUpdate(id: id, clean)) }
+        return waiting(.routineAdd(clean))
     }
 
     public mutating func deleteAnyRoutine(_ id: Int) -> IslandCommand? {
@@ -1074,6 +1156,12 @@ public struct HelpersState: Sendable, Equatable {
     public mutating func setPlanFirst(_ on: Bool) -> IslandCommand? {
         guard let helper = selectedHelper, helper.available, helper.planFirst != on else { return nil }
         return waiting(.helperPlanFirst(helper: helper.id, on: on))
+    }
+
+    /// ADR-098: whether the chosen worker's runs get the browser. Nil when unchanged or the worker is not ready for jobs.
+    public mutating func setBrowser(_ on: Bool) -> IslandCommand? {
+        guard let helper = selectedHelper, helper.available, helper.browser != on else { return nil }
+        return waiting(.helperBrowser(helper: helper.id, on: on))
     }
 
     /// Task 3.7: the chosen worker's daily cap (nil: none). Nil when unchanged or from an older runtime.
@@ -1164,6 +1252,12 @@ public struct HelpersState: Sendable, Equatable {
     public mutating func setMaxRunning(_ count: Int) -> IslandCommand? {
         guard let current = list?.maxRunning, current != count, Self.maxRunningRange.contains(count) else { return nil }
         return waiting(.helpersMaxRunning(count))
+    }
+
+    /// ADR-098 item 7: "Use Codex when the Claude plan limit is reached". Nil unless Codex is ready, or when unchanged.
+    public mutating func setCodexFallback(_ on: Bool) -> IslandCommand? {
+        guard let list, list.codexReady, list.codexFallback != on else { return nil }
+        return waiting(.helpersCodexFallback(on))
     }
 
     /// "Allow the large model for helpers". Nil without models (the switch means nothing then) or when unchanged.
@@ -1281,9 +1375,18 @@ public struct HelperRoutine: Sendable, Equatable, Identifiable {
     /// ADR-094: paused (it makes nothing), and when it next comes due (nil while paused or from an older runtime).
     public var paused: Bool
     public var nextAt: Date?
+    /// ADR-097: the schedule as numbers, for the Edit form (nil from an older runtime).
+    public var schedule: RoutineSchedule?
+    /// ADR-098: each result goes to Telegram.
+    public var notifyTelegram: Bool
+    /// ADR-098 item 5: the local API's webhook may start it.
+    public var webhook: Bool
 
-    public init(id: Int, task: String, when: String, lastAt: Date? = nil, lastSkipped: Bool = false, paused: Bool = false, nextAt: Date? = nil) {
+    public init(id: Int, task: String, when: String, lastAt: Date? = nil, lastSkipped: Bool = false, paused: Bool = false, nextAt: Date? = nil, schedule: RoutineSchedule? = nil, notifyTelegram: Bool = false, webhook: Bool = false) {
         self.id = id
+        self.notifyTelegram = notifyTelegram
+        self.webhook = webhook
+        self.schedule = schedule
         self.task = task
         self.when = when
         self.lastAt = lastAt
@@ -1342,8 +1445,11 @@ public struct SkillEditItem: Sendable, Equatable, Identifiable {
     public var after: String
     /// "pending", "accepted", "rejected" or "undone".
     public var state: String
+    /// ADR-098 item 8: its test run, when the skill has test cases.
+    public var tests: TestRunSummary?
 
-    public init(id: Int, skill: String, jobId: Int, reason: String, before: String, after: String, state: String) {
+    public init(id: Int, skill: String, jobId: Int, reason: String, before: String, after: String, state: String, tests: TestRunSummary? = nil) {
+        self.tests = tests
         self.id = id
         self.skill = skill
         self.jobId = jobId
@@ -1365,8 +1471,11 @@ public struct SoulProposal: Sendable, Equatable, Identifiable {
     public var jobId: Int
     /// "pending", "accepted", "rejected" or "undone".
     public var state: String
+    /// ADR-098 item 8: its test run, when the agent has test cases.
+    public var tests: TestRunSummary?
 
-    public init(id: Int, field: String, text: String, reason: String, jobId: Int, state: String) {
+    public init(id: Int, field: String, text: String, reason: String, jobId: Int, state: String, tests: TestRunSummary? = nil) {
+        self.tests = tests
         self.id = id
         self.field = field
         self.text = text
@@ -1484,6 +1593,13 @@ public struct TokenTotals: Sendable, Equatable {
     public var total: Int { input + output + cacheRead + cacheWrite }
     /// Everything but what was read back from the cache (which counts far less toward the plan's limits).
     public var fresh: Int { input + output + cacheWrite }
+    /// ADR-098 item 9: the share of the prompt read back from the cache (cache reads ÷ all prompt tokens); nil without any.
+    public var cacheHitRate: Double? {
+        let prompt = input + cacheRead + cacheWrite
+        return prompt > 0 ? Double(cacheRead) / Double(prompt) : nil
+    }
+    /// "73%", or "–" without any prompt tokens.
+    public var cacheHitText: String { cacheHitRate.map { String(format: "%.0f%%", $0 * 100) } ?? "–" }
 
     /// 850, 12.4K, 3.1M.
     public static func short(_ n: Int) -> String {
@@ -1520,13 +1636,16 @@ public struct TokenUsageSummary: Sendable, Equatable {
     public var days: [DayTokens]
     public var byWorker: [WorkerTokens]
     public var byModel: [ModelTokens]
+    /// ADR-098 item 9: ZENO's last chat answers read nothing from the cache.
+    public var chatCacheCold: Bool
 
-    public init(today: TokenTotals, week: TokenTotals, days: [DayTokens] = [], byWorker: [WorkerTokens] = [], byModel: [ModelTokens] = []) {
+    public init(today: TokenTotals, week: TokenTotals, days: [DayTokens] = [], byWorker: [WorkerTokens] = [], byModel: [ModelTokens] = [], chatCacheCold: Bool = false) {
         self.today = today
         self.week = week
         self.days = days
         self.byWorker = byWorker
         self.byModel = byModel
+        self.chatCacheCold = chatCacheCold
     }
 }
 

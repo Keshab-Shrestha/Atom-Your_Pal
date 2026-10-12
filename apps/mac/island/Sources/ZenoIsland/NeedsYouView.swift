@@ -44,7 +44,9 @@ struct NeedsYouPane: View {
                 open(item)
             }
         case .proposal:
-            card(kind: "Tinker suggests", who: item.helperName, title: item.title, detail: item.detail) {
+            let proposal = model.helpers.list?.helpers.first { $0.id == item.helperId }?.proposals.first { $0.id == item.proposalId }
+            card(kind: "Tinker suggests", who: item.helperName, title: item.title, detail: item.detail,
+                 tests: proposal.map { TestRunView(model: model, kind: "soul", id: $0.id, tests: $0.tests, hasCases: hasCases("soul", item.helperId), pending: true) }) {
                 QuietButton(title: "Accept", symbol: "checkmark") { model.sendHelpers(model.helpers.answerProposal(helper: item.helperId, id: item.proposalId!, accept: true)) }
                 QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerProposal(helper: item.helperId, id: item.proposalId!, accept: false)) }
             }
@@ -55,7 +57,9 @@ struct NeedsYouPane: View {
                 QuietButton(title: "Plugins") { model.navigate { model.windowPage = .plugins } }
             }
         case .skillEdit:
-            card(kind: "Tinker suggests a skill edit", who: item.helperName, title: item.title, detail: item.detail) {
+            let edit = model.helpers.list?.skillEdits.first { $0.id == item.skillItemId }
+            card(kind: "Tinker suggests a skill edit", who: item.helperName, title: item.title, detail: item.detail,
+                 tests: edit.map { TestRunView(model: model, kind: "skill", id: $0.id, tests: $0.tests, hasCases: hasCases("skill", $0.skill), pending: true) }) {
                 QuietButton(title: "Accept", symbol: "checkmark") { model.sendHelpers(model.helpers.answerSkillEdit(item.skillItemId!, accept: true)) }
                 QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerSkillEdit(item.skillItemId!, accept: false)) }
                 QuietButton(title: "Plugins") { model.navigate { model.windowPage = .plugins } }
@@ -77,7 +81,12 @@ struct NeedsYouPane: View {
         QuietButton(title: "Open") { model.navigate { model.windowPage = .agents; model.sendHelpers(model.helpers.openThread(item.jobId!)) } }
     }
 
-    private func card(kind: String, who: String, title: String, detail: String, @ViewBuilder actions: () -> some View) -> some View {
+    /// ADR-098 item 8: whether an agent ("soul") or a skill has saved test cases.
+    private func hasCases(_ kind: String, _ target: String) -> Bool {
+        !(model.helpers.list?.testCases(kind: kind, target: target).isEmpty ?? true)
+    }
+
+    private func card(kind: String, who: String, title: String, detail: String, tests: TestRunView? = nil, @ViewBuilder actions: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Text(kind).font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
@@ -85,6 +94,7 @@ struct NeedsYouPane: View {
             }
             Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true).lineLimit(3)
             Text(detail).font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true).lineLimit(4)
+            if let tests { tests.padding(.top, 2) }
             HStack(spacing: 8) { actions() }.padding(.top, 4)
         }
         .padding(.horizontal, 16).padding(.vertical, 12)

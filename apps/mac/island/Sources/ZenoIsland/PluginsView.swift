@@ -56,6 +56,7 @@ struct PluginsPane: View {
                                 Text(users.isEmpty ? "No worker" : users.joined(separator: ", ")).font(.system(size: 11)).foregroundStyle(users.isEmpty ? theme.text3.color : theme.text2.color)
                             }
                             if !skill.description.isEmpty { Text(skill.description).font(.system(size: 11.5)).foregroundStyle(theme.text3.color).lineLimit(2) }
+                            if skill.source == "zeno" { TestCasesList(model: model, kind: "skill", target: skill.name).padding(.top, 4) } // ADR-098 item 8
                         }
                         .padding(.vertical, 4)
                     }
@@ -236,6 +237,9 @@ private struct SkillEditCard: View {
             Text(edit.reason).font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
             side("Before", edit.before)
             side("After", edit.after)
+            // ADR-098 item 8: how the edit does on the skill's test cases.
+            TestRunView(model: model, kind: "skill", id: edit.id, tests: edit.tests,
+                        hasCases: !(model.helpers.list?.testCases(kind: "skill", target: edit.skill).isEmpty ?? true), pending: edit.state == "pending")
         }
     }
 

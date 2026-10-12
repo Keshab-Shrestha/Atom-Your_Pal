@@ -1,14 +1,57 @@
 // ADR-081: the helper store as the island sees it (wire shapes, ISO dates, sorted app names).
 
-import { HelperError, describeSchedule, describeWake, nextDue, type HelperStore, type Job, type PlanModel } from "@zeno/helpers";
+import { HelperError, describeSchedule, describeWake, nextDue, type HelperStore, type Job, type PlanModel, type Schedule, type TaskSearchHit, type TestKind } from "@zeno/helpers";
 import type { IslandHelpers } from "./island.ts";
-import type { JobItem, ManagerItem, SkillDraftItem, SkillEditItem } from "./island-protocol.ts";
+import type { JobItem, ManagerItem, RoutineInput, SkillDraftItem, SkillEditItem, TestCaseItem, TestsItem } from "./island-protocol.ts";
+
+/** ADR-097: the form's schedule as the store's; missing numbers become -1, which the store refuses with words. */
+const scheduleOf = (input: RoutineInput): Schedule =>
+  input.kind === "hours" ? { kind: "hours", every: input.every ?? -1 }
+  : input.kind === "weekly" ? { kind: "weekly", weekday: input.weekday ?? -1, minute: input.minute ?? -1 }
+  : { kind: "daily", minute: input.minute ?? -1 };
+
+/** ADR-097: an hourly schedule's first time; at most a year ahead, so a typo cannot park it for ever. */
+function startOf(input: RoutineInput): Date | undefined {
+  if (input.kind !== "hours" || !input.startAt) return undefined;
+  const at = new Date(input.startAt);
+  if (at.getTime() > Date.now() + 366 * 86_400_000) throw new HelperError("The first time must be within a year.");
+  return at;
+}
 
 /** ADR-094: how much of a draft's steps, and of each side of an edit, the window shows. */
 const PREVIEW_CHARS = 400;
 const CHANGE_LINES = 6;
 
 const cut = (text: string) => (text.length > PREVIEW_CHARS ? `${text.slice(0, PREVIEW_CHARS - 1)}…` : text);
+
+/** ADR-098 item 8: how much of a test case's task and of each answer the window shows. */
+const TEST_TASK_CHARS = 200;
+const TEST_ANSWER_CHARS = 800;
+const cutTo = (text: string, limit: number) => (text.length > limit ? `${text.slice(0, limit - 1)}…` : text);
+
+/** ADR-098 item 8: a soul proposal's or skill edit's test run as the window shows it; undefined when it has none. */
+export function testsOf(store: HelperStore, kind: TestKind, id: number): TestsItem | undefined {
+  const results = store.testResults(kind, id);
+  if (!results.length) return undefined;
+  const count = (f: (r: (typeof results)[number]) => boolean) => results.filter(f).length;
+  return {
+    better: count((r) => r.better === "new"),
+    same: count((r) => r.better === "same"),
+    worse: count((r) => r.better === "old"),
+    notRun: count((r) => r.state === "skipped"),
+    failed: count((r) => r.state === "failed"),
+    running: count((r) => r.state === "running"),
+    results: results.map((r) => ({
+      caseId: r.caseId,
+      task: cutTo(r.task, TEST_TASK_CHARS),
+      state: r.state,
+      ...(r.better ? { better: r.better } : {}),
+      ...(r.reason ? { reason: r.reason } : {}),
+      ...(r.oldAnswer ? { oldAnswer: cutTo(r.oldAnswer, TEST_ANSWER_CHARS) } : {}),
+      ...(r.newAnswer ? { newAnswer: cutTo(r.newAnswer, TEST_ANSWER_CHARS) } : {}),
+    })),
+  };
+}
 
 /** A compact before and after: from the first line that differs, a few lines of each. */
 export function compactChange(before: string, after: string): { before: string; after: string } {
@@ -41,6 +84,7 @@ const toJobItem = (job: Job, held?: string): JobItem => ({
   ...(job.goalEnded ? { goalEnded: true } : {}),
   ...(job.resumable ? { resumable: true } : {}),
   ...(held ? { held } : {}),
+  ...(job.interrupted ? { interrupted: true } : {}),
   ...(job.planFirst ? { planFirst: true } : {}),
   ...(job.planStatus ? { planStatus: job.planStatus } : {}),
   ...(job.planSummary ? { planSummary: job.planSummary } : {}),
@@ -49,6 +93,7 @@ const toJobItem = (job: Job, held?: string): JobItem => ({
   ...(job.autoRetries ? { autoRetries: job.autoRetries } : {}),
   ...(job.parentId !== undefined ? { parentId: job.parentId } : {}),
   ...(job.subAgents?.length ? { subAgents: job.subAgents } : {}),
+  ...(job.labels?.length ? { labels: job.labels } : {}),
 });
 
 /**
@@ -75,9 +120,12 @@ export function islandHelpers(
           id: r.id,
           task: r.task,
           when: describeSchedule(r.schedule),
+          schedule: r.schedule,
           ...(r.lastAt ? { lastAt: r.lastAt.toISOString() } : {}),
           ...(r.lastSkipped ? { lastSkipped: true } : {}),
           ...(r.paused ? { paused: true } : { nextAt: nextDue(r.schedule, r.createdAt, now()).toISOString() }),
+          ...(r.notifyTelegram ? { notifyTelegram: true } : {}),
+          ...(r.webhook ? { webhook: true } : {}),
         })),
         ...(wakeUp
           ? {
@@ -90,7 +138,10 @@ export function islandHelpers(
               },
             }
           : {}),
-        proposals: h.proposals.map((p) => ({ id: p.id, field: p.field, text: p.text, reason: p.reason, jobId: p.jobId, state: p.state, createdAt: p.createdAt.toISOString() })),
+        proposals: h.proposals.map((p) => {
+          const tests = testsOf(store, "soul", p.id);
+          return { id: p.id, field: p.field, text: p.text, reason: p.reason, jobId: p.jobId, state: p.state, createdAt: p.createdAt.toISOString(), ...(tests ? { tests } : {}) };
+        }),
         jobs: h.jobs.map((job) => toJobItem(job, held(job))),
       })),
     budgets: () => {
@@ -107,6 +158,9 @@ export function islandHelpers(
     approvePlan: (id) => store.approvePlan(id),
     rejectPlan: (id) => store.rejectPlan(id),
     setPlanFirst: (helper, on) => store.setPlanFirst(helper, on),
+    setBrowser: (helper, on) => store.setBrowser(helper, on),
+    addRoutine: (input) => void store.addRoutine(input.helper, input.task, scheduleOf(input), startOf(input), input.notifyTelegram, input.webhook),
+    updateRoutine: (id, input) => void store.updateRoutine(id, input.helper, input.task, scheduleOf(input), startOf(input), input.notifyTelegram, input.webhook),
     removeRoutine: (id) => store.removeRoutine(id),
     pauseRoutine: (id, paused) => store.pauseRoutine(id, paused),
     teamTasks: () => store.teamTasks().map((t) => ({ id: t.id, task: t.task, ...(t.role ? { role: t.role } : {}), createdAt: t.createdAt.toISOString() })),
@@ -161,7 +215,14 @@ export function islandHelpers(
     skillDrafts: (): SkillDraftItem[] =>
       store.skillDrafts().map((d) => ({ id: d.id, jobId: d.jobId, helper: d.helper, name: d.name, description: d.description, preview: cut(d.body), state: d.state, createdAt: d.createdAt.toISOString() })),
     skillEdits: (): SkillEditItem[] =>
-      store.skillEdits().map((e) => ({ id: e.id, skill: e.skill, jobId: e.jobId, reason: e.reason, ...compactChange(e.oldBody, e.newBody), state: e.state, createdAt: e.createdAt.toISOString() })),
+      store.skillEdits().map((e) => {
+        const tests = testsOf(store, "skill", e.id);
+        return { id: e.id, skill: e.skill, jobId: e.jobId, reason: e.reason, ...compactChange(e.oldBody, e.newBody), state: e.state, createdAt: e.createdAt.toISOString(), ...(tests ? { tests } : {}) };
+      }),
+    testCases: (): TestCaseItem[] =>
+      store.testCases().map((c) => ({ id: c.id, kind: c.kind, target: c.target, jobId: c.jobId, task: cutTo(c.task, TEST_TASK_CHARS), createdAt: c.createdAt.toISOString() })),
+    saveTestCase: (jobId, kind, target) => void store.saveTestCase(jobId, kind, target),
+    deleteTestCase: (id) => store.deleteTestCase(id),
     makeSkill: (id) => store.makeSkill(id),
     approveSkillDraft: (id) => store.approveSkillDraft(id),
     rejectSkillDraft: (id) => store.rejectSkillDraft(id),
@@ -178,8 +239,22 @@ export function islandHelpers(
     removeGrant: (helper, path) => store.removeGrant(helper, path),
     setBlockers: (id, blockedBy) => store.setBlockers(id, blockedBy),
     addComment: (id, text) => store.addComment(id, text),
+    addLabel: (id, label) => void store.addLabel(id, label),
+    removeLabel: (id, label) => store.removeLabel(id, label),
+    search: (query) => {
+      const hit = (h: TaskSearchHit) => ({ id: h.id, title: h.title, snippet: h.snippet, at: h.at.toISOString() });
+      const { tasks, reports } = store.search(query);
+      return { tasks: tasks.map(hit), reports: reports.map(hit) };
+    },
     startFresh: (id) => store.startFresh(id),
     thread: (id) => {
+      // ADR-098 item 8: the ZENO-made skills a done task's runs used.
+      const testSkillsOf = (jobId: number) => {
+        if (store.get(jobId)?.state !== "done") return {};
+        const zeno = new Set(skills().filter((s) => s.source === "zeno").map((s) => s.name));
+        const used = store.skillsUsed(jobId).filter((name) => zeno.has(name));
+        return used.length ? { testSkills: used } : {};
+      };
       const thread = store.thread(id);
       if (!thread) return undefined;
       const { report } = thread;
@@ -187,10 +262,11 @@ export function islandHelpers(
       const goal = goalId === undefined ? undefined : store.goal(goalId);
       return {
         id,
-        comments: thread.comments.map((c) => ({ id: c.id, text: c.text, createdAt: c.createdAt.toISOString() })),
+        comments: thread.comments.map((c) => ({ id: c.id, text: c.text, createdAt: c.createdAt.toISOString(), ...(c.delivery ? { delivery: c.delivery } : {}) })),
         activity: thread.activity.map((a) => ({ kind: a.kind, at: a.at.toISOString() })),
         ...(thread.plan ? { plan: thread.plan } : {}),
         ...(thread.handOffs.length ? { handOffs: thread.handOffs } : {}),
+        ...testSkillsOf(id),
         ...(report ? { report: { title: report.title, summary: report.summary, body: report.body, sources: report.sources } } : {}),
         ...(goal
           ? {

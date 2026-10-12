@@ -123,3 +123,63 @@ public struct ScheduledPage: Sendable, Equatable {
         return days == 1 ? "1 day" : "\(days) days"
     }
 }
+
+/// ADR-097: a routine's schedule as numbers: one of the store's three kinds (daily or weekly at a time, or every few
+/// hours).
+public struct RoutineSchedule: Sendable, Equatable {
+    public enum Kind: String, Sendable, CaseIterable {
+        case daily, weekly, hours
+
+        public var title: String {
+            switch self {
+            case .daily: "Every day"
+            case .weekly: "Every week"
+            case .hours: "Every few hours"
+            }
+        }
+    }
+
+    public var kind: Kind
+    /// Minutes after local midnight (daily, weekly).
+    public var minute: Int
+    /// 0 (Sunday) to 6 (weekly).
+    public var weekday: Int
+    /// 1 to 168 hours (hours).
+    public var every: Int
+
+    public init(kind: Kind = .daily, minute: Int = 8 * 60, weekday: Int = 1, every: Int = 4) {
+        self.kind = kind
+        self.minute = minute
+        self.weekday = weekday
+        self.every = every
+    }
+
+    public static let weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    public static let maxEveryHours = 168
+}
+
+/// ADR-097: the New schedule and Edit form: the worker, the task, the schedule and, for an hourly one, its first time.
+public struct RoutineDraft: Sendable, Equatable {
+    public var helper: String
+    public var task: String
+    public var schedule: RoutineSchedule
+    public var startAt: Date
+    /// ADR-098: send each result to Telegram.
+    public var notifyTelegram: Bool
+    /// ADR-098 item 5: the local API's webhook may start it.
+    public var webhook: Bool
+
+    public init(helper: String, task: String = "", schedule: RoutineSchedule = RoutineSchedule(), startAt: Date, notifyTelegram: Bool = false, webhook: Bool = false) {
+        self.helper = helper
+        self.notifyTelegram = notifyTelegram
+        self.webhook = webhook
+        self.task = task
+        self.schedule = schedule
+        self.startAt = startAt
+    }
+
+    /// The form for an existing routine: its numbers, and its next time as the first time.
+    public init(routine: HelperRoutine, helper: String, now: Date = Date()) {
+        self.init(helper: helper, task: routine.task, schedule: routine.schedule ?? RoutineSchedule(), startAt: routine.nextAt ?? now, notifyTelegram: routine.notifyTelegram, webhook: routine.webhook)
+    }
+}

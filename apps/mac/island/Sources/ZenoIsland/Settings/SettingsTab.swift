@@ -89,11 +89,14 @@ struct SettingsTab: View {
         case .shortcuts: return s.shortcut(for: .talk)?.display ?? "Off"
         case .dictation: return s.dictationMode.title
         case .pal: return s.petEnabled ? s.palSize.title : "Off"
+        case .sounds:
+            let on = [s.speakReports, s.speakUpdates, s.speechChime, s.soundsEnabled, s.notificationSounds].filter { $0 }.count
+            return on == 5 ? "All on" : on == 0 ? "Quiet" : "\(on) of 5 on"
         case .memory:
             guard let memory = model.memory else { return "" }
             if !memory.enabled { return "Off" }
             return memory.count == 0 ? "Nothing kept" : memory.count == 1 ? "1 fact" : "\(memory.count) facts"
-        case .general: return model.loginItem.enabled ? "Opens at login" : (s.soundsEnabled ? "Sounds on" : "Sounds off")
+        case .general: return model.loginItem.enabled ? "Opens at login" : ""
         }
     }
 
@@ -105,6 +108,7 @@ struct SettingsTab: View {
         case .shortcuts: ShortcutSection(model: model)
         case .dictation: DictationSection(model: model)
         case .pal: PalSection(model: model)
+        case .sounds: SoundsSection(model: model)
         case .memory: MemorySection(model: model)
         case .general: GeneralSection(model: model)
         }

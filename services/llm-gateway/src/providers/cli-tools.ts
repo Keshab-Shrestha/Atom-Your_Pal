@@ -16,7 +16,7 @@ export const CLI_TIMEOUT_MS = 120_000;
 /** Runs a program and gives back what it printed; rejects with the error (its `stderr` and `code` attached). */
 export type CliRunner = (program: string, args: string[], options: { cwd: string; env: NodeJS.ProcessEnv; timeout: number; signal: AbortSignal }) => Promise<{ stdout: string; stderr: string }>;
 
-const defaultRunner: CliRunner = (program, args, options) =>
+export const defaultRunner: CliRunner = (program, args, options) =>
   new Promise((resolve, reject) => {
     const child = execFile(program, args, { ...options, maxBuffer: 16 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (error) reject(Object.assign(error, { stderr: String(stderr) }));
@@ -46,7 +46,7 @@ export function promptText(request: ModelRequest): string {
 }
 
 /** What a failed run means, in words for Keshab. Never the program's full output. */
-function failure(tool: string, signIn: string, error: unknown, signal: AbortSignal): ProviderError {
+export function failure(tool: string, signIn: string, error: unknown, signal: AbortSignal): ProviderError {
   if (signal.aborted) return new ProviderError("cancelled", `${tool} was stopped.`);
   const e = error as { code?: unknown; killed?: boolean; stderr?: string; message?: string };
   if (e.code === "ENOENT") return new ProviderError("auth", `${tool} was not found on this Mac. ${signIn}`);

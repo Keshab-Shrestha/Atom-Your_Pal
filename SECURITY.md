@@ -314,6 +314,13 @@ Memory must have:
 
 Private memories must not accidentally appear in another user's context.
 
+Kept chats (ADR-097):
+
+- Kept chats stay on this Mac, in `data/memory.db`. ZENO keeps a copy of each kept chat: a summary, topic sections and exact lines.
+- The summary and section headings come from one model run without tools. The chat goes to the model in use, as every chat turn does.
+- The embedding model runs on this Mac. Its file downloads once from Hugging Face into `models/huggingface`. After that, no chat text leaves the Mac for the search.
+- Logs record chat ids, counts and states only. Logs never record chat text.
+
 ---
 
 ## 18. Knowledge Security
@@ -451,3 +458,53 @@ The architecture must preserve this separation.
 ## Providers (ADR-092)
 
 ZENO runs on Keshab's own Claude plan only, through the signed-in `claude` program (Claude Code). It holds no API keys: Gemini and the Claude API were removed from the app and the runtime. ZENO never reads or stores Claude Code's login, and strips `ANTHROPIC_API_KEY` (and other providers' keys) from the environment it gives Claude Code, so a key left in `.env` can never turn plan use into billed API use. Using the plan this way is for Keshab's own use on his own Mac. ADR-093 adds the other subscription tools found on the Mac: Codex (`codex exec --sandbox read-only --ephemeral`) and the Gemini CLI (`gemini -p --approval-mode plan`), each run in a fresh temporary folder that is removed after, with API keys taken out of its environment and no ZENO tools; ZENO checks sign-in by asking each tool (`claude auth status`, `codex login status`) or by a saved sign-in file existing, and never reads a login file. Local model servers found (Ollama, LM Studio) are not used.
+
+## Telegram (ADR-098)
+
+- ZENO uses its own Telegram bot. It never uses Hermes' bot, token or files.
+- The bot token is in `.env` only, as `ZENO_TELEGRAM_BOT_TOKEN`. ZENO never logs it and never shows it.
+- ZENO serves one chat only: `ZENO_TELEGRAM_CHAT_ID`. ZENO ignores messages and buttons from all other chats and does not answer them. The log records only a count of ignored updates.
+- The feature is off until both values are in `.env`.
+- The log records command names, button kinds, error codes and timings. It never records message text, reports or replies.
+- A button runs the same command as the ZENO window (approve or reject a plan, answer ATOM's question, retry, approve or reject a skill). The store checks each command, as for the window.
+- Messages to Telegram leave the Mac. Turn off "Send to Telegram" in Settings → General to stop what ZENO sends by itself. Replies to your messages still go.
+
+## Local API and MCP server (ADR-098 item 5)
+
+- The local HTTP API is off by default. Turn it on in Settings → General → "Local API".
+- The API listens on 127.0.0.1 only. Other computers cannot reach it.
+- Each request needs `Authorization: Bearer <token>`. The token is in `data/api-token`. ZENO makes it on the first start: 32 random bytes as hex, file mode 0600. `data/` is not in git.
+- ZENO compares the token in constant time. A request without the correct token gets 401. The log records only the count of refused requests.
+- ZENO never logs the token and never shows it. "Copy token" in Settings reads the file only when you click it and puts the token on the clipboard.
+- To make a new token, turn off the API, delete `data/api-token`, then turn on the API.
+- A request body is at most 64 KB.
+- An API goal or chat turn goes to ATOM, the same as a typed goal. The grants, the budgets, the plan limit and the approvals stay the same. An API call cannot approve ATOM's own computer actions without an answer to a Needs you item.
+- The Needs you actions are the same as the Telegram buttons and the ZENO window. The store checks each one.
+- A webhook can start only a routine with "Can be started by webhook" on. The switch is off by default. Other routines get 403.
+- The log records the method, the route pattern (for example `/v1/tasks/:id`), the status and the time. It never records bodies, goals, answers or reports.
+- The MCP server (`apps/mac/src/mcp-serve.ts`) is a client of the API. It reads `data/api-token` and calls 127.0.0.1 only. It has the same access as the API and no more.
+
+## Browser for workers (ADR-098 item 4)
+
+- A worker gets the browser only when Keshab turns on its Browser switch. The switch is off by default. A "think" worker and a sub-agent never get the browser.
+- The browser is ZENO's own Chromium from Playwright. Each worker has its own profile in `data/browser-profile/<id>`. ZENO never uses Keshab's browser or his browser profile.
+- A login stays in the worker's profile after the task. To remove all logins, delete `data/browser-profile`.
+- Policy is in code (`apps/mac/src/browser.ts`). The model cannot change it.
+- The first visit to each site (origin) in a run asks Keshab on ATOM's card. A link or a redirect to a new site asks before the next action on that site.
+- The first typing or submit on each site in a run asks Keshab. Typing, filling a form, a key that can type or submit, accepting a dialog, an upload and a click on a submit-like button (for example "Sign in", "Buy", "Send") count.
+- Keshab's answer applies to that site for the rest of the run. A new run asks again. No answer is a no.
+- An upload must come from the worker's granted folders. ZENO refuses all other uploads.
+- Downloads and screenshots go to `data/browser-files/<id>`. ZENO refuses a tool call that names a file to save.
+- ZENO refuses the tools that run code in the page or in Playwright, and the network and storage tools.
+- The log records the task id, the tool name, the site's origin and the answer. It never records typed text or full addresses.
+
+## Codex fallback (ADR-098 item 7)
+
+- The switch "Use Codex when the Claude plan limit is reached" is in Settings → General, in the Team card. The switch is off by default. The switch shows only when Codex is found and signed in.
+- Codex runs a task only when the Claude plan's limit holds the task. A budget hold, a plan that waits for Keshab, Tinker and Managers stay on Claude.
+- Codex runs as `codex exec` with `--ephemeral` and `--ignore-user-config`. ZENO closes stdin. ZENO removes all API keys from its environment, so Codex uses Keshab's ChatGPT sign-in. ZENO never reads the Codex login file.
+- A worker without a folder (think, research, a write-up) runs in the `read-only` sandbox. Codex cannot run commands that change files. Only a research kit or a write-up gets Codex's own web search.
+- A folder worker runs in the `workspace-write` sandbox. Codex writes only in the task's folder (its worktree) and the worker's other granted folders. Commands have no network (`sandbox_workspace_write.network_access=false`). Codex does not commit. ZENO commits on the task's branch and never pushes.
+- Codex runs have the same time limit as Claude runs.
+- The run costs $0 against the budgets. The tokens go to the Dashboard with the model `codex`.
+- The log records the task id, the kit and whether the run has a folder. It never records the task, the report or Codex's output.

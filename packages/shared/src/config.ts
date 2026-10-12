@@ -33,13 +33,24 @@ export const PROVIDERS = {
     name: "Codex (my ChatGPT plan)",
     keyVar: "ZENO_CODEX_PATH",
     defaultModel: "codex-default",
-    models: [{ id: "codex-default", name: "Codex's own model" }],
+    // ADR-097: a known list (Codex gives no list to other programs), plus a custom model id in Settings.
+    models: [
+      { id: "codex-default", name: "Codex's own model" },
+      { id: "gpt-6-luna", name: "GPT-6 Luna" },
+      { id: "gpt-5.6-terra", name: "GPT-5.6 Terra" },
+      { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
+      { id: "gpt-5.5", name: "GPT-5.5" },
+    ],
   },
   "gemini-cli": {
     name: "Gemini CLI (my Google sign-in)",
     keyVar: "ZENO_GEMINI_PATH",
     defaultModel: "gemini-default",
-    models: [{ id: "gemini-default", name: "Gemini CLI's own model" }],
+    models: [
+      { id: "gemini-default", name: "Gemini CLI's own model" },
+      { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
+      { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
+    ],
   },
 } as const;
 
@@ -93,6 +104,8 @@ export function findProgram(
       .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
     for (const d of bundled) places.push(`${editor}/${d}/bin/macos-aarch64/${name}`, `${editor}/${d}/bin/macos-x86_64/${name}`);
   }
+  // ADR-098 item 7: the ChatGPT app ships Codex too.
+  if (name === "codex") places.push("/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex");
   return places.find(exists);
 }
 

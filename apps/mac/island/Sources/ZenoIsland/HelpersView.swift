@@ -20,7 +20,10 @@ struct HelpersView: View {
             // ADR-091: a top bar over every page, with the page's name; it moves the window.
             let page = Self.page(model)
             WindowTopBar(title: page.title, symbol: page.symbol, back: model.history.canGoBack ? { model.goBack() } : nil) {
-                if model.windowPage == .chat { ChatSoundsMenu(model: model) }
+                if model.windowPage == .chat {
+                    ChatModelMenu(model: model) // ADR-097
+                    ChatSoundsMenu(model: model)
+                }
             }
             Group {
                 if model.windowPage == .overview {
@@ -138,6 +141,11 @@ private struct HelperSidebar: View {
           Scrollable {
            VStack(alignment: .leading, spacing: 4) {
             WindowHeader(model: model)
+            // ADR-098: one search over chats, tasks and reports; its results replace the pages while there are words.
+            SidebarSearchField(model: model).padding(.bottom, 4)
+            if !model.searchQuery.isEmpty {
+                SidebarSearchResults(model: model)
+            } else {
             Button { model.navigate { model.windowPage = .overview } } label: {
                 SidebarRow(symbol: "gauge.with.dots.needle.33percent", title: "Overview", detail: nil, selected: model.windowPage == .overview)
             }
@@ -171,6 +179,7 @@ private struct HelperSidebar: View {
             .buttonStyle(.plain)
             // ADR-091: Keshab's chats where the team was (the team is on the Board and each worker's page).
             ChatsList(model: model)
+            }
            }
           }
             Spacer(minLength: 0)
@@ -374,6 +383,7 @@ private struct HelperPane: View {
                 if helper.proposals.contains(where: { $0.state == "pending" || $0.state == "accepted" }) {
                     ProposalsSection(model: model, proposals: helper.proposals)
                 }
+                TestCasesList(model: model, kind: "soul", target: helper.id) // ADR-098 item 8
                 if helper.available {
                     HStack(spacing: 8) {
                         AppPicker(model: model, helper: helper)
@@ -385,6 +395,7 @@ private struct HelperPane: View {
                     if let budget = helper.budget { BudgetPicker(model: model, helper: helper, budget: budget) }
                     SkillsPicker(model: model, helper: helper, skills: model.helpers.list?.skills ?? [])
                     PlanFirstRow(model: model, helper: helper)
+                    if helper.takesTasks, helper.kit != "think" { BrowserRow(model: model, helper: helper) } // ADR-098
                     WakeUpRow(model: model, helper: helper)
                     if helper.worksInFolders { FoldersSection(model: model, helper: helper) }
                     VStack(alignment: .leading, spacing: 8) {

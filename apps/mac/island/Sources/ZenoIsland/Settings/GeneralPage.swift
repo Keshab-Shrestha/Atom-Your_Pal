@@ -1,10 +1,13 @@
+import AppKit
 import SwiftUI
 import ZenoIslandCore
 
-/// Open at login, sounds, permissions (ADR-075) and the tour. Each page with choices has its own reset (ADR-079).
+/// Open at login, permissions (ADR-075) and the tour (ADR-097: the sounds moved to Settings → Sounds). Each page with choices has its own reset (ADR-079).
 struct GeneralSection: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
+    /// ADR-098 item 5: what "Copy token" did ("Copied", or why not). Never the token.
+    @State private var tokenNote: String?
 
     var body: some View {
         let settings = model.settings
@@ -19,10 +22,6 @@ struct GeneralSection: View {
                 Row(title: "Needs your OK in System Settings") {
                     PillButton(title: "Open…") { login.openSystemSettings() }
                 }
-            }
-            RowDivider()
-            Row(title: "Sounds", detail: "A soft tone when listening starts and stops") {
-                ThemedSwitch(isOn: settings.soundsEnabled, set: { settings.soundsEnabled = $0 }, label: "Sounds")
             }
             RowDivider()
             Row(title: "Answer without keys", detail: "When ZENO asks you something, it listens for a few seconds") {
@@ -42,6 +41,15 @@ struct GeneralSection: View {
                     .accessibilityLabel("Runs at once")
                     .accessibilityValue("\(maxRunning)")
                 }
+                // ADR-098 item 7: shown only when Codex is found and signed in.
+                if let list = model.helpers.list, list.codexReady {
+                    RowDivider()
+                    Row(title: "Use Codex when the Claude plan limit is reached",
+                        detail: "A task held only by the plan's limit runs on Codex (your ChatGPT plan). Same folders, no network.") {
+                        ThemedSwitch(isOn: list.codexFallback, set: { model.sendHelpers(model.helpers.setCodexFallback($0)) },
+                                     label: "Use Codex when the Claude plan limit is reached")
+                    }
+                }
             }
         }
         // ADR-091: which macOS notifications ZENO posts.
@@ -50,6 +58,32 @@ struct GeneralSection: View {
                 if index > 0 { RowDivider() }
                 Row(title: kind.title, detail: Self.detail(kind)) {
                     ThemedSwitch(isOn: settings.notifies(kind), set: { settings.setNotifies(kind, $0) }, label: kind.title)
+                }
+            }
+        }
+        // ADR-098: ZENO's own Telegram bot. The names only, never the values.
+        Card("Telegram", footer: model.telegramConnected
+             ? "Only the chat in ZENO_TELEGRAM_CHAT_ID is served. Send /help to the bot for its commands."
+             : "Make a bot for ZENO with @BotFather. Add ZENO_TELEGRAM_BOT_TOKEN and ZENO_TELEGRAM_CHAT_ID to .env, then restart ZENO.") {
+            Row(title: "Telegram", detail: model.telegramConnected ? "Connected" : "Not set up") {
+                StatusDot(color: model.telegramConnected ? theme.success.color : theme.text3.color, size: 8)
+            }
+            RowDivider()
+            Row(title: "Send to Telegram", detail: "What needs you, finished goals and schedule results") {
+                ThemedSwitch(isOn: settings.telegramPush, set: { settings.telegramPush = $0; model.send(.telegramSet(push: $0)) }, label: "Send to Telegram")
+                    .disabled(!model.telegramConnected)
+            }
+        }
+        // ADR-098 item 5: the local API for Hermes, Claude Code and other tools on this Mac. The token is never shown:
+        // "Copy token" reads data/api-token when clicked and puts it on the clipboard.
+        Card("Local API", footer: "Listens on 127.0.0.1 only. Each request needs the token. Add the MCP server to Claude Code with: claude mcp add zeno -- node <ZENO folder>/apps/mac/src/mcp-serve.ts") {
+            Row(title: "Local API", detail: apiDetail(on: settings.localApi)) {
+                ThemedSwitch(isOn: settings.localApi, set: { settings.localApi = $0; tokenNote = nil; model.send(.apiSet(on: $0)) }, label: "Local API")
+            }
+            if settings.localApi, let api = model.apiStatus, api.on {
+                RowDivider()
+                Row(title: "Token", detail: tokenNote ?? "For the header Authorization: Bearer <token>") {
+                    PillButton(title: "Copy token") { copyToken(api.tokenFile) }
                 }
             }
         }
@@ -66,6 +100,24 @@ struct GeneralSection: View {
 }
 
 extension GeneralSection {
+    func apiDetail(on: Bool) -> String {
+        guard on else { return "Other tools on this Mac can give ATOM goals and read results" }
+        guard let api = model.apiStatus else { return "Starting…" }
+        if let error = api.error { return error }
+        return api.on ? "Listening on 127.0.0.1:\(api.port)" : "Starting…"
+    }
+
+    /// Reads the token file on click only; the token goes to the clipboard and nowhere else.
+    func copyToken(_ path: String) {
+        guard let token = try? String(contentsOfFile: path, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines), !token.isEmpty else {
+            tokenNote = "Could not read \(path)"
+            return
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(token, forType: .string)
+        tokenNote = "Copied"
+    }
+
     static func detail(_ kind: AppNotice.Kind) -> String {
         switch kind {
         case .needsYou: "A plan, a held task, a proposal, or ZENO asking for your OK"

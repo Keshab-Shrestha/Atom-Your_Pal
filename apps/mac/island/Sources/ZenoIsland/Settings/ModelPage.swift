@@ -4,6 +4,9 @@ import ZenoIslandCore
 /// The AI model: pick a provider, then one of its models, from two menus (replaces the wall of chips).
 struct ModelSection: View {
     let model: IslandModel
+    /// ADR-097: the "Custom model…" field is open, and what is typed in it.
+    @State private var customOpen = false
+    @State private var customId = ""
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -41,10 +44,24 @@ struct ModelSection: View {
                                 }
                                 .disabled(model.pendingModel != nil)
                             }
+                            Divider()
+                            Button("Custom model…") { customOpen = true }
                         } label: {
                             MenuLabel(text: info.currentModelName, identifier: true)
                         }
                         .menuStyle(.button).buttonStyle(.plain).fixedSize()
+                    }
+                }
+                if customOpen {
+                    RowDivider()
+                    customRow(provider: info.provider)
+                }
+                RowDivider()
+                Row(title: "Model list", detail: "Asks your Claude plan for its models again") {
+                    HStack(spacing: 6) {
+                        if model.refreshingModels { ProgressView().controlSize(.mini) }
+                        PillButton(title: "Refresh") { model.refreshModels() }
+                            .disabled(model.refreshingModels)
                     }
                 }
                 if let error = model.modelError {
@@ -76,6 +93,32 @@ struct ModelSection: View {
         } else {
             Card {
                 Row(title: "Waiting for ZENO to start…") { ProgressView().controlSize(.small) }
+            }
+        }
+    }
+
+    /// ADR-097: a model id Keshab types for the provider in use. Return saves.
+    private func customRow(provider: String) -> some View {
+        let id = customId.trimmingCharacters(in: .whitespaces)
+        let valid = ModelInfo.isValidModelId(id)
+        let save = {
+            guard valid else { return }
+            model.chooseModel(provider: provider, model: id)
+            customOpen = false
+            customId = ""
+        }
+        return Row(title: "Custom model", detail: id.isEmpty || valid ? "The model id, as the provider names it" : "Use up to 100 letters, digits, \".\", \"_\", \":\" or \"-\"") {
+            HStack(spacing: 6) {
+                TextField("model-id", text: $customId)
+                    .textFieldStyle(.plain)
+                    .font(theme.idFont(.system(size: 12), size: 11.5))
+                    .frame(width: 180)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous)
+                        .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: 1))
+                    .onSubmit(save)
+                    .accessibilityLabel("Custom model id")
+                SaveButton(enabled: valid && model.pendingModel == nil, action: save)
             }
         }
     }

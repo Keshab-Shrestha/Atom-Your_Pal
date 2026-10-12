@@ -32,7 +32,9 @@ export interface SubAgentDefinition {
   prompt: string;
   tools: string[];
   disallowedTools: string[];
-  model: "inherit";
+  /** ADR-098 item 9: an alias ("haiku", "sonnet") or "inherit" (the run's own model). */
+  model: string;
+  effort?: "low" | "medium" | "high";
   maxTurns: number;
   permissionMode: "default";
 }
@@ -41,6 +43,9 @@ interface Wanted {
   description: string;
   prompt: string;
   tools: string[];
+  /** ADR-098 item 9: a cheaper model for simple work; without it the run's own model. */
+  model?: "haiku" | "sonnet";
+  effort?: "low";
 }
 
 const COMMON = `
@@ -57,11 +62,15 @@ const WEB: Record<string, Wanted> = {
     description: "Searches the web for one question and returns the most useful page addresses, each with one line on what it holds.",
     prompt: "You are the searcher. Search the web for the question you were given and return up to six of the most useful page addresses, each with one line on what it holds. Do not read the pages.",
     tools: ["WebSearch"],
+    model: "haiku",
+    effort: "low",
   },
   reader: {
     description: "Reads the pages it is given and returns the facts on them that answer one question, with each page's address.",
     prompt: "You are the reader. Read the pages you were given (each page counts toward the run's page limit) and return the facts on them that answer the question, each with the address of its page. Never invent facts.",
     tools: ["WebFetch"],
+    model: "haiku",
+    effort: "low",
   },
 };
 
@@ -75,6 +84,7 @@ const FILES: Record<string, Wanted> = {
     description: "Reads the work folder and runs checks or tests (no edits) and reports what passes and what is wrong.",
     prompt: "You are the checker. Read the files and run the checks or tests you were asked to, without changing any file, and report what passes and what is wrong, with file names.",
     tools: ["Read", "Glob", "Grep", "Bash"],
+    model: "sonnet",
   },
 };
 
@@ -95,7 +105,8 @@ export function subAgentsFor(parentTools: readonly string[], hasSkills: boolean)
         prompt: `${w.prompt}\n${COMMON}`,
         tools: [...w.tools, ...(hasSkills ? ["Skill"] : [])].filter((t) => allowed.has(t)),
         disallowedTools: AGENT_TOOLS, // no sub-agents of sub-agents
-        model: "inherit", // the model chosen for the run, nothing dearer
+        model: w.model ?? "inherit", // ADR-098 item 9: searcher and reader on Haiku, checker on Sonnet, coder on the run's model
+        ...(w.effort ? { effort: w.effort } : {}),
         maxTurns: SUB_AGENT_MAX_TURNS,
         permissionMode: "default", // every tool call still asks ZENO (canUseTool)
       },

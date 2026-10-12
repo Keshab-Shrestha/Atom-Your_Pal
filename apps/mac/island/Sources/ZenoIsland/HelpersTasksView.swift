@@ -47,7 +47,12 @@ struct BoardPane: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let board = model.helpers.list?.board ?? []
+        // ADR-098: only the tasks with the chosen label, when one is chosen.
+        let label = model.boardLabel
+        let board = (model.helpers.list?.board ?? []).compactMap { group -> (column: BoardColumn, items: [BoardItem])? in
+            let items = label.map { l in group.items.filter { $0.job.labels.contains(l) } } ?? group.items
+            return items.isEmpty ? nil : (group.column, items)
+        }
         GeometryReader { viewport in
         Scrollable {
             VStack(alignment: .leading, spacing: 18) {
@@ -72,12 +77,16 @@ struct BoardPane: View {
                 HStack(spacing: 6) {
                     ViewChoice(title: "Floor", symbol: "person.3", selected: model.boardFloor) { model.boardFloor = true }
                     ViewChoice(title: "Columns", symbol: "rectangle.split.3x1", selected: !model.boardFloor) { model.boardFloor = false }
+                    Spacer(minLength: 0)
+                    BoardLabelMenu(model: model)
                 }
                 // ADR-091: the floor keeps its shape and fits the Board's width and the window's height.
                 if model.boardFloor {
                     OfficeFloor(model: model).frame(maxHeight: max(220, viewport.size.height - 48)).frame(maxWidth: .infinity)
                 }
-                if board.isEmpty {
+                if board.isEmpty, label != nil {
+                    Text("No task on the Board has this label.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
+                } else if board.isEmpty {
                     Text("No tasks yet. Choose a worker and give it one.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
                 }
                 // ADR-094: tasks posted to the team, waiting for a worker to wake up and take them.
@@ -232,7 +241,9 @@ struct ThreadPane: View {
                     }
                     if let goal = model.helpers.thread?.goal, goal.tasks.count > 1 { GoalSection(goal: goal, list: model.helpers.list) }
                     if item.job.isFinished && item.job.reviews == nil { RateSection(model: model, job: item.job) }
-                    NotesSection(model: model, comments: model.helpers.thread?.comments ?? [], prompt: notePrompt(item))
+                    TaskLabelsSection(model: model, job: item.job) // ADR-098
+                    NotesSection(model: model, comments: model.helpers.thread?.comments ?? [], prompt: notePrompt(item),
+                                 steers: item.job.state == .running || item.job.interrupted)
                     if let activity = model.helpers.thread?.activity, !activity.isEmpty { ActivitySection(activity: activity) }
                 }
             }
@@ -248,8 +259,9 @@ struct ThreadPane: View {
     /// Task 3.6: a note wakes the task, so the field says what it will do.
     private func notePrompt(_ item: BoardItem) -> String {
         switch item.job.state {
+        case .queued where item.job.interrupted: "Tell \(item.helperName) what to do next" // ADR-098 item 3
         case .queued: "Add a note for \(item.helperName)"
-        case .running: "Add a note: \(item.helperName) runs once more after this"
+        case .running: "Tell \(item.helperName)…" // ADR-098 item 3: it reads the message at its next step
         default: "Ask \(item.helperName) again"
         }
     }
@@ -266,6 +278,8 @@ struct ThreadPane: View {
                 Text("#\(job.id)").font(theme.idFont(.system(size: 12), size: 11)).foregroundStyle(theme.text3.color)
                 Spacer(minLength: 0)
                 if job.resumable && job.state != .running { QuietButton(title: "Start fresh") { model.sendHelpers(model.helpers.startFresh()) } }
+                // ADR-098 item 3: stops the current step; the task then waits for Keshab's message.
+                if job.state == .running { QuietButton(title: "Interrupt") { model.sendHelpers(model.helpers.interruptJob(job.id)) } }
                 if job.state.isActive { QuietButton(title: "Stop") { model.sendHelpers(model.helpers.stopJob(job.id)) } }
             }
             if let goal = job.goal, goal != job.task { Text("Goal: \(goal)").font(.system(size: 12)).foregroundStyle(theme.text2.color) }
@@ -452,15 +466,18 @@ private struct NotesSection: View {
     let model: IslandModel
     let comments: [TaskComment]
     let prompt: String
+    /// ADR-098 item 3: the task runs or waits after an interrupt: the field sends a message to it ("Send").
+    let steers: Bool
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
     private let draft = State(initialValue: "")
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
 
-    init(model: IslandModel, comments: [TaskComment], prompt: String) {
+    init(model: IslandModel, comments: [TaskComment], prompt: String, steers: Bool = false) {
         self.model = model
         self.comments = comments
         self.prompt = prompt
+        self.steers = steers
     }
 
     var body: some View {
@@ -469,6 +486,10 @@ private struct NotesSection: View {
             Text("Notes").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             ForEach(comments) { comment in
                 VStack(alignment: .leading, spacing: 2) {
+                    if let delivery = comment.delivery {
+                        Text(delivery == "live" ? "Keshab (while running)" : "Keshab (after this run: the run could not take it)")
+                            .font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                    }
                     Text(comment.text).font(.system(size: 12.5)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true)
                     if let at = comment.createdAt {
                         Text(at.formatted(date: .abbreviated, time: .shortened)).font(theme.idFont(.system(size: 10.5), size: 10)).foregroundStyle(theme.text3.color)
@@ -482,9 +503,10 @@ private struct NotesSection: View {
                     TextField(prompt, text: draft.projectedValue)
                         .textFieldStyle(.plain).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
                         .onSubmit(add)
-                        .accessibilityLabel("Note")
+                        .accessibilityLabel(steers ? "Message" : "Note")
                 }
-                SaveButton(title: "Add", enabled: typed, saved: model.savedField == "note" && model.helpers.problem == nil, label: "Add note", action: add)
+                SaveButton(title: steers ? "Send" : "Add", enabled: typed, saved: model.savedField == "note" && model.helpers.problem == nil,
+                           label: steers ? "Send message" : "Add note", action: add)
             }
             .padding(.leading, 14).padding(.trailing, 6)
             .frame(height: 38)
@@ -494,7 +516,7 @@ private struct NotesSection: View {
     }
 
     private func add() {
-        guard let command = model.helpers.addComment(draft.wrappedValue) else { return }
+        guard let command = steers ? model.helpers.steer(draft.wrappedValue) : model.helpers.addComment(draft.wrappedValue) else { return }
         model.send(command)
         draft.wrappedValue = ""
         model.showSaved("note")

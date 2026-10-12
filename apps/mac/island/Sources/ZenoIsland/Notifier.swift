@@ -37,7 +37,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         let content = UNMutableNotificationContent()
         content.title = notice.title
         content.body = notice.body
-        content.sound = .default
+        content.sound = settings.notificationSounds ? .default : nil // ADR-097
         content.threadIdentifier = notice.kind.rawValue
         if let task = notice.taskId { content.userInfo = ["task": task] }
         center.add(UNNotificationRequest(identifier: notice.key, content: content, trigger: nil))

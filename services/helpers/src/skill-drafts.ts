@@ -400,6 +400,10 @@ export function skillStore(deps: SkillStoreDeps) {
       emit({ action: "skillEdit", edit: id, job: e.jobId, skill: e.skill, state: "undone" });
     },
 
+    /** ADR-098 item 8: one skill edit by id, and whether a name is one of ZENO's own skills. */
+    skillEdit: editOf,
+    isZenoSkill: isZeno,
+
     skillDrafts: () => (t.drafts.all() as unknown as DraftRow[]).map(toDraft),
     skillEdits: () => (t.edits.all() as unknown as EditRow[]).map(toEdit),
   };

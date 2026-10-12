@@ -111,6 +111,10 @@ export function createSchema(db: DatabaseSync) {
   for (const column of ["plan", "plan_summary", "plan_status"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);
   // ADR-094: what a Tinker task does besides reviewing a soul ("skill": draft one, "edit": edit one), and which skill.
   for (const column of ["review_kind", "review_skill"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);
+  // ADR-098 item 3: an interrupted task waits for Keshab; his messages to a running task ("live" or "after").
+  if (!columns.has("interrupted")) db.exec("ALTER TABLE jobs ADD COLUMN interrupted INTEGER");
+  const noteColumns = new Set((db.prepare("PRAGMA table_info(job_comments)").all() as { name: string }[]).map((c) => c.name));
+  if (!noteColumns.has("delivery")) db.exec("ALTER TABLE job_comments ADD COLUMN delivery TEXT");
 }
 
 export interface JobRow {
@@ -138,6 +142,7 @@ export interface JobRow {
   plan: string | null;
   plan_summary: string | null;
   plan_status: string | null;
+  interrupted?: number | null;
   rating: string | null;
   rating_comment: string | null;
   reviews: number | null;
@@ -192,6 +197,7 @@ export const toJobRow = (row: JobRow): Omit<Job, "blockedBy" | "waitingFor" | "c
   ...(row.parent_id != null ? { parentId: row.parent_id } : {}),
   resumable: Boolean(row.session_id),
   wakePending: row.wake_pending === 1,
+  ...(row.interrupted === 1 && row.state === "queued" ? { interrupted: true } : {}),
   planFirst: row.plan_first === 1,
   ...(row.plan_status === "awaiting" || row.plan_status === "approved" ? { planStatus: row.plan_status } : {}),
   ...(row.plan_summary ? { planSummary: row.plan_summary } : {}),

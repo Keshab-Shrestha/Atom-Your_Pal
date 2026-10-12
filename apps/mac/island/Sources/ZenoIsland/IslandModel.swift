@@ -23,6 +23,8 @@ final class IslandModel {
     var pendingModel: String?
     /// Why the last model switch was refused, shown under the model list until the next attempt.
     var modelError: String?
+    /// ADR-097: the model lists were asked for again and no `info` has come back yet.
+    var refreshingModels = false
     /// What ZENO keeps (ADR-058). Nil until the Memory page first asks the runtime.
     var memory: MemoryList?
     /// What ZENO can do (ADR-076), from the runtime's `capabilities` event. Nil until it arrives: only the shortcuts show.
@@ -31,6 +33,10 @@ final class IslandModel {
     var planUsage: PlanUsage?
     /// ADR-091: Keshab's chats and the one ZENO is in; nil until the window asks.
     var chats: ChatList?
+    /// ADR-098: ZENO's Telegram bot is set up in .env (from the runtime's `ready`).
+    var telegramConnected = false
+    /// ADR-098 item 5: the local API's state, from the runtime's `api` event (nil until Settings' switch is sent).
+    var apiStatus: ApiStatus?
     /// The ZENO window's content (ADR-081): helpers, their jobs, the report being read.
     var helpers = HelpersState()
     /// The ZENO window is open: a restarted runtime is asked for the list again.
@@ -49,6 +55,12 @@ final class IslandModel {
     var windowPage = WindowPage.chat
     /// ADR-090: the Board shows the office floor (else the columns).
     var boardFloor = true
+    /// ADR-098: the Board shows only the tasks with this label (nil: all).
+    var boardLabel: String?
+    /// ADR-098: the sidebar's search: the words typed, the answer to them, and a request to focus the field (⌘F).
+    var searchText = ""
+    var searchResults: SearchResults?
+    var searchFocusTick = 0
     /// ADR-094: the Board's "All agents" list is open (from its chip or a "+N" sign on the floor).
     var showsAllAgents = false
     /// The Settings page open inside the Settings tab; nil shows the list of pages (ADR-057).
@@ -99,6 +111,19 @@ final class IslandModel {
         send(.modelSet(provider: provider, model: model))
     }
 
+    /// ADR-097: ask the providers for their model lists again.
+    func refreshModels() {
+        refreshingModels = true
+        modelError = nil
+        send(.modelRefresh)
+    }
+
+    /// ADR-097: the chat in use gets its own model (nil: the default again). Voice and new chats keep the default.
+    func chooseChatModel(provider: String?, model: String?) {
+        modelError = nil
+        send(.chatModel(id: chats?.current ?? "", provider: provider ?? "", model: model ?? ""))
+    }
+
     /// The user clicked Allow or Decline on the approval card.
     func answerApproval(_ approved: Bool) {
         guard let command = approval.answer(approved: approved) else { return }
@@ -127,10 +152,30 @@ final class IslandModel {
         send(.episodeForget(id: id))
     }
     func forgetAllEpisodes() { send(.episodeClear) }
+    /// ADR-097: keep the chosen chats in memory; the runtime's `memory` events show them indexing, then kept.
+    func keepChats(_ ids: Set<String>) {
+        for id in ids.sorted() { send(.memoryKeepChat(id: id)) }
+    }
+    func dropKeptChat(_ id: String) { send(.memoryDropChat(id: id)) }
 
     /// Sends what a ZENO window action produced, if anything.
     func sendHelpers(_ command: IslandCommand?) {
         if let command { send(command) }
+    }
+
+    /// ADR-098: asks the runtime for the current words' results (nothing for empty words).
+    func runSearch() {
+        let query = searchQuery
+        guard !query.isEmpty else { searchResults = nil; return }
+        send(.search(query: query))
+    }
+
+    /// The words as sent: trimmed, at most 200 characters.
+    var searchQuery: String { String(searchText.trimmingCharacters(in: .whitespacesAndNewlines).prefix(TaskLabels.maxQuery)) }
+
+    func clearSearch() {
+        searchText = ""
+        searchResults = nil
     }
 
     /// A typed request from the Conversation tab. Ignored when empty or too long for the runtime.
@@ -224,23 +269,32 @@ final class IslandModel {
         switch event {
         case .chats(let list):
             chats = list
+        case .api(let status):
+            apiStatus = status
+        case .searchResults(let results) where results.query == searchQuery:
+            searchResults = results // an answer to older words is dropped
         case .memory(let list):
             memory = list
         case .capabilities(let items):
             capabilities = items
         case .planUsage(let usage):
             planUsage = (planUsage ?? PlanUsage()).merging(usage)
-        case .ready:
+        case .ready(let ready):
+            telegramConnected = ready.telegram // ADR-098
+            send(.telegramSet(push: settings.telegramPush))
+            send(.apiSet(on: settings.localApi)) // ADR-098 item 5
             if memory != nil { send(.memoryList) } // a restarted runtime: ask again so updates keep coming
             send(.helpersList) // Task 3.15: busy workers show on the island too, so the list is always kept
-            send(.speechSet(reports: settings.speakReports, updates: settings.speakUpdates)) // ADR-091
+            sendSpeech() // ADR-091
             if chats != nil { send(.chatsList) } // a restarted runtime: ask again
         case .info(let info):
             modelInfo = info
             pendingModel = nil
             modelError = nil
+            refreshingModels = false
         case .error(let error) where error.stage == "settings":
             pendingModel = nil
+            refreshingModels = false
             modelError = error.message
         default:
             break

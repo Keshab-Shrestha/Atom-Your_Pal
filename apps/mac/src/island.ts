@@ -18,16 +18,20 @@ import {
   type ManagerItem,
   type ModelItem,
   type MemoryItem,
+  type MemoryChatItem,
   type SoulItem,
   type ThreadEvent,
+  type SearchHitItem,
   type PaperclipItem,
   type McpItem,
   type SkillDraftItem,
   type TeamTaskItem,
   type SkillEditItem,
+  type TestCaseItem,
   type UsageItem,
   type ChatItem,
   type GitBranchItem,
+  type RoutineInput,
 } from "./island-protocol.ts";
 import type { ComputerBridge } from "./computer-bridge.ts";
 import type { WindowPointer } from "./screen-context.ts";
@@ -35,6 +39,7 @@ import type { ModelSettings } from "./model-settings.ts";
 import type { SpeechToText } from "./stt.ts";
 import type { TextToSpeech } from "./tts.ts";
 import { spokenDuration, type Capability } from "@zeno/tool-engine";
+import type { ApiServer } from "./api-server.ts";
 import { createVoiceLoop, type CoreLike, type LoopNotice, type VoiceLoop, type VoiceLoopEvents, type VoiceLoopOptions } from "./voice-loop.ts";
 
 export interface IslandOptions {
@@ -47,10 +52,14 @@ export interface IslandOptions {
   /** ADR-091: a Core that can resume a saved chat names its session (the chat voice and typing go to). */
   core: CoreLike & { reset(): void; resume?(id: string, turns: readonly Message[]): void; readonly sessionId?: string };
   tts: TextToSpeech;
-  /** Reported in the `ready` event. */
-  info: { provider: string; model: string; microphone: string };
+  /** Reported in the `ready` event. ADR-098: `telegram` is true when ZENO's Telegram bot is set up in .env. */
+  info: { provider: string; model: string; microphone: string; telegram?: boolean };
+  /** ADR-098: Settings' "Send to Telegram" switch. Absent when Telegram is not set up: `telegram.set` does nothing. */
+  telegram?: { setPush(on: boolean): void };
+  /** ADR-098 item 5: the local API. Absent (voice-only mode): `api.set` answers with `on: false` and an error. */
+  api?: Pick<ApiServer, "set">;
   /** The AI model choice: sent as `info` after `ready`, changed by `model.set`. Without it, `model.set` is refused. */
-  settings?: Pick<ModelSettings, "info" | "setModel" | "scanTools">;
+  settings?: Pick<ModelSettings, "info" | "setModel" | "scanTools" | "refreshModels">;
   /** Computer control (ADR-054): shows what ZENO is doing and asks before risky actions. Absent when it is off. */
   computer?: Pick<ComputerBridge, "attach" | "answer" | "cancelAll">;
   /** What ZENO keeps (ADR-058), for Settings. Absent when memory is off: `memory.*` answers `enabled: false`. */
@@ -99,6 +108,11 @@ export interface IslandMemory {
   episodes(): EpisodeItem[];
   forgetEpisode(id: number): boolean;
   clearEpisodes(): number;
+  /** ADR-097: recent chats and kept chats, for the Memory page. */
+  chats?(): MemoryChatItem[];
+  /** ADR-097: starts keeping a chat (the summary and index are written in the background). False when there is no such chat. */
+  keepChat?(id: string): boolean;
+  dropChat?(id: string): boolean;
   /** Called after ZENO keeps or forgets something by itself (the remember / forget tools). Returns an unsubscribe. */
   onChange(listener: () => void): () => void;
 }
@@ -115,6 +129,12 @@ export interface IslandChats {
   list(): ChatItem[];
   messages(id: string): Message[];
   remove(id: string): boolean;
+  /** ADR-097: a chat's own model; undefined when it uses the default. */
+  modelOf?(id: string): { provider: string; model: string } | undefined;
+  /** ADR-097: sets a chat's own model (provider and model "": the default again). Validated like `model.set`. */
+  setModel?(id: string, provider: string, model: string): { ok: true } | { error: string };
+  /** ADR-098: chats whose messages match the words, best first (at most 20). */
+  search?(query: string): SearchHitItem<string>[];
   /** Called after a chat is saved. Returns an unsubscribe. */
   onChange(listener: () => void): () => void;
 }
@@ -133,6 +153,8 @@ export interface IslandHelpers {
   rejectPlan(id: number): void;
   /** Whether a worker's new tasks plan first. Throws, with words for the user, for an unknown worker. */
   setPlanFirst(helper: string, on: boolean): void;
+  /** ADR-098: whether a worker's runs get the browser. Throws, with words for the user, for an unknown worker. */
+  setBrowser(helper: string, on: boolean): void;
   /** ADR-088: add an agent (its folder and soul.md) or remove one Keshab added. Throw with words for the user. */
   createAgent(input: { name: string; role: string; kit: "research" | "folders" | "think"; personality: string; howItWorks: string; rules: string }): void;
   removeAgent(id: string): void;
@@ -157,6 +179,8 @@ export interface IslandHelpers {
   removeMcp(id: number): boolean;
   setMcp(id: number, change: { enabled?: boolean; trusted?: boolean; workers?: string[] }): void;
   testMcp?(id: number): Promise<void>;
+  /** ADR-098 item 8: runs a pending soul proposal's ("soul") or skill edit's ("skill") test cases again. */
+  runTests?(kind: "soul" | "skill", id: number): Promise<void>;
   /** ADR-090: runs a failed or stopped task again. Throws, with words for the user, for any other state. */
   retry(id: number): void;
   /** Task 3.13: rate a finished task ("not good" asks Tinker to review it); answer Tinker's proposals. Each throws with words for the user. */
@@ -175,10 +199,17 @@ export interface IslandHelpers {
   acceptSkillEdit(id: number): void;
   rejectSkillEdit(id: number): void;
   undoSkillEdit(id: number): void;
+  /** ADR-098 item 8: the saved test cases; save a done task as one, or delete one. Each throws with words for the user. */
+  testCases(): TestCaseItem[];
+  saveTestCase(jobId: number, kind: "soul" | "skill", target: string): void;
+  deleteTestCase(id: number): void;
   setSkills(helper: string, skills: string[]): void;
   /** Task 3.11: grants a folder. Throws, with words for the user, for a folder that cannot be granted. */
   addGrant(helper: string, path: string): void;
   removeGrant(helper: string, path: string): boolean;
+  /** ADR-097: Keshab's own schedule, new or changed. Throw, with words for the user, for a bad worker, task or schedule. */
+  addRoutine(input: RoutineInput): void;
+  updateRoutine(id: number, input: RoutineInput): void;
   /** Task 3.9: removes a routine. False when there is none. */
   removeRoutine(id: number): boolean;
   /** ADR-094: pauses or resumes a routine. Throws, with words for the user, for an unknown one. */
@@ -194,6 +225,18 @@ export interface IslandHelpers {
   setBlockers(id: number, blockedBy: number[]): void;
   /** Adds Keshab's note to a task, which wakes it (Task 3.6). Throws, with words for the user, for an unknown task or an empty or long note. */
   addComment(id: number, text: string): void;
+  /**
+   * ADR-098 item 3: Keshab's message to a task: a running one gets it at its next step ("live"), else it is kept as a
+   * note that wakes the task ("queued"). Throws, with words for the user, for an unknown task or a bad message.
+   */
+  steer?(id: number, text: string): "live" | "queued";
+  /** ADR-098 item 3: stops a running task's current step; it waits for Keshab's message. Throws, with words, when it cannot. */
+  interrupt?(id: number): Promise<void>;
+  /** ADR-098: a task's labels. Throw, with words for the user, for an unknown task or a bad label or a seventh one. */
+  addLabel(id: number, label: string): void;
+  removeLabel(id: number, label: string): void;
+  /** ADR-098: tasks (task text, labels, notes) and reports matching the words, best first (at most 20 of each). */
+  search?(query: string): { tasks: SearchHitItem<number>[]; reports: SearchHitItem<number>[] };
   /** Forgets a task's session; an ended task runs again, fresh (Task 3.6). Throws, with words for the user, for a running task. */
   startFresh(id: number): void;
   /** A task's thread, or undefined for an unknown task. */
@@ -214,6 +257,9 @@ export interface IslandHelpers {
   setMaxRunning(count: number): void;
   /** Whether worker jobs may use the large model (ADR-083). */
   allowLarge(): boolean;
+  /** ADR-098 item 7: "Use Codex when the Claude plan limit is reached" (default off), and whether Codex is found and signed in. */
+  codex?(): { codexFallback: boolean; codexReady: boolean };
+  setCodexFallback?(on: boolean): void;
   setAllowLarge(allowed: boolean): void;
   /** The plan's models offered to worker jobs; empty when the provider is not the Claude plan. */
   models(): ModelItem[];
@@ -382,6 +428,22 @@ export function runIsland(options: IslandOptions): IslandSession {
         );
         return;
       }
+      case "model.refresh":
+        // ADR-097: the Claude plan's live model list again; `info` follows either way.
+        void (options.settings?.refreshModels?.() ?? Promise.resolve()).then(sendInfo, (error: unknown) => options.log?.warn("models.refresh_failed", { message: describe(error) }));
+        return;
+      case "chat.model": {
+        // ADR-097: this chat's own model, from the chat's top bar. Voice and new chats keep the default.
+        const id = command.id || core.sessionId || "";
+        const result = options.chats?.setModel?.(id, command.provider, command.model) ?? { error: "Chats are off, so a chat cannot have its own model." };
+        if ("error" in result) {
+          options.log?.warn("chat.model_refused", { reason: result.error });
+          send({ type: "error", stage: "settings", message: result.error });
+          return;
+        }
+        sendChats();
+        return;
+      }
       case "model.set": {
         // Applies to the next request; a turn in progress finishes with the old model.
         if (!options.settings) {
@@ -411,6 +473,14 @@ export function runIsland(options: IslandOptions): IslandSession {
         sendMemory();
         return;
       }
+      case "memory.keepChat":
+      case "memory.dropChat": {
+        const done = command.type === "memory.keepChat" ? options.memory?.keepChat?.(command.id) : options.memory?.dropChat?.(command.id);
+        if (done) options.log?.info("memory.change", { action: command.type === "memory.keepChat" ? "keepChat" : "dropChat", by: "settings" });
+        else send({ type: "error", stage: "settings", message: command.type === "memory.keepChat" ? "That chat is gone, or memory is off." : "That chat is not kept." });
+        sendMemory();
+        return;
+      }
       case "episode.forget":
         if (options.memory?.forgetEpisode(command.id)) options.log?.info("episode.change", { action: "forget", id: command.id, by: "settings" });
         sendMemory();
@@ -425,9 +495,16 @@ export function runIsland(options: IslandOptions): IslandSession {
         // ADR-093: look for the AI tools on this Mac again, then send the choices.
         void options.settings?.scanTools?.().then(sendInfo, (error: unknown) => options.log?.warn("tools.scan_failed", { message: describe(error) }));
         return;
+      case "telegram.set":
+        options.telegram?.setPush(command.push);
+        return;
+      case "api.set":
+        if (!options.api) return send({ type: "api", on: false, port: 0, tokenFile: "", error: "The local API is not available in this mode." });
+        void options.api.set(command.on).then((status) => send({ type: "api", ...status }));
+        return;
       case "speech.set":
         // ADR-091: muted kinds still show (the island card, Pal's line); they are not said or chimed.
-        speech = { reports: command.reports, updates: command.updates };
+        speech = { reports: command.reports, updates: command.updates, chime: command.chime ?? true };
         return;
       case "helpers.list":
         helpersWatched = true; // from now on, every job change is sent too
@@ -533,6 +610,22 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "skill.edit.undo":
         changeHelpers(command.type, (helpers) => helpers.undoSkillEdit(command.id));
         return;
+      case "testcase.save":
+        changeHelpers(command.type, (helpers) => helpers.saveTestCase(command.jobId, command.kind, command.target));
+        return;
+      case "testcase.delete":
+        changeHelpers(command.type, (helpers) => helpers.deleteTestCase(command.id));
+        return;
+      case "testcase.run": {
+        const helpers = options.helpers;
+        if (!helpers?.runTests) return refuseHelpers(command.type, HELPERS_OFF);
+        // The results arrive with each case (the store's changes); a refusal says why.
+        void helpers.runTests(command.proposalKind, command.id).then(
+          () => sendHelpers(),
+          (error: unknown) => refuseHelpers(command.type, describe(error)),
+        );
+        return;
+      }
       case "grant.add":
         changeHelpers(command.type, (helpers) => helpers.addGrant(command.helper, command.path));
         return;
@@ -547,6 +640,16 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "routine.pause":
         changeHelpers(command.type, (helpers) => helpers.pauseRoutine(command.id, command.paused));
         return;
+      case "routine.add": {
+        const { type, ...input } = command;
+        changeHelpers(type, (helpers) => helpers.addRoutine(input));
+        return;
+      }
+      case "routine.update": {
+        const { type, id, ...input } = command;
+        changeHelpers(type, (helpers) => helpers.updateRoutine(id, input));
+        return;
+      }
       case "team.add":
         changeHelpers(command.type, (helpers) => helpers.addTeamTask(command.task, command.role));
         return;
@@ -562,6 +665,9 @@ export function runIsland(options: IslandOptions): IslandSession {
         return;
       case "helper.planFirst":
         changeHelpers(command.type, (helpers) => helpers.setPlanFirst(command.helper, command.on));
+        return;
+      case "helper.browser":
+        changeHelpers(command.type, (helpers) => helpers.setBrowser(command.helper, command.on));
         return;
       case "job.stop":
         options.helpers?.stop(command.id); // unknown or finished: ignored
@@ -579,6 +685,7 @@ export function runIsland(options: IslandOptions): IslandSession {
           if (command.planLimit !== undefined) helpers.setPlanLimit(command.planLimit);
           if (command.maxRunning !== undefined) helpers.setMaxRunning(command.maxRunning);
           if (command.allowLarge !== undefined) helpers.setAllowLarge(command.allowLarge);
+          if (command.codexFallback !== undefined) helpers.setCodexFallback?.(command.codexFallback);
         });
         return;
       case "helper.budget":
@@ -589,6 +696,27 @@ export function runIsland(options: IslandOptions): IslandSession {
         return;
       case "comment.add":
         changeHelpers(command.type, (helpers) => helpers.addComment(command.id, command.text));
+        return;
+      case "job.steer":
+        changeHelpers(command.type, (helpers) => {
+          if (!helpers.steer) throw new Error("Steering is off.");
+          helpers.steer(command.id, command.text);
+        });
+        return;
+      case "job.interrupt": {
+        const interrupt = options.helpers?.interrupt;
+        if (!interrupt) return refuseHelpers(command.type, HELPERS_OFF);
+        interrupt(command.id).then(sendHelpers, (error: unknown) => refuseHelpers(command.type, describe(error)));
+        return;
+      }
+      case "job.label.add":
+        changeHelpers(command.type, (helpers) => helpers.addLabel(command.id, command.label));
+        return;
+      case "job.label.remove":
+        changeHelpers(command.type, (helpers) => helpers.removeLabel(command.id, command.label));
+        return;
+      case "search":
+        search(command.query);
         return;
       case "job.fresh":
         changeHelpers(command.type, (helpers) => helpers.startFresh(command.id));
@@ -623,7 +751,7 @@ export function runIsland(options: IslandOptions): IslandSession {
       const helpers = options.helpers;
       const agentProblems = helpers?.agentProblems() ?? [];
       const managers = helpers?.managers() ?? [];
-      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets(), skills: helpers.skills(), skillDrafts: helpers.skillDrafts(), skillEdits: helpers.skillEdits(), mcp: helpers.mcp(), teamTasks: helpers.teamTasks(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}), ...(agentProblems.length ? { agentProblems } : {}), ...(managers.length ? { managers } : {}) });
+      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets(), skills: helpers.skills(), skillDrafts: helpers.skillDrafts(), skillEdits: helpers.skillEdits(), testCases: helpers.testCases(), mcp: helpers.mcp(), teamTasks: helpers.teamTasks(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.codex ? helpers.codex() : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}), ...(agentProblems.length ? { agentProblems } : {}), ...(managers.length ? { managers } : {}) });
     });
   }
   function appNames(): Promise<string[]> {
@@ -655,11 +783,25 @@ export function runIsland(options: IslandOptions): IslandSession {
     if (helpersWatched) sendHelpers();
   });
 
+  /** ADR-098: one search over chats, tasks and reports. Logs the counts only, never the query. */
+  function search(query: string) {
+    const empty = { tasks: [], reports: [] };
+    let found: { chats: SearchHitItem<string>[]; tasks: SearchHitItem<number>[]; reports: SearchHitItem<number>[] };
+    try {
+      found = query.trim() ? { chats: options.chats?.search?.(query) ?? [], ...(options.helpers?.search?.(query) ?? empty) } : { chats: [], ...empty };
+    } catch (error) {
+      options.log?.warn("search.failed", { error: error instanceof Error ? error.name : typeof error });
+      return send({ type: "error", stage: "settings", message: "The search did not work. Try other words." });
+    }
+    options.log?.info("search", { chats: found.chats.length, tasks: found.tasks.length, reports: found.reports.length });
+    send({ type: "search.results", query, ...found });
+  }
+
   function sendMemory() {
     const memory = options.memory;
     send(
       memory
-        ? { type: "memory", enabled: true, count: memory.count(), memories: memory.list(), episodes: memory.episodes() }
+        ? { type: "memory", enabled: true, count: memory.count(), memories: memory.list(), episodes: memory.episodes(), ...(memory.chats ? { chats: memory.chats() } : {}) }
         : { type: "memory", enabled: false, count: 0, memories: [], episodes: [] },
     );
   }
@@ -668,7 +810,9 @@ export function runIsland(options: IslandOptions): IslandSession {
   // ADR-091: the chats, sent once asked for and again after each saved exchange.
   let chatsWatched = false;
   function sendChats() {
-    send({ type: "chats", chats: options.chats?.list() ?? [], current: core.sessionId ?? "" });
+    const current = core.sessionId ?? "";
+    const own = current ? options.chats?.modelOf?.(current) : undefined; // ADR-097
+    send({ type: "chats", chats: options.chats?.list() ?? [], current, ...(own ? { currentProvider: own.provider, currentModel: own.model } : {}) });
   }
   const stopChatUpdates = options.chats?.onChange(() => {
     if (chatsWatched) sendChats();
@@ -678,7 +822,7 @@ export function runIsland(options: IslandOptions): IslandSession {
   // waits its turn the same way.
   const timerQueue: { message: string; timer?: { id: number; label: string; message: string }; after?: () => void }[] = [];
   let announcing = false;
-  let speech = { reports: true, updates: true };
+  let speech = { reports: true, updates: true, chime: true };
   async function announce() {
     if (announcing || quitting) return;
     announcing = true;
@@ -690,7 +834,7 @@ export function runIsland(options: IslandOptions): IslandSession {
         }
         const { message, timer, after } = timerQueue.shift()!;
         const spoken = timer ? speech.updates : speech.reports;
-        if (spoken) await options.chime?.();
+        if (spoken && speech.chime) await options.chime?.();
         // Task 3.15: Pal flies over with the line while ZENO says it.
         if (!timer) send({ type: "worker.line", line: message });
         if (spoken) {
@@ -788,6 +932,8 @@ export function runIsland(options: IslandOptions): IslandSession {
       sendInfo();
       // ADR-093: find the AI tools on this Mac, then send the choices again with them.
       void options.settings?.scanTools?.().then(sendInfo, (error: unknown) => options.log?.warn("tools.scan_failed", { message: describe(error) }));
+      // ADR-097: the Claude plan's live model list, then the choices again with it.
+      void options.settings?.refreshModels?.().then(sendInfo, (error: unknown) => options.log?.warn("models.refresh_failed", { message: describe(error) }));
     });
 
   return { loop, quit };

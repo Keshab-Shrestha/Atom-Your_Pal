@@ -60,6 +60,8 @@ ZENO is not a chatbot. The language model is one part of it, reached through a g
 - **Dashboard**: tokens used today and this week, by worker and model.
 - **Notifications**: something needs you, a task is done or failed, or a budget or the plan is nearly used up.
 - **Git**: see the team's branches with their commits and changes, and push one only when you click and confirm. Workers never push.
+- **Telegram** (ADR-098): talk to ATOM, answer Needs you, list tasks and read reports from your phone. A schedule can send its result to Telegram. Make a new bot for ZENO, then add `ZENO_TELEGRAM_BOT_TOKEN` and `ZENO_TELEGRAM_CHAT_ID` to `.env`. ZENO serves only that chat and never logs the token or the messages.
+- **Local API and MCP server** (ADR-098 item 5): other tools on this Mac (Hermes, Claude Code) give goals to ATOM and read results. See [Use ZENO from other tools](#use-zeno-from-other-tools).
 
 ## Safety, by design
 
@@ -177,6 +179,51 @@ pnpm test           # TypeScript tests (node --test)
 pnpm typecheck      # tsc
 pnpm island:test    # Swift tests for the app
 pnpm test:live      # live tests against real models; need a key in .env
+```
+
+## Use ZENO from other tools
+
+ZENO has a local HTTP API and an MCP server (ADR-098 item 5). Both are off by default.
+
+1. Open Settings → General. Turn on **Local API**. ZENO makes the token in `data/api-token`.
+2. Click **Copy token**. ZENO puts the token on the clipboard.
+3. Send requests to `http://127.0.0.1:4790` (set `ZENO_API_PORT` in `.env` to change the port). Each request needs `Authorization: Bearer <token>`.
+
+```sh
+curl -s http://127.0.0.1:4790/v1/goals \
+  -H "Authorization: Bearer $(cat data/api-token)" \
+  -H "Content-Type: application/json" \
+  -d '{"goal":"Find the three best mesh routers and write a short comparison"}'
+```
+
+Each answer is JSON: `{"ok": true, "data": …, "error": null}`, or `{"ok": false, "data": null, "error": "…"}`.
+
+| Request | What it does |
+|---|---|
+| `POST /v1/goals` `{goal}` | ATOM hands the goal to the team. Returns `goalId` (null when ATOM answers without the team) and `answer`. |
+| `GET /v1/goals/:id` | The goal's status (`running` or `ended`), its tasks and its summary. |
+| `POST /v1/chat` `{text, chatId?}` | One turn with ATOM. Returns `answer`. The same `chatId` continues one chat. |
+| `GET /v1/tasks?state=` | Tasks, newest first. `state`: `queued`, `running`, `done`, `failed` or `stopped`. |
+| `GET /v1/tasks/:id` | One task and its report. |
+| `GET /v1/needs` | Needs you items, each with its `actions`. |
+| `POST /v1/needs/:key` `{action}` | Does one action, for example `approve`, `reject`, `allow`, `decline`, `accept` or `retry`. |
+| `POST /v1/hooks/:routineId` | Starts that routine now. Turn on "Can be started by webhook" on the routine first. |
+
+**MCP server.** The MCP server is a client of the API. Turn on the Local API first. Then add the server to Claude Code:
+
+```sh
+claude mcp add zeno -- node /Users/you/Developer/zeno/apps/mac/src/mcp-serve.ts
+```
+
+Use the full path to the ZENO folder. The tools are `zeno_give_goal`, `zeno_goal_status`, `zeno_chat`, `zeno_list_tasks`, `zeno_task_report` and `zeno_needs_you`.
+
+For Hermes, add this to the `mcp_servers` part of the Hermes config (`hermes config edit`), then run `hermes config check`:
+
+```yaml
+mcp_servers:
+  zeno:
+    command: node
+    args: ["/Users/you/Developer/zeno/apps/mac/src/mcp-serve.ts"]
 ```
 
 ## Status

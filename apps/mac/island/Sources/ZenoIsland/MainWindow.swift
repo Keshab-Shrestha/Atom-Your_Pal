@@ -53,6 +53,9 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         return false
     }
 
+    /// ADR-098: Edit → Find (⌘F) focuses the sidebar's search.
+    @objc private func find(_ sender: Any?) { model.searchFocusTick += 1 }
+
     /// Go → Back (⌘[).
     @objc private func goBack(_ sender: Any?) { model.goBack() }
 
@@ -106,10 +109,13 @@ final class MainWindowController: NSObject, NSWindowDelegate {
             return item
         }
         add("ZENO", [item("Quit ZENO", #selector(NSApplication.terminate(_:)), "q")])
+        let find = item("Find", #selector(find(_:)), "f")
+        find.target = self
         add("Edit", [
             item("Undo", Selector(("undo:")), "z"), item("Redo", Selector(("redo:")), "z", [.command, .shift]), .separator(),
             item("Cut", #selector(NSText.cut(_:)), "x"), item("Copy", #selector(NSText.copy(_:)), "c"),
-            item("Paste", #selector(NSText.paste(_:)), "v"), item("Select All", #selector(NSText.selectAll(_:)), "a"),
+            item("Paste", #selector(NSText.paste(_:)), "v"), item("Select All", #selector(NSText.selectAll(_:)), "a"), .separator(),
+            find,
         ])
         let back = item("Back", #selector(goBack(_:)), "[")
         back.target = self

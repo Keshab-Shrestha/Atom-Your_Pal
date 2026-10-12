@@ -3,6 +3,7 @@ import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { InputSource } from "@zeno/contracts";
 import { openChats, type ChatStore } from "./chats.ts";
+import { openChatIndex, type ChatIndex } from "./chat-index.ts";
 
 // ADR-058: facts the user asks ZENO to keep, in one local SQLite file. Each memory has an owner, a scope,
 // provenance and a lifecycle (SECURITY.md §17). Forgetting deletes the row.
@@ -73,6 +74,8 @@ export interface MemoryStore {
   clearEpisodes(): number;
   /** ADR-091: Keshab's chat sessions. */
   readonly chats: ChatStore;
+  /** ADR-097: the chats Keshab keeps in memory, at three depths, with hybrid search. */
+  readonly chatIndex: ChatIndex;
   close(): void;
 }
 
@@ -139,7 +142,7 @@ export function ftsQuery(text: string): string | undefined {
   return [...new Set(words)].slice(0, 24).map((w) => `"${w}"`).join(" OR ");
 }
 
-const STOP_WORDS = new Set([
+export const STOP_WORDS = new Set([
   "the", "and", "for", "you", "your", "are", "was", "what", "who", "how", "why", "when", "where", "which", "that", "this",
   "with", "from", "have", "has", "had", "can", "could", "would", "should", "will", "about", "tell", "know", "does", "did",
   "not", "but", "all", "any", "there", "their", "them", "they", "then", "than", "into", "out", "our", "ours", "its",
@@ -204,9 +207,11 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
   const count = () => Number((counter.get(owner) as { n: number }).n);
 
   const chats = openChats(db, now);
+  const chatIndex = openChatIndex(db, now);
 
   return {
     chats,
+    chatIndex,
     add(raw, provenance) {
       const text = normalizeMemoryText(raw);
       if (!text) throw new MemoryError("There is nothing to remember.");

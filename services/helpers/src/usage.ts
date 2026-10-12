@@ -34,7 +34,12 @@ export interface UsageSummary {
   byWorker: (UsageTotals & { helper: string | null })[];
   /** The last 7 days by model, most tokens first. */
   byModel: (UsageTotals & { model: string })[];
+  /** ADR-098 item 9: ZENO's last chat answers read nothing from the prompt cache. */
+  chatCacheCold: boolean;
 }
+
+/** ADR-098 item 9: how many of the newest chat answers must all miss the cache for "Cache went cold". */
+export const COLD_CACHE_RUNS = 3;
 
 export const USAGE_KEEP_DAYS = 90;
 
@@ -78,6 +83,7 @@ export function usageTable(db: DatabaseSync, now: () => Date = () => new Date())
     "INSERT INTO usage (at, source, helper, job_id, model, input, output, cache_read, cache_write, dollars) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
   );
   const prune = db.prepare("DELETE FROM usage WHERE at < ?");
+  const lastChats = db.prepare("SELECT cache_read FROM usage WHERE source = 'chat' ORDER BY id DESC LIMIT ?");
   const since = db.prepare("SELECT at, helper, source, model, input, output, cache_read, cache_write, dollars FROM usage WHERE at >= ? ORDER BY at");
 
   return {
@@ -117,6 +123,10 @@ export function usageTable(db: DatabaseSync, now: () => Date = () => new Date())
         days,
         byWorker: [...workers.values()].sort(most),
         byModel: [...models.values()].sort(most),
+        chatCacheCold: (() => {
+          const last = lastChats.all(COLD_CACHE_RUNS) as { cache_read: number }[];
+          return last.length === COLD_CACHE_RUNS && last.every((r) => Number(r.cache_read) === 0);
+        })(),
       };
     },
   };

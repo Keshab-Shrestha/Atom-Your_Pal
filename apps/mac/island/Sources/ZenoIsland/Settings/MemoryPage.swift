@@ -16,6 +16,7 @@ struct MemorySection: View {
                     }
                 } else if memory.memories.isEmpty {
                     EmptyMemoryCard()
+                    KeptChatsCard(model: model, chats: memory.chats)
                     EpisodesCard(model: model, episodes: memory.episodes)
                 } else {
                     Card(memory.count == 1 ? "1 fact" : "\(memory.count) facts", footer: hint) {
@@ -24,6 +25,7 @@ struct MemorySection: View {
                             MemoryRow(item: item) { model.forgetMemory(item.id) }
                         }
                     }
+                    KeptChatsCard(model: model, chats: memory.chats)
                     EpisodesCard(model: model, episodes: memory.episodes)
                     Card(footer: "Deletes every fact for good. ZENO cannot get them back.") {
                         Row(title: "Forget all facts") {
@@ -68,6 +70,76 @@ private struct EmptyMemoryCard: View {
             .padding(.vertical, 16)
             .padding(.horizontal, 12)
         }
+    }
+}
+
+/// ADR-097: recent chats with a box to keep each one in memory, and Save. A kept chat shows as kept with Remove.
+/// ZENO keeps a kept chat as a summary, topic sections and exact lines, and searches them for every request.
+private struct KeptChatsCard: View {
+    let model: IslandModel
+    let chats: [MemoryChatItem]
+    /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
+    private let chosen = State(initialValue: Set<String>())
+    @Environment(\.theme) private var theme
+
+    init(model: IslandModel, chats: [MemoryChatItem]) {
+        self.model = model
+        self.chats = chats
+    }
+
+    var body: some View {
+        let picked = chosen.wrappedValue.filter { id in chats.contains { $0.id == id && !$0.kept && !$0.indexing } }
+        if !chats.isEmpty {
+            Card("Recent chats", footer: "Kept chats stay on this Mac. ZENO searches them by words and by meaning, and uses the best lines when they help.") {
+                ForEach(Array(chats.enumerated()), id: \.element.id) { index, chat in
+                    if index > 0 { RowDivider() }
+                    Row(title: chat.title, detail: caption(chat)) { trailing(chat) }
+                }
+                RowDivider()
+                HStack {
+                    Text(picked.isEmpty ? "Choose chats to keep" : picked.count == 1 ? "1 chat chosen" : "\(picked.count) chats chosen")
+                        .font(.system(size: 10.5)).foregroundStyle(theme.text2.color)
+                    Spacer()
+                    SaveButton(enabled: !picked.isEmpty, label: "Keep chosen chats in memory") {
+                        model.keepChats(picked)
+                        chosen.wrappedValue = []
+                    }
+                }
+                .padding(.horizontal, Spacing.well)
+                .padding(.vertical, 8)
+            }
+            .tracksEdits(model, "memory.keptChats", !picked.isEmpty)
+        }
+    }
+
+    @ViewBuilder private func trailing(_ chat: MemoryChatItem) -> some View {
+        if chat.indexing {
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text("Keeping…").font(.system(size: 10.5)).foregroundStyle(theme.text2.color)
+            }
+        } else if chat.kept {
+            HStack(spacing: 6) {
+                Label("Kept", systemImage: "checkmark.circle.fill").labelStyle(.titleAndIcon)
+                    .font(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text2.color)
+                PillButton(title: "Remove") { model.dropKeptChat(chat.id) }
+            }
+        } else {
+            Toggle("Keep in memory", isOn: Binding(
+                get: { chosen.wrappedValue.contains(chat.id) },
+                set: { on in
+                    if on { chosen.wrappedValue.insert(chat.id) } else { chosen.wrappedValue.remove(chat.id) }
+                }
+            ))
+            .toggleStyle(.checkbox)
+            .font(.system(size: 10.5))
+        }
+    }
+
+    private func caption(_ chat: MemoryChatItem) -> String {
+        let n = chat.messages == 1 ? "1 message" : "\(chat.messages) messages"
+        guard let date = chat.updatedAt ?? chat.keptAt else { return n }
+        return "\(date.formatted(date: .abbreviated, time: .shortened)) · \(n)"
     }
 }
 

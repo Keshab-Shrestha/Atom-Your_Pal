@@ -15,6 +15,7 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
     case shortcuts = "Shortcuts"
     case dictation = "Dictation"
     case pal = "ATOM"
+    case sounds = "Sounds"
     case memory = "Memory"
     case general = "General"
     public var id: String { rawValue }
@@ -28,6 +29,7 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
         case .shortcuts: "command"
         case .dictation: "mic"
         case .pal: "face.smiling"
+        case .sounds: "speaker.wave.2"
         case .memory: "brain"
         case .general: "gearshape"
         }
@@ -39,7 +41,7 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
 public enum SettingsHome {
     public static let groups: [[SettingsPage]] = [
         [.examples, .shortcuts, .dictation],
-        [.appearance, .pal, .memory, .general],
+        [.appearance, .pal, .sounds, .memory, .general],
     ]
     /// The page the now card's "Change model" opens.
     public static let changeModel = SettingsPage.model

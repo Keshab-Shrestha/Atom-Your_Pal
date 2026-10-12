@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { z, type ZodType } from "zod";
 import type { Message, ModelRequest, ModelResponse, ToolRunner, ToolSpec } from "@zeno/contracts";
 import { emptyReplyReason, ProviderError, redactSecrets, type ErrorKind, type ProviderAdapter } from "../gateway.ts";
@@ -95,7 +95,27 @@ export interface ClaudePlanOptions {
    * which would otherwise slow the synthesis of the answer's first spoken sentence.
    */
   prewarmDelayMs?: number;
+  /** ADR-098 item 9: where each chat's Claude Code session is kept. Without it every request starts a fresh session. */
+  chatSessions?: ChatSessions;
 }
+
+/**
+ * ADR-098 item 9: one Claude Code session per chat. Claude Code keeps the session on this Mac; ZENO stores only its
+ * id, the model it ran on and a hash of its last answer (`tail`), so a chat that changed outside it starts afresh.
+ */
+export interface ChatSession {
+  id: string;
+  model: string;
+  tail: string;
+}
+
+export interface ChatSessions {
+  get(chatId: string): ChatSession | undefined;
+  set(chatId: string, session: ChatSession): void;
+}
+
+/** A short hash of an answer, to see that a chat's last answer is the one its session gave. */
+export const answerTail = (text: string) => createHash("sha256").update(text.trim()).digest("hex").slice(0, 16);
 
 const SERVER = "zeno";
 const DEFAULT_MAX_TURNS = 12;
@@ -120,6 +140,58 @@ export function scrubbedEnv(env: Record<string, string | undefined>): Record<str
 
 export async function loadSdk(): Promise<ClaudeSdk> {
   return (await import("@anthropic-ai/claude-agent-sdk")) as unknown as ClaudeSdk;
+}
+
+/** ADR-097: how long the model list may take (Claude Code starts, answers, and is closed). */
+export const PLAN_MODELS_TIMEOUT_MS = 30_000;
+
+/**
+ * ADR-097: the models the signed-in `claude` program offers on this plan, from the Agent SDK's `supportedModels()`.
+ * No prompt is sent: the process gets an empty input stream, answers the request and is closed. It runs with the same
+ * safe options as a chat: no tools, no settings, no claude.ai connectors, no API key. Rejects on any failure.
+ */
+export async function listPlanModels(
+  claudePath: string,
+  options: { env?: Record<string, string | undefined>; timeoutMs?: number } = {},
+): Promise<{ id: string; name: string }[]> {
+  const sdk = await import("@anthropic-ai/claude-agent-sdk");
+  const controller = new AbortController();
+  const stopped = new Promise<never>((_, reject) =>
+    controller.signal.addEventListener("abort", () => reject(new Error("Claude Code did not list its models in time.")), { once: true }),
+  );
+  stopped.catch(() => {}); // only awaited in the race below
+  // An input stream that sends nothing until the run is closed.
+  async function* nothing(): AsyncGenerator<never> {
+    await new Promise((resolve) => controller.signal.addEventListener("abort", resolve, { once: true }));
+  }
+  const run = sdk.query({
+    prompt: nothing(),
+    options: {
+      pathToClaudeCodeExecutable: claudePath,
+      tools: [],
+      settingSources: [],
+      strictMcpConfig: true,
+      persistSession: false,
+      abortController: controller,
+      env: scrubbedEnv(options.env ?? process.env),
+    },
+  });
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? PLAN_MODELS_TIMEOUT_MS);
+  try {
+    const found = await Promise.race([run.supportedModels(), stopped]);
+    const models: { id: string; name: string }[] = [];
+    for (const m of found) {
+      // "default" is an alias for one of the others; an alias row is kept under the model id it resolves to.
+      const id = (m.resolvedModel || m.value || "").trim();
+      if (!id || m.value === "default" || models.some((x) => x.id === id)) continue;
+      models.push({ id, name: m.displayName?.trim() || id });
+    }
+    return models;
+  } finally {
+    clearTimeout(timer);
+    controller.abort();
+    run.close();
+  }
 }
 
 /** One tool input property as a Zod type, so Claude sees the same argument names and types as the other providers do. */
@@ -318,7 +390,8 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
   /** Claude Code's options for one process. Tool calls go to whichever request `state` belongs to at the time. */
   // ADR-069: Claude Code's own web search, for news, scores, prices and anything else current. ZENO_WEB=0 turns it off.
   const webAllowed = env.ZENO_WEB !== "0";
-  function queryOptions(sdk: ClaudeSdk, system: string, specs: ToolSpec[], state: RunState, controller: AbortController) {
+  /** `chat`: a chat's own session (ADR-098 item 9), kept on disk and resumed when `resume` is given. */
+  function queryOptions(sdk: ClaudeSdk, system: string, specs: ToolSpec[], state: RunState, controller: AbortController, chat?: { resume?: string }) {
     // Only with ZENO's tools: requests without them (the out-of-steps wrap-up, conversation notes) get nothing.
     const web = webAllowed && specs.length > 0;
     const sdkTools = specs.map((spec) =>
@@ -332,14 +405,17 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
     );
     return {
       model,
-      systemPrompt: system,
+      // A chat's session renders its system prompt each time (snapshot off), so a changed team list still arrives;
+      // an unchanged one is still read from the cache.
+      systemPrompt: chat ? { type: "custom", prompt: system, snapshot: false } : system,
       pathToClaudeCodeExecutable: claudePath,
       // Nothing from Claude Code itself: no built-in tools, no user settings, and not the account's claude.ai connectors
       // (they would add tens of thousands of tokens to every request and let Claude reach into other services).
       tools: web ? ["WebSearch"] : [],
       settingSources: [],
       strictMcpConfig: true,
-      persistSession: false,
+      persistSession: Boolean(chat),
+      ...(chat?.resume ? { resume: chat.resume } : {}),
       permissionMode: "default",
       maxTurns: specs.length ? maxTurns : 1,
       // Spoken answers to everyday questions: thinking adds ~1 s per model turn for nothing a listener notices.
@@ -454,12 +530,19 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
       // Offer ZENO's tools, if there are any to offer and a way to run them.
       const specs = tools && request.tools?.length ? request.tools : [];
       const prompt = promptWith(request.systemExtra, request.messages);
+      // ADR-098 item 9: a typed turn in a chat goes on in the chat's own session and sends only the new turn. The saved
+      // session is used only if it ran on this model and gave the chat's last answer; otherwise a fresh one starts.
+      const chatId = options.chatSessions && request.context.source === "text" ? request.context.sessionId : undefined;
+      const saved = chatId ? options.chatSessions!.get(chatId) : undefined;
+      const said = request.messages.filter((m) => m.content.trim());
+      const before = said.at(-2);
+      const resume = saved && saved.model === model && before?.role === "assistant" && answerTail(before.content) === saved.tail ? saved.id : undefined;
       const key = keyOf(request.system, specs);
       let streamed = false;
       const listener = request.onText;
       if (listener) request = { ...request, onText: (d) => ((streamed = true), listener(d)) };
 
-      const attempt = async (slot: Prepared | undefined) => {
+      const attempt = async (slot: Prepared | undefined, chat?: { resume?: string }) => {
         const state: RunState = slot?.state ?? { acted: false };
         const controller = slot?.controller ?? new AbortController();
         state.signal = signal;
@@ -468,7 +551,10 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
         try {
           const messages = slot
             ? (await slot.warm).query(prompt)
-            : sdk.query({ prompt, options: queryOptions(sdk, request.system, specs, state, controller) });
+            : sdk.query({
+                prompt: chat?.resume ? promptWith(request.systemExtra, said.slice(-1)) : prompt,
+                options: queryOptions(sdk, request.system, specs, state, controller, chat),
+              });
           return { ...(await run(messages, state, signal, request.onText)), acted: state.acted };
         } catch (error) {
           if (signal.aborted) throw new ProviderError("cancelled", "Request cancelled");
@@ -483,17 +569,25 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
 
       let outcome: Awaited<ReturnType<typeof attempt>>;
       try {
-        const slot = take(key);
+        const chat = chatId ? (resume ? { resume } : {}) : undefined;
+        // A chat's turn never uses the pre-started process: that one keeps no session (it stays for the next voice turn).
+        const slot = chat ? undefined : take(key);
+        // A pre-started process, or a chat's saved session (gone or expired), that broke before doing anything is tried
+        // once more the ordinary way: for a chat, a fresh session with the whole conversation.
+        const retryable = Boolean(slot || chat?.resume);
+        const again = () => attempt(undefined, chat ? {} : undefined);
         try {
-          outcome = await attempt(slot);
+          outcome = await attempt(slot, chat);
         } catch (error) {
-          // A pre-started process that broke before doing anything: try once more the ordinary way.
-          if (!slot || signal.aborted || streamed || !(error instanceof ProviderError) || error.kind !== "unavailable") throw error;
-          outcome = await attempt(undefined);
+          if (!retryable || signal.aborted || streamed || !(error instanceof ProviderError) || error.kind !== "unavailable") throw error;
+          outcome = await again();
         }
-        if (slot && !outcome.result && !outcome.acted && !streamed && !signal.aborted) outcome = await attempt(undefined);
+        const broken = !outcome.result || (Boolean(chat?.resume) && outcome.result.subtype === "error_during_execution");
+        if (retryable && broken && !outcome.acted && !streamed && !signal.aborted) outcome = await again();
       } finally {
-        // Ready for ZENO's next request, once the answer has started being spoken.
+        // Ready for ZENO's next request, once the answer has started being spoken. A request with tools is a main
+        // one: its instructions (with the team, which may have changed) are the ones to keep ready.
+        if (specs.length) primary = { system: request.system, specs };
         const next = primary ?? { system: request.system, specs };
         clearTimeout(later);
         later = setTimeout(() => prepare(next.system, next.specs), prewarmDelayMs);
@@ -518,6 +612,13 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
       const text = typeof result.result === "string" ? withoutSources(result.result.trim()) : "";
       // ADR-093: the SDK's stop reason ("refusal", "max_tokens", …) lets the message say declined or cut off.
       if (!text) throw new ProviderError("unknown", emptyReplyReason(result.stop_reason));
+      if (chatId && typeof result.session_id === "string") {
+        try {
+          options.chatSessions!.set(chatId, { id: result.session_id, model, tail: answerTail(text) });
+        } catch {
+          // a saved session only saves tokens: the next turn then starts afresh
+        }
+      }
       return { text };
     },
   };

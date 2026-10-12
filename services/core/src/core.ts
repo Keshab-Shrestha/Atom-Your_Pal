@@ -35,7 +35,12 @@ export interface CoreOptions {
    * Extra context for one request (ADR-058: what ZENO remembers that may matter). Its text is added to the system
    * prompt for this request only. A failing provider is ignored: the request goes on without it.
    */
-  context?: (input: ZenoInput, context: RequestContext) => string | undefined;
+  context?: (input: ZenoInput, context: RequestContext) => string | undefined | Promise<string | undefined>;
+  /**
+   * ADR-098 item 9: context that rarely changes (the team, how to use memory). It goes after the system prompt, so a
+   * provider can cache it with the instructions. A failing provider is ignored.
+   */
+  standing?: () => string | undefined;
   /**
    * Called after every exchange that is kept in history, with the whole session so far (ADR-059: conversation
    * summaries). Must not throw or block; errors are ignored.
@@ -89,6 +94,7 @@ export function createCore(options: CoreOptions): Core {
     maxToolRounds = 8,
     systemPrompt: basePrompt = DEFAULT_SYSTEM_PROMPT,
     context: contextFor,
+    standing,
     onExchange,
     shortcuts,
     maxTurns = 20,
@@ -98,6 +104,15 @@ export function createCore(options: CoreOptions): Core {
   let sessionId = newId();
   let turns: Message[] = [];
   let busy = false;
+  const fullPrompt = () => {
+    let extra: string | undefined;
+    try {
+      extra = standing?.()?.trim() || undefined;
+    } catch {
+      extra = undefined; // standing context is a help, never a reason to fail a request
+    }
+    return extra ? `${basePrompt}\n\n${extra}` : basePrompt;
+  };
 
   return {
     get sessionId() {
@@ -136,11 +151,11 @@ export function createCore(options: CoreOptions): Core {
 
         let extra: string | undefined;
         try {
-          extra = contextFor?.({ ...input, text }, context)?.trim() || undefined;
+          extra = (await contextFor?.({ ...input, text }, context))?.trim() || undefined;
         } catch {
           extra = undefined; // memory is a help, never a reason to fail a request
         }
-        const systemPrompt = basePrompt;
+        const systemPrompt = fullPrompt();
         const systemExtra = { ...(extra ? { systemExtra: extra } : {}), ...(hooks?.onText ? { onText: hooks.onText } : {}) };
 
         // Tool rounds live only in this request's `messages`; session history keeps just the user turn and
@@ -195,7 +210,7 @@ export function createCore(options: CoreOptions): Core {
 
     prepare() {
       const specs = tools?.specs() ?? [];
-      model.prepare?.({ system: basePrompt, ...(specs.length ? { tools: specs } : {}) });
+      model.prepare?.({ system: fullPrompt(), ...(specs.length ? { tools: specs } : {}) });
     },
   };
 }

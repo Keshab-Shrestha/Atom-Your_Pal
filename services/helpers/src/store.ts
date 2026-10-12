@@ -10,13 +10,15 @@ import { managerNameFor, managerSoul } from "./managers.ts";
 /** Task 3.12: most skills a worker may have. */
 export const MAX_SKILLS = 10;
 import { DEFAULT_PLAN_LIMIT, DEFAULT_TEAM_CAP, DEFAULT_WORKER_CAP, MAX_CAP, PLAN_LIMIT_RANGE, startOfDay, type Budgets } from "./budgets.ts";
-import { isDue, routineTable } from "./routines.ts";
+import { anchorFor, checkSchedule, isDue, routineTable } from "./routines.ts";
 import { SOUL_FIELDS, proposalTable } from "./feedback.ts";
 import { skillStore } from "./skill-drafts.ts";
 import { teamStore } from "./team.ts";
 import { mcpTable } from "./mcp.ts";
 import { usageTable } from "./usage.ts";
 import { subAgentTable } from "./sub-agents.ts";
+import { searchTable } from "./search.ts";
+import { MAX_TEST_CASES, TEST_CASES_RUN, skillInstructions, testCaseTable, type TestKind } from "./test-cases.ts";
 import { MAX_RUNNING, MAX_RUNNING_RANGE } from "./runner.ts";
 import { createSchema, sameSoul, toJobRow, toSoul, webSources, type JobRow, type ReportRow, type SoulRow } from "./store-schema.ts";
 import {
@@ -31,6 +33,7 @@ import {
   MAX_BLOCKERS,
   MAX_GOAL_TASKS,
   cleanSoul,
+  instructionsFor,
   isFinal,
   makesCycle,
   move,
@@ -204,8 +207,17 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const insertBlocker = db.prepare("INSERT INTO job_blockers (job_id, blocker_id) VALUES (?, ?)");
   const clearBlockers = db.prepare("DELETE FROM job_blockers WHERE job_id = ?");
   const dropLinks = db.prepare("DELETE FROM job_blockers WHERE job_id = ? OR blocker_id = ?");
-  const insertComment = db.prepare("INSERT INTO job_comments (job_id, text, created_at) VALUES (?, ?, ?)");
-  const commentsOf = db.prepare("SELECT id, text, created_at FROM job_comments WHERE job_id = ? ORDER BY id");
+  const insertComment = db.prepare("INSERT INTO job_comments (job_id, text, created_at, delivery) VALUES (?, ?, ?, ?)");
+  const commentsOf = db.prepare("SELECT id, text, created_at, delivery FROM job_comments WHERE job_id = ? ORDER BY id");
+  // ADR-098 item 3: the last "live" messages a run may not have read wait for one more run.
+  const unsteer = db.prepare(
+    "UPDATE job_comments SET delivery = 'after' WHERE id IN (SELECT id FROM job_comments WHERE job_id = ? AND delivery = 'live' ORDER BY id DESC LIMIT ?)",
+  );
+  // ADR-098 item 3: an interrupted run's task waits for Keshab, unless a note already waits (then it runs again).
+  const putInterrupted = db.prepare(
+    "UPDATE jobs SET state = 'queued', step = NULL, interrupted = CASE WHEN wake_pending = 1 THEN 0 ELSE 1 END, wake_pending = 0 WHERE id = ? AND state = 'running'",
+  );
+  const clearInterrupted = db.prepare("UPDATE jobs SET interrupted = 0 WHERE id = ?");
   const commentCount = db.prepare("SELECT COUNT(*) AS n FROM job_comments WHERE job_id = ?");
   const deleteComments = db.prepare("DELETE FROM job_comments WHERE job_id = ?");
   const insertEvent = db.prepare("INSERT INTO job_events (job_id, kind, at) VALUES (?, ?, ?)");
@@ -231,6 +243,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     "INSERT INTO jobs (helper, task, state, created_at, goal, parent_id, goal_id, plan_first) VALUES (?, ?, 'queued', ?, ?, ?, ?, ?)",
   );
   const planFirstOf = (helper: HelperId) => (settingOf.get(`planFirst:${helper}`) as { value: string } | undefined)?.value === "true";
+  // ADR-098: whether an agent's runs get the browser (default off).
+  const browserOf = (helper: HelperId) => (settingOf.get(`browser:${helper}`) as { value: string } | undefined)?.value === "true";
   const insertGoal = db.prepare("INSERT INTO goals (text, created_at) VALUES (?, ?)");
   const goalRow = db.prepare("SELECT * FROM goals WHERE id = ?");
   const goalEndedAt = db.prepare("SELECT ended_at FROM goals WHERE id = ?");
@@ -248,6 +262,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const mcp = mcpTable(db);
   const tokens = usageTable(db, now);
   const subAgents = subAgentTable(db);
+  const finder = searchTable(db); // ADR-098: labels and the window's search
+  const tests = testCaseTable(db, now); // ADR-098 item 8
   const putRating = db.prepare("UPDATE jobs SET rating = ?, rating_comment = ? WHERE id = ?");
   // One Tinker task per task and kind (and skill, for edits): a soul review has no kind.
   const tinkerOf = db.prepare("SELECT id FROM jobs WHERE reviews = ? AND COALESCE(review_kind, '') = ? AND COALESCE(review_skill, '') = ? LIMIT 1");
@@ -277,6 +293,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       waitingFor: blockers.filter((b) => b.state !== "done").map((b) => b.id),
       comments: Number((commentCount.get(row.id) as { n: number }).n),
       ...subAgentsOf(row.id),
+      ...finder.labelsField(row.id),
     };
   };
 
@@ -389,6 +406,13 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   function wake(job: Job) {
     if (job.state === "running") {
       setPending.run(1, job.id);
+      return;
+    }
+    // ADR-098 item 3: an interrupted task runs again with Keshab's message, in the same session.
+    if (job.interrupted) {
+      clearInterrupted.run(job.id);
+      log(job.id, "woken");
+      emit({ action: "job", helper: job.helper, job: job.id, state: "queued" });
       return;
     }
     if (!isFinal(job.state)) return;
@@ -584,6 +608,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         pinnedModel: (pinOf.get(h.id) as { model: string } | undefined)?.model ?? null,
         budget: all.workers[h.id],
         planFirst: planFirstOf(h.id),
+        browser: browserOf(h.id),
         routines: routines.list().filter((r) => r.helper === h.id),
         ...(wakeUps.has(h.id) ? { wakeUp: wakeUps.get(h.id)! } : {}),
         grants: (grantsOf.all(h.id) as { path: string }[]).map((g) => g.path),
@@ -901,6 +926,81 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     skillDrafts: skills.skillDrafts,
     skillEdits: skills.skillEdits,
 
+    saveTestCase(jobId, kind, raw) {
+      const job = mustGet(jobId);
+      const target = raw.trim();
+      if (job.helper === "tinker" || managerOf(job.helper)) throw new HelperError("Only an agent's own task can be a test case.");
+      if (job.state !== "done") throw new HelperError("Only a done task can be a test case.");
+      const report = this.report(jobId);
+      if (!report) throw new HelperError("That task has no report to compare with.");
+      if (kind === "soul" && target !== job.helper) throw new HelperError("A task is a test case for the agent that did it.");
+      if (kind === "skill" && (!skills.skillsUsed(jobId).includes(target) || !skills.isZenoSkill(target))) {
+        throw new HelperError("A task is a test case only for a ZENO-made skill its run used.");
+      }
+      const saved = tests.of(kind, target);
+      const name = kind === "soul" ? current(target).name : `the ${target} skill`;
+      if (saved.some((c) => c.jobId === jobId)) throw new HelperError(`This task is already a test case for ${name}.`);
+      if (saved.length >= MAX_TEST_CASES) throw new HelperError(`${name} has ${MAX_TEST_CASES} test cases, the most it keeps. Delete one first.`);
+      const id = tests.add(kind, target, jobId, job.task, `${report.title}\n${report.summary}\n\n${report.body}`);
+      emit({ action: "testCase", kind, target, testCase: id, change: "saved" });
+      return tests.get(id)!;
+    },
+
+    deleteTestCase(id) {
+      const c = tests.get(id);
+      if (!c) throw new HelperError("There is no such test case.");
+      tests.remove(id);
+      emit({ action: "testCase", kind: c.kind, target: c.target, testCase: id, change: "deleted" });
+    },
+
+    testCases: () => tests.all(),
+
+    testInputs(kind, id) {
+      if (kind === "soul") {
+        const p = proposals.get(id);
+        if (!p || p.state !== "pending") throw new HelperError("No proposal waits for an answer there.");
+        const role = mustHelper(p.helper).role;
+        const soul = toSoul(current(p.helper));
+        return {
+          kind,
+          id,
+          target: p.helper,
+          oldInstructions: instructionsFor(soul, role),
+          newInstructions: instructionsFor({ ...soul, [p.field]: p.text }, role),
+          cases: tests.of("soul", p.helper).slice(0, TEST_CASES_RUN),
+        };
+      }
+      const e = skills.skillEdit(id);
+      if (!e || e.state !== "pending") throw new HelperError("No skill edit waits for an answer there.");
+      return {
+        kind,
+        id,
+        target: e.skill,
+        oldInstructions: skillInstructions(e.oldBody),
+        newInstructions: skillInstructions(e.newBody),
+        cases: tests.of("skill", e.skill).slice(0, TEST_CASES_RUN),
+      };
+    },
+
+    startTestRun(kind, id, cases) {
+      tests.start(kind, id, cases);
+      emit({ action: "testRun", kind, item: id, state: "started" });
+    },
+
+    finishTestCase(kind, id, testCase, outcome) {
+      tests.finish(kind, id, testCase, outcome);
+      emit({ action: "testRun", kind, item: id, case: testCase.id, state: outcome.state });
+    },
+
+    testResults: (kind: TestKind, id: number) => tests.results(kind, id),
+
+    tinkerTaskOf(kind, id) {
+      const p = kind === "soul" ? proposals.get(id) : undefined;
+      const e = kind === "skill" ? skills.skillEdit(id) : undefined;
+      const row = p ? tinkerOf.get(p.jobId, "", "") : e ? tinkerOf.get(e.jobId, "edit", e.skill) : undefined;
+      return (row as { id: number } | undefined)?.id;
+    },
+
     setSkills(helper, chosen) {
       const known = mustHelper(helper);
       const names = [...new Set(chosen)];
@@ -961,11 +1061,38 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       });
     },
 
-    addRoutine(helper, raw, schedule) {
+    addRoutine(helper, raw, schedule, startAt, notifyTelegram, webhook) {
       const known = availableHelper(helper);
-      const id = routines.add(known.id, cleanTask(raw), schedule, now());
+      const id = routines.add(known.id, cleanTask(raw), schedule, anchorFor(schedule, startAt, now()));
+      if (notifyTelegram) routines.notify(id, true);
+      if (webhook) routines.webhook(id, true);
       emit({ action: "routine", helper: known.id, routine: id, outcome: "added" });
       return routines.get(id)!;
+    },
+
+    updateRoutine(id, helper, raw, schedule, startAt, notifyTelegram, webhook) {
+      const routine = routines.get(id);
+      if (!routine) throw new HelperError("There is no such routine.");
+      const known = availableHelper(helper);
+      const at = now();
+      // The hourly anchor moves only when the schedule or its start changes; the text alone keeps the times.
+      const same = JSON.stringify(routine.schedule) === JSON.stringify(checkSchedule(schedule)) && !startAt;
+      routines.update(id, known.id, cleanTask(raw), schedule, same ? routine.createdAt : anchorFor(schedule, startAt, at), at);
+      if (notifyTelegram !== undefined) routines.notify(id, notifyTelegram);
+      if (webhook !== undefined) routines.webhook(id, webhook);
+      emit({ action: "routine", helper: known.id, routine: id, outcome: "changed" });
+      return routines.get(id)!;
+    },
+
+    startRoutine(id) {
+      const routine = routines.get(id);
+      if (!routine) throw new HelperError("There is no such routine.");
+      const last = routine.lastTaskId === undefined ? undefined : get(routine.lastTaskId);
+      if (last && !isFinal(last.state)) throw new HelperError(`Its last task (#${last.id}) has not ended.`);
+      const job = this.addJob(routine.helper, routine.task);
+      routines.mark(id, now(), job.id, false);
+      emit({ action: "routine", helper: routine.helper, routine: id, outcome: "made" });
+      return job;
     },
 
     removeRoutine(id) {
@@ -1000,6 +1127,12 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     setPlanFirst(helper, on) {
       const known = mustHelper(helper);
       putSetting.run(`planFirst:${known.id}`, String(on));
+      emit({ action: "settings" });
+    },
+
+    setBrowser(helper, on) {
+      const known = mustHelper(helper);
+      putSetting.run(`browser:${known.id}`, String(on));
       emit({ action: "settings" });
     },
 
@@ -1040,6 +1173,15 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     setAllowLarge(allowed) {
       putSetting.run("allowLarge", String(allowed));
       emit({ action: "settings" });
+    },
+
+    codexFallback() {
+      return (settingOf.get("codexFallback") as { value: string } | undefined)?.value === "true";
+    },
+
+    setCodexFallback(on) {
+      putSetting.run("codexFallback", String(on));
+      emit({ action: "budget", helper: "team" }); // the runner looks again at held tasks
     },
 
     setModel(id, model, reason) {
@@ -1124,17 +1266,17 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       emit({ action: "blockers", helper: job.helper, job: id });
     },
 
-    addComment(id, raw) {
+    addComment(id, raw, delivery) {
       const job = mustGet(id);
       const text = raw.trim();
       if (!text) throw new HelperError("The note is empty.");
       if (text.length > MAX_COMMENT_CHARS) throw new HelperError(`The note is too long (${text.length} characters, limit ${MAX_COMMENT_CHARS}).`);
       transaction(() => {
-        insertComment.run(id, text, now().toISOString());
+        insertComment.run(id, text, now().toISOString(), delivery ?? null);
         log(id, "commented");
       });
       emit({ action: "comment", helper: job.helper, job: id });
-      wake(job);
+      if (delivery !== "live") wake(job); // the run took a "live" message: nothing more to do
     },
 
     addUsage(entry) {
@@ -1142,6 +1284,21 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       emit({ action: "usage" });
     },
     usage: () => tokens.summary(),
+
+    addLabel(id, raw) {
+      const job = mustGet(id);
+      const label = finder.add(id, raw);
+      emit({ action: "label", helper: job.helper, job: id });
+      return label;
+    },
+
+    removeLabel(id, label) {
+      const job = mustGet(id);
+      if (finder.remove(id, label)) emit({ action: "label", helper: job.helper, job: id });
+    },
+
+    labels: () => finder.inUse(),
+    search: (query) => finder.search(query),
 
     mcpServers: () => mcp.list(),
 
@@ -1200,10 +1357,28 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       return true;
     },
 
+    steerUnread(id, count) {
+      const job = get(id);
+      if (!job || count < 1 || Number(unsteer.run(id, count).changes) === 0) return;
+      emit({ action: "comment", helper: job.helper, job: id });
+      wake(job);
+    },
+
+    interrupt(id) {
+      const job = mustGet(id);
+      if (Number(putInterrupted.run(id).changes) === 0) throw new HelperError(`A ${job.state} job cannot be interrupted.`);
+      log(id, "interrupted");
+      emit({ action: "job", helper: job.helper, job: id, state: "queued" });
+    },
+
     resumeOf(id) {
       const row = jobById.get(id) as JobRow | undefined;
       if (!row?.session_id) return undefined;
-      const notes = (commentsOf.all(id) as { text: string }[]).map((c) => c.text).slice(row.state === "running" ? (row.brief_from ?? 0) : (row.seen_comments ?? 0));
+      // ADR-098 item 3: "live" messages are in the session already.
+      const notes = (commentsOf.all(id) as { text: string; delivery: string | null }[])
+        .slice(row.state === "running" ? (row.brief_from ?? 0) : (row.seen_comments ?? 0))
+        .filter((c) => c.delivery !== "live")
+        .map((c) => c.text);
       return { sessionId: row.session_id, notes };
     },
 
@@ -1215,7 +1390,12 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         id,
         ...(row.plan && row.plan_summary ? { plan: { summary: row.plan_summary, steps: row.plan } } : {}),
         handOffs: (childrenOf.all(id) as { id: number }[]).map((c) => c.id),
-        comments: (commentsOf.all(id) as { id: number; text: string; created_at: string }[]).map((c) => ({ id: c.id, text: c.text, createdAt: new Date(c.created_at) })),
+        comments: (commentsOf.all(id) as { id: number; text: string; created_at: string; delivery: string | null }[]).map((c) => ({
+          id: c.id,
+          text: c.text,
+          createdAt: new Date(c.created_at),
+          ...(c.delivery === "live" || c.delivery === "after" ? { delivery: c.delivery } : {}),
+        })),
         activity: (eventsOf.all(id) as { kind: Activity["kind"]; at: string }[]).map((e) => ({ kind: e.kind, at: new Date(e.at) })),
         ...(report ? { report } : {}),
       };

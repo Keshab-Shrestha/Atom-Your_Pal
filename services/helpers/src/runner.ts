@@ -21,6 +21,8 @@ export interface RunOutcome {
   partial?: boolean;
   /** Pages read, for the log. */
   pages?: number;
+  /** ADR-098 item 3: Keshab interrupted the run; the task waits for his next message. */
+  interrupted?: boolean;
 }
 
 export interface RunContext {
@@ -36,10 +38,10 @@ export type JobRun = (job: Job, context: RunContext) => Promise<RunOutcome>;
 /** For the log: ids, states, timings and counts only. Never the task, report or addresses. */
 export type RunEvent =
   | { phase: "start"; helper: HelperId; job: number }
-  | { phase: "end"; helper: HelperId; job: number; state: "done" | "planned" | "failed" | "stopped"; ms: number; pages?: number; partial: boolean };
+  | { phase: "end"; helper: HelperId; job: number; state: "done" | "planned" | "interrupted" | "failed" | "stopped"; ms: number; pages?: number; partial: boolean };
 
 export interface JobRunnerOptions {
-  store: Pick<HelperStore, "queued" | "get" | "start" | "step" | "finish" | "fail" | "savePlan" | "onChange">;
+  store: Pick<HelperStore, "queued" | "get" | "start" | "step" | "finish" | "fail" | "savePlan" | "interrupt" | "onChange">;
   run: JobRun;
   /** The team-wide limit; a function is read each time, so a change in Settings applies at once (then `poke`). */
   maxRunning?: number | (() => number);
@@ -121,14 +123,17 @@ export function startJobRunner(options: JobRunnerOptions): JobRunner {
     running.delete(job.id);
     schedule();
 
-    const end = (state: "done" | "planned" | "failed" | "stopped", partial = false, pages?: number) =>
+    const end = (state: "done" | "planned" | "interrupted" | "failed" | "stopped", partial = false, pages?: number) =>
       onRun?.({ phase: "end", helper: job.helper, job: job.id, state, ms: Date.now() - started, ...(pages !== undefined ? { pages } : {}), partial });
     if (closed) return;
     // Stopped or deleted (here or in the moment before): the store already says so, and the result is dropped.
     if (outcome === "cancelled" || store.get(job.id)?.state !== "running") return end("stopped");
     const timeMessage = `Took longer than ${minutes(timeLimitMs)}`;
     try {
-      if (typeof outcome === "object" && "value" in outcome && outcome.value.plan) {
+      if (typeof outcome === "object" && "value" in outcome && outcome.value.interrupted) {
+        store.interrupt(job.id);
+        end("interrupted");
+      } else if (typeof outcome === "object" && "value" in outcome && outcome.value.plan) {
         store.savePlan(job.id, outcome.value.plan);
         end("planned");
       } else if (typeof outcome === "object" && "value" in outcome) {

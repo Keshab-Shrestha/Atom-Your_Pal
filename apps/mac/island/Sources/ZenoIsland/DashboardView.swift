@@ -22,6 +22,12 @@ struct DashboardPane: View {
                         TokenTile(value: TokenTotals.short(usage.today.total), label: "Tokens today", detail: "\(TokenTotals.short(usage.today.fresh)) new · \(TokenTotals.short(usage.today.cacheRead)) cached")
                         TokenTile(value: TokenTotals.short(usage.week.total), label: "Last 7 days", detail: "\(usage.week.runs) runs")
                         TokenTile(value: String(format: "$%.2f", usage.week.dollars), label: "API-equivalent, 7 days", detail: String(format: "$%.2f today", usage.today.dollars))
+                        // ADR-098 item 9: how much of the prompt came back from the cache.
+                        TokenTile(value: usage.week.cacheHitText, label: "Cache hits, 7 days", detail: "\(usage.today.cacheHitText) today")
+                    }
+                    if usage.chatCacheCold {
+                        Text("Cache went cold: ZENO's last \(Self.coldRuns) chat answers read nothing from the cache, so each one sent its whole prompt again.")
+                            .font(.system(size: 11.5)).foregroundStyle(theme.text2.color).padding(.leading, 4)
                     }
                     section("Each day") { DayBars(days: usage.days) }
                     if let plan = model.planUsage, !plan.isEmpty { section("Claude plan") { PlanMeters(plan: plan) } }
@@ -58,6 +64,9 @@ struct DashboardPane: View {
             .padding(.bottom, Spacing.panel)
         }
     }
+
+    /// Matches COLD_CACHE_RUNS in services/helpers/src/usage.ts.
+    static let coldRuns = 3
 
     private func section(_ title: String, @ViewBuilder _ content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -112,14 +121,16 @@ private struct DayBars: View {
                     .frame(maxWidth: .infinity)
                     .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
                     Text(Self.weekday(day.day)).font(.system(size: 10.5)).foregroundStyle(theme.text2.color)
+                    // ADR-098 item 9: the day's cache hit rate.
+                    Text(day.totals.cacheHitText).font(theme.idFont(.system(size: 9.5), size: 9)).foregroundStyle(theme.text3.color)
                 }
                 .frame(maxWidth: .infinity)
             }
         }
-        .frame(height: 150, alignment: .bottom)
+        .frame(height: 166, alignment: .bottom)
         .padding(16)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(days.map { "\(Self.weekday($0.day)): \(TokenTotals.short($0.totals.total)) tokens" }.joined(separator: ", "))
+        .accessibilityLabel(days.map { "\(Self.weekday($0.day)): \(TokenTotals.short($0.totals.total)) tokens, \($0.totals.cacheHitText) from the cache" }.joined(separator: ", "))
     }
 
     private func bar(_ n: Int, _ most: Int) -> CGFloat { n == 0 ? 0 : max(2, CGFloat(n) / CGFloat(most) * 96) }
