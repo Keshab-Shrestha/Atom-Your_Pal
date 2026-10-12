@@ -245,6 +245,7 @@ struct ThreadPane: View {
                     NotesSection(model: model, comments: model.helpers.thread?.comments ?? [], prompt: notePrompt(item),
                                  steers: item.job.state == .running || item.job.interrupted)
                     if let activity = model.helpers.thread?.activity, !activity.isEmpty { ActivitySection(activity: activity) }
+                    ToolTimelineSection(calls: model.helpers.thread?.toolCalls ?? []) // B3.1
                 }
             }
             .textSelection(.enabled)

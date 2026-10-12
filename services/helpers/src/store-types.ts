@@ -8,6 +8,7 @@ import type { McpServer, McpServerInput } from "./mcp.ts";
 import type { UsageEntry, UsageSummary } from "./usage.ts";
 import type { TeamTask, WakeEvery, WakeUp, Woken } from "./team.ts";
 import type { SubAgent, SubAgentEvent, SubAgentState } from "./sub-agents.ts";
+import type { ToolCall, ToolCallEvent } from "./tool-calls.ts";
 import type { TaskSearchHit } from "./search.ts";
 import type { TestBetter, TestCase, TestInputs, TestKind, TestResult, TestState } from "./test-cases.ts";
 
@@ -245,6 +246,7 @@ export type HelperChange =
   | { action: "blockers"; helper: HelperId; job: number }
   | { action: "deleted"; helper: HelperId; job: number }
   | { action: "subAgent"; helper: HelperId; job: number; name: string; state: SubAgentState }
+  | { action: "toolCall"; helper: HelperId; job: number }
   | { action: "goal"; goal: number; tasks: number; ended: boolean }
   | { action: "testCase"; kind: TestKind; target: string; testCase: number; change: "saved" | "deleted" }
   | { action: "testRun"; kind: TestKind; item: number; case?: number; state: TestState | "started" };
@@ -384,6 +386,10 @@ export interface HelperStore {
   recordSkillUse(jobId: number, skill: string): void;
   /** ADR-095: one sub-agent's start or end in a run of this task (an unknown task, or a bad name, is ignored). */
   recordSubAgent(jobId: number, event: SubAgentEvent): void;
+  /** B3.1: one tool call's start or end in a run of this task (an unknown task, a bad state, an end without its start is ignored). */
+  recordToolCall(jobId: number, event: ToolCallEvent): void;
+  /** B3.1: the task's newest tool calls (at most 100), oldest first. */
+  toolCalls(jobId: number): ToolCall[];
   /** The skills a task's runs used, sorted. */
   skillsUsed(jobId: number): string[];
   /** Every pending draft and edit, and the newest few others, newest first. */

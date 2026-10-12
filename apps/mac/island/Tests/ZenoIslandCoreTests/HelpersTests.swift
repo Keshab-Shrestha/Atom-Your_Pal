@@ -486,6 +486,21 @@ struct HelperTaskTests {
         #expect(!state.showsBoard && state.selectedHelperId == "hana")
     }
 
+    @Test func decodesToolCalls() throws {
+        let line = #"{"type":"thread","id":5,"comments":[],"activity":[],"toolCalls":[{"id":"a","tool":"Read","input":"x.md","state":"ok","result":"fine","at":"2026-10-10T09:05:00Z","ms":2300},{"id":"b","agent":"coder","tool":"Bash","input":"ls","state":"started","at":"2026-10-10T09:06:00.250Z"},{"id":"c","tool":"Bash","input":"","state":"weird","at":"2026-10-10T09:06:00Z"}]}"#
+        guard case .thread(let thread) = try decodeEvent(line) else { Issue.record("not a thread"); return }
+        #expect(thread.toolCalls.map(\.id) == ["a", "b"]) // the bad state is left out
+        #expect(thread.toolCalls[0].state == .ok && thread.toolCalls[0].result == "fine" && thread.toolCalls[0].durationMs == 2300)
+        #expect(thread.toolCalls[1].agent == "coder" && thread.toolCalls[1].state == .started && thread.toolCalls[1].durationMs == nil)
+        guard case .thread(let bare) = try decodeEvent(#"{"type":"thread","id":5,"comments":[],"activity":[]}"#) else { return }
+        #expect(bare.toolCalls.isEmpty) // an older runtime
+    }
+
+    @Test func formatsToolCallDurations() {
+        func text(_ ms: Int?) -> String? { HelperToolCall(id: "a", tool: "t", input: "", state: .ok, at: Date(), durationMs: ms).durationText }
+        #expect(text(nil) == nil && text(850) == "850 ms" && text(2300) == "2.3s" && text(65_000) == "1m 5s")
+    }
+
     @Test func decodesAThread() throws {
         let line = #"{"type":"thread","id":5,"comments":[{"id":1,"text":"Keep it short","createdAt":"2026-10-10T09:05:00Z"}],"activity":[{"kind":"created","at":"2026-10-10T09:05:00Z"},{"kind":"commented","at":"2026-10-10T09:06:00Z"}],"report":{"title":"T","summary":"S","body":"B","sources":[{"title":"x","url":"javascript:alert(1)"},{"title":"y","url":"https://example.org/"}]}}"#
         guard case .thread(let thread) = try decodeEvent(line) else { Issue.record("not a thread"); return }

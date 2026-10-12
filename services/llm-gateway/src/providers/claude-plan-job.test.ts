@@ -357,3 +357,51 @@ test("too many steps, or an abort, end the job without a report", async () => {
   await assert.rejects(research(slow.sdk, { signal: controller.signal }), (e: unknown) => e instanceof ProviderError && e.kind === "cancelled");
   assert.equal(aborted!.signal.aborted, true); // the claude program is stopped
 });
+
+// B3.1: the run's tool calls reach onToolCall as short redacted summaries.
+test("onToolCall: every tool_use starts a call, every tool_result ends its own by id (also several in one message), a sub-agent's calls name it", async () => {
+  const { sdk } = fakeSdk(async function* (o) {
+    yield init();
+    await o.canUseTool("Agent", { description: "Find it", prompt: "p", subagent_type: "searcher" }, { signal: new AbortController().signal, toolUseID: "s1" });
+    yield { type: "assistant", message: { content: [{ type: "tool_use", id: "a", name: "WebSearch", input: { query: "tcp" } }, { type: "tool_use", id: "b", name: "WebFetch", input: { url: "https://x.org/p?k=1" } }] } };
+    yield { type: "assistant", parent_tool_use_id: "s1", message: { content: [{ type: "tool_use", id: "w", name: "WebSearch", input: { query: "inside" } }] } };
+    yield { type: "user", parent_tool_use_id: "s1", message: { content: [{ type: "tool_result", tool_use_id: "w", content: "inside result" }] } };
+    yield {
+      type: "user",
+      message: { content: [{ type: "tool_result", tool_use_id: "b", is_error: true, content: "blocked" }, { type: "tool_result", tool_use_id: "a", content: [{ type: "text", text: "key=abc found" }] }] },
+    };
+    yield done();
+  });
+  const events: { id: string; agent?: string; tool: string; input: string; state: string; result?: string }[] = [];
+  await research(sdk, { onToolCall: (e) => events.push(e) });
+  assert.deepEqual(
+    events.map((e) => [e.id, e.agent, e.state, e.tool, e.input, e.result]),
+    [
+      ["a", undefined, "started", "WebSearch", "tcp", undefined],
+      ["b", undefined, "started", "WebFetch", "https://x.org/p", undefined],
+      ["w", "searcher", "started", "WebSearch", "inside", undefined],
+      ["w", "searcher", "ok", "", "", "inside result"],
+      ["b", undefined, "error", "", "", "blocked"],
+      ["a", undefined, "ok", "", "", "key=[hidden] found"],
+    ],
+  );
+  assert.doesNotMatch(JSON.stringify(events), /=abc/);
+});
+
+test("onToolCall: a throwing listener never fails the run, and the step text still shows", async () => {
+  const { sdk } = fakeSdk(async function* () {
+    yield init();
+    yield toolUse("WebSearch");
+    yield { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t", content: "r" }] } };
+    yield done();
+  });
+  const steps: string[] = [];
+  const result = await research(sdk, {
+    onStep: (s) => steps.push(s),
+    onToolCall: () => {
+      throw new Error("store is closed");
+    },
+  });
+  assert.equal(result.report.title, report.title);
+  assert.deepEqual(steps, ["Searching the web"]);
+});

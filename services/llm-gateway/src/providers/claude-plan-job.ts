@@ -2,6 +2,7 @@ import { tmpdir } from "node:os";
 import { z } from "zod";
 import { ProviderError } from "../gateway.ts";
 import { classify, isPlanMessage, loadSdk, planGuard, scrubbedEnv, tokensOf, type ClaudeSdk, type PlanUsage, type TokenUsage } from "./claude-plan.ts";
+import { toolCallRecorder, type ToolCallEvent } from "./tool-summary.ts";
 import { AGENT_TOOLS, SUB_AGENT_NOTE, resultText, subAgentGate, subAgentsFor, type SubAgentEvent } from "./sub-agents.ts";
 
 /**
@@ -255,6 +256,8 @@ export interface ResearchOptions {
   onSkill?: (name: string) => void;
   /** ADR-095: told each sub-agent's start and end (name, short description and result), for the task's thread. */
   onSubAgent?: (event: SubAgentEvent) => void;
+  /** B3.1: told each tool call's start and end as a short redacted summary (never raw input or output), for the run's timeline. */
+  onToolCall?: (event: ToolCallEvent) => void;
   /**
    * ADR-098 item 3: Keshab can steer or interrupt the run. With it, a worker's run reads its input as a stream (Agent SDK
    * streaming input): `attach` gets the run's handle when it starts, `detach` how many messages it may not have read.
@@ -565,6 +568,7 @@ async function runStructured(options: ResearchOptions, mode: Mode) {
   // ADR-095: a run with tools may start a few sub-agents, each with a subset of its tools; a no-tool run has none.
   const agents = subAgentsFor(baseTools, hasSkills);
   const gate = agents && subAgentGate(agents, options.onSubAgent);
+  const timeline = toolCallRecorder(options.onToolCall, gate?.agentOf);
   const canUseTool = async (name: string, input: Record<string, unknown>, call?: { toolUseID?: string; agentID?: string }) => {
     if (gate && AGENT_TOOLS.includes(name)) {
       const decision = gate.check(input, call?.toolUseID, Boolean(call?.agentID));
@@ -757,6 +761,13 @@ async function runStructured(options: ResearchOptions, mode: Mode) {
       if (typeof message.session_id === "string") sessionId = message.session_id;
       // ADR-098 item 3: tool results end a step; the messages given before it are taken in there.
       if (input && message.type === "user" && !message.parent_tool_use_id) unread = 0;
+      // B3.1: every tool call, also a sub-agent's (the step text below is the run's own only).
+      if (Array.isArray(message.message?.content)) {
+        for (const block of message.message.content) {
+          if (message.type === "assistant" && block?.type === "tool_use") timeline.started(block, message.parent_tool_use_id);
+          else if (message.type === "user" && block?.type === "tool_result") timeline.ended(block, message.parent_tool_use_id);
+        }
+      }
       if (isPlanMessage(message)) planGuard(message, onUsage);
       else if (message.type === "assistant" && !message.parent_tool_use_id) {
         if (typeof message.error === "string") lastError = message.error;

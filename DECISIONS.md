@@ -2153,3 +2153,37 @@ Keshab said: "lets add all features from hermes or paperclip … and about jcode
 ### Consequences
 
 ZENO gets the main features of Hermes Agent and Paperclip. Keshab can use ZENO from the phone and from other tools. Each new way to act stays inside the grants, the budgets and Keshab's approvals.
+
+---
+
+## ADR-099 — Activity Timeline for Each Run (2026-10-13)
+
+### Status
+
+Accepted. Built and tested. Not yet seen in the real window.
+
+### Context
+
+A task thread shows the result of a run. It does not show what the agent did. Paperclip has a replay of each tool call. Keshab needs that replay to check an agent's work.
+
+### Decision
+
+1. ZENO records each tool call of an Agent run: the tool, a short input, the result, the time and the duration. Sub-agent calls are included and carry the sub-agent's name.
+2. The task thread has a "Tool calls (N)" section. It is closed by default. A tap on a row shows its result.
+3. ZENO masks secrets before it stores anything.
+   - Bash: the first line of the command only.
+   - Files: the path only. A write never stores its content.
+   - Browser: the action and the site only. Typed text is hidden.
+   - A read of `.env` or `data/api-token` shows "(secret file, hidden)".
+   - The masking removes keys, tokens, passwords, `Bearer` values, private keys, `curl -u` logins and URL logins.
+   - An input is cut to 160 characters. A result is cut to 200.
+4. A job keeps at most 200 calls. The calls stay as long as the job. Deleting the job deletes them.
+5. The `thread` event carries the newest 100 calls in `toolCalls`. There is no new event or command. A change to a helper sends the open thread again.
+6. Codex runs and Manager runs record no calls in this version. The section shows "Nothing recorded for this task."
+
+### Consequences
+
+- The masking is pattern-based. A secret that matches no pattern can reach the store. Do not treat the timeline as safe to share outside this Mac.
+- The masking code lives in `services/llm-gateway/src/providers/tool-summary.ts`. The store only cuts the text.
+- Codex needs JSONL streaming before it can record calls.
+

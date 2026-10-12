@@ -1429,3 +1429,22 @@ test("plan usage is forwarded as plan.usage, sanitised; nothing is sent once qui
   h.session.quit();
   assert.equal(stopped, 1);
 });
+
+test("thread.get lists the run's tool calls (B3.1), and a new call sends the open thread again", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  const sid = store.addJob("sid", "Research");
+  store.start(sid.id);
+  await h.send({ type: "thread.get", id: sid.id });
+  assert.equal((h.events().at(-1) as Extract<IslandEvent, { type: "thread" }>).toolCalls, undefined, "none: no key");
+  h.clear();
+  store.recordToolCall(sid.id, { id: "c1", tool: "WebSearch", input: "tcp", state: "started", at: "2026-10-13T10:00:00.000Z" });
+  store.recordToolCall(sid.id, { id: "c1", tool: "", input: "", state: "ok", result: "found", at: "2026-10-13T10:00:00.500Z" });
+  store.recordToolCall(sid.id, { id: "c2", tool: "Read", input: "/a.ts", state: "started", at: "2026-10-13T10:00:01.000Z" }); // a start sends the thread
+  await tick(5);
+  const thread = h.events().filter((e) => e.type === "thread").at(-1) as Extract<IslandEvent, { type: "thread" }>;
+  assert.deepEqual(thread.toolCalls, [
+    { id: "c1", tool: "WebSearch", input: "tcp", state: "ok", result: "found", at: "2026-10-13T10:00:00.000Z", ms: 500 },
+    { id: "c2", tool: "Read", input: "/a.ts", state: "started", at: "2026-10-13T10:00:01.000Z" },
+  ]);
+});

@@ -257,6 +257,7 @@ export function islandHelpers(
       };
       const thread = store.thread(id);
       if (!thread) return undefined;
+      const calls = store.toolCalls(id);
       const { report } = thread;
       const goalId = store.get(id)?.goalId;
       const goal = goalId === undefined ? undefined : store.goal(goalId);
@@ -267,6 +268,7 @@ export function islandHelpers(
         ...(thread.plan ? { plan: thread.plan } : {}),
         ...(thread.handOffs.length ? { handOffs: thread.handOffs } : {}),
         ...testSkillsOf(id),
+        ...(calls.length ? { toolCalls: calls } : {}),
         ...(report ? { report: { title: report.title, summary: report.summary, body: report.body, sources: report.sources } } : {}),
         ...(goal
           ? {

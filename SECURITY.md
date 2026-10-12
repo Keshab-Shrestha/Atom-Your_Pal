@@ -508,3 +508,12 @@ ZENO runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 - Codex runs have the same time limit as Claude runs.
 - The run costs $0 against the budgets. The tokens go to the Dashboard with the model `codex`.
 - The log records the task id, the kit and whether the run has a folder. It never records the task, the report or Codex's output.
+
+## Activity timeline (ADR-099)
+
+- ZENO stores each tool call of an Agent run in the `tool_calls` table.
+- ZENO masks secrets before it stores them. The code is `redact` in `services/llm-gateway/src/providers/tool-summary.ts`.
+- The masking uses patterns. A secret that matches no pattern is stored. The text stays on this Mac.
+- Bash stores the first line of the command only. A file tool stores the path only. The browser stores the action and the site only.
+- A job keeps 200 calls at most. Deleting the job deletes its calls.
+

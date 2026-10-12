@@ -249,6 +249,8 @@ export interface ThreadEvent {
   handOffs?: number[];
   /** ADR-098 item 8: the ZENO-made skills a done task's runs used (each can take it as a test case). */
   testSkills?: string[];
+  /** B3.1: the run's tool calls, the newest 100, oldest first (redacted summaries; absent when none were recorded). */
+  toolCalls?: { id: string; agent?: string; tool: string; input: string; state: "started" | "ok" | "error"; result?: string; at: string; ms?: number }[];
   /** Task 3.5: the goal the task is part of, its tasks, and the combined report once every task has ended. */
   goal?: { id: number; text: string; ended: boolean; tasks: number[]; report?: Omit<ReportEvent, "type" | "id"> };
 }

@@ -17,6 +17,7 @@ import { teamStore } from "./team.ts";
 import { mcpTable } from "./mcp.ts";
 import { usageTable } from "./usage.ts";
 import { subAgentTable } from "./sub-agents.ts";
+import { toolCallTable } from "./tool-calls.ts";
 import { searchTable } from "./search.ts";
 import { MAX_TEST_CASES, TEST_CASES_RUN, skillInstructions, testCaseTable, type TestKind } from "./test-cases.ts";
 import { MAX_RUNNING, MAX_RUNNING_RANGE } from "./runner.ts";
@@ -262,6 +263,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const mcp = mcpTable(db);
   const tokens = usageTable(db, now);
   const subAgents = subAgentTable(db);
+  const toolCalls = toolCallTable(db); // B3.1
   const finder = searchTable(db); // ADR-098: labels and the window's search
   const tests = testCaseTable(db, now); // ADR-098 item 8
   const putRating = db.prepare("UPDATE jobs SET rating = ?, rating_comment = ? WHERE id = ?");
@@ -922,6 +924,12 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       const job = get(jobId);
       if (job && subAgents.record(jobId, event)) emit({ action: "subAgent", helper: job.helper, job: jobId, name: event.name, state: event.state });
     },
+    recordToolCall(jobId, event) {
+      const job = get(jobId);
+      // Start and end are both announced, so the last call of a run does not stay "started".
+      if (job && toolCalls.record(jobId, event)) emit({ action: "toolCall", helper: job.helper, job: jobId });
+    },
+    toolCalls: (jobId) => toolCalls.of(jobId),
     skillsUsed: skills.skillsUsed,
     skillDrafts: skills.skillDrafts,
     skillEdits: skills.skillEdits,
@@ -1441,6 +1449,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         deleteComments.run(id);
         deleteEvents.run(id);
         subAgents.drop(id);
+        toolCalls.drop(id);
       });
       emit({ action: "deleted", helper: job.helper, job: id });
       return true;

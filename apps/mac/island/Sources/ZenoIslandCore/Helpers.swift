@@ -51,6 +51,40 @@ public struct HelperSubAgent: Sendable, Equatable {
     }
 }
 
+/// B3.1: one tool call of a task's runs, as its thread lists it (oldest first).
+public struct HelperToolCall: Sendable, Equatable {
+    public enum State: String, Sendable, Equatable { case started, ok, error }
+
+    public var id: String
+    public var agent: String?
+    public var tool: String
+    public var input: String
+    public var state: State
+    public var result: String?
+    public var at: Date
+    public var durationMs: Int?
+
+    public init(id: String, agent: String? = nil, tool: String, input: String, state: State, result: String? = nil,
+                at: Date, durationMs: Int? = nil) {
+        self.id = id
+        self.agent = agent
+        self.tool = tool
+        self.input = input
+        self.state = state
+        self.result = result
+        self.at = at
+        self.durationMs = durationMs
+    }
+
+    /// "850 ms", "2.3s", "1m 5s"; nil while it has no duration.
+    public var durationText: String? {
+        guard let ms = durationMs, ms >= 0 else { return nil }
+        if ms < 1000 { return "\(ms) ms" }
+        if ms < 60_000 { return String(format: "%.1fs", Double(ms) / 1000) }
+        return "\(ms / 60_000)m \(ms / 1000 % 60)s"
+    }
+}
+
 public struct HelperJob: Sendable, Equatable, Identifiable {
     public var id: Int
     public var task: String
@@ -469,9 +503,12 @@ public struct HelperThread: Sendable, Equatable {
     public var handOffs: [Int]
     /// ADR-098 item 8: the ZENO-made skills a done task's runs used (each can take the task as a test case).
     public var testSkills: [String]
+    /// B3.1: the tool calls of its runs, oldest first; none from an older runtime.
+    public var toolCalls: [HelperToolCall]
 
     public init(id: Int, comments: [TaskComment], activity: [TaskActivity], report: HelperReport? = nil, goal: HelperGoal? = nil,
-                plan: JobPlan? = nil, handOffs: [Int] = [], testSkills: [String] = []) {
+                plan: JobPlan? = nil, handOffs: [Int] = [], testSkills: [String] = [], toolCalls: [HelperToolCall] = []) {
+        self.toolCalls = toolCalls
         self.testSkills = testSkills
         self.id = id
         self.comments = comments

@@ -167,6 +167,8 @@ export function subAgentGate(agents: Record<string, SubAgentDefinition>, onEvent
       tell({ id, name, state: "started", description: cut(clean.description, DESCRIPTION_CHARS) });
       return { allow: true, name, input: clean };
     },
+    /** The sub-agent a launch id belongs to, while it is open (a tool call's parent_tool_use_id names it). */
+    agentOf: (toolUseId: string) => open.get(toolUseId),
     /** A tool result in the run itself: ends the sub-agent it answers, if it is one. */
     ended(toolUseId: string, failed: boolean, text: string) {
       const name = open.get(toolUseId);

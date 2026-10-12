@@ -1331,7 +1331,7 @@ Keshab asked for build only, so these items have no tests. The local API and the
 
 ### B3 — Gaps against Paperclip (most valuable first)
 
-1. Activity timeline for each run: a replay of what an agent did, one tool call at a time. ZENO has only the task thread. Value high. Effort medium.
+1. Activity timeline for each run (ADR-099): built and tested (TS 746 tests, Swift 517). Not yet seen in the real window. Codex and Manager runs record no calls.
 2. Telegram parity: steering, interrupting and test results from the phone. Effort small. Check first what ADR-098 items 1–2 already cover.
 3. WhatsApp for ATOM. Keshab already uses WhatsApp with Hermes. Effort medium.
 4. Checkpoint and undo of a run's file edits, also outside git repos. Effort medium.

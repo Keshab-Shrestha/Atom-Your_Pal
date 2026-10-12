@@ -723,8 +723,10 @@ export function runIsland(options: IslandOptions): IslandSession {
         return;
       case "thread.get": {
         const thread = options.helpers?.thread(command.id);
-        if (thread) send({ type: "thread", ...thread });
-        else refuseHelpers(command.type, options.helpers ? "That task is gone." : HELPERS_OFF);
+        if (thread) {
+          openThread = command.id;
+          send({ type: "thread", ...thread });
+        } else refuseHelpers(command.type, options.helpers ? "That task is gone." : HELPERS_OFF);
         return;
       }
       case "soul.set":
@@ -779,8 +781,14 @@ export function runIsland(options: IslandOptions): IslandSession {
     if (app && !(await appNames()).includes(app)) return refuseHelpers("helper.set", "That app is not installed.");
     changeHelpers("helper.set", (helpers) => helpers.setApp(helper, app));
   }
+  // B3.1: the thread the window asked for last is sent again after each change (new tool calls reach its timeline).
+  let openThread: number | undefined;
   const stopHelperUpdates = options.helpers?.onChange(() => {
     if (helpersWatched) sendHelpers();
+    if (openThread === undefined) return;
+    const thread = options.helpers?.thread(openThread);
+    if (thread) send({ type: "thread", ...thread });
+    else openThread = undefined;
   });
 
   /** ADR-098: one search over chats, tasks and reports. Logs the counts only, never the query. */

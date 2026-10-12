@@ -729,6 +729,8 @@ export function createRuntime(
         ...(skills?.names.length ? { skills, onSkill } : {}),
         // ADR-095: the sub-agents it starts, for the task's thread (the store's change logs ids, names and states only).
         onSubAgent: (event) => helpers?.recordSubAgent(job.id, event),
+        // B3.1: its tool calls as short redacted summaries, for the task's timeline (Codex and Manager runs record none).
+        onToolCall: (event) => helpers?.recordToolCall(job.id, event),
         ...(steering ? { steering: steering.track(job.id) } : {}),
         ...(mcp ? { mcp } : {}),
         ...(browserOn ? { browser: browser() } : {}),

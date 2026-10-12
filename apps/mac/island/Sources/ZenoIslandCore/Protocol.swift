@@ -1309,7 +1309,19 @@ private struct Fields {
             guard let a = entry as? [String: Any], let kind = a["kind"] as? String else { throw invalid("activity") }
             return TaskActivity(kind: kind, at: (a["at"] as? String).flatMap(Self.date))
         }, report: try report(values["report"], id: try int("id"), field: "report"), goal: goal, plan: plan,
-           handOffs: Self.ids(values["handOffs"]), testSkills: values["testSkills"] as? [String] ?? [])
+           handOffs: Self.ids(values["handOffs"]), testSkills: values["testSkills"] as? [String] ?? [],
+           toolCalls: Self.toolCalls(values["toolCalls"]))
+    }
+
+    /// B3.1: a task's tool calls; a malformed one is left out, anything else reads as none.
+    private static func toolCalls(_ value: Any?) -> [HelperToolCall] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let t = entry as? [String: Any], let id = t["id"] as? String, let tool = t["tool"] as? String,
+                  let state = (t["state"] as? String).flatMap(HelperToolCall.State.init(rawValue:)),
+                  let at = (t["at"] as? String).flatMap(Self.date) else { return nil }
+            return HelperToolCall(id: id, agent: t["agent"] as? String, tool: tool, input: t["input"] as? String ?? "", state: state,
+                                  result: t["result"] as? String, at: at, durationMs: (t["ms"] as? NSNumber)?.intValue)
+        }
     }
 
     /// The optional `models` of a `helpers` event (ADR-083; absent from older runtimes). Strict like the helpers list:
