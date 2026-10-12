@@ -48,6 +48,7 @@ const toJobItem = (job: Job, held?: string): JobItem => ({
   ...(job.reviews !== undefined ? { reviews: job.reviews } : {}),
   ...(job.autoRetries ? { autoRetries: job.autoRetries } : {}),
   ...(job.parentId !== undefined ? { parentId: job.parentId } : {}),
+  ...(job.subAgents?.length ? { subAgents: job.subAgents } : {}),
 });
 
 /**

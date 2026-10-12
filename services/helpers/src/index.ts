@@ -14,3 +14,4 @@ export * from "./usage.ts";
 export * from "./skill-drafts.ts";
 export * from "./team.ts";
 export * from "./managers.ts";
+export * from "./sub-agents.ts";

@@ -2,6 +2,7 @@ import { tmpdir } from "node:os";
 import { z } from "zod";
 import { ProviderError } from "../gateway.ts";
 import { classify, isPlanMessage, loadSdk, planGuard, scrubbedEnv, tokensOf, type ClaudeSdk, type PlanUsage, type TokenUsage } from "./claude-plan.ts";
+import { AGENT_TOOLS, SUB_AGENT_NOTE, resultText, subAgentGate, subAgentsFor, type SubAgentEvent } from "./sub-agents.ts";
 
 /**
  * A worker's research job on the user's Claude plan (ADR-081, ADR-082, Task 3.2): one separate Claude Code session per
@@ -158,6 +159,8 @@ export interface ResearchOptions {
   thinkOnly?: boolean;
   /** ADR-094: told the name of each skill the run is allowed to use (as it is used), so ZENO can record it. */
   onSkill?: (name: string) => void;
+  /** ADR-095: told each sub-agent's start and end (name, short description and result), for the task's thread. */
+  onSubAgent?: (event: SubAgentEvent) => void;
   files?: {
     cwd: string;
     writable: string[];
@@ -398,7 +401,23 @@ async function runStructured(options: ResearchOptions, mode: Mode) {
   // Every tool call Claude Code has not been told to allow comes here. WebFetch is counted (the page limit);
   // anything but the two web tools and the report itself is refused (none should exist: `tools` lists only these).
   const skillNames = new Set(options.skills?.names ?? []);
-  const canUseTool = async (name: string, input: Record<string, unknown>) => {
+  const hasSkills = Boolean(options.skills?.names.length) && !planning;
+  const baseTools = planning || (options.thinkOnly && !files) ? [] : files ? FILE_TOOLS : ["WebSearch", "WebFetch"];
+  // ADR-095: a run with tools may start a few sub-agents, each with a subset of its tools; a no-tool run has none.
+  const agents = subAgentsFor(baseTools, hasSkills);
+  const gate = agents && subAgentGate(agents, options.onSubAgent);
+  const canUseTool = async (name: string, input: Record<string, unknown>, call?: { toolUseID?: string; agentID?: string }) => {
+    if (gate && AGENT_TOOLS.includes(name)) {
+      const decision = gate.check(input, call?.toolUseID, Boolean(call?.agentID));
+      if (!decision.allow) return { behavior: "deny", message: decision.message };
+      step(`Starting the ${decision.name} sub-agent`);
+      return { behavior: "allow", updatedInput: decision.input };
+    }
+    // A sub-agent's call: only its own tools (all of them the run's own), then the same checks as the run's.
+    if (gate && call?.agentID) {
+      if (!gate.subAgentMay(name)) return { behavior: "deny", message: "A sub-agent may only use its own tools." };
+      if (name === "SubagentHandback") return { behavior: "allow", updatedInput: input };
+    }
     // ADR-090: a tool from one of Keshab's MCP servers: asked about per call unless the server is trusted.
     if (options.mcp && !planning && name.startsWith("mcp__") && !name.startsWith("mcp__zeno__")) {
       const server = name.split("__")[1] ?? "";
@@ -447,6 +466,22 @@ async function runStructured(options: ResearchOptions, mode: Mode) {
     return { behavior: "deny", message: "This job may only search the web and read pages." };
   };
 
+  // ADR-095: the PreToolUse hook for the Agent tool: the same gate as canUseTool (counted once per call).
+  const agentHook = async (hook: Record<string, any>, toolUseID: string | undefined) => {
+    if (!gate || !AGENT_TOOLS.includes(String(hook.tool_name))) return {};
+    const input = hook.tool_input && typeof hook.tool_input === "object" ? (hook.tool_input as Record<string, unknown>) : {};
+    const decision = gate.check(input, toolUseID ?? hook.tool_use_id, typeof hook.agent_id === "string");
+    if (!decision.allow) return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: decision.message } };
+    step(`Starting the ${decision.name} sub-agent`);
+    return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "allow", updatedInput: decision.input } };
+  };
+  // Hardening: a sub-agent's call to a tool not its own is refused for every tool, even one Claude Code would let
+  // through without asking canUseTool, so a later CLI cannot widen a sub-agent.
+  const subAgentHook = async (hook: Record<string, any>) => {
+    if (!gate || typeof hook.agent_id !== "string" || gate.subAgentMay(String(hook.tool_name))) return {};
+    return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: "A sub-agent may only use its own tools." } };
+  };
+
   const controller = new AbortController();
   const onAbort = () => controller.abort();
   signal.addEventListener("abort", onAbort, { once: true });
@@ -458,11 +493,18 @@ async function runStructured(options: ResearchOptions, mode: Mode) {
       prompt: options.resume ? task : `The job:\n${task}`,
       options: {
         model,
-        systemPrompt: `${instructions.trim()}\n${noTools ? noTools.contract : files ? filesContract(files.cwd) : options.thinkOnly ? THINK_CONTRACT : contract(pageLimit)}`,
+        systemPrompt: `${instructions.trim()}\n${noTools ? noTools.contract : files ? filesContract(files.cwd) : options.thinkOnly ? THINK_CONTRACT : contract(pageLimit)}${agents ? SUB_AGENT_NOTE : ""}`,
         pathToClaudeCodeExecutable: claudePath,
         // Research: no project folder, so nothing of ZENO's repository is in reach or in context. Files: the work folder.
         cwd: files ? files.cwd : tmpdir(),
-        tools: planning || (options.thinkOnly && !files) ? [] : files ? FILE_TOOLS : ["WebSearch", "WebFetch"],
+        tools: agents ? [...baseTools, "Agent"] : baseTools,
+        ...(agents
+          ? {
+              agents,
+              // Claude Code lets the Agent tool through without asking canUseTool, so its launches are decided here too.
+              hooks: { PreToolUse: [{ matcher: AGENT_TOOLS.join("|"), hooks: [agentHook] }, { hooks: [subAgentHook] }] },
+            }
+          : {}),
         ...(files
           ? {
               sandbox: {
@@ -513,6 +555,13 @@ async function runStructured(options: ResearchOptions, mode: Mode) {
           if (block.name === "WebSearch") step("Searching the web");
           else if (block.name === "StructuredOutput") step("Writing the report");
         }
+      } else if (gate && message.type === "user" && !message.parent_tool_use_id && Array.isArray(message.message?.content)) {
+        // ADR-095: the run's tool results: a sub-agent's ends it (its own text, without Claude Code's trailer).
+        const results = message.message.content.filter((b: any) => b?.type === "tool_result" && typeof b.tool_use_id === "string");
+        // The structured output belongs to the message, so it is used only when the message answers one call.
+        for (const block of results) {
+          gate.ended(block.tool_use_id, block.is_error === true, (results.length === 1 && resultText(message.tool_use_result)) || resultText(block.content));
+        }
       } else if (message.type === "result") result = message;
     }
   } catch (error) {
@@ -520,6 +569,7 @@ async function runStructured(options: ResearchOptions, mode: Mode) {
     if (error instanceof ProviderError) throw error;
     throw new ProviderError("unavailable", `Claude Code could not run: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
+    gate?.close();
     signal.removeEventListener("abort", onAbort);
     controller.abort(); // stops the claude program however the job ended
   }
@@ -536,6 +586,6 @@ async function runStructured(options: ResearchOptions, mode: Mode) {
     throw new ProviderError(kind, message);
   }
   const costUsd = typeof result.total_cost_usd === "number" && result.total_cost_usd > 0 ? result.total_cost_usd : undefined;
-  const tokens = tokensOf(result);
+  const tokens = tokensOf(result, { allModels: true }); // ADR-095: sub-agents' tokens too
   return { structured: result.structured_output as unknown, limited, pages, sessionId, costUsd, ...(tokens ? { tokens } : {}) };
 }

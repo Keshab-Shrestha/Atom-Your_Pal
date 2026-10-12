@@ -16,6 +16,7 @@ import { skillStore } from "./skill-drafts.ts";
 import { teamStore } from "./team.ts";
 import { mcpTable } from "./mcp.ts";
 import { usageTable } from "./usage.ts";
+import { subAgentTable } from "./sub-agents.ts";
 import { MAX_RUNNING, MAX_RUNNING_RANGE } from "./runner.ts";
 import { createSchema, sameSoul, toJobRow, toSoul, webSources, type JobRow, type ReportRow, type SoulRow } from "./store-schema.ts";
 import {
@@ -246,6 +247,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const proposals = proposalTable(db);
   const mcp = mcpTable(db);
   const tokens = usageTable(db, now);
+  const subAgents = subAgentTable(db);
   const putRating = db.prepare("UPDATE jobs SET rating = ?, rating_comment = ? WHERE id = ?");
   // One Tinker task per task and kind (and skill, for edits): a soul review has no kind.
   const tinkerOf = db.prepare("SELECT id FROM jobs WHERE reviews = ? AND COALESCE(review_kind, '') = ? AND COALESCE(review_skill, '') = ? LIMIT 1");
@@ -261,6 +263,10 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     for (const listener of listeners) listener(change);
   };
 
+  const subAgentsOf = (id: number) => {
+    const list = subAgents.of(id);
+    return list.length ? { subAgents: list } : {};
+  };
   const toJob = (row: JobRow): Job => {
     const blockers = blockersOf.all(row.id) as { id: number; state: string }[];
     const goalEnded = row.goal_id != null && Boolean((goalEndedAt.get(row.goal_id) as { ended_at: string | null } | undefined)?.ended_at);
@@ -270,6 +276,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       blockedBy: blockers.map((b) => b.id),
       waitingFor: blockers.filter((b) => b.state !== "done").map((b) => b.id),
       comments: Number((commentCount.get(row.id) as { n: number }).n),
+      ...subAgentsOf(row.id),
     };
   };
 
@@ -886,6 +893,10 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     rejectSkillEdit: skills.rejectSkillEdit,
     undoSkillEdit: skills.undoSkillEdit,
     recordSkillUse: skills.recordSkillUse,
+    recordSubAgent(jobId, event) {
+      const job = get(jobId);
+      if (job && subAgents.record(jobId, event)) emit({ action: "subAgent", helper: job.helper, job: jobId, name: event.name, state: event.state });
+    },
     skillsUsed: skills.skillsUsed,
     skillDrafts: skills.skillDrafts,
     skillEdits: skills.skillEdits,
@@ -1249,6 +1260,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         dropLinks.run(id, id);
         deleteComments.run(id);
         deleteEvents.run(id);
+        subAgents.drop(id);
       });
       emit({ action: "deleted", helper: job.helper, job: id });
       return true;

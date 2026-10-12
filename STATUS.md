@@ -26,6 +26,8 @@ Built (2026-10-11): ADR-091, after Keshab's look at the window: roles instead of
 
 Built (2026-10-12): ADR-095 packages 1–2: tasks run in parallel (Runs at once 1–10 in Settings, default 6; several tasks per worker), Pal is called ATOM on screen and in speech, and Managers (one per domain, "plans and reviews" or "group only") with Agents under them, on the Board, the floor and in Needs you. Built and tested; not yet tried on the real screen.
 
+Built (2026-10-12): ADR-095 package 3: Sub-Agents: an Agent's run may start up to 4 helpers inside its own Claude Code run (searcher and reader for web work, coder and checker for folders), each with no more than the Agent's own tools, grants and skills; their cost counts toward its budget, and the task's thread lists them with their state and short result. ADR-095 is done. Built and tested; not yet tried with the real Claude Code.
+
 Planned (2026-10-10): four polish batches taken from Clicky, Coucou and a review of ZENO's setup: setup and errors (ADR-075, Task 2.A; built and tested, not yet tried on the real Mac), everyday polish (ADR-076, 2.B; built and tested, not yet tried on the real Mac), Wisp and voice polish (ADR-077, 2.C; built and tested, not yet seen on the real screen), Wisp's home display (ADR-078, 2.D; built and tested, not yet tried on two displays), settings tidy-up (ADR-079, 2.E; built and tested). Pointing from a screenshot (ADR-080, 2.F): built and tested, Cua only (main display), so it needs computer control on; not yet tried by voice.
 
 ---

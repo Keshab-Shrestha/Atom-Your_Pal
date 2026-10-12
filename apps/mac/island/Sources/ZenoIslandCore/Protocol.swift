@@ -931,7 +931,16 @@ private struct Fields {
                          goalEnded: Self.flag(j["goalEnded"]), resumable: Self.flag(j["resumable"]), held: j["held"] as? String,
                          planFirst: Self.flag(j["planFirst"]), planStatus: j["planStatus"] as? String, planSummary: j["planSummary"] as? String,
                          rating: j["rating"] as? String, reviews: (j["reviews"] as? NSNumber)?.intValue,
-                         autoRetries: (j["autoRetries"] as? NSNumber)?.intValue ?? 0)
+                         autoRetries: (j["autoRetries"] as? NSNumber)?.intValue ?? 0, subAgents: Self.subAgents(j["subAgents"]))
+    }
+
+    /// ADR-095: a task's sub-agents; a malformed one is left out, anything else reads as none.
+    private static func subAgents(_ value: Any?) -> [HelperSubAgent] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let s = entry as? [String: Any], let name = s["name"] as? String,
+                  let state = (s["state"] as? String).flatMap(HelperSubAgent.State.init(rawValue:)) else { return nil }
+            return HelperSubAgent(name: name, state: state, description: s["description"] as? String ?? "", result: s["result"] as? String)
+        }
     }
 
     /// Task 3.7: `{ "cap": number | null, "spent": number }`; anything else reads as none.

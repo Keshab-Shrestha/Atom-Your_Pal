@@ -7,6 +7,7 @@ import type { AgentProblem, Kit, ManagerMode } from "./agents.ts";
 import type { McpServer, McpServerInput } from "./mcp.ts";
 import type { UsageEntry, UsageSummary } from "./usage.ts";
 import type { TeamTask, WakeEvery, WakeUp, Woken } from "./team.ts";
+import type { SubAgent, SubAgentEvent, SubAgentState } from "./sub-agents.ts";
 
 // The helper store's public shapes (split from store.ts): jobs as tasks, threads, goals, the store's operations.
 
@@ -74,6 +75,8 @@ export interface Job {
   waitingFor: number[];
   /** How many notes Keshab added. */
   comments: number;
+  /** ADR-095: the sub-agents its runs started (the newest), absent when none. */
+  subAgents?: SubAgent[];
 }
 
 export interface Comment {
@@ -227,6 +230,7 @@ export type HelperChange =
   | { action: "comment"; helper: HelperId; job: number }
   | { action: "blockers"; helper: HelperId; job: number }
   | { action: "deleted"; helper: HelperId; job: number }
+  | { action: "subAgent"; helper: HelperId; job: number; name: string; state: SubAgentState }
   | { action: "goal"; goal: number; tasks: number; ended: boolean };
 
 export interface HelperStore {
@@ -359,6 +363,8 @@ export interface HelperStore {
   undoSkillEdit(id: number): void;
   /** Records that a run of a task used a skill (Skill tool calls). Bad names and unknown tasks are ignored. */
   recordSkillUse(jobId: number, skill: string): void;
+  /** ADR-095: one sub-agent's start or end in a run of this task (an unknown task, or a bad name, is ignored). */
+  recordSubAgent(jobId: number, event: SubAgentEvent): void;
   /** The skills a task's runs used, sorted. */
   skillsUsed(jobId: number): string[];
   /** Every pending draft and edit, and the newest few others, newest first. */

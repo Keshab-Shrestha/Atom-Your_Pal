@@ -158,6 +158,8 @@ export interface JobItem {
   /** ADR-090: how many times a failure was retried by itself. */
   autoRetries?: number;
   parentId?: number;
+  /** ADR-095: the sub-agents its runs started (newest 12): name, state, short description and result. Never logged. */
+  subAgents?: { name: string; state: "started" | "done" | "failed"; description: string; result?: string }[];
 }
 
 /** A task's thread (ADR-087, Task 3.4). Never logged. */

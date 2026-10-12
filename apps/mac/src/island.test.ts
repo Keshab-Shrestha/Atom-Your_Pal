@@ -1112,6 +1112,25 @@ test("skill.make, skill.approve and skill.reject; skill.edit.accept, .undo and .
   }
 });
 
+test("a task's sub-agents travel in the helpers event, as each starts and ends (ADR-095)", async () => {
+  const store = openHelperStore({ path: ":memory:", home: mkdtempSync(join(tmpdir(), "zeno-home-")) });
+  const h = islandHarness({ helpers: islandHelpers(store, async () => []) });
+  await tick(5);
+  await h.send({ type: "helpers.list" }); // the window watches from now on
+  const { id } = store.addJob("sid", "Compare laptops");
+  store.start(id);
+  store.recordSubAgent(id, { id: "s1", name: "searcher", state: "started", description: "Find reviews" });
+  await tick(5);
+  const job = () => (h.events().filter((e) => e.type === "helpers").at(-1) as HelpersEvent).helpers.find((x) => x.id === "sid")!.jobs[0]!;
+  assert.deepEqual(job().subAgents, [{ name: "searcher", state: "started", description: "Find reviews" }]);
+  store.recordSubAgent(id, { id: "s1", name: "searcher", state: "done", result: "Three pages." });
+  await tick(5);
+  assert.deepEqual(job().subAgents, [{ name: "searcher", state: "done", description: "Find reviews", result: "Three pages." }]);
+  store.addJob("sid", "Other");
+  await tick(5);
+  assert.equal("subAgents" in job(), false, "a task with none has no field");
+});
+
 test("job.open opens through the runtime; its words come back as an error when it cannot (Task 3.14)", async () => {
   const store = openHelperStore({ path: ":memory:" });
   const opened: number[] = [];

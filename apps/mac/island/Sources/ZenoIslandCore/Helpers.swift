@@ -19,6 +19,38 @@ public enum JobState: String, Sendable, Equatable, CaseIterable {
     }
 }
 
+/// ADR-095: a sub-agent a task's run started, as its thread lists it: name, state, what it was asked and its result.
+public struct HelperSubAgent: Sendable, Equatable {
+    public enum State: String, Sendable, Equatable { case started, done, failed }
+
+    public var name: String
+    public var state: State
+    public var description: String
+    public var result: String?
+
+    public init(name: String, state: State, description: String = "", result: String? = nil) {
+        self.name = name
+        self.state = state
+        self.description = description
+        self.result = result
+    }
+
+    /// The state in the thread's words.
+    public var stateTitle: String {
+        switch state {
+        case .started: "Working"
+        case .done: "Done"
+        case .failed: "Failed"
+        }
+    }
+
+    /// The line under its name: the result once it has one, else what it was asked.
+    public var detail: String? {
+        if let result, !result.isEmpty { return result }
+        return description.isEmpty ? nil : description
+    }
+}
+
 public struct HelperJob: Sendable, Equatable, Identifiable {
     public var id: Int
     public var task: String
@@ -60,6 +92,8 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     public var reviews: Int?
     /// ADR-090: how many times a failure was retried by itself.
     public var autoRetries: Int
+    /// ADR-095: the sub-agents its runs started (the newest).
+    public var subAgents: [HelperSubAgent]
     public var isFinished: Bool { state == .done || state == .failed }
     /// ADR-094: a done task (not one of Tinker's) can become a skill.
     public var canBecomeSkill: Bool { state == .done && reviews == nil }
@@ -69,7 +103,8 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
                 model: String? = nil, modelReason: String? = nil, blockedBy: [Int] = [], waitingFor: [Int] = [],
                 comments: Int = 0, goal: String? = nil, parentId: Int? = nil, goalId: Int? = nil, goalEnded: Bool = false,
                 resumable: Bool = false, held: String? = nil, planFirst: Bool = false, planStatus: String? = nil,
-                planSummary: String? = nil, rating: String? = nil, reviews: Int? = nil, autoRetries: Int = 0) {
+                planSummary: String? = nil, rating: String? = nil, reviews: Int? = nil, autoRetries: Int = 0,
+                subAgents: [HelperSubAgent] = []) {
         self.id = id
         self.task = task
         self.state = state
@@ -97,6 +132,7 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
         self.rating = rating
         self.reviews = reviews
         self.autoRetries = autoRetries
+        self.subAgents = subAgents
     }
 
     public var hasReport: Bool { title != nil }

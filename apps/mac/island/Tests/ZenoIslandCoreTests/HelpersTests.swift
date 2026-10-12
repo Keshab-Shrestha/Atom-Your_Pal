@@ -1088,3 +1088,32 @@ struct GitBranchTests {
         #expect(IslandCommand.gitPush(repo: "/r", branch: "zeno/task-7").line == #"{"branch":"zeno/task-7","repo":"/r","type":"git.push"}"# + "\n")
     }
 }
+
+@Suite("Sub-agents (ADR-095)")
+struct SubAgentTests {
+    @Test func decodesTheOpenTasksSubAgentsAndTheirLines() throws {
+        let line = HelperTaskTests.line.replacingOccurrences(
+            of: #""id":2,"task":"Research IPv6","state":"running","#,
+            with: #""id":2,"task":"Research IPv6","state":"running","subAgents":[{"name":"searcher","state":"done","description":"Find RFCs","result":"Three pages."},{"name":"reader","state":"started","description":"Read them"},{"name":"bad","state":"lost"},{"state":"done"},{"name":"checker","state":"failed","description":""}],"#)
+        var state = HelpersState()
+        state.apply(try decodeEvent(line))
+        #expect(state.openThread(2) == .threadGet(id: 2))
+        let agents = try #require(state.openJob?.subAgents)
+        #expect(agents.map(\.name) == ["searcher", "reader", "checker"]) // a malformed one is left out
+        #expect(agents.map(\.stateTitle) == ["Done", "Working", "Failed"])
+        #expect(agents.map(\.detail) == ["Three pages.", "Read them", nil]) // the result once it has one
+        #expect(state.list?.item(1)?.job.subAgents == []) // none: an older runtime, or none started
+    }
+
+    @Test func aChangedSubAgentAsksForTheOpenThreadAgain() throws {
+        var state = HelpersState()
+        state.apply(try decodeEvent(HelperTaskTests.line))
+        _ = state.openThread(2)
+        _ = state.takeRefresh()
+        let started = HelperTaskTests.line.replacingOccurrences(of: #""id":2,"task":"Research IPv6","state":"running","#,
+                                                                with: #""id":2,"task":"Research IPv6","state":"running","subAgents":[{"name":"reader","state":"started","description":"d"}],"#)
+        state.apply(try decodeEvent(started))
+        #expect(state.takeRefresh() == .threadGet(id: 2))
+        #expect(state.openJob?.subAgents == [HelperSubAgent(name: "reader", state: .started, description: "d")])
+    }
+}

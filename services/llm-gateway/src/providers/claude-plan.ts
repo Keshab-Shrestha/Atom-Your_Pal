@@ -56,12 +56,21 @@ export interface TokenUsage {
   costUsd?: number;
 }
 
-/** The tokens in a Claude Code result message; undefined when it names none. */
-export function tokensOf(result: Record<string, any> | undefined): TokenUsage | undefined {
-  const u = result?.usage;
-  if (!u || typeof u !== "object") return undefined;
+/**
+ * The tokens in a Claude Code result message; undefined when it names none. `usage` covers the main loop only;
+ * with `allModels` (a worker's run, ADR-095) the per-model totals are used instead, which include its sub-agents.
+ */
+export function tokensOf(result: Record<string, any> | undefined, opts: { allModels?: boolean } = {}): TokenUsage | undefined {
   const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.round(v) : 0);
-  const t: TokenUsage = { input: n(u.input_tokens), output: n(u.output_tokens), cacheRead: n(u.cache_read_input_tokens), cacheWrite: n(u.cache_creation_input_tokens) };
+  const models = opts.allModels && result?.modelUsage && typeof result.modelUsage === "object" ? Object.values(result.modelUsage as Record<string, any>).filter((m) => m && typeof m === "object") : [];
+  const u = result?.usage;
+  if (!models.length && (!u || typeof u !== "object")) return undefined;
+  const t: TokenUsage = models.length
+    ? models.reduce<TokenUsage>(
+        (s, m) => ({ input: s.input + n(m.inputTokens), output: s.output + n(m.outputTokens), cacheRead: s.cacheRead + n(m.cacheReadInputTokens), cacheWrite: s.cacheWrite + n(m.cacheCreationInputTokens) }),
+        { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      )
+    : { input: n(u.input_tokens), output: n(u.output_tokens), cacheRead: n(u.cache_read_input_tokens), cacheWrite: n(u.cache_creation_input_tokens) };
   if (t.input + t.output + t.cacheRead + t.cacheWrite === 0) return undefined;
   const cost = result?.total_cost_usd;
   return typeof cost === "number" && cost > 0 ? { ...t, costUsd: cost } : t;

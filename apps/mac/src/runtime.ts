@@ -590,6 +590,8 @@ export function createRuntime(
         ...(handOff ? { handOff } : {}),
         ...(files ? { files } : {}),
         ...(skills?.names.length ? { skills, onSkill } : {}),
+        // ADR-095: the sub-agents it starts, for the task's thread (the store's change logs ids, names and states only).
+        onSubAgent: (event) => helpers?.recordSubAgent(job.id, event),
         ...(mcp ? { mcp } : {}),
         // ADR-088: a "think" agent has no tools at all (the documenter without a folder still writes up from the web).
         ...(kit === "think" ? { thinkOnly: true } : {}),

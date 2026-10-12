@@ -218,6 +218,7 @@ struct ThreadPane: View {
                     if let plan = model.helpers.thread?.plan { PlanSection(model: model, job: item.job, plan: plan) }
                     WaitsForSection(model: model, job: item.job)
                     if let handOffs = model.helpers.thread?.handOffs, !handOffs.isEmpty { SubTasksSection(model: model, ids: handOffs) }
+                    if !item.job.subAgents.isEmpty { SubAgentsSection(subAgents: item.job.subAgents) }
                     if let report = model.helpers.report {
                         if let app = model.helpers.openTaskApp {
                             QuietButton(title: "Open in \(app)", symbol: "arrow.up.forward.app") { model.sendHelpers(model.helpers.openReportInApp()) }
@@ -323,6 +324,39 @@ private struct SubTasksSection: View {
                     }
                 }
             }
+        }
+    }
+}
+
+/// ADR-095: the sub-agents the task's runs started, each with its state and short result. They have no thread.
+private struct SubAgentsSection: View {
+    let subAgents: [HelperSubAgent]
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Sub-agents").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            ForEach(Array(subAgents.enumerated()), id: \.offset) { _, agent in
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 8) {
+                        Circle().fill(color(agent.state)).frame(width: 7, height: 7)
+                        Text(agent.name).font(theme.idFont(.system(size: 12.5), size: 11.5)).foregroundStyle(theme.idColor(theme.text))
+                        Text(agent.stateTitle).font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+                    }
+                    .accessibilityElement(children: .combine)
+                    if let detail = agent.detail {
+                        Text(detail).font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true).padding(.leading, 15)
+                    }
+                }
+            }
+        }
+    }
+
+    private func color(_ state: HelperSubAgent.State) -> Color {
+        switch state {
+        case .started: theme.live.color
+        case .done: theme.statusDots ? theme.success.color : theme.text2.color
+        case .failed: theme.problem.color
         }
     }
 }

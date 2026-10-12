@@ -443,3 +443,15 @@ test("the tokens a run used, from Claude Code's result (ADR-091)", () => {
   assert.equal(tokensOf({}), undefined);
   assert.deepEqual(tokensOf({ usage: { input_tokens: -3, output_tokens: 4.4 } }), { input: 0, output: 4, cacheRead: 0, cacheWrite: 0 });
 });
+
+test("a worker's run counts every model's tokens (its sub-agents too), instead of the main loop's usage (ADR-095)", () => {
+  const usage = { input_tokens: 10, output_tokens: 5 };
+  const modelUsage = {
+    "claude-sonnet-5": { inputTokens: 100, outputTokens: 50, cacheReadInputTokens: 1000, cacheCreationInputTokens: 20, costUSD: 0.1 },
+    "claude-haiku-5": { inputTokens: 7, outputTokens: 3, cacheReadInputTokens: 0, cacheCreationInputTokens: 1, costUSD: 0.01 },
+  };
+  assert.deepEqual(tokensOf({ usage, modelUsage }, { allModels: true }), { input: 107, output: 53, cacheRead: 1000, cacheWrite: 21 });
+  assert.deepEqual(tokensOf({ usage, modelUsage }), { input: 10, output: 5, cacheRead: 0, cacheWrite: 0 }, "chat keeps usage");
+  assert.deepEqual(tokensOf({ usage }, { allModels: true }), { input: 10, output: 5, cacheRead: 0, cacheWrite: 0 }, "no modelUsage: usage");
+  assert.deepEqual(tokensOf({ usage, modelUsage: {} }, { allModels: true }), { input: 10, output: 5, cacheRead: 0, cacheWrite: 0 }, "empty modelUsage: usage");
+});

@@ -52,7 +52,7 @@ test("one separate Claude Code session with web search and page reading only, no
   assert.match(prompt, /TCP and UDP/);
   assert.equal(o.pathToClaudeCodeExecutable, "/bin/claude");
   assert.equal(o.model, "claude-haiku-5");
-  assert.deepEqual(o.tools, ["WebSearch", "WebFetch"]);
+  assert.deepEqual(o.tools, ["WebSearch", "WebFetch", "Agent"]); // ADR-095: and its sub-agents
   assert.deepEqual(o.allowedTools, []); // every call goes through canUseTool, which counts pages
   assert.equal(o.outputFormat.schema.$schema, undefined); // Claude Code refuses the draft marker
   assert.deepEqual(o.mcpServers, {});
@@ -158,7 +158,7 @@ test("a run in folders: file tools and Bash in the sandbox with no network; ever
     },
   });
   const o = seen[0]!.options;
-  assert.deepEqual([o.cwd, o.tools, o.maxTurns], ["/work", FILE_TOOLS, FILE_MAX_TURNS]);
+  assert.deepEqual([o.cwd, o.tools, o.maxTurns], ["/work", [...FILE_TOOLS, "Agent"], FILE_MAX_TURNS]);
   assert.deepEqual(o.sandbox, {
     enabled: true,
     failIfUnavailable: true,
