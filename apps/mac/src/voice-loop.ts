@@ -2,7 +2,7 @@ import { peakLevel, type AudioClip, type AudioError, type Recording } from "./au
 import type { SpeechToText } from "./stt.ts";
 import type { SpeakHooks, TextToSpeech } from "./tts.ts";
 
-/** The parts of ZENO Core the voice loop uses. */
+/** The parts of ATOM Core the voice loop uses. */
 export interface CoreLike {
   handle(input: { text: string; source: "voice" | "text" }, signal?: AbortSignal, hooks?: { onText?: (delta: string) => void }): Promise<{ text: string; requestId?: string }>;
 }
@@ -75,7 +75,7 @@ export interface VoiceLoop {
 }
 
 /**
- * Connects Microphone → Whisper → ZENO Core → (LLM Gateway → remote LLM) → TTS → speaker.
+ * Connects Microphone → Whisper → ATOM Core → (LLM Gateway → remote LLM) → TTS → speaker.
  * One turn at a time; every turn can be interrupted at any stage.
  */
 export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
@@ -267,7 +267,7 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
     ask(text: string) {
       const clean = text.trim();
       if (!clean) return;
-      abandonTurn(); // typing over ZENO, like talking over it, starts a new turn
+      abandonTurn(); // typing over ATOM, like talking over it, starts a new turn
       void typed(clean);
     },
     press() {
@@ -278,7 +278,7 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
         void answer(current, micReady);
         return;
       }
-      // Idle, or interrupting a turn in progress: talking over ZENO starts a new turn.
+      // Idle, or interrupting a turn in progress: talking over ATOM starts a new turn.
       abandonTurn();
       startListening();
     },

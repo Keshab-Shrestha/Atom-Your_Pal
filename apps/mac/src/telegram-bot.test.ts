@@ -71,7 +71,7 @@ test("needsYou: a hub skill shows name, source, short sha and flag kinds, never 
   });
   const needs = needsYou(store, () => undefined, []);
   assert.deepEqual(needs.map((n) => [n.key, n.push]), [["skill-hub-9", true], ["skill-hub-10", true]]);
-  assert.equal(needs[0]!.text, "Skill from the hub: pdf-tools\nanthropics/skills @ aaaaaaa\nFlags: url, shell-command\nRead it in the ZENO window before you approve.");
+  assert.equal(needs[0]!.text, "Skill from the hub: pdf-tools\nanthropics/skills @ aaaaaaa\nFlags: url, shell-command\nRead it in the ATOM window before you approve.");
   assert.match(needs[1]!.text, /newer version of the old-one skill.*\nFlags: none/s);
   assert.ok(needs.every((n) => !n.text.includes("SECRET") && !n.text.includes("evil")));
   assert.deepEqual(needs[0]!.buttons!.flat().map((b) => b.data), ["h:9:1", "h:9:0"]);

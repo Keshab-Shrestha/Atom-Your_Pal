@@ -50,8 +50,8 @@ test("a file tool's path must be inside the run's folders, symlinks and .. inclu
     assert.match(pathProblem(roots, app, "keys/id_ed25519")!, /outside/, "a symlink out of the folder");
     assert.match(pathProblem(roots, app, `${app}-evil/x`)!, /outside/, "a sibling with the same prefix");
     assert.equal(pathProblem(roots, app, ".git/config"), undefined, "reading git's files is fine");
-    assert.match(pathProblem(roots, app, ".git", true)!, /ZENO commits the work/);
-    assert.match(pathProblem(roots, app, "sub/.git/HEAD", true)!, /ZENO commits the work/);
+    assert.match(pathProblem(roots, app, ".git", true)!, /ATOM commits the work/);
+    assert.match(pathProblem(roots, app, "sub/.git/HEAD", true)!, /ATOM commits the work/);
   } finally {
     rmSync(home, { recursive: true, force: true });
   }
@@ -102,7 +102,7 @@ test("a file worker without a folder is offered the one its task names, inside t
   assert.equal(folderForTask("Write it into /Users/me/Writing", home), "/Users/me/Writing");
   assert.equal(folderForTask("Put it in a folder called Drafts on my Desktop", home), "/Users/me/Desktop/Drafts");
   assert.equal(folderForTask("a folder named Reports in Documents", home), "/Users/me/Documents/Reports");
-  // Never the home folder, ~/Library, a hidden folder or somewhere else: then ~/Documents/ZENO.
+  // Never the home folder, ~/Library, a hidden folder or somewhere else: then ~/Documents/ATOM.
   for (const task of ["Save it to ~/", "Save it in ~/Library/Prefs", "Save to ~/.ssh/x", "Save to /etc/hosts", "a folder named ../../etc", "Write a file"]) {
     assert.equal(folderForTask(task, home), "/Users/me/Documents/ZENO", task);
   }

@@ -5,7 +5,7 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { CoreError, type Core } from "@zeno/core";
 import { GatewayError } from "@zeno/llm-gateway";
-import type { Logger } from "@zeno/shared";
+import { readEnv, type Logger } from "@zeno/shared";
 import { openMemoryStore, type MemoryStore } from "@zeno/memory";
 import { openHelperStore, type HelperStore } from "@zeno/helpers";
 import type { IslandHelpers } from "./island.ts";
@@ -14,9 +14,9 @@ import { SttError } from "./stt.ts";
 import { TtsError } from "./tts.ts";
 import type { VoiceLoopEvents } from "./voice-loop.ts";
 
-/** Opens the memory store, or returns undefined (memory off, or the file cannot be opened: ZENO still runs). */
+/** Opens the memory store, or returns undefined (memory off, or the file cannot be opened: ATOM still runs). */
 export function openMemory(path: string, log: Logger): MemoryStore | undefined {
-  if (process.env.ZENO_MEMORY === "0") return undefined;
+  if (readEnv(process.env, "ATOM_MEMORY") === "0") return undefined;
   try {
     const store = openMemoryStore({ path });
     log.info("memory.open", { kept: store.count() });
@@ -28,7 +28,7 @@ export function openMemory(path: string, log: Logger): MemoryStore | undefined {
 }
 
 /**
- * Opens the helper store (ADR-081), or returns undefined if the file cannot be opened (ZENO still runs; the
+ * Opens the helper store (ADR-081), or returns undefined if the file cannot be opened (ATOM still runs; the
  * island is told there are no helpers). Every change is logged by ids, state and timing only, never task or report text.
  */
 export function openHelpers(path: string, log: Logger, agentsDir?: string, skillsDir?: string, checkpointsDir?: string): HelperStore | undefined {
@@ -98,7 +98,7 @@ export function withLogging(log: Logger, micName: () => Promise<string>, events:
   };
 }
 
-/** A stand-in for ZENO Core that replies with the words it was given, for testing the voice parts alone. */
+/** A stand-in for ATOM Core that replies with the words it was given, for testing the voice parts alone. */
 export function createEchoCore(): Core {
   return {
     async handle(input: { text: string }) {
@@ -110,9 +110,9 @@ export function createEchoCore(): Core {
 
 /** The Calendar and Reminders helper: the one the island passes, else a development build. */
 export function findCalendarHelper(): string | undefined {
-  if (process.env.ZENO_CALENDAR === "0") return undefined;
+  if (readEnv(process.env, "ATOM_CALENDAR") === "0") return undefined;
   const candidates = [
-    process.env.ZENO_CALENDAR_HELPER,
+    readEnv(process.env, "ATOM_CALENDAR_HELPER"),
     fileURLToPath(new URL("../island/build/ZENO.app/Contents/MacOS/zeno-calendar", import.meta.url)),
   ];
   return candidates.find((p): p is string => Boolean(p) && existsSync(p!));
@@ -127,7 +127,7 @@ export function nowLine(now = new Date()): string {
   return `It is now ${text} (${zone}, UTC${offset}).`;
 }
 
-/** ADR-083: Laya takes about 5 s to start, so it starts when the ZENO window opens, not on the first job. */
+/** ADR-083: Laya takes about 5 s to start, so it starts when the ATOM window opens, not on the first job. */
 export function warmOnOpen(island: IslandHelpers, decisions: { warm(): void }): IslandHelpers {
   return {
     ...island,

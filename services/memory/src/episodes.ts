@@ -5,7 +5,7 @@ import type { Episode, MemoryStore } from "./store.ts";
 // (after "New conversation" or a restart) can pick up where this one left off.
 
 export const SUMMARY_PROMPT =
-  "You write ZENO's private notes about a conversation between the user and ZENO, a voice assistant. In at most two " +
+  "You write ATOM's private notes about a conversation between the user and ATOM, a voice assistant. In at most two " +
   "short sentences (under 60 words), note what the user wanted, what was done or decided, and anything left open, so " +
   "a later conversation can pick up from it. Call the user by name if you know it, else \"the user\". Plain text only. Leave out greetings, " +
   "small talk, and any password, PIN, card number or other secret. If nothing worth noting happened (only a greeting " +
@@ -41,7 +41,7 @@ export function createEpisodeRecorder(options: EpisodeRecorderOptions): EpisodeR
   async function write(sessionId: string, turns: readonly Message[]) {
     const exchanges = turns.filter((t) => t.role === "assistant").length;
     const transcript = turns
-      .map((t) => `${t.role === "user" ? "User" : "ZENO"}: ${t.content.replace(/\s+/g, " ").trim().slice(0, 600)}`)
+      .map((t) => `${t.role === "user" ? "User" : "ATOM"}: ${t.content.replace(/\s+/g, " ").trim().slice(0, 600)}`)
       .join("\n");
     const reply = await model.complete({
       system: SUMMARY_PROMPT,

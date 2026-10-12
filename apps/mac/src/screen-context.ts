@@ -40,7 +40,7 @@ export interface WindowPointer {
 }
 
 export interface WindowPointerOptions {
-  /** False when the front window tool is off (ZENO_FRONT_WINDOW=0). */
+  /** False when the front window tool is off (ATOM_FRONT_WINDOW=0). */
   enabled: boolean;
   read?: (front: FrontApp) => Promise<AppRead>;
   /** Logs the bundle id and field names only, never the title or address. */
@@ -59,7 +59,7 @@ export function createWindowPointer(options: WindowPointerOptions): WindowPointe
       const result = await read({ bundleId, name });
       if (result.blocked) {
         options.log?.info("pal.pointed", { bundleId, refused: true });
-        return { ok: false, message: `ZENO doesn't read ${name}.` };
+        return { ok: false, message: `ATOM doesn't read ${name}.` };
       }
       pending.set(`${HEADING}\n${result.text}`);
       options.log?.info("pal.pointed", { bundleId, fields: result.fields.join(",") });

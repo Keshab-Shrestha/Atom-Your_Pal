@@ -1,7 +1,7 @@
-// ADR-093: ZENO's chat on another subscription tool Keshab has signed in to on this Mac, through its own program run
+// ADR-093: ATOM's chat on another subscription tool Keshab has signed in to on this Mac, through its own program run
 // headless and read-only: Codex (`codex exec`, on his ChatGPT plan) or the Gemini CLI (`gemini -p`, on his Google
-// sign-in). Chat only: these programs get no ZENO tools (the Core's tools and the team stay on Claude). API keys are
-// taken out of their environment, so they always run on the sign-in, never as billed API use. ZENO never reads their
+// sign-in). Chat only: these programs get no ATOM tools (the Core's tools and the team stay on Claude). API keys are
+// taken out of their environment, so they always run on the sign-in, never as billed API use. ATOM never reads their
 // login files.
 
 import { execFile } from "node:child_process";

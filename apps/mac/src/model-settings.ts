@@ -1,12 +1,12 @@
-// ZENO Island's runtime settings: which Claude model to use on the plan (ADR-038, ADR-040, ADR-092).
+// ATOM Island's runtime settings: which Claude model to use on the plan (ADR-038, ADR-040, ADR-092).
 // The choice is switched live by the `model.set` command and saved in config/island.json, which
-// overrides ZENO_LLM_PROVIDER / ZENO_LLM_MODEL at the next start. API keys stay in .env: they are
+// overrides ATOM_LLM_PROVIDER / ATOM_LLM_MODEL at the next start. API keys stay in .env: they are
 // never written to the settings file, sent to the island, logged or put in a message.
 
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { SwitchableModel } from "@zeno/llm-gateway";
-import { LLM_PROVIDER_IDS, PROVIDERS, RETIRED_PROVIDERS, isLlmProvider, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
+import { readEnv, LLM_PROVIDER_IDS, PROVIDERS, RETIRED_PROVIDERS, isLlmProvider, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import type { InfoEvent } from "./island-protocol.ts";
 import type { AiToolItem } from "./ai-tools.ts";
 
@@ -14,7 +14,7 @@ import type { AiToolItem } from "./ai-tools.ts";
 export const DEFAULT_SETTINGS_PATH = "config/island.json";
 
 export function settingsPath(env: Record<string, string | undefined> = process.env): string {
-  return env.ZENO_ISLAND_SETTINGS?.trim() || DEFAULT_SETTINGS_PATH;
+  return readEnv(env, "ATOM_ISLAND_SETTINGS")?.trim() || DEFAULT_SETTINGS_PATH;
 }
 
 /** ADR-093: for each provider's program, what is missing (a clause) and how to get it (an instruction). */
@@ -58,7 +58,7 @@ export function readSavedChoice(path: string, keys: ProviderKeys): { choice?: Ll
     return { warning: `Ignoring ${path}: expected {"llm":{"provider":"…","model":"…"}}. Using the model from .env.` };
   }
   if ((RETIRED_PROVIDERS as readonly string[]).includes(llm.provider)) {
-    return { warning: `Ignoring ${path}: it chooses ${llm.provider}, which ZENO no longer uses (it runs on your Claude plan).` };
+    return { warning: `Ignoring ${path}: it chooses ${llm.provider}, which ATOM no longer uses (it runs on your Claude plan).` };
   }
   if (!isLlmProvider(llm.provider)) {
     return { warning: `Ignoring ${path}: unknown provider "${shorten(llm.provider)}". Using the model from .env.` };
@@ -152,7 +152,7 @@ export function createModelSettings(options: ModelSettingsOptions): ModelSetting
       return { error: `Unknown AI provider "${shorten(provider)}". Choose ${names}.` };
     }
     const { name } = PROVIDERS[provider];
-    if (!keys[provider]) return { error: `${SIGN_IN[provider].todo} to use ${name}, then restart ZENO.` };
+    if (!keys[provider]) return { error: `${SIGN_IN[provider].todo} to use ${name}, then restart ATOM.` };
     if (!offered(provider).some((m) => m.id === modelId) && !isValidModelId(modelId)) {
       return { error: `"${shorten(modelId)}" is not a model id: use 1 to 100 letters, digits, ".", "_", ":" or "-".` };
     }

@@ -52,7 +52,7 @@ export const MAX_TASK_CHARS = 1000;
 export const MAX_GOAL_CHARS = 1000;
 export const MAX_COMMENT_CHARS = 2000;
 export const JOBS_PER_HELPER = 20;
-export const CLOSED_WHILE_RUNNING = "ZENO was closed while this job ran";
+export const CLOSED_WHILE_RUNNING = "ATOM was closed while this job ran";
 /** Soul versions listed per worker (all are kept). */
 export const SOUL_VERSIONS_LISTED = 10;
 
@@ -393,7 +393,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       return wake(get(job.id)!);
     }
     if (to !== "failed" && to !== "stopped") return;
-    // ADR-094: a failure a retry does not fix, in a task that used one of ZENO's skills, asks Tinker to improve it.
+    // ADR-094: a failure a retry does not fix, in a task that used one of ATOM's skills, asks Tinker to improve it.
     if (to === "failed" && job.helper !== "tinker") skills.askEdits(job);
     for (const { id } of dependents.all(job.id) as { id: number }[]) {
       const waiting = get(id);
@@ -634,7 +634,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     },
 
     createManager(input) {
-      if (!agentsDir) throw new HelperError("Managers need ZENO's agents folder.");
+      if (!agentsDir) throw new HelperError("Managers need ATOM's agents folder.");
       if (managers().length >= MAX_MANAGERS) throw new HelperError(`There are already ${MAX_MANAGERS} managers.`);
       const mode = input.mode ?? "group";
       if (!MANAGER_MODES.includes(mode)) throw new HelperError('A manager plans and reviews ("plan") or is a group only ("group").');
@@ -812,7 +812,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     },
 
     createAgent(input) {
-      if (!agentsDir) throw new HelperError("New agents need ZENO's agents folder.");
+      if (!agentsDir) throw new HelperError("New agents need ATOM's agents folder.");
       const team = roster();
       if (team.filter((m) => m.custom).length >= MAX_AGENTS) throw new HelperError(`There are already ${MAX_AGENTS} agents.`);
       const role = cleanRole(input.role);
@@ -856,7 +856,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         return;
       }
       // One review per task: Tinker's task waits in the queue like any other (budgets apply). ADR-094: and one edit
-      // for each of ZENO's skills the task used.
+      // for each of ATOM's skills the task used.
       askTinker(id, `Review task ${id} (${current(job.helper).name})`, null);
       skills.askEdits(job);
     },
@@ -982,7 +982,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if (!report) throw new HelperError("That task has no report to compare with.");
       if (kind === "soul" && target !== job.helper) throw new HelperError("A task is a test case for the agent that did it.");
       if (kind === "skill" && (!skills.skillsUsed(jobId).includes(target) || !skills.isZenoSkill(target))) {
-        throw new HelperError("A task is a test case only for a ZENO-made skill its run used.");
+        throw new HelperError("A task is a test case only for a ATOM-made skill its run used.");
       }
       const saved = tests.of(kind, target);
       const name = kind === "soul" ? current(target).name : `the ${target} skill`;

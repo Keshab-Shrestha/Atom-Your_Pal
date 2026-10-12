@@ -29,7 +29,7 @@ export function managerNameFor(role: string, taken: readonly string[]): string |
 export function managerSoul(name: string): Soul {
   return {
     name,
-    personality: `Runs ZENO's ${name} team: calm, fair and specific.`,
+    personality: `Runs ATOM's ${name} team: calm, fair and specific.`,
     howItWorks: "Gives each Agent one clear part with what to deliver, then checks the reports against the brief.",
     rules: "Never does the work itself and uses no tools. Asks for a revision only when a report misses the brief.",
     lessons: "",
@@ -39,7 +39,7 @@ export function managerSoul(name: string): Soul {
 /** The instructions for a Manager's runs: who it is (its soul). The output contract is added by the run. */
 export function managerInstructions(soul: Soul): string {
   return [
-    `You are ${soul.name}, the Manager of ZENO's ${soul.name} team. ATOM, ZENO's lead, hands you part of Keshab's goal; your Agents do the work.`,
+    `You are ${soul.name}, the Manager of ATOM's ${soul.name} team. ATOM, the lead, hands you part of Keshab's goal; your Agents do the work.`,
     `Personality: ${soul.personality}`,
     soul.howItWorks && `How you work: ${soul.howItWorks}`,
     soul.rules && `Your rules: ${soul.rules}`,

@@ -72,7 +72,7 @@ test("a bad goal creates nothing", () => {
   assert.deepEqual(store.list().flatMap((h) => h.jobs), []);
 });
 
-test("when the last task ends, one model call writes the combined report and ZENO has one line", async () => {
+test("when the last task ends, one model call writes the combined report and ATOM has one line", async () => {
   const store = openHelperStore({ path: ":memory:" });
   const w = watched(store, async () => "# Home networking\nMesh beats extenders.\n\nThe long story.");
   const goal = store.addGoal("home networking guide.", [
@@ -91,7 +91,7 @@ test("when the last task ends, one model call writes the combined report and ZEN
   assert.deepEqual(ended.report, { title: "Home networking", summary: "Mesh beats extenders.", body: "The long story.", sources: [{ title: "Src", url: "https://a.org/" }, { title: "Src", url: "https://b.org/" }] });
   assert.ok(ended.endedAt);
   assert.ok(ended.tasks.every((t) => t.goalEnded));
-  assert.deepEqual(w.ended, [{ goal: goal.id, tasks: 2, line: "Your home networking guide is ready. The ZENO window has the report." }]);
+  assert.deepEqual(w.ended, [{ goal: goal.id, tasks: 2, line: "Your home networking guide is ready. The ATOM window has the report." }]);
   w.stop();
 });
 
@@ -120,7 +120,7 @@ test("one task: its own report, no model call, and the worker's name in the line
   run(store, goal.tasks[0]!.id, "Mesh");
   await tick();
   assert.equal(store.goal(goal.id)!.report?.title, "Mesh");
-  assert.equal(w.ended[0]!.line, "Sid is done. The ZENO window has the report.");
+  assert.equal(w.ended[0]!.line, "Sid is done. The ATOM window has the report.");
 });
 
 test("failures are said plainly; a goal Keshab stopped says nothing", async () => {
@@ -134,7 +134,7 @@ test("failures are said plainly; a goal Keshab stopped says nothing", async () =
   await tick();
   assert.equal(store.goal(failed.id)!.report, undefined);
   assert.deepEqual(w.ended, [
-    { goal: failed.id, tasks: 2, line: "The team couldn't finish your guide. The ZENO window has the reasons." },
+    { goal: failed.id, tasks: 2, line: "The team couldn't finish your guide. The ATOM window has the reasons." },
     { goal: stopped.id, tasks: 1 },
   ]);
   assert.throws(() => store.endGoal(failed.id, null), /already ended/);
@@ -149,7 +149,7 @@ test("some done, some failed: the report says so and the line counts the failure
   store.fail(goal.tasks[1]!.id, "The rate pages would not load");
   await tick();
   assert.match(w.calls[0]!.input, /--- Task 2, Penny: b\nIt did not finish: The rate pages would not load/);
-  assert.equal(w.ended[0]!.line, "Your guide is ready, but 1 of 2 tasks failed. The ZENO window has the report.");
+  assert.equal(w.ended[0]!.line, "Your guide is ready, but 1 of 2 tasks failed. The ATOM window has the report.");
 });
 
 test("the delegate tool reads names as Keshab uses them and refuses what the store refuses", () => {

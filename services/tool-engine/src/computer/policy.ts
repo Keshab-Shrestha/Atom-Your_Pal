@@ -1,9 +1,9 @@
 /**
  * Deterministic rules for computer control (ADR-054, SECURITY.md §8 and §12). Plain functions, no model in
- * the loop: what ZENO refuses and what it asks about is decided here, from facts Cua reports.
+ * the loop: what ATOM refuses and what it asks about is decided here, from facts Cua reports.
  */
 
-/** Apps ZENO never controls, matched by bundle id. */
+/** Apps ATOM never controls, matched by bundle id. */
 const BLOCKED_BUNDLES = [
   /^com\.apple\.terminal$/i,
   /^com\.googlecode\.iterm2$/i,
@@ -22,13 +22,13 @@ const BLOCKED_BUNDLES = [
   /^com\.nousresearch\./i, // Hermes
   /^com\.trycua\./i, // Cua itself
   /^com\.anthropic\./i, // Claude desktop and Claude Code
-  /^com\.zeno\./i, // ZENO's own island
+  /^com\.zeno\./i, // ATOM's own island
 ];
 
-/** Why an app is off limits, or undefined if ZENO may control it. An app with no bundle id is not trusted. */
+/** Why an app is off limits, or undefined if ATOM may control it. An app with no bundle id is not trusted. */
 export function appBlock(bundleId: string | undefined, name: string): string | undefined {
-  if (!bundleId) return `${name} has no app identity, so ZENO will never control it.`;
-  if (BLOCKED_BUNDLES.some((re) => re.test(bundleId))) return `ZENO will never control ${name} (terminals, password managers, system settings and AI agents are off limits).`;
+  if (!bundleId) return `${name} has no app identity, so ATOM will never control it.`;
+  if (BLOCKED_BUNDLES.some((re) => re.test(bundleId))) return `ATOM will never control ${name} (terminals, password managers, system settings and AI agents are off limits).`;
   return undefined;
 }
 
@@ -47,7 +47,7 @@ export function labelApproval(label: string | undefined, role: string | undefine
   if (role && CONTENT_ROLES.has(role)) return undefined;
   if (!text) {
     return role === "AXButton" || role === "AXMenuItem" || role === "AXMenuButton" || role === "AXPopUpButton"
-      ? "a button with no name, so ZENO cannot tell what it does"
+      ? "a button with no name, so ATOM cannot tell what it does"
       : undefined;
   }
   return RISKY_LABEL.test(text) ? `"${text.length > 40 ? `${text.slice(0, 40)}…` : text}"` : undefined;
@@ -75,7 +75,7 @@ export function keyApproval(keys: string[], justTyped: boolean): string | undefi
 
 const SECRET_LABEL = /\b(password|passcode|pass\s*phrase|pin|otp|one[-\s]*time|verification\s+code|security\s+code|cvv|cvc|card\s+number|secret|token|recovery\s+key)\b/i;
 
-/** Why ZENO must not type into this element, or undefined. */
+/** Why ATOM must not type into this element, or undefined. */
 export function secretField(el: { role?: string; label?: string }): string | undefined {
   if (el.role === "AXSecureTextField") return "a password field";
   if (el.label && SECRET_LABEL.test(el.label)) return `a field named "${el.label}"`;

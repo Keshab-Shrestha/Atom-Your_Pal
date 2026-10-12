@@ -5,12 +5,12 @@ import type { InputSource } from "@zeno/contracts";
 import { openChats, type ChatStore } from "./chats.ts";
 import { openChatIndex, type ChatIndex } from "./chat-index.ts";
 
-// ADR-058: facts the user asks ZENO to keep, in one local SQLite file. Each memory has an owner, a scope,
+// ADR-058: facts the user asks ATOM to keep, in one local SQLite file. Each memory has an owner, a scope,
 // provenance and a lifecycle (SECURITY.md §17). Forgetting deletes the row.
 
 export const MAX_MEMORY_CHARS = 300;
 export const DEFAULT_MAX_MEMORIES = 500;
-/** The single local user, until ZENO has identities. */
+/** The single local user, until ATOM has identities. */
 export const LOCAL_OWNER = "local";
 
 export type MemoryScope = "personal";

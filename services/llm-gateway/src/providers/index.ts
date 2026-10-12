@@ -12,7 +12,7 @@ export interface ProviderSettings {
   /** The path of the signed-in program (`claude`, `codex` or `gemini`): not a secret. */
   apiKey: string;
   model: string;
-  /** For "claude-plan" only: Claude Code runs the tool loop itself, so it needs ZENO's tools. */
+  /** For "claude-plan" only: Claude Code runs the tool loop itself, so it needs ATOM's tools. */
   tools?: ToolRunner;
   /** For "claude-plan" only: told how much of the plan is used. */
   onUsage?: (usage: PlanUsage) => void;

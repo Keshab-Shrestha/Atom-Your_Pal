@@ -1,5 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
+import { readEnv } from "./env.ts";
 
 const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
@@ -13,15 +14,15 @@ export const GEMINI_CLI = "gemini-cli";
 
 /**
  * The LLM providers: display name, where its "key" comes from (the path of the signed-in program: not a secret), the
- * default model, and the models offered in ZENO Island's settings (id → display name). ADR-092: no API keys. ADR-093:
+ * default model, and the models offered in ATOM Island's settings (id → display name). ADR-092: no API keys. ADR-093:
  * the subscription tools found on this Mac; Claude Code is the default. Codex and the Gemini CLI answer in chat only:
- * ZENO's tools and the team stay on Claude.
+ * ATOM's tools and the team stay on Claude.
  */
 export const PROVIDERS = {
   "claude-plan": {
-    // Its "key" is the path of the `claude` program (ZENO_CLAUDE_PATH, or found automatically), not a secret.
+    // Its "key" is the path of the `claude` program (ATOM_CLAUDE_PATH, or found automatically), not a secret.
     name: "Claude (my plan)",
-    keyVar: "ZENO_CLAUDE_PATH",
+    keyVar: "ATOM_CLAUDE_PATH",
     defaultModel: "claude-sonnet-5-5",
     models: [
       { id: "claude-opus-5-5", name: "Claude Opus 5.5" },
@@ -31,7 +32,7 @@ export const PROVIDERS = {
   },
   codex: {
     name: "Codex (my ChatGPT plan)",
-    keyVar: "ZENO_CODEX_PATH",
+    keyVar: "ATOM_CODEX_PATH",
     defaultModel: "codex-default",
     // ADR-097: a known list (Codex gives no list to other programs), plus a custom model id in Settings.
     models: [
@@ -44,7 +45,7 @@ export const PROVIDERS = {
   },
   "gemini-cli": {
     name: "Gemini CLI (my Google sign-in)",
-    keyVar: "ZENO_GEMINI_PATH",
+    keyVar: "ATOM_GEMINI_PATH",
     defaultModel: "gemini-default",
     models: [
       { id: "gemini-default", name: "Gemini CLI's own model" },
@@ -54,14 +55,14 @@ export const PROVIDERS = {
   },
 } as const;
 
-/** ADR-092: providers ZENO had before; a setting that still names one runs on the Claude plan instead. */
+/** ADR-092: providers ATOM had before; a setting that still names one runs on the Claude plan instead. */
 export const RETIRED_PROVIDERS = ["claude", "gemini"] as const;
 export type LlmProvider = keyof typeof PROVIDERS;
 
 type Env = Record<string, string | undefined>;
 
 /**
- * The signed-in `claude` program that "Claude (my plan)" runs. ZENO_CLAUDE_PATH wins and is never second-guessed:
+ * The signed-in `claude` program that "Claude (my plan)" runs. ATOM_CLAUDE_PATH wins and is never second-guessed:
  * if it is wrong the answer is "not found", not some other copy. Otherwise the usual install places, then PATH.
  */
 export function findClaudeProgram(
@@ -69,7 +70,7 @@ export function findClaudeProgram(
   exists: (path: string) => boolean = (path) => existsSync(path),
   home: string = homedir(),
 ): string | undefined {
-  const explicit = env.ZENO_CLAUDE_PATH?.trim();
+  const explicit = readEnv(env, "ATOM_CLAUDE_PATH")?.trim();
   if (explicit) return exists(explicit) ? explicit : undefined;
   const places = [`${home}/.local/bin/claude`, "/opt/homebrew/bin/claude", "/usr/local/bin/claude"];
   for (const dir of (env.PATH ?? "").split(":").filter(Boolean)) places.push(`${dir}/claude`);
@@ -77,7 +78,7 @@ export function findClaudeProgram(
 }
 
 /**
- * ADR-093: a signed-in AI program by name: its `ZENO_*_PATH` first (never second-guessed), then the usual places and
+ * ADR-093: a signed-in AI program by name: its `ATOM_*_PATH` first (never second-guessed), then the usual places and
  * PATH, then copies bundled in editor extensions (the newest first), as Codex ships inside the ChatGPT extension.
  */
 export function findProgram(
@@ -94,7 +95,7 @@ export function findProgram(
     }
   },
 ): string | undefined {
-  const explicit = env[explicitVar]?.trim();
+  const explicit = readEnv(env, explicitVar)?.trim();
   if (explicit) return exists(explicit) ? explicit : undefined;
   const places = [`${home}/.local/bin/${name}`, `/opt/homebrew/bin/${name}`, `/usr/local/bin/${name}`];
   for (const dir of (env.PATH ?? "").split(":").filter(Boolean)) places.push(`${dir}/${name}`);
@@ -109,8 +110,8 @@ export function findProgram(
   return places.find(exists);
 }
 
-export const findCodexProgram = (env: Env = process.env) => findProgram("codex", "ZENO_CODEX_PATH", env);
-export const findGeminiProgram = (env: Env = process.env) => findProgram("gemini", "ZENO_GEMINI_PATH", env);
+export const findCodexProgram = (env: Env = process.env) => findProgram("codex", "ATOM_CODEX_PATH", env);
+export const findGeminiProgram = (env: Env = process.env) => findProgram("gemini", "ATOM_GEMINI_PATH", env);
 
 export const LLM_PROVIDER_IDS = Object.keys(PROVIDERS) as LlmProvider[];
 
@@ -137,14 +138,14 @@ export function readProviderKeys(
   return keys;
 }
 
-/** A provider and model to use instead of ZENO_LLM_PROVIDER / ZENO_LLM_MODEL (e.g. saved by ZENO Island). */
+/** A provider and model to use instead of ATOM_LLM_PROVIDER / ATOM_LLM_MODEL (e.g. saved by ATOM Island). */
 export interface LlmChoice {
   provider: LlmProvider;
   model: string;
 }
 
 export interface LoadConfigOptions {
-  /** Overrides ZENO_LLM_PROVIDER / ZENO_LLM_MODEL; then this provider's key is the one required. */
+  /** Overrides ATOM_LLM_PROVIDER / ATOM_LLM_MODEL; then this provider's key is the one required. */
   llm?: LlmChoice;
 }
 
@@ -190,7 +191,7 @@ export class ConfigError extends Error {
 
 
 /**
- * Reads ZENO configuration from environment variables.
+ * Reads ATOM configuration from environment variables.
  * Collects every problem and throws one ConfigError, so all issues are reported at once.
  * Values of secrets are never included in error messages.
  */
@@ -198,7 +199,7 @@ export function loadConfig(env: Env = process.env, options: LoadConfigOptions = 
   const problems: string[] = [];
 
   const read = (name: string, fallback?: string): string => {
-    const value = env[name]?.trim();
+    const value = readEnv(env, name)?.trim();
     if (value) return value;
     if (fallback === undefined) problems.push(`${name} is required (set it in .env)`);
     return fallback ?? "";
@@ -222,13 +223,13 @@ export function loadConfig(env: Env = process.env, options: LoadConfigOptions = 
     return value as T;
   };
 
-  // ADR-092: a provider ZENO no longer has ("claude", "gemini") runs on the plan; its model too, unless it is Claude's.
-  const named = env.ZENO_LLM_PROVIDER?.trim();
+  // ADR-092: a provider ATOM no longer has ("claude", "gemini") runs on the plan; its model too, unless it is Claude's.
+  const named = readEnv(env, "ATOM_LLM_PROVIDER")?.trim();
   const retired = (RETIRED_PROVIDERS as readonly string[]).includes(named ?? "");
-  const envProvider = retired ? CLAUDE_PLAN : oneOf("ZENO_LLM_PROVIDER", LLM_PROVIDER_IDS, CLAUDE_PLAN);
+  const envProvider = retired ? CLAUDE_PLAN : oneOf("ATOM_LLM_PROVIDER", LLM_PROVIDER_IDS, CLAUDE_PLAN);
   const provider = options.llm?.provider ?? envProvider;
   const { defaultModel, models } = PROVIDERS[provider];
-  const asked = options.llm?.model ?? read("ZENO_LLM_MODEL", defaultModel);
+  const asked = options.llm?.model ?? read("ATOM_LLM_MODEL", defaultModel);
   // A model that is not this provider's (a Gemini model left in .env, say) gives way to its default.
   const ownModel = provider === CLAUDE_PLAN ? asked.startsWith("claude-") : (models as readonly { id: string }[]).some((m) => m.id === asked);
   const model = ownModel ? asked : defaultModel;
@@ -239,24 +240,24 @@ export function loadConfig(env: Env = process.env, options: LoadConfigOptions = 
       // No key: the signed-in program's path (Claude Code, Codex or the Gemini CLI).
       apiKey: (provider === CODEX ? findCodexProgram(env) : provider === GEMINI_CLI ? findGeminiProgram(env) : findClaudeProgram(env)) ?? "",
       model,
-      timeoutMs: positiveInt("ZENO_LLM_TIMEOUT_MS", 30_000),
+      timeoutMs: positiveInt("ATOM_LLM_TIMEOUT_MS", 30_000),
     },
     audio: {
-      inputDevice: read("ZENO_AUDIO_INPUT_DEVICE", ":default"),
-      sampleRate: positiveInt("ZENO_AUDIO_SAMPLE_RATE", 16_000),
+      inputDevice: read("ATOM_AUDIO_INPUT_DEVICE", ":default"),
+      sampleRate: positiveInt("ATOM_AUDIO_SAMPLE_RATE", 16_000),
     },
     stt: {
-      modelPath: read("ZENO_STT_MODEL", "models/ggml-small.en.bin"),
-      language: read("ZENO_STT_LANGUAGE", "en"),
-      vocabulary: read("ZENO_STT_VOCABULARY", "ZENO"),
+      modelPath: read("ATOM_STT_MODEL", "models/ggml-small.en.bin"),
+      language: read("ATOM_STT_LANGUAGE", "en"),
+      vocabulary: read("ATOM_STT_VOCABULARY", "ATOM"),
     },
     tts: {
-      voice: read("ZENO_TTS_VOICE", "af_heart"),
-      dtype: oneOf("ZENO_TTS_DTYPE", TTS_DTYPES, "fp32"), // fp32: ~1.6x faster than q8 on Apple silicon (ADR-065)
+      voice: read("ATOM_TTS_VOICE", "af_heart"),
+      dtype: oneOf("ATOM_TTS_DTYPE", TTS_DTYPES, "fp32"), // fp32: ~1.6x faster than q8 on Apple silicon (ADR-065)
     },
     log: {
-      level: oneOf("ZENO_LOG_LEVEL", LOG_LEVELS, "info"),
-      file: read("ZENO_LOG_FILE", "logs/zeno.log"),
+      level: oneOf("ATOM_LOG_LEVEL", LOG_LEVELS, "info"),
+      file: read("ATOM_LOG_FILE", "logs/zeno.log"),
     },
   };
 

@@ -200,7 +200,7 @@ export function teamStore(deps: TeamDeps) {
 
     /**
      * Wakes every worker whose time has come (not paused): its last and next wake are recorded; if it may take work now,
-     * it takes the oldest team task its role may do (one per wake). Missed wakes while ZENO was closed count once.
+     * it takes the oldest team task its role may do (one per wake). Missed wakes while ATOM was closed count once.
      * Tasks taken in this pass count as runs, so one pass never takes more than the free run slots; the rest stay in the pool.
      */
     runWakeUps(planUsed?: number): Woken[] {

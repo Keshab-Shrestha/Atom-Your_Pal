@@ -1,4 +1,4 @@
-// Connects the computer tool to ZENO Island (ADR-054, Task 0.6.3): what ZENO is doing, and asking the user
+// Connects the computer tool to ATOM Island (ADR-054, Task 0.6.3): what ATOM is doing, and asking the user
 // before a risky action. Lives in the runtime so the rule "no answer means no" holds even if the island is gone.
 
 import { randomUUID } from "node:crypto";

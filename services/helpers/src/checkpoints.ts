@@ -5,7 +5,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { DENY_READ_DIRS, isInside, pathProblem, realish } from "./grants.ts";
 
 /**
- * B3.4, ADR-101: checkpoint and undo of a run's file edits. Before the first edit of a file in a run, ZENO copies the
+ * B3.4, ADR-101: checkpoint and undo of a run's file edits. Before the first edit of a file in a run, ATOM copies the
  * file (or notes that it is new). Keshab can then undo one file or the whole run. Files in a git worktree are not
  * copied (git covers them); edits made by Bash are not tracked. The copies live in `<dir>/<job>/<n>` (flat numbered
  * files, never named after the original path), are never sent to a model, and their content is never logged.

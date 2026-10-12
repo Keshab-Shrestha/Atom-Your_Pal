@@ -1,4 +1,4 @@
-// ADR-098 item 5: ZENO as a server. A local HTTP API (Node's http, no framework) that other tools (Hermes, Claude Code,
+// ADR-098 item 5: ATOM as a server. A local HTTP API (Node's http, no framework) that other tools (Hermes, Claude Code,
 // the MCP entry in mcp-serve.ts) use to give ATOM goals, talk to ATOM, read tasks and reports, answer Needs you and
 // start webhook routines. It listens on 127.0.0.1 only, and every request needs the token in data/api-token.
 // Off until Settings → General → "Local API" is on. Logs method, route pattern, status and time: never bodies, goals,
@@ -40,7 +40,7 @@ export const API_GOAL_SOURCE = "api";
 
 export interface ApiServerOptions {
   log: Logger;
-  /** ZENO_API_PORT, or DEFAULT_API_PORT. */
+  /** ATOM_API_PORT, or DEFAULT_API_PORT. */
   port?: string | undefined;
   tokenFile?: string;
   /** One ATOM chat turn (the same Core setup as the window's) in an API chat; resolves to ATOM's answer. */
@@ -55,7 +55,7 @@ export interface ApiServerOptions {
 export function readOrCreateToken(file: string): string {
   try {
     const token = readFileSync(file, "utf8").trim();
-    if (!TOKEN_PATTERN.test(token)) throw new Error(`${file} does not hold a valid token. Delete it, and ZENO makes a new one.`);
+    if (!TOKEN_PATTERN.test(token)) throw new Error(`${file} does not hold a valid token. Delete it, and ATOM makes a new one.`);
     chmodSync(file, 0o600);
     return token;
   } catch (error) {
@@ -67,11 +67,11 @@ export function readOrCreateToken(file: string): string {
   return token;
 }
 
-/** The port in ZENO_API_PORT, or the default. Throws for a value that is not a port. */
+/** The port in ATOM_API_PORT, or the default. Throws for a value that is not a port. */
 export function parsePort(value: string | undefined): number {
   if (value === undefined || value.trim() === "") return DEFAULT_API_PORT;
   const port = Number(value);
-  if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error(`ZENO_API_PORT must be a port number (1 to 65535), not "${value.slice(0, 20)}".`);
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error(`ATOM_API_PORT must be a port number (1 to 65535), not "${value.slice(0, 20)}".`);
   return port;
 }
 
@@ -349,7 +349,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
         status = 500;
         log.error("api.failed", { route: route?.pattern ?? "unknown", name: error instanceof Error ? error.name : "unknown" });
       }
-      reply(res, status, null, status === 500 ? "ZENO could not do that. The details are in the log." : (error as Error).message);
+      reply(res, status, null, status === 500 ? "ATOM could not do that. The details are in the log." : (error as Error).message);
     } finally {
       log.info("api.request", { method: req.method, route: route?.pattern ?? "unknown", status, ms: Date.now() - started });
     }
@@ -381,7 +381,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
       return new Promise<ApiStatus>((done) => {
         next.once("error", (error: NodeJS.ErrnoException) => {
           log.warn("api.start_failed", { code: error.code ?? "unknown", port });
-          done(status(false, error.code === "EADDRINUSE" ? `Port ${port} is in use. Set ZENO_API_PORT in .env to another port, then restart ZENO.` : describe(error)));
+          done(status(false, error.code === "EADDRINUSE" ? `Port ${port} is in use. Set ATOM_API_PORT in .env to another port, then restart ATOM.` : describe(error)));
         });
         next.listen(port, "127.0.0.1", () => {
           server = next;

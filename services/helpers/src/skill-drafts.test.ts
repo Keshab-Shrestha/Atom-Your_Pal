@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openHelperStore, parseSkillFile, skillDraftBrief, skillEditBrief, skillFile } from "./index.ts";
 
-// ADR-094 part A: drafts from good tasks, approved into ZENO's folder; edits to ZENO's skills after bad ones.
+// ADR-094 part A: drafts from good tasks, approved into ATOM's folder; edits to ATOM's skills after bad ones.
 
 const report = { title: "Laptops compared", summary: "Three picks.", body: "Body.", sources: [] };
 
@@ -76,7 +76,7 @@ test("approving writes data/skills/<name>/SKILL.md; rejecting only marks it", ()
   assert.deepEqual(store.skillDrafts().map((x) => x.state), ["rejected", "approved"]);
 });
 
-test("a draft whose name is taken by one of Keshab's skills or ZENO's is refused", () => {
+test("a draft whose name is taken by one of Keshab's skills or ATOM's is refused", () => {
   const { store, done, tinkerJobs, userSkill, zenoSkill, home } = setup();
   userSkill("pdf");
   zenoSkill("compare-laptops");
@@ -90,11 +90,11 @@ test("a draft whose name is taken by one of Keshab's skills or ZENO's is refused
   const b = done("b");
   store.makeSkill(b);
   const ours = store.addSkillDraft(tinkerJobs().find((j) => j.reviews === b)!.id, draft);
-  assert.throws(() => store.approveSkillDraft(ours.id), /ZENO already has a skill called "compare-laptops"/);
+  assert.throws(() => store.approveSkillDraft(ours.id), /ATOM already has a skill called "compare-laptops"/);
   assert.equal(store.skillDrafts().filter((x) => x.state === "pending").length, 2);
 });
 
-test("a bad rating of a task that used a ZENO skill asks for an edit; accept writes it, undo restores the old steps", () => {
+test("a bad rating of a task that used a ATOM skill asks for an edit; accept writes it, undo restores the old steps", () => {
   const { store, done, tinkerJobs, zenoSkill, skillsDir } = setup();
   zenoSkill("compare-laptops");
   const id = done();
@@ -169,5 +169,5 @@ test("skills from ~/.claude/skills are never edited", () => {
   const edit = tinkerJobs().find((j) => j.reviewKind === "edit")!;
   userSkill("notes"); // Keshab now has one of the same name: his wins, and his is never edited
   assert.equal(store.skillEditTarget(edit.id), undefined);
-  assert.throws(() => store.addSkillEdit(edit.id, { body: "x", reason: "y" }), /Only ZENO's own skills are edited/);
+  assert.throws(() => store.addSkillEdit(edit.id, { body: "x", reason: "y" }), /Only ATOM's own skills are edited/);
 });

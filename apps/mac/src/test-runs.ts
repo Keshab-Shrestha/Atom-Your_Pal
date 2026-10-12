@@ -21,7 +21,7 @@ export interface TestRun {
   onEvent?(event: Record<string, string | number>): void;
 }
 
-const JUDGE = "You are ZENO's test judge.";
+const JUDGE = "You are ATOM's test judge.";
 
 /** Runs the test cases; returns the counts (none when the target has no test cases). */
 export async function runTestCases({ store, kind, id, run, held, count, onEvent }: TestRun) {

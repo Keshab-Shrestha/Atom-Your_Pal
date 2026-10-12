@@ -64,7 +64,7 @@ test("the tool exposes one `computer` spec with an action enum", () => {
   assert.deepEqual(tool.spec.inputSchema.required, ["action"]);
 });
 
-test("list_apps shows apps but hides ones ZENO may not control", async () => {
+test("list_apps shows apps but hides ones ATOM may not control", async () => {
   const s = setup();
   const r = await s.run({ action: "list_apps" });
   assert.equal(r.ok, true);

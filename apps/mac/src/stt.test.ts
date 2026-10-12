@@ -101,7 +101,7 @@ test("real whisper.cpp transcribes synthesized speech", { skip: !canRunReal && "
 test("a model path that is not a standard whisper.cpp file name gets a setting hint, not a broken link", async () => {
   const stt = createWhisperStt({ modelPath: "models/nope.bin", language: "en", fileExists: () => false });
   await assert.rejects(stt.transcribe({ pcm: Buffer.alloc(3200), sampleRate: 16_000, durationMs: 100 }), (error: Error) => {
-    assert.match(error.message, /Set ZENO_STT_MODEL in \.env to a whisper\.cpp model file such as models\/ggml-base\.en\.bin/);
+    assert.match(error.message, /Set ATOM_STT_MODEL in \.env to a whisper\.cpp model file such as models\/ggml-base\.en\.bin/);
     assert.doesNotMatch(error.message, /resolve\/main\/nope\.bin/);
     return true;
   });
@@ -110,16 +110,16 @@ test("a model path that is not a standard whisper.cpp file name gets a setting h
 test("vocabulary becomes Whisper's initial prompt; none means no prompt", async () => {
   assert.deepEqual(promptArgs(""), []);
   assert.deepEqual(promptArgs(" , "), []);
-  assert.deepEqual(promptArgs("ZENO, Keshab ,Kathmandu"), ["--prompt", "ZENO, Keshab, Kathmandu."]);
+  assert.deepEqual(promptArgs("ATOM, Keshab ,Kathmandu"), ["--prompt", "ATOM, Keshab, Kathmandu."]);
 
   const calls: string[][] = [];
   const stt = createWhisperStt({
     modelPath: "model.bin",
-    vocabulary: "ZENO, Keshab",
+    vocabulary: "ATOM, Keshab",
     fileExists: () => true,
-    execFile: fakeExec({ stdout: "Hi ZENO" }, calls),
+    execFile: fakeExec({ stdout: "Hi ATOM" }, calls),
   });
   await stt.transcribe(clip);
   const args = calls[0];
-  assert.equal(args[args.indexOf("--prompt") + 1], "ZENO, Keshab.");
+  assert.equal(args[args.indexOf("--prompt") + 1], "ATOM, Keshab.");
 });

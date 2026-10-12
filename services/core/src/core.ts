@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { LanguageModel, Message, RequestContext, ToolRunner, ZenoInput, ZenoResponse } from "@zeno/contracts";
 
 export const DEFAULT_SYSTEM_PROMPT =
-  "You are ZENO, a voice assistant. Your replies are spoken aloud, so answer in short, " +
+  "You are ATOM, a voice assistant. Your replies are spoken aloud, so answer in short, " +
   "natural sentences. Do not use markdown, lists, headings or emoji. Keep most replies to one to three sentences, " +
   "like a person talking; give more only when the user asks for detail or steps, and then still keep it brief. " +
   "Ask at most one question per reply. " +
@@ -26,13 +26,13 @@ export class CoreError extends Error {
 
 export interface CoreOptions {
   model: LanguageModel;
-  /** Tools the model may use. Without it, ZENO only talks. */
+  /** Tools the model may use. Without it, ATOM only talks. */
   tools?: ToolRunner;
   /** Most tool rounds in one request, so a confused model cannot loop forever. */
   maxToolRounds?: number;
   systemPrompt?: string;
   /**
-   * Extra context for one request (ADR-058: what ZENO remembers that may matter). Its text is added to the system
+   * Extra context for one request (ADR-058: what ATOM remembers that may matter). Its text is added to the system
    * prompt for this request only. A failing provider is ignored: the request goes on without it.
    */
   context?: (input: ZenoInput, context: RequestContext) => string | undefined | Promise<string | undefined>;
@@ -80,7 +80,7 @@ export interface Core {
 }
 
 /**
- * ZENO Core: the central request/response boundary.
+ * ATOM Core: the central request/response boundary.
  * Phase 0 has a single route (the language model) and session-only history (ADR-030).
  */
 const OUT_OF_STEPS =
@@ -170,7 +170,7 @@ export function createCore(options: CoreOptions): Core {
             // so the user hears why ("Brave has two windows open") and not a bare error.
             const wrapUp = await model.complete({ system: `${systemPrompt}\n\n${OUT_OF_STEPS}`, ...systemExtra, messages, context }, signal);
             if (signal?.aborted) throw new CoreError("Request cancelled");
-            if (!wrapUp.text.trim() || wrapUp.toolCalls?.length) throw new CoreError("ZENO used too many steps on this request and stopped");
+            if (!wrapUp.text.trim() || wrapUp.toolCalls?.length) throw new CoreError("ATOM used too many steps on this request and stopped");
             reply = { text: wrapUp.text };
             break;
           }

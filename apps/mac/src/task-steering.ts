@@ -2,7 +2,7 @@ import { HelperError, MAX_COMMENT_CHARS, type HelperStore } from "@zeno/helpers"
 import type { Logger } from "@zeno/shared";
 import type { LiveRun, RunSteering } from "@zeno/llm-gateway";
 
-// ADR-098 item 3: Keshab steers or interrupts a running task. The ZENO window and Telegram call the same two functions.
+// ADR-098 item 3: Keshab steers or interrupts a running task. The ATOM window and Telegram call the same two functions.
 // Logs ids and states only, never the message.
 
 export interface TaskSteering {

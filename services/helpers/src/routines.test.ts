@@ -22,7 +22,7 @@ test("'Sid, every morning at 8, summarise networking news' makes a routine that 
   assert.deepEqual(store.runRoutines(), { made: [], skipped: [] }, "once per morning");
 });
 
-test("mornings missed while ZENO was closed run once at start", () => {
+test("mornings missed while ATOM was closed run once at start", () => {
   let clock = at("2026-10-11T09:00:00");
   const store = openHelperStore({ path: ":memory:", now: () => clock });
   const r = store.addRoutine("sid", "News", { kind: "daily", minute: 480 });

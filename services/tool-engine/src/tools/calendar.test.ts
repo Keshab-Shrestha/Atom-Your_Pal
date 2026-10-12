@@ -33,7 +33,7 @@ test("calendar_events: no events, bad dates, and a refusal from the helper", asy
   const empty = tools(() => ({ ok: true, events: [] }));
   assert.match(String(await empty.events.run({ from: "2026-10-05T00:00:00+09:00", to: "2026-10-06T00:00:00+09:00" })), /^No events/);
   await assert.rejects(Promise.resolve(empty.events.run({ from: "next tuesday" })), /not a date/);
-  const denied = tools(() => ({ ok: false, error: "ZENO is not allowed to see your calendar.", denied: true }));
+  const denied = tools(() => ({ ok: false, error: "ATOM is not allowed to see your calendar.", denied: true }));
   await assert.rejects(Promise.resolve(denied.events.run({})), /not allowed to see your calendar/);
 });
 

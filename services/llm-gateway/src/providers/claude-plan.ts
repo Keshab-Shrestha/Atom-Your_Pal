@@ -1,12 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
 import { z, type ZodType } from "zod";
 import type { Message, ModelRequest, ModelResponse, ToolRunner, ToolSpec } from "@zeno/contracts";
+import { readEnv } from "@zeno/shared";
 import { emptyReplyReason, ProviderError, redactSecrets, type ErrorKind, type ProviderAdapter } from "../gateway.ts";
 
 /**
  * Claude on the user's own Claude plan (Pro or Max), through the Claude Agent SDK.
  *
- * The SDK starts the user's own, unmodified `claude` program, which is signed in with their claude.ai account. ZENO never
+ * The SDK starts the user's own, unmodified `claude` program, which is signed in with their claude.ai account. ATOM never
  * reads, stores or sends that login: it only runs the program. This is for one person on their own Mac; Anthropic does not
  * allow an app to offer plan sign-in to other people.
  *
@@ -14,8 +15,8 @@ import { emptyReplyReason, ProviderError, redactSecrets, type ErrorKind, type Pr
  * (see scrubbedEnv), and each run is stopped at once if it reports an API key as its credential or if it starts charging
  * "extra usage" beyond the plan.
  *
- * Unlike the other providers, Claude Code runs the whole tool loop here: ZENO's tools are given to it as an in-process
- * server whose calls go straight back to ZENO's own tool engine, so approvals and safety rules are unchanged. The Core
+ * Unlike the other providers, Claude Code runs the whole tool loop here: ATOM's tools are given to it as an in-process
+ * server whose calls go straight back to ATOM's own tool engine, so approvals and safety rules are unchanged. The Core
  * therefore gets back plain text and no tool calls.
  */
 
@@ -80,7 +81,7 @@ export interface ClaudePlanOptions {
   /** Full path of the signed-in `claude` program. */
   claudePath: string;
   model: string;
-  /** Runs ZENO's tools when Claude Code asks for one. Without it Claude gets no tools. */
+  /** Runs ATOM's tools when Claude Code asks for one. Without it Claude gets no tools. */
   tools?: ToolRunner;
   /** Most Claude Code turns in one request; each tool call takes one. */
   maxTurns?: number;
@@ -100,7 +101,7 @@ export interface ClaudePlanOptions {
 }
 
 /**
- * ADR-098 item 9: one Claude Code session per chat. Claude Code keeps the session on this Mac; ZENO stores only its
+ * ADR-098 item 9: one Claude Code session per chat. Claude Code keeps the session on this Mac; ATOM stores only its
  * id, the model it ran on and a hash of its last answer (`tail`), so a chat that changed outside it starts afresh.
  */
 export interface ChatSession {
@@ -233,7 +234,7 @@ function promptFrom(messages: Message[]): string {
   if (turns.length <= 1) return last;
   const earlier = turns
     .slice(0, -1)
-    .map((m) => `${m.role === "user" ? "User" : "ZENO"}: ${m.content.trim()}`)
+    .map((m) => `${m.role === "user" ? "User" : "ATOM"}: ${m.content.trim()}`)
     .join("\n");
   return `Conversation so far:\n${earlier}\n\nThe user now says:\n${last}`;
 }
@@ -283,7 +284,7 @@ export function planGuard(message: Record<string, any>, onUsage?: (usage: PlanUs
     if (!PLAN_CREDENTIALS.has(source)) {
       throw new ProviderError(
         "auth",
-        `Claude Code is using an API key (${source || "unknown"}), which bills per token, so ZENO stopped. Remove the key from Claude Code or use the Claude (API) provider on purpose.`,
+        `Claude Code is using an API key (${source || "unknown"}), which bills per token, so ATOM stopped. Remove the key from Claude Code or use the Claude (API) provider on purpose.`,
       );
     }
     return;
@@ -298,7 +299,7 @@ export function planGuard(message: Record<string, any>, onUsage?: (usage: PlanUs
     });
   }
   if (info.isUsingOverage === true) {
-    throw new ProviderError("rate_limit", "Your Claude plan is used up and Claude would charge extra usage, so ZENO stopped. Switch model or wait for the plan to reset.");
+    throw new ProviderError("rate_limit", "Your Claude plan is used up and Claude would charge extra usage, so ATOM stopped. Switch model or wait for the plan to reset.");
   }
   if (info.status === "rejected") {
     throw new ProviderError("rate_limit", `Your Claude plan limit is reached.${resetTime(info.resetsAt)}`);
@@ -357,7 +358,7 @@ function keyOf(system: string, specs: ToolSpec[]): string {
 function promptWith(extra: string | undefined, messages: Message[]): string {
   const prompt = promptFrom(messages);
   if (!extra?.trim()) return prompt;
-  return `Context for this request, from ZENO (not said by the user):\n${extra.trim()}\n\n${prompt}`;
+  return `Context for this request, from ATOM (not said by the user):\n${extra.trim()}\n\n${prompt}`;
 }
 
 /** One request's link to the tools: set when a pre-started process is put to use. */
@@ -380,7 +381,7 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
   const env = options.env ?? process.env;
   let sdkPromise: Promise<ClaudeSdk> | undefined;
   let prepared: Prepared | undefined;
-  /** What ZENO asked to keep ready (its main instructions and tools). Other requests, like conversation notes, never replace it. */
+  /** What ATOM asked to keep ready (its main instructions and tools). Other requests, like conversation notes, never replace it. */
   let primary: { system: string; specs: ToolSpec[] } | undefined;
   let closed = false;
   let later: ReturnType<typeof setTimeout> | undefined;
@@ -388,11 +389,11 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
   const getSdk = async () => options.sdk ?? (await (sdkPromise ??= loadSdk()));
 
   /** Claude Code's options for one process. Tool calls go to whichever request `state` belongs to at the time. */
-  // ADR-069: Claude Code's own web search, for news, scores, prices and anything else current. ZENO_WEB=0 turns it off.
-  const webAllowed = env.ZENO_WEB !== "0";
+  // ADR-069: Claude Code's own web search, for news, scores, prices and anything else current. ATOM_WEB=0 turns it off.
+  const webAllowed = readEnv(env, "ATOM_WEB") !== "0";
   /** `chat`: a chat's own session (ADR-098 item 9), kept on disk and resumed when `resume` is given. */
   function queryOptions(sdk: ClaudeSdk, system: string, specs: ToolSpec[], state: RunState, controller: AbortController, chat?: { resume?: string }) {
-    // Only with ZENO's tools: requests without them (the out-of-steps wrap-up, conversation notes) get nothing.
+    // Only with ATOM's tools: requests without them (the out-of-steps wrap-up, conversation notes) get nothing.
     const web = webAllowed && specs.length > 0;
     const sdkTools = specs.map((spec) =>
       sdk.tool(spec.name, spec.description, shapeOf(spec), async (input) => {
@@ -419,11 +420,11 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
       permissionMode: "default",
       maxTurns: specs.length ? maxTurns : 1,
       // Spoken answers to everyday questions: thinking adds ~1 s per model turn for nothing a listener notices.
-      // ZENO_THINKING=1 turns it back on (Claude decides how much).
-      thinking: env.ZENO_THINKING === "1" ? { type: "adaptive" } : { type: "disabled" },
+      // ATOM_THINKING=1 turns it back on (Claude decides how much).
+      thinking: readEnv(env, "ATOM_THINKING") === "1" ? { type: "adaptive" } : { type: "disabled" },
       abortController: controller,
       env: scrubbedEnv(env),
-      includePartialMessages: true, // text as it is written, so ZENO can start speaking (ADR-065)
+      includePartialMessages: true, // text as it is written, so ATOM can start speaking (ADR-065)
       ...(specs.length
         ? {
             mcpServers: { [SERVER]: sdk.createSdkMcpServer({ name: SERVER, version: "1.0.0", tools: sdkTools }) },
@@ -435,7 +436,7 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
 
   /** ADR-064: start the next Claude Code process now, so the next request skips its ~1 s start. */
   function prepare(system: string, specs: ToolSpec[]) {
-    if (closed || !claudePath || env.ZENO_PREWARM === "0") return;
+    if (closed || !claudePath || readEnv(env, "ATOM_PREWARM") === "0") return;
     const key = keyOf(system, specs);
     if (prepared && prepared.key === key && !prepared.failed) return;
     discard();
@@ -527,7 +528,7 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
         throw new ProviderError("auth", "Claude Code was not found. Install it, then run `claude auth login` in a terminal.");
       }
       const sdk = await getSdk();
-      // Offer ZENO's tools, if there are any to offer and a way to run them.
+      // Offer ATOM's tools, if there are any to offer and a way to run them.
       const specs = tools && request.tools?.length ? request.tools : [];
       const prompt = promptWith(request.systemExtra, request.messages);
       // ADR-098 item 9: a typed turn in a chat goes on in the chat's own session and sends only the new turn. The saved
@@ -585,7 +586,7 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
         const broken = !outcome.result || (Boolean(chat?.resume) && outcome.result.subtype === "error_during_execution");
         if (retryable && broken && !outcome.acted && !streamed && !signal.aborted) outcome = await again();
       } finally {
-        // Ready for ZENO's next request, once the answer has started being spoken. A request with tools is a main
+        // Ready for ATOM's next request, once the answer has started being spoken. A request with tools is a main
         // one: its instructions (with the team, which may have changed) are the ones to keep ready.
         if (specs.length) primary = { system: request.system, specs };
         const next = primary ?? { system: request.system, specs };

@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-// ADR-098 item 5: the MCP entry, run as a real child process. ZENO_API_PORT=1 so no real ZENO can answer.
+// ADR-098 item 5: the MCP entry, run as a real child process. ATOM_API_PORT=1 so no real ATOM can answer.
 
 const entry = fileURLToPath(new URL("./mcp-serve.ts", import.meta.url));
 
 function session(messages: object[]) {
   return new Promise<{ lines: string[]; stderr: string }>((resolve, reject) => {
-    const child = spawn(process.execPath, [entry], { env: { ...process.env, ZENO_API_PORT: "1" } });
+    const child = spawn(process.execPath, [entry], { env: { ...process.env, ATOM_API_PORT: "1" } });
     let out = "";
     let err = "";
     const lines = () => out.split("\n").filter(Boolean);
@@ -28,7 +28,7 @@ function session(messages: object[]) {
 const init = { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "t", version: "1" } } };
 const initialized = { jsonrpc: "2.0", method: "notifications/initialized" };
 
-test("stdout holds only JSON-RPC messages; tools are listed; an unreachable ZENO is a tool error", async () => {
+test("stdout holds only JSON-RPC messages; tools are listed; an unreachable ATOM is a tool error", async () => {
   const r = await session([
     init, initialized,
     { jsonrpc: "2.0", id: 2, method: "tools/list" },
@@ -44,7 +44,7 @@ test("stdout holds only JSON-RPC messages; tools are listed; an unreachable ZENO
   assert.equal(by(4).result.isError, true);
 });
 
-test("zeno_answer_need needs key and action, and an unreachable ZENO is a tool error", async () => {
+test("zeno_answer_need needs key and action, and an unreachable ATOM is a tool error", async () => {
   const r = await session([
     init, initialized,
     { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "zeno_answer_need", arguments: { key: "q1", action: "allow" } } },

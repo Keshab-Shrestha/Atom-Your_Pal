@@ -39,7 +39,7 @@ test("a sub-agent's start and end are kept on its task, cut short; the change ca
   assert.equal(store.get(id), undefined);
 });
 
-test("the newest twelve are listed; one still working when ZENO closed has failed", () => {
+test("the newest twelve are listed; one still working when ATOM closed has failed", () => {
   const path = join(mkdtempSync(join(tmpdir(), "zeno-subagents-")), "helpers.db");
   const home = mkdtempSync(join(tmpdir(), "zeno-home-"));
   const store = openHelperStore({ path, home });

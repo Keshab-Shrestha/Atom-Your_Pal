@@ -66,8 +66,8 @@ export function createTimers(options: TimerOptions): Timers {
       spec: {
         name: "timer_set",
         description:
-          "Starts a countdown timer. When it ends, ZENO says so out loud and shows it on screen. Use it for 'set a timer for 10 minutes' " +
-          "or 'tell me in 20 minutes to check the oven'. Timers are lost if ZENO quits. For a reminder at a clock time or on another day, use reminder_add.",
+          "Starts a countdown timer. When it ends, ATOM says so out loud and shows it on screen. Use it for 'set a timer for 10 minutes' " +
+          "or 'tell me in 20 minutes to check the oven'. Timers are lost if ATOM quits. For a reminder at a clock time or on another day, use reminder_add.",
         inputSchema: {
           type: "object",
           properties: {

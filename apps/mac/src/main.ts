@@ -1,6 +1,6 @@
-// ZENO on the Mac. Two interfaces over the same voice loop:
+// ATOM on the Mac. Two interfaces over the same voice loop:
 //   pnpm start                    terminal: Space to talk (terminal.ts)
-//   node apps/mac/src/main.ts --island   driven by ZENO Island over stdin / stdout (island.ts)
+//   node apps/mac/src/main.ts --island   driven by ATOM Island over stdin / stdout (island.ts)
 
 import { execFile } from "node:child_process";
 import { GatewayError } from "@zeno/llm-gateway";
@@ -27,7 +27,7 @@ function islandFatal(stage: ErrorStage, message: string, code: number): void {
   setTimeout(() => process.exit(code), 500).unref(); // in case the island is no longer reading
 }
 
-// The model chosen in ZENO Island (config/island.json) overrides ZENO_LLM_PROVIDER / ZENO_LLM_MODEL in
+// The model chosen in ATOM Island (config/island.json) overrides ATOM_LLM_PROVIDER / ATOM_LLM_MODEL in
 // both modes. Keys of every provider are kept so the island can switch; they never leave this process.
 const keys = readProviderKeys();
 const savedPath = settingsPath();
@@ -69,7 +69,7 @@ function start(config: Config) {
   const crash = (error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     log.error("app.crash", { message, stack: error instanceof Error ? error.stack : undefined });
-    const text = `ZENO stopped because of an unexpected error: ${message}. Details are in ${config.log.file}.`;
+    const text = `ATOM stopped because of an unexpected error: ${message}. Details are in ${config.log.file}.`;
     if (island) islandFatal("runtime", text, 1);
     else {
       console.error(text);
@@ -127,5 +127,5 @@ function start(config: Config) {
   // The island has gone away (broken pipe): nobody is listening, so stop.
   process.stdout.on("error", () => session.quit());
   // Printed last: once this appears, the runtime is set up and handles SIGTERM cleanly.
-  console.error(`ZENO runtime (island mode): ${config.llm.provider} / ${config.llm.model}, microphone ${config.audio.inputDevice}`);
+  console.error(`ATOM runtime (island mode): ${config.llm.provider} / ${config.llm.model}, microphone ${config.audio.inputDevice}`);
 }

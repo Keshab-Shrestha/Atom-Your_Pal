@@ -1,4 +1,4 @@
-// ADR-098: ZENO's own Telegram bot, over the Bot API with Node's fetch. One chat only (ZENO_TELEGRAM_CHAT_ID); every
+// ADR-098: ATOM's own Telegram bot, over the Bot API with Node's fetch. One chat only (ATOM_TELEGRAM_CHAT_ID); every
 // other chat is ignored. The log gets method names, error codes and counts: never message text, never the token.
 
 import type { Logger } from "@zeno/shared";
@@ -33,7 +33,7 @@ export interface TelegramClient {
 
 export interface TelegramOptions {
   token: string;
-  /** The one chat ZENO serves. */
+  /** The one chat ATOM serves. */
   chatId: string;
   onInput(input: TelegramInput): void;
   log: Logger;

@@ -123,7 +123,7 @@ test("sending before the microphone has started says to wait, and is not an erro
   assert.equal(h.loop.state, "idle");
 });
 
-test("pressing while ZENO is thinking cancels the request and starts listening", async () => {
+test("pressing while ATOM is thinking cancels the request and starts listening", async () => {
   const pending = gate<{ text: string }>();
   let signal: AbortSignal | undefined;
   const h = harness({
@@ -148,7 +148,7 @@ test("pressing while ZENO is thinking cancels the request and starts listening",
   assert.equal(h.recordings.length, 2);
 });
 
-test("pressing while ZENO is speaking stops the speech and starts listening", async () => {
+test("pressing while ATOM is speaking stops the speech and starts listening", async () => {
   let stopped = false;
   const h = harness({
     tts: {

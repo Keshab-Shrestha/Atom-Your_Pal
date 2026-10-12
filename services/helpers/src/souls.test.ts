@@ -73,9 +73,9 @@ test("cleanSoul refuses bad names, empty personality, long fields and missing te
   for (const [soul, why] of [
     [{ name: "" }, /letters only/],
     [{ name: "R2D2" }, /letters only/],
-    [{ name: "pal" }, /taken by ZENO/],
-    [{ name: "Atom" }, /taken by ZENO/],
-    [{ name: "Zeno" }, /taken by ZENO/],
+    [{ name: "pal" }, /taken by ATOM/],
+    [{ name: "Atom" }, /taken by ATOM/],
+    [{ name: "Zeno" }, /taken by ATOM/],
     [{ name: "penny" }, /already called/],
     [{ name: "x".repeat(SOUL_LIMITS.name + 1) }, /name is too long/],
     [{ personality: "   " }, /personality is empty/],
@@ -114,7 +114,7 @@ test("souls survive a restart", () => {
 
 test("instructions carry the soul, then the role's fixed rules, which a soul edit cannot remove", () => {
   const text = instructionsFor(edited, "researcher");
-  assert.match(text, /^You are Sid, ZENO's researcher\./);
+  assert.match(text, /^You are Sid, ATOM's researcher\./);
   assert.match(text, /Personality: Curious/);
   assert.match(text, /Lessons from earlier jobs: Give at least three sources\./);
   assert.doesNotMatch(instructionsFor(sid, "researcher"), /Lessons/, "an empty field is left out");

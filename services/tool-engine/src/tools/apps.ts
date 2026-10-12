@@ -26,7 +26,7 @@ export interface AppToolOptions {
   osascript?: Osascript;
 }
 
-/** Apps that may be opened although ZENO never controls them: opening System Settings shows it, nothing more. */
+/** Apps that may be opened although ATOM never controls them: opening System Settings shows it, nothing more. */
 const OPEN_ONLY = new Set(["com.apple.systempreferences"]);
 
 export async function installedApps(): Promise<string[]> {

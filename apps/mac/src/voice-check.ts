@@ -1,6 +1,6 @@
 // Voice check: tests speech output and speech input on their own, with no AI and no conversation.
 //
-//   pnpm voice:check            speak, transcribe ZENO's own speech, then transcribe you
+//   pnpm voice:check            speak, transcribe ATOM's own speech, then transcribe you
 //   pnpm voice:check --no-mic   skip the live microphone step
 //
 // 1. TTS   Kokoro speaks a sentence aloud (you hear it).
@@ -9,24 +9,25 @@
 // 3. MIC   You speak for a few seconds; Whisper transcribes what the microphone heard.
 // Nothing is sent over the network and nothing is logged or saved.
 
+import { readEnv } from "@zeno/shared";
 import { startRecording, type AudioClip } from "./audio.ts";
 import { createWhisperStt } from "./stt.ts";
 import { createKokoroSynthesizer, createSpeaker } from "./tts.ts";
 
-const SENTENCE = "Hello Keshab. This is ZENO checking that it can speak and listen.";
+const SENTENCE = "Hello Keshab. This is ATOM checking that it can speak and listen.";
 const SAMPLE_RATE = 16_000;
 const LISTEN_MS = 6_000;
 
 const env = process.env;
-const voice = env.ZENO_TTS_VOICE ?? "af_heart";
-const dtype = (env.ZENO_TTS_DTYPE ?? "fp32") as "q8" | "fp32";
-const inputDevice = env.ZENO_AUDIO_INPUT_DEVICE ?? ":default";
+const voice = readEnv(env, "ATOM_TTS_VOICE") ?? "af_heart";
+const dtype = (readEnv(env, "ATOM_TTS_DTYPE") ?? "fp32") as "q8" | "fp32";
+const inputDevice = readEnv(env, "ATOM_AUDIO_INPUT_DEVICE") ?? ":default";
 const withMic = !process.argv.includes("--no-mic");
 
 const stt = createWhisperStt({
-  modelPath: env.ZENO_STT_MODEL ?? "models/ggml-small.en.bin",
-  language: env.ZENO_STT_LANGUAGE ?? "en",
-  vocabulary: env.ZENO_STT_VOCABULARY ?? "ZENO, Keshab",
+  modelPath: readEnv(env, "ATOM_STT_MODEL") ?? "models/ggml-small.en.bin",
+  language: readEnv(env, "ATOM_STT_LANGUAGE") ?? "en",
+  vocabulary: readEnv(env, "ATOM_STT_VOCABULARY") ?? "ATOM, Keshab",
 });
 const synthesizer = createKokoroSynthesizer({ voice, dtype });
 const tts = createSpeaker(synthesizer);
@@ -90,7 +91,7 @@ results.tts = await step(`1. TTS — Kokoro (${voice}, ${dtype}) speaks: "${SENT
   console.log(`   first sound after ${firstSound} ms, finished after ${ms(started)}. Did you hear it?`);
 });
 
-results.stt = await step("2. STT — Whisper transcribes ZENO's own speech (no microphone)", async () => {
+results.stt = await step("2. STT — Whisper transcribes ATOM's own speech (no microphone)", async () => {
   await synthesizer.load();
   const audio = await synthesizer.synthesize(SENTENCE);
   const clip = toClip(audio.samples, audio.sampleRate, SAMPLE_RATE);

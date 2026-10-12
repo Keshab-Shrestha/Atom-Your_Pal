@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import type { AudioClip } from "./audio.ts";
 
-/** Speech-to-text boundary. The rest of ZENO depends on this, not on Whisper. */
+/** Speech-to-text boundary. The rest of ATOM depends on this, not on Whisper. */
 export interface SpeechToText {
   /** Returns the transcribed text, or "" if no speech was recognized. */
   transcribe(clip: AudioClip): Promise<string>;
@@ -61,7 +61,7 @@ export function createWhisperStt(options: WhisperOptions): SpeechToText {
           /^ggml-[\w.-]+\.bin$/.test(name)
             ? `Whisper model not found at "${modelPath}". Download it with: ` +
                 `curl -L -o ${modelPath} https://huggingface.co/ggerganov/whisper.cpp/resolve/main/${name}`
-            : `Whisper model not found at "${modelPath}". Set ZENO_STT_MODEL in .env to a whisper.cpp model ` +
+            : `Whisper model not found at "${modelPath}". Set ATOM_STT_MODEL in .env to a whisper.cpp model ` +
                 `file such as models/ggml-base.en.bin (download links: https://huggingface.co/ggerganov/whisper.cpp).`,
         );
       }

@@ -1,4 +1,4 @@
-// Shared types between ZENO modules. Types only: no behaviour lives here.
+// Shared types between ATOM modules. Types only: no behaviour lives here.
 
 /** Where a request came from. More sources arrive in later phases (UI, API, events). */
 export type InputSource = "voice" | "text";
@@ -9,7 +9,7 @@ export interface ZenoInput {
   source: InputSource;
 }
 
-/** A tool the model may ask ZENO to run. `inputSchema` is JSON Schema for an object. */
+/** A tool the model may ask ATOM to run. `inputSchema` is JSON Schema for an object. */
 export interface ToolSpec {
   name: string;
   description: string;
@@ -64,7 +64,7 @@ export interface RequestContext {
   sessionId: string;
   source: InputSource;
   receivedAt: Date;
-  /** A request ZENO makes by itself about a conversation (e.g. its summary): it never joins the chat's own session. */
+  /** A request ATOM makes by itself about a conversation (e.g. its summary): it never joins the chat's own session. */
   background?: boolean;
 }
 

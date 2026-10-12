@@ -19,7 +19,7 @@ test("a time-limit failure runs again once by itself, and what waits for it wait
 
 test("setup problems and the plan's limits are never retried by themselves", () => {
   const store = openHelperStore({ path: ":memory:" });
-  for (const error of ["Sid needs the Claude plan for research.", "Kame needs a folder to work in: grant one in the ZENO window.", "Your Claude plan limit is reached."]) {
+  for (const error of ["Sid needs the Claude plan for research.", "Kame needs a folder to work in: grant one in the ATOM window.", "Your Claude plan limit is reached."]) {
     const { id } = store.addJob("sid", "x");
     store.start(id);
     store.fail(id, error);

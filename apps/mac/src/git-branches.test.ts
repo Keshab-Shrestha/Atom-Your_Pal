@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { branchDiff, cleanRemote, pushBranch, repositoriesOf, zenoBranches } from "./git-branches.ts";
 
-// ADR-091: ZENO's task branches like a pull request, and Keshab's push (never forced, only zeno/task-*, only origin).
+// ADR-091: ATOM's task branches like a pull request, and Keshab's push (never forced, only zeno/task-*, only origin).
 
 const sh = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, "-c", "user.name=T", "-c", "user.email=t@t", ...args], { encoding: "utf8" }).trim();
 
@@ -25,7 +25,7 @@ function setup() {
   sh(repo, "checkout", "zeno/task-7");
   writeFileSync(join(repo, "notes.md"), "one\ntwo\n");
   sh(repo, "add", "-A");
-  sh(repo, "commit", "-m", "ZENO task 7: Notes");
+  sh(repo, "commit", "-m", "ATOM task 7: Notes");
   sh(repo, "checkout", "main");
   sh(repo, "branch", "feature");
   return { root, repo, remote };
@@ -37,7 +37,7 @@ test("task branches show their commits, files and whether they are pushed; Kesha
     assert.deepEqual(await repositoriesOf([repo, join(repo, "."), root]), [repo], "each repository once; a plain folder is left out");
     let [b] = await zenoBranches(repo);
     assert.equal((await zenoBranches(repo)).length, 1, "only zeno/task-* branches");
-    assert.deepEqual([b!.branch, b!.task, b!.repoName, b!.pushed, b!.commits.map((c) => c.subject)], ["zeno/task-7", 7, "site", "no", ["ZENO task 7: Notes"]]);
+    assert.deepEqual([b!.branch, b!.task, b!.repoName, b!.pushed, b!.commits.map((c) => c.subject)], ["zeno/task-7", 7, "site", "no", ["ATOM task 7: Notes"]]);
     assert.deepEqual(b!.files, [{ path: "notes.md", added: 2, removed: 0 }]);
     assert.match((await branchDiff(repo, "zeno/task-7")).text, /\+two/);
     await pushBranch(repo, "zeno/task-7");
@@ -49,7 +49,7 @@ test("task branches show their commits, files and whether they are pushed; Kesha
     sh(repo, "checkout", "main");
     [b] = await zenoBranches(repo);
     assert.equal(b!.pushed, "changed");
-    await assert.rejects(pushBranch(repo, "feature"), /Only ZENO's task branches/);
+    await assert.rejects(pushBranch(repo, "feature"), /Only ATOM's task branches/);
     await assert.rejects(pushBranch(repo, "zeno/task-99"), /There is no branch/);
     sh(repo, "remote", "remove", "origin");
     await assert.rejects(pushBranch(repo, "zeno/task-7"), /no remote named origin/);

@@ -111,8 +111,8 @@ export function createRunOne(ctx: RunOneContext): JobRun {
     // Task 3.11: the coder, designer and documenter work in the folders Keshab granted; the documenter without one
     // writes up with the research tools, the others cannot start.
     let grants = helpers?.list().find((h) => h.id === job.helper)?.grants ?? [];
-    // ADR-090: a file worker with no folder asks on Pal's card for the one its task names (or ~/Documents/ZENO);
-    // allowed, ZENO makes it and grants it. A write-up that saves nothing needs no folder.
+    // ADR-090: a file worker with no folder asks on Pal's card for the one its task names (or ~/Documents/ATOM);
+    // allowed, ATOM makes it and grants it. A write-up that saves nothing needs no folder.
     if (kit === "folders" && !grants.length && helpers && (role !== "documenter" || wantsFiles(job.task))) {
       const store = helpers;
       grants = await askForFolder({
@@ -136,7 +136,7 @@ export function createRunOne(ctx: RunOneContext): JobRun {
       files = {
         cwd: work.dir,
         writable: roots,
-        // Git's data (the worktree's .git file, any granted repository's .git) is ZENO's alone to write.
+        // Git's data (the worktree's .git file, any granted repository's .git) is ATOM's alone to write.
         denyWrite: [...(work.tree ? [join(work.tree, ".git")] : []), ...roots.map((r) => join(r, ".git"))],
         denyRead: denyRead(),
         check: folderCheck({
@@ -155,7 +155,7 @@ export function createRunOne(ctx: RunOneContext): JobRun {
         }),
       };
     } else if (kit === "folders" && role !== "documenter") {
-      throw new Error(`${name} needs a folder to work in: grant one in the ZENO window.`);
+      throw new Error(`${name} needs a folder to work in: grant one in the ATOM window.`);
     }
     // Task 3.10: a top-level task may hand sub-tasks to the workers its role allows; the store checks each one.
     const handOff = helpers && !files && handOffTool(helpers, job);
@@ -172,7 +172,7 @@ export function createRunOne(ctx: RunOneContext): JobRun {
           }),
         }
       : undefined;
-    // ADR-098 item 4: an agent with the browser grant (not a "think" agent) gets ZENO's browser; each run has its own
+    // ADR-098 item 4: an agent with the browser grant (not a "think" agent) gets ATOM's browser; each run has its own
     // answers (a site Keshab allowed stays allowed for that run only). Logs ids, tools and origins, never typed text.
     const browserOn = kit !== "think" && Boolean(member?.browser);
     const browser = () => ({
@@ -189,7 +189,7 @@ export function createRunOne(ctx: RunOneContext): JobRun {
     // Task 3.12: only the skills chosen for this worker, through its own small plugin.
     const chosen = helpers?.list().find((h) => h.id === job.helper)?.skills ?? [];
     const skills = chosen.length ? { ...prepareSkills(skillPlugin(job), chosen, userSkillsDir(), skillsDir), plugin: SKILLS_PLUGIN } : undefined;
-    // ADR-094: which skills the run used, so a bad outcome can lead to an edit of one of ZENO's.
+    // ADR-094: which skills the run used, so a bad outcome can lead to an edit of one of ATOM's.
     const onSkill = (skill: string) => {
       helpers?.recordSkillUse(job.id, skill);
       log.info("job.skill", { helper: job.helper, job: job.id, skill });
@@ -285,9 +285,9 @@ export function createRunOne(ctx: RunOneContext): JobRun {
     if (result.sessionId) helpers?.setSession(job.id, result.sessionId);
     if (result.costUsd) helpers?.addSpend(job.id, result.costUsd); // Task 3.7: counts toward the day's budgets
     countTokens(result.tokens);
-    // Task 3.11: in a repository, ZENO commits the work on the task's own branch. Never pushed.
+    // Task 3.11: in a repository, ATOM commits the work on the task's own branch. Never pushed.
     if (work?.branch) {
-      const committed = await commitWork(work.dir, `ZENO task ${job.id}: ${result.report.title}`);
+      const committed = await commitWork(work.dir, `ATOM task ${job.id}: ${result.report.title}`);
       const where = `${committed ? "The changes are committed" : "Nothing was changed"} on the branch ${work.branch} in ${work.repo}. Nothing was pushed.`;
       log.info("job.commit", { helper: job.helper, job: job.id, committed });
       return { ...result, report: withRoleNotice(role, { ...result.report, body: `${result.report.body}\n\n${where}` }) };

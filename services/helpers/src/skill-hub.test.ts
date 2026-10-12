@@ -86,7 +86,7 @@ test("preview stores a waiting row and writes nothing; approve writes the skill 
   assert.throws(() => store.approveSkillHub(p.id), /No skill from the hub waits/);
 });
 
-test("approve refuses a name Keshab or ZENO has, and a hub skill is not ZENO's own (Tinker never edits it)", () => {
+test("approve refuses a name Keshab or ATOM has, and a hub skill is not ATOM's own (Tinker never edits it)", () => {
   const { store, home, skillsDir, installed } = setup();
   mkdirSync(join(home, ".claude", "skills", "mine"), { recursive: true });
   writeFileSync(join(home, ".claude", "skills", "mine", "SKILL.md"), "x");
@@ -96,7 +96,7 @@ test("approve refuses a name Keshab or ZENO has, and a hub skill is not ZENO's o
   mkdirSync(join(skillsDir, "zenos"), { recursive: true });
   writeFileSync(join(skillsDir, "zenos", "SKILL.md"), "x");
   const zenos = store.previewSkillHub(file("zenos"));
-  assert.throws(() => store.approveSkillHub(zenos.id), /ZENO already has a skill called "zenos"/);
+  assert.throws(() => store.approveSkillHub(zenos.id), /ATOM already has a skill called "zenos"/);
   assert.equal(readFileSync(join(skillsDir, "zenos", "SKILL.md"), "utf8"), "x");
   installed("from-hub");
   assert.throws(() => store.previewSkillHub(file("from-hub")), /installed from the hub already/);
@@ -110,10 +110,10 @@ test("approve refuses a name Keshab or ZENO has, and a hub skill is not ZENO's o
 test("names and paths that are not one plain folder are refused", () => {
   const { store, skillsDir } = setup();
   for (const path of ["skills/../SKILL.md", "../x/SKILL.md", "skills/a/b/SKILL.md", "a\\b/SKILL.md", "skills/A_B/SKILL.md", "skills/a/OTHER.md", "skills/x/SKILL.md", "/abs/SKILL.md"]) {
-    assert.throws(() => store.previewSkillHub({ ...file(), path }), /not a skill ZENO can take/, path);
+    assert.throws(() => store.previewSkillHub({ ...file(), path }), /not a skill ATOM can take/, path);
   }
-  assert.throws(() => store.previewSkillHub({ ...file(), sha: "short" }), /not a skill ZENO can take/);
-  assert.throws(() => store.previewSkillHub({ ...file(), repo: "a/b/c" }), /not a skill ZENO can take/);
+  assert.throws(() => store.previewSkillHub({ ...file(), sha: "short" }), /not a skill ATOM can take/);
+  assert.throws(() => store.previewSkillHub({ ...file(), repo: "a/b/c" }), /not a skill ATOM can take/);
   assert.deepEqual(store.skillHubPending(), []);
   assert.equal(existsSync(join(skillsDir, "x")), false);
 });

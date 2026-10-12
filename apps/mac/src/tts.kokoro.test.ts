@@ -9,7 +9,7 @@ const cached = existsSync(`models/huggingface/${KOKORO_MODEL_ID}/onnx/model_quan
 test("real Kokoro synthesizes speech", { skip: !cached && "Kokoro model not downloaded (run pnpm start once)" }, async () => {
   const synth = createKokoroSynthesizer({ voice: "af_heart" });
   await synth.load();
-  const audio = await synth.synthesize("Hello from ZENO.");
+  const audio = await synth.synthesize("Hello from ATOM.");
   assert.equal(audio.sampleRate, 24_000);
   const seconds = audio.samples.length / audio.sampleRate;
   assert.ok(seconds > 0.5 && seconds < 5, `unexpected duration ${seconds}s`);

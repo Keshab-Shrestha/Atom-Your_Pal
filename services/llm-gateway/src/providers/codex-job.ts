@@ -47,7 +47,7 @@ function contract(options: Pick<CodexJobOptions, "web" | "files">): string {
     ? [
         `- You work in ${options.files.cwd}${options.files.others.length ? ` and in ${options.files.others.join(", ")}` : ""}, and in no other folder.`,
         "- Commands have no network.",
-        "- Do not commit. ZENO commits your changes on this task's own branch; nothing is ever pushed.",
+        "- Do not commit. ATOM commits your changes on this task's own branch; nothing is ever pushed.",
         "- In the body, say what you changed and why, the files you changed, and anything left to do.",
       ]
     : [

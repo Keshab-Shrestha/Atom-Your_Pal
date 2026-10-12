@@ -26,7 +26,7 @@ export function noticeText(notice: LoopNotice): string {
     case "no_speech":
       return (
         `No speech recognized (loudest sound ${notice.loudest}). Speak close to the microphone; ` +
-        `if this keeps happening, press d to check which microphone ZENO is using.`
+        `if this keeps happening, press d to check which microphone ATOM is using.`
       );
   }
 }
@@ -35,7 +35,7 @@ export function runTerminal(runtime: Runtime, onQuit: () => void): void {
   const { config, log, core, tts, micName } = runtime;
   const debug = config.log.level === "debug";
 
-  console.log(`ZENO: started (log level: ${config.log.level})`);
+  console.log(`ATOM: started (log level: ${config.log.level})`);
   console.log(`Model: ${config.llm.provider} / ${config.llm.model}`);
   console.log(`Microphone: ${config.audio.inputDevice}   Voice: ${config.tts.voice} (Kokoro ${config.tts.dtype})`);
   void micName().then((name) => {
@@ -57,14 +57,14 @@ export function runTerminal(runtime: Runtime, onQuit: () => void): void {
       onMicSilent: () => {
         void micName().then((name) => {
           console.log(
-            `  The microphone (${name}) is hearing nothing. If you are speaking, ZENO is listening to the wrong ` +
-              `device: press d to list microphones, then set ZENO_AUDIO_INPUT_DEVICE in .env to one by name ` +
+            `  The microphone (${name}) is hearing nothing. If you are speaking, ATOM is listening to the wrong ` +
+              `device: press d to list microphones, then set ATOM_AUDIO_INPUT_DEVICE in .env to one by name ` +
               `(e.g. ":Webcam internal mic") and restart.`,
           );
         });
       },
       onTranscript: (text) => console.log(`You:  ${text}`),
-      onReply: (text) => console.log(`ZENO: ${text}`),
+      onReply: (text) => console.log(`ATOM: ${text}`),
       onTurnComplete: (t) => {
         if (!debug) return;
         const sound = t.firstSound === undefined ? "" : `, first sound ${seconds(t.firstSound)}`;
@@ -98,7 +98,7 @@ export function runTerminal(runtime: Runtime, onQuit: () => void): void {
     testSpeech = controller;
     console.log("Speaking a test sentence…");
     tts
-      .speak("Hello, I am ZENO. This is my local voice, running entirely on your Mac.", controller.signal)
+      .speak("Hello, I am ATOM. This is my local voice, running entirely on your Mac.", controller.signal)
       .catch((error) => console.error(`Text-to-speech error: ${describe(error)}`));
   }
 
@@ -134,7 +134,7 @@ export function runTerminal(runtime: Runtime, onQuit: () => void): void {
       void Promise.all([listAudioDevices(), micName()]).then(([devices, name]) => {
         console.log(`Microphones: ${devices.join(", ") || "none found"}`);
         console.log(
-          `In use: ${name}. To choose one, set ZENO_AUDIO_INPUT_DEVICE in .env to its name with a colon, ` +
+          `In use: ${name}. To choose one, set ATOM_AUDIO_INPUT_DEVICE in .env to its name with a colon, ` +
             `e.g. ":${devices.at(-1) ?? "name"}", then restart.`,
         );
       });

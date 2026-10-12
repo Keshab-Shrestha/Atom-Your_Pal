@@ -73,8 +73,8 @@ test("readScore reads content[0].text and refuses errors and junk", () => {
   assert.throws(() => readScore(null));
 });
 
-test("the server path: ZENO_LAYA_SERVER wins, else ~/laya/.venv/bin/laya-mcp-server", () => {
-  assert.equal(layaServerPath({ ZENO_LAYA_SERVER: "/x/laya" }), "/x/laya");
+test("the server path: ATOM_LAYA_SERVER wins, else ~/laya/.venv/bin/laya-mcp-server", () => {
+  assert.equal(layaServerPath({ ATOM_LAYA_SERVER: "/x/laya" }), "/x/laya");
   assert.match(layaServerPath({}), /laya\/\.venv\/bin\/laya-mcp-server$/);
 });
 
@@ -143,14 +143,14 @@ test("a missing server falls back at once and is not tried again every job", asy
 });
 
 test("the real connect reports a missing program as LayaMissingError", async () => {
-  const engine = createLayaEngine({ env: { ZENO_LAYA_SERVER: "/nonexistent/laya-mcp-server" } });
+  const engine = createLayaEngine({ env: { ATOM_LAYA_SERVER: "/nonexistent/laya-mcp-server" } });
   assert.deepEqual(await engine.chooseTier("a", "x"), { tier: "medium", source: "fallback" });
   await engine.close();
 });
 
-test("ZENO_LAYA=0 never starts Laya", async () => {
+test("ATOM_LAYA=0 never starts Laya", async () => {
   const laya = fakeLaya();
-  const engine = createLayaEngine({ connect: laya.connect, env: { ZENO_LAYA: "0" } });
+  const engine = createLayaEngine({ connect: laya.connect, env: { ATOM_LAYA: "0" } });
   assert.equal((await engine.chooseTier("a", "x")).source, "fallback");
   assert.equal(laya.starts(), 0);
 });

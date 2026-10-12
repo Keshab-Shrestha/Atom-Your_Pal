@@ -1,5 +1,5 @@
-// ADR-091: the branches ZENO made for workers' tasks (`zeno/task-<id>`, Task 3.11), shown like a pull request: their
-// commits, changed files and whether they are on the remote. Keshab pushes one by clicking and confirming in the ZENO
+// ADR-091: the branches ATOM made for workers' tasks (`zeno/task-<id>`, Task 3.11), shown like a pull request: their
+// commits, changed files and whether they are on the remote. Keshab pushes one by clicking and confirming in the ATOM
 // window: only such a branch, only to the repository's own `origin`, never forced, no hooks, no password prompts.
 // Workers and models never push.
 
@@ -98,18 +98,18 @@ export async function zenoBranches(repo: string): Promise<ZenoBranch[]> {
 
 /** The branch's changes since its base, as a patch, cut at `limit` characters. */
 export async function branchDiff(repo: string, branch: string, limit = 200_000): Promise<{ text: string; truncated: boolean }> {
-  if (!BRANCH_PATTERN.test(branch)) throw new Error("Only ZENO's task branches can be shown.");
+  if (!BRANCH_PATTERN.test(branch)) throw new Error("Only ATOM's task branches can be shown.");
   const base = await baseOf(repo);
   const { stdout } = await run("git", ["-C", repo, "-c", "core.hooksPath=/dev/null", "diff", "--no-color", `${base}...${branch}`], { timeout: 30_000, maxBuffer: 20 * 1024 * 1024 });
   return stdout.length > limit ? { text: stdout.slice(0, limit), truncated: true } : { text: stdout, truncated: false };
 }
 
 /**
- * Pushes one of ZENO's task branches to the repository's `origin`, as Keshab asked. Throws, with words for him, for
+ * Pushes one of ATOM's task branches to the repository's `origin`, as Keshab asked. Throws, with words for him, for
  * any other branch, a repository with no `origin`, or a push git refuses (it is never forced).
  */
 export async function pushBranch(repo: string, branch: string): Promise<void> {
-  if (!BRANCH_PATTERN.test(branch)) throw new Error("Only ZENO's task branches can be pushed from here.");
+  if (!BRANCH_PATTERN.test(branch)) throw new Error("Only ATOM's task branches can be pushed from here.");
   await git(repo, "rev-parse", "--verify", "--quiet", `refs/heads/${branch}`).catch(() => {
     throw new Error(`There is no branch ${branch} in ${repo}.`);
   });

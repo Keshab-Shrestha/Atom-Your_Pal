@@ -23,11 +23,11 @@ test("a repository gets a worktree on zeno/task-N; the work is committed there a
     assert.deepEqual([work.branch, work.dir], ["zeno/task-12", join(root, "worktrees", "task-12", "app")]);
     assert.equal(work.repo, realpathSync(repo));
     writeFileSync(join(work.dir, "a.txt"), "two\n");
-    assert.equal(await commitWork(work.dir, "ZENO task 12: change a"), true);
+    assert.equal(await commitWork(work.dir, "ATOM task 12: change a"), true);
     assert.equal(await commitWork(work.dir, "again"), false, "nothing changed");
     assert.equal(sh(repo, "rev-parse", "--abbrev-ref", "HEAD"), "main");
     assert.equal(readFileSync(join(repo, "app", "a.txt"), "utf8"), "one\n", "the current branch's files are untouched");
-    assert.equal(sh(repo, "log", "-1", "--format=%an %s", "zeno/task-12"), "ZENO ZENO task 12: change a");
+    assert.equal(sh(repo, "log", "-1", "--format=%an %s", "zeno/task-12"), "ATOM ATOM task 12: change a");
     assert.equal(sh(repo, "remote"), "", "no remote was added, nothing pushed");
     const again = await prepareWorkdir(join(repo, "app"), 12, join(root, "worktrees"));
     assert.equal(again.dir, work.dir, "a second run reuses the worktree");

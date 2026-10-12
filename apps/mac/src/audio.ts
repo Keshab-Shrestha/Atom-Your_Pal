@@ -119,9 +119,9 @@ export function startRecording(settings: AudioSettings, options: RecorderOptions
 export function describeFailure(device: string, code: number | null, stderr: string): string {
   const lines = stderr.trim().split("\n").map((l) => l.replace(/^\[[^\]]+\]\s*/, "").trim()).filter(Boolean);
   const all = lines.join(" ");
-  const pick = 'Run "pnpm start" and press d to list microphones, then set ZENO_AUDIO_INPUT_DEVICE in .env (for example ":1").';
+  const pick = 'Run "pnpm start" and press d to list microphones, then set ATOM_AUDIO_INPUT_DEVICE in .env (for example ":1").';
   if (/not authorized|permission|denied|TCC/i.test(all)) {
-    return `ZENO is not allowed to use the microphone. Allow your terminal app in System Settings → Privacy & Security → Microphone, then restart it.`;
+    return `ATOM is not allowed to use the microphone. Allow your terminal app in System Settings → Privacy & Security → Microphone, then restart it.`;
   }
   if (/Input\/output error|Invalid device index|not find|No such/i.test(all)) {
     return `Microphone "${device}" is not available (it may be unplugged or the number may be wrong). ${pick}`;
@@ -169,7 +169,7 @@ export function peakLevel(pcm: Buffer): number {
 /**
  * Name of the microphone macOS currently uses as its default input, or undefined if unknown.
  * The default changes when devices are plugged in (e.g. headphones on the audio jack), which
- * silently changes what ZENO hears when ZENO_AUDIO_INPUT_DEVICE is ":default".
+ * silently changes what ATOM hears when ATOM_AUDIO_INPUT_DEVICE is ":default".
  */
 export async function defaultInputDevice(
   run: (command: string, args: string[]) => Promise<string> = runForOutput,

@@ -73,7 +73,7 @@ test("blocked apps are not read", async () => {
   for (const front of [{ name: "Terminal", bundleId: "com.apple.Terminal" }, { name: "Odd", bundleId: undefined }]) {
     const t = setup(front);
     const out = await t.run();
-    assert.equal(out, `ZENO does not read ${front.name}.`);
+    assert.equal(out, `ATOM does not read ${front.name}.`);
     assert.equal(t.scripts.length, 0);
     assert.deepEqual(t.reads[0]!.fields, []);
   }
@@ -105,7 +105,7 @@ test("no front app is an error", async () => {
 test("readApp reads the app it is given: a blocked app is not read", async () => {
   let scripts = 0;
   const read = await readApp({ name: "Terminal", bundleId: "com.apple.Terminal" }, { osascript: async () => (scripts++, "") });
-  assert.deepEqual(read, { text: "ZENO does not read Terminal.", fields: [], blocked: true });
+  assert.deepEqual(read, { text: "ATOM does not read Terminal.", fields: [], blocked: true });
   assert.equal(scripts, 0);
 });
 

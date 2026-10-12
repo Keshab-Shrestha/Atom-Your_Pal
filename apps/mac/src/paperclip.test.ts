@@ -46,7 +46,7 @@ test("Pal hands a task to a Paperclip agent; the board tracks it; its result com
     const tracker = issueTracker(join(dir, "paperclip.json"));
     let changes = 0;
     const [hand, check] = createPaperclipTools({ client: pc.client, tracker, confirm: async () => true, onChange: () => changes++ });
-    assert.equal(await hand!.run({ agent: "cto", title: "Review", description: "Review the landing page" }), "Handed to Paperclip's CTO as PAP-1. ZENO will say when it is done.");
+    assert.equal(await hand!.run({ agent: "cto", title: "Review", description: "Review the landing page" }), "Handed to Paperclip's CTO as PAP-1. ATOM will say when it is done.");
     assert.deepEqual(pc.calls.find((c) => c.method === "POST")!.body, { title: "Review", description: "Review the landing page", status: "todo", assigneeAgentId: "ag1" });
     assert.ok(pc.calls.every((c) => c.redirect === "error"), "never redirected anywhere");
     assert.deepEqual(tracker.list().map((i) => [i.identifier, i.agent, i.status]), [["PAP-1", "CTO", "todo"]]);

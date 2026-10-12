@@ -22,8 +22,8 @@ export function noteHtml(title: string, body: string): string {
 }
 
 /**
- * ADR-070: "take a note" goes into Apple Notes, in the default account's Notes folder. Adding only: ZENO never reads,
- * changes or deletes notes. ZENO_NOTES=0 turns it off.
+ * ADR-070: "take a note" goes into Apple Notes, in the default account's Notes folder. Adding only: ATOM never reads,
+ * changes or deletes notes. ATOM_NOTES=0 turns it off.
  */
 export function createNoteTools(options: { osascript?: Osascript } = {}): Tool[] {
   const run = options.osascript ?? defaultOsascript;

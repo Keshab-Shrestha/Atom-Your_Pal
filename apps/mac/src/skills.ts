@@ -1,8 +1,8 @@
-// ADR-082, Task 3.12: skills from ~/.claude/skills for a worker. Only the ones Keshab chose for it are loaded: ZENO
+// ADR-082, Task 3.12: skills from ~/.claude/skills for a worker. Only the ones Keshab chose for it are loaded: ATOM
 // builds a small local plugin per worker linking just those, and the run loads that plugin and nothing else (no user
 // settings). Skill content is data for the task; it can never widen a worker's tools.
-// ADR-094: ZENO's own skills (data/skills/<name>/SKILL.md, approved by Keshab) can be chosen too. A name in both places
-// is Keshab's: ZENO's is used only when it does not clash.
+// ADR-094: ATOM's own skills (data/skills/<name>/SKILL.md, approved by Keshab) can be chosen too. A name in both places
+// is Keshab's: ATOM's is used only when it does not clash.
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -14,7 +14,7 @@ export const SKILL_NAME = /^[a-z0-9][a-z0-9._-]{0,63}$/i;
 export interface SkillInfo {
   name: string;
   description: string;
-  /** "yours": from ~/.claude/skills; "zeno": made by ZENO (ADR-094); "hub": installed from the skills hub (B3.5). */
+  /** "yours": from ~/.claude/skills; "zeno": made by ATOM (ADR-094); "hub": installed from the skills hub (B3.5). */
   source: "yours" | "zeno" | "hub";
 }
 
@@ -38,7 +38,7 @@ function skillNames(dir: string | undefined): string[] {
   return readdirSync(dir).filter((name) => SKILL_NAME.test(name) && existsSync(join(dir, name, "SKILL.md")));
 }
 
-/** Keshab's skills and ZENO's (those whose name is not one of his), sorted by name. Unreadable entries are left out. */
+/** Keshab's skills and ATOM's (those whose name is not one of his), sorted by name. Unreadable entries are left out. */
 export function listSkills(dir = userSkillsDir(), zenoDir?: string, hub: ReadonlySet<string> = new Set()): SkillInfo[] {
   const yours = skillNames(dir);
   const zeno = skillNames(zenoDir).filter((name) => !yours.includes(name));
@@ -50,7 +50,7 @@ export function listSkills(dir = userSkillsDir(), zenoDir?: string, hub: Readonl
 
 /**
  * The worker's plugin folder, rebuilt with links to exactly `names` (each one of Keshab's skills or, when he has none
- * of that name, ZENO's). Returns the folder and the names actually linked.
+ * of that name, ATOM's). Returns the folder and the names actually linked.
  */
 export function prepareSkills(pluginDir: string, names: readonly string[], dir = userSkillsDir(), zenoDir?: string): { pluginDir: string; names: string[] } {
   const skills = join(pluginDir, "skills");
@@ -59,7 +59,7 @@ export function prepareSkills(pluginDir: string, names: readonly string[], dir =
   mkdirSync(join(pluginDir, ".claude-plugin"), { recursive: true });
   writeFileSync(
     join(pluginDir, ".claude-plugin", "plugin.json"),
-    JSON.stringify({ name: SKILLS_PLUGIN, version: "1.0.0", description: "The skills Keshab chose for this ZENO worker." }, null, 2),
+    JSON.stringify({ name: SKILLS_PLUGIN, version: "1.0.0", description: "The skills Keshab chose for this ATOM worker." }, null, 2),
   );
   const linked: string[] = [];
   for (const name of names) {

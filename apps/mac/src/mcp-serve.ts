@@ -1,11 +1,12 @@
-// ADR-098 item 5: ZENO as an MCP server over stdio, for Claude Code, Hermes and other MCP clients. A thin client of the
-// local HTTP API (api-server.ts): it reads the token in data/api-token and calls http://127.0.0.1:<ZENO_API_PORT>.
-// ZENO must be running with Settings → General → "Local API" on.
+// ADR-098 item 5: ATOM as an MCP server over stdio, for Claude Code, Hermes and other MCP clients. A thin client of the
+// local HTTP API (api-server.ts): it reads the token in data/api-token and calls http://127.0.0.1:<ATOM_API_PORT>.
+// ATOM must be running with Settings → General → "Local API" on.
 //   claude mcp add zeno -- node /path/to/zeno/apps/mac/src/mcp-serve.ts
 // stdout carries only MCP messages; nothing else is written there.
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { readEnv } from "@zeno/shared";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
@@ -13,7 +14,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 /** The same default as api-server.ts (not imported, so this entry loads nothing of the runtime). */
 const DEFAULT_API_PORT = 4790;
 const TOKEN_FILE = fileURLToPath(new URL("../../../data/api-token", import.meta.url));
-const BASE = `http://127.0.0.1:${process.env.ZENO_API_PORT?.trim() || DEFAULT_API_PORT}`;
+const BASE = `http://127.0.0.1:${readEnv(process.env, "ATOM_API_PORT")?.trim() || DEFAULT_API_PORT}`;
 /** An ATOM turn can take minutes (it may hand work to the team first). */
 const CALL_TIMEOUT_MS = 10 * 60_000;
 
@@ -33,7 +34,7 @@ async function api(method: "GET" | "POST", path: string, body?: object): Promise
   try {
     token = readFileSync(TOKEN_FILE, "utf8").trim();
   } catch {
-    throw new Error(`No token in ${TOKEN_FILE}. Turn on Settings → General → "Local API" in ZENO first.`);
+    throw new Error(`No token in ${TOKEN_FILE}. Turn on Settings → General → "Local API" in ATOM first.`);
   }
   let response: Response;
   try {
@@ -44,17 +45,17 @@ async function api(method: "GET" | "POST", path: string, body?: object): Promise
       signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
     });
   } catch {
-    throw new Error(`ZENO does not answer at ${BASE}. Start ZENO and turn on Settings → General → "Local API".`);
+    throw new Error(`ATOM does not answer at ${BASE}. Start ATOM and turn on Settings → General → "Local API".`);
   }
-  const json = (await response.json().catch(() => ({ ok: false, error: `ZENO answered ${response.status}.` }))) as { ok: boolean; data?: unknown; error?: string };
-  if (!json.ok) throw new Error(json.error ?? `ZENO answered ${response.status}.`);
+  const json = (await response.json().catch(() => ({ ok: false, error: `ATOM answered ${response.status}.` }))) as { ok: boolean; data?: unknown; error?: string };
+  if (!json.ok) throw new Error(json.error ?? `ATOM answered ${response.status}.`);
   return json.data;
 }
 
 const TOOLS: ToolDef[] = [
   {
     name: "zeno_give_goal",
-    description: "Give a goal to ATOM, ZENO's assistant. ATOM hands it to ZENO's team of workers, who work in the background. Returns goalId (null when ATOM answered without handing it out) and ATOM's answer.",
+    description: "Give a goal to ATOM. ATOM hands it to its team of workers, who work in the background. Returns goalId (null when ATOM answered without handing it out) and ATOM's answer.",
     properties: { goal: { type: "string", description: "What to get done, in plain words" } },
     required: ["goal"],
     call: (a) => api("POST", "/v1/goals", { goal: str(a.goal) }),
@@ -78,7 +79,7 @@ const TOOLS: ToolDef[] = [
   },
   {
     name: "zeno_list_tasks",
-    description: "ZENO's tasks, newest first. Optionally only those in one state.",
+    description: "ATOM's tasks, newest first. Optionally only those in one state.",
     properties: { state: { type: "string", description: "Optional state", enum: ["queued", "running", "done", "failed", "stopped"] } },
     call: (a) => api("GET", `/v1/tasks${a.state ? `?state=${encodeURIComponent(str(a.state))}` : ""}`),
   },
@@ -91,13 +92,13 @@ const TOOLS: ToolDef[] = [
   },
   {
     name: "zeno_needs_you",
-    description: "What waits for Keshab's answer in ZENO (questions, plans, proposals, held and failed tasks), with the actions each one takes. Keshab answers them in ZENO or on Telegram.",
+    description: "What waits for Keshab's answer in ATOM (questions, plans, proposals, held and failed tasks), with the actions each one takes. Keshab answers them in ATOM or on Telegram.",
     properties: {},
     call: () => api("GET", "/v1/needs"),
   },
   {
     name: "zeno_answer_need",
-    description: "Answer one thing that waits in ZENO (see zeno_needs_you). Give its key and one of its actions, such as allow, decline, approve, reject, accept or retry.",
+    description: "Answer one thing that waits in ATOM (see zeno_needs_you). Give its key and one of its actions, such as allow, decline, approve, reject, accept or retry.",
     properties: {
       key: { type: "string", description: "The key from zeno_needs_you" },
       action: { type: "string", description: "One of the actions listed for that key" },

@@ -53,8 +53,8 @@ test("pointing at a browser reads the app named by the island once and holds it 
 });
 
 test("pointing at a blocked app is refused, holds nothing and logs no title", async () => {
-  const { p, logs } = pointer({ text: "ZENO does not read Terminal.", fields: [], blocked: true });
-  assert.deepEqual(await p.point("com.apple.Terminal", "Terminal"), { ok: false, message: "ZENO doesn't read Terminal." });
+  const { p, logs } = pointer({ text: "ATOM does not read Terminal.", fields: [], blocked: true });
+  assert.deepEqual(await p.point("com.apple.Terminal", "Terminal"), { ok: false, message: "ATOM doesn't read Terminal." });
   assert.equal(p.take(), undefined);
   assert.deepEqual(logs, [{ event: "pal.pointed", fields: { bundleId: "com.apple.Terminal", refused: true } }]);
 });

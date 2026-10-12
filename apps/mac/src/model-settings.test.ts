@@ -14,7 +14,7 @@ import {
   writeSavedChoice,
 } from "./model-settings.ts";
 
-// ADR-092: ZENO runs on the user's own Claude plan; the "key" is the signed-in `claude` program's path (not secret, never sent).
+// ADR-092: ATOM runs on the user's own Claude plan; the "key" is the signed-in `claude` program's path (not secret, never sent).
 const CLAUDE = "/Users/k/.local/bin/claude";
 const PLAN: ProviderKeys = { "claude-plan": CLAUDE };
 
@@ -108,8 +108,8 @@ test("Codex and the Gemini CLI each name their own program to install and sign i
   const codex = h.settings.setModel("codex", "codex-default");
   const gemini = h.settings.setModel("gemini-cli", "gemini-default");
   assert.deepEqual([codex, gemini], [
-    { error: "Install Codex and run `codex login` to use Codex (my ChatGPT plan), then restart ZENO." },
-    { error: "Install the Gemini CLI, run `gemini` and sign in with Google to use Gemini CLI (my Google sign-in), then restart ZENO." },
+    { error: "Install Codex and run `codex login` to use Codex (my ChatGPT plan), then restart ATOM." },
+    { error: "Install the Gemini CLI, run `gemini` and sign in with Google to use Gemini CLI (my Google sign-in), then restart ATOM." },
   ]);
   assert.equal(h.built.length, 0);
 });
@@ -148,8 +148,8 @@ test("an unusable settings file is ignored with a warning, never an exception", 
     ["[]", PLAN, /expected \{"llm"/],
     ['{"llm":{"provider":"claude-plan"}}', PLAN, /expected \{"llm"/],
     ['{"llm":{"provider":"openai","model":"gpt-9"}}', PLAN, /unknown provider "openai"/],
-    ['{"llm":{"provider":"gemini","model":"gemini-3.6-flash"}}', PLAN, /chooses gemini, which ZENO no longer uses/],
-    ['{"llm":{"provider":"claude","model":"claude-opus-5-5"}}', PLAN, /chooses claude, which ZENO no longer uses/],
+    ['{"llm":{"provider":"gemini","model":"gemini-3.6-flash"}}', PLAN, /chooses gemini, which ATOM no longer uses/],
+    ['{"llm":{"provider":"claude","model":"claude-opus-5-5"}}', PLAN, /chooses claude, which ATOM no longer uses/],
     ['{"llm":{"provider":"claude-plan","model":"claude-sonnet-5-5"}}', {}, /claude auth login/],
     ['{"llm":{"provider":"codex","model":"codex-default"}}', {}, /but Codex was not found or is not signed in \(run `codex login`\)/],
     ['{"llm":{"provider":"gemini-cli","model":"gemini-default"}}', {}, /but the Gemini CLI was not found or is not signed in \(run `gemini` and sign in with Google\)/],
@@ -166,19 +166,19 @@ test("an unusable settings file is ignored with a warning, never an exception", 
 test("at startup an old .env naming Gemini or the Claude API still runs on the plan (ADR-092)", () => {
   const path = join(tempDir(), "island.json");
   writeSavedChoice(path, { provider: "claude-plan", model: "claude-opus-5-5" });
-  const env = { ZENO_LLM_PROVIDER: "gemini", ZENO_LLM_MODEL: "gemini-3.5-flash", GEMINI_API_KEY: "test-key-0000", ZENO_CLAUDE_PATH: CLAUDE };
+  const env = { ATOM_LLM_PROVIDER: "gemini", ATOM_LLM_MODEL: "gemini-3.5-flash", GEMINI_API_KEY: "test-key-0000", ATOM_CLAUDE_PATH: CLAUDE };
   const keys = readProviderKeys(env, () => CLAUDE, {});
   assert.deepEqual(keys, PLAN, "API keys in .env are not providers any more");
   assert.equal(loadConfig(env, { llm: readSavedChoice(path, keys).choice }).llm.model, "claude-opus-5-5");
   const plain = loadConfig(env);
   assert.deepEqual([plain.llm.provider, plain.llm.model], ["claude-plan", "claude-sonnet-5-5"], "a Gemini model is not used");
-  assert.equal(loadConfig({ ZENO_LLM_PROVIDER: "claude", ZENO_LLM_MODEL: "claude-haiku-4-5-20251001" }).llm.model, "claude-haiku-4-5-20251001");
+  assert.equal(loadConfig({ ATOM_LLM_PROVIDER: "claude", ATOM_LLM_MODEL: "claude-haiku-4-5-20251001" }).llm.model, "claude-haiku-4-5-20251001");
 });
 
-test("the settings file location can be changed with ZENO_ISLAND_SETTINGS", () => {
+test("the settings file location can be changed with ATOM_ISLAND_SETTINGS", () => {
   assert.equal(settingsPath({}), DEFAULT_SETTINGS_PATH);
-  assert.equal(settingsPath({ ZENO_ISLAND_SETTINGS: " " }), "config/island.json");
-  assert.equal(settingsPath({ ZENO_ISLAND_SETTINGS: "/tmp/x.json" }), "/tmp/x.json");
+  assert.equal(settingsPath({ ATOM_ISLAND_SETTINGS: " " }), "config/island.json");
+  assert.equal(settingsPath({ ATOM_ISLAND_SETTINGS: "/tmp/x.json" }), "/tmp/x.json");
 });
 
 test("a tool known to be signed out cannot be chosen; the scan's list comes with info (ADR-093)", async () => {

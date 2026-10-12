@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import type { Tool } from "../engine.ts";
 
 // ADR-060: Calendar and Reminders through zeno-calendar, a small EventKit helper inside ZENO.app, so macOS
-// asks for permission once, for ZENO. Read-only for the calendar; Reminders may get a new reminder when the
+// asks for permission once, for ATOM. Read-only for the calendar; Reminders may get a new reminder when the
 // user asks for one (like "remember", no approval card: it is what was asked, and easy to undo in Reminders).
 
 export interface CalendarRunner {
@@ -25,7 +25,7 @@ export function calendarRunner(helperPath: string, timeoutMs = 30_000): Calendar
           // The only thing that takes this long is macOS's permission question going unanswered.
           return reject(
             new Error(
-              "macOS is asking whether ZENO may use Calendar or Reminders, and nobody answered. Tell the user to click Allow on that dialog (or in System Settings → Privacy & Security), then ask again.",
+              "macOS is asking whether ATOM may use Calendar or Reminders, and nobody answered. Tell the user to click Allow on that dialog (or in System Settings → Privacy & Security), then ask again.",
             ),
           );
         }

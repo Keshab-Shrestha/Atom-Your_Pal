@@ -15,7 +15,7 @@ test("a server is checked when added and saved switched off, with its secrets ke
 test("bad servers are refused in words", () => {
   for (const [input, why] of [
     [{ name: "Bad Name!", kind: "command", command: "x" }, /lower case/],
-    [{ name: "zeno", kind: "command", command: "x" }, /ZENO's own/],
+    [{ name: "zeno", kind: "command", command: "x" }, /ATOM's own/],
     [{ name: "a", kind: "command", command: "" }, /command to run/],
     [{ name: "a", kind: "command", command: "x", env: ["not a pair"] }, /KEY=value/],
     [{ name: "a", kind: "url", url: "ftp://x" }, /https/],

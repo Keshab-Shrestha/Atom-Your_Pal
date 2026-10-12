@@ -27,7 +27,7 @@ export interface CuaTransportOptions {
 /**
  * The environment Cua is started with (ADR-054): standard mode, telemetry off. The caller's own settings for
  * these are overwritten, and the unrestricted-mode and capability-manifest overrides are removed, so nothing
- * that is set around ZENO can widen what Cua may do.
+ * that is set around ATOM can widen what Cua may do.
  */
 /** The driver reports a refusal in one of two shapes: a `refusal` object, or `code` + `reason` at the top level (what it really sends). */
 function refusalOf(data: Record<string, any>): { code: string; message: string } | undefined {
@@ -179,7 +179,7 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
     const cancelled = new Promise<never>((_, reject) => {
       onAbort = () => {
         if (proc && requestId !== undefined) {
-          send(proc, { jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId, reason: "ZENO cancelled" } });
+          send(proc, { jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId, reason: "ATOM cancelled" } });
           pending.get(requestId)?.reject(new Error("Cancelled.")); // also clears the call's timeout timer
           pending.delete(requestId);
         }

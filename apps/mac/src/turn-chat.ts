@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Core } from "@zeno/core";
 
-// ADR-098: which chat a turn belongs to. ZENO's tools run through one shared runner (the Claude plan holds it), so a
+// ADR-098: which chat a turn belongs to. ATOM's tools run through one shared runner (the Claude plan holds it), so a
 // tool cannot be given a Core. It reads the chat of the turn it runs in. Two turns at once keep two values.
 
 /** The chat id of the turn that runs now (the Core's session id). Undefined outside a turn. */

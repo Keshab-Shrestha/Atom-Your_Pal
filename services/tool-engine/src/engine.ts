@@ -12,7 +12,7 @@ export interface ToolOutput {
   images?: ToolImage[];
 }
 
-/** A capability ZENO can run for the model. `run` returns words (or `ToolOutput`: words and images) for the model, or throws to report failure. */
+/** A capability ATOM can run for the model. `run` returns words (or `ToolOutput`: words and images) for the model, or throws to report failure. */
 export interface Tool<Out extends string | ToolOutput = string> {
   spec: ToolSpec;
   /** What the user can ask for with this tool. Every user-facing tool has one (the tool engine's tests check). */

@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import type { Logger } from "@zeno/shared";
+import { readEnv, type Logger } from "@zeno/shared";
 import { DEFAULT_TIER, DIFFICULTY_RUNGS, tierFromScore, type DecisionEngine, type TierChoice } from "./engine.ts";
 
 // ADR-083: Laya (local, MCP server over stdio) rates each job's difficulty in one forward pass. The server starts on
@@ -37,7 +37,7 @@ export interface LayaClient {
 /** Starts a session. `onCrash` is called if the server goes away by itself (not after `close`). */
 export type LayaConnect = (onCrash: () => void) => Promise<LayaClient>;
 
-/** Thrown by a connect when the server program is not there: Laya is then off until ZENO restarts. */
+/** Thrown by a connect when the server program is not there: Laya is then off until ATOM restarts. */
 export class LayaMissingError extends Error {
   constructor(path: string) {
     super(`Laya's server was not found at ${path}.`);
@@ -48,7 +48,7 @@ export class LayaMissingError extends Error {
 type Env = Record<string, string | undefined>;
 
 export function layaServerPath(env: Env = process.env): string {
-  return env.ZENO_LAYA_SERVER?.trim() || join(homedir(), "laya", ".venv", "bin", "laya-mcp-server");
+  return readEnv(env, "ATOM_LAYA_SERVER")?.trim() || join(homedir(), "laya", ".venv", "bin", "laya-mcp-server");
 }
 
 /** The real connect: spawns the server over stdio with the settings checked for ADR-083. */
@@ -97,7 +97,7 @@ export interface LayaEngineOptions {
   /** Default: the real server at layaServerPath(env). */
   connect?: LayaConnect;
   timeoutMs?: number;
-  /** ZENO_LAYA=0 turns Laya off; ZENO_LAYA_SERVER moves the server. Default: process.env. */
+  /** ATOM_LAYA=0 turns Laya off; ATOM_LAYA_SERVER moves the server. Default: process.env. */
   env?: Env;
   log?: Pick<Logger, "info" | "warn">;
 }
@@ -107,8 +107,8 @@ const reason = (error: unknown) => (error instanceof Error ? error.message : Str
 export function createLayaEngine(options: LayaEngineOptions = {}): DecisionEngine {
   const { env = process.env, timeoutMs = LAYA_TIMEOUT_MS, log } = options;
   const connect = options.connect ?? stdioLaya(layaServerPath(env));
-  /** Why Laya is off for good (until ZENO restarts); undefined while it may be used. */
-  let off: string | undefined = env.ZENO_LAYA === "0" ? "turned off" : undefined;
+  /** Why Laya is off for good (until ATOM restarts); undefined while it may be used. */
+  let off: string | undefined = readEnv(env, "ATOM_LAYA") === "0" ? "turned off" : undefined;
   let session: Promise<LayaClient> | undefined;
   /** Crashes and failed starts so far: the first gets one restart, the second turns Laya off. */
   let failures = 0;

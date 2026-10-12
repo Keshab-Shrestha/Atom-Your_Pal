@@ -54,7 +54,7 @@ test("look_at_screen returns Cua's screenshot of the main display, shrunk to 128
   assert.match(text, /\[POINT:none\]/);
   assert.deepEqual(shots, [{ width: 1280, height: 720, display: { x: 0, y: 0, width: 1920, height: 1080 } }]);
   assert.deepEqual(steps, [{ action: "look" }]);
-  // Cua wrote the full-size PNG to a file ZENO chose, which was handed to the shrinker.
+  // Cua wrote the full-size PNG to a file ATOM chose, which was handed to the shrinker.
   const capture = calls.find((c) => c.name === "get_desktop_state")!;
   assert.deepEqual(Object.keys(capture.args), ["screenshot_out_file"]);
   assert.equal(seen[0]!.input, capture.args.screenshot_out_file);

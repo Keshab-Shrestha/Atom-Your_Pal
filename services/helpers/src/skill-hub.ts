@@ -6,7 +6,7 @@ import { HelperError } from "./jobs.ts";
 import { SKILL_DRAFT_NAME, parseSkillFile, skillFile, writeSkill } from "./skill-drafts.ts";
 import type { HelperChange } from "./store-types.ts";
 
-// B3.5, ADR-102: skills from a pinned public repo. Keshab sees a preview with review flags and approves it into ZENO's
+// B3.5, ADR-102: skills from a pinned public repo. Keshab sees a preview with review flags and approves it into ATOM's
 // folder (`data/skills/<name>/SKILL.md`). One file only; nothing runs; no worker gets the skill; never updated by itself.
 // The network lives in apps/mac/src/skill-hub.ts. This module never logs and never sends skill text anywhere.
 
@@ -106,8 +106,8 @@ export function reviewFlags(text: string): ReviewFlag[] {
 
 /** The two hard refusals: text that hides characters, and text over the size limit. Undefined when the text may be previewed. */
 export function hubRefusal(text: string): string | undefined {
-  if (text.length > MAX_HUB_BODY) return `That skill is over ${MAX_HUB_BODY} characters, so ZENO does not take it.`;
-  if (new RegExp(HIDDEN_CHARS.source, "u").test(text)) return "That skill has hidden characters (zero-width or text-direction marks), so ZENO does not take it.";
+  if (text.length > MAX_HUB_BODY) return `That skill is over ${MAX_HUB_BODY} characters, so ATOM does not take it.`;
+  if (new RegExp(HIDDEN_CHARS.source, "u").test(text)) return "That skill has hidden characters (zero-width or text-direction marks), so ATOM does not take it.";
   return undefined;
 }
 
@@ -228,7 +228,7 @@ export function skillHubStore(deps: SkillHubDeps) {
   const rowOf = (name: string) => q.installed.get(name) as unknown as InstalledRow | undefined;
   const fileOf = (name: string) => join(skillsDir!, name, "SKILL.md");
   const needDir = () => {
-    if (!skillsDir) throw new HelperError("ZENO's skills folder is not set up, so a skill cannot be saved.");
+    if (!skillsDir) throw new HelperError("ATOM's skills folder is not set up, so a skill cannot be saved.");
   };
   /** The folder is exactly what was written: one SKILL.md with the recorded hash. */
   const untouched = (row: InstalledRow) => {
@@ -247,7 +247,7 @@ export function skillHubStore(deps: SkillHubDeps) {
   function checked(file: HubFile): string {
     const name = HUB_PATH.exec(file.path)?.[1] ?? "";
     if (!HUB_REPO.test(file.repo) || !HUB_SHA.test(file.sha) || file.path.includes("..") || !SKILL_DRAFT_NAME.test(name)) {
-      throw new HelperError("That is not a skill ZENO can take: its name is 2 to 41 lower-case letters, digits and dashes.");
+      throw new HelperError("That is not a skill ATOM can take: its name is 2 to 41 lower-case letters, digits and dashes.");
     }
     const refusal = hubRefusal(file.text);
     if (refusal) throw new HelperError(refusal);
@@ -265,7 +265,7 @@ export function skillHubStore(deps: SkillHubDeps) {
   }
 
   return {
-    /** A fetched skill is shown for Keshab's OK; nothing is written in ZENO's folder. */
+    /** A fetched skill is shown for Keshab's OK; nothing is written in ATOM's folder. */
     previewSkillHub(file: HubFile): HubPending {
       const name = checked(file);
       if (rowOf(name)) throw new HelperError(`"${name}" is installed from the hub already. Use Update to look for a newer version.`);
@@ -280,8 +280,8 @@ export function skillHubStore(deps: SkillHubDeps) {
       const { body } = parsed(p.text);
       const written = skillFile(p.name, p.description, body);
       if (p.kind === "new") {
-        if (existsSync(join(userSkillsDir, p.name))) throw new HelperError(`You already have a skill called "${p.name}" in ~/.claude/skills, and ZENO never changes yours. Reject this one.`);
-        if (existsSync(join(skillsDir!, p.name))) throw new HelperError(`ZENO already has a skill called "${p.name}". Reject this one.`);
+        if (existsSync(join(userSkillsDir, p.name))) throw new HelperError(`You already have a skill called "${p.name}" in ~/.claude/skills, and ATOM never changes yours. Reject this one.`);
+        if (existsSync(join(skillsDir!, p.name))) throw new HelperError(`ATOM already has a skill called "${p.name}". Reject this one.`);
         if (count(q.countInstalled) >= MAX_HUB_INSTALLED) throw new HelperError(`At most ${MAX_HUB_INSTALLED} skills from the hub can be installed. Uninstall one first.`);
         writeSkill(skillsDir!, p.name, p.description, body);
         q.install.run(p.name, p.repo, p.path, p.sha, originUrl(p.repo, p.sha, p.path), sha256(written), now().toISOString());

@@ -90,7 +90,7 @@ test("device failure before stop is reported with what to do", async () => {
   assert.equal(failures.length, 1);
   assert.ok(failures[0] instanceof AudioError);
   assert.match(failures[0].message, /Microphone ":default" is not available/);
-  assert.match(failures[0].message, /press d to list microphones, then set ZENO_AUDIO_INPUT_DEVICE/);
+  assert.match(failures[0].message, /press d to list microphones, then set ATOM_AUDIO_INPUT_DEVICE/);
 });
 
 test("describeFailure recognises common causes and keeps unknown details", () => {

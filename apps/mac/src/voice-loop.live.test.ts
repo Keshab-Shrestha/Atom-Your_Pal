@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCore } from "@zeno/core";
 import { createGateway, createProviderAdapter } from "@zeno/llm-gateway";
-import { loadConfig } from "@zeno/shared";
+import { loadConfig, readEnv } from "@zeno/shared";
 import type { AudioClip } from "./audio.ts";
 import { createWhisperStt } from "./stt.ts";
 import { createKokoroSynthesizer, createSpeaker } from "./tts.ts";
@@ -15,7 +15,7 @@ import { createVoiceLoop, type TurnTimings } from "./voice-loop.ts";
 // The whole voice loop with real components: speech (made with macOS `say` instead of the microphone)
 // → Whisper → Core → gateway → the configured provider → Kokoro → your speakers.
 // Costs two provider requests and plays audio. Run with: pnpm test:live
-const enabled = process.env.ZENO_LIVE_TESTS === "1";
+const enabled = readEnv(process.env, "ATOM_LIVE_TESTS") === "1";
 
 function speech(text: string): AudioClip {
   const dir = mkdtempSync(join(tmpdir(), "zeno-e2e-"));
@@ -29,7 +29,7 @@ function speech(text: string): AudioClip {
   }
 }
 
-test("live: spoken questions are answered aloud, with conversation memory", { skip: !enabled && "set ZENO_LIVE_TESTS=1 (pnpm test:live)", timeout: 120_000 }, async (t) => {
+test("live: spoken questions are answered aloud, with conversation memory", { skip: !enabled && "set ATOM_LIVE_TESTS=1 (pnpm test:live)", timeout: 120_000 }, async (t) => {
   const config = loadConfig();
   const tts = createSpeaker(createKokoroSynthesizer({ voice: config.tts.voice, dtype: config.tts.dtype }));
   await tts.warmUp();

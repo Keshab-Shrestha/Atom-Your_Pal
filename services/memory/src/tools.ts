@@ -41,7 +41,7 @@ export function createMemoryTools(options: MemoryToolOptions): MemoryTool[] {
       },
       run(input) {
         const fact = String(input.fact);
-        if (looksSecret(fact)) throw new MemoryError("That looks like a password or other secret; ZENO does not keep those.");
+        if (looksSecret(fact)) throw new MemoryError("That looks like a password or other secret; ATOM does not keep those.");
         const before = store.count();
         const memory = store.add(fact, provenance());
         const count = store.count();
@@ -96,7 +96,7 @@ export function createMemoryTools(options: MemoryToolOptions): MemoryTool[] {
   ];
 }
 
-/** Always in the prompt when memory is on, so ZENO knows it can keep things and offers to (ADR-059). */
+/** Always in the prompt when memory is on, so ATOM knows it can keep things and offers to (ADR-059). */
 export const MEMORY_GUIDANCE =
   "You can keep facts about the user between conversations with the remember tool. When the user mentions a lasting " +
   "personal fact or preference in passing (family, home, work, diet, routines, how they like things done), briefly offer " +
@@ -110,7 +110,7 @@ export interface MemoryContextOptions {
 }
 
 /**
- * What ZENO knows that may matter for this request: memories matching its words, then the newest, up to
+ * What ATOM knows that may matter for this request: memories matching its words, then the newest, up to
  * `limit`. Returned as a block for the system prompt, or undefined when nothing is kept.
  */
 export function memoryContext(request: string, options: MemoryContextOptions): string | undefined {

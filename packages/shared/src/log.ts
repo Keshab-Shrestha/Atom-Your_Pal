@@ -26,7 +26,7 @@ export interface LoggerOptions {
  * Structured log: one JSON object per line, for looking at what happened after the fact.
  * Callers log what happened (events, timings, error kinds), not what was said: SECURITY.md asks
  * for sensitive content to be minimized in logs, so transcripts and replies are never passed in.
- * Logging must never break ZENO, so write failures are reported once and then ignored.
+ * Logging must never break ATOM, so write failures are reported once and then ignored.
  */
 export function createLogger(options: LoggerOptions): Logger {
   const { level, file, now = () => new Date() } = options;

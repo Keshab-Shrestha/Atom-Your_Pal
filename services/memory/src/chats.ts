@@ -2,8 +2,8 @@ import type { DatabaseSync } from "node:sqlite";
 import type { Message } from "@zeno/contracts";
 import { chatSearch, type ChatSearchHit } from "./chat-search.ts";
 
-// ADR-091: Keshab's chat sessions with ZENO, kept on this Mac (in the memory file) so he can go back to one. A chat is
-// ZENO Core's session: its id, a title from its first words and its turns. Never logged; the newest 200 are kept.
+// ADR-091: Keshab's chat sessions with ATOM, kept on this Mac (in the memory file) so he can go back to one. A chat is
+// ATOM Core's session: its id, a title from its first words and its turns. Never logged; the newest 200 are kept.
 
 export interface ChatSummary {
   id: string;

@@ -74,8 +74,8 @@ export function checkpointBefore(options: { roots: string[]; tree?: string; keep
 }
 
 /**
- * ADR-090: a file worker with no folder asks on Pal's card for the one its task names (else ~/Documents/ZENO). Allowed:
- * ZENO makes the folder and grants it, and the worker's folders come back. Refused (or no answer): a clear error.
+ * ADR-090: a file worker with no folder asks on Pal's card for the one its task names (else ~/Documents/ATOM). Allowed:
+ * ATOM makes the folder and grants it, and the worker's folders come back. Refused (or no answer): a clear error.
  */
 export async function askForFolder(options: {
   task: string;
@@ -91,7 +91,7 @@ export async function askForFolder(options: {
   const shown = folder.startsWith(home) ? `~${folder.slice(home.length)}` : folder;
   const allowed = await options.approve({
     summary: `${name} needs a folder to save files in`,
-    reason: `Let ${name} read, write, copy and edit files in ${shown}? ZENO makes the folder if it is missing. Change it on ${name}'s page.`,
+    reason: `Let ${name} read, write, copy and edit files in ${shown}? ATOM makes the folder if it is missing. Change it on ${name}'s page.`,
   });
   options.onAnswer?.(allowed);
   if (!allowed) throw new Error(`${name} needs a folder to save files in, and none was allowed. Grant one on ${name}'s page, then retry.`);

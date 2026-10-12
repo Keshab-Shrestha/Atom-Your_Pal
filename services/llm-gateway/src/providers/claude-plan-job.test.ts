@@ -101,7 +101,7 @@ test("a plan-first run uses no tools at all, keeps no session and returns the pl
   await assert.rejects(runPlan({ claudePath: "/bin/claude", model: "m", task: "t", instructions: "i", signal: new AbortController().signal, sdk: bad.sdk, env: {} }), /plan came back in the wrong shape/);
 });
 
-test("the hand_off tool runs in ZENO through an in-process server; its refusals come back as errors (Task 3.10)", async () => {
+test("the hand_off tool runs in ATOM through an in-process server; its refusals come back as errors (Task 3.10)", async () => {
   type Handler = (args: Record<string, unknown>) => Promise<{ content: { text: string }[]; isError?: boolean }>;
   const made: { name: string; handler: Handler }[] = [];
   let allowed: unknown;
@@ -234,7 +234,7 @@ test("Tinker drafts a skill and proposes skill edits with no tools, in their own
   });
   assert.deepEqual(await runSkillEdit({ ...base, sdk: two.sdk }), { edit });
   assert.deepEqual(two.seen[0]!.options.outputFormat.schema.required, ["change", "body", "reason"]);
-  assert.match(two.seen[0]!.options.systemPrompt, /improves one of ZENO's skills/);
+  assert.match(two.seen[0]!.options.systemPrompt, /improves one of ATOM's skills/);
 });
 
 test("Tinker's review uses no tools and returns one proposed change (Task 3.13)", async () => {

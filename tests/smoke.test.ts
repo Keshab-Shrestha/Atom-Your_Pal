@@ -7,7 +7,7 @@ function startZeno(env: Record<string, string>, args: string[] = [], input?: str
     encoding: "utf8",
     // A model saved in the island (config/island.json) overrides the env, so point at a file that
     // does not exist: these tests check the env configuration, not whatever the user last picked.
-    env: { ...process.env, ZENO_ISLAND_SETTINGS: "tests/no-saved-choice.json", ...env },
+    env: { ...process.env, ATOM_ISLAND_SETTINGS: "tests/no-saved-choice.json", ...env },
     input,
     timeout: 30_000,
   });
@@ -25,32 +25,32 @@ function events(stdout: string) {
     });
 }
 
-test("ZENO starts with valid configuration", () => {
-  const result = startZeno({ ZENO_LLM_PROVIDER: "claude-plan" });
+test("ATOM starts with valid configuration", () => {
+  const result = startZeno({ ATOM_LLM_PROVIDER: "claude-plan" });
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /ZENO: started/);
+  assert.match(result.stdout, /ATOM: started/);
 });
 
-test("ZENO exits with a clear error when configuration is invalid", () => {
-  const result = startZeno({ ZENO_LLM_PROVIDER: "openai" });
+test("ATOM exits with a clear error when configuration is invalid", () => {
+  const result = startZeno({ ATOM_LLM_PROVIDER: "openai" });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Invalid configuration:/);
-  assert.match(result.stderr, /ZENO_LLM_PROVIDER must be one of claude-plan/);
+  assert.match(result.stderr, /ATOM_LLM_PROVIDER must be one of claude-plan/);
 });
 
 test("island mode: invalid configuration is a config error event and exit code 78", () => {
-  const result = startZeno({ ZENO_LLM_PROVIDER: "openai" }, ["--island"]);
+  const result = startZeno({ ATOM_LLM_PROVIDER: "openai" }, ["--island"]);
   assert.equal(result.status, 78);
   const [event, ...rest] = events(result.stdout);
   assert.equal(event.type, "error");
   assert.equal(event.stage, "config");
-  assert.match(String(event.message), /ZENO_LLM_PROVIDER must be one of claude-plan/);
+  assert.match(String(event.message), /ATOM_LLM_PROVIDER must be one of claude-plan/);
   assert.deepEqual(rest, []);
 });
 
 test("island mode: stdout carries only events; closing stdin exits cleanly", () => {
   // Bad command then end of input: the runtime reports the bad line, then leaves because the island went away.
-  const result = startZeno({ ZENO_LLM_PROVIDER: "claude-plan" }, ["--island"], "not json\n");
+  const result = startZeno({ ATOM_LLM_PROVIDER: "claude-plan" }, ["--island"], "not json\n");
   assert.equal(result.status, 0, result.stderr);
   const all = events(result.stdout); // throws if anything else reached stdout
   assert.deepEqual(all[0], { type: "error", stage: "protocol", message: "Command is not valid JSON." });
@@ -59,7 +59,7 @@ test("island mode: stdout carries only events; closing stdin exits cleanly", () 
 
 test("island mode: SIGTERM exits cleanly", async () => {
   const child = spawn(process.execPath, ["apps/mac/src/main.ts", "--island"], {
-    env: { ...process.env, ZENO_LLM_PROVIDER: "claude", ANTHROPIC_API_KEY: "test-key" },
+    env: { ...process.env, ATOM_LLM_PROVIDER: "claude", ANTHROPIC_API_KEY: "test-key" },
     stdio: ["pipe", "pipe", "pipe"],
   });
   // Wait for the startup line, which is printed once SIGTERM is handled. Earlier stderr lines (such as a

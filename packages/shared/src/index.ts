@@ -2,3 +2,4 @@ export { CLAUDE_PLAN, CODEX, GEMINI_CLI, ConfigError, findClaudeProgram, findCod
 export type { Config, LlmChoice, LlmProvider, LoadConfigOptions, LogLevel, ProviderKeys } from "./config.ts";
 export { createLogger } from "./log.ts";
 export type { LogFields, Logger } from "./log.ts";
+export { ENV_NAMES, readEnv } from "./env.ts";

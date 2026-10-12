@@ -10,10 +10,10 @@ export interface ShortcutMatch {
 const MAX_QUERY = 200;
 
 /** Spoken extras around a command that do not change it. */
-const LEAD = /^(?:(?:hey )?zeno|please|can you|could you)\s+/;
+const LEAD = /^(?:(?:hey )?(?:atom|zeno)|please|can you|could you)\s+/;
 const TAIL = /\s+please$/;
 
-/** Lower case, no commas or end punctuation, no "please" or "Zeno". */
+/** Lower case, no commas or end punctuation, no "please", "ATOM" or "Zeno". */
 function normalize(text: string): string {
   let s = text.toLowerCase().replace(/[,!?]/g, " ").replace(/[.\s]+$/, "").replace(/\s+/g, " ").trim();
   for (let before = ""; before !== s; ) {
@@ -39,7 +39,7 @@ function exactApp(spoken: string, apps: readonly string[]): string | undefined {
 
 const query = (q: string) => (q.trim() && q.length <= MAX_QUERY ? q.trim() : undefined);
 
-const SETTINGS = /^(?:open|show)(?: the| my| your| zeno'?s?)? settings$/;
+const SETTINGS = /^(?:open|show)(?: the| my| your| atom'?s?| zeno'?s?)? settings$/;
 const OPEN = /^(?:open|launch|start|switch to)(?: the| my)? (.+?)(?: app)?$/;
 const PLAY_PAUSE =
   /^(?:play|pause|resume|unpause|play pause|play\/pause)(?: the)?(?: music| video| song| youtube(?: video)?)?(?: (?:in|on) (?:brave|brave browser|the browser|youtube))?$/;

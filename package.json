@@ -10,7 +10,7 @@
     "start": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning apps/mac/src/main.ts",
     "voice:check": "node --env-file-if-exists=.env apps/mac/src/voice-check.ts",
     "test": "node --test \"**/*.test.ts\"",
-    "test:live": "ZENO_LIVE_TESTS=1 node --env-file-if-exists=.env --test \"**/*.live.test.ts\"",
+    "test:live": "ATOM_LIVE_TESTS=1 node --env-file-if-exists=.env --test \"**/*.live.test.ts\"",
     "typecheck": "tsc",
     "island:build": "apps/mac/island/build-app.sh",
     "island:open": "apps/mac/island/build-app.sh --open",

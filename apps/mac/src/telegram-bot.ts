@@ -1,6 +1,6 @@
 // ADR-098 items 1 and 2: ATOM on Telegram. Keshab talks to ATOM, reads and answers Needs you, lists tasks and reads
-// reports. ZENO sends what needs him, finished goals and the results of schedules marked "Send result to Telegram".
-// Every button maps to a command the ZENO window already has. Logs command names, button kinds and counts only.
+// reports. ATOM sends what needs him, finished goals and the results of schedules marked "Send result to Telegram".
+// Every button maps to a command the ATOM window already has. Logs command names, button kinds and counts only.
 
 import type { HelperStore, Job } from "@zeno/helpers";
 import type { Logger } from "@zeno/shared";
@@ -9,7 +9,7 @@ import { testsOf } from "./island-helpers.ts";
 import type { TaskSteering } from "./task-steering.ts";
 import { startTelegram, type Button, type TelegramClient, type TelegramInput } from "./telegram.ts";
 
-/** The chat in the chats store that holds the Telegram conversation (the ZENO window lists it as "Telegram"). */
+/** The chat in the chats store that holds the Telegram conversation (the ATOM window lists it as "Telegram"). */
 export const TELEGRAM_CHAT = "telegram";
 /** How much of a report one message shows. */
 const REPORT_CHARS = 3500;
@@ -19,7 +19,7 @@ const TASKS_SHOWN = 20;
 const SETTLE_MS = 1_000;
 
 const HELP = [
-  "I am ATOM, ZENO's assistant. Send a message to talk to me.",
+  "I am ATOM, your assistant. Send a message to talk to me.",
   "/needs: what waits for your answer",
   "/tasks: tasks that run or wait to run",
   "/report <number>: a task's report",
@@ -45,7 +45,7 @@ export interface TelegramBotOptions {
 }
 
 export interface TelegramBot {
-  /** Settings' "Send to Telegram": what ZENO sends by itself. Replies to Keshab always go. */
+  /** Settings' "Send to Telegram": what ATOM sends by itself. Replies to Keshab always go. */
   setPush(on: boolean): void;
   stop(): void;
 }
@@ -111,7 +111,7 @@ export function needsYou(store: HelperStore | undefined, held: (job: Job) => str
   const hub: Need[] = store.skillHubPending().map((p) => {
     const kinds = [...new Set(p.flags.map((f) => f.kind))];
     const head = p.kind === "update" ? `A newer version of the ${p.name} skill is ready` : `Skill from the hub: ${p.name}`;
-    return { key: `skill-hub-${p.id}`, push: true, text: `${head}\n${p.repo} @ ${p.sha.slice(0, 7)}\nFlags: ${kinds.length ? kinds.join(", ") : "none"}\nRead it in the ZENO window before you approve.`, buttons: yesNo("Approve", "Reject", `h:${p.id}`) };
+    return { key: `skill-hub-${p.id}`, push: true, text: `${head}\n${p.repo} @ ${p.sha.slice(0, 7)}\nFlags: ${kinds.length ? kinds.join(", ") : "none"}\nRead it in the ATOM window before you approve.`, buttons: yesNo("Approve", "Reject", `h:${p.id}`) };
   });
   return [...questions, ...plans, ...proposals, ...drafts, ...edits, ...hub, ...holds, ...failures.sort((a, b) => b.key.localeCompare(a.key, undefined, { numeric: true }))];
 }
@@ -236,7 +236,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     const items = needsYou(store, held, approvals.pending());
     if (!items.length) return client.send("Nothing waits for you.");
     for (const item of items.slice(0, NEEDS_SHOWN)) await client.send(item.text, item.buttons);
-    if (items.length > NEEDS_SHOWN) await client.send(`${items.length - NEEDS_SHOWN} more wait in the ZENO window.`);
+    if (items.length > NEEDS_SHOWN) await client.send(`${items.length - NEEDS_SHOWN} more wait in the ATOM window.`);
   }
 
   function tasksText(): string {
@@ -248,7 +248,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     const queued = lines("queued");
     if (!running.length && !queued.length) return "No task runs or waits to run.";
     const all = [...(running.length ? ["Running:", ...running] : []), ...(queued.length ? [running.length ? "\nWaiting:" : "Waiting:", ...queued] : [])];
-    return all.length > TASKS_SHOWN ? [...all.slice(0, TASKS_SHOWN), `… and ${all.length - TASKS_SHOWN} more in the ZENO window.`].join("\n") : all.join("\n");
+    return all.length > TASKS_SHOWN ? [...all.slice(0, TASKS_SHOWN), `… and ${all.length - TASKS_SHOWN} more in the ATOM window.`].join("\n") : all.join("\n");
   }
 
   function reportText(id: number): string {
@@ -257,7 +257,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     const report = store.report(id);
     if (!report) return `Task #${id} has no report.`;
     const whole = `${report.title}\n\n${report.summary}\n\n${report.body}`;
-    return whole.length > REPORT_CHARS ? `${whole.slice(0, REPORT_CHARS - 1)}…\n\nThe rest is in the ZENO window.` : whole;
+    return whole.length > REPORT_CHARS ? `${whole.slice(0, REPORT_CHARS - 1)}…\n\nThe rest is in the ATOM window.` : whole;
   }
 
   function press(data: string, queryId: string) {

@@ -1,5 +1,5 @@
-// ADR-080: pointing from a screenshot. Cua Driver takes the screenshot (it holds Screen Recording; ZENO holds none),
-// ZENO shrinks it with macOS `sips` and hands it to the model, which ends its reply with [POINT:x,y:label].
+// ADR-080: pointing from a screenshot. Cua Driver takes the screenshot (it holds Screen Recording; ATOM holds none),
+// ATOM shrinks it with macOS `sips` and hands it to the model, which ends its reply with [POINT:x,y:label].
 
 import { execFile } from "node:child_process";
 import { access, mkdtemp, readFile, rm } from "node:fs/promises";

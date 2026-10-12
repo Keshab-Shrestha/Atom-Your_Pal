@@ -3,7 +3,7 @@ import type { CuaTransport } from "./cua-client.ts";
 import { appBlock, keyApproval, labelApproval, secretField } from "./policy.ts";
 
 export interface ApprovalRequest {
-  /** What ZENO is about to do, in words for the user: "Click \"Send\" in Mail". */
+  /** What ATOM is about to do, in words for the user: "Click \"Send\" in Mail". */
   summary: string;
   /** Why it is asking. */
   reason: string;
@@ -13,7 +13,7 @@ export interface ComputerAction {
   action: string;
   app?: string;
   ok: boolean;
-  /** Set when ZENO refused or the user declined. Never contains typed text. */
+  /** Set when ATOM refused or the user declined. Never contains typed text. */
   reason?: string;
 }
 
@@ -28,7 +28,7 @@ export interface ComputerToolOptions {
    * island to show it. Coordinates are screen points, origin at the top-left of the main display, as Cua reports them.
    */
   onPoint?: (target: { x: number; y: number; w: number; h: number; label: string }) => boolean | void;
-  /** Called as an action begins, so the user can see what ZENO is doing. Carries the action and app only. */
+  /** Called as an action begins, so the user can see what ATOM is doing. Carries the action and app only. */
   onStep?: (step: { action: string; app?: string }) => void;
   maxElements?: number;
 }
@@ -57,7 +57,7 @@ class Refused extends Error {}
 
 /**
  * Drops the app menu bar and everything under it. It is a long list (the whole Apple menu) that crowds out the window, and
- * ZENO has no menu action. Elements keep Cua's own numbers, so a dropped element simply cannot be picked.
+ * ATOM has no menu action. Elements keep Cua's own numbers, so a dropped element simply cannot be picked.
  */
 function withoutMenuBar(elements: Element[]): Element[] {
   const kept: Element[] = [];
@@ -94,7 +94,7 @@ function usableFrame(f: Element["frame"]): { x: number; y: number; w: number; h:
 
 /**
  * The one computer-control tool the model sees (ADR-054). It exposes a small set of actions on top of Cua Driver,
- * and enforces ZENO's rules around every one: blocked apps, approval for risky clicks and keys, no typing into
+ * and enforces ATOM's rules around every one: blocked apps, approval for risky clicks and keys, no typing into
  * secret fields, and only elements from the latest `look`. The model chooses actions; it never touches Cua directly.
  */
 export function createComputerTool(options: ComputerToolOptions): Tool {
@@ -177,14 +177,14 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
   function explain(code: string | undefined, app: string): string | undefined {
     switch (code) {
       case "same_pid_keyboard_ambiguity":
-        return `${app} has more than one window open, so ZENO cannot type or press keys there without risking the wrong window. Ask the user to close the other ${app} windows. Clicking still works. ${FINAL}`;
+        return `${app} has more than one window open, so ATOM cannot type or press keys there without risking the wrong window. Ask the user to close the other ${app} windows. Clicking still works. ${FINAL}`;
       case "minimized_or_hidden_window":
         return `The ${app} window is minimized or hidden. Ask the user to bring it back. ${FINAL}`;
       case "off_space_or_ax_unresolved":
-        return `The ${app} window is on another desktop (Space) or ZENO cannot read it. Ask the user to switch to it. ${FINAL}`;
+        return `The ${app} window is on another desktop (Space) or ATOM cannot read it. Ask the user to switch to it. ${FINAL}`;
       case "window_not_found":
       case "owner_pid_mismatch":
-        return `ZENO lost track of the ${app} window. Look again; if that fails, ${FINAL.toLowerCase()}`;
+        return `ATOM lost track of the ${app} window. Look again; if that fails, ${FINAL.toLowerCase()}`;
       default:
         return undefined;
     }
@@ -207,7 +207,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
   }
 
   // Cua says whether an input worked: confirmed (it read the result back), unverifiable, or suspected_noop. The model gets
-  // that in plain words, never Cua's own retry ladder (foreground input is not something ZENO offers).
+  // that in plain words, never Cua's own retry ladder (foreground input is not something ATOM offers).
   let lastNoop: string | undefined;
   function verdict(r: { data: Record<string, unknown> }, key: string): string {
     const effect = r.data.effect;
@@ -220,7 +220,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     }
     lastNoop = undefined;
     if (effect === "confirmed") return " (confirmed)";
-    if (effect === "unverifiable") return " ZENO could not confirm it worked; look to check.";
+    if (effect === "unverifiable") return " ATOM could not confirm it worked; look to check.";
     return "";
   }
 
@@ -268,7 +268,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const t = need();
         const el = pick(t, input.element);
         const secret = secretField(el);
-        if (secret) throw new Refused(`ZENO never types into ${secret}. Ask the user to type it themselves.`);
+        if (secret) throw new Refused(`ATOM never types into ${secret}. Ask the user to type it themselves.`);
         if (typeof input.text !== "string" || !input.text) throw new Refused('"text" is required.');
         const r = await cua.call("type_text", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, text: input.text, delivery_mode: "background" }, signal);
         checkResult(r, "Typing", t.app);
@@ -293,7 +293,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const t = need();
         const el = pick(t, input.element);
         const box = usableFrame(el.frame);
-        if (!box) throw new Refused(`ZENO cannot show where [${el.element_index}] is: it has no place on screen. Describe it in words instead.`);
+        if (!box) throw new Refused(`ATOM cannot show where [${el.element_index}] is: it has no place on screen. Describe it in words instead.`);
         if (!onPoint) throw new Refused("Pointing is not available right now. Describe where it is in words instead.");
         const label = (typeof input.text === "string" && input.text.trim() ? input.text : el.label ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
         if (onPoint({ ...box, label }) === false) throw new Refused("Pointing is not available right now. Describe where it is in words instead.");
@@ -314,7 +314,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const t = need();
         const el = pick(t, input.element);
         const secret = secretField(el);
-        if (secret) throw new Refused(`ZENO never types into ${secret}. Ask the user to type it themselves.`);
+        if (secret) throw new Refused(`ATOM never types into ${secret}. Ask the user to type it themselves.`);
         if (typeof input.text !== "string" || !input.text) throw new Refused('"text" is required: the value to set.');
         const why = labelApproval(el.label, el.role);
         if (why) await ask(`Change ${why} in ${t.app}`, "it may send, buy, delete or change something", signal);
@@ -341,7 +341,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         "Each reply says whether the action was confirmed; if it says it probably did nothing, look before trying again. " +
         "Use `point` with an element number (and a short label) to show the user where something is: ATOM flies to it. " +
         "Point when the user asks where something is or how to do it, instead of doing it for them. " +
-        "ZENO asks the user before sending, buying, deleting or changing anything, and never types passwords. " +
+        "ATOM asks the user before sending, buying, deleting or changing anything, and never types passwords. " +
         "If the user declines, stop and say so.",
       inputSchema: {
         type: "object",

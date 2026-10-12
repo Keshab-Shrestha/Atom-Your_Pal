@@ -83,7 +83,7 @@ test("search refuses an empty or over-long query; the cache expires after 10 min
 
 test("a truncated tree is a plain message", async () => {
   const { fetchImpl } = github({ [`https://api.github.com/repos/anthropics/skills/git/trees/${SHA}?recursive=1`]: () => new Response(tree({ truncated: true }), { headers: JSON_H }) });
-  await assert.rejects(createHubClient({ fetchImpl }).searchHub("pdf"), (e) => e instanceof HubError && /too big for ZENO to search/.test(e.message));
+  await assert.rejects(createHubClient({ fetchImpl }).searchHub("pdf"), (e) => e instanceof HubError && /too big for ATOM to search/.test(e.message));
 });
 
 test("the host allowlist: other hosts, http and a user name are refused before any request", async () => {
@@ -169,10 +169,10 @@ test("fetchSkill reads exactly one SKILL.md at the pinned sha; a fresh look re-r
 test("fetchSkill refuses a bad source, a traversal path, a backslash, another file name and a bad folder name", async () => {
   const { calls, fetchImpl } = github();
   const hub = createHubClient({ fetchImpl });
-  await assert.rejects(hub.fetchSkill(5, "skills/pdf/SKILL.md"), /not in ZENO's list/);
-  await assert.rejects(hub.fetchSkill(-1, "skills/pdf/SKILL.md"), /not in ZENO's list/);
+  await assert.rejects(hub.fetchSkill(5, "skills/pdf/SKILL.md"), /not in ATOM's list/);
+  await assert.rejects(hub.fetchSkill(-1, "skills/pdf/SKILL.md"), /not in ATOM's list/);
   for (const path of ["../x/SKILL.md", "skills/../SKILL.md", "skills\\pdf/SKILL.md", "skills/pdf/scripts/run.py", "skills/pdf/OTHER.md", "skills/Bad_Name/SKILL.md", "/skills/pdf/SKILL.md", "skills/p/SKILL.md"]) {
-    await assert.rejects(hub.fetchSkill(0, path), /not a skill ZENO can take/, path);
+    await assert.rejects(hub.fetchSkill(0, path), /not a skill ATOM can take/, path);
   }
   assert.equal(calls.length, 0);
 });

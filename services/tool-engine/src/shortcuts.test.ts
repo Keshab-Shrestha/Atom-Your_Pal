@@ -6,13 +6,15 @@ import { createShortcuts, matchShortcut } from "./shortcuts.ts";
 const APPS = ["Brave Browser", "Finder", "Notes", "Journal", "Safari", "Terminal", "System Settings", "Music"];
 const match = (text: string) => matchShortcut(text, { apps: APPS });
 
-test("Keshab's commands match, with capitals, punctuation, 'please' and 'Zeno'", () => {
+test("Keshab's commands match, with capitals, punctuation, 'please', 'ATOM' and 'Zeno'", () => {
   const cases: Array<[string, string, Record<string, unknown>]> = [
     ["Open settings.", "open_zeno_settings", {}],
-    ["open ZENO's settings", "open_zeno_settings", {}],
+    ["open ATOM's settings", "open_zeno_settings", {}],
     ["Open system settings", "open_app", { name: "System Settings" }],
     ["Open Brave.", "open_app", { name: "Brave Browser" }],
+    ["Atom, open brave browser please", "open_app", { name: "Brave Browser" }],
     ["Zeno, open brave browser please", "open_app", { name: "Brave Browser" }],
+    ["open zeno's settings", "open_zeno_settings", {}],
     ["Open Finder", "open_app", { name: "Finder" }],
     ["open notes", "open_app", { name: "Notes" }],
     ["Please open my journal!", "open_app", { name: "Journal" }],
@@ -83,7 +85,7 @@ test("a hit runs the tool once and returns its reply; the log gets the name only
 });
 
 test("a refused or failed tool leaves the sentence to the model", async () => {
-  const r = runner({ isError: true, content: '"open_app" failed: ZENO will never control Terminal' });
+  const r = runner({ isError: true, content: '"open_app" failed: ATOM will never control Terminal' });
   const fallbacks: unknown[] = [];
   const run = createShortcuts({ tools: r.tools, apps: async () => APPS, onFallback: (e) => fallbacks.push(e) });
   assert.equal(await run("open Terminal"), undefined);

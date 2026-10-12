@@ -7,9 +7,9 @@ import type { GoalPart, HelperStore, HelperView, Job, ManagerView } from "./stor
 
 const TASK_INPUT = "1 to 6 tasks, each an object {worker, task, after}";
 
-/** The tool's description and capability; the team itself is in the context (names can change while ZENO runs). */
+/** The tool's description and capability; the team itself is in the context (names can change while ATOM runs). */
 const DESCRIPTION =
-  "Hand work to ZENO's workers. It runs in the background while you keep talking. Use it for research or writing that " +
+  "Hand work to ATOM's workers. It runs in the background while you keep talking. Use it for research or writing that " +
   "takes minutes; answer quick questions yourself. goal: a short name for the result, such as \"home networking guide\". " +
   `tasks: ${TASK_INPUT}. worker: a worker's name from "Your team" in the context, or the name of a manager that plans ` +
   "and reviews (it splits that part across its agents itself). task: exactly what to find or write " +
@@ -87,7 +87,7 @@ export function createDelegateTool(options: DelegateToolOptions) {
         const after = t.blockedBy.map((b) => nameOf(goal.tasks.find((x) => x.id === b)!.helper));
         return `${nameOf(t.helper)} (task ${t.id}${after.length ? `, after ${[...new Set(after)].join(" and ")}` : ""})`;
       });
-      return `The team has it: ${who.join("; ")}. Tell the user in one short sentence who is on it. ZENO will say when it is ready.`;
+      return `The team has it: ${who.join("; ")}. Tell the user in one short sentence who is on it. ATOM will say when it is ready.`;
     },
   };
 }
@@ -129,7 +129,7 @@ export function createScheduleTool(options: ScheduleToolOptions) {
       if (!worker) throw new HelperError(`There is no worker called "${String(input.worker).slice(0, 40)}". The team: ${workers.map((w) => w.name).join(", ")}.`);
       const routine = store.addRoutine(worker.id, String(input.task ?? ""), scheduleFrom(input));
       options.onScheduled?.({ routine: routine.id, helper: worker.id });
-      return `Routine made: ${worker.name}, ${describeSchedule(routine.schedule).toLowerCase()}. Keshab can remove it in the ZENO window.`;
+      return `Routine made: ${worker.name}, ${describeSchedule(routine.schedule).toLowerCase()}. Keshab can remove it in the ATOM window.`;
     },
   };
 }
@@ -171,7 +171,7 @@ export function createTeamTaskTool(options: TeamTaskToolOptions) {
       const who = posted.role ? `a ${posted.role}` : "any worker";
       return (
         `Posted to the team as team task ${posted.id}, for ${who}. ` +
-        (wakers.length ? `${wakers.map((w) => w.name).join(", ")} wake${wakers.length === 1 ? "s" : ""} up by themselves and may take it. ` : "No worker that may take it wakes up by itself yet: Keshab can turn wake-ups on on a worker's page in the ZENO window. ") +
+        (wakers.length ? `${wakers.map((w) => w.name).join(", ")} wake${wakers.length === 1 ? "s" : ""} up by themselves and may take it. ` : "No worker that may take it wakes up by itself yet: Keshab can turn wake-ups on on a worker's page in the ATOM window. ") +
         "Tell the user in one short sentence."
       );
     },
@@ -214,7 +214,7 @@ export function handOffTool(store: HelperStore, job: Job) {
   if ((job.parentId !== undefined && !fromManager) || !workers.length) return undefined;
   return {
     description:
-      `Hand a sub-task to another of ZENO's workers when part of the job needs their skill: ${workers.map((w) => `${w.name} (${w.role})`).join(", ")}. ` +
+      `Hand a sub-task to another of ATOM's workers when part of the job needs their skill: ${workers.map((w) => `${w.name} (${w.role})`).join(", ")}. ` +
       `worker: their name. task: exactly what they should find and deliver. At most ${MAX_HAND_OFFS}. After handing off, finish your ` +
       "report with what you have now; you will run again with their report to update it.",
     async run(input: { worker: string; task: string }): Promise<string> {
@@ -285,8 +285,8 @@ export function matchWorkerCommand(text: string, workers: readonly HelperView[])
 }
 
 /**
- * Runs a worker command and returns ZENO's reply, or undefined when the sentence is not one. A new task becomes a goal
- * of one task, so ZENO says when it is done; a follow-up ("Sid, dig deeper on that") is a note on the worker's newest
+ * Runs a worker command and returns ATOM's reply, or undefined when the sentence is not one. A new task becomes a goal
+ * of one task, so ATOM says when it is done; a follow-up ("Sid, dig deeper on that") is a note on the worker's newest
  * task, which wakes it (Task 3.6). Refusals ("Kame is not ready yet.") are replies too.
  */
 export function createWorkerShortcut(

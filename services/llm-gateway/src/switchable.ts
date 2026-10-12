@@ -6,7 +6,7 @@ export interface SwitchableModel extends LanguageModel {
 }
 
 /**
- * A language model whose underlying gateway can be swapped at run time (e.g. ZENO Island's model
+ * A language model whose underlying gateway can be swapped at run time (e.g. ATOM Island's model
  * setting, ADR-038). The Core keeps one model, and with it the conversation, across a switch.
  */
 export function createSwitchableModel(initial: LanguageModel): SwitchableModel {

@@ -1,12 +1,12 @@
 // Kokoro runs in its own child process. Synthesis is CPU-bound, and the ONNX runtime aborts the
 // whole process if a thread running it is stopped mid-synthesis; a child process can be killed
-// at any moment (quit, Ctrl+C) without affecting ZENO, and a Kokoro crash cannot take ZENO down.
+// at any moment (quit, Ctrl+C) without affecting ATOM, and a Kokoro crash cannot take ATOM down.
 type Init = { type: "init"; modelId: string; voice: string; dtype: "fp32" | "fp16" | "q8" | "q4" | "q4f16"; speed: number; cacheDir: string };
 type Request = { type: "synthesize"; id: number; text: string };
 
 const send = (message: unknown) => process.send?.(message);
 
-// If ZENO goes away, leave too.
+// If ATOM goes away, leave too.
 process.on("disconnect", () => process.exit(0));
 
 let ready: Promise<{ generate(text: string, o: object): Promise<{ audio: Float32Array; sampling_rate: number }> }> | null = null;

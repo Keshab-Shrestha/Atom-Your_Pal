@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { findProgram } from "@zeno/shared";
 import { scanAiTools, type ScanDeps } from "./ai-tools.ts";
 
-// ADR-093: the AI tools found on this Mac, signed in or not, and which ZENO can use.
+// ADR-093: the AI tools found on this Mac, signed in or not, and which ATOM can use.
 
 const deps = (files: string[], answers: Record<string, string | Error> = {}): ScanDeps => ({
   env: { PATH: "/usr/bin" },
@@ -37,8 +37,8 @@ test("Codex is found inside the ChatGPT editor extension (the newest), and its s
   const old = "/h/.vscode/extensions/openai.chatgpt-26.1002.5-darwin-arm64/bin/macos-aarch64/codex";
   const newest = "/h/.vscode/extensions/openai.chatgpt-26.1007.1-darwin-arm64/bin/macos-aarch64/codex";
   const list = (dir: string) => (dir === "/h/.vscode/extensions" ? ["openai.chatgpt-26.1002.5-darwin-arm64", "openai.chatgpt-26.1007.1-darwin-arm64", "other"] : []);
-  assert.equal(findProgram("codex", "ZENO_CODEX_PATH", {}, (p) => p === old || p === newest, "/h", list), newest);
-  assert.equal(findProgram("codex", "ZENO_CODEX_PATH", { ZENO_CODEX_PATH: "/gone" }, (p) => p === newest, "/h", list), undefined, "an explicit path is never second-guessed");
+  assert.equal(findProgram("codex", "ATOM_CODEX_PATH", {}, (p) => p === old || p === newest, "/h", list), newest);
+  assert.equal(findProgram("codex", "ATOM_CODEX_PATH", { ATOM_CODEX_PATH: "/gone" }, (p) => p === newest, "/h", list), undefined, "an explicit path is never second-guessed");
   const codexSays = async (said: string | Error) => (await scanAiTools(deps(["/usr/bin/codex"], { "/usr/bin/codex login status": said }))).find((t) => t.id === "codex")!;
   assert.equal((await codexSays("Logged in using ChatGPT")).signedIn, true);
   const out = await codexSays(new Error("not logged in"));

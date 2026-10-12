@@ -1,5 +1,5 @@
 // The parts of the Mac runtime shared by both interfaces (terminal and island):
-// Microphone → Whisper → ZENO Core → LLM Gateway → provider → Kokoro → speaker.
+// Microphone → Whisper → ATOM Core → LLM Gateway → provider → Kokoro → speaker.
 
 import { rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -30,7 +30,7 @@ import {
   type Timers,
 } from "@zeno/tool-engine";
 import { createGateway, createProviderAdapter, createSwitchableModel, listPlanModels, runChatDigest, type ChatSession, type ChatSessions, type PlanUsage } from "@zeno/llm-gateway";
-import { CLAUDE_PLAN, createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
+import { CLAUDE_PLAN, createLogger, readEnv, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import {
   createEpisodeRecorder,
   createMemoryTools,
@@ -97,7 +97,7 @@ const PLAN_TIMEOUT_MS = 120_000;
 /** Points around a spot from a screenshot marker (ADR-080), about the size of a menu-bar icon. */
 const POINT_BOX = 20;
 
-/** Claude Code's own web search on the Claude plan (ADR-069): not a ZENO tool, so listed here (ADR-076). */
+/** Claude Code's own web search on the Claude plan (ADR-069): not a ATOM tool, so listed here (ADR-076). */
 const WEB_SEARCH: Capability = { title: "Search the web", examples: ["What's in the news today?", "Who won the match last night?"] };
 
 export interface Runtime {
@@ -111,19 +111,19 @@ export interface Runtime {
   record: VoiceLoopOptions["record"];
   /** The microphone actually in use: with ":default" this follows macOS, which changes when devices are plugged in. */
   micName(): Promise<string>;
-  /** Computer control's link to the island (steps and approvals). Used only when ZENO_COMPUTER=1. */
+  /** Computer control's link to the island (steps and approvals). Used only when ATOM_COMPUTER=1. */
   computer: ComputerBridge;
-  /** What the user asked ZENO to keep (ADR-058). Undefined when ZENO_MEMORY=0 or the store could not open. */
+  /** What the user asked ATOM to keep (ADR-058). Undefined when ATOM_MEMORY=0 or the store could not open. */
   memory?: MemoryStore;
   /** The memory as Settings sees it (list, forget, clear, change updates). Undefined when memory is off. */
   islandMemory?: IslandMemory;
-  /** ADR-091: Keshab's chat sessions as the ZENO window sees them. Undefined when memory is off. */
+  /** ADR-091: Keshab's chat sessions as the ATOM window sees them. Undefined when memory is off. */
   islandChats?: IslandChats;
   /** Helpers' apps, jobs and reports (ADR-081). Undefined when the store could not open. */
   helpers?: HelperStore;
-  /** The helpers as the ZENO window sees them. Undefined when the store could not open. */
+  /** The helpers as the ATOM window sees them. Undefined when the store could not open. */
   islandHelpers?: IslandHelpers;
-  /** ADR-091: ZENO's task branches, and Keshab's push. Undefined when the helpers store could not open. */
+  /** ADR-091: ATOM's task branches, and Keshab's push. Undefined when the helpers store could not open. */
   islandGit?: IslandGit;
   /** Pal dropped on a window (ADR-074): that app's read, held for the next request only. */
   screen: WindowPointer;
@@ -140,11 +140,11 @@ export interface Runtime {
    * then `after` asks on Pal's approval card). Returns a function that stops listening.
    */
   onGoalLine(listener: (line: string, after?: () => void) => void): () => void;
-  /** ADR-098: ZENO's Telegram bot. Undefined unless ZENO_TELEGRAM_BOT_TOKEN and ZENO_TELEGRAM_CHAT_ID are both set. */
+  /** ADR-098: ATOM's Telegram bot. Undefined unless ATOM_TELEGRAM_BOT_TOKEN and ATOM_TELEGRAM_CHAT_ID are both set. */
   telegram?: TelegramBot;
   /** ADR-098 item 3: Keshab's messages to running tasks, and interrupts. Undefined when the helpers store could not open. */
   steering?: TaskSteering;
-  /** ADR-098 item 5: the local HTTP API, off until Settings turns it on. Undefined with ZENO_VOICE_ONLY=1. */
+  /** ADR-098 item 5: the local HTTP API, off until Settings turns it on. Undefined with ATOM_VOICE_ONLY=1. */
   api?: ApiServer;
   /** Shutdown: stops running helper jobs (they are marked failed at the next start) and Laya's server. */
   close(): void;
@@ -155,9 +155,9 @@ export interface RuntimeOptions {
   keys?: ProviderKeys;
   /** Where a model switch is saved (config/island.json). */
   settingsPath?: string;
-  /** The memory file (ADR-058). Default: ZENO_MEMORY_FILE or data/memory.db; ":memory:" for tests. */
+  /** The memory file (ADR-058). Default: ATOM_MEMORY_FILE or data/memory.db; ":memory:" for tests. */
   memoryPath?: string;
-  /** The helpers file (ADR-081). Default: ZENO_HELPERS_FILE or data/helpers.db; ":memory:" for tests. */
+  /** The helpers file (ADR-081). Default: ATOM_HELPERS_FILE or data/helpers.db; ":memory:" for tests. */
   helpersPath?: string;
 }
 
@@ -172,7 +172,7 @@ export function createRuntime(
     vocabulary: config.stt.vocabulary,
   });
   const computer = createComputerBridge();
-  const memory = openMemory(options.memoryPath ?? process.env.ZENO_MEMORY_FILE ?? "data/memory.db", log);
+  const memory = openMemory(options.memoryPath ?? readEnv(process.env, "ATOM_MEMORY_FILE") ?? "data/memory.db", log);
   // The request a memory tool is running for, for provenance. Set by the Core's context hook, which runs first.
   let current: { source: InputSource; requestId?: string } = { source: "voice" };
   const memoryListeners = new Set<() => void>();
@@ -190,7 +190,7 @@ export function createRuntime(
           claudePath: keys["claude-plan"] ?? "",
           model: small,
           task: brief,
-          instructions: "You are ZENO's memory keeper.",
+          instructions: "You are ATOM's memory keeper.",
           signal: AbortSignal.timeout(120_000),
           onUsage: reportUsage,
         });
@@ -218,7 +218,7 @@ export function createRuntime(
       return () => memoryListeners.delete(listener);
     },
   };
-  // ADR-091: Keshab's chat sessions: saved after every exchange, listed, opened and deleted from the ZENO window.
+  // ADR-091: Keshab's chat sessions: saved after every exchange, listed, opened and deleted from the ATOM window.
   const chatListeners = new Set<() => void>();
   // ADR-097: a model chosen for a chat that is not saved yet; it goes into the chat's row at its first save.
   const unsavedChatModels = new Map<string, LlmChoice>();
@@ -272,23 +272,23 @@ export function createRuntime(
       return () => chatListeners.delete(listener);
     },
   };
-  const helpersPath = options.helpersPath ?? process.env.ZENO_HELPERS_FILE ?? "data/helpers.db";
+  const helpersPath = options.helpersPath ?? readEnv(process.env, "ATOM_HELPERS_FILE") ?? "data/helpers.db";
   // ADR-088: agents Keshab adds live beside the helpers file, each data/agents/<id>/soul.md.
   const agentsDir = join(dirname(resolve(helpersPath === ":memory:" ? "data/x" : helpersPath)), "agents");
-  // ADR-094: ZENO's own skills, approved by Keshab, live beside it too: data/skills/<name>/SKILL.md.
+  // ADR-094: ATOM's own skills, approved by Keshab, live beside it too: data/skills/<name>/SKILL.md.
   const skillsDir = helpersPath === ":memory:" ? undefined : join(dirname(resolve(helpersPath)), "skills");
   const checkpointsDir = helpersPath === ":memory:" ? undefined : join(dirname(resolve(helpersPath)), "checkpoints"); // B3.4
   const helpers = openHelpers(helpersPath, log, helpersPath === ":memory:" ? undefined : agentsDir, skillsDir, checkpointsDir);
-  // ADR-091: ZENO's task branches in the repositories Keshab granted; pushing one is his alone, asked from the window.
+  // ADR-091: ATOM's task branches in the repositories Keshab granted; pushing one is his alone, asked from the window.
   const islandGit: IslandGit | undefined = helpers && createIslandGit(helpers);
   // Task 3.11: the tasks' git worktrees live beside the helpers file, never inside a granted repository.
   const worktrees = join(dirname(resolve(helpersPath === ":memory:" ? "data/x" : helpersPath)), "worktrees");
-  // ADR-087, Task 3.16: Keshab's own Paperclip, only when ZENO_PAPERCLIP_URL names a loopback address. Anything else
-  // sends nothing. ZENO never installs or starts it.
-  const paperclipApi = paperclipBase(process.env.ZENO_PAPERCLIP_URL);
-  if (process.env.ZENO_PAPERCLIP_URL && !paperclipApi) log.warn("paperclip.refused", { reason: "not_loopback_http" });
+  // ADR-087, Task 3.16: Keshab's own Paperclip, only when ATOM_PAPERCLIP_URL names a loopback address. Anything else
+  // sends nothing. ATOM never installs or starts it.
+  const paperclipApi = paperclipBase(readEnv(process.env, "ATOM_PAPERCLIP_URL"));
+  if (readEnv(process.env, "ATOM_PAPERCLIP_URL") && !paperclipApi) log.warn("paperclip.refused", { reason: "not_loopback_http" });
   const paperclip = paperclipApi
-    ? { client: createPaperclip(paperclipApi, { company: process.env.ZENO_PAPERCLIP_COMPANY || undefined }), tracker: issueTracker(join(dirname(worktrees), "paperclip.json")) }
+    ? { client: createPaperclip(paperclipApi, { company: readEnv(process.env, "ATOM_PAPERCLIP_COMPANY") || undefined }), tracker: issueTracker(join(dirname(worktrees), "paperclip.json")) }
     : undefined;
   const paperclipListeners = new Set<() => void>();
   const paperclipChanged = () => {
@@ -301,22 +301,22 @@ export function createRuntime(
       for (const listener of timerListeners) listener(timer);
     },
   });
-  // ADR-062: Open-Meteo, no key. ZENO_WEATHER=0 turns it off; ZENO_HOME sets "here" (default: the time zone's city).
+  // ADR-062: Open-Meteo, no key. ATOM_WEATHER=0 turns it off; ATOM_HOME sets "here" (default: the time zone's city).
   // Home's forecast is fetched at start and every 30 minutes, so "what's the weather" needs no network wait.
-  const weather = process.env.ZENO_WEATHER === "0" ? undefined : weatherTool(process.env.ZENO_HOME ? { home: () => process.env.ZENO_HOME! } : {});
+  const weather = readEnv(process.env, "ATOM_WEATHER") === "0" ? undefined : weatherTool(readEnv(process.env, "ATOM_HOME") ? { home: () => readEnv(process.env, "ATOM_HOME")! } : {});
   if (weather) {
     void weather.warm();
     setInterval(() => void weather.warm(), 30 * 60_000).unref();
   }
-  // ADR-074: off with the front window tool (ZENO_FRONT_WINDOW=0), whose limits it shares.
-  const screen = createWindowPointer({ enabled: process.env.ZENO_FRONT_WINDOW !== "0", log });
+  // ADR-074: off with the front window tool (ATOM_FRONT_WINDOW=0), whose limits it shares.
+  const screen = createWindowPointer({ enabled: readEnv(process.env, "ATOM_FRONT_WINDOW") !== "0", log });
   // ADR-080: the screenshot the model was given this turn, so the reply's [POINT:…] marker can be checked against it.
-  const computerOn = process.env.ZENO_COMPUTER === "1";
+  const computerOn = readEnv(process.env, "ATOM_COMPUTER") === "1";
   let lastShot: ScreenShot | undefined;
   const cua = computerOn ? createCuaTransport() : undefined;
   const calendarHelper = findCalendarHelper();
   log.info("calendar.helper", { available: Boolean(calendarHelper) });
-  // The tools ZENO can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
+  // The tools ATOM can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
   // needs them; the other providers get them from the Core.
   const tools = [
     // Task 3.16: only with Keshab's own Paperclip on this Mac. Approvals are answered only after his OK on the card.
@@ -324,21 +324,21 @@ export function createRuntime(
       ? createPaperclipTools({ ...paperclip, confirm: (request) => computer.approve(request), onChange: paperclipChanged, onCall: (e) => log.info("paperclip.call", e) })
       : []),
     timeTool(),
-    // ADR-066: open apps and web pages. Always on: no screen access, no clicks. ZENO_APPS=0 turns it off.
-    ...(process.env.ZENO_APPS === "0" ? [] : createAppTools()),
-    // ADR-068: music (Spotify or Music) and the Mac's volume. ZENO_MEDIA=0 turns it off.
-    ...(process.env.ZENO_MEDIA === "0" ? [] : createMediaTools()),
-    // Task 2.x: open ZENO's Settings and press the play/pause key, both done by the island.
+    // ADR-066: open apps and web pages. Always on: no screen access, no clicks. ATOM_APPS=0 turns it off.
+    ...(readEnv(process.env, "ATOM_APPS") === "0" ? [] : createAppTools()),
+    // ADR-068: music (Spotify or Music) and the Mac's volume. ATOM_MEDIA=0 turns it off.
+    ...(readEnv(process.env, "ATOM_MEDIA") === "0" ? [] : createMediaTools()),
+    // Task 2.x: open ATOM's Settings and press the play/pause key, both done by the island.
     ...createIslandTools({ openSettings: () => computer.openSettings(), playPause: () => computer.playPause() }),
-    // ADR-070: "take a note" into Apple Notes (adding only). ZENO_NOTES=0 turns it off.
-    ...(process.env.ZENO_NOTES === "0" ? [] : createNoteTools()),
+    // ADR-070: "take a note" into Apple Notes (adding only). ATOM_NOTES=0 turns it off.
+    ...(readEnv(process.env, "ATOM_NOTES") === "0" ? [] : createNoteTools()),
     // ADR-072: the app in front and, in Chrome/Arc/Edge/Brave, the tab title and address. Read-only, on request.
-    // Logs the bundle id and field names only. ZENO_FRONT_WINDOW=0 turns it off.
-    ...(process.env.ZENO_FRONT_WINDOW === "0" ? [] : [createFrontWindowTool({ onRead: (e) => log.info("front_window.read", { ...e, fields: e.fields.join(",") }) })]),
+    // Logs the bundle id and field names only. ATOM_FRONT_WINDOW=0 turns it off.
+    ...(readEnv(process.env, "ATOM_FRONT_WINDOW") === "0" ? [] : [createFrontWindowTool({ onRead: (e) => log.info("front_window.read", { ...e, fields: e.fields.join(",") }) })]),
     ...timers.tools,
-    // ADR-062: Open-Meteo, no key. ZENO_WEATHER=0 turns it off; ZENO_HOME sets "here" (default: the time zone's city).
+    // ADR-062: Open-Meteo, no key. ATOM_WEATHER=0 turns it off; ATOM_HOME sets "here" (default: the time zone's city).
     ...(weather ? [weather] : []),
-    // ADR-060: Calendar and Reminders when the helper is there (inside ZENO.app). ZENO_CALENDAR=0 turns it off.
+    // ADR-060: Calendar and Reminders when the helper is there (inside ZENO.app). ATOM_CALENDAR=0 turns it off.
     ...(calendarHelper ? createCalendarTools({ run: calendarRunner(calendarHelper) }) : []),
     ...(memory
       ? createMemoryTools({
@@ -350,7 +350,7 @@ export function createRuntime(
           },
         })
       : []),
-    // ADR-054: off unless ZENO_COMPUTER=1. Steps and approvals go through the bridge to the island;
+    // ADR-054: off unless ATOM_COMPUTER=1. Steps and approvals go through the bridge to the island;
     // with no island, or no answer, an approval is a refusal.
     ...(cua
       ? [
@@ -377,7 +377,7 @@ export function createRuntime(
   ];
   const toolEngine = createToolEngine({ tools, onCall: (e) => log.info("tool.call", e) });
   const planUsageListeners = new Set<(usage: PlanUsage) => void>();
-  // Plan use goes in the log so it is visible how much of the plan a day of ZENO takes. No keys, no text.
+  // Plan use goes in the log so it is visible how much of the plan a day of ATOM takes. No keys, no text.
   // ADR-076: and to the island's meters. Helper jobs report theirs here too.
   // Task 3.7: the plan's five-hour use in percent, last reported, so new worker runs can wait above the set limit.
   let planUsed: number | undefined;
@@ -396,7 +396,7 @@ export function createRuntime(
         apiKey,
         tools: toolEngine,
         onUsage: reportUsage,
-        // ADR-091: ZENO's own answers count on the Dashboard too.
+        // ADR-091: ATOM's own answers count on the Dashboard too.
         onTokens: (tokens, model) => helpers?.addUsage({ source: "chat", model, ...tokens, ...(tokens.costUsd ? { dollars: tokens.costUsd } : {}) }),
         ...(chatSessions ? { chatSessions } : {}), // ADR-098 item 9
       }),
@@ -436,7 +436,7 @@ export function createRuntime(
   // ADR-059: a short summary of each conversation, written in the background with the same model (no tools).
   // ADR-097: the chat's own model when it has one; it never joins the chat's session (`background`).
   const episodes: EpisodeRecorder | undefined =
-    memory && process.env.ZENO_EPISODES !== "0"
+    memory && readEnv(process.env, "ATOM_EPISODES") !== "0"
       ? createEpisodeRecorder({
           store: memory,
           model: coreModel,
@@ -447,9 +447,9 @@ export function createRuntime(
           onError: (error) => log.warn("episode.failed", { ...errorFields(error) }),
         })
       : undefined;
-  // ADR-071: plain commands run in code, before any model. ZENO_SHORTCUTS=0 turns these off. Logs the name only.
+  // ADR-071: plain commands run in code, before any model. ATOM_SHORTCUTS=0 turns these off. Logs the name only.
   const toolShortcuts =
-    process.env.ZENO_SHORTCUTS === "0"
+    readEnv(process.env, "ATOM_SHORTCUTS") === "0"
       ? undefined
       : createShortcuts({
           tools: toolEngine,
@@ -464,7 +464,7 @@ export function createRuntime(
     const report = helpers?.report(taskId);
     if (!helpers || !job || !report) throw new Error("That task has no report.");
     const worker = helpers.list().find((h) => h.id === job.helper)!;
-    if (!worker.app) throw new Error(`Choose where ${worker.name} opens things in the ZENO window first.`);
+    if (!worker.app) throw new Error(`Choose where ${worker.name} opens things in the ATOM window first.`);
     const said = await openInApp(worker.app, taskId, report, openDeps);
     log.info("report.opened", { helper: job.helper, job: taskId });
     return said;
@@ -475,10 +475,10 @@ export function createRuntime(
     toolShortcuts || workerShortcut
       ? async (text: string, signal?: AbortSignal) => (await workerShortcut?.(text)) ?? toolShortcuts?.(text, signal)
       : undefined;
-  // ZENO_VOICE_ONLY=1: test speech in and out without the AI. ZENO reads back what Whisper heard, and no
+  // ATOM_VOICE_ONLY=1: test speech in and out without the AI. ATOM reads back what Whisper heard, and no
   // request is made to any model. (Typed as `Core` so every caller treats it the same.)
   // ADR-098: one Core setup, used for the window's Core and the Telegram chat's own Core.
-  // The chat of the turn that runs now. The Claude plan runs ZENO's tools through one shared runner, so the delegate tool
+  // The chat of the turn that runs now. The Claude plan runs ATOM's tools through one shared runner, so the delegate tool
   // reads the chat from the turn (AsyncLocalStorage), not from a Core: two surfaces never share one value.
   const makeCore = (): Core => withTurnChat(createCore({
         model: coreModel,
@@ -510,7 +510,7 @@ export function createRuntime(
           episodes?.update(sessionId, turns);
         },
       }));
-  const baseCore: Core = process.env.ZENO_VOICE_ONLY === "1" ? createEchoCore() : makeCore();
+  const baseCore: Core = readEnv(process.env, "ATOM_VOICE_ONLY") === "1" ? createEchoCore() : makeCore();
   // ADR-080: with computer control on, replies lose their [POINT:…] marker before speech, and a valid one points.
   const core: Core = computerOn
     ? withPointing(baseCore, {
@@ -545,9 +545,9 @@ export function createRuntime(
     listPlanModels: (claudePath) => listPlanModels(claudePath), // ADR-097
   });
   // ADR-083: Laya rates each job's difficulty. Its server starts on the first job, stays warm, and stops in close().
-  // ZENO_LAYA=0 turns it off (every job then gets the role's default tier).
+  // ATOM_LAYA=0 turns it off (every job then gets the role's default tier).
   const decisions = createLayaEngine({ log });
-  // ADR-098 item 3: Keshab's messages to running tasks, and interrupts (the ZENO window; Telegram may call the same).
+  // ADR-098 item 3: Keshab's messages to running tasks, and interrupts (the ATOM window; Telegram may call the same).
   const steering = helpers ? taskSteering(helpers, log) : undefined;
   /** The Claude plan's models for worker jobs, by tier; empty on any other provider. */
   const planModels = () =>
@@ -660,7 +660,7 @@ export function createRuntime(
   checkCodex();
   // A new day (budgets) or an older plan window (its use falls) frees held tasks without any change in the store.
   if (runner) setInterval(() => runner.poke(), 60_000).unref();
-  // Task 3.16: the Paperclip tasks ZENO handed over are looked at every minute; a finished one is said once.
+  // Task 3.16: the Paperclip tasks ATOM handed over are looked at every minute; a finished one is said once.
   if (paperclip) {
     const look = () =>
       void checkIssues(paperclip.client, paperclip.tracker).then((lines) => {
@@ -672,7 +672,7 @@ export function createRuntime(
     setInterval(look, 60_000).unref();
   }
   // Task 3.9, ADR-094: routines come due and workers wake on the clock. At start, one catch-up for each that came due
-  // while ZENO was closed.
+  // while ATOM was closed.
   if (helpers) {
     const tick = () => scheduleTick(helpers, planUsed, log, (error) => ({ ...errorFields(error) }));
     tick();
@@ -689,7 +689,7 @@ export function createRuntime(
     const name = helpers.soul(job.helper).name;
     const ask = () =>
       void computer
-        .approve({ summary: `${name}'s plan: ${job.planSummary}`, reason: "Allow starts the work. Decline leaves the plan waiting in the ZENO window." })
+        .approve({ summary: `${name}'s plan: ${job.planSummary}`, reason: "Allow starts the work. Decline leaves the plan waiting in the ATOM window." })
         .then((ok) => {
           log.info("plan.answer", { helper: job.helper, job: job.id, approved: ok });
           if (!ok) return;
@@ -720,12 +720,12 @@ export function createRuntime(
       onFallback: (e) => log.warn("goal.report_fallback", e),
     });
   const tts = createSpeaker(createKokoroSynthesizer({ voice: config.tts.voice, dtype: config.tts.dtype }));
-  // ADR-098: ZENO's own Telegram bot, only when both .env values are set. Its turns go to a Core of their own, saved as
+  // ADR-098: ATOM's own Telegram bot, only when both .env values are set. Its turns go to a Core of their own, saved as
   // the chat "Telegram". The token and the messages are never logged.
-  const telegramToken = process.env.ZENO_TELEGRAM_BOT_TOKEN?.trim();
-  const telegramChat = process.env.ZENO_TELEGRAM_CHAT_ID?.trim();
+  const telegramToken = readEnv(process.env, "ATOM_TELEGRAM_BOT_TOKEN")?.trim();
+  const telegramChat = readEnv(process.env, "ATOM_TELEGRAM_CHAT_ID")?.trim();
   let telegram: TelegramBot | undefined;
-  if (telegramToken && telegramChat && process.env.ZENO_VOICE_ONLY !== "1") {
+  if (telegramToken && telegramChat && readEnv(process.env, "ATOM_VOICE_ONLY") !== "1") {
     const telegramCore = makeCore();
     telegramCore.resume(TELEGRAM_CHAT, memory?.chats.messages(TELEGRAM_CHAT) ?? []);
     telegram = startTelegramBot({
@@ -745,11 +745,11 @@ export function createRuntime(
   let apiCore: Core | undefined;
   let apiChat = "";
   const api: ApiServer | undefined =
-    process.env.ZENO_VOICE_ONLY === "1"
+    readEnv(process.env, "ATOM_VOICE_ONLY") === "1"
       ? undefined
       : createApiServer({
           log,
-          port: process.env.ZENO_API_PORT,
+          port: readEnv(process.env, "ATOM_API_PORT"),
           ask: async (text, chatId) => {
             const chat = chatId ? `api-${chatId}` : "api";
             apiCore ??= makeCore();
@@ -803,7 +803,7 @@ export function createRuntime(
       return () => timerListeners.delete(listener);
     },
     capabilities: () =>
-      capabilityItems(settings.info().provider === "claude-plan" && process.env.ZENO_WEB !== "0" ? [...tools, { capability: WEB_SEARCH }] : tools),
+      capabilityItems(settings.info().provider === "claude-plan" && readEnv(process.env, "ATOM_WEB") !== "0" ? [...tools, { capability: WEB_SEARCH }] : tools),
     onPlanUsage(listener) {
       planUsageListeners.add(listener);
       return () => planUsageListeners.delete(listener);

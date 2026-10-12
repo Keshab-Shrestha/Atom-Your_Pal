@@ -37,7 +37,7 @@ async function* msgs(...m: Msg[]) {
 }
 
 const request = (over: Partial<ModelRequest> = {}): ModelRequest => ({
-  system: "You are ZENO.",
+  system: "You are ATOM.",
   messages: [{ role: "user", content: "hi there" }],
   context: { requestId: "r", sessionId: "s", source: "voice", receivedAt: new Date(0) },
   ...over,
@@ -56,7 +56,7 @@ test("a plain question is answered from the plan, with no tools offered to Claud
   const o = seen[0]!.options;
   assert.equal(o.pathToClaudeCodeExecutable, "/bin/claude");
   assert.equal(o.model, "claude-sonnet-5-5");
-  assert.equal(o.systemPrompt, "You are ZENO."); // replaces Claude Code's own prompt
+  assert.equal(o.systemPrompt, "You are ATOM."); // replaces Claude Code's own prompt
   assert.deepEqual(o.tools, []); // none of Claude Code's built-in tools
   assert.deepEqual(o.settingSources, []);
   assert.equal(o.strictMcpConfig, true); // keeps the account's claude.ai connectors out (40k tokens)
@@ -179,7 +179,7 @@ function runnerOf(fn: (call: ToolCall) => ToolResult | Promise<ToolResult>) {
   return { runner, calls };
 }
 
-test("ZENO's tools are offered to Claude as one in-process server; of Claude Code's own, only web search", async () => {
+test("ATOM's tools are offered to Claude as one in-process server; of Claude Code's own, only web search", async () => {
   const { runner } = runnerOf((c) => ({ callId: c.id, content: "ok" }));
   const { sdk, seen } = fakeSdk(() => msgs(init(), done("ok")));
   await make(sdk, { tools: runner }).complete(request({ tools: [spec] }), live());
@@ -212,7 +212,7 @@ test("a tool result with a screenshot (ADR-080) reaches Claude as MCP image cont
   assert.equal((await make(sdk, { tools: runner }).complete(request({ tools: [spec] }), live())).text, "Top right.");
 });
 
-test("a tool call from Claude runs through ZENO's own tool engine, so its approvals and safety rules apply", async () => {
+test("a tool call from Claude runs through ATOM's own tool engine, so its approvals and safety rules apply", async () => {
   const { runner, calls } = runnerOf((c) => ({ callId: c.id, content: `Clicked [${(c.input as any).element}].` }));
   const { sdk, handlers } = fakeSdk(async function* () {
     yield init();
@@ -376,14 +376,14 @@ function warmSdk(reply: (prompt: string, n: number) => AsyncIterable<Msg>) {
 test("prepare pre-starts Claude Code; the next matching request uses it and the next one is started", async () => {
   const w = warmSdk(() => msgs(init(), done("warm")));
   const adapter = make(w.sdk);
-  adapter.prepare!({ system: "You are ZENO." });
+  adapter.prepare!({ system: "You are ATOM." });
   await new Promise((r) => setTimeout(r, 0));
   assert.equal(w.started.length, 1);
-  assert.equal(w.started[0]!.systemPrompt, "You are ZENO.");
+  assert.equal(w.started[0]!.systemPrompt, "You are ATOM.");
   const reply = await adapter.complete(request({ systemExtra: "The time is 10:00." }), live());
   assert.deepEqual(reply, { text: "warm" });
   assert.equal(w.seen.length, 0, "no cold start");
-  assert.match(w.prompts[0]!, /^Context for this request, from ZENO \(not said by the user\):\nThe time is 10:00\.\n\nhi there$/);
+  assert.match(w.prompts[0]!, /^Context for this request, from ATOM \(not said by the user\):\nThe time is 10:00\.\n\nhi there$/);
   await new Promise((r) => setTimeout(r, 0));
   assert.equal(w.started.length, 2, "the next request's process is already starting");
   adapter.close!();
@@ -405,14 +405,14 @@ test("a request with different instructions does not use the prepared process; a
     throw new Error("pipe closed");
   });
   const b = make(broken.sdk);
-  b.prepare!({ system: "You are ZENO." });
+  b.prepare!({ system: "You are ATOM." });
   assert.deepEqual(await b.complete(request(), live()), { text: "cold" });
 });
 
-test("ZENO_PREWARM=0 never pre-starts", async () => {
+test("ATOM_PREWARM=0 never pre-starts", async () => {
   const w = warmSdk(() => msgs(init(), done("warm")));
-  const adapter = make(w.sdk, { env: { PATH: "/bin", ZENO_PREWARM: "0" } });
-  adapter.prepare!({ system: "You are ZENO." });
+  const adapter = make(w.sdk, { env: { PATH: "/bin", ATOM_PREWARM: "0" } });
+  adapter.prepare!({ system: "You are ATOM." });
   await adapter.complete(request(), live());
   await new Promise((r) => setTimeout(r, 0));
   assert.equal(w.started.length, 0);

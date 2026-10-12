@@ -119,7 +119,7 @@ export function digestBrief(title: string, sections: readonly Turn[][], perMessa
   const parts = [`Chat title: ${title}`];
   let size = parts[0]!.length;
   for (const [i, section] of sections.entries()) {
-    const text = [`Section ${i + 1}:`, ...section.map((t) => `${t.role === "user" ? "Keshab" : "ZENO"}: ${oneLine(t.content, perMessage)}`)].join("\n");
+    const text = [`Section ${i + 1}:`, ...section.map((t) => `${t.role === "user" ? "Keshab" : "ATOM"}: ${oneLine(t.content, perMessage)}`)].join("\n");
     if (size + text.length > maxChars) {
       parts.push(`Section ${i + 1} and later: (left out, too long)`);
       break;
@@ -353,7 +353,7 @@ export function keptChatContext(hits: readonly ChatHit[], maxChars = 1500): stri
   for (const hit of hits) {
     const where = `[${hit.chatTitle} › ${hit.heading}]`;
     for (const line of hit.lines) {
-      const text = `- ${where} ${line.role === "user" ? "User" : "ZENO"}: ${line.text}`;
+      const text = `- ${where} ${line.role === "user" ? "User" : "ATOM"}: ${line.text}`;
       const room = maxChars - size - 1;
       if (room < 40) return out.length > 1 ? out.join("\n") : undefined;
       out.push(text.length > room ? `${text.slice(0, room - 1)}…` : text);

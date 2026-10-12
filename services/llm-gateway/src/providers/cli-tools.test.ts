@@ -4,10 +4,10 @@ import { writeFileSync } from "node:fs";
 import type { ModelRequest } from "@zeno/contracts";
 import { createCodexAdapter, createGeminiCliAdapter, promptText, signedInEnv, type CliRunner } from "./cli-tools.ts";
 
-// ADR-093: ZENO's chat on Codex (ChatGPT plan) or the Gemini CLI (Google sign-in), headless and read-only.
+// ADR-093: ATOM's chat on Codex (ChatGPT plan) or the Gemini CLI (Google sign-in), headless and read-only.
 
 const request = (): ModelRequest => ({
-  system: "You are ZENO.",
+  system: "You are ATOM.",
   systemExtra: "It is Sunday.",
   messages: [{ role: "user", content: "Hi" }, { role: "assistant", content: "Hello!" }, { role: "user", content: "Weather?" }],
   context: { requestId: "r", sessionId: "s", source: "text", receivedAt: new Date(0) },
@@ -16,7 +16,7 @@ const live = () => new AbortController().signal;
 
 test("the prompt carries the instructions, the conversation and no tools", () => {
   const text = promptText(request());
-  assert.match(text, /^You are ZENO\.\n\nIt is Sunday\./);
+  assert.match(text, /^You are ATOM\.\n\nIt is Sunday\./);
   assert.match(text, /User: Hi\n\nAssistant: Hello!\n\nUser: Weather\?/);
   assert.match(text, /no tools here/);
 });

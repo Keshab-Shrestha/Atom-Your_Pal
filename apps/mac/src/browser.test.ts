@@ -131,7 +131,7 @@ test("a declined password question denies; fill_form checks every field", async 
   assert.ok("step" in (await p.check(T("fill_form"), { fields: [{ target: "e2", value: "a" }, { target: "e4", value: "b" }] })));
 });
 
-test("an element ZENO cannot resolve asks (missing ref, no ref, a ref from an old page)", async () => {
+test("an element ATOM cannot resolve asks (missing ref, no ref, a ref from an old page)", async () => {
   const p = await onShop();
   await p.check(T("type"), { target: "e99", text: "a" });
   await p.check(T("type"), { text: "a" });

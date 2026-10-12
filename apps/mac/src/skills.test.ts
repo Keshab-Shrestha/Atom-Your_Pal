@@ -44,18 +44,18 @@ test("a worker's plugin links exactly the chosen skills, and rebuilding drops th
   }
 });
 
-test("ZENO's own skills are listed and linked too, unless Keshab has one of the same name (ADR-094)", () => {
+test("ATOM's own skills are listed and linked too, unless Keshab has one of the same name (ADR-094)", () => {
   const dir = skillsDir();
   const zeno = mkdtempSync(join(tmpdir(), "zeno-own-"));
   const plugin = mkdtempSync(join(tmpdir(), "zeno-plugin-"));
   try {
     for (const name of ["compare-laptops", "pdf"]) {
       mkdirSync(join(zeno, name));
-      writeFileSync(join(zeno, name, "SKILL.md"), `---\nname: ${name}\ndescription: "ZENO's ${name}."\n---\n\nSteps.\n`);
+      writeFileSync(join(zeno, name, "SKILL.md"), `---\nname: ${name}\ndescription: "ATOM's ${name}."\n---\n\nSteps.\n`);
     }
     assert.deepEqual(
       listSkills(dir, zeno).map((s) => [s.name, s.source, s.description]),
-      [["compare-laptops", "zeno", "ZENO's compare-laptops."], ["council", "yours", "Four voices."], ["pdf", "yours", "Read and write PDFs."]],
+      [["compare-laptops", "zeno", "ATOM's compare-laptops."], ["council", "yours", "Four voices."], ["pdf", "yours", "Read and write PDFs."]],
     );
     assert.deepEqual(prepareSkills(plugin, ["compare-laptops", "pdf"], dir, zeno).names, ["compare-laptops", "pdf"]);
     assert.equal(realpathSync(join(plugin, "skills", "compare-laptops")), realpathSync(join(zeno, "compare-laptops")));
@@ -65,7 +65,7 @@ test("ZENO's own skills are listed and linked too, unless Keshab has one of the 
   }
 });
 
-test("a ZENO skill whose name is in the hub list has source \"hub\" (B3.5)", () => {
+test("a ATOM skill whose name is in the hub list has source \"hub\" (B3.5)", () => {
   const dir = skillsDir();
   const zeno = mkdtempSync(join(tmpdir(), "zeno-own-"));
   try {

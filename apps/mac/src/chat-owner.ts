@@ -1,4 +1,4 @@
-// ADR-098: the "telegram" chat and the "api" / "api-<chatId>" chats each have one writer. The ZENO window only reads them.
+// ADR-098: the "telegram" chat and the "api" / "api-<chatId>" chats each have one writer. The ATOM window only reads them.
 
 /** Who writes this chat, in words for the window ("Telegram", "the local API"). Undefined for a chat the window writes. */
 export function chatWriter(id: string): string | undefined {

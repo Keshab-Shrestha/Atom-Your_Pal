@@ -18,7 +18,7 @@ export interface Routine {
   /** ADR-094: paused routines make no tasks; a resumed one counts from when it was resumed (missed times are not made up). */
   paused: boolean;
   resumedAt?: Date;
-  /** ADR-098: when its task ends, ZENO sends the result to Telegram. Default false. */
+  /** ADR-098: when its task ends, ATOM sends the result to Telegram. Default false. */
   notifyTelegram: boolean;
   /** ADR-098 item 5: a call to the local API's webhook may start it now. Default false. */
   webhook: boolean;
@@ -53,7 +53,7 @@ export function lastDue(s: Schedule, createdAt: Date, to: Date): Date | undefine
   return at;
 }
 
-/** Whether it came due since it last did (or since it was made): missed times while ZENO was closed count once. */
+/** Whether it came due since it last did (or since it was made): missed times while ATOM was closed count once. */
 export function isDue(r: Pick<Routine, "schedule" | "createdAt" | "lastAt" | "resumedAt">, now: Date): boolean {
   const due = lastDue(r.schedule, r.createdAt, now);
   const since = Math.max((r.lastAt ?? r.createdAt).getTime(), r.resumedAt?.getTime() ?? 0);
