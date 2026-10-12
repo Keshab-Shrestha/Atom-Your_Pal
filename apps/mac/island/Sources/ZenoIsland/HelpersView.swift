@@ -289,7 +289,7 @@ private struct AllowLargeSwitch: View {
     }
 }
 
-/// A helper's mark: its own pixel character (ADR-089), else its first letter, in a disc. While it works, an arc of
+/// A helper's mark: its own character (ADR-089), else its first letter, in a disc. While it works, an arc of
 /// Pal's light runs round it (a still ring with Reduce Motion). Custom PNG avatars (ADR-085) were removed (ADR-093).
 struct HelperBadge: View {
     let helper: Helper

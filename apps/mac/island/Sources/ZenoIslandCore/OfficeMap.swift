@@ -20,7 +20,7 @@ public enum OfficeMap {
         }
     }
 
-    /// Where a pal is drawn: the sprite's centre in map pixels, and whether a desk or sofa hides its lower half.
+    /// Where a pal is drawn: the sprite's centre in map units, and whether a desk or sofa hides its lower half.
     public struct Place: Equatable, Sendable {
         public var tile: Tile
         public var point: CGPoint
@@ -49,7 +49,7 @@ public enum OfficeMap {
                                              Tile(16, 12), Tile(13, 9), Tile(18, 9), Tile(14, 12)]
 
     /// ADR-094: the "+N at work" sign, standing right of the top row of desks, and the "+N more" sign, standing at the
-    /// lounge's wall by its door (above the pals' "!" and bubbles), in map pixels. Drawn only when someone is left out;
+    /// lounge's wall by its door (above the pals' "!" and bubbles), in map units. Drawn only when someone is left out;
     /// a click opens "All agents".
     public static let atWorkSign = CGRect(x: 287, y: 77, width: 30, height: 15)
     public static let loungeSign = CGRect(x: 226, y: 84, width: 30, height: 15)
@@ -138,10 +138,10 @@ public enum OfficeMap {
 
 /// ADR-090: a pal walking from one place to another along the way between them, at a steady pace. Pure.
 public struct OfficeWalk: Equatable, Sendable {
-    /// Map pixels, from where it starts to where it ends.
+    /// Map units, from where it starts to where it ends.
     public var points: [CGPoint]
     public var start: Date
-    /// Map pixels a second.
+    /// Map units a second.
     public static let speed: Double = 40
 
     public init(from: OfficeMap.Place, to: OfficeMap.Place, start: Date) {

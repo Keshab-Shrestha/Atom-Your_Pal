@@ -1,13 +1,13 @@
 import Foundation
 
-/// ADR-093: how the on-screen 2D pixel Pal moves, as a pure function of the moment: its pose (from `PixelPal`), which
-/// way its eyes look, a small bob, the squash of a click, the wobble of dizziness, and the "z"s of a nap. Pixel
-/// motion: frames change a few times a second, as in the office floor.
-public struct PixelPalFrame: Sendable, Equatable {
-    public var pose: PixelPal.Pose
+/// ADR-093: how the on-screen 2D Pal moves, as a pure function of the moment: its pose (from `PalStance`), which
+/// way its eyes look, a small bob, the squash of a click, the wobble of dizziness, and the "z"s of a nap. Poses
+/// change a few times a second, as in the office floor (ADR-104: drawn smooth, moved as before).
+public struct PalStanceFrame: Sendable, Equatable {
+    public var pose: PalStance.Pose
     /// -1 left, 0 ahead, 1 right (as seen on screen).
     public var look: Int
-    /// Art pixels down (positive) or up.
+    /// Drawing units down (positive) or up.
     public var bob: Int
     /// Width and height factors (1 = as drawn).
     public var squashX: Double
@@ -20,15 +20,15 @@ public struct PixelPalFrame: Sendable, Equatable {
     public var hearing: Bool = false
 }
 
-public enum PixelPalMotion {
+public enum PalStanceMotion {
     /// How far the gaze must point (design points, from `PalGaze`) before the eyes turn.
     static let lookThreshold = 0.8
 
     /// The frame for `mood` at `time` seconds; `gazeX` from `PalGaze` while Pal notices the pointer; a reaction playing
     /// and how far through it is (0...1).
     /// `micLive`: the microphone is capturing (`mic.ready`); until then a listening Pal waits, then it says "speak now".
-    public static func frame(mood: PetBrain.Mood, time: Double, gazeX: Double = 0, micLive: Bool = false, reaction: PalReaction? = nil, progress: Double = 0) -> PixelPalFrame {
-        var f = PixelPalFrame(pose: .idle, look: 0, bob: 0, squashX: 1, squashY: 1, wobble: 0, sleeping: false)
+    public static func frame(mood: PetBrain.Mood, time: Double, gazeX: Double = 0, micLive: Bool = false, reaction: PalReaction? = nil, progress: Double = 0) -> PalStanceFrame {
+        var f = PalStanceFrame(pose: .idle, look: 0, bob: 0, squashX: 1, squashY: 1, wobble: 0, sleeping: false)
         let beat = Int((time * 2).rounded(.down))
         switch mood {
         case .resting, .floating:

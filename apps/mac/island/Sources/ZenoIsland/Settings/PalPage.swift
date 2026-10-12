@@ -15,7 +15,7 @@ struct PalSection: View {
             }
         }
         if settings.petEnabled {
-            Card("Look", footer: "ATOM is drawn in 2D pixel art, like the office floor.") {
+            Card("Look", footer: "ATOM is drawn as smooth 2D art, like the office floor.") {
                 ChoiceRow(title: "Size", selection: settings.palSize) { settings.palSize = $0 }
             }
             Card("Behaviour") {

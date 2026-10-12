@@ -3,7 +3,7 @@ import Foundation
 import Testing
 @testable import ZenoIslandCore
 
-/// ADR-090: the office floor's 2D art: the plan and the ways through it, walking, the pixel pals and the office layers.
+/// ADR-090: the office floor's 2D art: the plan and the ways through it, walking, and (ADR-104) the pal's parts.
 @Suite("Office floor art")
 struct OfficeFloorArtTests {
     func load(_ id: String) throws -> PalDefinition {
@@ -50,80 +50,62 @@ struct OfficeFloorArtTests {
         #expect(abs(walk.duration - walk.length / OfficeWalk.speed) < 0.001)
     }
 
-    @Test func pixelPalsFollowTheirFiles() throws {
+    /// ADR-104: the drawn pal's parts come from its own file, on the 32-unit grid.
+    @Test func palStanceFollowsTheFile() throws {
         let sid = try load("sid"), puff = try load("puff"), tinker = try load("tinker")
-        let idle = PixelPal.sprite(sid, pose: .idle)
-        #expect(idle.width == PixelPal.size && idle.height == PixelPal.size)
-        // Its own colour in the middle of the body, a dark outline, clear around.
-        #expect(idle[16, 22] == PixelColor(css: sid.colors.body!))
-        #expect(idle[0, 0] == .clear)
-        #expect(idle.pixels.contains(PixelColor(css: sid.colors.body!)!.shade(0.42)))
-        // Eyes in its eye colour, with a glint.
-        #expect(idle[11, 18] == PixelColor(css: sid.colors.eyes!) && idle[11, 17] == PixelColor(hex: 0xFFFFFF))
+        let size = Double(PalStance.size)
+        // The body sits in the grid, centred, and the feet sit under it.
+        #expect(PalStance.bodyCentre(.idle).x == 16 && PalStance.bodyCentre(.idle).y == 18 && PalStance.bodyHeight(sid) > 0 && PalStance.bodyHeight(sid) < size)
+        let idleFeet = PalStance.feet(sid, pose: .idle)
+        #expect(idleFeet.count == 2 && idleFeet[0].x < 16 && idleFeet[1].x > 16 && idleFeet[0].y > 18)
         // Different heads: Puff's long ears and Tinker's antenna reach higher than Sid's pointed ears.
-        func top(_ c: PixelCanvas) -> Int { (0..<c.height).first { y in (0..<c.width).contains { c[$0, y].a > 0 } } ?? c.height }
-        #expect(top(PixelPal.sprite(puff, pose: .idle)) < top(idle))
-        #expect(top(PixelPal.sprite(tinker, pose: .idle)) < top(idle))
-        // Every pose is a different frame.
-        let frames = PixelPal.Pose.allCases.map { PixelPal.sprite(sid, pose: $0) }
-        #expect(Set(frames.map(\.pixels)).count == PixelPal.Pose.allCases.count)
-        #expect(PixelPal.sprite(sid, pose: .idle, look: 1) != idle, "the eyes look aside")
+        #expect(PalStance.top(puff, pose: .idle) < PalStance.top(sid, pose: .idle))
+        #expect(PalStance.top(tinker, pose: .idle) < PalStance.top(sid, pose: .idle))
+        #expect(PalStance.top(sid, pose: .idle) >= 0, "nothing is cut off at the top")
+        // Poses move the parts: cheering lifts the body and raises the arms, walking lifts one foot.
+        #expect(PalStance.bodyCentre(.cheer).y < PalStance.bodyCentre(.idle).y && PalStance.bodyCentre(.sad).y > PalStance.bodyCentre(.idle).y)
+        #expect(PalStance.arms(.cheer)[0].hand.y < PalStance.arms(.cheer)[0].shoulder.y)
+        #expect(PalStance.arms(.idle)[0].hand.y > PalStance.arms(.idle)[0].shoulder.y)
+        #expect(PalStance.feet(sid, pose: .walkA)[0].y < PalStance.feet(sid, pose: .walkA)[1].y)
+        let tops = Set(PalStance.Pose.allCases.map { pose in
+            PalStance.arms(pose).map { "\($0.hand.x),\($0.hand.y)" }.joined() + "\(PalStance.bodyCentre(pose).y)" + "\(PalStance.feet(sid, pose: pose).map(\.y))"
+        })
+        #expect(tops.count >= 7, "most poses differ in their parts")
+        #expect(PalStance.headNodes(puff, pose: .idle).isEmpty == false)
     }
 
-    @Test func theOfficeLayersAreTheMapsSizeAndTheForegroundIsMostlyClear() throws {
-        let back = OfficeArt.background(), front = OfficeArt.foreground()
-        #expect(back.width == OfficeMap.width && back.height == OfficeMap.height && front.width == back.width)
-        #expect(back.pixels.allSatisfy { $0.a == 255 }, "the background covers the floor")
-        let clear = front.pixels.filter { $0.a == 0 }.count
-        #expect(Double(clear) / Double(front.pixels.count) > 0.8, "only the desks, the table and the sofa's front")
-        // A desk is drawn over its chair's row, so a seated pal is behind it.
-        let desk = OfficeMap.desks[0]
-        #expect(front[desk.x * OfficeMap.tile + 20, desk.y * OfficeMap.tile + 5].a == 255)
-        let image = try #require(back.cgImage())
-        #expect(image.width == OfficeMap.width && image.height == OfficeMap.height)
-    }
-
-    @Test func pixelsBlendAndStayInside() {
-        var c = PixelCanvas(width: 2, height: 1)
-        c.set(0, 0, PixelColor(hex: 0x000000))
-        c.set(0, 0, PixelColor(hex: 0xFFFFFF, alpha: 128))
-        #expect(c[0, 0].r == 128 && c[0, 0].a == 255)
-        c.set(5, 5, PixelColor(hex: 0xFFFFFF))
-        #expect(c[5, 5] == .clear && c.pixels.count == 2)
-        #expect(PixelColor(css: "#bfe3ef") == PixelColor(hex: 0xBFE3EF) && PixelColor(css: "blue") == nil)
-    }
 }
 
-/// ADR-093: the on-screen Pal in 2D pixel art: its moods, how it notices you, and what a press on it does.
-@Suite("Pixel Pal on screen")
-struct PixelPalMotionTests {
+/// ADR-093: the on-screen Pal in 2D art: its moods, how it notices you, and what a press on it does.
+@Suite("Pal on screen")
+struct PalStanceMotionTests {
     @Test func eachMoodHasItsPose() {
-        #expect(PixelPalMotion.frame(mood: .listening, time: 0, micLive: true).pose == .cheer)
-        #expect(PixelPalMotion.frame(mood: .carried, time: 0).pose == .cheer)
-        #expect(PixelPalMotion.frame(mood: .worried, time: 0).pose == .sad)
-        let nap = PixelPalMotion.frame(mood: .napping, time: 0)
+        #expect(PalStanceMotion.frame(mood: .listening, time: 0, micLive: true).pose == .cheer)
+        #expect(PalStanceMotion.frame(mood: .carried, time: 0).pose == .cheer)
+        #expect(PalStanceMotion.frame(mood: .worried, time: 0).pose == .sad)
+        let nap = PalStanceMotion.frame(mood: .napping, time: 0)
         #expect(nap.pose == .blink && nap.sleeping)
         // Thinking glances one way, then the other.
-        #expect(PixelPalMotion.frame(mood: .thinking, time: 0.1).look != PixelPalMotion.frame(mood: .thinking, time: 0.9).look)
+        #expect(PalStanceMotion.frame(mood: .thinking, time: 0.1).look != PalStanceMotion.frame(mood: .thinking, time: 0.9).look)
         // Speaking bobs quickly; resting breathes slowly.
-        let speaking = Set((0..<12).map { PixelPalMotion.frame(mood: .speaking, time: Double($0) / 12).pose })
+        let speaking = Set((0..<12).map { PalStanceMotion.frame(mood: .speaking, time: Double($0) / 12).pose })
         #expect(speaking == [.idle, .bob])
-        #expect(!PixelPalMotion.frame(mood: .resting, time: 0.1).sleeping)
+        #expect(!PalStanceMotion.frame(mood: .resting, time: 0.1).sleeping)
     }
 
     @Test func itNoticesThePointerAndReacts() {
-        #expect(PixelPalMotion.frame(mood: .resting, time: 0.1, gazeX: 2.5).look == 1)
-        #expect(PixelPalMotion.frame(mood: .resting, time: 0.1, gazeX: -2.5).look == -1)
-        #expect(PixelPalMotion.frame(mood: .resting, time: 0.1, gazeX: 0.3).look == 0)
-        #expect(PixelPalMotion.frame(mood: .listening, time: 0.1, gazeX: 2.5).look == 0, "busy: it does not follow the pointer")
-        let squish = PixelPalMotion.frame(mood: .resting, time: 0, reaction: .squish, progress: 0.5)
+        #expect(PalStanceMotion.frame(mood: .resting, time: 0.1, gazeX: 2.5).look == 1)
+        #expect(PalStanceMotion.frame(mood: .resting, time: 0.1, gazeX: -2.5).look == -1)
+        #expect(PalStanceMotion.frame(mood: .resting, time: 0.1, gazeX: 0.3).look == 0)
+        #expect(PalStanceMotion.frame(mood: .listening, time: 0.1, gazeX: 2.5).look == 0, "busy: it does not follow the pointer")
+        let squish = PalStanceMotion.frame(mood: .resting, time: 0, reaction: .squish, progress: 0.5)
         #expect(squish.squashX > 1 && squish.squashY < 1)
-        #expect(PixelPalMotion.frame(mood: .resting, time: 0, reaction: .dizzy, progress: 0.1).wobble != 0)
-        let hello = PixelPalMotion.frame(mood: .resting, time: 0, reaction: .hello, progress: 0.5)
+        #expect(PalStanceMotion.frame(mood: .resting, time: 0, reaction: .dizzy, progress: 0.1).wobble != 0)
+        let hello = PalStanceMotion.frame(mood: .resting, time: 0, reaction: .hello, progress: 0.5)
         #expect(hello.pose == .cheer && hello.bob < 0)
-        #expect(PixelPalMotion.frame(mood: .napping, time: 0, reaction: .yawn, progress: 0.5).pose == .blink)
+        #expect(PalStanceMotion.frame(mood: .napping, time: 0, reaction: .yawn, progress: 0.5).pose == .blink)
         // At the end of a reaction it is back to normal.
-        let done = PixelPalMotion.frame(mood: .resting, time: 0, reaction: .squish, progress: 1)
+        let done = PalStanceMotion.frame(mood: .resting, time: 0, reaction: .squish, progress: 1)
         #expect(abs(done.squashX - 1) < 0.001 && abs(done.squashY - 1) < 0.001)
     }
 
@@ -131,11 +113,11 @@ struct PixelPalMotionTests {
     /// second press finds it open and leaves it.
     /// ADR-093: while listening Pal waits until the microphone is capturing, then raises its arms with sound bars.
     @Test func speakNowShowsOnPal() {
-        let waiting = PixelPalMotion.frame(mood: .listening, time: 0.1)
+        let waiting = PalStanceMotion.frame(mood: .listening, time: 0.1)
         #expect(waiting.pose == .idle && !waiting.hearing)
-        let live = PixelPalMotion.frame(mood: .listening, time: 0.1, micLive: true)
+        let live = PalStanceMotion.frame(mood: .listening, time: 0.1, micLive: true)
         #expect(live.pose == .cheer && live.hearing)
-        #expect(!PixelPalMotion.frame(mood: .speaking, time: 0.1, micLive: true).hearing, "only while listening")
+        #expect(!PalStanceMotion.frame(mood: .speaking, time: 0.1, micLive: true).hearing, "only while listening")
     }
 
     @Test func clickOpensAndDoubleClickNeverCloses() {

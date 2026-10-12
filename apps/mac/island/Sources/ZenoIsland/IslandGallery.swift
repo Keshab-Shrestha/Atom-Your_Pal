@@ -317,10 +317,10 @@ enum IslandGallery {
             (.resting, "Resting"), (.floating, "Floating"), (.listening, "Listening"), (.thinking, "Thinking"),
             (.speaking, "Speaking"), (.worried, "Problem"), (.napping, "Napping"), (.carried, "Carried"),
         ]
-        // ADR-093: the 2D pixel Pal, every mood, a later moment facing left, and how it notices you.
+        // ADR-093: the smooth 2D Pal, every mood, a later moment facing left, and how it notices you.
         do {
             let sheet = VStack(alignment: .leading, spacing: 14) {
-                Text("ATOM — 2D pixel art").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+                Text("ATOM — smooth 2D vector art").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
                 HStack(spacing: 6) {
                     ForEach(Array(moods.enumerated()), id: \.offset) { _, entry in
                         VStack(spacing: 2) {
