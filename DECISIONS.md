@@ -2045,3 +2045,33 @@ Date: 2026-10-12. Status: **accepted** (Keshab, 2026-10-12: "A worker with tasks
 ### Consequences
 
 Several research or coding sessions can run at once, under Keshab's limit. The team grows by Agents and Sub-Agents without crowding the window: Keshab sees a few Managers, not every worker. Managers in "plans and reviews" spend extra model calls; "group only" spends none.
+
+## ADR-096 — Back and Save in the ZENO Window
+
+Date: 2026-10-12. Status: **accepted**.
+
+Keshab said: "i want back button if possible on many sections like when i am in board and when i get to any agent .. i dont see back or save button .. and other places as well".
+
+### Decision
+
+1. **Back.**
+   - The window keeps a history of the pages that Keshab opens.
+   - A step is a sidebar page and the item that is open in it. An item is the Board, a Manager, an agent, a soul, a task thread, a New agent form, a New manager form or the All agents list.
+   - The top bar shows a back arrow (‹) to the left of the title. The arrow shows only when the history has a previous step.
+   - The ⌘[ key and the back button of the mouse also go back.
+   - Back opens the previous step. Example: Board, then Sid, then a task. Back opens Sid. Back again opens the Board.
+   - The history keeps a maximum of 30 steps.
+   - Back skips a step if its agent, manager or task does not exist now.
+2. **Save.**
+   - Each field that ZENO keeps has a Save button. Examples: a name, a job description, a soul, a budget, a schedule, a manager name, a task note.
+   - The Save button is active only when the field has a change.
+   - The Return key saves a one-line field.
+   - After a save, a "Saved" check shows for a short time.
+   - Steppers, switches and pickers save immediately.
+3. **Unsaved changes.**
+   - Keshab can leave a page with unsaved changes. He can use Back, the sidebar or the window close button.
+   - Then ZENO asks "Discard changes?". The options are Keep editing and Discard.
+
+### Consequences
+
+Keshab can always go back to the previous page. He can always see how to save a change. ZENO keeps the history only while the window is open. ZENO does not store the history.

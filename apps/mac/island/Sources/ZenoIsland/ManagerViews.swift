@@ -12,7 +12,7 @@ struct ManagerChip: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        Button { model.helpers.selectManager(status.id) } label: {
+        Button { model.navigate { model.helpers.selectManager(status.id) } } label: {
             HStack(spacing: 8) {
                 ManagerBadge(manager: status.manager, working: status.atWork > 0, size: 26)
                 VStack(alignment: .leading, spacing: 0) {
@@ -69,6 +69,7 @@ struct ManagerPane: View {
         let agents = list?.agents(of: manager) ?? []
         let status = list.flatMap { TeamRoster.managers(in: $0).first { $0.id == manager.id } }
         let tasks = list?.tasks(of: manager) ?? []
+        let renamed = renaming.wrappedValue && name.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines) != manager.name
         Scrollable {
             VStack(alignment: .leading, spacing: 18) {
                 HStack(spacing: 14) {
@@ -78,15 +79,20 @@ struct ManagerPane: View {
                             TextField("Name", text: name.projectedValue)
                                 .textFieldStyle(.plain).font(.system(size: 18, weight: .semibold, design: theme.titleDesign))
                                 .onSubmit(rename)
+                                .onExitCommand { renaming.wrappedValue = false }
                         } else {
-                            Text(manager.name).font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                            HStack(spacing: 8) {
+                                Text(manager.name).font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                                if model.savedField == "manager-name" && model.helpers.problem == nil { SavedMark() }
+                            }
                         }
                         Text("Manager · \(agents.count) agent\(agents.count == 1 ? "" : "s")\(status.map { $0.atWork > 0 ? " · \($0.atWork) at work" : "" } ?? "")")
                             .font(.system(size: 12)).foregroundStyle(theme.text2.color).lineLimit(1)
                     }
                     Spacer(minLength: 8)
                     if renaming.wrappedValue {
-                        QuietButton(title: "Save", symbol: "checkmark") { rename() }
+                        QuietButton(title: "Cancel") { renaming.wrappedValue = false }
+                        SaveButton(enabled: renamed, label: "Save name", action: rename)
                     } else {
                         QuietButton(title: "Rename", symbol: "pencil") {
                             name.wrappedValue = manager.name
@@ -140,11 +146,15 @@ struct ManagerPane: View {
             .padding(.top, 28)
             .padding(.bottom, Spacing.panel)
         }
+        .tracksEdits(model, "manager-name", renamed)
     }
 
+    /// Return or Save; an unchanged name just closes the field.
     private func rename() {
-        model.sendHelpers(model.helpers.renameManager(name.wrappedValue))
         renaming.wrappedValue = false
+        guard let command = model.helpers.renameManager(name.wrappedValue) else { return }
+        model.send(command)
+        model.showSaved("manager-name")
     }
 }
 
@@ -155,7 +165,7 @@ private struct AgentChip: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        Button { model.helpers.selectHelper(helper.id) } label: {
+        Button { model.navigate { model.helpers.selectHelper(helper.id) } } label: {
             HStack(spacing: 8) {
                 HelperBadge(helper: helper, size: 26)
                 VStack(alignment: .leading, spacing: 0) {
@@ -185,13 +195,12 @@ struct NewManagerPane: View {
     init(model: IslandModel) { self.model = model }
 
     var body: some View {
+        let typed = !name.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
-                QuietButton(title: "Cancel", symbol: "chevron.left") { model.helpers.closeNewManager() }
+                QuietButton(title: "Cancel", symbol: "chevron.left") { model.navigate { model.helpers.closeNewManager() } }
                 Spacer(minLength: 8)
-                QuietButton(title: "Create", symbol: "plus") {
-                    model.sendHelpers(model.helpers.createManager(name: name.wrappedValue, plansAndReviews: plans.wrappedValue))
-                }
+                SaveButton(title: "Create", enabled: typed, commandS: true, label: "Create manager", action: create)
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text("New manager").font(theme.isFlat ? .system(size: 24, weight: .regular, design: .serif) : .system(size: 20, weight: .semibold, design: .rounded))
@@ -200,7 +209,7 @@ struct NewManagerPane: View {
                     .font(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
             }
             if let problem = model.helpers.problem { ProblemLine(text: problem) }
-            SoulField(label: "Name", text: name.projectedValue, limit: HelperSoul.limits.name, lines: 1)
+            SoulField(label: "Name", text: name.projectedValue, limit: HelperSoul.limits.name, lines: 1, submit: create)
             HStack(spacing: 6) {
                 ViewChoice(title: "Plans and reviews", symbol: "list.bullet.clipboard", selected: plans.wrappedValue) { plans.wrappedValue = true }
                 ViewChoice(title: "Group only", symbol: "person.3", selected: !plans.wrappedValue) { plans.wrappedValue = false }
@@ -211,6 +220,11 @@ struct NewManagerPane: View {
         .padding(.horizontal, Spacing.panel + 4)
         .padding(.top, 30)
         .padding(.bottom, Spacing.panel)
+        .tracksEdits(model, "new-manager", typed)
+    }
+
+    private func create() {
+        model.sendHelpers(model.helpers.createManager(name: name.wrappedValue, plansAndReviews: plans.wrappedValue))
     }
 }
 

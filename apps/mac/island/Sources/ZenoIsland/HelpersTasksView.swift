@@ -100,7 +100,7 @@ struct BoardPane: View {
         .overlay(alignment: .top) {
             if model.showsAllAgents {
                 ZStack(alignment: .top) {
-                    Color.black.opacity(0.18).contentShape(Rectangle()).onTapGesture { model.showsAllAgents = false }
+                    Color.black.opacity(0.18).contentShape(Rectangle()).onTapGesture { model.navigate { model.showsAllAgents = false } }
                     AllAgentsList(model: model).padding(.top, 64)
                 }
             }
@@ -119,7 +119,7 @@ struct BoardWell: View {
         VStack(spacing: 0) {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 if index > 0 { Rectangle().fill(theme.separator.color).frame(height: theme.isFlat ? 1 : 0.5) }
-                Button { model.sendHelpers(model.helpers.openThread(item.id)) } label: { BoardCard(model: model, item: item) }
+                Button { model.navigate { model.sendHelpers(model.helpers.openThread(item.id)) } } label: { BoardCard(model: model, item: item) }
                     .buttonStyle(.plain)
             }
         }
@@ -211,7 +211,7 @@ struct ThreadPane: View {
     var body: some View {
         Scrollable {
             VStack(alignment: .leading, spacing: 16) {
-                QuietButton(title: model.helpers.showsBoard ? "Board" : "Jobs", symbol: "chevron.left") { model.helpers.closeReport() }
+                QuietButton(title: model.helpers.showsBoard ? "Board" : "Jobs", symbol: "chevron.left") { model.navigate { model.helpers.closeReport() } }
                 if let item = model.helpers.openItem {
                     header(item)
                     if let problem = model.helpers.problem { ProblemLine(text: problem) }
@@ -314,7 +314,7 @@ private struct SubTasksSection: View {
                 HStack(spacing: 8) {
                     if let item = model.helpers.list?.item(id) {
                         JobDot(job: item.job)
-                        Button { model.sendHelpers(model.helpers.openThread(id)) } label: {
+                        Button { model.navigate { model.sendHelpers(model.helpers.openThread(id)) } } label: {
                             Text(item.job.shortTitle).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
                         }
                         .buttonStyle(.plain)
@@ -396,7 +396,7 @@ private struct WaitsForSection: View {
                     HStack(spacing: 8) {
                         if let other = list?.item(id) {
                             JobDot(job: other.job)
-                            Button { model.sendHelpers(model.helpers.openThread(id)) } label: {
+                            Button { model.navigate { model.sendHelpers(model.helpers.openThread(id)) } } label: {
                                 Text(other.job.shortTitle).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
                             }
                             .buttonStyle(.plain)
@@ -464,6 +464,7 @@ private struct NotesSection: View {
     }
 
     var body: some View {
+        let typed = !draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         VStack(alignment: .leading, spacing: 8) {
             Text("Notes").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             ForEach(comments) { comment in
@@ -483,18 +484,20 @@ private struct NotesSection: View {
                         .onSubmit(add)
                         .accessibilityLabel("Note")
                 }
-                QuietButton(title: "Add") { add() }
+                SaveButton(title: "Add", enabled: typed, saved: model.savedField == "note" && model.helpers.problem == nil, label: "Add note", action: add)
             }
             .padding(.leading, 14).padding(.trailing, 6)
             .frame(height: 38)
             .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
         }
+        .tracksEdits(model, "note", typed)
     }
 
     private func add() {
         guard let command = model.helpers.addComment(draft.wrappedValue) else { return }
         model.send(command)
         draft.wrappedValue = ""
+        model.showSaved("note")
     }
 }
 
@@ -580,7 +583,7 @@ private struct TeamChips: View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8, alignment: .leading)], alignment: .leading, spacing: 8) {
             ForEach(managers) { status in ManagerChip(model: model, status: status) }
             ForEach(chips) { helper in
-                Button { model.helpers.selectHelper(helper.id) } label: {
+                Button { model.navigate { model.helpers.selectHelper(helper.id) } } label: {
                     HStack(spacing: 8) {
                         HelperBadge(helper: helper, size: 26)
                         VStack(alignment: .leading, spacing: 0) {
@@ -599,13 +602,13 @@ private struct TeamChips: View {
                 .help("\(helper.name)'s page")
             }
             if chips.count < everyone.count {
-                quiet("All agents (\(everyone.count))", symbol: "magnifyingglass", help: "Every agent, by name or role") { model.showsAllAgents = true }
+                quiet("All agents (\(everyone.count))", symbol: "magnifyingglass", help: "Every agent, by name or role") { model.navigate { model.showsAllAgents = true } }
             }
             if model.helpers.list != nil {
-                quiet("New agent", symbol: "plus", help: "Add an agent with its own role and soul") { model.helpers.openNewAgent() }
+                quiet("New agent", symbol: "plus", help: "Add an agent with its own role and soul") { model.navigate { model.helpers.openNewAgent() } }
             }
             if !managers.isEmpty {
-                quiet("New manager", symbol: "person.3", help: "Add a manager for a domain, such as Research") { model.helpers.openNewManager() }
+                quiet("New manager", symbol: "person.3", help: "Add a manager for a domain, such as Research") { model.navigate { model.helpers.openNewManager() } }
             }
         }
     }
@@ -645,7 +648,7 @@ private struct AllAgentsList: View {
             HStack {
                 Text("All agents · \(everyone.count)").font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
                 Spacer(minLength: 0)
-                Button { model.showsAllAgents = false } label: {
+                Button { model.navigate { model.showsAllAgents = false } } label: {
                     Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(theme.text3.color)
                         .frame(width: 22, height: 22).contentShape(Rectangle())
                 }
@@ -720,7 +723,9 @@ private struct AllAgentsList: View {
     }
 
     private func open(_ helper: Helper) {
-        model.showsAllAgents = false
-        model.helpers.selectHelper(helper.id)
+        model.navigate {
+            model.showsAllAgents = false
+            model.helpers.selectHelper(helper.id)
+        }
     }
 }

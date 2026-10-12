@@ -19,7 +19,7 @@ struct HelpersView: View {
             VStack(spacing: 0) {
             // ADR-091: a top bar over every page, with the page's name; it moves the window.
             let page = Self.page(model)
-            WindowTopBar(title: page.title, symbol: page.symbol) {
+            WindowTopBar(title: page.title, symbol: page.symbol, back: model.history.canGoBack ? { model.goBack() } : nil) {
                 if model.windowPage == .chat { ChatSoundsMenu(model: model) }
             }
             Group {
@@ -73,6 +73,14 @@ struct HelpersView: View {
         }
         .background(Rectangle().fill(palette.surfaceFill(solid: true)).ignoresSafeArea())
         .ignoresSafeArea(edges: .top)
+        // ADR-096: every change of page or of what is open is a step Back returns to.
+        .onChange(of: model.location, initial: true) { model.recordLocation() }
+        .alert("Discard changes?", isPresented: Binding(get: { model.asksDiscard }, set: { if !$0 { model.keepEditing() } })) {
+            Button("Keep editing", role: .cancel) { model.keepEditing() }
+            Button("Discard", role: .destructive) { model.discardEdits() }
+        } message: {
+            Text("What you typed here is not saved.")
+        }
         .themed(palette)
     }
 }
@@ -130,34 +138,34 @@ private struct HelperSidebar: View {
           Scrollable {
            VStack(alignment: .leading, spacing: 4) {
             WindowHeader(model: model)
-            Button { model.windowPage = .overview } label: {
+            Button { model.navigate { model.windowPage = .overview } } label: {
                 SidebarRow(symbol: "gauge.with.dots.needle.33percent", title: "Overview", detail: nil, selected: model.windowPage == .overview)
             }
             .buttonStyle(.plain)
-            Button { model.windowPage = .dashboard } label: {
+            Button { model.navigate { model.windowPage = .dashboard } } label: {
                 let today = model.helpers.list?.usage?.today.total ?? 0
                 SidebarRow(symbol: "chart.bar.xaxis", title: "Dashboard", detail: today == 0 ? nil : "\(TokenTotals.short(today)) tokens today", selected: model.windowPage == .dashboard)
             }
             .buttonStyle(.plain)
             // ADR-091: no Chat row: the chats below open the chat (ZENO's state is under its name above).
-            Button { model.windowPage = .inbox } label: {
+            Button { model.navigate { model.windowPage = .inbox } } label: {
                 let waiting = (model.helpers.list.map { NeedsYouItem.all(in: $0).count } ?? 0) + (model.approval.pending == nil ? 0 : 1)
                 SidebarRow(symbol: "tray", title: "Needs you", detail: waiting == 0 ? "Nothing waits" : "\(waiting) waiting", selected: model.windowPage == .inbox)
                     .overlay(alignment: .trailing) { if waiting > 0 { StatusDot(color: theme.attention.color, size: 6).padding(.trailing, 14) } }
             }
             .buttonStyle(.plain)
-            Button { model.windowPage = .issues } label: {
+            Button { model.navigate { model.windowPage = .issues } } label: {
                 let issues = model.helpers.list.map { TeamIssues.all(in: $0).count } ?? 0
                 SidebarRow(symbol: "exclamationmark.triangle", title: "Issues", detail: issues == 0 ? "None" : "\(issues) failed", selected: model.windowPage == .issues)
                     .overlay(alignment: .trailing) { if issues > 0 { StatusDot(color: theme.problem.color, size: 6).padding(.trailing, 14) } }
             }
             .buttonStyle(.plain)
-            Button { model.windowPage = .agents; model.helpers.selectBoard() } label: {
+            Button { model.navigate { model.windowPage = .agents; model.helpers.selectBoard() } } label: {
                 BoardRow(model: model, selected: model.windowPage == .agents && model.helpers.showsBoard)
             }
             .buttonStyle(.plain)
             // ADR-094: everything that runs by itself, below Issues and Board.
-            Button { model.windowPage = .scheduled } label: {
+            Button { model.navigate { model.windowPage = .scheduled } } label: {
                 SidebarRow(symbol: "clock", title: "Scheduled", detail: model.helpers.list.map(ScheduledRow.detail) ?? nil, selected: model.windowPage == .scheduled)
             }
             .buttonStyle(.plain)
@@ -166,12 +174,12 @@ private struct HelperSidebar: View {
            }
           }
             Spacer(minLength: 0)
-            Button { model.windowPage = .plugins } label: {
+            Button { model.navigate { model.windowPage = .plugins } } label: {
                 let on = model.helpers.list?.mcp.filter(\.enabled).count ?? 0
                 SidebarRow(symbol: "puzzlepiece.extension", title: "Plugins", detail: on == 0 ? nil : "\(on) on", selected: model.windowPage == .plugins)
             }
             .buttonStyle(.plain)
-            Button { model.windowPage = .settings } label: {
+            Button { model.navigate { model.windowPage = .settings } } label: {
                 SidebarRow(symbol: "gearshape", title: "Settings", detail: nil, selected: model.windowPage == .settings)
             }
             .buttonStyle(.plain)
@@ -352,13 +360,13 @@ private struct HelperPane: View {
                 HStack(spacing: 14) {
                     HelperBadge(helper: helper, size: 42)
                     VStack(alignment: .leading, spacing: 2) {
-                        NameTitle(model: model, helper: helper)
+                        NameTitle(model: model, helper: helper).id(helper.id) // a rename in progress belongs to one agent
                         Text(Self.subtitle(helper)).font(.system(size: 12)).foregroundStyle(theme.text2.color)
                             .lineLimit(1)
                     }
                     Spacer(minLength: 8)
                     if helper.soul != nil {
-                        QuietButton(title: "Soul", symbol: "sparkles") { model.helpers.openSoul() }
+                        QuietButton(title: "Soul", symbol: "sparkles") { model.navigate { model.helpers.openSoul() } }
                             .help("Who \(helper.name) is and how it works")
                     }
                     if helper.custom { RemoveAgentButton(model: model, helper: helper) }
@@ -602,7 +610,7 @@ private struct JobRow: View {
         HStack(alignment: .top, spacing: 12) {
             JobDot(job: job).padding(.top, 5)
             VStack(alignment: .leading, spacing: 4) {
-                Button { model.sendHelpers(model.helpers.openThread(job.id)) } label: {
+                Button { model.navigate { model.sendHelpers(model.helpers.openThread(job.id)) } } label: {
                     Text(job.title ?? job.task)
                         .font(.system(size: 13, weight: job.hasReport ? .semibold : .medium))
                         .foregroundStyle(theme.text.color)
@@ -630,7 +638,7 @@ private struct JobRow: View {
             Spacer(minLength: 8)
             HStack(spacing: 6) {
                 if job.hasReport {
-                    ReadReportButton { model.sendHelpers(model.helpers.openThread(job.id)) }
+                    ReadReportButton { model.navigate { model.sendHelpers(model.helpers.openThread(job.id)) } }
                 }
                 if job.state.isActive {
                     QuietButton(title: "Stop") { model.sendHelpers(model.helpers.stopJob(job.id)) }
@@ -828,6 +836,7 @@ private struct NameTitle: View {
     }
 
     var body: some View {
+        let changed = editing.wrappedValue && draft.wrappedValue.trimmingCharacters(in: .whitespaces) != helper.name
         HStack(spacing: 6) {
             if editing.wrappedValue {
                 TextField("Name", text: draft.projectedValue)
@@ -836,9 +845,11 @@ private struct NameTitle: View {
                     .frame(maxWidth: 220)
                     .onSubmit(save)
                     .onExitCommand { editing.wrappedValue = false }
-                QuietButton(title: "Save", symbol: "checkmark") { save() }
+                QuietButton(title: "Cancel") { editing.wrappedValue = false }
+                SaveButton(enabled: changed, label: "Save name", action: save)
             } else {
                 Text(helper.name).font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                if model.savedField == "agent-name" && model.helpers.problem == nil { SavedMark() }
                 if helper.soul != nil {
                     Button {
                         draft.wrappedValue = helper.name
@@ -852,13 +863,15 @@ private struct NameTitle: View {
                 }
             }
         }
+        .tracksEdits(model, "agent-name", changed)
     }
 
     private func save() {
         let name = draft.wrappedValue.trimmingCharacters(in: .whitespaces)
         editing.wrappedValue = false
-        guard name != helper.name else { return }
-        if let command = model.helpers.rename(name) { model.sendHelpers(command) }
+        guard name != helper.name, let command = model.helpers.rename(name) else { return }
+        model.send(command)
+        model.showSaved("agent-name")
     }
 }
 
@@ -874,8 +887,10 @@ private struct ChatsList: View {
             Text("Chats").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
             Spacer()
             Button {
-                model.newConversation()
-                model.windowPage = .chat
+                model.navigate {
+                    model.newConversation()
+                    model.windowPage = .chat
+                }
             } label: {
                 Label("New chat", systemImage: "square.and.pencil").labelStyle(.iconOnly)
                     .font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
@@ -889,8 +904,10 @@ private struct ChatsList: View {
             ForEach(list.chats.prefix(40)) { chat in
                 let current = chat.id == list.current
                 Button {
-                    if !current { model.send(.chatOpen(id: chat.id)) }
-                    model.windowPage = .chat
+                    model.navigate {
+                        if !current { model.send(.chatOpen(id: chat.id)) }
+                        model.windowPage = .chat
+                    }
                 } label: {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(chat.title).font(.system(size: 12.5, weight: current ? .semibold : .regular)).foregroundStyle(theme.text.color).lineLimit(1)

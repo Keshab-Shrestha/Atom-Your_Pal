@@ -11,6 +11,8 @@ final class MainWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private var previousPolicy = NSApplication.ActivationPolicy.accessory
     private var previousMenu: NSMenu?
+    /// ADR-096: the mouse's back button goes Back in this window.
+    private var mouseMonitor: Any?
 
     init(model: IslandModel) {
         self.model = model
@@ -22,14 +24,14 @@ final class MainWindowController: NSObject, NSWindowDelegate {
 
     /// Opens the window on `page` (nil keeps the page it shows).
     func show(page: WindowPage? = nil) {
-        if let page { model.windowPage = page }
+        if let page, page != model.windowPage { model.navigate { [model] in model.windowPage = page } }
         let window = self.window ?? makeWindow()
         self.window = window
         if !model.helpersWindowOpen {
             previousPolicy = NSApp.activationPolicy()
             previousMenu = NSApp.mainMenu
             NSApp.setActivationPolicy(.regular)
-            NSApp.mainMenu = Self.mainMenu()
+            NSApp.mainMenu = mainMenu()
             model.helpersWindowOpen = true
             model.send(.helpersList)
             model.send(.chatsList) // ADR-091
@@ -43,6 +45,16 @@ final class MainWindowController: NSObject, NSWindowDelegate {
     }
 
     func close() { window?.performClose(nil) }
+
+    /// ADR-096: closing with an edit not saved asks "Discard changes?" first.
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard model.hasUnsavedEdits else { return true }
+        model.navigate { [weak sender] in sender?.performClose(nil) }
+        return false
+    }
+
+    /// Go → Back (⌘[).
+    @objc private func goBack(_ sender: Any?) { model.goBack() }
 
     func windowWillClose(_ notification: Notification) {
         model.helpersWindowOpen = false
@@ -63,13 +75,23 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         window.minSize = NSSize(width: 760, height: 500)
         window.contentView = NSHostingView(rootView: HelpersView(model: model))
         window.delegate = self
+        mouseMonitor = NSEvent.addLocalMonitorForEvents(matching: .otherMouseDown) { [weak self] event in
+            guard event.buttonNumber == 3 else { return event }
+            nonisolated(unsafe) let event = event
+            let used = MainActor.assumeIsolated { () -> Bool in
+                guard let self, event.window === self.window else { return false }
+                self.model.goBack()
+                return true
+            }
+            return used ? nil : event
+        }
         if !window.setFrameUsingName("ZenoMain") { window.center() }
         window.setFrameAutosaveName("ZenoMain")
         return window
     }
 
-    /// The menu bar while the window is open: Quit, the standard Edit commands, Close and Minimize.
-    private static func mainMenu() -> NSMenu {
+    /// The menu bar while the window is open: Quit, the standard Edit commands, Back, Close and Minimize.
+    private func mainMenu() -> NSMenu {
         let main = NSMenu()
         func add(_ title: String, _ items: [NSMenuItem]) {
             let menu = NSMenu(title: title)
@@ -89,6 +111,9 @@ final class MainWindowController: NSObject, NSWindowDelegate {
             item("Cut", #selector(NSText.cut(_:)), "x"), item("Copy", #selector(NSText.copy(_:)), "c"),
             item("Paste", #selector(NSText.paste(_:)), "v"), item("Select All", #selector(NSText.selectAll(_:)), "a"),
         ])
+        let back = item("Back", #selector(goBack(_:)), "[")
+        back.target = self
+        add("Go", [back])
         add("Window", [
             item("Close", #selector(NSWindow.performClose(_:)), "w"), item("Minimize", #selector(NSWindow.performMiniaturize(_:)), "m"),
         ])

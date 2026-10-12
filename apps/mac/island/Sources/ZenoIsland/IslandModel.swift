@@ -140,10 +140,82 @@ final class IslandModel {
         send(.textSend(clean))
     }
 
+    // MARK: ADR-096: Back, and leaving unsaved edits
+
+    /// Where the window is now, as one step of its history.
+    var location: WindowLocation { WindowLocation(page: windowPage, helpers: helpers, allAgents: showsAllAgents) }
+    /// The steps Back returns to.
+    private(set) var history = WindowHistory()
+    /// The step last recorded: a change from it is Keshab's next step.
+    @ObservationIgnored private var lastLocation: WindowLocation?
+
+    /// Called on every change of `location` (the window's `onChange`): the step before becomes a Back step.
+    func recordLocation() {
+        let now = location
+        if let last = lastLocation, last != now { history.push(last) }
+        lastLocation = now
+    }
+
+    /// Back (the top bar's arrow, ⌘[ and the mouse's back button): the newest step that still exists.
+    func goBack() {
+        navigate { [self] in
+            recordLocation()
+            let current = location
+            guard let target = history.back(where: { $0 != current && $0.isValid(in: helpers.list) }) else { return }
+            windowPage = target.page
+            showsAllAgents = target.allAgents
+            if target.page == .agents { sendHelpers(helpers.show(target)) }
+            lastLocation = location // a Back is not a new step
+        }
+    }
+
+    /// The editing fields with a change not saved yet, by name ("soul", "note"…). Set by the editing views.
+    @ObservationIgnored private var editedFields: Set<String> = []
+    var hasUnsavedEdits: Bool { !editedFields.isEmpty }
+    /// "Discard changes?" is open; `pendingLeave` runs on Discard.
+    var asksDiscard = false
+    @ObservationIgnored private var pendingLeave: (() -> Void)?
+    /// The field just saved, for its "Saved" check (1.5 s).
+    private(set) var savedField: String?
+
+    func markEdited(_ field: String, _ edited: Bool) {
+        if edited { editedFields.insert(field) } else { editedFields.remove(field) }
+    }
+
+    /// Leaves the page with `change`, after "Discard changes?" when an edit is not saved.
+    func navigate(_ change: @escaping () -> Void) {
+        guard hasUnsavedEdits else { change(); return }
+        pendingLeave = change
+        asksDiscard = true
+    }
+
+    func discardEdits() {
+        editedFields = []
+        asksDiscard = false
+        let leave = pendingLeave
+        pendingLeave = nil
+        leave?()
+    }
+
+    func keepEditing() {
+        asksDiscard = false
+        pendingLeave = nil
+    }
+
+    func showSaved(_ field: String) {
+        savedField = field
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(1.5))
+            if self?.savedField == field { self?.savedField = nil }
+        }
+    }
+
     /// Keeps the conversation and model list in step with the runtime. The status is applied by the controller.
     func apply(_ event: IslandEvent) {
         let helperRefusal = helpers.claims(event)
+        recordLocation() // Keshab's last step, before the runtime moves the page (a new agent, a removed one)
         helpers.apply(event)
+        lastLocation = location // a change the runtime made is not a step
         if let refresh = helpers.takeRefresh() { send(refresh) } // the open task changed: ask for its thread again
         if helperRefusal { return } // a refused helper command is shown in the ZENO window only
         conversation.apply(event)
@@ -174,9 +246,4 @@ final class IslandModel {
             break
         }
     }
-}
-
-/// ADR-089: the ZENO window's pages: the conversation, the board and the team, and Settings.
-enum WindowPage: Equatable {
-    case overview, dashboard, chat, inbox, issues, scheduled, agents, plugins, settings
 }

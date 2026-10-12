@@ -138,8 +138,12 @@ final class IslandController {
         // ADR-091: a clicked notification opens the window, on its task when it names one.
         notifier.onOpen = { [weak self] task in
             guard let self else { return }
-            helpersWindow.show(page: .agents)
-            if let task { model.sendHelpers(model.helpers.openThread(task)) }
+            helpersWindow.show()
+            let model = self.model
+            model.navigate {
+                model.windowPage = .agents
+                if let task { model.sendHelpers(model.helpers.openThread(task)) }
+            }
         }
         // While a shortcut is being recorded, its keys go to the recorder and nowhere else.
         // Local monitors run on the main thread, so the event never leaves it.

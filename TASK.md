@@ -1095,6 +1095,15 @@ ADR-094 is done: parts A, B and C built and tested. Next: Keshab tries them on t
 
 ADR-095 is done: packages 1–3 built and tested. Next: Keshab tries them on the real Mac.
 
+**ADR-096 — as built (2026-10-12):** Back and Save in the ZENO window. A worker built it. Keshab asked for no new tests, no gallery and no review.
+- Back: `WindowHistory` and `WindowLocation` are in `ZenoIslandCore/WindowHistory.swift`. `WindowPage` moved there too. A step is the sidebar page. On the team page, a step also keeps the agent, Manager, Board, task, soul, New agent, New manager and All agents.
+- `IslandModel.recordLocation()` runs on each change of `location` (an `onChange` in `HelpersView`). It keeps the step before as a Back step. A change from the runtime is not a step. The history keeps at most 30 steps and no two equal steps in a row.
+- `IslandModel.goBack()` skips a step when its task, Manager or agent is gone. `HelpersState.show(_:)` puts the team page back. The top bar shows "‹" when a step exists. Go → Back (⌘[) and the mouse back button do the same.
+- Save: one shared `SaveButton` lights only for a change and shows "Saved" for 1.5 s. It is on the soul, the agent name, the Manager name, a task note, New agent, New manager and a new MCP server. Return saves one-line fields.
+- Pickers, menus, switches and the Runs at once stepper save at once, as before.
+- Unsaved edits: each edit view calls `tracksEdits`. `IslandModel.navigate` runs a page change, or first asks "Discard changes?" (Keep editing / Discard). Every page change in the window uses it, and so does closing the window.
+- Checks: `swift build` passes with no new warnings. No tests ran.
+
 ADR-091 is done: all six parts built and tested. Next: Keshab tries them on the real Mac (macOS will ask once to allow notifications); then Tasks 3.17–3.22 each need his decision.
 
 **Also planned (ADR-087, Keshab: "include these as well").** Each starts with its own ADR (safety and scope) before any code, after 3.16.

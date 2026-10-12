@@ -90,7 +90,7 @@ private struct AtWorkRow: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        Button { model.windowPage = .agents; model.sendHelpers(model.helpers.openThread(item.id)) } label: {
+        Button { model.navigate { model.windowPage = .agents; model.sendHelpers(model.helpers.openThread(item.id)) } } label: {
             HStack(spacing: 12) {
                 if let character = PalLibrary.character(for: item.helperId) {
                     TimelineView(.animation(minimumInterval: 1.0 / 20)) { context in
@@ -186,7 +186,7 @@ private struct RecentRow: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        Button { model.windowPage = .agents; model.sendHelpers(model.helpers.openThread(item.id)) } label: {
+        Button { model.navigate { model.windowPage = .agents; model.sendHelpers(model.helpers.openThread(item.id)) } } label: {
             HStack(spacing: 10) {
                 JobDot(job: item.job)
                 VStack(alignment: .leading, spacing: 2) {

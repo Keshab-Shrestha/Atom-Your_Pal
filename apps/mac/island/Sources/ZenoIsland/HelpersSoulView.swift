@@ -23,10 +23,10 @@ struct SoulPane: View {
         Scrollable {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 8) {
-                    QuietButton(title: helper.available ? "Jobs" : helper.name, symbol: "chevron.left") { model.helpers.closeSoul() }
+                    QuietButton(title: helper.available ? "Jobs" : helper.name, symbol: "chevron.left") { model.navigate { model.helpers.closeSoul() } }
                     Spacer(minLength: 8)
                     VersionsMenu(model: model, helper: helper)
-                    SaveButton(enabled: changed) { model.sendHelpers(model.helpers.saveSoul(draft.wrappedValue)) }
+                    SaveButton(enabled: changed, saved: model.savedField == "soul" && model.helpers.problem == nil, commandS: true, label: "Save soul") { save() }
                 }
                 VStack(alignment: .leading, spacing: 3) {
                     Text("\(helper.name)'s soul").font(theme.isFlat ? .system(size: 24, weight: .regular, design: .serif) : .system(size: 20, weight: .semibold, design: .rounded))
@@ -35,7 +35,7 @@ struct SoulPane: View {
                         .font(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
-                SoulField(label: "Name", text: binding(\.name), limit: HelperSoul.limits.name, lines: 1)
+                SoulField(label: "Name", text: binding(\.name), limit: HelperSoul.limits.name, lines: 1, submit: save)
                 SoulField(label: "Personality", text: binding(\.personality), limit: HelperSoul.limits.personality, lines: 2)
                 SoulField(label: "How it works", text: binding(\.howItWorks), limit: HelperSoul.limits.howItWorks, lines: 3)
                 SoulField(label: "Rules", text: binding(\.rules), limit: HelperSoul.limits.rules, lines: 3)
@@ -47,6 +47,13 @@ struct SoulPane: View {
             .padding(.top, 30)
             .padding(.bottom, Spacing.panel)
         }
+        .tracksEdits(model, "soul", changed)
+    }
+
+    private func save() {
+        guard let command = model.helpers.saveSoul(draft.wrappedValue) else { return }
+        model.send(command)
+        model.showSaved("soul")
     }
 
     private func binding(_ key: WritableKeyPath<HelperSoul, String>) -> Binding<String> {
@@ -60,6 +67,8 @@ struct SoulField: View {
     let text: Binding<String>
     let limit: Int
     let lines: Int
+    /// Return in a one-line field (ADR-096: it saves).
+    var submit: (() -> Void)? = nil
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
 
@@ -77,7 +86,7 @@ struct SoulField: View {
                 if snapshot { // ImageRenderer cannot draw text fields
                     Text(text.wrappedValue.isEmpty ? " " : text.wrappedValue).frame(maxWidth: .infinity, alignment: .topLeading)
                 } else if lines == 1 {
-                    TextField(label, text: text).textFieldStyle(.plain)
+                    TextField(label, text: text).textFieldStyle(.plain).onSubmit { submit?() }
                 } else {
                     TextEditor(text: text).scrollContentBackground(.hidden).frame(minHeight: CGFloat(lines) * 18)
                 }
@@ -122,30 +131,60 @@ private struct VersionsMenu: View {
     }
 }
 
-/// Save: lit when there is a change to save.
-private struct SaveButton: View {
+/// Save (ADR-096: shared by every field the window keeps): lit only when there is a change to save; just after a
+/// save it shows "Saved" for a moment.
+struct SaveButton: View {
+    var title = "Save"
     let enabled: Bool
+    var saved = false
+    /// ⌘S: only one Save on a page may have it.
+    var commandS = false
+    var label = "Save"
     let action: () -> Void
     @Environment(\.theme) private var theme
 
     var body: some View {
-        Button(action: action) {
-            Text("Save")
-                .font(.system(size: 11.5, weight: .semibold))
-                .foregroundStyle(enabled ? (theme.isGhost ? theme.text.color : theme.onAccent.color) : theme.text3.color)
-                .padding(.horizontal, 14)
-                .frame(height: 26)
-                .background(ControlFill(RoundedRectangle(cornerRadius: theme.isGhost ? theme.radiusControl : 13, style: .continuous),
-                                        fill: enabled ? AnyShapeStyle(theme.accentFill) : AnyShapeStyle(theme.fill2.color), hovering: enabled))
-                .contentShape(Rectangle())
+        if saved && !enabled {
+            SavedMark()
+        } else {
+            Button(action: action) {
+                Text(title)
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(enabled ? (theme.isGhost ? theme.text.color : theme.onAccent.color) : theme.text3.color)
+                    .padding(.horizontal, 14)
+                    .frame(height: 26)
+                    .background(ControlFill(RoundedRectangle(cornerRadius: theme.isGhost ? theme.radiusControl : 13, style: .continuous),
+                                            fill: enabled ? AnyShapeStyle(theme.accentFill) : AnyShapeStyle(theme.fill2.color), hovering: enabled))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!enabled)
+            .keyboardShortcut(commandS ? KeyboardShortcut("s", modifiers: .command) : nil)
+            .accessibilityLabel(label)
         }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
-        .keyboardShortcut("s", modifiers: .command)
-        .accessibilityLabel("Save soul")
     }
 }
 
+/// ADR-096: the short "Saved" check after a save.
+struct SavedMark: View {
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Label("Saved", systemImage: "checkmark")
+            .font(.system(size: 11.5, weight: .medium))
+            .foregroundStyle(theme.statusDots ? theme.success.color : theme.text2.color)
+            .frame(height: 26)
+            .transition(.opacity)
+    }
+}
+
+extension View {
+    /// ADR-096: tells the window this field has a change not saved, so leaving the page asks first.
+    func tracksEdits(_ model: IslandModel, _ field: String, _ edited: Bool) -> some View {
+        onChange(of: edited, initial: true) { _, now in model.markEdited(field, now) }
+            .onDisappear { model.markEdited(field, false) }
+    }
+}
 
 /// ADR-088: a new agent of Keshab's own: a name, a role in his words, what it may use (a kit, fixed in code) and its
 /// soul. ZENO writes it as data/agents/<name>/soul.md, which he can also edit in any editor.
@@ -160,14 +199,15 @@ struct NewAgentPane: View {
     init(model: IslandModel) { self.model = model }
 
     var body: some View {
+        let soul = draft.wrappedValue.trimmed
+        let typed = !(soul.name + soul.personality + soul.howItWorks + soul.rules).isEmpty
+            || !role.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         Scrollable {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 8) {
-                    QuietButton(title: "Cancel", symbol: "chevron.left") { model.helpers.closeNewAgent() }
+                    QuietButton(title: "Cancel", symbol: "chevron.left") { model.navigate { model.helpers.closeNewAgent() } }
                     Spacer(minLength: 8)
-                    QuietButton(title: "Create", symbol: "plus") {
-                        model.sendHelpers(model.helpers.createAgent(role: role.wrappedValue, kit: kit.wrappedValue, soul: draft.wrappedValue))
-                    }
+                    SaveButton(title: "Create", enabled: typed, commandS: true, label: "Create agent", action: create)
                 }
                 VStack(alignment: .leading, spacing: 3) {
                     Text("New agent").font(theme.isFlat ? .system(size: 24, weight: .regular, design: .serif) : .system(size: 20, weight: .semibold, design: .rounded))
@@ -176,8 +216,8 @@ struct NewAgentPane: View {
                         .font(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
-                SoulField(label: "Name", text: draft.projectedValue.name, limit: HelperSoul.limits.name, lines: 1)
-                SoulField(label: "Role (in your words, such as travel planner)", text: role.projectedValue, limit: 40, lines: 1)
+                SoulField(label: "Name", text: draft.projectedValue.name, limit: HelperSoul.limits.name, lines: 1, submit: create)
+                SoulField(label: "Role (in your words, such as travel planner)", text: role.projectedValue, limit: 40, lines: 1, submit: create)
                 VStack(alignment: .leading, spacing: 6) {
                     Text("What it may use").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                     Menu {
@@ -201,5 +241,10 @@ struct NewAgentPane: View {
             .padding(.top, 30)
             .padding(.bottom, Spacing.panel)
         }
+        .tracksEdits(model, "new-agent", typed)
+    }
+
+    private func create() {
+        model.sendHelpers(model.helpers.createAgent(role: role.wrappedValue, kit: kit.wrappedValue, soul: draft.wrappedValue))
     }
 }

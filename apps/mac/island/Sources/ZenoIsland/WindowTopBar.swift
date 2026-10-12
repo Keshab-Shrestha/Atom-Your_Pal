@@ -7,12 +7,23 @@ import ZenoIslandCore
 struct WindowTopBar<Trailing: View>: View {
     let title: String
     let symbol: String
+    /// ADR-096: Back, when there is a step to go back to (else no arrow).
+    var back: (() -> Void)? = nil
     @ViewBuilder let trailing: () -> Trailing
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
 
     var body: some View {
         HStack(spacing: 8) {
+            if let back {
+                Button(action: back) {
+                    Image(systemName: "chevron.left").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.text2.color)
+                        .frame(width: 24, height: 24).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Back (⌘[)")
+                .accessibilityLabel("Back")
+            }
             Image(systemName: symbol).font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
             Text(title).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(1)
             Spacer(minLength: 8)

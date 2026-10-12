@@ -26,6 +26,7 @@ struct PluginsPane: View {
                     HStack {
                         Text("MCP servers").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                         Spacer()
+                        if model.savedField == "mcp" && model.helpers.problem == nil { SavedMark() }
                         QuietButton(title: adding.wrappedValue ? "Cancel" : "Add server", symbol: adding.wrappedValue ? "xmark" : "plus") {
                             adding.wrappedValue.toggle()
                             model.helpers.clearProblem()
@@ -67,6 +68,16 @@ struct PluginsPane: View {
             .padding(.top, 28)
             .padding(.bottom, Spacing.panel)
         }
+        .tracksEdits(model, "mcp", adding.wrappedValue && draft.wrappedValue != McpServerDraft())
+    }
+
+    /// Saves the new server (switched off) and closes the form; an incomplete one shows why.
+    private func save() {
+        guard let command = model.helpers.addMcp(draft.wrappedValue) else { return }
+        model.sendHelpers(command)
+        draft.wrappedValue = McpServerDraft()
+        adding.wrappedValue = false
+        model.showSaved("mcp")
     }
 
     private var form: some View {
@@ -94,13 +105,7 @@ struct PluginsPane: View {
             HStack {
                 Text("Saved switched off. Test it, then turn it on for the workers you choose.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                 Spacer()
-                QuietButton(title: "Save", symbol: "checkmark") {
-                    if let command = model.helpers.addMcp(draft.wrappedValue) {
-                        model.sendHelpers(command)
-                        draft.wrappedValue = McpServerDraft()
-                        adding.wrappedValue = false
-                    }
-                }
+                SaveButton(enabled: draft.wrappedValue != McpServerDraft(), commandS: true, label: "Save server", action: save)
             }
         }
         .padding(16)
@@ -116,7 +121,7 @@ struct PluginsPane: View {
                     Text(text.wrappedValue.isEmpty ? hint : text.wrappedValue).foregroundStyle(text.wrappedValue.isEmpty ? theme.text3.color : theme.text.color)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else if lines == 1 {
-                    TextField(hint, text: text).textFieldStyle(.plain)
+                    TextField(hint, text: text).textFieldStyle(.plain).onSubmit(save)
                 } else {
                     TextEditor(text: text).scrollContentBackground(.hidden).frame(height: CGFloat(lines) * 17)
                 }

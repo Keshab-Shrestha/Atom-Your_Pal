@@ -50,14 +50,16 @@ struct OfficeFloor: View {
     /// A worker clicked: its task, or its page. Pal: the chat.
     private func tap(_ point: CGPoint, plan: OfficePlan) {
         let pal = OfficeMap.managerSeat
-        if abs(point.x - pal.x) < 12, point.y > pal.y - 20, point.y < pal.y + 8 { model.windowPage = .chat; return }
+        if abs(point.x - pal.x) < 12, point.y > pal.y - 20, point.y < pal.y + 8 { model.navigate { model.windowPage = .chat }; return }
         // ADR-094: a "+N" sign: everyone, searchable.
-        if OfficeScene.signs(plan).contains(where: { $0.rect.contains(point) }) { model.showsAllAgents = true; return }
+        if OfficeScene.signs(plan).contains(where: { $0.rect.contains(point) }) { model.navigate { model.showsAllAgents = true }; return }
         for seat in plan.seats {
             guard let at = walker.wrappedValue.positions[seat.helperId], abs(point.x - at.x) < 12, point.y > at.y - 20, point.y < at.y + 10 else { continue }
             // ADR-095: a Manager's desk opens its page.
-            if seat.manager { model.helpers.selectManager(seat.helperId) }
-            else if let task = seat.taskId { model.sendHelpers(model.helpers.openThread(task)) } else { model.helpers.selectHelper(seat.helperId) }
+            model.navigate {
+                if seat.manager { model.helpers.selectManager(seat.helperId) }
+                else if let task = seat.taskId { model.sendHelpers(model.helpers.openThread(task)) } else { model.helpers.selectHelper(seat.helperId) }
+            }
             return
         }
     }

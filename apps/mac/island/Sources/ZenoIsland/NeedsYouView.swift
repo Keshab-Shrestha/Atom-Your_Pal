@@ -52,17 +52,17 @@ struct NeedsYouPane: View {
             card(kind: "Tinker drafted a skill", who: item.helperName, title: item.title, detail: item.detail) {
                 QuietButton(title: "Approve", symbol: "checkmark") { model.sendHelpers(model.helpers.answerSkillDraft(item.skillItemId!, approve: true)) }
                 QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerSkillDraft(item.skillItemId!, approve: false)) }
-                QuietButton(title: "Plugins") { model.windowPage = .plugins }
+                QuietButton(title: "Plugins") { model.navigate { model.windowPage = .plugins } }
             }
         case .skillEdit:
             card(kind: "Tinker suggests a skill edit", who: item.helperName, title: item.title, detail: item.detail) {
                 QuietButton(title: "Accept", symbol: "checkmark") { model.sendHelpers(model.helpers.answerSkillEdit(item.skillItemId!, accept: true)) }
                 QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerSkillEdit(item.skillItemId!, accept: false)) }
-                QuietButton(title: "Plugins") { model.windowPage = .plugins }
+                QuietButton(title: "Plugins") { model.navigate { model.windowPage = .plugins } }
             }
         case .held:
             card(kind: "Held", who: item.helperName, title: item.title, detail: item.detail) {
-                QuietButton(title: "Budgets") { model.windowPage = .agents; model.helpers.selectBoard() }
+                QuietButton(title: "Budgets") { model.navigate { model.windowPage = .agents; model.helpers.selectBoard() } }
                 open(item)
             }
         case .failed:
@@ -74,7 +74,7 @@ struct NeedsYouPane: View {
     }
 
     private func open(_ item: NeedsYouItem) -> some View {
-        QuietButton(title: "Open") { model.windowPage = .agents; model.sendHelpers(model.helpers.openThread(item.jobId!)) }
+        QuietButton(title: "Open") { model.navigate { model.windowPage = .agents; model.sendHelpers(model.helpers.openThread(item.jobId!)) } }
     }
 
     private func card(kind: String, who: String, title: String, detail: String, @ViewBuilder actions: () -> some View) -> some View {
@@ -124,7 +124,7 @@ struct IssuesPane: View {
                         if let error = item.job.error { ProblemLine(text: error, dot: false) }
                         HStack(spacing: 8) {
                             QuietButton(title: "Retry", symbol: "arrow.clockwise") { model.sendHelpers(model.helpers.retry(item.id)) }
-                            QuietButton(title: "Open") { model.windowPage = .agents; model.sendHelpers(model.helpers.openThread(item.id)) }
+                            QuietButton(title: "Open") { model.navigate { model.windowPage = .agents; model.sendHelpers(model.helpers.openThread(item.id)) } }
                         }
                         .padding(.top, 4)
                     }
