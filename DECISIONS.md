@@ -2187,3 +2187,25 @@ A task thread shows the result of a run. It does not show what the agent did. Pa
 - The masking code lives in `services/llm-gateway/src/providers/tool-summary.ts`. The store only cuts the text.
 - Codex needs JSONL streaming before it can record calls.
 
+
+## ADR-100 — Telegram Steering and Test Results (2026-10-13)
+
+### Status
+
+Accepted. Built and tested. Not yet tried on a real phone.
+
+### Context
+
+Keshab can steer or interrupt a task in the ZENO window (ADR-098 item 3). He can see test results of a Tinker change there (ADR-098 item 8). Telegram had neither.
+
+### Decision
+
+1. `/steer <number> <text>` and `/interrupt <number>` call `TaskSteering.steer` and `TaskSteering.interrupt`. The window calls the same functions.
+2. A Needs you item for a Tinker proposal or skill edit shows one line, "Test cases: 2 better, 1 same", when results exist. The wording is the window's. There are no new buttons.
+3. Without steering, both commands answer "Steering is off."
+4. The log holds the command name only. It never holds the message text.
+
+### Consequences
+
+- Keshab steers a task from the phone with no new code path.
+- The test line shows counts only. He reads the old and new answers in the window.

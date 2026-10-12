@@ -5,6 +5,8 @@
 import type { HelperStore, Job } from "@zeno/helpers";
 import type { Logger } from "@zeno/shared";
 import type { ApprovalAsk } from "./computer-bridge.ts";
+import { testsOf } from "./island-helpers.ts";
+import type { TaskSteering } from "./task-steering.ts";
 import { startTelegram, type Button, type TelegramClient, type TelegramInput } from "./telegram.ts";
 
 /** The chat in the chats store that holds the Telegram conversation (the ZENO window lists it as "Telegram"). */
@@ -21,6 +23,8 @@ const HELP = [
   "/needs: what waits for your answer",
   "/tasks: tasks that run or wait to run",
   "/report <number>: a task's report",
+  "/steer <number> <text>: send a message to a task",
+  "/interrupt <number>: stop a task's current step",
   "/help: this list",
 ].join("\n");
 
@@ -36,6 +40,8 @@ export interface TelegramBotOptions {
   /** ATOM's questions (Pal's approval card). */
   approvals: { pending(): ApprovalAsk[]; answer(id: string, approved: boolean): void; onAsk(listener: (ask: ApprovalAsk) => void): () => void };
   describe(error: unknown): string;
+  /** ADR-098 item 3: the window's steer and interrupt. Absent: the commands answer "Steering is off." */
+  steering?: Pick<TaskSteering, "steer" | "interrupt">;
 }
 
 export interface TelegramBot {
@@ -55,6 +61,15 @@ export interface Need {
 const flat = (text: string) => text.replace(/\s+/g, " ").trim();
 const cut = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
 const titleOf = (job: Job) => cut(flat(job.title ?? job.task), 80);
+/** The window's line for a test run (same words as the island's `TestRunSummary.line`), or "" when there are no results. */
+function testLine(store: HelperStore, kind: "soul" | "skill", id: number): string {
+  const t = testsOf(store, kind, id);
+  if (!t) return "";
+  if (t.running > 0) return "\nTest cases: running…";
+  const parts = [`${t.better} better`, `${t.same} same`, `${t.worse} worse`, `${t.failed} failed`].filter((p) => !p.startsWith("0 "));
+  if (t.notRun > 0) parts.push(`${t.notRun} not run`);
+  return parts.length ? `\nTest cases: ${parts.join(", ")}` : "";
+}
 const yesNo = (yes: string, no: string, data: string): Button[][] => [[{ text: yes, data: `${data}:1` }, { text: no, data: `${data}:0` }]];
 
 /** Everything waiting, in the window's order: questions, plans, proposals, skill drafts and edits, held tasks, failures. */
@@ -82,7 +97,7 @@ export function needsYou(store: HelperStore | undefined, held: (job: Job) => str
   const proposals: Need[] = team.flatMap((h) =>
     h.proposals
       .filter((p) => p.state === "pending")
-      .map((p) => ({ key: `proposal-${p.id}`, push: true, text: `Tinker suggests a new ${p.field} for ${h.name}:\n${cut(p.text, 600)}\nWhy: ${cut(p.reason, 300)}`, buttons: yesNo("Accept", "Reject", `s:${p.id}`) })),
+      .map((p) => ({ key: `proposal-${p.id}`, push: true, text: `Tinker suggests a new ${p.field} for ${h.name}:\n${cut(p.text, 600)}\nWhy: ${cut(p.reason, 300)}${testLine(store, "soul", p.id)}`, buttons: yesNo("Accept", "Reject", `s:${p.id}`) })),
   );
   const drafts: Need[] = store
     .skillDrafts()
@@ -91,7 +106,7 @@ export function needsYou(store: HelperStore | undefined, held: (job: Job) => str
   const edits: Need[] = store
     .skillEdits()
     .filter((e) => e.state === "pending")
-    .map((e) => ({ key: `skill-edit-${e.id}`, push: true, text: `Tinker suggests an edit to the ${e.skill} skill.\nWhy: ${cut(e.reason, 300)}`, buttons: yesNo("Accept", "Reject", `e:${e.id}`) }));
+    .map((e) => ({ key: `skill-edit-${e.id}`, push: true, text: `Tinker suggests an edit to the ${e.skill} skill.\nWhy: ${cut(e.reason, 300)}${testLine(store, "skill", e.id)}`, buttons: yesNo("Accept", "Reject", `e:${e.id}`) }));
   return [...questions, ...plans, ...proposals, ...drafts, ...edits, ...holds, ...failures.sort((a, b) => b.key.localeCompare(a.key, undefined, { numeric: true }))];
 }
 
@@ -167,12 +182,43 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
   function command(text: string) {
     const [head = "", ...rest] = text.split(/\s+/);
     const name = head.slice(1).split("@")[0]!.toLowerCase();
-    log.info("telegram.command", { name: ["needs", "tasks", "report", "help", "start"].includes(name) ? name : "unknown" });
+    log.info("telegram.command", { name: ["needs", "tasks", "report", "steer", "interrupt", "help", "start"].includes(name) ? name : "unknown" });
     if (name === "needs") return void sendNeeds();
     if (name === "tasks") return void client.send(tasksText());
     if (name === "report") return void client.send(reportText(Number(rest[0]?.replace(/^#/, ""))));
+    if (name === "steer") return void steer(rest);
+    if (name === "interrupt") return void interrupt(rest);
     if (name === "help" || name === "start") return void client.send(HELP);
     void client.send(`I do not know that command.\n\n${HELP}`);
+  }
+
+  const taskNumber = (word: string | undefined) => {
+    const id = Number(word?.replace(/^#/, ""));
+    return Number.isInteger(id) && id >= 1 ? id : undefined;
+  };
+
+  function steer(args: string[]) {
+    if (!options.steering) return void client.send("Steering is off.");
+    const id = taskNumber(args[0]);
+    if (!id) return void client.send("Send /steer, a task number and your message, for example /steer 12 use the shorter plan.");
+    try {
+      const how = options.steering.steer(id, args.slice(1).join(" "));
+      void client.send(how === "live" ? `Sent to task #${id} now.` : `Kept for task #${id}. It runs after this step.`);
+    } catch (error) {
+      void client.send(describe(error));
+    }
+  }
+
+  async function interrupt(args: string[]) {
+    if (!options.steering) return void client.send("Steering is off.");
+    const id = taskNumber(args[0]);
+    if (!id) return void client.send("Send /interrupt and a task number, for example /interrupt 12.");
+    try {
+      await options.steering.interrupt(id);
+      await client.send(`Task #${id} stopped. It waits for your message.`);
+    } catch (error) {
+      await client.send(describe(error));
+    }
   }
 
   async function sendNeeds() {

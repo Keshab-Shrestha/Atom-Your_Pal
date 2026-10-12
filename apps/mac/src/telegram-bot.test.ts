@@ -23,6 +23,7 @@ function fakeStore(over: Record<string, unknown> = {}) {
     approvePlan: rec("approvePlan"), rejectPlan: rec("rejectPlan"), acceptProposal: rec("acceptProposal"), rejectProposal: rec("rejectProposal"),
     approveSkillDraft: rec("approveSkillDraft"), rejectSkillDraft: rec("rejectSkillDraft"), acceptSkillEdit: rec("acceptSkillEdit"), rejectSkillEdit: rec("rejectSkillEdit"),
     retry: rec("retry"),
+    testResults: () => [],
     ...over,
   };
   return store;
@@ -83,7 +84,7 @@ test("an unexpected yes value is a No, never an approval", () => {
 // ---- the running bot, over a stubbed fetch ----
 
 type Sent = { method: string; body: any };
-async function run(opts: { updates: unknown[][]; store?: any; asks?: any[]; ask?: (t: string) => Promise<string>; after?: (bot: any, h: any) => Promise<void>; wait?: number }) {
+async function run(opts: { updates: unknown[][]; store?: any; asks?: any[]; ask?: (t: string) => Promise<string>; after?: (bot: any, h: any) => Promise<void>; wait?: number; steering?: any; log?: any }) {
   const realFetch = globalThis.fetch;
   const sent: Sent[] = [];
   let polls = 0;
@@ -102,7 +103,7 @@ async function run(opts: { updates: unknown[][]; store?: any; asks?: any[]; ask?
   const asks = opts.asks ?? [];
   const asked: string[] = [];
   const bot = startTelegramBot({
-    token: "t", chatId: "42", log, helpers: opts.store, held: () => undefined, describe: (e) => (e as Error).message,
+    token: "t", chatId: "42", log, helpers: opts.store, held: () => undefined, describe: (e) => (e as Error).message, ...(opts.steering ? { steering: opts.steering } : {}), ...(opts.log ? { log: opts.log } : {}),
     ask: opts.ask ?? (async (t) => (asked.push(t), `ATOM:${t}`)),
     approvals: { pending: () => asks, answer() {}, onAsk: (l) => (listeners.push(l), () => {}) },
   });
@@ -191,4 +192,69 @@ test("push: a new Needs you item is sent once with buttons; setPush(false) stops
     wait: 10,
   });
   assert.equal(texts(r.sent).length, 1);
+});
+
+// ---- steering and test results ----
+
+function fakeSteering(how: "live" | "queued" = "live", fail?: Error) {
+  const calls: string[] = [];
+  return {
+    calls,
+    steer(id: number, t: string) { calls.push(`steer:${id}:${t}`); if (fail) throw fail; return how; },
+    async interrupt(id: number) { calls.push(`interrupt:${id}`); if (fail) throw fail; },
+  };
+}
+
+test("/steer: live, queued, bad number, empty text, error text", async () => {
+  const live = fakeSteering("live");
+  const r1 = await run({ updates: [[text(1, 42, "/steer 12 use  the plan"), text(2, 42, "/steer #5 hi")]], store: fakeStore(), steering: live, wait: 150 });
+  assert.deepEqual(texts(r1.sent), ["Sent to task #12 now.", "Sent to task #5 now."]);
+  assert.deepEqual(live.calls, ["steer:12:use the plan", "steer:5:hi"]);
+  const queued = fakeSteering("queued");
+  const r2 = await run({ updates: [[text(1, 42, "/steer 3 hi")]], store: fakeStore(), steering: queued });
+  assert.deepEqual(texts(r2.sent), ["Kept for task #3. It runs after this step."]);
+  const none = fakeSteering();
+  const r3 = await run({ updates: [[text(1, 42, "/steer"), text(2, 42, "/steer abc hi"), text(3, 42, "/steer 0 hi")]], store: fakeStore(), steering: none, wait: 150 });
+  assert.equal(texts(r3.sent).length, 3);
+  assert.ok(texts(r3.sent).every((t) => /^Send \/steer/.test(t)));
+  assert.deepEqual(none.calls, []);
+  const bad = fakeSteering("live", new Error("The message is empty."));
+  const r4 = await run({ updates: [[text(1, 42, "/steer 4")]], store: fakeStore(), steering: bad });
+  assert.deepEqual(texts(r4.sent), ["The message is empty."]);
+});
+
+test("/interrupt: ok and error; steering off answers for both commands", async () => {
+  const ok = fakeSteering();
+  const r1 = await run({ updates: [[text(1, 42, "/interrupt 7"), text(2, 42, "/interrupt x")]], store: fakeStore(), steering: ok, wait: 150 });
+  const t = texts(r1.sent);
+  assert.ok(t.includes("Task #7 stopped. It waits for your message."));
+  assert.ok(t.some((x) => /Send \/interrupt/.test(x)));
+  const bad = fakeSteering("live", new Error("Only a running task can be interrupted."));
+  const r2 = await run({ updates: [[text(1, 42, "/interrupt 7")]], store: fakeStore(), steering: bad });
+  assert.deepEqual(texts(r2.sent), ["Only a running task can be interrupted."]);
+  const r3 = await run({ updates: [[text(1, 42, "/steer 1 hi"), text(2, 42, "/interrupt 1")]], store: fakeStore(), wait: 150 });
+  assert.deepEqual(texts(r3.sent), ["Steering is off.", "Steering is off."]);
+});
+
+test("a stranger cannot steer; the log never holds the message text", async () => {
+  const steering = fakeSteering();
+  const lines: string[] = [];
+  const spy = { debug() {}, info: (...a: unknown[]) => void lines.push(JSON.stringify(a)), warn: (...a: unknown[]) => void lines.push(JSON.stringify(a)), error() {} };
+  await run({ updates: [[text(1, 999, "/steer 1 nope"), text(2, 42, "/steer 2 SECRETWORDS")]], store: fakeStore(), steering, log: spy, wait: 150 });
+  assert.deepEqual(steering.calls, ["steer:2:SECRETWORDS"]);
+  assert.ok(lines.some((l) => l.includes("steer")));
+  assert.ok(!lines.some((l) => l.includes("SECRETWORDS")));
+});
+
+test("needs text: a test line for a soul proposal and a skill edit, nothing without results", () => {
+  const res = (better: string, state = "done") => ({ better, state, task: "t", caseId: 1 });
+  const store = fakeStore({
+    list: () => [{ name: "Scout", jobs: [], routines: [], proposals: [{ id: 7, state: "pending", field: "soul", text: "t", reason: "r" }, { id: 8, state: "pending", field: "soul", text: "t", reason: "r" }] }],
+    skillEdits: () => [{ id: 5, state: "pending", skill: "k", reason: "r" }],
+    testResults: (kind: string, id: number) => (kind === "soul" && id === 7 ? [res("new"), res("new"), res("same")] : kind === "skill" ? [res("old"), res("", "running")] : []),
+  });
+  const text = (k: string) => needsYou(store, () => undefined, []).find((n) => n.key === k)!.text;
+  assert.match(text("proposal-7"), /\nTest cases: 2 better, 1 same$/);
+  assert.doesNotMatch(text("proposal-8"), /Test cases/);
+  assert.match(text("skill-edit-5"), /\nTest cases: running…$/);
 });

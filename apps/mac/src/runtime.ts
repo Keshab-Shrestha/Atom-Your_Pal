@@ -988,6 +988,7 @@ export function createRuntime(
       held,
       approvals: computer,
       describe,
+      ...(steering ? { steering } : {}),
     });
   }
   // ADR-098 item 5: the local API. Its turns go to a Core of their own, saved as the chat "api" (or "api-<chatId>"). It

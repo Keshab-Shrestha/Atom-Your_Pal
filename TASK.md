@@ -1204,7 +1204,9 @@ Telegram for ATOM, and results to the phone. ZENO uses its own bot. Hermes keeps
 - Routines have `notifyTelegram` (store column `notify_telegram`, default off). `routine.add` and `routine.update` take it. The Scheduled form has a "Send result to Telegram" switch.
 - Settings → General has a Telegram card. It shows "Connected" or "Not set up" (with the two `.env` names) and the "Send to Telegram" switch. The switch is on by default. The island sends it as `telegram.set` when ZENO connects and when it changes. The `ready` event has `telegram`.
 - The "Send to Telegram" switch controls all sends that ZENO starts, also schedule results. Replies to Keshab's messages always go.
-- Not done: tests (Keshab asked for build only). A Telegram turn and a window turn on the same chat at the same time can disagree on the history: open the Telegram chat in the window only to read it.
+- Steering (ADR-100): `/steer <number> <text>` calls `TaskSteering.steer`, the same function as the window. It answers "Sent to task #N now." or "Kept for task #N. It runs after this step." `/interrupt <number>` calls `TaskSteering.interrupt` and answers "Task #N stopped. It waits for your message." A `HelperError` message is the answer. Without steering, both commands answer "Steering is off." The log holds the command name only, never the message.
+- Test results (ADR-100): a Needs you item for a Tinker proposal or skill edit has one more line, "Test cases: 2 better, 1 same". The line has the same words as the window. No results: no line. No new buttons.
+- Tests: `telegram-bot.test.ts` covers the bot, the commands, steering and the test line.
 
 ## ADR-098 item 4 — as built (2026-10-12)
 
@@ -1332,13 +1334,13 @@ Keshab asked for build only, so these items have no tests. The local API and the
 ### B3 — Gaps against Paperclip (most valuable first)
 
 1. Activity timeline for each run (ADR-099): built and tested (TS 746 tests, Swift 517). Not yet seen in the real window. Codex and Manager runs record no calls.
-2. Telegram parity: steering, interrupting and test results from the phone. Effort small. Check first what ADR-098 items 1–2 already cover.
+2. Telegram parity (B3.2, ADR-100): built and tested. `/steer`, `/interrupt` and the test line in Needs you items. Not yet tried on a real phone.
 3. WhatsApp for ATOM. Keshab already uses WhatsApp with Hermes. Effort medium.
 4. Checkpoint and undo of a run's file edits, also outside git repos. Effort medium.
 5. Skills hub: search and install community skills. Effort medium.
 6. Smaller gaps: image and video generation. Remote terminals (Task 3.19, Cloud sandboxes, is the nearest planned task).
 
-None of B3 is started.
+B3 items 1 and 2 are built. The rest is not started.
 
 ## Phase 4 — Lantern: the Redesign (ADR-084, 2026-10-10)
 
