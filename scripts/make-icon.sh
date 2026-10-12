@@ -8,8 +8,8 @@ island="$root/apps/mac/island"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-(cd "$island" && swift build --product ZenoIsland 2>&1 | grep -E "error" || true)
-ZENO_ISLAND_GALLERY="$work" ZENO_ISLAND_GALLERY_ONLY=icon "$island/.build/debug/ZenoIsland"
+(cd "$island" && swift build --product AtomIsland 2>&1 | grep -E "error" || true)
+ZENO_ISLAND_GALLERY="$work" ZENO_ISLAND_GALLERY_ONLY=icon "$island/.build/debug/AtomIsland"
 [ -f "$work/icon-1024.png" ] || { echo "The icon was not rendered." >&2; exit 1; }
 
 set_dir="$work/ZENO.iconset"

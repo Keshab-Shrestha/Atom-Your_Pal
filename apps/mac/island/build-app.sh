@@ -27,10 +27,10 @@ if [ -z "$node" ]; then
 fi
 node=$(cd "$(dirname "$node")" && pwd)/$(basename "$node")
 
-echo "Building ZenoIsland (release)…"
-(cd "$here" && swift build -c release --product ZenoIsland 2>&1 | grep -v "search path '/Library/Developer/CommandLineTools" || true)
-(cd "$here" && swift build -c release --product ZenoCalendar 2>&1 | grep -v "search path '/Library/Developer/CommandLineTools" || true)
-binary="$here/.build/release/ZenoIsland"
+echo "Building AtomIsland (release)…"
+(cd "$here" && swift build -c release --product AtomIsland 2>&1 | grep -v "search path '/Library/Developer/CommandLineTools" || true)
+(cd "$here" && swift build -c release --product AtomCalendar 2>&1 | grep -v "search path '/Library/Developer/CommandLineTools" || true)
+binary="$here/.build/release/AtomIsland"
 [ -x "$binary" ] || { echo "Build failed: $binary not found" >&2; exit 1; }
 # Fail if the binary is older than any source file (the build above failed but left an old one).
 if [ -n "$(find "$here/Sources" "$here/Package.swift" -newer "$binary" 2>/dev/null | head -1)" ]; then
@@ -42,7 +42,7 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$binary" "$app/Contents/MacOS/ZENO"
 # Calendar and Reminders helper (ADR-060). Inside the app so macOS attributes its permission to ZENO.
-helper="$here/.build/release/ZenoCalendar"
+helper="$here/.build/release/AtomCalendar"
 [ -x "$helper" ] && cp "$helper" "$app/Contents/MacOS/zeno-calendar" || echo "warning: calendar helper not built" >&2
 # The app's icon (ADR-091): assets/icon/ZENO.icns (scripts/make-icon.sh makes it).
 icon=""
@@ -84,8 +84,8 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>NSRemindersUsageDescription</key><string>ZENO reads your reminders when you ask, and adds one when you ask it to.</string>
   <key>NSMicrophoneUsageDescription</key><string>ZENO listens only while you hold its talk or dictate key, to hear you. Speech is transcribed on this Mac and never recorded.</string>
   <key>NSAppleEventsUsageDescription</key><string>ZENO controls Music or Spotify (play, pause, skip) and adds notes to Notes, only when you ask.</string>
-  <key>ZenoProjectRoot</key><string>$root</string>
-  <key>ZenoNodePath</key><string>$node</string>
+  <key>AtomProjectRoot</key><string>$root</string>
+  <key>AtomNodePath</key><string>$node</string>
 </dict>
 </plist>
 PLIST

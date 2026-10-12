@@ -1,0 +1,303 @@
+import Observation
+import AtomIslandCore
+
+/// Everything the island's views show, and the actions they can take. Owned by `IslandController`.
+@MainActor @Observable
+final class IslandModel {
+    /// Conversation or Settings: the window page "open" goes to (ADR-089).
+    typealias Tab = PanelTab
+    typealias SettingsPage = AtomIslandCore.SettingsPage
+
+    var status = IslandStatus()
+    /// What ZENO is waiting for the user to allow (ADR-054).
+    var approval = ApprovalState()
+    /// The place ZENO is showing the user, if any (ADR-054).
+    var pointing = PointingState()
+    /// The strip above the Dock while ZENO works on the Mac (ADR-056). Written by the controller, which knows the time.
+    var work = WorkStripState()
+    var meter = LevelMeter(bars: 14)
+    var conversation = Conversation()
+    /// The model in use and the choices, from the runtime's `info` event.
+    var modelInfo: ModelInfo?
+    /// A model switch sent to the runtime and not yet confirmed (model id).
+    var pendingModel: String?
+    /// Why the last model switch was refused, shown under the model list until the next attempt.
+    var modelError: String?
+    /// ADR-097: the model lists were asked for again and no `info` has come back yet.
+    var refreshingModels = false
+    /// What ZENO keeps (ADR-058). Nil until the Memory page first asks the runtime.
+    var memory: MemoryList?
+    /// What ZENO can do (ADR-076), from the runtime's `capabilities` event. Nil until it arrives: only the shortcuts show.
+    var capabilities: [CapabilityItem]?
+    /// Claude plan usage (ADR-076), merged from `plan.usage` events. Nil until one arrives: no meters.
+    var planUsage: PlanUsage?
+    /// ADR-091: Keshab's chats and the one ZENO is in; nil until the window asks.
+    var chats: ChatList?
+    /// ADR-098: ZENO's Telegram bot is set up in .env (from the runtime's `ready`).
+    var telegramConnected = false
+    /// ADR-098 item 5: the local API's state, from the runtime's `api` event (nil until Settings' switch is sent).
+    var apiStatus: ApiStatus?
+    /// The ZENO window's content (ADR-081): helpers, their jobs, the report being read.
+    var helpers = HelpersState()
+    /// The ZENO window is open: a restarted runtime is asked for the list again.
+    var helpersWindowOpen = false
+
+    /// Settings home has already cascaded in (ADR-084): once per launch, now that the drop-down panel that reset it on
+    /// each opening is gone (ADR-093).
+    @ObservationIgnored var settingsCascaded = false
+    /// The card's content at full size (ADR-084). False for the moment it opens, so it can grow in from the menu-bar
+    /// icon, and while it closes. Set by the controller, inside the open and close animations.
+    var presented = true
+    /// Where the card grows from, as a fraction of its width (0 left, 1 right). Set by the controller.
+    var openAnchorX = 1.0
+    var tab = Tab.conversation
+    /// ADR-089: the page the ZENO window shows.
+    var windowPage = WindowPage.chat
+    /// ADR-090: the Board shows the office floor (else the columns).
+    var boardFloor = true
+    /// ADR-098: the Board shows only the tasks with this label (nil: all).
+    var boardLabel: String?
+    /// ADR-098: the sidebar's search: the words typed, the answer to them, and a request to focus the field (⌘F).
+    var searchText = ""
+    var searchResults: SearchResults?
+    var searchFocusTick = 0
+    /// ADR-094: the Board's "All agents" list is open (from its chip or a "+N" sign on the floor).
+    var showsAllAgents = false
+    /// The Settings page open inside the Settings tab; nil shows the list of pages (ADR-057).
+    var settingsPage: SettingsPage?
+
+    let settings: IslandSettings
+    let recorder: ShortcutRecorder
+    /// Open ZENO at login (General). Read from macOS, never saved by ZENO.
+    let loginItem = LoginItem()
+    /// The permissions checklist (ADR-075). Read from macOS, never saved by ZENO.
+    let permissions = PermissionChecker()
+    /// Shows or hides Pal. Set by the controller.
+    @ObservationIgnored var petChanged: (Bool) -> Void = { _ in }
+
+    /// Turns the pet on or off: saves the setting and shows or hides Pal at once.
+    func setPet(_ enabled: Bool) {
+        settings.petEnabled = enabled
+        petChanged(enabled)
+    }
+
+    /// Listens for shortcuts in every app. Set by the controller.
+    @ObservationIgnored weak var shortcuts: ShortcutEngine?
+
+    /// Sends a command to the runtime. Set by the app.
+    @ObservationIgnored var send: (IslandCommand) -> Void = { _ in }
+    /// `true` opens the ZENO window (ADR-089; the compact card's click). Set by the controller.
+    @ObservationIgnored var setExpanded: (Bool) -> Void = { _ in }
+    /// The work strip's Stop button: the same as Esc. Set by the controller.
+    @ObservationIgnored var stopWork: () -> Void = {}
+    /// An error card's button (ADR-075). Set by the controller.
+    @ObservationIgnored var perform: (FailureAction) -> Void = { _ in }
+    /// A permission row's button: asks macOS (only for one never asked, on the user's click) or opens its pane.
+    @ObservationIgnored var permissionButton: (PermissionRow) -> Void = { _ in }
+    /// Settings → General → Replay the tour. Set by the controller.
+    @ObservationIgnored var replayTour: () -> Void = {}
+    /// Opens the ZENO window (ADR-081). Set by the controller.
+    @ObservationIgnored var openHelpers: () -> Void = {}
+
+    init(settings: IslandSettings) {
+        self.settings = settings
+        recorder = ShortcutRecorder(settings: settings)
+    }
+
+    func chooseModel(provider: String, model: String) {
+        guard modelInfo?.provider != provider || modelInfo?.model != model else { return }
+        pendingModel = model
+        modelError = nil
+        send(.modelSet(provider: provider, model: model))
+    }
+
+    /// ADR-097: ask the providers for their model lists again.
+    func refreshModels() {
+        refreshingModels = true
+        modelError = nil
+        send(.modelRefresh)
+    }
+
+    /// ADR-097: the chat in use gets its own model (nil: the default again). Voice and new chats keep the default.
+    func chooseChatModel(provider: String?, model: String?) {
+        modelError = nil
+        send(.chatModel(id: chats?.current ?? "", provider: provider ?? "", model: model ?? ""))
+    }
+
+    /// The user clicked Allow or Decline on the approval card.
+    func answerApproval(_ approved: Bool) {
+        guard let command = approval.answer(approved: approved) else { return }
+        send(command)
+    }
+
+    /// Opens Settings → What can I ask? (the link under the empty conversation).
+    func showExamples() {
+        tab = .settings
+        settingsPage = .examples
+    }
+
+    func newConversation() {
+        send(.conversationReset)
+    }
+
+    /// The Memory page opened: ask for the list. From then on the runtime also sends its changes.
+    func loadMemory() { send(.memoryList) }
+    func forgetMemory(_ id: Int) {
+        memory?.memories.removeAll { $0.id == id } // at once; the runtime's answer confirms
+        send(.memoryForget(id: id))
+    }
+    func forgetAllMemory() { send(.memoryClear) }
+    func forgetEpisode(_ id: Int) {
+        memory?.episodes.removeAll { $0.id == id }
+        send(.episodeForget(id: id))
+    }
+    func forgetAllEpisodes() { send(.episodeClear) }
+    /// ADR-097: keep the chosen chats in memory; the runtime's `memory` events show them indexing, then kept.
+    func keepChats(_ ids: Set<String>) {
+        for id in ids.sorted() { send(.memoryKeepChat(id: id)) }
+    }
+    func dropKeptChat(_ id: String) { send(.memoryDropChat(id: id)) }
+
+    /// Sends what a ZENO window action produced, if anything.
+    func sendHelpers(_ command: IslandCommand?) {
+        if let command { send(command) }
+    }
+
+    /// ADR-098: asks the runtime for the current words' results (nothing for empty words).
+    func runSearch() {
+        let query = searchQuery
+        guard !query.isEmpty else { searchResults = nil; return }
+        send(.search(query: query))
+    }
+
+    /// The words as sent: trimmed, at most 200 characters.
+    var searchQuery: String { String(searchText.trimmingCharacters(in: .whitespacesAndNewlines).prefix(TaskLabels.maxQuery)) }
+
+    func clearSearch() {
+        searchText = ""
+        searchResults = nil
+    }
+
+    /// A typed request from the Conversation tab. Ignored when empty or too long for the runtime.
+    func ask(_ text: String) {
+        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty, clean.count <= 4000 else { return }
+        send(.textSend(clean))
+    }
+
+    // MARK: ADR-096: Back, and leaving unsaved edits
+
+    /// Where the window is now, as one step of its history.
+    var location: WindowLocation { WindowLocation(page: windowPage, helpers: helpers, allAgents: showsAllAgents) }
+    /// The steps Back returns to.
+    private(set) var history = WindowHistory()
+    /// The step last recorded: a change from it is Keshab's next step.
+    @ObservationIgnored private var lastLocation: WindowLocation?
+
+    /// Called on every change of `location` (the window's `onChange`): the step before becomes a Back step.
+    func recordLocation() {
+        let now = location
+        if let last = lastLocation, last != now { history.push(last) }
+        lastLocation = now
+    }
+
+    /// Back (the top bar's arrow, ⌘[ and the mouse's back button): the newest step that still exists.
+    func goBack() {
+        navigate { [self] in
+            recordLocation()
+            let current = location
+            guard let target = history.back(where: { $0 != current && $0.isValid(in: helpers.list) }) else { return }
+            windowPage = target.page
+            showsAllAgents = target.allAgents
+            if target.page == .agents { sendHelpers(helpers.show(target)) }
+            lastLocation = location // a Back is not a new step
+        }
+    }
+
+    /// The editing fields with a change not saved yet, by name ("soul", "note"…). Set by the editing views.
+    @ObservationIgnored private var editedFields: Set<String> = []
+    var hasUnsavedEdits: Bool { !editedFields.isEmpty }
+    /// "Discard changes?" is open; `pendingLeave` runs on Discard.
+    var asksDiscard = false
+    @ObservationIgnored private var pendingLeave: (() -> Void)?
+    /// The field just saved, for its "Saved" check (1.5 s).
+    private(set) var savedField: String?
+
+    func markEdited(_ field: String, _ edited: Bool) {
+        if edited { editedFields.insert(field) } else { editedFields.remove(field) }
+    }
+
+    /// Leaves the page with `change`, after "Discard changes?" when an edit is not saved.
+    func navigate(_ change: @escaping () -> Void) {
+        guard hasUnsavedEdits else { change(); return }
+        pendingLeave = change
+        asksDiscard = true
+    }
+
+    func discardEdits() {
+        editedFields = []
+        asksDiscard = false
+        let leave = pendingLeave
+        pendingLeave = nil
+        leave?()
+    }
+
+    func keepEditing() {
+        asksDiscard = false
+        pendingLeave = nil
+    }
+
+    func showSaved(_ field: String) {
+        savedField = field
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(1.5))
+            if self?.savedField == field { self?.savedField = nil }
+        }
+    }
+
+    /// Keeps the conversation and model list in step with the runtime. The status is applied by the controller.
+    func apply(_ event: IslandEvent) {
+        let helperRefusal = helpers.claims(event)
+        recordLocation() // Keshab's last step, before the runtime moves the page (a new agent, a removed one)
+        helpers.apply(event)
+        lastLocation = location // a change the runtime made is not a step
+        if let refresh = helpers.takeRefresh() { send(refresh) } // the open task changed: ask for its thread again
+        if helperRefusal { return } // a refused helper command is shown in the ZENO window only
+        conversation.apply(event)
+        approval.apply(event)
+        pointing.apply(event)
+        switch event {
+        case .chats(let list):
+            chats = list
+        case .api(let status):
+            apiStatus = status
+        case .searchResults(let results) where results.query == searchQuery:
+            searchResults = results // an answer to older words is dropped
+        case .memory(let list):
+            memory = list
+        case .capabilities(let items):
+            capabilities = items
+        case .planUsage(let usage):
+            planUsage = (planUsage ?? PlanUsage()).merging(usage)
+        case .ready(let ready):
+            telegramConnected = ready.telegram // ADR-098
+            send(.telegramSet(push: settings.telegramPush))
+            send(.apiSet(on: settings.localApi)) // ADR-098 item 5
+            if memory != nil { send(.memoryList) } // a restarted runtime: ask again so updates keep coming
+            send(.helpersList) // Task 3.15: busy workers show on the island too, so the list is always kept
+            sendSpeech() // ADR-091
+            if chats != nil { send(.chatsList) } // a restarted runtime: ask again
+        case .info(let info):
+            modelInfo = info
+            pendingModel = nil
+            modelError = nil
+            refreshingModels = false
+        case .error(let error) where error.stage == "settings":
+            pendingModel = nil
+            refreshingModels = false
+            modelError = error.message
+        default:
+            break
+        }
+    }
+}
