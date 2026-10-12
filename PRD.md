@@ -1,27 +1,27 @@
-# ZENO Product Requirements Document
+# ATOM Product Requirements Document
 
 ## Product
 
-ZENO
+ATOM
 
 ---
 
 ## Positioning
 
-> ZENO — The Intelligence Layer for Your Digital World.
+> ATOM — The Intelligence Layer for Your Digital World.
 
 ---
 
 ## 1. Product Vision
 
-ZENO is an AI-native intelligence layer designed to connect a person with their digital world.
+ATOM is an AI-native intelligence layer designed to connect a person with their digital world.
 
 It should eventually understand:
 
 - who the user is
 - what they are doing
 - what they know
-- what ZENO remembers
+- what ATOM remembers
 - what devices are available
 - what capabilities exist
 - what actions are allowed
@@ -29,7 +29,7 @@ It should eventually understand:
 - which device should execute
 - what happened previously
 
-The user should interact with ZENO as one continuous intelligence rather than a collection of disconnected applications.
+The user should interact with ATOM as one continuous intelligence rather than a collection of disconnected applications.
 
 ---
 
@@ -49,13 +49,13 @@ A user may have:
 
 These systems often lack a unified identity, context, memory, and execution layer.
 
-ZENO aims to provide that missing layer.
+ATOM aims to provide that missing layer.
 
 ---
 
 ## 3. Product Principle
 
-ZENO should become:
+ATOM should become:
 
 ```text
 One Intelligence
@@ -97,14 +97,14 @@ The user should be able to communicate naturally.
 
 Examples:
 
-- "Hey Zeno."
+- "Hey ATOM."
 - "Remember that this project uses PostgreSQL."
 - "What was I working on yesterday?"
 - "Open my project."
 - "Create a reminder for tomorrow."
 - "Handle this."
 
-ZENO should determine the appropriate internal path.
+ATOM should determine the appropriate internal path.
 
 ---
 
@@ -112,11 +112,11 @@ ZENO should determine the appropriate internal path.
 
 ### Identity
 
-ZENO knows which authenticated user is making a request.
+ATOM knows which authenticated user is making a request.
 
 ### Context
 
-ZENO understands relevant:
+ATOM understands relevant:
 
 - session context
 - task context
@@ -126,7 +126,7 @@ ZENO understands relevant:
 
 ### Memory
 
-ZENO stores useful long-term information.
+ATOM stores useful long-term information.
 
 Memory must have:
 
@@ -140,7 +140,7 @@ Memory must have:
 
 ### Knowledge
 
-ZENO can access knowledge from:
+ATOM can access knowledge from:
 
 - personal sources
 - projects
@@ -150,7 +150,7 @@ ZENO can access knowledge from:
 
 ### Reasoning
 
-ZENO may use LLMs for:
+ATOM may use LLMs for:
 
 - language understanding
 - reasoning
@@ -161,7 +161,7 @@ ZENO may use LLMs for:
 
 ### Decision Making
 
-ZENO may use a Decision Engine when deterministic routing is insufficient.
+ATOM may use a Decision Engine when deterministic routing is insufficient.
 
 Potential systems:
 
@@ -171,7 +171,7 @@ Potential systems:
 
 ### Tools
 
-ZENO can eventually interact with applications and services.
+ATOM can eventually interact with applications and services.
 
 Examples:
 
@@ -203,7 +203,7 @@ Examples:
 
 ### Devices
 
-Devices become ZENO nodes.
+Devices become ATOM nodes.
 
 Potential devices:
 
@@ -226,7 +226,7 @@ User
  ↓
 iPhone
  ↓
-ZENO
+ATOM
  ↓
 Capability Registry
  ↓
@@ -236,7 +236,7 @@ Execute
  ↓
 Result
  ↓
-ZENO
+ATOM
  ↓
 iPhone
 ```
@@ -287,7 +287,7 @@ LLMs must not directly control authorization.
 
 ## 10. Multi-User Requirements
 
-Long-term ZENO must support:
+Long-term ATOM must support:
 
 - multiple accounts
 - isolated personal data
@@ -301,7 +301,7 @@ Long-term ZENO must support:
 
 ## 11. Provider Requirements
 
-ZENO must not be coupled to a single LLM provider.
+ATOM must not be coupled to a single LLM provider.
 
 Initial provider:
 
@@ -326,7 +326,7 @@ Voice
  ↓
 Whisper
  ↓
-ZENO Core
+ATOM Core
  ↓
 LLM Gateway
  ↓
@@ -362,10 +362,10 @@ Phase 0.5 makes the Phase 0 loop usable day to day (ADR-033).
 The user can:
 
 - hold Ctrl+Option in any app, speak, and release to send
-- see ZENO's state (listening with a level meter, thinking, speaking) in a small dark glass island at the left edge of the screen, below the menu bar
+- see ATOM's state (listening with a level meter, thinking, speaking) in a small dark glass island at the left edge of the screen, below the menu bar
 - reveal the island by pushing the pointer against that edge, and click it to read the conversation, see status details, and choose the AI provider and model
 
-When idle, nothing is on screen. ZENO's intelligence is unchanged from Phase 0.
+When idle, nothing is on screen. ATOM's intelligence is unchanged from Phase 0.
 
 ---
 
@@ -391,7 +391,7 @@ Phase 0 does not include:
 
 ## 15. Product Evolution
 
-ZENO should evolve approximately:
+ATOM should evolve approximately:
 
 ```text
 Voice Foundation

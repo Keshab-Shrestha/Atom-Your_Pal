@@ -1,13 +1,13 @@
-# ZENO design study: from "works" to "a product with a face"
+# ATOM design study: from "works" to "a product with a face"
 
 Status: proposal, October 2026. Nothing here is built into the live app yet. The mockups are gallery-only views in
-`apps/mac/island/Sources/ZenoIsland/DesignStudy/` and render as sheet `14-design-study-*` (see the end of this file).
+`apps/mac/island/Sources/AtomIsland/DesignStudy/` and render as sheet `14-design-study-*` (see the end of this file).
 
 Update (ADR-093, 2026-10-11): the directions were decided (ADR-084, ADR-086) and the DesignStudy mock-ups, sheet 14 and
-`ZENO_ISLAND_GALLERY_ONLY=design` were removed; they remain in git history (commit 149bedd and earlier).
+`ATOM_ISLAND_GALLERY_ONLY=design` were removed; they remain in git history (commit 149bedd and earlier).
 
 The brief, in Keshab's words: keep every feature, rebuild the look and feel from zero, with "those swift motions and
-colour accents and the premium feel" of Coucou and Clicky. The design should grow from Wisp, ZENO's strongest asset.
+colour accents and the premium feel" of Coucou and Clicky. The design should grow from Wisp, ATOM's strongest asset.
 
 ---
 
@@ -58,7 +58,7 @@ assets, names or characters.
 
 ---
 
-## 2. Why ZENO feels like slop today, screen by screen
+## 2. Why ATOM feels like slop today, screen by screen
 
 Renders: `scratchpad/gallery/` (2-conversation, 2-settings-full, 5-wisp-moods, 6-wisp-bubble, 8-computer-control,
 9-*-panel, 12-everyday, 13-helpers).
@@ -68,7 +68,7 @@ Renders: `scratchpad/gallery/` (2-conversation, 2-settings-full, 5-wisp-moods, 6
 character, is absent from the header. Two grey icon circles sit on the right.
 
 **The tab bar** (`ExpandedView.swift:88-122` (file removed in ADR-093; see 149bedd)). A full-width grey segmented control, the most generic macOS/iOS widget
-there is. It takes a whole row and says nothing about ZENO.
+there is. It takes a whole row and says nothing about ATOM.
 
 **Conversation** (`ConversationView.swift:134-200`). User messages are teal chat bubbles (`userBubble` = accent at
 18%); Wisp's replies carry a 14 pt ghost avatar on every message (`ConversationView.swift:155`), too small to read as
@@ -114,7 +114,7 @@ All three keep every feature reachable, merge the Status tab into the top of Set
 meters become a "now" block, which also fills the empty Settings panel), respect Reduce Motion (every spring has a
 plain fade fallback of 0.15 s) and keep body and secondary text at WCAG AA (ratios measured below).
 
-Shared motion vocabulary (borrowed in spirit from Coucou and Clicky, named for ZENO):
+Shared motion vocabulary (borrowed in spirit from Coucou and Clicky, named for ATOM):
 
 | Name | Spring | Used for |
 |---|---|---|
@@ -319,7 +319,7 @@ removing.
    gallery 8.
 9. **Helpers window.** Letter discs with the working arc, dot states, progress line, lit "Read report". Verify:
    `HelpersTests`, gallery 13.
-10. **Sounds (optional, separate decision).** ZENO's own short cues for open, close, listening and done, at low volume,
+10. **Sounds (optional, separate decision).** ATOM's own short cues for open, close, listening and done, at low volume,
     behind the existing Sounds setting. Our own recordings only.
 
 ---

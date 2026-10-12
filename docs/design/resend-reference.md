@@ -1,6 +1,6 @@
 # Style reference: Resend (shared by Keshab, 2026-10-10)
 
-Used for ADR-086 (the Void theme). Style rules only: no Resend name, logo, imagery or commercial fonts are used in ZENO.
+Used for ADR-086 (the Void theme). Style rules only: no Resend name, logo, imagery or commercial fonts are used in ATOM.
 
 > black velvet with violet neon. Theme: dark.
 

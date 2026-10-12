@@ -1,12 +1,12 @@
-# ZENO: Vision and Principles
+# ATOM: Vision and Principles
 
-The long-term vision and the principles ZENO is built by, moved here from the README on 2026-10-11 (the README now shows what ZENO does today). The engineering rules for working on ZENO are in CLAUDE.md.
+The long-term vision and the principles ATOM is built by, moved here from the README on 2026-10-11 (the README now shows what ATOM does today). The engineering rules for working on ATOM are in CLAUDE.md.
 
 ## The Intelligence Layer for Your Digital World
 
-ZENO is an AI-native personal intelligence system designed to sit between a person and their digital world.
+ATOM is an AI-native personal intelligence system designed to sit between a person and their digital world.
 
-ZENO is not intended to be merely a chatbot or voice assistant.
+ATOM is not intended to be merely a chatbot or voice assistant.
 
 It is designed to become a unified intelligence layer that can understand requests, maintain context and memory, reason over knowledge, make decisions, use capabilities, interact with devices, execute tasks, and coordinate activity across a user's digital environment.
 
@@ -18,31 +18,31 @@ The long-term goal is:
 
 ## 1. Vision
 
-ZENO should eventually allow a person to interact with their digital world through one consistent intelligence.
+ATOM should eventually allow a person to interact with their digital world through one consistent intelligence.
 
 For example:
 
-> "Hey Zeno, what was I working on yesterday?"
+> "Hey ATOM, what was I working on yesterday?"
 
-> "Zeno, remember that this project uses PostgreSQL."
+> "ATOM, remember that this project uses PostgreSQL."
 
-> "Zeno, open the project."
+> "ATOM, open the project."
 
-> "Zeno, create a reminder for tomorrow."
+> "ATOM, create a reminder for tomorrow."
 
-> "Zeno, send this to my computer."
+> "ATOM, send this to my computer."
 
-> "Zeno, handle this."
+> "ATOM, handle this."
 
 The user should not need to understand which model, device, service, application, or internal capability performs the work.
 
-ZENO should determine the appropriate path.
+ATOM should determine the appropriate path.
 
 ---
 
-## 2. What ZENO Is
+## 2. What ATOM Is
 
-ZENO combines several systems:
+ATOM combines several systems:
 
 - Voice interface
 - Text interface
@@ -72,7 +72,7 @@ The system should gradually grow into these capabilities rather than implementin
 
 ## 3. Core Philosophy
 
-ZENO follows one fundamental development principle:
+ATOM follows one fundamental development principle:
 
 > See the whole mountain. Climb only the next step.
 
@@ -89,11 +89,11 @@ This prevents both:
 
 ## 4. System Principles
 
-### 4.1 ZENO is a system, not a chatbot
+### 4.1 ATOM is a system, not a chatbot
 
-The LLM is one component inside ZENO.
+The LLM is one component inside ATOM.
 
-It is not ZENO itself.
+It is not ATOM itself.
 
 ### 4.2 LLMs are reasoning engines
 
@@ -107,11 +107,11 @@ LLMs should not be treated as:
 
 ### 4.3 Deterministic systems come first
 
-If a request can be handled deterministically, ZENO should not invoke a probabilistic reasoning system unnecessarily.
+If a request can be handled deterministically, ATOM should not invoke a probabilistic reasoning system unnecessarily.
 
 ### 4.4 Providers are replaceable
 
-ZENO should not be architecturally dependent on one LLM provider.
+ATOM should not be architecturally dependent on one LLM provider.
 
 The system should support:
 
@@ -129,7 +129,7 @@ The system decides whether the action is allowed.
 
 ### 4.6 Devices are nodes
 
-A Mac, iPhone, Windows PC, or future device should be treated as a node in the ZENO system.
+A Mac, iPhone, Windows PC, or future device should be treated as a node in the ATOM system.
 
 The user should not need to manually choose which device performs an operation.
 
@@ -142,7 +142,7 @@ USER
   ↓
 Voice / Text / UI / API
   ↓
-ZENO CORE
+ATOM CORE
   ↓
 Identity / Context / Events
   ↓
@@ -164,7 +164,7 @@ Mac / iPhone / Windows Nodes
   ↓
 Tasks / Events / Results
   ↓
-ZENO
+ATOM
 ```
 
 This is the long-term architecture.
@@ -182,7 +182,7 @@ Microphone
     ↓
 Whisper.cpp
     ↓
-ZENO Core
+ATOM Core
     ↓
 LLM Gateway
     ↓
@@ -193,9 +193,9 @@ TTS
 Speaker
 ```
 
-Phase 0 establishes the fundamental ZENO request/response loop. It is complete (2026-10-02).
+Phase 0 establishes the fundamental ATOM request/response loop. It is complete (2026-10-02).
 
-Phase 0.5 put that loop behind a desktop app, `ZENO.app` (`apps/mac/island/`, Swift): a menu-bar icon with a panel, Wisp, push-to-talk by holding Ctrl+Option in any app, and dictation. Phase 1 added memory, calendar and reminders, timers and weather; Phase 2 adds more things to do. See the Quick start above to build it, and STATUS.md and TASK.md for where things stand.
+Phase 0.5 put that loop behind a desktop app, `ATOM.app` (`apps/mac/island/`, Swift): a menu-bar icon with a panel, Wisp, push-to-talk by holding Ctrl+Option in any app, and dictation. Phase 1 added memory, calendar and reminders, timers and weather; Phase 2 adds more things to do. See the Quick start above to build it, and STATUS.md and TASK.md for where things stand.
 
 ---
 
@@ -205,7 +205,7 @@ Phase 0 should provide:
 
 - microphone input
 - local speech-to-text
-- ZENO Core
+- ATOM Core
 - LLM Gateway
 - one remote LLM provider
 - text response
@@ -222,7 +222,7 @@ Phase 0 should remain small.
 
 ## 8. Local and Remote AI
 
-ZENO intentionally separates local and remote intelligence.
+ATOM intentionally separates local and remote intelligence.
 
 Initial design:
 
@@ -240,7 +240,7 @@ Initial design:
 
 - frontier LLM reasoning
 
-ZENO does not require a local general-purpose LLM.
+ATOM does not require a local general-purpose LLM.
 
 Ollama is not a required dependency.
 
@@ -248,7 +248,7 @@ Ollama is not a required dependency.
 
 ## 9. Decision Engine
 
-ZENO may eventually contain a Decision Engine.
+ATOM may eventually contain a Decision Engine.
 
 The Decision Engine exists for situations where deterministic routing is insufficient.
 
@@ -280,7 +280,7 @@ Determine appropriate path
 
 ## 10. Memory
 
-ZENO should maintain memory independently of the LLM.
+ATOM should maintain memory independently of the LLM.
 
 Memory may include:
 
@@ -344,7 +344,7 @@ Authorization must happen before private information enters model context.
 
 ## 12. Devices
 
-ZENO should eventually support:
+ATOM should eventually support:
 
 - macOS
 - iOS
@@ -352,14 +352,14 @@ ZENO should eventually support:
 - Web
 - Cloud
 
-Each device can become a ZENO node.
+Each device can become a ATOM node.
 
 For example:
 
 ```text
 iPhone
   ↓
-ZENO
+ATOM
   ↓
 Device Registry
   ↓
@@ -369,7 +369,7 @@ Execute Action
   ↓
 Result
   ↓
-ZENO
+ATOM
   ↓
 iPhone
 ```
@@ -380,11 +380,11 @@ The user should not need to know that the Mac performed the action.
 
 ## 13. Capabilities
 
-ZENO should eventually have a capability system.
+ATOM should eventually have a capability system.
 
 Example:
 
-"Hey Zeno, give yourself a calendar."
+"Hey ATOM, give yourself a calendar."
 
 This should not mean that the AI receives unrestricted access.
 
@@ -420,7 +420,7 @@ The fundamental security principle is:
 
 The model can request. The system decides.
 
-ZENO should use:
+ATOM should use:
 
 - least privilege
 - deterministic authorization
@@ -431,7 +431,7 @@ ZENO should use:
 - provenance
 - confirmation for sensitive actions
 
-ZENO should not provide unrestricted root or administrator access by default.
+ATOM should not provide unrestricted root or administrator access by default.
 
 ---
 
@@ -439,7 +439,7 @@ ZENO should not provide unrestricted root or administrator access by default.
 
 The long-term product is not necessarily limited to one person.
 
-ZENO should eventually support:
+ATOM should eventually support:
 
 - multiple users
 - personal knowledge
@@ -457,10 +457,10 @@ Personal data should remain separate unless explicitly shared.
 
 ## 16. Cloud
 
-The long-term ZENO platform can contain:
+The long-term ATOM platform can contain:
 
 ```text
-ZENO Cloud
+ATOM Cloud
 ├── Identity
 ├── Authentication
 ├── User Data
@@ -481,7 +481,7 @@ Cloud services should coordinate devices without automatically receiving unrestr
 
 ## 17. Development Philosophy
 
-ZENO should initially be a modular monolith.
+ATOM should initially be a modular monolith.
 
 Do not begin with:
 
@@ -498,7 +498,7 @@ Build the smallest system that can evolve into the larger system.
 
 ## 18. Documentation
 
-The canonical ZENO documentation set is:
+The canonical ATOM documentation set is:
 
 - README.md
 - CLAUDE.md
@@ -526,13 +526,13 @@ Speak
   ↓
 Whisper transcribes
   ↓
-ZENO receives request
+ATOM receives request
   ↓
 LLM Gateway sends request
   ↓
 Remote LLM responds
   ↓
-ZENO receives response
+ATOM receives response
   ↓
 TTS generates speech
   ↓

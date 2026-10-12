@@ -1,10 +1,12 @@
 # Speech-to-Text Benchmark
 
+Renamed ZENO -> ATOM on 2026-10-13. This file keeps the test words as written under the old name.
+
 Date: 2026-10-02. Machine: Mac mini (Apple Silicon), whisper.cpp via Homebrew `whisper-cli`, English.
 
 ## Method
 
-- 8 typical ZENO commands, including names and places (Kathmandu, Keshab, Rohan, Tokyo).
+- 8 typical ATOM commands, including names and places (Kathmandu, Keshab, Rohan, Tokyo).
 - Spoken by 4 macOS voices (Aman, Daniel, Samantha, Rishi) at 190 words per minute.
 - Processed to match the Mac mini's default microphone: 16 kHz mono, peak about -16 dB, pink room noise, 120 Hz–6 kHz band.
 - Word error rate after normalizing punctuation and numbers ("seven thirty" = "7:30").

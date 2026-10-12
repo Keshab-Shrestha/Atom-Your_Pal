@@ -1,10 +1,10 @@
-# ZENO Architecture
+# ATOM Architecture
 
 ---
 
 ## 1. Architectural Vision
 
-ZENO is a distributed-capable intelligence system.
+ATOM is a distributed-capable intelligence system.
 
 The architecture must eventually support:
 
@@ -31,7 +31,7 @@ USER
   ↓
 Voice / Text / UI / API
   ↓
-ZENO CORE
+ATOM CORE
   ↓
 Identity / Context / Events
   ↓
@@ -53,7 +53,7 @@ Mac / iPhone / Windows Nodes
   ↓
 Tasks / Events / Results
   ↓
-ZENO
+ATOM
 ```
 
 ---
@@ -67,7 +67,7 @@ Audio Input
     ↓
 Whisper Adapter
     ↓
-ZENO Core
+ATOM Core
     ↓
 LLM Gateway
     ↓
@@ -85,7 +85,7 @@ Audio Output
 Phase 0.5 adds an interface process in front of the same pipeline (ADR-033 to ADR-038):
 
 ```text
-ZENO Island (Swift app)                      ZENO runtime (Node)
+ATOM Island (Swift app)                      ATOM runtime (Node)
   hover reveal, Ctrl+Option, panel UI          voice loop → Core → LLM Gateway
         │  commands: talk.start, talk.send…         ▲
         └──────── stdin (JSON lines) ───────────────┘
@@ -113,11 +113,11 @@ Input sources may eventually include:
 - API
 - external events
 
-All input should eventually enter a normalized ZENO request model.
+All input should eventually enter a normalized ATOM request model.
 
 ---
 
-## 5. ZENO Core
+## 5. ATOM Core
 
 The Core is the central orchestration boundary.
 
@@ -219,7 +219,7 @@ The Decision Engine must be replaceable.
 
 ## 10. LLM Gateway
 
-The LLM Gateway isolates ZENO from model providers.
+The LLM Gateway isolates ATOM from model providers.
 
 ```text
 LLM Gateway
@@ -258,7 +258,7 @@ Memory is separate from raw conversation history.
 
 ## 12. Knowledge
 
-Knowledge represents information available to ZENO.
+Knowledge represents information available to ATOM.
 
 Knowledge may be:
 
@@ -359,7 +359,7 @@ Policy decisions must not depend solely on an LLM.
 
 ## 17. Device Manager
 
-The Device Manager maintains information about ZENO nodes.
+The Device Manager maintains information about ATOM nodes.
 
 Example:
 
@@ -473,7 +473,7 @@ Example:
 ```text
 iPhone
  ↓
-ZENO
+ATOM
  ↓
 Capability Registry
  ↓
@@ -483,7 +483,7 @@ Action
  ↓
 Result
  ↓
-ZENO
+ATOM
  ↓
 iPhone
 ```
@@ -495,7 +495,7 @@ iPhone
 Future:
 
 ```text
-          ZENO CLOUD
+          ATOM CLOUD
                │
   ┌────────────┼────────────┐
   │            │            │
@@ -602,6 +602,6 @@ Sensitive data should not be logged unnecessarily.
 
 Do not implement an architectural component until the current capability requires it.
 
-The architecture describes where ZENO is going.
+The architecture describes where ATOM is going.
 
 The task system determines what is built now.

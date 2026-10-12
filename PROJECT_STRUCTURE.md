@@ -1,4 +1,4 @@
-# ZENO Project Structure
+# ATOM Project Structure
 
 This document describes the project organization and where code belongs.
 
@@ -14,7 +14,7 @@ The planned layout. Folders marked "not created yet" were empty placeholders, re
 its phase needs it.
 
 ```text
-zeno/
+atom/
 │
 ├── apps/
 │   ├── mac/
@@ -90,12 +90,12 @@ Modules may become separate services later only when scale requires it.
 | Folder | Responsibility | Phase |
 |---|---|---|
 | `apps/mac/` | Mac node: microphone, speaker, local STT and TTS, voice loop entry point (`src/`, TypeScript) | 0 |
-| `apps/mac/island/` | ZENO Island: the native Swift app (panel, hover reveal, Ctrl+Option push-to-talk) that runs the Mac node as its child process | 0.5 |
+| `apps/mac/island/` | ATOM Island: the native Swift app (panel, hover reveal, Ctrl+Option push-to-talk) that runs the Mac node as its child process | 0.5 |
 | `apps/ios/` | iPhone node | 7 |
 | `apps/windows/` | Windows node | 8 |
 | `apps/web/` | Web interface | Later |
 
-### services/ — ZENO modules
+### services/ — ATOM modules
 
 | Folder | Responsibility | Phase |
 |---|---|---|
@@ -116,7 +116,7 @@ Modules may become separate services later only when scale requires it.
 |---|---|---|
 | `packages/shared/` | Configuration loading, logging, errors — until they earn their own package | 0 |
 | `packages/contracts/` | Shared types and interfaces between modules (e.g. request/response models) | 0 |
-| `packages/protocol/` | Device-to-ZENO communication protocol (not created yet) | 7+ |
+| `packages/protocol/` | Device-to-ATOM communication protocol (not created yet) | 7+ |
 | `packages/database/` | Persistence layer (not created yet) | 1 |
 | `packages/auth/` | Identity and authentication (not created yet) | Later |
 
@@ -135,9 +135,9 @@ Modules may become separate services later only when scale requires it.
 Phase 0 uses only these folders:
 
 ```text
-zeno/
+atom/
 ├── apps/mac/                 microphone, Whisper.cpp adapter, TTS adapter, speaker, voice loop
-├── services/core/            ZENO Core
+├── services/core/            ATOM Core
 ├── services/llm-gateway/     LLM Gateway + first provider adapter
 ├── packages/contracts/       request / response models
 ├── packages/shared/          configuration, logging, errors
@@ -163,15 +163,15 @@ The exact language/framework may change.
 Phase 0.5 adds one folder and one document:
 
 ```text
-zeno/
-├── apps/mac/island/          Swift Package: island app, its tests, and the script that builds ZENO.app
+atom/
+├── apps/mac/island/          Swift Package: island app, its tests, and the script that builds ATOM.app
 ├── apps/mac/src/             gains island mode (JSON lines over stdin / stdout); voice loop unchanged
 └── docs/island-protocol.md   the commands and events between the island and the runtime
 ```
 
 `apps/mac/island/` is a sub-folder of the Mac node, not a new top-level folder: the island is the Mac node's interface (ADR-034).
 
-Build output (`.build/`, `ZENO.app`) is git-ignored.
+Build output (`.build/`, `ATOM.app`) is git-ignored.
 
 ---
 

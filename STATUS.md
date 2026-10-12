@@ -286,13 +286,13 @@ The immediate goal is:
 
 ## 12. Next Action
 
-The code is built through ADR-098 (2026-10-12). Most of it has no tests, because Keshab asked for build only.
+The code is built through ADR-105 (2026-10-13), the rename of ZENO to ATOM.
 
 Next, in this order:
 
-1. Write tests for the ADR-097 and ADR-098 code (TASK.md, "Backlog After ADR-098", B1). The local API has the most security risk.
-2. Keshab does the hand checks of built work. The tasks marked "not yet seen" or "not yet tried by voice" in TASK.md list them.
-3. Fix the known weak spots (B2), then build the Paperclip gaps (B3). The first gap is a per-run activity timeline.
+1. Keshab does the hand checks of built work. The tasks marked "not yet seen" or "not yet tried" in TASK.md list them. After the rename, Keshab grants the macOS permissions again for the new app.
+2. The folder and repository rename happens later. Then the `ZENO_*` fallback goes.
+3. B3.3 (WhatsApp) is skipped. B3.6 (smaller gaps: image and video generation, remote terminals) is open.
 
 Older steps are in TASK.md.
 
