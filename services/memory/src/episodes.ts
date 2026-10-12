@@ -46,7 +46,7 @@ export function createEpisodeRecorder(options: EpisodeRecorderOptions): EpisodeR
     const reply = await model.complete({
       system: SUMMARY_PROMPT,
       messages: [{ role: "user", content: `The conversation:\n${transcript}` }],
-      context: { requestId: `summary-${sessionId}-${exchanges}`, sessionId, source: "text", receivedAt: new Date() },
+      context: { requestId: `summary-${sessionId}-${exchanges}`, sessionId, source: "text", receivedAt: new Date(), background: true },
     });
     summarised.set(sessionId, exchanges);
     const summary = reply.text.trim();

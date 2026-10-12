@@ -64,6 +64,8 @@ export interface RequestContext {
   sessionId: string;
   source: InputSource;
   receivedAt: Date;
+  /** A request ZENO makes by itself about a conversation (e.g. its summary): it never joins the chat's own session. */
+  background?: boolean;
 }
 
 export interface ZenoResponse {

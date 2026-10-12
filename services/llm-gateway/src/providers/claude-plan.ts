@@ -532,7 +532,7 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
       const prompt = promptWith(request.systemExtra, request.messages);
       // ADR-098 item 9: a typed turn in a chat goes on in the chat's own session and sends only the new turn. The saved
       // session is used only if it ran on this model and gave the chat's last answer; otherwise a fresh one starts.
-      const chatId = options.chatSessions && request.context.source === "text" ? request.context.sessionId : undefined;
+      const chatId = options.chatSessions && request.context.source === "text" && !request.context.background ? request.context.sessionId : undefined;
       const saved = chatId ? options.chatSessions!.get(chatId) : undefined;
       const said = request.messages.filter((m) => m.content.trim());
       const before = said.at(-2);

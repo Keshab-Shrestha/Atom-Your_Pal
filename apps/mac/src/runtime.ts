@@ -464,11 +464,12 @@ export function createRuntime(
     close: () => model.close?.(),
   };
   // ADR-059: a short summary of each conversation, written in the background with the same model (no tools).
+  // ADR-097: the chat's own model when it has one; it never joins the chat's session (`background`).
   const episodes: EpisodeRecorder | undefined =
     memory && process.env.ZENO_EPISODES !== "0"
       ? createEpisodeRecorder({
           store: memory,
-          model,
+          model: coreModel,
           onSaved: (e) => {
             log.info("episode.saved", e);
             for (const listener of memoryListeners) listener();
