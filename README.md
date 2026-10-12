@@ -1,251 +1,218 @@
 <p align="center">
-  <img src="docs/images/icon.png" width="128" alt="ZENO's icon: ATOM on a black tile">
+  <img src="docs/images/icon.png" width="128" alt="The ATOM icon">
 </p>
 
-<h1 align="center">ZENO</h1>
+<h1 align="center">ATOM</h1>
 
-<p align="center"><b>ATOM on your Mac, and the team it runs for you.</b><br>
-Talk to ATOM. ATOM does the small things itself and hands the bigger ones to a team of AI workers.<br>
-You approve what matters. Everything stays on your Mac.</p>
+<p align="center"><b>Autonomous Task Oriented Machine</b><br>
+Also: Autonomous Thinking and Optimization Mechanism, Adaptive Task Oriented Machine.</p>
 
 ---
 
-## What ZENO is for
+## What ATOM is
 
-ZENO is a personal assistant for the Mac, built around one idea: **one companion you talk to, with a team behind it that you stay in charge of.**
+ATOM is a voice and desktop assistant that lives on your Mac. A smooth 2D mascot, Pal, shows what ATOM does. An office floor shows a team of agents at work. ATOM has memory, tools, a Telegram bot, a local API and an MCP server, a skills hub, and timelines and undo for every run. You talk to ATOM. ATOM does small things itself and hands bigger ones to the team. You approve what matters. Your data stays on your Mac.
 
-- **ATOM** lives on your screen. Hold two keys and talk; it answers out loud. It opens apps, sets timers, checks your calendar, remembers what you tell it, and dictates into any text field.
-- **The team** is a set of AI workers, each with its own role and personality: Sid researches, Kame codes, Puff designs, Quill writes, Penny handles money questions, Hana handles HR questions, and Tinker suggests how they can improve. You can add your own.
-- **You stay in charge.** Workers only touch the folders you grant, ask before anything risky, never push code, and stay inside the budgets you set. The model proposes; ZENO's code decides.
+ATOM is not a chatbot. The language model is one part of it. Permissions, memory, budgets and safety checks are ordinary code. A model cannot talk its way around them.
 
-ZENO is not a chatbot. The language model is one part of it, reached through a gateway that can switch between providers. Permissions, memory, budgets and safety live in ordinary code that a model cannot talk its way around.
-
-## See it
+## Screenshots
 
 <p align="center">
-  <img src="docs/images/office-floor.png" width="820" alt="The office floor: pixel-art pals at their desks and in the lounge, ATOM in its own office">
-  <br><sub>The office floor: workers at work sit at a PC with their step in a bubble; the rest wait in the lounge; ATOM runs the floor.</sub>
+  <img src="docs/images/icon.png" width="128" alt="The ATOM app icon">
+  <br><sub>The ATOM app icon.</sub>
 </p>
 
 <p align="center">
-  <img src="docs/images/window.png" width="820" alt="The ZENO window: sidebar with chats, the Board with each worker">
-  <br><sub>One window: Overview, Dashboard, Needs you, Issues and the Board, your chats in the sidebar, and the team on the Board.</sub>
+  <img src="docs/images/office-floor.png" width="820" alt="The office floor with smooth 2D pals at desks and on a sofa">
+  <br><sub>The office floor: ATOM runs the floor, working agents sit at a desk, the rest wait in the lounge.</sub>
 </p>
 
 <p align="center">
-  <img src="docs/images/dashboard.png" width="410" alt="Dashboard: tokens today, the last 7 days and a bar per day">
-  <img src="docs/images/dashboard-team-git.png" width="410" alt="Dashboard: plan use, tokens by worker and model, and a worker's git branch with Push">
-  <br><sub>The Dashboard: every token used, by day, worker and model; the team's git branches, like pull requests. (Sample data.)</sub>
+  <img src="docs/images/window.png" width="820" alt="The ATOM window with the chat list and the Board">
+  <br><sub>The ATOM window: your chats in the sidebar and the team on the Board.</sub>
 </p>
 
-## What it does today
+<p align="center">
+  <img src="docs/images/dashboard.png" width="410" alt="Dashboard with tokens by day">
+  <img src="docs/images/dashboard-team-git.png" width="410" alt="Dashboard with plan use, tokens by agent and git branches">
+  <br><sub>The Dashboard: tokens by day, agent and model (left); plan use and the git branches of the team (right). Sample data.</sub>
+</p>
+
+## Features
 
 **Talk and dictate**
-- Push-to-talk from any app (Control + Option); ZENO answers out loud in a natural voice.
-- Dictation into any text field (Right ⌘ + Right ⌥), transcribed on your Mac.
-- Calendar, reminders, timers, weather, music, notes, opening apps, and "what's this page?" for the browser in front.
-- Memory: ZENO keeps facts you ask it to remember and picks up earlier conversations.
-- Chats: every conversation is saved; continue any of them by voice or text.
+- Push-to-talk from any app (Control + Option). ATOM answers out loud.
+- Dictation into any text field (Right ⌘ + Right ⌥). The Mac transcribes your speech.
+- Chats: ATOM saves each conversation. You continue it by voice or text.
 
-**A team that works for you**
-- Workers with souls: each has a role, a personality, rules and lessons in a `soul.md` you can edit, rename, or version.
-- Kits decide tools in code: research (the web), folders (files in folders you grant, sandboxed, on its own git branch), or think (no tools).
-- ATOM as manager: say "Sid, find…" or give ATOM a goal; it splits the work, hands parts to the right workers, and reports back in one line.
-- Tasks that wait for each other, plans for your OK before work starts, routines (daily, weekly, every few hours), hand-offs between workers, and one automatic retry for failures a retry may fix.
-- Skills and MCP servers per worker. MCP servers are saved switched off and tested first, and every tool call asks you unless you trust that server.
+**Pal and the office floor**
+- Pal is a smooth 2D mascot. It shows what ATOM does: listening, thinking, speaking, asking.
+- The office floor shows each agent at a desk with its current step, or in the lounge when it waits.
 
-**You stay in charge**
-- **Needs you**: one inbox for plans, held tasks, proposals and approvals.
-- **Budgets**: a daily cap per worker and for the team, and a limit on your Claude plan's use.
-- **Dashboard**: tokens used today and this week, by worker and model.
-- **Notifications**: something needs you, a task is done or failed, or a budget or the plan is nearly used up.
-- **Git**: see the team's branches with their commits and changes, and push one only when you click and confirm. Workers never push.
-- **Telegram** (ADR-098): talk to ATOM, answer Needs you, list tasks and read reports from your phone. A schedule can send its result to Telegram. Make a new bot for ZENO, then add `ZENO_TELEGRAM_BOT_TOKEN` and `ZENO_TELEGRAM_CHAT_ID` to `.env`. ZENO serves only that chat and never logs the token or the messages.
-- **Local API and MCP server** (ADR-098 item 5): other tools on this Mac (Hermes, Claude Code) give goals to ATOM and read results. See [Use ZENO from other tools](#use-zeno-from-other-tools).
+**Agents, Managers, ATOM and sub-agents**
+- Each agent has a role and a `soul.md` file. You can edit, rename and version it.
+- A kit decides the tools of an agent in code: research (the web), folders (files in folders you grant), or think (no tools).
+- ATOM splits a goal, hands the parts to the right agents, and reports in one line.
+- Managers lead groups of agents. Agents start sub-agents inside a run.
+- Tasks wait for each other. Plans wait for your OK. Routines run on a schedule. Agents hand work to each other.
+- Each run has an activity timeline.
 
-## Safety, by design
+**Memory, calendar, reminders, timers, weather**
+- ATOM keeps facts you ask it to remember and picks up earlier conversations.
+- ATOM reads your calendar and reminders, adds reminders, sets timers, and gives the weather.
 
-| Rule | How it is enforced |
-|---|---|
-| The model is never the authority | Permissions, budgets, folders and approvals are checked in code before anything runs. |
-| Workers only touch what you grant | Folder grants (never your home folder, `~/Library` or hidden folders), a sandbox, and a check on every file tool and command. |
-| Risky steps ask first | Deleting, installing, untrusted MCP tools, and controlling the computer each wait for your OK on ATOM's card. |
-| Code never leaves on its own | Workers commit to their own `zeno/task-<id>` branch. Only you can push, from the Dashboard, never forced. |
-| Your words stay yours | Speech is transcribed on the Mac. Logs hold ids, states and timings, never your text. Memory, chats and tokens stay in local files. |
-| Secrets stay secret | No API keys at all: ZENO uses your signed-in Claude Code and never reads its login. MCP tokens are never logged or shown in full. |
+**Tools and computer control**
+- Music, notes, opening apps, and "what is this page?" for the browser in front.
+- Computer control is off until you set `ATOM_COMPUTER=1`. Risky steps wait for your approval.
+- A browser tool for agents. A password field always asks.
 
-Full details: [SECURITY.md](SECURITY.md).
+**Phone: Telegram**
+- Talk to ATOM, answer the Needs you list, steer tasks and read reports from your phone.
+- Add `ATOM_TELEGRAM_BOT_TOKEN` and `ATOM_TELEGRAM_CHAT_ID` to `.env`. ATOM serves only that chat.
 
-## How it works
+**Integrations: local API, MCP server, skills hub, Paperclip**
+- Local API on `127.0.0.1` (off by default). Other tools give goals to ATOM and read results.
+- An MCP server for Claude Code and Hermes. See [Use ATOM from other tools](#use-atom-from-other-tools).
+- Skills hub: search and install skills from a pinned list of public repositories. You approve each install.
+- Paperclip: ATOM can hand tasks to your own Paperclip. It is off until you set `ATOM_PAPERCLIP_URL`.
 
-```text
-You (voice, text, the window)
-  │
-  ▼
-ZENO.app (Swift): ATOM, the island, the ZENO window, notifications
-  │  line-delimited JSON (docs/island-protocol.md)
-  ▼
-ZENO runtime (Node.js, TypeScript)
-  ├── Speech: Whisper (hearing), Kokoro (voice), Parakeet (dictation), all on the Mac
-  ├── ZENO Core: requests, chats, tools, memory
-  ├── Helpers: workers, souls, tasks, budgets, routines, grants (SQLite)
-  ├── LLM Gateway: Claude Code (your Claude plan), or Codex / Gemini CLI for chat
-  └── Policy in code: folder checks, approvals, budgets, the sandbox
-```
+**Safety**
+- Grants: an agent works only in the folders you grant. Never your home folder, `~/Library` or hidden folders.
+- Approvals: deleting, installing, untrusted MCP tools and computer control wait for your OK.
+- Masking: secrets in the activity timeline show as `[hidden]`.
+- Undo: ATOM keeps the files a run changes. You can undo them.
+- No secrets: ATOM uses your signed-in Claude Code and never reads its login. Logs hold ids, states and timings, never your words.
+- Agents never push code. Only you push, from the Dashboard.
+
+Details: [SECURITY.md](SECURITY.md).
 
 ## Quick start
 
-### 1. Prerequisites
+### Requirements
 
 - macOS 14 or later.
 - Xcode Command Line Tools: `xcode-select --install`.
-- Node.js 22.18 or later (ZENO runs TypeScript directly). The app build prefers Homebrew's Node: `brew install node`.
-- pnpm (the repo pins `pnpm@12.6.0`).
-- ffmpeg and whisper.cpp for the microphone and speech-to-text: `brew install ffmpeg whisper-cpp`.
+- Node.js 22.18 or later and pnpm (the repository pins `pnpm@12.6.0`).
+- ffmpeg and whisper.cpp: `brew install ffmpeg whisper-cpp`.
+- Claude Code, signed in: `claude auth login`. ATOM runs on your own Claude plan. No API key is needed.
 
-### 2. Install and models
+### Install
 
 ```sh
+git clone <this repository>
+cd atom
 pnpm install
 mkdir -p models
 curl -L -o models/ggml-small.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin
 ```
 
-- **Whisper** (`models/ggml-small.en.bin`, about 470 MB) hears what you say. Set `ZENO_STT_MODEL` in `.env` to use another file.
-- **Kokoro** (ZENO's voice, about 330 MB) downloads itself the first time ZENO speaks.
-- **Parakeet** (dictation, about 450 MB) downloads itself the first time you dictate.
+The Kokoro voice and the Parakeet dictation model download themselves on first use.
 
-`pnpm voice:check` tests speech output and input on their own, with no AI.
-
-### 3. Sign in to Claude
-
-ZENO and its team run on **your own Claude plan**, through Claude Code. There are no API keys to add.
+### Configure
 
 ```sh
-claude auth login
+cp .env.example .env
 ```
 
-ZENO finds the `claude` program by itself (set `ZENO_CLAUDE_PATH` in `.env` if it is somewhere unusual). Choose the model (Opus, Sonnet or Haiku) in the app under Settings → AI model. Using your plan this way is meant for your own use on your own Mac.
+Set the `ATOM_*` values you need in `.env`. All of them are optional. ATOM still reads old `ZENO_*` names as a fallback.
 
-ZENO also looks for the other AI tools on your Mac and shows them under Settings → AI model → Found on this Mac. If you have **Codex** (signed in with ChatGPT, also inside the ChatGPT editor extension) or the **Gemini CLI** (signed in with Google), you can chat with ZENO on them instead; ZENO's tools and the team stay on Claude. Local model apps such as Ollama are listed but not used.
+### Build and open the app
 
-### 4. Build and open the app
-
-Once per Mac, create a local signing identity so macOS keeps ZENO's permissions across rebuilds:
+Once per Mac, create a local signing identity so macOS keeps the permissions across rebuilds:
 
 ```sh
 apps/mac/island/make-signing-identity.sh
 ```
 
-Then:
+Then build and open the app:
 
 ```sh
-pnpm island:open    # builds apps/mac/island/build/ZENO.app and opens it
+pnpm island:open    # builds apps/mac/island/build/ATOM.app and opens it
 ```
 
-`ZENO.app` records where the project folder and Node.js are; rebuild it if either moves. `scripts/make-icon.sh` remakes the app icon. To run ZENO in the terminal without the app: `pnpm start`.
+To run ATOM in the terminal without the app, run `pnpm start`.
 
-### 5. Permissions
+### Permissions
 
-macOS asks for each one the first time ZENO needs it:
+macOS asks the first time ATOM needs each one.
 
-| Permission | When ZENO uses it |
+- Microphone: while you hold the talk keys or dictate.
+- Input Monitoring: to notice the talk and dictation keys.
+- Accessibility: to type dictated text into the app in front.
+- Automation: when you ask for Music, Notes or the browser tab.
+- Calendar and Reminders: when you ask about your schedule or reminders.
+- Notifications: when something needs you.
+- Screen Recording and Accessibility for Cua Driver: only with `ATOM_COMPUTER=1`.
+
+After a rebuild under a new bundle id (`dev.atom.island`), grant them again.
+
+### Tests
+
+```sh
+pnpm typecheck
+node --test "**/*.test.ts"
+pnpm island:test
+```
+
+## Use ATOM from other tools
+
+Turn on Settings → General → Local API. Then add the MCP server to Claude Code. Use the full path to this folder:
+
+```sh
+claude mcp add atom -- node /path/to/atom/apps/mac/src/mcp-serve.ts
+```
+
+The tools are `atom_give_goal`, `atom_goal_status`, `atom_chat`, `atom_list_tasks`, `atom_task_report`, `atom_needs_you` and `atom_answer_need`. The local API listens on `http://127.0.0.1:4790`. Change the port with `ATOM_API_PORT`. Each request needs the bearer token from `data/api-token`.
+
+## Architecture
+
+```text
+You (voice, text, the window, Telegram, the local API)
+  │
+  ▼
+ATOM.app (Swift): Pal, the island, the ATOM window, notifications
+  │  line-delimited JSON (docs/island-protocol.md)
+  ▼
+ATOM runtime (Node.js, TypeScript)
+  ├── Speech: Whisper (hearing), Kokoro (voice), Parakeet (dictation)
+  ├── ATOM Core: requests, chats, tools, memory
+  ├── Helpers: agents, souls, tasks, budgets, routines, grants (SQLite)
+  ├── LLM Gateway: Claude Code, or Codex and Gemini CLI for chat
+  └── Policy in code: folder checks, approvals, budgets, the sandbox
+```
+
+More: [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Project layout
+
+| Path | What it holds |
 |---|---|
-| Microphone | Only while you hold the Talk keys or dictate. Speech is transcribed on this Mac and never recorded. |
-| Input Monitoring | To notice the Talk and dictation keys in any app. It only listens. |
-| Accessibility | Only to type dictated text into the app you were in. |
-| Automation | When you ask: Music or Spotify, Notes, and the open browser tab. |
-| Calendar and Reminders | When you ask about your schedule or reminders. |
-| Notifications | To tell you when something needs you, a task ends, or a budget is nearly used. |
+| `apps/mac/src/` | The Node.js runtime (TypeScript) |
+| `apps/mac/island/` | The Swift app (`ATOM.app`) and its tests |
+| `services/` | Core, helpers, LLM gateway, memory, tool engine, decision engine |
+| `packages/` | Shared contracts and utilities (`@atom/*`) |
+| `data/agents/` | One `soul.md` per agent |
+| `docs/` | Protocol, vision, design notes and images |
 
-### 6. First words
-
-- Hold **Control + Option**, talk, and let go. ATOM answers out loud.
-- Hold **Right ⌘ + Right ⌥** to dictate into any text field.
-- Open the ZENO window from the menu bar for chats, the team, the Board and the Dashboard.
-
-Things to try:
-
-- "What's the weather in Tokyo?"
-- "Set a timer for ten minutes."
-- "Remember that my project uses PostgreSQL."
-- "Sid, find the three best reviews of the new Mac mini."
-- "Quill, write a one-page summary of today's meeting notes and save it in a folder named Notes."
-
-### 7. Tests
-
-```sh
-pnpm test           # TypeScript tests (node --test)
-pnpm typecheck      # tsc
-pnpm island:test    # Swift tests for the app
-pnpm test:live      # live tests against real models; need a key in .env
-```
-
-## Use ZENO from other tools
-
-ZENO has a local HTTP API and an MCP server (ADR-098 item 5). Both are off by default.
-
-1. Open Settings → General. Turn on **Local API**. ZENO makes the token in `data/api-token`.
-2. Click **Copy token**. ZENO puts the token on the clipboard.
-3. Send requests to `http://127.0.0.1:4790` (set `ZENO_API_PORT` in `.env` to change the port). Each request needs `Authorization: Bearer <token>`.
-
-```sh
-curl -s http://127.0.0.1:4790/v1/goals \
-  -H "Authorization: Bearer $(cat data/api-token)" \
-  -H "Content-Type: application/json" \
-  -d '{"goal":"Find the three best mesh routers and write a short comparison"}'
-```
-
-Each answer is JSON: `{"ok": true, "data": …, "error": null}`, or `{"ok": false, "data": null, "error": "…"}`.
-
-| Request | What it does |
-|---|---|
-| `POST /v1/goals` `{goal}` | ATOM hands the goal to the team. Returns `goalId` (null when ATOM answers without the team) and `answer`. |
-| `GET /v1/goals/:id` | The goal's status (`running` or `ended`), its tasks and its summary. |
-| `POST /v1/chat` `{text, chatId?}` | One turn with ATOM. Returns `answer`. The same `chatId` continues one chat. |
-| `GET /v1/tasks?state=` | Tasks, newest first. `state`: `queued`, `running`, `done`, `failed` or `stopped`. |
-| `GET /v1/tasks/:id` | One task and its report. |
-| `GET /v1/needs` | Needs you items, each with its `actions`. |
-| `POST /v1/needs/:key` `{action}` | Does one action, for example `approve`, `reject`, `allow`, `decline`, `accept` or `retry`. |
-| `POST /v1/hooks/:routineId` | Starts that routine now. Turn on "Can be started by webhook" on the routine first. |
-
-**MCP server.** The MCP server is a client of the API. Turn on the Local API first. Then add the server to Claude Code:
-
-```sh
-claude mcp add zeno -- node /Users/you/Developer/zeno/apps/mac/src/mcp-serve.ts
-```
-
-Use the full path to the ZENO folder. The tools are `zeno_give_goal`, `zeno_goal_status`, `zeno_chat`, `zeno_list_tasks`, `zeno_task_report` and `zeno_needs_you`.
-
-For Hermes, add this to the `mcp_servers` part of the Hermes config (`hermes config edit`), then run `hermes config check`:
-
-```yaml
-mcp_servers:
-  zeno:
-    command: node
-    args: ["/Users/you/Developer/zeno/apps/mac/src/mcp-serve.ts"]
-```
-
-## Status
-
-ZENO is a **personal prototype**, built and used on one Mac. Every feature has tests (about 650 TypeScript and 510 Swift), but many of the newest ones have not been tried live yet, and the app is not packaged for other Macs (no Developer ID signing or notarization). Running the team on your Claude plan is meant for your own use on your own Mac.
-
-Where things stand: [STATUS.md](STATUS.md) and [TASK.md](TASK.md). Every design decision is recorded in [DECISIONS.md](DECISIONS.md).
-
-## Principles
-
-> See the whole mountain. Climb only the next step.
-
-ZENO is designed as a system (identity, context, memory, knowledge, decisions, tools, devices and policy) and built one capability at a time, each tested before the next. The long-term vision, one intelligence across all your devices with one continuous context, is in [docs/VISION.md](docs/VISION.md). The engineering rules are in [CLAUDE.md](CLAUDE.md).
+Every part is described in [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md).
 
 ## Documentation
 
 | Document | What it covers |
 |---|---|
-| [STATUS.md](STATUS.md) | What is built and what is next |
 | [TASK.md](TASK.md) | Each task as built, with its tests |
+| [STATUS.md](STATUS.md) | What is built and what is next |
 | [DECISIONS.md](DECISIONS.md) | Every architecture decision (ADRs) |
+| [SECURITY.md](SECURITY.md) | What ATOM may and may not do |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | How the parts fit |
-| [SECURITY.md](SECURITY.md) | What ZENO may and may not do, and how that is enforced |
-| [docs/island-protocol.md](docs/island-protocol.md) | The app ↔ runtime protocol |
-| [docs/VISION.md](docs/VISION.md) | The long-term vision and principles |
+| [docs/island-protocol.md](docs/island-protocol.md) | The app and runtime protocol |
+| [docs/VISION.md](docs/VISION.md) | The long-term vision |
+| [CLAUDE.md](CLAUDE.md) | The engineering rules |
+
+## Status
+
+ATOM is a personal prototype. It is built and used on one Mac. The app is not packaged for other Macs. Many new features have tests but are not yet tried live. Read [STATUS.md](STATUS.md) for the current state.
+
+## Name and history
+
+ATOM was called ZENO until 2026-10-13. Old entries in DECISIONS.md, TASK.md and STATUS.md keep the old name.
