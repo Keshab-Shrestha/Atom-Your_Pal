@@ -1,7 +1,7 @@
 import SwiftUI
 import AtomIslandCore
 
-/// ADR-091: the tokens ZENO and the team used: today and the last 7 days, each day as a bar, by worker (ZENO's own
+/// ADR-091: the tokens ATOM and the team used: today and the last 7 days, each day as a bar, by worker (ATOM's own
 /// chat apart) and by model, beside the Claude plan's use. On the plan, tokens count toward its limits, not money; the
 /// dollars are what the same use would cost on the API.
 struct DashboardPane: View {
@@ -14,7 +14,7 @@ struct DashboardPane: View {
             VStack(alignment: .leading, spacing: 22) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Dashboard").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
-                    Text("Tokens used by ZENO's chat and the team. On the Claude plan they count toward its limits; dollars are what the API would charge.")
+                    Text("Tokens used by ATOM's chat and the team. On the Claude plan they count toward its limits; dollars are what the API would charge.")
                         .font(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
                 if let usage {
@@ -26,7 +26,7 @@ struct DashboardPane: View {
                         TokenTile(value: usage.week.cacheHitText, label: "Cache hits, 7 days", detail: "\(usage.today.cacheHitText) today")
                     }
                     if usage.chatCacheCold {
-                        Text("Cache went cold: ZENO's last \(Self.coldRuns) chat answers read nothing from the cache, so each one sent its whole prompt again.")
+                        Text("Cache went cold: ATOM's last \(Self.coldRuns) chat answers read nothing from the cache, so each one sent its whole prompt again.")
                             .font(.system(size: 11.5)).foregroundStyle(theme.text2.color).padding(.leading, 4)
                     }
                     section("Each day") { DayBars(days: usage.days) }
@@ -48,7 +48,7 @@ struct DashboardPane: View {
                     Text("Cached tokens are context read back from Claude's cache; they cost a tenth as much. To use fewer: lower a worker's model or budget on its page, or turn off the large model in the sidebar.")
                         .font(.system(size: 11)).foregroundStyle(theme.text3.color)
                 } else {
-                    quiet("Waiting for ZENO…")
+                    quiet("Waiting for ATOM…")
                 }
                 // ADR-091: the branches workers made, like pull requests; Keshab pushes one.
                 VStack(alignment: .leading, spacing: 8) {

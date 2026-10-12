@@ -1,8 +1,8 @@
 /// Pal's behaviour (ADR-042), kept free of AppKit and the clock so every rule is unit-tested:
-/// the window calls `update(status:at:)` when ZENO's state changes and `step(to:)` once per frame.
+/// the window calls `update(status:at:)` when ATOM's state changes and `step(to:)` once per frame.
 ///
 /// - Idle: floats to a random spot along the bottom of the screen, rests there a few seconds, floats on.
-/// - No activity for `napAfter`: stops and naps until ZENO is used again.
+/// - No activity for `napAfter`: stops and naps until ATOM is used again.
 /// - Listening, thinking, speaking: stops where it is and reacts.
 /// - Problem: stops and looks worried until the problem clears.
 /// - Picked up by the user: dangles in their hand. Put down on the Dock walkway it wanders again; put down
@@ -11,7 +11,7 @@ public struct PetBrain: Sendable {
     public enum Mood: Sendable, Equatable {
         case floating, resting, napping, listening, thinking, speaking, worried, carried
 
-        /// Moods that hold Pal still: a ZENO turn, a problem, or being carried.
+        /// Moods that hold Pal still: a ATOM turn, a problem, or being carried.
         public var isReacting: Bool {
             switch self {
             case .listening, .thinking, .speaking, .worried, .carried: true
@@ -25,7 +25,7 @@ public struct PetBrain: Sendable {
         public var speed: Double = 38
         /// How long a rest between floats lasts, in seconds.
         public var restSeconds: ClosedRange<Double> = 2.5...7
-        /// Seconds with no ZENO activity before Pal naps.
+        /// Seconds with no ATOM activity before Pal naps.
         public var napAfter: Double = 180
         /// The shortest float: closer targets are skipped, so Pal never shuffles in place.
         public var minimumTrip: Double = 60
@@ -47,7 +47,7 @@ public struct PetBrain: Sendable {
 
     private var width: Double
     private var target: Double?
-    /// The mood ZENO's current state asks for, shown again when Pal is put down.
+    /// The mood ATOM's current state asks for, shown again when Pal is put down.
     private var statusMood: Mood?
     private var restUntil: Double
     private var lastActivity: Double
@@ -75,7 +75,7 @@ public struct PetBrain: Sendable {
         if let t = target { target = min(max(t, 0), self.width) }
     }
 
-    /// The mood a ZENO state asks for; nil for idle states (Pal keeps wandering, resting or napping). Also the
+    /// The mood a ATOM state asks for; nil for idle states (Pal keeps wandering, resting or napping). Also the
     /// panel header's Pal (ADR-084), which shows `.resting` for nil.
     public static func mood(for status: IslandStatus.Kind) -> Mood? {
         switch status {
@@ -87,7 +87,7 @@ public struct PetBrain: Sendable {
         }
     }
 
-    /// ZENO's state changed.
+    /// ATOM's state changed.
     public mutating func update(status: IslandStatus.Kind, at now: Double) {
         let reaction = Self.mood(for: status)
         statusMood = reaction
@@ -217,7 +217,7 @@ struct SeededRandom: Sendable {
     mutating func unit() -> Double { Double(next() >> 11) / Double(1 << 53) }
 }
 
-/// What a press on Pal does with the ZENO window (ADR-051, ADR-089, ADR-093): opens it, or closes it when it is open
+/// What a press on Pal does with the ATOM window (ADR-051, ADR-089, ADR-093): opens it, or closes it when it is open
 /// and in front, like the menu-bar icon. A double-click always ends with it open, so its second press never closes
 /// what the first opened.
 public enum PetClickAction: Sendable, Equatable {

@@ -95,7 +95,7 @@ struct TestCasesList: View {
     }
 }
 
-/// ADR-098 item 8: on a done task: save it as a test case for its agent and, when the run used ZENO-made skills, for each.
+/// ADR-098 item 8: on a done task: save it as a test case for its agent and, when the run used ATOM-made skills, for each.
 struct SaveTestCaseSection: View {
     let model: IslandModel
     let job: HelperJob

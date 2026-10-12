@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-/// The look of ZENO's surfaces: panel, status card, work strip, bubbles and the point label (ADR-057).
+/// The look of ATOM's surfaces: panel, status card, work strip, bubbles and the point label (ADR-057).
 /// Each theme is a set of colours and corner radii; layout and behaviour are the same in all of them.
 public enum AppTheme: Int, SettingsChoice, Identifiable {
     /// Flat black with 1 px graphite hairlines, ghost buttons and mono identifiers; colour only on small status dots,
@@ -135,7 +135,7 @@ public struct ThemePalette: Sendable, Equatable {
     public var usesShadows = true
     /// Identifiers (model and app names, timings, shortcuts, job details) in SF Mono.
     public var monoIdentifiers = false
-    /// ZENO's state as small coloured dots rather than tinted icons and light.
+    /// ATOM's state as small coloured dots rather than tinted icons and light.
     public var statusDots = false
     /// The hairline once the pointer is over a ghost control.
     public var borderHover = RGBA.white(0.3)

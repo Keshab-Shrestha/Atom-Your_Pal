@@ -1,6 +1,6 @@
 import Foundation
 
-/// Runs the ZENO runtime as a child process: starts it, reads its events, sends it commands,
+/// Runs the ATOM runtime as a child process: starts it, reads its events, sends it commands,
 /// restarts it when it fails and stops it cleanly (ADR-034, docs/island-protocol.md).
 ///
 /// All state lives on `queue`; callbacks are delivered on it too. The app passes the main queue.
@@ -176,7 +176,7 @@ public final class RuntimeSupervisor: @unchecked Sendable {
             stdout.fileHandleForReading.readabilityHandler = nil
             stderr.fileHandleForReading.readabilityHandler = nil
             log.error("island.runtime.spawn_failed", ["node": launch.executable.path, "message": error.localizedDescription])
-            lastRuntimeError = RuntimeError(stage: "runtime", message: "Could not start ZENO's runtime: \(error.localizedDescription)")
+            lastRuntimeError = RuntimeError(stage: "runtime", message: "Could not start ATOM's runtime: \(error.localizedDescription)")
             afterExit(code: 127, uptime: 0)
             return
         }
@@ -268,13 +268,13 @@ public final class RuntimeSupervisor: @unchecked Sendable {
         case .stay:
             setStatus(.stopped)
         case .configError:
-            let message = lastRuntimeError?.message ?? "ZENO's configuration is invalid. Details are in logs/atom.log."
+            let message = lastRuntimeError?.message ?? "ATOM's configuration is invalid. Details are in logs/atom.log."
             log.error("island.runtime.config_error")
             setStatus(.configError(message))
         case .giveUp:
             let reason = lastRuntimeError?.message ?? "it exited with code \(code)"
             log.error("island.runtime.gave_up", ["failures": policy.consecutiveFailures - 1])
-            setStatus(.failed("ZENO's runtime keeps stopping: \(reason)"))
+            setStatus(.failed("ATOM's runtime keeps stopping: \(reason)"))
         case .restart(let delay):
             log.warn("island.runtime.restart", ["delayMs": Int(delay * 1000), "attempt": policy.consecutiveFailures])
             setStatus(.restarting(after: delay))

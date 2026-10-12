@@ -36,7 +36,7 @@ struct OverviewPane: View {
                         ForEach(overview.recent) { item in RecentRow(model: model, item: item) }
                     }
                 } else {
-                    quiet("Waiting for ZENO…")
+                    quiet("Waiting for ATOM…")
                 }
             }
             .frame(maxWidth: 680, alignment: .leading)

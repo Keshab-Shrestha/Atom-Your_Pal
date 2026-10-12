@@ -45,7 +45,7 @@ struct PluginsPane: View {
                     ForEach((list?.skillDrafts ?? []).filter { $0.state == "pending" }) { draft in SkillDraftCard(model: model, draft: draft) }
                     ForEach((list?.skillEdits ?? []).filter { $0.state == "pending" || $0.state == "accepted" }) { edit in SkillEditCard(model: model, edit: edit) }
                     let skills = list?.skills ?? []
-                    if skills.isEmpty { Text("No skills yet: yours come from ~/.claude/skills, and ZENO's from tasks you rate good.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color) }
+                    if skills.isEmpty { Text("No skills yet: yours come from ~/.claude/skills, and ATOM's from tasks you rate good.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color) }
                     ForEach(skills) { skill in
                         let users = (list?.helpers ?? []).filter { $0.skills.contains(skill.name) }.map(\.name)
                         VStack(alignment: .leading, spacing: 2) {
@@ -60,7 +60,7 @@ struct PluginsPane: View {
                         }
                         .padding(.vertical, 4)
                     }
-                    Text("Choose a worker's skills on its page. ZENO writes only its own skills, never those in ~/.claude/skills.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                    Text("Choose a worker's skills on its page. ATOM writes only its own skills, never those in ~/.claude/skills.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                 }
                 HubSkillsSection(model: model, hub: list?.skillHub ?? .empty) // B3.5
             }
@@ -216,7 +216,7 @@ private struct SkillDraftCard: View {
     }
 }
 
-/// ADR-094: Tinker's edit to one of ZENO's skills: why, and a compact before and after; Accept, Reject or (once accepted) Undo.
+/// ADR-094: Tinker's edit to one of ATOM's skills: why, and a compact before and after; Accept, Reject or (once accepted) Undo.
 private struct SkillEditCard: View {
     let model: IslandModel
     let edit: SkillEditItem

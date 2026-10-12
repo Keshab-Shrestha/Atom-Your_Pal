@@ -10,7 +10,7 @@ struct PalSection: View {
     var body: some View {
         let settings = model.settings
         Card("ATOM") {
-            Row(title: "Show ATOM", detail: "Shows ZENO's state and opens this panel when clicked") {
+            Row(title: "Show ATOM", detail: "Shows what ATOM is doing and opens this panel when clicked") {
                 ThemedSwitch(isOn: settings.petEnabled, set: { model.setPet($0) }, label: "Show ATOM")
             }
         }

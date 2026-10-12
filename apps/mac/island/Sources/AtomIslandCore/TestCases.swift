@@ -1,6 +1,6 @@
 import Foundation
 
-/// ADR-098 item 8: a done task saved as a test case for an agent's soul ("soul", target its id) or a ZENO-made skill
+/// ADR-098 item 8: a done task saved as a test case for an agent's soul ("soul", target its id) or a ATOM-made skill
 /// ("skill", target its name). The task text is cut; the saved report stays in the runtime.
 public struct TestCaseItem: Sendable, Equatable, Identifiable {
     public var id: Int

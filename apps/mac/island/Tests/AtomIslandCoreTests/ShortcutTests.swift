@@ -47,7 +47,7 @@ struct ShortcutTests {
     }
 
     @Test func actionsDescribeThemselves() {
-        #expect(ShortcutAction.allCases.map(\.title) == ["Talk to ZENO", "Dictate", "Show or hide the island", "Cancel"])
+        #expect(ShortcutAction.allCases.map(\.title) == ["Talk to ATOM", "Dictate", "Show or hide the island", "Cancel"])
         #expect(ShortcutAction.talk.detail == "Hold, speak, let go to send")
         #expect(ShortcutAction.allCases.filter(\.isHold) == [.talk, .dictate])
         #expect(ShortcutAction.talk.defaultCombo == controlOption)
@@ -116,7 +116,7 @@ struct ShortcutTests {
         #expect(validateShortcut(KeyCombo(modifiers: [.control, .option], keyCode: 6, keyName: "W"), for: .cancel, others: others) == .inUse(by: .toggleIsland))
         // The action's own current shortcut is not a conflict.
         #expect(validateShortcut(controlOption, for: .talk, others: others) == nil)
-        #expect(ShortcutProblem.inUse(by: .talk).description == "Already used for Talk to ZENO")
+        #expect(ShortcutProblem.inUse(by: .talk).description == "Already used for Talk to ATOM")
     }
 
     @Test func modifierOnlyShortcutsInsideEachOtherConflict() {

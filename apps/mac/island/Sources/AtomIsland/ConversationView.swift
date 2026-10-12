@@ -5,7 +5,7 @@ import AtomIslandCore
 // with the newest words (older turns recede) and glows at the caret while a reply is being spoken. The composer is
 // a capsule with a lit microphone and the hold shortcut in its placeholder.
 
-/// Type to ZENO: Return sends, the reply is spoken and shown like a voice turn. Empty, the button is the lit
+/// Type to ATOM: Return sends, the reply is spoken and shown like a voice turn. Empty, the button is the lit
 /// microphone that names the hold shortcut; with words, it sends them.
 struct Composer: View {
     let model: IslandModel
@@ -35,7 +35,7 @@ struct Composer: View {
                     .font(.system(size: 12.5))
                     .foregroundStyle(theme.text.color)
                     .onSubmit(send)
-                    .accessibilityLabel("Message to ZENO")
+                    .accessibilityLabel("Message to ATOM")
             }
             if model.chats?.currentReadOnlyNotice == nil {
                 ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, action: send)
@@ -50,7 +50,7 @@ struct Composer: View {
 
     private var talkHint: String? { model.settings.shortcut(for: .talk).map { "Hold \($0.display) to talk" } }
     private var placeholder: String {
-        model.settings.shortcut(for: .talk).map { "Ask ZENO, or hold \($0.display) to talk" } ?? "Ask ZENO…"
+        model.settings.shortcut(for: .talk).map { "Ask ATOM, or hold \($0.display) to talk" } ?? "Ask ATOM…"
     }
 
     private var empty: Bool { draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
@@ -197,7 +197,7 @@ private struct EmptyConversation: View {
             }
             .frame(width: 92, height: 92)
             // Void's one display line, in New York (the system serif, ADR-086).
-            Text("Ask ZENO anything")
+            Text("Ask ATOM anything")
                 .font(theme.isFlat ? .system(size: 22, weight: .regular, design: .serif) : .system(size: 15, weight: .semibold, design: .rounded))
                 .foregroundStyle(theme.isFlat ? Color.white : theme.text.color)
             Text(talkHint)

@@ -35,7 +35,7 @@ struct ShortcutSection: View {
                     Label("Hold shortcuts need Input Monitoring", systemImage: "keyboard.badge.ellipsis")
                         .font(.system(size: 11.5, weight: .semibold))
                         .foregroundStyle(theme.attention.color)
-                    Text("macOS asks before an app can see which keys are held. ZENO only watches for its own shortcuts, never what you type.")
+                    Text("macOS asks before an app can see which keys are held. ATOM only watches for its own shortcuts, never what you type.")
                         .font(.system(size: 10.5))
                         .foregroundStyle(theme.text2.color)
                         .fixedSize(horizontal: false, vertical: true)
@@ -54,7 +54,7 @@ struct ShortcutSection: View {
         if model.recorder.isRecording {
             return "Press the new keys. For a hold shortcut, hold the modifiers (e.g. ⌃⌥ or Right ⌘⌥) and let go. Esc cancels, Delete turns it off."
         }
-        return "Click a shortcut to change it. Shortcuts work in every app; Cancel only while ZENO listens, speaks or dictates."
+        return "Click a shortcut to change it. Shortcuts work in every app; Cancel only while ATOM listens, speaks or dictates."
     }
 }
 

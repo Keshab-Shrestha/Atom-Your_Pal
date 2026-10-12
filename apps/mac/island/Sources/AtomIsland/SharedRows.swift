@@ -96,7 +96,7 @@ struct RowDivider: View {
 }
 
 /// A switch drawn in the theme (the system's mini switch does not render in snapshots, and its colour is the
-/// system accent rather than ZENO's).
+/// system accent rather than ATOM's).
 struct ThemedSwitch: View {
     let isOn: Bool
     let set: (Bool) -> Void

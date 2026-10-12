@@ -1,4 +1,4 @@
-/// The one action ZENO is waiting on the user to allow or decline (ADR-054). Pure state: the views show
+/// The one action ATOM is waiting on the user to allow or decline (ADR-054). Pure state: the views show
 /// `pending` and call `answer`. A request never outlives its turn, so a stale prompt cannot approve a later action.
 public struct ApprovalState: Sendable, Equatable {
     public private(set) var pending: ApprovalRequest?

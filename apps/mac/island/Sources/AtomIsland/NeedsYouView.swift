@@ -17,7 +17,7 @@ struct NeedsYouPane: View {
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
                 if let request = model.approval.pending {
-                    card(kind: "ATOM asks", who: "ZENO", title: request.summary, detail: request.reason) {
+                    card(kind: "ATOM asks", who: "", title: request.summary, detail: request.reason) {
                         QuietButton(title: "Allow", symbol: "checkmark") { model.answerApproval(true) }
                         QuietButton(title: "Decline", symbol: "xmark") { model.answerApproval(false) }
                     }
@@ -94,7 +94,7 @@ struct NeedsYouPane: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Text(kind).font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
-                Text(who).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2))
+                if !who.isEmpty { Text(who).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2)) }
             }
             Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true).lineLimit(3)
             Text(detail).font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true).lineLimit(4)

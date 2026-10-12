@@ -140,7 +140,7 @@ private struct HubInstalledRow: View {
                     Button("Uninstall", role: .destructive) { model.sendHelpers(model.helpers.hubUninstall(skill.name)) }
                     Button("Cancel", role: .cancel) {}
                 } message: {
-                    Text("It is removed from ZENO's skills.")
+                    Text("It is removed from ATOM's skills.")
                 }
         }
         .padding(.vertical, 4)

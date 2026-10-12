@@ -1,7 +1,7 @@
 import SwiftUI
 import AtomIslandCore
 
-// ADR-095: Managers in the ZENO window: a chip each on the Board, a page each (its Agents, its mode, its budget and the
+// ADR-095: Managers in the ATOM window: a chip each on the Board, a page each (its Agents, its mode, its budget and the
 // Agents' tasks), a "New manager" form, and the "Manager" picker on an Agent's page. The logic lives in `HelpersState`
 // and `TeamRoster`; these views only draw it.
 
@@ -185,7 +185,7 @@ private struct AgentChip: View {
     }
 }
 
-/// "New manager": a name and a mode. ZENO writes it as data/agents/<name>/soul.md (`kind: manager`).
+/// "New manager": a name and a mode. ATOM writes it as data/agents/<name>/soul.md (`kind: manager`).
 struct NewManagerPane: View {
     let model: IslandModel
     private let name = State(initialValue: "")

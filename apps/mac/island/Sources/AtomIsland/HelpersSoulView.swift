@@ -187,7 +187,7 @@ extension View {
 }
 
 /// ADR-088: a new agent of Keshab's own: a name, a role in his words, what it may use (a kit, fixed in code) and its
-/// soul. ZENO writes it as data/agents/<name>/soul.md, which he can also edit in any editor.
+/// soul. ATOM writes it as data/agents/<name>/soul.md, which he can also edit in any editor.
 struct NewAgentPane: View {
     let model: IslandModel
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.

@@ -1,6 +1,6 @@
-// ADR-096: Back in the ZENO window: where Keshab has been, as plain values, so the window's logic is testable.
+// ADR-096: Back in the ATOM window: where Keshab has been, as plain values, so the window's logic is testable.
 
-/// ADR-089: the ZENO window's pages: the conversation, the board and the team, and Settings.
+/// ADR-089: the ATOM window's pages: the conversation, the board and the team, and Settings.
 public enum WindowPage: Equatable, Sendable {
     case overview, dashboard, chat, inbox, issues, scheduled, agents, plugins, settings
 }

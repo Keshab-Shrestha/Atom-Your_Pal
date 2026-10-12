@@ -2,8 +2,8 @@ import AppKit
 import SwiftUI
 import AtomIslandCore
 
-/// The ZENO window (ADR-089; it began as the ZENO window, ADR-081): chat, the board and the team, and Settings in one
-/// real Mac window with a sidebar. While it is open ZENO has a Dock icon and a menu bar (so ⌘W, ⌘C and ⌘V work in
+/// The ATOM window (ADR-089, ADR-081): chat, the board and the team, and Settings in one
+/// real Mac window with a sidebar. While it is open ATOM has a Dock icon and a menu bar (so ⌘W, ⌘C and ⌘V work in
 /// it); closing it puts the app back the way it was (a background app).
 @MainActor
 final class MainWindowController: NSObject, NSWindowDelegate {
@@ -19,7 +19,7 @@ final class MainWindowController: NSObject, NSWindowDelegate {
     }
 
     var isVisible: Bool { window?.isVisible == true }
-    /// Open and in front (ZENO is the active app): a click on the menu-bar icon or Pal then closes it.
+    /// Open and in front (ATOM is the active app): a click on the menu-bar icon or Pal then closes it.
     var isInFront: Bool { isVisible && NSApp.isActive }
 
     /// Opens the window on `page` (nil keeps the page it shows).
@@ -70,7 +70,7 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 920, height: 640),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                               backing: .buffered, defer: false)
-        window.title = "ZENO"
+        window.title = "ATOM"
         // ADR-084: the content runs under a clear title bar, so the sidebar reaches the top with the window's buttons on it.
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
@@ -108,7 +108,7 @@ final class MainWindowController: NSObject, NSWindowDelegate {
             item.keyEquivalentModifierMask = modifiers
             return item
         }
-        add("ZENO", [item("Quit ZENO", #selector(NSApplication.terminate(_:)), "q")])
+        add("ATOM", [item("Quit ATOM", #selector(NSApplication.terminate(_:)), "q")])
         let find = item("Find", #selector(find(_:)), "f")
         find.target = self
         add("Edit", [

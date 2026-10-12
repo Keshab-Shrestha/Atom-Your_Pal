@@ -2,9 +2,9 @@ import AppKit
 import UserNotifications
 import AtomIslandCore
 
-/// ADR-091: posts ZENO's macOS notifications: what `NoticeWatcher` finds new in the team, and an approval card while
-/// ZENO is not in front. Each kind can be turned off in Settings. Only in ZENO.app: macOS gives notifications to app
-/// bundles, not to a bare development build. Clicking one opens the task in the ZENO window.
+/// ADR-091: posts ATOM's macOS notifications: what `NoticeWatcher` finds new in the team, and an approval card while
+/// ATOM is not in front. Each kind can be turned off in Settings. Only in ATOM.app: macOS gives notifications to app
+/// bundles, not to a bare development build. Clicking one opens the task in the ATOM window.
 @MainActor
 final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     private var watcher = NoticeWatcher()
@@ -26,10 +26,10 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         for notice in watcher.notices(for: list, plan: plan) where settings.notifies(notice.kind) { post(notice) }
     }
 
-    /// ZENO asks for an OK on Pal's card; told only while ZENO is not the app in front.
+    /// ATOM asks for an OK on Pal's card; told only while ATOM is not the app in front.
     func approval(_ request: ApprovalRequest) {
         guard settings.notifies(.needsYou), !NSApp.isActive else { return }
-        post(AppNotice(kind: .needsYou, title: "ZENO asks for your OK", body: NoticeWatcher.short(request.summary), key: "approval-\(request.id)"))
+        post(AppNotice(kind: .needsYou, title: "ATOM asks for your OK", body: NoticeWatcher.short(request.summary), key: "approval-\(request.id)"))
     }
 
     private func post(_ notice: AppNotice) {

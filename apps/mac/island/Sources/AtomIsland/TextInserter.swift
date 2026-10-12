@@ -21,14 +21,14 @@ final class TextInserter {
         case copied(reason: String)
     }
 
-    /// Whether ZENO may post key presses (Accessibility).
+    /// Whether ATOM may post key presses (Accessibility).
     var canType: Bool { AXIsProcessTrusted() }
 
     func currentTarget() -> Target {
         Target(app: NSWorkspace.shared.frontmostApplication)
     }
 
-    /// Asks macOS for Accessibility (adds ZENO to the list and opens the pane).
+    /// Asks macOS for Accessibility (adds ATOM to the list and opens the pane).
     func requestAccessibility() {
         // The value of kAXTrustedCheckOptionPrompt, which Swift 6 refuses to read as a global.
         let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
@@ -39,7 +39,7 @@ final class TextInserter {
         guard canType else {
             copy(text)
             requestAccessibility()
-            return .copied(reason: "Allow ZENO under Privacy & Security → Accessibility so it can type for you")
+            return .copied(reason: "Allow ATOM under Privacy & Security → Accessibility so it can type for you")
         }
 
         await waitForModifiersUp()

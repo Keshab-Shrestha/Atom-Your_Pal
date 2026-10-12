@@ -60,7 +60,7 @@ public struct NeedsYouItem: Sendable, Equatable, Identifiable {
         case proposal
         /// ADR-094: Tinker's draft of a new skill, to approve or reject.
         case skillDraft
-        /// ADR-094: Tinker's edit to one of ZENO's skills, to accept or reject.
+        /// ADR-094: Tinker's edit to one of ATOM's skills, to accept or reject.
         case skillEdit
         /// B3.5: a skill fetched from the skills hub, to install or reject.
         case skillHub

@@ -6,7 +6,7 @@ public struct Conversation: Sendable, Equatable {
         public let id: Int
         /// What the user said.
         public var transcript: String
-        /// ZENO's reply, once it arrives.
+        /// ATOM's reply, once it arrives.
         public var reply: String?
         public var outcome: Outcome
         /// Set when the reply finished playing.
@@ -103,7 +103,7 @@ extension Conversation.Turn {
     public var isStreaming: Bool { outcome == .inProgress && reply != nil }
 }
 
-/// ADR-091: one of Keshab's chats with ZENO.
+/// ADR-091: one of Keshab's chats with ATOM.
 public struct ChatInfo: Sendable, Equatable, Identifiable {
     public var id: String
     public var title: String
@@ -127,7 +127,7 @@ public struct ChatInfo: Sendable, Equatable, Identifiable {
     }
 }
 
-/// ADR-091: the chats, newest first, and the one ZENO is in now (voice and typing go to it).
+/// ADR-091: the chats, newest first, and the one ATOM is in now (voice and typing go to it).
 public struct ChatList: Sendable, Equatable {
     public var chats: [ChatInfo]
     public var current: String

@@ -1,5 +1,5 @@
-// ZENO Island: a background app (no Dock icon, no main window) that runs the ZENO runtime.
-// It starts, supervises and stops the runtime, shows the island and listens for ZENO's shortcuts.
+// ATOM Island: a background app (no Dock icon, no main window) that runs the ATOM runtime.
+// It starts, supervises and stops the runtime, shows the island and listens for ATOM's shortcuts.
 import AppKit
 import AtomIslandCore
 
@@ -18,7 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var island: IslandController?
     private var log = IslandLog(url: AppDelegate.fallbackLogURL)
     private var signalSources: [DispatchSourceSignal] = []
-    /// Prints event names and status changes to stderr when ZENO_ISLAND_TRACE=1 (development only).
+    /// Prints event names and status changes to stderr when ATOM_ISLAND_TRACE=1 (development only).
     private let trace = AtomEnv.read("ATOM_ISLAND_TRACE") == "1"
 
     /// Used only until the project folder is known (e.g. when it cannot be found).
@@ -44,7 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             log.error("island.locate_failed", ["message": "\(error)"])
             log.flush()
-            showProblem(title: "ZENO cannot start", message: "\(error)")
+            showProblem(title: "ATOM cannot start", message: "\(error)")
             NSApp.terminate(nil)
             return
         }
@@ -77,7 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 onMain { self?.statusChanged(status) }
             })
         island.model.send = { [weak self] command in self?.supervisor?.send(command) }
-        // ADR-075: "Restart ZENO" starts it again with a fresh restart policy; "Open log" opens this file.
+        // ADR-075: "Restart ATOM" starts it again with a fresh restart policy; "Open log" opens this file.
         island.restartRuntime = { [weak self] in self?.supervisor?.start() }
         island.logURL = launch.directory.appendingPathComponent("logs/atom.log")
         supervisor?.start()
@@ -104,7 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         island?.apply(status)
         switch status {
         case .configError, .failed:
-            // ADR-075: the panel's card explains it in one sentence and offers "Restart ZENO" and "Open log".
+            // ADR-075: the panel's card explains it in one sentence and offers "Restart ATOM" and "Open log".
             island?.showSetupProblem()
         default:
             break
@@ -138,7 +138,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-LegacyMigration.run() // ADR-105: settings and folders from the ZENO name, before anything reads them
+LegacyMigration.run() // ADR-105: settings and folders from the ATOM name, before anything reads them
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate

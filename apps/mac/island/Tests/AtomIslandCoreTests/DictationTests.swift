@@ -63,19 +63,19 @@ struct DictationAudioTests {
 @Suite("Dictation vocabulary")
 struct DictationVocabularyTests {
     @Test func aliasBecomesTheTerm() {
-        let vocabulary = DictationVocabulary(entries: [.init(term: "ZENO", aliases: ["zino", "zeeno"])])
-        #expect(vocabulary.apply(to: "Hey Zino, are you there?") == "Hey ZENO, are you there?")
-        #expect(vocabulary.apply(to: "zeeno") == "ZENO")
+        let vocabulary = DictationVocabulary(entries: [.init(term: "ATOM", aliases: ["zino", "zeeno"])])
+        #expect(vocabulary.apply(to: "Hey Zino, are you there?") == "Hey ATOM, are you there?")
+        #expect(vocabulary.apply(to: "zeeno") == "ATOM")
     }
 
     @Test func onlyWholeWords() {
-        let vocabulary = DictationVocabulary(entries: [.init(term: "ZENO", aliases: ["zino"])])
+        let vocabulary = DictationVocabulary(entries: [.init(term: "ATOM", aliases: ["zino"])])
         #expect(vocabulary.apply(to: "A zinotype and zinos") == "A zinotype and zinos")
-        #expect(vocabulary.apply(to: "(zino) said, zino.") == "(ZENO) said, ZENO.")
+        #expect(vocabulary.apply(to: "(zino) said, zino.") == "(ATOM) said, ATOM.")
     }
 
     @Test func anApostropheJoinsAWordToItsNeighbour() {
-        let vocabulary = DictationVocabulary(entries: [.init(term: "ZENO", aliases: ["zino"])])
+        let vocabulary = DictationVocabulary(entries: [.init(term: "ATOM", aliases: ["zino"])])
         #expect(vocabulary.apply(to: "zino's") == "zino's", "a possessive is not rewritten as the bare term")
     }
 
@@ -107,14 +107,14 @@ struct DictationVocabularyTests {
         #expect(DictationVocabulary.builtIn.apply(to: "") == "")
     }
 
-    @Test func theBuiltInListFixesZeno() {
-        #expect(DictationVocabulary.builtIn.apply(to: "Hello Zino, this is a test") == "Hello ZENO, this is a test")
+    @Test func theBuiltInListFixesAtom() {
+        #expect(DictationVocabulary.builtIn.apply(to: "Hello Zino, this is a test") == "Hello ATOM, this is a test")
     }
 
     @Test func parsingFileFormat() {
         let text = """
         # Names and tools
-        ZENO: zeno, zino   # the assistant
+        ATOM: zeno, zino   # the assistant
         Keshab Shrestha: kesha shrestha, keshab shresta
 
         Kokoro
@@ -122,7 +122,7 @@ struct DictationVocabularyTests {
         let vocabulary = DictationVocabulary.parse(text)
         #expect(vocabulary.problems.isEmpty)
         #expect(vocabulary.entries == [
-            .init(term: "ZENO", aliases: ["zeno", "zino"]),
+            .init(term: "ATOM", aliases: ["zeno", "zino"]),
             .init(term: "Keshab Shrestha", aliases: ["kesha shrestha", "keshab shresta"]),
             .init(term: "Kokoro", aliases: ["Kokoro"]),
         ])
@@ -136,9 +136,9 @@ struct DictationVocabularyTests {
 
     @Test func mergingKeepsBothAndTheProblems() {
         let merged = DictationVocabulary.builtIn.merging(DictationVocabulary.parse("Kokoro\n: bad"))
-        #expect(merged.entries.map(\.term) == ["ZENO", "Kokoro"])
+        #expect(merged.entries.map(\.term) == ["ATOM", "Kokoro"])
         #expect(merged.problems.count == 1)
-        #expect(merged.apply(to: "zino likes kokoro") == "ZENO likes Kokoro")
+        #expect(merged.apply(to: "zino likes kokoro") == "ATOM likes Kokoro")
     }
 }
 

@@ -4,9 +4,9 @@
 public struct IslandStatus: Sendable, Equatable {
     public enum Kind: Sendable, Equatable {
         case starting, ready, listening, transcribing, thinking, speaking, notice, problem
-        /// ZENO is working on the Mac (ADR-054).
+        /// ATOM is working on the Mac (ADR-054).
         case acting
-        /// ZENO is waiting for the user to allow or decline an action.
+        /// ATOM is waiting for the user to allow or decline an action.
         case asking
     }
 
@@ -39,12 +39,12 @@ public struct IslandStatus: Sendable, Equatable {
     public private(set) var lastTimings: TurnTimings?
     /// The last error, kept until a later error replaces it.
     public private(set) var lastProblem: Problem?
-    /// The last known setup failure in plain words, with its one action (ADR-075). Kept until ZENO recovers (the runtime
+    /// The last known setup failure in plain words, with its one action (ADR-075). Kept until ATOM recovers (the runtime
     /// starts or becomes ready, a turn or dictation starts listening, a turn completes) or the user dismisses it.
     public private(set) var failure: PlainFailure?
     /// The providers from the last `info`, for the rate-limit card's "Switch to" (ADR-076).
     private var providers: [ProviderOption] = []
-    /// The problem lasts until ZENO itself recovers (stopped, settings), so seeing it does not clear it.
+    /// The problem lasts until ATOM itself recovers (stopped, settings), so seeing it does not clear it.
     private var persistent = false
 
     public init() {}
@@ -69,7 +69,7 @@ public struct IslandStatus: Sendable, Equatable {
         }
     }
 
-    /// ZENO is in the middle of a turn: the island stays shown.
+    /// ATOM is in the middle of a turn: the island stays shown.
     public var isBusy: Bool {
         switch kind {
         case .listening, .transcribing, .thinking, .speaking, .acting, .asking: true
@@ -87,9 +87,9 @@ public struct IslandStatus: Sendable, Equatable {
         default: failure = PlainFailure.forStatus(status)
         }
         switch status {
-        case .stopped: set(.problem, "Stopped", "ZENO is not running", persistent: true)
+        case .stopped: set(.problem, "Stopped", "ATOM is not running", persistent: true)
         case .running: set(.starting, "Starting", "Loading voice")
-        case .restarting: set(.starting, "Restarting", "ZENO stopped unexpectedly")
+        case .restarting: set(.starting, "Restarting", "ATOM stopped unexpectedly")
         case .configError(let message): set(.problem, "Check settings", IslandStatus.short(message), persistent: true)
         case .failed: set(.problem, "Stopped", "Keeps stopping. See logs/atom.log", persistent: true)
         }
@@ -157,7 +157,7 @@ public struct IslandStatus: Sendable, Equatable {
         case .contextReady(let app, let ok, let message):
             // ADR-074. The microphone opens before this arrives here, so "listening" means it is open.
             if !ok {
-                set(.notice, IslandStatus.short(message ?? "ZENO doesn't read \(app)."), "")
+                set(.notice, IslandStatus.short(message ?? "ATOM doesn't read \(app)."), "")
             } else if kind == .listening {
                 detail = IslandStatus.short("Ask about \(app)")
             } else if !isBusy {
@@ -248,7 +248,7 @@ public struct IslandStatus: Sendable, Equatable {
         case "too_short": "Hold the keys while you speak"
         case "no_speech": "Nothing heard. Try speaking closer"
         case "mic_not_ready": "Try again in a moment"
-        case "media_key_permission": "Allow ZENO under Accessibility"
+        case "media_key_permission": "Allow ATOM under Accessibility"
         default: ""
         }
     }

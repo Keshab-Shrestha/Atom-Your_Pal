@@ -49,12 +49,12 @@ public final class IslandSettings {
     /// Increments on every change, so callers (e.g. the shortcut engine) can tell something changed.
     public private(set) var revision = 0
 
-    /// After ZENO asks a question, listen for the answer without the Talk keys (ADR-067). Default on.
+    /// After ATOM asks a question, listen for the answer without the Talk keys (ADR-067). Default on.
     public var followUpEnabled: Bool {
         didSet { save(followUpEnabled, Self.followUpKey) }
     }
 
-    /// Pal notices you while ZENO is idle: eyes follow the pointer, small reactions to clicks (ADR-073). Default on.
+    /// Pal notices you while ATOM is idle: eyes follow the pointer, small reactions to clicks (ADR-073). Default on.
     public var palReacts: Bool {
         didSet { save(palReacts, Self.palReactsKey) }
     }
@@ -97,7 +97,7 @@ public final class IslandSettings {
     public var bubbleStay: BubbleStay { didSet { store(bubbleStay.rawValue, Self.bubbleStayKey) } }
     public var bubbleSize: BubbleSize { didSet { store(bubbleSize.rawValue, Self.bubbleSizeKey) } }
     public var bubbleOpacity: BubbleOpacity { didSet { store(bubbleOpacity.rawValue, Self.bubbleOpacityKey) } }
-    /// How ZENO's surfaces look (ADR-057). Default Void (ADR-086).
+    /// How ATOM's surfaces look (ADR-057). Default Void (ADR-086).
     public var theme: AppTheme { didSet { store(theme.rawValue, Self.themeKey) } }
 
     /// Start and stop sounds. Default on.
@@ -105,27 +105,27 @@ public final class IslandSettings {
         didSet { save(soundsEnabled, Self.soundsKey) }
     }
 
-    /// ADR-091: ZENO says the team's reports aloud (with a chime). Off: they only show. Default on.
+    /// ADR-091: ATOM says the team's reports aloud (with a chime). Off: they only show. Default on.
     public var speakReports: Bool {
         didSet { save(speakReports, Self.speakReportsKey) }
     }
 
-    /// ADR-091: ZENO says timers and other updates aloud (with a chime). Off: they only show. Default on.
+    /// ADR-091: ATOM says timers and other updates aloud (with a chime). Off: they only show. Default on.
     public var speakUpdates: Bool {
         didSet { save(speakUpdates, Self.speakUpdatesKey) }
     }
 
-    /// ADR-097: the chime before ZENO says a report, timer or update. Off: it only speaks. Default on.
+    /// ADR-097: the chime before ATOM says a report, timer or update. Off: it only speaks. Default on.
     public var speechChime: Bool {
         didSet { save(speechChime, Self.speechChimeKey) }
     }
 
-    /// ADR-097: ZENO's macOS notifications play the system sound. Off: they show without it. Default on.
+    /// ADR-097: ATOM's macOS notifications play the system sound. Off: they show without it. Default on.
     public var notificationSounds: Bool {
         didSet { save(notificationSounds, Self.notifySoundKey) }
     }
 
-    /// ADR-098: ZENO sends Needs you, finished goals and schedule results to Telegram by itself. Default on.
+    /// ADR-098: ATOM sends Needs you, finished goals and schedule results to Telegram by itself. Default on.
     public var telegramPush: Bool {
         didSet { save(telegramPush, Self.telegramPushKey) }
     }

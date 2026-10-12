@@ -43,6 +43,6 @@ public struct RestartPolicy: Sendable {
         return .restart(after: delays[min(consecutiveFailures - 1, delays.count - 1)])
     }
 
-    /// Forget past failures, e.g. when the user restarts ZENO by hand.
+    /// Forget past failures, e.g. when the user restarts ATOM by hand.
     public mutating func reset() { consecutiveFailures = 0 }
 }

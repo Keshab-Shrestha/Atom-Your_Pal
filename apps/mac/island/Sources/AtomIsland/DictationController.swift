@@ -16,7 +16,7 @@ final class DictationController {
     var log: (String, [String: Any]) -> Void = { _, _ in }
     /// Start and stop tones, if the user wants them.
     var playSound: (Sound) -> Void = { _ in }
-    /// ZENO is in the middle of a conversation turn: dictation must not take the microphone.
+    /// ATOM is in the middle of a conversation turn: dictation must not take the microphone.
     var conversationBusy: () -> Bool = { false }
     /// The dictation settings, read at the start of each dictation (so a change applies at once).
     var options: () -> DictationOptions = { DictationOptions() }
@@ -25,7 +25,7 @@ final class DictationController {
 
     enum Sound { case start, stop }
 
-    /// Talk through the prepared microphone and Parakeet (ADR-063): the words go to ZENO instead of being typed.
+    /// Talk through the prepared microphone and Parakeet (ADR-063): the words go to ATOM instead of being typed.
     var onTalk: (TalkPhase) -> Void = { _ in }
     enum TalkPhase: Equatable { case listening, heard(String), nothing, failed(String), cancelled }
     private var talkSince: Double?
@@ -107,7 +107,7 @@ final class DictationController {
         if !paused, !isActive, talkSince == nil { prepareMicrophone() }
     }
 
-    /// Test hook (`ZENO_DICTATION_FILE=a.wav,b.wav`): runs recordings through the same recognition path as a real
+    /// Test hook (`ATOM_DICTATION_FILE=a.wav,b.wav`): runs recordings through the same recognition path as a real
     /// dictation, without the microphone or typing, and logs `dictation.selftest` for each.
     func selfTest(files: [String]) {
         Task { [weak self] in
@@ -158,12 +158,12 @@ final class DictationController {
 
         switch DictationCapture.permission {
         case .denied, .restricted:
-            onPhase(.done(.failed(title: "Microphone is off", message: "Allow ZENO under System Settings → Privacy & Security → Microphone.")))
+            onPhase(.done(.failed(title: "Microphone is off", message: "Allow ATOM under System Settings → Privacy & Security → Microphone.")))
             return
         case .notDetermined:
             Task {
                 let granted = await DictationCapture.requestPermission()
-                if !granted { onPhase(.done(.failed(title: "Microphone is off", message: "Allow ZENO under System Settings → Privacy & Security → Microphone."))) }
+                if !granted { onPhase(.done(.failed(title: "Microphone is off", message: "Allow ATOM under System Settings → Privacy & Security → Microphone."))) }
             }
             return
         default:
@@ -304,7 +304,7 @@ final class DictationController {
     /// The answer came without keys: if it turns out to be noise, end quietly rather than say "Hold the keys".
     private var quietIfNothing = false
 
-    /// ZENO just asked something: listen for an answer without keys. Ends by itself when the user stops speaking
+    /// ATOM just asked something: listen for an answer without keys. Ends by itself when the user stops speaking
     /// (the answer is sent like Talk) or when nobody speaks within a few seconds (closed quietly, nothing sent).
     @discardableResult
     func followUpBegan() -> Bool {

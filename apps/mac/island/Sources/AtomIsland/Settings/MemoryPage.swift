@@ -1,7 +1,7 @@
 import SwiftUI
 import AtomIslandCore
 
-/// What ZENO keeps about the user (ADR-058): every fact, when it was kept, and a way to forget it.
+/// What ATOM keeps about the user (ADR-058): every fact, when it was kept, and a way to forget it.
 struct MemorySection: View {
     let model: IslandModel
     private let confirming = State(initialValue: false)
@@ -11,8 +11,8 @@ struct MemorySection: View {
         Group {
             if let memory = model.memory {
                 if !memory.enabled {
-                    Card(footer: "Memory is turned off for this runtime (ZENO_MEMORY=0 in .env).") {
-                        Row(title: "Memory is off", detail: "ZENO forgets everything when it quits") { EmptyView() }
+                    Card(footer: "Memory is turned off for this runtime (ATOM_MEMORY=0 in .env).") {
+                        Row(title: "Memory is off", detail: "ATOM forgets everything when it quits") { EmptyView() }
                     }
                 } else if memory.memories.isEmpty {
                     EmptyMemoryCard()
@@ -27,7 +27,7 @@ struct MemorySection: View {
                     }
                     KeptChatsCard(model: model, chats: memory.chats)
                     EpisodesCard(model: model, episodes: memory.episodes)
-                    Card(footer: "Deletes every fact for good. ZENO cannot get them back.") {
+                    Card(footer: "Deletes every fact for good. ATOM cannot get them back.") {
                         Row(title: "Forget all facts") {
                             if confirming.wrappedValue {
                                 HStack(spacing: 6) {
@@ -63,7 +63,7 @@ private struct EmptyMemoryCard: View {
             VStack(spacing: 6) {
                 Image(systemName: "brain.head.profile").font(.system(size: 20, weight: .regular)).foregroundStyle(theme.text2.color)
                 Text("Nothing kept yet").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.text.color)
-                Text("Say “Remember that…” and ZENO keeps it, even after a restart.")
+                Text("Say “Remember that…” and ATOM keeps it, even after a restart.")
                     .font(.system(size: 10.5)).foregroundStyle(theme.text2.color).multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity)
@@ -74,7 +74,7 @@ private struct EmptyMemoryCard: View {
 }
 
 /// ADR-097: recent chats with a box to keep each one in memory, and Save. A kept chat shows as kept with Remove.
-/// ZENO keeps a kept chat as a summary, topic sections and exact lines, and searches them for every request.
+/// ATOM keeps a kept chat as a summary, topic sections and exact lines, and searches them for every request.
 private struct KeptChatsCard: View {
     let model: IslandModel
     let chats: [MemoryChatItem]
@@ -90,7 +90,7 @@ private struct KeptChatsCard: View {
     var body: some View {
         let picked = chosen.wrappedValue.filter { id in chats.contains { $0.id == id && !$0.kept && !$0.indexing } }
         if !chats.isEmpty {
-            Card("Recent chats", footer: "Kept chats stay on this Mac. ZENO searches them by words and by meaning, and uses the best lines when they help.") {
+            Card("Recent chats", footer: "Kept chats stay on this Mac. ATOM searches them by words and by meaning, and uses the best lines when they help.") {
                 ForEach(Array(chats.enumerated()), id: \.element.id) { index, chat in
                     if index > 0 { RowDivider() }
                     Row(title: chat.title, detail: caption(chat)) { trailing(chat) }
@@ -143,7 +143,7 @@ private struct KeptChatsCard: View {
     }
 }
 
-/// ZENO's notes from recent conversations (ADR-059): what each was about, so a new one can pick up from it.
+/// ATOM's notes from recent conversations (ADR-059): what each was about, so a new one can pick up from it.
 private struct EpisodesCard: View {
     let model: IslandModel
     let episodes: [EpisodeItem]
@@ -151,7 +151,7 @@ private struct EpisodesCard: View {
 
     var body: some View {
         if !episodes.isEmpty {
-            Card("Recent conversations", footer: "ZENO's own short notes, so it can pick up where you left off. The newest 50 are kept.") {
+            Card("Recent conversations", footer: "ATOM's own short notes, so it can pick up where you left off. The newest 50 are kept.") {
                 ForEach(Array(episodes.prefix(8).enumerated()), id: \.element.id) { index, episode in
                     if index > 0 { RowDivider() }
                     NoteRow(text: episode.summary, caption: caption(episode)) { model.forgetEpisode(episode.id) }

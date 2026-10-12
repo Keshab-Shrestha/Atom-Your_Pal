@@ -37,7 +37,7 @@ struct CheckpointSection: View {
         if readyCount > 0 { undoAll }
         ForEach(checkpoints, id: \.path) { CheckpointRow(model: model, jobId: jobId, checkpoint: $0) }
         if bashRan {
-            Text("Commands can change files ZENO does not track.").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+            Text("Commands can change files ATOM does not track.").font(.system(size: 12)).foregroundStyle(theme.text2.color)
         }
     }
 

@@ -1,7 +1,7 @@
 import SwiftUI
 import AtomIslandCore
 
-// ADR-084 (Lantern, Task 4.4): the top of Settings answers "how is ZENO right now?" with everything the Status tab
+// ADR-084 (Lantern, Task 4.4): the top of Settings answers "how is ATOM right now?" with everything the Status tab
 // used to show: the provider and model (with "Change model"), the plan meters, the microphone, the voice, the last
 // turn (tap for every stage) and the last problem. The facts come from `NowFacts`.
 
@@ -57,7 +57,7 @@ struct NowCard: View {
             if let five = usage.fiveHour { PlanMeter(title: "5-hour", fraction: five, inset: 0, height: 26) }
             if let week = usage.sevenDay { PlanMeter(title: "Weekly", fraction: week, inset: 0, height: 26) }
             if usage.overage == true {
-                Text("Extra usage is on: Claude would charge for more, so ZENO stops.")
+                Text("Extra usage is on: Claude would charge for more, so ATOM stops.")
                     .font(.system(size: 10.5))
                     .foregroundStyle(theme.text3.color)
                     .fixedSize(horizontal: false, vertical: true)

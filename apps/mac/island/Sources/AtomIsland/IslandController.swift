@@ -2,11 +2,11 @@ import AppKit
 import SwiftUI
 import AtomIslandCore
 
-/// Gives each part of ZENO's face a fixed home (ADR-056):
-/// - the panel (Conversation, Status, Settings) hangs below ZENO's menu-bar icon; a click on the icon or on Pal,
+/// Gives each part of ATOM's face a fixed home (ADR-056):
+/// - the panel (Conversation, Status, Settings) hangs below ATOM's menu-bar icon; a click on the icon or on Pal,
 ///   or the shortcut, opens it, and a click elsewhere, Esc or the collapse button closes it;
 /// - the status goes in Pal's bubble, or — with Pal off — in a small card under the icon during a turn;
-/// - while ZENO works on the Mac, a strip at the bottom centre shows the step, Stop, and any approval request;
+/// - while ATOM works on the Mac, a strip at the bottom centre shows the step, Stop, and any approval request;
 /// - while Pal points, a short label sits beside it and nothing else is near it.
 @MainActor
 final class IslandController {
@@ -18,13 +18,13 @@ final class IslandController {
     private let menuIcon = MenuBarIcon()
     /// Pal's speech bubble (ADR-050): status for talk and dictation while Pal is shown.
     private let bubble: BubbleController
-    /// What ZENO is doing on the Mac, Stop, and approval requests (ADR-054, ADR-056).
+    /// What ATOM is doing on the Mac, Stop, and approval requests (ADR-054, ADR-056).
     private let strip: WorkStripController
     /// The short label beside Pal while it points.
     private let pointLabel = PointLabelController()
-    /// The ZENO window (ADR-081).
+    /// The ATOM window (ADR-081).
     private let helpersWindow: MainWindowController
-    /// ADR-091: ZENO's macOS notifications.
+    /// ADR-091: ATOM's macOS notifications.
     private let notifier: Notifier
     /// Talk was started by its shortcut and not yet sent or cancelled.
     private var talking = false
@@ -32,7 +32,7 @@ final class IslandController {
     private var talkingLocally = false
     /// Listening or transcribing locally: the runtime's "idle" (from stopping its turn) must not hide it.
     private var localListening = false
-    /// `ZENO_TALK_ENGINE=whisper` keeps the old path: the runtime records and Whisper transcribes.
+    /// `ATOM_TALK_ENGINE=whisper` keeps the old path: the runtime records and Whisper transcribes.
     private let talkLocally = AtomEnv.read("ATOM_TALK_ENGINE") != "whisper"
     /// Dictation (ADR-047): hold, speak, let go, and the text is typed into the app in front.
     let dictation: DictationController
@@ -63,7 +63,7 @@ final class IslandController {
     private var pointedBundleId: String?
     /// Starts the runtime again with a fresh restart policy (ADR-075). Set by the app.
     var restartRuntime: () -> Void = {}
-    /// ZENO's log file, for "Open log". Set by the app.
+    /// ATOM's log file, for "Open log". Set by the app.
     var logURL: URL?
     /// The first-run tour (ADR-075) and the timer for its next step.
     private var tour = FirstRunTour()
@@ -157,11 +157,11 @@ final class IslandController {
         observers.append(center.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.screensChanged() }
         })
-        // After switching Spaces (including into a full-screen app), keep ZENO's windows in front.
+        // After switching Spaces (including into a full-screen app), keep ATOM's windows in front.
         observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.spaceChanged() }
         })
-        // ADR-075: permissions are re-read whenever ZENO comes to the front (the user may be back from System Settings).
+        // ADR-075: permissions are re-read whenever ATOM comes to the front (the user may be back from System Settings).
         observers.append(center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.model.permissions.refresh() }
         })
@@ -250,7 +250,7 @@ final class IslandController {
 
     func apply(_ event: IslandEvent) {
         if localListening, case .state(.idle) = event { return } // the turn we interrupted, ending
-        let helperRefusal = model.helpers.claims(event) // shown in the ZENO window, not as ZENO's status
+        let helperRefusal = model.helpers.claims(event) // shown in the ATOM window, not as ATOM's status
         if case .micLevel = event {} else { model.apply(event) }
         // ADR-091: what is new in the team, and an OK asked for, become notifications.
         switch event {
@@ -281,7 +281,7 @@ final class IslandController {
         }
         if case .mediaKey(let key) = event { press(key) }
         if case .timer = event { pet.poke() } // out of hiding: the user should see it (the runtime chimed and spoke)
-        // Task 3.15: Pal flies over to the menu-bar icon with the team's line while ZENO says it.
+        // Task 3.15: Pal flies over to the menu-bar icon with the team's line while ATOM says it.
         if case .workerLine(let line) = event, !model.status.isBusy {
             pet.poke()
             pointAtMenuIcon(IslandStatus.short(line))
@@ -302,7 +302,7 @@ final class IslandController {
     private func press(_ key: MediaKey) {
         guard AXIsProcessTrusted() else {
             apply(.notice(kind: "media_key_permission",
-                          message: "To press play/pause, allow ZENO in System Settings → Privacy & Security → Accessibility."))
+                          message: "To press play/pause, allow ATOM in System Settings → Privacy & Security → Accessibility."))
             return
         }
         for down in [true, false] {
@@ -317,7 +317,7 @@ final class IslandController {
 
     private var lastReply = ""
 
-    /// ZENO's reply ended in a question: open the microphone for the answer, once its voice has stopped.
+    /// ATOM's reply ended in a question: open the microphone for the answer, once its voice has stopped.
     private func maybeFollowUp() {
         let reply = lastReply
         lastReply = ""
@@ -338,12 +338,12 @@ final class IslandController {
         let name = app.localizedName ?? "this app"
         guard let bundleId = app.bundleIdentifier else {
             log("pal.pointed.refused", ["reason": "no_bundle_id"])
-            refusePoint(name, "ZENO doesn't read \(name).")
+            refusePoint(name, "ATOM doesn't read \(name).")
             return
         }
         guard runtimeReady else {
             log("pal.pointed.refused", ["bundleId": bundleId, "reason": "not_connected"])
-            refusePoint(name, "ZENO isn't running.")
+            refusePoint(name, "ATOM isn't running.")
             return
         }
         log("pal.pointed", ["bundleId": bundleId])
@@ -419,7 +419,7 @@ final class IslandController {
             let interrupting = model.status.isBusy
             if talkLocally, dictation.talkBegan() {
                 talkingLocally = true
-                if interrupting { model.send(.talkCancel) } // stop ZENO speaking: the microphone is open
+                if interrupting { model.send(.talkCancel) } // stop ATOM speaking: the microphone is open
             } else {
                 talkingLocally = false
                 model.send(.talkStart)
@@ -701,7 +701,7 @@ final class IslandController {
         statusChanged()
     }
 
-    /// Where the user's spelling fixes live: `vocabulary.txt` in ZENO's folder under Application Support.
+    /// Where the user's spelling fixes live: `vocabulary.txt` in ATOM's folder under Application Support.
     static var vocabularyURL: URL {
         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/ATOM/vocabulary.txt")
     }
@@ -713,21 +713,21 @@ final class IslandController {
 
     // MARK: - Opening and closing the panel
 
-    /// ADR-089: the menu-bar icon and the toggle shortcut open the ZENO window, or close it when it is in front.
+    /// ADR-089: the menu-bar icon and the toggle shortcut open the ATOM window, or close it when it is in front.
     private func toggleWindow() {
         if helpersWindow.isInFront { helpersWindow.close() } else { setExpanded(true) }
     }
 
     private func setExpanded(_ expanded: Bool) {
         pet.poke()
-        // ADR-089: chat, the board and Settings live in the ZENO window, so "open" opens it on the page asked for; the
+        // ADR-089: chat, the board and Settings live in the ATOM window, so "open" opens it on the page asked for; the
         // drop-down panel stays closed (the island shows its compact card).
         if expanded {
             helpersWindow.show(page: model.tab == .settings ? .settings : .chat)
         }
     }
 
-    /// A press on Pal that was not a drag: opens the ZENO window, or closes it when it is in front, like the menu-bar
+    /// A press on Pal that was not a drag: opens the ATOM window, or closes it when it is in front, like the menu-bar
     /// icon (ADR-051, ADR-089, ADR-093).
     private func palClicked(_ count: Int) {
         trace("pal click \(count)")
@@ -771,11 +771,11 @@ final class IslandController {
         }
     }
 
-    /// Opens Terminal running a fixed command from the failure table, through a `.command` file, so ZENO needs no
+    /// Opens Terminal running a fixed command from the failure table, through a `.command` file, so ATOM needs no
     /// permission to script Terminal.
     private func openTerminal(running command: String) {
-        let file = FileManager.default.temporaryDirectory.appendingPathComponent("zeno-setup.command")
-        let script = "#!/bin/zsh -il\n\(command)\necho\necho 'Done. You can close this window and try ZENO again.'\n"
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("atom-setup.command")
+        let script = "#!/bin/zsh -il\n\(command)\necho\necho 'Done. You can close this window and try ATOM again.'\n"
         do {
             try script.write(to: file, atomically: true, encoding: .utf8)
             try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: file.path)
@@ -871,7 +871,7 @@ final class IslandController {
         tourTimer = timer
     }
 
-    /// Pal flies to ZENO's menu-bar icon, the same way it points for the model (ADR-054).
+    /// Pal flies to ATOM's menu-bar icon, the same way it points for the model (ADR-054).
     private func pointAtMenuIcon(_ label: String) {
         guard let anchor = menuIcon.anchor, let primary = NSScreen.screens.first else {
             trace("tour: menu-bar icon not on screen")
@@ -993,7 +993,7 @@ final class IslandController {
         trace("demo \(label) | \(pet.debugState) | panel=\(current.map { "\($0)" } ?? "off") frame=\(panel.isVisible ? "\(panel.frame.integral)" : "-") window=\(helpersWindow.isVisible) | icon=\(menuIcon.anchor.map { "\(Int($0.midX))" } ?? "?")")
     }
 
-    /// Development only (`ZENO_BUBBLE_DEMO=1`): plays a dictation's phases through the real controller, with no
+    /// Development only (`ATOM_BUBBLE_DEMO=1`): plays a dictation's phases through the real controller, with no
     /// microphone and no keys, so the bubble's window can be measured on the real screen.
     private func playBubbleDemo() {
         schedule([
@@ -1005,7 +1005,7 @@ final class IslandController {
         ])
     }
 
-    /// Development only (`ZENO_WORK_DEMO=1`): a turn that works on the Mac, through the real event path: steps, an
+    /// Development only (`ATOM_WORK_DEMO=1`): a turn that works on the Mac, through the real event path: steps, an
     /// approval request (answered by the demo), a point at the top-right corner, then the end of the turn.
     private func playWorkDemo() {
         let top = NSScreen.screens.first?.frame ?? .zero
@@ -1025,7 +1025,7 @@ final class IslandController {
         ])
     }
 
-    /// Development only (`ZENO_POINT_DEMO="x,y,w,h,label;x,y,w,h,label"`): plays each place through the real event path,
+    /// Development only (`ATOM_POINT_DEMO="x,y,w,h,label;x,y,w,h,label"`): plays each place through the real event path,
     /// 11 s apart, as the runtime would send them (Cua's coordinates: points, origin top-left of the main display).
     private func playPointDemo(_ spots: String) {
         for (index, spot) in spots.split(separator: ";").enumerated() {
@@ -1041,7 +1041,7 @@ final class IslandController {
         }
     }
 
-    /// Development only (`ZENO_LOOK_DEMO`): changes the look settings while the app runs, so the real windows can
+    /// Development only (`ATOM_LOOK_DEMO`): changes the look settings while the app runs, so the real windows can
     /// be measured, then puts the user's own values back.
     private func playLookDemo() {
         let settings = model.settings

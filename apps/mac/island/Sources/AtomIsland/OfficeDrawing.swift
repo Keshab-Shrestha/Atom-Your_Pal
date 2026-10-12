@@ -3,7 +3,7 @@ import AtomIslandCore
 
 /// ADR-104: the office floor as smooth 2D vector art (it was pixel art, ADR-090). Every shape is drawn in map units
 /// (the plan's 16-unit tiles, `OfficeMap`) into a context already scaled to the screen: rounded forms, soft shading,
-/// gentle outlines, antialiased at any size. ZENO's own art. The background goes under the pals; the foreground
+/// gentle outlines, antialiased at any size. ATOM's own art. The background goes under the pals; the foreground
 /// (desks, the table, the sofa's front) over them, so seated pals sit behind their desks.
 enum OfficeDrawing {
     private static func hex(_ v: UInt32, _ alpha: Double = 1) -> Color {

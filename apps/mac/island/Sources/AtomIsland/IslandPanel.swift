@@ -21,7 +21,7 @@ final class IslandPanel: NSPanel {
         isReleasedWhenClosed = false
         animationBehavior = .none
         setAccessibilityRole(.popover)
-        setAccessibilityLabel("ZENO")
+        setAccessibilityLabel("ATOM")
     }
 
     static let islandLevel = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.mainMenuWindow)) + 2)
@@ -33,10 +33,10 @@ final class IslandPanel: NSPanel {
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
 }
 
-/// The island's content on dark glass: the compact card (ADR-038). A click on it opens the ZENO window (ADR-089).
+/// The island's content on dark glass: the compact card (ADR-038). A click on it opens the ATOM window (ADR-089).
 struct IslandView: View {
     let model: IslandModel
-    /// For development snapshots (`ZENO_ISLAND_SNAPSHOTS`): a plain dark fill instead of the glass,
+    /// For development snapshots (`ATOM_ISLAND_SNAPSHOTS`): a plain dark fill instead of the glass,
     /// which only the window server can draw.
     var snapshot = false
     static let cornerRadius: CGFloat = 16
@@ -60,8 +60,8 @@ struct IslandView: View {
     }
 }
 
-/// The compact card (ADR-038): ZENO's state, a short detail line and, while listening, a live waveform.
-/// Clicking it opens the ZENO window (ADR-089).
+/// The compact card (ADR-038): ATOM's state, a short detail line and, while listening, a live waveform.
+/// Clicking it opens the ATOM window (ADR-089).
 struct CompactView: View {
     let model: IslandModel
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
@@ -79,7 +79,7 @@ struct CompactView: View {
         .onTapGesture { model.setExpanded(true) }
         .animation(.easeOut(duration: 0.18), value: model.status.showsLevel)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(model.status.detail.isEmpty ? "ZENO: \(model.status.title)" : "ZENO: \(model.status.title). \(model.status.detail)")
+        .accessibilityLabel(model.status.detail.isEmpty ? "ATOM: \(model.status.title)" : "ATOM: \(model.status.title). \(model.status.detail)")
         .accessibilityHint("Opens the conversation, status and settings")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { model.setExpanded(true) }
@@ -102,7 +102,7 @@ struct StatusRow: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(theme.text.color)
                 if model.pointing.target != nil {
-                    Text("ZENO is pointing")
+                    Text("ATOM is pointing")
                         .font(.system(size: 11))
                         .foregroundStyle(theme.text2.color)
                 } else if !model.status.preview.isEmpty {
@@ -139,7 +139,7 @@ struct StatusRow: View {
     }
 }
 
-/// A round badge whose icon and colour follow ZENO's state.
+/// A round badge whose icon and colour follow ATOM's state.
 struct StateGlyph: View {
     let kind: IslandStatus.Kind
     @Environment(\.theme) private var theme

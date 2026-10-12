@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import AtomIslandCore
 
-// Task 3.7: budgets in the ZENO window. Spend is API-equivalent dollars (what the work would cost on the API; the
+// Task 3.7: budgets in the ATOM window. Spend is API-equivalent dollars (what the work would cost on the API; the
 // Claude plan does not charge it).
 
 /// A worker's daily cap and today's spend, with a warning at 80 % and a note when it is used up.
@@ -138,7 +138,7 @@ struct PlanFirstRow: View {
     }
 }
 
-/// ADR-098: the worker's runs get ZENO's browser. New sites, typing and submits still ask Keshab first.
+/// ADR-098: the worker's runs get ATOM's browser. New sites, typing and submits still ask Keshab first.
 struct BrowserRow: View {
     let model: IslandModel
     let helper: Helper
@@ -148,7 +148,7 @@ struct BrowserRow: View {
         HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Browser").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
-                Text("Opens pages in ZENO's own browser. Each new site and each form asks you first.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                Text("Opens pages in ATOM's own browser. Each new site and each form asks you first.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             }
             Spacer(minLength: 4)
             ThemedSwitch(isOn: helper.browser, set: { model.sendHelpers(model.helpers.setBrowser($0)) }, label: "Browser")
@@ -245,7 +245,7 @@ struct SkillsPicker: View {
         Menu {
             if skills.isEmpty { Text("No skills yet") }
             ForEach(skills) { skill in
-                let title = skill.source == "zeno" ? "\(skill.name) (made by ZENO)" : skill.name
+                let title = skill.source == "zeno" ? "\(skill.name) (made by ATOM)" : skill.name
                 Button { model.sendHelpers(model.helpers.toggleSkill(skill.name)) } label: {
                     if helper.skills.contains(skill.name) { Label(title, systemImage: "checkmark") } else { Text(title) }
                 }
@@ -351,7 +351,7 @@ struct PaperclipSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Paperclip · \(tasks.count)").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
-            Text("Paperclip's agents run outside ZENO's checks: Paperclip decides their tools and folders. Its telemetry is on unless PAPERCLIP_TELEMETRY_DISABLED=1 is set where it runs.")
+            Text("Paperclip's agents run outside ATOM's checks: Paperclip decides their tools and folders. Its telemetry is on unless PAPERCLIP_TELEMETRY_DISABLED=1 is set where it runs.")
                 .font(.system(size: 10.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true).padding(.leading, 4)
             if tasks.isEmpty {
                 Text("No tasks yet. Ask ATOM to hand one to a Paperclip agent.").font(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.leading, 4)

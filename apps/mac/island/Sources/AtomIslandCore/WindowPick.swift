@@ -18,7 +18,7 @@ public struct WindowInfo: Sendable, Equatable {
 }
 
 public enum WindowPick {
-    /// The frontmost ordinary window under `point`, skipping ZENO's own. `windows` is front to back, as the window list returns it.
+    /// The frontmost ordinary window under `point`, skipping ATOM's own. `windows` is front to back, as the window list returns it.
     public static func window(at point: CGPoint, in windows: [WindowInfo], ownPID: Int32) -> WindowInfo? {
         windows.first { $0.isOnScreen && $0.layer == 0 && $0.pid != ownPID && $0.bounds.contains(point) }
     }

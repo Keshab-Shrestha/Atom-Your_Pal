@@ -16,7 +16,7 @@ struct ExamplesSection: View {
         }
         if let items = model.capabilities {
             if items.isEmpty {
-                Card { Row(title: "No tools are on", detail: "ZENO can still answer questions and chat.") { EmptyView() } }
+                Card { Row(title: "No tools are on", detail: "ATOM can still answer questions and chat.") { EmptyView() } }
             } else {
                 Card("Things to try", footer: "Only tools that are on are listed.") {
                     ForEach(Array(items.enumerated()), id: \.offset) { index, item in
@@ -87,7 +87,7 @@ private struct KeyCap: View {
     }
 }
 
-/// Under "Ask ZENO anything": a few phrases to try and the link to the full list.
+/// Under "Ask ATOM anything": a few phrases to try and the link to the full list.
 struct EmptyConversationExamples: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
@@ -119,7 +119,7 @@ struct PlanMetersCard: View {
 
     var body: some View {
         if let usage, !usage.isEmpty {
-            Card(title, footer: usage.overage == true ? "Extra usage is on: Claude would charge for more, so ZENO stops." : nil) {
+            Card(title, footer: usage.overage == true ? "Extra usage is on: Claude would charge for more, so ATOM stops." : nil) {
                 if let five = usage.fiveHour { PlanMeter(title: "5-hour", fraction: five) }
                 if usage.fiveHour != nil, usage.sevenDay != nil { RowDivider() }
                 if let week = usage.sevenDay { PlanMeter(title: "Weekly", fraction: week) }

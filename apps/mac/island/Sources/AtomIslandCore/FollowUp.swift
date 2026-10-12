@@ -1,6 +1,6 @@
 import Foundation
 
-/// ADR-067: after ZENO asks a question, the microphone opens for a moment so the user can just answer.
+/// ADR-067: after ATOM asks a question, the microphone opens for a moment so the user can just answer.
 /// This decides, from the loudness of the last stretch of audio, when they started and stopped speaking.
 public struct SpeechEndpoint: Equatable, Sendable {
     public enum Decision: Equatable, Sendable {

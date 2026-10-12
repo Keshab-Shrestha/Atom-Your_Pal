@@ -86,7 +86,7 @@ enum BubbleTone: Equatable {
     }
 }
 
-/// ZENO's status as a speech bubble over Pal (ADR-050), in Lantern's night glass (ADR-084): no icon circle, since
+/// ATOM's status as a speech bubble over Pal (ADR-050), in Lantern's night glass (ADR-084): no icon circle, since
 /// Pal is right below it. It grows out of the tail, where Pal is, and shrinks back into it.
 struct BubbleView: View {
     let model: IslandModel
@@ -119,7 +119,7 @@ struct BubbleView: View {
             .frame(width: size.width * state.scale, height: size.height * state.scale, alignment: .topLeading)
             .padding(BubbleController.shadowInset)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(model.status.detail.isEmpty ? "ZENO: \(model.status.title)" : "ZENO: \(model.status.title). \(model.status.detail)")
+            .accessibilityLabel(model.status.detail.isEmpty ? "ATOM: \(model.status.title)" : "ATOM: \(model.status.title). \(model.status.detail)")
     }
 }
 
@@ -188,7 +188,7 @@ private struct BubbleContent: View {
             VStack(alignment: .leading, spacing: 2) {
                 if let target = model.pointing.target {
                     title(PointingState.line(for: target))
-                    detail("ZENO is pointing")
+                    detail("ATOM is pointing")
                 } else if !status.preview.isEmpty {
                     Text(status.preview)
                         .font(.system(size: 13.5))

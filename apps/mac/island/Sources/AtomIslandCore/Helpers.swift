@@ -1,5 +1,5 @@
 // Helpers (ADR-081, Task 3.1; the team and souls, ADR-082, Task 3.3): the workers, their souls, jobs and reports, as
-// the runtime reports them, and the ZENO window's state. Task text and reports are the user's own; never logged.
+// the runtime reports them, and the ATOM window's state. Task text and reports are the user's own; never logged.
 import Foundation
 
 public enum JobState: String, Sendable, Equatable, CaseIterable {
@@ -208,7 +208,7 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     /// The state badge's word: a done job that hit a limit says so.
     public var badge: String { state == .done && partial ? "Partial" : state.title }
 
-    /// How far a running job is, from its step's "n of m" ("Reading 3 of 8 pages" is 3/8), for the ZENO window's
+    /// How far a running job is, from its step's "n of m" ("Reading 3 of 8 pages" is 3/8), for the ATOM window's
     /// line of light (ADR-084). Nil when the job is not running or its step has no count it can trust.
     public var progress: Double? {
         guard state == .running, let step else { return nil }
@@ -296,7 +296,7 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public var budget: HelperBudget?
     /// Task 3.8: its new tasks plan first.
     public var planFirst: Bool
-    /// ADR-098: its runs get ZENO's browser (false from an older runtime).
+    /// ADR-098: its runs get ATOM's browser (false from an older runtime).
     public var browser: Bool
     /// Task 3.9: its routines, oldest first.
     public var routines: [HelperRoutine]
@@ -520,13 +520,13 @@ public struct HelperThread: Sendable, Equatable {
     public var plan: JobPlan?
     /// Task 3.10: the sub-tasks it handed off, oldest first.
     public var handOffs: [Int]
-    /// ADR-098 item 8: the ZENO-made skills a done task's runs used (each can take the task as a test case).
+    /// ADR-098 item 8: the ATOM-made skills a done task's runs used (each can take the task as a test case).
     public var testSkills: [String]
     /// B3.1: the tool calls of its runs, oldest first; none from an older runtime.
     public var toolCalls: [HelperToolCall]
     /// B3.4: the file edits of its runs that can be undone; none from an older runtime.
     public var checkpoints: [HelperCheckpoint]
-    /// B3.4: a command ran, so files may have changed that ZENO did not track.
+    /// B3.4: a command ran, so files may have changed that ATOM did not track.
     public var bashRan: Bool
 
     public init(id: Int, comments: [TaskComment], activity: [TaskActivity], report: HelperReport? = nil, goal: HelperGoal? = nil,
@@ -613,7 +613,7 @@ public struct HelpersList: Sendable, Equatable {
     public var planLimit: Int?
     /// ADR-095: "Runs at once", the team-wide limit on runs at the same time; nil from an older runtime.
     public var maxRunning: Int?
-    /// Task 3.12: the skills to choose from (Keshab's in ~/.claude/skills and, ADR-094, ZENO's own).
+    /// Task 3.12: the skills to choose from (Keshab's in ~/.claude/skills and, ADR-094, ATOM's own).
     public var skills: [SkillInfo]
     /// ADR-094: Tinker's skill drafts and edits: every pending one and the newest few others.
     public var skillDrafts: [SkillDraftItem]
@@ -765,7 +765,7 @@ public struct HelperReport: Sendable, Equatable {
     }
 }
 
-/// What the ZENO window shows: the runtime's list, the chosen helper, and the report being read. Actions return
+/// What the ATOM window shows: the runtime's list, the chosen helper, and the report being read. Actions return
 /// the command to send (or nil when there is nothing to send), so the window's logic is testable without a screen.
 public struct HelpersState: Sendable, Equatable {
     public static let maxTaskLength = 1000
@@ -791,7 +791,7 @@ public struct HelpersState: Sendable, Equatable {
     public private(set) var problem: String?
     /// A command from the window is waiting for its answer: a `settings` error now belongs to the window.
     public private(set) var isWaiting = false
-    /// ADR-091: ZENO's task branches (nil until asked), and the one whose changes are shown.
+    /// ADR-091: ATOM's task branches (nil until asked), and the one whose changes are shown.
     public private(set) var git: [GitBranch]?
     public var gitDiff: GitDiff?
 
@@ -800,7 +800,7 @@ public struct HelpersState: Sendable, Equatable {
 
     public init() {}
 
-    /// This event is the runtime refusing the window's last command: it belongs to the window, not ZENO's status
+    /// This event is the runtime refusing the window's last command: it belongs to the window, not ATOM's status
     /// or the model page.
     public func claims(_ event: IslandEvent) -> Bool {
         guard isWaiting, case .error(let error) = event else { return false }
@@ -1113,7 +1113,7 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.skillHubUpdate(name: name))
     }
 
-    /// ADR-098 item 8: saves the open done task as a test case for its agent ("soul") or a ZENO-made skill it used ("skill").
+    /// ADR-098 item 8: saves the open done task as a test case for its agent ("soul") or a ATOM-made skill it used ("skill").
     public mutating func saveTestCase(kind: String, target: String) -> IslandCommand? {
         guard let job = openJob, job.state == .done, job.reviews == nil,
               list?.testCases.contains(where: { $0.jobId == job.id && $0.kind == kind && $0.target == target }) != true else { return nil }
@@ -1494,7 +1494,7 @@ public struct HelperRoutine: Sendable, Equatable, Identifiable {
     }
 }
 
-/// Task 3.12: one of the skills a worker can be given: Keshab's ("yours") or, ADR-094, made by ZENO ("zeno").
+/// Task 3.12: one of the skills a worker can be given: Keshab's ("yours") or, ADR-094, made by ATOM ("zeno").
 public struct SkillInfo: Sendable, Equatable, Identifiable {
     public var name: String
     public var description: String
@@ -1507,7 +1507,7 @@ public struct SkillInfo: Sendable, Equatable, Identifiable {
         self.source = source
     }
 
-    public var sourceTitle: String { source == "zeno" ? "made by ZENO" : "yours" }
+    public var sourceTitle: String { source == "zeno" ? "made by ATOM" : "yours" }
 }
 
 /// ADR-094: Tinker's draft of a new skill from a task, waiting for Keshab's OK (or answered).
@@ -1533,7 +1533,7 @@ public struct SkillDraftItem: Sendable, Equatable, Identifiable {
     }
 }
 
-/// ADR-094: Tinker's edit to one of ZENO's skills: why, and a compact before and after.
+/// ADR-094: Tinker's edit to one of ATOM's skills: why, and a compact before and after.
 public struct SkillEditItem: Sendable, Equatable, Identifiable {
     public var id: Int
     public var skill: String
@@ -1592,7 +1592,7 @@ public struct SoulProposal: Sendable, Equatable, Identifiable {
     }
 }
 
-/// Task 3.16: a task ZENO handed to an agent in Keshab's own Paperclip.
+/// Task 3.16: a task ATOM handed to an agent in Keshab's own Paperclip.
 public struct PaperclipTask: Sendable, Equatable, Identifiable {
     public var id: String
     public var identifier: String?
@@ -1716,7 +1716,7 @@ public struct DayTokens: Sendable, Equatable {
 }
 
 public struct WorkerTokens: Sendable, Equatable {
-    /// Nil: ZENO's own chat.
+    /// Nil: ATOM's own chat.
     public var helper: String?
     public var name: String
     public var totals: TokenTotals
@@ -1734,7 +1734,7 @@ public struct TokenUsageSummary: Sendable, Equatable {
     public var days: [DayTokens]
     public var byWorker: [WorkerTokens]
     public var byModel: [ModelTokens]
-    /// ADR-098 item 9: ZENO's last chat answers read nothing from the cache.
+    /// ADR-098 item 9: ATOM's last chat answers read nothing from the cache.
     public var chatCacheCold: Bool
 
     public init(today: TokenTotals, week: TokenTotals, days: [DayTokens] = [], byWorker: [WorkerTokens] = [], byModel: [ModelTokens] = [], chatCacheCold: Bool = false) {
@@ -1747,7 +1747,7 @@ public struct TokenUsageSummary: Sendable, Equatable {
     }
 }
 
-/// ADR-091: one of ZENO's task branches, like a pull request.
+/// ADR-091: one of ATOM's task branches, like a pull request.
 public struct GitBranch: Sendable, Equatable, Identifiable {
     public enum Pushed: String, Sendable { case no, yes, changed }
 

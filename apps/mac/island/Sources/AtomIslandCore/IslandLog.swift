@@ -1,6 +1,6 @@
 import Foundation
 
-/// Appends operational events to ZENO's log (`logs/atom.log`), in the same JSON-lines format as the
+/// Appends operational events to ATOM's log (`logs/atom.log`), in the same JSON-lines format as the
 /// runtime. Like the runtime, it records events and timings, never what was said or replied.
 public final class IslandLog: @unchecked Sendable {
     public enum Level: String, Sendable { case info, warn, error }
@@ -31,7 +31,7 @@ public final class IslandLog: @unchecked Sendable {
         else { return }
         let line = json + Data([0x0A])
         queue.async {
-            // Logging must never take ZENO down: failures are ignored.
+            // Logging must never take ATOM down: failures are ignored.
             let fm = FileManager.default
             try? fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             if !fm.fileExists(atPath: url.path) { fm.createFile(atPath: url.path, contents: nil) }

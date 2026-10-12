@@ -58,11 +58,11 @@ struct PalReactionTests {
     }
 
     @Test(arguments: [PetBrain.Mood.listening, .thinking, .speaking, .worried, .carried])
-    func zenoStateReplacesAReactionAtOnce(mood: PetBrain.Mood) {
+    func atomStateReplacesAReactionAtOnce(mood: PetBrain.Mood) {
         var player = PalReactionPlayer()
         player.start(.dizzy, at: 0, mood: .resting, reduceMotion: false)
         #expect(player.active(at: 0.5, mood: mood) == nil)
-        // And it does not come back when ZENO is idle again.
+        // And it does not come back when ATOM is idle again.
         #expect(player.active(at: 0.6, mood: .resting) == nil)
     }
 

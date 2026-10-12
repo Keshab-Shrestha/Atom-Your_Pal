@@ -3,10 +3,10 @@ import Carbon.HIToolbox
 import Observation
 import AtomIslandCore
 
-/// Listens for ZENO's shortcuts in every app (ADR-040) and reports them as `ShortcutTrigger`s.
+/// Listens for ATOM's shortcuts in every app (ADR-040) and reports them as `ShortcutTrigger`s.
 ///
 /// - Chords with an ordinary key (⌃⌥Z, Esc): Carbon system hot keys. No permission needed, and the key does
-///   not reach the app in front. Cancel (Esc) is registered only while ZENO is busy, so Esc works normally
+///   not reach the app in front. Cancel (Esc) is registered only while ATOM is busy, so Esc works normally
 ///   everywhere else.
 /// - Holds of modifiers alone (⌃⌥, Right ⌥) and anything with fn: a listen-only event tap feeding
 ///   `ShortcutMatcher`. It needs Input Monitoring and never blocks or changes a key.
@@ -18,7 +18,7 @@ final class ShortcutEngine {
     private(set) var canTrackKeys = false
 
     @ObservationIgnored var onTrigger: (ShortcutTrigger) -> Void = { _ in }
-    /// Development tracing (`ZENO_ISLAND_TRACE=1`): every key input the tap sees.
+    /// Development tracing (`ATOM_ISLAND_TRACE=1`): every key input the tap sees.
     @ObservationIgnored var trace: (String) -> Void = { _ in }
     @ObservationIgnored private let settings: IslandSettings
     @ObservationIgnored private let recorder: ShortcutRecorder
@@ -34,11 +34,11 @@ final class ShortcutEngine {
     /// Hot key id → action, for the registered chords.
     @ObservationIgnored private var hotKeyActions: [UInt32: ShortcutAction] = [:]
     @ObservationIgnored private var registeredSignature = ""
-    /// Cancel (Esc) is live only while ZENO is listening, thinking or speaking.
+    /// Cancel (Esc) is live only while ATOM is listening, thinking or speaking.
     @ObservationIgnored private var cancelActive = false
 
-    /// "ZENO" as a four-character code, identifying ZENO's hot keys.
-    private static let signature: OSType = 0x5A_45_4E_4F
+    /// "ATOM" as a four-character code, identifying ATOM's hot keys.
+    private static let signature: OSType = 0x41_54_4F_4D
 
     init(settings: IslandSettings, recorder: ShortcutRecorder, log: @escaping (String, [String: Any]) -> Void) {
         self.settings = settings
@@ -61,14 +61,14 @@ final class ShortcutEngine {
         permissionCheck?.invalidate()
     }
 
-    /// Cancel is live only while ZENO is busy.
+    /// Cancel is live only while ATOM is busy.
     func setBusy(_ busy: Bool) {
         guard busy != cancelActive else { return }
         cancelActive = busy
         apply()
     }
 
-    /// Asks macOS for Input Monitoring (adds ZENO to the list), then opens the pane so it can be switched on.
+    /// Asks macOS for Input Monitoring (adds ATOM to the list), then opens the pane so it can be switched on.
     func requestKeyAccess() {
         if !CGRequestListenEventAccess() {
             let pane = "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_ListenEvent"

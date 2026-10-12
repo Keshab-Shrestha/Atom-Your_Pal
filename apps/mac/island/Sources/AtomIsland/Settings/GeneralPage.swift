@@ -13,7 +13,7 @@ struct GeneralSection: View {
         let settings = model.settings
         let login = model.loginItem
         Card(footer: loginFooter(login)) {
-            Row(title: "Open at login", detail: "Start ZENO when you log in to this Mac") {
+            Row(title: "Open at login", detail: "Start ATOM when you log in to this Mac") {
                 ThemedSwitch(isOn: login.enabled || login.needsApproval, set: { login.set($0) }, label: "Open at login")
                     .disabled(!login.available)
             }
@@ -24,7 +24,7 @@ struct GeneralSection: View {
                 }
             }
             RowDivider()
-            Row(title: "Answer without keys", detail: "When ZENO asks you something, it listens for a few seconds") {
+            Row(title: "Answer without keys", detail: "When ATOM asks you something, it listens for a few seconds") {
                 ThemedSwitch(isOn: settings.followUpEnabled, set: { settings.followUpEnabled = $0 }, label: "Answer without keys")
             }
         }
@@ -52,8 +52,8 @@ struct GeneralSection: View {
                 }
             }
         }
-        // ADR-091: which macOS notifications ZENO posts.
-        Card("Notifications", footer: "Shown by macOS. Titles and short reasons only, never a report's text. Allow ZENO in System Settings → Notifications if none appear.") {
+        // ADR-091: which macOS notifications ATOM posts.
+        Card("Notifications", footer: "Shown by macOS. Titles and short reasons only, never a report's text. Allow ATOM in System Settings → Notifications if none appear.") {
             ForEach(Array(AppNotice.Kind.allCases.enumerated()), id: \.element) { index, kind in
                 if index > 0 { RowDivider() }
                 Row(title: kind.title, detail: Self.detail(kind)) {
@@ -61,10 +61,10 @@ struct GeneralSection: View {
                 }
             }
         }
-        // ADR-098: ZENO's own Telegram bot. The names only, never the values.
+        // ADR-098: ATOM's own Telegram bot. The names only, never the values.
         Card("Telegram", footer: model.telegramConnected
-             ? "Only the chat in ZENO_TELEGRAM_CHAT_ID is served. Send /help to the bot for its commands."
-             : "Make a bot for ZENO with @BotFather. Add ZENO_TELEGRAM_BOT_TOKEN and ZENO_TELEGRAM_CHAT_ID to .env, then restart ZENO.") {
+             ? "Only the chat in ATOM_TELEGRAM_CHAT_ID is served. Send /help to the bot for its commands."
+             : "Make a bot for ATOM with @BotFather. Add ATOM_TELEGRAM_BOT_TOKEN and ATOM_TELEGRAM_CHAT_ID to .env, then restart ATOM.") {
             Row(title: "Telegram", detail: model.telegramConnected ? "Connected" : "Not set up") {
                 StatusDot(color: model.telegramConnected ? theme.success.color : theme.text3.color, size: 8)
             }
@@ -76,7 +76,7 @@ struct GeneralSection: View {
         }
         // ADR-098 item 5: the local API for Hermes, Claude Code and other tools on this Mac. The token is never shown:
         // "Copy token" reads data/api-token when clicked and puts it on the clipboard.
-        Card("Local API", footer: "Listens on 127.0.0.1 only. Each request needs the token. Add the MCP server to Claude Code with: claude mcp add zeno -- node <ZENO folder>/apps/mac/src/mcp-serve.ts") {
+        Card("Local API", footer: "Listens on 127.0.0.1 only. Each request needs the token. Add the MCP server to Claude Code with: claude mcp add atom -- node <ATOM folder>/apps/mac/src/mcp-serve.ts") {
             Row(title: "Local API", detail: apiDetail(on: settings.localApi)) {
                 ThemedSwitch(isOn: settings.localApi, set: { settings.localApi = $0; tokenNote = nil; model.send(.apiSet(on: $0)) }, label: "Local API")
             }
@@ -120,7 +120,7 @@ extension GeneralSection {
 
     static func detail(_ kind: AppNotice.Kind) -> String {
         switch kind {
-        case .needsYou: "A plan, a held task, a proposal, or ZENO asking for your OK"
+        case .needsYou: "A plan, a held task, a proposal, or ATOM asking for your OK"
         case .done: "A worker finished, with its report's title"
         case .failed: "A task failed, and why"
         case .budget: "A budget or the Claude plan passing 80%, or used up"
@@ -129,6 +129,6 @@ extension GeneralSection {
 }
 
 @MainActor private func loginFooter(_ login: LoginItem) -> String? {
-    if !login.available { return "Available when ZENO runs as an app (pnpm island:open)." }
+    if !login.available { return "Available when ATOM runs as an app (pnpm island:open)." }
     return login.error
 }

@@ -19,7 +19,7 @@ struct SetupCards: View {
             VStack(spacing: 10) {
                 if let failure { FailureCard(model: model, failure: failure) }
                 if firstLaunch {
-                    Card("Set up ZENO", footer: "ZENO needs these two to hear you. Everything else is asked the first time you use it.") {
+                    Card("Set up ATOM", footer: "ATOM needs these two to hear you. Everything else is asked the first time you use it.") {
                         ForEach(Array(PermissionRow.essential.enumerated()), id: \.element) { index, row in
                             if index > 0 { RowDivider() }
                             PermissionRowView(model: model, row: row)
@@ -33,7 +33,7 @@ struct SetupCards: View {
     }
 }
 
-/// One known failure: the sentence and one button. When the runtime has stopped, "Restart ZENO" and "Open log".
+/// One known failure: the sentence and one button. When the runtime has stopped, "Restart ATOM" and "Open log".
 struct FailureCard: View {
     let model: IslandModel
     let failure: PlainFailure
@@ -93,7 +93,7 @@ struct FailureCard: View {
     }
 }
 
-/// Settings → General → Permissions: every row, its state, when ZENO uses it, and one button.
+/// Settings → General → Permissions: every row, its state, when ATOM uses it, and one button.
 struct PermissionsCard: View {
     let model: IslandModel
 
@@ -136,7 +136,7 @@ struct PermissionRowView: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// Microphone and Input Monitoring never asked: the click asks macOS, which then lists ZENO in the pane.
+    /// Microphone and Input Monitoring never asked: the click asks macOS, which then lists ATOM in the pane.
     static func asksOnClick(_ row: PermissionRow, _ state: PermissionState?) -> Bool {
         state == .notAsked && PermissionRow.essential.contains(row)
     }

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Where Pal's eyes look while ZENO is idle (ADR-073): toward the pointer, a few design points at most.
+/// Where Pal's eyes look while ATOM is idle (ADR-073): toward the pointer, a few design points at most.
 public enum PalGaze {
     /// Beyond this distance (screen points) Pal does not notice the pointer.
     public static let range = 400.0
@@ -20,7 +20,7 @@ public enum PalGaze {
     }
 }
 
-/// A short reaction Pal plays while ZENO is idle (ADR-073). Shown by body, light and face only.
+/// A short reaction Pal plays while ATOM is idle (ADR-073). Shown by body, light and face only.
 public enum PalReaction: Sendable, Equatable {
     /// A click: a quick squash-and-stretch.
     case squish
@@ -48,14 +48,14 @@ public enum PalReaction: Sendable, Equatable {
     public static func forClick(count: Int) -> PalReaction { count >= 3 ? .dizzy : .squish }
 }
 
-/// Plays one reaction at a time. ZENO's state always wins: a turn, a problem or being carried ends a reaction at once.
+/// Plays one reaction at a time. ATOM's state always wins: a turn, a problem or being carried ends a reaction at once.
 public struct PalReactionPlayer: Sendable {
     private var current: PalReaction?
     private var startedAt = 0.0
 
     public init() {}
 
-    /// Starts `reaction`, replacing any other. Ignored while ZENO is busy, and for moving reactions under Reduce Motion.
+    /// Starts `reaction`, replacing any other. Ignored while ATOM is busy, and for moving reactions under Reduce Motion.
     public mutating func start(_ reaction: PalReaction, at now: Double, mood: PetBrain.Mood, reduceMotion: Bool) {
         guard !mood.isReacting, !(reduceMotion && reaction.moves) else { return }
         current = reaction

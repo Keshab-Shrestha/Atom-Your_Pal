@@ -1,6 +1,6 @@
 import Foundation
 
-/// An app ZENO scripts with Apple events: music (ADR-068), notes (ADR-070) and the browsers of ADR-072.
+/// An app ATOM scripts with Apple events: music (ADR-068), notes (ADR-070) and the browsers of ADR-072.
 public enum AutomationTarget: String, CaseIterable, Sendable {
     case music = "com.apple.Music"
     case spotify = "com.spotify.client"
@@ -25,7 +25,7 @@ public enum AutomationTarget: String, CaseIterable, Sendable {
     }
 }
 
-/// One line of the permissions checklist (ADR-075): what it is, when ZENO uses it, and its System Settings pane.
+/// One line of the permissions checklist (ADR-075): what it is, when ATOM uses it, and its System Settings pane.
 public enum PermissionRow: Hashable, Sendable {
     case microphone, inputMonitoring, accessibility
     case automation(AutomationTarget)
@@ -34,7 +34,7 @@ public enum PermissionRow: Hashable, Sendable {
     public static let all: [PermissionRow] = [.microphone, .inputMonitoring, .accessibility]
         + AutomationTarget.allCases.map(PermissionRow.automation) + [.calendar, .reminders]
 
-    /// ZENO cannot be used without these: the first-launch card stays until both are granted.
+    /// ATOM cannot be used without these: the first-launch card stays until both are granted.
     public static let essential: [PermissionRow] = [.microphone, .inputMonitoring]
 
     public var title: String {
@@ -48,17 +48,17 @@ public enum PermissionRow: Hashable, Sendable {
         }
     }
 
-    /// Exactly when ZENO uses it.
+    /// Exactly when ATOM uses it.
     public var usage: String {
         switch self {
         case .microphone: "Only while you hold the Talk keys or dictate"
-        case .inputMonitoring: "Watches for ZENO's own shortcuts, never what you type"
+        case .inputMonitoring: "Watches for ATOM's own shortcuts, never what you type"
         case .accessibility: "Only to type dictated text into the app you are in"
-        case .automation(.music), .automation(.spotify): "Only when you ask ZENO to play, pause or skip music"
-        case .automation(.notes): "Only when you ask ZENO to take a note"
+        case .automation(.music), .automation(.spotify): "Only when you ask ATOM to play, pause or skip music"
+        case .automation(.notes): "Only when you ask ATOM to take a note"
         case .automation: "Only when you ask about what's on screen: the open tab's title and address"
         case .calendar: "Only when you ask about your calendar"
-        case .reminders: "Only when you ask ZENO to add or read reminders"
+        case .reminders: "Only when you ask ATOM to add or read reminders"
         }
     }
 
@@ -78,7 +78,7 @@ public enum PermissionRow: Hashable, Sendable {
     /// What the row says about its state.
     public func stateLine(_ state: PermissionState) -> String {
         switch state {
-        case .denied: "Off. Open System Settings and switch ZENO on there"
+        case .denied: "Off. Open System Settings and switch ATOM on there"
         case .unchecked:
             if case .automation(let app) = self { "Not checked until \(app.name) is open" } else { "Not checked" }
         default: state.label

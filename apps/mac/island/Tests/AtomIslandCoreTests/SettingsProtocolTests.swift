@@ -246,8 +246,8 @@ struct MemoryProtocolTests {
     @Test func contextReadyDecodes() throws {
         #expect(try decodeEvent(#"{"type":"context.ready","app":"Brave Browser","ok":true}"#)
             == .contextReady(app: "Brave Browser", ok: true, message: nil))
-        let refused = try decodeEvent(#"{"type":"context.ready","app":"Terminal","ok":false,"message":"ZENO doesn't read Terminal."}"#)
-        #expect(refused == .contextReady(app: "Terminal", ok: false, message: "ZENO doesn't read Terminal."))
+        let refused = try decodeEvent(#"{"type":"context.ready","app":"Terminal","ok":false,"message":"ATOM doesn't read Terminal."}"#)
+        #expect(refused == .contextReady(app: "Terminal", ok: false, message: "ATOM doesn't read Terminal."))
         #expect(refused.name == "context.ready") // never the app or message
         #expect(throws: ProtocolError.missingField(event: "context.ready", field: "ok")) {
             try decodeEvent(#"{"type":"context.ready","app":"Terminal"}"#)
@@ -260,8 +260,8 @@ struct MemoryProtocolTests {
     @Test func contextReadyInTheBubble() {
         var status = IslandStatus()
         status.apply(.ready(ReadyInfo(protocolVersion: 1, provider: "claude-plan", model: "claude-haiku-4-5", microphone: ":default", voice: true)))
-        status.apply(.contextReady(app: "Terminal", ok: false, message: "ZENO doesn't read Terminal."))
-        #expect(status.kind == .notice && status.title == "ZENO doesn't read Terminal.")
+        status.apply(.contextReady(app: "Terminal", ok: false, message: "ATOM doesn't read Terminal."))
+        #expect(status.kind == .notice && status.title == "ATOM doesn't read Terminal.")
         // The microphone opened first: listening, with the app named under it.
         status.apply(.state(.listening))
         status.apply(.contextReady(app: "Brave Browser", ok: true, message: nil))

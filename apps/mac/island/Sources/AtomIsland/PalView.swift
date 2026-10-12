@@ -1,7 +1,7 @@
 import SwiftUI
 import AtomIslandCore
 
-/// Pal on screen (ADR-093, drawn smooth by ADR-104): ZENO's own 2D character, drawn from Pal's file
+/// Pal on screen (ADR-093, drawn smooth by ADR-104): ATOM's own 2D character, drawn from Pal's file
 /// (`assets/pals/pal.json`) by `PalDrawing` as antialiased vector shapes. Its mood and reactions come from
 /// `PalStanceMotion`, a pure function of `time`, so one clock drives it and the gallery can render any moment exactly. No glow, no leaning.
 ///
@@ -21,7 +21,7 @@ struct PalView: View {
     /// +1 facing right, -1 facing left.
     var facing: Double = 1
     var size: CGFloat = 64
-    /// ADR-073, while ZENO is idle: where the eyes look toward the pointer (design points, y down), how much the
+    /// ADR-073, while ATOM is idle: where the eyes look toward the pointer (design points, y down), how much the
     /// pointer is over Pal (0...1), and the reaction playing with how far through it is (0...1).
     var gaze = CGSize.zero
     var hover: Double = 0
@@ -75,6 +75,6 @@ struct PalView: View {
             }
         }
         .frame(width: size * 1.5, height: size * 1.5, alignment: .topLeading)
-        .accessibilityLabel("ZENO's pet, ATOM")
+        .accessibilityLabel("ATOM's pet")
     }
 }

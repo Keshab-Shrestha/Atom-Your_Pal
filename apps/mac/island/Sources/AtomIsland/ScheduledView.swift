@@ -142,7 +142,7 @@ struct ScheduleForm: Equatable {
 }
 
 /// ADR-097: the New schedule and Edit form: the agent, the task, the repeat and its time (or the first time of an
-/// hourly one). It closes when ZENO answers without a problem.
+/// hourly one). It closes when ATOM answers without a problem.
 private struct ScheduleFormCard: View {
     let model: IslandModel
     let form: Binding<ScheduleForm?>

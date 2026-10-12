@@ -1,13 +1,13 @@
 import CoreGraphics
 import Foundation
 
-/// The strip at the bottom of the main display while ZENO works on the Mac (ADR-056). Pure state: the controller
+/// The strip at the bottom of the main display while ATOM works on the Mac (ADR-056). Pure state: the controller
 /// draws `step`, `approval` and whether it `isShown`, and calls `apply` for every event.
 ///
-/// It appears with ZENO's first action on the Mac in a turn (a step, a point or an approval request), never for
+/// It appears with ATOM's first action on the Mac in a turn (a step, a point or an approval request), never for
 /// ordinary talk, and stays until the turn ends plus `linger` seconds so the outcome can be read.
 public struct WorkStripState: Sendable, Equatable {
-    /// What ZENO is doing now, e.g. "Typing in TextEdit".
+    /// What ATOM is doing now, e.g. "Typing in TextEdit".
     public private(set) var step = ""
     /// Set once the turn ends: when the strip goes away (uptime seconds).
     public private(set) var hideAt: Double?

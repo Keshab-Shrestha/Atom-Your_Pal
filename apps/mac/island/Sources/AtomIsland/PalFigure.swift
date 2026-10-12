@@ -2,7 +2,7 @@ import SwiftUI
 import AtomIslandCore
 
 /// ADR-089: draws a pal from its avatar definition: a rounded body that turns with the head, its nodes (ears, arms,
-/// feet, antennae) placed in 3D and drawn back to front, and glossy eyes on the front face. ZENO's own drawing: soft
+/// feet, antennae) placed in 3D and drawn back to front, and glossy eyes on the front face. ATOM's own drawing: soft
 /// light from the top left, a rim of light, a highlight on the body and on each eye. Every frame is a pure function of
 /// the pose and the time.
 enum PalFigure {
@@ -196,7 +196,7 @@ enum PalFigure {
     }
 }
 
-/// A pal on its own (the ZENO window, the island card, the gallery): its character playing `animation`.
+/// A pal on its own (the ATOM window, the island card, the gallery): its character playing `animation`.
 struct PalPortrait: View {
     let character: PalDefinition
     var animation = "idle"

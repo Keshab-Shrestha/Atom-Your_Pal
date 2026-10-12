@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import AtomIslandCore
 
-/// The ZENO window's content (ADR-081), in Lantern (ADR-084): a darker sidebar of helpers as discs; the chosen
+/// The ATOM window's content (ADR-081), in Lantern (ADR-084): a darker sidebar of helpers as discs; the chosen
 /// helper with its "Opens in" and "Model" pills, a task field and one list of jobs, or the report being read.
 /// The logic lives in `HelpersState`; these views only draw it.
 struct HelpersView: View {
@@ -68,7 +68,7 @@ struct HelpersView: View {
                         HelperPane(model: model, helper: helper)
                     }
                 } else {
-                    Waiting(text: model.helpers.list == nil ? "Waiting for ZENO…" : "No helpers yet")
+                    Waiting(text: model.helpers.list == nil ? "Waiting for ATOM…" : "No helpers yet")
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -112,7 +112,7 @@ extension HelpersView {
         if let helper = model.helpers.selectedHelper {
             return (helper.roleTitle.isEmpty ? helper.name : "\(helper.name) · \(helper.roleTitle)", "person.crop.circle")
         }
-        return ("ZENO", "sparkles")
+        return ("ATOM", "sparkles")
     }
 }
 
@@ -155,7 +155,7 @@ private struct HelperSidebar: View {
                 SidebarRow(symbol: "chart.bar.xaxis", title: "Dashboard", detail: today == 0 ? nil : "\(TokenTotals.short(today)) tokens today", selected: model.windowPage == .dashboard)
             }
             .buttonStyle(.plain)
-            // ADR-091: no Chat row: the chats below open the chat (ZENO's state is under its name above).
+            // ADR-091: no Chat row: the chats below open the chat (ATOM's state is under its name above).
             Button { model.navigate { model.windowPage = .inbox } } label: {
                 let waiting = (model.helpers.list.map { NeedsYouItem.all(in: $0).count } ?? 0) + (model.approval.pending == nil ? 0 : 1)
                 SidebarRow(symbol: "tray", title: "Needs you", detail: waiting == 0 ? "Nothing waits" : "\(waiting) waiting", selected: model.windowPage == .inbox)
@@ -204,7 +204,7 @@ private struct HelperSidebar: View {
     }
 }
 
-/// ADR-089: the top of the ZENO window's sidebar: Pal, its character playing ZENO's state, and the state in words.
+/// ADR-089: the top of the ATOM window's sidebar: Pal, its character playing ATOM's state, and the state in words.
 private struct WindowHeader: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
@@ -218,7 +218,7 @@ private struct WindowHeader: View {
                 }
             }
             VStack(alignment: .leading, spacing: 1) {
-                Text("ZENO").font(.system(size: 14, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                Text("ATOM").font(.system(size: 14, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
                 Text(model.status.title).font(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1)
             }
             Spacer(minLength: 0)
@@ -228,7 +228,7 @@ private struct WindowHeader: View {
     }
 }
 
-/// ADR-089: a page of the ZENO window in the sidebar: Chat, Settings.
+/// ADR-089: a page of the ATOM window in the sidebar: Chat, Settings.
 struct SidebarRow: View {
     let symbol: String
     let title: String
@@ -886,7 +886,7 @@ private struct NameTitle: View {
     }
 }
 
-/// ADR-091: Keshab's chats in the sidebar, newest first: the one ZENO is in is marked; a click continues one (voice and
+/// ADR-091: Keshab's chats in the sidebar, newest first: the one ATOM is in is marked; a click continues one (voice and
 /// typing go to it), New chat starts fresh, and a chat's menu deletes it.
 private struct ChatsList: View {
     let model: IslandModel
@@ -939,7 +939,7 @@ private struct ChatsList: View {
                 .accessibilityLabel(current ? "\(chat.title), current chat" : chat.title)
             }
         } else {
-            Text(list == nil ? "Loading…" : "No chats yet. Talk or type to ZENO.").font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+            Text(list == nil ? "Loading…" : "No chats yet. Talk or type to ATOM.").font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
                 .padding(.horizontal, 10).padding(.vertical, 4)
         }
     }

@@ -9,11 +9,11 @@ final class IslandModel {
     typealias SettingsPage = AtomIslandCore.SettingsPage
 
     var status = IslandStatus()
-    /// What ZENO is waiting for the user to allow (ADR-054).
+    /// What ATOM is waiting for the user to allow (ADR-054).
     var approval = ApprovalState()
-    /// The place ZENO is showing the user, if any (ADR-054).
+    /// The place ATOM is showing the user, if any (ADR-054).
     var pointing = PointingState()
-    /// The strip above the Dock while ZENO works on the Mac (ADR-056). Written by the controller, which knows the time.
+    /// The strip above the Dock while ATOM works on the Mac (ADR-056). Written by the controller, which knows the time.
     var work = WorkStripState()
     var meter = LevelMeter(bars: 14)
     var conversation = Conversation()
@@ -25,21 +25,21 @@ final class IslandModel {
     var modelError: String?
     /// ADR-097: the model lists were asked for again and no `info` has come back yet.
     var refreshingModels = false
-    /// What ZENO keeps (ADR-058). Nil until the Memory page first asks the runtime.
+    /// What ATOM keeps (ADR-058). Nil until the Memory page first asks the runtime.
     var memory: MemoryList?
-    /// What ZENO can do (ADR-076), from the runtime's `capabilities` event. Nil until it arrives: only the shortcuts show.
+    /// What ATOM can do (ADR-076), from the runtime's `capabilities` event. Nil until it arrives: only the shortcuts show.
     var capabilities: [CapabilityItem]?
     /// Claude plan usage (ADR-076), merged from `plan.usage` events. Nil until one arrives: no meters.
     var planUsage: PlanUsage?
-    /// ADR-091: Keshab's chats and the one ZENO is in; nil until the window asks.
+    /// ADR-091: Keshab's chats and the one ATOM is in; nil until the window asks.
     var chats: ChatList?
-    /// ADR-098: ZENO's Telegram bot is set up in .env (from the runtime's `ready`).
+    /// ADR-098: ATOM's Telegram bot is set up in .env (from the runtime's `ready`).
     var telegramConnected = false
     /// ADR-098 item 5: the local API's state, from the runtime's `api` event (nil until Settings' switch is sent).
     var apiStatus: ApiStatus?
-    /// The ZENO window's content (ADR-081): helpers, their jobs, the report being read.
+    /// The ATOM window's content (ADR-081): helpers, their jobs, the report being read.
     var helpers = HelpersState()
-    /// The ZENO window is open: a restarted runtime is asked for the list again.
+    /// The ATOM window is open: a restarted runtime is asked for the list again.
     var helpersWindowOpen = false
 
     /// Settings home has already cascaded in (ADR-084): once per launch, now that the drop-down panel that reset it on
@@ -51,7 +51,7 @@ final class IslandModel {
     /// Where the card grows from, as a fraction of its width (0 left, 1 right). Set by the controller.
     var openAnchorX = 1.0
     var tab = Tab.conversation
-    /// ADR-089: the page the ZENO window shows.
+    /// ADR-089: the page the ATOM window shows.
     var windowPage = WindowPage.chat
     /// ADR-090: the Board shows the office floor (else the columns).
     var boardFloor = true
@@ -68,9 +68,9 @@ final class IslandModel {
 
     let settings: IslandSettings
     let recorder: ShortcutRecorder
-    /// Open ZENO at login (General). Read from macOS, never saved by ZENO.
+    /// Open ATOM at login (General). Read from macOS, never saved by ATOM.
     let loginItem = LoginItem()
-    /// The permissions checklist (ADR-075). Read from macOS, never saved by ZENO.
+    /// The permissions checklist (ADR-075). Read from macOS, never saved by ATOM.
     let permissions = PermissionChecker()
     /// Shows or hides Pal. Set by the controller.
     @ObservationIgnored var petChanged: (Bool) -> Void = { _ in }
@@ -86,7 +86,7 @@ final class IslandModel {
 
     /// Sends a command to the runtime. Set by the app.
     @ObservationIgnored var send: (IslandCommand) -> Void = { _ in }
-    /// `true` opens the ZENO window (ADR-089; the compact card's click). Set by the controller.
+    /// `true` opens the ATOM window (ADR-089; the compact card's click). Set by the controller.
     @ObservationIgnored var setExpanded: (Bool) -> Void = { _ in }
     /// The work strip's Stop button: the same as Esc. Set by the controller.
     @ObservationIgnored var stopWork: () -> Void = {}
@@ -96,7 +96,7 @@ final class IslandModel {
     @ObservationIgnored var permissionButton: (PermissionRow) -> Void = { _ in }
     /// Settings → General → Replay the tour. Set by the controller.
     @ObservationIgnored var replayTour: () -> Void = {}
-    /// Opens the ZENO window (ADR-081). Set by the controller.
+    /// Opens the ATOM window (ADR-081). Set by the controller.
     @ObservationIgnored var openHelpers: () -> Void = {}
 
     init(settings: IslandSettings) {
@@ -158,7 +158,7 @@ final class IslandModel {
     }
     func dropKeptChat(_ id: String) { send(.memoryDropChat(id: id)) }
 
-    /// Sends what a ZENO window action produced, if anything.
+    /// Sends what a ATOM window action produced, if anything.
     func sendHelpers(_ command: IslandCommand?) {
         if let command { send(command) }
     }
@@ -262,7 +262,7 @@ final class IslandModel {
         helpers.apply(event)
         lastLocation = location // a change the runtime made is not a step
         if let refresh = helpers.takeRefresh() { send(refresh) } // the open task changed: ask for its thread again
-        if helperRefusal { return } // a refused helper command is shown in the ZENO window only
+        if helperRefusal { return } // a refused helper command is shown in the ATOM window only
         conversation.apply(event)
         approval.apply(event)
         pointing.apply(event)

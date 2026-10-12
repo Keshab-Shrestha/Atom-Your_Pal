@@ -63,13 +63,13 @@ public enum DictationAudio {
 
 // MARK: - Vocabulary
 
-/// Words the speech model writes wrongly, mapped to what the user means ("zino" → "ZENO").
+/// Words the speech model writes wrongly, mapped to what the user means ("zino" → "ATOM").
 /// Whole words only, case-insensitive, longest alias first. This is a plain spelling fix after the fact:
 /// it never changes the audio or asks a model.
 ///
 /// File format (one entry per line; `#` starts a comment):
 ///
-///     ZENO: zeno, zino          the term, then the ways it comes out wrong
+///     ATOM: zeno, zino          the term, then the ways it comes out wrong
 ///     Kokoro                    only the term: fixes its capitalisation
 public struct DictationVocabulary: Sendable, Equatable {
     public struct Entry: Sendable, Equatable {
@@ -92,7 +92,7 @@ public struct DictationVocabulary: Sendable, Equatable {
 
     /// What every install starts with.
     public static let builtIn = DictationVocabulary(entries: [
-        Entry(term: "ZENO", aliases: ["zeno", "zino", "zeeno"]),
+        Entry(term: "ATOM", aliases: ["zeno", "zino", "zeeno"]),
     ])
 
     public func merging(_ other: DictationVocabulary) -> DictationVocabulary {
@@ -159,7 +159,7 @@ public enum DictationOutcome: Sendable, Equatable {
     case noSpeech
     /// The keys were let go almost at once.
     case tooShort
-    /// ZENO was already talking or still finishing the last dictation.
+    /// ATOM was already talking or still finishing the last dictation.
     case busy
     /// Something broke; the message includes how to fix it.
     case failed(title: String, message: String)

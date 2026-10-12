@@ -1,6 +1,6 @@
 import Foundation
 
-/// How to start the ZENO runtime: `node --env-file-if-exists=.env --disable-warning=ExperimentalWarning apps/mac/src/main.ts --island`
+/// How to start the ATOM runtime: `node --env-file-if-exists=.env --disable-warning=ExperimentalWarning apps/mac/src/main.ts --island`
 /// in the project folder.
 public struct RuntimeLaunch: Sendable, Equatable {
     public var executable: URL
@@ -24,13 +24,13 @@ public enum LocateError: Error, Equatable, CustomStringConvertible {
     public var description: String {
         switch self {
         case .projectNotFound(let tried):
-            "ZENO's project folder was not found (looked in: \(tried.joined(separator: ", "))). " +
-                "Rebuild ZENO.app from the project folder, or set ATOM_PROJECT_ROOT."
+            "ATOM's project folder was not found (looked in: \(tried.joined(separator: ", "))). " +
+                "Rebuild ATOM.app from the project folder, or set ATOM_PROJECT_ROOT."
         case .nodeNotFound(let tried):
             "Node.js was not found (looked in: \(tried.joined(separator: ", "))). " +
                 "Install it with `brew install node`, or set ATOM_NODE to its path."
         case .nodeTooOld(let path, let version):
-            "Node.js at \(path) is \(version); ZENO needs \(RuntimeLocator.minimumNode.text) or newer. " +
+            "Node.js at \(path) is \(version); ATOM needs \(RuntimeLocator.minimumNode.text) or newer. " +
                 "Update it with `brew upgrade node`, or set ATOM_NODE to a newer one."
         }
     }
@@ -63,7 +63,7 @@ public struct NodeVersion: Comparable, Sendable {
 
 /// Finds the project folder and a suitable Node.js. Inputs are injected so the search can be tested.
 public struct RuntimeLocator {
-    /// Node runs ZENO's TypeScript directly (type stripping), available from 22.18.
+    /// Node runs ATOM's TypeScript directly (type stripping), available from 22.18.
     public static let minimumNode = NodeVersion(22, 18, 0)
     /// The runtime's entry point, relative to the project folder; its presence identifies the folder.
     public static let entryPoint = "apps/mac/src/main.ts"
@@ -143,7 +143,7 @@ public struct RuntimeLocator {
         let nodeDir = (node as NSString).deletingLastPathComponent
         let existing = (env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin").split(separator: ":").map(String.init)
         env["PATH"] = unique([nodeDir] + Self.toolDirectories + existing).joined(separator: ":")
-        // ADR-060: the Calendar and Reminders helper next to the app's own binary, so permission is ZENO's.
+        // ADR-060: the Calendar and Reminders helper next to the app's own binary, so permission is ATOM's.
         if AtomEnv.read("ATOM_CALENDAR_HELPER", env) == nil, let helper = calendarHelper, isExecutable(helper) {
             env["ATOM_CALENDAR_HELPER"] = helper
         }

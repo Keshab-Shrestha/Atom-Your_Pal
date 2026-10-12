@@ -14,7 +14,7 @@ public struct IslandMetrics: Sendable, Equatable {
     public init() {}
 }
 
-/// Where the panel sits (ADR-056): just below ZENO's menu-bar icon, centred on it like Wi-Fi or Control Centre,
+/// Where the panel sits (ADR-056): just below ATOM's menu-bar icon, centred on it like Wi-Fi or Control Centre,
 /// slid sideways when that would cross the display's edge. AppKit coordinates: origin at the bottom left, y up.
 public struct MenuPanelLayout: Sendable, Equatable {
     public enum Presentation: Sendable, Equatable {

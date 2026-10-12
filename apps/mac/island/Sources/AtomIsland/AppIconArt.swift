@@ -2,9 +2,9 @@ import AppKit
 import SwiftUI
 import AtomIslandCore
 
-/// ADR-091: ZENO.app's icon, in the app's own look: Pal on the black Void tile with its graphite hairline and a faint
-/// glow of Pal's light behind it. Rendered at 1024 × 1024 (`ZENO_ISLAND_GALLERY_ONLY=icon`); `scripts/make-icon.sh`
-/// turns it into `assets/icon/ZENO.icns`.
+/// ADR-091: ATOM.app's icon, in the app's own look: Pal on the black Void tile with its graphite hairline and a faint
+/// glow of Pal's light behind it. Rendered at 1024 × 1024 (`ATOM_ISLAND_GALLERY_ONLY=icon`); `scripts/make-icon.sh`
+/// turns it into `assets/icon/ATOM.icns`.
 @MainActor
 enum AppIconArt {
     static let size: CGFloat = 1024

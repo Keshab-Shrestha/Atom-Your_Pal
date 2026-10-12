@@ -98,7 +98,7 @@ final class PetController {
     /// ADR-074: the outline around the window Pal would ask about while Option is held.
     private let outline = WindowOutline()
 
-    // ADR-073: Pal notices you while ZENO is idle.
+    // ADR-073: Pal notices you while ATOM is idle.
     private var reactions = PalReactionPlayer()
     /// Where the eyes look and how much the pointer is over Pal, eased each frame.
     private var gaze = (x: 0.0, y: 0.0)
@@ -170,7 +170,7 @@ final class PetController {
         }
     }
 
-    /// ZENO's state changed.
+    /// ATOM's state changed.
     func update(_ kind: IslandStatus.Kind, micLive: Bool = false) {
         brain.update(status: kind, at: Self.now)
         if kind != lastKind { lastKind = kind }
@@ -321,7 +321,7 @@ final class PetController {
     }
 
     /// ADR-073: the eyes ease toward the pointer, Pal grows a touch under it, and the reaction for this frame. Nothing
-    /// while the setting is off or while pointing; ZENO's state ends a reaction (`PalReactionPlayer`).
+    /// while the setting is off or while pointing; ATOM's state ends a reaction (`PalReactionPlayer`).
     private func notice(_ mood: PetBrain.Mood, now: Double, dt: Double) {
         let on = settings.palReacts && pointFeet == nil
         var wanted = (x: 0.0, y: 0.0)
@@ -341,7 +341,7 @@ final class PetController {
         state.reactionProgress = playing?.progress ?? 0
     }
 
-    /// Starts a reaction if the setting is on (ADR-073). ZENO's state and Reduce Motion are checked by the player.
+    /// Starts a reaction if the setting is on (ADR-073). ATOM's state and Reduce Motion are checked by the player.
     func react(_ reaction: PalReaction) {
         guard settings.palReacts else { return }
         reactions.start(reaction, at: Self.now, mood: state.mood, reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
@@ -481,7 +481,7 @@ final class PetController {
             drop()
         } else if wasClick {
             react(PalReaction.forClick(count: pressCount))
-            onClick(pressCount) // pressed and let go without moving: open (or close) the ZENO window
+            onClick(pressCount) // pressed and let go without moving: open (or close) the ATOM window
         }
     }
 
@@ -699,7 +699,7 @@ final class WindowOutline {
     }
 }
 
-/// Pal's window. AppKit must not move it: ZENO places it (dragged to any display, or along the Dock).
+/// Pal's window. AppKit must not move it: ATOM places it (dragged to any display, or along the Dock).
 final class PetPanel: NSPanel {
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
 }

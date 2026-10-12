@@ -113,7 +113,7 @@ public enum ShortcutAction: String, Sendable, CaseIterable, Identifiable, Codabl
 
     public var title: String {
         switch self {
-        case .talk: "Talk to ZENO"
+        case .talk: "Talk to ATOM"
         case .dictate: "Dictate"
         case .toggleIsland: "Show or hide the island"
         case .cancel: "Cancel"
@@ -125,7 +125,7 @@ public enum ShortcutAction: String, Sendable, CaseIterable, Identifiable, Codabl
         case .talk: "Hold, speak, let go to send"
         case .dictate: "Hold to speak, or tap to start and stop"
         case .toggleIsland: "Press to open or close"
-        case .cancel: "Press while ZENO listens or speaks"
+        case .cancel: "Press while ATOM listens or speaks"
         }
     }
 

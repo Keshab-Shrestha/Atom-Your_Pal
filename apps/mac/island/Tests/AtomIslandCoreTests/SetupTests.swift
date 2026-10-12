@@ -72,7 +72,7 @@ struct PermissionTests {
         #expect(PermissionState.granted.label == "Allowed")
         #expect(PermissionState.notAsked.label == "Not yet asked")
         #expect(PermissionRow.automation(.notes).stateLine(.unchecked) == "Not checked until Notes is open")
-        #expect(PermissionRow.microphone.stateLine(.denied).contains("switch ZENO on"))
+        #expect(PermissionRow.microphone.stateLine(.denied).contains("switch ATOM on"))
     }
 }
 
@@ -90,13 +90,13 @@ struct PlainFailureTests {
         guard case .showCommand(let text) = f.action else { Issue.record("expected showCommand"); return }
         #expect(text.contains("claude auth login"))
         // apps/mac/src/model-settings.ts, when switching to the plan without Claude Code.
-        let switching = try #require(PlainFailure.match("Install Claude Code and run `claude auth login` to use Claude (my plan), then restart ZENO."))
+        let switching = try #require(PlainFailure.match("Install Claude Code and run `claude auth login` to use Claude (my plan), then restart ATOM."))
         #expect(switching.sentence == f.sentence)
     }
 
-    /// ADR-092: ZENO no longer uses API keys, so a message about one is not a known failure.
+    /// ADR-092: ATOM no longer uses API keys, so a message about one is not a known failure.
     @Test func apiKeyMessagesAreNoLongerKnownFailures() {
-        #expect(PlainFailure.match("Add GEMINI_API_KEY to .env to use Gemini, then restart ZENO.") == nil)
+        #expect(PlainFailure.match("Add GEMINI_API_KEY to .env to use Gemini, then restart ATOM.") == nil)
         #expect(PlainFailure.match("Model key rejected (401). Check ANTHROPIC_API_KEY in .env.") == nil)
     }
 
@@ -117,11 +117,11 @@ struct PlainFailureTests {
     }
 
     @Test func microphoneDeniedOpensItsPane() throws {
-        let f = try #require(PlainFailure.match(title: "Microphone is off", message: "Allow ZENO under System Settings → Privacy & Security → Microphone."))
+        let f = try #require(PlainFailure.match(title: "Microphone is off", message: "Allow ATOM under System Settings → Privacy & Security → Microphone."))
         #expect(f.action == .openSettingsPane(PermissionRow.microphone.settingsURL))
         #expect(f.button == "Open Settings")
         // apps/mac/src/audio.ts
-        #expect(PlainFailure.match("ZENO is not allowed to use the microphone. Allow your terminal app in System Settings → Privacy & Security → Microphone, then restart it.")?.action == f.action)
+        #expect(PlainFailure.match("ATOM is not allowed to use the microphone. Allow your terminal app in System Settings → Privacy & Security → Microphone, then restart it.")?.action == f.action)
     }
 
     @Test func unknownFailuresKeepTodaysText() {
@@ -130,10 +130,10 @@ struct PlainFailureTests {
     }
 
     @Test func gaveUpOffersRestartAndLog() throws {
-        let f = try #require(PlainFailure.forStatus(.failed("ZENO's runtime keeps stopping: it exited with code 1")))
+        let f = try #require(PlainFailure.forStatus(.failed("ATOM's runtime keeps stopping: it exited with code 1")))
         #expect(f.action == .restartRuntime)
         #expect(f.offersLog)
-        #expect(f.sentence == "ZENO stopped after crashing several times.")
+        #expect(f.sentence == "ATOM stopped after crashing several times.")
     }
 
     @Test func configErrorUsesTheKnownSentenceAndRestarts() throws {
@@ -158,12 +158,12 @@ struct PlainFailureTests {
         status.apply(.state(.listening))
         #expect(status.failure == nil)
 
-        status.apply(.failed("ZENO's runtime keeps stopping: boom"))
+        status.apply(.failed("ATOM's runtime keeps stopping: boom"))
         #expect(status.failure?.action == .restartRuntime)
         status.apply(.running(pid: 2))
         #expect(status.failure == nil)
 
-        status.apply(DictationPhase.done(.failed(title: "Microphone is off", message: "Allow ZENO under System Settings → Privacy & Security → Microphone.")))
+        status.apply(DictationPhase.done(.failed(title: "Microphone is off", message: "Allow ATOM under System Settings → Privacy & Security → Microphone.")))
         #expect(status.failure != nil)
         status.dismissFailure()
         #expect(status.failure == nil)

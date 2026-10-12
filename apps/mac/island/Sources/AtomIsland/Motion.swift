@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// ZENO's named motion (ADR-084, design study §3): one small family of springs, so everything moves as if made by
+/// ATOM's named motion (ADR-084, design study §3): one small family of springs, so everything moves as if made by
 /// one hand. Things arrive with a little life and leave without fuss: nothing springs on the way out.
 /// Every name takes Reduce Motion: springs become a plain 0.15 s ease-out, breathing stops, cascades collapse.
 enum Motion {

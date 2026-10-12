@@ -2,13 +2,13 @@ import AppKit
 import SwiftUI
 import AtomIslandCore
 
-// ADR-056: ZENO's fixed homes. The menu-bar icon opens the panel; the work strip above the Dock shows what ZENO is
+// ADR-056: ATOM's fixed homes. The menu-bar icon opens the panel; the work strip above the Dock shows what ATOM is
 // doing on the Mac and asks before risky actions; a short label sits beside Pal while it points.
 
 // MARK: - Menu-bar icon
 
-/// ZENO's menu-bar icon: Pal's silhouette, lit by ZENO's state. A click opens or closes the panel;
-/// right-click (or Control-click) shows Open ZENO, Helpers…, Show Pal and Quit ZENO.
+/// ATOM's menu-bar icon: Pal's silhouette, lit by ATOM's state. A click opens or closes the panel;
+/// right-click (or Control-click) shows Open ATOM, Helpers…, Show Pal and Quit ATOM.
 @MainActor
 final class MenuBarIcon: NSObject {
     var onClick: () -> Void = {}
@@ -27,13 +27,13 @@ final class MenuBarIcon: NSObject {
             button.target = self
             button.action = #selector(clicked)
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-            button.setAccessibilityLabel("ZENO")
-            button.toolTip = "ZENO"
+            button.setAccessibilityLabel("ATOM")
+            button.toolTip = "ATOM"
         }
         update(.starting, title: "Starting")
     }
 
-    /// Shows ZENO's state on Pal's glyph (ADR-084): plain (template) most of the time, Pal's light while
+    /// Shows what ATOM is doing on Pal's glyph (ADR-084): plain (template) most of the time, Pal's light while
     /// listening, amber when Pal needs you, coral on a problem.
     /// `flat`: Void's flat colours, no glow (ADR-086).
     func update(_ kind: IslandStatus.Kind, title: String, flat: Bool = false) {
@@ -41,7 +41,7 @@ final class MenuBarIcon: NSObject {
         guard kind != self.kind || flat != self.flat else { return }
         self.kind = kind
         self.flat = flat
-        item.button?.image = MenuBarGlyph.image(MenuBarLight(kind), flat: flat, description: "ZENO: \(title)")
+        item.button?.image = MenuBarGlyph.image(MenuBarLight(kind), flat: flat, description: "ATOM: \(title)")
     }
 
     /// Where the panel hangs from: the icon's display and centre. Nil when the icon is not on screen (hidden by the notch).
@@ -65,10 +65,10 @@ final class MenuBarIcon: NSObject {
 
     private func showMenu() {
         let menu = NSMenu()
-        let open = NSMenuItem(title: "Open ZENO", action: #selector(openPanel), keyEquivalent: "")
+        let open = NSMenuItem(title: "Open ATOM", action: #selector(openPanel), keyEquivalent: "")
         open.target = self
         menu.addItem(open)
-        let helpers = NSMenuItem(title: "Open ZENO…", action: #selector(openHelpers), keyEquivalent: "")
+        let helpers = NSMenuItem(title: "Open ATOM…", action: #selector(openHelpers), keyEquivalent: "")
         helpers.target = self
         menu.addItem(helpers)
         let pal = NSMenuItem(title: "Show ATOM", action: #selector(togglePal), keyEquivalent: "")
@@ -76,7 +76,7 @@ final class MenuBarIcon: NSObject {
         pal.state = isPalShown() ? .on : .off
         menu.addItem(pal)
         menu.addItem(.separator())
-        let quit = NSMenuItem(title: "Quit ZENO", action: #selector(quit), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit ATOM", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
         // Attached only for this click, so a left click still opens the panel.
@@ -93,7 +93,7 @@ final class MenuBarIcon: NSObject {
 
 // MARK: - Work strip
 
-/// The strip's content: what ZENO is doing and Stop, or — while a request waits — what it wants to do, why, and
+/// The strip's content: what ATOM is doing and Stop, or — while a request waits — what it wants to do, why, and
 /// Decline / Allow. Lantern's night glass (ADR-084); asking turns it to the amber family, with Allow the one fill.
 struct WorkStripView: View {
     let model: IslandModel
@@ -138,12 +138,12 @@ struct WorkStripView: View {
         .animation(.easeOut(duration: 0.18), value: asking)
         .padding(WorkStripController.shadowInset)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(asking ? "ZENO needs your OK" : "ZENO: \(model.work.line)")
+        .accessibilityLabel(asking ? "ATOM needs your OK" : "ATOM: \(model.work.line)")
     }
 
 }
 
-/// What ZENO is doing, and Stop. Its own view so it reads the theme set on the strip.
+/// What ATOM is doing, and Stop. Its own view so it reads the theme set on the strip.
 private struct StepRow: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
@@ -174,7 +174,7 @@ private struct StepRow: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Stop")
-                .accessibilityHint("Stops what ZENO is doing on your Mac")
+                .accessibilityHint("Stops what ATOM is doing on your Mac")
             }
         }
         .padding(.leading, 18)
@@ -195,7 +195,7 @@ private struct AskingView: View {
                 HStack(spacing: 8) {
                     Circle().fill(theme.attention.color).frame(width: 7, height: 7)
                         .shadow(color: theme.attention.color.opacity(theme.usesGlow ? 0.8 : 0), radius: 4)
-                    Text("ZENO needs your OK")
+                    Text("ATOM needs your OK")
                         .font(.system(size: 11.5, weight: .medium))
                         .foregroundStyle(theme.statusDots ? theme.text2.color : theme.attention.color) // Void: colour only on the dot
                 }
@@ -280,7 +280,7 @@ struct WorkGlyph: View {
     }
 }
 
-/// A dot of Pal's light that breathes while ZENO works (`Motion.breathe`); still with Reduce Motion and in snapshots.
+/// A dot of Pal's light that breathes while ATOM works (`Motion.breathe`); still with Reduce Motion and in snapshots.
 private struct WorkingLight: View {
     let color: Color
     @Environment(\.theme) private var theme
@@ -289,7 +289,7 @@ private struct WorkingLight: View {
 
     var body: some View {
         let breathe = snapshot ? nil : Motion.breathe(reduceMotion)
-        // Void keeps the breath (it says ZENO is working) but drops the glow around the dot.
+        // Void keeps the breath (it says ATOM is working) but drops the glow around the dot.
         PhaseAnimator(breathe == nil ? [1.0] : [1.0, 0.45]) { glow in
             Circle().fill(color).frame(width: 7, height: 7)
                 .shadow(color: color.opacity(theme.usesGlow ? 0.9 * glow : 0), radius: 2 + 4 * glow)
@@ -299,7 +299,7 @@ private struct WorkingLight: View {
 }
 
 /// The strip's window: bottom centre of the main display, above the Dock and Pal's walkway. It can be clicked
-/// but never takes focus, so the app ZENO is working in keeps it.
+/// but never takes focus, so the app ATOM is working in keeps it.
 @MainActor
 final class WorkStripController {
     /// Room around the strip for its shadow.
@@ -422,7 +422,7 @@ struct PointLabelView: View {
         .themed(palette)
         .padding(PointLabelController.shadowInset)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("ZENO is pointing at \(text)")
+        .accessibilityLabel("ATOM is pointing at \(text)")
     }
 }
 

@@ -13,7 +13,7 @@ public enum TourStep: Sendable, Equatable {
     case done
 }
 
-/// The first-run tour: runs once (`zeno.tourDone`), replayable from Settings → General, and ends at once if the user
+/// The first-run tour: runs once (`atom.tourDone`), replayable from Settings → General, and ends at once if the user
 /// talks or dictates. Pure state: the controller runs each step after its delay.
 public struct FirstRunTour: Sendable, Equatable {
     public struct Beat: Sendable, Equatable {

@@ -1,6 +1,6 @@
 import Foundation
 
-/// ADR-091: a macOS notification ZENO posts: something needs Keshab, a task is done or failed, or a budget or the
+/// ADR-091: a macOS notification ATOM posts: something needs Keshab, a task is done or failed, or a budget or the
 /// plan is nearly used. Titles and short reasons only: never a report's text.
 public struct AppNotice: Sendable, Equatable {
     public enum Kind: String, Sendable, CaseIterable {

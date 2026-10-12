@@ -82,7 +82,7 @@ struct ChatSoundsMenu: View {
             PillMenuLabel(label: "Sounds", value: quiet ? "Quiet" : settings.speakReports && settings.speakUpdates ? "On" : "Some", dimmed: quiet, identifier: false)
         }
         .menuStyle(.button).buttonStyle(.plain).fixedSize()
-        .help("What ZENO says aloud while you chat")
+        .help("What ATOM says aloud while you chat")
         .accessibilityLabel("Sounds")
     }
 

@@ -208,7 +208,7 @@ struct RuntimeLocatorTests {
         #expect(launch.executable.path == "/custom/node")
     }
 
-    @Test func aFolderWithoutZENOIsSkipped() throws {
+    @Test func aFolderWithoutATOMIsSkipped() throws {
         let launch = try locator(env: ["ATOM_PROJECT_ROOT": "/stale"]).locate()
         #expect(launch.directory.path == "/p/zeno")
     }

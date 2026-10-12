@@ -1,4 +1,4 @@
-// The messages exchanged with the ZENO runtime. Specification: docs/island-protocol.md.
+// The messages exchanged with the ATOM runtime. Specification: docs/island-protocol.md.
 import Foundation
 
 public let supportedProtocolVersion = 1
@@ -32,7 +32,7 @@ public enum IslandCommand: Sendable, Equatable {
     /// Helpers (ADR-081): ask for the list (and its changes from then on), give a helper its app (`""` for none),
     /// give it a job, stop or forget a job.
     case helpersList
-    /// ADR-091: whether ZENO says reports, and timers and updates, aloud.
+    /// ADR-091: whether ATOM says reports, and timers and updates, aloud.
     case speechSet(reports: Bool, updates: Bool, chime: Bool)
     /// ADR-098: Settings' "Send to Telegram" switch.
     case telegramSet(push: Bool)
@@ -47,7 +47,7 @@ public enum IslandCommand: Sendable, Equatable {
     /// ADR-097: keep a chat in memory (summary, sections and exact lines), or remove it from memory.
     case memoryKeepChat(id: String)
     case memoryDropChat(id: String)
-    /// ADR-091: ZENO's task branches; push one (Keshab confirmed); a branch's changes.
+    /// ADR-091: ATOM's task branches; push one (Keshab confirmed); a branch's changes.
     case gitList
     case gitPush(repo: String, branch: String)
     case gitDiff(repo: String, branch: String)
@@ -517,7 +517,7 @@ public struct ModelInfo: Sendable, Equatable {
     }
 }
 
-/// One fact ZENO keeps (ADR-058), as listed in Settings. Never written to a log.
+/// One fact ATOM keeps (ADR-058), as listed in Settings. Never written to a log.
 public struct MemoryItem: Sendable, Equatable, Identifiable {
     public var id: Int
     public var text: String
@@ -533,7 +533,7 @@ public struct MemoryItem: Sendable, Equatable, Identifiable {
     }
 }
 
-/// ZENO's note about one past conversation (ADR-059). Never written to a log.
+/// ATOM's note about one past conversation (ADR-059). Never written to a log.
 public struct EpisodeItem: Sendable, Equatable, Identifiable {
     public var id: Int
     public var summary: String
@@ -548,9 +548,9 @@ public struct EpisodeItem: Sendable, Equatable, Identifiable {
     }
 }
 
-/// What ZENO keeps, from the `memory` event.
+/// What ATOM keeps, from the `memory` event.
 public struct MemoryList: Sendable, Equatable {
-    /// False when memory is off in the runtime (`ZENO_MEMORY=0`, or the file could not be opened).
+    /// False when memory is off in the runtime (`ATOM_MEMORY=0`, or the file could not be opened).
     public var enabled: Bool
     public var count: Int
     /// Newest first.
@@ -576,7 +576,7 @@ public struct MemoryChatItem: Sendable, Equatable, Identifiable {
     public var updatedAt: Date?
     public var messages: Int
     public var kept: Bool
-    /// True while ZENO writes the chat's summary and index.
+    /// True while ATOM writes the chat's summary and index.
     public var indexing: Bool
     public var keptAt: Date?
 
@@ -591,7 +591,7 @@ public struct MemoryChatItem: Sendable, Equatable, Identifiable {
     }
 }
 
-/// One thing ZENO can do, with phrases to try (ADR-076), from the `capabilities` event. Only tools that are on are listed.
+/// One thing ATOM can do, with phrases to try (ADR-076), from the `capabilities` event. Only tools that are on are listed.
 public struct CapabilityItem: Sendable, Equatable {
     public var title: String
     public var examples: [String]
@@ -649,7 +649,7 @@ public struct ReadyInfo: Sendable, Equatable {
     public var microphone: String
     /// False if the voice failed to load; replies still arrive as text.
     public var voice: Bool
-    /// ADR-098: ZENO's Telegram bot is set up in .env (false from an older runtime).
+    /// ADR-098: ATOM's Telegram bot is set up in .env (false from an older runtime).
     public var telegram: Bool = false
 }
 
@@ -675,11 +675,11 @@ public struct TurnTimings: Sendable, Equatable {
     public var firstSoundMs: Int?
 }
 
-/// Something ZENO will not do until the user says yes (ADR-054). Wording comes from the runtime and carries
+/// Something ATOM will not do until the user says yes (ADR-054). Wording comes from the runtime and carries
 /// the app and the action, never typed text or screen content.
 public struct ApprovalRequest: Sendable, Equatable {
     public var id: String
-    /// What ZENO is about to do, e.g. `Click "Send" in Mail`.
+    /// What ATOM is about to do, e.g. `Click "Send" in Mail`.
     public var summary: String
     /// Why it asks.
     public var reason: String
@@ -711,24 +711,24 @@ public enum IslandEvent: Sendable, Equatable {
     case turnComplete(TurnTimings)
     case notice(kind: String, message: String)
     case conversationReset
-    /// ZENO is about to do something on the Mac, in plain words (ADR-054).
+    /// ATOM is about to do something on the Mac, in plain words (ADR-054).
     case computerStep(String)
-    /// ZENO shows the user a place on screen: Pal flies there and the bubble says what it is (ADR-054).
+    /// ATOM shows the user a place on screen: Pal flies there and the bubble says what it is (ADR-054).
     case computerPoint(PointTarget)
-    /// ZENO is waiting for the user to allow or decline an action.
+    /// ATOM is waiting for the user to allow or decline an action.
     case approvalRequest(ApprovalRequest)
     /// That request is no longer waiting: answered, declined, timed out or cancelled.
     case approvalClosed(id: String)
     case info(ModelInfo)
-    /// What ZENO keeps (ADR-058): after `memory.list`, and after every change from then on.
+    /// What ATOM keeps (ADR-058): after `memory.list`, and after every change from then on.
     case memory(MemoryList)
     /// A timer ended (ADR-061). The runtime also says `message` aloud.
     case timer(id: Int, label: String, message: String)
-    /// Task 3.15: a line from the team, just before ZENO says it.
+    /// Task 3.15: a line from the team, just before ATOM says it.
     case workerLine(String)
     /// The answer to `context.window` (ADR-074): the app was read for the next question, or refused with `message`.
     case contextReady(app: String, ok: Bool, message: String?)
-    /// What ZENO can do, once after `ready` (ADR-076).
+    /// What ATOM can do, once after `ready` (ADR-076).
     case capabilities([CapabilityItem])
     /// Claude plan usage, whenever the plan reports it (ADR-076).
     case planUsage(PlanUsage)
@@ -738,10 +738,10 @@ public enum IslandEvent: Sendable, Equatable {
     case mediaKey(MediaKey)
     /// Every helper and its recent jobs (ADR-081): after every helper command, and on changes once asked.
     case helpers(HelpersList)
-    /// ADR-091: Keshab's chats and the one ZENO is in; a chat opened, with its turns.
+    /// ADR-091: Keshab's chats and the one ATOM is in; a chat opened, with its turns.
     case chats(ChatList)
     case chatOpened(id: String, lines: [ChatLine])
-    /// ADR-091: ZENO's task branches; one branch's changes as a patch.
+    /// ADR-091: ATOM's task branches; one branch's changes as a patch.
     case git([GitBranch])
     case gitDiff(GitDiff)
     case thread(HelperThread)
@@ -1239,7 +1239,7 @@ private struct Fields {
         }
     }
 
-    /// ADR-094: Tinker's edits to ZENO's skills; absent (an older runtime) is empty. A malformed entry is left out.
+    /// ADR-094: Tinker's edits to ATOM's skills; absent (an older runtime) is empty. A malformed entry is left out.
     static func skillEdits(_ value: Any?) -> [SkillEditItem] {
         (value as? [Any] ?? []).compactMap { entry in
             guard let e = entry as? [String: Any], let id = e["id"] as? NSNumber, let skill = e["skill"] as? String, let state = e["state"] as? String else { return nil }
@@ -1399,7 +1399,7 @@ private struct Fields {
         }
     }
 
-    /// ADR-091: ZENO's task branches; a malformed entry is left out.
+    /// ADR-091: ATOM's task branches; a malformed entry is left out.
     static func branches(_ value: Any?) -> [GitBranch] {
         (value as? [Any] ?? []).compactMap { entry in
             guard let m = entry as? [String: Any], let repo = m["repo"] as? String, let branch = m["branch"] as? String, let task = m["task"] as? NSNumber else { return nil }
@@ -1474,7 +1474,7 @@ public struct AiTool: Sendable, Equatable, Identifiable {
     public var found: Bool
     /// Nil when the tool cannot be asked without reading its login.
     public var signedIn: Bool?
-    /// The provider ZENO runs it as; nil for tools ZENO does not use (local models).
+    /// The provider ATOM runs it as; nil for tools ATOM does not use (local models).
     public var provider: String?
     public var note: String
 

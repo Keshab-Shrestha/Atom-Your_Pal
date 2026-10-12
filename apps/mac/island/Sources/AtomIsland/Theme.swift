@@ -59,7 +59,7 @@ extension ThemePalette {
         return AnyShapeStyle(LinearGradient(colors: [top.color, bottom.color], startPoint: .top, endPoint: .bottom))
     }
 
-    /// Tints for ZENO's states, from the theme: live states use `live`, the brain's states the accent's end,
+    /// Tints for ATOM's states, from the theme: live states use `live`, the brain's states the accent's end,
     /// attention and problems their own colours. Quiet states use secondary text.
     func tint(_ kind: IslandStatus.Kind) -> Color {
         switch kind {

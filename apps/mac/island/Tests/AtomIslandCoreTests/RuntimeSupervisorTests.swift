@@ -24,7 +24,7 @@ struct RuntimeSupervisorTests {
     let dir: URL
 
     init() throws {
-        dir = FileManager.default.temporaryDirectory.appendingPathComponent("zeno-island-tests-\(UUID().uuidString)")
+        dir = FileManager.default.temporaryDirectory.appendingPathComponent("atom-island-tests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     }
 
@@ -134,7 +134,7 @@ struct RuntimeSupervisorTests {
         supervisor.start()
         try await waitUntil { if case .failed = supervisor.currentStatus() { true } else { false } }
         #expect(recorder.pids.count == 4) // first run + 3 restarts
-        #expect(supervisor.currentStatus() == .failed("ZENO's runtime keeps stopping: bug"))
+        #expect(supervisor.currentStatus() == .failed("ATOM's runtime keeps stopping: bug"))
         // Starting again by hand gets a fresh set of attempts.
         supervisor.start()
         try await waitUntil { recorder.pids.count > 4 }
@@ -168,7 +168,7 @@ struct RuntimeSupervisorTests {
         supervisor.start()
         try await waitUntil { if case .failed = supervisor.currentStatus() { true } else { false } }
         if case .failed(let message) = supervisor.currentStatus() {
-            #expect(message.contains("Could not start ZENO's runtime"))
+            #expect(message.contains("Could not start ATOM's runtime"))
         }
     }
 

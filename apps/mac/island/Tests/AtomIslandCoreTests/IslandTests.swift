@@ -5,7 +5,7 @@ import Testing
 @Suite("MenuPanelLayout")
 struct MenuPanelLayoutTests {
     // The Mac mini's main display: 1920 × 1080 points, menu bar 24 points tall (its bottom at y = 1056;
-    // AppKit coordinates grow upward). ZENO's icon is centred at x = 1500.
+    // AppKit coordinates grow upward). ATOM's icon is centred at x = 1500.
     // A tall panel-sized card, so clamping to the display is tested at a real panel's size.
     static let tall: IslandMetrics = { var m = IslandMetrics(); m.wide = CGSize(width: 380, height: 460); return m }()
     let layout = MenuPanelLayout(screen: CGRect(x: 0, y: 0, width: 1920, height: 1080), menuBarBottom: 1056, iconMidX: 1500, metrics: Self.tall)

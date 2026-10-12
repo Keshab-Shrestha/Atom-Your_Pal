@@ -40,7 +40,7 @@ public struct PlainFailure: Sendable, Equatable {
     ///   `claude auth login` to use …" (apps/mac/src/model-settings.ts).
     /// - "Whisper model not found at …" (apps/mac/src/stt.ts); the dictation title "Speech model missing"
     ///   (DictationController, Parakeet).
-    /// - The dictation title "Microphone is off" (DictationController); "ZENO is not allowed to use the microphone."
+    /// - The dictation title "Microphone is off" (DictationController); "ATOM is not allowed to use the microphone."
     ///   (apps/mac/src/audio.ts).
     public static func match(title: String = "", message: String) -> PlainFailure? {
         if message.contains("claude auth login") {
@@ -58,10 +58,10 @@ public struct PlainFailure: Sendable, Equatable {
         }
         if title == "Speech model missing" {
             return PlainFailure(sentence: "The dictation model hasn't downloaded yet.", button: "How to download",
-                                action: .showCommand("ZENO downloads it (about 450 MB) the first time you dictate. Check the internet connection, then dictate again."))
+                                action: .showCommand("ATOM downloads it (about 450 MB) the first time you dictate. Check the internet connection, then dictate again."))
         }
         if title == "Microphone is off" || message.contains("not allowed to use the microphone") {
-            return PlainFailure(sentence: "ZENO isn't allowed to use the microphone.", button: "Open Settings",
+            return PlainFailure(sentence: "ATOM isn't allowed to use the microphone.", button: "Open Settings",
                                 action: .openSettingsPane(PermissionRow.microphone.settingsURL))
         }
         return nil
@@ -70,17 +70,17 @@ public struct PlainFailure: Sendable, Equatable {
     /// Shorthand for a runtime error message.
     public static func match(_ message: String) -> PlainFailure? { match(title: "", message: message) }
 
-    /// The runtime stopped and will not be restarted on its own: "Restart ZENO" and "Open log".
+    /// The runtime stopped and will not be restarted on its own: "Restart ATOM" and "Open log".
     public static func forStatus(_ status: RuntimeSupervisor.Status) -> PlainFailure? {
         let sentence: String
         switch status {
-        case .failed: sentence = "ZENO stopped after crashing several times."
+        case .failed: sentence = "ATOM stopped after crashing several times."
         case .configError(let message):
-            sentence = match(message).map { "\($0.sentence) Fix it, then restart ZENO." } ?? "ZENO's settings in .env need fixing. The log says which."
-        case .stopped: sentence = "ZENO is not running."
+            sentence = match(message).map { "\($0.sentence) Fix it, then restart ATOM." } ?? "ATOM's settings in .env need fixing. The log says which."
+        case .stopped: sentence = "ATOM is not running."
         case .running, .restarting: return nil
         }
-        return PlainFailure(sentence: sentence, button: "Restart ZENO", action: .restartRuntime)
+        return PlainFailure(sentence: sentence, button: "Restart ATOM", action: .restartRuntime)
     }
 
     /// The model's limit is reached (a `rate_limit` error) and another provider is usable: "Switch to <name>" with its

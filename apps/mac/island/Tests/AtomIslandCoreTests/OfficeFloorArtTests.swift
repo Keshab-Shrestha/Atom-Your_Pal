@@ -109,7 +109,7 @@ struct PalStanceMotionTests {
         #expect(abs(done.squashX - 1) < 0.001 && abs(done.squashY - 1) < 0.001)
     }
 
-    /// ADR-093: a click opens the ZENO window, a second click (window open and in front) closes it; a double-click's
+    /// ADR-093: a click opens the ATOM window, a second click (window open and in front) closes it; a double-click's
     /// second press finds it open and leaves it.
     /// ADR-093: while listening Pal waits until the microphone is capturing, then raises its arms with sound bars.
     @Test func speakNowShowsOnPal() {
@@ -132,7 +132,7 @@ struct PalStanceMotionTests {
 @Suite("AI tools found")
 struct AiToolTests {
     @Test func infoCarriesTheToolsFound() throws {
-        guard case .info(let info) = try decodeEvent(#"{"type":"info","provider":"claude-plan","model":"claude-sonnet-5-5","providers":[{"id":"claude-plan","name":"Claude (my plan)","available":true,"models":[]}],"tools":[{"id":"codex","name":"Codex","found":true,"signedIn":true,"provider":"codex","note":"Signed in"},{"id":"ollama","name":"Ollama","found":true,"note":"Found: local models are not used by ZENO"},{"bad":1}]}"#) else {
+        guard case .info(let info) = try decodeEvent(#"{"type":"info","provider":"claude-plan","model":"claude-sonnet-5-5","providers":[{"id":"claude-plan","name":"Claude (my plan)","available":true,"models":[]}],"tools":[{"id":"codex","name":"Codex","found":true,"signedIn":true,"provider":"codex","note":"Signed in"},{"id":"ollama","name":"Ollama","found":true,"note":"Found: local models are not used by ATOM"},{"bad":1}]}"#) else {
             Issue.record("not info"); return
         }
         #expect(info.tools.map(\.id) == ["codex", "ollama"])

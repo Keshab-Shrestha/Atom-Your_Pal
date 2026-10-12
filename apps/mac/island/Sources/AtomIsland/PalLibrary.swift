@@ -1,8 +1,8 @@
 import Foundation
 import AtomIslandCore
 
-/// ADR-089: the pals' characters (avatar definitions), each file read once. The folder: `ZENO_PALS_DIR` if set; in
-/// ZENO.app its Resources/pals (build-app.sh copies `assets/pals`); in a development build the repo's `assets/pals`,
+/// ADR-089: the pals' characters (avatar definitions), each file read once. The folder: `ATOM_PALS_DIR` if set; in
+/// ATOM.app its Resources/pals (build-app.sh copies `assets/pals`); in a development build the repo's `assets/pals`,
 /// found above the executable or the working directory. An agent Keshab added gets Pal's shape in its own colours.
 @MainActor
 enum PalLibrary {

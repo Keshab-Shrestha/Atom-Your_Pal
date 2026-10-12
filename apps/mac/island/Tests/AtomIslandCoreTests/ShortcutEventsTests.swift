@@ -34,9 +34,9 @@ struct ShortcutEventsTests {
 
     @Test func missingPermissionNoticeIsPlain() {
         var status = IslandStatus()
-        status.apply(.notice(kind: "media_key_permission", message: "To press play/pause, allow ZENO in System Settings → Privacy & Security → Accessibility."))
+        status.apply(.notice(kind: "media_key_permission", message: "To press play/pause, allow ATOM in System Settings → Privacy & Security → Accessibility."))
         #expect(status.kind == .notice)
         #expect(status.title == "Can't press play/pause")
-        #expect(status.detail == "Allow ZENO under Accessibility")
+        #expect(status.detail == "Allow ATOM under Accessibility")
     }
 }

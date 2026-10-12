@@ -90,7 +90,7 @@ struct HelpersProtocolTests {
     }
 }
 
-@Suite("ZENO window state (ADR-081)")
+@Suite("ATOM window state (ADR-081)")
 struct HelpersStateTests {
     func list(_ line: String = HelpersProtocolTests.helpersLine) throws -> IslandEvent { try decodeEvent(line) }
 
@@ -785,7 +785,7 @@ struct SkillsThatGrowTests {
         var state = HelpersState()
         state.apply(try decodeEvent(Self.line))
         let list = try #require(state.list)
-        #expect(list.skills.map(\.sourceTitle) == ["yours", "made by ZENO", "yours"], "an older runtime sends no source: Keshab's")
+        #expect(list.skills.map(\.sourceTitle) == ["yours", "made by ATOM", "yours"], "an older runtime sends no source: Keshab's")
         #expect(list.skillDrafts.map(\.id) == [2, 1] && list.skillDrafts[0].preview == "1. Start simple.")
         #expect(list.skillEdits.map(\.state) == ["pending", "accepted"] && list.skillEdits[0].before == "2. Two.")
         var older = HelpersState()
@@ -850,7 +850,7 @@ struct HelperOpenTests {
 @Suite("Workers on screen (Task 3.15)")
 struct WorkersOnScreenTests {
     @Test func aLineFromTheTeamShowsWhenIdle() throws {
-        guard case .workerLine(let line) = try decodeEvent(#"{"type":"worker.line","line":"Your networking guide is ready. The ZENO window has the report."}"#) else {
+        guard case .workerLine(let line) = try decodeEvent(#"{"type":"worker.line","line":"Your networking guide is ready. The ATOM window has the report."}"#) else {
             Issue.record("not a worker line"); return
         }
         var status = IslandStatus()
@@ -1075,12 +1075,12 @@ struct NoticeTests {
 struct TokenUsageTests {
     @Test func decodesUsageAndShortensNumbers() throws {
         let line = HelperTaskTests.line.replacingOccurrences(of: #"{"type":"helpers","apps":[],"#,
-            with: #"{"type":"helpers","apps":[],"usage":{"today":{"input":10,"output":5,"cacheRead":100,"cacheWrite":2,"dollars":0.5,"runs":1},"week":{"input":10,"output":5,"cacheRead":100,"cacheWrite":2,"dollars":0.5,"runs":1},"days":[{"day":"2026-10-11","input":10,"output":5,"cacheRead":100,"cacheWrite":2,"dollars":0.5,"runs":1}],"byWorker":[{"helper":null,"name":"ZENO chat","input":10,"output":5,"cacheRead":100,"cacheWrite":2,"dollars":0.5,"runs":1}],"byModel":[{"model":"claude-sonnet-5-5","input":1,"output":0,"cacheRead":0,"cacheWrite":0,"dollars":0,"runs":1},{"bad":1}]},"#)
+            with: #"{"type":"helpers","apps":[],"usage":{"today":{"input":10,"output":5,"cacheRead":100,"cacheWrite":2,"dollars":0.5,"runs":1},"week":{"input":10,"output":5,"cacheRead":100,"cacheWrite":2,"dollars":0.5,"runs":1},"days":[{"day":"2026-10-11","input":10,"output":5,"cacheRead":100,"cacheWrite":2,"dollars":0.5,"runs":1}],"byWorker":[{"helper":null,"name":"ATOM chat","input":10,"output":5,"cacheRead":100,"cacheWrite":2,"dollars":0.5,"runs":1}],"byModel":[{"model":"claude-sonnet-5-5","input":1,"output":0,"cacheRead":0,"cacheWrite":0,"dollars":0,"runs":1},{"bad":1}]},"#)
         var state = HelpersState()
         state.apply(try decodeEvent(line))
         let usage = try #require(state.list?.usage)
         #expect(usage.today.total == 117 && usage.today.fresh == 17 && usage.days.first?.day == "2026-10-11")
-        #expect(usage.byWorker.first?.helper == nil && usage.byWorker.first?.name == "ZENO chat" && usage.byModel.map(\.model) == ["claude-sonnet-5-5"])
+        #expect(usage.byWorker.first?.helper == nil && usage.byWorker.first?.name == "ATOM chat" && usage.byModel.map(\.model) == ["claude-sonnet-5-5"])
         #expect([TokenTotals.short(850), TokenTotals.short(1240), TokenTotals.short(12_400), TokenTotals.short(3_100_000)] == ["850", "1.2K", "12K", "3.1M"])
     }
 }
@@ -1122,7 +1122,7 @@ struct ReadOnlyChatTests {
 @Suite("Git branches (ADR-091)")
 struct GitBranchTests {
     @Test func decodesBranchesAndKnowsWhenOneCanBePushed() throws {
-        let event = try decodeEvent(#"{"type":"git","branches":[{"repo":"/r","repoName":"r","branch":"zeno/task-7","task":7,"title":"Notes","base":"origin/main","commits":[{"sha":"abc1234","subject":"ZENO task 7","at":"2026-10-11T00:00:00+09:00"}],"files":[{"path":"a.md","added":2,"removed":1},{"path":"b.png","added":null,"removed":null}],"remote":"git@github.com:k/r.git","pushed":"no"},{"bad":1}]}"#)
+        let event = try decodeEvent(#"{"type":"git","branches":[{"repo":"/r","repoName":"r","branch":"zeno/task-7","task":7,"title":"Notes","base":"origin/main","commits":[{"sha":"abc1234","subject":"ATOM task 7","at":"2026-10-11T00:00:00+09:00"}],"files":[{"path":"a.md","added":2,"removed":1},{"path":"b.png","added":null,"removed":null}],"remote":"git@github.com:k/r.git","pushed":"no"},{"bad":1}]}"#)
         var state = HelpersState()
         state.apply(event)
         let b = try #require(state.git?.first)
