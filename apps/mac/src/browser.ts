@@ -131,6 +131,8 @@ export function browserCheck(options: BrowserCheckOptions) {
       say("allowed", origin);
       return { step: `Browser: open ${origin ?? "a blank page"}` };
     }
+    // No page yet: nothing to ask about, so a page action fails closed. Open a site first.
+    if (!page && !NO_PAGE.has(tool)) return refuse("Open a site with browser_navigate first. The browser acts only on a site Keshab allowed.");
     // Acting on the page it is on (a link or a redirect may have brought it to a new site).
     if (page && !NO_PAGE.has(tool)) {
       if (!(await mayOpen(page))) {

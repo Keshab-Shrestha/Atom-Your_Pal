@@ -38,8 +38,20 @@ test("stdout holds only JSON-RPC messages; tools are listed; an unreachable ZENO
   const msgs = r.lines.map((l) => JSON.parse(l));
   assert.ok(msgs.every((m) => m.jsonrpc === "2.0"), "every stdout line is JSON-RPC");
   const by = (id: number) => msgs.find((m) => m.id === id);
-  assert.deepEqual(by(2).result.tools.map((t: any) => t.name).sort(), ["zeno_chat", "zeno_give_goal", "zeno_goal_status", "zeno_list_tasks", "zeno_needs_you", "zeno_task_report"]);
+  assert.deepEqual(by(2).result.tools.map((t: any) => t.name).sort(), ["zeno_answer_need", "zeno_chat", "zeno_give_goal", "zeno_goal_status", "zeno_list_tasks", "zeno_needs_you", "zeno_task_report"]);
   assert.equal(by(3).result.isError, true);
   assert.match(by(3).result.content[0].text, /token|does not answer/i);
   assert.equal(by(4).result.isError, true);
+});
+
+test("zeno_answer_need needs key and action, and an unreachable ZENO is a tool error", async () => {
+  const r = await session([
+    init, initialized,
+    { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "zeno_answer_need", arguments: { key: "q1", action: "allow" } } },
+  ]);
+  const msgs = r.lines.map((l) => JSON.parse(l));
+  assert.ok(msgs.every((m) => m.jsonrpc === "2.0"));
+  const res = msgs.find((m) => m.id === 2).result;
+  assert.equal(res.isError, true);
+  assert.match(res.content[0].text, /token|does not answer/i);
 });

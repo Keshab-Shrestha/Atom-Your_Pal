@@ -1323,10 +1323,10 @@ Keshab asked for build only, so these items have no tests. The local API and the
 
 - A Telegram turn and a window turn on the same chat can disagree on the history.
 - One worker cannot run two browser tasks at once. The two runs share one profile.
-- A goal that another surface makes during an API goal turn can get the wrong id.
-- The browser cannot tell password fields from other fields.
+- A goal that another surface makes during an API goal turn can get the wrong id. A goal has no chat or source field, and the delegate tool does not know its caller. Needs a design choice.
+- The browser cannot tell password fields from other fields. The page snapshot does not show the input type. Needs a design choice.
 - Codex runs get no hand-off, skills, MCP servers, browser or sub-agents. They skip the browser and MCP safety checks.
-- The MCP server has no tool to answer Needs you.
+- Fixed: the MCP server has the tool `zeno_answer_need` (key and action). A browser action before the first navigate is now refused.
 - `apps/mac/src/runtime.ts` (1203 lines) and `apps/mac/src/island-protocol.ts` (1069 lines) are over the 800-line limit.
 
 ### B3 — Gaps against Paperclip (most valuable first)

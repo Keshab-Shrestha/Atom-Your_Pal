@@ -95,6 +95,16 @@ const TOOLS: ToolDef[] = [
     properties: {},
     call: () => api("GET", "/v1/needs"),
   },
+  {
+    name: "zeno_answer_need",
+    description: "Answer one thing that waits in ZENO (see zeno_needs_you). Give its key and one of its actions, such as allow, decline, approve, reject, accept or retry.",
+    properties: {
+      key: { type: "string", description: "The key from zeno_needs_you" },
+      action: { type: "string", description: "One of the actions listed for that key" },
+    },
+    required: ["key", "action"],
+    call: (a) => api("POST", `/v1/needs/${id(a.key)}`, { action: str(a.action) }),
+  },
 ];
 
 const server = new Server({ name: "zeno", version: "1.0.0" }, { capabilities: { tools: {} } });

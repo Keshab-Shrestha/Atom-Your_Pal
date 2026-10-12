@@ -90,3 +90,15 @@ test("uploads only from granted folders, symlinks out of the grant included", as
   }
   assert.ok("deny" in (await p.check(T("drop"), { paths: ["/etc/passwd"] })));
 });
+
+test("a page action before the first navigate is refused (fail closed)", async () => {
+  const p = policy();
+  for (const tool of ["click", "type", "fill_form", "press_key", "snapshot"]) {
+    assert.ok("deny" in (await p.check(T(tool), { ref: "e1", key: "a" })), tool);
+  }
+  assert.ok("step" in (await p.check(T("wait_for"), {})));
+  assert.deepEqual(p.asked, []);
+  await p.check(T("navigate"), { url: "https://a.test" });
+  p.seen(page("https://a.test/"));
+  assert.ok("step" in (await p.check(T("snapshot"), {})));
+});
