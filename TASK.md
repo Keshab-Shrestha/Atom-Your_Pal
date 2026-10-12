@@ -1334,7 +1334,7 @@ Keshab asked for build only, so these items had no tests. They have tests now (c
 - Codex runs get no hand-off, skills, MCP servers, browser or sub-agents. This is not a gap: no browser or MCP tool exists for the safety checks to guard. A test checks it (`codex-job.test.ts`).
 - No separate webhook secret (ADR-103). The webhook uses the API bearer token and the API listens on 127.0.0.1 only.
 - Fixed: the MCP server has the tool `zeno_answer_need` (key and action). A browser action before the first navigate is now refused.
-- `apps/mac/src/runtime.ts` (1203 lines) and `apps/mac/src/island-protocol.ts` (1069 lines) are over the 800-line limit.
+- `runtime.ts` split: done, 832 lines (a pure move into `run-job.ts`, `runtime-support.ts` and `island-wiring.ts`; tests unchanged). `apps/mac/src/island-protocol.ts` (1069 lines) is still over the 800-line limit.
 
 ### B3 — Gaps against Paperclip (most valuable first)
 

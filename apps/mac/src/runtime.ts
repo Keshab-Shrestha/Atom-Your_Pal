@@ -1,11 +1,9 @@
 // The parts of the Mac runtime shared by both interfaces (terminal and island):
 // Microphone → Whisper → ZENO Core → LLM Gateway → provider → Kokoro → speaker.
 
-import { existsSync, rmSync } from "node:fs";
-import { homedir } from "node:os";
+import { rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { createCore, CoreError, type Core } from "@zeno/core";
+import { createCore, type Core } from "@zeno/core";
 import { turnChat, withTurnChat } from "./turn-chat.ts";
 import { createComputerBridge, type ComputerBridge } from "./computer-bridge.ts";
 import {
@@ -31,7 +29,7 @@ import {
   type TimerInfo,
   type Timers,
 } from "@zeno/tool-engine";
-import { createGateway, createProviderAdapter, createSwitchableModel, GatewayError, listPlanModels, runChatDigest, runCodexJob, runPlan, runResearch, RunInterrupted, type ChatSession, type ChatSessions, type PlanUsage, type TokenUsage } from "@zeno/llm-gateway";
+import { createGateway, createProviderAdapter, createSwitchableModel, listPlanModels, runChatDigest, type ChatSession, type ChatSessions, type PlanUsage } from "@zeno/llm-gateway";
 import { CLAUDE_PLAN, createLogger, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@zeno/shared";
 import {
   createEpisodeRecorder,
@@ -41,32 +39,22 @@ import {
   episodeContext,
   MEMORY_GUIDANCE,
   memoryContext,
-  openMemoryStore,
   type EpisodeRecorder,
   type MemoryStore,
 } from "@zeno/memory";
 import {
-  briefFor,
-  chooseJobModel,
   createDelegateTool,
   createScheduleTool,
   createTeamTaskTool,
   createWorkerShortcut,
   holdFor,
   JOB_TIME_LIMIT_MS,
-  followUpBrief,
-  handOffTool,
   teamContext,
   watchGoals,
-  findHelper,
-  wantsFiles,
-  instructionsFor,
-  openHelperStore,
   startJobRunner,
   tieredModels,
   modelForTier,
   isOver,
-  withRoleNotice,
   type TestKind,
   type HelperStore,
   type Job,
@@ -76,33 +64,32 @@ import {
 import { createLayaEngine } from "@zeno/decision-engine";
 import type { InputSource, LanguageModel, Message, RequestContext } from "@zeno/contracts";
 import type { IslandChats, IslandGit, IslandHelpers, IslandMemory } from "./island.ts";
-import { branchDiff, pushBranch, repositoriesOf, zenoBranches } from "./git-branches.ts";
 import { islandHelpers } from "./island-helpers.ts";
 import { taskSteering, type TaskSteering } from "./task-steering.ts";
-import { askForFolder, checkpointBefore, denyRead, folderCheck } from "./folder-run.ts";
-import { commitWork, prepareWorkdir, type Workdir } from "./worktree.ts";
 import { createHubCommands } from "./hub-commands.ts";
-import { SKILLS_PLUGIN, listSkills, prepareSkills, userSkillsDir } from "./skills.ts";
-import { runTinker } from "./tinker.ts";
+import { listSkills, userSkillsDir } from "./skills.ts";
 import { NOT_RUN_PLAN_LIMIT, runTestCases } from "./test-runs.ts";
 import { createEmbedder } from "./embedder.ts";
 import { createKeptChats } from "./kept-chats.ts";
-import { runManager } from "./manager-run.ts";
+import { createRunOne } from "./run-job.ts";
+import { createIslandGit, withPaperclip } from "./island-wiring.ts";
+import { nowLine, createEchoCore, describe, errorFields, findCalendarHelper, openHelpers, openMemory, warmOnOpen } from "./runtime-support.ts";
+
+export { describe, errorFields, nowLine, seconds, withLogging } from "./runtime-support.ts";
 import { TELEGRAM_CHAT, startTelegramBot, type TelegramBot } from "./telegram-bot.ts";
 import { createApiServer, type ApiServer } from "./api-server.ts";
 import { SCHEDULER_TICK_MS, scheduleTick } from "./scheduler.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
-import { mcpCheck, sdkConfig, testMcpServer } from "./mcp-servers.ts";
-import { BROWSER_SERVER, browserCheck, browserServer } from "./browser.ts";
+import { testMcpServer } from "./mcp-servers.ts";
 import { scanAiTools } from "./ai-tools.ts";
 import { checkIssues, createPaperclip, createPaperclipTools, issueTracker, paperclipBase } from "./paperclip.ts";
 import { createWindowPointer, type WindowPointer } from "./screen-context.ts";
 import { withPointing } from "./pointing.ts";
-import { AudioError, defaultInputDevice, startRecording } from "./audio.ts";
-import { SttError, createWhisperStt, type SpeechToText } from "./stt.ts";
+import { defaultInputDevice, startRecording } from "./audio.ts";
+import { createWhisperStt, type SpeechToText } from "./stt.ts";
 import { createModelSettings, writeSavedChoice, type ModelSettings } from "./model-settings.ts";
-import { TtsError, createKokoroSynthesizer, createSpeaker, type TextToSpeech } from "./tts.ts";
-import type { VoiceLoopEvents, VoiceLoopOptions } from "./voice-loop.ts";
+import { createKokoroSynthesizer, createSpeaker, type TextToSpeech } from "./tts.ts";
+import type { VoiceLoopOptions } from "./voice-loop.ts";
 
 /** One request on the plan provider can take several tool turns, each a model call; this is its whole-request limit. */
 const PLAN_TIMEOUT_MS = 120_000;
@@ -293,27 +280,7 @@ export function createRuntime(
   const checkpointsDir = helpersPath === ":memory:" ? undefined : join(dirname(resolve(helpersPath)), "checkpoints"); // B3.4
   const helpers = openHelpers(helpersPath, log, helpersPath === ":memory:" ? undefined : agentsDir, skillsDir, checkpointsDir);
   // ADR-091: ZENO's task branches in the repositories Keshab granted; pushing one is his alone, asked from the window.
-  const grantedRepos = () => repositoriesOf([...new Set((helpers?.list() ?? []).flatMap((h) => h.grants ?? []))]);
-  const allowedRepo = async (repo: string) => {
-    if (!(await grantedRepos()).includes(repo)) throw new Error("That repository is not in a folder you granted.");
-  };
-  const islandGit: IslandGit | undefined = helpers && {
-    list: async () => {
-      const branches = (await Promise.all((await grantedRepos()).map((r) => zenoBranches(r).catch(() => [])))).flat();
-      return branches.map((b) => {
-        const title = helpers.report(b.task)?.title ?? helpers.get(b.task)?.task.split("\n")[0]?.slice(0, 80);
-        return { ...b, ...(title ? { title } : {}) };
-      });
-    },
-    push: async (repo, branch) => {
-      await allowedRepo(repo);
-      await pushBranch(repo, branch);
-    },
-    diff: async (repo, branch) => {
-      await allowedRepo(repo);
-      return branchDiff(repo, branch);
-    },
-  };
+  const islandGit: IslandGit | undefined = helpers && createIslandGit(helpers);
   // Task 3.11: the tasks' git worktrees live beside the helpers file, never inside a granted repository.
   const worktrees = join(dirname(resolve(helpersPath === ":memory:" ? "data/x" : helpersPath)), "worktrees");
   // ADR-087, Task 3.16: Keshab's own Paperclip, only when ZENO_PAPERCLIP_URL names a loopback address. Anything else
@@ -598,250 +565,26 @@ export function createRuntime(
         log.warn("job.checkpoint_failed", { helper: job.helper, job: job.id, tool: "finish" });
       }
     });
-  const runOne: JobRun = async (job, { signal, onStep }) => {
-    const { provider, model: current } = settings.current();
-    // ADR-088: a built-in worker or an agent Keshab added; its role and kit (what it may use) come from the team list.
-    const member = helpers?.list().find((h) => h.id === job.helper);
-    // ADR-082, Task 3.3: the soul is read when the job starts, so an edit applies from the next job.
-    const soul = helpers?.soul(job.helper) ?? findHelper(job.helper)?.soul;
-    const name = soul?.name ?? job.helper;
-    const role = member?.role ?? findHelper(job.helper)?.role ?? "";
-    const kit = member?.kit ?? "think";
-    // ADR-098 item 7: the runner let this task start on Codex (held only by the Claude plan's limit).
-    const onCodex = codexJobs.delete(job.id);
-    if (provider !== CLAUDE_PLAN) throw new Error(`${name} needs the Claude plan for research.`);
-    // ADR-083: pin, else Laya; then the role's floor and the large-model switch. Stored first so the window shows it.
-    const pick = await chooseJobModel({
-      engine: decisions,
-      task: job.task,
-      role,
-      pinnedModel: helpers?.list().find((h) => h.id === job.helper)?.pinnedModel,
-      allowLarge: helpers?.allowLarge() ?? true,
-      models: planModels(),
-      // ADR-098 item 9: Managers and Tinker run on Sonnet at most, unless pinned.
-      ...(role === "improver" || helpers?.managers().some((m) => m.id === job.helper) ? { cap: "medium" as const } : {}),
-    });
-    const model = pick.model ?? current;
-    helpers?.setModel(job.id, model, pick.reason);
-    // Never the task text.
-    log.info("job.model", {
-      helper: job.helper,
-      job: job.id,
-      model,
-      tier: pick.tier,
-      ...(pick.score !== undefined ? { score: Math.round(pick.score * 100) / 100 } : {}),
-      source: pick.source,
-    });
-    // ADR-095: a "plan" Manager splits its part, then reviews its Agents' reports: no tools, one answer each run.
-    if (helpers?.managers().some((m) => m.id === job.helper)) {
-      const store = helpers;
-      return runManager({
-        store,
-        job,
-        run: { claudePath: keys["claude-plan"] ?? "", model, signal, onStep, onUsage: reportUsage },
-        count: (costUsd, tokens) => {
-          if (costUsd) store.addSpend(job.id, costUsd); // the Manager's own budget
-          if (tokens) store.addUsage({ source: "job", helper: job.helper, job: job.id, model, ...tokens, ...(tokens.costUsd ? { dollars: tokens.costUsd } : {}) });
-        },
-        onEvent: (e) => log.info("manager.run", e),
-      });
-    }
-    if (!soul) throw new Error(`There is no worker called ${job.helper}.`);
-    const instructions = instructionsFor(soul, role);
-    // ADR-087: the task with its goal, Keshab's notes and the reports of the tasks it waited for.
-    const fresh = () => briefFor(job.task, helpers?.context(job.id) ?? { comments: [], earlier: [] });
-    // Task 3.11: the coder, designer and documenter work in the folders Keshab granted; the documenter without one
-    // writes up with the research tools, the others cannot start.
-    let grants = helpers?.list().find((h) => h.id === job.helper)?.grants ?? [];
-    // ADR-090: a file worker with no folder asks on Pal's card for the one its task names (or ~/Documents/ZENO);
-    // allowed, ZENO makes it and grants it. A write-up that saves nothing needs no folder.
-    if (kit === "folders" && !grants.length && helpers && (role !== "documenter" || wantsFiles(job.task))) {
-      const store = helpers;
-      grants = await askForFolder({
-        task: job.task,
-        name,
-        home: homedir(),
-        approve: (request) => computer.approve(request),
-        grant: (folder) => {
-          store.addGrant(job.helper, folder);
-          return store.list().find((h) => h.id === job.helper)?.grants ?? [];
-        },
-        onAnswer: (allowed) => log.info("job.folder", { helper: job.helper, job: job.id, allowed }),
-      });
-    }
-    let work: Workdir | undefined;
-    let files: Parameters<typeof runResearch>[0]["files"];
-    if (kit === "folders" && grants.length) {
-      const folder = grants.find((g) => job.task.toLowerCase().includes(g.split("/").at(-1)!.toLowerCase())) ?? grants[0]!;
-      work = await prepareWorkdir(folder, job.id, worktrees);
-      const roots = [work.dir, ...grants.filter((g) => g !== folder)];
-      files = {
-        cwd: work.dir,
-        writable: roots,
-        // Git's data (the worktree's .git file, any granted repository's .git) is ZENO's alone to write.
-        denyWrite: [...(work.tree ? [join(work.tree, ".git")] : []), ...roots.map((r) => join(r, ".git"))],
-        denyRead: denyRead(),
-        check: folderCheck({
-          roots,
-          cwd: work.dir,
-          name,
-          approve: (request) => computer.approve(request),
-          onCheck: (e) => log.info("job.tool", { helper: job.helper, job: job.id, ...e }),
-          // B3.4, ADR-101: the original of a file is kept before its first edit (not in the git worktree: git covers it).
-          ...(helpers
-            ? {
-                before: checkpointBefore({ roots, ...(work.tree ? { tree: work.tree } : {}), keep: (r, p) => helpers.checkpoint(job.id, r, p) }),
-                onBeforeError: (e: { tool: string }) => log.warn("job.checkpoint_failed", { helper: job.helper, job: job.id, tool: e.tool }),
-              }
-            : {}),
-        }),
-      };
-    } else if (kit === "folders" && role !== "documenter") {
-      throw new Error(`${name} needs a folder to work in: grant one in the ZENO window.`);
-    }
-    // Task 3.10: a top-level task may hand sub-tasks to the workers its role allows; the store checks each one.
-    const handOff = helpers && !files && handOffTool(helpers, job);
-    // ADR-090: Keshab's MCP servers that are on and given to this worker; every call asks unless the server is trusted.
-    const servers = (helpers?.mcpServers() ?? []).filter((s) => s.enabled && s.workers.includes(job.helper));
-    const mcp = servers.length
-      ? {
-          servers: Object.fromEntries(servers.map((s) => [s.name, sdkConfig(s)])),
-          check: mcpCheck({
-            servers,
-            worker: name,
-            approve: (request) => computer.approve(request),
-            onCheck: (e) => log.info("job.mcp", { helper: job.helper, job: job.id, ...e }),
-          }),
-        }
-      : undefined;
-    // ADR-098 item 4: an agent with the browser grant (not a "think" agent) gets ZENO's browser; each run has its own
-    // answers (a site Keshab allowed stays allowed for that run only). Logs ids, tools and origins, never typed text.
-    const browserOn = kit !== "think" && Boolean(member?.browser);
-    const browser = () => ({
-      name: BROWSER_SERVER,
-      server: browserServer(dirname(worktrees), job.helper),
-      ...browserCheck({
-        name,
-        helper: job.helper,
-        grants,
-        approve: (request) => computer.approve(request),
-        onCheck: (e) => log.info("job.browser", { helper: job.helper, job: job.id, ...e }),
-      }),
-    });
-    // Task 3.12: only the skills chosen for this worker, through its own small plugin.
-    const chosen = helpers?.list().find((h) => h.id === job.helper)?.skills ?? [];
-    const skills = chosen.length ? { ...prepareSkills(skillPlugin(job), chosen, userSkillsDir(), skillsDir), plugin: SKILLS_PLUGIN } : undefined;
-    // ADR-094: which skills the run used, so a bad outcome can lead to an edit of one of ZENO's.
-    const onSkill = (skill: string) => {
-      helpers?.recordSkillUse(job.id, skill);
-      log.info("job.skill", { helper: job.helper, job: job.id, skill });
-    };
-    const research = (task: string, resume?: string) =>
-      runResearch({
-        claudePath: keys["claude-plan"] ?? "",
-        model,
-        task,
-        instructions,
-        signal,
-        onStep,
-        onUsage: reportUsage,
-        ...(resume ? { resume } : {}),
-        ...(handOff ? { handOff } : {}),
-        ...(files ? { files } : {}),
-        ...(skills?.names.length ? { skills, onSkill } : {}),
-        // ADR-095: the sub-agents it starts, for the task's thread (the store's change logs ids, names and states only).
-        onSubAgent: (event) => helpers?.recordSubAgent(job.id, event),
-        // B3.1: its tool calls as short redacted summaries, for the task's timeline (Codex and Manager runs record none).
-        onToolCall: (event) => helpers?.recordToolCall(job.id, event),
-        ...(steering ? { steering: steering.track(job.id) } : {}),
-        ...(mcp ? { mcp } : {}),
-        ...(browserOn ? { browser: browser() } : {}),
-        // ADR-088: a "think" agent has no tools at all (the documenter without a folder still writes up from the web).
-        ...(kit === "think" ? { thinkOnly: true } : {}),
-      });
-    // ADR-091: every run's tokens, for the Dashboard.
-    const countTokens = (tokens: TokenUsage | undefined) => {
-      if (tokens) helpers?.addUsage({ source: "job", helper: job.helper, job: job.id, model, ...tokens, ...(tokens.costUsd ? { dollars: tokens.costUsd } : {}) });
-    };
-    // Task 3.13, ADR-094: Tinker reviews a soul, drafts a skill or proposes a skill edit: no tools, one answer.
-    if (role === "improver") {
-      if (!helpers) throw new Error("Tinker needs the helpers file.");
-      return runTinker({
-        store: helpers,
-        job,
-        run: { claudePath: keys["claude-plan"] ?? "", model, instructions, signal, onStep, onUsage: reportUsage },
-        count: (costUsd, tokens) => {
-          if (costUsd) helpers.addSpend(job.id, costUsd);
-          countTokens(tokens);
-        },
-        // ADR-098 item 8: the new proposal or edit is tested inside this task, so it counts on Tinker's budget.
-        test: (testKind, id) => runTests(testKind, id, signal, job.id).catch(() => undefined),
-      });
-    }
-    // Task 3.8: a plan-first task's first run only plans (no tools); the plan then waits for Keshab.
-    if (job.planFirst && job.planStatus !== "approved") {
-      const { plan, costUsd, tokens } = await runPlan({ claudePath: keys["claude-plan"] ?? "", model, task: fresh(), instructions, signal, onStep, onUsage: reportUsage });
-      if (costUsd) helpers?.addSpend(job.id, costUsd);
-      countTokens(tokens);
-      return { plan };
-    }
-    // ADR-098 item 3: Keshab interrupted the run: its session is kept, and the task waits for his next message.
-    const interrupted = (error: unknown) => {
-      if (!(error instanceof RunInterrupted)) throw error;
-      if (error.sessionId) helpers?.setSession(job.id, error.sessionId);
-      return { interrupted: true };
-    };
-    // Task 3.6: asked again, the run continues its last session with only what is new. A session Claude Code no
-    // longer has (or any other failure to resume, except the plan's limits) falls back to one fresh run.
-    const resume = onCodex ? undefined : helpers?.resumeOf(job.id);
-    let result: Awaited<ReturnType<typeof research>>;
-    // ADR-098 item 7: on Codex, the same brief and report; its tokens count on the Dashboard as "codex", $0 to budgets.
-    if (onCodex) {
-      helpers?.setModel(job.id, "codex", CODEX_REASON);
-      onStep(CODEX_REASON);
-      log.info("job.codex", { helper: job.helper, job: job.id, kit, folder: Boolean(files) });
-      const out = await runCodexJob({
-        program: keys.codex ?? "",
-        instructions,
-        task: fresh(),
-        web: kit !== "think",
-        ...(files ? { files: { cwd: files.cwd, others: files.writable.filter((dir) => dir !== files!.cwd) } } : {}),
-        timeoutMs: JOB_TIME_LIMIT_MS,
-        signal,
-      });
-      if (out.tokens) helpers?.addUsage({ source: "job", helper: job.helper, job: job.id, model: "codex", ...out.tokens });
-      result = { report: out.report, partial: false, pages: 0 };
-    } else try {
-      result = await research(resume ? followUpBrief(resume.notes, helpers?.handOffs(job.id)) : fresh(), resume?.sessionId);
-    } catch (error) {
-      if (error instanceof RunInterrupted) return interrupted(error);
-      const kind = error instanceof GatewayError || (error instanceof Error && "kind" in error) ? (error as { kind?: string }).kind : undefined;
-      if (!resume || signal.aborted || kind === "rate_limit" || kind === "auth" || kind === "cancelled") throw error;
-      log.warn("job.resume_failed", { helper: job.helper, job: job.id, kind });
-      try {
-        result = await research(fresh());
-      } catch (fresher) {
-        return interrupted(fresher);
-      }
-    }
-    if (result.sessionId) helpers?.setSession(job.id, result.sessionId);
-    if (result.costUsd) helpers?.addSpend(job.id, result.costUsd); // Task 3.7: counts toward the day's budgets
-    countTokens(result.tokens);
-    // Task 3.11: in a repository, ZENO commits the work on the task's own branch. Never pushed.
-    if (work?.branch) {
-      const committed = await commitWork(work.dir, `ZENO task ${job.id}: ${result.report.title}`);
-      const where = `${committed ? "The changes are committed" : "Nothing was changed"} on the branch ${work.branch} in ${work.repo}. Nothing was pushed.`;
-      log.info("job.commit", { helper: job.helper, job: job.id, committed });
-      return { ...result, report: withRoleNotice(role, { ...result.report, body: `${result.report.body}\n\n${where}` }) };
-    }
-    log.info("job.session", { helper: job.helper, job: job.id, resumed: Boolean(resume) });
-    return { ...result, report: withRoleNotice(role, result.report) };
-  };
-  // Logs ids, states, timings and page counts only: never the task, report or addresses.
-  // Task 3.7: a task waits while its worker's or the team's budget is used up, or the plan is above its limit.
-  const CODEX_REASON = "Ran on Codex (Claude plan limit reached)";
   /** Tasks the runner let start on Codex; runOne takes each id out as it starts. */
   const codexJobs = new Set<number>();
+  const runOne: JobRun = createRunOne({
+    helpers,
+    settings,
+    keys,
+    decisions,
+    planModels,
+    reportUsage,
+    steering,
+    computer,
+    log,
+    worktrees,
+    skillsDir,
+    skillPlugin,
+    codexJobs,
+    runTests: (kind, id, signal, tinkerJob) => runTests(kind, id, signal, tinkerJob),
+  });
+  // Logs ids, states, timings and page counts only: never the task, report or addresses.
+  // Task 3.7: a task waits while its worker's or the team's budget is used up, or the plan is above its limit.
   let codexReady = false;
   const holdOf = (job: Job) => (helpers ? holdFor(job, helpers.budgets(), helpers.soul(job.helper).name, planUsed) : undefined);
   // ADR-098 item 7: with the switch on and Codex signed in, a worker task held only by the Claude plan's limit (not a
@@ -927,22 +670,6 @@ export function createRuntime(
         for (const line of lines) for (const listener of goalLineListeners) listener(line);
       });
     setInterval(look, 60_000).unref();
-  }
-  /** The board's Paperclip section and its updates, when the connection is on. */
-  function withPaperclip(island: IslandHelpers): IslandHelpers {
-    if (!paperclip) return island;
-    return {
-      ...island,
-      paperclip: () => ({ issues: paperclip.tracker.list().map(({ told: _told, ...item }) => item) }),
-      onChange: (listener) => {
-        const stop = island.onChange(listener);
-        paperclipListeners.add(listener);
-        return () => {
-          stop();
-          paperclipListeners.delete(listener);
-        };
-      },
-    };
   }
   // Task 3.9, ADR-094: routines come due and workers wake on the clock. At start, one catch-up for each that came due
   // while ZENO was closed.
@@ -1047,7 +774,7 @@ export function createRuntime(
     computer,
     ...(memory ? { memory, islandMemory, islandChats } : {}),
     ...(islandGit ? { islandGit } : {}),
-    ...(helpers ? { helpers, islandHelpers: warmOnOpen(withPaperclip({
+    ...(helpers ? { helpers, islandHelpers: warmOnOpen(withPaperclip(paperclip, paperclipListeners, {
             ...islandHelpers(helpers, installedApps, planModels, held, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name)))),
             hub: createHubCommands({ store: helpers, log }), // B3.5
             openReport,
@@ -1100,130 +827,6 @@ export function createRuntime(
       if (config.audio.inputDevice !== ":default") return config.audio.inputDevice;
       const name = await defaultInputDevice();
       return name ? `macOS default: ${name}` : "macOS default";
-    },
-  };
-}
-
-/** Opens the memory store, or returns undefined (memory off, or the file cannot be opened: ZENO still runs). */
-function openMemory(path: string, log: Logger): MemoryStore | undefined {
-  if (process.env.ZENO_MEMORY === "0") return undefined;
-  try {
-    const store = openMemoryStore({ path });
-    log.info("memory.open", { kept: store.count() });
-    return store;
-  } catch (error) {
-    log.error("memory.unavailable", { ...errorFields(error) });
-    return undefined;
-  }
-}
-
-/**
- * Opens the helper store (ADR-081), or returns undefined if the file cannot be opened (ZENO still runs; the
- * island is told there are no helpers). Every change is logged by ids, state and timing only, never task or report text.
- */
-function openHelpers(path: string, log: Logger, agentsDir?: string, skillsDir?: string, checkpointsDir?: string): HelperStore | undefined {
-  try {
-    const store = openHelperStore({ path, ...(agentsDir ? { agentsDir } : {}), ...(skillsDir ? { skillsDir } : {}), ...(checkpointsDir ? { checkpointsDir } : {}) });
-    store.onChange((change) => log.info("helpers.change", change));
-    log.info("helpers.open");
-    // ADR-093: a broken data/agents/<id>/soul.md would otherwise just drop that agent; the Board shows these too.
-    for (const { id, problem } of store.agentProblems()) log.warn("helpers.agent_problem", { id, problem });
-    return store;
-  } catch (error) {
-    log.error("helpers.unavailable", { ...errorFields(error) });
-    return undefined;
-  }
-}
-
-/** Machine-readable error details for the log (messages are already free of credentials). */
-export function errorFields(error: unknown) {
-  return {
-    error: error instanceof Error ? error.name : typeof error,
-    kind: error instanceof GatewayError ? error.kind : undefined,
-    retryable: error instanceof GatewayError ? error.retryable : undefined,
-    message: error instanceof Error ? error.message : String(error),
-  };
-}
-
-/** A plain-language description of an error for the user. */
-export function describe(error: unknown): string {
-  if (error instanceof GatewayError) return `${error.message}${error.retryable ? " (try again in a moment)" : ""}`;
-  if (error instanceof AudioError || error instanceof SttError || error instanceof TtsError || error instanceof CoreError) {
-    return error.message;
-  }
-  return error instanceof Error ? error.message : String(error);
-}
-
-export const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
-
-/**
- * Adds operational logging to an interface's voice-loop events. The log records timings, stages and
- * error kinds, never what was said or replied (SECURITY.md).
- */
-export function withLogging(log: Logger, micName: () => Promise<string>, events: VoiceLoopEvents): VoiceLoopEvents {
-  return {
-    ...events,
-    onMicSilent: () => {
-      void micName().then((microphone) => log.warn("mic.silent", { microphone }));
-      events.onMicSilent?.();
-    },
-    onTurnComplete: (t) => {
-      log.info("turn.complete", {
-        requestId: t.requestId,
-        speechMs: t.speechMs,
-        transcriptionMs: t.transcription,
-        modelMs: t.model,
-        firstSoundMs: t.firstSound,
-      });
-      events.onTurnComplete?.(t);
-    },
-    onNotice: (notice) => {
-      log.info("turn.skipped", { reason: notice.kind, loudest: notice.kind === "no_speech" ? notice.loudest : undefined });
-      events.onNotice?.(notice);
-    },
-    onError: (stage, error) => {
-      log.error("turn.failed", { stage, ...errorFields(error) });
-      events.onError?.(stage, error);
-    },
-  };
-}
-
-/** A stand-in for ZENO Core that replies with the words it was given, for testing the voice parts alone. */
-function createEchoCore(): Core {
-  return {
-    async handle(input: { text: string }) {
-      return { text: `I heard: ${input.text}`, requestId: "voice-only" };
-    },
-    prepare() {},
-  } as unknown as Core;
-}
-
-/** The Calendar and Reminders helper: the one the island passes, else a development build. */
-function findCalendarHelper(): string | undefined {
-  if (process.env.ZENO_CALENDAR === "0") return undefined;
-  const candidates = [
-    process.env.ZENO_CALENDAR_HELPER,
-    fileURLToPath(new URL("../island/build/ZENO.app/Contents/MacOS/zeno-calendar", import.meta.url)),
-  ];
-  return candidates.find((p): p is string => Boolean(p) && existsSync(p!));
-}
-
-/** The date, time and zone, so the model can turn "tomorrow at 3" into a real time for the calendar tools. */
-export function nowLine(now = new Date()): string {
-  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const minutes = -now.getTimezoneOffset();
-  const offset = `${minutes >= 0 ? "+" : "-"}${String(Math.floor(Math.abs(minutes) / 60)).padStart(2, "0")}:${String(Math.abs(minutes) % 60).padStart(2, "0")}`;
-  const text = new Intl.DateTimeFormat("en-GB", { dateStyle: "full", timeStyle: "short" }).format(now);
-  return `It is now ${text} (${zone}, UTC${offset}).`;
-}
-
-/** ADR-083: Laya takes about 5 s to start, so it starts when the ZENO window opens, not on the first job. */
-function warmOnOpen(island: IslandHelpers, decisions: { warm(): void }): IslandHelpers {
-  return {
-    ...island,
-    list: () => {
-      decisions.warm();
-      return island.list();
     },
   };
 }
