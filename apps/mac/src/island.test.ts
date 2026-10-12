@@ -1,7 +1,7 @@
 import type { ProviderKeys } from "@zeno/shared";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
@@ -1447,4 +1447,63 @@ test("thread.get lists the run's tool calls (B3.1), and a new call sends the ope
     { id: "c1", tool: "WebSearch", input: "tcp", state: "ok", result: "found", at: "2026-10-13T10:00:00.000Z", ms: 500 },
     { id: "c2", tool: "Read", input: "/a.ts", state: "started", at: "2026-10-13T10:00:01.000Z" },
   ]);
+});
+
+// B3.4, ADR-101: the thread lists the files a run changed, and job.undo puts them back.
+test("thread has checkpoints and bashRan; job.undo restores, refuses a conflict in words, and the next thread shows it", async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "zeno-undo-")));
+  try {
+    const folder = join(home, "work");
+    mkdirSync(folder);
+    const store = openHelperStore({ path: ":memory:", home, checkpointsDir: join(home, "cp") });
+    store.addGrant("kame", folder);
+    const h = islandHarness({ helpers: islandHelpers(store, async () => [], () => PLAN_MODELS) });
+    await tick(5);
+    const { id } = store.addJob("kame", "edit");
+    store.start(id);
+    await h.send({ type: "thread.get", id });
+    const bare = h.events().at(-1) as Extract<IslandEvent, { type: "thread" }>;
+    assert.deepEqual([bare.checkpoints, bare.bashRan], [undefined, undefined], "no keys when empty");
+    writeFileSync(join(folder, "a.txt"), "one");
+    store.checkpoint(id, [folder], join(folder, "a.txt"));
+    store.checkpoint(id, [folder], join(folder, ".env"));
+    writeFileSync(join(folder, "a.txt"), "two");
+    store.recordToolCall(id, { id: "c1", tool: "Bash", input: "ls", state: "started", at: "2026-10-13T10:00:00.000Z" });
+    store.finishCheckpoints(id);
+    store.finish(id, { title: "T", summary: "S", body: "B", sources: [] });
+    await tick(5);
+    const thread = () => h.events().filter((e) => e.type === "thread").at(-1) as Extract<IslandEvent, { type: "thread" }>;
+    assert.deepEqual(thread().checkpoints, [
+      { path: "a.txt", kind: "modified", state: "ready" },
+      { path: ".env", kind: "created", state: "skipped", reason: "secret file" },
+    ]);
+    assert.equal(thread().bashRan, true);
+    // a file changed after the run: "changed", and a plain undo is told in words
+    writeFileSync(join(folder, "a.txt"), "later");
+    h.clear();
+    await h.send({ type: "job.undo", id });
+    assert.deepEqual(h.types().filter((t) => t !== "helpers"), ["thread", "error"]);
+    assert.match((h.events().find((e) => e.type === "error") as { message: string }).message, /1 of 1 files not undone: changed since the run/);
+    assert.equal(thread().checkpoints![0]!.state, "changed");
+    assert.equal(readFileSync(join(folder, "a.txt"), "utf8"), "later");
+    h.clear();
+    await h.send({ type: "job.undo", id, path: "a.txt", force: true });
+    assert.equal(h.types().includes("error"), false);
+    assert.equal(readFileSync(join(folder, "a.txt"), "utf8"), "one");
+    assert.equal(thread().checkpoints![0]!.state, "undone");
+    // an unknown task is refused
+    h.clear();
+    await h.send({ type: "job.undo", id: 4040 });
+    assert.deepEqual(h.types(), ["error"]);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("job.undo without helpers is refused", async () => {
+  const h = islandHarness();
+  await tick(5);
+  h.clear();
+  await h.send({ type: "job.undo", id: 1 });
+  assert.deepEqual(h.types(), ["error"]);
 });

@@ -336,3 +336,11 @@ test("ADR-095: Manager commands parse; bad values are refused", () => {
   assert.deepEqual(parseCommand('{"type":"agent.manager","helper":"sid","manager":"research"}'), { command: { type: "agent.manager", helper: "sid", manager: "research" } });
   assert.ok("error" in parseCommand('{"type":"agent.manager","helper":"sid"}'));
 });
+
+test("job.undo: an id, an optional path and force", () => {
+  assert.deepEqual(parseCommand('{"type":"job.undo","id":5}'), { command: { type: "job.undo", id: 5 } });
+  assert.deepEqual(parseCommand('{"type":"job.undo","id":5,"path":"src/a.ts","force":true}'), { command: { type: "job.undo", id: 5, path: "src/a.ts", force: true } });
+  for (const line of ['{"type":"job.undo"}', '{"type":"job.undo","id":0}', '{"type":"job.undo","id":5,"path":""}', '{"type":"job.undo","id":5,"path":7}', '{"type":"job.undo","id":5,"force":"yes"}']) {
+    assert.ok("error" in parseCommand(line), line);
+  }
+});

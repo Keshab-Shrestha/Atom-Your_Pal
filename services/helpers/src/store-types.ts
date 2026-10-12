@@ -9,6 +9,7 @@ import type { UsageEntry, UsageSummary } from "./usage.ts";
 import type { TeamTask, WakeEvery, WakeUp, Woken } from "./team.ts";
 import type { SubAgent, SubAgentEvent, SubAgentState } from "./sub-agents.ts";
 import type { ToolCall, ToolCallEvent } from "./tool-calls.ts";
+import type { CheckpointItem, UndoResult } from "./checkpoints.ts";
 import type { TaskSearchHit } from "./search.ts";
 import type { TestBetter, TestCase, TestInputs, TestKind, TestResult, TestState } from "./test-cases.ts";
 
@@ -247,6 +248,7 @@ export type HelperChange =
   | { action: "deleted"; helper: HelperId; job: number }
   | { action: "subAgent"; helper: HelperId; job: number; name: string; state: SubAgentState }
   | { action: "toolCall"; helper: HelperId; job: number }
+  | { action: "checkpoint"; helper: HelperId; job: number; change: "kept" | "finished" | "undone"; count?: number }
   | { action: "goal"; goal: number; tasks: number; ended: boolean }
   | { action: "testCase"; kind: TestKind; target: string; testCase: number; change: "saved" | "deleted" }
   | { action: "testRun"; kind: TestKind; item: number; case?: number; state: TestState | "started" };
@@ -390,6 +392,22 @@ export interface HelperStore {
   recordToolCall(jobId: number, event: ToolCallEvent): void;
   /** B3.1: the task's newest tool calls (at most 100), oldest first. */
   toolCalls(jobId: number): ToolCall[];
+  /**
+   * B3.4: before a run's first edit of `path` (a folder tool is about to change it): keeps the original, or notes the
+   * file is new. `roots` are the run's folders. Never throws for a file it cannot keep (that is a "skipped" file).
+   */
+  checkpoint(jobId: number, roots: readonly string[], path: string): void;
+  /** B3.4: at the run's end: notes how each kept file was left; a file the run did not change drops out. */
+  finishCheckpoints(jobId: number): void;
+  /** B3.4: the task's kept files (at most 100), oldest first. */
+  checkpoints(jobId: number): CheckpointItem[];
+  /**
+   * B3.4: undoes the run's file edits: one file (`path`, relative) or all. A file changed since the run is a conflict
+   * unless `force`; a file outside the agent's grants now is refused. Throws HelperError for an unknown task.
+   */
+  undoCheckpoints(jobId: number, options?: { path?: string; force?: boolean }): UndoResult[];
+  /** B3.4: whether the task's runs called Bash (its edits are not tracked) and could have changed files in a folder. */
+  bashRan(jobId: number): boolean;
   /** The skills a task's runs used, sorted. */
   skillsUsed(jobId: number): string[];
   /** Every pending draft and edit, and the newest few others, newest first. */
@@ -543,5 +561,7 @@ export interface HelperStoreOptions {
   agentsDir?: string;
   /** ADR-094: ZENO's own skills folder (each `<name>/SKILL.md`). Without it, drafts cannot be approved. */
   skillsDir?: string;
+  /** B3.4: where the copies of files a run changed are kept (`<dir>/<task>/<n>`). Without it, nothing is kept. */
+  checkpointsDir?: string;
   now?: () => Date;
 }

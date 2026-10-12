@@ -78,7 +78,7 @@ import type { IslandChats, IslandGit, IslandHelpers, IslandMemory } from "./isla
 import { branchDiff, pushBranch, repositoriesOf, zenoBranches } from "./git-branches.ts";
 import { islandHelpers } from "./island-helpers.ts";
 import { taskSteering, type TaskSteering } from "./task-steering.ts";
-import { askForFolder, denyRead, folderCheck } from "./folder-run.ts";
+import { askForFolder, checkpointBefore, denyRead, folderCheck } from "./folder-run.ts";
 import { commitWork, prepareWorkdir, type Workdir } from "./worktree.ts";
 import { SKILLS_PLUGIN, listSkills, prepareSkills, userSkillsDir } from "./skills.ts";
 import { runTinker } from "./tinker.ts";
@@ -288,7 +288,8 @@ export function createRuntime(
   const agentsDir = join(dirname(resolve(helpersPath === ":memory:" ? "data/x" : helpersPath)), "agents");
   // ADR-094: ZENO's own skills, approved by Keshab, live beside it too: data/skills/<name>/SKILL.md.
   const skillsDir = helpersPath === ":memory:" ? undefined : join(dirname(resolve(helpersPath)), "skills");
-  const helpers = openHelpers(helpersPath, log, helpersPath === ":memory:" ? undefined : agentsDir, skillsDir);
+  const checkpointsDir = helpersPath === ":memory:" ? undefined : join(dirname(resolve(helpersPath)), "checkpoints"); // B3.4
+  const helpers = openHelpers(helpersPath, log, helpersPath === ":memory:" ? undefined : agentsDir, skillsDir, checkpointsDir);
   // ADR-091: ZENO's task branches in the repositories Keshab granted; pushing one is his alone, asked from the window.
   const grantedRepos = () => repositoriesOf([...new Set((helpers?.list() ?? []).flatMap((h) => h.grants ?? []))]);
   const allowedRepo = async (repo: string) => {
@@ -583,7 +584,16 @@ export function createRuntime(
   // ADR-095: a worker may run several tasks at once, so each run links its skills in a folder of its own, removed after.
   const skillPlugin = (job: Job) => join(dirname(worktrees), "skill-plugins", job.helper, String(job.id));
   // ADR-081/082, Task 3.2: helper jobs run beside the Core, on the Claude plan in use at the time each job starts.
-  const runJob: JobRun = (job, context) => runOne(job, context).finally(() => rmSync(skillPlugin(job), { recursive: true, force: true }));
+  const runJob: JobRun = (job, context) =>
+    runOne(job, context).finally(() => {
+      rmSync(skillPlugin(job), { recursive: true, force: true });
+      // B3.4: the files a run changed are noted as the run left them (a failure here never fails the task).
+      try {
+        helpers?.finishCheckpoints(job.id);
+      } catch {
+        log.warn("job.checkpoint_failed", { helper: job.helper, job: job.id, tool: "finish" });
+      }
+    });
   const runOne: JobRun = async (job, { signal, onStep }) => {
     const { provider, model: current } = settings.current();
     // ADR-088: a built-in worker or an agent Keshab added; its role and kit (what it may use) come from the team list.
@@ -673,6 +683,13 @@ export function createRuntime(
           name,
           approve: (request) => computer.approve(request),
           onCheck: (e) => log.info("job.tool", { helper: job.helper, job: job.id, ...e }),
+          // B3.4, ADR-101: the original of a file is kept before its first edit (not in the git worktree: git covers it).
+          ...(helpers
+            ? {
+                before: checkpointBefore({ roots, ...(work.tree ? { tree: work.tree } : {}), keep: (r, p) => helpers.checkpoint(job.id, r, p) }),
+                onBeforeError: (e: { tool: string }) => log.warn("job.checkpoint_failed", { helper: job.helper, job: job.id, tool: e.tool }),
+              }
+            : {}),
         }),
       };
     } else if (kit === "folders" && role !== "documenter") {
@@ -1098,9 +1115,9 @@ function openMemory(path: string, log: Logger): MemoryStore | undefined {
  * Opens the helper store (ADR-081), or returns undefined if the file cannot be opened (ZENO still runs; the
  * island is told there are no helpers). Every change is logged by ids, state and timing only, never task or report text.
  */
-function openHelpers(path: string, log: Logger, agentsDir?: string, skillsDir?: string): HelperStore | undefined {
+function openHelpers(path: string, log: Logger, agentsDir?: string, skillsDir?: string, checkpointsDir?: string): HelperStore | undefined {
   try {
-    const store = openHelperStore({ path, ...(agentsDir ? { agentsDir } : {}), ...(skillsDir ? { skillsDir } : {}) });
+    const store = openHelperStore({ path, ...(agentsDir ? { agentsDir } : {}), ...(skillsDir ? { skillsDir } : {}), ...(checkpointsDir ? { checkpointsDir } : {}) });
     store.onChange((change) => log.info("helpers.change", change));
     log.info("helpers.open");
     // ADR-093: a broken data/agents/<id>/soul.md would otherwise just drop that agent; the Board shows these too.

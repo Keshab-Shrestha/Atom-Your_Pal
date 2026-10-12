@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openHelperStore } from "@zeno/helpers";
-import { askForFolder, denyRead, folderCheck } from "./folder-run.ts";
+import { askForFolder, checkpointBefore, denyRead, folderCheck } from "./folder-run.ts";
 
 // Task 3.11: every tool call of a run in folders, checked in code; risky commands ask on Pal's card.
 
@@ -66,5 +66,65 @@ test("a file worker with no folder asks for the one its task names; allowed, it 
     assert.ok(!existsSync(join(home, "Other")));
   } finally {
     rmSync(home, { recursive: true, force: true });
+  }
+});
+
+// B3.4: the before-hook runs for tools that change files, after the checks pass, and never fails the run.
+test("before runs only for file-changing tools whose paths passed; a throw does not fail the call", async () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "zeno-run-")));
+  try {
+    const seen: [string, string[]][] = [];
+    const failed: string[] = [];
+    let boom = false;
+    const check = folderCheck({
+      roots: [root],
+      cwd: root,
+      name: "Kame",
+      approve: async () => true,
+      before: (tool, paths) => {
+        seen.push([tool, paths]);
+        if (boom) throw new Error("disk full");
+      },
+      onBeforeError: (e) => failed.push(e.tool),
+    });
+    assert.equal(await check("Write", { file_path: join(root, "a.ts") }), undefined);
+    assert.equal(await check("Edit", { file_path: "rel.ts" }), undefined, "a relative path is made absolute");
+    assert.equal(await check("MultiEdit", { file_path: join(root, "m.ts") }), undefined);
+    assert.equal(await check("NotebookEdit", { notebook_path: join(root, "n.ipynb") }), undefined);
+    assert.equal(await check("Read", { file_path: join(root, "a.ts") }), undefined);
+    assert.equal(await check("Grep", { pattern: "x", path: root }), undefined);
+    assert.equal(await check("Bash", { command: "ls" }), undefined);
+    assert.match((await check("Write", { file_path: "/etc/passwd" }))!, /outside the folders/);
+    assert.match((await check("Write", { file_path: join(root, ".git", "x") }))!, /ZENO commits the work/);
+    assert.deepEqual(seen, [
+      ["Write", [join(root, "a.ts")]],
+      ["Edit", [join(root, "rel.ts")]],
+      ["MultiEdit", [join(root, "m.ts")]],
+      ["NotebookEdit", [join(root, "n.ipynb")]],
+    ]);
+    boom = true;
+    assert.equal(await check("Write", { file_path: join(root, "b.ts") }), undefined, "the call is still allowed");
+    assert.deepEqual(failed, ["Write"]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("checkpointBefore keeps files outside the git worktree and leaves the worktree to git", () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "zeno-run-")));
+  try {
+    const tree = join(root, "tree");
+    const other = join(root, "other");
+    mkdirSync(tree);
+    mkdirSync(other);
+    const kept: string[] = [];
+    const before = checkpointBefore({ roots: [tree, other], tree, keep: (_roots, p) => kept.push(p) });
+    before("Write", [join(tree, "a.ts"), join(tree, "sub", "b.ts"), join(other, "c.ts")]);
+    assert.deepEqual(kept, [join(other, "c.ts")]);
+    kept.length = 0;
+    checkpointBefore({ roots: [other], keep: (_roots, p) => kept.push(p) })("Edit", [join(other, "d.ts")]);
+    assert.deepEqual(kept, [join(other, "d.ts")], "no worktree: every path is kept");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });

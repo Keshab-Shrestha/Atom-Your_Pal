@@ -247,6 +247,12 @@ export function islandHelpers(
       return { tasks: tasks.map(hit), reports: reports.map(hit) };
     },
     startFresh: (id) => store.startFresh(id),
+    undo: (id, options) => {
+      const results = store.undoCheckpoints(id, options);
+      // The thread (sent on the change) shows what is left; a file that could not be put back is also told in words.
+      const failed = results.filter((r) => r.result !== "restored" && r.result !== "skipped");
+      if (failed.length) throw new HelperError(`${failed.length} of ${results.length} files not undone: ${[...new Set(failed.map((r) => r.reason ?? r.result))].join(", ")}.`);
+    },
     thread: (id) => {
       // ADR-098 item 8: the ZENO-made skills a done task's runs used.
       const testSkillsOf = (jobId: number) => {
@@ -258,6 +264,7 @@ export function islandHelpers(
       const thread = store.thread(id);
       if (!thread) return undefined;
       const calls = store.toolCalls(id);
+      const kept = store.checkpoints(id); // B3.4
       const { report } = thread;
       const goalId = store.get(id)?.goalId;
       const goal = goalId === undefined ? undefined : store.goal(goalId);
@@ -269,6 +276,8 @@ export function islandHelpers(
         ...(thread.handOffs.length ? { handOffs: thread.handOffs } : {}),
         ...testSkillsOf(id),
         ...(calls.length ? { toolCalls: calls } : {}),
+        ...(kept.length ? { checkpoints: kept } : {}),
+        ...(store.bashRan(id) ? { bashRan: true as const } : {}),
         ...(report ? { report: { title: report.title, summary: report.summary, body: report.body, sources: report.sources } } : {}),
         ...(goal
           ? {

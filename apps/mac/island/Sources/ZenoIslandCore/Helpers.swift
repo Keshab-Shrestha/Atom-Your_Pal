@@ -51,6 +51,25 @@ public struct HelperSubAgent: Sendable, Equatable {
     }
 }
 
+/// B3.4: one file a task's run edited or created, and whether its edit can be undone.
+public struct HelperCheckpoint: Sendable, Equatable {
+    public enum Kind: String, Sendable, Equatable { case modified, created }
+    public enum State: String, Sendable, Equatable { case ready, changed, undone, skipped }
+
+    /// Relative to the folder grant.
+    public var path: String
+    public var kind: Kind
+    public var state: State
+    public var reason: String?
+
+    public init(path: String, kind: Kind, state: State, reason: String? = nil) {
+        self.path = path
+        self.kind = kind
+        self.state = state
+        self.reason = reason
+    }
+}
+
 /// B3.1: one tool call of a task's runs, as its thread lists it (oldest first).
 public struct HelperToolCall: Sendable, Equatable {
     public enum State: String, Sendable, Equatable { case started, ok, error }
@@ -505,9 +524,16 @@ public struct HelperThread: Sendable, Equatable {
     public var testSkills: [String]
     /// B3.1: the tool calls of its runs, oldest first; none from an older runtime.
     public var toolCalls: [HelperToolCall]
+    /// B3.4: the file edits of its runs that can be undone; none from an older runtime.
+    public var checkpoints: [HelperCheckpoint]
+    /// B3.4: a command ran, so files may have changed that ZENO did not track.
+    public var bashRan: Bool
 
     public init(id: Int, comments: [TaskComment], activity: [TaskActivity], report: HelperReport? = nil, goal: HelperGoal? = nil,
-                plan: JobPlan? = nil, handOffs: [Int] = [], testSkills: [String] = [], toolCalls: [HelperToolCall] = []) {
+                plan: JobPlan? = nil, handOffs: [Int] = [], testSkills: [String] = [], toolCalls: [HelperToolCall] = [],
+                checkpoints: [HelperCheckpoint] = [], bashRan: Bool = false) {
+        self.checkpoints = checkpoints
+        self.bashRan = bashRan
         self.toolCalls = toolCalls
         self.testSkills = testSkills
         self.id = id
@@ -1323,6 +1349,12 @@ public struct HelpersState: Sendable, Equatable {
     public mutating func startFresh() -> IslandCommand? {
         guard let job = openJob, job.resumable, job.state != .running else { return nil }
         return waiting(.jobFresh(id: job.id))
+    }
+
+    /// B3.4: puts back the open task's file edits (one `path`, or all); the answer is the next thread event.
+    public mutating func undoCheckpoints(jobId: Int, path: String? = nil, force: Bool = false) -> IslandCommand? {
+        guard jobId == openJobId, thread?.checkpoints.isEmpty == false else { return nil }
+        return waiting(.jobUndo(id: jobId, path: path, force: force))
     }
 
     public mutating func deleteJob(_ id: Int) -> IslandCommand? {

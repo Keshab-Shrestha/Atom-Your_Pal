@@ -1335,12 +1335,12 @@ Keshab asked for build only, so these items had no tests. They have tests now (c
 
 1. Activity timeline for each run (ADR-099): built and tested (TS 746 tests, Swift 517). Not yet seen in the real window. Codex and Manager runs record no calls.
 2. Telegram parity (B3.2, ADR-100): built and tested. `/steer`, `/interrupt` and the test line in Needs you items. Not yet tried on a real phone.
-3. WhatsApp for ATOM. Keshab already uses WhatsApp with Hermes. Effort medium.
-4. Checkpoint and undo of a run's file edits, also outside git repos. Effort medium.
+3. WhatsApp for ATOM (B3.3): skipped by Keshab 2026-10-13.
+4. Checkpoint and undo of a run's file edits, also outside git repos (B3.4, ADR-101): TypeScript side built and tested. The Swift side is built by another agent. Bash edits are not tracked. Codex runs have no undo.
 5. Skills hub: search and install community skills. Effort medium.
 6. Smaller gaps: image and video generation. Remote terminals (Task 3.19, Cloud sandboxes, is the nearest planned task).
 
-B3 items 1 and 2 are built. The rest is not started.
+B3 items 1, 2 and 4 are built (item 4: TypeScript side). Item 3 is skipped. The rest is not started.
 
 ## Phase 4 — Lantern: the Redesign (ADR-084, 2026-10-10)
 

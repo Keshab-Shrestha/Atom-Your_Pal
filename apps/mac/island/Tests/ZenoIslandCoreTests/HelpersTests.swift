@@ -570,6 +570,21 @@ struct HelperWakeTests {
         #expect(IslandCommand.jobFresh(id: 1).line == #"{"id":1,"type":"job.fresh"}"# + "\n")
     }
 
+    @Test func decodesCheckpoints() throws {
+        let line = #"{"type":"thread","id":5,"comments":[],"activity":[],"bashRan":true,"checkpoints":[{"path":"a/b.md","kind":"modified","state":"ready"},{"path":"c.txt","kind":"created","state":"skipped","reason":"too big"},{"path":"d","kind":"created","state":"weird"},{"path":"e","kind":"deleted","state":"ready"}]}"#
+        guard case .thread(let thread) = try decodeEvent(line) else { Issue.record("not a thread"); return }
+        #expect(thread.checkpoints == [HelperCheckpoint(path: "a/b.md", kind: .modified, state: .ready),
+                                       HelperCheckpoint(path: "c.txt", kind: .created, state: .skipped, reason: "too big")])
+        #expect(thread.bashRan)
+        guard case .thread(let bare) = try decodeEvent(#"{"type":"thread","id":5,"comments":[],"activity":[]}"#) else { return }
+        #expect(bare.checkpoints.isEmpty && !bare.bashRan) // an older runtime
+    }
+
+    @Test func undoCommandEncoding() {
+        #expect(IslandCommand.jobUndo(id: 3).line == #"{"id":3,"type":"job.undo"}"# + "\n")
+        #expect(IslandCommand.jobUndo(id: 3, path: "a/b.md", force: true).line == #"{"force":true,"id":3,"path":"a/b.md","type":"job.undo"}"# + "\n")
+    }
+
     @Test func activityNamesTheWakeUps() {
         #expect(TaskActivity(kind: "woken", at: nil).title == "Asked again")
         #expect(TaskActivity(kind: "fresh", at: nil).title == "Set to start fresh")

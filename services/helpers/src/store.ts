@@ -18,6 +18,7 @@ import { mcpTable } from "./mcp.ts";
 import { usageTable } from "./usage.ts";
 import { subAgentTable } from "./sub-agents.ts";
 import { toolCallTable } from "./tool-calls.ts";
+import { checkpointTable } from "./checkpoints.ts";
 import { searchTable } from "./search.ts";
 import { MAX_TEST_CASES, TEST_CASES_RUN, skillInstructions, testCaseTable, type TestKind } from "./test-cases.ts";
 import { MAX_RUNNING, MAX_RUNNING_RANGE } from "./runner.ts";
@@ -60,7 +61,7 @@ import type { Activity, GoalPart, GoalReport, HelperChange, HelperStore, HelperS
 export { webSources } from "./store-schema.ts";
 
 export function openHelperStore(options: HelperStoreOptions): HelperStore {
-  const { path, now = () => new Date(), home = homedir(), agentsDir, skillsDir } = options;
+  const { path, now = () => new Date(), home = homedir(), agentsDir, skillsDir, checkpointsDir } = options;
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
   createSchema(db);
@@ -264,6 +265,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const tokens = usageTable(db, now);
   const subAgents = subAgentTable(db);
   const toolCalls = toolCallTable(db); // B3.1
+  const checkpoints = checkpointTable(db, checkpointsDir, home); // B3.4
+  checkpoints.sweep(opened);
   const finder = searchTable(db); // ADR-098: labels and the window's search
   const tests = testCaseTable(db, now); // ADR-098 item 8
   const putRating = db.prepare("UPDATE jobs SET rating = ?, rating_comment = ? WHERE id = ?");
@@ -930,6 +933,31 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if (job && toolCalls.record(jobId, event)) emit({ action: "toolCall", helper: job.helper, job: jobId });
     },
     toolCalls: (jobId) => toolCalls.of(jobId),
+    checkpoint(jobId, roots, path) {
+      const job = get(jobId);
+      if (job && checkpoints.capture(jobId, roots, path)) emit({ action: "checkpoint", helper: job.helper, job: jobId, change: "kept" });
+    },
+    finishCheckpoints(jobId) {
+      const job = get(jobId);
+      if (!job || !checkpoints.has(jobId)) return;
+      checkpoints.finish(jobId);
+      emit({ action: "checkpoint", helper: job.helper, job: jobId, change: "finished" });
+    },
+    checkpoints: (jobId) => checkpoints.view(jobId),
+    undoCheckpoints(jobId, options) {
+      const job = mustGet(jobId);
+      if (job.state === "running") throw new HelperError("The task is still running. Undo after it ends.");
+      const grants = (grantsOf.all(job.helper) as unknown as { path: string }[]).map((g) => g.path);
+      const results = checkpoints.undo(jobId, grants, options);
+      const count = results.filter((r) => r.result === "restored").length;
+      if (results.length) emit({ action: "checkpoint", helper: job.helper, job: jobId, change: "undone", count });
+      return results;
+    },
+    bashRan(jobId) {
+      const job = get(jobId);
+      if (!job || !toolCalls.of(jobId).some((c) => c.tool === "Bash")) return false;
+      return checkpoints.has(jobId) || (grantsOf.all(job.helper) as unknown[]).length > 0;
+    },
     skillsUsed: skills.skillsUsed,
     skillDrafts: skills.skillDrafts,
     skillEdits: skills.skillEdits,
@@ -1450,6 +1478,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         deleteEvents.run(id);
         subAgents.drop(id);
         toolCalls.drop(id);
+        checkpoints.drop(id);
       });
       emit({ action: "deleted", helper: job.helper, job: id });
       return true;

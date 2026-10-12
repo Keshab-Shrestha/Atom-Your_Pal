@@ -2209,3 +2209,41 @@ Keshab can steer or interrupt a task in the ZENO window (ADR-098 item 3). He can
 
 - Keshab steers a task from the phone with no new code path.
 - The test line shows counts only. He reads the old and new answers in the window.
+
+
+## ADR-101 — Checkpoint and Undo of a Run's File Edits (2026-10-13)
+
+### Status
+
+Accepted. TypeScript side built and tested. The Swift side is built by another agent. Not yet seen in the real window.
+
+### Context
+
+An agent in granted folders can change files. In a git repository ZENO works in a worktree, so git covers the edits. A folder that is not a repository has no such cover. Keshab needs a way to put back the files a run changed.
+
+### Decision
+
+1. Before the first edit of a file in a run, ZENO keeps the original. The hook is `before` in `folderCheck`. It runs after the checks pass, for Write, Edit, MultiEdit and NotebookEdit. It also runs for sub-agent calls.
+2. A file that does not exist yet is noted as `created`. An existing file is copied to `data/checkpoints/<task>/<n>`. The copy name is a number. The original path is never a name.
+3. A path inside the run's git worktree is not kept. Git covers it.
+4. These files are not copied. The row only says "skipped" with a reason.
+   - Secret-like files: `.env*`, `data/api-token`, `*.pem`, `id_rsa*`, and anything under a folder commands cannot read.
+   - A file over 5 MB. A task over 50 MB or 200 files.
+   - A link that leaves the grant, a folder, a device.
+5. A failure in the hook never fails the run. The log holds ids, tool names and states only.
+6. At the end of the run, ZENO stores the hash of each kept file. A file the run did not change drops out.
+7. Undo works on one file or on the whole run. Command: `job.undo {id, path?, force?}`.
+   - A file that changed after the run is a conflict. `force` overrides this.
+   - ZENO checks every path again against the agent's grants now. A revoked grant refuses the file. `force` does not widen a grant.
+   - A modified file is restored with an atomic rename and keeps its mode. A created file is deleted.
+   - A second undo does nothing. A task that runs cannot be undone.
+8. The `thread` event carries `checkpoints` (at most 100) and `bashRan`.
+9. ZENO deletes the copies when the task is deleted. At startup it deletes the copies of tasks done more than 14 days ago, of tasks that are gone, and folders with no row.
+
+### Consequences
+
+- Edits that Bash makes are NOT tracked. The thread shows a note when the run called Bash.
+- Codex runs reach no file check. They have no undo.
+- Undo adds no line to the task's activity. The activity kinds are a fixed list, and a new kind changes the protocol.
+- The copies stay on this Mac. They are never sent to a model or to Telegram.
+- Each thread build hashes up to 100 kept files to find the ones that changed.

@@ -246,6 +246,8 @@ struct ThreadPane: View {
                                  steers: item.job.state == .running || item.job.interrupted)
                     if let activity = model.helpers.thread?.activity, !activity.isEmpty { ActivitySection(activity: activity) }
                     ToolTimelineSection(calls: model.helpers.thread?.toolCalls ?? []) // B3.1
+                    CheckpointSection(model: model, jobId: item.job.id, checkpoints: model.helpers.thread?.checkpoints ?? [],
+                                      bashRan: model.helpers.thread?.bashRan ?? false) // B3.4
                 }
             }
             .textSelection(.enabled)

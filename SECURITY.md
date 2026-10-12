@@ -517,3 +517,16 @@ ZENO runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 - Bash stores the first line of the command only. A file tool stores the path only. The browser stores the action and the site only.
 - A job keeps 200 calls at most. Deleting the job deletes its calls.
 
+
+## Checkpoints for file edits (ADR-101)
+
+- ZENO copies a file before the first edit of a run. The copies are in `data/checkpoints/<task>/<n>`. The folders have mode 0700. The files have mode 0600.
+- A copy has a number as its name. The original path is only in the `checkpoints` table.
+- ZENO does not copy secret-like files: `.env*`, `data/api-token`, `*.pem`, `id_rsa*`, and anything under a folder commands cannot read. The table keeps the path and the reason only.
+- A link that leaves the granted folder is not followed. A folder and a device are not copied.
+- Undo checks every path again against the agent's grants now. A revoked grant refuses the file. ZENO never changes a `.git` path.
+- Undo refuses a file that changed after the run, unless Keshab forces it.
+- ZENO never logs the content of a file or a copy. The log holds ids, counts and states.
+- ZENO never sends a copy to a model or to Telegram.
+- ZENO deletes the copies with the task. At startup it deletes the copies of tasks done more than 14 days ago.
+- Edits made by Bash are not copied. Codex runs have no copies.

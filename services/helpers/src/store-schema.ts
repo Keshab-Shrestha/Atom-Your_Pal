@@ -1,6 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { HelperId, JobState, Soul } from "./jobs.ts";
 import type { Job, Source } from "./store.ts";
+import { CHECKPOINTS_SCHEMA } from "./checkpoints.ts";
 import { TOOL_CALLS_SCHEMA } from "./tool-calls.ts";
 
 // The helper store's tables, the migrations of older files, and its rows as values (split from store.ts).
@@ -8,6 +9,7 @@ import { TOOL_CALLS_SCHEMA } from "./tool-calls.ts";
 /** Creates the tables, and adds the columns older files lack. */
 export function createSchema(db: DatabaseSync) {
   db.exec(TOOL_CALLS_SCHEMA); // B3.1
+  db.exec(CHECKPOINTS_SCHEMA); // B3.4
   db.exec(`
     PRAGMA journal_mode = WAL;
     CREATE TABLE IF NOT EXISTS helper_apps (

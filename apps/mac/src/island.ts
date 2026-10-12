@@ -239,6 +239,8 @@ export interface IslandHelpers {
   search?(query: string): { tasks: SearchHitItem<number>[]; reports: SearchHitItem<number>[] };
   /** Forgets a task's session; an ended task runs again, fresh (Task 3.6). Throws, with words for the user, for a running task. */
   startFresh(id: number): void;
+  /** B3.4: undoes a task's file edits (one file, or all). Throws, with words for the user, for an unknown task. */
+  undo?(id: number, options: { path?: string; force?: boolean }): void;
   /** A task's thread, or undefined for an unknown task. */
   thread(id: number): Omit<ThreadEvent, "type"> | undefined;
   /** Pins a helper to an offered model ("" unpins). Throws, with words for the user, for an unknown helper or model. */
@@ -707,6 +709,13 @@ export function runIsland(options: IslandOptions): IslandSession {
         const interrupt = options.helpers?.interrupt;
         if (!interrupt) return refuseHelpers(command.type, HELPERS_OFF);
         interrupt(command.id).then(sendHelpers, (error: unknown) => refuseHelpers(command.type, describe(error)));
+        return;
+      }
+      case "job.undo": {
+        const undo = options.helpers?.undo;
+        if (!undo) return refuseHelpers(command.type, HELPERS_OFF);
+        const { id, path, force } = command;
+        changeHelpers(command.type, () => undo(id, { ...(path !== undefined ? { path } : {}), ...(force !== undefined ? { force } : {}) }));
         return;
       }
       case "job.label.add":

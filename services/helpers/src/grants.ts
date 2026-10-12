@@ -7,6 +7,9 @@ import { HelperError } from "./jobs.ts";
 
 export const MAX_GRANTS = 8;
 
+/** Folders inside the home folder that hold keys, tokens and other apps' secrets (never readable by commands, never checkpointed). */
+export const DENY_READ_DIRS = [".ssh", ".aws", ".gnupg", ".config", ".netrc", ".npmrc", ".docker", ".kube", ".azure", ".claude", ".codex", ".hermes", "Library/Keychains", "Library/Cookies"];
+
 /** The real path of `p`, or of its nearest existing ancestor joined with the rest (for a file not written yet). */
 export function realish(p: string): string {
   let head = resolve(p);

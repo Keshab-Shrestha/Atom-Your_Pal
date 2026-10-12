@@ -97,6 +97,11 @@ export type IslandCommand =
   /** ADR-098 item 3: Keshab's message to a running task (1 to 2000 characters), and an interrupt. */
   | { type: "job.steer"; id: number; text: string }
   | { type: "job.interrupt"; id: number }
+  /**
+   * B3.4, ADR-101: undo the file edits a task's runs made: one file (`path`, as in the thread's `checkpoints`) or all of
+   * them. `force` also puts back a file that changed after the run. Answered with the next `thread` event.
+   */
+  | { type: "job.undo"; id: number; path?: string; force?: boolean }
   /** ADR-098: one search over chats, tasks (with notes and labels) and reports; answered with `search.results`. */
   | { type: "search"; query: string }
   /** ADR-098: a task's labels (1 to 24 characters: a to z, digits, dash, space; at most 6). */
@@ -251,6 +256,14 @@ export interface ThreadEvent {
   testSkills?: string[];
   /** B3.1: the run's tool calls, the newest 100, oldest first (redacted summaries; absent when none were recorded). */
   toolCalls?: { id: string; agent?: string; tool: string; input: string; state: "started" | "ok" | "error"; result?: string; at: string; ms?: number }[];
+  /**
+   * B3.4, ADR-101: the files the task's runs changed in the agent's folders, oldest first, at most 100 (absent when none).
+   * `path` is relative to its folder. `state`: `ready` (can be undone), `changed` (ready, but the file changed after the
+   * run: undo needs `force`), `undone`, `skipped` (not kept: see `reason`, such as "secret file" or "too large").
+   */
+  checkpoints?: { path: string; kind: "modified" | "created"; state: "ready" | "changed" | "undone" | "skipped"; reason?: string }[];
+  /** B3.4: true when the run called Bash (what a command changes is NOT kept) and the task has a folder. Absent otherwise. */
+  bashRan?: true;
   /** Task 3.5: the goal the task is part of, its tasks, and the combined report once every task has ended. */
   goal?: { id: number; text: string; ended: boolean; tasks: number[]; report?: Omit<ReportEvent, "type" | "id"> };
 }
@@ -667,6 +680,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "comment.add",
   "job.steer",
   "job.interrupt",
+  "job.undo",
   "search",
   "job.label.add",
   "job.label.remove",
@@ -900,6 +914,13 @@ export function parseCommand(line: string): ParsedLine {
     const { query } = value as { query?: unknown };
     if (typeof query !== "string" || query.length > MAX_SEARCH_QUERY) return { error: `search needs a "query" string of at most ${MAX_SEARCH_QUERY} characters.` };
     return { command: { type, query } };
+  }
+  if (type === "job.undo") {
+    const { id, path, force } = value as { id?: unknown; path?: unknown; force?: unknown };
+    if (!isId(id)) return { error: 'job.undo needs an "id" that is a whole number.' };
+    if (path !== undefined && (typeof path !== "string" || !path || path.length > 4096)) return { error: 'job.undo needs "path" to be a non-empty string.' };
+    if (force !== undefined && typeof force !== "boolean") return { error: 'job.undo needs "force" to be true or false.' };
+    return { command: { type, id, ...(path !== undefined ? { path } : {}), ...(force !== undefined ? { force } : {}) } };
   }
   if (type === "job.label.add" || type === "job.label.remove") {
     // Which labels are allowed is the store's to refuse (stage "settings").

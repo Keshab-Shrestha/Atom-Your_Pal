@@ -3,14 +3,12 @@
 
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
-import { WRITE_TOOLS, classifyCommand, folderForTask, pathProblem, realish, toolPaths } from "@zeno/helpers";
+import { isAbsolute, join, resolve } from "node:path";
+import { DENY_READ_DIRS, WRITE_TOOLS, classifyCommand, folderForTask, isInside, pathProblem, realish, toolPaths } from "@zeno/helpers";
 
 /** Never readable by sandboxed commands: keys, tokens and other apps' secrets. */
 export function denyRead(home = homedir()): string[] {
-  return [".ssh", ".aws", ".gnupg", ".config", ".netrc", ".npmrc", ".docker", ".kube", ".azure", ".claude", ".codex", ".hermes", "Library/Keychains", "Library/Cookies"].map(
-    (p) => join(home, p),
-  );
+  return DENY_READ_DIRS.map((p) => join(home, p));
 }
 
 export interface FolderCheckOptions {
@@ -22,6 +20,12 @@ export interface FolderCheckOptions {
   approve(request: { summary: string; reason: string }): Promise<boolean>;
   /** For the log: the tool and the verdict, never paths or command text. */
   onCheck?(event: { tool: string; verdict: "allowed" | "refused" | "asked" | "declined" }): void;
+  /**
+   * B3.4: called after the checks pass, for a tool that changes files (also a sub-agent's call), with the absolute
+   * paths it names, before it runs. A throw never fails the run: it goes to `onBeforeError` (the tool's name only).
+   */
+  before?(tool: string, paths: string[]): void;
+  onBeforeError?(event: { tool: string }): void;
 }
 
 const oneLine = (s: string, max: number) => (s.replace(/\s+/g, " ").trim().length > max ? `${s.replace(/\s+/g, " ").trim().slice(0, max - 1)}…` : s.replace(/\s+/g, " ").trim());
@@ -42,11 +46,30 @@ export function folderCheck(options: FolderCheckOptions) {
       }
       return say(name, "allowed"), undefined;
     }
-    for (const p of toolPaths(name, input)) {
+    const paths = toolPaths(name, input);
+    for (const p of paths) {
       const problem = pathProblem(roots, options.cwd, p, WRITE_TOOLS.includes(name));
       if (problem) return say(name, "refused"), problem;
     }
+    if (options.before && WRITE_TOOLS.includes(name)) {
+      try {
+        options.before(name, paths.map((p) => (isAbsolute(p) ? p : resolve(options.cwd, p))));
+      } catch {
+        options.onBeforeError?.({ tool: name });
+      }
+    }
     return say(name, "allowed"), undefined;
+  };
+}
+
+/**
+ * B3.4, ADR-101: the `before` of a run in folders: keeps each file's original before its first edit. A file inside the
+ * run's git worktree is left to git. `keep` gets the run's folders and the path.
+ */
+export function checkpointBefore(options: { roots: string[]; tree?: string; keep(roots: string[], path: string): void }) {
+  const tree = options.tree ? realish(options.tree) : undefined;
+  return (_tool: string, paths: string[]) => {
+    for (const p of paths) if (!(tree && isInside(tree, realish(p)))) options.keep(options.roots, p);
   };
 }
 

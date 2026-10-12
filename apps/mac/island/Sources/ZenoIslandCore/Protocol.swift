@@ -67,6 +67,8 @@ public enum IslandCommand: Sendable, Equatable {
     case jobStop(id: Int)
     /// Task 3.6: forget a task's Claude session; an ended task runs again from the start.
     case jobFresh(id: Int)
+    /// B3.4: put back the file edits of a task's run (one `path`, or all of them); `force` also restores a file that changed since.
+    case jobUndo(id: Int, path: String? = nil, force: Bool = false)
     /// Task 3.8: approve or reject a task's waiting plan; whether a worker's new tasks plan first.
     case planApprove(id: Int)
     case planReject(id: Int)
@@ -184,6 +186,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .jobLabelRemove: "job.label.remove"
         case .jobStop: "job.stop"
         case .jobFresh: "job.fresh"
+        case .jobUndo: "job.undo"
         case .planApprove: "plan.approve"
         case .planReject: "plan.reject"
         case .helperPlanFirst: "helper.planFirst"
@@ -359,6 +362,10 @@ public enum IslandCommand: Sendable, Equatable {
             fields["on"] = on // a real JSON boolean
         case .jobStop(let id), .jobInterrupt(let id), .jobFresh(let id), .planApprove(let id), .planReject(let id), .routineDelete(let id), .jobDelete(let id), .threadGet(let id), .teamDelete(let id):
             fields["id"] = id // a JSON number
+        case .jobUndo(let id, let path, let force):
+            fields["id"] = id
+            if let path { fields["path"] = path }
+            if force { fields["force"] = true } // a real JSON boolean
         case .routinePause(let id, let paused):
             fields["id"] = id
             fields["paused"] = paused // a real JSON boolean
@@ -1310,7 +1317,18 @@ private struct Fields {
             return TaskActivity(kind: kind, at: (a["at"] as? String).flatMap(Self.date))
         }, report: try report(values["report"], id: try int("id"), field: "report"), goal: goal, plan: plan,
            handOffs: Self.ids(values["handOffs"]), testSkills: values["testSkills"] as? [String] ?? [],
-           toolCalls: Self.toolCalls(values["toolCalls"]))
+           toolCalls: Self.toolCalls(values["toolCalls"]), checkpoints: Self.checkpoints(values["checkpoints"]),
+           bashRan: (values["bashRan"] as? NSNumber).map { CFGetTypeID($0) == CFBooleanGetTypeID() && $0.boolValue } ?? false)
+    }
+
+    /// B3.4: a task's file checkpoints; a malformed one is left out, anything else reads as none.
+    private static func checkpoints(_ value: Any?) -> [HelperCheckpoint] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let c = entry as? [String: Any], let path = c["path"] as? String,
+                  let kind = (c["kind"] as? String).flatMap(HelperCheckpoint.Kind.init(rawValue:)),
+                  let state = (c["state"] as? String).flatMap(HelperCheckpoint.State.init(rawValue:)) else { return nil }
+            return HelperCheckpoint(path: path, kind: kind, state: state, reason: c["reason"] as? String)
+        }
     }
 
     /// B3.1: a task's tool calls; a malformed one is left out, anything else reads as none.
