@@ -18,11 +18,6 @@ ATOM is not a chatbot. The language model is one part of it. Permissions, memory
 ## Screenshots
 
 <p align="center">
-  <img src="docs/images/icon.png" width="128" alt="The ATOM app icon">
-  <br><sub>The ATOM app icon.</sub>
-</p>
-
-<p align="center">
   <img src="docs/images/office-floor.png" width="820" alt="The office floor with smooth 2D pals at desks and on a sofa">
   <br><sub>The office floor: ATOM runs the floor, working agents sit at a desk, the rest wait in the lounge.</sub>
 </p>
