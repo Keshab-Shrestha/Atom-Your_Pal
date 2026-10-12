@@ -42,7 +42,7 @@ final class DictationCapture: @unchecked Sendable {
     private var levelPeak: Float = 0
     private var levelEvery = 800
     private var deviceListener: AudioObjectPropertyListenerBlock?
-    private let queue = DispatchQueue(label: "dev.zeno.dictation.capture", qos: .userInteractive)
+    private let queue = DispatchQueue(label: "dev.atom.dictation.capture", qos: .userInteractive)
 
     static let target = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false)!
 

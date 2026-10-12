@@ -33,7 +33,7 @@ final class IslandController {
     /// Listening or transcribing locally: the runtime's "idle" (from stopping its turn) must not hide it.
     private var localListening = false
     /// `ZENO_TALK_ENGINE=whisper` keeps the old path: the runtime records and Whisper transcribes.
-    private let talkLocally = ProcessInfo.processInfo.environment["ZENO_TALK_ENGINE"] != "whisper"
+    private let talkLocally = AtomEnv.read("ATOM_TALK_ENGINE") != "whisper"
     /// Dictation (ADR-047): hold, speak, let go, and the text is typed into the app in front.
     let dictation: DictationController
     /// A dictation is in progress (listening or transcribing).
@@ -53,7 +53,7 @@ final class IslandController {
     /// Pal reached the place it points at: its label shows from then on.
     private var pointArrived = false
     /// Development only: when set, a PNG of the panel is written here each time its title changes.
-    private let snapshotDirectory = ProcessInfo.processInfo.environment["ZENO_ISLAND_SNAPSHOTS"].map { URL(fileURLWithPath: $0) }
+    private let snapshotDirectory = AtomEnv.read("ATOM_ISLAND_SNAPSHOTS").map { URL(fileURLWithPath: $0) }
     private var snapshotCount = 0
     private let trace: (String) -> Void
     private let log: (String, [String: Any]) -> Void
@@ -174,11 +174,11 @@ final class IslandController {
         dictation.warmUp() // skips the microphone if launched while locked
         refresh()
         let env = ProcessInfo.processInfo.environment
-        if env["ZENO_BUBBLE_DEMO"] != nil { playBubbleDemo() }
-        if env["ZENO_LOOK_DEMO"] != nil { playLookDemo() }
-        if env["ZENO_WORK_DEMO"] != nil { playWorkDemo() }
-        if let spots = env["ZENO_POINT_DEMO"] { playPointDemo(spots) }
-        if let files = env["ZENO_DICTATION_FILE"] { dictation.selfTest(files: files.split(separator: ",").map(String.init)) }
+        if AtomEnv.read("ATOM_BUBBLE_DEMO", env) != nil { playBubbleDemo() }
+        if AtomEnv.read("ATOM_LOOK_DEMO", env) != nil { playLookDemo() }
+        if AtomEnv.read("ATOM_WORK_DEMO", env) != nil { playWorkDemo() }
+        if let spots = AtomEnv.read("ATOM_POINT_DEMO", env) { playPointDemo(spots) }
+        if let files = AtomEnv.read("ATOM_DICTATION_FILE", env) { dictation.selfTest(files: files.split(separator: ",").map(String.init)) }
     }
 
     func stop() {
@@ -703,7 +703,7 @@ final class IslandController {
 
     /// Where the user's spelling fixes live: `vocabulary.txt` in ZENO's folder under Application Support.
     static var vocabularyURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/ZENO/vocabulary.txt")
+        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/ATOM/vocabulary.txt")
     }
 
     private func playTone(_ sound: DictationController.Sound) {

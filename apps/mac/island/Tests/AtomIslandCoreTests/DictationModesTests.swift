@@ -123,7 +123,7 @@ struct DictationPreviewTests {
 @MainActor
 struct DictationSettingsTests {
     private func settings() -> (IslandSettings, UserDefaults) {
-        let name = "zeno.test.\(UUID().uuidString)"
+        let name = "atom.test.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
         defaults.removePersistentDomain(forName: name)
         return (IslandSettings(defaults: defaults), defaults)

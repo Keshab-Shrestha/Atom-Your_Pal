@@ -64,7 +64,7 @@ struct PalHomeDisplayTests {
     }
 
     @Test @MainActor func settingIsStoredAndDefaultsToMain() {
-        let name = "zeno.test.home.\(UUID().uuidString)"
+        let name = "atom.test.home.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
         defer { defaults.removePersistentDomain(forName: name) }
         #expect(IslandSettings(defaults: defaults).palHomeDisplay == .main)

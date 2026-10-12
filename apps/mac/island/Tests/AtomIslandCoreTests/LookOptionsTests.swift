@@ -6,7 +6,7 @@ import Testing
 @MainActor
 struct LookOptionsTests {
     private func fresh() -> (IslandSettings, UserDefaults, String) {
-        let name = "zeno.test.\(UUID().uuidString)"
+        let name = "atom.test.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
         return (IslandSettings(defaults: defaults), defaults, name)
     }

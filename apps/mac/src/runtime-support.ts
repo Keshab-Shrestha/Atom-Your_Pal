@@ -113,7 +113,7 @@ export function findCalendarHelper(): string | undefined {
   if (readEnv(process.env, "ATOM_CALENDAR") === "0") return undefined;
   const candidates = [
     readEnv(process.env, "ATOM_CALENDAR_HELPER"),
-    fileURLToPath(new URL("../island/build/ZENO.app/Contents/MacOS/zeno-calendar", import.meta.url)),
+    fileURLToPath(new URL("../island/build/ATOM.app/Contents/MacOS/atom-calendar", import.meta.url)),
   ];
   return candidates.find((p): p is string => Boolean(p) && existsSync(p!));
 }

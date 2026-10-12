@@ -48,7 +48,7 @@ import Testing
     }
 
     @MainActor @Test func themeIsSavedAndReset() {
-        let suite = "zeno.test.theme.\(UUID().uuidString)"
+        let suite = "atom.test.theme.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
 
@@ -62,10 +62,10 @@ import Testing
     }
 
     @MainActor @Test func unknownStoredValuesFallBack() {
-        let suite = "zeno.test.theme.bad.\(UUID().uuidString)"
+        let suite = "atom.test.theme.bad.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
-        defaults.set(99, forKey: "zeno.look.theme")
+        defaults.set(99, forKey: "atom.look.theme")
         let settings = IslandSettings(defaults: defaults)
         #expect(settings.theme == .void)
     }
@@ -91,7 +91,7 @@ import Testing
     /// ADR-084, then ADR-086: anyone still on an old default (Quiet Native, then Lantern) moves on once.
     @MainActor @Test func oldDefaultsMoveOnOnce() {
         func fresh(_ setup: (UserDefaults) -> Void) -> (IslandSettings, UserDefaults, String) {
-            let suite = "zeno.test.theme.move.\(UUID().uuidString)"
+            let suite = "atom.test.theme.move.\(UUID().uuidString)"
             let defaults = UserDefaults(suiteName: suite)!
             setup(defaults)
             return (IslandSettings(defaults: defaults), defaults, suite)

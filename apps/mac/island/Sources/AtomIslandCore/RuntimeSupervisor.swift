@@ -268,7 +268,7 @@ public final class RuntimeSupervisor: @unchecked Sendable {
         case .stay:
             setStatus(.stopped)
         case .configError:
-            let message = lastRuntimeError?.message ?? "ZENO's configuration is invalid. Details are in logs/zeno.log."
+            let message = lastRuntimeError?.message ?? "ZENO's configuration is invalid. Details are in logs/atom.log."
             log.error("island.runtime.config_error")
             setStatus(.configError(message))
         case .giveUp:

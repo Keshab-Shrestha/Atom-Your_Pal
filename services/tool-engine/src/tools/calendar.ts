@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import type { Tool } from "../engine.ts";
 
-// ADR-060: Calendar and Reminders through zeno-calendar, a small EventKit helper inside ZENO.app, so macOS
+// ADR-060: Calendar and Reminders through atom-calendar, a small EventKit helper inside ATOM.app, so macOS
 // asks for permission once, for ATOM. Read-only for the calendar; Reminders may get a new reminder when the
 // user asks for one (like "remember", no approval card: it is what was asked, and easy to undo in Reminders).
 

@@ -25,13 +25,13 @@ public enum LocateError: Error, Equatable, CustomStringConvertible {
         switch self {
         case .projectNotFound(let tried):
             "ZENO's project folder was not found (looked in: \(tried.joined(separator: ", "))). " +
-                "Rebuild ZENO.app from the project folder, or set ZENO_PROJECT_ROOT."
+                "Rebuild ZENO.app from the project folder, or set ATOM_PROJECT_ROOT."
         case .nodeNotFound(let tried):
             "Node.js was not found (looked in: \(tried.joined(separator: ", "))). " +
-                "Install it with `brew install node`, or set ZENO_NODE to its path."
+                "Install it with `brew install node`, or set ATOM_NODE to its path."
         case .nodeTooOld(let path, let version):
             "Node.js at \(path) is \(version); ZENO needs \(RuntimeLocator.minimumNode.text) or newer. " +
-                "Update it with `brew upgrade node`, or set ZENO_NODE to a newer one."
+                "Update it with `brew upgrade node`, or set ATOM_NODE to a newer one."
         }
     }
 }
@@ -76,7 +76,7 @@ public struct RuntimeLocator {
     public var fileExists: (String) -> Bool
     /// Runs `node --version`; nil if it could not be run.
     public var nodeVersion: (String) -> String?
-    /// The Calendar and Reminders helper (ADR-060), when there is one: `zeno-calendar` next to the app's binary.
+    /// The Calendar and Reminders helper (ADR-060), when there is one: `atom-calendar` next to the app's binary.
     public var calendarHelper: String?
 
     public init(
@@ -112,7 +112,7 @@ public struct RuntimeLocator {
     }
 
     func projectRoot() throws -> String {
-        let candidates = [environment["ZENO_PROJECT_ROOT"], bundleInfo["AtomProjectRoot"]].compactMap { $0 }.filter { !$0.isEmpty }
+        let candidates = [AtomEnv.read("ATOM_PROJECT_ROOT", environment), bundleInfo["AtomProjectRoot"]].compactMap { $0 }.filter { !$0.isEmpty }
         for root in candidates where fileExists((root as NSString).appendingPathComponent(Self.entryPoint)) {
             return root
         }
@@ -121,7 +121,7 @@ public struct RuntimeLocator {
 
     func nodePath() throws -> String {
         let candidates = unique([
-            environment["ZENO_NODE"],
+            AtomEnv.read("ATOM_NODE", environment),
             bundleInfo["AtomNodePath"],
             "/opt/homebrew/bin/node",
             "/usr/local/bin/node",
@@ -144,8 +144,8 @@ public struct RuntimeLocator {
         let existing = (env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin").split(separator: ":").map(String.init)
         env["PATH"] = unique([nodeDir] + Self.toolDirectories + existing).joined(separator: ":")
         // ADR-060: the Calendar and Reminders helper next to the app's own binary, so permission is ZENO's.
-        if env["ZENO_CALENDAR_HELPER"] == nil, let helper = calendarHelper, isExecutable(helper) {
-            env["ZENO_CALENDAR_HELPER"] = helper
+        if AtomEnv.read("ATOM_CALENDAR_HELPER", env) == nil, let helper = calendarHelper, isExecutable(helper) {
+            env["ATOM_CALENDAR_HELPER"] = helper
         }
         return env
     }
@@ -179,6 +179,6 @@ extension RuntimeLocator {
                 process.waitUntilExit()
                 return process.terminationStatus == 0 ? String(decoding: data, as: UTF8.self) : nil
             },
-            calendarHelper: bundle.executableURL.map { $0.deletingLastPathComponent().appendingPathComponent("zeno-calendar").path })
+            calendarHelper: bundle.executableURL.map { $0.deletingLastPathComponent().appendingPathComponent("atom-calendar").path })
     }
 }

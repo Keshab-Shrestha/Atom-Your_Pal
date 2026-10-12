@@ -10,11 +10,11 @@ enum IslandGallery {
     private static let cardWidth: CGFloat = 380
 
     static func render(to directory: URL) {
-        let suite = "zeno.gallery.\(ProcessInfo.processInfo.processIdentifier)"
+        let suite = "atom.gallery.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         // ADR-091: the app's icon alone (scripts/make-icon.sh).
-        if ProcessInfo.processInfo.environment["ZENO_ISLAND_GALLERY_ONLY"] == "icon" {
+        if AtomEnv.read("ATOM_ISLAND_GALLERY_ONLY") == "icon" {
             AppIconArt.render(to: directory)
             return
         }
@@ -79,7 +79,7 @@ enum IslandGallery {
     /// report open; and the job list in the light Warm theme. ADR-083: Sid's model picker (Laya, then pinned), the
     /// large-model switch (on, then off) and each job's model.
     private static func writeHelpers(to directory: URL, theme: AppTheme = .void, name: String = "13-helpers") {
-        let suite = "zeno.gallery.helpers.\(ProcessInfo.processInfo.processIdentifier)"
+        let suite = "atom.gallery.helpers.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let iso = ISO8601DateFormatter()
@@ -260,7 +260,7 @@ enum IslandGallery {
 
     /// ADR-075: the permissions checklist in mixed states, a plain error card, and the stopped card with its two buttons.
     private static func writeSetup(to directory: URL) {
-        let suite = "zeno.gallery.setup.\(ProcessInfo.processInfo.processIdentifier)"
+        let suite = "atom.gallery.setup.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         func model(_ theme: AppTheme = .lantern) -> IslandModel {
@@ -363,7 +363,7 @@ enum IslandGallery {
     /// Computer control (ADR-054, ADR-056): the strip above the Dock while ZENO works on the Mac, the request for
     /// approval in it, how it ends, and the label beside Pal while it points.
     private static func writeApproval(to directory: URL, theme: AppTheme = .void, name: String = "8-computer-control") {
-        let suite = "zeno.gallery.approval.\(ProcessInfo.processInfo.processIdentifier)"
+        let suite = "atom.gallery.approval.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         func strip(_ title: String, _ lines: [String], stop: Bool = false) -> some View {
@@ -416,7 +416,7 @@ enum IslandGallery {
     /// Pal's speech bubble in the states that get one (IslandStatus.needsBubble): dictating with live words and
     /// hands-free (lit), a turn's "Speak now", a notice and an approval (amber), a problem (coral), and flipped below Pal near the top.
     private static func writeBubbles(to directory: URL, theme: AppTheme = .void, name: String = "6-pal-bubble") {
-        let suite = "zeno.gallery.bubble.\(ProcessInfo.processInfo.processIdentifier)"
+        let suite = "atom.gallery.bubble.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let inset = BubbleController.shadowInset

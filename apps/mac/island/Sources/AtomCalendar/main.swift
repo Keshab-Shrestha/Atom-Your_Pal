@@ -1,9 +1,9 @@
-// zeno-calendar: ZENO's door to Calendar and Reminders (ADR-060), through EventKit. Built into ZENO.app
-// (Contents/MacOS/zeno-calendar) so macOS asks for permission once, for ZENO. The runtime calls it:
+// atom-calendar: ZENO's door to Calendar and Reminders (ADR-060), through EventKit. Built into ZENO.app
+// (Contents/MacOS/atom-calendar) so macOS asks for permission once, for ZENO. The runtime calls it:
 //
-//   zeno-calendar events <from ISO 8601> <to ISO 8601>
-//   zeno-calendar reminders
-//   zeno-calendar add-reminder <title> [<due ISO 8601>]
+//   atom-calendar events <from ISO 8601> <to ISO 8601>
+//   atom-calendar reminders
+//   atom-calendar add-reminder <title> [<due ISO 8601>]
 //
 // It prints one JSON object on stdout: {"ok":true,...} or {"ok":false,"error":"...","denied":true?}. Exit 0 either way;
 // a crash or a non-JSON line is the runtime's sign that something is broken.
@@ -47,7 +47,7 @@ let deniedEvents = "ZENO is not allowed to see your calendar. Allow it in System
 let deniedReminders = "ZENO is not allowed to see your reminders. Allow it in System Settings → Privacy & Security → Reminders."
 
 let args = Array(CommandLine.arguments.dropFirst())
-guard let command = args.first else { fail("usage: zeno-calendar events|reminders|add-reminder …") }
+guard let command = args.first else { fail("usage: atom-calendar events|reminders|add-reminder …") }
 
 switch command {
 case "events":

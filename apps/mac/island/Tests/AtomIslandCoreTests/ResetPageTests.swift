@@ -20,7 +20,7 @@ struct ResetPageTests {
 
     /// Settings in a throwaway suite with every setting changed from its default.
     private func everythingChanged() -> (IslandSettings, UserDefaults, String) {
-        let name = "zeno.test.reset.\(UUID().uuidString)"
+        let name = "atom.test.reset.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
         let s = IslandSettings(defaults: defaults)
         s.theme = other(s.theme)
@@ -43,7 +43,7 @@ struct ResetPageTests {
         reset(s)
         let after = defaults.persistentDomain(forName: name) ?? [:]
         let changed = Set(before.keys).union(after.keys).filter { before[$0] as? NSObject != after[$0] as? NSObject }
-        let freshName = "zeno.test.reset.fresh.\(UUID().uuidString)"
+        let freshName = "atom.test.reset.fresh.\(UUID().uuidString)"
         defer { UserDefaults().removePersistentDomain(forName: freshName) }
         return (s, IslandSettings(defaults: UserDefaults(suiteName: freshName)!), changed)
     }

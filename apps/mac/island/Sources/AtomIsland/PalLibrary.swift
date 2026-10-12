@@ -30,7 +30,7 @@ enum PalLibrary {
 
     private static func locate() -> URL? {
         let fm = FileManager.default
-        if let env = ProcessInfo.processInfo.environment["ZENO_PALS_DIR"], !env.isEmpty { return URL(fileURLWithPath: env, isDirectory: true) }
+        if let env = AtomEnv.read("ATOM_PALS_DIR"), !env.isEmpty { return URL(fileURLWithPath: env, isDirectory: true) }
         if Bundle.main.bundleURL.pathExtension == "app" { return Bundle.main.resourceURL?.appendingPathComponent("pals", isDirectory: true) }
         let starts = [Bundle.main.executableURL?.deletingLastPathComponent(), URL(fileURLWithPath: fm.currentDirectoryPath)]
         for start in starts.compactMap({ $0?.standardizedFileURL }) {

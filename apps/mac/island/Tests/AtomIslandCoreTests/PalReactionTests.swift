@@ -102,7 +102,7 @@ struct PalReactionTests {
 @MainActor
 struct PalReactsSettingTests {
     @Test func onByDefaultAndKept() {
-        let name = "zeno.test.\(UUID().uuidString)"
+        let name = "atom.test.\(UUID().uuidString)"
         defer { UserDefaults().removePersistentDomain(forName: name) }
         let defaults = UserDefaults(suiteName: name)!
         let settings = IslandSettings(defaults: defaults)

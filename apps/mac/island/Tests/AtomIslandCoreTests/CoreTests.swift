@@ -189,7 +189,7 @@ struct RuntimeLocatorTests {
 
     @Test func environmentOverridesTheBuiltInSettings() throws {
         let launch = try locator(
-            env: ["ZENO_PROJECT_ROOT": "/elsewhere", "ZENO_NODE": "/custom/node"],
+            env: ["ATOM_PROJECT_ROOT": "/elsewhere", "ATOM_NODE": "/custom/node"],
             nodes: ["/custom/node": "v22.23.0", "/opt/homebrew/bin/node": "v26.10.0"],
             files: ["/elsewhere/apps/mac/src/main.ts", entry]
         ).locate()
@@ -198,8 +198,18 @@ struct RuntimeLocatorTests {
         #expect(launch.environment["PATH"]?.hasPrefix("/custom:") == true)
     }
 
+    @Test func theOldEnvironmentNamesStillWork() throws {
+        let launch = try locator(
+            env: ["ZENO_PROJECT_ROOT": "/elsewhere", "ZENO_NODE": "/custom/node"],
+            nodes: ["/custom/node": "v22.23.0", "/opt/homebrew/bin/node": "v26.10.0"],
+            files: ["/elsewhere/apps/mac/src/main.ts", entry]
+        ).locate()
+        #expect(launch.directory.path == "/elsewhere")
+        #expect(launch.executable.path == "/custom/node")
+    }
+
     @Test func aFolderWithoutZENOIsSkipped() throws {
-        let launch = try locator(env: ["ZENO_PROJECT_ROOT": "/stale"]).locate()
+        let launch = try locator(env: ["ATOM_PROJECT_ROOT": "/stale"]).locate()
         #expect(launch.directory.path == "/p/zeno")
     }
 

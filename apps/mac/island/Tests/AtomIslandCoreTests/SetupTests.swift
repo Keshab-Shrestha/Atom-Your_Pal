@@ -141,7 +141,7 @@ struct PlainFailureTests {
         #expect(known.sentence.hasPrefix("The Whisper speech"))
         #expect(known.action == .restartRuntime)
         #expect(known.offersLog)
-        let other = try #require(PlainFailure.forStatus(.configError("Invalid configuration:\n  - ZENO_LOG_LEVEL must be one of …")))
+        let other = try #require(PlainFailure.forStatus(.configError("Invalid configuration:\n  - ATOM_LOG_LEVEL must be one of …")))
         #expect(other.action == .restartRuntime)
         #expect(PlainFailure.forStatus(.running(pid: 1)) == nil)
         #expect(PlainFailure.forStatus(.restarting(after: 1)) == nil)
@@ -221,13 +221,13 @@ struct FirstRunTourTests {
     }
 
     @Test @MainActor func tourDoneIsStoredAndDefaultsToFalse() {
-        let name = "zeno.test.\(UUID().uuidString)"
+        let name = "atom.test.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
         defer { UserDefaults().removePersistentDomain(forName: name) }
         let settings = IslandSettings(defaults: defaults)
         #expect(!settings.tourDone)
         settings.tourDone = true
-        #expect(defaults.bool(forKey: "zeno.tourDone"))
+        #expect(defaults.bool(forKey: "atom.tourDone"))
         #expect(IslandSettings(defaults: defaults).tourDone)
     }
 }

@@ -19,14 +19,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var log = IslandLog(url: AppDelegate.fallbackLogURL)
     private var signalSources: [DispatchSourceSignal] = []
     /// Prints event names and status changes to stderr when ZENO_ISLAND_TRACE=1 (development only).
-    private let trace = ProcessInfo.processInfo.environment["ZENO_ISLAND_TRACE"] == "1"
+    private let trace = AtomEnv.read("ATOM_ISLAND_TRACE") == "1"
 
     /// Used only until the project folder is known (e.g. when it cannot be found).
     static let fallbackLogURL = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent("Library/Logs/ZENO/island.log")
+        .appendingPathComponent("Library/Logs/ATOM/island.log")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if let gallery = ProcessInfo.processInfo.environment["ZENO_ISLAND_GALLERY"] {
+        if let gallery = AtomEnv.read("ATOM_ISLAND_GALLERY") {
             IslandGallery.render(to: URL(fileURLWithPath: gallery))
             NSApp.terminate(nil)
             return
@@ -49,7 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        log = IslandLog(url: launch.directory.appendingPathComponent("logs/zeno.log"))
+        log = IslandLog(url: launch.directory.appendingPathComponent("logs/atom.log"))
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
         log.info("island.start", ["version": version, "pid": Int(ProcessInfo.processInfo.processIdentifier)])
 
@@ -67,7 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         supervisor = RuntimeSupervisor(
             launch: launch,
-            queue: DispatchQueue(label: "dev.zeno.island.runtime"),
+            queue: DispatchQueue(label: "dev.atom.island.runtime"),
             log: log,
             onEvent: { [weak self] event in
                 if trace, event.name != "mic.level" { FileHandle.standardError.write(Data("event \(event.name)\n".utf8)) }
@@ -79,7 +79,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         island.model.send = { [weak self] command in self?.supervisor?.send(command) }
         // ADR-075: "Restart ZENO" starts it again with a fresh restart policy; "Open log" opens this file.
         island.restartRuntime = { [weak self] in self?.supervisor?.start() }
-        island.logURL = launch.directory.appendingPathComponent("logs/zeno.log")
+        island.logURL = launch.directory.appendingPathComponent("logs/atom.log")
         supervisor?.start()
     }
 
@@ -138,6 +138,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+LegacyMigration.run() // ADR-105: settings and folders from the ZENO name, before anything reads them
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate

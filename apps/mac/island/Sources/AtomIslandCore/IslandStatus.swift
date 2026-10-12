@@ -91,7 +91,7 @@ public struct IslandStatus: Sendable, Equatable {
         case .running: set(.starting, "Starting", "Loading voice")
         case .restarting: set(.starting, "Restarting", "ZENO stopped unexpectedly")
         case .configError(let message): set(.problem, "Check settings", IslandStatus.short(message), persistent: true)
-        case .failed: set(.problem, "Stopped", "Keeps stopping. See logs/zeno.log", persistent: true)
+        case .failed: set(.problem, "Stopped", "Keeps stopping. See logs/atom.log", persistent: true)
         }
     }
 

@@ -142,7 +142,7 @@ struct ShortcutTests {
 @MainActor
 final class IslandSettingsTests {
     /// A fresh store per test, removed afterwards.
-    let suiteName = "zeno.tests.\(UUID().uuidString)"
+    let suiteName = "atom.tests.\(UUID().uuidString)"
     var defaults: UserDefaults { UserDefaults(suiteName: suiteName)! }
 
     deinit { UserDefaults().removePersistentDomain(forName: suiteName) }
@@ -235,18 +235,18 @@ final class IslandSettingsTests {
         _ = settings.setShortcut(f5, for: .toggleIsland)
         _ = settings.setShortcut(nil, for: .cancel)
         settings.petEnabled = false
-        #expect(store.data(forKey: "zeno.shortcut.toggleIsland") != nil)
-        #expect(store.object(forKey: "zeno.shortcut.cancel") != nil)
-        #expect(store.object(forKey: "zeno.shortcut.talk") == nil) // never set
-        #expect(store.object(forKey: "zeno.petEnabled") as? Bool == false)
+        #expect(store.data(forKey: "atom.shortcut.toggleIsland") != nil)
+        #expect(store.object(forKey: "atom.shortcut.cancel") != nil)
+        #expect(store.object(forKey: "atom.shortcut.talk") == nil) // never set
+        #expect(store.object(forKey: "atom.petEnabled") as? Bool == false)
     }
 
     @Test func corruptDataFallsBackToTheDefault() {
         let store = defaults
-        store.set(Data("not json".utf8), forKey: "zeno.shortcut.talk")
-        store.set(42, forKey: "zeno.shortcut.dictate")
-        store.set("something else", forKey: "zeno.shortcut.cancel")
-        store.set("yes", forKey: "zeno.petEnabled")
+        store.set(Data("not json".utf8), forKey: "atom.shortcut.talk")
+        store.set(42, forKey: "atom.shortcut.dictate")
+        store.set("something else", forKey: "atom.shortcut.cancel")
+        store.set("yes", forKey: "atom.petEnabled")
         let settings = IslandSettings(defaults: store)
         #expect(settings.shortcut(for: .talk) == ShortcutAction.talk.defaultCombo)
         #expect(settings.shortcut(for: .dictate) == ShortcutAction.dictate.defaultCombo)

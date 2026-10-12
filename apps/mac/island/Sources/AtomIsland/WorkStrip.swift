@@ -22,7 +22,7 @@ final class MenuBarIcon: NSObject {
     override init() {
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
-        item.autosaveName = "dev.zeno.island.menu"
+        item.autosaveName = "dev.atom.island.menu"
         if let button = item.button {
             button.target = self
             button.action = #selector(clicked)

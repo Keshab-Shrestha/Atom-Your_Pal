@@ -12,32 +12,32 @@ public final class IslandSettings {
     }
 
     private static let clearedMarker = "cleared"
-    static func shortcutKey(_ action: ShortcutAction) -> String { "zeno.shortcut.\(action.rawValue)" }
-    static let petKey = "zeno.petEnabled"
-    static let soundsKey = "zeno.soundsEnabled"
-    static let speakReportsKey = "zeno.speech.reports"
-    static let speakUpdatesKey = "zeno.speech.updates"
-    static let speechChimeKey = "zeno.speech.chime"
-    static let notifySoundKey = "zeno.notify.sound"
-    static let telegramPushKey = "zeno.telegram.push"
-    static let localApiKey = "zeno.api.on"
-    static let notifyOffKey = "zeno.notify.off"
-    static let followUpKey = "zeno.followUp"
-    static let petSpotKey = "zeno.petSpot"
-    static let palSizeKey = "zeno.wisp.size"
-    static let palWanderKey = "zeno.wisp.wander"
-    static let palNapKey = "zeno.wisp.nap"
-    static let bubbleStayKey = "zeno.bubble.stay"
-    static let bubbleSizeKey = "zeno.bubble.size"
-    static let bubbleOpacityKey = "zeno.bubble.opacity"
-    static let themeKey = "zeno.look.theme"
+    static func shortcutKey(_ action: ShortcutAction) -> String { "atom.shortcut.\(action.rawValue)" }
+    static let petKey = "atom.petEnabled"
+    static let soundsKey = "atom.soundsEnabled"
+    static let speakReportsKey = "atom.speech.reports"
+    static let speakUpdatesKey = "atom.speech.updates"
+    static let speechChimeKey = "atom.speech.chime"
+    static let notifySoundKey = "atom.notify.sound"
+    static let telegramPushKey = "atom.telegram.push"
+    static let localApiKey = "atom.api.on"
+    static let notifyOffKey = "atom.notify.off"
+    static let followUpKey = "atom.followUp"
+    static let petSpotKey = "atom.petSpot"
+    static let palSizeKey = "atom.wisp.size"
+    static let palWanderKey = "atom.wisp.wander"
+    static let palNapKey = "atom.wisp.nap"
+    static let bubbleStayKey = "atom.bubble.stay"
+    static let bubbleSizeKey = "atom.bubble.size"
+    static let bubbleOpacityKey = "atom.bubble.opacity"
+    static let themeKey = "atom.look.theme"
     /// Set once the ADR-084 move to Lantern has run, so a later choice of Quiet Native sticks.
-    static let lanternMoveKey = "zeno.look.lanternDefault"
+    static let lanternMoveKey = "atom.look.lanternDefault"
     /// Set once the ADR-086 move to Void has run, so a later choice of Lantern sticks.
-    static let voidMoveKey = "zeno.look.voidDefault"
-    static let palReactsKey = "zeno.wisp.reacts"
-    static let palHomeDisplayKey = "zeno.wisp.homeDisplay"
-    static let tourDoneKey = "zeno.tourDone"
+    static let voidMoveKey = "atom.look.voidDefault"
+    static let palReactsKey = "atom.wisp.reacts"
+    static let palHomeDisplayKey = "atom.wisp.homeDisplay"
+    static let tourDoneKey = "atom.tourDone"
 
     @ObservationIgnored private let defaults: UserDefaults
     /// Mirrors what is stored, so views observe changes.
@@ -146,9 +146,9 @@ public final class IslandSettings {
         if on { notifyOff.remove(kind.rawValue) } else { notifyOff.insert(kind.rawValue) }
     }
 
-    static let dictationModeKey = "zeno.dictation.mode"
-    static let livePreviewKey = "zeno.dictation.livePreview"
-    static let removeFillersKey = "zeno.dictation.removeFillers"
+    static let dictationModeKey = "atom.dictation.mode"
+    static let livePreviewKey = "atom.dictation.livePreview"
+    static let removeFillersKey = "atom.dictation.removeFillers"
 
     /// How dictation starts and stops (ADR-050). Default: hold to talk, or tap to start and tap to finish.
     public var dictationMode: DictationMode {

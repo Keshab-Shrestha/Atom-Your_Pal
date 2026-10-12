@@ -180,7 +180,7 @@ struct RuntimeSupervisorTests {
     }
 
     @Test func logsLifecycleWithoutSpokenText() async throws {
-        let logURL = dir.appendingPathComponent("zeno.log")
+        let logURL = dir.appendingPathComponent("atom.log")
         let log = IslandLog(url: logURL)
         let script = """
         echo '\(Self.ready)'
