@@ -52,7 +52,7 @@ test("info offers Claude on the plan first, then the other signed-in tools, and 
   const { settings } = settingsHarness();
   const info = settings.info();
   assert.deepEqual([info.provider, info.model], ["claude-plan", "claude-sonnet-5-5"]);
-  assert.deepEqual(info.providers.map((p) => [p.id, p.available, p.models.length]), [["claude-plan", true, 3], ["codex", false, 1], ["gemini-cli", false, 1]]);
+  assert.deepEqual(info.providers.map((p) => [p.id, p.available, p.models.length]), [["claude-plan", true, 3], ["codex", false, 5], ["gemini-cli", false, 3]]);
   assert.ok(noPath(JSON.stringify(info)));
   assert.equal(settingsHarness({ keys: {} }).settings.info().providers[0]!.available, false);
 });
@@ -82,7 +82,7 @@ test("refused choices explain the fix and change nothing; Gemini and the Claude 
   const cases: [string, string, RegExp][] = [
     ["gemini", "gemini-3.6-flash", /Unknown AI provider "gemini"\. Choose Claude \(my plan\) or Codex/],
     ["claude", "claude-opus-5-5", /Unknown AI provider "claude"/],
-    ["claude-plan", "gpt-9", /"gpt-9" is not a Claude \(my plan\) model ZENO offers/],
+    ["claude-plan", "gpt 9!", /"gpt 9!" is not a model id/], // ADR-097: a well-formed id is a custom model
     ["__proto__", "x", /Unknown AI provider/],
   ];
   for (const [provider, model, expected] of cases) {

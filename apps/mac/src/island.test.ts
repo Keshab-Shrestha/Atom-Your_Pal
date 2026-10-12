@@ -424,12 +424,12 @@ test("model.set refusals are settings errors with the fix, and nothing changes (
   await h.send(
     { type: "model.set", provider: "gemini", model: "gemini-3.6-flash" },
     { type: "model.set", provider: "claude", model: "claude-opus-5-5" },
-    { type: "model.set", provider: "claude-plan", model: "gpt-9" },
+    { type: "model.set", provider: "claude-plan", model: "gpt 9!" }, // ADR-097: any well-formed id is a custom model; this one is not well-formed
   );
   assert.deepEqual(h.events(), [
     { type: "error", stage: "settings", message: 'Unknown AI provider "gemini". Choose Claude (my plan) or Codex (my ChatGPT plan) or Gemini CLI (my Google sign-in).' },
     { type: "error", stage: "settings", message: 'Unknown AI provider "claude". Choose Claude (my plan) or Codex (my ChatGPT plan) or Gemini CLI (my Google sign-in).' },
-    { type: "error", stage: "settings", message: '"gpt-9" is not a Claude (my plan) model ZENO offers. Choose one from the list.' },
+    { type: "error", stage: "settings", message: '"gpt 9!" is not a model id: use 1 to 100 letters, digits, ".", "_", ":" or "-".' },
   ]);
   assert.equal(existsSync(h.path), false);
   await turn(h);
@@ -641,6 +641,7 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
         soulVersions: [{ version: 1, createdAt: (h.events()[0] as HelpersEvent).helpers[0]!.soulVersions[0]!.createdAt }],
         app: null,
         pinnedModel: null,
+        browser: false, // ADR-098
         budget: { cap: 5, spent: 0 },
         planFirst: false,
         routines: [],
@@ -659,6 +660,7 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
       skillEdits: [],
       mcp: [],
       teamTasks: [],
+      testCases: [], // ADR-098
       models: [
         { id: "claude-opus-5-5", name: "Claude Opus 5.5", tier: "large" },
         { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5", tier: "medium" },
@@ -981,11 +983,11 @@ test("routines in helpers, and routine.delete (Task 3.9)", async () => {
   await h.send({ type: "helpers.list" });
   const [sent] = (h.events().at(-1) as HelpersEvent).helpers[0]!.routines;
   const { nextAt, ...rest } = sent!;
-  assert.deepEqual(rest, { id: r.id, task: "News", when: "Every day at 8:00 AM" });
+  assert.deepEqual(rest, { id: r.id, task: "News", when: "Every day at 8:00 AM", schedule: { kind: "daily", minute: 480 } }); // ADR-097
   assert.ok(new Date(nextAt!).getTime() > Date.now(), "ADR-094: when it next comes due");
   // ADR-094: paused, it has no next time.
   await h.send({ type: "routine.pause", id: r.id, paused: true });
-  assert.deepEqual((h.events().at(-1) as HelpersEvent).helpers[0]!.routines, [{ id: r.id, task: "News", when: "Every day at 8:00 AM", paused: true }]);
+  assert.deepEqual((h.events().at(-1) as HelpersEvent).helpers[0]!.routines, [{ id: r.id, task: "News", when: "Every day at 8:00 AM", schedule: { kind: "daily", minute: 480 }, paused: true }]);
   await h.send({ type: "routine.delete", id: r.id });
   assert.deepEqual((h.events().at(-1) as HelpersEvent).helpers[0]!.routines, []);
 });

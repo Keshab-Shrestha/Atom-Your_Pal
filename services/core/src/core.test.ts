@@ -106,6 +106,7 @@ test("a reply that arrives after reset is not added to the new session", async (
   const { model } = fakeModel(() => new Promise((r) => (release = () => r("late"))));
   const core = createCore({ model });
   const pending = core.handle({ text: "old question", source: "voice" });
+  await new Promise((r) => setImmediate(r)); // the model call starts after the awaited context step
   core.reset();
   release();
   await pending;

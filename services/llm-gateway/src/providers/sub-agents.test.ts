@@ -53,10 +53,10 @@ test("the agents option per kit: web → searcher and reader, folders → coder 
   assert.deepEqual(Object.keys(web.agents), ["searcher", "reader"]);
   assert.deepEqual(Object.keys(folders.agents), ["coder", "checker"]);
   for (const o of [web, folders]) {
-    for (const a of Object.values(o.agents) as Options[]) {
+    for (const [name, a] of Object.entries(o.agents) as [string, Options][]) {
       assert.ok(a.tools.length > 0);
       assert.ok(a.tools.every((t: string) => o.tools.includes(t) && t !== "Agent"), "never more than the run itself");
-      assert.equal(a.model, "inherit");
+      assert.equal(a.model, ({ searcher: "haiku", reader: "haiku", checker: "sonnet", coder: "inherit" } as Record<string, string>)[name], name); // ADR-098 item 9
       assert.equal(a.permissionMode, "default");
       assert.deepEqual(a.disallowedTools, ["Agent", "Task"]);
     }
