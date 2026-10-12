@@ -1305,6 +1305,41 @@ Test cases for souls and skills.
 - The log has `test.run` (kind, id and counts) and `test.failed` (kind, id and the error kind). The change events have ids, targets and states only. The log never has a task, a report or an answer.
 - Not done: tests (Keshab asked for build only). Telegram does not show test results. A run that ZENO closes in the middle stays "running" until "Run tests" runs it again.
 
+## Backlog After ADR-098 (2026-10-13)
+
+This list comes from a comparison of ZENO with Paperclip. The agent did not fetch the Paperclip docs. The Paperclip rows use ZENO's notes and prior knowledge. A "no hits" result is a search, not proof.
+
+Order of work: fix and test first, then build.
+
+### B1 — Tests for the ADR-097 and ADR-098 code (first)
+
+Keshab asked for build only, so these items have no tests. The local API and the webhook carry the most security risk.
+
+- Add tests for `api-server.ts`, `telegram-bot.ts`, `telegram.ts`, `browser.ts`, `mcp-serve.ts` and `task-steering.ts`.
+- Fix the tests that the new code broke.
+- Run `node --test "**/*.test.ts"` and `pnpm typecheck`.
+
+### B2 — Known weak spots (each is recorded in the ADR sections above)
+
+- A Telegram turn and a window turn on the same chat can disagree on the history.
+- One worker cannot run two browser tasks at once. The two runs share one profile.
+- A goal that another surface makes during an API goal turn can get the wrong id.
+- The browser cannot tell password fields from other fields.
+- Codex runs get no hand-off, skills, MCP servers, browser or sub-agents. They skip the browser and MCP safety checks.
+- The MCP server has no tool to answer Needs you.
+- `apps/mac/src/runtime.ts` (1203 lines) and `apps/mac/src/island-protocol.ts` (1069 lines) are over the 800-line limit.
+
+### B3 — Gaps against Paperclip (most valuable first)
+
+1. Activity timeline for each run: a replay of what an agent did, one tool call at a time. ZENO has only the task thread. Value high. Effort medium.
+2. Telegram parity: steering, interrupting and test results from the phone. Effort small. Check first what ADR-098 items 1–2 already cover.
+3. WhatsApp for ATOM. Keshab already uses WhatsApp with Hermes. Effort medium.
+4. Checkpoint and undo of a run's file edits, also outside git repos. Effort medium.
+5. Skills hub: search and install community skills. Effort medium.
+6. Smaller gaps: image and video generation. Remote terminals (Task 3.19, Cloud sandboxes, is the nearest planned task).
+
+None of B3 is started.
+
 ## Phase 4 — Lantern: the Redesign (ADR-084, 2026-10-10)
 
 Design: `docs/design/design-study.md` §3 A (tokens, type, motion) and §4 (rollout). Mockups: gallery sheets `14-design-study-*`. Each step changes how things look and move, never what they do; each ends with its tests, a gallery render shown to Keshab, and docs.
@@ -1400,6 +1435,9 @@ Never:
 
 ## 9. Current Priority
 
-Phase 0.5 — Desktop Island. Tasks 0.5.1–0.5.4b are done. Keshab asked for settings in the island, changeable shortcuts, dictation and a pet (ADR-039 to ADR-042). Current task: 0.5.8 (The Pet); 0.5.6 awaits its remaining hand checks and 0.5.7 (Dictation) waits for voice testing.
+2026-10-13: the work is far past Phase 0.5. The code is built through ADR-098. Two things remain:
 
-Everything else waits.
+1. B1 in "Backlog After ADR-098": tests for the new code.
+2. Keshab's hand checks of built work (the tasks marked "not yet seen" or "not yet tried by voice").
+
+Then B2 and B3. Everything else waits.

@@ -1,6 +1,6 @@
 # ZENO Project Status
 
-Last updated: 2026-10-11
+Last updated: 2026-10-13
 
 Phase 1 (Memory) has started at Keshab's request, with Phase 0.5's hands-on checks deferred, not dropped. Task 1.1 (ADR-058): ZENO keeps facts the user asks it to remember in a local SQLite file, uses them in every request, and forgets them on request; Settings → Memory lists and deletes them. Checked live in text on the Claude plan, across a restart. Task 1.2 (ADR-059): ZENO notes each conversation in two sentences in the background so a new one can pick up the thread, and offers to remember facts mentioned in passing. Task 1.3 (ADR-060): Calendar and Reminders through an EventKit helper inside ZENO.app; read the schedule, list reminders, add one. Task 1.4 (ADR-061): timers, spoken and shown when they end. Task 1.5 (ADR-062): weather. Task 1.6: answers 4–6 s instead of up to 19 s (thinking off, weather cached), and typing to ZENO in the Conversation tab. Next: Keshab allows Calendar and Reminders when macOS asks, and tries all of it by voice.
 
@@ -284,13 +284,15 @@ The immediate goal is:
 
 ## 12. Next Action
 
-Phase 0 is complete. Phase 0.5 (Desktop Island) is planned in TASK.md.
+The code is built through ADR-098 (2026-10-12). Most of it has no tests, because Keshab asked for build only.
 
-Tasks 0.5.1–0.5.4b are done: the island lives at the left edge and shows ZENO's live state. Keshab then asked for settings inside the island, changeable shortcuts, FluidVoice-style dictation and a pet (ADR-039 to ADR-042). Designs from FluidVoice and Vorssaint are re-implemented, never copied (both GPL-3.0).
+Next, in this order:
 
-Task 0.5.5 (expanded island with settings) is done. Task 0.5.6 (shortcuts in every app) is coded and partly checked live; hand checks remain. Voice testing is paused at Keshab's request, so Task 0.5.7 (Dictation) waits and Task 0.5.8 (Wisp) is built and waits for Keshab's look on the real desktop.
+1. Write tests for the ADR-097 and ADR-098 code (TASK.md, "Backlog After ADR-098", B1). The local API has the most security risk.
+2. Keshab does the hand checks of built work. The tasks marked "not yet seen" or "not yet tried by voice" in TASK.md list them.
+3. Fix the known weak spots (B2), then build the Paperclip gaps (B3). The first gap is a per-run activity timeline.
 
-Phase 1 (Memory) started on 2026-10-04 at Keshab's request ("skip the tests… continue building"); Phase 0.5's open hand checks are kept in TASK.md. Task 1.1 (remember, recall, forget, and the Memory page) is built and checked live in text. Next: Keshab tries it by voice, then Task 1.2.
+Older steps are in TASK.md.
 
 ---
 
