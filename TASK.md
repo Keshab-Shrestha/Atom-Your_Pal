@@ -1313,9 +1313,9 @@ This list comes from a comparison of ZENO with Paperclip. The agent did not fetc
 
 Order of work: fix and test first, then build.
 
-### B1 — Tests for the ADR-097 and ADR-098 code (first)
+### B1 — Tests for the ADR-097 and ADR-098 code — done (2026-10-13)
 
-Keshab asked for build only, so these items have no tests. The local API and the webhook carry the most security risk.
+Keshab asked for build only, so these items had no tests. They have tests now (commit 51f8fcd). Not covered: slow request bodies, a real browser launch, and Telegram push for finished goals and schedule results.
 
 - Add tests for `api-server.ts`, `telegram-bot.ts`, `telegram.ts`, `browser.ts`, `mcp-serve.ts` and `task-steering.ts`.
 - Fix the tests that the new code broke.
