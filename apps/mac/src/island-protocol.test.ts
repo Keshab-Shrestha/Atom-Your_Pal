@@ -231,6 +231,8 @@ test("parses the helper commands", () => {
     { type: "tools.scan" },
     { type: "git.push", repo: "/Users/me/site", branch: "zeno/task-7" },
     { type: "git.diff", repo: "/Users/me/site", branch: "zeno/task-7" },
+    { type: "git.push", repo: "/Users/me/site", branch: "atom/task-8" },
+    { type: "git.diff", repo: "/Users/me/site", branch: "atom/task-8" },
     { type: "chats.list" },
     { type: "chat.open", id: "4f1c-aa" },
     { type: "chat.delete", id: "4f1c-aa" },
@@ -309,8 +311,9 @@ test("helper commands with missing or wrong fields are protocol errors", () => {
 
 test("git.push and git.diff take only a full path and a ATOM task branch; chats take an id (ADR-091)", () => {
   const cases: [object, RegExp][] = [
-    [{ type: "git.push", repo: "/r", branch: "main" }, /zeno\/task-<id>/],
-    [{ type: "git.push", repo: "/r", branch: "zeno/task-7; rm -rf /" }, /zeno\/task-<id>/],
+    [{ type: "git.push", repo: "/r", branch: "main" }, /atom\/task-<id>/],
+    [{ type: "git.push", repo: "/r", branch: "zeno/task-7; rm -rf /" }, /atom\/task-<id>/],
+    [{ type: "git.push", repo: "/r", branch: "atom/task-7; rm -rf /" }, /atom\/task-<id>/],
     [{ type: "git.push", repo: "relative/path", branch: "zeno/task-7" }, /full path/],
     [{ type: "git.diff", branch: "zeno/task-7" }, /full path/],
     [{ type: "chat.open", id: "../x" }, /chat's "id"/],

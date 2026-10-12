@@ -2,6 +2,7 @@
 
 import type { Capability } from "@atom/tool-engine";
 import type { RoutineInput, SoulItem } from "./island-items.ts";
+import { BRANCH_COMMAND_PATTERN, BRANCH_SHAPE } from "./branch-prefix.ts";
 
 /** Longest command line accepted, in characters. The biggest is a soul edit (`soul.set`); anything bigger is a bug or abuse. */
 export const MAX_COMMAND_LENGTH = 16_384;
@@ -514,8 +515,8 @@ export function parseCommand(line: string): ParsedLine {
   if (type === "git.push" || type === "git.diff") {
     // Which repositories and branches are allowed is the runtime's to check (only ATOM's task branches, in granted folders).
     const { repo, branch } = value as { repo?: unknown; branch?: unknown };
-    if (typeof repo !== "string" || !repo.startsWith("/") || repo.length > 1000 || typeof branch !== "string" || !/^zeno\/task-\d{1,9}$/.test(branch)) {
-      return { error: `${type} needs a "repo" (a full path) and a "branch" (zeno/task-<id>).` };
+    if (typeof repo !== "string" || !repo.startsWith("/") || repo.length > 1000 || typeof branch !== "string" || !BRANCH_COMMAND_PATTERN.test(branch)) {
+      return { error: `${type} needs a "repo" (a full path) and a "branch" (${BRANCH_SHAPE}).` };
     }
     return { command: { type, repo, branch } };
   }

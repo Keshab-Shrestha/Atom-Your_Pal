@@ -1,15 +1,15 @@
-// ADR-091: the branches ATOM made for workers' tasks (`zeno/task-<id>`, Task 3.11), shown like a pull request: their
+// ADR-091: the branches ATOM made for workers' tasks (`atom/task-<id>` or, from before ADR-105, `zeno/task-<id>`; Task 3.11), shown like a pull request: their
 // commits, changed files and whether they are on the remote. Keshab pushes one by clicking and confirming in the ATOM
 // window: only such a branch, only to the repository's own `origin`, never forced, no hooks, no password prompts.
 // Workers and models never push.
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { BRANCH_PATTERN, BRANCH_REF_FOLDERS } from "./branch-prefix.ts";
 import { git } from "./worktree.ts";
 
 const run = promisify(execFile);
 
-export const BRANCH_PATTERN = /^zeno\/task-(\d+)$/;
 export const PUSH_TIMEOUT_MS = 120_000;
 const MAX_COMMITS = 50;
 const MAX_FILES = 200;
@@ -59,9 +59,9 @@ async function baseOf(repo: string): Promise<string> {
   return git(repo, "rev-parse", "--abbrev-ref", "HEAD");
 }
 
-/** Every `zeno/task-<id>` branch in a repository, newest task first. */
+/** Every `atom/task-<id>` and `zeno/task-<id>` branch in a repository, newest task first. */
 export async function zenoBranches(repo: string): Promise<ZenoBranch[]> {
-  const names = (await git(repo, "for-each-ref", "--format=%(refname:short)", "refs/heads/zeno/")).split("\n").filter((b) => BRANCH_PATTERN.test(b));
+  const names = (await git(repo, "for-each-ref", "--format=%(refname:short)", ...BRANCH_REF_FOLDERS)).split("\n").filter((b) => BRANCH_PATTERN.test(b));
   if (!names.length) return [];
   const base = await baseOf(repo);
   const remote = await git(repo, "remote", "get-url", "origin").catch(() => undefined);

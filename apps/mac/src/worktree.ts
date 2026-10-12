@@ -1,11 +1,12 @@
 // ADR-082, Task 3.11: a worker never touches the current branch of a git repository. ATOM (not the model) makes a
-// worktree on the task's own branch, `zeno/task-<id>`, outside the repository's folder, and commits the work there
+// worktree on the task's own branch, `atom/task-<id>`, outside the repository's folder, and commits the work there
 // after the run. Workers never push (ADR-091: Keshab can push a branch from the Dashboard, see git-branches.ts).
 
 import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
 import { promisify } from "node:util";
+import { taskBranch } from "./branch-prefix.ts";
 
 const run = promisify(execFile);
 // No repository hooks ever run from here (they would run outside the sandbox).
@@ -21,7 +22,17 @@ export interface Workdir {
   tree?: string;
 }
 
-/** The folder to work in for a task: in a repository, its worktree on `zeno/task-<id>` (made once, then reused). */
+const hasBranch = (repo: string, branch: string) => git(repo, "rev-parse", "--verify", "--quiet", `refs/heads/${branch}`).then(() => true, () => false);
+
+/** `atom/task-<id>`, unless the task already has a branch under the old name, `zeno/task-<id>`: that one is kept. */
+async function branchFor(repo: string, taskId: number): Promise<string> {
+  const current = taskBranch(taskId);
+  if (await hasBranch(repo, current)) return current;
+  const legacy = taskBranch(taskId, true);
+  return (await hasBranch(repo, legacy)) ? legacy : current;
+}
+
+/** The folder to work in for a task: in a repository, its worktree on `atom/task-<id>` (made once, then reused; a task that already has a `zeno/task-<id>` branch keeps it). */
 export async function prepareWorkdir(folder: string, taskId: number, worktrees: string): Promise<Workdir> {
   let repo: string;
   try {
@@ -29,11 +40,11 @@ export async function prepareWorkdir(folder: string, taskId: number, worktrees: 
   } catch {
     return { dir: folder }; // not a repository: work in the folder itself
   }
-  const branch = `zeno/task-${taskId}`;
+  const branch = await branchFor(repo, taskId);
   const tree = join(worktrees, `task-${taskId}`);
   if (!existsSync(tree)) {
     mkdirSync(worktrees, { recursive: true });
-    const exists = await git(repo, "rev-parse", "--verify", "--quiet", `refs/heads/${branch}`).then(() => true, () => false);
+    const exists = await hasBranch(repo, branch);
     await git(repo, "worktree", "add", ...(exists ? [tree, branch] : ["-b", branch, tree]));
   }
   // Real paths on both sides (git answers with them; /var is /private/var on macOS), and never a way out of the worktree.

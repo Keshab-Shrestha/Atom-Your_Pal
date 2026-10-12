@@ -36,7 +36,7 @@ test("task branches show their commits, files and whether they are pushed; Kesha
   try {
     assert.deepEqual(await repositoriesOf([repo, join(repo, "."), root]), [repo], "each repository once; a plain folder is left out");
     let [b] = await zenoBranches(repo);
-    assert.equal((await zenoBranches(repo)).length, 1, "only zeno/task-* branches");
+    assert.equal((await zenoBranches(repo)).length, 1, "only task branches: atom/task-* and zeno/task-*");
     assert.deepEqual([b!.branch, b!.task, b!.repoName, b!.pushed, b!.commits.map((c) => c.subject)], ["zeno/task-7", 7, "site", "no", ["ATOM task 7: Notes"]]);
     assert.deepEqual(b!.files, [{ path: "notes.md", added: 2, removed: 0 }]);
     assert.match((await branchDiff(repo, "zeno/task-7")).text, /\+two/);
@@ -51,6 +51,7 @@ test("task branches show their commits, files and whether they are pushed; Kesha
     assert.equal(b!.pushed, "changed");
     await assert.rejects(pushBranch(repo, "feature"), /Only ATOM's task branches/);
     await assert.rejects(pushBranch(repo, "zeno/task-99"), /There is no branch/);
+    await assert.rejects(pushBranch(repo, "atom/task-99"), /There is no branch/);
     sh(repo, "remote", "remove", "origin");
     await assert.rejects(pushBranch(repo, "zeno/task-7"), /no remote named origin/);
   } finally {
@@ -62,4 +63,17 @@ test("a remote's address never shows credentials", () => {
   assert.equal(cleanRemote("https://keshab:ghp_secret@github.com/k/site.git"), "https://github.com/k/site.git");
   assert.equal(cleanRemote("git@github.com:k/site.git"), "git@github.com:k/site.git");
   assert.equal(cleanRemote("https://host/x?token=abc&y=1"), "https://host/x?token=…&y=1");
+});
+
+test("atom/task-N branches are listed beside zeno/task-N ones, newest task first, and can be pushed (ADR-105)", async () => {
+  const { root, repo } = setup();
+  try {
+    sh(repo, "branch", "atom/task-8");
+    assert.deepEqual((await zenoBranches(repo)).map((b) => [b.branch, b.task]), [["atom/task-8", 8], ["zeno/task-7", 7]]);
+    await pushBranch(repo, "atom/task-8");
+    assert.equal((await zenoBranches(repo))[0]!.pushed, "yes");
+    assert.match((await branchDiff(repo, "atom/task-8")).text, /^$|\S/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
