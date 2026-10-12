@@ -1,5 +1,7 @@
 # ZENO Task Plan
 
+Renamed ZENO -> ATOM on 2026-10-13; entries below keep the name they were written under.
+
 ## Prime Rule
 
 > Build ZENO one capability at a time.

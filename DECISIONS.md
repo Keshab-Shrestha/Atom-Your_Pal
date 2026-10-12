@@ -1,5 +1,7 @@
 # ZENO Architecture Decisions
 
+Renamed ZENO -> ATOM on 2026-10-13; entries below keep the name they were written under.
+
 This document records important architectural decisions.
 
 ---
@@ -2304,3 +2306,34 @@ A routine can start by webhook (ADR for schedules). A person can ask for a secon
 
 - A second secret needs a screen to set it and a place to store it. It gives little gain, because a caller on this Mac that has the bearer token already has full API access.
 - Revisit this decision if the API ever listens beyond loopback.
+
+## ADR-105 — Rename ZENO to ATOM (2026-10-13)
+
+### Status
+
+Accepted.
+
+### Context
+
+The product has two names. The top-level agent is called ATOM. The app, the window, the island, the settings and the code are called ZENO. Keshab wants one name.
+
+### Decision
+
+1. The whole product is renamed from ZENO to ATOM. The top-level agent stays ATOM.
+2. Wording: the product, app, window, island and settings are "ATOM". Text such as "ATOM's ATOM" becomes "ATOM". Component nouns stay ("the ATOM window").
+3. Environment variables change from `ZENO_*` to `ATOM_*`. Code reads `ATOM_*` first and `ZENO_*` as a fallback, and logs the name of a legacy variable once. It never logs the value.
+4. The npm scope changes from `@zeno/*` to `@atom/*`. The root package is `atom`.
+5. MCP servers change from `zeno` and `zeno-browser` to `atom` and `atom-browser`. Tool names change from `zeno_*` to `atom_*`. The skills plugin is `atom-skills`.
+6. The bundle id, the temporary file prefixes, the undo file prefix and the log file change to the ATOM name. The Swift side moves in a later step.
+7. New git branches use the prefix `atom/task-`. Code reads both `atom/task-` and `zeno/task-`. Existing branches are never renamed.
+8. The repository and the folder are renamed in a later step.
+9. Old history stays as written. Entries in DECISIONS.md, TASK.md and STATUS.md keep the name they were written under.
+10. The computer-control denylist keeps `com.zeno.` and adds `dev.zeno.` and `dev.atom.`, so old and new apps stay denied.
+
+### Consequences
+
+- Keshab must grant macOS permissions again for the renamed app (Microphone, Accessibility, Screen Recording, Calendar, Reminders, Automation), because a new bundle id is a new app to macOS.
+- Keshab must move the `.env` keys to `ATOM_*`. The old names work until the fallback is removed.
+- Tools that use the old MCP names break until they use the new names: Claude Code and Hermes configs that name `zeno` or `mcp__zeno__*`.
+- Old branches keep `zeno/task-`. Readers accept both.
+- A later task removes the `ZENO_*` fallback.
