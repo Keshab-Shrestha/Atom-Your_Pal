@@ -62,6 +62,7 @@ struct PluginsPane: View {
                     }
                     Text("Choose a worker's skills on its page. ZENO writes only its own skills, never those in ~/.claude/skills.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                 }
+                HubSkillsSection(model: model, hub: list?.skillHub ?? .empty) // B3.5
             }
             .frame(maxWidth: 680, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -252,7 +253,7 @@ private struct SkillEditCard: View {
 }
 
 /// The card frame the skill drafts and edits share with the server cards.
-private struct SkillCard<Content: View>: View {
+struct SkillCard<Content: View>: View {
     @ViewBuilder let content: Content
     @Environment(\.theme) private var theme
 

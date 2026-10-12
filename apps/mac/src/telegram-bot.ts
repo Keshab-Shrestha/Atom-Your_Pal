@@ -107,7 +107,13 @@ export function needsYou(store: HelperStore | undefined, held: (job: Job) => str
     .skillEdits()
     .filter((e) => e.state === "pending")
     .map((e) => ({ key: `skill-edit-${e.id}`, push: true, text: `Tinker suggests an edit to the ${e.skill} skill.\nWhy: ${cut(e.reason, 300)}${testLine(store, "skill", e.id)}`, buttons: yesNo("Accept", "Reject", `e:${e.id}`) }));
-  return [...questions, ...plans, ...proposals, ...drafts, ...edits, ...holds, ...failures.sort((a, b) => b.key.localeCompare(a.key, undefined, { numeric: true }))];
+  // B3.5: a skill from the hub waits. Telegram shows its name, source, short sha and the flag kinds, never its text.
+  const hub: Need[] = store.skillHubPending().map((p) => {
+    const kinds = [...new Set(p.flags.map((f) => f.kind))];
+    const head = p.kind === "update" ? `A newer version of the ${p.name} skill is ready` : `Skill from the hub: ${p.name}`;
+    return { key: `skill-hub-${p.id}`, push: true, text: `${head}\n${p.repo} @ ${p.sha.slice(0, 7)}\nFlags: ${kinds.length ? kinds.join(", ") : "none"}\nRead it in the ZENO window before you approve.`, buttons: yesNo("Approve", "Reject", `h:${p.id}`) };
+  });
+  return [...questions, ...plans, ...proposals, ...drafts, ...edits, ...hub, ...holds, ...failures.sort((a, b) => b.key.localeCompare(a.key, undefined, { numeric: true }))];
 }
 
 /**
@@ -143,6 +149,11 @@ export function answerNeed(data: string, store: HelperStore | undefined, approva
     if (ok) store.acceptSkillEdit(n);
     else store.rejectSkillEdit(n);
     return ok ? "Edit accepted." : "Edit rejected.";
+  }
+  if (kind === "h") {
+    if (ok) store.approveSkillHub(n);
+    else store.rejectSkillHub(n);
+    return ok ? "Skill installed." : "Skill rejected.";
   }
   if (kind === "r") {
     store.retry(n);

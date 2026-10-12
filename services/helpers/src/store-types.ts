@@ -3,6 +3,7 @@ import type { HandOffOutcome, HelperId, JobState, Soul, TaskContext } from "./jo
 import type { Routine, Schedule } from "./routines.ts";
 import type { Proposal, ReviewTarget, SoulField } from "./feedback.ts";
 import type { SkillDraft, SkillDraftState, SkillDraftTarget, SkillEdit, SkillEditState, SkillEditTarget } from "./skill-drafts.ts";
+import type { HubFile, HubInstalled, HubPending } from "./skill-hub.ts";
 import type { AgentProblem, Kit, ManagerMode } from "./agents.ts";
 import type { McpServer, McpServerInput } from "./mcp.ts";
 import type { UsageEntry, UsageSummary } from "./usage.ts";
@@ -239,6 +240,7 @@ export type HelperChange =
   | { action: "proposal"; helper: HelperId; proposal: number; state: "pending" | "accepted" | "rejected" | "undone" }
   | { action: "skillDraft"; draft: number; job: number; skill: string; state: SkillDraftState }
   | { action: "skillEdit"; edit: number; job: number; skill: string; state: SkillEditState }
+  | { action: "skillHub"; id?: number; skill?: string; state?: "pending" | "approved" | "rejected" | "uninstalled" | "updated" | "undone" }
   | { action: "model"; helper: HelperId; job: number }
   | { action: "job"; helper: HelperId; job: number; state: JobState; ms?: number }
   | { action: "step"; helper: HelperId; job: number }
@@ -413,6 +415,22 @@ export interface HelperStore {
   /** Every pending draft and edit, and the newest few others, newest first. */
   skillDrafts(): SkillDraft[];
   skillEdits(): SkillEdit[];
+  /**
+   * B3.5, ADR-102: a skill fetched from the pinned hub repo, shown for Keshab's OK (nothing is written yet). Throws
+   * HelperError for a bad name, path or sha, hidden characters, text over MAX_HUB_BODY, a fourth waiting skill or a repeat.
+   */
+  previewSkillHub(file: HubFile): HubPending;
+  /** Approve writes data/skills/<name>/SKILL.md and records where it came from; a name that exists is refused. It gives the skill to no worker. */
+  approveSkillHub(id: number): void;
+  rejectSkillHub(id: number): void;
+  /** Removes the folder, the record and the workers' choice of it; a folder changed by hand stays unless `force`. */
+  uninstallSkillHub(name: string, force?: boolean): void;
+  /** A newer text for an installed skill becomes a waiting update; undefined when it is the installed text. Writes nothing. */
+  updateSkillHub(name: string, file: { sha: string; text: string }): HubPending | undefined;
+  /** Restores the text before the last approved update, once. */
+  undoSkillHub(name: string): void;
+  skillHubPending(): HubPending[];
+  skillHubInstalled(): HubInstalled[];
   /**
    * ADR-098 item 8: saves a done task as a test case for its agent's soul ("soul", target its agent id) or for a
    * ZENO-made skill its run used ("skill", target the skill's name). Throws HelperError for another task or target, a

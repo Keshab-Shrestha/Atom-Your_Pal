@@ -509,6 +509,23 @@ ZENO runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 - The run costs $0 against the budgets. The tokens go to the Dashboard with the model `codex`.
 - The log records the task id, the kit and whether the run has a folder. It never records the task, the report or Codex's output.
 
+
+## Skills hub (ADR-102)
+
+- ZENO reads from two hosts only: `https://api.github.com` and `https://raw.githubusercontent.com`. Other hosts, `http`, and URLs with a login are refused.
+- The repos come from a fixed list in code. ZENO uses no account and no token.
+- A request does not follow a redirect. It stops after 10 seconds. It accepts text only. It reads 64 KB of a skill (2 MB of a file list). The text must be valid UTF-8. ZENO makes 20 requests a minute at most.
+- ZENO fetches one file for each skill: `SKILL.md` at a fixed commit. It never fetches or runs a script. Nothing from a skill runs.
+- The name of a skill is its folder name. A name that is not 2 to 41 lower-case letters, digits and dashes is refused. A path with `..`, `/` or `\` in the name is refused.
+- A preview writes nothing in `data/skills`. Keshab reads the text and the review flags first. At most 3 previews wait.
+- The review flags are plain code. They mark URLs, shell commands, phrases that steer the agent, tool requests, secret paths, missing files and hidden text. A flag never approves a skill.
+- ZENO refuses a skill with hidden characters (zero-width or text-direction marks) and a skill over 16000 characters. It never cuts a skill.
+- ZENO never updates a skill by itself. An update waits for Keshab's approval like a new skill.
+- An installed skill goes to no worker until Keshab chooses it. Tinker never edits it. Uninstall refuses a folder that Keshab changed by hand, unless he forces it.
+- Telegram shows a waiting skill with its name, repo, short commit and the kinds of flags. It never shows the skill text.
+- The log holds ids, names, repo and commit. It never holds the skill text, a URL found in it or the search text.
+
+
 ## Activity timeline (ADR-099)
 
 - ZENO stores each tool call of an Agent run in the `tool_calls` table.

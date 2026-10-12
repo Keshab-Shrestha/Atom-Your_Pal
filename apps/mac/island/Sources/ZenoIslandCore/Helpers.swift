@@ -618,6 +618,8 @@ public struct HelpersList: Sendable, Equatable {
     /// ADR-094: Tinker's skill drafts and edits: every pending one and the newest few others.
     public var skillDrafts: [SkillDraftItem]
     public var skillEdits: [SkillEditItem]
+    /// B3.5: the skills hub; empty from an older runtime.
+    public var skillHub: HubState
     /// Task 3.16: the tasks handed to Keshab's Paperclip; nil when the connection is off.
     public var paperclip: [PaperclipTask]?
     /// ADR-090: Keshab's MCP servers.
@@ -639,7 +641,7 @@ public struct HelpersList: Sendable, Equatable {
 
     public init(helpers: [Helper], apps: [String], allowLarge: Bool = true, models: [HelperModel] = [], team: HelperBudget? = nil,
                 planLimit: Int? = nil, maxRunning: Int? = nil, paperclip: [PaperclipTask]? = nil, mcp: [McpServerItem] = [], usage: TokenUsageSummary? = nil, skills: [SkillInfo] = [],
-                skillDrafts: [SkillDraftItem] = [], skillEdits: [SkillEditItem] = [], agentProblems: [AgentProblem] = [], teamTasks: [TeamTask] = [],
+                skillDrafts: [SkillDraftItem] = [], skillEdits: [SkillEditItem] = [], skillHub: HubState = .empty, agentProblems: [AgentProblem] = [], teamTasks: [TeamTask] = [],
                 managers: [HelperManager] = [], codexFallback: Bool = false, codexReady: Bool = false, testCases: [TestCaseItem] = []) {
         self.testCases = testCases
         self.helpers = helpers
@@ -655,6 +657,7 @@ public struct HelpersList: Sendable, Equatable {
         self.skills = skills
         self.skillDrafts = skillDrafts
         self.skillEdits = skillEdits
+        self.skillHub = skillHub
         self.agentProblems = agentProblems
         self.teamTasks = teamTasks
         self.managers = managers
@@ -1082,6 +1085,32 @@ public struct HelpersState: Sendable, Equatable {
     public mutating func undoSkillEdit(_ id: Int) -> IslandCommand? {
         guard list?.skillEdits.first(where: { $0.id == id })?.state == "accepted" else { return nil }
         return waiting(.skillEditUndo(id: id))
+    }
+
+    /// B3.5: the skills hub. Search needs some text; approve and reject need a fetched skill; update needs an installed one.
+    public mutating func hubSearch(_ query: String) -> IslandCommand? {
+        let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return nil }
+        return waiting(.skillHubSearch(query: String(text.prefix(60))))
+    }
+
+    public mutating func hubPreview(_ result: HubSkillResult) -> IslandCommand? {
+        waiting(.skillHubPreview(source: result.source, path: result.path))
+    }
+
+    public mutating func answerHub(_ id: Int, approve: Bool) -> IslandCommand? {
+        guard list?.skillHub.pending.contains(where: { $0.id == id }) == true else { return nil }
+        return waiting(approve ? .skillHubApprove(id: id) : .skillHubReject(id: id))
+    }
+
+    public mutating func hubUninstall(_ name: String) -> IslandCommand? {
+        guard list?.skillHub.installed.contains(where: { $0.name == name }) == true else { return nil }
+        return waiting(.skillHubUninstall(name: name))
+    }
+
+    public mutating func hubUpdate(_ name: String) -> IslandCommand? {
+        guard list?.skillHub.installed.contains(where: { $0.name == name }) == true else { return nil }
+        return waiting(.skillHubUpdate(name: name))
     }
 
     /// ADR-098 item 8: saves the open done task as a test case for its agent ("soul") or a ZENO-made skill it used ("skill").

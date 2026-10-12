@@ -80,6 +80,7 @@ import { islandHelpers } from "./island-helpers.ts";
 import { taskSteering, type TaskSteering } from "./task-steering.ts";
 import { askForFolder, checkpointBefore, denyRead, folderCheck } from "./folder-run.ts";
 import { commitWork, prepareWorkdir, type Workdir } from "./worktree.ts";
+import { createHubCommands } from "./hub-commands.ts";
 import { SKILLS_PLUGIN, listSkills, prepareSkills, userSkillsDir } from "./skills.ts";
 import { runTinker } from "./tinker.ts";
 import { NOT_RUN_PLAN_LIMIT, runTestCases } from "./test-runs.ts";
@@ -1043,7 +1044,8 @@ export function createRuntime(
     ...(memory ? { memory, islandMemory, islandChats } : {}),
     ...(islandGit ? { islandGit } : {}),
     ...(helpers ? { helpers, islandHelpers: warmOnOpen(withPaperclip({
-            ...islandHelpers(helpers, installedApps, planModels, held, () => listSkills(userSkillsDir(), skillsDir)),
+            ...islandHelpers(helpers, installedApps, planModels, held, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name)))),
+            hub: createHubCommands({ store: helpers, log }), // B3.5
             openReport,
             ...(steering ? { steer: steering.steer, interrupt: steering.interrupt } : {}),
             // ADR-098 item 8: "Run tests" on a pending soul proposal or skill edit.

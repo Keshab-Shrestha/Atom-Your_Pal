@@ -1,6 +1,7 @@
 // Island mode (`main.ts --island`): ZENO Island drives the voice loop with JSON-line commands on
 // stdin and receives JSON-line events on stdout. Specification: docs/island-protocol.md.
 
+import type { HubCommands } from "./hub-commands.ts";
 import { createInterface } from "node:readline";
 import type { Readable } from "node:stream";
 import type { Logger } from "@zeno/shared";
@@ -189,7 +190,9 @@ export interface IslandHelpers {
   rejectProposal(id: number): void;
   undoProposal(id: number): void;
   /** Task 3.12: the skills (Keshab's and, ADR-094, ZENO's), and a worker's choice of them. Throws, with words for the user, for an unknown skill. */
-  skills(): { name: string; description: string; source?: "yours" | "zeno" }[];
+  skills(): { name: string; description: string; source?: "yours" | "zeno" | "hub" }[];
+  /** B3.5, ADR-102: the skills hub (search, preview, approve, reject, uninstall, update); absent: the commands are refused. */
+  hub?: HubCommands;
   /** ADR-094: Tinker's skill drafts and edits (pending and recent), and the answers to them. Each answer throws with words for the user. */
   skillDrafts(): SkillDraftItem[];
   skillEdits(): SkillEditItem[];
@@ -597,6 +600,24 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "skill.make":
         changeHelpers(command.type, (helpers) => helpers.makeSkill(command.id));
         return;
+      case "skill.hub.search":
+        void runHub(command.type, (hub) => hub.search(command.query));
+        return;
+      case "skill.hub.preview":
+        void runHub(command.type, (hub) => hub.preview(command.source, command.path));
+        return;
+      case "skill.hub.update":
+        void runHub(command.type, (hub) => hub.update(command.name));
+        return;
+      case "skill.hub.approve":
+        changeHelpers(command.type, (helpers) => hubOf(helpers).approve(command.id));
+        return;
+      case "skill.hub.reject":
+        changeHelpers(command.type, (helpers) => hubOf(helpers).reject(command.id));
+        return;
+      case "skill.hub.uninstall":
+        changeHelpers(command.type, (helpers) => hubOf(helpers).uninstall(command.name, command.force));
+        return;
       case "skill.approve":
         changeHelpers(command.type, (helpers) => helpers.approveSkillDraft(command.id));
         return;
@@ -762,7 +783,7 @@ export function runIsland(options: IslandOptions): IslandSession {
       const helpers = options.helpers;
       const agentProblems = helpers?.agentProblems() ?? [];
       const managers = helpers?.managers() ?? [];
-      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets(), skills: helpers.skills(), skillDrafts: helpers.skillDrafts(), skillEdits: helpers.skillEdits(), testCases: helpers.testCases(), mcp: helpers.mcp(), teamTasks: helpers.teamTasks(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.codex ? helpers.codex() : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}), ...(agentProblems.length ? { agentProblems } : {}), ...(managers.length ? { managers } : {}) });
+      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets(), skills: helpers.skills(), skillDrafts: helpers.skillDrafts(), skillEdits: helpers.skillEdits(), ...(helpers.hub?.payload() ? { skillHub: helpers.hub.payload() } : {}), testCases: helpers.testCases(), mcp: helpers.mcp(), teamTasks: helpers.teamTasks(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.codex ? helpers.codex() : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}), ...(agentProblems.length ? { agentProblems } : {}), ...(managers.length ? { managers } : {}) });
     });
   }
   function appNames(): Promise<string[]> {
@@ -784,6 +805,21 @@ export function runIsland(options: IslandOptions): IslandSession {
       return refuseHelpers(command, describe(error));
     }
     sendHelpers();
+  }
+  /** B3.5: a hub command that uses the network: a store refusal is an error for the window; a network one is a message in the list. */
+  async function runHub(command: string, run: (hub: HubCommands) => Promise<void>) {
+    const hub = options.helpers?.hub;
+    if (!hub) return refuseHelpers(command, HELPERS_OFF);
+    try {
+      await run(hub);
+    } catch (error) {
+      refuseHelpers(command, describe(error));
+    }
+    sendHelpers();
+  }
+  function hubOf(helpers: IslandHelpers): HubCommands {
+    if (!helpers.hub) throw new Error(HELPERS_OFF);
+    return helpers.hub;
   }
   async function setHelperApp(helper: string, app: string) {
     if (!options.helpers) return refuseHelpers("helper.set", HELPERS_OFF);

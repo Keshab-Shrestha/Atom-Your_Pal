@@ -27,6 +27,7 @@ const store = {
   goal: () => undefined,
   skillDrafts: () => [],
   skillEdits: () => [],
+  skillHubPending: () => [],
   onChange: () => () => {},
   startRoutine: (id: number) => (started.push(id), { id: 99 }),
 } as unknown as NonNullable<ApiServerOptions["helpers"]>;

@@ -14,8 +14,8 @@ export const SKILL_NAME = /^[a-z0-9][a-z0-9._-]{0,63}$/i;
 export interface SkillInfo {
   name: string;
   description: string;
-  /** "yours": from ~/.claude/skills; "zeno": made by ZENO (ADR-094). */
-  source: "yours" | "zeno";
+  /** "yours": from ~/.claude/skills; "zeno": made by ZENO (ADR-094); "hub": installed from the skills hub (B3.5). */
+  source: "yours" | "zeno" | "hub";
 }
 
 export const userSkillsDir = () => join(homedir(), ".claude", "skills");
@@ -39,12 +39,12 @@ function skillNames(dir: string | undefined): string[] {
 }
 
 /** Keshab's skills and ZENO's (those whose name is not one of his), sorted by name. Unreadable entries are left out. */
-export function listSkills(dir = userSkillsDir(), zenoDir?: string): SkillInfo[] {
+export function listSkills(dir = userSkillsDir(), zenoDir?: string, hub: ReadonlySet<string> = new Set()): SkillInfo[] {
   const yours = skillNames(dir);
   const zeno = skillNames(zenoDir).filter((name) => !yours.includes(name));
   return [
     ...yours.map((name) => ({ name, description: describe(join(dir, name, "SKILL.md")), source: "yours" as const })),
-    ...zeno.map((name) => ({ name, description: describe(join(zenoDir!, name, "SKILL.md")), source: "zeno" as const })),
+    ...zeno.map((name) => ({ name, description: describe(join(zenoDir!, name, "SKILL.md")), source: hub.has(name) ? ("hub" as const) : ("zeno" as const) })),
   ].sort((a, b) => a.name.localeCompare(b.name));
 }
 

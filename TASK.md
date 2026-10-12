@@ -1337,10 +1337,10 @@ Keshab asked for build only, so these items had no tests. They have tests now (c
 2. Telegram parity (B3.2, ADR-100): built and tested. `/steer`, `/interrupt` and the test line in Needs you items. Not yet tried on a real phone.
 3. WhatsApp for ATOM (B3.3): skipped by Keshab 2026-10-13.
 4. Checkpoint and undo of a run's file edits, also outside git repos (B3.4, ADR-101): TypeScript side built and tested. The Swift side is built by another agent. Bash edits are not tracked. Codex runs have no undo.
-5. Skills hub: search and install community skills. Effort medium.
+5. Skills hub (B3.5, ADR-102): TypeScript side built and tested. The Swift side is built by another agent. Search and install of skills from a pinned list of public repos (`anthropics/skills`). A person approves each install. No update is automatic.
 6. Smaller gaps: image and video generation. Remote terminals (Task 3.19, Cloud sandboxes, is the nearest planned task).
 
-B3 items 1, 2 and 4 are built (item 4: TypeScript side). Item 3 is skipped. The rest is not started.
+B3 items 1, 2, 4 and 5 are built (items 4 and 5: TypeScript side). Item 3 is skipped. The rest is not started.
 
 ## Phase 4 — Lantern: the Redesign (ADR-084, 2026-10-10)
 

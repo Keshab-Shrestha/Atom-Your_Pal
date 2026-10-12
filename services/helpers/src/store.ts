@@ -13,6 +13,7 @@ import { DEFAULT_PLAN_LIMIT, DEFAULT_TEAM_CAP, DEFAULT_WORKER_CAP, MAX_CAP, PLAN
 import { anchorFor, checkSchedule, isDue, routineTable } from "./routines.ts";
 import { SOUL_FIELDS, proposalTable } from "./feedback.ts";
 import { skillStore } from "./skill-drafts.ts";
+import { skillHubStore } from "./skill-hub.ts";
 import { teamStore } from "./team.ts";
 import { mcpTable } from "./mcp.ts";
 import { usageTable } from "./usage.ts";
@@ -471,11 +472,13 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     return { team, workers, planLimit: cap("planLimit", DEFAULT_PLAN_LIMIT) ?? 100, maxRunning: maxRunning() };
   }
 
+  const hub = skillHubStore({ db, now, ...(skillsDir ? { skillsDir } : {}), userSkillsDir: join(home, ".claude", "skills"), emit }); // B3.5
   const skills = skillStore({
     db,
     now,
     ...(skillsDir ? { skillsDir } : {}),
     userSkillsDir: join(home, ".claude", "skills"),
+    isHub: hub.isHubSkill,
     emit,
     get,
     mustGet,
@@ -960,6 +963,14 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     },
     skillsUsed: skills.skillsUsed,
     skillDrafts: skills.skillDrafts,
+    previewSkillHub: hub.previewSkillHub,
+    approveSkillHub: hub.approveSkillHub,
+    rejectSkillHub: hub.rejectSkillHub,
+    uninstallSkillHub: hub.uninstallSkillHub,
+    updateSkillHub: hub.updateSkillHub,
+    undoSkillHub: hub.undoSkillHub,
+    skillHubPending: hub.skillHubPending,
+    skillHubInstalled: hub.skillHubInstalled,
     skillEdits: skills.skillEdits,
 
     saveTestCase(jobId, kind, raw) {

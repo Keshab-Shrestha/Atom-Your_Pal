@@ -62,6 +62,8 @@ public struct NeedsYouItem: Sendable, Equatable, Identifiable {
         case skillDraft
         /// ADR-094: Tinker's edit to one of ZENO's skills, to accept or reject.
         case skillEdit
+        /// B3.5: a skill fetched from the skills hub, to install or reject.
+        case skillHub
         /// A runnable task held by a budget or the plan's limit.
         case held
         /// A task that failed.
@@ -92,6 +94,10 @@ public struct NeedsYouItem: Sendable, Equatable, Identifiable {
             NeedsYouItem(id: "skill-edit-\(e.id)", kind: .skillEdit, helperId: "tinker", helperName: names["tinker"] ?? "Tinker",
                          title: "Edit to the \(e.skill) skill", detail: e.reason, jobId: e.jobId, skillItemId: e.id)
         }
+        let hub = list.skillHub.pending.map { p in
+            NeedsYouItem(id: "skill-hub-\(p.id)", kind: .skillHub, helperId: "", helperName: "Skills hub",
+                         title: "Install \(p.name) from the skills hub?", detail: p.description, jobId: nil, skillItemId: p.id)
+        }
         for h in list.helpers {
             for p in h.proposals where p.state == "pending" {
                 proposals.append(NeedsYouItem(id: "proposal-\(p.id)", kind: .proposal, helperId: h.id, helperName: h.name,
@@ -113,7 +119,7 @@ public struct NeedsYouItem: Sendable, Equatable, Identifiable {
                 }
             }
         }
-        return plans + proposals + drafts + edits + held + failed.sorted { ($0.jobId ?? 0) > ($1.jobId ?? 0) }
+        return plans + proposals + drafts + edits + hub + held + failed.sorted { ($0.jobId ?? 0) > ($1.jobId ?? 0) }
     }
 }
 

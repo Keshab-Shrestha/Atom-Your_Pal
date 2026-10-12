@@ -115,7 +115,7 @@ export function parseSkillFile(text: string): { description: string; body: strin
 }
 
 /** Writes a skill's file in ZENO's folder, whole or not at all. */
-function writeSkill(dir: string, name: string, description: string, body: string) {
+export function writeSkill(dir: string, name: string, description: string, body: string) {
   const folder = join(dir, name);
   mkdirSync(folder, { recursive: true });
   const file = join(folder, "SKILL.md");
@@ -223,6 +223,8 @@ export interface SkillStoreDeps {
   skillsDir?: string;
   /** Keshab's ~/.claude/skills: read for names only, never written. */
   userSkillsDir: string;
+  /** B3.5: a skill installed from the hub is not ZENO's own: Tinker never edits it. */
+  isHub?: (name: string) => boolean;
   emit(change: HelperChange): void;
   get(id: number): Job | undefined;
   mustGet(id: number): Job;
@@ -239,7 +241,7 @@ export function skillStore(deps: SkillStoreDeps) {
   const t = skillTables(deps.db);
   const has = (dir: string | undefined, name: string) => Boolean(dir) && existsSync(join(dir!, name, "SKILL.md"));
   /** One of ZENO's own skills: in its folder and not shadowed by one of Keshab's of the same name. */
-  const isZeno = (name: string) => ANY_SKILL_NAME.test(name) && has(skillsDir, name) && !has(userSkillsDir, name);
+  const isZeno = (name: string) => ANY_SKILL_NAME.test(name) && has(skillsDir, name) && !has(userSkillsDir, name) && !deps.isHub?.(name);
   const readZeno = (name: string) => parseSkillFile(readFileSync(join(skillsDir!, name, "SKILL.md"), "utf8"));
   const taken = (dir: string | undefined) => {
     try {

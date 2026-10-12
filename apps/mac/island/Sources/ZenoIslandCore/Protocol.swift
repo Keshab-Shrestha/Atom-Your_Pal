@@ -103,6 +103,13 @@ public enum IslandCommand: Sendable, Equatable {
     case skillEditAccept(id: Int)
     case skillEditReject(id: Int)
     case skillEditUndo(id: Int)
+    /// B3.5: the skills hub: search, fetch one for review, answer a fetched one, uninstall or check an installed one for an update.
+    case skillHubSearch(query: String)
+    case skillHubPreview(source: Int, path: String)
+    case skillHubApprove(id: Int)
+    case skillHubReject(id: Int)
+    case skillHubUninstall(name: String, force: Bool = false)
+    case skillHubUpdate(name: String)
     /// ADR-098 item 8: save a done task as a test case, delete one, run a proposal's or skill edit's test cases again.
     case testcaseSave(jobId: Int, kind: String, target: String)
     case testcaseDelete(id: Int)
@@ -211,6 +218,12 @@ public enum IslandCommand: Sendable, Equatable {
         case .skillEditAccept: "skill.edit.accept"
         case .skillEditReject: "skill.edit.reject"
         case .skillEditUndo: "skill.edit.undo"
+        case .skillHubSearch: "skill.hub.search"
+        case .skillHubPreview: "skill.hub.preview"
+        case .skillHubApprove: "skill.hub.approve"
+        case .skillHubReject: "skill.hub.reject"
+        case .skillHubUninstall: "skill.hub.uninstall"
+        case .skillHubUpdate: "skill.hub.update"
         case .testcaseSave: "testcase.save"
         case .testcaseDelete: "testcase.delete"
         case .testcaseRun: "testcase.run"
@@ -340,8 +353,19 @@ public enum IslandCommand: Sendable, Equatable {
             fields["helper"] = helper
             fields["manager"] = manager
         case .proposalAccept(let id), .proposalReject(let id), .proposalUndo(let id), .jobOpen(let id), .jobRetry(let id), .mcpRemove(let id), .mcpTest(let id),
-             .skillMake(let id), .skillApprove(let id), .skillReject(let id), .skillEditAccept(let id), .skillEditReject(let id), .skillEditUndo(let id):
+             .skillMake(let id), .skillApprove(let id), .skillReject(let id), .skillEditAccept(let id), .skillEditReject(let id), .skillEditUndo(let id),
+             .skillHubApprove(let id), .skillHubReject(let id):
             fields["id"] = id
+        case .skillHubSearch(let query):
+            fields["query"] = String(query.prefix(60))
+        case .skillHubPreview(let source, let path):
+            fields["source"] = source
+            fields["path"] = path
+        case .skillHubUninstall(let name, let force):
+            fields["name"] = name
+            if force { fields["force"] = true }
+        case .skillHubUpdate(let name):
+            fields["name"] = name
         case .helperSkills(let helper, let skills):
             fields["helper"] = helper
             fields["skills"] = skills
@@ -886,6 +910,7 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
                                     },
                                     skillDrafts: Fields.skillDrafts(f.values["skillDrafts"]),
                                     skillEdits: Fields.skillEdits(f.values["skillEdits"]),
+                                    skillHub: Fields.skillHub(f.values["skillHub"]),
                                     agentProblems: Fields.agentProblems(f.values["agentProblems"]),
                                     teamTasks: Fields.teamTasks(f.values["teamTasks"]),
                                     managers: f.managers(),
@@ -1481,5 +1506,33 @@ extension Fields {
         }
         return TestRunSummary(better: count("better"), same: count("same"), worse: count("worse"), notRun: count("notRun"), failed: count("failed"),
                               running: count("running"), results: results)
+    }
+}
+
+extension Fields {
+    /// B3.5: the skills hub; absent (an older runtime) is empty. A malformed entry is left out.
+    static func skillHub(_ value: Any?) -> HubState {
+        guard let h = value as? [String: Any] else { return .empty }
+        func list(_ key: String) -> [[String: Any]] { (h[key] as? [Any] ?? []).compactMap { $0 as? [String: Any] } }
+        let results = list("results").compactMap { r -> HubSkillResult? in
+            guard let name = r["name"] as? String, let repo = r["repo"] as? String, let path = r["path"] as? String,
+                  let source = r["source"] as? NSNumber else { return nil }
+            return HubSkillResult(name: name, description: r["description"] as? String ?? "", repo: repo, path: path, sha: r["sha"] as? String ?? "", source: source.intValue)
+        }
+        let pending = list("pending").compactMap { p -> HubSkillPending? in
+            guard let id = p["id"] as? NSNumber, let kind = p["kind"] as? String, kind == "new" || kind == "update",
+                  let name = p["name"] as? String, let text = p["text"] as? String else { return nil }
+            let flags = (p["flags"] as? [Any] ?? []).compactMap { entry -> HubFlag? in
+                guard let f = entry as? [String: Any], let kind = f["kind"] as? String else { return nil }
+                return HubFlag(kind: kind, severity: f["severity"] as? String == "warn" ? .warn : .info, excerpt: f["excerpt"] as? String ?? "")
+            }
+            return HubSkillPending(id: id.intValue, isUpdate: kind == "update", name: name, description: p["description"] as? String ?? "",
+                                   repo: p["repo"] as? String ?? "", path: p["path"] as? String ?? "", sha: p["sha"] as? String ?? "", text: text, flags: flags)
+        }
+        let installed = list("installed").compactMap { i -> HubSkillInstalled? in
+            guard let name = i["name"] as? String else { return nil }
+            return HubSkillInstalled(name: name, repo: i["repo"] as? String ?? "", path: i["path"] as? String ?? "", sha: i["sha"] as? String ?? "")
+        }
+        return HubState(results: results, pending: pending, installed: installed, message: h["message"] as? String)
     }
 }

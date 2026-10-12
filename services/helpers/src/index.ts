@@ -12,6 +12,7 @@ export * from "./agents.ts";
 export * from "./mcp.ts";
 export * from "./usage.ts";
 export * from "./skill-drafts.ts";
+export * from "./skill-hub.ts";
 export * from "./team.ts";
 export * from "./managers.ts";
 export * from "./sub-agents.ts";

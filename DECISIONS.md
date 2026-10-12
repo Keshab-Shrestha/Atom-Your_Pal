@@ -2247,3 +2247,39 @@ An agent in granted folders can change files. In a git repository ZENO works in 
 - Undo adds no line to the task's activity. The activity kinds are a fixed list, and a new kind changes the protocol.
 - The copies stay on this Mac. They are never sent to a model or to Telegram.
 - Each thread build hashes up to 100 kept files to find the ones that changed.
+
+## ADR-102 — Skills Hub (2026-10-13)
+
+### Status
+
+Accepted. TypeScript side built and tested. The Swift side is built by another agent. Not yet tried against the real GitHub.
+
+### Context
+
+Keshab can make skills with Tinker (ADR-094) and use his own from `~/.claude/skills`. He cannot find skills that other people wrote. A skill is text that steers an agent. A skill from outside can hide an attack. Keshab needs a way to read the skill and decide before ZENO saves it.
+
+### Decision
+
+1. The sources are a fixed list in code: `HUB_SOURCES` in `apps/mac/src/skill-hub.ts`. It starts with `anthropics/skills`. A new source needs a code change.
+2. ZENO reads only from `https://api.github.com` and `https://raw.githubusercontent.com`. It uses no account and no token. A request refuses a redirect, waits 10 seconds at most, accepts text only, reads 64 KB at most (the file list: 2 MB), needs valid UTF-8, and runs 20 times a minute at most.
+3. Search reads the newest commit, then the file list once. It keeps the paths `skills/<name>/SKILL.md` and `<name>/SKILL.md` for 10 minutes. The query matches the folder name. ZENO reads the description of the first 10 hits. A limit of GitHub, or a list that is too big, gives a plain message.
+4. ZENO fetches ONE file for each skill: `SKILL.md` at a fixed commit. It never fetches a script or a reference file.
+5. The name of the skill is its folder name. It must match `SKILL_DRAFT_NAME`. A name with `..`, `/` or `\` is refused.
+6. A preview stores a waiting row. Nothing is written in `data/skills`. At most 3 previews wait.
+7. `reviewFlags` finds what a reader must look at. It is plain code with no model. It flags: each URL; shell blocks and commands; phrases that try to steer the agent; requests for tools; secret paths; files that are not installed; HTML comments; long base64 text; front matter that ZENO drops. A flag never approves anything.
+8. Two things are refused at preview: hidden characters (zero-width and text-direction marks) and text over 16000 characters. ZENO never cuts a skill.
+9. Approve writes `data/skills/<name>/SKILL.md` with `writeSkill`. It refuses a name that exists in `~/.claude/skills` or `data/skills`. It stores the repo, path, commit, the origin URL and the hash of the written text. At most 30 hub skills stay installed.
+10. An installed skill goes to no worker. Keshab chooses it for a worker as for any other skill. Its source is `hub`. Tinker never edits it.
+11. Uninstall removes the folder, the record and the workers' choice. It refuses a folder that differs from the stored hash, unless Keshab forces it.
+12. Update reads the newest commit by hand only. A different text becomes a waiting install. Approve replaces the file and keeps the old text for one undo. The undo has no command in this version.
+13. Commands: `skill.hub.search`, `skill.hub.preview`, `skill.hub.approve`, `skill.hub.reject`, `skill.hub.uninstall`, `skill.hub.update`. The list has `skillHub`. Telegram shows a waiting skill in Needs you with Approve and Reject. It shows the name, repo, short commit and flag kinds. It never shows the text.
+14. The log holds ids, names, repo and commit. It never holds the skill text, a URL found in it or the query.
+
+### Consequences
+
+- A flag is a hint. A reader can still miss an attack in plain words. Approve only what you read.
+- A skill steers an agent that has tools. An approved skill can still do harm through those tools. The folder and browser checks still apply.
+- The file list of a big repo can be truncated. Search then says so.
+- Without an account, GitHub allows 60 requests an hour for one address. Search uses 2 to 12 requests.
+- The undo of an update exists in the store only. Add a command when it is needed.
+- The island shows only one source until a second one is added in code.

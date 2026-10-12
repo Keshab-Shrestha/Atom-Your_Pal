@@ -64,3 +64,21 @@ test("ZENO's own skills are listed and linked too, unless Keshab has one of the 
     for (const d of [dir, zeno, plugin]) rmSync(d, { recursive: true, force: true });
   }
 });
+
+test("a ZENO skill whose name is in the hub list has source \"hub\" (B3.5)", () => {
+  const dir = skillsDir();
+  const zeno = mkdtempSync(join(tmpdir(), "zeno-own-"));
+  try {
+    for (const name of ["made-here", "from-hub"]) {
+      mkdirSync(join(zeno, name));
+      writeFileSync(join(zeno, name, "SKILL.md"), `---\nname: ${name}\ndescription: "D."\n---\n\nSteps.\n`);
+    }
+    const sources = (hub?: Set<string>) => listSkills(dir, zeno, hub).filter((s) => ["made-here", "from-hub"].includes(s.name)).map((s) => [s.name, s.source]);
+    assert.deepEqual(sources(new Set(["from-hub"])), [["from-hub", "hub"], ["made-here", "zeno"]]);
+    assert.deepEqual(sources(), [["from-hub", "zeno"], ["made-here", "zeno"]]);
+    assert.deepEqual(listSkills(dir, zeno, new Set(["pdf"])).find((s) => s.name === "pdf")?.source, "yours", "Keshab's own skill is never relabelled");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+    rmSync(zeno, { recursive: true, force: true });
+  }
+});

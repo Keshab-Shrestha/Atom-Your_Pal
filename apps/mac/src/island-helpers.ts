@@ -107,7 +107,7 @@ export function islandHelpers(
   /** Task 3.7: why a task may not start now (budgets, the plan's window), if so. */
   held: (job: Job) => string | undefined = () => undefined,
   /** Task 3.12, ADR-094: the skills to choose from, Keshab's and ZENO's (default: none, for tests). */
-  skills: () => { name: string; description: string; source?: "yours" | "zeno" }[] = () => [],
+  skills: () => { name: string; description: string; source?: "yours" | "zeno" | "hub" }[] = () => [],
   /** ADR-094: the clock for routines' next times (tests pass their own). */
   now: () => Date = () => new Date(),
 ): IslandHelpers {

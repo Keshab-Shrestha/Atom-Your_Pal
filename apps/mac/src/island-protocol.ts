@@ -91,6 +91,12 @@ export type IslandCommand =
   | { type: "testcase.run"; proposalKind: "soul" | "skill"; id: number }
   /** ADR-094: ask Tinker for a skill from a done task; answer its skill drafts and skill edits. */
   | { type: "skill.make" | "skill.approve" | "skill.reject" | "skill.edit.accept" | "skill.edit.reject" | "skill.edit.undo"; id: number }
+  /** B3.5, ADR-102: the skills hub (a pinned list of public repos): search, preview (nothing is saved), approve, reject, uninstall, look for an update. */
+  | { type: "skill.hub.search"; query: string }
+  | { type: "skill.hub.preview"; source: number; path: string }
+  | { type: "skill.hub.approve" | "skill.hub.reject"; id: number }
+  | { type: "skill.hub.uninstall"; name: string; force?: boolean }
+  | { type: "skill.hub.update"; name: string }
   | { type: "grant.remove"; helper: string; path: string }
   | { type: "job.block"; id: number; blockedBy: number[] }
   | { type: "comment.add"; id: number; text: string }
@@ -326,6 +332,22 @@ export interface UsageItem {
 }
 
 /** ADR-090: an MCP server as the island sees it: never a secret value. */
+/** B3.5, ADR-102: one flag from the review of a hub skill (kind, how much it matters, and the text that raised it). */
+export interface HubFlagItem {
+  kind: string;
+  severity: "warn" | "info";
+  excerpt: string;
+}
+
+/** B3.5: the skills hub as the window shows it: the last search, the skills that wait for an answer, and the installed ones. */
+export interface SkillHubItem {
+  results: { name: string; description: string; repo: string; path: string; sha: string; source: number }[];
+  pending: { id: number; kind: "new" | "update"; name: string; description: string; repo: string; path: string; sha: string; text: string; flags: HubFlagItem[] }[];
+  installed: { name: string; repo: string; path: string; sha: string }[];
+  /** A plain message: a search without hits, GitHub's limit, an unreachable host, "up to date". */
+  message?: string;
+}
+
 /** ADR-094: Tinker's draft of a new skill, with a short preview of its steps. */
 export interface SkillDraftItem {
   id: number;
@@ -571,7 +593,9 @@ export type IslandEvent =
       codexFallback?: boolean;
       codexReady?: boolean;
       /** Task 3.12: the skills to choose from: Keshab's in ~/.claude/skills ("yours") and, ADR-094, ZENO's own ("zeno"). */
-      skills?: { name: string; description: string; source?: "yours" | "zeno" }[];
+      skills?: { name: string; description: string; source?: "yours" | "zeno" | "hub" }[];
+      /** B3.5: the skills hub; absent when there is nothing to show. */
+      skillHub?: SkillHubItem;
       /** ADR-094: Tinker's skill drafts and skill edits: every pending one and the newest few others. */
       skillDrafts?: SkillDraftItem[];
       skillEdits?: SkillEditItem[];
@@ -659,6 +683,12 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "proposal.reject",
   "proposal.undo",
   "skill.make",
+  "skill.hub.search",
+  "skill.hub.preview",
+  "skill.hub.approve",
+  "skill.hub.reject",
+  "skill.hub.uninstall",
+  "skill.hub.update",
   "skill.approve",
   "skill.reject",
   "skill.edit.accept",
@@ -1010,6 +1040,29 @@ export function parseCommand(line: string): ParsedLine {
   if (type === "testcase.delete") {
     const { id } = value as { id?: unknown };
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: 'testcase.delete needs an "id" that is a whole number.' };
+    return { command: { type, id } };
+  }
+  if (type === "skill.hub.search") {
+    const { query } = value as { query?: unknown };
+    if (typeof query !== "string" || query.trim() === "" || query.length > 60) return { error: 'skill.hub.search needs a "query" of 1 to 60 characters.' };
+    return { command: { type, query } };
+  }
+  if (type === "skill.hub.preview") {
+    const { source, path } = value as { source?: unknown; path?: unknown };
+    if (typeof source !== "number" || !Number.isInteger(source) || source < 0) return { error: 'skill.hub.preview needs a "source" that is a whole number.' };
+    if (typeof path !== "string" || path === "" || path.length > 200) return { error: 'skill.hub.preview needs a "path" string.' };
+    return { command: { type, source, path } };
+  }
+  if (type === "skill.hub.uninstall" || type === "skill.hub.update") {
+    const { name, force } = value as { name?: unknown; force?: unknown };
+    if (typeof name !== "string" || name === "" || name.length > 64) return { error: `${type} needs a "name" string.` };
+    if (type === "skill.hub.update") return { command: { type, name } };
+    if (force !== undefined && typeof force !== "boolean") return { error: 'skill.hub.uninstall needs "force" to be true or false (or left out).' };
+    return { command: { type, name, ...(force !== undefined ? { force } : {}) } };
+  }
+  if (type === "skill.hub.approve" || type === "skill.hub.reject") {
+    const { id } = value as { id?: unknown };
+    if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     return { command: { type, id } };
   }
   if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.interrupt" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "team.delete" || type === "job.open" || type === "job.retry" || type === "mcp.remove" || type === "mcp.test" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "thread.get" || type === "skill.make" || type === "skill.approve" || type === "skill.reject" || type === "skill.edit.accept" || type === "skill.edit.reject" || type === "skill.edit.undo") {

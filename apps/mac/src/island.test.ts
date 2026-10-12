@@ -16,6 +16,7 @@ import type { TextToSpeech } from "./tts.ts";
 import { createComputerBridge } from "./computer-bridge.ts";
 import { BUILT_IN_KITS, HELPERS, openHelperStore, skillFile, tieredModels } from "@zeno/helpers";
 import { islandHelpers } from "./island-helpers.ts";
+import { createHubCommands } from "./hub-commands.ts";
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 const clip = (durationMs = 1500): AudioClip => ({ pcm: Buffer.alloc(4), sampleRate: 16_000, durationMs });
@@ -1506,4 +1507,45 @@ test("job.undo without helpers is refused", async () => {
   h.clear();
   await h.send({ type: "job.undo", id: 1 });
   assert.deepEqual(h.types(), ["error"]);
+});
+
+test("skill.hub.*: search, preview and approve reach the helpers event as skillHub; refusals are errors; no hub means refused (B3.5)", async () => {
+  const skillsDir = mkdtempSync(join(tmpdir(), "zeno-skills-"));
+  try {
+    const store = openHelperStore({ path: ":memory:", home: mkdtempSync(join(tmpdir(), "zeno-home-")), skillsDir });
+    const sha = "9".repeat(40);
+    const client = {
+      searchHub: async () => [{ name: "pdf-tools", description: "PDFs.", repo: "anthropics/skills", path: "skills/pdf-tools/SKILL.md", sha, source: 0 }],
+      fetchSkill: async (_s: number, path: string) => ({ repo: "anthropics/skills", path, sha, text: "---\nname: x\ndescription: PDFs.\n---\n\nSteps.\n" }),
+    } as never;
+    const h = islandHarness({ helpers: { ...islandHelpers(store, async () => []), hub: createHubCommands({ store, client, log: { info() {} } }) } });
+    await tick(5);
+    await h.send({ type: "skill.hub.search", query: "pdf" });
+    await tick(5);
+    assert.deepEqual((h.events().at(-1) as HelpersEvent).skillHub!.results.map((r) => r.name), ["pdf-tools"]);
+    await h.send({ type: "skill.hub.preview", source: 0, path: "skills/pdf-tools/SKILL.md" });
+    await tick(5);
+    const pending = (h.events().at(-1) as HelpersEvent).skillHub!.pending;
+    assert.deepEqual(pending.map((p) => [p.kind, p.name, p.flags]), [["new", "pdf-tools", []]]);
+    assert.equal(existsSync(join(skillsDir, "pdf-tools")), false);
+    await h.send({ type: "skill.hub.approve", id: pending[0]!.id });
+    await tick(5);
+    const event = h.events().at(-1) as HelpersEvent;
+    assert.deepEqual(event.skillHub!.installed.map((i) => i.name), ["pdf-tools"]);
+    assert.ok(existsSync(join(skillsDir, "pdf-tools", "SKILL.md")));
+    h.clear();
+    await h.send({ type: "skill.hub.reject", id: 99 });
+    assert.deepEqual(h.types(), ["error"]);
+    assert.match((h.events()[0] as { message: string }).message, /No skill from the hub waits/);
+    await h.send({ type: "skill.hub.uninstall", name: "pdf-tools" });
+    assert.equal(existsSync(join(skillsDir, "pdf-tools")), false);
+    const off = islandHarness({ helpers: islandHelpers(openHelperStore({ path: ":memory:" }), async () => []) });
+    await tick(5);
+    off.clear();
+    await off.send({ type: "skill.hub.search", query: "pdf" });
+    await off.send({ type: "skill.hub.approve", id: 1 });
+    assert.deepEqual(off.types(), ["error", "error"]);
+  } finally {
+    rmSync(skillsDir, { recursive: true, force: true });
+  }
 });

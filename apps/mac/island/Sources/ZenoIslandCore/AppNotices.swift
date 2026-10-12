@@ -84,6 +84,9 @@ public struct NoticeWatcher: Sendable {
         for e in list.skillEdits where e.state == "pending" {
             out.append(AppNotice(kind: .needsYou, title: "Tinker suggests an edit to \(e.skill)", body: "Open Plugins to accept or reject it.", key: "skill-edit-\(e.id)"))
         }
+        for p in list.skillHub.pending {
+            out.append(AppNotice(kind: .needsYou, title: "Install \(p.name) from the skills hub?", body: "Open Plugins to read it and answer.", key: "skill-hub-\(p.id)"))
+        }
         if let team = list.team { out += budgetNotices(team, who: "The team's", key: "team") }
         if let used = plan?.fiveHour, used >= warnAt {
             let percent = Int((used * 100).rounded())

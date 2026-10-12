@@ -18,10 +18,12 @@ function fakeStore(over: Record<string, unknown> = {}) {
     managers: () => [],
     skillDrafts: () => [],
     skillEdits: () => [],
+    skillHubPending: () => [],
     onChange: () => () => {},
     report: () => undefined,
     approvePlan: rec("approvePlan"), rejectPlan: rec("rejectPlan"), acceptProposal: rec("acceptProposal"), rejectProposal: rec("rejectProposal"),
     approveSkillDraft: rec("approveSkillDraft"), rejectSkillDraft: rec("rejectSkillDraft"), acceptSkillEdit: rec("acceptSkillEdit"), rejectSkillEdit: rec("rejectSkillEdit"),
+    approveSkillHub: rec("approveSkillHub"), rejectSkillHub: rec("rejectSkillHub"),
     retry: rec("retry"),
     testResults: () => [],
     ...over,
@@ -59,6 +61,22 @@ test("needsYou without a store still lists ATOM's questions; every code fits Tel
   assert.ok(long[0]!.buttons!.flat().every((b) => Buffer.byteLength(b.data) <= 64));
 });
 
+test("needsYou: a hub skill shows name, source, short sha and flag kinds, never its text; Approve and Reject use h:<id>", () => {
+  const secret = "SECRET SKILL TEXT https://evil.example";
+  const store = fakeStore({
+    skillHubPending: () => [
+      { id: 9, kind: "new", name: "pdf-tools", repo: "anthropics/skills", sha: "a".repeat(40), text: secret, flags: [{ kind: "url", severity: "info", excerpt: "https://evil.example" }, { kind: "url", severity: "info", excerpt: "x" }, { kind: "shell-command", severity: "warn", excerpt: "curl" }] },
+      { id: 10, kind: "update", name: "old-one", repo: "anthropics/skills", sha: "b".repeat(40), text: secret, flags: [] },
+    ],
+  });
+  const needs = needsYou(store, () => undefined, []);
+  assert.deepEqual(needs.map((n) => [n.key, n.push]), [["skill-hub-9", true], ["skill-hub-10", true]]);
+  assert.equal(needs[0]!.text, "Skill from the hub: pdf-tools\nanthropics/skills @ aaaaaaa\nFlags: url, shell-command\nRead it in the ZENO window before you approve.");
+  assert.match(needs[1]!.text, /newer version of the old-one skill.*\nFlags: none/s);
+  assert.ok(needs.every((n) => !n.text.includes("SECRET") && !n.text.includes("evil")));
+  assert.deepEqual(needs[0]!.buttons!.flat().map((b) => b.data), ["h:9:1", "h:9:0"]);
+});
+
 test("answerNeed: each code calls the matching store method", () => {
   const store = fakeStore();
   const approvals = { pending: () => [{ id: "q1" }] as any, answered: [] as string[], answer(id: string, ok: boolean) { this.answered.push(`${id}:${ok}`); } };
@@ -67,8 +85,8 @@ test("answerNeed: each code calls the matching store method", () => {
   assert.equal(said("a:q1:0"), "Declined.");
   assert.equal(said("a:gone:1"), "That question has already ended.");
   assert.deepEqual(approvals.answered, ["q1:true", "q1:false"]);
-  for (const d of ["p:1:1", "p:1:0", "s:2:1", "s:2:0", "d:3:1", "d:3:0", "e:4:1", "e:4:0", "r:5"]) said(d);
-  assert.deepEqual(store.calls, ["approvePlan:1", "rejectPlan:1", "acceptProposal:2", "rejectProposal:2", "approveSkillDraft:3", "rejectSkillDraft:3", "acceptSkillEdit:4", "rejectSkillEdit:4", "retry:5"]);
+  for (const d of ["p:1:1", "p:1:0", "s:2:1", "s:2:0", "d:3:1", "d:3:0", "e:4:1", "e:4:0", "h:6:1", "h:6:0", "r:5"]) said(d);
+  assert.deepEqual(store.calls, ["approvePlan:1", "rejectPlan:1", "acceptProposal:2", "rejectProposal:2", "approveSkillDraft:3", "rejectSkillDraft:3", "acceptSkillEdit:4", "rejectSkillEdit:4", "approveSkillHub:6", "rejectSkillHub:6", "retry:5"]);
   assert.equal(said("zzz:1:1"), "That button is out of date.");
   assert.equal(said(""), "That button is out of date.");
   assert.equal(answerNeed("p:1:1", undefined, approvals), "The team is not available.");

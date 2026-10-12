@@ -64,6 +64,10 @@ struct NeedsYouPane: View {
                 QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerSkillEdit(item.skillItemId!, accept: false)) }
                 QuietButton(title: "Plugins") { model.navigate { model.windowPage = .plugins } }
             }
+        case .skillHub:
+            card(kind: "Skills hub", who: item.helperName, title: item.title, detail: item.detail) {
+                QuietButton(title: "Read it in Plugins", symbol: "doc.text") { model.navigate { model.windowPage = .plugins } }
+            }
         case .held:
             card(kind: "Held", who: item.helperName, title: item.title, detail: item.detail) {
                 QuietButton(title: "Budgets") { model.navigate { model.windowPage = .agents; model.helpers.selectBoard() } }
