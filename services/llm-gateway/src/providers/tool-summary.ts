@@ -108,6 +108,7 @@ export const summarizeToolResult = (text: string) => cutText(redact(text), TOOL_
  */
 export function toolCallRecorder(emit: ((event: ToolCallEvent) => void) | undefined, agentOf?: (parentToolUseId: string) => string | undefined) {
   const secrets = new Set<string>();
+  const typed = new Set<string>(); // browser typing calls: Playwright's result repeats the typed text
   const tell = (event: ToolCallEvent) => {
     try {
       emit?.(event);
@@ -121,13 +122,14 @@ export function toolCallRecorder(emit: ((event: ToolCallEvent) => void) | undefi
       if (!emit || typeof block.id !== "string" || typeof block.name !== "string") return;
       const { text, secret } = summarizeToolInput(block.name, block.input);
       if (secret) secrets.add(block.id);
+      if (/^mcp__[^_]*browser[^_]*__browser_(type|fill_form)$/i.test(block.name)) typed.add(block.id);
       const agent = agentFor(parent);
       tell({ id: block.id, ...(agent ? { agent } : {}), tool: block.name.slice(0, TOOL_NAME_CHARS), input: text, state: "started", at: new Date().toISOString() });
     },
     /** Matched to its call by `tool_use_id` only. */
     ended(block: { tool_use_id?: unknown; is_error?: unknown; content?: unknown }, parent?: unknown) {
       if (!emit || typeof block.tool_use_id !== "string") return;
-      const result = secrets.has(block.tool_use_id) ? SECRET_FILE : summarizeToolResult(resultText(block.content));
+      const result = secrets.has(block.tool_use_id) ? SECRET_FILE : typed.has(block.tool_use_id) ? TEXT_HIDDEN : summarizeToolResult(resultText(block.content));
       const agent = agentFor(parent);
       tell({
         id: block.tool_use_id,

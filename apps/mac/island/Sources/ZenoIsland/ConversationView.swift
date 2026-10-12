@@ -20,7 +20,12 @@ struct Composer: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            if snapshot {
+            if let notice = model.chats?.currentReadOnlyNotice {
+                // ADR-098: Telegram or the local API writes this chat. Reading, copying and search still work.
+                Text(notice).font(.system(size: 12.5)).foregroundStyle(theme.text3.color).lineLimit(2)
+                    .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+                    .accessibilityLabel(notice)
+            } else if snapshot {
                 // `ImageRenderer` cannot draw a text field: show the placeholder as it would appear.
                 Text(placeholder).font(.system(size: 12.5)).foregroundStyle(theme.text3.color).lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -32,7 +37,9 @@ struct Composer: View {
                     .onSubmit(send)
                     .accessibilityLabel("Message to ZENO")
             }
-            ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, action: send)
+            if model.chats?.currentReadOnlyNotice == nil {
+                ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, action: send)
+            }
         }
         .padding(.leading, 18)
         .padding(.trailing, 5)

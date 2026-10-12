@@ -108,3 +108,15 @@ test("a curl -u login is masked", () => {
   assert.equal(redact("curl -u admin:s3cret https://a.b"), "curl -u [hidden] https://a.b");
   assert.equal(redact("curl --user admin:s3cret https://a.b"), "curl --user [hidden] https://a.b");
 });
+
+test("the result of a browser typing call is hidden (Playwright echoes the typed text in its code line)", () => {
+  const events: ToolCallEvent[] = [];
+  const rec = toolCallRecorder((e) => events.push(e));
+  rec.started({ id: "a", name: "mcp__zeno-browser__browser_type", input: { target: "e7", text: "hunter2-pw" } });
+  rec.ended({ tool_use_id: "a", content: "await page.getByRole('textbox').fill('hunter2-pw');" });
+  rec.started({ id: "b", name: "mcp__zeno-browser__browser_snapshot", input: {} });
+  rec.ended({ tool_use_id: "b", content: "- Page URL: https://a.test" });
+  assert.ok(!JSON.stringify(events).includes("hunter2"));
+  assert.equal(events[1]!.result, "(text hidden)");
+  assert.equal(events[3]!.result, "- Page URL: https://a.test");
+});

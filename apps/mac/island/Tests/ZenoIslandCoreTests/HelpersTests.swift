@@ -1101,6 +1101,24 @@ struct ChatTests {
     }
 }
 
+@Suite("Read-only chats (ADR-098)")
+struct ReadOnlyChatTests {
+    @Test func decodesTheFlagAndDefaultsToFalse() throws {
+        guard case .chats(let list) = try decodeEvent(#"{"type":"chats","current":"telegram","chats":[{"id":"telegram","title":"Telegram","updatedAt":"2026-10-11T00:00:00.000Z","messages":4,"readOnly":true},{"id":"api-ci","title":"api-ci","updatedAt":"2026-10-11T00:00:00.000Z","messages":1,"readOnly":true},{"id":"a","title":"Plan","updatedAt":"2026-10-11T00:00:00.000Z","messages":2}]}"#) else {
+            Issue.record("not chats"); return
+        }
+        #expect(list.chats.map(\.readOnly) == [true, true, false])
+    }
+
+    @Test func theComposerIsOffOnlyInAReadOnlyChatWithTheRightLine() {
+        let chats = [ChatInfo(id: "telegram", title: "Telegram", readOnly: true), ChatInfo(id: "api", title: "api", readOnly: true), ChatInfo(id: "a", title: "Plan")]
+        #expect(ChatList(chats: chats, current: "telegram").currentReadOnlyNotice == "Written from Telegram. You can read it here.")
+        #expect(ChatList(chats: chats, current: "api").currentReadOnlyNotice == "Written from the local API. You can read it here.")
+        #expect(ChatList(chats: chats, current: "a").currentReadOnlyNotice == nil)
+        #expect(ChatList(chats: chats, current: "unknown").currentReadOnlyNotice == nil)
+    }
+}
+
 @Suite("Git branches (ADR-091)")
 struct GitBranchTests {
     @Test func decodesBranchesAndKnowsWhenOneCanBePushed() throws {

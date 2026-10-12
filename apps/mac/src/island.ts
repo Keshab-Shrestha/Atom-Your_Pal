@@ -2,6 +2,7 @@
 // stdin and receives JSON-line events on stdout. Specification: docs/island-protocol.md.
 
 import type { HubCommands } from "./hub-commands.ts";
+import { chatWriter, readOnlyMessage } from "./chat-owner.ts";
 import { createInterface } from "node:readline";
 import type { Readable } from "node:stream";
 import type { Logger } from "@zeno/shared";
@@ -309,7 +310,13 @@ export function runIsland(options: IslandOptions): IslandSession {
   const loop = createVoiceLoop({
     record: options.record,
     stt: options.stt,
-    core,
+    // ADR-098: a chat that Telegram or the local API writes is read-only here; its one writer keeps its history right.
+    core: {
+      handle: (input, signal, hooks) => {
+        const writer = chatWriter(core.sessionId ?? "");
+        return writer ? Promise.reject(new Error(readOnlyMessage(writer))) : core.handle(input, signal, hooks);
+      },
+    },
     tts,
     silenceWarnMs: options.silenceWarnMs,
     events: wrap({
@@ -865,7 +872,7 @@ export function runIsland(options: IslandOptions): IslandSession {
   function sendChats() {
     const current = core.sessionId ?? "";
     const own = current ? options.chats?.modelOf?.(current) : undefined; // ADR-097
-    send({ type: "chats", chats: options.chats?.list() ?? [], current, ...(own ? { currentProvider: own.provider, currentModel: own.model } : {}) });
+    send({ type: "chats", chats: (options.chats?.list() ?? []).map((c) => (chatWriter(c.id) ? { ...c, readOnly: true as const } : c)), current, ...(own ? { currentProvider: own.provider, currentModel: own.model } : {}) });
   }
   const stopChatUpdates = options.chats?.onChange(() => {
     if (chatsWatched) sendChats();

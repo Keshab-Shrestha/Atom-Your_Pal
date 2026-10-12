@@ -35,6 +35,9 @@ export interface ApiServer {
   stop(): void;
 }
 
+/** The chat id of the API's goal turns; a goal made in them has this `source`. */
+export const API_GOAL_SOURCE = "api";
+
 export interface ApiServerOptions {
   log: Logger;
   /** ZENO_API_PORT, or DEFAULT_API_PORT. */
@@ -164,9 +167,9 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
         return turn(async () => {
           const made: number[] = [];
           const stop = store?.onChange((change) => {
-            if (change.action === "goal" && !change.ended) made.push(change.goal);
+            // Only a goal this surface made: its Core's chat is "api" (runtime.ts), other surfaces have other sources.
+            if (change.action === "goal" && !change.ended && change.source === API_GOAL_SOURCE) made.push(change.goal);
           });
-          // ponytail: a goal another surface makes during this turn could be counted; a goal id from the delegate tool if that matters.
           try {
             const answer = await atom(goal);
             return { goalId: made[0] ?? null, answer };

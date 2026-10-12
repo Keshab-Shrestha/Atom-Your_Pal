@@ -1207,6 +1207,7 @@ Telegram for ATOM, and results to the phone. ZENO uses its own bot. Hermes keeps
 - Steering (ADR-100): `/steer <number> <text>` calls `TaskSteering.steer`, the same function as the window. It answers "Sent to task #N now." or "Kept for task #N. It runs after this step." `/interrupt <number>` calls `TaskSteering.interrupt` and answers "Task #N stopped. It waits for your message." A `HelperError` message is the answer. Without steering, both commands answer "Steering is off." The log holds the command name only, never the message.
 - Test results (ADR-100): a Needs you item for a Tinker proposal or skill edit has one more line, "Test cases: 2 better, 1 same". The line has the same words as the window. No results: no line. No new buttons.
 - Tests: `telegram-bot.test.ts` covers the bot, the commands, steering and the test line.
+- One writer for each chat: the chats `telegram`, `api` and `api-<chatId>` are read-only in the ZENO window. The `chats` event sets `readOnly: true` on them. A window turn (typed or spoken) in one gets the error "This chat is written from Telegram. Open it to read it only." The window shows one line in place of the composer. Reading, copying and search still work. Not done: a chat that Telegram writes has no way to move to the window.
 
 ## ADR-098 item 4 — as built (2026-10-12)
 
@@ -1219,7 +1220,9 @@ A browser for workers.
 - `browserCheck` in `apps/mac/src/browser.ts` checks each browser call. The first visit to each site and the first typing or submit on each site ask Keshab on ATOM's card. The answer lasts for the run. Uploads come only from the worker's granted folders. The check refuses a call that names a file. A PostToolUse hook gives each result to the check, so it knows the page's origin and the last snapshot.
 - The task's step shows the tool and the origin, for example "Browser: click on https://example.com".
 - The gateway option is `browser` in `runResearch` (`claude-plan-job.ts`). The runtime makes a new check for each run.
-- Not done: tests (Keshab asked for build only). A password field cannot be told from other fields, so all typing on a new site asks. The same worker in two runs at once shares one profile, and the second browser does not start. A switch for a headless browser is not there.
+- Password fields: ZENO's init script (`apps/mac/src/browser-password-mark.cjs`, `--init-script`) puts "[password field]" before the name of each password input (type `password`, or `autocomplete` with "password"). The page snapshot shows it. For `browser_type` and `browser_fill_form`, `browserCheck` reads the target's line in the snapshot. A password field, or a target ZENO cannot find in the snapshot, asks Keshab on each call, also on a site that is already allowed. The answer is never kept. The model has no new tool. The summary of a typing call and its result hide the typed text.
+- Two browser tasks of one worker: the second waits for the first (`acquireBrowser`, first come first served). Its step says "Waiting for the browser". The turn is released when the first task ends, fails or stops. A stop ends a wait. Another worker does not wait.
+- Not done: a headless switch. Inputs inside shadow roots are not marked. `browser_press_key` can still type into a focused password field after the site question. The turn is released when the run ends, not when the browser process has exited. The init script is tested with fakes, not yet in a real Chromium (not installed here).
 
 ## ADR-098 item 6 — as built (2026-10-12)
 
@@ -1266,13 +1269,14 @@ ZENO as a server: a local HTTP API, an MCP server and webhooks for schedules.
 - Each request needs `Authorization: Bearer <token>`. The token is in `data/api-token` (32 random bytes as hex, mode 0600). ZENO makes it at the first start. ZENO compares SHA-256 digests in constant time. A wrong token gets 401. The log has the count only.
 - "Copy token" reads the file when clicked and puts the token on the clipboard. The token is never in the log or the protocol.
 - Endpoints: `POST /v1/goals`, `GET /v1/goals/:id`, `POST /v1/chat`, `GET /v1/tasks`, `GET /v1/tasks/:id`, `GET /v1/needs`, `POST /v1/needs/:key`, `POST /v1/hooks/:routineId`. Each answer is `{ok, data, error}`. A body is at most 64 KB.
-- Goals and chat turns go to a Core of their own (`makeCore`, as for Telegram). The chat is `api`, or `api-<chatId>`. One turn runs at a time. A goal's id comes from the store's `goal` change during the turn.
+- Goals and chat turns go to a Core of their own (`makeCore`, as for Telegram). The chat is `api`, or `api-<chatId>`. One turn runs at a time. A goal has a `source` (the chat that made it; NULL for old goals). The `goal` change event carries it. The API goal turn takes the goal id only from a goal with the source `api`.
+- The delegate tool reads the source from the turn (`turn-chat.ts`, `AsyncLocalStorage`), not from a Core. The Claude plan runs all tools through one shared runner, so a tool cannot belong to one Core.
 - Needs you uses `needsYou` and `answerNeed` from `telegram-bot.ts`. `answerNeed` is the Telegram button code, moved out so both use it. The action is the button's word in lower case (`approve`, `reject`, `allow`, `decline`, `accept`, `retry`).
 - Webhooks: each routine has a `webhook` column (default off). The Scheduled form has the switch "Can be started by webhook". In edit mode the form shows the path. `HelperStore.startRoutine(id)` makes the task now. A routine without the switch gets 403. A routine whose last task has not ended gets 409.
 - The log has `api.request` (method, route pattern, status, ms), `api.unauthorized` (count), `api.start`, `api.stop` and `api.start_failed`. It never has bodies, goals, answers or the token.
 - The MCP server is `apps/mac/src/mcp-serve.ts`. It uses `@modelcontextprotocol/sdk` (already a dependency) over stdio. It is a client of the API and reads `data/api-token`. Tools: `zeno_give_goal`, `zeno_goal_status`, `zeno_chat`, `zeno_list_tasks`, `zeno_task_report`, `zeno_needs_you`. Add it with `claude mcp add zeno -- node <ZENO folder>/apps/mac/src/mcp-serve.ts`.
 - Docs: README "Use ZENO from other tools", SECURITY.md "Local API and MCP server", docs/island-protocol.md "Local API".
-- Not done: tests (Keshab asked for build only). No `pnpm zeno:mcp` script: pnpm writes a line to stdout, and that breaks the MCP stream. A goal that another surface makes during an API goal turn can get its id. The MCP server has no tool to answer Needs you. Terminal mode has no switch, so the API is off there.
+- Not done: tests (Keshab asked for build only). No `pnpm zeno:mcp` script: pnpm writes a line to stdout, and that breaks the MCP stream. The MCP server has no tool to answer Needs you. Terminal mode has no switch, so the API is off there.
 
 ## ADR-098 item 3 — as built (2026-10-12)
 
@@ -1323,11 +1327,12 @@ Keshab asked for build only, so these items had no tests. They have tests now (c
 
 ### B2 — Known weak spots (each is recorded in the ADR sections above)
 
-- A Telegram turn and a window turn on the same chat can disagree on the history.
-- One worker cannot run two browser tasks at once. The two runs share one profile.
-- A goal that another surface makes during an API goal turn can get the wrong id. A goal has no chat or source field, and the delegate tool does not know its caller. Needs a design choice.
-- The browser cannot tell password fields from other fields. The page snapshot does not show the input type. Needs a design choice.
-- Codex runs get no hand-off, skills, MCP servers, browser or sub-agents. They skip the browser and MCP safety checks.
+- Fixed (2026-10-13): a Telegram turn and a window turn on the same chat could disagree on the history. Each chat now has one writer; the window reads `telegram` and `api*` chats only.
+- Fixed: a second browser task of one worker waits for the first.
+- Fixed (2026-10-13): a goal that another surface made during an API goal turn could get the wrong id. A goal now has a `source`. Not checked with the real Claude plan: the source reaches the shared tool runner through `AsyncLocalStorage`.
+- Fixed: a password field, or a field ZENO cannot identify, always asks. Open: shadow-root inputs and `browser_press_key` into a focused password field.
+- Codex runs get no hand-off, skills, MCP servers, browser or sub-agents. This is not a gap: no browser or MCP tool exists for the safety checks to guard. A test checks it (`codex-job.test.ts`).
+- No separate webhook secret (ADR-103). The webhook uses the API bearer token and the API listens on 127.0.0.1 only.
 - Fixed: the MCP server has the tool `zeno_answer_need` (key and action). A browser action before the first navigate is now refused.
 - `apps/mac/src/runtime.ts` (1203 lines) and `apps/mac/src/island-protocol.ts` (1069 lines) are over the 800-line limit.
 

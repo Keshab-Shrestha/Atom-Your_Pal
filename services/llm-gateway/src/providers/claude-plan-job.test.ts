@@ -405,3 +405,48 @@ test("onToolCall: a throwing listener never fails the run, and the step text sti
   assert.equal(result.report.title, report.title);
   assert.deepEqual(steps, ["Searching the web"]);
 });
+
+// ADR-098 item 4: a browser task of a worker waits for its turn at the browser, and gives the turn back however it ends.
+function browserTurn() {
+  const log: string[] = [];
+  const browser = {
+    name: "zeno-browser",
+    server: {},
+    check: async () => ({ step: "x" }),
+    seen: () => {},
+    acquire: async (_signal: AbortSignal, onWait: () => void) => (onWait(), log.push("acquire"), () => log.push("release")),
+  };
+  return { log, browser: browser as unknown as ResearchOptions["browser"] };
+}
+
+test("a browser run waits for its turn, says so, and releases when it ends (item 4)", async () => {
+  const { log, browser } = browserTurn();
+  const steps: string[] = [];
+  const { sdk } = fakeSdk(async function* () {
+    log.push("start");
+    yield init();
+    yield done();
+  });
+  await research(sdk, { browser, onStep: (t) => steps.push(t) });
+  assert.deepEqual(log, ["acquire", "start", "release"]);
+  assert.equal(steps[0], "Waiting for the browser");
+});
+
+test("the browser turn is released when the run errors or is stopped (item 4)", async () => {
+  const { log, browser } = browserTurn();
+  const bad = fakeSdk(async function* () {
+    yield init();
+    throw new Error("boom");
+  });
+  await assert.rejects(research(bad.sdk, { browser }));
+  assert.deepEqual(log, ["acquire", "release"]);
+  const ctl = new AbortController();
+  const stopped = browserTurn();
+  const slow = fakeSdk(async function* () {
+    yield init();
+    ctl.abort();
+    yield toolUse("WebSearch");
+  });
+  await assert.rejects(research(slow.sdk, { browser: stopped.browser, signal: ctl.signal }), /cancel/i);
+  assert.deepEqual(stopped.log, ["acquire", "release"]);
+});

@@ -1421,7 +1421,8 @@ private struct Fields {
     static func chats(_ value: Any?) -> [ChatInfo] {
         (value as? [Any] ?? []).compactMap { entry in
             guard let m = entry as? [String: Any], let id = m["id"] as? String, let title = m["title"] as? String else { return nil }
-            return ChatInfo(id: id, title: title, updatedAt: (m["updatedAt"] as? String).flatMap(date), messages: (m["messages"] as? NSNumber)?.intValue ?? 0)
+            return ChatInfo(id: id, title: title, updatedAt: (m["updatedAt"] as? String).flatMap(date), messages: (m["messages"] as? NSNumber)?.intValue ?? 0,
+                            readOnly: m["readOnly"] as? Bool ?? false)
         }
     }
 

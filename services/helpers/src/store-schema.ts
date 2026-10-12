@@ -79,7 +79,8 @@ export function createSchema(db: DatabaseSync) {
       text TEXT NOT NULL,
       created_at TEXT NOT NULL,
       ended_at TEXT,
-      report TEXT
+      report TEXT,
+      source TEXT
     );
     CREATE TABLE IF NOT EXISTS helper_skills (
       helper TEXT NOT NULL,
@@ -100,6 +101,9 @@ export function createSchema(db: DatabaseSync) {
     );
     CREATE INDEX IF NOT EXISTS spend_at ON spend(at);
   `);
+  // ADR-098: goals from before the source column have none (NULL).
+  const goalColumns = new Set((db.prepare("PRAGMA table_info(goals)").all() as { name: string }[]).map((c) => c.name));
+  if (!goalColumns.has("source")) db.exec("ALTER TABLE goals ADD COLUMN source TEXT");
   // ADR-083: files from before Task 3.2b lack the model columns.
   const columns = new Set((db.prepare("PRAGMA table_info(jobs)").all() as { name: string }[]).map((c) => c.name));
   for (const column of ["model", "model_reason", "goal"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);

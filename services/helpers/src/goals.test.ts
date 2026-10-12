@@ -236,3 +236,48 @@ test("the combined reply needs a title, a line and a body", () => {
   assert.deepEqual(parseCombined("**Title**\nLine.\n\nBody", []), { title: "Title", summary: "Line.", body: "Body", sources: [] });
   assert.equal(parseCombined("Title\nLine.", []), undefined);
 });
+
+// ADR-098: a goal keeps the chat that made it.
+test("a goal keeps its source; the change event carries it; the delegate tool reads it at each call", () => {
+  const store = openHelperStore({ path: ":memory:" });
+  const events: unknown[] = [];
+  store.onChange((c) => c.action === "goal" && events.push(c));
+  let chat: string | undefined = "telegram";
+  const tool = createDelegateTool({ store, source: () => chat });
+  tool.run({ goal: "one", tasks: [{ worker: "sid", task: "Research" }] });
+  chat = "api";
+  tool.run({ goal: "two", tasks: [{ worker: "sid", task: "Research" }] });
+  chat = undefined;
+  tool.run({ goal: "three", tasks: [{ worker: "sid", task: "Research" }] });
+  assert.deepEqual([1, 2, 3].map((id) => store.goal(id)!.source), ["telegram", "api", undefined]);
+  assert.deepEqual(events, [
+    { action: "goal", goal: 1, tasks: 1, ended: false, source: "telegram" },
+    { action: "goal", goal: 2, tasks: 1, ended: false, source: "api" },
+    { action: "goal", goal: 3, tasks: 1, ended: false },
+  ]);
+  assert.equal(store.addGoal("direct", [{ helper: "sid", task: "x" }], "win-1").source, "win-1");
+});
+
+test("a store file from before the source column still loads; its goals have no source", async () => {
+  const { mkdtempSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { DatabaseSync } = await import("node:sqlite");
+  const dir = mkdtempSync(join(tmpdir(), "zeno-goals-"));
+  try {
+    const path = join(dir, "helpers.db");
+    const first = openHelperStore({ path });
+    first.addGoal("old goal", [{ helper: "sid", task: "x" }]);
+    first.close?.();
+    const raw = new DatabaseSync(path);
+    raw.exec("ALTER TABLE goals DROP COLUMN source"); // the old shape
+    raw.close();
+    const store = openHelperStore({ path });
+    assert.equal(store.goal(1)!.text, "old goal");
+    assert.equal(store.goal(1)!.source, undefined);
+    assert.equal(store.addGoal("new goal", [{ helper: "sid", task: "y" }], "api").source, "api");
+    store.close?.();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BROWSER_SERVER, browserCheck, browserServer } from "./browser.ts";
+import { createRequire } from "node:module";
+import { BROWSER_SERVER, acquireBrowser, browserCheck, browserServer } from "./browser.ts";
 
 // ADR-098 item 4: the browser policy (pure; no browser starts).
 
@@ -101,4 +102,101 @@ test("a page action before the first navigate is refused (fail closed)", async (
   await p.check(T("navigate"), { url: "https://a.test" });
   p.seen(page("https://a.test/"));
   assert.ok("step" in (await p.check(T("snapshot"), {})));
+});
+
+// Item 1: a password field always asks, on every site, even after typing was allowed there.
+const PW = "- textbox \"[password field] Password\" [ref=e7]";
+const USER = "- textbox \"Search\" [ref=e2]";
+async function onShop(answer: (s: string) => boolean = () => true) {
+  const p = policy(answer);
+  await p.check(T("navigate"), { url: "https://shop.test" });
+  p.seen(page("https://shop.test/login", `${USER}\n${PW}\n- textbox "Login" [ref=e4]`));
+  return p;
+}
+const pwAsks = (p: { asked: string[] }) => p.asked.filter((a) => /password|cannot identify/.test(a)).length;
+
+test("typing into a password field (by ref) asks every time, also on a site allowed for typing", async () => {
+  const p = await onShop();
+  assert.ok("step" in (await p.check(T("type"), { target: "e2", text: "x" }))); // plain text: one site question only
+  assert.equal(pwAsks(p), 0);
+  assert.ok("step" in (await p.check(T("type"), { target: "e7", text: "hunter2" })));
+  assert.ok("step" in (await p.check(T("type"), { target: "e7", text: "hunter2" })));
+  assert.equal(pwAsks(p), 2);
+});
+
+test("a declined password question denies; fill_form checks every field", async () => {
+  const p = await onShop((s) => !s.includes("password field"));
+  assert.ok("deny" in (await p.check(T("type"), { target: "e7", text: "hunter2" })));
+  assert.ok("deny" in (await p.check(T("fill_form"), { fields: [{ target: "e2", value: "a" }, { ref: "e7", value: "b" }] })));
+  assert.ok("step" in (await p.check(T("fill_form"), { fields: [{ target: "e2", value: "a" }, { target: "e4", value: "b" }] })));
+});
+
+test("an element ZENO cannot resolve asks (missing ref, no ref, a ref from an old page)", async () => {
+  const p = await onShop();
+  await p.check(T("type"), { target: "e99", text: "a" });
+  await p.check(T("type"), { text: "a" });
+  assert.equal(pwAsks(p), 2);
+  assert.ok(p.asked.some((a) => a.includes("cannot identify")));
+  p.seen(page("https://shop.test/other", "- textbox \"Q\" [ref=e50]"));
+  await p.check(T("type"), { target: "e2", text: "a" }); // e2 was on the old page
+  assert.equal(pwAsks(p), 3);
+});
+
+test("typed text never reaches the log events or the approval cards", async () => {
+  const p = await onShop();
+  await p.check(T("type"), { target: "e7", text: "hunter2-secret" });
+  await p.check(T("fill_form"), { fields: [{ target: "e99", value: "hunter2-secret" }] });
+  assert.ok(!JSON.stringify([p.events, p.asked]).includes("hunter2"));
+});
+
+test("the page script marks password fields: type=password or autocomplete with password", () => {
+  const { isSecret } = createRequire(import.meta.url)("./browser-password-mark.cjs");
+  assert.equal(isSecret("password", null), true);
+  assert.equal(isSecret("text", "current-password"), true);
+  assert.equal(isSecret("text", "new-password"), true);
+  assert.equal(isSecret("text", "username"), false);
+  assert.equal(isSecret("email", null), false);
+  assert.ok((browserServer("/d", "x") as any).args.includes("--init-script"));
+});
+
+// Item 4: a second browser task of one worker waits for the first.
+const tick = () => new Promise((r) => setTimeout(r, 5));
+const live = () => new AbortController().signal;
+
+test("the second browser task waits (FIFO) and starts when the first ends", async () => {
+  const order: string[] = [];
+  const first = await acquireBrowser("w1", live(), () => order.push("wait1"));
+  let secondOn = false;
+  const second = acquireBrowser("w1", live(), () => order.push("wait2")).then((r) => ((secondOn = true), order.push("2"), r));
+  const third = acquireBrowser("w1", live(), () => order.push("wait3")).then((r) => (order.push("3"), r));
+  await tick();
+  assert.equal(secondOn, false);
+  first();
+  (await second)();
+  (await third)();
+  assert.deepEqual(order, ["wait2", "wait3", "2", "3"]);
+});
+
+test("release is safe twice; an error or stop in the first frees the next", async () => {
+  const a = await acquireBrowser("w2", live(), () => {});
+  const next = acquireBrowser("w2", live(), () => {});
+  a();
+  a();
+  (await next)();
+  // a stopped waiter leaves the queue without blocking the one behind it
+  const holder = await acquireBrowser("w2", live(), () => {});
+  const ctl = new AbortController();
+  const stopped = acquireBrowser("w2", ctl.signal, () => {});
+  const behind = acquireBrowser("w2", live(), () => {});
+  ctl.abort();
+  await assert.rejects(stopped, /cancel/i);
+  holder();
+  (await behind)();
+});
+
+test("a different worker does not wait", async () => {
+  const a = await acquireBrowser("w3", live(), () => assert.fail("w3 waited"));
+  const b = await acquireBrowser("w4", live(), () => assert.fail("w4 waited"));
+  a();
+  b();
 });

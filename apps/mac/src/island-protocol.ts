@@ -308,6 +308,8 @@ export interface ChatItem {
   title: string;
   updatedAt: string;
   messages: number;
+  /** ADR-098: true for a chat another surface writes (Telegram, the local API). The window reads it only. Absent means false. */
+  readOnly?: true;
 }
 
 /** ADR-091: token counts and API-equivalent dollars. */

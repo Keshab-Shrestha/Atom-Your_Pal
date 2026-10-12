@@ -109,12 +109,21 @@ public struct ChatInfo: Sendable, Equatable, Identifiable {
     public var title: String
     public var updatedAt: Date?
     public var messages: Int
+    /// ADR-098: another surface writes this chat (Telegram, the local API); the window reads it only.
+    public var readOnly: Bool
 
-    public init(id: String, title: String, updatedAt: Date? = nil, messages: Int = 0) {
+    public init(id: String, title: String, updatedAt: Date? = nil, messages: Int = 0, readOnly: Bool = false) {
         self.id = id
         self.title = title
         self.updatedAt = updatedAt
         self.messages = messages
+        self.readOnly = readOnly
+    }
+
+    /// The one line shown in place of the composer for a read-only chat; nil for a chat the window writes.
+    public var readOnlyNotice: String? {
+        guard readOnly else { return nil }
+        return "Written from \(id == "telegram" ? "Telegram" : "the local API"). You can read it here."
     }
 }
 
@@ -125,6 +134,9 @@ public struct ChatList: Sendable, Equatable {
     /// ADR-097: the current chat's own model; nil when it uses the default.
     public var currentProvider: String?
     public var currentModel: String?
+
+    /// ADR-098: the composer is off while the chat in use is read-only; this is its line. Nil: the composer works.
+    public var currentReadOnlyNotice: String? { chats.first { $0.id == current }?.readOnlyNotice }
 
     public init(chats: [ChatInfo], current: String, currentProvider: String? = nil, currentModel: String? = nil) {
         self.chats = chats

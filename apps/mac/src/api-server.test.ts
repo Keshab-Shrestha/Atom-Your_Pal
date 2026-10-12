@@ -222,3 +222,22 @@ test("a port in use gives an error status, not a throw", async () => {
     a.api.stop();
   }
 });
+
+test("a goal turn returns the id of the goal with its own source, not another surface's goal", async () => {
+  const listeners = new Set<(c: unknown) => void>();
+  const withStore = { ...store, onChange: (l: (c: unknown) => void) => (listeners.add(l), () => listeners.delete(l)) } as unknown as NonNullable<ApiServerOptions["helpers"]>;
+  const { api, port, token } = await boot({
+    helpers: withStore,
+    ask: async () => {
+      // A Telegram goal (id 40) lands first, then this turn's own goal (id 41), then a window goal (id 42).
+      for (const [goal, source] of [[40, "telegram"], [41, "api"], [42, "chat-3"], [43, undefined]] as const) {
+        for (const l of listeners) l({ action: "goal", goal, tasks: 1, ended: false, ...(source ? { source } : {}) });
+      }
+      return "done";
+    },
+  });
+  const res = await call(port, "POST", "/v1/goals", { token, body: '{"goal":"research x"}' });
+  assert.equal(res.json.data.goalId, 41);
+  assert.equal(listeners.size, 0);
+  await api.set(false);
+});

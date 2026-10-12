@@ -269,6 +269,7 @@ The `info` event carries `tools`: each AI tool ZENO looked for on this Mac, `{"i
 - `routine.add` and `routine.update` take `notifyTelegram` (optional, `true` or `false`). With `true`, ZENO sends the result of each task the routine makes to Telegram. On `routine.update`, a missing `notifyTelegram` keeps the current choice.
 - Each routine in the `helpers` event has `notifyTelegram: true` when it sends its result. The field is absent when it does not.
 - The chat that holds the Telegram conversation has the id `telegram`. The `chats` event lists it with the title "Telegram".
+- A chat that another surface writes has `readOnly: true` in the `chats` event. These are `telegram`, `api` and `api-<chatId>`. The field is absent on other chats. The window reads these chats and does not write them. A typed or spoken turn in one gets an `error` event (stage `model`) with the message "This chat is written from Telegram. Open it to read it only." (for the API chats: "…from the local API…"). `chat.open` still shows the messages.
 
 ### Local API (ADR-098 item 5)
 

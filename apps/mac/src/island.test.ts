@@ -942,6 +942,49 @@ test("chats: listed with the current one; opened, ZENO continues it; deleting th
   assert.deepEqual(h.events()[1], { type: "chats", chats: [], current: "chat-reset" });
 });
 
+test("chats written by Telegram or the local API are read-only: flagged, and a window turn in one is refused (ADR-098)", async () => {
+  const saved = new Map([["telegram", 2], ["api", 2], ["api-ci", 2], ["chat-a", 2]]);
+  let session = "chat-new";
+  const handled: string[] = [];
+  const h = islandHarness({
+    core: {
+      handle: async (input) => (handled.push(input.text), { text: "x" }),
+      reset: () => {},
+      resume: (id) => void (session = id),
+      get sessionId() {
+        return session;
+      },
+    },
+    chats: {
+      list: () => [...saved].map(([id, messages]) => ({ id, title: id, updatedAt: "2026-10-11T00:00:00.000Z", messages })),
+      messages: () => [{ role: "user" as const, content: "hi" }],
+      remove: () => true,
+      onChange: () => () => {},
+    },
+  });
+  await tick(5);
+  h.clear();
+  await h.send({ type: "chats.list" });
+  const chats = (h.events()[0] as { chats: { id: string; readOnly?: boolean }[] }).chats;
+  assert.deepEqual(chats.map((c) => [c.id, c.readOnly]), [["telegram", true], ["api", true], ["api-ci", true], ["chat-a", undefined]]);
+  await h.send({ type: "chat.open", id: "telegram" });
+  h.clear();
+  await h.send({ type: "text.send", text: "write here" });
+  await tick(10);
+  assert.deepEqual(handled, []);
+  const error = h.events().find((e) => e.type === "error") as { message: string };
+  assert.equal(error.message, "This chat is written from Telegram. Open it to read it only.");
+  await h.send({ type: "chat.open", id: "api-ci" });
+  h.clear();
+  await h.send({ type: "text.send", text: "again" });
+  await tick(10);
+  assert.match((h.events().find((e) => e.type === "error") as { message: string }).message, /written from the local API/);
+  await h.send({ type: "chat.open", id: "chat-a" });
+  await h.send({ type: "text.send", text: "fine" });
+  await tick(10);
+  assert.deepEqual(handled, ["fine"]);
+});
+
 test("git: branches listed; a push runs and the list comes back; a refused push says why (ADR-091)", async () => {
   const branch = { repo: "/r", repoName: "r", branch: "zeno/task-7", task: 7, base: "origin/main", commits: [], files: [], pushed: "no" as const };
   const pushed: string[] = [];

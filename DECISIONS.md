@@ -2283,3 +2283,24 @@ Keshab can make skills with Tinker (ADR-094) and use his own from `~/.claude/ski
 - Without an account, GitHub allows 60 requests an hour for one address. Search uses 2 to 12 requests.
 - The undo of an update exists in the store only. Add a command when it is needed.
 - The island shows only one source until a second one is added in code.
+
+## ADR-103 — No Separate Webhook Secret (2026-10-13)
+
+### Status
+
+Accepted.
+
+### Context
+
+A routine can start by webhook (ADR for schedules). A person can ask for a second secret that is only for webhooks.
+
+### Decision
+
+1. ZENO adds no webhook secret.
+2. A webhook call needs the API bearer token, as every API call does.
+3. The API listens on 127.0.0.1 only.
+
+### Consequences
+
+- A second secret needs a screen to set it and a place to store it. It gives little gain, because a caller on this Mac that has the bearer token already has full API access.
+- Revisit this decision if the API ever listens beyond loopback.

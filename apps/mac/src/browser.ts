@@ -6,6 +6,7 @@
 
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { isInside, realish } from "@zeno/helpers";
 
 /** The MCP server's name: its tools are `mcp__zeno-browser__browser_*`. Keshab's own servers may not use it. */
@@ -23,6 +24,7 @@ export function browserServer(dataDir: string, helper: string): Record<string, u
       "--user-data-dir", join(dataDir, "browser-profile", helper), // one profile per agent; logins stay in it
       "--output-dir", join(dataDir, "browser-files", helper), // downloads and screenshots stay in data/
       "--no-webmcp", // no tools that pages register
+      "--init-script", fileURLToPath(new URL("./browser-password-mark.cjs", import.meta.url)), // marks password fields in the snapshot
     ],
   };
 }
@@ -35,11 +37,15 @@ const TOOLS = new Set([
 /** Tools that need no approval for the page the browser is on (they do not act on it). */
 const NO_PAGE = new Set(["navigate", "tabs", "close", "wait_for", "resize"]);
 /** Keys that move around a page; any other key may type or submit. */
+/** Put before a password input's name by ZENO's init script (browser-password-mark.cjs). */
+const PASSWORD_MARK = "[password field]";
 const MOVE_KEYS = /^(Arrow(Up|Down|Left|Right)|Page(Up|Down)|Home|End|Tab|Shift\+Tab|Escape)$/;
 // ponytail: a click is a submit when its words look like one; a "Next" that submits slips through. Upgrade: ask on every click.
 const SUBMIT_WORDS = /submit|sign ?in|log ?in|sign ?up|register|buy|purchase|pay|checkout|check out|place order|order now|send|post|publish|delete|remove|confirm|subscribe|transfer|book now|reserve|apply/i;
 
 export interface BrowserCheckOptions {
+  /** The worker's id: its browser tasks share one profile, so they run one at a time. */
+  helper?: string;
   /** The agent's name, for the approval card. */
   name: string;
   /** The agent's granted folders (uploads come only from these). */
@@ -47,6 +53,44 @@ export interface BrowserCheckOptions {
   approve(request: { summary: string; reason: string }): Promise<boolean>;
   /** For the log: the tool, the site's origin and the verdict. Never typed text or full addresses. */
   onCheck?(event: { tool: string; origin?: string; verdict: "allowed" | "refused" | "declined" }): void;
+}
+
+const lanes = new Map<string, { tail: Promise<void>; count: number }>();
+
+/**
+ * One browser task at a time for each worker (they share one profile). A later task waits its turn, first come first
+ * served, and `onWait` tells it so. Returns the release; call it when the task ends, errors or is stopped. A stop
+ * while waiting rejects and leaves the queue.
+ */
+export async function acquireBrowser(helper: string, signal: AbortSignal, onWait: () => void): Promise<() => void> {
+  const lane = lanes.get(helper) ?? { tail: Promise.resolve(), count: 0 };
+  lanes.set(helper, lane);
+  const turn = lane.tail;
+  if (lane.count > 0) onWait();
+  lane.count += 1;
+  let finish!: () => void;
+  const mine = new Promise<void>((resolve) => (finish = resolve));
+  lane.tail = turn.then(() => mine);
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    finish();
+    lane.count -= 1;
+    if (lane.count === 0) lanes.delete(helper);
+  };
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const stop = () => reject(new Error("Browser wait cancelled"));
+      if (signal.aborted) return stop();
+      signal.addEventListener("abort", stop, { once: true });
+      void turn.then(() => (signal.removeEventListener("abort", stop), resolve()));
+    });
+  } catch (error) {
+    release();
+    throw error;
+  }
+  return release;
 }
 
 const originOf = (url: string): string | undefined => {
@@ -79,6 +123,8 @@ export function browserCheck(options: BrowserCheckOptions) {
   const answers = new Map<string, Promise<boolean>>(); // one question per site and kind, even for calls at once
   let page: string | undefined; // the origin the browser shows now
   let snapshot = "";
+  let pageUrl = ""; // the last full "Page URL"
+  const refs = new Map<string, string>(); // ref -> its snapshot line, for the page the browser is on
   const ask = (key: string, summary: string, reason: string) => {
     if (!answers.has(key)) answers.set(key, options.approve({ summary, reason }));
     return answers.get(key)!;
@@ -91,6 +137,21 @@ export function browserCheck(options: BrowserCheckOptions) {
       `${options.name} wants to type or submit a form on ${origin}`,
       "This may log in, send or buy. Allow typing and submitting on this site for the rest of this task.",
     );
+
+  /** What a typing call aims at: "secret" (a password field), "unknown" (ZENO cannot resolve it) or undefined (a plain field). */
+  const target = (tool: string, input: Record<string, unknown>): "secret" | "unknown" | undefined => {
+    if (tool !== "type" && tool !== "fill_form") return undefined;
+    const fields = tool === "type" ? [input] : Array.isArray(input.fields) ? input.fields : [];
+    if (!fields.length) return "unknown";
+    let verdict: "secret" | "unknown" | undefined;
+    for (const f of fields as Record<string, unknown>[]) {
+      const ref = String((f && (f.target ?? f.ref)) ?? "");
+      const line = ref ? refs.get(ref) : undefined;
+      if (line === undefined) verdict = "unknown";
+      else if (line.includes(PASSWORD_MARK)) return "secret";
+    }
+    return verdict;
+  };
 
   /** Whether a call types into or submits something on the page. */
   const submits = (tool: string, input: Record<string, unknown>): boolean => {
@@ -143,6 +204,15 @@ export function browserCheck(options: BrowserCheckOptions) {
         say("declined", page);
         return { deny: `Keshab did not allow typing or submitting on ${page}. Do the task without it, or say in the report what is needed.` };
       }
+      // A password field, or one ZENO cannot identify, asks every time (never remembered, never for the text itself).
+      const aim = target(tool, input);
+      if (aim && !(await options.approve({
+        summary: `${options.name} wants to type into ${aim === "secret" ? "a password field" : "a field ZENO cannot identify"} on ${page}`,
+        reason: aim === "secret" ? "Allow this one entry. ZENO asks again for each password field." : "ZENO cannot tell if this is a password field. Allow this one entry.",
+      }))) {
+        say("declined", page);
+        return { deny: `Keshab did not allow typing into that field on ${page}. Do the task without it, or say in the report what is needed.` };
+      }
     }
     say("allowed", page);
     return { step: `Browser: ${tool.replace(/_/g, " ")}${page ? ` on ${page}` : ""}` };
@@ -152,9 +222,19 @@ export function browserCheck(options: BrowserCheckOptions) {
   function seen(result: unknown): void {
     const text = textOf(result);
     const urls = [...text.matchAll(/- Page URL: (\S+)/g)];
-    if (urls.length) page = originOf(urls.at(-1)![1]!);
-    if (text.includes("[ref=")) snapshot = text;
+    if (urls.length) {
+      page = originOf(urls.at(-1)![1]!);
+      if (urls.at(-1)![1] !== pageUrl) refs.clear(); // a new page: the old refs are gone
+      pageUrl = urls.at(-1)![1]!;
+    }
+    if (text.includes("[ref=")) {
+      snapshot = text;
+      for (const m of text.matchAll(/^.*\[ref=([^\]\s]+)\].*$/gm)) refs.set(m[1]!, m[0]);
+    }
   }
 
-  return { check, seen };
+  const acquire = (signal: AbortSignal, onWait: () => void) =>
+    options.helper ? acquireBrowser(options.helper, signal, onWait) : Promise.resolve(() => {});
+
+  return { check, seen, acquire };
 }

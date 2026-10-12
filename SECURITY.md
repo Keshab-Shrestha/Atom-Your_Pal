@@ -497,6 +497,8 @@ ZENO runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 - Downloads and screenshots go to `data/browser-files/<id>`. ZENO refuses a tool call that names a file to save.
 - ZENO refuses the tools that run code in the page or in Playwright, and the network and storage tools.
 - The log records the task id, the tool name, the site's origin and the answer. It never records typed text or full addresses.
+- A password field always asks Keshab, on each call, also on a site that is allowed for typing. ZENO's own init script marks each password input in the page snapshot, and `browserCheck` reads the mark for the target of `browser_type` and `browser_fill_form`. A target that ZENO cannot find in the snapshot asks too. The model gets no tool that reads the page. The typed text is not in the log, the card or the task's timeline. Open gaps: inputs in shadow roots, and `browser_press_key` into a focused password field.
+- One worker runs one browser task at a time. A later task waits.
 
 ## Codex fallback (ADR-098 item 7)
 
@@ -506,6 +508,7 @@ ZENO runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 - A worker without a folder (think, research, a write-up) runs in the `read-only` sandbox. Codex cannot run commands that change files. Only a research kit or a write-up gets Codex's own web search.
 - A folder worker runs in the `workspace-write` sandbox. Codex writes only in the task's folder (its worktree) and the worker's other granted folders. Commands have no network (`sandbox_workspace_write.network_access=false`). Codex does not commit. ZENO commits on the task's branch and never pushes.
 - Codex runs have the same time limit as Claude runs.
+- A Codex run gets no browser and no MCP server. ZENO starts `codex exec` with `--ignore-user-config`, so Keshab's own Codex MCP servers do not load. ZENO passes no MCP, browser, skill or sub-agent option. The test "a Codex run is never started with MCP servers or a browser" in `services/llm-gateway/src/providers/codex-job.test.ts` fails if this changes. The browser and MCP safety checks have no gap for Codex.
 - The run costs $0 against the budgets. The tokens go to the Dashboard with the model `codex`.
 - The log records the task id, the kit and whether the run has a folder. It never records the task, the report or Codex's output.
 

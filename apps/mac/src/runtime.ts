@@ -6,6 +6,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createCore, CoreError, type Core } from "@zeno/core";
+import { turnChat, withTurnChat } from "./turn-chat.ts";
 import { createComputerBridge, type ComputerBridge } from "./computer-bridge.ts";
 import {
   calendarRunner,
@@ -401,7 +402,7 @@ export function createRuntime(
         ]
       : []),
     // ADR-082/087, Task 3.5: Pal hands work to the team. Logs the goal id and task count only.
-    ...(helpers ? [createDelegateTool({ store: helpers, onDelegated: (e) => log.info("goal.delegated", e) })] : []),
+    ...(helpers ? [createDelegateTool({ store: helpers, source: () => turnChat.getStore(), onDelegated: (e) => log.info("goal.delegated", e) })] : []),
     // Task 3.9: routines by voice in any wording. Logs the routine id and worker only.
     ...(helpers ? [createScheduleTool({ store: helpers, onScheduled: (e) => log.info("routine.scheduled", e) })] : []),
     // ADR-094: work no single worker fits waits for whoever wakes. Logs the team task id only.
@@ -510,7 +511,9 @@ export function createRuntime(
   // ZENO_VOICE_ONLY=1: test speech in and out without the AI. ZENO reads back what Whisper heard, and no
   // request is made to any model. (Typed as `Core` so every caller treats it the same.)
   // ADR-098: one Core setup, used for the window's Core and the Telegram chat's own Core.
-  const makeCore = (): Core => createCore({
+  // The chat of the turn that runs now. The Claude plan runs ZENO's tools through one shared runner, so the delegate tool
+  // reads the chat from the turn (AsyncLocalStorage), not from a Core: two surfaces never share one value.
+  const makeCore = (): Core => withTurnChat(createCore({
         model: coreModel,
         tools: toolEngine,
         context: async (input, context) => {
@@ -539,7 +542,7 @@ export function createRuntime(
           saveChat(sessionId, turns); // ADR-091
           episodes?.update(sessionId, turns);
         },
-      });
+      }));
   const baseCore: Core = process.env.ZENO_VOICE_ONLY === "1" ? createEchoCore() : makeCore();
   // ADR-080: with computer control on, replies lose their [POINT:…] marker before speech, and a valid one points.
   const core: Core = computerOn
@@ -719,6 +722,7 @@ export function createRuntime(
       server: browserServer(dirname(worktrees), job.helper),
       ...browserCheck({
         name,
+        helper: job.helper,
         grants,
         approve: (request) => computer.approve(request),
         onCheck: (e) => log.info("job.browser", { helper: job.helper, job: job.id, ...e }),

@@ -249,6 +249,8 @@ export interface ResearchOptions {
     server: Record<string, unknown>;
     check(tool: string, input: Record<string, unknown>): Promise<{ deny: string } | { step: string }>;
     seen(result: unknown): void;
+    /** One browser task at a time for each worker: waits for its turn (`onWait` tells the task so) and returns the release. */
+    acquire?(signal: AbortSignal, onWait: () => void): Promise<() => void>;
   };
   /** ADR-088: a "think" agent: no tools at all; it writes the report from what it knows. */
   thinkOnly?: boolean;
@@ -680,7 +682,10 @@ async function runStructured(options: ResearchOptions, mode: Mode) {
   const input = options.steering && !planning ? inputStream(prompt) : undefined;
   let interrupted = false;
   let unread = 0;
+  let releaseBrowser: (() => void) | undefined;
   try {
+    // The worker's browser profile is in use by one task at a time; a later task waits here (a stop ends the wait).
+    if (browserOn && browserOn.acquire) releaseBrowser = await browserOn.acquire(signal, () => step("Waiting for the browser"));
     const messages = (sdk as unknown as StreamingSdk).query({
       prompt: input ? input.messages : prompt,
       options: {
@@ -794,6 +799,7 @@ async function runStructured(options: ResearchOptions, mode: Mode) {
     if (error instanceof ProviderError) throw error;
     throw new ProviderError("unavailable", `Claude Code could not run: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
+    releaseBrowser?.();
     gate?.close();
     signal.removeEventListener("abort", onAbort);
     controller.abort(); // stops the claude program however the job ended

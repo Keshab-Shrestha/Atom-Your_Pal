@@ -57,6 +57,8 @@ export interface DelegateToolOptions {
   store: HelperStore;
   /** For the log: ids and counts only. */
   onDelegated?(event: { goal: number; tasks: number }): void;
+  /** The chat that makes the goal, read at each call (a goal keeps it as its `source`). */
+  source?(): string | undefined;
 }
 
 /** The `delegate` tool (a Tool for the tool engine, by shape). */
@@ -78,7 +80,7 @@ export function createDelegateTool(options: DelegateToolOptions) {
     capability: { title: "Hand work to the team", examples: ["Research home networking and write it up as a guide", "Sid, find the best mesh routers"] },
     run(input: Record<string, unknown>): string {
       const workers = store.list();
-      const goal = store.addGoal(String(input.goal ?? ""), readParts(input.tasks, workers, store.managers()));
+      const goal = store.addGoal(String(input.goal ?? ""), readParts(input.tasks, workers, store.managers()), options.source?.());
       options.onDelegated?.({ goal: goal.id, tasks: goal.tasks.length });
       const nameOf = (helper: string) => store.soul(helper).name; // a worker's or a Manager's
       const who = goal.tasks.map((t) => {
