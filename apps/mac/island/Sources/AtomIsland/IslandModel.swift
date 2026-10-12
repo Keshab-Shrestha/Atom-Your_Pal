@@ -178,8 +178,12 @@ final class IslandModel {
         searchResults = nil
     }
 
+    /// ADR-106: the current turn was typed. A typed turn never opens the microphone afterwards.
+    var typedTurn = false
+
     /// A typed request from the Conversation tab. Ignored when empty or too long for the runtime.
     func ask(_ text: String) {
+        typedTurn = true
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty, clean.count <= 4000 else { return }
         send(.textSend(clean))
@@ -255,6 +259,12 @@ final class IslandModel {
         }
     }
 
+    /// ADR-097: the status line names the chat's own model, not the default, once both lists are known.
+    private func syncChatModelName() {
+        guard let info = modelInfo, let provider = chats?.currentProvider, let own = chats?.currentModel else { return status.setChatModel(nil) }
+        status.setChatModel(info.modelName(provider: provider, model: own))
+    }
+
     /// Keeps the conversation and model list in step with the runtime. The status is applied by the controller.
     func apply(_ event: IslandEvent) {
         let helperRefusal = helpers.claims(event)
@@ -269,6 +279,7 @@ final class IslandModel {
         switch event {
         case .chats(let list):
             chats = list
+            syncChatModelName()
         case .api(let status):
             apiStatus = status
         case .searchResults(let results) where results.query == searchQuery:
@@ -289,6 +300,7 @@ final class IslandModel {
             if chats != nil { send(.chatsList) } // a restarted runtime: ask again
         case .info(let info):
             modelInfo = info
+            syncChatModelName()
             pendingModel = nil
             modelError = nil
             refreshingModels = false

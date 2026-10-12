@@ -1454,3 +1454,7 @@ Then B2 and B3. Everything else waits.
 ## ADR-104 — Smooth 2D Pal and office floor (2026-10-13)
 
 Pal and the office floor are now smooth vector art (`PalDrawing`, `OfficeDrawing`). Moods, timing, layout and labels are unchanged. The pixel code is removed. Swift tests: 525 pass. `docs/images/office-floor.png` is regenerated.
+
+## ADR-106 — One turn, then idle (2026-10-13)
+
+ATOM no longer listens again after a reply. "Answer without keys" is off by default. A typed turn never opens the microphone. A Quiet chat does not speak the reply to a typed message. Keshab: check by hand with the running app.

@@ -321,7 +321,9 @@ final class IslandController {
     private func maybeFollowUp() {
         let reply = lastReply
         lastReply = ""
-        guard model.settings.followUpEnabled, talkLocally, SpeechEndpoint.invitesAnswer(reply) else { return }
+        let typed = model.typedTurn
+        model.typedTurn = false
+        guard !typed, model.settings.followUpEnabled, talkLocally, SpeechEndpoint.invitesAnswer(reply) else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
             guard let self, !self.talking, !self.dictating, !self.model.status.isBusy else { return }
             if self.dictation.followUpBegan() {
@@ -415,6 +417,7 @@ final class IslandController {
         case .holdBegan(.talk):
             skipTour()
             dictation.followUpCancelled() // the keys take over from listening for an answer
+            model.typedTurn = false
             talking = true
             let interrupting = model.status.isBusy
             if talkLocally, dictation.talkBegan() {

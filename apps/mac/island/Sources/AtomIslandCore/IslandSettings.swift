@@ -49,7 +49,7 @@ public final class IslandSettings {
     /// Increments on every change, so callers (e.g. the shortcut engine) can tell something changed.
     public private(set) var revision = 0
 
-    /// After ATOM asks a question, listen for the answer without the Talk keys (ADR-067). Default on.
+    /// After ATOM asks a question, listen for the answer without the Talk keys (ADR-067). Default off (ADR-106): one turn, then idle.
     public var followUpEnabled: Bool {
         didSet { save(followUpEnabled, Self.followUpKey) }
     }
@@ -185,7 +185,7 @@ public final class IslandSettings {
         telegramPush = defaults.object(forKey: Self.telegramPushKey) as? Bool ?? true
         localApi = defaults.bool(forKey: Self.localApiKey)
         notifyOff = Set(defaults.stringArray(forKey: Self.notifyOffKey) ?? [])
-        followUpEnabled = defaults.object(forKey: Self.followUpKey) as? Bool ?? true
+        followUpEnabled = defaults.object(forKey: Self.followUpKey) as? Bool ?? false
         palSize = Self.choice(defaults, Self.palSizeKey, .medium)
         palWander = Self.choice(defaults, Self.palWanderKey, .normal)
         palNap = Self.choice(defaults, Self.palNapKey, .minutes3)

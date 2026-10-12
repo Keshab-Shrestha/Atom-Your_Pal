@@ -278,3 +278,21 @@ test("streaming: speech starts on the model's first words, before the reply is c
   assert.deepEqual(order, ["say Sure.", "model done"]);
   assert.ok(states.indexOf("speaking") >= 0);
 });
+
+test("a typed turn is not spoken when speakTyped says false, and a voice turn still is", async () => {
+  const spoken: string[] = [];
+  const done: string[] = [];
+  const loop = createVoiceLoop({
+    record: () => ({ stop: async () => clip() }),
+    stt: { transcribe: async () => "hello" },
+    core: { handle: async (input) => ({ text: `reply to ${input.text}` }) },
+    tts: { warmUp: async () => {}, close: () => {}, speak: async (text) => void spoken.push(text) },
+    speakTyped: () => false,
+    events: { onTurnComplete: () => void done.push("done") },
+  });
+  loop.ask("hi");
+  await tick(20);
+  assert.deepEqual(spoken, []);
+  assert.deepEqual(done, ["done"]);
+  assert.equal(loop.state, "idle");
+});

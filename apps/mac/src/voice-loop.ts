@@ -58,6 +58,8 @@ export interface VoiceLoopOptions {
   silenceWarnMs?: number;
   /** Peak level (0–1) below which audio counts as silence: 0.003 ≈ -50 dB, far below speech. */
   silencePeak?: number;
+  /** ADR-106: false (the chat is Quiet) keeps a typed turn's reply silent. Absent: typed replies are spoken. */
+  speakTyped?: () => boolean;
   now?: () => number;
 }
 
@@ -89,6 +91,7 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
     silenceWarnMs = 2500,
     silencePeak = 0.003,
     now = Date.now,
+    speakTyped,
   } = options;
   let state: LoopState = "idle";
   let recording: Recording | null = null;
@@ -202,8 +205,12 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
     const endQueue = () => queue.end();
     signal.addEventListener("abort", endQueue, { once: true });
     let firstSound: number | undefined;
-    const speakStream =
-      tts.speakStream?.bind(tts) ??
+    const silent = source === "text" && speakTyped?.() === false;
+    const speakStream = silent
+      ? async (pieces: AsyncIterable<string>) => {
+          for await (const _ of pieces); // drain: the reply only shows
+        }
+      : tts.speakStream?.bind(tts) ??
       (async (pieces: AsyncIterable<string>, s?: AbortSignal, hooks?: SpeakHooks) => {
         let all = "";
         for await (const piece of pieces) all += piece; // cannot stream: wait for the whole reply

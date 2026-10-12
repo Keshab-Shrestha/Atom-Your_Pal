@@ -24,7 +24,7 @@ struct GeneralSection: View {
                 }
             }
             RowDivider()
-            Row(title: "Answer without keys", detail: "When ATOM asks you something, it listens for a few seconds") {
+            Row(title: "Answer without keys", detail: "Off: one turn, then ATOM waits. On: after a spoken question it listens for a few seconds") {
                 ThemedSwitch(isOn: settings.followUpEnabled, set: { settings.followUpEnabled = $0 }, label: "Answer without keys")
             }
         }

@@ -2364,3 +2364,29 @@ The product has two names. The top-level agent is called ATOM. The app, the wind
 - Tools that use the old MCP names break until they use the new names: Claude Code and Hermes configs that name `zeno` or `mcp__zeno__*`.
 - Old branches keep `zeno/task-`. Readers accept both.
 - A later task removes the `ZENO_*` fallback.
+
+---
+
+## ADR-106 — One Turn, Then Idle; a Quiet Chat Does Not Speak Typed Replies (2026-10-13)
+
+### Status
+
+Accepted.
+
+### Context
+
+Two bugs. After a typed "hi", ATOM opened the microphone again. After the chat's Sounds menu was set to "Quiet", ATOM still spoke the reply to a typed message.
+
+### Decision
+
+1. A conversation is one turn. After a reply, typed or spoken, ATOM goes to idle. For voice, the user presses the Talk keys again.
+2. "Answer without keys" (ADR-067) stays, but its default is now off. No stored value is changed.
+3. A typed turn never opens the microphone, even when the setting is on. `IslandModel.typedTurn` marks it. Pressing Talk clears it.
+4. Pointing Pal at a window (ADR-074) still opens the microphone. The user did it on purpose.
+5. "Quiet" means the chat's "Speak the team's reports" and "Speak timers and updates" are both off. The menu text says: "Off, they only show." A typed turn now follows it: the reply shows and is not spoken. A voice turn is still spoken.
+6. The runtime decides at the single place that speaks a reply (`voice-loop.ts`, option `speakTyped`).
+
+### Consequences
+
+- A user who turned "Answer without keys" on keeps it on, but only for spoken questions.
+- Start and stop sounds play only when the microphone opens, so a typed turn never plays them. Notification sounds follow their own switch.

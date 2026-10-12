@@ -319,6 +319,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     },
     tts,
     silenceWarnMs: options.silenceWarnMs,
+    speakTyped: () => speech.reports || speech.updates, // ADR-106: a Quiet chat does not speak a typed turn
     events: wrap({
       onState: (state) => {
         if (state === "listening") level.reset();
