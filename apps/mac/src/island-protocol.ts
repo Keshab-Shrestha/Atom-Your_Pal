@@ -55,6 +55,12 @@ export type IslandCommand =
   | { type: "mcp.test"; id: number }
   | { type: "agent.create"; name: string; role: string; kit: "research" | "folders" | "think"; personality: string; howItWorks: string; rules: string }
   | { type: "agent.remove"; id: string }
+  /** ADR-095: Managers: add, rename, switch mode, remove (refused while it has Agents); move an Agent under a Manager. */
+  | { type: "manager.create"; name: string; mode?: "plan" | "group" }
+  | { type: "manager.rename"; id: string; name: string }
+  | { type: "manager.mode"; id: string; mode: "plan" | "group" }
+  | { type: "manager.delete"; id: string }
+  | { type: "agent.manager"; helper: string; manager: string }
   | { type: "proposal.accept"; id: number }
   | { type: "proposal.reject"; id: number }
   | { type: "proposal.undo"; id: number }
@@ -314,6 +320,22 @@ export interface HelperItem {
   skills: string[];
   /** Task 3.13: Tinker's proposals for its soul: `field` changed to `text`, why, the task reviewed, and their state. */
   proposals: { id: number; field: string; text: string; reason: string; jobId: number; state: string; createdAt: string }[];
+  /** ADR-095: its Manager's id; absent when it has none. */
+  manager?: string;
+  jobs: JobItem[];
+}
+
+/** ADR-095: a Manager: a domain with Agents under it, its mode, budget and its own runs (plan mode). */
+export interface ManagerItem {
+  id: string;
+  name: string;
+  /** "plan": plans and reviews (short no-tools runs); "group": a department only, no model calls. */
+  mode: "plan" | "group";
+  soul: SoulItem;
+  soulVersion: number;
+  budget: { cap: number | null; spent: number };
+  /** Its Agents' ids. */
+  agents: string[];
   jobs: JobItem[];
 }
 
@@ -415,6 +437,8 @@ export type IslandEvent =
       agentProblems?: { id: string; problem: string }[];
       /** ADR-094: the team tasks waiting to be taken, oldest first. */
       teamTasks?: TeamTaskItem[];
+      /** ADR-095: the Managers, by folder name; absent when there are none. */
+      managers?: ManagerItem[];
     }
   | ThreadEvent
   /** Task 3.15: a line from the team (a goal done, a plan waiting), sent just before ZENO says it. */
@@ -466,6 +490,11 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "mcp.test",
   "agent.create",
   "agent.remove",
+  "manager.create",
+  "manager.rename",
+  "manager.mode",
+  "manager.delete",
+  "agent.manager",
   "proposal.accept",
   "proposal.reject",
   "proposal.undo",
@@ -560,6 +589,33 @@ export function parseCommand(line: string): ParsedLine {
     const { id } = value as { id?: unknown };
     if (typeof id !== "string" || !id) return { error: 'agent.remove needs an "id" string.' };
     return { command: { type, id } };
+  }
+  if (type === "manager.create" || type === "manager.rename") {
+    // Names are the store's to refuse (stage "settings").
+    const { id, name, mode } = value as { id?: unknown; name?: unknown; mode?: unknown };
+    if (typeof name !== "string") return { error: `${type} needs a "name" string.` };
+    if (type === "manager.rename") {
+      if (typeof id !== "string" || !id) return { error: 'manager.rename needs an "id" string.' };
+      return { command: { type, id, name } };
+    }
+    if (mode !== undefined && mode !== "plan" && mode !== "group") return { error: 'manager.create needs "mode": "plan" or "group" (or left out).' };
+    return { command: { type, name, ...(mode ? { mode } : {}) } };
+  }
+  if (type === "manager.mode") {
+    const { id, mode } = value as { id?: unknown; mode?: unknown };
+    if (typeof id !== "string" || !id) return { error: 'manager.mode needs an "id" string.' };
+    if (mode !== "plan" && mode !== "group") return { error: 'manager.mode needs "mode": "plan" or "group".' };
+    return { command: { type, id, mode } };
+  }
+  if (type === "manager.delete") {
+    const { id } = value as { id?: unknown };
+    if (typeof id !== "string" || !id) return { error: 'manager.delete needs an "id" string.' };
+    return { command: { type, id } };
+  }
+  if (type === "agent.manager") {
+    const { helper, manager } = value as { helper?: unknown; manager?: unknown };
+    if (typeof helper !== "string" || !helper || typeof manager !== "string" || !manager) return { error: 'agent.manager needs "helper" and "manager" strings.' };
+    return { command: { type, helper, manager } };
   }
   if (type === "mcp.add") {
     // Names, commands, addresses and lines are the store's to refuse (stage "settings").

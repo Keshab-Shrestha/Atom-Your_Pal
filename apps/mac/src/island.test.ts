@@ -1178,6 +1178,34 @@ test("agent.create adds an agent with its soul.md; agent.remove takes it out (AD
   }
 });
 
+test("helpers lists the Managers with their Agents; manager.* and agent.manager change them (ADR-095)", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "zeno-mg-"));
+  try {
+    const store = openHelperStore({ path: ":memory:", agentsDir: dir });
+    const h = islandHarness({ helpers: islandHelpers(store, async () => []) });
+    await tick(5);
+    await h.send({ type: "helpers.list" });
+    const first = h.events().at(-1) as HelpersEvent;
+    const research = first.managers!.find((m) => m.id === "research")!;
+    assert.deepEqual([research.name, research.mode, research.agents, research.budget], ["Research", "group", ["sid"], { cap: 15, spent: 0 }]);
+    assert.equal(first.helpers.find((x) => x.id === "sid")!.manager, "research");
+    await h.send({ type: "manager.create", name: "Travel", mode: "plan" });
+    await h.send({ type: "agent.manager", helper: "sid", manager: "travel" });
+    await h.send({ type: "manager.rename", id: "travel", name: "Trips" });
+    await h.send({ type: "manager.mode", id: "travel", mode: "group" });
+    const after = (h.events().at(-1) as HelpersEvent).managers!.find((m) => m.id === "travel")!;
+    assert.deepEqual([after.name, after.mode, after.agents], ["Trips", "group", ["sid"]]);
+    h.clear();
+    await h.send({ type: "manager.delete", id: "travel" });
+    assert.match((h.events()[0] as { message: string }).message, /Trips still has Agents/);
+    await h.send({ type: "agent.manager", helper: "sid", manager: "research" });
+    await h.send({ type: "manager.delete", id: "travel" });
+    assert.ok(!(h.events().at(-1) as HelpersEvent).managers!.some((m) => m.id === "travel"));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("MCP servers in helpers never carry a secret value; mcp.add, mcp.set and mcp.remove (ADR-090)", async () => {
   const { h, store } = helperHarness();
   await tick(5);

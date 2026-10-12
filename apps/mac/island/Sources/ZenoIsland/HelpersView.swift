@@ -48,8 +48,13 @@ struct HelpersView: View {
                         .padding(.top, 8)
                 } else if model.helpers.isCreatingAgent {
                     NewAgentPane(model: model)
+                } else if model.helpers.isCreatingManager {
+                    NewManagerPane(model: model)
                 } else if model.helpers.openJobId != nil {
                     ThreadPane(model: model)
+                } else if let manager = model.helpers.selectedManager {
+                    // ADR-095: a Manager's page; a new name starts its form again.
+                    ManagerPane(model: model, manager: manager).id("\(manager.id)-\(manager.soulVersion)")
                 } else if model.helpers.showsBoard {
                     BoardPane(model: model)
                 } else if let helper = model.helpers.selectedHelper {
@@ -89,7 +94,9 @@ extension HelpersView {
         case .agents: break
         }
         if model.helpers.isCreatingAgent { return ("New agent", "person.badge.plus") }
+        if model.helpers.isCreatingManager { return ("New manager", "person.3") }
         if model.helpers.openJobId != nil { return ("Task", "text.page") }
+        if let manager = model.helpers.selectedManager { return ("\(manager.name) · Manager", "person.3") }
         if model.helpers.showsBoard { return ("Board", "square.grid.2x2") }
         if let helper = model.helpers.selectedHelper {
             return (helper.roleTitle.isEmpty ? helper.name : "\(helper.name) · \(helper.roleTitle)", "person.crop.circle")
@@ -363,6 +370,9 @@ private struct HelperPane: View {
                     HStack(spacing: 8) {
                         AppPicker(model: model, helper: helper)
                         ModelPicker(model: model, helper: helper, models: model.helpers.list?.models ?? [])
+                    }
+                    if let managers = model.helpers.list?.managers, !managers.isEmpty, helper.takesTasks {
+                        ManagerPicker(model: model, helper: helper, managers: managers) // ADR-095
                     }
                     if let budget = helper.budget { BudgetPicker(model: model, helper: helper, budget: budget) }
                     SkillsPicker(model: model, helper: helper, skills: model.helpers.list?.skills ?? [])

@@ -321,3 +321,18 @@ test("ADR-094: team tasks, wake-ups and routine pause parse; bad values are refu
   assert.deepEqual(parseCommand('{"type":"routine.pause","id":2,"paused":false}'), { command: { type: "routine.pause", id: 2, paused: false } });
   assert.ok("error" in parseCommand('{"type":"routine.pause","id":2}'));
 });
+
+test("ADR-095: Manager commands parse; bad values are refused", () => {
+  assert.deepEqual(parseCommand('{"type":"manager.create","name":"Travel"}'), { command: { type: "manager.create", name: "Travel" } });
+  assert.deepEqual(parseCommand('{"type":"manager.create","name":"Travel","mode":"plan"}'), { command: { type: "manager.create", name: "Travel", mode: "plan" } });
+  assert.ok("error" in parseCommand('{"type":"manager.create","name":"Travel","mode":"boss"}'));
+  assert.ok("error" in parseCommand('{"type":"manager.create"}'));
+  assert.deepEqual(parseCommand('{"type":"manager.rename","id":"travel","name":"Trips"}'), { command: { type: "manager.rename", id: "travel", name: "Trips" } });
+  assert.ok("error" in parseCommand('{"type":"manager.rename","name":"Trips"}'));
+  assert.deepEqual(parseCommand('{"type":"manager.mode","id":"travel","mode":"group"}'), { command: { type: "manager.mode", id: "travel", mode: "group" } });
+  assert.ok("error" in parseCommand('{"type":"manager.mode","id":"travel"}'));
+  assert.deepEqual(parseCommand('{"type":"manager.delete","id":"travel"}'), { command: { type: "manager.delete", id: "travel" } });
+  assert.ok("error" in parseCommand('{"type":"manager.delete","id":3}'));
+  assert.deepEqual(parseCommand('{"type":"agent.manager","helper":"sid","manager":"research"}'), { command: { type: "agent.manager", helper: "sid", manager: "research" } });
+  assert.ok("error" in parseCommand('{"type":"agent.manager","helper":"sid"}'));
+});

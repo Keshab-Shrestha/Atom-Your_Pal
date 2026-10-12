@@ -20,6 +20,20 @@ struct BudgetPicker: View {
     }
 }
 
+/// ADR-095: a Manager's daily cap (the team's by default) and today's spend on its plan and review runs.
+struct ManagerBudgetPicker: View {
+    let model: IslandModel
+    let manager: HelperManager
+    let budget: HelperBudget
+
+    var body: some View {
+        HStack(spacing: 10) {
+            CapMenu(label: "Budget", cap: budget.cap, help: "\(manager.name)'s daily budget for planning and reviewing") { model.sendHelpers(model.helpers.setManagerBudget($0)) }
+            BudgetLine(budget: budget, over: "\(manager.name) waits until tomorrow or a higher cap.")
+        }
+    }
+}
+
 /// The team's cap and the plan limit, at the top of the board: they hold every worker. "Runs at once" lives in Settings → General.
 struct TeamBudgets: View {
     let model: IslandModel

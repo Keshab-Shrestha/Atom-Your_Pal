@@ -55,7 +55,9 @@ struct OfficeFloor: View {
         if OfficeScene.signs(plan).contains(where: { $0.rect.contains(point) }) { model.showsAllAgents = true; return }
         for seat in plan.seats {
             guard let at = walker.wrappedValue.positions[seat.helperId], abs(point.x - at.x) < 12, point.y > at.y - 20, point.y < at.y + 10 else { continue }
-            if let task = seat.taskId { model.sendHelpers(model.helpers.openThread(task)) } else { model.helpers.selectHelper(seat.helperId) }
+            // ADR-095: a Manager's desk opens its page.
+            if seat.manager { model.helpers.selectManager(seat.helperId) }
+            else if let task = seat.taskId { model.sendHelpers(model.helpers.openThread(task)) } else { model.helpers.selectHelper(seat.helperId) }
             return
         }
     }

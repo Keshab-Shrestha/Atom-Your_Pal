@@ -21,7 +21,8 @@ test("a new agent becomes a folder with soul.md, joins the team, and works like 
     const view = store.createAgent(rumi);
     assert.deepEqual([view.id, view.name, view.role, view.kit, view.custom, view.available, view.soulVersion], ["rumi", "Rumi", "travel planner", "research", true, true, 1]);
     const text = readFileSync(join(agentsDir, "rumi", "soul.md"), "utf8");
-    assert.match(text, /^---\nname: Rumi\nrole: travel planner\nkit: research\n---\n\n## Personality\nCalm and organised\.\n/);
+    // ADR-095: under the first Manager by name (no Agent has its role yet); Keshab can move it.
+    assert.match(text, /^---\nname: Rumi\nrole: travel planner\nkit: research\nmanager: coding\n---\n\n## Personality\nCalm and organised\.\n/);
     assert.match(teamContext(store.list()), /Rumi \(travel planner\)/, "Pal knows the new agent");
     assert.equal(createWorkerShortcut(store)("Rumi, plan a weekend in Kyoto"), "Rumi is on it.", "by voice");
     assert.match(createDelegateTool({ store }).run({ goal: "trip", tasks: [{ worker: "rumi", task: "Plan" }] }), /Rumi \(task 2\)/);

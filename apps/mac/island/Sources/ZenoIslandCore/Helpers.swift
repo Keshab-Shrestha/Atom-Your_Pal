@@ -214,6 +214,8 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public var custom: Bool
     /// ADR-094: its wake-ups; nil when off (the default) or from an older runtime.
     public var wakeUp: HelperWakeUp?
+    /// ADR-095: its Manager's id; nil when it has none (Tinker) or from an older runtime.
+    public var manager: String?
     /// The coder, designer and documenter work in folders Keshab grants.
     public var worksInFolders: Bool { kit.map { $0 == "folders" } ?? ["coder", "designer", "documenter"].contains(role) }
     /// ADR-088: the kit in words.
@@ -228,7 +230,7 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public init(id: String, name: String, available: Bool, app: String?, jobs: [HelperJob], pinnedModel: String? = nil,
                 role: String = "", soul: HelperSoul? = nil, soulVersion: Int = 1, soulVersions: [SoulVersion] = [],
                 budget: HelperBudget? = nil, planFirst: Bool = false, routines: [HelperRoutine] = [], grants: [String] = [], skills: [String] = [], proposals: [SoulProposal] = [], kit: String? = nil, custom: Bool = false,
-                wakeUp: HelperWakeUp? = nil) {
+                wakeUp: HelperWakeUp? = nil, manager: String? = nil) {
         self.id = id
         self.name = name
         self.available = available
@@ -248,6 +250,7 @@ public struct Helper: Sendable, Equatable, Identifiable {
         self.kit = kit
         self.custom = custom
         self.wakeUp = wakeUp
+        self.manager = manager
     }
 
     /// ADR-094: may it take tasks (and so wake up for team tasks)? Tinker reviews only.
@@ -271,6 +274,38 @@ public struct Helper: Sendable, Equatable, Identifiable {
         let step = newest.step ?? "Working…"
         return running.count > 1 ? "\(running.count) at work · \(step)" : step
     }
+}
+
+/// ADR-095: a Manager: a domain (Research, Coding…) with Agents under it. "plan": it plans and reviews (short no-tools
+/// runs, its own tasks in `jobs`); "group": a department only, no model calls.
+public struct HelperManager: Sendable, Equatable, Identifiable {
+    public var id: String
+    public var name: String
+    public var mode: String
+    public var soul: HelperSoul?
+    public var soulVersion: Int
+    /// Its daily cap (the team's by default) and today's spend; nil from an older runtime.
+    public var budget: HelperBudget?
+    /// Its Agents' ids.
+    public var agents: [String]
+    /// Its own runs (plan mode), newest first.
+    public var jobs: [HelperJob]
+
+    public init(id: String, name: String, mode: String = "group", soul: HelperSoul? = nil, soulVersion: Int = 1, budget: HelperBudget? = nil,
+                agents: [String] = [], jobs: [HelperJob] = []) {
+        self.id = id
+        self.name = name
+        self.mode = mode
+        self.soul = soul
+        self.soulVersion = soulVersion
+        self.budget = budget
+        self.agents = agents
+        self.jobs = jobs
+    }
+
+    public var plansAndReviews: Bool { mode == "plan" }
+    /// The mode in words, as the window says it.
+    public var modeTitle: String { plansAndReviews ? "Plans and reviews" : "Group only" }
 }
 
 public enum ModelTier: String, Sendable, Equatable, CaseIterable {
@@ -361,6 +396,8 @@ public struct TaskActivity: Sendable, Equatable {
         case "approved": "Plan approved"
         case "rejected": "Plan rejected"
         case "handed": "Handed off a sub-task"
+        case "split": "Split the work across its agents" // ADR-095: a Manager's run
+        case "revised": "Asked for a revision"
         case "retried": "Tried again"
         case "running": "Started"
         case "done": "Finished"
@@ -476,10 +513,13 @@ public struct HelpersList: Sendable, Equatable {
     public var agentProblems: [AgentProblem]
     /// ADR-094: the team tasks waiting to be taken, oldest first.
     public var teamTasks: [TeamTask]
+    /// ADR-095: the Managers; empty when there are none (or from an older runtime): then the Board and floor show workers.
+    public var managers: [HelperManager]
 
     public init(helpers: [Helper], apps: [String], allowLarge: Bool = true, models: [HelperModel] = [], team: HelperBudget? = nil,
                 planLimit: Int? = nil, maxRunning: Int? = nil, paperclip: [PaperclipTask]? = nil, mcp: [McpServerItem] = [], usage: TokenUsageSummary? = nil, skills: [SkillInfo] = [],
-                skillDrafts: [SkillDraftItem] = [], skillEdits: [SkillEditItem] = [], agentProblems: [AgentProblem] = [], teamTasks: [TeamTask] = []) {
+                skillDrafts: [SkillDraftItem] = [], skillEdits: [SkillEditItem] = [], agentProblems: [AgentProblem] = [], teamTasks: [TeamTask] = [],
+                managers: [HelperManager] = []) {
         self.helpers = helpers
         self.apps = apps
         self.allowLarge = allowLarge
@@ -495,6 +535,19 @@ public struct HelpersList: Sendable, Equatable {
         self.skillEdits = skillEdits
         self.agentProblems = agentProblems
         self.teamTasks = teamTasks
+        self.managers = managers
+    }
+
+    /// ADR-095: a Manager's Agents, in the team's order.
+    public func agents(of manager: HelperManager) -> [Helper] {
+        helpers.filter { $0.manager == manager.id }
+    }
+
+    /// ADR-095: a Manager's page's tasks: its Agents' and its own runs, newest first.
+    public func tasks(of manager: HelperManager) -> [BoardItem] {
+        (agents(of: manager).flatMap { h in h.jobs.map { BoardItem(helperId: h.id, helperName: h.name, job: $0) } }
+            + manager.jobs.map { BoardItem(helperId: manager.id, helperName: manager.name, job: $0) })
+            .sorted { $0.job.id > $1.job.id }
     }
 
     /// ADR-094: the roles a team task can be posted for: those of workers that take tasks, sorted, each once.
@@ -519,10 +572,17 @@ public struct HelpersList: Sendable, Equatable {
         }
     }
 
-    /// Any worker's task by id, with its worker.
+    /// Any worker's task by id, with its worker. ADR-095: or a Manager's own run.
     public func item(_ id: Int) -> BoardItem? {
         for h in helpers { if let job = h.jobs.first(where: { $0.id == id }) { return BoardItem(helperId: h.id, helperName: h.name, job: job) } }
+        for m in managers { if let job = m.jobs.first(where: { $0.id == id }) { return BoardItem(helperId: m.id, helperName: m.name, job: job) } }
         return nil
+    }
+
+    /// ADR-095: every task: the workers' and the Managers' own runs (for Overview, Needs you and Issues).
+    public var everyTask: [BoardItem] {
+        helpers.flatMap { h in h.jobs.map { BoardItem(helperId: h.id, helperName: h.name, job: $0) } }
+            + managers.flatMap { m in m.jobs.map { BoardItem(helperId: m.id, helperName: m.name, job: $0) } }
     }
 
     /// Tasks a new task may wait for: any that has not failed or been stopped, newest first.
@@ -621,6 +681,11 @@ public struct HelpersState: Sendable, Equatable {
     }
 
     public var selectedHelper: Helper? { list?.helpers.first { $0.id == selectedHelperId } }
+    /// ADR-095: the Manager whose page is open (over the chosen helper's), if any.
+    public private(set) var selectedManagerId: String?
+    public var selectedManager: HelperManager? { list?.managers.first { $0.id == selectedManagerId } }
+    /// ADR-095: the "New manager" form is open.
+    public private(set) var isCreatingManager = false
     /// The open task, whichever worker it belongs to.
     public var openItem: BoardItem? { openJobId.flatMap { list?.item($0) } }
     public var openJob: HelperJob? { openItem?.job }
@@ -641,6 +706,12 @@ public struct HelpersState: Sendable, Equatable {
                 isCreatingAgent = false
                 selectedHelperId = added.id
             }
+            // ADR-095: so is a Manager just created; a removed one's page closes.
+            if isCreatingManager, isWaiting, let old = list, let added = newList.managers.first(where: { new in !old.managers.contains { $0.id == new.id } }) {
+                isCreatingManager = false
+                selectedManagerId = added.id
+            }
+            if let id = selectedManagerId, !newList.managers.contains(where: { $0.id == id }) { selectedManagerId = nil }
             list = newList
             isWaiting = false
             problem = nil
@@ -674,6 +745,8 @@ public struct HelpersState: Sendable, Equatable {
     /// Any listed worker can be chosen, so a worker not ready for jobs can still have its soul shaped.
     public mutating func selectHelper(_ id: String) {
         isCreatingAgent = false
+        isCreatingManager = false
+        selectedManagerId = nil
         guard list?.helpers.contains(where: { $0.id == id }) == true, id != selectedHelperId else { return }
         selectedHelperId = id
         showsBoard = false
@@ -695,6 +768,8 @@ public struct HelpersState: Sendable, Equatable {
     public private(set) var isCreatingAgent = false
 
     public mutating func openNewAgent() {
+        selectedManagerId = nil
+        isCreatingManager = false
         closeReport()
         showsBoard = false
         isSoulOpen = false
@@ -727,6 +802,8 @@ public struct HelpersState: Sendable, Equatable {
 
     public mutating func selectBoard() {
         isCreatingAgent = false
+        isCreatingManager = false
+        selectedManagerId = nil
         showsBoard = true
         closeReport()
         isSoulOpen = false
@@ -969,6 +1046,72 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.helperBudget(helper: helper.id, cap: cap))
     }
 
+    // MARK: ADR-095: Managers
+
+    /// Opens a Manager's page: its Agents, mode, budget and their tasks.
+    public mutating func selectManager(_ id: String) {
+        guard list?.managers.contains(where: { $0.id == id }) == true else { return }
+        selectedManagerId = id
+        isCreatingAgent = false
+        isCreatingManager = false
+        showsBoard = false
+        isSoulOpen = false
+        closeReport()
+        problem = nil
+    }
+
+    public mutating func openNewManager() {
+        selectedManagerId = nil
+        isCreatingAgent = false
+        showsBoard = false
+        isSoulOpen = false
+        closeReport()
+        isCreatingManager = true
+        problem = nil
+    }
+
+    public mutating func closeNewManager() {
+        isCreatingManager = false
+        problem = nil
+    }
+
+    /// Nil with `problem` set for an empty name; the runtime checks the rest (letters, taken names).
+    public mutating func createManager(name: String, plansAndReviews: Bool) -> IslandCommand? {
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { problem = "A new manager needs a name."; return nil }
+        return waiting(.managerCreate(name: clean, mode: plansAndReviews ? "plan" : "group"))
+    }
+
+    public mutating func setManagerMode(plansAndReviews: Bool) -> IslandCommand? {
+        guard let manager = selectedManager, manager.plansAndReviews != plansAndReviews else { return nil }
+        return waiting(.managerMode(id: manager.id, mode: plansAndReviews ? "plan" : "group"))
+    }
+
+    public mutating func renameManager(_ name: String) -> IslandCommand? {
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let manager = selectedManager, !clean.isEmpty, clean != manager.name else { return nil }
+        return waiting(.managerRename(id: manager.id, name: clean))
+    }
+
+    /// Nil, with why, while it has Agents (the runtime refuses it too).
+    public mutating func deleteManager() -> IslandCommand? {
+        guard let manager = selectedManager else { return nil }
+        guard manager.agents.isEmpty else { problem = "\(manager.name) still has Agents: move them to another manager first."; return nil }
+        return waiting(.managerDelete(id: manager.id))
+    }
+
+    public mutating func setManagerBudget(_ cap: Double?) -> IslandCommand? {
+        guard let manager = selectedManager, let budget = manager.budget, budget.cap != cap else { return nil }
+        return waiting(.helperBudget(helper: manager.id, cap: cap))
+    }
+
+    /// Moves the chosen Agent under a Manager. Nil when it is there already, or for Tinker.
+    public mutating func moveAgent(to managerId: String) -> IslandCommand? {
+        guard let helper = selectedHelper, helper.takesTasks, helper.manager != managerId,
+              list?.managers.contains(where: { $0.id == managerId }) == true else { return nil }
+        return waiting(.agentManager(helper: helper.id, manager: managerId))
+    }
+
     public mutating func setTeamBudget(_ cap: Double?) -> IslandCommand? {
         guard let team = list?.team, team.cap != cap else { return nil }
         return waiting(.helperBudget(helper: "team", cap: cap))
@@ -1004,7 +1147,8 @@ public struct HelpersState: Sendable, Equatable {
     }
 
     public mutating func stopJob(_ id: Int) -> IslandCommand? {
-        guard selectedHelper?.jobs.first(where: { $0.id == id })?.state.isActive == true else { return nil }
+        // Any open task, a Manager's run included (it opens from Needs you without a chosen worker).
+        guard list?.item(id)?.job.state.isActive == true else { return nil }
         return waiting(.jobStop(id: id))
     }
 

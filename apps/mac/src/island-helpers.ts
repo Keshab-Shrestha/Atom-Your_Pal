@@ -2,7 +2,7 @@
 
 import { HelperError, describeSchedule, describeWake, nextDue, type HelperStore, type Job, type PlanModel } from "@zeno/helpers";
 import type { IslandHelpers } from "./island.ts";
-import type { JobItem, SkillDraftItem, SkillEditItem } from "./island-protocol.ts";
+import type { JobItem, ManagerItem, SkillDraftItem, SkillEditItem } from "./island-protocol.ts";
 
 /** ADR-094: how much of a draft's steps, and of each side of an edit, the window shows. */
 const PREVIEW_CHARS = 400;
@@ -116,10 +116,17 @@ export function islandHelpers(
     createAgent: (input) => void store.createAgent(input),
     removeAgent: (id) => store.removeAgent(id),
     agentProblems: () => store.agentProblems().map(({ id, problem }) => ({ id, problem })),
+    managers: (): ManagerItem[] =>
+      store.managers().map((m) => ({ id: m.id, name: m.name, mode: m.mode, soul: m.soul, soulVersion: m.soulVersion, budget: m.budget, agents: m.agents, jobs: m.jobs.map((job) => toJobItem(job, held(job))) })),
+    createManager: (name, mode) => void store.createManager({ name, ...(mode ? { mode } : {}) }),
+    renameManager: (id, name) => store.renameManager(id, name),
+    setManagerMode: (id, mode) => store.setManagerMode(id, mode),
+    removeManager: (id) => store.removeManager(id),
+    setManager: (helper, manager) => store.setManager(helper, manager),
     retry: (id) => store.retry(id),
     usage: () => {
       const summary = store.usage();
-      const names = new Map(store.list().map((h) => [h.id, h.name]));
+      const names = new Map([...store.list(), ...store.managers()].map((h) => [h.id, h.name]));
       return { ...summary, byWorker: summary.byWorker.map((w) => ({ ...w, name: w.helper === null ? "ZENO chat" : (names.get(w.helper) ?? w.helper) })) };
     },
     mcp: () =>

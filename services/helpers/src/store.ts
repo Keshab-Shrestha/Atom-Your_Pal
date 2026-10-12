@@ -1,10 +1,11 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { isOver } from "./budgets.ts";
 import { homedir } from "node:os";
 import { MAX_GRANTS, checkGrant } from "./grants.ts";
-import { KITS, MAX_AGENTS, agentId, cleanRole, loadAgents, retireAgent, writeAgent, type AgentProblem, type Kit } from "./agents.ts";
+import { KITS, MANAGER_MODES, MAX_AGENTS, MAX_MANAGERS, agentId, cleanRole, loadAgents, retireAgent, writeAgent, type AgentProblem, type Kit, type ManagerMode } from "./agents.ts";
+import { managerNameFor, managerSoul } from "./managers.ts";
 
 /** Task 3.12: most skills a worker may have. */
 export const MAX_SKILLS = 10;
@@ -49,7 +50,7 @@ export const CLOSED_WHILE_RUNNING = "ZENO was closed while this job ran";
 export const SOUL_VERSIONS_LISTED = 10;
 
 export type * from "./store-types.ts";
-import type { Activity, GoalReport, HelperChange, HelperStore, HelperStoreOptions, Job, Source } from "./store-types.ts";
+import type { Activity, GoalPart, GoalReport, HelperChange, HelperStore, HelperStoreOptions, Job, ManagerView, Source } from "./store-types.ts";
 
 export { webSources } from "./store-schema.ts";
 
@@ -86,53 +87,107 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   // Version 1 of every soul is the roster's default, so it can be restored like any other.
   for (const h of HELPERS) if (!latestSoul.get(h.id)) putSoul(h.id, 1, h.soul, opened);
 
-  /** One worker of the team: built in (ADR-082) or an agent from `agentsDir` (ADR-088). */
+  /** One worker of the team: built in (ADR-082) or an agent from `agentsDir` (ADR-088). ADR-095: its Manager, if any. */
   interface Member {
     id: HelperId;
     available: boolean;
     role: string;
     kit: Kit;
     custom: boolean;
+    manager?: string;
+  }
+  /** ADR-095: a Manager from `agentsDir` (`kind: manager`). */
+  interface ManagerMember {
+    id: string;
+    mode: ManagerMode;
   }
   const builtIns: Member[] = HELPERS.map((h) => ({ id: h.id, available: h.available as boolean, role: h.role, kit: BUILT_IN_KITS[h.role] ?? "think", custom: false }));
   let rosterProblems: AgentProblem[] = [];
+  let rosterManagers: ManagerMember[] = [];
+
+  /** A file's soul is the current one: when it differs from the last version kept here, it becomes a new version. */
+  function keepSoul(id: string, soul: Soul) {
+    const last = latestSoul.get(id) as unknown as SoulRow | undefined;
+    if (!last) putSoul(id, 1, soul);
+    else if (!sameSoul(toSoul(last), soul)) {
+      putSoul(id, last.version + 1, soul);
+      emit({ action: "soul", helper: id, version: last.version + 1 });
+    }
+  }
 
   /**
    * The team: the built-in workers, then every agent folder with a valid soul.md. An agent's file is its current
    * soul: when it differs from the last version kept here, it becomes a new version (so edits in an editor are kept).
+   * ADR-095: Managers are read first (into `rosterManagers`, not the team); an Agent naming a Manager that does not
+   * exist works without one, and the problem is named.
    */
   function roster(): Member[] {
-    if (!agentsDir) return builtIns;
-    const { agents, problems } = loadAgents(agentsDir);
+    if (!agentsDir) {
+      rosterManagers = [];
+      return builtIns;
+    }
+    const { agents, managers, problems } = loadAgents(agentsDir);
     rosterProblems = [...problems];
-    const members = [...builtIns];
+    const names = builtIns.map((m) => current(m.id).name);
+    const problem = (id: string, error: unknown) => rosterProblems.push({ id, problem: error instanceof Error ? error.message : String(error) });
+    rosterManagers = [];
+    for (const m of managers) {
+      if (builtIns.some((b) => b.id === m.id)) continue;
+      try {
+        const soul = cleanSoul(m.soul, names);
+        keepSoul(m.id, soul);
+        names.push(soul.name);
+        rosterManagers.push({ id: m.id, mode: m.mode });
+      } catch (error) {
+        problem(m.id, error);
+      }
+    }
+    const isManager = (id: string | undefined) => id !== undefined && rosterManagers.some((m) => m.id === id);
+    const members = builtIns.map((b) => {
+      const manager = (settingOf.get(`manager:${b.id}`) as { value: string } | undefined)?.value;
+      return isManager(manager) ? { ...b, manager } : b;
+    });
     for (const agent of agents) {
       if (members.some((m) => m.id === agent.id)) continue;
       let soul: Soul;
       let role: string;
       try {
         role = cleanRole(agent.role || "assistant");
-        soul = cleanSoul(agent.soul, members.map((m) => current(m.id).name));
+        soul = cleanSoul(agent.soul, names);
       } catch (error) {
-        rosterProblems.push({ id: agent.id, problem: error instanceof Error ? error.message : String(error) });
+        problem(agent.id, error);
         continue;
       }
-      const last = latestSoul.get(agent.id) as unknown as SoulRow | undefined;
-      if (!last) putSoul(agent.id, 1, soul);
-      else if (!sameSoul(toSoul(last), soul)) {
-        putSoul(agent.id, last.version + 1, soul);
-        emit({ action: "soul", helper: agent.id, version: last.version + 1 });
-      }
-      members.push({ id: agent.id, available: true, role, kit: agent.kit, custom: true });
+      keepSoul(agent.id, soul);
+      names.push(soul.name);
+      if (agent.manager && !isManager(agent.manager)) problem(agent.id, `Its manager "${agent.manager.slice(0, 32)}" does not exist; it works without one until you choose one.`);
+      members.push({ id: agent.id, available: true, role, kit: agent.kit, custom: true, ...(isManager(agent.manager) ? { manager: agent.manager } : {}) });
     }
     return members;
   }
 
-  /** Keeps a custom agent's soul.md in step after a save, restore or accepted proposal. */
+  /** Keeps a custom agent's soul.md in step after a save, restore or accepted proposal (its Manager kept). */
   function writeBack(member: Member) {
     if (!member.custom || !agentsDir) return;
-    writeAgent(agentsDir, { id: member.id, role: member.role, kit: member.kit, soul: toSoul(current(member.id)) });
+    writeAgent(agentsDir, { id: member.id, role: member.role, kit: member.kit, soul: toSoul(current(member.id)), ...(member.manager ? { manager: member.manager } : {}) });
   }
+
+  /** ADR-095: the Managers, read again from their files. */
+  function managers(): ManagerMember[] {
+    roster();
+    return rosterManagers;
+  }
+  const managerOf = (id: string | undefined) => (id === undefined ? undefined : managers().find((m) => m.id === id));
+  function mustManager(id: string): ManagerMember {
+    const found = managerOf(id);
+    if (!found) throw new HelperError("There is no such manager.");
+    return found;
+  }
+  /** A Manager's Agents that take tasks (available, not Tinker). */
+  const agentsOf = (manager: string) => roster().filter((m) => m.manager === manager && m.available && m.role !== "improver");
+  /** Every name in use (workers and Managers), and every folder name in the agents folder. */
+  const allNames = () => [...roster().map((m) => current(m.id).name), ...rosterManagers.map((m) => current(m.id).name)];
+  const takenIds = () => [...roster().map((m) => m.id), ...rosterManagers.map((m) => m.id), ...(agentsDir && existsSync(agentsDir) ? readdirSync(agentsDir) : [])];
   const setJobModel = db.prepare("UPDATE jobs SET model = ?, model_reason = ? WHERE id = ? AND state = 'running'");
   const newestJobs = db.prepare(
     "SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.helper = ? ORDER BY j.id DESC LIMIT ?",
@@ -374,6 +429,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       return value === undefined ? fallback : value === "none" ? null : Number(value);
     };
     const workers = Object.fromEntries(roster().map((h) => [h.id, { cap: cap(`budget:${h.id}`, DEFAULT_WORKER_CAP), spent: spent.get(h.id) ?? 0 }])) as Budgets["workers"];
+    // ADR-095: a Manager's plan and review runs count toward its own budget (by default as big as the team's).
+    for (const m of rosterManagers) workers[m.id] = { cap: cap(`budget:${m.id}`, DEFAULT_TEAM_CAP), spent: spent.get(m.id) ?? 0 };
     const team = { cap: cap("budget:team", DEFAULT_TEAM_CAP), spent: [...spent.values()].reduce((a, b) => a + b, 0) };
     return { team, workers, planLimit: cap("planLimit", DEFAULT_PLAN_LIMIT) ?? 100, maxRunning: maxRunning() };
   }
@@ -395,6 +452,94 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     askTinker: (jobId, task, kind, skill) => askTinker(jobId, task, kind, skill ?? null),
   });
 
+  /**
+   * ADR-095: puts a worker under a Manager. An agent Keshab added keeps it in its soul.md, written as a save is, and the
+   * move is recorded as a soul version (the same text) so its Versions show when it moved; a built-in worker, a setting.
+   */
+  function assignManager(member: Member, manager: string) {
+    if (member.custom && agentsDir) {
+      writeAgent(agentsDir, { id: member.id, role: member.role, kit: member.kit, soul: toSoul(current(member.id)), manager });
+      newSoulVersion(member.id, toSoul(current(member.id)));
+    } else putSetting.run(`manager:${member.id}`, manager);
+    emit({ action: "manager", manager, change: "moved", helper: member.id });
+  }
+
+  /**
+   * ADR-095: the first start with Managers (once; a setting marks it done, last). Every worker that takes tasks and has
+   * no Manager is put under the one for its role (mode "group"), made when missing. Managers already there (Keshab's, or
+   * from a start that stopped before the setting) are reused by name, so a second pass places the rest without duplicates.
+   */
+  function migrateManagers() {
+    if (!agentsDir || settingOf.get("managers:migrated")) return;
+    const team = roster().filter((m) => m.available && m.role !== "improver");
+    const byName = new Map(rosterManagers.map((m) => [current(m.id).name.toLowerCase(), m.id]));
+    const names = allNames();
+    const ids = takenIds();
+    const byRole = new Map<string, string>();
+    let made = 0;
+    for (const role of [...new Set(team.filter((m) => !m.manager).map((m) => m.role))]) {
+      // The names this migration gives the role's Manager: its domain name, or with " Team" when that was taken.
+      const base = managerNameFor(role, []);
+      const existing = [base, base && managerNameFor(role, [base])].map((n) => n && byName.get(n.toLowerCase())).find(Boolean);
+      if (existing) {
+        byRole.set(role, existing);
+        continue;
+      }
+      if (rosterManagers.length + made >= MAX_MANAGERS) continue;
+      const name = managerNameFor(role, names);
+      if (!name) continue;
+      const id = agentId(name, ids);
+      writeAgent(agentsDir, { id, mode: "group", soul: managerSoul(name) });
+      names.push(name);
+      ids.push(id);
+      byRole.set(role, id);
+      made++;
+    }
+    if (made) roster(); // records version 1 of each new one
+    for (const member of team) if (!member.manager && byRole.has(member.role)) assignManager(member, byRole.get(member.role)!);
+    putSetting.run("managers:migrated", now().toISOString());
+  }
+
+  function managerView(m: ManagerMember, all = budgets(), team = roster()): ManagerView {
+    const soul = current(m.id);
+    return {
+      id: m.id,
+      name: soul.name,
+      mode: m.mode,
+      soul: toSoul(soul),
+      soulVersion: soul.version,
+      budget: all.workers[m.id]!,
+      agents: team.filter((w) => w.manager === m.id).map((w) => w.id),
+      jobs: (newestJobs.all(m.id, JOBS_PER_HELPER) as unknown as JobRow[]).map(toJob),
+    };
+  }
+
+  /** ADR-095: a Manager's Agents' tasks for one of its runs, checked like a goal's parts. */
+  function checkSplit(manager: ManagerMember, parts: readonly GoalPart[]) {
+    if (!parts.length || parts.length > MAX_GOAL_TASKS) throw new HelperError(`A Manager splits its part into 1 to ${MAX_GOAL_TASKS} tasks.`);
+    const team = agentsOf(manager.id).map((m) => m.id);
+    return parts.map((part, i) => {
+      const after = [...new Set(part.after ?? [])];
+      const bad = after.find((n) => !Number.isInteger(n) || n < 1 || n > i);
+      if (bad !== undefined) throw new HelperError(`Task ${i + 1} can only wait for tasks before it, not ${bad}.`);
+      const helper = availableHelper(part.helper).id;
+      if (!team.includes(helper)) throw new HelperError(`${current(helper).name} is not one of ${current(manager.id).name}'s Agents.`);
+      return { helper, task: cleanTask(part.task), after };
+    });
+  }
+
+  /** ADR-095: who a goal's part goes to: a worker, or a "plan" Manager with Agents (it splits the part itself). */
+  function goalHelper(id: string): HelperId {
+    const manager = managerOf(id);
+    if (!manager) return availableHelper(id).id;
+    const name = current(manager.id).name;
+    if (manager.mode !== "plan") throw new HelperError(`${name} assigns directly: give the task to one of its Agents.`);
+    if (!agentsOf(manager.id).length) throw new HelperError(`${name} has no Agents to hand the work to.`);
+    return manager.id;
+  }
+
+  const revisedOf = (jobId: number) => (eventsOf.all(jobId) as { kind: string }[]).some((e) => e.kind === "revised");
+
   // ADR-094 part B: team tasks and wake-ups. A taken task is an ordinary task of the worker (plan first, budgets apply).
   const team = teamStore({
     db,
@@ -408,6 +553,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     insertTask: (helper, task) => insertTask(helper, task, [], { goal: null, parentId: null, goalId: null }),
   });
 
+
+  migrateManagers();
 
   return {
     list() {
@@ -435,8 +582,104 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         grants: (grantsOf.all(h.id) as { path: string }[]).map((g) => g.path),
         skills: (skillsOf.all(h.id) as { skill: string }[]).map((s) => s.skill),
         proposals: proposals.list(h.id),
+        ...(h.manager ? { manager: h.manager } : {}),
         jobs: (newestJobs.all(h.id, JOBS_PER_HELPER) as unknown as JobRow[]).map(toJob),
       }));
+    },
+
+    managers() {
+      const all = budgets(); // reads the team (and its Managers) once
+      const team = roster();
+      return rosterManagers.map((m) => managerView(m, all, team));
+    },
+
+    createManager(input) {
+      if (!agentsDir) throw new HelperError("Managers need ZENO's agents folder.");
+      if (managers().length >= MAX_MANAGERS) throw new HelperError(`There are already ${MAX_MANAGERS} managers.`);
+      const mode = input.mode ?? "group";
+      if (!MANAGER_MODES.includes(mode)) throw new HelperError('A manager plans and reviews ("plan") or is a group only ("group").');
+      const soul = cleanSoul(managerSoul(String(input.name ?? "")), allNames());
+      const id = agentId(soul.name, takenIds());
+      writeAgent(agentsDir, { id, mode, soul });
+      emit({ action: "manager", manager: id, change: "added" });
+      return managerView(mustManager(id)); // records version 1
+    },
+
+    renameManager(id, name) {
+      const manager = mustManager(id);
+      const others = allNames().filter((n) => n !== current(manager.id).name);
+      const soul = cleanSoul({ ...toSoul(current(manager.id)), name }, others);
+      if (sameSoul(soul, toSoul(current(manager.id)))) return;
+      newSoulVersion(manager.id, soul);
+      writeAgent(agentsDir!, { id: manager.id, mode: manager.mode, soul });
+      emit({ action: "manager", manager: manager.id, change: "renamed" });
+    },
+
+    setManagerMode(id, mode) {
+      const manager = mustManager(id);
+      if (!MANAGER_MODES.includes(mode)) throw new HelperError('A manager plans and reviews ("plan") or is a group only ("group").');
+      if (manager.mode === mode) return;
+      writeAgent(agentsDir!, { id: manager.id, mode, soul: toSoul(current(manager.id)) });
+      emit({ action: "manager", manager: manager.id, change: "mode" });
+    },
+
+    removeManager(id) {
+      const manager = mustManager(id);
+      const name = current(manager.id).name;
+      if (roster().some((m) => m.manager === manager.id)) throw new HelperError(`${name} still has Agents: move them to another manager first.`);
+      for (const job of managerView(manager).jobs) if (!isFinal(job.state)) this.stop(job.id);
+      retireAgent(agentsDir!, manager.id, now());
+      emit({ action: "manager", manager: manager.id, change: "removed" });
+    },
+
+    setManager(helper, manager) {
+      const member = mustHelper(helper);
+      if (member.role === "improver") throw new HelperError(`${current(member.id).name} reviews tasks; it works under no manager.`);
+      const target = mustManager(manager);
+      if (member.manager !== target.id) assignManager(member, target.id);
+    },
+
+    managerSplit(jobId, parts) {
+      const job = mustGet(jobId);
+      const manager = managerOf(job.helper);
+      if (!manager) throw new HelperError("Only a manager's task is split across its Agents.");
+      if (job.state !== "running") throw new HelperError("Only a running task can be split.");
+      if ((childrenOf.all(jobId) as unknown[]).length) throw new HelperError(`Task ${jobId} is split already.`);
+      const checked = checkSplit(manager, parts);
+      const ids: number[] = [];
+      transaction(() => {
+        for (const part of checked) {
+          const id = insertTask(part.helper, part.task, part.after.map((n) => ids[n - 1]!), { goal: job.goal ?? job.task, parentId: jobId, goalId: null });
+          insertBlocker.run(jobId, id);
+          ids.push(id);
+        }
+        setPending.run(1, jobId); // runs again (its review) once its tasks have ended
+        log(jobId, "split");
+      });
+      ids.forEach((id, i) => emit({ action: "job", helper: checked[i]!.helper, job: id, state: "queued" }));
+      emit({ action: "blockers", helper: job.helper, job: jobId });
+      return ids.map(mustGet);
+    },
+
+    managerRevise(jobId, childId, note) {
+      const job = mustGet(jobId);
+      if (!managerOf(job.helper) || job.state !== "running") throw new HelperError("Only a running manager's task asks for a revision.");
+      if (revisedOf(jobId)) throw new HelperError("A manager asks for one revision at most.");
+      const child = get(childId);
+      if (child?.parentId !== jobId) throw new HelperError(`Task ${childId} is not one of this manager's tasks.`);
+      if (child.state !== "done") throw new HelperError("Only a done task can be revised.");
+      this.addComment(childId, note); // wakes it, as a note from Keshab does
+      transaction(() => {
+        setPending.run(1, jobId);
+        log(jobId, "revised");
+      });
+    },
+
+    managerWork(jobId) {
+      mustGet(jobId);
+      const outcomes = this.handOffs(jobId); // in the same order: oldest first
+      const tasks = (childrenOf.all(jobId) as unknown as JobRow[]).map((row, i) => ({ id: row.id, state: row.state as JobState, ...outcomes[i]! }));
+      return { tasks, revised: revisedOf(jobId) };
     },
 
     setApp(helper, app) {
@@ -454,7 +697,10 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     },
 
     soul(helper) {
-      return toSoul(current(mustHelper(helper).id));
+      // ADR-095: a Manager's too (its runs, its holds, its line when a goal ends). One read of the team.
+      const id = roster().find((m) => m.id === helper)?.id ?? rosterManagers.find((m) => m.id === helper)?.id;
+      if (!id) throw new HelperError(`There is no helper called "${helper.slice(0, 40)}".`);
+      return toSoul(current(id));
     },
 
     saveSoul(helper, input) {
@@ -494,7 +740,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     },
 
     setBudget(helper, cap) {
-      const who = helper === "team" ? "team" : mustHelper(helper).id;
+      const who = helper === "team" ? "team" : (managerOf(helper)?.id ?? mustHelper(helper).id);
       if (cap !== null && !(Number.isFinite(cap) && cap > 0 && cap <= MAX_CAP)) throw new HelperError(`A daily budget is more than $0 and at most $${MAX_CAP}.`);
       putSetting.run(`budget:${who}`, cap === null ? "none" : String(cap));
       emit({ action: "budget", helper: who });
@@ -531,9 +777,12 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if (team.filter((m) => m.custom).length >= MAX_AGENTS) throw new HelperError(`There are already ${MAX_AGENTS} agents.`);
       const role = cleanRole(input.role);
       if (!KITS.includes(input.kit)) throw new HelperError("Choose what the agent may use: research, folders or think.");
-      const soul = cleanSoul({ name: input.name, personality: input.personality, howItWorks: input.howItWorks ?? "", rules: input.rules ?? "", lessons: "" }, team.map((m) => current(m.id).name));
-      const id = agentId(soul.name, [...team.map((m) => m.id), ...loadAgents(agentsDir).agents.map((a) => a.id)]);
-      writeAgent(agentsDir, { id, role, kit: input.kit, soul });
+      const soul = cleanSoul({ name: input.name, personality: input.personality, howItWorks: input.howItWorks ?? "", rules: input.rules ?? "", lessons: "" }, allNames());
+      const id = agentId(soul.name, takenIds());
+      // ADR-095: under the Manager of an Agent with the same role, else the first Manager by name (Keshab can move it).
+      const bosses = managers();
+      const manager = team.find((m) => m.role === role && m.manager)?.manager ?? [...bosses].sort((a, b) => current(a.id).name.localeCompare(current(b.id).name))[0]?.id;
+      writeAgent(agentsDir, { id, role, kit: input.kit, soul, ...(manager ? { manager } : {}) });
       roster(); // records version 1
       emit({ action: "agent", helper: id, added: true });
       return this.list().find((h) => h.id === id)!;
@@ -556,6 +805,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       const job = mustGet(id);
       if (job.state !== "done" && job.state !== "failed") throw new HelperError("Only a finished task can be rated.");
       if (job.helper === "tinker") throw new HelperError("Tinker's reviews are answered by accepting or rejecting its proposal.");
+      if (managerOf(job.helper)) throw new HelperError("A manager's summary is rated through its Agents' tasks.");
       const comment = raw?.trim() || null;
       if (comment && comment.length > MAX_COMMENT_CHARS) throw new HelperError(`The comment is too long (limit ${MAX_COMMENT_CHARS}).`);
       putRating.run(good ? "good" : "bad", comment, id);
@@ -622,7 +872,10 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       emit({ action: "proposal", helper: p.helper, proposal: id, state: "undone" });
     },
 
-    makeSkill: skills.makeSkill,
+    makeSkill(id) {
+      if (managerOf(get(id)?.helper)) throw new HelperError("A manager's summary does not become a skill: its Agents' tasks can.");
+      skills.makeSkill(id);
+    },
     skillDraftTarget: skills.skillDraftTarget,
     skillEditTarget: skills.skillEditTarget,
     addSkillDraft: skills.addSkillDraft,
@@ -666,7 +919,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if (target.id === parent.helper) throw new HelperError("A worker cannot hand a task to itself.");
       if (!HAND_OFFS[mustHelper(parent.helper).role]?.includes(target.role)) throw new HelperError(`${from} cannot hand work to ${to} (${target.role}).`);
       let level = 1;
-      for (let p: Job | undefined = parent; p?.parentId !== undefined; p = get(p.parentId)) level++;
+      // ADR-095: a Manager's task is not a level: its Agents' tasks hand off as top-level tasks do.
+      for (let p: Job | undefined = parent; p?.parentId !== undefined; p = get(p.parentId)) if (!managerOf(get(p.parentId)?.helper)) level++;
       if (level + 1 > MAX_LEVELS) throw new HelperError("A sub-task cannot hand off work again. Do it yourself or say what is missing.");
       if ((childrenOf.all(parentId) as unknown[]).length >= MAX_HAND_OFFS) throw new HelperError(`A task can hand off at most ${MAX_HAND_OFFS} sub-tasks.`);
       const budgets = this.budgets();
@@ -808,7 +1062,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         const bad = after.find((n) => !Number.isInteger(n) || n < 1 || n > i);
         if (bad !== undefined) throw new HelperError(`Task ${i + 1} can only wait for tasks before it, not ${bad}.`);
         if (after.length > MAX_BLOCKERS) throw new HelperError(`A task can wait for at most ${MAX_BLOCKERS} others.`);
-        return { helper: availableHelper(part.helper).id, task: cleanTask(part.task), after };
+        return { helper: goalHelper(part.helper), task: cleanTask(part.task), after };
       });
       let goalId = 0;
       const ids: number[] = [];

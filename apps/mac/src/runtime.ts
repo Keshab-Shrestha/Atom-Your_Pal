@@ -77,6 +77,7 @@ import { askForFolder, denyRead, folderCheck } from "./folder-run.ts";
 import { commitWork, prepareWorkdir, type Workdir } from "./worktree.ts";
 import { SKILLS_PLUGIN, listSkills, prepareSkills, userSkillsDir } from "./skills.ts";
 import { runTinker } from "./tinker.ts";
+import { runManager } from "./manager-run.ts";
 import { SCHEDULER_TICK_MS, scheduleTick } from "./scheduler.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { mcpCheck, sdkConfig, testMcpServer } from "./mcp-servers.ts";
@@ -403,7 +404,7 @@ export function createRuntime(
         context: (input, context) => {
           current = { source: input.source, requestId: context.requestId };
           const pointed = screen.take(); // ADR-074: the window Pal was dropped on, for this request only
-          const team = helpers ? teamContext(helpers.list()) : undefined; // Task 3.5: who Pal can delegate to
+          const team = helpers ? teamContext(helpers.list(), helpers.managers()) : undefined; // Task 3.5, ADR-095: who ATOM can hand work to
           if (!memory) return [nowLine(), team, pointed].filter(Boolean).join("\n\n");
           const facts = memoryContext(input.text, { store: memory });
           const past = episodes ? episodeContext(memory, context.sessionId) : undefined;
@@ -493,6 +494,20 @@ export function createRuntime(
       ...(pick.score !== undefined ? { score: Math.round(pick.score * 100) / 100 } : {}),
       source: pick.source,
     });
+    // ADR-095: a "plan" Manager splits its part, then reviews its Agents' reports: no tools, one answer each run.
+    if (helpers?.managers().some((m) => m.id === job.helper)) {
+      const store = helpers;
+      return runManager({
+        store,
+        job,
+        run: { claudePath: keys["claude-plan"] ?? "", model, signal, onStep, onUsage: reportUsage },
+        count: (costUsd, tokens) => {
+          if (costUsd) store.addSpend(job.id, costUsd); // the Manager's own budget
+          if (tokens) store.addUsage({ source: "job", helper: job.helper, job: job.id, model, ...tokens, ...(tokens.costUsd ? { dollars: tokens.costUsd } : {}) });
+        },
+        onEvent: (e) => log.info("manager.run", e),
+      });
+    }
     if (!soul) throw new Error(`There is no worker called ${job.helper}.`);
     const instructions = instructionsFor(soul, role);
     // ADR-087: the task with its goal, Keshab's notes and the reports of the tasks it waited for.

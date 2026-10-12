@@ -3,7 +3,7 @@ import type { HandOffOutcome, HelperId, JobState, Soul, TaskContext } from "./jo
 import type { Routine, Schedule } from "./routines.ts";
 import type { Proposal, ReviewTarget, SoulField } from "./feedback.ts";
 import type { SkillDraft, SkillDraftState, SkillDraftTarget, SkillEdit, SkillEditState, SkillEditTarget } from "./skill-drafts.ts";
-import type { AgentProblem, Kit } from "./agents.ts";
+import type { AgentProblem, Kit, ManagerMode } from "./agents.ts";
 import type { McpServer, McpServerInput } from "./mcp.ts";
 import type { UsageEntry, UsageSummary } from "./usage.ts";
 import type { TeamTask, WakeEvery, WakeUp, Woken } from "./team.ts";
@@ -84,7 +84,8 @@ export interface Comment {
 
 /** One line of a task's activity: what happened and when (ids and states only, as in the logs). */
 export interface Activity {
-  kind: "created" | "waits" | "commented" | "woken" | "fresh" | "planned" | "approved" | "rejected" | "handed" | "retried" | JobState;
+  /** ADR-095: "split" (a Manager handed its part to its Agents) and "revised" (it asked one of them for its one revision). */
+  kind: "created" | "waits" | "commented" | "woken" | "fresh" | "planned" | "approved" | "rejected" | "handed" | "retried" | "split" | "revised" | JobState;
   at: Date;
 }
 
@@ -171,8 +172,31 @@ export interface HelperView {
   skills: string[];
   /** Task 3.13: Tinker's proposals for its soul: every pending one and the newest others, newest first. */
   proposals: Proposal[];
+  /** ADR-095: its Manager's id; absent when it has none (Tinker, or before the Managers were made). */
+  manager?: string;
   /** Newest first, at most JOBS_PER_HELPER. */
   jobs: Job[];
+}
+
+/** ADR-095: a Manager: a domain with Agents under it. It has a soul and a budget, never a kit or tasks of its own. */
+export interface ManagerView {
+  id: string;
+  name: string;
+  mode: ManagerMode;
+  soul: Soul;
+  soulVersion: number;
+  /** Its daily cap (default the team's) and today's spend on its plan and review runs. */
+  budget: Budget;
+  /** Its Agents' ids, in the team's order. */
+  agents: HelperId[];
+  /** Its own runs (plan mode: one per part ATOM handed it), newest first, at most JOBS_PER_HELPER. */
+  jobs: Job[];
+}
+
+/** ADR-095: one of a Manager's tasks for its Agents, with what came of it. */
+export interface ManagedTask extends HandOffOutcome {
+  id: number;
+  state: JobState;
 }
 
 /** What changed, for logs and updates: ids, states and timings only. */
@@ -190,6 +214,7 @@ export type HelperChange =
   | { action: "grant"; helper: HelperId; granted: boolean }
   | { action: "skills"; helper: HelperId; count: number }
   | { action: "agent"; helper: HelperId; added: boolean }
+  | { action: "manager"; manager: string; change: "added" | "removed" | "renamed" | "mode" | "moved"; helper?: HelperId }
   | { action: "mcp"; server: number; change: "added" | "removed" | "set" | "tested" }
   | { action: "usage" }
   | { action: "rating"; helper: HelperId; job: number; good: boolean }
@@ -229,7 +254,7 @@ export interface HelperStore {
   maxRunning(): number;
   /** Sets "Runs at once". Throws HelperError outside 1 to 10. */
   setMaxRunning(count: number): void;
-  /** Records what a run of a task cost (dollars of API-equivalent use). Nothing for an unknown task or a bad amount. */
+  /** Records what a run of a task cost (dollars of API-equivalent use; a Manager's run counts toward its budget). Nothing for an unknown task or a bad amount. */
   addSpend(id: number, dollars: number): void;
   /**
    * Task 3.10: a running task hands a sub-task to another worker. Checked here: the target is available and its role
@@ -254,6 +279,33 @@ export interface HelperStore {
   removeAgent(id: string): void;
   /** Agent folders that could not be read, each with its folder name and why (ADR-093: logged and shown on the Board). */
   agentProblems(): AgentProblem[];
+  /** ADR-095: every Manager with its Agents, by folder name. */
+  managers(): ManagerView[];
+  /** Adds a Manager (its folder and soul.md; default mode "group"). Throws HelperError for a bad or taken name, or too many. */
+  createManager(input: { name: string; mode?: ManagerMode }): ManagerView;
+  /** Renames a Manager (a new soul version). Throws HelperError for an unknown Manager or a bad or taken name. */
+  renameManager(id: string, name: string): void;
+  setManagerMode(id: string, mode: ManagerMode): void;
+  /** Moves a Manager's folder to agents-removed/. Refused while it has Agents. Its unfinished runs are stopped. */
+  removeManager(id: string): void;
+  /**
+   * Puts an Agent under a Manager: an agent Keshab added gets `manager:` in its soul.md (recorded as a soul version), a
+   * built-in worker a setting. Throws HelperError for an unknown Agent or Manager, or Tinker.
+   */
+  setManager(helper: string, manager: string): void;
+  /**
+   * ADR-095, for a "plan" Manager's first run: its Agents' tasks (1 to MAX_GOAL_TASKS, `helper` an Agent of that
+   * Manager, `after` earlier positions). The Manager's task waits for them and runs again (its review) when they end.
+   * Throws HelperError for a task that is not a running Manager's, one already split, or a bad part.
+   */
+  managerSplit(jobId: number, parts: readonly GoalPart[]): Job[];
+  /**
+   * The Manager's one revision: a note on one of its done tasks (which wakes it, as comment.add does); the Manager's task
+   * runs again when that one ends. Throws HelperError when the revision is used, or for another task.
+   */
+  managerRevise(jobId: number, childId: number, note: string): void;
+  /** A Manager's task's tasks with their outcomes, and whether its revision is used. */
+  managerWork(jobId: number): { tasks: ManagedTask[]; revised: boolean };
   /** ADR-090: MCP servers (secrets included: for the runtime only, never for the island or the log). */
   /** ADR-091: records the tokens one run used (a job or a chat answer). */
   addUsage(entry: UsageEntry): void;

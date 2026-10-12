@@ -109,7 +109,7 @@ struct BoardPane: View {
     }
 }
 
-private struct BoardWell: View {
+struct BoardWell: View {
     let model: IslandModel
     let items: [BoardItem]
     @Environment(\.theme) private var theme
@@ -540,8 +540,11 @@ private struct TeamChips: View {
 
     var body: some View {
         let everyone = model.helpers.list?.helpers ?? []
-        let chips = model.helpers.list.map { TeamRoster.chips(in: $0) } ?? []
+        // ADR-095: with Managers, the chips are the Managers; every agent is in "All agents", grouped by manager.
+        let managers = model.helpers.list.map { TeamRoster.managerChips(in: $0) } ?? []
+        let chips = managers.isEmpty ? (model.helpers.list.map { TeamRoster.chips(in: $0) } ?? []) : []
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8, alignment: .leading)], alignment: .leading, spacing: 8) {
+            ForEach(managers) { status in ManagerChip(model: model, status: status) }
             ForEach(chips) { helper in
                 Button { model.helpers.selectHelper(helper.id) } label: {
                     HStack(spacing: 8) {
@@ -566,6 +569,9 @@ private struct TeamChips: View {
             }
             if model.helpers.list != nil {
                 quiet("New agent", symbol: "plus", help: "Add an agent with its own role and soul") { model.helpers.openNewAgent() }
+            }
+            if !managers.isEmpty {
+                quiet("New manager", symbol: "person.3", help: "Add a manager for a domain, such as Research") { model.helpers.openNewManager() }
             }
         }
     }
@@ -593,6 +599,7 @@ private struct AllAgentsList: View {
     @Environment(\.islandSnapshot) private var snapshot
 
     private static let rowHeight: CGFloat = 42
+    private static let headerHeight: CGFloat = 22
 
     init(model: IslandModel) { self.model = model }
 
@@ -635,10 +642,20 @@ private struct AllAgentsList: View {
                 Text("No agent's name or role has “\(query.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines))”.")
                     .font(.system(size: 12)).foregroundStyle(theme.text3.color).padding(.vertical, 6)
             } else {
+                // ADR-095: grouped by manager (one untitled group without Managers).
+                let groups = model.helpers.list.map { TeamRoster.grouped(found, in: $0) } ?? [("", found)]
                 Scrollable {
-                    VStack(spacing: 0) { ForEach(found) { row($0) } }
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(groups, id: \.title) { group in
+                            if !group.title.isEmpty {
+                                Text(group.title).font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                                    .frame(height: Self.headerHeight, alignment: .bottom).padding(.leading, 4)
+                            }
+                            ForEach(group.helpers) { row($0) }
+                        }
+                    }
                 }
-                .frame(height: min(330, CGFloat(found.count) * Self.rowHeight))
+                .frame(height: min(330, CGFloat(found.count) * Self.rowHeight + CGFloat(groups.filter { !$0.title.isEmpty }.count) * Self.headerHeight))
             }
         }
         .padding(14)

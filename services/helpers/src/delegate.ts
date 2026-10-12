@@ -1,6 +1,6 @@
 import { HAND_OFFS, HelperError, MAX_GOAL_TASKS, MAX_HAND_OFFS } from "./jobs.ts";
 import { WEEKDAYS, describeSchedule, parseRoutine, type Schedule } from "./routines.ts";
-import type { GoalPart, HelperStore, HelperView, Job } from "./store.ts";
+import type { GoalPart, HelperStore, HelperView, Job, ManagerView } from "./store.ts";
 
 // ADR-082/087, Task 3.5: Pal hands work to the team. The model proposes; code checks every part (the store refuses an
 // unknown or unavailable worker, bad tasks and bad waits) before anything is created.
@@ -11,7 +11,8 @@ const TASK_INPUT = "1 to 6 tasks, each an object {worker, task, after}";
 const DESCRIPTION =
   "Hand work to ZENO's workers. It runs in the background while you keep talking. Use it for research or writing that " +
   "takes minutes; answer quick questions yourself. goal: a short name for the result, such as \"home networking guide\". " +
-  `tasks: ${TASK_INPUT}. worker: a worker's name from "Your team" in the context. task: exactly what to find or write ` +
+  `tasks: ${TASK_INPUT}. worker: a worker's name from "Your team" in the context, or the name of a manager that plans ` +
+  "and reviews (it splits that part across its agents itself). task: exactly what to find or write " +
   "and what to deliver. after (optional): the positions (1 = the first task) of earlier tasks whose reports this one " +
   "needs; it starts when they are done. When it returns, tell the user in one short sentence who is on it. The result comes later.";
 
@@ -21,8 +22,12 @@ function byName(workers: readonly HelperView[], name: string): HelperView | unde
   return workers.find((w) => w.name.toLowerCase() === key || w.id === key);
 }
 
-/** The model's tasks as goal parts, with words the model can act on for anything malformed. */
-export function readParts(tasks: unknown, workers: readonly HelperView[]): GoalPart[] {
+/**
+ * The model's tasks as goal parts, with words the model can act on for anything malformed. ADR-095: a part may go to a
+ * "plan" Manager by its name (it splits the part); a "group" Manager's Agents are named directly; an Agent under a
+ * "plan" Manager is reached through that Manager.
+ */
+export function readParts(tasks: unknown, workers: readonly HelperView[], managers: readonly ManagerView[] = []): GoalPart[] {
   if (!Array.isArray(tasks) || !tasks.length || tasks.length > MAX_GOAL_TASKS) throw new HelperError(`tasks must be ${TASK_INPUT}.`);
   return tasks.map((raw, i) => {
     const t = raw as Record<string, unknown>;
@@ -32,9 +37,19 @@ export function readParts(tasks: unknown, workers: readonly HelperView[]): GoalP
     if (t.after !== undefined && !(Array.isArray(t.after) && t.after.every((n) => Number.isInteger(n)))) {
       throw new HelperError(`Task ${i + 1}: after must be a list of task positions.`);
     }
+    const after = t.after ? { after: t.after as number[] } : {};
+    const key = t.worker.trim().toLowerCase();
+    const manager = managers.find((m) => m.name.toLowerCase() === key || m.id === key);
+    if (manager) {
+      if (manager.mode === "plan") return { helper: manager.id, task: t.task, ...after };
+      const names = workers.filter((w) => w.manager === manager.id && w.available).map((w) => w.name);
+      throw new HelperError(`${manager.name} assigns directly: give task ${i + 1} to one of its agents (${names.join(", ") || "none yet"}).`);
+    }
     const worker = byName(workers, t.worker);
     if (!worker) throw new HelperError(`There is no worker called "${t.worker.slice(0, 40)}". The team: ${workers.map((w) => w.name).join(", ")}.`);
-    return { helper: worker.id, task: t.task, ...(t.after ? { after: t.after as number[] } : {}) };
+    const boss = managers.find((m) => m.id === worker.manager);
+    if (boss?.mode === "plan") throw new HelperError(`${worker.name} works under ${boss.name}, which plans its own work: give task ${i + 1} to ${boss.name} instead.`);
+    return { helper: worker.id, task: t.task, ...after };
   });
 }
 
@@ -63,9 +78,9 @@ export function createDelegateTool(options: DelegateToolOptions) {
     capability: { title: "Hand work to the team", examples: ["Research home networking and write it up as a guide", "Sid, find the best mesh routers"] },
     run(input: Record<string, unknown>): string {
       const workers = store.list();
-      const goal = store.addGoal(String(input.goal ?? ""), readParts(input.tasks, workers));
+      const goal = store.addGoal(String(input.goal ?? ""), readParts(input.tasks, workers, store.managers()));
       options.onDelegated?.({ goal: goal.id, tasks: goal.tasks.length });
-      const nameOf = (helper: string) => workers.find((w) => w.id === helper)!.name;
+      const nameOf = (helper: string) => store.soul(helper).name; // a worker's or a Manager's
       const who = goal.tasks.map((t) => {
         const after = t.blockedBy.map((b) => nameOf(goal.tasks.find((x) => x.id === b)!.helper));
         return `${nameOf(t.helper)} (task ${t.id}${after.length ? `, after ${[...new Set(after)].join(" and ")}` : ""})`;
@@ -191,7 +206,10 @@ export function handOffTool(store: HelperStore, job: Job) {
   const team = store.list();
   const roles = HAND_OFFS[team.find((w) => w.id === job.helper)?.role ?? ""] ?? [];
   const workers = team.filter((w) => w.available && w.id !== job.helper && roles.includes(w.role));
-  if (job.parentId !== undefined || !workers.length) return undefined;
+  // ADR-095: a task a Manager handed out hands off as a top-level task does.
+  const parent = job.parentId === undefined ? undefined : store.get(job.parentId);
+  const fromManager = parent !== undefined && store.managers().some((m) => m.id === parent.helper);
+  if ((job.parentId !== undefined && !fromManager) || !workers.length) return undefined;
   return {
     description:
       `Hand a sub-task to another of ZENO's workers when part of the job needs their skill: ${workers.map((w) => `${w.name} (${w.role})`).join(", ")}. ` +
@@ -206,14 +224,22 @@ export function handOffTool(store: HelperStore, job: Job) {
   };
 }
 
-/** The team for the model's context, so it delegates by the names Keshab uses. */
-export function teamContext(workers: readonly HelperView[]): string {
-  const ready = workers.filter((w) => w.available).map((w) => `${w.name} (${w.role})`);
+/**
+ * The team for the model's context, so it delegates by the names Keshab uses. ADR-095: with Managers, by Manager: a
+ * "plan" Manager takes its part by its own name, a "group" Manager's Agents are named directly.
+ */
+export function teamContext(workers: readonly HelperView[], managers: readonly ManagerView[] = []): string {
   const later = workers.filter((w) => !w.available).map((w) => w.name);
-  return (
-    `Your team: ${ready.join(", ")}. Use the delegate tool to give them work that takes minutes.` +
-    (later.length ? ` Not ready yet: ${later.join(", ")}.` : "")
-  );
+  const tail = " Use the delegate tool to give them work that takes minutes." + (later.length ? ` Not ready yet: ${later.join(", ")}.` : "");
+  const named = (list: readonly HelperView[]) => list.filter((w) => w.available).map((w) => `${w.name} (${w.role})`).join(", ");
+  if (!managers.length) return `Your team: ${named(workers)}.${tail}`;
+  const teams = managers.flatMap((m) => {
+    const agents = named(workers.filter((w) => w.manager === m.id));
+    if (!agents) return [];
+    return [m.mode === "plan" ? `${m.name} (a manager that plans and reviews: give it its whole part by the name ${m.name}; its agents: ${agents})` : `${m.name} (give tasks to its agents directly: ${agents})`];
+  });
+  const loose = named(workers.filter((w) => !w.manager));
+  return `Your team, by manager: ${teams.join("; ")}.${loose ? ` Not under a manager: ${loose}.` : ""}${tail}`;
 }
 
 export type WorkerCommand = { helper: string; name: string; task: string } | { helper: string; name: string; stop: true };

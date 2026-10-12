@@ -90,6 +90,13 @@ public enum IslandCommand: Sendable, Equatable {
     /// ADR-088: add an agent (its soul.md), or remove one Keshab added.
     case agentCreate(name: String, role: String, kit: String, soul: HelperSoul)
     case agentRemove(id: String)
+    /// ADR-095: Managers: add one (mode "plan" or "group"), rename it, switch its mode, remove it (refused while it has
+    /// Agents); put an Agent under a Manager.
+    case managerCreate(name: String, mode: String)
+    case managerRename(id: String, name: String)
+    case managerMode(id: String, mode: String)
+    case managerDelete(id: String)
+    case agentManager(helper: String, manager: String)
     case grantRemove(helper: String, path: String)
     case jobDelete(id: Int)
     /// ADR-083: pin a helper to a model (`""` lets Laya choose again); allow or forbid the large model for jobs.
@@ -166,6 +173,11 @@ public enum IslandCommand: Sendable, Equatable {
         case .mcpTest: "mcp.test"
         case .agentCreate: "agent.create"
         case .agentRemove: "agent.remove"
+        case .managerCreate: "manager.create"
+        case .managerRename: "manager.rename"
+        case .managerMode: "manager.mode"
+        case .managerDelete: "manager.delete"
+        case .agentManager: "agent.manager"
         case .grantRemove: "grant.remove"
         case .jobDelete: "job.delete"
         case .helperPin: "helper.pin"
@@ -250,8 +262,20 @@ public enum IslandCommand: Sendable, Equatable {
             if let enabled { fields["enabled"] = enabled }
             if let trusted { fields["trusted"] = trusted }
             if let workers { fields["workers"] = workers }
-        case .agentRemove(let id):
+        case .agentRemove(let id), .managerDelete(let id):
             fields["id"] = id
+        case .managerCreate(let name, let mode):
+            fields["name"] = name
+            fields["mode"] = mode
+        case .managerRename(let id, let name):
+            fields["id"] = id
+            fields["name"] = name
+        case .managerMode(let id, let mode):
+            fields["id"] = id
+            fields["mode"] = mode
+        case .agentManager(let helper, let manager):
+            fields["helper"] = helper
+            fields["manager"] = manager
         case .proposalAccept(let id), .proposalReject(let id), .proposalUndo(let id), .jobOpen(let id), .jobRetry(let id), .mcpRemove(let id), .mcpTest(let id),
              .skillMake(let id), .skillApprove(let id), .skillReject(let id), .skillEditAccept(let id), .skillEditReject(let id), .skillEditUndo(let id):
             fields["id"] = id
@@ -699,7 +723,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
                                     skillDrafts: Fields.skillDrafts(f.values["skillDrafts"]),
                                     skillEdits: Fields.skillEdits(f.values["skillEdits"]),
                                     agentProblems: Fields.agentProblems(f.values["agentProblems"]),
-                                    teamTasks: Fields.teamTasks(f.values["teamTasks"])))
+                                    teamTasks: Fields.teamTasks(f.values["teamTasks"]),
+                                    managers: f.managers()))
     case "thread":
         return .thread(try f.thread())
     case "error":
@@ -868,7 +893,23 @@ private struct Fields {
                grants: (h["grants"] as? [Any])?.compactMap { $0 as? String } ?? [],
                skills: (h["skills"] as? [Any])?.compactMap { $0 as? String } ?? [],
                proposals: Self.proposals(h["proposals"]), kit: h["kit"] as? String, custom: Self.flag(h["custom"]),
-               wakeUp: Self.wakeUp(h["wakeUp"]))
+               wakeUp: Self.wakeUp(h["wakeUp"]), manager: h["manager"] as? String)
+        }
+    }
+
+    /// ADR-095: the Managers; absent (none, or an older runtime) is empty. A malformed Manager is left out; its jobs
+    /// read as the helpers' do (a malformed job is left out).
+    func managers() -> [HelperManager] {
+        (values["managers"] as? [Any] ?? []).compactMap { entry in
+            guard let m = entry as? [String: Any], let id = m["id"] as? String, let name = m["name"] as? String else { return nil }
+            var soul: HelperSoul?
+            if let s = m["soul"] as? [String: Any], let n = s["name"] as? String, let p = s["personality"] as? String {
+                soul = HelperSoul(name: n, personality: p, howItWorks: s["howItWorks"] as? String ?? "", rules: s["rules"] as? String ?? "", lessons: s["lessons"] as? String ?? "")
+            }
+            return HelperManager(id: id, name: name, mode: m["mode"] as? String == "plan" ? "plan" : "group", soul: soul,
+                                 soulVersion: (m["soulVersion"] as? NSNumber)?.intValue ?? 1, budget: Self.budget(m["budget"]),
+                                 agents: (m["agents"] as? [Any])?.compactMap { $0 as? String } ?? [],
+                                 jobs: (m["jobs"] as? [Any] ?? []).compactMap(job))
         }
     }
 
