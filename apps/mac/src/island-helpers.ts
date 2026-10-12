@@ -93,11 +93,12 @@ export function islandHelpers(
         jobs: h.jobs.map((job) => toJobItem(job, held(job))),
       })),
     budgets: () => {
-      const { team, planLimit } = store.budgets();
-      return { team, planLimit };
+      const { team, planLimit, maxRunning } = store.budgets();
+      return { team, planLimit, maxRunning };
     },
     setBudget: (helper, cap) => store.setBudget(helper, cap),
     setPlanLimit: (percent) => store.setPlanLimit(percent),
+    setMaxRunning: (count) => store.setMaxRunning(count),
     apps: async () => [...(await apps())].sort((a, b) => a.localeCompare(b)),
     setApp: (helper, app) => store.setApp(helper, app),
     addJob: (helper, task, blockedBy, planFirst) =>

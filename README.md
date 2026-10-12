@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="docs/images/icon.png" width="128" alt="ZENO's icon: Pal on a black tile">
+  <img src="docs/images/icon.png" width="128" alt="ZENO's icon: ATOM on a black tile">
 </p>
 
 <h1 align="center">ZENO</h1>
 
-<p align="center"><b>Your Pal on the Mac, and the team it runs for you.</b><br>
-Talk to Pal. Pal does the small things itself and hands the bigger ones to a team of AI workers.<br>
+<p align="center"><b>ATOM on your Mac, and the team it runs for you.</b><br>
+Talk to ATOM. ATOM does the small things itself and hands the bigger ones to a team of AI workers.<br>
 You approve what matters. Everything stays on your Mac.</p>
 
 ---
@@ -14,7 +14,7 @@ You approve what matters. Everything stays on your Mac.</p>
 
 ZENO is a personal assistant for the Mac, built around one idea: **one companion you talk to, with a team behind it that you stay in charge of.**
 
-- **Pal** lives on your screen. Hold two keys and talk; it answers out loud. It opens apps, sets timers, checks your calendar, remembers what you tell it, and dictates into any text field.
+- **ATOM** lives on your screen. Hold two keys and talk; it answers out loud. It opens apps, sets timers, checks your calendar, remembers what you tell it, and dictates into any text field.
 - **The team** is a set of AI workers, each with its own role and personality: Sid researches, Kame codes, Puff designs, Quill writes, Penny handles money questions, Hana handles HR questions, and Tinker suggests how they can improve. You can add your own.
 - **You stay in charge.** Workers only touch the folders you grant, ask before anything risky, never push code, and stay inside the budgets you set. The model proposes; ZENO's code decides.
 
@@ -23,8 +23,8 @@ ZENO is not a chatbot. The language model is one part of it, reached through a g
 ## See it
 
 <p align="center">
-  <img src="docs/images/office-floor.png" width="820" alt="The office floor: pixel-art pals at their desks and in the lounge, Pal in its own office">
-  <br><sub>The office floor: workers at work sit at a PC with their step in a bubble; the rest wait in the lounge; Pal runs the floor.</sub>
+  <img src="docs/images/office-floor.png" width="820" alt="The office floor: pixel-art pals at their desks and in the lounge, ATOM in its own office">
+  <br><sub>The office floor: workers at work sit at a PC with their step in a bubble; the rest wait in the lounge; ATOM runs the floor.</sub>
 </p>
 
 <p align="center">
@@ -50,7 +50,7 @@ ZENO is not a chatbot. The language model is one part of it, reached through a g
 **A team that works for you**
 - Workers with souls: each has a role, a personality, rules and lessons in a `soul.md` you can edit, rename, or version.
 - Kits decide tools in code: research (the web), folders (files in folders you grant, sandboxed, on its own git branch), or think (no tools).
-- Pal as manager: say "Sid, find…" or give Pal a goal; it splits the work, hands parts to the right workers, and reports back in one line.
+- ATOM as manager: say "Sid, find…" or give ATOM a goal; it splits the work, hands parts to the right workers, and reports back in one line.
 - Tasks that wait for each other, plans for your OK before work starts, routines (daily, weekly, every few hours), hand-offs between workers, and one automatic retry for failures a retry may fix.
 - Skills and MCP servers per worker. MCP servers are saved switched off and tested first, and every tool call asks you unless you trust that server.
 
@@ -67,7 +67,7 @@ ZENO is not a chatbot. The language model is one part of it, reached through a g
 |---|---|
 | The model is never the authority | Permissions, budgets, folders and approvals are checked in code before anything runs. |
 | Workers only touch what you grant | Folder grants (never your home folder, `~/Library` or hidden folders), a sandbox, and a check on every file tool and command. |
-| Risky steps ask first | Deleting, installing, untrusted MCP tools, and controlling the computer each wait for your OK on Pal's card. |
+| Risky steps ask first | Deleting, installing, untrusted MCP tools, and controlling the computer each wait for your OK on ATOM's card. |
 | Code never leaves on its own | Workers commit to their own `zeno/task-<id>` branch. Only you can push, from the Dashboard, never forced. |
 | Your words stay yours | Speech is transcribed on the Mac. Logs hold ids, states and timings, never your text. Memory, chats and tokens stay in local files. |
 | Secrets stay secret | No API keys at all: ZENO uses your signed-in Claude Code and never reads its login. MCP tokens are never logged or shown in full. |
@@ -80,7 +80,7 @@ Full details: [SECURITY.md](SECURITY.md).
 You (voice, text, the window)
   │
   ▼
-ZENO.app (Swift): Pal, the island, the ZENO window, notifications
+ZENO.app (Swift): ATOM, the island, the ZENO window, notifications
   │  line-delimited JSON (docs/island-protocol.md)
   ▼
 ZENO runtime (Node.js, TypeScript)
@@ -158,7 +158,7 @@ macOS asks for each one the first time ZENO needs it:
 
 ### 6. First words
 
-- Hold **Control + Option**, talk, and let go. Pal answers out loud.
+- Hold **Control + Option**, talk, and let go. ATOM answers out loud.
 - Hold **Right ⌘ + Right ⌥** to dictate into any text field.
 - Open the ZENO window from the menu bar for chats, the team, the Board and the Dashboard.
 

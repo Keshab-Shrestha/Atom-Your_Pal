@@ -202,7 +202,9 @@ test("the voice command gives the worker a task of its own, or stops it, or says
   assert.equal(job!.task, "research mesh Wi-Fi");
   assert.ok(job!.goalId);
   store.start(job!.id);
-  assert.equal(say("Sid, check router prices"), "Sid will start on it after the current task.");
+  assert.equal(say("Sid, check router prices"), "Sid is on it.", "ADR-095: a second task runs alongside the first");
+  store.setMaxRunning(1);
+  assert.equal(say("Sid, compare mesh kits"), "Sid will start on it when another task ends.", "every run slot taken");
   assert.equal(say("Sid, stop"), "Sid stopped.");
   assert.equal(store.get(job!.id)!.state, "stopped");
   assert.equal(say("Sid, stop"), "Sid isn't working on anything.");

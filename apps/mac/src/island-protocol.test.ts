@@ -196,6 +196,8 @@ test("parses the helper commands", () => {
     { type: "helper.budget", helper: "sid", cap: 2.5 },
     { type: "helper.budget", helper: "team", cap: null },
     { type: "helpers.settings", planLimit: 70 },
+    { type: "helpers.settings", maxRunning: 4 },
+    { type: "helpers.settings", maxRunning: 40 }, // refused later by the helpers, with stage "settings"
     { type: "job.add", helper: "sid", task: "x", planFirst: true },
     { type: "plan.approve", id: 3 },
     { type: "plan.reject", id: 3 },
@@ -261,6 +263,7 @@ test("helper commands with missing or wrong fields are protocol errors", () => {
     [{ type: "helper.pin", helper: "sid", model: null }, /"model"/],
     [{ type: "helpers.settings" }, /"allowLarge"/],
     [{ type: "helpers.settings", allowLarge: "false" }, /"allowLarge"/],
+    [{ type: "helpers.settings", maxRunning: "6" }, /"maxRunning" to be a number/],
     [{ type: "soul.set", soul: {} }, /"helper"/],
     [{ type: "soul.set", helper: "sid" }, /"soul" object/],
     [{ type: "soul.set", helper: "sid", soul: ["Sid"] }, /"soul" object/],

@@ -2025,3 +2025,23 @@ Date: 2026-10-12. Status: **accepted** (Keshab, 2026-10-12: "is there auto skill
 ### Consequences
 
 The team learns: good work becomes reusable skills and weak skills get better, but only through Keshab's approvals, so the model never changes what workers can do on its own. Work can wait for whoever is free, and everything that runs on a clock is in one place. The window stays readable with 50 agents.
+
+## ADR-095 — ATOM, Managers, Agents and Sub-Agents; Runs in Parallel
+
+Date: 2026-10-12. Status: **accepted** (Keshab, 2026-10-12: "A worker with tasks already queued won't take new team work — NOT OKAY. I want to be able to do multiple research, multiple coding sessions as well", with an org chart CEO "ATOM" → Managers → Agents → Sub-Agents; "this relieves the agents number as only Manager agents will be on the Floor"). His choices: rename Pal to ATOM; Sub-Agents are temporary, inside a run; Managers support both modes; the number of parallel runs is set in Settings. Built as worker → checker → fix what is confirmed.
+
+### Decision
+
+1. **ATOM.** Pal is called ATOM everywhere Keshab sees or says it (window, Board, floor, island, notices, voice replies, spoken name). ATOM is the CEO: it takes Keshab's goals, hands them to Managers (or straight to an Agent), reviews the combined result and talks to Keshab. Code names (`PalView`, `PetController`…) stay; only user-facing text changes. ADR-093's pixel look stays.
+2. **Managers.** A Manager runs one domain (e.g. Research, Coding) and has Agents under it. Each Manager has a mode, switchable on its page:
+   - *Plans and reviews*: a short no-tools model run splits ATOM's work across its Agents, then reviews their reports before ATOM sees them (one revision request at most).
+   - *Group only*: no model calls; ATOM assigns to its Agents directly and the Manager is a department on the Board and floor.
+   A Manager is a soul file like an Agent (`kind: manager`, `mode: plan | group`). Every Agent has a `manager:`; existing Agents are placed under a Manager for their role when ZENO first starts with this change (Keshab can move them).
+3. **Agents** do the work, as workers do today (kits, grants, budgets, skills, plan-first, hand-offs inside the team). An Agent may run several tasks at once.
+4. **Sub-Agents** are temporary helpers an Agent starts inside its own Claude Code run (the Agent SDK's built-in subagents), several in parallel. They read and use the skills the Agent was given from `~/.claude/skills` (read and execute only), have no files, no page and no seat, and end with the run. Their cost counts toward the Agent's budget; the task's thread lists them by name and result.
+5. **Runs in parallel.** The one-run-per-worker rule goes. Settings has "Runs at once" (1–10, default 6), the team-wide limit; budgets and the plan's limit still stop new runs. A wake-up takes a team task whenever a run slot, the budgets and the plan allow, even if that Agent has other tasks queued or running (this replaces ADR-094's "nothing queued" rule).
+6. **Board and floor show Managers only**, plus ATOM's office. A Manager's desk animates while any of its Agents works, with "N at work" in its bubble; a "!" when one needs Keshab. Clicking a Manager opens its page with its Agents and their tasks. ADR-094's caps and "All agents" list stay as a fallback for a large team.
+
+### Consequences
+
+Several research or coding sessions can run at once, under Keshab's limit. The team grows by Agents and Sub-Agents without crowding the window: Keshab sees a few Managers, not every worker. Managers in "plans and reviews" spend extra model calls; "group only" spends none.

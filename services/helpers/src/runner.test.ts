@@ -30,25 +30,25 @@ function fileStore(jobs: string[]) {
   const insert = db.prepare("INSERT INTO jobs (helper, task, state, created_at) VALUES (?, 'task', 'queued', ?)");
   for (const helper of jobs) insert.run(helper, new Date().toISOString());
   db.close();
-  return { store, done: () => (store.close(), rmSync(dir, { recursive: true, force: true })) };
+  return { store, path, done: () => (store.close(), rmSync(dir, { recursive: true, force: true })) };
 }
 
-test("defaults: three jobs at once, fifteen minutes each", () => {
-  assert.equal(MAX_RUNNING, 3);
+test("defaults: six jobs at once (ADR-095), fifteen minutes each", () => {
+  assert.equal(MAX_RUNNING, 6);
   assert.equal(JOB_TIME_LIMIT_MS, 15 * 60_000);
 });
 
-test("jobs queued before the runner starts (a restart) are picked up, oldest first, one per helper", async () => {
+test("jobs queued before the runner starts (a restart) are picked up, oldest first", async () => {
   const { store, done } = fileStore(["sid", "sid", "kame"]);
   const fake = fakeRun();
-  const runner = startJobRunner({ store, run: fake.run });
+  const runner = startJobRunner({ store, run: fake.run, maxRunning: 2 });
   await tick();
-  assert.deepEqual(fake.started(), [1, 3]); // Sid's second job waits for his first
-  assert.equal(store.get(1)!.state, "running");
-  assert.equal(store.get(2)!.state, "queued");
+  assert.deepEqual(fake.started(), [1, 2]); // ADR-095: Sid's two jobs run at once; Kame's waits for a slot
+  assert.equal(store.get(2)!.state, "running");
+  assert.equal(store.get(3)!.state, "queued");
   fake.call(1).resolve({ report });
   await tick();
-  assert.deepEqual(fake.started(), [1, 3, 2]);
+  assert.deepEqual(fake.started(), [1, 2, 3]);
   assert.equal(store.get(1)!.state, "done");
   assert.equal(store.report(1)!.title, "TCP and UDP");
   runner.close();
@@ -68,11 +68,11 @@ test("no more than the running limit at once; the next starts when one ends", as
   done();
 });
 
-test("Sid's jobs run one after another in the order given, and a job added later starts by itself", async () => {
+test("with one run at a time, Sid's jobs run in the order given, and a job added later starts by itself", async () => {
   const store = openHelperStore({ path: ":memory:" });
   const fake = fakeRun();
   const events: RunEvent[] = [];
-  const runner = startJobRunner({ store, run: fake.run, onRun: (e) => events.push(e) });
+  const runner = startJobRunner({ store, run: fake.run, maxRunning: 1, onRun: (e) => events.push(e) });
   const a = store.addJob("sid", "first");
   const b = store.addJob("sid", "second");
   await tick();
@@ -92,7 +92,7 @@ test("Sid's jobs run one after another in the order given, and a job added later
 test("a failing run fails the job with its message, and the queue moves on", async () => {
   const store = openHelperStore({ path: ":memory:" });
   const fake = fakeRun();
-  const runner = startJobRunner({ store, run: fake.run });
+  const runner = startJobRunner({ store, run: fake.run, maxRunning: 1 });
   const a = store.addJob("sid", "one");
   const b = store.addJob("sid", "two");
   await tick();
@@ -107,7 +107,7 @@ test("a failing run fails the job with its message, and the queue moves on", asy
 test("job.stop mid-run aborts the run at once and drops its late result", async () => {
   const store = openHelperStore({ path: ":memory:" });
   const fake = fakeRun();
-  const runner = startJobRunner({ store, run: fake.run });
+  const runner = startJobRunner({ store, run: fake.run, maxRunning: 1 });
   const a = store.addJob("sid", "one");
   const b = store.addJob("sid", "two");
   await tick();
@@ -160,6 +160,43 @@ test("the time limit aborts the run: failed without a result, done and partial w
   assert.equal(store.get(b.id)!.state, "done");
   assert.equal(store.get(b.id)!.partial, true);
   runner.close();
+});
+
+test("ADR-095: two jobs of one worker run at once, up to the limit from Settings, which applies when changed", async () => {
+  const store = openHelperStore({ path: ":memory:" });
+  store.setMaxRunning(2);
+  const fake = fakeRun();
+  const runner = startJobRunner({ store, run: fake.run, maxRunning: () => store.maxRunning() });
+  const [a, b, c] = ["one", "two", "three"].map((t) => store.addJob("sid", t));
+  await tick();
+  assert.deepEqual(fake.started(), [a!.id, b!.id], "both of Sid's first two at once; the third waits for a slot");
+  store.setMaxRunning(3); // a "budget" change: the runner looks again by itself
+  await tick();
+  assert.deepEqual(fake.started(), [a!.id, b!.id, c!.id]);
+  store.setMaxRunning(1); // lowering it stops nothing that runs; new runs wait until fewer run
+  const d = store.addJob("sid", "four");
+  fake.call(a!.id).resolve({ report });
+  fake.call(b!.id).resolve({ report });
+  await tick();
+  assert.equal(store.get(d.id)!.state, "queued", "still one running");
+  fake.call(c!.id).resolve({ report });
+  await tick();
+  assert.equal(store.get(d.id)!.state, "running");
+  assert.throws(() => store.setMaxRunning(0), /from 1 to 10/);
+  assert.throws(() => store.setMaxRunning(11), /from 1 to 10/);
+  assert.throws(() => store.setMaxRunning(2.5), /from 1 to 10/);
+  assert.equal(store.budgets().maxRunning, 1);
+  runner.close();
+});
+
+test("Runs at once defaults to 6 and is kept in the helpers file", () => {
+  const { store, path, done } = fileStore([]);
+  assert.equal(store.maxRunning(), MAX_RUNNING);
+  store.setMaxRunning(4);
+  const again = openHelperStore({ path });
+  assert.equal(again.budgets().maxRunning, 4);
+  again.close();
+  done();
 });
 
 test("close aborts running jobs and writes nothing; queued jobs wait for the next start", async () => {

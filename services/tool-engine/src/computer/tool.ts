@@ -339,7 +339,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         "Use `set_value` to set a slider, stepper or choice to a value in one step (text holds the value), instead of clicking toward it. " +
         "Add `look_after: true` to a click, type, key, scroll or set_value to get the new screen in the same reply. " +
         "Each reply says whether the action was confirmed; if it says it probably did nothing, look before trying again. " +
-        "Use `point` with an element number (and a short label) to show the user where something is: Pal flies to it. " +
+        "Use `point` with an element number (and a short label) to show the user where something is: ATOM flies to it. " +
         "Point when the user asks where something is or how to do it, instead of doing it for them. " +
         "ZENO asks the user before sending, buying, deleting or changing anything, and never types passwords. " +
         "If the user declines, stop and say so.",

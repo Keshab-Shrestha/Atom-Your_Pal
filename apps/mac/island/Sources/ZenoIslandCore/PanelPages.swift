@@ -14,7 +14,7 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
     case model = "AI model"
     case shortcuts = "Shortcuts"
     case dictation = "Dictation"
-    case pal = "Pal"
+    case pal = "ATOM"
     case memory = "Memory"
     case general = "General"
     public var id: String { rawValue }

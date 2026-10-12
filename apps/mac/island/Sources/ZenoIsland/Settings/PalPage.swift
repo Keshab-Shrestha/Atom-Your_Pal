@@ -9,20 +9,20 @@ struct PalSection: View {
 
     var body: some View {
         let settings = model.settings
-        Card("Pal") {
-            Row(title: "Show Pal", detail: "Shows ZENO's state and opens this panel when clicked") {
-                ThemedSwitch(isOn: settings.petEnabled, set: { model.setPet($0) }, label: "Show Pal")
+        Card("ATOM") {
+            Row(title: "Show ATOM", detail: "Shows ZENO's state and opens this panel when clicked") {
+                ThemedSwitch(isOn: settings.petEnabled, set: { model.setPet($0) }, label: "Show ATOM")
             }
         }
         if settings.petEnabled {
-            Card("Look", footer: "Pal is drawn in 2D pixel art, like the office floor.") {
+            Card("Look", footer: "ATOM is drawn in 2D pixel art, like the office floor.") {
                 ChoiceRow(title: "Size", selection: settings.palSize) { settings.palSize = $0 }
             }
             Card("Behaviour") {
                 HomeDisplayRow(settings: settings)
                 RowDivider()
                 ChoiceRow(title: "Movement",
-                          detail: settings.palWander == .stayPut ? "Pal rests where it stands" : "How fast Pal floats along the Dock when idle",
+                          detail: settings.palWander == .stayPut ? "ATOM rests where it stands" : "How fast ATOM floats along the Dock when idle",
                           selection: settings.palWander) { settings.palWander = $0 }
                 RowDivider()
                 ChoiceRow(title: "Naps after", selection: settings.palNap) { settings.palNap = $0 }
@@ -41,7 +41,7 @@ struct PalSection: View {
             ChoiceRow(title: "Stays for", detail: "After a dictation or an answer ends",
                       selection: settings.bubbleStay) { settings.bubbleStay = $0 }
         }
-        ResetPageCard(footer: "Pal and the speech bubble go back to their defaults. Show Pal stays as it is.") {
+        ResetPageCard(footer: "ATOM and the speech bubble go back to their defaults. Show ATOM stays as it is.") {
             settings.resetPal()
         }
     }
@@ -92,9 +92,9 @@ private struct HomeDisplayRow: View {
 
     private func detail(_ choice: PalHomeDisplay, missing: Bool) -> String {
         switch choice {
-        case .main: "Where Pal walks along the Dock"
-        case .pointer: "Pal moves to the display you are using after 3 seconds there"
-        case .display: missing ? "On the main display until it is back" : "Where Pal walks along the Dock"
+        case .main: "Where ATOM walks along the Dock"
+        case .pointer: "ATOM moves to the display you are using after 3 seconds there"
+        case .display: missing ? "On the main display until it is back" : "Where ATOM walks along the Dock"
         }
     }
 }

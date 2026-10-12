@@ -42,9 +42,11 @@ public enum TeamRoster {
 
     public static func isWorking(_ h: Helper) -> Bool { h.jobs.contains { $0.state == .running } }
 
-    /// When its running task started (the distant past when unknown, so it counts as longest at work).
+    /// When its longest-running task started (the distant past when unknown, so it counts as longest at work).
     public static func startedAt(_ h: Helper) -> Date {
-        h.jobs.first { $0.state == .running }.flatMap(\.createdAt) ?? .distantPast
+        let running = h.jobs.filter { $0.state == .running }
+        guard !running.contains(where: { $0.createdAt == nil }) else { return .distantPast }
+        return running.compactMap(\.createdAt).min() ?? .distantPast
     }
 
     /// The last time one of its tasks started or ended; nil with no dated task.

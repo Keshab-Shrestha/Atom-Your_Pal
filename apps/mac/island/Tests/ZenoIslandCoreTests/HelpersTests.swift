@@ -602,6 +602,36 @@ struct HelperBudgetTests {
     }
 }
 
+@Suite("Runs at once (ADR-095)")
+struct RunsAtOnceTests {
+    static let line = HelperBudgetTests.line.replacingOccurrences(of: #""planLimit":80,"#, with: #""planLimit":80,"maxRunning":6,"#)
+
+    @Test func decodesTheLimitAndChangesItWithinOneToTen() throws {
+        guard case .helpers(let list) = try decodeEvent(Self.line) else { Issue.record("not helpers"); return }
+        #expect(list.maxRunning == 6)
+        guard case .helpers(let older) = try decodeEvent(HelperBudgetTests.line) else { Issue.record("not helpers"); return }
+        #expect(older.maxRunning == nil, "an older runtime sends none")
+        var state = HelpersState()
+        state.apply(try decodeEvent(Self.line))
+        #expect(state.setMaxRunning(6) == nil && state.setMaxRunning(0) == nil && state.setMaxRunning(11) == nil)
+        #expect(state.setMaxRunning(3) == .helpersMaxRunning(3))
+        #expect(IslandCommand.helpersMaxRunning(3).line == #"{"maxRunning":3,"type":"helpers.settings"}"# + "\n")
+    }
+
+    @Test func aWorkerWithTwoRunsShowsTheNewestAndTheCount() {
+        let now = Date()
+        var newer = HelperJob(id: 2, task: "t", state: .running, createdAt: now.addingTimeInterval(-60))
+        newer.step = "Reading 3 of 8 pages"
+        let older = HelperJob(id: 1, task: "t", state: .running, createdAt: now.addingTimeInterval(-600))
+        let sid = Helper(id: "sid", name: "Sid", available: true, app: nil, jobs: [newer, older])
+        #expect(sid.activity == "2 at work · Reading 3 of 8 pages")
+        #expect(TeamRoster.startedAt(sid) == now.addingTimeInterval(-600), "the longest-running one")
+        let seat = OfficePlan(list: HelpersList(helpers: [sid], apps: []), now: now).seats.first
+        #expect(seat?.bubble == "2 at work · Reading 3 of 8 pages" && seat?.taskId == 2 && seat?.animation == "working")
+        #expect(TeamOverview(list: HelpersList(helpers: [sid], apps: []), now: now).running == 2)
+    }
+}
+
 @Suite("Plan first (Task 3.8)")
 struct HelperPlanTests {
     static let line = HelperTaskTests.line

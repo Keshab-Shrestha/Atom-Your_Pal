@@ -644,7 +644,7 @@ final class PetContentView: NSView {
         home.target = self
         home.isEnabled = isParked()
         menu.addItem(home)
-        let hide = NSMenuItem(title: "Hide Pal", action: #selector(hidePal), keyEquivalent: "")
+        let hide = NSMenuItem(title: "Hide ATOM", action: #selector(hidePal), keyEquivalent: "")
         hide.target = self
         menu.addItem(hide)
         NSMenu.popUpContextMenu(menu, with: event, for: self)

@@ -110,7 +110,8 @@ export const HELPERS = [
 
 /** Longest text per soul field. */
 export const SOUL_LIMITS: Readonly<Record<keyof Soul, number>> = { name: 20, personality: 600, howItWorks: 1500, rules: 1500, lessons: 2000 };
-const RESERVED_NAMES = new Set(["pal", "zeno"]);
+// ADR-095: ATOM is the manager's name now; "pal" (its old name) stays taken too.
+const RESERVED_NAMES = new Set(["atom", "pal", "zeno"]);
 
 /** How each role is named in the instructions. */
 const ROLE_TITLES: Readonly<Record<string, string>> = {

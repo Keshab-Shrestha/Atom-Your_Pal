@@ -228,7 +228,7 @@ struct OfficeScene {
         var actors: [Actor] = []
         if let pal {
             let pose: PixelPal.Pose = palBusy ? (frame % 2 == 0 ? .typeA : .typeB) : idlePose("pal", frame: frame)
-            actors.append(Actor(id: "pal", name: "Pal", look: pal, point: OfficeMap.managerSeat, pose: pose, eyes: 0, seat: nil,
+            actors.append(Actor(id: "pal", name: "ATOM", look: pal, point: OfficeMap.managerSeat, pose: pose, eyes: 0, seat: nil,
                                 desk: palBusy ? OfficeMap.managerDesk : nil, walking: false))
         }
         for seat in plan.seats {

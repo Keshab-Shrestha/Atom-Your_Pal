@@ -653,6 +653,7 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
       allowLarge: true,
       team: { cap: 15, spent: 0 },
       planLimit: 80,
+      maxRunning: 6,
       skills: [],
       skillDrafts: [],
       skillEdits: [],
@@ -844,6 +845,19 @@ test("budgets: helper.budget and helpers.settings planLimit, with caps, spend an
   await h.send({ type: "helper.budget", helper: "sid", cap: -1 });
   assert.deepEqual(h.types(), ["error"]);
   assert.equal(store.budgets().workers.sid!.cap, 2);
+});
+
+test("ADR-095: helpers.settings maxRunning sets Runs at once, sent back in helpers; out of range is refused", async () => {
+  const { h, store } = helperHarness();
+  await tick(5);
+  h.clear();
+  await h.send({ type: "helpers.settings", maxRunning: 3 });
+  assert.equal((h.events().at(-1) as HelpersEvent).maxRunning, 3);
+  assert.equal(store.maxRunning(), 3);
+  h.clear();
+  await h.send({ type: "helpers.settings", maxRunning: 11 });
+  assert.deepEqual(h.types(), ["error"]);
+  assert.equal(store.maxRunning(), 3);
 });
 
 test("plan first: helper.planFirst, job.add planFirst, the plan in thread.get, plan.approve and plan.reject (Task 3.8)", async () => {

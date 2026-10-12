@@ -98,6 +98,8 @@ public enum IslandCommand: Sendable, Equatable {
     /// Task 3.7: a worker's or the team's ("team") daily cap, nil for none; the plan limit in percent.
     case helperBudget(helper: String, cap: Double?)
     case helpersPlanLimit(Int)
+    /// ADR-095: "Runs at once", the team-wide limit (1 to 10).
+    case helpersMaxRunning(Int)
     /// Task 3.3: save a worker's edited soul as a new version; make an older version current again.
     case soulSet(helper: String, soul: HelperSoul)
     case soulRestore(helper: String, version: Int)
@@ -167,7 +169,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .grantRemove: "grant.remove"
         case .jobDelete: "job.delete"
         case .helperPin: "helper.pin"
-        case .helpersSettings, .helpersPlanLimit: "helpers.settings"
+        case .helpersSettings, .helpersPlanLimit, .helpersMaxRunning: "helpers.settings"
         case .helperBudget: "helper.budget"
         case .soulSet: "soul.set"
         case .soulRestore: "soul.restore"
@@ -286,6 +288,8 @@ public enum IslandCommand: Sendable, Equatable {
             fields["cap"] = cap.map { $0 as Any } ?? NSNull()
         case .helpersPlanLimit(let percent):
             fields["planLimit"] = percent
+        case .helpersMaxRunning(let count):
+            fields["maxRunning"] = count
         case .soulSet(let helper, let soul):
             fields["helper"] = helper
             fields["soul"] = ["name": soul.name, "personality": soul.personality, "howItWorks": soul.howItWorks,
@@ -684,6 +688,7 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .helpers(HelpersList(helpers: try f.helpers(), apps: try f.strings("apps"),
                                     allowLarge: try f.optionalStrictBool("allowLarge") ?? true, models: try f.helperModels(),
                                     team: Fields.budget(f.values["team"]), planLimit: (f.values["planLimit"] as? NSNumber)?.intValue,
+                                    maxRunning: (f.values["maxRunning"] as? NSNumber)?.intValue,
                                     paperclip: Fields.paperclip(f.values["paperclip"]),
                                     mcp: Fields.mcp(f.values["mcp"]),
                                     usage: Fields.usage(f.values["usage"]),

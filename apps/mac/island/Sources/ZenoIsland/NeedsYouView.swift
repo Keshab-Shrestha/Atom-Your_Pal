@@ -17,7 +17,7 @@ struct NeedsYouPane: View {
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
                 if let request = model.approval.pending {
-                    card(kind: "Pal asks", who: "ZENO", title: request.summary, detail: request.reason) {
+                    card(kind: "ATOM asks", who: "ZENO", title: request.summary, detail: request.reason) {
                         QuietButton(title: "Allow", symbol: "checkmark") { model.answerApproval(true) }
                         QuietButton(title: "Decline", symbol: "xmark") { model.answerApproval(false) }
                     }

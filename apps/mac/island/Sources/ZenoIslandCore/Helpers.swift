@@ -264,10 +264,12 @@ public struct Helper: Sendable, Equatable, Identifiable {
         }
     }
 
-    /// The card's second line: the running job's step, or Idle.
+    /// The card's second line: the newest running job's step, or Idle. ADR-095: with several running, "N at work · step".
     public var activity: String {
-        guard let running = jobs.first(where: { $0.state == .running }) else { return "Idle" }
-        return running.step ?? "Working…"
+        let running = jobs.filter { $0.state == .running }
+        guard let newest = running.first else { return "Idle" }
+        let step = newest.step ?? "Working…"
+        return running.count > 1 ? "\(running.count) at work · \(step)" : step
     }
 }
 
@@ -457,6 +459,8 @@ public struct HelpersList: Sendable, Equatable {
     /// Task 3.7: the team's daily cap and spend, and the plan limit (percent); nil from an older runtime.
     public var team: HelperBudget?
     public var planLimit: Int?
+    /// ADR-095: "Runs at once", the team-wide limit on runs at the same time; nil from an older runtime.
+    public var maxRunning: Int?
     /// Task 3.12: the skills to choose from (Keshab's in ~/.claude/skills and, ADR-094, ZENO's own).
     public var skills: [SkillInfo]
     /// ADR-094: Tinker's skill drafts and edits: every pending one and the newest few others.
@@ -474,7 +478,7 @@ public struct HelpersList: Sendable, Equatable {
     public var teamTasks: [TeamTask]
 
     public init(helpers: [Helper], apps: [String], allowLarge: Bool = true, models: [HelperModel] = [], team: HelperBudget? = nil,
-                planLimit: Int? = nil, paperclip: [PaperclipTask]? = nil, mcp: [McpServerItem] = [], usage: TokenUsageSummary? = nil, skills: [SkillInfo] = [],
+                planLimit: Int? = nil, maxRunning: Int? = nil, paperclip: [PaperclipTask]? = nil, mcp: [McpServerItem] = [], usage: TokenUsageSummary? = nil, skills: [SkillInfo] = [],
                 skillDrafts: [SkillDraftItem] = [], skillEdits: [SkillEditItem] = [], agentProblems: [AgentProblem] = [], teamTasks: [TeamTask] = []) {
         self.helpers = helpers
         self.apps = apps
@@ -482,6 +486,7 @@ public struct HelpersList: Sendable, Equatable {
         self.models = models
         self.team = team
         self.planLimit = planLimit
+        self.maxRunning = maxRunning
         self.paperclip = paperclip
         self.mcp = mcp
         self.usage = usage
@@ -972,6 +977,14 @@ public struct HelpersState: Sendable, Equatable {
     public mutating func setPlanLimit(_ percent: Int) -> IslandCommand? {
         guard let limit = list?.planLimit, limit != percent, (10...100).contains(percent) else { return nil }
         return waiting(.helpersPlanLimit(percent))
+    }
+
+    /// ADR-095: the range "Runs at once" offers.
+    public static let maxRunningRange = 1...10
+
+    public mutating func setMaxRunning(_ count: Int) -> IslandCommand? {
+        guard let current = list?.maxRunning, current != count, Self.maxRunningRange.contains(count) else { return nil }
+        return waiting(.helpersMaxRunning(count))
     }
 
     /// "Allow the large model for helpers". Nil without models (the switch means nothing then) or when unchanged.

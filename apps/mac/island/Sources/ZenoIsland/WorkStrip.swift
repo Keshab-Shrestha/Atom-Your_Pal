@@ -71,7 +71,7 @@ final class MenuBarIcon: NSObject {
         let helpers = NSMenuItem(title: "Open ZENO…", action: #selector(openHelpers), keyEquivalent: "")
         helpers.target = self
         menu.addItem(helpers)
-        let pal = NSMenuItem(title: "Show Pal", action: #selector(togglePal), keyEquivalent: "")
+        let pal = NSMenuItem(title: "Show ATOM", action: #selector(togglePal), keyEquivalent: "")
         pal.target = self
         pal.state = isPalShown() ? .on : .off
         menu.addItem(pal)

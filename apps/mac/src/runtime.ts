@@ -1,7 +1,7 @@
 // The parts of the Mac runtime shared by both interfaces (terminal and island):
 // Microphone → Whisper → ZENO Core → LLM Gateway → provider → Kokoro → speaker.
 
-import { existsSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -459,8 +459,11 @@ export function createRuntime(
   /** The Claude plan's models for worker jobs, by tier; empty on any other provider. */
   const planModels = () =>
     settings.current().provider === CLAUDE_PLAN ? tieredModels(settings.info().providers.find((p) => p.id === CLAUDE_PLAN)?.models ?? []) : [];
+  // ADR-095: a worker may run several tasks at once, so each run links its skills in a folder of its own, removed after.
+  const skillPlugin = (job: Job) => join(dirname(worktrees), "skill-plugins", job.helper, String(job.id));
   // ADR-081/082, Task 3.2: helper jobs run beside the Core, on the Claude plan in use at the time each job starts.
-  const runJob: JobRun = async (job, { signal, onStep }) => {
+  const runJob: JobRun = (job, context) => runOne(job, context).finally(() => rmSync(skillPlugin(job), { recursive: true, force: true }));
+  const runOne: JobRun = async (job, { signal, onStep }) => {
     const { provider, model: current } = settings.current();
     // ADR-088: a built-in worker or an agent Keshab added; its role and kit (what it may use) come from the team list.
     const member = helpers?.list().find((h) => h.id === job.helper);
@@ -553,7 +556,7 @@ export function createRuntime(
       : undefined;
     // Task 3.12: only the skills chosen for this worker, through its own small plugin.
     const chosen = helpers?.list().find((h) => h.id === job.helper)?.skills ?? [];
-    const skills = chosen.length ? { ...prepareSkills(join(dirname(worktrees), "skill-plugins", job.helper), chosen, userSkillsDir(), skillsDir), plugin: SKILLS_PLUGIN } : undefined;
+    const skills = chosen.length ? { ...prepareSkills(skillPlugin(job), chosen, userSkillsDir(), skillsDir), plugin: SKILLS_PLUGIN } : undefined;
     // ADR-094: which skills the run used, so a bad outcome can lead to an edit of one of ZENO's.
     const onSkill = (skill: string) => {
       helpers?.recordSkillUse(job.id, skill);
@@ -629,7 +632,8 @@ export function createRuntime(
   // Task 3.7: a task waits while its worker's or the team's budget is used up, or the plan is above its limit.
   const held = (job: Job) => (helpers ? holdFor(job, helpers.budgets(), helpers.soul(job.helper).name, planUsed) : undefined);
   const runner: JobRunner | undefined =
-    helpers && startJobRunner({ store: helpers, run: runJob, onRun: (e) => log.info("job.run", e), mayStart: (job) => !held(job) });
+    helpers &&
+    startJobRunner({ store: helpers, run: runJob, maxRunning: () => helpers.maxRunning(), onRun: (e) => log.info("job.run", e), mayStart: (job) => !held(job) });
   // A new day (budgets) or an older plan window (its use falls) frees held tasks without any change in the store.
   if (runner) setInterval(() => runner.poke(), 60_000).unref();
   // Task 3.16: the Paperclip tasks ZENO handed over are looked at every minute; a finished one is said once.

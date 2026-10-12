@@ -226,8 +226,10 @@ public struct OfficePlan: Sendable, Equatable {
         // Only a worker at work sits at its PC; everyone else is in the lounge.
         var seat = Seat(helperId: h.id, name: h.name, desk: index % seatLimit, spot: .lounge(0), animation: "idle", bubble: nil, taskId: nil, flag: nil)
         if let running {
+            // ADR-095: a worker may run several tasks; the seat shows the newest and how many run.
+            let count = h.jobs.filter { $0.state == .running }.count
             seat.animation = "working"
-            seat.bubble = running.step ?? "Working"
+            seat.bubble = count > 1 ? "\(count) at work · \(running.step ?? "Working")" : running.step ?? "Working"
             seat.taskId = running.id
         } else if let awaiting {
             seat.animation = "curious"

@@ -68,6 +68,6 @@ struct PalView: View {
             }
         }
         .frame(width: size * 1.5, height: size * 1.5, alignment: .topLeading)
-        .accessibilityLabel("ZENO's pet, Pal")
+        .accessibilityLabel("ZENO's pet, ATOM")
     }
 }

@@ -24,6 +24,8 @@ export interface Budgets {
   workers: Record<HelperId, Budget>;
   /** Percent of the plan's five-hour window above which new runs wait (100: never). */
   planLimit: number;
+  /** ADR-095: "Runs at once", the team-wide limit on runs at the same time (1 to 10). */
+  maxRunning: number;
 }
 
 export const isOver = (b: Budget) => b.cap !== null && b.spent >= b.cap;

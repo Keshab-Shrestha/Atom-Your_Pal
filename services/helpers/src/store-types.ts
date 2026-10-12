@@ -225,6 +225,10 @@ export interface HelperStore {
   setBudget(helper: string, cap: number | null): void;
   /** Sets the plan's five-hour use (percent) above which new runs wait. Throws HelperError outside 10 to 100. */
   setPlanLimit(percent: number): void;
+  /** ADR-095: "Runs at once", the team-wide limit on runs at the same time (default 6). */
+  maxRunning(): number;
+  /** Sets "Runs at once". Throws HelperError outside 1 to 10. */
+  setMaxRunning(count: number): void;
   /** Records what a run of a task cost (dollars of API-equivalent use). Nothing for an unknown task or a bad amount. */
   addSpend(id: number, dollars: number): void;
   /**
@@ -328,7 +332,7 @@ export interface HelperStore {
   /** Throws HelperError when the worker has no wake-ups. */
   pauseWakeUp(helper: string, paused: boolean): void;
   /**
-   * ADR-094: wakes the workers whose time has come. One that is idle, within its and the team's budget and below the
+   * ADR-094: wakes the workers whose time has come. One that wakes while a run slot is free (ADR-095), within its and the team's budget and below the
    * plan's limit (`planUsed`, percent, when known) takes the oldest team task its role may do, as its own task.
    */
   runWakeUps(planUsed?: number): Woken[];

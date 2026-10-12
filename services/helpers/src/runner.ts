@@ -2,10 +2,13 @@ import type { HelperId } from "./jobs.ts";
 import type { HelperStore, Job, ReportInput } from "./store.ts";
 
 // ADR-081/082, Task 3.2: runs queued jobs in the background. Pure orchestration: the work itself is `run`.
-// At most MAX_RUNNING jobs at once and one per helper; queued jobs start oldest first. A running job never blocks
-// anything: nothing waits for it, and a stop or delete in the store ends it at once (its late result is dropped).
+// At most `maxRunning` jobs at once, team-wide (ADR-095: a worker may run several at once); queued jobs start oldest
+// first. A running job never blocks anything: nothing waits for it, and a stop or delete in the store ends it at once
+// (its late result is dropped).
 
-export const MAX_RUNNING = 3;
+/** ADR-095: "Runs at once", the team-wide limit: the default and the range Settings offers. */
+export const MAX_RUNNING = 6;
+export const MAX_RUNNING_RANGE = [1, 10] as const;
 export const JOB_TIME_LIMIT_MS = 15 * 60_000;
 /** After the time limit aborts a run, how long it may take to hand back what it has. */
 const LATE_GRACE_MS = 1000;
@@ -38,7 +41,8 @@ export type RunEvent =
 export interface JobRunnerOptions {
   store: Pick<HelperStore, "queued" | "get" | "start" | "step" | "finish" | "fail" | "savePlan" | "onChange">;
   run: JobRun;
-  maxRunning?: number;
+  /** The team-wide limit; a function is read each time, so a change in Settings applies at once (then `poke`). */
+  maxRunning?: number | (() => number);
   timeLimitMs?: number;
   graceMs?: number;
   onRun?: (event: RunEvent) => void;
@@ -54,7 +58,6 @@ export interface JobRunner {
 }
 
 interface Running {
-  helper: HelperId;
   controller: AbortController;
   cancel(): void;
 }
@@ -75,9 +78,9 @@ export function startJobRunner(options: JobRunnerOptions): JobRunner {
     queueMicrotask(() => {
       scheduled = false;
       if (closed) return;
+      const limit = typeof maxRunning === "function" ? maxRunning() : maxRunning;
       for (const job of store.queued()) {
-        if (running.size >= maxRunning) return;
-        if ([...running.values()].some((r) => r.helper === job.helper)) continue;
+        if (running.size >= limit) return;
         if (mayStart && !mayStart(job)) continue;
         void drive(job);
       }
@@ -87,7 +90,7 @@ export function startJobRunner(options: JobRunnerOptions): JobRunner {
   async function drive(job: Job) {
     let cancel = () => {};
     const cancelled = new Promise<"cancelled">((resolve) => (cancel = () => resolve("cancelled")));
-    const entry: Running = { helper: job.helper, controller: new AbortController(), cancel };
+    const entry: Running = { controller: new AbortController(), cancel };
     running.set(job.id, entry);
     try {
       store.start(job.id);

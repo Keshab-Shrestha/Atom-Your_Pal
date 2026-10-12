@@ -68,7 +68,7 @@ export type IslandCommand =
   | { type: "job.fresh"; id: number }
   | { type: "job.delete"; id: number }
   | { type: "helper.pin"; helper: string; model: string }
-  | { type: "helpers.settings"; allowLarge?: boolean; planLimit?: number }
+  | { type: "helpers.settings"; allowLarge?: boolean; planLimit?: number; maxRunning?: number }
   | { type: "helper.budget"; helper: string; cap: number | null }
   | { type: "soul.set"; helper: string; soul: SoulItem }
   | { type: "soul.restore"; helper: string; version: number }
@@ -398,6 +398,8 @@ export type IslandEvent =
       /** Task 3.7: the team's daily cap and spend, and the plan limit (percent) above which new runs wait. */
       team?: { cap: number | null; spent: number };
       planLimit?: number;
+      /** ADR-095: "Runs at once", the team-wide limit on runs at the same time. */
+      maxRunning?: number;
       /** Task 3.12: the skills to choose from: Keshab's in ~/.claude/skills ("yours") and, ADR-094, ZENO's own ("zeno"). */
       skills?: { name: string; description: string; source?: "yours" | "zeno" }[];
       /** ADR-094: Tinker's skill drafts and skill edits: every pending one and the newest few others. */
@@ -661,11 +663,22 @@ export function parseCommand(line: string): ParsedLine {
     return { command: { type, helper, model } };
   }
   if (type === "helpers.settings") {
-    const { allowLarge, planLimit } = value as { allowLarge?: unknown; planLimit?: unknown };
+    // The ranges are the store's to refuse (stage "settings").
+    const { allowLarge, planLimit, maxRunning } = value as { allowLarge?: unknown; planLimit?: unknown; maxRunning?: unknown };
     if (allowLarge !== undefined && typeof allowLarge !== "boolean") return { error: 'helpers.settings needs "allowLarge" to be true or false.' };
     if (planLimit !== undefined && typeof planLimit !== "number") return { error: 'helpers.settings needs "planLimit" to be a number.' };
-    if (allowLarge === undefined && planLimit === undefined) return { error: 'helpers.settings needs "allowLarge" or "planLimit".' };
-    return { command: { type, ...(allowLarge !== undefined ? { allowLarge } : {}), ...(planLimit !== undefined ? { planLimit } : {}) } };
+    if (maxRunning !== undefined && typeof maxRunning !== "number") return { error: 'helpers.settings needs "maxRunning" to be a number.' };
+    if (allowLarge === undefined && planLimit === undefined && maxRunning === undefined) {
+      return { error: 'helpers.settings needs "allowLarge", "planLimit" or "maxRunning".' };
+    }
+    return {
+      command: {
+        type,
+        ...(allowLarge !== undefined ? { allowLarge } : {}),
+        ...(planLimit !== undefined ? { planLimit } : {}),
+        ...(maxRunning !== undefined ? { maxRunning } : {}),
+      },
+    };
   }
   if (type === "helper.budget") {
     // The amount's range is the store's to refuse (stage "settings").

@@ -24,7 +24,7 @@ public struct FirstRunTour: Sendable, Equatable {
 
     public static let script: [Beat] = [
         Beat(step: .hello, after: 0),
-        Beat(step: .say(title: "Hi, I'm Pal.", detail: "Hold Control + Option and talk to me."), after: 1),
+        Beat(step: .say(title: "Hi, I'm ATOM.", detail: "Hold Control + Option and talk to me."), after: 1),
         Beat(step: .point(label: "Settings and our chats live here"), after: 4.5),
         Beat(step: .back, after: 5),
         Beat(step: .done, after: 1.5),

@@ -178,7 +178,7 @@ struct FirstRunTourTests {
     @Test func stepsGoHelloSayPointBackDone() {
         #expect(FirstRunTour.script.map(\.step) == [
             .hello,
-            .say(title: "Hi, I'm Pal.", detail: "Hold Control + Option and talk to me."),
+            .say(title: "Hi, I'm ATOM.", detail: "Hold Control + Option and talk to me."),
             .point(label: "Settings and our chats live here"),
             .back,
             .done,

@@ -67,21 +67,47 @@ test("two workers waking together never take the same task", () => {
   assert.equal(store.list().flatMap((h) => h.jobs).length, 1);
 });
 
-test("a busy worker, a used-up budget or the plan above its limit leaves the task waiting", () => {
+test("ADR-095: a worker with tasks running or queued still takes one while a run slot is free", () => {
   const { store, later } = fixture();
-  const posted = store.addTeamTask("research");
+  const first = store.addTeamTask("research one");
+  const second = store.addTeamTask("research two");
   store.setWakeUp("sid", "15m");
   const own = store.addJob("sid", "already working");
   store.start(own.id);
+  store.addJob("sid", "next in line");
   later(15);
-  assert.deepEqual(store.runWakeUps(), [{ helper: "sid" }], "running: not idle");
+  assert.equal(store.runWakeUps()[0]!.teamTask, first.id, "running and queued, and one of six slots used");
+  store.setMaxRunning(1);
+  later(15);
+  assert.deepEqual(store.runWakeUps(), [{ helper: "sid" }], "every run slot taken (anyone's): the task waits");
+  assert.deepEqual(store.teamTasks().map((t) => t.id), [second.id]);
+});
+
+test("ADR-095: one wake-up pass takes no more team tasks than free run slots; the rest stay in the pool", () => {
+  const { store, later } = fixture();
+  for (const task of ["one", "two", "three"]) store.addTeamTask(task);
+  for (const worker of ["sid", "kame", "penny"]) store.setWakeUp(worker, "15m");
+  store.setMaxRunning(2);
+  later(15);
+  const woken = store.runWakeUps();
+  assert.equal(woken.length, 3, "all three woke");
+  assert.equal(woken.filter((w) => w.job !== undefined).length, 2, "two slots free, two taken");
+  assert.equal(store.teamTasks().length, 1, "the third waits in the pool");
+});
+
+test("every run slot taken, a used-up budget or the plan above its limit leaves the task waiting", () => {
+  const { store, later } = fixture();
+  const posted = store.addTeamTask("research");
+  store.setWakeUp("sid", "15m");
+  const own = store.addJob("penny", "someone else's run");
+  store.start(own.id);
+  store.setMaxRunning(1);
+  later(15);
+  assert.deepEqual(store.runWakeUps(), [{ helper: "sid" }], "no run slot free");
+  store.setMaxRunning(6);
   store.stop(own.id);
-  const queued = store.addJob("sid", "next in line");
-  later(15);
-  assert.deepEqual(store.runWakeUps(), [{ helper: "sid" }], "queued: not idle");
-  store.stop(queued.id);
   store.setBudget("sid", 1);
-  store.addSpend(own.id, 1);
+  store.addSpend(store.addJob("sid", "spent").id, 1);
   later(15);
   assert.deepEqual(store.runWakeUps(), [{ helper: "sid" }], "over its budget");
   store.setBudget("sid", 10);

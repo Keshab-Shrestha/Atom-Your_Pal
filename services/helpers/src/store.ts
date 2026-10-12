@@ -15,6 +15,7 @@ import { skillStore } from "./skill-drafts.ts";
 import { teamStore } from "./team.ts";
 import { mcpTable } from "./mcp.ts";
 import { usageTable } from "./usage.ts";
+import { MAX_RUNNING, MAX_RUNNING_RANGE } from "./runner.ts";
 import { createSchema, sameSoul, toJobRow, toSoul, webSources, type JobRow, type ReportRow, type SoulRow } from "./store-schema.ts";
 import {
   BUILT_IN_KITS,
@@ -358,6 +359,12 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     return true;
   }
 
+  /** ADR-095: "Runs at once" (the runner reads it before each start, so a change applies at once). */
+  function maxRunning(): number {
+    const value = Number((settingOf.get("maxRunning") as { value: string } | undefined)?.value);
+    return Number.isInteger(value) && value >= MAX_RUNNING_RANGE[0] && value <= MAX_RUNNING_RANGE[1] ? value : MAX_RUNNING;
+  }
+
   /** Task 3.7: every cap and today's spend, and the plan limit. */
   function budgets(): Budgets {
     const since = startOfDay(now()).toISOString();
@@ -368,7 +375,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     };
     const workers = Object.fromEntries(roster().map((h) => [h.id, { cap: cap(`budget:${h.id}`, DEFAULT_WORKER_CAP), spent: spent.get(h.id) ?? 0 }])) as Budgets["workers"];
     const team = { cap: cap("budget:team", DEFAULT_TEAM_CAP), spent: [...spent.values()].reduce((a, b) => a + b, 0) };
-    return { team, workers, planLimit: cap("planLimit", DEFAULT_PLAN_LIMIT) ?? 100 };
+    return { team, workers, planLimit: cap("planLimit", DEFAULT_PLAN_LIMIT) ?? 100, maxRunning: maxRunning() };
   }
 
   const skills = skillStore({
@@ -497,6 +504,15 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       const [low, high] = PLAN_LIMIT_RANGE;
       if (!Number.isInteger(percent) || percent < low || percent > high) throw new HelperError(`The plan limit is a whole percent from ${low} to ${high}.`);
       putSetting.run("planLimit", String(percent));
+      emit({ action: "budget", helper: "team" });
+    },
+
+    maxRunning,
+
+    setMaxRunning(count) {
+      const [low, high] = MAX_RUNNING_RANGE;
+      if (!Number.isInteger(count) || count < low || count > high) throw new HelperError(`Runs at once is a whole number from ${low} to ${high}.`);
+      putSetting.run("maxRunning", String(count));
       emit({ action: "budget", helper: "team" });
     },
 

@@ -74,6 +74,7 @@ test("cleanSoul refuses bad names, empty personality, long fields and missing te
     [{ name: "" }, /letters only/],
     [{ name: "R2D2" }, /letters only/],
     [{ name: "pal" }, /taken by ZENO/],
+    [{ name: "Atom" }, /taken by ZENO/],
     [{ name: "Zeno" }, /taken by ZENO/],
     [{ name: "penny" }, /already called/],
     [{ name: "x".repeat(SOUL_LIMITS.name + 1) }, /name is too long/],

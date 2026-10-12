@@ -33,8 +33,8 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
     public var detail: String {
         switch self {
         case .void: "Flat black with hairlines; colour only where it shows a status"
-        case .lantern: "Night glass lit only by Pal's light"
-        case .lanternDay: "Pale glass by day, with Pal's light"
+        case .lantern: "Night glass lit only by ATOM's light"
+        case .lanternDay: "Pale glass by day, with ATOM's light"
         case .native: "Dark glass with one teal accent, like a built-in Mac app"
         case .luminous: "Near-black glass with a cyan-to-violet glow"
         case .warm: "Light paper glass with a coral accent"

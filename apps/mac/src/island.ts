@@ -197,11 +197,13 @@ export interface IslandHelpers {
   /** Makes an older soul version current again, as a new version. Throws, with words for the user, for an unknown one. */
   restoreSoul(helper: string, version: number): void;
   /** Task 3.7: the team's cap and today's spend, and the plan limit. */
-  budgets(): { team: { cap: number | null; spent: number }; planLimit: number };
+  budgets(): { team: { cap: number | null; spent: number }; planLimit: number; maxRunning: number };
   /** Throws, with words for the user, for an unknown worker or a bad amount. "team" sets the team's cap. */
   setBudget(helper: string, cap: number | null): void;
   /** Throws, with words for the user, outside 10 to 100. */
   setPlanLimit(percent: number): void;
+  /** ADR-095: "Runs at once". Throws, with words for the user, outside 1 to 10. */
+  setMaxRunning(count: number): void;
   /** Whether worker jobs may use the large model (ADR-083). */
   allowLarge(): boolean;
   setAllowLarge(allowed: boolean): void;
@@ -552,6 +554,7 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "helpers.settings":
         changeHelpers(command.type, (helpers) => {
           if (command.planLimit !== undefined) helpers.setPlanLimit(command.planLimit);
+          if (command.maxRunning !== undefined) helpers.setMaxRunning(command.maxRunning);
           if (command.allowLarge !== undefined) helpers.setAllowLarge(command.allowLarge);
         });
         return;

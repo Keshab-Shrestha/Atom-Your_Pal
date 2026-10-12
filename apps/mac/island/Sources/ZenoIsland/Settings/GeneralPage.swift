@@ -4,6 +4,7 @@ import ZenoIslandCore
 /// Open at login, sounds, permissions (ADR-075) and the tour. Each page with choices has its own reset (ADR-079).
 struct GeneralSection: View {
     let model: IslandModel
+    @Environment(\.theme) private var theme
 
     var body: some View {
         let settings = model.settings
@@ -29,6 +30,20 @@ struct GeneralSection: View {
             }
         }
         .onAppear { login.refresh() }
+        // ADR-095: the team-wide limit on parallel runs. Nil from an older runtime: no row.
+        if let maxRunning = model.helpers.list?.maxRunning {
+            Card("Team", footer: "Budgets and the plan limit still hold new runs. Lowering it stops nothing already running.") {
+                Row(title: "Runs at once", detail: "How many tasks the team runs at the same time. Each one uses your Claude plan.") {
+                    Stepper(value: Binding(get: { maxRunning }, set: { model.sendHelpers(model.helpers.setMaxRunning($0)) }),
+                            in: HelpersState.maxRunningRange) {
+                        Text("\(maxRunning)").font(.system(size: 12, weight: .medium)).monospacedDigit().foregroundStyle(theme.text.color)
+                    }
+                    .fixedSize()
+                    .accessibilityLabel("Runs at once")
+                    .accessibilityValue("\(maxRunning)")
+                }
+            }
+        }
         // ADR-091: which macOS notifications ZENO posts.
         Card("Notifications", footer: "Shown by macOS. Titles and short reasons only, never a report's text. Allow ZENO in System Settings → Notifications if none appear.") {
             ForEach(Array(AppNotice.Kind.allCases.enumerated()), id: \.element) { index, kind in
@@ -41,8 +56,8 @@ struct GeneralSection: View {
         PermissionsCard(model: model)
             .onAppear { model.permissions.startPolling() }
             .onDisappear { model.permissions.stopPolling() }
-        Card(footer: settings.petEnabled ? nil : "Turn on Pal to see the tour.") {
-            Row(title: "Replay the tour", detail: "Pal shows where to talk and where your settings live") {
+        Card(footer: settings.petEnabled ? nil : "Turn on ATOM to see the tour.") {
+            Row(title: "Replay the tour", detail: "ATOM shows where to talk and where your settings live") {
                 PillButton(title: "Replay") { model.replayTour() }
                     .disabled(!settings.petEnabled)
             }
