@@ -72,7 +72,7 @@ public struct NowFacts: Sendable, Equatable {
 
     public init(status: IslandStatus, info: ModelInfo?, usage: PlanUsage?) {
         provider = info?.currentProvider?.name ?? status.provider.capitalized
-        let name = info?.currentModelName ?? status.modelName
+        let name = status.chatModelName ?? info?.currentModelName ?? status.modelName
         model = name.isEmpty ? "—" : name
         microphone = status.microphone.isEmpty ? "No microphone" : status.microphone
         voiceLoaded = status.voiceLoaded

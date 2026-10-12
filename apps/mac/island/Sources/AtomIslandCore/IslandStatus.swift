@@ -28,6 +28,11 @@ public struct IslandStatus: Sendable, Equatable {
     public private(set) var detail = "Loading voice"
     /// The model in use, e.g. "Gemini 3.6 Flash", from the `ready` event.
     public private(set) var modelName = ""
+    /// The current chat's own model name (ADR-097), or nil when it uses the default. A typed turn runs on it, so the
+    /// status line names it instead of the default.
+    public private(set) var chatModelName: String?
+    /// The model the status line names: the chat's own, else the default.
+    public var shownModel: String { chatModelName ?? modelName }
     /// The microphone in use, from `ready`.
     public private(set) var microphone = ""
     /// The provider and model ids, from `ready` and `info`.
@@ -104,13 +109,13 @@ public struct IslandStatus: Sendable, Equatable {
             microphone = info.microphone
             voiceLoaded = info.voice
             failure = nil
-            set(.ready, "Ready", modelName)
+            set(.ready, "Ready", shownModel)
         case .info(let info):
             modelName = info.currentModelName
             provider = info.provider
             model = info.model
             providers = info.providers
-            if kind == .ready { detail = modelName }
+            if kind == .ready { detail = shownModel }
             if case .switchModel(let target, _) = failure?.action, target == info.provider { failure = nil } // switched
         case .turnComplete(let timings):
             lastTimings = timings
@@ -119,13 +124,13 @@ public struct IslandStatus: Sendable, Equatable {
             switch state {
             case .idle:
                 // A notice or problem from the turn that just ended stays until it has been seen.
-                if !needsAttention { set(.ready, "Ready", modelName) }
+                if !needsAttention { set(.ready, "Ready", shownModel) }
             case .listening:
                 failure = nil
                 set(.listening, "Listening…", "") // until the microphone is capturing (mic.ready)
                 awaitingMic = true
             case .transcribing: set(.transcribing, "Transcribing", "")
-            case .thinking: set(.thinking, "Thinking", modelName)
+            case .thinking: set(.thinking, "Thinking", shownModel)
             case .speaking: set(.speaking, "Speaking", "")
             }
         case .computerStep(let text):
@@ -137,7 +142,7 @@ public struct IslandStatus: Sendable, Equatable {
             set(.asking, "Needs your OK", IslandStatus.short(request.summary))
         case .approvalClosed:
             // Back to working, unless the turn has already moved on.
-            if kind == .asking { set(.thinking, "Thinking", modelName) }
+            if kind == .asking { set(.thinking, "Thinking", shownModel) }
         case .micReady:
             // ADR-093: only a turn's listening; a dictation has its own words and opens its microphone itself.
             if awaitingMic {
@@ -186,7 +191,7 @@ public struct IslandStatus: Sendable, Equatable {
             set(.listening, "Dictating", "Tap again to finish")
             preview = words
         case .transcribing: set(.transcribing, "Transcribing", "")
-        case .cancelled: set(.ready, "Ready", modelName)
+        case .cancelled: set(.ready, "Ready", shownModel)
         case .done(let outcome):
             switch outcome {
             case .typed(let words): set(.ready, "Typed", words == 1 ? "1 word" : "\(words) words")
@@ -204,7 +209,7 @@ public struct IslandStatus: Sendable, Equatable {
 
     /// Back to Ready once a notice or problem has been seen (when the island hides).
     public mutating func acknowledge() {
-        if needsAttention && !persistent { set(.ready, "Ready", modelName) }
+        if needsAttention && !persistent { set(.ready, "Ready", shownModel) }
     }
 
     /// The user closed the error card.
@@ -219,6 +224,13 @@ public struct IslandStatus: Sendable, Equatable {
     /// Shows the words heard so far. Ignored unless listening, so a late result cannot reappear after the end.
     public mutating func setPreview(_ text: String) {
         if kind == .listening { preview = text }
+    }
+
+    /// ADR-097: the current chat's own model changed (nil: the default again); the status line follows.
+    public mutating func setChatModel(_ name: String?) {
+        guard name != chatModelName else { return }
+        chatModelName = name
+        if kind == .ready || kind == .thinking { detail = shownModel }
     }
 
     private mutating func set(_ kind: Kind, _ title: String, _ detail: String, persistent: Bool = false) {
