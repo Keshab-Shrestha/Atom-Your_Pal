@@ -57,7 +57,7 @@ The island (`RestartPolicy`, `RuntimeSupervisor` in `apps/mac/island/`) waits 1,
 | `{"type":"talk.start"}` | Start listening. If ATOM is transcribing, thinking or speaking, that turn is interrupted first. Ignored while already listening |
 | `{"type":"talk.send"}` | Stop listening and answer what was said. Ignored unless listening |
 | `{"type":"talk.cancel"}` | Abandon the current turn (recording, request or speech) and return to idle. Nothing is sent. Ignored when idle |
-| `{"type":"conversation.reset"}` | Cancel any turn and forget the conversation. Answered with a `conversation.reset` event |
+| `{"type":"conversation.reset"}` | Cancel any turn and forget the conversation. Answered with a `conversation.reset` event. Same as `chat.new` without a project (ADR-107) |
 | `{"type":"model.set","provider":"gemini","model":"gemini-3.6-flash"}` | Switch the AI model for the next request (ADR-040). Takes effect at once, without restarting; a request already in flight finishes with the old model. The conversation is kept. Saved to `config/island.json` and used at the next start. Answered with an `info` event, or an `error` with stage `settings` (unknown provider, no API key for it, a model id that is not in the list and is not a valid custom id) and nothing changes. The runtime keeps running |
 | `{"type":"approval.answer","id":"a1","approved":true}` | The user's answer to an `approval.request` (ADR-054). `approved` must be a boolean. An unknown or already-closed `id` is ignored. Any other command that ends the turn (`talk.cancel`, `talk.start`, `conversation.reset`) counts as "no" |
 | `{"type":"memory.list"}` | Send what ATOM keeps (ADR-058), as a `memory` event. From then on, a `memory` event also follows every change ATOM makes by itself (the `remember` and `forget` tools). An island that never sends it gets no `memory` events |
@@ -138,7 +138,7 @@ Holding Ctrl+Option maps to `talk.start` on press and `talk.send` on release. Pr
 | `reply` | `text` | ATOM's full reply, sent before it is spoken |
 | `turn.complete` | `speechMs`, `transcriptionMs`, `modelMs`, `firstSoundMs` | The reply finished playing. Timings in milliseconds; `firstSoundMs` may be missing |
 | `notice` | `kind`, `message` | The turn ended without a request. Not a failure. `kind` is `too_short`, `mic_starting` or `no_speech`; `message` says what to do, worded for the island's controls |
-| `conversation.reset` | — | The conversation was forgotten |
+| `conversation.reset` | `projectId`? | The conversation was forgotten. `projectId` is set when the new chat is in a project (ADR-107) |
 | `info` | `provider`, `model`, `providers` | The model in use and the choices. Sent right after `ready` and after every successful `model.set`. `providers` is a list of `{ "id", "name", "available", "models" }`: `available` is `false` when the provider's API key is missing from `.env`; `models` is a list of `{ "id", "name" }` offered for that provider (the current model is always included). API keys are never sent |
 | `computer.step` | `text` | ATOM is about to do something on the Mac (computer control, ADR-054), in plain words such as "Typing in TextEdit". Sent only while a turn is running. Contains the app name and the kind of action, never typed text or screen content |
 | `computer.point` | `x`, `y`, `w`, `h` (numbers), `label` | ATOM shows the user a place on screen (ADR-054, Task 0.6.4): ATOM flies to the element and the bubble says `label` (e.g. "the settings button"). The numbers are Cua's own: points, origin at the top-left of the main display, y down, across all displays. Sent only while a turn is running. `w` and `h` must be above 0 and every number finite, or the island reports a bad event. A place on no display is not flown to. ATOM stays about 7 s after arriving, then goes back; a new turn, a reset or an error also ends it. Contains the label only, never screen content |
@@ -232,6 +232,33 @@ The `helpers` event carries `usage`: `today` and `week` totals (`input`, `output
 - `{"type":"chat.open","id":"…"}`: ATOM continues that chat (voice and typing go to it) → `{"type":"chat.opened","id":"…","messages":[{"role":"user"|"assistant","text":"…"}]}`, then `chats`.
 - `{"type":"chat.delete","id":"…"}`: deletes it; if it was the current chat, ATOM starts a new one (`conversation.reset`), then `chats`.
 - `conversation.reset` (New chat) is also followed by `chats` once the window has asked for them.
+
+### Projects (ADR-107)
+
+A project is a named folder and its chats. A project chat is an ordinary chat that has a `projectId`. It reads the folder with Read, Glob and Grep. It never writes. To change files, it hands the work to the project's Agent.
+
+Commands. Every refusal is an `error` event with stage `settings`. Every success is answered with a `chats` event.
+
+| Command | Meaning |
+|---|---|
+| `{"type":"project.add","name":"Haat","path":"/Users/me/Developer/haat"}` | Make a project. `path` is a full path with no `..`. The runtime checks the folder with the grant rules: it refuses the home folder, `~/Library`, hidden folders, and folders outside the home folder or `/Volumes`. It makes the project's Agent (or reuses it) and grants it the folder. The name has 1 to 60 characters on one line, and is unique without regard to case. At most 20 projects are open |
+| `{"type":"project.rename","id":"p-1a2b3c4d","name":"New name"}` | Rename. The same name rules apply |
+| `{"type":"project.remove","id":"…","deleteChats":false}` | Remove the project. `deleteChats` is optional and defaults to `false`: the chats stay as plain chats. The files are never touched. The project's Agent stays with its folder grant; Keshab removes it on its own page |
+| `{"type":"project.archive","id":"…","archived":true}` | Archive or open again. An archived project takes no new chat. Archived projects do not count toward the 20 |
+| `{"type":"project.model","id":"…","provider":"claude-plan","model":"opus"}` | The project's model. `""` and `""` clear it. The runtime checks it as it checks `model.set` |
+| `{"type":"project.web","id":"…","web":true}` | Web search in the project's chats. Off by default |
+| `{"type":"chat.new"}` or `{"type":"chat.new","projectId":"…"}` | A new chat, in a project when `projectId` is given. An unknown or archived project is refused and nothing resets. `conversation.reset` is the same command without a project |
+| `{"type":"chat.rename","id":"…","title":"…"}` | Give a chat a title (1 to 60 characters, one line). The title stays when the chat is saved again. It works for every chat the window writes. The chats `telegram`, `api` and `api-<chatId>` are refused with the read-only message. A chat that is not saved yet is refused: send a message first |
+
+Events.
+
+- `chats` gets `projects`: `[{"id","name","folderLabel":"~/Developer/haat","missing":false,"archived":false,"chatCount":3,"web":false,"agent":"haat-coder","provider"?,"model"?}]`. The key is present when projects are on, also when the list is empty. `agent` is a worker id and is absent when the project has no Agent. `provider` and `model` are the project's own model and are absent when it has none. `missing` is `true` when the folder is gone or is no longer allowed: its chats open as text only.
+- Each item of `chats.chats` may have `projectId`. Project chats stay in the list. Group them by `projectId`. The list holds the newest plain chats and the newest chats of each project.
+- `chats` also has `currentProjectId` when the chat in use belongs to a project. This includes a new project chat that is not saved yet.
+- `conversation.reset` has `projectId` when it follows `chat.new` with a project.
+- `chat.opened` has `projectId` for a project chat. It has `trimmed: true` when the runtime gave the model only the newest 20 turns of a long chat. `messages` always holds every turn. Show a quiet notice, for example "Older turns are summarised".
+- The chat's model: the chat's own model wins, then the project's model, then the global model. `currentProvider` and `currentModel` show the one in use.
+- A project chat on a model that is not a Claude plan model gets an `error` (stage `model`): "Projects need the Claude plan".
 
 ### Git (ADR-091)
 

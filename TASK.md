@@ -1462,3 +1462,22 @@ ATOM no longer listens again after a reply. "Answer without keys" is off by defa
 ## Overview inside Board; budget on one line (2026-10-13)
 
 Overview is no longer a sidebar page. It is the first view of the Board: Overview, Floor, Columns. The Board keeps Floor as its first view. Back steps include the Board view. The budget row shows on one line and uses short labels when the window is narrow. Swift tests: 537 pass. Keshab: check by hand with the running app.
+
+## ADR-107 — Projects (2026-10-13)
+
+Status: TypeScript side done. Swift side not started.
+
+A project is a named folder and its chats. A project chat reads the folder with Read, Glob and Grep and never writes. Writes go to the project's Agent.
+
+Done:
+
+1. Store: `projects` table, `chats.project_id`, prune exemption, rename of chats.
+2. `projectReadCheck`, read-only file tools for project chats, refusal on Codex and the Gemini CLI, the Core project note.
+3. Delegation default to the project's Agent. Goals record the project.
+4. Protocol: `project.*`, `chat.new`, `chat.rename`, `chats` with `projects`. See `docs/island-protocol.md`.
+5. Runtime wiring: `projects-wiring.ts`.
+6. Docs: ADR-107, SECURITY.md.
+
+Next (Swift): the sidebar Projects group, the new-project sheet, a chat's project in the top bar, the `trimmed` notice, chat rename.
+
+Open: usage rows have no project label. The Dashboard cannot split cost by project yet.

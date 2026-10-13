@@ -550,3 +550,18 @@ ATOM runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 - ATOM never sends a copy to a model or to Telegram.
 - ATOM deletes the copies with the task. At startup it deletes the copies of tasks done more than 14 days ago.
 - Edits made by Bash are not copied. Codex runs have no copies.
+
+## Projects (ADR-107)
+
+- A project chat reads the project folder with Read, Glob and Grep. It has no Write, Edit, Bash or other tool. To change files, it delegates to the project's Agent. That run has all the folder-run protections: `folderCheck`, checkpoints, the worktree, approvals and undo.
+- Claude Code does not pre-allow the three reads. Every call goes through `canUseTool` and a `PreToolUse` hook. Both call `projectReadCheck`. A call is counted once. One answer has at most 8 calls.
+- `projectReadCheck` refuses a path outside the project's real folder. It resolves links and `..` when the call is made. It refuses `~/.ssh`, `~/.aws` and the other key folders (`DENY_READ_DIRS`), secret-like files (`.env*`, `*.pem`, `id_rsa*`, `data/api-token`), anything in `.git`, a folder given to Read, and a file over 2 MB.
+- A Glob or Grep pattern with `..` is refused. An absolute pattern must be inside the folder. A Grep glob must be a file-type glob such as `*.ts`. A Grep without a glob gets an exclusion glob for `.git`, `.env*`, `*.pem` and `id_rsa*`. Residual risk: this exclusion relies on how Claude Code's search handles globs. A secret-like file with another name is read like any other file in the folder.
+- ATOM checks the folder again at every turn with `checkGrant`. It refuses the home folder, `~/Library`, hidden folders, and folders outside the home folder or `/Volumes`. A folder that fails the check flags the project `missing`. The chat then has no file tools.
+- File contents are data, not instructions. A file can hold text that tries to steer the model (prompt injection). The note says so, but the note is not the defence. The defence is that the model has no write tool, no command tool and no network tool in a project chat, and that every path is checked in code. The worst result is a wrong answer or a wrong delegation. A delegated run asks as always.
+- Web search is off in a project chat. The project's `web` switch turns it on. With web search on, a file's text can reach a search query. Keep it off for private projects.
+- Codex and the Gemini CLI never get file tools. A project chat on them fails with a clear message.
+- Claude Code keeps the session of a project chat on this Mac under `~/.claude/projects/<folder>`. ATOM never reads or copies these logs. They hold the text of the chat and the files it read. Delete them with the chat if needed.
+- The project's Agent has one grant: the project folder, in the existing grant format. Removing a project leaves the Agent and its grant. Keshab removes the Agent on its own page.
+- ATOM never logs a project name, a folder, a file name or file text. The log holds ids, tool names and verdicts (`project.file`, `project.added`, `project.change`).
+- Removing a project never touches the files. `deleteChats` deletes chat rows only.
