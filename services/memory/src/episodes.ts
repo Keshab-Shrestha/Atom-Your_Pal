@@ -1,8 +1,8 @@
 import type { LanguageModel, Message } from "@atom/contracts";
 import type { Episode, MemoryStore } from "./store.ts";
 
-// ADR-059: a short summary of each conversation, made in the background after a reply, so the next conversation
-// (after "New conversation" or a restart) can pick up where this one left off.
+// ADR-059: a short summary of each conversation, made in the background, so the next conversation (after "New
+// conversation" or a restart) can pick up where this one left off. ADR-108: written once when the chat goes quiet or is left.
 
 export const SUMMARY_PROMPT =
   "You write ATOM's private notes about a conversation between the user and ATOM, a voice assistant. In at most two " +
@@ -11,12 +11,26 @@ export const SUMMARY_PROMPT =
   "small talk, and any password, PIN, card number or other secret. If nothing worth noting happened (only a greeting " +
   "or a one-off fact question), reply with exactly: NOTHING";
 
+/** ADR-108: a chat is noted after this long without a reply (10 minutes). */
+export const NOTE_QUIET_MS = 600_000;
+/** ADR-108: a chat with fewer exchanges than this gets no note (when notes wait for quiet). */
+export const NOTE_MIN_EXCHANGES = 2;
+
+/** ADR-108: `ATOM_NOTE_QUIET_MS` as milliseconds; a missing or bad value is the default; 0 notes after every reply. */
+export function noteQuietMs(value: string | undefined): number {
+  const n = value === undefined || value.trim() === "" ? NaN : Number(value);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n) : NOTE_QUIET_MS;
+}
+
 export interface EpisodeRecorderOptions {
   store: MemoryStore;
-  /** The model that writes summaries; one short request per update. */
+  /** The model that writes summaries; one short request per note. */
   model: LanguageModel;
-  /** Summaries are rewritten after this many new exchanges in a session (default 1: after every reply). */
-  every?: number;
+  /**
+   * ADR-108: how long a chat must stay quiet before its note is written (default 10 minutes). Each new reply restarts the
+   * wait. 0 writes after every reply, as before ADR-108, and also notes a chat with one exchange.
+   */
+  quietMs?: number;
   /** For the log: ids and counts, never the summary text. */
   onSaved?: (event: { id: number; exchanges: number }) => void;
   onError?: (error: unknown) => void;
@@ -24,22 +38,33 @@ export interface EpisodeRecorderOptions {
 
 export interface EpisodeRecorder {
   /**
-   * The conversation changed: `turns` is the whole session so far. Summarises in the background; never throws
-   * and never delays the caller. Updates for one session are serialised, and only the newest is kept.
+   * The conversation changed: `turns` is the whole session so far. Never throws and never delays the caller. The note
+   * is written when the chat has been quiet for `quietMs`; a newer update restarts the wait and replaces the turns.
    */
   update(sessionId: string, turns: readonly Message[]): void;
+  /**
+   * Writes the note of one chat now (or of every chat that waits), if it has new exchanges. For a chat that is left
+   * (another chat opened, a new chat) and for quitting. Resolves when the notes are written.
+   */
+  flush(sessionId?: string): Promise<void>;
+  /** The chat was deleted: its waiting note is dropped, and no note is written for it. */
+  discard(sessionId: string): void;
   /** Resolves when no summary is being written (for tests and quitting). */
   idle(): Promise<void>;
 }
 
 export function createEpisodeRecorder(options: EpisodeRecorderOptions): EpisodeRecorder {
-  const { store, model, every = 1, onSaved, onError } = options;
-  const summarised = new Map<string, number>(); // session → exchanges in its last summary
+  const { store, model, quietMs = NOTE_QUIET_MS, onSaved, onError } = options;
+  const minExchanges = quietMs === 0 ? 1 : NOTE_MIN_EXCHANGES;
+  const latest = new Map<string, readonly Message[]>(); // session → newest turns, not yet noted
+  const timers = new Map<string, ReturnType<typeof setTimeout>>();
+  const queued = new Set<string>();
   let chain: Promise<void> = Promise.resolve();
-  let pending: { sessionId: string; turns: readonly Message[] } | undefined;
+
+  const exchangesOf = (turns: readonly Message[]) => turns.filter((t) => t.role === "assistant").length;
 
   async function write(sessionId: string, turns: readonly Message[]) {
-    const exchanges = turns.filter((t) => t.role === "assistant").length;
+    const exchanges = exchangesOf(turns);
     const transcript = turns
       .map((t) => `${t.role === "user" ? "User" : "ATOM"}: ${t.content.replace(/\s+/g, " ").trim().slice(0, 600)}`)
       .join("\n");
@@ -48,30 +73,50 @@ export function createEpisodeRecorder(options: EpisodeRecorderOptions): EpisodeR
       messages: [{ role: "user", content: `The conversation:\n${transcript}` }],
       context: { requestId: `summary-${sessionId}-${exchanges}`, sessionId, source: "text", receivedAt: new Date(), background: true },
     });
-    summarised.set(sessionId, exchanges);
     const summary = reply.text.trim();
     if (!summary || /^NOTHING\b/i.test(summary)) return;
     const episode = store.saveEpisode(sessionId, summary, exchanges);
     onSaved?.({ id: episode.id, exchanges });
   }
 
-  return {
+  /** Queues the note of one chat. The turns are read when it runs, so a newer update before then is used. */
+  function enqueue(sessionId: string) {
+    clearTimeout(timers.get(sessionId));
+    timers.delete(sessionId);
+    if (queued.has(sessionId)) return;
+    queued.add(sessionId);
+    chain = chain.then(async () => {
+      queued.delete(sessionId);
+      const turns = latest.get(sessionId);
+      latest.delete(sessionId);
+      if (!turns) return;
+      if (exchangesOf(turns) < minExchanges) return; // `latest` holds only exchanges not noted yet
+      try {
+        await write(sessionId, turns);
+      } catch (error) {
+        onError?.(error);
+      }
+    });
+  }
+
+  const recorder: EpisodeRecorder = {
     update(sessionId, turns) {
-      const exchanges = turns.filter((t) => t.role === "assistant").length;
-      if (exchanges === 0) return;
-      if (exchanges - (summarised.get(sessionId) ?? 0) < every) return;
-      const queued = pending !== undefined;
-      pending = { sessionId, turns: [...turns] };
-      if (queued) return; // the queued run will pick up this newer conversation
-      chain = chain.then(async () => {
-        const job = pending!;
-        pending = undefined;
-        try {
-          await write(job.sessionId, job.turns);
-        } catch (error) {
-          onError?.(error);
-        }
-      });
+      if (exchangesOf(turns) === 0) return;
+      latest.set(sessionId, [...turns]);
+      if (quietMs === 0) return enqueue(sessionId);
+      clearTimeout(timers.get(sessionId));
+      const timer = setTimeout(() => enqueue(sessionId), quietMs);
+      timer.unref?.(); // a waiting note never keeps the program alive; quitting flushes it
+      timers.set(sessionId, timer);
+    },
+    flush(sessionId) {
+      for (const id of sessionId === undefined ? [...latest.keys()] : latest.has(sessionId) ? [sessionId] : []) enqueue(id);
+      return recorder.idle();
+    },
+    discard(sessionId) {
+      clearTimeout(timers.get(sessionId));
+      timers.delete(sessionId);
+      latest.delete(sessionId);
     },
     async idle() {
       for (;;) {
@@ -81,6 +126,7 @@ export function createEpisodeRecorder(options: EpisodeRecorderOptions): EpisodeR
       }
     },
   };
+  return recorder;
 }
 
 /** Past conversations for the system prompt: the newest few, oldest first, excluding the current session. */

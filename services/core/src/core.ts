@@ -46,6 +46,8 @@ export interface CoreOptions {
    * summaries). Must not throw or block; errors are ignored.
    */
   onExchange?: (sessionId: string, turns: readonly Message[]) => void;
+  /** ADR-108: the Core leaves a session (a new chat, or another chat opened). Must not throw or block; errors are ignored. */
+  onLeave?: (sessionId: string) => void;
   /**
    * ADR-071: plain commands settled in code. Tried before the model; a reply string means it was handled (the exchange
    * joins the conversation and no model is called), undefined means the model answers as usual.
@@ -103,6 +105,7 @@ export function createCore(options: CoreOptions): Core {
     standing,
     project,
     onExchange,
+    onLeave,
     shortcuts,
     maxTurns = 20,
     newId = randomUUID,
@@ -119,6 +122,14 @@ export function createCore(options: CoreOptions): Core {
       extra = undefined; // standing context is a help, never a reason to fail a request
     }
     return extra ? `${basePrompt}\n\n${extra}` : basePrompt;
+  };
+
+  const leave = () => {
+    try {
+      onLeave?.(sessionId);
+    } catch {
+      // a note is a help, never a reason to fail a chat switch
+    }
   };
 
   return {
@@ -209,12 +220,14 @@ export function createCore(options: CoreOptions): Core {
     },
 
     reset() {
+      leave();
       turns = [];
       sessionId = newId();
     },
 
     resume(id, saved) {
       if (busy) throw new CoreError("Still answering the previous request");
+      if (id !== sessionId) leave();
       sessionId = id;
       // Whole user/assistant pairs only, so the history never starts with an answer.
       const pairs = saved.filter((m) => m.role === "user" || m.role === "assistant");

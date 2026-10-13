@@ -149,7 +149,7 @@ test("clear deletes every memory of this owner only", () => {
 
 // --- episodes (ADR-059) ---
 
-import { createEpisodeRecorder, episodeContext, SUMMARY_PROMPT } from "./index.ts";
+import { createEpisodeRecorder, episodeContext, noteQuietMs, NOTE_QUIET_MS, SUMMARY_PROMPT } from "./index.ts";
 import type { LanguageModel, Message, ModelRequest } from "@atom/contracts";
 
 const convo = (n: number): Message[] =>
@@ -203,7 +203,7 @@ test("recorder: summarises in the background with no tools, keeps only the newes
     return `Summary of ${req.messages[0].content.split("\n").length - 1} lines`;
   });
   const saved: unknown[] = [];
-  const recorder = createEpisodeRecorder({ store, model, onSaved: (e) => saved.push(e) });
+  const recorder = createEpisodeRecorder({ store, model, quietMs: 0, onSaved: (e) => saved.push(e) });
   recorder.update("s1", convo(1));
   await new Promise((r) => setTimeout(r, 1)); // the first summary is now running
   recorder.update("s1", convo(2)); // queued
@@ -220,7 +220,7 @@ test("recorder: summarises in the background with no tools, keeps only the newes
   assert.equal(saved.length, 2);
   assert.ok(!JSON.stringify(saved).includes("Summary"), "the log gets ids and counts only");
 
-  const quiet = createEpisodeRecorder({ store: openMemoryStore({ path: ":memory:" }), model: fakeSummariser(() => "NOTHING").model });
+  const quiet = createEpisodeRecorder({ store: openMemoryStore({ path: ":memory:" }), model: fakeSummariser(() => "NOTHING").model, quietMs: 0 });
   quiet.update("s9", convo(1));
   await quiet.idle();
 });
@@ -229,12 +229,92 @@ test("recorder: a failing model is reported, never thrown; an empty session is s
   const store = openMemoryStore({ path: ":memory:" });
   const errors: unknown[] = [];
   const model: LanguageModel = { complete: async () => Promise.reject(new Error("quota")) };
-  const recorder = createEpisodeRecorder({ store, model, onError: (e) => errors.push(e) });
+  const recorder = createEpisodeRecorder({ store, model, quietMs: 0, onError: (e) => errors.push(e) });
   recorder.update("s1", []);
   recorder.update("s1", convo(1));
   await recorder.idle();
   assert.equal(errors.length, 1);
   assert.equal(store.episodes().length, 0);
+});
+
+// --- ADR-108: one note when a chat goes quiet or is left ---
+
+const MINUTE = 60_000;
+const tick = () => new Promise<void>((r) => setImmediate(r));
+
+test("recorder: the note waits for a quiet chat; each reply restarts the wait; the whole chat is noted once", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const store = openMemoryStore({ path: ":memory:" });
+  const { model, requests } = fakeSummariser(() => "A note.");
+  const recorder = createEpisodeRecorder({ store, model });
+  recorder.update("s1", convo(2));
+  t.mock.timers.tick(9 * MINUTE);
+  recorder.update("s1", convo(3)); // restarts the wait
+  t.mock.timers.tick(9 * MINUTE);
+  await recorder.idle();
+  assert.equal(requests.length, 0, "not yet quiet for 10 minutes");
+  t.mock.timers.tick(1 * MINUTE);
+  await recorder.idle();
+  assert.equal(requests.length, 1, "one request, not one per reply");
+  assert.equal(requests[0].messages[0].content.split("\n").length - 1, 6, "it covers the whole chat");
+  assert.equal(requests[0].system, SUMMARY_PROMPT);
+  assert.equal(store.episodes()[0].exchanges, 3);
+  t.mock.timers.tick(60 * MINUTE);
+  await recorder.idle();
+  assert.equal(requests.length, 1, "a noted chat is not noted again");
+});
+
+test("recorder: flush writes a chat's note at once; a chat that was not changed is not noted again", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const store = openMemoryStore({ path: ":memory:" });
+  const { model, requests } = fakeSummariser(() => "A note.");
+  const recorder = createEpisodeRecorder({ store, model });
+  recorder.update("old", convo(2));
+  recorder.update("other", convo(2));
+  await recorder.flush("old");
+  assert.equal(requests.length, 1);
+  assert.equal(store.episodes()[0].sessionId, "old");
+  await recorder.flush("old");
+  assert.equal(requests.length, 1, "nothing new in that chat");
+  t.mock.timers.tick(10 * MINUTE);
+  await recorder.idle();
+  assert.equal(requests.length, 2, "the other chat still waited for its own quiet time");
+  recorder.update("old", convo(3));
+  await recorder.flush(); // quitting: every waiting chat
+  assert.equal(requests.length, 3);
+  assert.equal(store.episodes().find((e) => e.sessionId === "old")!.exchanges, 3);
+});
+
+test("recorder: a chat with one exchange gets no note; a deleted chat gets none; read-only and project chats are chats like others", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const store = openMemoryStore({ path: ":memory:" });
+  const { model, requests } = fakeSummariser(() => "A note.");
+  const recorder = createEpisodeRecorder({ store, model });
+  recorder.update("short", convo(1));
+  recorder.update("gone", convo(2));
+  recorder.update("telegram", convo(2)); // a read-only chat: its own surface keeps writing to it
+  recorder.update("project-chat", convo(4)); // a project chat: the same note, keyed by its chat id
+  recorder.discard("gone");
+  await recorder.flush();
+  assert.deepEqual(requests.map((r) => r.context.sessionId).sort(), ["project-chat", "telegram"]);
+  assert.ok(requests.every((r) => r.context.background === true), "a note never joins the chat's session");
+  assert.deepEqual(store.episodes().map((e) => e.sessionId).sort(), ["project-chat", "telegram"]);
+  t.mock.timers.tick(60 * MINUTE);
+  await recorder.idle();
+  assert.equal(requests.length, 2);
+  await tick();
+});
+
+test("recorder: quietMs 0 notes after every reply, as before ADR-108; a bad ATOM_NOTE_QUIET_MS is the default", async () => {
+  const store = openMemoryStore({ path: ":memory:" });
+  const { model, requests } = fakeSummariser(() => "A note.");
+  const recorder = createEpisodeRecorder({ store, model, quietMs: 0 });
+  recorder.update("s1", convo(1));
+  await recorder.idle();
+  recorder.update("s1", convo(2));
+  await recorder.idle();
+  assert.equal(requests.length, 2);
+  assert.deepEqual([noteQuietMs(undefined), noteQuietMs(""), noteQuietMs("abc"), noteQuietMs("-5"), noteQuietMs("0"), noteQuietMs("1500")], [NOTE_QUIET_MS, NOTE_QUIET_MS, NOTE_QUIET_MS, NOTE_QUIET_MS, 0, 1500]);
 });
 
 test("episode context: newest few, oldest first, never the current session", () => {

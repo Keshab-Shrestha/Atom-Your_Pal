@@ -2435,3 +2435,32 @@ A project is a named folder and its chats. These are the accepted defaults.
 - A project chat on a non-Claude default model fails for voice turns too. Keshab picks a Claude model for the chat or the project.
 - Removing a project leaves its Agent and its grant. This is on purpose and is simple.
 - v2 items: direct writes with checkpoints, many folders for one project, move a chat into a project, change a project's folder, a project label on usage rows, a Grep exclusion that does not depend on ripgrep's glob rules.
+
+## ADR-108 — One conversation note per quiet chat (2026-10-13)
+
+### Status
+
+Accepted. Changes ADR-059.
+
+### Context
+
+ADR-059 wrote a conversation note after every reply. The note is a separate model request on the chat's own model. It has no tools and its own system prompt. The provider cache prefix starts with the tools, so the note never shares the cache with the chat turn. Each note costs about 0.8k tokens, and on Opus it also pays a cache write. A one-word "hi" cost about 6.95k tokens: 6.17k for the turn and 0.78k for the note. The note also overwrote itself on each reply. Only the last note of a chat was ever kept.
+
+The offer to remember a fact (ADR-058) is not part of the note request. It is in the chat reply. This decision does not touch it.
+
+### Decision
+
+1. The note is written once per chat, after the chat has been quiet for `ATOM_NOTE_QUIET_MS` (default 600000, 10 minutes). Each new reply restarts the wait and replaces the turns to summarise.
+2. The note is also written at once when the user opens another chat, starts a new chat (`conversation.reset`, `chat.new`), or quits the app. The Core calls `onLeave` when it resets or resumes another session. Quitting waits at most 10 seconds for the notes.
+3. A chat with fewer than 2 exchanges gets no note. A chat that has no new exchange since its last note is not noted again.
+4. The note covers the whole chat as before. It summarises the Core's turns, which are the newest 20 exchanges. The text of each turn is cut at 600 characters. The input is the same as before. Only the time changes.
+5. A deleted chat loses its waiting note, and no note is written for it. A project chat and a read-only chat (Telegram) are noted like any other chat, by chat id. A read-only chat is noted after its quiet time or at quit, because no window leaves it.
+6. `ATOM_EPISODES=0` still turns notes off. `ATOM_NOTE_QUIET_MS=0` restores the old way: a note after every reply, and also for a chat with one exchange.
+7. A bug is fixed on the way: after 20 exchanges the old check skipped every later note, because the Core keeps only 20 exchanges.
+
+### Consequences
+
+- A chat with N replies costs one note request, not N. A one-off question costs none.
+- The note of a chat is missing from the next chat's context while the first chat is still within its quiet time and the user has not left it. Opening or starting a chat flushes the note first, so this case is rare. If the app crashes, the notes that wait are lost. A normal quit writes them.
+- To restore per-reply notes, set `ATOM_NOTE_QUIET_MS=0`.
+- Running the note on the small model is still open. It would change the wording of the notes, so Keshab decides.

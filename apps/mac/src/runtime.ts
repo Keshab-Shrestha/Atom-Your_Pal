@@ -30,17 +30,16 @@ import {
   type Timers,
 } from "@atom/tool-engine";
 import { createGateway, createProviderAdapter, createSwitchableModel, listPlanModels, runChatDigest, type ChatSession, type ChatSessions, type PlanUsage } from "@atom/llm-gateway";
+import { createNotes } from "./notes.ts";
 import { createChatUsageRecorder } from "./usage-report.ts";
 import { CLAUDE_PLAN, createLogger, readEnv, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@atom/shared";
 import {
-  createEpisodeRecorder,
   createMemoryTools,
   DEFAULT_MAX_EPISODES,
   DEFAULT_MAX_MEMORIES,
   episodeContext,
   MEMORY_GUIDANCE,
   memoryContext,
-  type EpisodeRecorder,
   type MemoryStore,
 } from "@atom/memory";
 import {
@@ -150,6 +149,8 @@ export interface Runtime {
   steering?: TaskSteering;
   /** ADR-098 item 5: the local HTTP API, off until Settings turns it on. Undefined with ATOM_VOICE_ONLY=1. */
   api?: ApiServer;
+  /** ADR-108: writes the notes that wait for a quiet chat. Called when the app quits; may take a few seconds. */
+  flushNotes(): Promise<void>;
   /** Shutdown: stops running helper jobs (they are marked failed at the next start) and Laya's server. */
   close(): void;
 }
@@ -254,7 +255,10 @@ export function createRuntime(
   const islandChats: IslandChats | undefined = memory && {
     list: () => (projects?.chatSummaries() ?? memory.chats.list()).map((c) => ({ id: c.id, title: c.id === TELEGRAM_CHAT ? "Telegram" : c.title, updatedAt: c.updatedAt.toISOString(), messages: c.messages, ...(c.projectId ? { projectId: c.projectId } : {}) })),
     messages: (id) => memory.chats.messages(id),
-    remove: (id) => memory.chats.remove(id),
+    remove: (id) => {
+      episodes?.discard(id); // ADR-108: no note for a deleted chat
+      return memory.chats.remove(id);
+    },
     modelOf: (id) => memory.chats.model(id) ?? unsavedChatModels.get(id) ?? projects?.modelOf(id), // ADR-107: the chat's own, else its project's
     rename: (id, title) => projects?.renameChat(id, title) ?? { error: "Projects are off." },
     projectOf: (id) => projects?.projectOf(id),
@@ -446,18 +450,7 @@ export function createRuntime(
   };
   // ADR-059: a short summary of each conversation, written in the background with the same model (no tools).
   // ADR-097: the chat's own model when it has one; it never joins the chat's session (`background`).
-  const episodes: EpisodeRecorder | undefined =
-    memory && readEnv(process.env, "ATOM_EPISODES") !== "0"
-      ? createEpisodeRecorder({
-          store: memory,
-          model: coreModel,
-          onSaved: (e) => {
-            log.info("episode.saved", e);
-            for (const listener of memoryListeners) listener();
-          },
-          onError: (error) => log.warn("episode.failed", { ...errorFields(error) }),
-        })
-      : undefined;
+  const episodes = createNotes({ memory, model: coreModel, env: process.env, log, changed: () => memoryListeners.forEach((listener) => listener()) });
   // ADR-071: plain commands run in code, before any model. ATOM_SHORTCUTS=0 turns these off. Logs the name only.
   const toolShortcuts =
     readEnv(process.env, "ATOM_SHORTCUTS") === "0"
@@ -522,6 +515,7 @@ export function createRuntime(
           saveChat(sessionId, turns); // ADR-091
           episodes?.update(sessionId, turns);
         },
+        onLeave: (sessionId: string) => void episodes?.flush(sessionId), // ADR-108: a chat that is left gets its note now
       }));
   const baseCore: Core = readEnv(process.env, "ATOM_VOICE_ONLY") === "1" ? createEchoCore() : makeCore();
   // ADR-080: with computer control on, replies lose their [POINT:…] marker before speech, and a valid one points.
@@ -828,6 +822,7 @@ export function createRuntime(
     ...(telegram ? { telegram } : {}),
     ...(steering ? { steering } : {}),
     ...(api ? { api } : {}),
+    flushNotes: () => episodes?.flush() ?? Promise.resolve(),
     close: () => {
       telegram?.stop();
       api?.stop();

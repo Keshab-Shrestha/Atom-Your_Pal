@@ -15,6 +15,8 @@ const island = process.argv.includes("--island");
 
 /** Exit code for a configuration error: the island shows it and does not restart (docs/island-protocol.md). */
 const EXIT_CONFIG = 78;
+/** ADR-108: the longest the app waits at quit to write the notes of chats that are still quiet. */
+const NOTE_FLUSH_QUIT_MS = 10_000;
 
 if (island) {
   // stdout carries only protocol events: send any stray console output (ours or a library's) to stderr.
@@ -83,8 +85,12 @@ function start(config: Config) {
   const runtime = createRuntime(config, log, { keys, settingsPath: savedPath });
   // Give the microphone and audio player a moment to release, and pending output to flush, before exiting.
   const exit = () => {
-    runtime.close(); // stops helper jobs and their claude programs
-    setTimeout(() => process.stdout.write("", () => process.exit(0)), 100);
+    // ADR-108: notes that wait for a quiet chat are written now, best effort, for at most NOTE_FLUSH_QUIT_MS.
+    const wait = new Promise<void>((resolve) => setTimeout(resolve, NOTE_FLUSH_QUIT_MS).unref());
+    void Promise.race([runtime.flushNotes().catch(() => undefined), wait]).then(() => {
+      runtime.close(); // stops helper jobs and their claude programs
+      setTimeout(() => process.stdout.write("", () => process.exit(0)), 100);
+    });
   };
 
   if (!island) {

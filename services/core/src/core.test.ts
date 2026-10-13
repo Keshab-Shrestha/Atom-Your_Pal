@@ -408,3 +408,15 @@ test("a project whose folder is missing has a note and no file access", async ()
   assert.match(seen[0]!.system, /Folder missing\.$/);
   assert.equal("files" in seen[0]!, false);
 });
+
+test("onLeave: called with the old session when the chat is reset or another chat is resumed; a throwing hook never fails the switch (ADR-108)", async () => {
+  const { model } = fakeModel();
+  const left: string[] = [];
+  const core = createCore({ model, onLeave: (id) => (left.push(id), (() => { throw new Error("note broke"); })()) });
+  const first = core.sessionId;
+  core.reset();
+  const second = core.sessionId;
+  core.resume("saved", []);
+  core.resume("saved", []); // the same chat again: nothing is left
+  assert.deepEqual(left, [first, second]);
+});
