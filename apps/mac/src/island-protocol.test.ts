@@ -365,3 +365,53 @@ test("job.undo: an id, an optional path and force", () => {
     assert.ok("error" in parseCommand(line), line);
   }
 });
+
+// ADR-107: the project commands, chat.new and chat.rename.
+test("project commands: valid lines parse to exactly their fields", () => {
+  const cases: [object, object][] = [
+    [{ type: "project.add", name: "Haat", path: "/Users/k/Developer/haat" }, { type: "project.add", name: "Haat", path: "/Users/k/Developer/haat" }],
+    [{ type: "project.rename", id: "p-1a2b", name: "New" }, { type: "project.rename", id: "p-1a2b", name: "New" }],
+    [{ type: "project.remove", id: "p-1" }, { type: "project.remove", id: "p-1" }],
+    [{ type: "project.remove", id: "p-1", deleteChats: true }, { type: "project.remove", id: "p-1", deleteChats: true }],
+    [{ type: "project.archive", id: "p-1", archived: false }, { type: "project.archive", id: "p-1", archived: false }],
+    [{ type: "project.model", id: "p-1", provider: "claude-plan", model: "opus" }, { type: "project.model", id: "p-1", provider: "claude-plan", model: "opus" }],
+    [{ type: "project.model", id: "p-1", provider: "", model: "" }, { type: "project.model", id: "p-1", provider: "", model: "" }],
+    [{ type: "project.web", id: "p-1", web: true }, { type: "project.web", id: "p-1", web: true }],
+    [{ type: "chat.new" }, { type: "chat.new" }],
+    [{ type: "chat.new", projectId: "p-1" }, { type: "chat.new", projectId: "p-1" }],
+    [{ type: "chat.rename", id: "chat-1", title: "Plan" }, { type: "chat.rename", id: "chat-1", title: "Plan" }],
+  ];
+  for (const [line, command] of cases) assert.deepEqual(parseCommand(JSON.stringify(line)), { command }, JSON.stringify(line));
+});
+
+test("project commands: bad input is refused with words", () => {
+  const bad: [object, RegExp][] = [
+    [{ type: "project.add", name: "x" }, /full path/],
+    [{ type: "project.add", name: "x", path: "relative/dir" }, /full path/],
+    [{ type: "project.add", name: "x", path: "/Users/k/../.ssh" }, /no "\.\."/],
+    [{ type: "project.add", name: "x", path: "/a/b/.." }, /no "\.\."/],
+    [{ type: "project.add", name: "x", path: `/${"a".repeat(1001)}` }, /full path/],
+    [{ type: "project.add", name: 5, path: "/a" }, /"name"/],
+    [{ type: "project.add", name: "x".repeat(201), path: "/a" }, /"name"/],
+    [{ type: "project.add", name: "x", path: "/a\u0000b" }, /full path/],
+    [{ type: "project.rename", id: "p 1", name: "x" }, /"id"/],
+    [{ type: "project.rename", id: "p-1" }, /"name"/],
+    [{ type: "project.remove", id: "" }, /"id"/],
+    [{ type: "project.remove", id: "p-1", deleteChats: "yes" }, /deleteChats/],
+    [{ type: "project.archive", id: "p-1", archived: "no" }, /archived/],
+    [{ type: "project.model", id: "p-1", provider: "x" }, /"provider" and "model"/],
+    [{ type: "project.web", id: "p-1" }, /"web"/],
+    [{ type: "project.web", id: "../x", web: true }, /"id"/],
+    [{ type: "chat.new", projectId: "" }, /projectId/],
+    [{ type: "chat.new", projectId: 7 }, /projectId/],
+    [{ type: "chat.new", projectId: "a/b" }, /projectId/],
+    [{ type: "chat.rename", id: "chat-1" }, /"title"/],
+    [{ type: "chat.rename", id: "a b", title: "x" }, /"id"/],
+    [{ type: "chat.rename", id: "chat-1", title: "x".repeat(201) }, /"title"/],
+  ];
+  for (const [line, expected] of bad) {
+    const parsed = parseCommand(JSON.stringify(line));
+    assert.ok("error" in parsed, JSON.stringify(line));
+    assert.match(parsed.error, expected, JSON.stringify(line));
+  }
+});

@@ -32,6 +32,7 @@ import {
   type TestCaseItem,
   type UsageItem,
   type ChatItem,
+  type ProjectItem,
   type GitBranchItem,
   type RoutineInput,
 } from "./island-protocol.ts";
@@ -68,6 +69,8 @@ export interface IslandOptions {
   memory?: IslandMemory;
   /** ADR-091: chat sessions. Absent when memory is off. */
   chats?: IslandChats;
+  /** ADR-107: projects. Absent when memory is off: `project.*` and `chat.new` with a project are refused. */
+  projects?: IslandProjects;
   /** ADR-091: ATOM's task branches. */
   git?: IslandGit;
   /** Helpers and their jobs (ADR-081). Absent when their file could not be opened: no helpers are listed. */
@@ -137,8 +140,34 @@ export interface IslandChats {
   setModel?(id: string, provider: string, model: string): { ok: true } | { error: string };
   /** ADR-098: chats whose messages match the words, best first (at most 20). */
   search?(query: string): SearchHitItem<string>[];
+  /** ADR-107: a chat's own title (the runtime refuses a bad title or a chat that is not saved yet). */
+  rename?(id: string, title: string): { ok: true } | { error: string };
+  /** ADR-107: the chat's project (also for a new chat not saved yet); undefined for a plain chat. */
+  projectOf?(id: string): string | undefined;
+  /** ADR-107: the turns the Core gets when a chat is opened: all of them, or the newest few of a long project chat (`trimmed`). */
+  replay?(id: string, turns: Message[]): { turns: Message[]; trimmed: boolean };
   /** Called after a chat is saved. Returns an unsubscribe. */
   onChange(listener: () => void): () => void;
+}
+
+/** ADR-107: the result of a project command: done, or why not in words for Keshab. */
+export type ProjectResult = { ok: true } | { error: string };
+
+/** ADR-107: projects (a named folder and its chats). Every method checks its input and never throws for a bad one. */
+export interface IslandProjects {
+  list(): ProjectItem[];
+  add(name: string, path: string): ProjectResult;
+  rename(id: string, name: string): ProjectResult;
+  /** Chats stay as plain chats unless `deleteChats`. Files are never touched; the project's Agent is kept. */
+  remove(id: string, deleteChats: boolean): ProjectResult;
+  archive(id: string, archived: boolean): ProjectResult;
+  /** provider and model "": the project has no model of its own. */
+  setModel(id: string, provider: string, model: string): ProjectResult;
+  setWeb(id: string, web: boolean): ProjectResult;
+  /** Is there a project, not archived, that can take a new chat? */
+  startChat(projectId: string): ProjectResult;
+  /** Puts the chat (new, maybe not saved yet) in the project. */
+  assign(chatId: string, projectId: string): void;
 }
 
 export interface IslandHelpers {
@@ -295,6 +324,23 @@ export function islandNoticeText(notice: LoopNotice): string {
   }
 }
 
+function runProjectCommand(projects: IslandProjects, command: Extract<IslandCommand, { type: `project.${string}` }>): ProjectResult {
+  switch (command.type) {
+    case "project.add":
+      return projects.add(command.name, command.path);
+    case "project.rename":
+      return projects.rename(command.id, command.name);
+    case "project.remove":
+      return projects.remove(command.id, command.deleteChats === true);
+    case "project.archive":
+      return projects.archive(command.id, command.archived);
+    case "project.model":
+      return projects.setModel(command.id, command.provider, command.model);
+    case "project.web":
+      return projects.setWeb(command.id, command.web);
+  }
+}
+
 export function runIsland(options: IslandOptions): IslandSession {
   const { core, tts, describe } = options;
   const errorDetails = options.errorDetails ?? (() => ({}));
@@ -365,13 +411,37 @@ export function runIsland(options: IslandOptions): IslandSession {
         options.computer?.answer(command.id, command.approved);
         return;
       case "conversation.reset":
-        options.computer?.cancelAll();
-        loop.cancel();
-        core.reset();
-        options.screen?.clear();
-        send({ type: "conversation.reset" });
-        if (chatsWatched) sendChats(); // ADR-091: a new chat is now the current one
-        return;
+        return newChat(undefined);
+      case "chat.new": {
+        // ADR-107: a new chat, in a project when asked. The project is checked first, so a refusal resets nothing.
+        if (command.projectId) {
+          const result = options.projects?.startChat(command.projectId) ?? { error: "Projects are off." };
+          if ("error" in result) return send({ type: "error", stage: "settings", message: result.error });
+        }
+        return newChat(command.projectId);
+      }
+      case "chat.rename": {
+        const writer = chatWriter(command.id);
+        if (writer) return send({ type: "error", stage: "settings", message: readOnlyMessage(writer) });
+        const result = options.chats?.rename?.(command.id, command.title) ?? { error: "Chats are off, so a chat cannot be renamed." };
+        if ("error" in result) return send({ type: "error", stage: "settings", message: result.error });
+        return sendChats();
+      }
+      case "project.add":
+      case "project.rename":
+      case "project.remove":
+      case "project.archive":
+      case "project.model":
+      case "project.web": {
+        const projects = options.projects;
+        const result: ProjectResult = !projects ? { error: "Projects are off." } : runProjectCommand(projects, command);
+        if ("error" in result) {
+          options.log?.warn("project.refused", { command: command.type });
+          return send({ type: "error", stage: "settings", message: result.error });
+        }
+        options.log?.info("project.change", { action: command.type });
+        return sendChats();
+      }
       case "git.list": {
         const git = options.git;
         if (!git) return send({ type: "git", branches: [] });
@@ -417,8 +487,16 @@ export function runIsland(options: IslandOptions): IslandSession {
         options.computer?.cancelAll();
         loop.cancel();
         options.screen?.clear();
-        core.resume(command.id, turns);
-        send({ type: "chat.opened", id: command.id, messages: turns.map((m) => ({ role: m.role as "user" | "assistant", text: m.content })) });
+        const replay = chats.replay?.(command.id, turns) ?? { turns, trimmed: false }; // ADR-107: a long project chat is replayed capped
+        core.resume(command.id, replay.turns);
+        const projectId = chats.projectOf?.(command.id);
+        send({
+          type: "chat.opened",
+          id: command.id,
+          messages: turns.map((m) => ({ role: m.role as "user" | "assistant", text: m.content })),
+          ...(projectId ? { projectId } : {}),
+          ...(replay.trimmed ? { trimmed: true as const } : {}),
+        });
         sendChats();
         return;
       }
@@ -873,7 +951,25 @@ export function runIsland(options: IslandOptions): IslandSession {
   function sendChats() {
     const current = core.sessionId ?? "";
     const own = current ? options.chats?.modelOf?.(current) : undefined; // ADR-097
-    send({ type: "chats", chats: (options.chats?.list() ?? []).map((c) => (chatWriter(c.id) ? { ...c, readOnly: true as const } : c)), current, ...(own ? { currentProvider: own.provider, currentModel: own.model } : {}) });
+    const currentProjectId = current ? options.chats?.projectOf?.(current) : undefined; // ADR-107
+    send({
+      type: "chats",
+      chats: (options.chats?.list() ?? []).map((c) => (chatWriter(c.id) ? { ...c, readOnly: true as const } : c)),
+      current,
+      ...(own ? { currentProvider: own.provider, currentModel: own.model } : {}),
+      ...(options.projects ? { projects: options.projects.list() } : {}),
+      ...(currentProjectId ? { currentProjectId } : {}),
+    });
+  }
+  /** `conversation.reset` and `chat.new`: forget the conversation; a project chat starts inside its project. */
+  function newChat(projectId: string | undefined) {
+    options.computer?.cancelAll();
+    loop.cancel();
+    core.reset();
+    options.screen?.clear();
+    if (projectId && core.sessionId) options.projects?.assign(core.sessionId, projectId);
+    send({ type: "conversation.reset", ...(projectId ? { projectId } : {}) });
+    if (chatsWatched) sendChats(); // ADR-091: a new chat is now the current one
   }
   const stopChatUpdates = options.chats?.onChange(() => {
     if (chatsWatched) sendChats();

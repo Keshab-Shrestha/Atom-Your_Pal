@@ -24,6 +24,18 @@ export type IslandCommand =
   | { type: "approval.answer"; id: string; approved: boolean }
   | { type: "memory.list" }
   | { type: "chats.list" }
+  /** ADR-107: a new chat, in a project when `projectId` is given (`conversation.reset` is the same without a project). */
+  | { type: "chat.new"; projectId?: string }
+  /** ADR-107: Keshab's own title for a chat (any chat the window writes). */
+  | { type: "chat.rename"; id: string; title: string }
+  /** ADR-107: projects. `path` is the folder's full path; `deleteChats` false (the default) keeps the chats as plain chats. */
+  | { type: "project.add"; name: string; path: string }
+  | { type: "project.rename"; id: string; name: string }
+  | { type: "project.remove"; id: string; deleteChats?: boolean }
+  | { type: "project.archive"; id: string; archived: boolean }
+  /** provider and model "" clear the project's model (the global model applies). */
+  | { type: "project.model"; id: string; provider: string; model: string }
+  | { type: "project.web"; id: string; web: boolean }
   | { type: "chat.open"; id: string }
   | { type: "chat.delete"; id: string }
   /** ADR-097: keep a chat in memory (summary, sections and exact lines, searched for every request), or remove it. */
@@ -132,6 +144,14 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "approval.answer",
   "memory.list",
   "chats.list",
+  "chat.new",
+  "chat.rename",
+  "project.add",
+  "project.rename",
+  "project.remove",
+  "project.archive",
+  "project.model",
+  "project.web",
   "chat.open",
   "chat.delete",
   "memory.keepChat",
@@ -520,6 +540,8 @@ export function parseCommand(line: string): ParsedLine {
     }
     return { command: { type, repo, branch } };
   }
+  const projects = projectCommand(type, value as Record<string, unknown>);
+  if (projects) return projects;
   if (type === "chat.open" || type === "chat.delete" || type === "memory.keepChat" || type === "memory.dropChat") {
     const { id } = value as { id?: unknown };
     if (typeof id !== "string" || !/^[\w-]{1,100}$/.test(id)) return { error: `${type} needs the chat's "id".` };
@@ -594,6 +616,52 @@ function routineInput(type: string, v: Record<string, unknown>): RoutineInput | 
     ...(notifyTelegram !== undefined ? { notifyTelegram } : {}),
     ...(webhook !== undefined ? { webhook } : {}),
   };
+}
+
+/** ADR-107: a project or chat id as it travels: letters, digits, `_` and `-`. */
+const ID_SHAPE = /^[\w-]{1,100}$/;
+export const MAX_PROJECT_PATH = 1000;
+
+/** ADR-107: the project commands, chat.new and chat.rename. Undefined for any other command. */
+function projectCommand(type: string, v: Record<string, unknown>): ParsedLine | undefined {
+  const text = (key: string, max: number) => typeof v[key] === "string" && (v[key] as string).length <= max;
+  const idOk = typeof v.id === "string" && ID_SHAPE.test(v.id);
+  switch (type) {
+    case "chat.new": {
+      if (v.projectId === undefined) return { command: { type } };
+      if (typeof v.projectId !== "string" || !ID_SHAPE.test(v.projectId)) return { error: 'chat.new: "projectId" must be a project id.' };
+      return { command: { type, projectId: v.projectId } };
+    }
+    case "chat.rename":
+      if (!idOk || !text("title", 200)) return { error: 'chat.rename needs the chat\'s "id" and a "title" string.' };
+      return { command: { type, id: v.id as string, title: v.title as string } };
+    case "project.add": {
+      const path = v.path;
+      if (!text("name", 200)) return { error: 'project.add needs a "name" string.' };
+      if (typeof path !== "string" || !path.startsWith("/") || path.length > MAX_PROJECT_PATH || path.includes("\0") || path.split("/").includes("..")) {
+        return { error: 'project.add needs a "path": the folder\'s full path, with no "..".' };
+      }
+      return { command: { type, name: v.name as string, path } };
+    }
+    case "project.rename":
+      if (!idOk || !text("name", 200)) return { error: 'project.rename needs the project\'s "id" and a "name" string.' };
+      return { command: { type, id: v.id as string, name: v.name as string } };
+    case "project.remove":
+      if (!idOk) return { error: 'project.remove needs the project\'s "id".' };
+      if (v.deleteChats !== undefined && typeof v.deleteChats !== "boolean") return { error: 'project.remove: "deleteChats" must be true or false.' };
+      return { command: { type, id: v.id as string, ...(v.deleteChats !== undefined ? { deleteChats: v.deleteChats as boolean } : {}) } };
+    case "project.archive":
+      if (!idOk || typeof v.archived !== "boolean") return { error: 'project.archive needs the project\'s "id" and "archived" (true or false).' };
+      return { command: { type, id: v.id as string, archived: v.archived } };
+    case "project.model":
+      if (!idOk || !text("provider", 100) || !text("model", 200)) return { error: 'project.model needs the project\'s "id", and "provider" and "model" strings ("" for the global model).' };
+      return { command: { type, id: v.id as string, provider: v.provider as string, model: v.model as string } };
+    case "project.web":
+      if (!idOk || typeof v.web !== "boolean") return { error: 'project.web needs the project\'s "id" and "web" (true or false).' };
+      return { command: { type, id: v.id as string, web: v.web } };
+    default:
+      return undefined;
+  }
 }
 
 const isId = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v >= 1;

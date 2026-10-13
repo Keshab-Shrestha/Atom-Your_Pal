@@ -31,6 +31,7 @@ function islandHarness(
     core: IslandOptions["core"];
     tts: TextToSpeech;
     chats: IslandOptions["chats"];
+    projects: IslandOptions["projects"];
     git: IslandOptions["git"];
     clipMs: number;
     warmUp: () => Promise<void>;
@@ -90,6 +91,7 @@ function islandHarness(
     computer: over.computer,
     ...(over.memory ? { memory: over.memory } : {}),
     ...(over.chats ? { chats: over.chats } : {}),
+    ...(over.projects ? { projects: over.projects } : {}),
     ...(over.git ? { git: over.git } : {}),
     ...(over.helpers ? { helpers: over.helpers } : {}),
     ...(over.onTimer ? { onTimer: over.onTimer } : {}),
@@ -1591,4 +1593,186 @@ test("skill.hub.*: search, preview and approve reach the helpers event as skillH
   } finally {
     rmSync(skillsDir, { recursive: true, force: true });
   }
+});
+
+// ADR-107: projects in the chats event, chat.new in a project, chat.rename, and the project commands.
+function projectHarness(over: { renameFails?: boolean } = {}) {
+  const calls: string[] = [];
+  const item = { id: "p-1", name: "Haat", folderLabel: "~/Developer/haat", missing: false, archived: false, chatCount: 2, web: false, agent: "haat-coder" };
+  let session = "chat-new";
+  const saved = new Map<string, { title: string; projectId?: string; turns: number }>([["c1", { title: "In project", projectId: "p-1", turns: 4 }], ["c2", { title: "Plain", turns: 2 }]]);
+  const h = islandHarness({
+    core: {
+      handle: async () => ({ text: "x" }),
+      reset: () => {
+        calls.push("reset");
+        session = `chat-${calls.filter((c) => c === "reset").length}`;
+      },
+      resume: (id, turns) => void ((session = id), calls.push(`resume:${id}:${turns.length}`)),
+      get sessionId() {
+        return session;
+      },
+    },
+    chats: {
+      list: () => [...saved].map(([id, c]) => ({ id, title: c.title, updatedAt: "2026-10-11T00:00:00.000Z", messages: c.turns, ...(c.projectId ? { projectId: c.projectId } : {}) })),
+      messages: (id) => Array.from({ length: saved.get(id)?.turns ?? 0 }, (_, i) => ({ role: i % 2 ? ("assistant" as const) : ("user" as const), content: `m${i}` })),
+      remove: (id) => saved.delete(id),
+      onChange: () => () => {},
+      projectOf: (id) => saved.get(id)?.projectId ?? (id === "chat-1" ? "p-1" : undefined),
+      replay: (id, turns) => (saved.get(id)?.projectId ? { turns: turns.slice(-2), trimmed: turns.length > 2 } : { turns, trimmed: false }),
+      rename: (id, title) => {
+        calls.push(`rename:${id}:${title}`);
+        if (over.renameFails) return { error: "That chat is not saved yet." };
+        const chat = saved.get(id);
+        if (chat) chat.title = title;
+        return chat ? { ok: true } : { error: "That chat is not saved yet." };
+      },
+    },
+    projects: {
+      list: () => [item],
+      add: (name, path) => (calls.push(`add:${name}:${path}`), name === "bad" ? { error: "Hidden folders cannot be granted." } : { ok: true }),
+      rename: (id, name) => (calls.push(`rename-project:${id}:${name}`), { ok: true }),
+      remove: (id, deleteChats) => (calls.push(`remove:${id}:${deleteChats}`), { ok: true }),
+      archive: (id, archived) => (calls.push(`archive:${id}:${archived}`), { ok: true }),
+      setModel: (id, provider, model) => (calls.push(`model:${id}:${provider}:${model}`), { ok: true }),
+      setWeb: (id, web) => (calls.push(`web:${id}:${web}`), { ok: true }),
+      startChat: (id) => (id === "p-1" ? { ok: true } : { error: "There is no such project." }),
+      assign: (chatId, projectId) => void calls.push(`assign:${chatId}:${projectId}`),
+    },
+  });
+  return { h, calls, item };
+}
+
+test("projects: the chats event lists them, chats carry their project, and the current chat's project is named", async () => {
+  const { h, item } = projectHarness();
+  await tick(5);
+  h.clear();
+  await h.send({ type: "chats.list" });
+  const event = h.events()[0] as { chats: { id: string; projectId?: string }[]; projects: unknown[]; currentProjectId?: string };
+  assert.deepEqual(event.projects, [item]);
+  assert.deepEqual(event.chats.map((c) => [c.id, c.projectId]), [["c1", "p-1"], ["c2", undefined]]);
+  assert.equal(event.currentProjectId, undefined);
+});
+
+test("projects: without the projects option the chats event has no projects key (older tests keep their shape)", async () => {
+  const h = islandHarness({ chats: { list: () => [], messages: () => [], remove: () => true, onChange: () => () => {} } });
+  await tick(5);
+  h.clear();
+  await h.send({ type: "chats.list" });
+  assert.equal("projects" in (h.events()[0] as object), false);
+});
+
+test("projects: chat.new in a project starts a chat that belongs to it; an unknown or closed project is refused and nothing resets", async () => {
+  const { h, calls } = projectHarness();
+  await tick(5);
+  h.clear();
+  await h.send({ type: "chat.new", projectId: "p-1" });
+  assert.deepEqual(calls, ["reset", "assign:chat-1:p-1"]);
+  assert.deepEqual(h.events()[0], { type: "conversation.reset", projectId: "p-1" });
+  h.clear();
+  await h.send({ type: "chat.new", projectId: "p-9" });
+  assert.deepEqual(calls, ["reset", "assign:chat-1:p-1"], "no reset");
+  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "There is no such project." }]);
+  h.clear();
+  await h.send({ type: "chat.new" });
+  assert.deepEqual(h.events()[0], { type: "conversation.reset" });
+  h.clear();
+  await h.send({ type: "conversation.reset" });
+  assert.deepEqual(h.events()[0], { type: "conversation.reset" }, "the old command is a chat.new without a project");
+  assert.equal(calls.filter((c) => c.startsWith("assign")).length, 1);
+});
+
+test("projects: chat.new with projects off is refused", async () => {
+  const h = islandHarness({ chats: { list: () => [], messages: () => [], remove: () => true, onChange: () => () => {} } });
+  await tick(5);
+  h.clear();
+  await h.send({ type: "chat.new", projectId: "p-1" });
+  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "Projects are off." }]);
+});
+
+test("projects: opening a project chat names its project, replays a capped copy to the Core and says trimmed", async () => {
+  const { h, calls } = projectHarness();
+  await tick(5);
+  h.clear();
+  await h.send({ type: "chat.open", id: "c1" });
+  const opened = h.events()[0] as { type: string; projectId?: string; trimmed?: boolean; messages: unknown[] };
+  assert.equal(opened.type, "chat.opened");
+  assert.equal(opened.projectId, "p-1");
+  assert.equal(opened.trimmed, true);
+  assert.equal(opened.messages.length, 4, "the window still shows every turn");
+  assert.ok(calls.includes("resume:c1:2"), "the Core got the capped turns");
+  h.clear();
+  await h.send({ type: "chat.open", id: "c2" });
+  const plain = h.events()[0] as Record<string, unknown>;
+  assert.equal("projectId" in plain, false);
+  assert.equal("trimmed" in plain, false);
+  assert.ok(calls.includes("resume:c2:2"));
+});
+
+test("projects: each project command reaches the runtime and is answered with the chats event; a refusal is an error", async () => {
+  const { h, calls } = projectHarness();
+  await tick(5);
+  h.clear();
+  await h.send(
+    { type: "project.add", name: "Haat", path: "/Users/k/Developer/haat" },
+    { type: "project.rename", id: "p-1", name: "Haat 2" },
+    { type: "project.archive", id: "p-1", archived: true },
+    { type: "project.model", id: "p-1", provider: "claude-plan", model: "opus" },
+    { type: "project.web", id: "p-1", web: true },
+    { type: "project.remove", id: "p-1" },
+    { type: "project.remove", id: "p-1", deleteChats: true },
+  );
+  assert.deepEqual(calls, [
+    "add:Haat:/Users/k/Developer/haat",
+    "rename-project:p-1:Haat 2",
+    "archive:p-1:true",
+    "model:p-1:claude-plan:opus",
+    "web:p-1:true",
+    "remove:p-1:false",
+    "remove:p-1:true",
+  ]);
+  assert.deepEqual(h.types(), Array(7).fill("chats"));
+  h.clear();
+  await h.send({ type: "project.add", name: "bad", path: "/Users/k/.ssh" });
+  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "Hidden folders cannot be granted." }]);
+});
+
+test("projects: project commands with projects off are refused, not ignored", async () => {
+  const h = islandHarness();
+  await tick(5);
+  h.clear();
+  await h.send({ type: "project.add", name: "x", path: "/a" }, { type: "project.web", id: "p-1", web: true });
+  assert.deepEqual(h.events(), [
+    { type: "error", stage: "settings", message: "Projects are off." },
+    { type: "error", stage: "settings", message: "Projects are off." },
+  ]);
+});
+
+test("chat.rename: renames a chat the window writes; Telegram and API chats refuse; a chat not saved yet says so", async () => {
+  const saved = new Map([["telegram", "Telegram"], ["api", "api"], ["api-ci", "api"], ["chat-a", "Plan"]]);
+  const renamed: string[] = [];
+  const h = islandHarness({
+    chats: {
+      list: () => [...saved].map(([id, title]) => ({ id, title, updatedAt: "2026-10-11T00:00:00.000Z", messages: 2 })),
+      messages: () => [],
+      remove: () => true,
+      onChange: () => () => {},
+      rename: (id, title) => (id === "chat-a" ? (renamed.push(`${id}:${title}`), saved.set(id, title), { ok: true }) : { error: "That chat is not saved yet." }),
+    },
+  });
+  await tick(5);
+  h.clear();
+  await h.send({ type: "chat.rename", id: "chat-a", title: "Trip to Tokyo" });
+  assert.deepEqual(renamed, ["chat-a:Trip to Tokyo"]);
+  assert.deepEqual(h.types(), ["chats"]);
+  assert.equal((h.events()[0] as { chats: { id: string; title: string }[] }).chats.find((c) => c.id === "chat-a")!.title, "Trip to Tokyo");
+  for (const [id, who] of [["telegram", "Telegram"], ["api", "the local API"], ["api-ci", "the local API"]] as const) {
+    h.clear();
+    await h.send({ type: "chat.rename", id, title: "Mine" });
+    assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: `This chat is written from ${who}. Open it to read it only.` }], id);
+  }
+  assert.deepEqual(renamed, ["chat-a:Trip to Tokyo"], "the read-only chats were never renamed");
+  h.clear();
+  await h.send({ type: "chat.rename", id: "ghost", title: "x" });
+  assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "That chat is not saved yet." }]);
 });

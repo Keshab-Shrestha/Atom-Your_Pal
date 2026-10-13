@@ -189,6 +189,27 @@ export interface ChatItem {
   messages: number;
   /** ADR-098: true for a chat another surface writes (Telegram, the local API). The window reads it only. Absent means false. */
   readOnly?: true;
+  /** ADR-107: the project this chat belongs to. Absent for a plain chat. */
+  projectId?: string;
+}
+
+/** ADR-107: one project, for the sidebar. Names and folders travel only over the private pipe; never logged. */
+export interface ProjectItem {
+  id: string;
+  name: string;
+  /** The folder with the home folder as `~`. */
+  folderLabel: string;
+  /** The folder is gone or no longer allowed: its chats open as text only. */
+  missing: boolean;
+  archived: boolean;
+  chatCount: number;
+  /** Web search in the project's chats. */
+  web: boolean;
+  /** The project's own Agent (a worker id) that does every write. Absent when it has none. */
+  agent?: string;
+  /** The project's own model; absent when the global model applies. */
+  provider?: string;
+  model?: string;
 }
 
 /** ADR-091: token counts and API-equivalent dollars. */

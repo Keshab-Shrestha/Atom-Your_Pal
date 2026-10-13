@@ -6,7 +6,7 @@ import type { LoopState } from "./voice-loop.ts";
 
 export const PROTOCOL_VERSION = 1;
 
-import type { TeamTaskItem, ManagerItem, ThreadEvent, SearchResultsEvent, ErrorStage, PlanUsageEvent, NoticeKind, InfoEvent, MemoryItem, EpisodeItem, MemoryChatItem, ChatItem, GitBranchItem, HelperItem, ModelItem, SkillHubItem, SkillDraftItem, SkillEditItem, TestCaseItem, McpItem, UsageItem, PaperclipItem } from "./island-items.ts";
+import type { ProjectItem, TeamTaskItem, ManagerItem, ThreadEvent, SearchResultsEvent, ErrorStage, PlanUsageEvent, NoticeKind, InfoEvent, MemoryItem, EpisodeItem, MemoryChatItem, ChatItem, GitBranchItem, HelperItem, ModelItem, SkillHubItem, SkillDraftItem, SkillEditItem, TestCaseItem, McpItem, UsageItem, PaperclipItem } from "./island-items.ts";
 export * from "./island-items.ts";
 export * from "./island-commands.ts";
 
@@ -29,7 +29,8 @@ export type IslandEvent =
       firstSoundMs?: number;
     }
   | { type: "notice"; kind: NoticeKind; message: string }
-  | { type: "conversation.reset" }
+  /** ADR-107: `projectId` when the new chat belongs to a project (after `chat.new`). */
+  | { type: "conversation.reset"; projectId?: string }
   | { type: "computer.step"; text: string }
   | { type: "computer.point"; x: number; y: number; w: number; h: number; label: string }
   | { type: "settings.open" }
@@ -45,12 +46,14 @@ export type IslandEvent =
   | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[]; chats?: MemoryChatItem[] }
   /** ADR-091: Keshab's chats, newest first, and the one ATOM is in now (voice goes to it). */
   /** ADR-097: `currentProvider` / `currentModel`: the current chat's own model; absent when it uses the default. */
-  | { type: "chats"; chats: ChatItem[]; current: string; currentProvider?: string; currentModel?: string }
+  /** ADR-107: `projects` (present when projects are on, even when empty) and `currentProjectId` (the current chat's project). */
+  | { type: "chats"; chats: ChatItem[]; current: string; currentProvider?: string; currentModel?: string; projects?: ProjectItem[]; currentProjectId?: string }
   /** ADR-091: ATOM's task branches, like pull requests; a branch's changes as a patch. */
   | { type: "git"; branches: GitBranchItem[] }
   | { type: "git.diff"; repo: string; branch: string; text: string; truncated: boolean }
   /** ADR-091: a chat was opened: its turns, to show. */
-  | { type: "chat.opened"; id: string; messages: { role: "user" | "assistant"; text: string }[] }
+  /** ADR-107: `projectId` for a project chat; `trimmed: true` when the Core got only the newest turns of a long project chat (the window shows all). */
+  | { type: "chat.opened"; id: string; messages: { role: "user" | "assistant"; text: string }[]; projectId?: string; trimmed?: true }
   | {
       type: "helpers";
       helpers: HelperItem[];
