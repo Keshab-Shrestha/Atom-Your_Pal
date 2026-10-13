@@ -104,6 +104,11 @@ export function createSchema(db: DatabaseSync) {
   // ADR-098: goals from before the source column have none (NULL).
   const goalColumns = new Set((db.prepare("PRAGMA table_info(goals)").all() as { name: string }[]).map((c) => c.name));
   if (!goalColumns.has("source")) db.exec("ALTER TABLE goals ADD COLUMN source TEXT");
+  // ADR-109: when the result was posted into the chat that asked. Goals that ended before this column count as posted.
+  if (!goalColumns.has("chat_posted_at")) {
+    db.exec("ALTER TABLE goals ADD COLUMN chat_posted_at TEXT");
+    db.exec("UPDATE goals SET chat_posted_at = ended_at WHERE ended_at IS NOT NULL");
+  }
   // ADR-107: the project of the chat that made the goal; NULL for goals from before projects.
   if (!goalColumns.has("project_id")) db.exec("ALTER TABLE goals ADD COLUMN project_id TEXT");
   // ADR-083: files from before Task 3.2b lack the model columns.

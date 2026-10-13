@@ -525,6 +525,10 @@ export interface HelperStore {
   goal(id: number): Goal | undefined;
   /** Ends a goal, with its combined report or null when no task was done. Throws HelperError for an unknown or ended goal. */
   endGoal(id: number, report: GoalReport | null): void;
+  /** ADR-109: ended goals with a source whose result was not posted into that chat yet, oldest first. */
+  goalsToPost(): Goal[];
+  /** ADR-109: marks a goal's result as posted (or skipped). False when it was marked before: post once only. */
+  markGoalPosted(id: number): boolean;
   /** Every queued job whose blockers are all done, oldest first (for the job runner). */
   queued(): Job[];
   /** Changes what a queued task waits for. Throws HelperError for a task that is not queued, bad blockers, or a circle. */

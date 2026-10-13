@@ -301,3 +301,19 @@ test("a project chat's delegation defaults to the project's Agent and records th
   tool.run({ goal: "plain", tasks: [{ worker: "sid", task: "x" }] });
   assert.equal(store.goal(3)!.projectId, undefined);
 });
+
+// ADR-109: a goal's result is posted into its chat once.
+test("an ended goal with a source waits to be posted once; one without a source never does", () => {
+  const store = openHelperStore({ path: ":memory:" });
+  const asked = store.addGoal("check storage", [{ helper: "kame", task: "Check it" }], "chat-1");
+  const api = store.addGoal("other", [{ helper: "kame", task: "Other" }]);
+  assert.deepEqual(store.goalsToPost(), []); // not ended
+  for (const g of [asked, api]) {
+    run(store, g.tasks[0]!.id, "T");
+    store.endGoal(g.id, null);
+  }
+  assert.deepEqual(store.goalsToPost().map((g) => g.id), [asked.id]);
+  assert.equal(store.markGoalPosted(asked.id), true);
+  assert.equal(store.markGoalPosted(asked.id), false);
+  assert.deepEqual(store.goalsToPost(), []);
+});

@@ -253,6 +253,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const goalEndedAt = db.prepare("SELECT ended_at FROM goals WHERE id = ?");
   const goalTasks = db.prepare("SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.goal_id = ? ORDER BY j.id");
   const closeGoal = db.prepare("UPDATE goals SET ended_at = ?, report = ? WHERE id = ? AND ended_at IS NULL");
+  const toPost = db.prepare("SELECT id FROM goals WHERE ended_at IS NOT NULL AND source IS NOT NULL AND chat_posted_at IS NULL ORDER BY id");
+  const markPosted = db.prepare("UPDATE goals SET chat_posted_at = ? WHERE id = ? AND chat_posted_at IS NULL");
   const setState = db.prepare("UPDATE jobs SET state = ?, step = NULL, partial = ?, error = ?, ended_at = ?, wake_pending = 0 WHERE id = ?");
   const setStep = db.prepare("UPDATE jobs SET step = ? WHERE id = ? AND state = 'running'");
   const insertReport = db.prepare("INSERT OR REPLACE INTO reports (job_id, title, summary, body, sources) VALUES (?, ?, ?, ?, ?)");
@@ -1297,6 +1299,12 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if (Number(closeGoal.run(now().toISOString(), saved ? JSON.stringify(saved) : null, id).changes) === 0) throw new HelperError(`Goal ${id} has already ended.`);
       emit({ action: "goal", goal: id, tasks: goal.tasks.length, ended: true });
     },
+
+    goalsToPost() {
+      return (toPost.all() as { id: number }[]).map((r) => this.goal(r.id)!);
+    },
+
+    markGoalPosted: (id) => Number(markPosted.run(now().toISOString(), id).changes) > 0,
 
     setBlockers(id, raw) {
       const job = mustGet(id);
