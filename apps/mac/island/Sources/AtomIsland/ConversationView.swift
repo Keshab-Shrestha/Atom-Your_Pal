@@ -159,6 +159,7 @@ struct ConversationTab: View {
             .frame(maxWidth: .infinity)
         } else {
             VStack(spacing: 0) {
+                if let note = model.trimmedNotice { TrimmedNote(text: note) } // ADR-107
                 ScrollViewReader { proxy in
                     Scrollable {
                         LazyVStack(alignment: .leading, spacing: Spacing.turn) {

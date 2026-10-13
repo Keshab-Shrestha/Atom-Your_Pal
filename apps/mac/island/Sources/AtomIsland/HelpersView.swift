@@ -21,6 +21,7 @@ struct HelpersView: View {
             let page = Self.page(model)
             WindowTopBar(title: page.title, symbol: page.symbol, back: model.history.canGoBack ? { model.goBack() } : nil) {
                 if model.windowPage == .chat {
+                    if let project = model.chats?.currentProject { ProjectChip(project: project) } // ADR-107
                     ChatModelMenu(model: model) // ADR-097
                     ChatSoundsMenu(model: model)
                 }
@@ -170,6 +171,8 @@ private struct HelperSidebar: View {
                 SidebarRow(symbol: "clock", title: "Scheduled", detail: model.helpers.list.map(ScheduledRow.detail) ?? nil, selected: model.windowPage == .scheduled)
             }
             .buttonStyle(.plain)
+            // ADR-107: projects (a folder and its chats) above the plain chats.
+            ProjectsSection(model: model)
             // ADR-091: Keshab's chats where the team was (the team is on the Board and each worker's page).
             ChatsList(model: model)
             }
@@ -880,7 +883,8 @@ private struct NameTitle: View {
 }
 
 /// ADR-091: Keshab's chats in the sidebar, newest first: the one ATOM is in is marked; a click continues one (voice and
-/// typing go to it), New chat starts fresh, and a chat's menu deletes it.
+/// typing go to it), New chat starts fresh, and a chat's menu renames or deletes it. ADR-107: chats of a project are under
+/// their project (see ProjectsSection), not here.
 private struct ChatsList: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
@@ -889,6 +893,7 @@ private struct ChatsList: View {
         let list = model.chats
         HStack {
             Text("Chats").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                .accessibilityAddTraits(.isHeader)
             Spacer()
             Button {
                 model.navigate {
@@ -904,32 +909,9 @@ private struct ChatsList: View {
             .accessibilityLabel("New chat")
         }
         .padding(.horizontal, 10).padding(.top, 8)
-        if let list, !list.chats.isEmpty {
-            ForEach(list.chats.prefix(40)) { chat in
-                let current = chat.id == list.current
-                Button {
-                    model.navigate {
-                        if !current { model.send(.chatOpen(id: chat.id)) }
-                        model.windowPage = .chat
-                    }
-                } label: {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(chat.title).font(.system(size: 12.5, weight: current ? .semibold : .regular)).foregroundStyle(theme.text.color).lineLimit(1)
-                        if let at = chat.updatedAt {
-                            Text(at, format: .relative(presentation: .named)).font(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .background(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous)
-                        .strokeBorder(current && model.windowPage == .chat ? (theme.isFlat ? theme.border.color : theme.separator.color) : .clear, lineWidth: 1))
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .contextMenu {
-                    Button("Delete chat", role: .destructive) { model.send(.chatDelete(id: chat.id)) }
-                }
-                .accessibilityLabel(current ? "\(chat.title), current chat" : chat.title)
+        if let list, !list.plainChats.isEmpty {
+            ForEach(list.plainChats.prefix(40)) { chat in
+                SidebarChatRow(model: model, chat: chat, current: chat.id == list.current)
             }
         } else {
             Text(list == nil ? "Loading…" : "No chats yet. Talk or type to ATOM.").font(.system(size: 11.5)).foregroundStyle(theme.text3.color)

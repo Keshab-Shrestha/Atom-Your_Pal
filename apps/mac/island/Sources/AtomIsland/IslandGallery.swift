@@ -73,6 +73,8 @@ enum IslandGallery {
         writeHelpers(to: directory, theme: .lantern, name: "13-helpers-lantern")
         writeMenuBar(to: directory)
         writeMenuBar(to: directory, flat: false, name: "15-menu-bar-item-lantern")
+        writeProjects(to: directory)
+        writeProjects(to: directory, theme: .lantern, name: "16-projects-lantern")
     }
 
     /// ADR-081: the ATOM window with Sid running one job and done with another, the rest of the team (Task 3.3); Sid's
@@ -592,14 +594,14 @@ enum IslandGallery {
     }
 
     /// Draws a view now, so a sheet can show one model in several states (views hold the live model).
-    private static func frozen(_ view: some View) -> AnyView {
+    static func frozen(_ view: some View) -> AnyView {
         let renderer = ImageRenderer(content: view)
         renderer.scale = 2
         guard let image = renderer.nsImage else { return AnyView(Color.red) }
         return AnyView(Image(nsImage: image).resizable().frame(width: image.size.width, height: image.size.height))
     }
 
-    private static func save(_ view: some View, name: String, to directory: URL) {
+    static func save(_ view: some View, name: String, to directory: URL) {
         let renderer = ImageRenderer(content: view)
         renderer.scale = 2
         guard let image = renderer.nsImage, let tiff = image.tiffRepresentation,

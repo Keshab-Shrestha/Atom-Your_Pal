@@ -33,6 +33,11 @@ final class IslandModel {
     var planUsage: PlanUsage?
     /// ADR-091: Keshab's chats and the one ATOM is in; nil until the window asks.
     var chats: ChatList?
+    /// ADR-107: the chat that was opened with only its newest turns given to the model; its note shows over the chat.
+    var trimmedChatId: String?
+    /// ADR-107: why the last project command was refused; shown under "Projects" until the next one.
+    var projectError: String?
+    @ObservationIgnored private var projectCommandPending = false
     /// ADR-098: ATOM's Telegram bot is set up in .env (from the runtime's `ready`).
     var telegramConnected = false
     /// ADR-098 item 5: the local API's state, from the runtime's `api` event (nil until Settings' switch is sent).
@@ -138,6 +143,22 @@ final class IslandModel {
 
     func newConversation() {
         send(.conversationReset)
+    }
+
+    /// ADR-107: a new chat inside a project.
+    func newChat(inProject id: String) { send(.chatNew(projectId: id)) }
+
+    /// ADR-107: a project command; a refusal arrives as an `error` with stage `settings` and shows under "Projects".
+    func sendProject(_ command: IslandCommand) {
+        projectError = nil
+        projectCommandPending = true
+        send(command)
+    }
+
+    /// ADR-107: the quiet line over a chat the model saw only in part.
+    var trimmedNotice: String? {
+        guard let id = trimmedChatId, id == chats?.current else { return nil }
+        return "Long chat: older turns are summarized."
     }
 
     /// The Memory page opened: ask for the list. From then on the runtime also sends its changes.
@@ -280,7 +301,13 @@ final class IslandModel {
         switch event {
         case .chats(let list):
             chats = list
+            projectCommandPending = false
+            projectError = nil
             syncChatModelName()
+        case .chatOpened(let id, _, _, let trimmed):
+            trimmedChatId = trimmed ? id : nil
+        case .conversationReset:
+            trimmedChatId = nil
         case .api(let status):
             apiStatus = status
         case .searchResults(let results) where results.query == searchQuery:
@@ -305,6 +332,9 @@ final class IslandModel {
             pendingModel = nil
             modelError = nil
             refreshingModels = false
+        case .error(let error) where error.stage == "settings" && projectCommandPending:
+            projectCommandPending = false
+            projectError = error.message
         case .error(let error) where error.stage == "settings":
             pendingModel = nil
             refreshingModels = false
