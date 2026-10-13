@@ -4,6 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import type { InputSource } from "@atom/contracts";
 import { openChats, type ChatStore } from "./chats.ts";
 import { openChatIndex, type ChatIndex } from "./chat-index.ts";
+import { openProjects, type ProjectStore } from "./projects.ts";
 
 // ADR-058: facts the user asks ATOM to keep, in one local SQLite file. Each memory has an owner, a scope,
 // provenance and a lifecycle (SECURITY.md §17). Forgetting deletes the row.
@@ -76,6 +77,8 @@ export interface MemoryStore {
   readonly chats: ChatStore;
   /** ADR-097: the chats Keshab keeps in memory, at three depths, with hybrid search. */
   readonly chatIndex: ChatIndex;
+  /** ADR-107: projects (a named folder and its chats). */
+  readonly projects: ProjectStore;
   close(): void;
 }
 
@@ -208,9 +211,11 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
 
   const chats = openChats(db, now);
   const chatIndex = openChatIndex(db, now);
+  const projects = openProjects(db, now);
 
   return {
     chats,
+    projects,
     chatIndex,
     add(raw, provenance) {
       const text = normalizeMemoryText(raw);

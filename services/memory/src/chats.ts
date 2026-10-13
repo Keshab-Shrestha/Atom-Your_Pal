@@ -11,13 +11,19 @@ export interface ChatSummary {
   updatedAt: Date;
   /** User and assistant turns. */
   messages: number;
+  /** ADR-107: the project this chat belongs to; undefined for a plain chat. */
+  projectId?: string;
 }
 
 export interface ChatStore {
   /** Saves a session's turns (after each exchange); the title comes from its first words. */
   save(id: string, turns: readonly Message[]): void;
-  /** The newest first. */
-  list(limit?: number): ChatSummary[];
+  /** The newest first: a limit, or `{ projectId, limit }` for one project's chats (ADR-107). */
+  list(options?: number | { projectId?: string; limit?: number }): ChatSummary[];
+  /** ADR-107: the chat's project; undefined for a plain chat. */
+  project(id: string): string | undefined;
+  /** ADR-107: puts a chat in a project (undefined: a plain chat). False when the chat is not saved yet. */
+  setProject(id: string, projectId: string | undefined): boolean;
   messages(id: string): Message[];
   remove(id: string): boolean;
   /** ADR-097: the chat's own provider and model; undefined when it uses the default. */
@@ -38,7 +44,10 @@ export interface ChatSessionRef {
   tail: string;
 }
 
+/** Plain chats kept (a project's chats are never pruned by this). */
 export const MAX_CHATS = 200;
+/** ADR-107: chats kept in one project, the newest. */
+export const MAX_PROJECT_CHATS = 500;
 export const CHAT_TITLE_LENGTH = 60;
 
 /** The chat's title: its first words, on one line. */
@@ -72,6 +81,11 @@ export function openChats(db: DatabaseSync, now: () => Date): ChatStore {
   if (!columns.includes("model")) db.exec("ALTER TABLE chats ADD COLUMN model TEXT");
   // ADR-098 item 9: the chat's Claude Code session as JSON; NULL starts a fresh one.
   if (!columns.includes("session")) db.exec("ALTER TABLE chats ADD COLUMN session TEXT");
+  // ADR-107: the chat's project; NULL is a plain chat. Added to files made before projects.
+  if (!columns.includes("project_id")) db.exec("ALTER TABLE chats ADD COLUMN project_id TEXT");
+  db.exec("CREATE INDEX IF NOT EXISTS chats_project ON chats(project_id, updated_at)");
+  const readProject = db.prepare("SELECT project_id FROM chats WHERE id = ?");
+  const writeProject = db.prepare("UPDATE chats SET project_id = ? WHERE id = ?");
   const readSession = db.prepare("SELECT session FROM chats WHERE id = ?");
   const writeSession = db.prepare("UPDATE chats SET session = ? WHERE id = ?");
   const finder = chatSearch(db);
@@ -83,11 +97,20 @@ export function openChats(db: DatabaseSync, now: () => Date): ChatStore {
   const clear = db.prepare("DELETE FROM chat_messages WHERE chat_id = ?");
   const insert = db.prepare("INSERT INTO chat_messages (chat_id, seq, role, content) VALUES (?, ?, ?, ?)");
   const drop = db.prepare("DELETE FROM chats WHERE id = ?");
-  const listed = db.prepare(
-    "SELECT c.id, c.title, c.updated_at, (SELECT COUNT(*) FROM chat_messages m WHERE m.chat_id = c.id) AS n FROM chats c ORDER BY c.updated_at DESC, c.rowid DESC LIMIT ?",
-  );
+  const columnsOf = "c.id, c.title, c.updated_at, c.project_id, (SELECT COUNT(*) FROM chat_messages m WHERE m.chat_id = c.id) AS n";
+  const listed = db.prepare(`SELECT ${columnsOf} FROM chats c ORDER BY c.updated_at DESC, c.rowid DESC LIMIT ?`);
+  const listedIn = db.prepare(`SELECT ${columnsOf} FROM chats c WHERE c.project_id = ? ORDER BY c.updated_at DESC, c.rowid DESC LIMIT ?`);
   const read = db.prepare("SELECT role, content FROM chat_messages WHERE chat_id = ? ORDER BY seq");
-  const old = db.prepare("SELECT id FROM chats ORDER BY updated_at DESC, rowid DESC LIMIT -1 OFFSET ?");
+  // ADR-107: the plain chats beyond 200, and a project's chats beyond 500, oldest first. A project chat is never in the first.
+  const old = db.prepare("SELECT id FROM chats WHERE project_id IS NULL ORDER BY updated_at DESC, rowid DESC LIMIT -1 OFFSET ?");
+  const oldIn = db.prepare("SELECT id FROM chats WHERE project_id = ? ORDER BY updated_at DESC, rowid DESC LIMIT -1 OFFSET ?");
+  const prune = (project: string | undefined) => {
+    const rows = (project ? oldIn.all(project, MAX_PROJECT_CHATS) : old.all(MAX_CHATS)) as { id: string }[];
+    for (const row of rows) {
+      clear.run(row.id);
+      drop.run(row.id);
+    }
+  };
 
   return {
     save(id, turns) {
@@ -99,10 +122,8 @@ export function openChats(db: DatabaseSync, now: () => Date): ChatStore {
         upsert.run(id, chatTitle(kept), at, at);
         clear.run(id);
         kept.forEach((m, i) => insert.run(id, i, m.role, m.content));
-        for (const row of old.all(MAX_CHATS) as { id: string }[]) {
-          clear.run(row.id);
-          drop.run(row.id);
-        }
+        const project = (readProject.get(id) as { project_id: string | null }).project_id ?? undefined;
+        prune(project);
         db.exec("COMMIT");
       } catch (error) {
         db.exec("ROLLBACK");
@@ -110,13 +131,27 @@ export function openChats(db: DatabaseSync, now: () => Date): ChatStore {
       }
     },
 
-    list(limit = 50) {
-      return (listed.all(limit) as Record<string, unknown>[]).map((r) => ({
+    list(options = 50) {
+      const { projectId, limit = 50 } = typeof options === "number" ? { projectId: undefined, limit: options } : options;
+      const rows = (projectId ? listedIn.all(projectId, limit) : listed.all(limit)) as Record<string, unknown>[];
+      return rows.map((r) => ({
         id: String(r.id),
         title: String(r.title),
         updatedAt: new Date(String(r.updated_at)),
         messages: Number(r.n),
+        ...(r.project_id ? { projectId: String(r.project_id) } : {}),
       }));
+    },
+
+    project(id) {
+      const row = readProject.get(id) as { project_id: string | null } | undefined;
+      return row?.project_id ?? undefined;
+    },
+
+    setProject(id, projectId) {
+      const done = Number(writeProject.run(projectId ?? null, id).changes) > 0;
+      if (done && projectId) prune(projectId);
+      return done;
     },
 
     messages(id) {

@@ -4,3 +4,4 @@ export * from "./episodes.ts";
 export * from "./chats.ts";
 export * from "./chat-index.ts";
 export * from "./chat-search.ts";
+export * from "./projects.ts";
