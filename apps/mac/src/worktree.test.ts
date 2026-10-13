@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { commitWork, prepareWorkdir } from "./worktree.ts";
@@ -61,6 +61,27 @@ test("a task that already has a zeno/task-N branch keeps it; a new task gets ato
     const fresh = await prepareWorkdir(repo, 14, join(root, "worktrees"));
     assert.equal(fresh.branch, "atom/task-14");
     assert.equal((await prepareWorkdir(repo, 14, join(root, "worktrees"))).branch, "atom/task-14", "a second run keeps it");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// macOS ignores letter case in paths: a folder granted as ~/Documents/ZENO whose repository git reports as ~/Documents/zeno is inside it.
+test("a folder written in a different letter case than its repository is still inside it", async (t) => {
+  const root = mkdtempSync(join(tmpdir(), "atom-wt-"));
+  try {
+    const repo = join(root, "Repo");
+    mkdirSync(join(repo, "app"), { recursive: true });
+    if (existsSync(join(root, "REPO"))) {
+      // a case-insensitive disk (the macOS default): the case of the typed path differs from the real one
+    } else return void t.skip("this disk is case-sensitive");
+    sh(root, "init", "-q", "-b", "main", repo);
+    writeFileSync(join(repo, "app", "a.txt"), "one\n");
+    sh(repo, "add", "-A");
+    sh(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "first");
+    const work = await prepareWorkdir(join(root, "REPO", "app"), 13, join(root, "worktrees"));
+    assert.equal(work.branch, "atom/task-13");
+    assert.equal(work.dir, join(root, "worktrees", "task-13", "app"));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

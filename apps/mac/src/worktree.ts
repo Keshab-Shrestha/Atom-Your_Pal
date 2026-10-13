@@ -40,6 +40,11 @@ export async function prepareWorkdir(folder: string, taskId: number, worktrees: 
   } catch {
     return { dir: folder }; // not a repository: work in the folder itself
   }
+  // Real paths on both sides (git answers with them; /var is /private/var on macOS), and never a way out of the worktree.
+  // `.native` gives the case the disk stores: macOS ignores case, and git reports the repository in the stored case.
+  // Checked before anything is made, so a refusal leaves no worktree or branch behind.
+  const inside = relative(realpathSync.native(repo), realpathSync.native(folder));
+  if (inside.startsWith("..") || isAbsolute(inside)) throw new Error("The folder is not inside its repository.");
   const branch = await branchFor(repo, taskId);
   const tree = join(worktrees, `task-${taskId}`);
   if (!existsSync(tree)) {
@@ -47,9 +52,6 @@ export async function prepareWorkdir(folder: string, taskId: number, worktrees: 
     const exists = await hasBranch(repo, branch);
     await git(repo, "worktree", "add", ...(exists ? [tree, branch] : ["-b", branch, tree]));
   }
-  // Real paths on both sides (git answers with them; /var is /private/var on macOS), and never a way out of the worktree.
-  const inside = relative(realpathSync(repo), realpathSync(folder));
-  if (inside.startsWith("..") || isAbsolute(inside)) throw new Error("The folder is not inside its repository.");
   return { dir: join(tree, inside), branch, repo, tree };
 }
 
