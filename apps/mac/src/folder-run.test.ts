@@ -141,6 +141,7 @@ function projectFixture() {
   writeFileSync(join(home, ".ssh", "id_ed25519"), "secret");
   writeFileSync(join(home, "Developer", "other", "x.ts"), "x");
   symlinkSync(join(home, ".ssh"), join(root, "keys"));
+  symlinkSync(join(root, "src", "a.ts"), join(root, ".env.alias"));
   symlinkSync(join(root, "docs"), join(root, "docs-link"));
   symlinkSync(join(home, "Developer", "other", "x.ts"), join(root, "out.ts"));
   return { home, root };
@@ -183,6 +184,7 @@ test("project reads: secret-like files, ~/.ssh and git internals are refused; lo
     const check = projectReadCheck([root], "Haat coder", { home });
     for (const f of [".env", ".env.local", "key.pem", "id_rsa", "id_rsa.pub"]) assert.match((await check("Read", { file_path: join(root, f) }))!, /secret/i, f);
     assert.equal(await check("Read", { file_path: join(root, "env.txt") }), undefined, "env.txt is not .env");
+    assert.match((await check("Read", { file_path: join(root, ".env.alias") }))!, /secret/i, "a link named like a secret file is refused by its own name");
     assert.match((await check("Read", { file_path: join(root, ".git", "config") }))!, /git/i);
     assert.match((await check("Grep", { pattern: "x", path: ".git" }))!, /git/i);
     assert.match((await check("Glob", { pattern: ".git/**" }))!, /git/i);
@@ -190,6 +192,7 @@ test("project reads: secret-like files, ~/.ssh and git internals are refused; lo
     const asHome = projectReadCheck([join(home, ".ssh")], "x", { home }); // a root inside a deny dir is still refused
     assert.match((await asHome("Read", { file_path: join(home, ".ssh", "id_ed25519") }))!, /secret|keys/i);
     assert.match((await check("Grep", { pattern: "x", glob: ".env*" }))!, /glob/i, "a glob that names secrets");
+    assert.match((await check("Grep", { pattern: "x", glob: "*.pem" }))!, /glob/i, "a glob that names key files");
     assert.match((await check("Grep", { pattern: "x", glob: "*" }))!, /glob/i, "a glob that is not an extension filter");
     assert.equal(await check("Grep", { pattern: "x", glob: "*.ts" }), undefined);
     assert.equal(await check("Grep", { pattern: "x", glob: "**/*.{ts,tsx}" }), undefined);

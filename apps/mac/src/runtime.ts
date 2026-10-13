@@ -63,7 +63,7 @@ import {
 } from "@atom/helpers";
 import { createLayaEngine } from "@atom/decision-engine";
 import type { InputSource, LanguageModel, Message, RequestContext } from "@atom/contracts";
-import type { IslandChats, IslandGit, IslandHelpers, IslandMemory } from "./island.ts";
+import type { IslandChats, IslandGit, IslandHelpers, IslandMemory, IslandProjects } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
 import { taskSteering, type TaskSteering } from "./task-steering.ts";
 import { createHubCommands } from "./hub-commands.ts";
@@ -71,6 +71,7 @@ import { listSkills, userSkillsDir } from "./skills.ts";
 import { NOT_RUN_PLAN_LIMIT, runTestCases } from "./test-runs.ts";
 import { createEmbedder } from "./embedder.ts";
 import { createKeptChats } from "./kept-chats.ts";
+import { createProjects } from "./projects-wiring.ts";
 import { createRunOne } from "./run-job.ts";
 import { createIslandGit, withPaperclip } from "./island-wiring.ts";
 import { nowLine, createEchoCore, describe, errorFields, findCalendarHelper, openHelpers, openMemory, warmOnOpen } from "./runtime-support.ts";
@@ -119,6 +120,8 @@ export interface Runtime {
   islandMemory?: IslandMemory;
   /** ADR-091: Keshab's chat sessions as the ATOM window sees them. Undefined when memory is off. */
   islandChats?: IslandChats;
+  /** ADR-107: projects as the ATOM window sees them. Undefined when memory is off. */
+  islandProjects?: IslandProjects;
   /** Helpers' apps, jobs and reports (ADR-081). Undefined when the store could not open. */
   helpers?: HelperStore;
   /** The helpers as the ATOM window sees them. Undefined when the store could not open. */
@@ -235,7 +238,8 @@ export function createRuntime(
   const saveChat = (sessionId: string, turns: readonly Message[]) => {
     if (!memory) return;
     try {
-      memory.chats.save(sessionId, turns);
+      memory.chats.save(sessionId, projects ? projects.fullTurns(sessionId, turns) : turns); // ADR-107: a project chat keeps all its turns
+      projects?.saved(sessionId);
       const own = unsavedChatModels.get(sessionId);
       if (own && memory.chats.setModel(sessionId, own)) unsavedChatModels.delete(sessionId);
       const session = unsavedChatSessions.get(sessionId);
@@ -247,10 +251,13 @@ export function createRuntime(
     for (const listener of chatListeners) listener();
   };
   const islandChats: IslandChats | undefined = memory && {
-    list: () => memory.chats.list().map((c) => ({ id: c.id, title: c.id === TELEGRAM_CHAT ? "Telegram" : c.title, updatedAt: c.updatedAt.toISOString(), messages: c.messages })),
+    list: () => (projects?.chatSummaries() ?? memory.chats.list()).map((c) => ({ id: c.id, title: c.id === TELEGRAM_CHAT ? "Telegram" : c.title, updatedAt: c.updatedAt.toISOString(), messages: c.messages, ...(c.projectId ? { projectId: c.projectId } : {}) })),
     messages: (id) => memory.chats.messages(id),
     remove: (id) => memory.chats.remove(id),
-    modelOf: (id) => memory.chats.model(id) ?? unsavedChatModels.get(id),
+    modelOf: (id) => memory.chats.model(id) ?? unsavedChatModels.get(id) ?? projects?.modelOf(id), // ADR-107: the chat's own, else its project's
+    rename: (id, title) => projects?.renameChat(id, title) ?? { error: "Projects are off." },
+    projectOf: (id) => projects?.projectOf(id),
+    replay: (id, turns) => projects?.replay(id, turns) ?? { turns, trimmed: false },
     search: (query) => memory.chats.search(query).map((c) => ({ id: c.id, title: c.title, snippet: c.snippet, at: c.updatedAt.toISOString() })),
     setModel: (id, provider, modelId) => {
       if (!id) return { error: "There is no chat to give a model to." };
@@ -279,6 +286,8 @@ export function createRuntime(
   const skillsDir = helpersPath === ":memory:" ? undefined : join(dirname(resolve(helpersPath)), "skills");
   const checkpointsDir = helpersPath === ":memory:" ? undefined : join(dirname(resolve(helpersPath)), "checkpoints"); // B3.4
   const helpers = openHelpers(helpersPath, log, helpersPath === ":memory:" ? undefined : agentsDir, skillsDir, checkpointsDir);
+  // ADR-107: projects (a named folder and its chats); the chat code above reads this lazily.
+  const projects = memory ? createProjects({ memory, ...(helpers ? { helpers } : {}), log, checkModel: (provider, model) => settings.check(provider, model) }) : undefined;
   // ADR-091: ATOM's task branches in the repositories Keshab granted; pushing one is his alone, asked from the window.
   const islandGit: IslandGit | undefined = helpers && createIslandGit(helpers);
   // Task 3.11: the tasks' git worktrees live beside the helpers file, never inside a granted repository.
@@ -369,7 +378,7 @@ export function createRuntime(
         ]
       : []),
     // ADR-082/087, Task 3.5: Pal hands work to the team. Logs the goal id and task count only.
-    ...(helpers ? [createDelegateTool({ store: helpers, source: () => turnChat.getStore(), onDelegated: (e) => log.info("goal.delegated", e) })] : []),
+    ...(helpers ? [createDelegateTool({ store: helpers, source: () => turnChat.getStore(), project: () => projects?.delegate(turnChat.getStore()), onDelegated: (e) => log.info("goal.delegated", e) })] : []),
     // Task 3.9: routines by voice in any wording. Logs the routine id and worker only.
     ...(helpers ? [createScheduleTool({ store: helpers, onScheduled: (e) => log.info("routine.scheduled", e) })] : []),
     // ADR-094: work no single worker fits waits for whoever wakes. Logs the team task id only.
@@ -489,6 +498,7 @@ export function createRuntime(
           if (!memory) return [nowLine(), pointed].filter(Boolean).join("\n\n");
           const facts = memoryContext(input.text, { store: memory });
           const past = episodes ? episodeContext(memory, context.sessionId) : undefined;
+          const earlier = projects?.digest(context.sessionId); // ADR-107: a long project chat, replayed trimmed
           const keptLines = await keptChats?.context(input.text).catch((error: unknown) => {
             log.warn("memory.kept_search_failed", { requestId: context.requestId, message: describe(error) });
             return undefined;
@@ -499,10 +509,11 @@ export function createRuntime(
             used: facts ? facts.split("\n").length - 1 : 0,
             episodes: past ? past.split("\n").length - 1 : 0,
           });
-          return [nowLine(), facts, keptLines, past, pointed].filter(Boolean).join("\n\n");
+          return [nowLine(), facts, keptLines, past, earlier, pointed].filter(Boolean).join("\n\n");
         },
         // ADR-098 item 9: what rarely changes goes with the system prompt, where Claude caches it.
         // Task 3.5, ADR-095: who ATOM can hand work to; ADR-058: how to use memory.
+        ...(projects ? { project: (sessionId: string) => projects.turn(sessionId) } : {}), // ADR-107
         standing: () => [helpers ? teamContext(helpers.list(), helpers.managers()) : undefined, memory ? MEMORY_GUIDANCE : undefined].filter(Boolean).join("\n\n"),
         ...(shortcuts ? { shortcuts } : {}),
         onExchange: (sessionId: string, turns: readonly Message[]) => {
@@ -772,7 +783,7 @@ export function createRuntime(
     stt,
     tts,
     computer,
-    ...(memory ? { memory, islandMemory, islandChats } : {}),
+    ...(memory ? { memory, islandMemory, islandChats, islandProjects: projects!.island } : {}),
     ...(islandGit ? { islandGit } : {}),
     ...(helpers ? { helpers, islandHelpers: warmOnOpen(withPaperclip(paperclip, paperclipListeners, {
             ...islandHelpers(helpers, installedApps, planModels, held, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name)))),
