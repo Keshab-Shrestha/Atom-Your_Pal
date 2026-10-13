@@ -18,6 +18,10 @@ export interface UsageEntry extends TokenCounts {
   model: string;
   /** API-equivalent dollars, as Claude Code reports them (the plan does not charge them). */
   dollars?: number;
+  /** Job 1 (token cost): the chat this call belongs to (the turn or its background note). */
+  chatId?: string;
+  /** How long Claude keeps the written cache, when the run says ("5m" or "1h"). */
+  cacheTtl?: string;
 }
 
 export interface UsageTotals extends TokenCounts {
@@ -79,20 +83,44 @@ export function usageTable(db: DatabaseSync, now: () => Date = () => new Date())
     );
     CREATE INDEX IF NOT EXISTS usage_at ON usage (at);
   `);
+  // Safe ALTER: an older database gets the new nullable columns; old rows keep NULL.
+  const columns = new Set((db.prepare("PRAGMA table_info(usage)").all() as { name: string }[]).map((c) => c.name));
+  if (!columns.has("chat_id")) db.exec("ALTER TABLE usage ADD COLUMN chat_id TEXT");
+  if (!columns.has("gap_ms")) db.exec("ALTER TABLE usage ADD COLUMN gap_ms INTEGER");
+  if (!columns.has("cache_ttl")) db.exec("ALTER TABLE usage ADD COLUMN cache_ttl TEXT");
   const insert = db.prepare(
-    "INSERT INTO usage (at, source, helper, job_id, model, input, output, cache_read, cache_write, dollars) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO usage (at, source, helper, job_id, model, input, output, cache_read, cache_write, dollars, chat_id, gap_ms, cache_ttl) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
   );
+  const newestOfChat = db.prepare("SELECT at FROM usage WHERE chat_id = ? AND model = ? ORDER BY id DESC LIMIT 1");
+  /** chat id + model → time of the last call, in ms. Seeded lazily from the table. */
+  const lastCallAt = new Map<string, number>();
   const prune = db.prepare("DELETE FROM usage WHERE at < ?");
   const lastChats = db.prepare("SELECT cache_read FROM usage WHERE source = 'chat' ORDER BY id DESC LIMIT ?");
   const since = db.prepare("SELECT at, helper, source, model, input, output, cache_read, cache_write, dollars FROM usage WHERE at >= ? ORDER BY at");
 
   return {
-    add(entry: UsageEntry): void {
+    /** Records one run. Returns the gap (ms) since the last call of the same chat and model; null for the first or without a chat. */
+    add(entry: UsageEntry): { gapMs: number | null } {
       const at = now();
-      insert.run(at.toISOString(), entry.source, entry.helper ?? null, entry.job ?? null, entry.model.slice(0, 80),
+      const model = entry.model.slice(0, 80);
+      const chatId = entry.chatId?.slice(0, 80) || null;
+      let gapMs: number | null = null;
+      if (chatId) {
+        const key = `${chatId}\n${model}`;
+        let last = lastCallAt.get(key);
+        if (last === undefined) {
+          const row = newestOfChat.get(chatId, model) as { at: string } | undefined;
+          last = row ? Date.parse(row.at) : undefined;
+        }
+        if (last !== undefined && Number.isFinite(last)) gapMs = Math.max(0, at.getTime() - last);
+        lastCallAt.set(key, at.getTime());
+      }
+      insert.run(at.toISOString(), entry.source, entry.helper ?? null, entry.job ?? null, model,
         count(entry.input), count(entry.output), count(entry.cacheRead), count(entry.cacheWrite),
-        typeof entry.dollars === "number" && entry.dollars > 0 ? entry.dollars : 0);
+        typeof entry.dollars === "number" && entry.dollars > 0 ? entry.dollars : 0,
+        chatId, gapMs, entry.cacheTtl?.slice(0, 8) || null);
       prune.run(new Date(at.getTime() - USAGE_KEEP_DAYS * 86_400_000).toISOString());
+      return { gapMs };
     },
 
     summary(): UsageSummary {

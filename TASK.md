@@ -1483,3 +1483,7 @@ Done:
 Next: Keshab checks the window by hand. The project model menu (`project.model`) has no control yet.
 
 Open: usage rows have no project label. The Dashboard cannot split cost by project yet.
+
+## Token cost, job 1: measure each turn (2026-10-13)
+
+The `usage` table has three new nullable columns: `chat_id`, `gap_ms` and `cache_ttl`. Old databases get them with a safe ALTER. Old rows keep NULL. A chat turn and its background note both record the chat id. The note row has `helper = "note"`. `gap_ms` is the time since the last call of the same chat and model. It is NULL for the first call. The gap counts from the end of the last call to the end of this call, so it is longer than the true idle time by one call length. `cache_ttl` is `1h` or `5m` when Claude Code reports it. The log has one line per call: `usage.turn {source, model, gapMs, cacheRead, cacheWrite, input, output}`. It has no text. Code: `services/helpers/src/usage.ts`, `apps/mac/src/usage-report.ts`.

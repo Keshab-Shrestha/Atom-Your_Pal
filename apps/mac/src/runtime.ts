@@ -30,6 +30,7 @@ import {
   type Timers,
 } from "@atom/tool-engine";
 import { createGateway, createProviderAdapter, createSwitchableModel, listPlanModels, runChatDigest, type ChatSession, type ChatSessions, type PlanUsage } from "@atom/llm-gateway";
+import { createChatUsageRecorder } from "./usage-report.ts";
 import { CLAUDE_PLAN, createLogger, readEnv, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@atom/shared";
 import {
   createEpisodeRecorder,
@@ -398,6 +399,7 @@ export function createRuntime(
     }
     for (const listener of planUsageListeners) listener(usage);
   };
+  const recordChatUsage = createChatUsageRecorder(helpers, log); // Job 1 (token cost)
   const createModel = (choice: LlmChoice, apiKey: string) =>
     createGateway({
       provider: createProviderAdapter({
@@ -406,7 +408,7 @@ export function createRuntime(
         tools: toolEngine,
         onUsage: reportUsage,
         // ADR-091: ATOM's own answers count on the Dashboard too.
-        onTokens: (tokens, model) => helpers?.addUsage({ source: "chat", model, ...tokens, ...(tokens.costUsd ? { dollars: tokens.costUsd } : {}) }),
+        onTokens: (tokens, model, meta) => recordChatUsage(tokens, model, meta),
         ...(chatSessions ? { chatSessions } : {}), // ADR-098 item 9
       }),
       // Claude Code starts its own process and may take several tool turns, so it gets longer than one API call.

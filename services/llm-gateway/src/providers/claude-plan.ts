@@ -55,6 +55,14 @@ export interface TokenUsage {
   cacheRead: number;
   cacheWrite: number;
   costUsd?: number;
+  /** How long the written cache lives ("1h" or "5m"), when the result says. */
+  cacheTtl?: string;
+}
+
+/** Job 1 (token cost): which chat a call belongs to, and whether it was the background note. */
+export interface TokenMeta {
+  chatId?: string;
+  background?: boolean;
 }
 
 /**
@@ -74,7 +82,9 @@ export function tokensOf(result: Record<string, any> | undefined, opts: { allMod
     : { input: n(u.input_tokens), output: n(u.output_tokens), cacheRead: n(u.cache_read_input_tokens), cacheWrite: n(u.cache_creation_input_tokens) };
   if (t.input + t.output + t.cacheRead + t.cacheWrite === 0) return undefined;
   const cost = result?.total_cost_usd;
-  return typeof cost === "number" && cost > 0 ? { ...t, costUsd: cost } : t;
+  const created = models.length ? undefined : u?.cache_creation;
+  const cacheTtl = n(created?.ephemeral_1h_input_tokens) ? "1h" : n(created?.ephemeral_5m_input_tokens) ? "5m" : undefined;
+  return { ...t, ...(typeof cost === "number" && cost > 0 ? { costUsd: cost } : {}), ...(cacheTtl ? { cacheTtl } : {}) };
 }
 
 export interface ClaudePlanOptions {
@@ -87,7 +97,7 @@ export interface ClaudePlanOptions {
   maxTurns?: number;
   onUsage?: (usage: PlanUsage) => void;
   /** ADR-091: told the tokens each answer used. */
-  onTokens?: (tokens: TokenUsage, model: string) => void;
+  onTokens?: (tokens: TokenUsage, model: string, meta?: TokenMeta) => void;
   sdk?: ClaudeSdk;
   /** The environment to start from. Default: this process's. */
   env?: Record<string, string | undefined>;
@@ -654,7 +664,7 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
         throw new ProviderError(kind, message);
       }
       const tokens = tokensOf(result);
-      if (tokens) options.onTokens?.(tokens, model);
+      if (tokens) options.onTokens?.(tokens, model, { chatId: request.context.sessionId, ...(request.context.background ? { background: true } : {}) });
       const text = typeof result.result === "string" ? withoutSources(result.result.trim()) : "";
       // ADR-093: the SDK's stop reason ("refusal", "max_tokens", …) lets the message say declined or cut off.
       if (!text) throw new ProviderError("unknown", emptyReplyReason(result.stop_reason));

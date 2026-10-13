@@ -341,7 +341,7 @@ export interface HelperStore {
   managerWork(jobId: number): { tasks: ManagedTask[]; revised: boolean };
   /** ADR-090: MCP servers (secrets included: for the runtime only, never for the island or the log). */
   /** ADR-091: records the tokens one run used (a job or a chat answer). */
-  addUsage(entry: UsageEntry): void;
+  addUsage(entry: UsageEntry): { gapMs: number | null };
   /** ADR-091: today and the last 7 days, by day, worker and model. */
   usage(): UsageSummary;
   mcpServers(): McpServer[];

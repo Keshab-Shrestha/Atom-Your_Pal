@@ -1329,8 +1329,9 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     },
 
     addUsage(entry) {
-      tokens.add(entry);
+      const result = tokens.add(entry);
       emit({ action: "usage" });
+      return result;
     },
     usage: () => tokens.summary(),
 

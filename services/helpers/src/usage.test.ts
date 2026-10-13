@@ -32,3 +32,36 @@ test("the store records usage and tells the window (ADR-091)", () => {
   assert.equal(store.usage().today.output, 2);
   assert.deepEqual(changes, ["usage"]);
 });
+
+// Token cost, job 1: chat id, the gap since the chat's last call, and the cache lifetime.
+
+test("an old usage table gets chat_id, gap_ms and cache_ttl; old rows stay NULL and still count", () => {
+  const raw = new DatabaseSync(":memory:");
+  raw.exec(`CREATE TABLE usage (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, source TEXT NOT NULL CHECK (source IN ('chat', 'job')),
+    helper TEXT, job_id INTEGER, model TEXT NOT NULL, input INTEGER NOT NULL, output INTEGER NOT NULL, cache_read INTEGER NOT NULL,
+    cache_write INTEGER NOT NULL, dollars REAL NOT NULL DEFAULT 0)`);
+  raw.exec("INSERT INTO usage (at, source, model, input, output, cache_read, cache_write) VALUES ('2026-10-05T01:00:00.000Z', 'chat', 'm', 1, 2, 3, 4)");
+  const usage = usageTable(raw, () => new Date("2026-10-05T02:00:00.000Z"));
+  usageTable(raw); // a second open is harmless
+  assert.deepEqual(usage.add({ source: "chat", model: "m", input: 1, output: 1, cacheRead: 0, cacheWrite: 0, chatId: "c", cacheTtl: "1h" }), { gapMs: null });
+  const rows = raw.prepare("SELECT chat_id, gap_ms, cache_ttl FROM usage ORDER BY id").all() as Record<string, unknown>[];
+  assert.deepEqual(rows.map((r) => [r.chat_id, r.gap_ms, r.cache_ttl]), [[null, null, null], ["c", null, "1h"]]);
+  assert.equal(usage.summary().today.runs, 2);
+});
+
+test("the gap is measured per chat and per model; the first call has none; a restart seeds it from the table", () => {
+  let clock = new Date("2026-10-05T10:00:00.000Z");
+  const raw = new DatabaseSync(":memory:");
+  const usage = usageTable(raw, () => clock);
+  const row = { source: "chat" as const, input: 1, output: 1, cacheRead: 0, cacheWrite: 0 };
+  assert.equal(usage.add({ ...row, model: "a", chatId: "c1" }).gapMs, null, "first call");
+  clock = new Date(clock.getTime() + 90_000);
+  assert.equal(usage.add({ ...row, model: "a", chatId: "c1" }).gapMs, 90_000, "second call");
+  assert.equal(usage.add({ ...row, model: "a", chatId: "c2" }).gapMs, null, "another chat");
+  assert.equal(usage.add({ ...row, model: "b", chatId: "c1" }).gapMs, null, "another model");
+  clock = new Date(clock.getTime() + 5_000);
+  assert.equal(usage.add({ ...row, model: "a" }).gapMs, null, "no chat: no gap");
+  assert.equal(usage.add({ ...row, model: "a", chatId: "c1" }).gapMs, 5_000, "since the newest call of that chat and model");
+  clock = new Date(clock.getTime() + 1_000);
+  assert.equal(usageTable(raw, () => clock).add({ ...row, model: "a", chatId: "c1" }).gapMs, 1_000, "seeded from the table");
+});

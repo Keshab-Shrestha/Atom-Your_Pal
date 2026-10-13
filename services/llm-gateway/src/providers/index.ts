@@ -1,6 +1,6 @@
 import type { ToolRunner } from "@atom/contracts";
 import type { ProviderAdapter } from "../gateway.ts";
-import { createClaudePlanAdapter, type ChatSessions, type PlanUsage, type TokenUsage } from "./claude-plan.ts";
+import { createClaudePlanAdapter, type ChatSessions, type PlanUsage, type TokenMeta, type TokenUsage } from "./claude-plan.ts";
 import { createCodexAdapter, createGeminiCliAdapter } from "./cli-tools.ts";
 
 /** ADR-092, ADR-093: the signed-in tools on this Mac; Claude Code is the default. (Also in @atom/shared's PROVIDERS.) */
@@ -17,7 +17,7 @@ export interface ProviderSettings {
   /** For "claude-plan" only: told how much of the plan is used. */
   onUsage?: (usage: PlanUsage) => void;
   /** For "claude-plan" only (ADR-091): told the tokens each answer used. */
-  onTokens?: (tokens: TokenUsage, model: string) => void;
+  onTokens?: (tokens: TokenUsage, model: string, meta?: TokenMeta) => void;
   /** For "claude-plan" only (ADR-098 item 9): each chat's own Claude Code session. */
   chatSessions?: ChatSessions;
 }

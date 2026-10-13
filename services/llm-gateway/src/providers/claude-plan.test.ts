@@ -446,6 +446,13 @@ test("the tokens a run used, from Claude Code's result (ADR-091)", () => {
   assert.deepEqual(tokensOf({ usage: { input_tokens: -3, output_tokens: 4.4 } }), { input: 0, output: 4, cacheRead: 0, cacheWrite: 0 });
 });
 
+test("tokensOf names the cache lifetime when the result gives it (token cost, job 1)", () => {
+  const usage = { input_tokens: 1, output_tokens: 1, cache_creation: { ephemeral_5m_input_tokens: 0, ephemeral_1h_input_tokens: 50 } };
+  assert.equal(tokensOf({ usage })?.cacheTtl, "1h");
+  assert.equal(tokensOf({ usage: { ...usage, cache_creation: { ephemeral_5m_input_tokens: 9 } } })?.cacheTtl, "5m");
+  assert.equal(tokensOf({ usage: { input_tokens: 1 } })?.cacheTtl, undefined);
+});
+
 test("a worker's run counts every model's tokens (its sub-agents too), instead of the main loop's usage (ADR-095)", () => {
   const usage = { input_tokens: 10, output_tokens: 5 };
   const modelUsage = {
