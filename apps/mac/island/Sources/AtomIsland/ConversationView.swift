@@ -229,6 +229,7 @@ struct TurnView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if !turn.transcript.isEmpty { // an answer ATOM posted by itself has no question (ADR-109)
             HStack {
                 Spacer(minLength: 48)
                 Text(turn.transcript)
@@ -240,6 +241,7 @@ struct TurnView: View {
                     .overlay(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
                         .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color.opacity(0.5), lineWidth: theme.isFlat ? 1 : 0.5))
                     .textSelection(.enabled)
+            }
             }
             VStack(alignment: .leading, spacing: 6) {
                 switch turn.outcome {

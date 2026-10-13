@@ -80,6 +80,10 @@ public struct Conversation: Sendable, Equatable {
                 nextId += 1
             } else if let last = turns.indices.last, turns[last].reply == nil {
                 turns[last].reply = line.text
+            } else {
+                // ADR-109: an answer ATOM posted by itself (a worker's result): no question of Keshab's before it.
+                turns.append(Turn(id: nextId, transcript: "", reply: line.text, outcome: .answered))
+                nextId += 1
             }
         }
         if turns.count > limit { turns.removeFirst(turns.count - limit) }

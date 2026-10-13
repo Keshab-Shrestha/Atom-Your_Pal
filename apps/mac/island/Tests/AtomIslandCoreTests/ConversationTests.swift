@@ -95,3 +95,14 @@ struct ConversationTests {
         #expect(Conversation().limit == 50)
     }
 }
+
+@Suite("A result posted into the chat (ADR-109)")
+struct PostedResultTests {
+    @Test func replayKeepsAnAnswerThatHasNoQuestion() {
+        var c = Conversation()
+        c.replay([ChatLine(fromUser: true, text: "check storage"), ChatLine(fromUser: false, text: "On it."), ChatLine(fromUser: false, text: "Kame finished: storage"), ChatLine(fromUser: true, text: "thanks"), ChatLine(fromUser: false, text: "Welcome.")])
+        #expect(c.turns.map(\.transcript) == ["check storage", "", "thanks"])
+        #expect(c.turns.map(\.reply) == ["On it.", "Kame finished: storage", "Welcome."])
+        #expect(Set(c.turns.map(\.id)).count == 3)
+    }
+}
