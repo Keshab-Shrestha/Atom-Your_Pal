@@ -1478,6 +1478,8 @@ Done:
 5. Runtime wiring: `projects-wiring.ts`.
 6. Docs: ADR-107, SECURITY.md.
 
-Next (Swift): the sidebar Projects group, the new-project sheet, a chat's project in the top bar, the `trimmed` notice, chat rename.
+7. Swift: the sidebar Projects group (`ProjectsSection.swift`), the new-project sheet, the project chip in the top bar, the `trimmed` note, chat rename. Core types are in `Projects.swift`. Tests are in `ProjectsTests.swift`.
+
+Next: Keshab checks the window by hand. The project model menu (`project.model`) has no control yet.
 
 Open: usage rows have no project label. The Dashboard cannot split cost by project yet.

@@ -148,6 +148,16 @@ public enum IslandCommand: Sendable, Equatable {
     /// Task 3.3: save a worker's edited soul as a new version; make an older version current again.
     case soulSet(helper: String, soul: HelperSoul)
     case soulRestore(helper: String, version: Int)
+    /// ADR-107: Projects. `project.model` with "" and "" clears the project's own model.
+    case projectAdd(name: String, path: String)
+    case projectRename(id: String, name: String)
+    case projectRemove(id: String, deleteChats: Bool)
+    case projectArchive(id: String, archived: Bool)
+    case projectModel(id: String, provider: String, model: String)
+    case projectWeb(id: String, web: Bool)
+    /// A new chat, in a project when `projectId` is set (`conversationReset` is the plain one).
+    case chatNew(projectId: String?)
+    case chatRename(id: String, title: String)
 
     /// The command's `type` field. Safe for logs: never includes values.
     public var type: String {
@@ -247,6 +257,14 @@ public enum IslandCommand: Sendable, Equatable {
         case .helperBudget: "helper.budget"
         case .soulSet: "soul.set"
         case .soulRestore: "soul.restore"
+        case .projectAdd: "project.add"
+        case .projectRename: "project.rename"
+        case .projectRemove: "project.remove"
+        case .projectArchive: "project.archive"
+        case .projectModel: "project.model"
+        case .projectWeb: "project.web"
+        case .chatNew: "chat.new"
+        case .chatRename: "chat.rename"
         }
     }
 
@@ -428,6 +446,30 @@ public enum IslandCommand: Sendable, Equatable {
         case .soulRestore(let helper, let version):
             fields["helper"] = helper
             fields["version"] = version // a JSON number
+        case .projectAdd(let name, let path):
+            fields["name"] = name
+            fields["path"] = path
+        case .projectRename(let id, let name):
+            fields["id"] = id
+            fields["name"] = name
+        case .projectRemove(let id, let deleteChats):
+            fields["id"] = id
+            fields["deleteChats"] = deleteChats // a real JSON boolean
+        case .projectArchive(let id, let archived):
+            fields["id"] = id
+            fields["archived"] = archived
+        case .projectModel(let id, let provider, let model):
+            fields["id"] = id
+            fields["provider"] = provider
+            fields["model"] = model
+        case .projectWeb(let id, let web):
+            fields["id"] = id
+            fields["web"] = web
+        case .chatNew(let projectId):
+            if let projectId { fields["projectId"] = projectId }
+        case .chatRename(let id, let title):
+            fields["id"] = id
+            fields["title"] = title
         default:
             break
         }
@@ -740,7 +782,7 @@ public enum IslandEvent: Sendable, Equatable {
     case helpers(HelpersList)
     /// ADR-091: Keshab's chats and the one ATOM is in; a chat opened, with its turns.
     case chats(ChatList)
-    case chatOpened(id: String, lines: [ChatLine])
+    case chatOpened(id: String, lines: [ChatLine], projectId: String? = nil, trimmed: Bool = false)
     /// ADR-091: ATOM's task branches; one branch's changes as a patch.
     case git([GitBranch])
     case gitDiff(GitDiff)
@@ -893,9 +935,12 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .gitDiff(GitDiff(repo: try f.string("repo"), branch: try f.string("branch"), text: try f.string("text"), truncated: f.optionalBool("truncated") ?? false))
     case "chats":
         return .chats(ChatList(chats: Fields.chats(f.values["chats"]), current: f.optionalString("current") ?? "",
-                               currentProvider: f.optionalString("currentProvider"), currentModel: f.optionalString("currentModel")))
+                               currentProvider: f.optionalString("currentProvider"), currentModel: f.optionalString("currentModel"),
+                               currentProjectId: f.optionalString("currentProjectId"),
+                               projects: f.values["projects"] == nil ? nil : Fields.projects(f.values["projects"])))
     case "chat.opened":
-        return .chatOpened(id: try f.string("id"), lines: Fields.chatLines(f.values["messages"]))
+        return .chatOpened(id: try f.string("id"), lines: Fields.chatLines(f.values["messages"]),
+                           projectId: f.optionalString("projectId"), trimmed: f.values["trimmed"] as? Bool ?? false)
     case "helpers":
         return .helpers(HelpersList(helpers: try f.helpers(), apps: try f.strings("apps"),
                                     allowLarge: try f.optionalStrictBool("allowLarge") ?? true, models: try f.helperModels(),
@@ -1422,7 +1467,18 @@ private struct Fields {
         (value as? [Any] ?? []).compactMap { entry in
             guard let m = entry as? [String: Any], let id = m["id"] as? String, let title = m["title"] as? String else { return nil }
             return ChatInfo(id: id, title: title, updatedAt: (m["updatedAt"] as? String).flatMap(date), messages: (m["messages"] as? NSNumber)?.intValue ?? 0,
-                            readOnly: m["readOnly"] as? Bool ?? false)
+                            readOnly: m["readOnly"] as? Bool ?? false, projectId: m["projectId"] as? String)
+        }
+    }
+
+    /// ADR-107: the projects; a malformed entry is left out, a missing flag is false.
+    static func projects(_ value: Any?) -> [ProjectInfo] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let m = entry as? [String: Any], let id = m["id"] as? String, let name = m["name"] as? String else { return nil }
+            return ProjectInfo(id: id, name: name, folderLabel: m["folderLabel"] as? String ?? "", missing: m["missing"] as? Bool ?? false,
+                               archived: m["archived"] as? Bool ?? false, chatCount: (m["chatCount"] as? NSNumber)?.intValue ?? 0,
+                               web: m["web"] as? Bool ?? false, agent: m["agent"] as? String,
+                               provider: m["provider"] as? String, model: m["model"] as? String)
         }
     }
 

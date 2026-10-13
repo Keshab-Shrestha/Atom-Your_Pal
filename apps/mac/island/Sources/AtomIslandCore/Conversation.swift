@@ -64,7 +64,7 @@ public struct Conversation: Sendable, Equatable {
             updateCurrent { $0.outcome = $0.reply == nil ? .failed("Stopped") : .answered }
         case .conversationReset:
             turns.removeAll()
-        case .chatOpened(_, let lines):
+        case .chatOpened(_, let lines, _, _):
             replay(lines)
         default:
             break
@@ -111,8 +111,11 @@ public struct ChatInfo: Sendable, Equatable, Identifiable {
     public var messages: Int
     /// ADR-098: another surface writes this chat (Telegram, the local API); the window reads it only.
     public var readOnly: Bool
+    /// ADR-107: the project this chat belongs to; nil for a plain chat.
+    public var projectId: String?
 
-    public init(id: String, title: String, updatedAt: Date? = nil, messages: Int = 0, readOnly: Bool = false) {
+    public init(id: String, title: String, updatedAt: Date? = nil, messages: Int = 0, readOnly: Bool = false, projectId: String? = nil) {
+        self.projectId = projectId
         self.id = id
         self.title = title
         self.updatedAt = updatedAt
@@ -134,11 +137,18 @@ public struct ChatList: Sendable, Equatable {
     /// ADR-097: the current chat's own model; nil when it uses the default.
     public var currentProvider: String?
     public var currentModel: String?
+    /// ADR-107: the project the chat in use belongs to (also a new, unsaved project chat).
+    public var currentProjectId: String?
+    /// ADR-107: nil when the runtime does not know projects (older runtime or Projects off); empty when there are none.
+    public var projects: [ProjectInfo]?
 
     /// ADR-098: the composer is off while the chat in use is read-only; this is its line. Nil: the composer works.
     public var currentReadOnlyNotice: String? { chats.first { $0.id == current }?.readOnlyNotice }
 
-    public init(chats: [ChatInfo], current: String, currentProvider: String? = nil, currentModel: String? = nil) {
+    public init(chats: [ChatInfo], current: String, currentProvider: String? = nil, currentModel: String? = nil,
+                currentProjectId: String? = nil, projects: [ProjectInfo]? = nil) {
+        self.currentProjectId = currentProjectId
+        self.projects = projects
         self.chats = chats
         self.current = current
         self.currentProvider = currentProvider
