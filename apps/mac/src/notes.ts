@@ -28,3 +28,18 @@ export function createNotes(options: {
     onError: (error) => log.warn("episode.failed", { ...errorFields(error) }),
   });
 }
+
+/**
+ * ADR-108: the model of the conversation note. On the Claude plan it is the small model (the one the chat digest uses),
+ * whatever model the chat has. On any other provider there is no small model: the fallback (the chat's own) is used.
+ * `smallModel` is read per note, so a change of provider applies at once. `gatewayFor` makes (and caches) a gateway.
+ */
+export function createNoteModel(options: { fallback: LanguageModel; smallModel: () => string | undefined; gatewayFor: (modelId: string) => LanguageModel }): LanguageModel {
+  const { fallback, smallModel, gatewayFor } = options;
+  return {
+    complete: (request, signal) => {
+      const small = smallModel();
+      return (small ? gatewayFor(small) : fallback).complete(request, signal);
+    },
+  };
+}

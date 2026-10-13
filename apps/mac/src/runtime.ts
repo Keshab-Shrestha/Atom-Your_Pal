@@ -30,7 +30,7 @@ import {
   type Timers,
 } from "@atom/tool-engine";
 import { createGateway, createProviderAdapter, createSwitchableModel, listPlanModels, runChatDigest, type ChatSession, type ChatSessions, type PlanUsage } from "@atom/llm-gateway";
-import { createNotes } from "./notes.ts";
+import { createNoteModel, createNotes } from "./notes.ts";
 import { createChatUsageRecorder } from "./usage-report.ts";
 import { CLAUDE_PLAN, createLogger, readEnv, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@atom/shared";
 import {
@@ -450,7 +450,21 @@ export function createRuntime(
   };
   // ADR-059: a short summary of each conversation, written in the background with the same model (no tools).
   // ADR-097: the chat's own model when it has one; it never joins the chat's session (`background`).
-  const episodes = createNotes({ memory, model: coreModel, env: process.env, log, changed: () => memoryListeners.forEach((listener) => listener()) });
+  // ADR-108: on the Claude plan the note runs on the small model (as the chat digest does), whatever the chat's model.
+  const noteGateways = new Map<string, LanguageModel>();
+  const noteModel = createNoteModel({
+    fallback: coreModel,
+    smallModel: () => modelForTier(planModels(), "small"),
+    gatewayFor: (id) => {
+      let gateway = noteGateways.get(id);
+      if (!gateway) {
+        gateway = createModel({ provider: CLAUDE_PLAN, model: id }, keys[CLAUDE_PLAN]!);
+        noteGateways.set(id, gateway);
+      }
+      return gateway;
+    },
+  });
+  const episodes = createNotes({ memory, model: noteModel, env: process.env, log, changed: () => memoryListeners.forEach((listener) => listener()) });
   // ADR-071: plain commands run in code, before any model. ATOM_SHORTCUTS=0 turns these off. Logs the name only.
   const toolShortcuts =
     readEnv(process.env, "ATOM_SHORTCUTS") === "0"

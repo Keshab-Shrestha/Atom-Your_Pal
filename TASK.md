@@ -1499,3 +1499,7 @@ The conversation note is now written once, when a chat has been quiet for 10 min
 ## Token cost, job 4: Dashboard shows input + output (2026-10-13)
 
 The Dashboard shows input + output as the main number. Cache written and cache read are separate smaller tiles, with one line of help. A new list "Recent turns" shows the newest 8 calls, for example "This turn: 18 tokens · cache written: 6.1K · cache read: 0". The `usage` payload has the optional `recent` field (see `docs/island-protocol.md`). A chat idle for more than 60 minutes (`ChatList.cacheTtl`, one constant, assumed) shows the quiet line "Cache expired: the next message costs more" over the chat. The real cache lifetime is unknown. Keshab: check by hand with the running app.
+
+## Notes on the small model (2026-10-13)
+
+The conversation note (ADR-108) runs on the small model of the Claude plan (Haiku), not on the model of the chat. It uses the same tier lookup as the chat digest (`modelForTier(planModels(), "small")`). On another provider the chat's own model still writes it. Test: `notes.test.ts`.

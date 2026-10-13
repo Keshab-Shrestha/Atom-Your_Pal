@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { openMemoryStore } from "@atom/memory";
 import type { LanguageModel, Message } from "@atom/contracts";
-import { createNotes } from "./notes.ts";
+import { createNoteModel, createNotes } from "./notes.ts";
 
 const convo = (n: number): Message[] => Array.from({ length: n }, (_, i) => [{ role: "user" as const, content: `q${i}` }, { role: "assistant" as const, content: `a${i}` }]).flat();
 const log = { info: () => {}, warn: () => {} };
@@ -29,4 +29,23 @@ test("ATOM_NOTE_QUIET_MS 0 restores a note after every reply; the default waits 
   assert.equal(waits.requests.length, 0, "waits for quiet");
   await waits.notes!.flush();
   assert.equal(waits.requests.length, 1);
+});
+
+test("the note runs on the small model even when the chat model is Opus or Sonnet (ADR-108)", async () => {
+  const used: string[] = [];
+  const gateway = (id: string): LanguageModel => ({ complete: async () => (used.push(id), { text: "A note." }) });
+  const chatModels = ["claude-opus-5", "claude-sonnet-5"];
+  for (const chat of chatModels) {
+    const fallback: LanguageModel = { complete: async () => (used.push(chat), { text: "wrong" }) };
+    const model = createNoteModel({ fallback, smallModel: () => "claude-haiku-5", gatewayFor: gateway });
+    const notes = createNotes({ memory: openMemoryStore({ path: ":memory:" }), model, env: { ATOM_NOTE_QUIET_MS: "0" }, log, changed: () => {} });
+    notes!.update("s", convo(1));
+    await notes!.idle();
+  }
+  assert.deepEqual(used, ["claude-haiku-5", "claude-haiku-5"]);
+  // No small model (another provider): the chat's own model writes it.
+  const own: string[] = [];
+  const other = createNoteModel({ fallback: { complete: async () => (own.push("chat"), { text: "x" }) }, smallModel: () => undefined, gatewayFor: gateway });
+  await other.complete({ system: "", messages: [], context: { requestId: "r", sessionId: "s", source: "text", receivedAt: new Date() } });
+  assert.deepEqual(own, ["chat"]);
 });

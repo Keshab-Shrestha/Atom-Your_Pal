@@ -2463,4 +2463,4 @@ The offer to remember a fact (ADR-058) is not part of the note request. It is in
 - A chat with N replies costs one note request, not N. A one-off question costs none.
 - The note of a chat is missing from the next chat's context while the first chat is still within its quiet time and the user has not left it. Opening or starting a chat flushes the note first, so this case is rare. If the app crashes, the notes that wait are lost. A normal quit writes them.
 - To restore per-reply notes, set `ATOM_NOTE_QUIET_MS=0`.
-- Running the note on the small model is still open. It would change the wording of the notes, so Keshab decides.
+- Update 2026-10-13: Keshab approved the small model. On the Claude plan the note runs on the small model (Haiku), the same one the chat digest uses, whatever model the chat has. On another provider the chat's own model writes the note. Code: `createNoteModel` in `apps/mac/src/notes.ts`.
