@@ -2,7 +2,21 @@
 
 /// ADR-089: the ATOM window's pages: the conversation, the board and the team, and Settings.
 public enum WindowPage: Equatable, Sendable {
-    case overview, dashboard, chat, inbox, issues, scheduled, agents, plugins, settings
+    case dashboard, chat, inbox, issues, scheduled, agents, plugins, settings
+}
+
+/// The Board's three views, in the order of its switch. Overview was a sidebar page; it now lives here, before Floor.
+public enum BoardView: String, CaseIterable, Sendable {
+    case overview, floor, columns
+
+    /// The name the switch shows.
+    public var title: String { rawValue.capitalized }
+
+    /// Reads a stored page name: the old "overview" page is the Board's Overview view. Other names are not Board views.
+    public init?(storedPage: String) {
+        guard let view = BoardView(rawValue: storedPage), view == .overview else { return nil }
+        self = view
+    }
 }
 
 /// One step of the window's history: the sidebar page and, on the team page, what is open in it. Other pages keep
@@ -12,19 +26,21 @@ public struct WindowLocation: Equatable, Sendable {
     public var helperId: String?
     public var managerId: String?
     public var showsBoard = false
+    public var boardView = BoardView.floor
     public var jobId: Int?
     public var soulOpen = false
     public var creatingAgent = false
     public var creatingManager = false
     public var allAgents = false
 
-    public init(page: WindowPage, helperId: String? = nil, managerId: String? = nil, showsBoard: Bool = false, jobId: Int? = nil,
+    public init(page: WindowPage, helperId: String? = nil, managerId: String? = nil, showsBoard: Bool = false, boardView: BoardView = .floor, jobId: Int? = nil,
                 soulOpen: Bool = false, creatingAgent: Bool = false, creatingManager: Bool = false, allAgents: Bool = false) {
         self.page = page
         guard page == .agents else { return }
         self.helperId = helperId
         self.managerId = managerId
         self.showsBoard = showsBoard
+        self.boardView = showsBoard ? boardView : .floor
         self.jobId = jobId
         self.soulOpen = soulOpen
         self.creatingAgent = creatingAgent
@@ -32,8 +48,8 @@ public struct WindowLocation: Equatable, Sendable {
         self.allAgents = allAgents
     }
 
-    public init(page: WindowPage, helpers: HelpersState, allAgents: Bool) {
-        self.init(page: page, helperId: helpers.selectedHelperId, managerId: helpers.selectedManagerId, showsBoard: helpers.showsBoard,
+    public init(page: WindowPage, helpers: HelpersState, allAgents: Bool, boardView: BoardView = .floor) {
+        self.init(page: page, helperId: helpers.selectedHelperId, managerId: helpers.selectedManagerId, showsBoard: helpers.showsBoard, boardView: boardView,
                   jobId: helpers.openJobId, soulOpen: helpers.isSoulOpen, creatingAgent: helpers.isCreatingAgent,
                   creatingManager: helpers.isCreatingManager, allAgents: allAgents)
     }

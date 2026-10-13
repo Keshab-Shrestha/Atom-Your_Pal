@@ -26,9 +26,7 @@ struct HelpersView: View {
                 }
             }
             Group {
-                if model.windowPage == .overview {
-                    OverviewPane(model: model)
-                } else if model.windowPage == .dashboard {
+                if model.windowPage == .dashboard {
                     DashboardPane(model: model)
                 } else if model.windowPage == .inbox {
                     NeedsYouPane(model: model)
@@ -92,7 +90,6 @@ extension HelpersView {
     /// The open page's name and symbol, for the top bar.
     static func page(_ model: IslandModel) -> (title: String, symbol: String) {
         switch model.windowPage {
-        case .overview: return ("Overview", "gauge.with.dots.needle.33percent")
         case .dashboard: return ("Dashboard", "chart.bar.xaxis")
         case .chat:
             let chats = model.chats
@@ -108,7 +105,7 @@ extension HelpersView {
         if model.helpers.isCreatingManager { return ("New manager", "person.3") }
         if model.helpers.openJobId != nil { return ("Task", "text.page") }
         if let manager = model.helpers.selectedManager { return ("\(manager.name) · Manager", "person.3") }
-        if model.helpers.showsBoard { return ("Board", "square.grid.2x2") }
+        if model.helpers.showsBoard { return (model.boardView == .overview ? "Board · Overview" : "Board", "square.grid.2x2") }
         if let helper = model.helpers.selectedHelper {
             return (helper.roleTitle.isEmpty ? helper.name : "\(helper.name) · \(helper.roleTitle)", "person.crop.circle")
         }
@@ -146,10 +143,6 @@ private struct HelperSidebar: View {
             if !model.searchQuery.isEmpty {
                 SidebarSearchResults(model: model)
             } else {
-            Button { model.navigate { model.windowPage = .overview } } label: {
-                SidebarRow(symbol: "gauge.with.dots.needle.33percent", title: "Overview", detail: nil, selected: model.windowPage == .overview)
-            }
-            .buttonStyle(.plain)
             Button { model.navigate { model.windowPage = .dashboard } } label: {
                 let today = model.helpers.list?.usage?.today.total ?? 0
                 SidebarRow(symbol: "chart.bar.xaxis", title: "Dashboard", detail: today == 0 ? nil : "\(TokenTotals.short(today)) tokens today", selected: model.windowPage == .dashboard)

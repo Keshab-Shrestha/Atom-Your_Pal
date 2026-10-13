@@ -12,10 +12,7 @@ struct OverviewPane: View {
         let overview = list.map { TeamOverview(list: $0) }
         Scrollable {
             VStack(alignment: .leading, spacing: 22) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Overview").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
-                    Text("What the team is doing, how far it has got, and what came in.").font(.system(size: 12)).foregroundStyle(theme.text2.color)
-                }
+                Text("What the team is doing, how far it has got, and what came in.").font(.system(size: 12)).foregroundStyle(theme.text2.color)
                 if let overview {
                     HStack(spacing: 10) {
                         StatTile(value: overview.running, label: "Running", dot: theme.live.color)

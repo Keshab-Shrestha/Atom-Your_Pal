@@ -53,8 +53,8 @@ final class IslandModel {
     var tab = Tab.conversation
     /// ADR-089: the page the ATOM window shows.
     var windowPage = WindowPage.chat
-    /// ADR-090: the Board shows the office floor (else the columns).
-    var boardFloor = true
+    /// ADR-090: what the Board shows: Overview, the office floor or the columns.
+    var boardView = BoardView.floor
     /// ADR-098: the Board shows only the tasks with this label (nil: all).
     var boardLabel: String?
     /// ADR-098: the sidebar's search: the words typed, the answer to them, and a request to focus the field (⌘F).
@@ -192,7 +192,7 @@ final class IslandModel {
     // MARK: ADR-096: Back, and leaving unsaved edits
 
     /// Where the window is now, as one step of its history.
-    var location: WindowLocation { WindowLocation(page: windowPage, helpers: helpers, allAgents: showsAllAgents) }
+    var location: WindowLocation { WindowLocation(page: windowPage, helpers: helpers, allAgents: showsAllAgents, boardView: boardView) }
     /// The steps Back returns to.
     private(set) var history = WindowHistory()
     /// The step last recorded: a change from it is Keshab's next step.
@@ -213,6 +213,7 @@ final class IslandModel {
             guard let target = history.back(where: { $0 != current && $0.isValid(in: helpers.list) }) else { return }
             windowPage = target.page
             showsAllAgents = target.allAgents
+            boardView = target.boardView
             if target.page == .agents { sendHelpers(helpers.show(target)) }
             lastLocation = location // a Back is not a new step
         }

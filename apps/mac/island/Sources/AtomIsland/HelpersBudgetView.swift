@@ -41,11 +41,18 @@ struct TeamBudgets: View {
     let planLimit: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                CapMenu(label: "Team budget", cap: team.cap, help: "The whole team's daily budget") { model.sendHelpers(model.helpers.setTeamBudget($0)) }
-                BudgetLine(budget: team, over: "Every worker waits until tomorrow or a higher cap.")
-            }
+        // One line: the full labels when they fit, else short ones (the long detail stays in the tooltips).
+        ViewThatFits(in: .horizontal) {
+            row(budgetLabel: "Team budget", planLabel: "Plan limit", planValue: planLimit >= 100 ? "Never wait" : "\(planLimit)% of 5 hours")
+            row(budgetLabel: "Budget", planLabel: "Plan", planValue: planLimit >= 100 ? "No wait" : "\(planLimit)%")
+        }
+    }
+
+    private func row(budgetLabel: String, planLabel: String, planValue: String) -> some View {
+        HStack(spacing: 10) {
+            CapMenu(label: budgetLabel, cap: team.cap, help: "The whole team's daily budget") { model.sendHelpers(model.helpers.setTeamBudget($0)) }
+            BudgetLine(budget: team, over: "Every worker waits until tomorrow or a higher cap.", oneLine: true)
+            Spacer(minLength: 0)
             Menu {
                 ForEach([50, 60, 70, 80, 90, 100], id: \.self) { percent in
                     Button { model.sendHelpers(model.helpers.setPlanLimit(percent)) } label: {
@@ -54,11 +61,13 @@ struct TeamBudgets: View {
                     }
                 }
             } label: {
-                PillMenuLabel(label: "Plan limit", value: planLimit >= 100 ? "Never wait" : "\(planLimit)% of 5 hours", identifier: false)
+                PillMenuLabel(label: planLabel, value: planValue, identifier: false)
             }
             .menuStyle(.button).buttonStyle(.plain).fixedSize()
-            .help("New runs wait while your Claude plan's five-hour window is used above this")
+            .help("New runs wait while your Claude plan's five-hour window is used above this (now \(planLimit >= 100 ? "never" : "\(planLimit)%"))")
+            .accessibilityLabel("Plan limit, \(planLimit >= 100 ? "never wait" : "\(planLimit) percent of five hours")")
         }
+        .lineLimit(1)
     }
 }
 
@@ -89,14 +98,24 @@ private struct CapMenu: View {
 private struct BudgetLine: View {
     let budget: HelperBudget
     let over: String
+    var oneLine = false
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
+        let note = budget.isOver ? over : budget.isNear ? "80% used" : nil
+        if oneLine {
+            // The note joins the tooltip; the figure keeps its colour.
             Text(budget.line).font(theme.idFont(.system(size: 11.5), size: 11))
-                .foregroundStyle(budget.isOver || budget.isNear ? theme.attention.color : theme.text2.color)
-            if budget.isOver { Text(over).font(.system(size: 10.5)).foregroundStyle(theme.text3.color) }
-            else if budget.isNear { Text("80% used").font(.system(size: 10.5)).foregroundStyle(theme.text3.color) }
+                .foregroundStyle(note != nil ? theme.attention.color : theme.text2.color)
+                .lineLimit(1).truncationMode(.tail)
+                .help(note.map { "\(budget.line). \($0)" } ?? budget.line)
+                .accessibilityLabel(note.map { "\(budget.line). \($0)" } ?? budget.line)
+        } else {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(budget.line).font(theme.idFont(.system(size: 11.5), size: 11))
+                    .foregroundStyle(note != nil ? theme.attention.color : theme.text2.color)
+                if let note { Text(note).font(.system(size: 10.5)).foregroundStyle(theme.text3.color) }
+            }
         }
     }
 }

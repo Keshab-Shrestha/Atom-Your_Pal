@@ -165,7 +165,8 @@ enum IslandGallery {
         let setting = model(theme)
         setting.windowPage = .settings
         let overviewing = model(theme)
-        overviewing.windowPage = .overview
+        overviewing.helpers.selectBoard()
+        overviewing.boardView = .overview
         let inboxing = model(theme, failed: true)
         inboxing.windowPage = .inbox
         let plugging = model(theme)

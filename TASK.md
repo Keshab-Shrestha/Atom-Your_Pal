@@ -1458,3 +1458,7 @@ Pal and the office floor are now smooth vector art (`PalDrawing`, `OfficeDrawing
 ## ADR-106 — One turn, then idle (2026-10-13)
 
 ATOM no longer listens again after a reply. "Answer without keys" is off by default. A typed turn never opens the microphone. A Quiet chat does not speak the reply to a typed message. Keshab: check by hand with the running app.
+
+## Overview inside Board; budget on one line (2026-10-13)
+
+Overview is no longer a sidebar page. It is the first view of the Board: Overview, Floor, Columns. The Board keeps Floor as its first view. Back steps include the Board view. The budget row shows on one line and uses short labels when the window is narrow. Swift tests: 537 pass. Keshab: check by hand with the running app.

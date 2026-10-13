@@ -53,14 +53,31 @@ struct BoardPane: View {
             let items = label.map { l in group.items.filter { $0.job.labels.contains(l) } } ?? group.items
             return items.isEmpty ? nil : (group.column, items)
         }
+        VStack(alignment: .leading, spacing: 0) {
+        // The Board's switch stays above the page: Overview, Floor, Columns (Overview moved here from the sidebar).
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Board").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                Text("Every worker's tasks. A task that waits for another starts when that one is done.")
+                    .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+            }
+            HStack(spacing: 6) {
+                ViewChoice(title: "Overview", symbol: "gauge.with.dots.needle.33percent", selected: model.boardView == .overview) { model.boardView = .overview }
+                ViewChoice(title: "Floor", symbol: "person.3", selected: model.boardView == .floor) { model.boardView = .floor }
+                ViewChoice(title: "Columns", symbol: "rectangle.split.3x1", selected: model.boardView == .columns) { model.boardView = .columns }
+                Spacer(minLength: 0)
+                if model.boardView != .overview { BoardLabelMenu(model: model) }
+            }
+        }
+        .padding(.horizontal, Spacing.panel)
+        .padding(.top, 28)
+        .padding(.bottom, 12)
+        if model.boardView == .overview {
+            OverviewPane(model: model)
+        } else {
         GeometryReader { viewport in
         Scrollable {
             VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Board").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
-                    Text("Every worker's tasks. A task that waits for another starts when that one is done.")
-                        .font(.system(size: 12)).foregroundStyle(theme.text2.color)
-                }
                 // ADR-091: the team lives here now (the sidebar lists chats): each opens its page.
                 TeamChips(model: model)
                 // ADR-093: an agent whose soul.md is broken is missing from the team; say which and why.
@@ -73,15 +90,8 @@ struct BoardPane: View {
                 if let list = model.helpers.list, let team = list.team, let limit = list.planLimit {
                     TeamBudgets(model: model, team: team, planLimit: limit)
                 }
-                // ADR-090: the office floor, or the columns.
-                HStack(spacing: 6) {
-                    ViewChoice(title: "Floor", symbol: "person.3", selected: model.boardFloor) { model.boardFloor = true }
-                    ViewChoice(title: "Columns", symbol: "rectangle.split.3x1", selected: !model.boardFloor) { model.boardFloor = false }
-                    Spacer(minLength: 0)
-                    BoardLabelMenu(model: model)
-                }
                 // ADR-091: the floor keeps its shape and fits the Board's width and the window's height.
-                if model.boardFloor {
+                if model.boardView == .floor {
                     OfficeFloor(model: model).frame(maxHeight: max(220, viewport.size.height - 48)).frame(maxWidth: .infinity)
                 }
                 if board.isEmpty, label != nil {
@@ -92,7 +102,7 @@ struct BoardPane: View {
                 // ADR-094: tasks posted to the team, waiting for a worker to wake up and take them.
                 if let tasks = model.helpers.list?.teamTasks, !tasks.isEmpty { TeamTasksSection(model: model, tasks: tasks) }
                 if let tasks = model.helpers.list?.paperclip { PaperclipSection(tasks: tasks) }
-                ForEach(model.boardFloor ? [] : board, id: \.column) { group in
+                ForEach(model.boardView == .floor ? [] : board, id: \.column) { group in
                     VStack(alignment: .leading, spacing: 8) {
                         Text("\(group.column.title) · \(group.items.count)")
                             .font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
@@ -101,8 +111,10 @@ struct BoardPane: View {
                 }
             }
             .padding(.horizontal, Spacing.panel)
-            .padding(.top, 28)
+            .padding(.top, 6)
             .padding(.bottom, Spacing.panel)
+        }
+        }
         }
         }
         // ADR-094: "All agents", over the Board, from its chip or a "+N" sign on the floor.

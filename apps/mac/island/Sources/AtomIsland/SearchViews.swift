@@ -189,7 +189,7 @@ struct BoardLabelMenu: View {
                 ForEach(labels, id: \.self) { label in
                     Button(label) {
                         model.boardLabel = label
-                        model.boardFloor = false // the floor shows people, not tasks: the columns show the filter
+                        model.boardView = .columns // the floor shows people, not tasks: the columns show the filter
                     }
                 }
             } label: {
