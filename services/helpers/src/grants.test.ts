@@ -104,7 +104,7 @@ test("a file worker without a folder is offered the one its task names, inside t
   assert.equal(folderForTask("a folder named Reports in Documents", home), "/Users/me/Documents/Reports");
   // Never the home folder, ~/Library, a hidden folder or somewhere else: then ~/Documents/ATOM.
   for (const task of ["Save it to ~/", "Save it in ~/Library/Prefs", "Save to ~/.ssh/x", "Save to /etc/hosts", "a folder named ../../etc", "Write a file"]) {
-    assert.equal(folderForTask(task, home), "/Users/me/Documents/ZENO", task);
+    assert.equal(folderForTask(task, home), "/Users/me/Documents/ATOM", task);
   }
   assert.ok(wantsFiles(quill) && wantsFiles("write it to a markdown file") && !wantsFiles("Summarise the news about IPv6"));
 });

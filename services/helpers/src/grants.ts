@@ -64,7 +64,7 @@ export const wantsFiles = (task: string) => SAVES_FILES.test(task);
  * else in the home folder), or ~/Documents/ATOM. Never the home folder itself, ~/Library or a hidden folder.
  */
 export function folderForTask(task: string, home: string): string {
-  const fallback = join(home, "Documents", "ZENO");
+  const fallback = join(home, "Documents", "ATOM");
   const allowed = (p: string) => {
     const real = resolve(p);
     if (!isInside(home, real) || real === resolve(home)) return false;
