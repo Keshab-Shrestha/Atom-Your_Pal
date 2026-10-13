@@ -1503,3 +1503,9 @@ The Dashboard shows input + output as the main number. Cache written and cache r
 ## Notes on the small model (2026-10-13)
 
 The conversation note (ADR-108) runs on the small model of the Claude plan (Haiku), not on the model of the chat. It uses the same tier lookup as the chat digest (`modelForTier(planModels(), "small")`). On another provider the chat's own model still writes it. Test: `notes.test.ts`.
+
+## Results come back into the chat (ADR-109, 2026-10-13)
+
+A finished goal posts its result into the chat that asked, as one typed assistant turn (`apps/mac/src/goal-post.ts`). The goal keeps `chat_posted_at`, so it posts once, also after a restart. An open chat shows the turn at once: the runtime calls `IslandChats.onPosted`, and the island sends `chat.opened` again. The Conversation view shows an answer with no question before it. In a project chat, `delegate` sends a named worker without a grant for the project folder to the project's Agent.
+
+Next: Keshab checks by hand that a goal from a window chat shows its result in that chat, also in a project chat.

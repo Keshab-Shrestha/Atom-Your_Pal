@@ -2464,3 +2464,25 @@ The offer to remember a fact (ADR-058) is not part of the note request. It is in
 - The note of a chat is missing from the next chat's context while the first chat is still within its quiet time and the user has not left it. Opening or starting a chat flushes the note first, so this case is rare. If the app crashes, the notes that wait are lost. A normal quit writes them.
 - To restore per-reply notes, set `ATOM_NOTE_QUIET_MS=0`.
 - Update 2026-10-13: Keshab approved the small model. On the Claude plan the note runs on the small model (Haiku), the same one the chat digest uses, whatever model the chat has. On another provider the chat's own model writes the note. Code: `createNoteModel` in `apps/mac/src/notes.ts`.
+
+## ADR-109 — Results come back into the chat that asked (2026-10-13)
+
+### Context
+
+Keshab asked ATOM in a chat to check the storage of a folder. ATOM gave the work to Kame. The job finished, but nothing came into the chat. Keshab had to open Board > Kame > task to read the result. A second problem: the chat was a project chat, and ATOM sent the work to Kame, not to the project's Agent.
+
+### Decision
+
+1. When a goal ends, ATOM posts its result into the chat named by `goal.source`. The post is one assistant turn in the stored chat. It is typed text only. ATOM does not speak it and does not call a model: the text comes from the store.
+2. The text starts with "<Workers> finished: <goal title>". Then it gives the report summary and body, cut at 1500 characters with "…" and "Full report: Board > <worker> > #<task>". A goal with no finished task says "<Workers> could not finish: <goal>", gives the reason of each failed task, and says how to retry.
+3. A source that is empty, `telegram`, `api` or `api-*` is not posted. Those surfaces have their own push.
+4. One post for each goal. The goal has `chat_posted_at`. A goal that ended before this change counts as posted. A goal that ended while ATOM was closed posts at the next start. A deleted chat gets no post, and its goal is marked.
+5. The window Core keeps a window of turns and saves it after each exchange. So when the chat is the Core's current chat, the runtime gives the Core the new turn first (`resume`) and saves second. If the Core is answering, the post waits (every 5 seconds, up to 5 minutes; then it waits for the next start). A project chat keeps its 2000-turn cap.
+6. An open chat shows the post at once. The runtime tells the island (`IslandChats.onPosted`). The island sends `chat.opened` again for that chat. No new protocol event. The Conversation view shows an answer with no question before it.
+7. Delegation in a project chat: a task that names a worker with no grant for the project folder goes to the project's Agent. Before, only a task with no worker went to the Agent, and the model could name Kame. The goal in the report had the project id, so the project code was active: the model named Kame.
+
+### Consequences
+
+- The posted turn follows another assistant turn. The model sees two answers in a row. The chat's Claude Code session may start again, because the last answer changed.
+- A long report is cut in the chat. The full report stays on the Board.
+- A new stored column: `goals.chat_posted_at`.

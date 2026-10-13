@@ -259,6 +259,7 @@ Events.
 - `chats` also has `currentProjectId` when the chat in use belongs to a project. This includes a new project chat that is not saved yet.
 - `conversation.reset` has `projectId` when it follows `chat.new` with a project.
 - `chat.opened` has `projectId` for a project chat. It has `trimmed: true` when the runtime gave the model only the newest 20 turns of a long chat. `messages` always holds every turn. Show a quiet notice, for example "Older turns are summarised".
+- The runtime also sends `chat.opened` again for the open chat when a goal posts its result into it (ADR-109). `messages` then ends with an assistant turn that has no user turn before it. Replace the shown turns. Show that turn as an answer without a question.
 - The chat's model: the chat's own model wins, then the project's model, then the global model. `currentProvider` and `currentModel` show the one in use.
 - A project chat on a model that is not a Claude plan model gets an `error` (stage `model`): "Projects need the Claude plan".
 
