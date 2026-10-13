@@ -71,6 +71,7 @@ import { listSkills, userSkillsDir } from "./skills.ts";
 import { NOT_RUN_PLAN_LIMIT, runTestCases } from "./test-runs.ts";
 import { createEmbedder } from "./embedder.ts";
 import { createKeptChats } from "./kept-chats.ts";
+import { startGoalPosts } from "./goal-post.ts";
 import { createProjects } from "./projects-wiring.ts";
 import { createRunOne } from "./run-job.ts";
 import { createIslandGit, withPaperclip } from "./island-wiring.ts";
@@ -225,6 +226,8 @@ export function createRuntime(
   };
   // ADR-091: Keshab's chat sessions: saved after every exchange, listed, opened and deleted from the ATOM window.
   const chatListeners = new Set<() => void>();
+  // ADR-109: a goal's result was posted into a chat; the window refreshes that chat if it is open.
+  const postedListeners = new Set<(chatId: string) => void>();
   // ADR-097: a model chosen for a chat that is not saved yet; it goes into the chat's row at its first save.
   const unsavedChatModels = new Map<string, LlmChoice>();
   // ADR-098 item 9: each chat's Claude Code session. A chat's first answer comes before its first save, so its session
@@ -282,6 +285,10 @@ export function createRuntime(
     onChange: (listener) => {
       chatListeners.add(listener);
       return () => chatListeners.delete(listener);
+    },
+    onPosted: (listener) => {
+      postedListeners.add(listener);
+      return () => postedListeners.delete(listener);
     },
   };
   const helpersPath = options.helpersPath ?? readEnv(process.env, "ATOM_HELPERS_FILE") ?? "data/helpers.db";
@@ -740,6 +747,21 @@ export function createRuntime(
       },
       onFallback: (e) => log.warn("goal.report_fallback", e),
     });
+  // ADR-109: a finished goal's result comes back into the chat that asked (a window chat), as one typed assistant turn.
+  const stopGoalPosts =
+    helpers &&
+    memory &&
+    startGoalPosts({
+      helpers,
+      chats: memory.chats,
+      currentChat: () => core.sessionId,
+      resume: (id, turns) => core.resume(id, turns),
+      posted: (chatId) => {
+        for (const listener of postedListeners) listener(chatId);
+        for (const listener of chatListeners) listener();
+      },
+      log,
+    });
   const tts = createSpeaker(createKokoroSynthesizer({ voice: config.tts.voice, dtype: config.tts.dtype }));
   // ADR-098: ATOM's own Telegram bot, only when both .env values are set. Its turns go to a Core of their own, saved as
   // the chat "Telegram". The token and the messages are never logged.
@@ -841,6 +863,7 @@ export function createRuntime(
       telegram?.stop();
       api?.stop();
       stopGoals?.();
+      stopGoalPosts?.();
       runner?.close();
       void decisions.close();
     },

@@ -1776,3 +1776,39 @@ test("chat.rename: renames a chat the window writes; Telegram and API chats refu
   await h.send({ type: "chat.rename", id: "ghost", title: "x" });
   assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: "That chat is not saved yet." }]);
 });
+
+// ADR-109: a goal's result posted into the chat that is open is shown without reopening it.
+test("a result posted into the open chat re-sends chat.opened; a chat that is not open sends nothing", async () => {
+  const saved = new Map([["chat-a", [{ role: "user" as const, content: "check" }, { role: "assistant" as const, content: "on it" }]]]);
+  let listener: ((id: string) => void) | undefined;
+  const resumed: string[] = [];
+  const h = islandHarness({
+    core: {
+      handle: async () => ({ text: "x" }),
+      reset: () => {},
+      resume: (id) => void resumed.push(id),
+      get sessionId() {
+        return "chat-a";
+      },
+    },
+    chats: {
+      list: () => [],
+      messages: (id) => saved.get(id) ?? [],
+      remove: () => true,
+      onChange: () => () => {},
+      onPosted: (l) => ((listener = l), () => {}),
+    },
+  });
+  await tick(5);
+  h.clear();
+  saved.get("chat-a")!.push({ role: "assistant", content: "Kame finished: storage" });
+  listener!("chat-other");
+  assert.deepEqual(h.events(), []);
+  listener!("chat-a");
+  assert.deepEqual(h.events()[0], {
+    type: "chat.opened",
+    id: "chat-a",
+    messages: [{ role: "user", text: "check" }, { role: "assistant", text: "on it" }, { role: "assistant", text: "Kame finished: storage" }],
+  });
+  assert.deepEqual(resumed, [], "the runtime already gave the Core the turn");
+});

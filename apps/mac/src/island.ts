@@ -148,6 +148,8 @@ export interface IslandChats {
   replay?(id: string, turns: Message[]): { turns: Message[]; trimmed: boolean };
   /** Called after a chat is saved. Returns an unsubscribe. */
   onChange(listener: () => void): () => void;
+  /** ADR-109: called with the chat id after a goal's result was posted into it. Returns an unsubscribe. */
+  onPosted?(listener: (chatId: string) => void): () => void;
 }
 
 /** ADR-107: the result of a project command: done, or why not in words for Keshab. */
@@ -489,14 +491,7 @@ export function runIsland(options: IslandOptions): IslandSession {
         options.screen?.clear();
         const replay = chats.replay?.(command.id, turns) ?? { turns, trimmed: false }; // ADR-107: a long project chat is replayed capped
         core.resume(command.id, replay.turns);
-        const projectId = chats.projectOf?.(command.id);
-        send({
-          type: "chat.opened",
-          id: command.id,
-          messages: turns.map((m) => ({ role: m.role as "user" | "assistant", text: m.content })),
-          ...(projectId ? { projectId } : {}),
-          ...(replay.trimmed ? { trimmed: true as const } : {}),
-        });
+        sendOpened(command.id, turns, replay.trimmed);
         sendChats();
         return;
       }
@@ -974,6 +969,23 @@ export function runIsland(options: IslandOptions): IslandSession {
   const stopChatUpdates = options.chats?.onChange(() => {
     if (chatsWatched) sendChats();
   });
+  /** ADR-091: shows a saved chat's turns in the window. */
+  function sendOpened(id: string, turns: readonly Message[], trimmed: boolean) {
+    const projectId = options.chats?.projectOf?.(id);
+    send({
+      type: "chat.opened",
+      id,
+      messages: turns.map((m) => ({ role: m.role as "user" | "assistant", text: m.content })),
+      ...(projectId ? { projectId } : {}),
+      ...(trimmed ? { trimmed: true as const } : {}),
+    });
+  }
+  // ADR-109: a goal's result was posted into a chat. If that chat is open, show it now (the Core already has the turn).
+  const stopPosted = options.chats?.onPosted?.((chatId) => {
+    if (chatId !== core.sessionId) return;
+    const turns = options.chats?.messages(chatId) ?? [];
+    sendOpened(chatId, turns, options.chats?.replay?.(chatId, [...turns]).trimmed ?? false);
+  });
 
   // ADR-061: a timer ended. Shown at once; spoken now if ATOM is idle, else as soon as it is. Task 3.5: a goal's line
   // waits its turn the same way.
@@ -1054,6 +1066,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     quitting = true;
     stopMemoryUpdates?.();
     stopChatUpdates?.();
+    stopPosted?.();
     stopHelperUpdates?.();
     stopPlanUsage?.();
     stopTimers?.();

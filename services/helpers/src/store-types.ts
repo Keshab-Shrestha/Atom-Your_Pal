@@ -137,6 +137,8 @@ export interface Goal {
   report?: GoalReport;
   /** The chat that made the goal ("telegram", "api", a window chat id). Absent for goals from before this field. */
   source?: string;
+  /** ADR-109: set once its result was posted into that chat (or skipped). */
+  chatPostedAt?: Date;
   /** ADR-107: the project of the chat that made the goal. Absent for a plain chat. */
   projectId?: string;
 }

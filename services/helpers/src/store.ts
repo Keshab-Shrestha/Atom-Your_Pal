@@ -1278,7 +1278,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     },
 
     goal(id) {
-      const row = goalRow.get(id) as { id: number; text: string; created_at: string; ended_at: string | null; report: string | null; source: string | null; project_id: string | null } | undefined;
+      const row = goalRow.get(id) as { id: number; text: string; created_at: string; ended_at: string | null; report: string | null; source: string | null; project_id: string | null; chat_posted_at: string | null } | undefined;
       if (!row) return undefined;
       return {
         id: row.id,
@@ -1289,6 +1289,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         ...(row.report ? { report: JSON.parse(row.report) as GoalReport } : {}),
         ...(row.source ? { source: row.source } : {}),
         ...(row.project_id ? { projectId: row.project_id } : {}),
+        ...(row.chat_posted_at ? { chatPostedAt: new Date(row.chat_posted_at) } : {}),
       };
     },
 
