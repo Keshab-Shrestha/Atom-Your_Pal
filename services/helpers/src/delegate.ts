@@ -14,7 +14,7 @@ const DESCRIPTION =
   `tasks: ${TASK_INPUT}. worker: a worker's name from "Your team" in the context, or the name of a manager that plans ` +
   "and reviews (it splits that part across its agents itself). task: exactly what to find or write " +
   "and what to deliver. after (optional): the positions (1 = the first task) of earlier tasks whose reports this one " +
-  "needs; it starts when they are done. When it returns, tell the user in one short sentence who is on it. The result comes later.";
+  "needs; it starts when they are done. In a project chat, leave worker out: the project's Agent takes the task. When it returns, tell the user in one short sentence who is on it. The result comes later.";
 
 /** A worker by its current name or its id, ignoring case. */
 function byName(workers: readonly HelperView[], name: string): HelperView | undefined {
@@ -54,10 +54,11 @@ export function readParts(tasks: unknown, workers: readonly HelperView[], manage
 }
 
 /** A task with no worker named (or a blank one) gets `helper`. Anything that is not an object is left for readParts to refuse. */
-function withWorker(task: unknown, helper: string): unknown {
+function withWorker(task: unknown, helper: string, allowed: (name: string) => boolean): unknown {
   if (!task || typeof task !== "object") return task;
   const t = task as Record<string, unknown>;
-  return t.worker === undefined || (typeof t.worker === "string" && !t.worker.trim()) ? { ...t, worker: helper } : task;
+  const blank = t.worker === undefined || (typeof t.worker === "string" && !t.worker.trim());
+  return blank || (typeof t.worker === "string" && !allowed(t.worker)) ? { ...t, worker: helper } : task;
 }
 
 export interface DelegateToolOptions {
@@ -68,9 +69,10 @@ export interface DelegateToolOptions {
   source?(): string | undefined;
   /**
    * ADR-107: the project of that chat, read at each call. The goal keeps its id; a task with no worker named goes to the
-   * project's Agent (`helper`). A project with no Agent gives no default.
+   * project's Agent (`helper`). A project with no Agent gives no default. A task that names a worker with no grant for the
+   * project's `folder` goes to the Agent too: the model cannot send a project's work elsewhere.
    */
-  project?(): { id: string; helper?: string } | undefined;
+  project?(): { id: string; helper?: string; folder?: string } | undefined;
 }
 
 /** The `delegate` tool (a Tool for the tool engine, by shape). */
@@ -93,7 +95,8 @@ export function createDelegateTool(options: DelegateToolOptions) {
     run(input: Record<string, unknown>): string {
       const workers = store.list();
       const project = options.project?.();
-      const tasks = project?.helper && Array.isArray(input.tasks) ? input.tasks.map((t: unknown) => withWorker(t, project.helper!)) : input.tasks;
+      const allowed = (name: string) => Boolean(project?.folder && byName(workers, name)?.grants.includes(project.folder));
+      const tasks = project?.helper && Array.isArray(input.tasks) ? input.tasks.map((t: unknown) => withWorker(t, project.helper!, allowed)) : input.tasks;
       const goal = store.addGoal(String(input.goal ?? ""), readParts(tasks, workers, store.managers()), options.source?.(), project?.id);
       options.onDelegated?.({ goal: goal.id, tasks: goal.tasks.length });
       const nameOf = (helper: string) => store.soul(helper).name; // a worker's or a Manager's

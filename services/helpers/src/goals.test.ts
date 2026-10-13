@@ -289,7 +289,7 @@ test("a project chat's delegation defaults to the project's Agent and records th
   const tool = createDelegateTool({ store, source: () => "chat-1", project: () => project });
   tool.run({ goal: "fix it", tasks: [{ task: "Fix the login bug" }, { worker: "sid", task: "Research", after: [] }, { worker: " ", task: "Test" }] });
   const goal = store.goal(1)!;
-  assert.deepEqual(goal.tasks.map((t) => t.helper), ["kame", "sid", "kame"]);
+  assert.deepEqual(goal.tasks.map((t) => t.helper), ["kame", "kame", "kame"], "a named worker with no grant for the project folder is replaced by the project's Agent");
   assert.equal(goal.projectId, "p-1");
   project = undefined;
   assert.throws(() => tool.run({ goal: "g", tasks: [{ task: "x" }] }), /Task 1 needs a worker and a task/, "a plain chat still needs a worker");
