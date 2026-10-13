@@ -204,6 +204,15 @@ enum IslandGallery {
         let dashing = model(theme)
         dashing.windowPage = .dashboard
         dashing.planUsage = PlanUsage(fiveHour: 0.62, sevenDay: 0.31)
+        // Token cost, job 4: input + output first, the cache counts apart, and the newest calls with their split.
+        let day = { (back: Int, io: (Int, Int), write: Int, read: Int) -> String in
+            let d = Calendar.current.date(byAdding: .day, value: -back, to: Date())!
+            let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+            return #"{"day":"\#(f.string(from: d))","input":\#(io.0),"output":\#(io.1),"cacheRead":\#(read),"cacheWrite":\#(write),"dollars":0.4,"runs":6}"#
+        }
+        let days = (0..<7).reversed().map { day($0, (2400 + $0 * 310, 900 + $0 * 120), 38_000 + $0 * 2_000, 190_000 + $0 * 9_000) }.joined(separator: ",")
+        let usageJSON = #"{"type":"helpers","apps":[],"usage":{"today":{"input":2400,"output":900,"cacheRead":190000,"cacheWrite":38000,"dollars":0.42,"runs":6},"week":{"input":19000,"output":7600,"cacheRead":1400000,"cacheWrite":290000,"dollars":3.1,"runs":41},"days":[\#(days)],"byWorker":[{"helper":null,"name":"ATOM chat","input":9000,"output":4000,"cacheRead":900000,"cacheWrite":180000,"dollars":1.9,"runs":30},{"helper":"sid","name":"Sid","input":10000,"output":3600,"cacheRead":500000,"cacheWrite":110000,"dollars":1.2,"runs":11}],"byModel":[{"model":"claude-opus-5-5","input":9000,"output":4000,"cacheRead":900000,"cacheWrite":180000,"dollars":1.9,"runs":30},{"model":"claude-haiku-4-5-20251001","input":10000,"output":3600,"cacheRead":500000,"cacheWrite":110000,"dollars":1.2,"runs":11}],"chatCacheCold":false,"recent":[{"at":"2026-10-13T00:41:30.355Z","kind":"note","model":"claude-haiku-4-5-20251001","input":796,"output":5,"cacheRead":0,"cacheWrite":0,"gapMs":3100},{"at":"2026-10-13T00:41:27.248Z","kind":"turn","model":"claude-haiku-4-5-20251001","input":18,"output":414,"cacheRead":30109,"cacheWrite":12874,"gapMs":42000},{"at":"2026-10-12T23:13:40.905Z","kind":"turn","model":"claude-haiku-4-5-20251001","input":3,"output":15,"cacheRead":0,"cacheWrite":6149}]},"helpers":[]}"#
+        if let e = try? decodeEvent(usageJSON) { dashing.apply(e) } else { FileHandle.standardError.write(Data("gallery: could not decode the dashboard usage\n".utf8)) }
         dashing.helpers.apply(.git([GitBranch(repo: "/Users/k/Developer/site", repoName: "site", branch: "zeno/task-12", task: 12, title: "Add a dark mode toggle",
                                               base: "origin/main", commits: [GitCommit(sha: "3f9c2a1", subject: "ATOM task 12: Add a dark mode toggle", at: nil)],
                                               files: [GitFile(path: "src/theme.css", added: 42, removed: 3), GitFile(path: "src/App.tsx", added: 18, removed: 6)],

@@ -29,6 +29,20 @@ export interface UsageTotals extends TokenCounts {
   runs: number;
 }
 
+/** Job 4 (token cost): one recent call, for the Dashboard's list of turns. Counts and a model id only, never text. */
+export interface RecentRun extends TokenCounts {
+  /** ISO time the call ended. */
+  at: string;
+  /** "turn": a chat answer; "note": the conversation note; "job": a worker's run. */
+  kind: "turn" | "note" | "job";
+  model: string;
+  /** Milliseconds since the last call of the same chat and model; absent for the first. */
+  gapMs?: number;
+}
+
+/** How many recent calls the summary lists. */
+export const RECENT_RUNS = 8;
+
 export interface UsageSummary {
   today: UsageTotals;
   week: UsageTotals;
@@ -40,6 +54,8 @@ export interface UsageSummary {
   byModel: (UsageTotals & { model: string })[];
   /** ADR-098 item 9: ATOM's last chat answers read nothing from the prompt cache. */
   chatCacheCold: boolean;
+  /** Job 4: the newest calls, newest first. */
+  recent: RecentRun[];
 }
 
 /** ADR-098 item 9: how many of the newest chat answers must all miss the cache for "Cache went cold". */
@@ -96,6 +112,7 @@ export function usageTable(db: DatabaseSync, now: () => Date = () => new Date())
   const lastCallAt = new Map<string, number>();
   const prune = db.prepare("DELETE FROM usage WHERE at < ?");
   const lastChats = db.prepare("SELECT cache_read FROM usage WHERE source = 'chat' ORDER BY id DESC LIMIT ?");
+  const newest = db.prepare("SELECT at, source, helper, model, input, output, cache_read, cache_write, gap_ms FROM usage ORDER BY id DESC LIMIT ?");
   const since = db.prepare("SELECT at, helper, source, model, input, output, cache_read, cache_write, dollars FROM usage WHERE at >= ? ORDER BY at");
 
   return {
@@ -151,6 +168,16 @@ export function usageTable(db: DatabaseSync, now: () => Date = () => new Date())
         days,
         byWorker: [...workers.values()].sort(most),
         byModel: [...models.values()].sort(most),
+        recent: (newest.all(RECENT_RUNS) as Record<string, unknown>[]).map((r) => ({
+          at: String(r.at),
+          kind: r.source === "job" ? ("job" as const) : r.helper === "note" ? ("note" as const) : ("turn" as const),
+          model: String(r.model),
+          input: Number(r.input),
+          output: Number(r.output),
+          cacheRead: Number(r.cache_read),
+          cacheWrite: Number(r.cache_write),
+          ...(typeof r.gap_ms === "number" ? { gapMs: r.gap_ms } : {}),
+        })),
         chatCacheCold: (() => {
           const last = lastChats.all(COLD_CACHE_RUNS) as { cache_read: number }[];
           return last.length === COLD_CACHE_RUNS && last.every((r) => Number(r.cache_read) === 0);

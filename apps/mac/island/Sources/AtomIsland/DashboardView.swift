@@ -18,16 +18,30 @@ struct DashboardPane: View {
                         .font(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
                 if let usage {
+                    // Token cost, job 4: what you typed and ATOM answered is the main number; the cache counts are apart.
                     HStack(spacing: 10) {
-                        TokenTile(value: TokenTotals.short(usage.today.total), label: "Tokens today", detail: "\(TokenTotals.short(usage.today.fresh)) new · \(TokenTotals.short(usage.today.cacheRead)) cached")
-                        TokenTile(value: TokenTotals.short(usage.week.total), label: "Last 7 days", detail: "\(usage.week.runs) runs")
+                        TokenTile(value: TokenTotals.short(usage.today.io), label: "Input + output today", detail: "\(usage.today.runs) runs")
+                        TokenTile(value: TokenTotals.short(usage.week.io), label: "Input + output, 7 days", detail: "\(usage.week.runs) runs")
                         TokenTile(value: String(format: "$%.2f", usage.week.dollars), label: "API-equivalent, 7 days", detail: String(format: "$%.2f today", usage.today.dollars))
                         // ADR-098 item 9: how much of the prompt came back from the cache.
                         TokenTile(value: usage.week.cacheHitText, label: "Cache hits, 7 days", detail: "\(usage.today.cacheHitText) today")
                     }
+                    HStack(spacing: 10) {
+                        TokenTile(value: TokenTotals.short(usage.week.cacheWrite), label: "Cache written, 7 days", detail: "\(TokenTotals.short(usage.today.cacheWrite)) today", small: true)
+                        TokenTile(value: TokenTotals.short(usage.week.cacheRead), label: "Cache read, 7 days", detail: "\(TokenTotals.short(usage.today.cacheRead)) today", small: true)
+                    }
+                    Text(Self.cacheHelp).font(.system(size: 11)).foregroundStyle(theme.text3.color).padding(.leading, 4)
                     if usage.chatCacheCold {
                         Text("Cache went cold: ATOM's last \(Self.coldRuns) chat answers read nothing from the cache, so each one sent its whole prompt again.")
                             .font(.system(size: 11.5)).foregroundStyle(theme.text2.color).padding(.leading, 4)
+                    }
+                    if !usage.recent.isEmpty {
+                        section("Recent turns") {
+                            ForEach(Array(usage.recent.enumerated()), id: \.offset) { index, run in
+                                if index > 0 { RowDivider() }
+                                RecentRow(run: run)
+                            }
+                        }
                     }
                     section("Each day") { DayBars(days: usage.days) }
                     if let plan = model.planUsage, !plan.isEmpty { section("Claude plan") { PlanMeters(plan: plan) } }
@@ -45,7 +59,7 @@ struct DashboardPane: View {
                             ShareRow(name: m.model, totals: m.totals, of: usage.week.total, identifier: true)
                         }
                     }
-                    Text("Cached tokens are context read back from Claude's cache; they cost a tenth as much. To use fewer: lower a worker's model or budget on its page, or turn off the large model in the sidebar.")
+                    Text("Cache reads are context read back from Claude's cache; they cost a tenth as much. To use fewer: lower a worker's model or budget on its page, or turn off the large model in the sidebar.")
                         .font(.system(size: 11)).foregroundStyle(theme.text3.color)
                 } else {
                     quiet("Waiting for ATOM…")
@@ -64,6 +78,9 @@ struct DashboardPane: View {
             .padding(.bottom, Spacing.panel)
         }
     }
+
+    /// One line under the tiles: what the two cache counts mean.
+    static let cacheHelp = "Cache written: the fixed prompt, stored once per pause. Cache read: the stored prompt used again, much cheaper."
 
     /// Matches COLD_CACHE_RUNS in services/helpers/src/usage.ts.
     static let coldRuns = 3
@@ -87,11 +104,13 @@ private struct TokenTile: View {
     let value: String
     let label: String
     let detail: String
+    /// The cache tiles are smaller than the main ones.
+    var small = false
     @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(value).font(theme.idFont(.system(size: 24, weight: .semibold), size: 22)).foregroundStyle(theme.text.color)
+            Text(value).font(theme.idFont(.system(size: small ? 16 : 24, weight: .semibold), size: small ? 15 : 22)).foregroundStyle(small ? theme.text2.color : theme.text.color)
             Text(label).font(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1).minimumScaleFactor(0.8)
             Text(detail).font(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1).minimumScaleFactor(0.8)
         }
@@ -102,7 +121,7 @@ private struct TokenTile: View {
     }
 }
 
-/// Seven bars, new tokens solid and cached ones faint above them, the day's total over each.
+/// Seven bars: input + output solid, cache written and cache read fainter above them; input + output over each.
 private struct DayBars: View {
     let days: [DayTokens]
     @Environment(\.theme) private var theme
@@ -112,11 +131,12 @@ private struct DayBars: View {
         HStack(alignment: .bottom, spacing: 10) {
             ForEach(days, id: \.day) { day in
                 VStack(spacing: 6) {
-                    Text(day.totals.total == 0 ? "–" : TokenTotals.short(day.totals.total))
+                    Text(day.totals.total == 0 ? "–" : TokenTotals.short(day.totals.io))
                         .font(theme.idFont(.system(size: 10), size: 9.5)).foregroundStyle(theme.text3.color)
                     VStack(spacing: 0) {
                         Rectangle().fill(theme.live.color.opacity(0.28)).frame(height: bar(day.totals.cacheRead, most))
-                        Rectangle().fill(theme.live.color).frame(height: bar(day.totals.fresh, most))
+                        Rectangle().fill(theme.live.color.opacity(0.6)).frame(height: bar(day.totals.cacheWrite, most))
+                        Rectangle().fill(theme.live.color).frame(height: bar(day.totals.io, most))
                     }
                     .frame(maxWidth: .infinity)
                     .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
@@ -130,7 +150,7 @@ private struct DayBars: View {
         .frame(height: 166, alignment: .bottom)
         .padding(16)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(days.map { "\(Self.weekday($0.day)): \(TokenTotals.short($0.totals.total)) tokens, \($0.totals.cacheHitText) from the cache" }.joined(separator: ", "))
+        .accessibilityLabel(days.map { "\(Self.weekday($0.day)): \(TokenTotals.short($0.totals.io)) input and output tokens, \($0.totals.cacheHitText) from the cache" }.joined(separator: ", "))
     }
 
     private func bar(_ n: Int, _ most: Int) -> CGFloat { n == 0 ? 0 : max(2, CGFloat(n) / CGFloat(most) * 96) }
@@ -141,6 +161,22 @@ private struct DayBars: View {
         guard let date = f.date(from: day) else { return day }
         f.dateFormat = "EEE"
         return f.string(from: date)
+    }
+}
+
+/// Token cost, job 4: one recent call: when and on which model, then the split of its tokens.
+private struct RecentRow: View {
+    let run: RecentTokens
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(run.model).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2)).lineLimit(1)
+            Spacer(minLength: 12)
+            Text(run.splitLine).font(.system(size: 12)).foregroundStyle(theme.text.color).lineLimit(1).minimumScaleFactor(0.8)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -159,7 +195,7 @@ private struct ShareRow: View {
                 Text(name).font(identifier ? theme.idFont(.system(size: 12.5, weight: .medium), size: 12) : .system(size: 12.5, weight: .medium))
                     .foregroundStyle(identifier ? theme.idColor(theme.text) : theme.text.color).lineLimit(1)
                 Spacer()
-                Text("\(TokenTotals.short(totals.total)) · \(totals.runs) run\(totals.runs == 1 ? "" : "s")")
+                Text("\(TokenTotals.short(totals.io)) in + out · cache \(TokenTotals.short(totals.cacheWrite + totals.cacheRead)) · \(totals.runs) run\(totals.runs == 1 ? "" : "s")")
                     .font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text2.color)
             }
             GeometryReader { proxy in

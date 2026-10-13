@@ -145,6 +145,16 @@ public struct ChatList: Sendable, Equatable {
     /// ADR-098: the composer is off while the chat in use is read-only; this is its line. Nil: the composer works.
     public var currentReadOnlyNotice: String? { chats.first { $0.id == current }?.readOnlyNotice }
 
+    /// Token cost, job 4: how long Claude keeps the stored prompt. The real time is unknown; 60 minutes is assumed for the Claude plan.
+    public static let cacheTtl: TimeInterval = 60 * 60
+
+    /// The quiet line for a chat idle past the cache's lifetime: the next message sends the whole prompt again. Nil otherwise.
+    public func cacheExpiredNotice(now: Date = Date()) -> String? {
+        guard let chat = chats.first(where: { $0.id == current }), chat.messages > 0, let at = chat.updatedAt,
+              now.timeIntervalSince(at) > Self.cacheTtl else { return nil }
+        return "Cache expired: the next message costs more"
+    }
+
     public init(chats: [ChatInfo], current: String, currentProvider: String? = nil, currentModel: String? = nil,
                 currentProjectId: String? = nil, projects: [ProjectInfo]? = nil) {
         self.currentProjectId = currentProjectId

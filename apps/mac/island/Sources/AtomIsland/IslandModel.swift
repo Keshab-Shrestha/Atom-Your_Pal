@@ -161,6 +161,9 @@ final class IslandModel {
         return "Long chat: older turns are summarized."
     }
 
+    /// Token cost, job 4: the quiet line over a chat whose stored prompt has expired.
+    var cacheExpiredNotice: String? { chats?.cacheExpiredNotice() }
+
     /// The Memory page opened: ask for the list. From then on the runtime also sends its changes.
     func loadMemory() { send(.memoryList) }
     func forgetMemory(_ id: Int) {

@@ -226,6 +226,8 @@ A complete turn:
 
 The `helpers` event carries `usage`: `today` and `week` totals (`input`, `output`, `cacheRead`, `cacheWrite`, `dollars`, `runs`), `days` (the last 7, oldest first, each with `day` as a local `YYYY-MM-DD`), `byWorker` (`helper` id or null for ATOM's chat, and `name`) and `byModel` (`model`), and `chatCacheCold` (ADR-098 item 9: true when ATOM's last 3 chat answers read nothing from the cache). Counts and model ids only.
 
+Token cost, job 4: `usage` has the optional `recent`: the newest 8 calls, newest first. Each has `at` (ISO time), `kind` (`turn`, `note` or `job`), `model`, `input`, `output`, `cacheRead`, `cacheWrite` and, when known, `gapMs` (milliseconds since the last call of the same chat and model). The Dashboard shows `input + output` as the main number and the two cache counts apart. It sums them from the existing totals, so `today`, `week`, `days`, `byWorker` and `byModel` do not change. An older runtime does not send `recent`: the Dashboard then shows no list of turns.
+
 ### Chats (ADR-091)
 
 - `{"type":"chats.list"}` → `{"type":"chats","chats":[{"id","title","updatedAt","messages"}],"current":"<session id>"}`, newest first; sent again after every saved exchange, a new chat or a delete.

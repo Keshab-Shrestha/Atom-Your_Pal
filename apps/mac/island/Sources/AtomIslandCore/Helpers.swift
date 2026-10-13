@@ -1689,6 +1689,8 @@ public struct TokenTotals: Sendable, Equatable {
     }
 
     public var total: Int { input + output + cacheRead + cacheWrite }
+    /// Token cost, job 4: what you typed and what ATOM answered. The Dashboard's main number; the cache counts are shown apart.
+    public var io: Int { input + output }
     /// Everything but what was read back from the cache (which counts far less toward the plan's limits).
     public var fresh: Int { input + output + cacheWrite }
     /// ADR-098 item 9: the share of the prompt read back from the cache (cache reads ÷ all prompt tokens); nil without any.
@@ -1727,6 +1729,36 @@ public struct ModelTokens: Sendable, Equatable {
     public var totals: TokenTotals
 }
 
+/// Token cost, job 4: one recent call, for the Dashboard's list of turns.
+public struct RecentTokens: Sendable, Equatable {
+    public enum Kind: String, Sendable { case turn, note, job }
+    public var at: Date?
+    public var kind: Kind
+    public var model: String
+    public var input: Int, output: Int, cacheRead: Int, cacheWrite: Int
+    /// Milliseconds since the last call of the same chat and model; nil for the first.
+    public var gapMs: Int?
+
+    public init(at: Date? = nil, kind: Kind, model: String, input: Int, output: Int, cacheRead: Int, cacheWrite: Int, gapMs: Int? = nil) {
+        self.at = at
+        self.kind = kind
+        self.model = model
+        self.input = input
+        self.output = output
+        self.cacheRead = cacheRead
+        self.cacheWrite = cacheWrite
+        self.gapMs = gapMs
+    }
+
+    public var io: Int { input + output }
+
+    /// "This turn: 18 tokens · cache written: 6.1k · cache read: 0".
+    public var splitLine: String {
+        let who = switch kind { case .turn: "This turn"; case .note: "Note"; case .job: "Job" }
+        return "\(who): \(TokenTotals.short(io)) tokens · cache written: \(TokenTotals.short(cacheWrite)) · cache read: \(TokenTotals.short(cacheRead))"
+    }
+}
+
 /// ADR-091: the Dashboard's tokens: today, the week, each of the last 7 days, each worker and each model.
 public struct TokenUsageSummary: Sendable, Equatable {
     public var today: TokenTotals
@@ -1736,8 +1768,11 @@ public struct TokenUsageSummary: Sendable, Equatable {
     public var byModel: [ModelTokens]
     /// ADR-098 item 9: ATOM's last chat answers read nothing from the cache.
     public var chatCacheCold: Bool
+    /// Token cost, job 4: the newest calls, newest first; empty from an older runtime.
+    public var recent: [RecentTokens]
 
-    public init(today: TokenTotals, week: TokenTotals, days: [DayTokens] = [], byWorker: [WorkerTokens] = [], byModel: [ModelTokens] = [], chatCacheCold: Bool = false) {
+    public init(today: TokenTotals, week: TokenTotals, days: [DayTokens] = [], byWorker: [WorkerTokens] = [], byModel: [ModelTokens] = [], chatCacheCold: Bool = false, recent: [RecentTokens] = []) {
+        self.recent = recent
         self.today = today
         self.week = week
         self.days = days

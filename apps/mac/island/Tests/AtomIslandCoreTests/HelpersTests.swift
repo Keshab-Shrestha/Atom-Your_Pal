@@ -1085,6 +1085,46 @@ struct TokenUsageTests {
     }
 }
 
+@Suite("Dashboard split and cache expiry (token cost, jobs 1-4)")
+struct TokenSplitTests {
+    @Test func inputPlusOutputIsApartFromTheCache() {
+        let t = TokenTotals(input: 10, output: 8, cacheRead: 30_000, cacheWrite: 6100)
+        #expect(t.io == 18 && t.total == 36_118)
+    }
+
+    @Test func decodesRecentTurnsAndSplitsTheLine() throws {
+        let json = #"{"type":"helpers","apps":[],"usage":{"today":{"input":1,"output":1,"cacheRead":0,"cacheWrite":0,"dollars":0,"runs":1},"week":{"input":1,"output":1,"cacheRead":0,"cacheWrite":0,"dollars":0,"runs":1},"recent":[{"at":"2026-10-13T00:41:27.248Z","kind":"turn","model":"opus","input":3,"output":15,"cacheRead":0,"cacheWrite":6149,"gapMs":42000},{"kind":"note","model":"opus","input":2,"output":7,"cacheRead":0,"cacheWrite":1000},{"kind":"weird","model":"x"},{"kind":"job"}]},"helpers":[]}"#
+        var state = HelpersState()
+        state.apply(try decodeEvent(json))
+        let recent = try #require(state.list?.usage?.recent)
+        #expect(recent.map(\.kind) == [.turn, .note], "a malformed entry is left out")
+        #expect(recent[0].gapMs == 42000 && recent[0].at != nil && recent[1].gapMs == nil && recent[1].at == nil)
+        #expect(recent[0].splitLine == "This turn: 18 tokens · cache written: 6.1K · cache read: 0")
+    }
+
+    @Test func anOlderRuntimeSendsNoRecentTurns() throws {
+        let json = #"{"type":"helpers","apps":[],"usage":{"today":{"input":1,"output":1,"cacheRead":0,"cacheWrite":0,"dollars":0,"runs":1},"week":{"input":1,"output":1,"cacheRead":0,"cacheWrite":0,"dollars":0,"runs":1}},"helpers":[]}"#
+        var state = HelpersState()
+        state.apply(try decodeEvent(json))
+        #expect(state.list?.usage?.recent == [])
+    }
+
+    @Test func aChatIdlePastTheCacheLifetimeGetsTheQuietLine() {
+        let now = Date()
+        let list = ChatList(chats: [
+            ChatInfo(id: "old", title: "Old", updatedAt: now.addingTimeInterval(-ChatList.cacheTtl - 60), messages: 4),
+            ChatInfo(id: "fresh", title: "Fresh", updatedAt: now.addingTimeInterval(-300), messages: 4),
+            ChatInfo(id: "empty", title: "Empty", updatedAt: nil, messages: 0),
+        ], current: "old")
+        #expect(list.cacheExpiredNotice(now: now) == "Cache expired: the next message costs more")
+        var other = list
+        other.current = "fresh"
+        #expect(other.cacheExpiredNotice(now: now) == nil)
+        other.current = "empty"
+        #expect(other.cacheExpiredNotice(now: now) == nil)
+    }
+}
+
 @Suite("Chats (ADR-091)")
 struct ChatTests {
     @Test func decodesChatsAndReplaysAnOpenedChat() throws {

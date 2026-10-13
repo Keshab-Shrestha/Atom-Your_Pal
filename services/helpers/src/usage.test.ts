@@ -65,3 +65,23 @@ test("the gap is measured per chat and per model; the first call has none; a res
   clock = new Date(clock.getTime() + 1_000);
   assert.equal(usageTable(raw, () => clock).add({ ...row, model: "a", chatId: "c1" }).gapMs, 1_000, "seeded from the table");
 });
+
+test("the summary lists the newest calls with their kind, tokens and gap, no text (token cost, job 4)", () => {
+  let clock = new Date(2026, 9, 5, 10);
+  const usage = usageTable(new DatabaseSync(":memory:"), () => clock);
+  usage.add({ source: "chat", model: "m", input: 3, output: 15, cacheRead: 0, cacheWrite: 6100, chatId: "c" });
+  clock = new Date(clock.getTime() + 3_000);
+  usage.add({ source: "chat", helper: "note", model: "m", input: 2, output: 7, cacheRead: 0, cacheWrite: 1000, chatId: "c" });
+  usage.add({ source: "job", helper: "sid", job: 1, model: "w", input: 9, output: 9, cacheRead: 9, cacheWrite: 9 });
+  for (let i = 0; i < 9; i++) usage.add({ source: "chat", model: "m", input: 1, output: 1, cacheRead: 0, cacheWrite: 0 });
+  const recent = usage.summary().recent;
+  assert.equal(recent.length, 8, "the newest eight");
+  usage.summary().recent.forEach((r) => assert.deepEqual(Object.keys(r).filter((k) => !["gapMs"].includes(k)).sort(), ["at", "cacheRead", "cacheWrite", "input", "kind", "model", "output"]));
+  const small = usageTable(new DatabaseSync(":memory:"), () => clock);
+  small.add({ source: "chat", model: "m", input: 3, output: 15, cacheRead: 0, cacheWrite: 6100, chatId: "c" });
+  clock = new Date(clock.getTime() + 3_000);
+  small.add({ source: "chat", helper: "note", model: "m", input: 2, output: 7, cacheRead: 0, cacheWrite: 1000, chatId: "c" });
+  small.add({ source: "job", helper: "sid", job: 1, model: "w", input: 9, output: 9, cacheRead: 9, cacheWrite: 9 });
+  assert.deepEqual(small.summary().recent.map((r) => [r.kind, r.gapMs]), [["job", undefined], ["note", 3000], ["turn", undefined]]);
+  assert.equal(small.summary().recent[2].cacheWrite, 6100);
+});

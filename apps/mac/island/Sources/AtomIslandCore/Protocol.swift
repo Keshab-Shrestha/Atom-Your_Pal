@@ -1235,7 +1235,18 @@ private struct Fields {
             days: list("days").compactMap { d in (d as? [String: Any]).flatMap { m in totals(m).flatMap { t in (m["day"] as? String).map { DayTokens(day: $0, totals: t) } } } },
             byWorker: list("byWorker").compactMap { w in (w as? [String: Any]).flatMap { m in totals(m).map { WorkerTokens(helper: m["helper"] as? String, name: m["name"] as? String ?? "", totals: $0) } } },
             byModel: list("byModel").compactMap { x in (x as? [String: Any]).flatMap { m in totals(m).flatMap { t in (m["model"] as? String).map { ModelTokens(model: $0, totals: t) } } } },
-            chatCacheCold: u["chatCacheCold"] as? Bool ?? false)
+            chatCacheCold: u["chatCacheCold"] as? Bool ?? false,
+            recent: list("recent").compactMap(recentRun))
+    }
+
+    /// Token cost, job 4: one entry of `usage.recent`; a malformed entry is left out.
+    private static func recentRun(_ value: Any) -> RecentTokens? {
+        guard let m = value as? [String: Any], let kind = (m["kind"] as? String).flatMap(RecentTokens.Kind.init(rawValue:)), let model = m["model"] as? String else { return nil }
+        let n = { (k: String) in (m[k] as? NSNumber)?.intValue ?? 0 }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return RecentTokens(at: (m["at"] as? String).flatMap { iso.date(from: $0) }, kind: kind, model: model, input: n("input"), output: n("output"),
+                            cacheRead: n("cacheRead"), cacheWrite: n("cacheWrite"), gapMs: (m["gapMs"] as? NSNumber)?.intValue)
     }
 
     private static func totals(_ value: Any?) -> TokenTotals? {

@@ -1495,3 +1495,7 @@ One chat turn makes two model requests, not one. Rows 3-4 and 5-6 of `data/helpe
 ## Token cost, job 3: one note per quiet chat (2026-10-13)
 
 The conversation note is now written once, when a chat has been quiet for 10 minutes (`ATOM_NOTE_QUIET_MS`, default 600000), when the user leaves the chat (new chat, other chat), and at quit. A chat with fewer than 2 exchanges gets no note. `ATOM_EPISODES=0` still turns notes off. `ATOM_NOTE_QUIET_MS=0` restores a note after every reply. The offer to remember was never part of the note request, so it is unchanged. See ADR-108. Code: `services/memory/src/episodes.ts`, `apps/mac/src/notes.ts`, `onLeave` in `services/core/src/core.ts`.
+
+## Token cost, job 4: Dashboard shows input + output (2026-10-13)
+
+The Dashboard shows input + output as the main number. Cache written and cache read are separate smaller tiles, with one line of help. A new list "Recent turns" shows the newest 8 calls, for example "This turn: 18 tokens · cache written: 6.1K · cache read: 0". The `usage` payload has the optional `recent` field (see `docs/island-protocol.md`). A chat idle for more than 60 minutes (`ChatList.cacheTtl`, one constant, assumed) shows the quiet line "Cache expired: the next message costs more" over the chat. The real cache lifetime is unknown. Keshab: check by hand with the running app.

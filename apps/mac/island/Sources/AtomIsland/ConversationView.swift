@@ -160,6 +160,7 @@ struct ConversationTab: View {
         } else {
             VStack(spacing: 0) {
                 if let note = model.trimmedNotice { TrimmedNote(text: note) } // ADR-107
+                else if let note = model.cacheExpiredNotice { TrimmedNote(text: note) } // token cost, job 4
                 ScrollViewReader { proxy in
                     Scrollable {
                         LazyVStack(alignment: .leading, spacing: Spacing.turn) {
