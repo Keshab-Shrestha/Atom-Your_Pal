@@ -1,6 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { Message } from "@atom/contracts";
 import { chatSearch, type ChatSearchHit } from "./chat-search.ts";
+import { ProjectError } from "./projects.ts";
 
 // ADR-091: Keshab's chat sessions with ATOM, kept on this Mac (in the memory file) so he can go back to one. A chat is
 // ATOM Core's session: its id, a title from its first words and its turns. Never logged; the newest 200 are kept.
@@ -20,6 +21,8 @@ export interface ChatStore {
   save(id: string, turns: readonly Message[]): void;
   /** The newest first: a limit, or `{ projectId, limit }` for one project's chats (ADR-107). */
   list(options?: number | { projectId?: string; limit?: number }): ChatSummary[];
+  /** ADR-107: gives the chat its own title (kept when it is saved again). False when the chat is not saved yet. Throws ProjectError for a bad title. */
+  rename(id: string, title: string): boolean;
   /** ADR-107: the chat's project; undefined for a plain chat. */
   project(id: string): string | undefined;
   /** ADR-107: puts a chat in a project (undefined: a plain chat). False when the chat is not saved yet. */
@@ -49,6 +52,15 @@ export const MAX_CHATS = 200;
 /** ADR-107: chats kept in one project, the newest. */
 export const MAX_PROJECT_CHATS = 500;
 export const CHAT_TITLE_LENGTH = 60;
+
+/** A title Keshab gives a chat: one line, 1 to 60 characters. Throws ProjectError. */
+export function cleanChatTitle(raw: string): string {
+  const title = typeof raw === "string" ? raw.trim() : "";
+  if (!title) throw new ProjectError("The chat needs a title.");
+  if (/[\u0000-\u001f\u007f\u2028\u2029]/.test(title)) throw new ProjectError("A chat title is one line.");
+  if ([...title].length > CHAT_TITLE_LENGTH) throw new ProjectError(`A chat title has at most ${CHAT_TITLE_LENGTH} characters.`);
+  return title;
+}
 
 /** The chat's title: its first words, on one line. */
 export function chatTitle(turns: readonly Message[]): string {
@@ -84,6 +96,9 @@ export function openChats(db: DatabaseSync, now: () => Date): ChatStore {
   // ADR-107: the chat's project; NULL is a plain chat. Added to files made before projects.
   if (!columns.includes("project_id")) db.exec("ALTER TABLE chats ADD COLUMN project_id TEXT");
   db.exec("CREATE INDEX IF NOT EXISTS chats_project ON chats(project_id, updated_at)");
+  // ADR-107: 1 once Keshab renamed the chat: saving no longer takes its title from its first words.
+  if (!columns.includes("named")) db.exec("ALTER TABLE chats ADD COLUMN named INTEGER NOT NULL DEFAULT 0");
+  const writeTitle = db.prepare("UPDATE chats SET title = ?, named = 1 WHERE id = ?");
   const readProject = db.prepare("SELECT project_id FROM chats WHERE id = ?");
   const writeProject = db.prepare("UPDATE chats SET project_id = ? WHERE id = ?");
   const readSession = db.prepare("SELECT session FROM chats WHERE id = ?");
@@ -92,7 +107,7 @@ export function openChats(db: DatabaseSync, now: () => Date): ChatStore {
   const readModel = db.prepare("SELECT provider, model FROM chats WHERE id = ?");
   const writeModel = db.prepare("UPDATE chats SET provider = ?, model = ? WHERE id = ?");
   const upsert = db.prepare(
-    "INSERT INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET title = excluded.title, updated_at = excluded.updated_at",
+    "INSERT INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET title = CASE WHEN chats.named = 1 THEN chats.title ELSE excluded.title END, updated_at = excluded.updated_at",
   );
   const clear = db.prepare("DELETE FROM chat_messages WHERE chat_id = ?");
   const insert = db.prepare("INSERT INTO chat_messages (chat_id, seq, role, content) VALUES (?, ?, ?, ?)");
@@ -142,6 +157,8 @@ export function openChats(db: DatabaseSync, now: () => Date): ChatStore {
         ...(r.project_id ? { projectId: String(r.project_id) } : {}),
       }));
     },
+
+    rename: (id, title) => Number(writeTitle.run(cleanChatTitle(title), id).changes) > 0,
 
     project(id) {
       const row = readProject.get(id) as { project_id: string | null } | undefined;

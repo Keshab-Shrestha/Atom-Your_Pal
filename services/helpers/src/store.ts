@@ -248,7 +248,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const planFirstOf = (helper: HelperId) => (settingOf.get(`planFirst:${helper}`) as { value: string } | undefined)?.value === "true";
   // ADR-098: whether an agent's runs get the browser (default off).
   const browserOf = (helper: HelperId) => (settingOf.get(`browser:${helper}`) as { value: string } | undefined)?.value === "true";
-  const insertGoal = db.prepare("INSERT INTO goals (text, created_at, source) VALUES (?, ?, ?)");
+  const insertGoal = db.prepare("INSERT INTO goals (text, created_at, source, project_id) VALUES (?, ?, ?, ?)");
   const goalRow = db.prepare("SELECT * FROM goals WHERE id = ?");
   const goalEndedAt = db.prepare("SELECT ended_at FROM goals WHERE id = ?");
   const goalTasks = db.prepare("SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.goal_id = ? ORDER BY j.id");
@@ -1251,7 +1251,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       return mustGet(id);
     },
 
-    addGoal(raw, parts, source) {
+    addGoal(raw, parts, source, projectId) {
       const text = raw.trim();
       if (!text) throw new HelperError("The goal is empty.");
       if (text.length > MAX_GOAL_CHARS) throw new HelperError(`The goal is too long (${text.length} characters, limit ${MAX_GOAL_CHARS}).`);
@@ -1267,7 +1267,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       let goalId = 0;
       const ids: number[] = [];
       transaction(() => {
-        goalId = Number(insertGoal.run(text, now().toISOString(), source ?? null).lastInsertRowid);
+        goalId = Number(insertGoal.run(text, now().toISOString(), source ?? null, projectId ?? null).lastInsertRowid);
         for (const part of checked) ids.push(insertTask(part.helper, part.task, part.after.map((n) => ids[n - 1]!), { goal: text, parentId: null, goalId }));
       });
       emit({ action: "goal", goal: goalId, tasks: ids.length, ended: false, ...(source ? { source } : {}) });
@@ -1276,7 +1276,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     },
 
     goal(id) {
-      const row = goalRow.get(id) as { id: number; text: string; created_at: string; ended_at: string | null; report: string | null; source: string | null } | undefined;
+      const row = goalRow.get(id) as { id: number; text: string; created_at: string; ended_at: string | null; report: string | null; source: string | null; project_id: string | null } | undefined;
       if (!row) return undefined;
       return {
         id: row.id,
@@ -1286,6 +1286,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         tasks: (goalTasks.all(id) as unknown as JobRow[]).map(toJob),
         ...(row.report ? { report: JSON.parse(row.report) as GoalReport } : {}),
         ...(row.source ? { source: row.source } : {}),
+        ...(row.project_id ? { projectId: row.project_id } : {}),
       };
     },
 

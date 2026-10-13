@@ -137,6 +137,8 @@ export interface Goal {
   report?: GoalReport;
   /** The chat that made the goal ("telegram", "api", a window chat id). Absent for goals from before this field. */
   source?: string;
+  /** ADR-107: the project of the chat that made the goal. Absent for a plain chat. */
+  projectId?: string;
 }
 
 /** One task of a new goal. `after` holds the positions (1 = first) of earlier tasks of the same goal it waits for. */
@@ -519,7 +521,7 @@ export interface HelperStore {
    * Creates a goal and its tasks in one go (Task 3.5), or nothing: throws HelperError for an empty or long goal, no
    * tasks or more than MAX_GOAL_TASKS, a bad task, or an `after` that is not an earlier task of the goal.
    */
-  addGoal(text: string, parts: readonly GoalPart[], source?: string): Goal;
+  addGoal(text: string, parts: readonly GoalPart[], source?: string, projectId?: string): Goal;
   goal(id: number): Goal | undefined;
   /** Ends a goal, with its combined report or null when no task was done. Throws HelperError for an unknown or ended goal. */
   endGoal(id: number, report: GoalReport | null): void;

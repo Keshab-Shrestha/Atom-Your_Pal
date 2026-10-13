@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { MAX_CHATS, MAX_PROJECT_CHATS, MAX_PROJECTS, openMemoryStore, ProjectError } from "./index.ts";
+import { CHAT_TITLE_LENGTH, MAX_CHATS, MAX_PROJECT_CHATS, MAX_PROJECTS, cleanChatTitle, openMemoryStore, ProjectError } from "./index.ts";
 
 // ADR-107: projects (a named folder and its chats) and the chat's project link.
 
@@ -127,5 +127,39 @@ test("a file made before projects is migrated: chats keep their rows and gain a 
   assert.equal(again.chats.project("old"), p.id);
   assert.equal(again.projects.get(p.id)!.name, "A");
   again.close();
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("a chat can be renamed; the name stays when the chat is saved again; a title is one line, 1 to 60 characters", () => {
+  const { chats } = openMemoryStore({ path: ":memory:" });
+  chats.save("a", turns("first words"));
+  assert.equal(chats.list()[0]!.title, "first words");
+  assert.equal(chats.rename("a", "  Plan for Tokyo  "), true);
+  chats.save("a", [...turns("first words"), ...turns("more")]);
+  assert.equal(chats.list()[0]!.title, "Plan for Tokyo");
+  assert.equal(chats.rename("nope", "x"), false, "a chat that is not saved yet");
+  assert.throws(() => chats.rename("a", "   "), ProjectError);
+  assert.throws(() => chats.rename("a", "one\ntwo"), /one line/);
+  assert.throws(() => chats.rename("a", "x".repeat(CHAT_TITLE_LENGTH + 1)), /60/);
+  assert.equal(cleanChatTitle(" ok "), "ok");
+  chats.save("b", turns("untouched"));
+  assert.equal(chats.list().find((c) => c.id === "b")!.title, "untouched", "other chats still take their first words");
+});
+
+test("an old file without the name flag is migrated", () => {
+  const dir = mkdtempSync(join(tmpdir(), "atom-mem-"));
+  const path = join(dir, "memory.db");
+  const db = new DatabaseSync(path);
+  db.exec(`
+    CREATE TABLE chats (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, provider TEXT, model TEXT, session TEXT, project_id TEXT);
+    CREATE TABLE chat_messages (chat_id TEXT NOT NULL, seq INTEGER NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, PRIMARY KEY (chat_id, seq));
+    INSERT INTO chats VALUES ('old', 'Old chat', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', NULL, NULL, NULL, NULL);
+    INSERT INTO chat_messages VALUES ('old', 0, 'user', 'hi');
+  `);
+  db.close();
+  const store = openMemoryStore({ path });
+  assert.equal(store.chats.rename("old", "Renamed"), true);
+  assert.equal(store.chats.list()[0]!.title, "Renamed");
+  store.close();
   rmSync(dir, { recursive: true, force: true });
 });

@@ -281,3 +281,23 @@ test("a store file from before the source column still loads; its goals have no 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// ADR-107: a delegation from a project chat goes to the project's Agent unless the model names another worker, and the goal keeps the project.
+test("a project chat's delegation defaults to the project's Agent and records the project", () => {
+  const store = openHelperStore({ path: ":memory:" });
+  let project: { id: string; helper?: string } | undefined = { id: "p-1", helper: "kame" };
+  const tool = createDelegateTool({ store, source: () => "chat-1", project: () => project });
+  tool.run({ goal: "fix it", tasks: [{ task: "Fix the login bug" }, { worker: "sid", task: "Research", after: [] }, { worker: " ", task: "Test" }] });
+  const goal = store.goal(1)!;
+  assert.deepEqual(goal.tasks.map((t) => t.helper), ["kame", "sid", "kame"]);
+  assert.equal(goal.projectId, "p-1");
+  project = undefined;
+  assert.throws(() => tool.run({ goal: "g", tasks: [{ task: "x" }] }), /Task 1 needs a worker and a task/, "a plain chat still needs a worker");
+  project = { id: "p-2" };
+  assert.throws(() => tool.run({ goal: "g", tasks: [{ task: "x" }] }), /Task 1 needs a worker and a task/, "a project without an Agent has no default");
+  tool.run({ goal: "plain", tasks: [{ worker: "sid", task: "x" }] });
+  assert.equal(store.goal(2)!.projectId, "p-2", "recorded even when the worker is named");
+  project = undefined;
+  tool.run({ goal: "plain", tasks: [{ worker: "sid", task: "x" }] });
+  assert.equal(store.goal(3)!.projectId, undefined);
+});

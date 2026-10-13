@@ -53,12 +53,24 @@ export function readParts(tasks: unknown, workers: readonly HelperView[], manage
   });
 }
 
+/** A task with no worker named (or a blank one) gets `helper`. Anything that is not an object is left for readParts to refuse. */
+function withWorker(task: unknown, helper: string): unknown {
+  if (!task || typeof task !== "object") return task;
+  const t = task as Record<string, unknown>;
+  return t.worker === undefined || (typeof t.worker === "string" && !t.worker.trim()) ? { ...t, worker: helper } : task;
+}
+
 export interface DelegateToolOptions {
   store: HelperStore;
   /** For the log: ids and counts only. */
   onDelegated?(event: { goal: number; tasks: number }): void;
   /** The chat that makes the goal, read at each call (a goal keeps it as its `source`). */
   source?(): string | undefined;
+  /**
+   * ADR-107: the project of that chat, read at each call. The goal keeps its id; a task with no worker named goes to the
+   * project's Agent (`helper`). A project with no Agent gives no default.
+   */
+  project?(): { id: string; helper?: string } | undefined;
 }
 
 /** The `delegate` tool (a Tool for the tool engine, by shape). */
@@ -80,7 +92,9 @@ export function createDelegateTool(options: DelegateToolOptions) {
     capability: { title: "Hand work to the team", examples: ["Research home networking and write it up as a guide", "Sid, find the best mesh routers"] },
     run(input: Record<string, unknown>): string {
       const workers = store.list();
-      const goal = store.addGoal(String(input.goal ?? ""), readParts(input.tasks, workers, store.managers()), options.source?.());
+      const project = options.project?.();
+      const tasks = project?.helper && Array.isArray(input.tasks) ? input.tasks.map((t: unknown) => withWorker(t, project.helper!)) : input.tasks;
+      const goal = store.addGoal(String(input.goal ?? ""), readParts(tasks, workers, store.managers()), options.source?.(), project?.id);
       options.onDelegated?.({ goal: goal.id, tasks: goal.tasks.length });
       const nameOf = (helper: string) => store.soul(helper).name; // a worker's or a Manager's
       const who = goal.tasks.map((t) => {
