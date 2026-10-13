@@ -3,10 +3,12 @@
 //   node apps/mac/src/main.ts --island   driven by ATOM Island over stdin / stdout (island.ts)
 
 import { execFile } from "node:child_process";
+import { dirname, join, resolve } from "node:path";
 import { GatewayError } from "@atom/llm-gateway";
-import { ConfigError, createLogger, loadConfig, migrateLegacyLog, readProviderKeys, type Config } from "@atom/shared";
+import { ConfigError, createLogger, loadConfig, migrateLegacyLog, readEnv, readProviderKeys, type Config } from "@atom/shared";
 import { encodeEvent, type ErrorStage } from "./island-protocol.ts";
 import { runIsland } from "./island.ts";
+import { acquireInstanceLock } from "./instance-lock.ts";
 import { readSavedChoice, settingsPath } from "./model-settings.ts";
 import { createRuntime, describe, withLogging } from "./runtime.ts";
 import { runTerminal } from "./terminal.ts";
@@ -81,6 +83,24 @@ function start(config: Config) {
   };
   process.on("uncaughtException", crash);
   process.on("unhandledRejection", crash);
+
+  // One runtime per data folder: a second one would run startup recovery and fail the live jobs of the first.
+  const helpersFile = readEnv(process.env, "ATOM_HELPERS_FILE") ?? "data/helpers.db";
+  if (helpersFile !== ":memory:") {
+    const lock = acquireInstanceLock(join(dirname(resolve(helpersFile)), ".atom.lock"));
+    if (!lock.ok) {
+      const text = `ATOM already runs on this data folder (pid ${lock.pid}).`;
+      log.warn("app.refused", { pid: lock.pid });
+      if (island) islandFatal("config", text, EXIT_CONFIG); // exit 78: the island shows it and does not restart
+      else {
+        console.error(text);
+        process.exit(1);
+      }
+      return;
+    }
+    process.on("exit", lock.release);
+    for (const signal of ["SIGINT", "SIGTERM"] as const) if (!island || signal === "SIGINT") process.on(signal, () => process.exit(signal === "SIGINT" ? 130 : 143));
+  }
 
   const runtime = createRuntime(config, log, { keys, settingsPath: savedPath });
   // Give the microphone and audio player a moment to release, and pending output to flush, before exiting.

@@ -1,13 +1,22 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+/** Every runtime these tests start uses its own data folder and log, never the real data/ and logs/. */
+function tempData(): Record<string, string> {
+  const dir = mkdtempSync(join(tmpdir(), "atom-smoke-"));
+  return { ATOM_HELPERS_FILE: join(dir, "helpers.db"), ATOM_MEMORY_FILE: join(dir, "memory.db"), ATOM_LOG_FILE: join(dir, "atom.log") };
+}
 
 function startZeno(env: Record<string, string>, args: string[] = [], input?: string) {
   return spawnSync(process.execPath, ["apps/mac/src/main.ts", ...args], {
     encoding: "utf8",
     // A model saved in the island (config/island.json) overrides the env, so point at a file that
     // does not exist: these tests check the env configuration, not whatever the user last picked.
-    env: { ...process.env, ATOM_ISLAND_SETTINGS: "tests/no-saved-choice.json", ...env },
+    env: { ...process.env, ATOM_ISLAND_SETTINGS: "tests/no-saved-choice.json", ...tempData(), ...env },
     input,
     timeout: 30_000,
   });
@@ -59,7 +68,7 @@ test("island mode: stdout carries only events; closing stdin exits cleanly", () 
 
 test("island mode: SIGTERM exits cleanly", async () => {
   const child = spawn(process.execPath, ["apps/mac/src/main.ts", "--island"], {
-    env: { ...process.env, ATOM_LLM_PROVIDER: "claude", ANTHROPIC_API_KEY: "test-key" },
+    env: { ...process.env, ATOM_LLM_PROVIDER: "claude", ANTHROPIC_API_KEY: "test-key", ...tempData() },
     stdio: ["pipe", "pipe", "pipe"],
   });
   // Wait for the startup line, which is printed once SIGTERM is handled. Earlier stderr lines (such as a
@@ -74,4 +83,16 @@ test("island mode: SIGTERM exits cleanly", async () => {
   child.kill("SIGTERM");
   const code = await new Promise((resolve) => child.on("exit", resolve));
   assert.equal(code, 0);
+});
+
+test("a second runtime on the same data folder is refused before any store opens (no recovery)", () => {
+  const data = tempData();
+  writeFileSync(join(data.ATOM_HELPERS_FILE!, "..", ".atom.lock"), JSON.stringify({ pid: process.pid })); // this process is alive
+  const terminal = startZeno({ ATOM_LLM_PROVIDER: "claude-plan", ...data });
+  assert.equal(terminal.status, 1);
+  assert.match(terminal.stderr, new RegExp(`ATOM already runs on this data folder \\(pid ${process.pid}\\)\\.`));
+  const island = startZeno({ ATOM_LLM_PROVIDER: "claude-plan", ...data }, ["--island"]);
+  assert.equal(island.status, 78); // the island does not restart on 78
+  assert.equal(existsSync(data.ATOM_HELPERS_FILE!), false, "the helpers store was opened");
+  assert.equal(existsSync(data.ATOM_MEMORY_FILE!), false, "the memory store was opened");
 });
