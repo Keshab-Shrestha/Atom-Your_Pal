@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { z, type ZodType } from "zod";
-import type { Message, ModelRequest, ModelResponse, ToolRunner, ToolSpec } from "@atom/contracts";
+import type { Message, ModelRequest, ModelResponse, ProjectFiles, ToolRunner, ToolSpec } from "@atom/contracts";
 import { readEnv } from "@atom/shared";
 import { emptyReplyReason, ProviderError, redactSecrets, type ErrorKind, type ProviderAdapter } from "../gateway.ts";
 
@@ -365,7 +365,13 @@ function promptWith(extra: string | undefined, messages: Message[]): string {
 interface RunState {
   signal?: AbortSignal;
   acted: boolean;
+  /** ADR-107: a project chat's file-tool calls in this request, counted once each by call id. */
+  fileCalls?: Map<string, string | undefined>;
 }
+
+/** ADR-107: most file-tool calls (Read, Glob, Grep) in one answer of a project chat; then it must answer. */
+export const MAX_PROJECT_FILE_CALLS = 8;
+const PROJECT_TOOLS = ["Read", "Glob", "Grep"];
 
 interface Prepared {
   key: string;
@@ -392,9 +398,46 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
   // ADR-069: Claude Code's own web search, for news, scores, prices and anything else current. ATOM_WEB=0 turns it off.
   const webAllowed = readEnv(env, "ATOM_WEB") !== "0";
   /** `chat`: a chat's own session (ADR-098 item 9), kept on disk and resumed when `resume` is given. */
-  function queryOptions(sdk: ClaudeSdk, system: string, specs: ToolSpec[], state: RunState, controller: AbortController, chat?: { resume?: string }) {
+  function queryOptions(sdk: ClaudeSdk, system: string, specs: ToolSpec[], state: RunState, controller: AbortController, chat?: { resume?: string }, files?: ProjectFiles) {
     // Only with ATOM's tools: requests without them (the out-of-steps wrap-up, conversation notes) get nothing.
-    const web = webAllowed && specs.length > 0;
+    // ADR-107: a project chat has web search only when its project turned it on.
+    const web = webAllowed && specs.length > 0 && (!files || files.web === true);
+    // ADR-107: a project chat's reads. Not in allowedTools, so every call is decided here; at most 8 per answer.
+    const decide = async (name: string, input: Record<string, unknown>, id: string): Promise<{ allow: true; input: Record<string, unknown> } | { allow: false; message: string }> => {
+      if (!files || !PROJECT_TOOLS.includes(name)) return { allow: false, message: "A project chat only reads files and answers. Writes go through the project's Agent." };
+      const calls = (state.fileCalls ??= new Map());
+      if (!calls.has(id) && calls.size >= MAX_PROJECT_FILE_CALLS) {
+        return { allow: false, message: `That is the limit of ${MAX_PROJECT_FILE_CALLS} file reads for one answer. Answer now with what you have, and say what you did not read.` };
+      }
+      if (!calls.has(id)) calls.set(id, await files.check(name, input));
+      const problem = calls.get(id);
+      return problem ? { allow: false, message: problem } : { allow: true, input: files.prepare?.(name, input) ?? input };
+    };
+    const gate = files
+      ? {
+          canUseTool: async (name: string, input: Record<string, unknown>, call?: { toolUseID?: string }) => {
+            const verdict = await decide(name, input, call?.toolUseID ?? randomUUID());
+            return verdict.allow ? { behavior: "allow", updatedInput: verdict.input } : { behavior: "deny", message: verdict.message };
+          },
+          // Decided before Claude Code's own permission rules, so no read can skip the check.
+          hooks: {
+            PreToolUse: [
+              {
+                matcher: "Read|Glob|Grep|Bash|Write|Edit|MultiEdit|NotebookEdit",
+                hooks: [
+                  async (hook: Record<string, any>, toolUseID: string | undefined) => {
+                    const input = hook.tool_input && typeof hook.tool_input === "object" ? (hook.tool_input as Record<string, unknown>) : {};
+                    const verdict = await decide(String(hook.tool_name), input, toolUseID ?? hook.tool_use_id ?? randomUUID());
+                    return verdict.allow
+                      ? { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "allow", updatedInput: verdict.input } }
+                      : { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: verdict.message } };
+                  },
+                ],
+              },
+            ],
+          },
+        }
+      : {};
     const sdkTools = specs.map((spec) =>
       sdk.tool(spec.name, spec.description, shapeOf(spec), async (input) => {
         state.acted = true;
@@ -412,7 +455,9 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
       pathToClaudeCodeExecutable: claudePath,
       // Nothing from Claude Code itself: no built-in tools, no user settings, and not the account's claude.ai connectors
       // (they would add tens of thousands of tokens to every request and let Claude reach into other services).
-      tools: web ? ["WebSearch"] : [],
+      tools: [...(web ? ["WebSearch"] : []), ...(files ? PROJECT_TOOLS : [])],
+      ...(files ? { cwd: files.cwd } : {}),
+      ...gate,
       settingSources: [],
       strictMcpConfig: true,
       persistSession: Boolean(chat),
@@ -554,7 +599,7 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
             ? (await slot.warm).query(prompt)
             : sdk.query({
                 prompt: chat?.resume ? promptWith(request.systemExtra, said.slice(-1)) : prompt,
-                options: queryOptions(sdk, request.system, specs, state, controller, chat),
+                options: queryOptions(sdk, request.system, specs, state, controller, chat, request.files),
               });
           return { ...(await run(messages, state, signal, request.onText)), acted: state.acted };
         } catch (error) {
@@ -572,7 +617,7 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
       try {
         const chat = chatId ? (resume ? { resume } : {}) : undefined;
         // A chat's turn never uses the pre-started process: that one keeps no session (it stays for the next voice turn).
-        const slot = chat ? undefined : take(key);
+        const slot = chat || request.files ? undefined : take(key);
         // A pre-started process, or a chat's saved session (gone or expired), that broke before doing anything is tried
         // once more the ordinary way: for a chat, a fresh session with the whole conversation.
         const retryable = Boolean(slot || chat?.resume);

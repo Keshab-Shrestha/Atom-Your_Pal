@@ -374,3 +374,37 @@ test("resume continues a saved chat: its id, and its turns go to the model (ADR-
   await core.handle({ text: "Tokyo", source: "text" });
   assert.deepEqual(requests[0]!.messages.map((m) => m.content), ["Plan my trip", "Where to?", "Tokyo"]);
 });
+
+// ADR-107: a project chat's note goes after the standing instructions, its files go to the model; other chats get neither.
+test("a chat in a project gets the project's note and file access; a plain chat gets neither; a failing lookup is ignored", async () => {
+  const seen: ModelRequest[] = [];
+  const model: LanguageModel = { complete: async (request) => (seen.push(request), { text: "ok" }) };
+  const files = { cwd: "/p", check: async () => undefined };
+  let mode: "project" | "plain" | "throws" = "project";
+  const core = createCore({
+    model,
+    standing: () => "Your team: Kame.",
+    project: () => {
+      if (mode === "throws") throw new Error("store closed");
+      return mode === "project" ? { note: "Project Haat.", files } : undefined;
+    },
+  });
+  await core.handle({ text: "one", source: "text" });
+  assert.equal(seen[0]!.system, `${DEFAULT_SYSTEM_PROMPT}\n\nYour team: Kame.\n\nProject Haat.`);
+  assert.equal(seen[0]!.files, files);
+  mode = "plain";
+  await core.handle({ text: "two", source: "text" });
+  assert.equal(seen[1]!.system, `${DEFAULT_SYSTEM_PROMPT}\n\nYour team: Kame.`);
+  assert.equal(seen[1]!.files, undefined);
+  mode = "throws";
+  await core.handle({ text: "three", source: "text" });
+  assert.equal(seen[2]!.files, undefined);
+});
+
+test("a project whose folder is missing has a note and no file access", async () => {
+  const seen: ModelRequest[] = [];
+  const core = createCore({ model: { complete: async (r) => (seen.push(r), { text: "ok" }) }, project: () => ({ note: "Folder missing." }) });
+  await core.handle({ text: "hi", source: "text" });
+  assert.match(seen[0]!.system, /Folder missing\.$/);
+  assert.equal("files" in seen[0]!, false);
+});

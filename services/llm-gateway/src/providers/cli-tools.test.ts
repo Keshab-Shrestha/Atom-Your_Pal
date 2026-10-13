@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import type { ModelRequest } from "@atom/contracts";
-import { createCodexAdapter, createGeminiCliAdapter, promptText, signedInEnv, type CliRunner } from "./cli-tools.ts";
+import { PROJECTS_NEED_CLAUDE, createCodexAdapter, createGeminiCliAdapter, promptText, signedInEnv, type CliRunner } from "./cli-tools.ts";
 
 // ADR-093: ATOM's chat on Codex (ChatGPT plan) or the Gemini CLI (Google sign-in), headless and read-only.
 
@@ -70,4 +70,14 @@ test("failures are said in words: not signed in, not found, a limit", async () =
   // As on this Mac before signing in: nothing on stdout, a 401 on stderr.
   await assert.rejects(createGeminiCliAdapter({ program: "/x/gemini", model: "gemini-default", run: async () => ({ stdout: "", stderr: '{ "error": { "code": 401 } }' }) }).complete(request(), live()),
     (e: unknown) => (e as { kind: string }).kind === "auth");
+});
+
+// ADR-107: a project chat needs the file tools only Claude Code runs under ATOM's checks.
+test("Codex and the Gemini CLI refuse a project chat, before any process starts", async () => {
+  const run: CliRunner = async () => assert.fail("no process may start");
+  const files = { cwd: "/x", check: async () => undefined };
+  for (const adapter of [createCodexAdapter({ program: "/x/codex", model: "codex-default", run }), createGeminiCliAdapter({ program: "/x/gemini", model: "gemini-default", run })]) {
+    await assert.rejects(adapter.complete({ ...request(), files }, live()), (e: any) => e.kind === "bad_request" && e.message === PROJECTS_NEED_CLAUDE);
+  }
+  assert.match(PROJECTS_NEED_CLAUDE, /Projects need the Claude plan/);
 });

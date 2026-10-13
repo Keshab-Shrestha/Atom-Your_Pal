@@ -46,6 +46,9 @@ export function promptText(request: ModelRequest): string {
 }
 
 /** What a failed run means, in words for Keshab. Never the program's full output. */
+/** ADR-107: a project chat needs file tools, which only Claude Code runs under ATOM's checks. */
+export const PROJECTS_NEED_CLAUDE = "Projects need the Claude plan: this model cannot read the project's files. Pick a Claude model for this chat.";
+
 export function failure(tool: string, signIn: string, error: unknown, signal: AbortSignal): ProviderError {
   if (signal.aborted) return new ProviderError("cancelled", `${tool} was stopped.`);
   const e = error as { code?: unknown; killed?: boolean; stderr?: string; message?: string };
@@ -73,6 +76,7 @@ export function createCodexAdapter(options: CliToolOptions): ProviderAdapter {
   return {
     name: "codex",
     async complete(request, signal) {
+      if (request.files) throw new ProviderError("bad_request", PROJECTS_NEED_CLAUDE);
       const dir = mkdtempSync(join(tmpdir(), "atom-codex-"));
       const out = join(dir, "reply.txt");
       try {
@@ -106,6 +110,7 @@ export function createGeminiCliAdapter(options: CliToolOptions): ProviderAdapter
   return {
     name: "gemini-cli",
     async complete(request, signal) {
+      if (request.files) throw new ProviderError("bad_request", PROJECTS_NEED_CLAUDE);
       const dir = mkdtempSync(join(tmpdir(), "atom-gemini-"));
       try {
         // A fresh folder each time: --skip-trust lets the CLI run headless there (it would otherwise ask).

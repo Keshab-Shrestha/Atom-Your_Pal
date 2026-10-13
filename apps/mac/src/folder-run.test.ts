@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, truncateSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openHelperStore } from "@atom/helpers";
-import { askForFolder, checkpointBefore, denyRead, folderCheck } from "./folder-run.ts";
+import { PROJECT_FILE_BYTES, askForFolder, checkpointBefore, denyRead, folderCheck, projectReadCheck } from "./folder-run.ts";
 
 // Task 3.11: every tool call of a run in folders, checked in code; risky commands ask on Pal's card.
 
@@ -126,5 +126,107 @@ test("checkpointBefore keeps files outside the git worktree and leaves the workt
     assert.deepEqual(kept, [join(other, "d.ts")], "no worktree: every path is kept");
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// ADR-107: a project chat reads its folder directly (Read, Glob, Grep) and never writes. Each refusal below comes with
+// its twin that passes, so removing the check would fail one of the pair.
+function projectFixture() {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-proj-home-")));
+  const root = join(home, "Developer", "app");
+  for (const d of ["src", ".git", "docs"]) mkdirSync(join(root, d), { recursive: true });
+  mkdirSync(join(home, ".ssh"), { recursive: true });
+  mkdirSync(join(home, "Developer", "other"), { recursive: true });
+  for (const f of ["src/a.ts", "env.txt", ".env", ".env.local", "key.pem", "id_rsa", "id_rsa.pub", ".git/config", "docs/notes.md"]) writeFileSync(join(root, f), "x");
+  writeFileSync(join(home, ".ssh", "id_ed25519"), "secret");
+  writeFileSync(join(home, "Developer", "other", "x.ts"), "x");
+  symlinkSync(join(home, ".ssh"), join(root, "keys"));
+  symlinkSync(join(root, "docs"), join(root, "docs-link"));
+  symlinkSync(join(home, "Developer", "other", "x.ts"), join(root, "out.ts"));
+  return { home, root };
+}
+
+test("project reads: inside the folder passes; outside, symlink escapes, .. and absolute patterns are refused", async () => {
+  const { home, root } = projectFixture();
+  try {
+    const seen: unknown[] = [];
+    const check = projectReadCheck([root], "Haat coder", { home, onCheck: (e) => seen.push(e) });
+    assert.equal(await check("Read", { file_path: join(root, "src/a.ts") }), undefined);
+    assert.equal(await check("Read", { file_path: "src/a.ts" }), undefined, "relative to the folder");
+    assert.equal(await check("Read", { file_path: join(root, "docs-link", "notes.md") }), undefined, "a symlink that stays inside");
+    assert.equal(await check("Glob", { pattern: "**/*.ts" }), undefined);
+    assert.equal(await check("Grep", { pattern: "TODO", path: "src" }), undefined);
+    assert.equal(await check("Grep", { pattern: "TODO" }), undefined, "no path: the folder itself");
+    assert.match((await check("Read", { file_path: join(home, "Developer", "other", "x.ts") }))!, /outside/);
+    assert.match((await check("Read", { file_path: join(home, ".ssh", "id_ed25519") }))!, /outside/);
+    assert.match((await check("Read", { file_path: join(root, "keys", "id_ed25519") }))!, /outside/, "a symlink to ~/.ssh");
+    assert.match((await check("Read", { file_path: join(root, "out.ts") }))!, /outside/, "a symlink to a file outside");
+    assert.match((await check("Read", { file_path: "../other/x.ts" }))!, /outside/);
+    assert.match((await check("Read", { file_path: "/etc/passwd" }))!, /outside/);
+    assert.match((await check("Glob", { pattern: "/etc/**" }))!, /outside/, "an absolute pattern");
+    assert.equal(await check("Glob", { pattern: `${root}/src/*.ts` }), undefined, "an absolute pattern inside the folder");
+    assert.match((await check("Glob", { pattern: "../**/*.ts" }))!, /\.\./, "a .. pattern");
+    assert.match((await check("Glob", { pattern: "src/../../*" }))!, /\.\./);
+    assert.match((await check("Grep", { pattern: "x", path: join(home, ".ssh") }))!, /outside/);
+    assert.match((await check("Grep", { pattern: "x", glob: "../*" }))!, /\.\./);
+    assert.match((await check("Grep", { pattern: "x", path: "keys" }))!, /outside/);
+    assert.deepEqual(seen.map((e) => (e as { verdict: string }).verdict).filter((v) => v === "refused").length, 12);
+    assert.ok(!JSON.stringify(seen).includes("ssh") && !JSON.stringify(seen).includes("etc"), "the log has tools and verdicts only");
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("project reads: secret-like files, ~/.ssh and git internals are refused; look-alikes pass", async () => {
+  const { home, root } = projectFixture();
+  try {
+    const check = projectReadCheck([root], "Haat coder", { home });
+    for (const f of [".env", ".env.local", "key.pem", "id_rsa", "id_rsa.pub"]) assert.match((await check("Read", { file_path: join(root, f) }))!, /secret/i, f);
+    assert.equal(await check("Read", { file_path: join(root, "env.txt") }), undefined, "env.txt is not .env");
+    assert.match((await check("Read", { file_path: join(root, ".git", "config") }))!, /git/i);
+    assert.match((await check("Grep", { pattern: "x", path: ".git" }))!, /git/i);
+    assert.match((await check("Glob", { pattern: ".git/**" }))!, /git/i);
+    assert.equal(await check("Read", { file_path: join(root, "docs", "notes.md") }), undefined);
+    const asHome = projectReadCheck([join(home, ".ssh")], "x", { home }); // a root inside a deny dir is still refused
+    assert.match((await asHome("Read", { file_path: join(home, ".ssh", "id_ed25519") }))!, /secret|keys/i);
+    assert.match((await check("Grep", { pattern: "x", glob: ".env*" }))!, /glob/i, "a glob that names secrets");
+    assert.match((await check("Grep", { pattern: "x", glob: "*" }))!, /glob/i, "a glob that is not an extension filter");
+    assert.equal(await check("Grep", { pattern: "x", glob: "*.ts" }), undefined);
+    assert.equal(await check("Grep", { pattern: "x", glob: "**/*.{ts,tsx}" }), undefined);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("project reads: a file over 2 MB is refused; exactly 2 MB passes; only Read, Glob and Grep are allowed", async () => {
+  const { home, root } = projectFixture();
+  try {
+    const check = projectReadCheck([root], "Haat coder", { home });
+    writeFileSync(join(root, "big.bin"), "");
+    truncateSync(join(root, "big.bin"), PROJECT_FILE_BYTES);
+    assert.equal(await check("Read", { file_path: join(root, "big.bin") }), undefined);
+    truncateSync(join(root, "big.bin"), PROJECT_FILE_BYTES + 1);
+    assert.match((await check("Read", { file_path: join(root, "big.bin") }))!, /2 MB/);
+    assert.match((await check("Read", { file_path: join(root, "src") }))!, /file/i, "a folder is not a file");
+    assert.match((await check("Read", {}))!, /file/i);
+    for (const tool of ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "WebFetch", "Task"]) {
+      assert.match((await check(tool, { file_path: join(root, "src/a.ts"), command: "ls" }))!, /Haat coder/, tool);
+    }
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("project reads: a grep that names no glob is given an exclusion for secrets and git", async () => {
+  const { home, root } = projectFixture();
+  try {
+    const check = projectReadCheck([root], "Haat coder", { home });
+    const prepared = check.prepare("Grep", { pattern: "TODO" });
+    assert.match(String(prepared.glob), /^!\{/);
+    for (const word of [".git", ".env", ".pem", "id_rsa"]) assert.ok(String(prepared.glob).includes(word), word);
+    assert.deepEqual(check.prepare("Grep", { pattern: "TODO", glob: "*.ts" }), { pattern: "TODO", glob: "*.ts" }, "an extension glob stays");
+    assert.deepEqual(check.prepare("Read", { file_path: "a" }), { file_path: "a" });
+  } finally {
+    rmSync(home, { recursive: true, force: true });
   }
 });

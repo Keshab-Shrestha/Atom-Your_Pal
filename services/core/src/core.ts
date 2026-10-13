@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { LanguageModel, Message, RequestContext, ToolRunner, ZenoInput, ZenoResponse } from "@atom/contracts";
+import type { LanguageModel, Message, ProjectFiles, RequestContext, ToolRunner, ZenoInput, ZenoResponse } from "@atom/contracts";
 
 export const DEFAULT_SYSTEM_PROMPT =
   "You are ATOM, a voice assistant. Your replies are spoken aloud, so answer in short, " +
@@ -51,6 +51,12 @@ export interface CoreOptions {
    * joins the conversation and no model is called), undefined means the model answers as usual.
    */
   shortcuts?: (text: string, signal?: AbortSignal) => Promise<string | undefined>;
+  /**
+   * ADR-107: a project chat. Called at each request with the chat's session id; for a chat in a project it returns the
+   * project's short standing note (the same bytes every time, so the provider can cache it) and, when the folder is
+   * there, the read-only file access. Undefined: an ordinary chat. A throw is ignored: the chat goes on without it.
+   */
+  project?: (sessionId: string) => { note: string; files?: ProjectFiles } | undefined;
   /** Maximum user+assistant turn pairs kept in session history (bounds prompt size). */
   maxTurns?: number;
   newId?: () => string;
@@ -95,6 +101,7 @@ export function createCore(options: CoreOptions): Core {
     systemPrompt: basePrompt = DEFAULT_SYSTEM_PROMPT,
     context: contextFor,
     standing,
+    project,
     onExchange,
     shortcuts,
     maxTurns = 20,
@@ -155,14 +162,21 @@ export function createCore(options: CoreOptions): Core {
         } catch {
           extra = undefined; // memory is a help, never a reason to fail a request
         }
-        const systemPrompt = fullPrompt();
+        let projectTurn: ReturnType<NonNullable<typeof project>>;
+        try {
+          projectTurn = project?.(sessionId);
+        } catch {
+          projectTurn = undefined; // a project is a help, never a reason to fail a request
+        }
+        const systemPrompt = projectTurn ? `${fullPrompt()}\n\n${projectTurn.note}` : fullPrompt();
+        const files = projectTurn?.files ? { files: projectTurn.files } : {};
         const systemExtra = { ...(extra ? { systemExtra: extra } : {}), ...(hooks?.onText ? { onText: hooks.onText } : {}) };
 
         // Tool rounds live only in this request's `messages`; session history keeps just the user turn and
         // the final answer, so a trimmed history can never hold half a tool exchange.
         const messages: Message[] = [...turns, userTurn];
         const specs = tools?.specs() ?? [];
-        let reply = await model.complete({ system: systemPrompt, ...systemExtra, messages, context, ...(specs.length ? { tools: specs } : {}) }, signal);
+        let reply = await model.complete({ system: systemPrompt, ...systemExtra, messages, context, ...files, ...(specs.length ? { tools: specs } : {}) }, signal);
         for (let round = 0; tools && reply.toolCalls?.length; round++) {
           if (signal?.aborted) throw new CoreError("Request cancelled");
           if (round >= maxToolRounds) {
@@ -179,7 +193,7 @@ export function createCore(options: CoreOptions): Core {
           for (const call of calls) results.push(await tools.run(call, signal)); // one at a time, in order
           if (signal?.aborted) throw new CoreError("Request cancelled");
           messages.push({ role: "assistant", content: reply.text, toolCalls: calls }, { role: "user", content: "", toolResults: results });
-          reply = await model.complete({ system: systemPrompt, ...systemExtra, messages, context, tools: specs }, signal);
+          reply = await model.complete({ system: systemPrompt, ...systemExtra, messages, context, ...files, tools: specs }, signal);
         }
         if (signal?.aborted) throw new CoreError("Request cancelled");
         const replyText = reply.text.trim();

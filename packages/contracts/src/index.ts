@@ -88,6 +88,21 @@ export interface ModelRequest {
    * Text written before a tool call ("Let me check.") is included; turns are separated by a newline.
    */
   onText?: (delta: string) => void;
+  /**
+   * ADR-107: set for a project chat: direct read-only file tools (Read, Glob, Grep) confined to `cwd`. Every call goes
+   * through `check` (a reason it is refused, or undefined). Providers that cannot run file tools refuse the request.
+   */
+  files?: ProjectFiles;
+}
+
+/** ADR-107: a project chat's read-only file access. */
+export interface ProjectFiles {
+  cwd: string;
+  check(name: string, input: Record<string, unknown>): Promise<string | undefined>;
+  /** The input the tool runs with (e.g. a search that skips secrets); unchanged when absent. */
+  prepare?(name: string, input: Record<string, unknown>): Record<string, unknown>;
+  /** Web search in this chat. Off unless true. */
+  web?: boolean;
 }
 
 export interface ModelResponse {

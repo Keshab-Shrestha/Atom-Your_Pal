@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ModelRequest, ToolCall, ToolResult, ToolRunner, ToolSpec } from "@atom/contracts";
-import { createClaudePlanAdapter, scrubbedEnv, tokensOf, type ClaudeSdk, type PlanUsage } from "./claude-plan.ts";
+import { MAX_PROJECT_FILE_CALLS, createClaudePlanAdapter, scrubbedEnv, tokensOf, type ClaudeSdk, type PlanUsage } from "./claude-plan.ts";
 import { createProviderAdapter } from "./index.ts";
 import { ProviderError } from "../gateway.ts";
 
@@ -456,4 +456,99 @@ test("a worker's run counts every model's tokens (its sub-agents too), instead o
   assert.deepEqual(tokensOf({ usage, modelUsage }), { input: 10, output: 5, cacheRead: 0, cacheWrite: 0 }, "chat keeps usage");
   assert.deepEqual(tokensOf({ usage }, { allModels: true }), { input: 10, output: 5, cacheRead: 0, cacheWrite: 0 }, "no modelUsage: usage");
   assert.deepEqual(tokensOf({ usage, modelUsage: {} }, { allModels: true }), { input: 10, output: 5, cacheRead: 0, cacheWrite: 0 }, "empty modelUsage: usage");
+});
+
+// ---- ADR-107: a project chat reads its folder with Claude Code's own Read, Glob and Grep, each call decided in code
+
+const projectFiles = (over: Record<string, unknown> = {}) => {
+  const checked: string[] = [];
+  return {
+    checked,
+    files: {
+      cwd: "/Users/k/Developer/app",
+      check: async (name: string, input: Record<string, unknown>) => (checked.push(name), String(input.file_path ?? "").includes("secret") ? "Secret files are never read." : undefined),
+      ...over,
+    },
+  };
+};
+
+test("a chat without files is unchanged: only web search, no cwd, no hooks, no permission callback", async () => {
+  const { runner } = runnerOf((c) => ({ callId: c.id, content: "ok" }));
+  const { sdk, seen } = fakeSdk(() => msgs(init(), done("ok")));
+  await make(sdk, { tools: runner }).complete(request({ tools: [spec] }), live());
+  const o = seen[0]!.options;
+  assert.deepEqual(o.tools, ["WebSearch"]);
+  assert.equal(o.cwd, undefined);
+  assert.equal(o.canUseTool, undefined);
+  assert.equal(o.hooks, undefined);
+});
+
+test("a project chat gets Read, Glob and Grep (no Bash, no Write), the folder as cwd, web off, and the reads are not pre-allowed", async () => {
+  const { runner } = runnerOf((c) => ({ callId: c.id, content: "ok" }));
+  const { sdk, seen } = fakeSdk(() => msgs(init(), done("ok")));
+  const { files } = projectFiles();
+  await make(sdk, { tools: runner }).complete(request({ tools: [spec], files }), live());
+  const o = seen[0]!.options;
+  assert.deepEqual(o.tools, ["Read", "Glob", "Grep"], "web search is off unless the project turned it on");
+  assert.equal(o.cwd, "/Users/k/Developer/app");
+  for (const tool of ["Bash", "Write", "Edit", "MultiEdit", "NotebookEdit", "WebFetch"]) assert.ok(!o.tools.includes(tool), tool);
+  assert.deepEqual(o.allowedTools, ["mcp__atom__computer"], "no read is allowed without asking canUseTool; web search is off");
+  for (const tool of ["Read", "Glob", "Grep"]) assert.ok(!o.allowedTools.includes(tool), tool);
+  assert.equal(typeof o.canUseTool, "function");
+  assert.equal(o.hooks.PreToolUse.length, 1);
+});
+
+test("a project that turned web search on keeps it, in the tools and allowed", async () => {
+  const { runner } = runnerOf((c) => ({ callId: c.id, content: "ok" }));
+  const { sdk, seen } = fakeSdk(() => msgs(init(), done("ok")));
+  await make(sdk, { tools: runner }).complete(request({ tools: [spec], files: projectFiles({ web: true }).files }), live());
+  assert.deepEqual(seen[0]!.options.tools, ["WebSearch", "Read", "Glob", "Grep"]);
+  assert.deepEqual(seen[0]!.options.allowedTools, ["mcp__atom__computer", "WebSearch"]);
+});
+
+test("every project read goes through the check, by permission callback and by hook; a refusal is a deny", async () => {
+  const { runner } = runnerOf((c) => ({ callId: c.id, content: "ok" }));
+  const { sdk, seen } = fakeSdk(() => msgs(init(), done("ok")));
+  const { files, checked } = projectFiles({ prepare: (n: string, i: Record<string, unknown>) => (n === "Grep" ? { ...i, glob: "!x" } : i) });
+  await make(sdk, { tools: runner }).complete(request({ tools: [spec], files }), live());
+  const { canUseTool, hooks } = seen[0]!.options;
+  assert.deepEqual(await canUseTool("Read", { file_path: "/Users/k/Developer/app/a.ts" }, { toolUseID: "t1" }), { behavior: "allow", updatedInput: { file_path: "/Users/k/Developer/app/a.ts" } });
+  assert.deepEqual(await canUseTool("Grep", { pattern: "x" }, { toolUseID: "t2" }), { behavior: "allow", updatedInput: { pattern: "x", glob: "!x" } });
+  assert.deepEqual(await canUseTool("Read", { file_path: "/Users/k/Developer/app/secret.txt" }, { toolUseID: "t3" }), { behavior: "deny", message: "Secret files are never read." });
+  for (const tool of ["Bash", "Write", "Edit", "WebFetch", "Task", "mcp__other__x"]) {
+    assert.equal((await canUseTool(tool, { command: "ls" }, { toolUseID: `x-${tool}` })).behavior, "deny", tool);
+  }
+  const hook = hooks.PreToolUse[0].hooks[0];
+  assert.equal((await hook({ tool_name: "Read", tool_input: { file_path: "/Users/k/Developer/app/secret.txt" } }, "t4")).hookSpecificOutput.permissionDecision, "deny");
+  assert.equal((await hook({ tool_name: "Write", tool_input: { file_path: "/x" } }, "t5")).hookSpecificOutput.permissionDecision, "deny");
+  assert.equal((await hook({ tool_name: "Read", tool_input: { file_path: "/Users/k/Developer/app/b.ts" } }, "t6")).hookSpecificOutput.permissionDecision, "allow");
+  assert.deepEqual(checked, ["Read", "Grep", "Read", "Read", "Read"], "the check ran for each file tool call, never for the others");
+});
+
+test("the hook and the callback for one call count and check it once; the ninth read of an answer is refused", async () => {
+  const { runner } = runnerOf((c) => ({ callId: c.id, content: "ok" }));
+  const { sdk, seen } = fakeSdk(() => msgs(init(), done("ok")));
+  const { files, checked } = projectFiles();
+  await make(sdk, { tools: runner }).complete(request({ tools: [spec], files }), live());
+  const { canUseTool, hooks } = seen[0]!.options;
+  const hook = hooks.PreToolUse[0].hooks[0];
+  for (let i = 1; i <= MAX_PROJECT_FILE_CALLS; i++) {
+    const input = { file_path: `/Users/k/Developer/app/f${i}.ts` };
+    assert.equal((await hook({ tool_name: "Read", tool_input: input }, `c${i}`)).hookSpecificOutput.permissionDecision, "allow", `call ${i}`);
+    assert.equal((await canUseTool("Read", input, { toolUseID: `c${i}` })).behavior, "allow");
+  }
+  assert.equal(checked.length, MAX_PROJECT_FILE_CALLS, "each call checked once");
+  const ninth = await canUseTool("Read", { file_path: "/Users/k/Developer/app/f9.ts" }, { toolUseID: "c9" });
+  assert.equal(ninth.behavior, "deny");
+  assert.match(ninth.message, /Answer now/);
+  assert.equal(MAX_PROJECT_FILE_CALLS, 8);
+});
+
+test("a project chat never takes the pre-started process (it has no file tools)", async () => {
+  const { runner } = runnerOf((c) => ({ callId: c.id, content: "ok" }));
+  const { sdk, seen } = fakeSdk(() => msgs(init(), done("ok")));
+  const adapter = make(sdk, { tools: runner });
+  await adapter.complete(request({ tools: [spec], files: projectFiles().files }), live());
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0]!.options.cwd, "/Users/k/Developer/app");
 });
