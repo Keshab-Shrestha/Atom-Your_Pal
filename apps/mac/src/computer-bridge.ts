@@ -8,7 +8,8 @@ export interface ComputerBridge {
   /** Where events go. Until the island is attached, every approval is a refusal and steps are dropped. */
   attach(send: (event: IslandEvent) => void): void;
   /** Passed to the computer tool as `approve`. Resolves true only if the user answers yes. */
-  approve(request: { summary: string; reason: string }, signal?: AbortSignal): Promise<boolean>;
+  /** `timeoutMs` overrides the default wait for this one request. */
+  approve(request: { summary: string; reason: string; timeoutMs?: number }, signal?: AbortSignal): Promise<boolean>;
   /** Passed to the computer tool as `onPoint`. False if there is no island to show it. */
   point(target: { x: number; y: number; w: number; h: number; label: string }): boolean;
   /** Task 2.x: the island opens its Settings page. False if there is no island. */
@@ -85,7 +86,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
       if (!sendEvent || signal?.aborted) return Promise.resolve(false);
       const id = newId();
       return new Promise<boolean>((resolve) => {
-        const timer = setTimeout(() => settle(id, false), timeoutMs);
+        const timer = setTimeout(() => settle(id, false), request.timeoutMs ?? timeoutMs);
         const onAbort = () => settle(id, false);
         waiting.set(id, (approved) => {
           clearTimeout(timer);

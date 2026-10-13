@@ -73,28 +73,58 @@ export function checkpointBefore(options: { roots: string[]; tree?: string; keep
   };
 }
 
+/** A worker that needs a folder waits this long for the answer (the default wait for other questions is 60 s). */
+export const FOLDER_WAIT_MS = 10 * 60_000;
+
 /**
  * ADR-090: a file worker with no folder asks on Pal's card for the one its task names (else ~/Documents/ATOM). Allowed:
- * ATOM makes the folder and grants it, and the worker's folders come back. Refused (or no answer): a clear error.
+ * ATOM makes the folder and grants it, and the worker's folders come back. Refused or no answer in `waitMs`: an error
+ * that says which one happened.
  */
 export async function askForFolder(options: {
   task: string;
   name: string;
   home: string;
-  approve(request: { summary: string; reason: string }): Promise<boolean>;
+  approve(request: { summary: string; reason: string; timeoutMs: number }, signal: AbortSignal): Promise<boolean>;
+  /** The job's own signal: stopping the job withdraws the question. */
+  signal?: AbortSignal;
+  waitMs?: number;
+  /** Called when the question is asked, for the job's step line. */
+  onWaiting?(): void;
   /** Grants the folder (the store checks it) and returns the worker's folders. */
   grant(folder: string): string[];
-  onAnswer?(allowed: boolean): void;
+  onAnswer?(allowed: boolean, timedOut: boolean): void;
 }): Promise<string[]> {
   const { task, name, home } = options;
   const folder = folderForTask(task, home);
   const shown = folder.startsWith(home) ? `~${folder.slice(home.length)}` : folder;
-  const allowed = await options.approve({
-    summary: `${name} needs a folder to save files in`,
-    reason: `Let ${name} read, write, copy and edit files in ${shown}? ATOM makes the folder if it is missing. Change it on ${name}'s page.`,
-  });
-  options.onAnswer?.(allowed);
-  if (!allowed) throw new Error(`${name} needs a folder to save files in, and none was allowed. Grant one on ${name}'s page, then retry.`);
+  const waitMs = options.waitMs ?? FOLDER_WAIT_MS;
+  const timer = new AbortController();
+  let timedOut = false;
+  const wait = setTimeout(() => {
+    timedOut = true;
+    timer.abort();
+  }, waitMs);
+  options.onWaiting?.();
+  let allowed: boolean;
+  try {
+    allowed = await options.approve(
+      {
+        // The folder is in the summary: the card and Telegram cut the reason short.
+        summary: `${name} needs a folder to save files in: ${shown}`,
+        reason: `Let ${name} read, write, copy and edit files in ${shown}? ATOM makes the folder if it is missing. Change it on ${name}'s page.`,
+        timeoutMs: waitMs + 5_000, // a backstop: the timer above decides and says so
+      },
+      options.signal ? AbortSignal.any([options.signal, timer.signal]) : timer.signal,
+    );
+  } finally {
+    clearTimeout(wait);
+  }
+  options.onAnswer?.(allowed, timedOut);
+  if (!allowed) {
+    const why = timedOut ? `You did not answer in ${Math.round(waitMs / 60_000)} minutes` : "You declined";
+    throw new Error(`${why}: ${name} needs a folder to save files in, and none was allowed. Grant one on ${name}'s page, then retry.`);
+  }
   mkdirSync(folder, { recursive: true });
   return options.grant(folder);
 }

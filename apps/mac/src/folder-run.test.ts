@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { mock, test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, truncateSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -57,11 +57,11 @@ test("a file worker with no folder asks for the one its task names; allowed, it 
     });
     assert.deepEqual(grants, [join(home, "ZenoDoc")]);
     assert.ok(existsSync(join(home, "ZenoDoc")));
-    assert.match(asked[0]!, /^Quill needs a folder to save files in \| .*~\/ZenoDoc/);
+    assert.match(asked[0]!, /^Quill needs a folder to save files in: ~\/ZenoDoc \| .*~\/ZenoDoc/);
     // Said no (or no answer): a clear error, nothing made.
     await assert.rejects(
       askForFolder({ task: "Save it to ~/Other", name: "Kame", home, approve: async () => false, grant: () => [] }),
-      /Kame needs a folder to save files in, and none was allowed/,
+      /You declined: Kame needs a folder to save files in, and none was allowed/,
     );
     assert.ok(!existsSync(join(home, "Other")));
   } finally {
@@ -229,6 +229,64 @@ test("project reads: a grep that names no glob is given an exclusion for secrets
     for (const word of [".git", ".env", ".pem", "id_rsa"]) assert.ok(String(prepared.glob).includes(word), word);
     assert.deepEqual(check.prepare("Grep", { pattern: "TODO", glob: "*.ts" }), { pattern: "TODO", glob: "*.ts" }, "an extension glob stays");
     assert.deepEqual(check.prepare("Read", { file_path: "a" }), { file_path: "a" });
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+// Job 2: the folder question waits 10 minutes (not 60 s), says why it ended, and shows the job step.
+test("a folder question waits 10 minutes, then the error says you did not answer", async (t) => {
+  t.after(() => mock.timers.reset());
+  mock.timers.enable({ apis: ["setTimeout"] });
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-home-")));
+  try {
+    const seen: { timeoutMs: number; summary: string }[] = [];
+    let waiting = 0;
+    let answer: [boolean, boolean] | undefined;
+    const result = askForFolder({
+      task: "Run du -sh on ~/Other",
+      name: "Kame",
+      home,
+      approve: (request, signal) => (seen.push(request), new Promise<boolean>((resolve) => signal.addEventListener("abort", () => resolve(false)))),
+      grant: () => [],
+      onWaiting: () => waiting++,
+      onAnswer: (allowed, timedOut) => (answer = [allowed, timedOut]),
+    });
+    const outcome = assert.rejects(result, /You did not answer in 10 minutes: Kame needs a folder/);
+    mock.timers.tick(9 * 60_000 + 59_000); // still waiting after 60 s and after 9:59
+    assert.equal(answer, undefined);
+    mock.timers.tick(1_000);
+    await outcome;
+    assert.equal(waiting, 1);
+    assert.deepEqual(answer, [false, true]);
+    assert.ok(seen[0]!.timeoutMs >= 10 * 60_000);
+    assert.match(seen[0]!.summary, /~\/Other$/); // the folder is in the line that is never cut
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("a folder question answered late (inside 10 minutes) is allowed; stopping the job withdraws it", async (t) => {
+  t.after(() => mock.timers.reset());
+  mock.timers.enable({ apis: ["setTimeout"] });
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-home-")));
+  try {
+    let yes!: (v: boolean) => void;
+    const late = askForFolder({ task: "Save it to ~/Late", name: "Quill", home, approve: () => new Promise<boolean>((r) => (yes = r)), grant: (f) => [f] });
+    mock.timers.tick(5 * 60_000);
+    yes(true);
+    assert.deepEqual(await late, [join(home, "Late")]);
+    const stop = new AbortController();
+    const withdrawn = askForFolder({
+      task: "Save it to ~/Gone",
+      name: "Quill",
+      home,
+      signal: stop.signal,
+      approve: (_r, signal) => new Promise<boolean>((r) => signal.addEventListener("abort", () => r(false))),
+      grant: () => [],
+    });
+    stop.abort();
+    await assert.rejects(withdrawn, /You declined/); // ponytail: a stop reads as a refusal; the job is cancelled anyway
   } finally {
     rmSync(home, { recursive: true, force: true });
   }

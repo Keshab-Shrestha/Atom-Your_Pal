@@ -119,12 +119,14 @@ export function createRunOne(ctx: RunOneContext): JobRun {
         task: job.task,
         name,
         home: homedir(),
-        approve: (request) => computer.approve(request),
+        approve: (request, signal) => computer.approve(request, signal),
+        signal,
+        onWaiting: () => onStep("Waiting for you: folder"),
         grant: (folder) => {
           store.addGrant(job.helper, folder);
           return store.list().find((h) => h.id === job.helper)?.grants ?? [];
         },
-        onAnswer: (allowed) => log.info("job.folder", { helper: job.helper, job: job.id, allowed }),
+        onAnswer: (allowed, timedOut) => log.info("job.folder", { helper: job.helper, job: job.id, allowed, ...(timedOut ? { timedOut } : {}) }),
       });
     }
     let work: Workdir | undefined;

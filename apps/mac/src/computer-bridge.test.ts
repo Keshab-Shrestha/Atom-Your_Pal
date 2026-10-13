@@ -142,3 +142,12 @@ test("pointing shows as a step in the bubble", () => {
   assert.equal(stepText({ action: "point", app: "Brave Browser" }), "Pointing in Brave Browser");
   assert.equal(stepText({ action: "point" }), "Pointing at something");
 });
+
+test("a request can ask for its own, longer wait", async () => {
+  const { bridge, events } = setup({ timeoutMs: 20 });
+  const answer = bridge.approve({ summary: "s", reason: "r", timeoutMs: 400 });
+  await new Promise((r) => setTimeout(r, 80)); // past the default wait
+  assert.equal(bridge.pending().length, 1);
+  bridge.answer((events[0] as { id: string }).id, true);
+  assert.equal(await answer, true);
+});
