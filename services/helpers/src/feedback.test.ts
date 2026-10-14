@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { openHelperStore, reviewBrief, startJobRunner, type Job, type JobRun, type RunOutcome } from "./index.ts";
+import { openHelperStore, reviewBrief } from "./index.ts";
 
 // ADR-082, Task 3.13: ratings, Tinker's reviews and proposals, accepted, rejected and undone.
 
@@ -67,12 +67,3 @@ test("a rejected proposal changes nothing; a proposal that would break the soul 
   assert.throws(() => store.addProposal(tinker.id, { field: "lessons", text: "x".repeat(5000), reason: "r" }), /too long/);
 });
 
-test("the runner runs Tinker's review like any task", async () => {
-  const { store, tinker } = ratedBad();
-  const calls: { job: Job; resolve(o: RunOutcome): void }[] = [];
-  const run: JobRun = (job) => new Promise((resolve) => calls.push({ job, resolve }));
-  const runner = startJobRunner({ store, run });
-  await tick();
-  assert.deepEqual(calls.map((c) => c.job.id), [tinker.id]);
-  runner.close();
-});

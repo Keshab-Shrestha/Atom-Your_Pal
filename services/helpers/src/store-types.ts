@@ -3,11 +3,9 @@ import type { Routine, Schedule } from "./routines.ts";
 import type { Proposal, ReviewTarget, SoulField } from "./feedback.ts";
 import type { SkillDraft, SkillDraftState, SkillDraftTarget, SkillEdit, SkillEditState, SkillEditTarget } from "./skill-drafts.ts";
 import type { HubFile, HubInstalled, HubPending } from "./skill-hub.ts";
-import type { AgentProblem, Kit, ManagerMode } from "./agents.ts";
+import type { AgentProblem, Kit } from "./agents.ts";
 import type { McpServer, McpServerInput } from "./mcp.ts";
 import type { UsageEntry, UsageSummary } from "./usage.ts";
-import type { TeamTask, WakeEvery, WakeUp, Woken } from "./team.ts";
-import type { SubAgent, SubAgentEvent, SubAgentState } from "./sub-agents.ts";
 import type { ToolCall, ToolCallEvent } from "./tool-calls.ts";
 import type { CheckpointItem, UndoResult } from "./checkpoints.ts";
 import type { TaskSearchHit } from "./search.ts";
@@ -84,8 +82,6 @@ export interface Job {
   waitingFor: number[];
   /** How many notes Keshab added. */
   comments: number;
-  /** ADR-095: the sub-agents its runs started (the newest), absent when none. */
-  subAgents?: SubAgent[];
   /** ADR-098: its labels, sorted; absent when none. */
   labels?: string[];
 }
@@ -189,37 +185,14 @@ export interface HelperView {
   browser: boolean;
   /** Task 3.9: its routines, oldest first. */
   routines: Routine[];
-  /** ADR-094: its wake-ups; absent when off (the default). */
-  wakeUp?: WakeUp;
   /** Task 3.11: the folders it may work in (real paths), in the order granted. */
   grants: string[];
   /** Task 3.12: the skills from ~/.claude/skills chosen for it, sorted. */
   skills: string[];
   /** Task 3.13: Tinker's proposals for its soul: every pending one and the newest others, newest first. */
   proposals: Proposal[];
-  /** ADR-095: its Manager's id; absent when it has none (Tinker, or before the Managers were made). */
-  manager?: string;
   /** Newest first, at most JOBS_PER_HELPER. */
   jobs: Job[];
-}
-
-/** ADR-095: a Manager: a domain with Agents under it. It has a soul, never a kit or tasks of its own. */
-export interface ManagerView {
-  id: string;
-  name: string;
-  mode: ManagerMode;
-  soul: Soul;
-  soulVersion: number;
-  /** Its Agents' ids, in the team's order. */
-  agents: HelperId[];
-  /** Its own runs (plan mode: one per part ATOM handed it), newest first, at most JOBS_PER_HELPER. */
-  jobs: Job[];
-}
-
-/** ADR-095: one of a Manager's tasks for its Agents, with what came of it. */
-export interface ManagedTask extends HandOffOutcome {
-  id: number;
-  state: JobState;
 }
 
 /** What changed, for logs and updates: ids, states and timings only. */
@@ -230,12 +203,9 @@ export type HelperChange =
   | { action: "settings" }
   | { action: "plan"; helper: HelperId; job: number; status: "awaiting" | "approved" | "rejected" }
   | { action: "routine"; helper: HelperId; routine: number; outcome: "added" | "changed" | "removed" | "made" | "skipped" | "paused" | "resumed" }
-  | { action: "team"; task: number; change: "added" | "removed" | "taken"; helper?: HelperId; job?: number }
-  | { action: "wakeUp"; helper: HelperId; change: "set" | "off" | "paused" | "resumed" | "woke"; job?: number }
   | { action: "grant"; helper: HelperId; granted: boolean }
   | { action: "skills"; helper: HelperId; count: number }
   | { action: "agent"; helper: HelperId; added: boolean }
-  | { action: "manager"; manager: string; change: "added" | "removed" | "renamed" | "mode" | "moved"; helper?: HelperId }
   | { action: "mcp"; server: number; change: "added" | "removed" | "set" | "tested" }
   | { action: "usage" }
   | { action: "rating"; helper: HelperId; job: number; good: boolean }
@@ -250,7 +220,6 @@ export type HelperChange =
   | { action: "label"; helper: HelperId; job: number }
   | { action: "blockers"; helper: HelperId; job: number }
   | { action: "deleted"; helper: HelperId; job: number }
-  | { action: "subAgent"; helper: HelperId; job: number; name: string; state: SubAgentState }
   | { action: "toolCall"; helper: HelperId; job: number }
   | { action: "checkpoint"; helper: HelperId; job: number; change: "kept" | "finished" | "undone"; count?: number }
   | { action: "goal"; goal: number; tasks: number; ended: boolean; source?: string }
@@ -272,9 +241,6 @@ export interface HelperStore {
   restoreSoul(helper: string, version: number): void;
   /** Whether jobs may use the large model (ADR-083). Default true. */
   allowLarge(): boolean;
-  /** ADR-098 item 7: the Codex switch. ADR-110 N4 removed the plan limit that made a task wait for Codex, so nothing starts a Codex run now. Default false. */
-  codexFallback(): boolean;
-  setCodexFallback(on: boolean): void;
   /**
    * Task 3.10: a running task hands a sub-task to another worker. Checked here: the target is available and its role
    * may take work from this one, at most two levels and three sub-tasks a task. The
@@ -298,33 +264,6 @@ export interface HelperStore {
   removeAgent(id: string): void;
   /** Agent folders that could not be read, each with its folder name and why (ADR-093: logged and shown on the Board). */
   agentProblems(): AgentProblem[];
-  /** ADR-095: every Manager with its Agents, by folder name. */
-  managers(): ManagerView[];
-  /** Adds a Manager (its folder and soul.md; default mode "group"). Throws HelperError for a bad or taken name, or too many. */
-  createManager(input: { name: string; mode?: ManagerMode }): ManagerView;
-  /** Renames a Manager (a new soul version). Throws HelperError for an unknown Manager or a bad or taken name. */
-  renameManager(id: string, name: string): void;
-  setManagerMode(id: string, mode: ManagerMode): void;
-  /** Moves a Manager's folder to agents-removed/. Refused while it has Agents. Its unfinished runs are stopped. */
-  removeManager(id: string): void;
-  /**
-   * Puts an Agent under a Manager: an agent Keshab added gets `manager:` in its soul.md (recorded as a soul version), a
-   * built-in worker a setting. Throws HelperError for an unknown Agent or Manager, or Tinker.
-   */
-  setManager(helper: string, manager: string): void;
-  /**
-   * ADR-095, for a "plan" Manager's first run: its Agents' tasks (1 to MAX_GOAL_TASKS, `helper` an Agent of that
-   * Manager, `after` earlier positions). The Manager's task waits for them and runs again (its review) when they end.
-   * Throws HelperError for a task that is not a running Manager's, one already split, or a bad part.
-   */
-  managerSplit(jobId: number, parts: readonly GoalPart[]): Job[];
-  /**
-   * The Manager's one revision: a note on one of its done tasks (which wakes it, as comment.add does); the Manager's task
-   * runs again when that one ends. Throws HelperError when the revision is used, or for another task.
-   */
-  managerRevise(jobId: number, childId: number, note: string): void;
-  /** A Manager's task's tasks with their outcomes, and whether its revision is used. */
-  managerWork(jobId: number): { tasks: ManagedTask[]; revised: boolean };
   /** ADR-090: MCP servers (secrets included: for the runtime only, never for the island or the log). */
   /** ADR-091: records the tokens one run used (a job or a chat answer). */
   addUsage(entry: UsageEntry): { gapMs: number | null };
@@ -378,8 +317,6 @@ export interface HelperStore {
   undoSkillEdit(id: number): void;
   /** Records that a run of a task used a skill (Skill tool calls). Bad names and unknown tasks are ignored. */
   recordSkillUse(jobId: number, skill: string): void;
-  /** ADR-095: one sub-agent's start or end in a run of this task (an unknown task, or a bad name, is ignored). */
-  recordSubAgent(jobId: number, event: SubAgentEvent): void;
   /** B3.1: one tool call's start or end in a run of this task (an unknown task, a bad state, an end without its start is ignored). */
   recordToolCall(jobId: number, event: ToolCallEvent): void;
   /** B3.1: the task's newest tool calls (at most 100), oldest first. */
@@ -453,39 +390,18 @@ export interface HelperStore {
    */
   updateRoutine(id: number, helper: string, task: string, schedule: Schedule, startAt?: Date, notifyTelegram?: boolean, webhook?: boolean): Routine;
   /**
-   * ADR-098 item 5: makes the routine's task now (a webhook call). Its schedule does not change. Throws HelperError for an
-   * unknown routine, an unavailable worker, or when its last task has not ended.
-   * ADR-110 (N3): with `start` (the native engine), no task is made (null): `start` runs the routine, as runRoutines does;
-   * false (its last run still goes) throws HelperError.
+   * ADR-098 item 5: starts the routine now (a webhook call). Its schedule does not change. `start` runs it as a main-agent
+   * turn (ADR-110); false (its last run still goes) throws HelperError, as an unknown routine does.
    */
-  startRoutine(id: number, start?: (routine: Routine) => boolean): Job | null;
+  startRoutine(id: number, start: (routine: Routine) => boolean): void;
   removeRoutine(id: number): boolean;
   /** ADR-094: pauses or resumes a routine (a resumed one does not make up missed times). Throws HelperError for an unknown one. */
   pauseRoutine(id: number, paused: boolean): void;
-  /** ADR-094: the team tasks waiting to be taken, oldest first. */
-  teamTasks(): TeamTask[];
   /**
-   * ADR-094: posts a task to the team, for any worker or only one role. Throws HelperError for a bad task, a role no
-   * worker has, or too many waiting.
+   * Starts each routine that came due since it last did (missed times count once). `start` runs it as a main-agent turn
+   * (ADR-110) and says whether it did (false: skipped, as its last run still goes). Returns what was made and skipped.
    */
-  addTeamTask(task: string, role?: string | null): TeamTask;
-  removeTeamTask(id: number): boolean;
-  /** ADR-094: a worker's wake-ups on (how often) or off (null). Throws HelperError for an unknown worker or one that takes no tasks. */
-  setWakeUp(helper: string, every: WakeEvery | null): void;
-  /** Throws HelperError when the worker has no wake-ups. */
-  pauseWakeUp(helper: string, paused: boolean): void;
-  /**
-   * ADR-094: wakes the workers whose time has come. Each one that wakes takes the oldest team task its role may do, as
-   * its own task (ADR-110 N4: no run limit, budget or plan limit stops it).
-   */
-  runWakeUps(): Woken[];
-  /**
-   * Makes a task for each routine that came due since it last did (missed times count once). One whose last task is
-   * still to do or running is skipped this time. Returns what was made and skipped, by routine id.
-   * ADR-110 (N3): with `start` (the native engine), no task is made: `start` runs the routine and says whether it did
-   * (false: skipped, as its last run still goes).
-   */
-  runRoutines(start?: (routine: Routine) => boolean): { made: number[]; skipped: number[] };
+  runRoutines(start: (routine: Routine) => boolean): { made: number[]; skipped: number[] };
   /** Task 3.8: whether a worker's new tasks plan first. Throws HelperError for an unknown worker. */
   setPlanFirst(helper: string, on: boolean): void;
   /** ADR-098: whether a worker's runs get the browser. Throws HelperError for an unknown worker. */

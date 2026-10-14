@@ -7,10 +7,6 @@ import {
   briefFor,
   makesCycle,
   openHelperStore,
-  startJobRunner,
-  type Job,
-  type JobRun,
-  type RunOutcome,
 } from "./index.ts";
 
 // ADR-087, Task 3.4: tasks that wait for each other, a thread per task, one run per task.
@@ -106,21 +102,6 @@ test("the thread keeps Keshab's notes, what happened, and the report; notes go t
   assert.equal(store.thread(999), undefined);
   store.remove(id);
   assert.equal(store.thread(id), undefined);
-});
-
-test("the runner starts a waiting task only once the task it waits for is done", async () => {
-  const store = openHelperStore({ path: ":memory:" });
-  const calls: { job: Job; resolve(o: RunOutcome): void }[] = [];
-  const run: JobRun = (job) => new Promise((resolve) => calls.push({ job, resolve }));
-  const runner = startJobRunner({ store, run });
-  const a = store.addJob("sid", "a");
-  const b = store.addJob("penny", "b", { blockedBy: [a.id] });
-  await tick();
-  assert.deepEqual(calls.map((c) => c.job.id), [a.id], "Penny is free but waits");
-  calls[0]!.resolve({ report: report("A") });
-  await tick();
-  assert.deepEqual(calls.map((c) => c.job.id), [a.id, b.id]);
-  runner.close();
 });
 
 test("cycles are found through any path", () => {

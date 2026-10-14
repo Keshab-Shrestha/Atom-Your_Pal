@@ -1022,27 +1022,6 @@ test("routines in helpers, and routine.delete (Task 3.9)", async () => {
   assert.deepEqual((h.events().at(-1) as HelpersEvent).helpers[0]!.routines, []);
 });
 
-test("ADR-094: team tasks and wake-ups over the protocol", async () => {
-  const { h, store } = helperHarness();
-  await tick(5);
-  h.clear();
-  await h.send({ type: "team.add", task: "Compare note apps", role: "researcher" });
-  const posted = (h.events().at(-1) as HelpersEvent).teamTasks!;
-  assert.deepEqual(posted.map(({ createdAt: _c, ...t }) => t), [{ id: 1, task: "Compare note apps", role: "researcher" }]);
-  await h.send({ type: "team.add", task: "x", role: "astronaut" });
-  assert.match((h.events().at(-1) as { message: string }).message, /No worker is a astronaut/);
-  await h.send({ type: "team.delete", id: 1 });
-  assert.deepEqual((h.events().at(-1) as HelpersEvent).teamTasks, []);
-  await h.send({ type: "helper.wakeUp", helper: "sid", every: "1h" });
-  const wake = (h.events().at(-1) as HelpersEvent).helpers[0]!.wakeUp!;
-  assert.deepEqual([wake.every, wake.when, wake.paused, wake.lastAt], ["1h", "Every hour", undefined, undefined]);
-  await h.send({ type: "helper.wakeUp.pause", helper: "sid", paused: true });
-  assert.equal((h.events().at(-1) as HelpersEvent).helpers[0]!.wakeUp!.paused, true);
-  await h.send({ type: "helper.wakeUp", helper: "sid", every: "off" });
-  assert.equal((h.events().at(-1) as HelpersEvent).helpers[0]!.wakeUp, undefined);
-  assert.equal(store.list()[0]!.wakeUp, undefined);
-});
-
 test("thread.get lists the sub-tasks a task handed off (Task 3.10)", async () => {
   const { h, store } = helperHarness();
   await tick(5);
@@ -1144,25 +1123,6 @@ test("skill.make, skill.approve and skill.reject; skill.edit.accept, .undo and .
   }
 });
 
-test("a task's sub-agents travel in the helpers event, as each starts and ends (ADR-095)", async () => {
-  const store = openHelperStore({ path: ":memory:", home: mkdtempSync(join(tmpdir(), "atom-home-")) });
-  const h = islandHarness({ helpers: islandHelpers(store, async () => []) });
-  await tick(5);
-  await h.send({ type: "helpers.list" }); // the window watches from now on
-  const { id } = store.addJob("sid", "Compare laptops");
-  store.start(id);
-  store.recordSubAgent(id, { id: "s1", name: "searcher", state: "started", description: "Find reviews" });
-  await tick(5);
-  const job = () => (h.events().filter((e) => e.type === "helpers").at(-1) as HelpersEvent).helpers.find((x) => x.id === "sid")!.jobs[0]!;
-  assert.deepEqual(job().subAgents, [{ name: "searcher", state: "started", description: "Find reviews" }]);
-  store.recordSubAgent(id, { id: "s1", name: "searcher", state: "done", result: "Three pages." });
-  await tick(5);
-  assert.deepEqual(job().subAgents, [{ name: "searcher", state: "done", description: "Find reviews", result: "Three pages." }]);
-  store.addJob("sid", "Other");
-  await tick(5);
-  assert.equal("subAgents" in job(), false, "a task with none has no field");
-});
-
 test("job.open opens through the runtime; its words come back as an error when it cannot (Task 3.14)", async () => {
   const store = openHelperStore({ path: ":memory:" });
   const opened: number[] = [];
@@ -1224,34 +1184,6 @@ test("agent.create adds an agent with its soul.md; agent.remove takes it out (AD
     assert.match((h.events()[0] as { message: string }).message, /taken by ATOM/);
     await h.send({ type: "agent.remove", id: "rumi" });
     assert.ok(!(h.events().at(-1) as HelpersEvent).helpers.some((x) => x.id === "rumi"));
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test("helpers lists the Managers with their Agents; manager.* and agent.manager change them (ADR-095)", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "atom-mg-"));
-  try {
-    const store = openHelperStore({ path: ":memory:", agentsDir: dir });
-    const h = islandHarness({ helpers: islandHelpers(store, async () => []) });
-    await tick(5);
-    await h.send({ type: "helpers.list" });
-    const first = h.events().at(-1) as HelpersEvent;
-    const research = first.managers!.find((m) => m.id === "research")!;
-    assert.deepEqual([research.name, research.mode, research.agents], ["Research", "group", ["sid"]]);
-    assert.equal(first.helpers.find((x) => x.id === "sid")!.manager, "research");
-    await h.send({ type: "manager.create", name: "Travel", mode: "plan" });
-    await h.send({ type: "agent.manager", helper: "sid", manager: "travel" });
-    await h.send({ type: "manager.rename", id: "travel", name: "Trips" });
-    await h.send({ type: "manager.mode", id: "travel", mode: "group" });
-    const after = (h.events().at(-1) as HelpersEvent).managers!.find((m) => m.id === "travel")!;
-    assert.deepEqual([after.name, after.mode, after.agents], ["Trips", "group", ["sid"]]);
-    h.clear();
-    await h.send({ type: "manager.delete", id: "travel" });
-    assert.match((h.events()[0] as { message: string }).message, /Trips still has Agents/);
-    await h.send({ type: "agent.manager", helper: "sid", manager: "research" });
-    await h.send({ type: "manager.delete", id: "travel" });
-    assert.ok(!(h.events().at(-1) as HelpersEvent).managers!.some((m) => m.id === "travel"));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

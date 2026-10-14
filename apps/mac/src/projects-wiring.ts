@@ -103,7 +103,7 @@ export function createProjects(options: ProjectsOptions): Projects {
   /** The project's Agent for this folder: the one made before, or a new coder with the folders kit and the one grant. */
   function agentFor(projectName: string, folder: string): string | undefined {
     if (!helpers) return undefined;
-    const taken = [...helpers.list(), ...helpers.managers()];
+    const taken = helpers.list();
     for (const name of agentNames(projectName)) {
       const same = taken.find((h) => h.name.toLowerCase() === name.toLowerCase());
       if (same) {

@@ -80,7 +80,7 @@ export function needsYou(store: HelperStore | undefined, asks: readonly Approval
   const questions: Need[] = asks.map((a) => ({ key: `ask-${a.id}`, push: true, text: `ATOM asks: ${a.summary}\n${a.reason}`, buttons: yesNo("Allow", "Decline", `a:${a.id}`) }));
   if (!store) return questions;
   const team = store.list();
-  const owners = [...team.map((h) => ({ name: h.name, jobs: h.jobs })), ...store.managers().map((m) => ({ name: m.name, jobs: m.jobs }))];
+  const owners = team.map((h) => ({ name: h.name, jobs: h.jobs }));
   const plans: Need[] = [];
   const failures: Need[] = [];
   for (const owner of owners) {
@@ -241,7 +241,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
 
   function tasksText(): string {
     if (!store) return "The team is not available.";
-    const owners = [...store.list(), ...store.managers()];
+    const owners = store.list();
     const lines = (state: Job["state"]) =>
       owners.flatMap((o) => o.jobs.filter((j) => j.state === state).map((j) => `#${j.id} ${o.name}: ${titleOf(j)}${state === "running" && j.step ? ` (${cut(flat(j.step), 60)})` : ""}`));
     const running = lines("running");

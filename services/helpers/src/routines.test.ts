@@ -1,53 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createScheduleTool, createWorkerShortcut, describeSchedule, isDue, lastDue, openHelperStore, parseRoutine } from "./index.ts";
+import { createScheduleTool, describeSchedule, isDue, lastDue, openHelperStore, parseRoutine } from "./index.ts";
 
 // ADR-087, Task 3.9: routines. Local times throughout (no Z on the dates).
 
 const at = (s: string) => new Date(s);
-
-test("'Sid, every morning at 8, summarise networking news' makes a routine that makes a task at 8", () => {
-  let clock = at("2026-10-11T21:00:00");
-  const store = openHelperStore({ path: ":memory:", now: () => clock });
-  const say = createWorkerShortcut(store);
-  assert.equal(say("Sid, every morning at 8, summarise networking news"), "Sid will do that every day at 8:00 am.");
-  const [routine] = store.list()[0]!.routines;
-  assert.deepEqual([routine!.task, routine!.schedule], ["summarise networking news", { kind: "daily", minute: 480 }]);
-  assert.equal(store.list()[0]!.jobs.length, 0, "no task yet");
-  clock = at("2026-10-12T07:59:00");
-  assert.deepEqual(store.runRoutines(), { made: [], skipped: [] });
-  clock = at("2026-10-12T08:00:30");
-  assert.deepEqual(store.runRoutines(), { made: [routine!.id], skipped: [] });
-  assert.equal(store.list()[0]!.jobs[0]!.task, "summarise networking news");
-  assert.deepEqual(store.runRoutines(), { made: [], skipped: [] }, "once per morning");
-});
-
-test("mornings missed while ATOM was closed run once at start", () => {
-  let clock = at("2026-10-11T09:00:00");
-  const store = openHelperStore({ path: ":memory:", now: () => clock });
-  const r = store.addRoutine("sid", "News", { kind: "daily", minute: 480 });
-  clock = at("2026-10-14T10:00:00"); // three mornings later
-  assert.deepEqual(store.runRoutines().made, [r.id]);
-  assert.equal(store.list()[0]!.jobs.length, 1);
-  assert.deepEqual(store.runRoutines().made, []);
-});
-
-test("a routine whose last task is still going is skipped this time", () => {
-  let clock = at("2026-10-11T09:00:00");
-  const store = openHelperStore({ path: ":memory:", now: () => clock });
-  const r = store.addRoutine("sid", "Check", { kind: "hours", every: 1 });
-  clock = at("2026-10-11T10:00:00");
-  store.runRoutines();
-  const [task] = store.list()[0]!.jobs;
-  store.start(task!.id);
-  clock = at("2026-10-11T11:00:00");
-  assert.deepEqual(store.runRoutines(), { made: [], skipped: [r.id] });
-  assert.equal(store.list()[0]!.routines[0]!.lastSkipped, true);
-  assert.equal(store.list()[0]!.jobs.length, 1, "no overlapping run");
-  store.finish(task!.id, { title: "T", summary: "S.", body: "B", sources: [] });
-  clock = at("2026-10-11T12:00:00");
-  assert.deepEqual(store.runRoutines().made, [r.id]);
-});
 
 test("when a schedule last came due", () => {
   const made = at("2026-10-05T12:00:00"); // a Monday
@@ -73,16 +30,6 @@ test("routine wordings", () => {
   assert.equal(describeSchedule({ kind: "hours", every: 1 }), "Every hour");
 });
 
-test("an 'every …' the code cannot read goes to Pal; a bad routine is refused in words", () => {
-  const store = openHelperStore({ path: ":memory:" });
-  const say = createWorkerShortcut(store);
-  assert.equal(say("Sid, every so often, check the news"), undefined);
-  assert.equal(say("Tinker, every day at 8, review the team"), "Tinker only reviews tasks you rate as not good.");
-  assert.equal(store.list().flatMap((h) => h.routines).length, 0);
-  assert.throws(() => store.addRoutine("sid", "x", { kind: "hours", every: 0 }), /every 1 to 168 hours/);
-  assert.equal(store.removeRoutine(99), false);
-});
-
 test("the schedule tool reads the model's words and checks them", () => {
   const store = openHelperStore({ path: ":memory:" });
   const scheduled: unknown[] = [];
@@ -97,7 +44,7 @@ test("the schedule tool reads the model's words and checks them", () => {
   assert.equal(store.list()[4]!.routines.length, 0);
 });
 
-test("ADR-110 N3: with a native start a due routine makes no task; missed mornings still count once; a refused start is skipped", () => {
+test("ADR-110 N3: a due routine makes no task; missed mornings still count once; a refused start is skipped", () => {
   let clock = at("2026-10-11T09:00:00");
   const store = openHelperStore({ path: ":memory:", now: () => clock });
   const r = store.addRoutine("sid", "News", { kind: "daily", minute: 480 });
@@ -112,18 +59,16 @@ test("ADR-110 N3: with a native start a due routine makes no task; missed mornin
   assert.equal(store.list()[0]!.routines[0]!.lastSkipped, true);
 });
 
-test("ADR-110 N3: a native webhook start makes no task and marks the run; a refused start throws; native runs keep no old last task", () => {
+test("ADR-110 N3: a webhook start makes no task and marks the run; a refused start throws", () => {
   let clock = at("2026-10-11T09:00:00");
   const store = openHelperStore({ path: ":memory:", now: () => clock });
   const r = store.addRoutine("sid", "News", { kind: "daily", minute: 480 }, undefined, false, true);
-  const legacy = store.startRoutine(r.id)!; // a task from the legacy engine (still to do: the native start does not wait for it)
-  assert.equal(store.list()[0]!.routines[0]!.lastTaskId, legacy.id);
   clock = at("2026-10-11T10:00:00");
   const started: number[] = [];
-  assert.equal(store.startRoutine(r.id, (x) => (started.push(x.id), true)), null);
+  store.startRoutine(r.id, (x) => (started.push(x.id), true));
   assert.deepEqual(started, [r.id]);
-  assert.equal(store.list()[0]!.jobs.length, 1, "no new task");
+  assert.equal(store.list()[0]!.jobs.length, 0, "no task");
   const after = store.list()[0]!.routines[0]!;
-  assert.deepEqual([after.lastAt?.getTime(), after.lastTaskId, Boolean(after.lastSkipped)], [clock.getTime(), undefined, false], "no stale last task");
+  assert.deepEqual([after.lastAt?.getTime(), after.lastTaskId, Boolean(after.lastSkipped)], [clock.getTime(), undefined, false], "no last task");
   assert.throws(() => store.startRoutine(r.id, () => false), /last run has not ended/);
 });

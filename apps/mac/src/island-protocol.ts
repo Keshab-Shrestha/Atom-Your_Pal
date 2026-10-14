@@ -6,7 +6,7 @@ import type { LoopState } from "./voice-loop.ts";
 
 export const PROTOCOL_VERSION = 1;
 
-import type { ProjectItem, TeamTaskItem, ManagerItem, ThreadEvent, SearchResultsEvent, ErrorStage, PlanUsageEvent, NoticeKind, InfoEvent, MemoryItem, EpisodeItem, MemoryChatItem, ChatItem, GitBranchItem, HelperItem, ModelItem, SkillHubItem, SkillDraftItem, SkillEditItem, TestCaseItem, McpItem, UsageItem, PaperclipItem } from "./island-items.ts";
+import type { ProjectItem, ThreadEvent, SearchResultsEvent, ErrorStage, PlanUsageEvent, NoticeKind, InfoEvent, MemoryItem, EpisodeItem, MemoryChatItem, ChatItem, GitBranchItem, HelperItem, ModelItem, SkillHubItem, SkillDraftItem, SkillEditItem, TestCaseItem, McpItem, UsageItem, PaperclipItem } from "./island-items.ts";
 export * from "./island-items.ts";
 export * from "./island-commands.ts";
 
@@ -60,9 +60,6 @@ export type IslandEvent =
       apps: string[];
       allowLarge?: boolean;
       models?: ModelItem[];
-      /** ADR-098 item 7: "Use Codex when the Claude plan limit is reached", and whether Codex is found and signed in. */
-      codexFallback?: boolean;
-      codexReady?: boolean;
       /** Task 3.12: the skills to choose from: Keshab's in ~/.claude/skills ("yours") and, ADR-094, ATOM's own ("zeno"). */
       skills?: { name: string; description: string; source?: "yours" | "zeno" | "hub" }[];
       /** B3.5: the skills hub; absent when there is nothing to show. */
@@ -80,10 +77,6 @@ export type IslandEvent =
       paperclip?: { issues: PaperclipItem[] };
       /** ADR-093: agent folders whose soul.md could not be loaded (folder name and why); absent when there are none. */
       agentProblems?: { id: string; problem: string }[];
-      /** ADR-094: the team tasks waiting to be taken, oldest first. */
-      teamTasks?: TeamTaskItem[];
-      /** ADR-095: the Managers, by folder name; absent when there are none. */
-      managers?: ManagerItem[];
     }
   | ThreadEvent
   | SearchResultsEvent

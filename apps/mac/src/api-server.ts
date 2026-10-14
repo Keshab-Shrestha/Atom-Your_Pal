@@ -159,7 +159,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
   // refuses a chatId "goal-…", so no chat of its own is a goal's.
   let lastGoal = 0;
   const nativeJobs = (id: number) =>
-    store ? [...store.list(), ...store.managers()].flatMap((owner) => owner.jobs).filter((j) => j.chatId === nativeGoalChat(id)).sort((a, b) => a.id - b.id) : [];
+    store ? store.list().flatMap((owner) => owner.jobs).filter((j) => j.chatId === nativeGoalChat(id)).sort((a, b) => a.id - b.id) : [];
   const giveNative = (goal: string) =>
     turn(async () => {
       const id = (lastGoal = Math.max(Date.now(), lastGoal + 1));
@@ -238,7 +238,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
         const state = query.get("state");
         if (state !== null && !STATES.includes(state as JobState)) throw new ApiError(400, `"state" must be one of: ${STATES.join(", ")}.`);
         const s = team();
-        const jobs = [...s.list(), ...s.managers()].flatMap((owner) => owner.jobs).filter((j) => state === null || j.state === state);
+        const jobs = s.list().flatMap((owner) => owner.jobs).filter((j) => state === null || j.state === state);
         return { tasks: jobs.sort((a, b) => b.id - a.id).map(jobOut) };
       },
     },
@@ -288,7 +288,9 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
         if (!routine) throw new ApiError(404, "There is no such routine.");
         if (!routine.webhook) throw new ApiError(403, 'This routine cannot be started by webhook. Turn on "Can be started by webhook" on the Scheduled page.');
         // ADR-110 (N3): a main-agent turn in the routine's chat: no task (taskId null).
-        return { taskId: s.startRoutine(routineId, options.startRoutine)?.id ?? null };
+        if (!options.startRoutine) throw new ApiError(503, "Routines cannot be started now.");
+        s.startRoutine(routineId, options.startRoutine);
+        return { taskId: null };
       },
     },
   ];

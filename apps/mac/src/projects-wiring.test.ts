@@ -3,8 +3,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createCore } from "@atom/core";
-import { createDelegateTool, openHelperStore } from "@atom/helpers";
+import { openHelperStore } from "@atom/helpers";
 import { openMemoryStore } from "@atom/memory";
 import { PROJECT_REPLAY_TURNS, createProjects } from "./projects-wiring.ts";
 
@@ -240,28 +239,6 @@ test("a project without an Agent says so in the note and has no delegation defau
     assert.equal(t.first().helper, undefined);
     assert.match(t.projects.turn("c1")!.note, /no Agent/);
     assert.equal(t.projects.delegate("c1")!.helper, undefined);
-  } finally {
-    t.done();
-  }
-});
-
-test("delegate: in a project chat a named worker without a grant for the project folder is replaced by the project's Agent", () => {
-  const t = setup();
-  try {
-    t.projects.island.add("Haat", join(t.home, "Developer", "haat"));
-    const p = t.first();
-    t.projects.island.assign("c1", p.id);
-    const tool = createDelegateTool({ store: t.helpers, source: () => "c1", project: () => t.projects.delegate("c1") });
-    const agent = t.helpers.list().find((h) => h.id === p.helper)!;
-    tool.run({ goal: "storage", tasks: [{ worker: "Kame", task: "du the folder" }, { worker: agent.name, task: "b" }, { worker: "Nobody", task: "c" }, { task: "d" }] });
-    assert.deepEqual(t.helpers.goal(1)!.tasks.map((j) => j.helper), [p.helper, p.helper, p.helper, p.helper]);
-    // a worker that has a grant for the project folder is kept
-    t.helpers.addGrant("kame", join(t.home, "Developer", "haat"));
-    tool.run({ goal: "two", tasks: [{ worker: "Kame", task: "du" }] });
-    assert.equal(t.helpers.goal(2)!.tasks[0]!.helper, "kame");
-    // a plain chat is untouched
-    createDelegateTool({ store: t.helpers, source: () => "c2", project: () => t.projects.delegate("c2") }).run({ goal: "plain", tasks: [{ worker: "Sid", task: "x" }] });
-    assert.equal(t.helpers.goal(3)!.tasks[0]!.helper, "sid");
   } finally {
     t.done();
   }

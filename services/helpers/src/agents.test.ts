@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { agentId, createDelegateTool, createWorkerShortcut, formatSoulMd, openHelperStore, parseSoulMd, teamContext } from "./index.ts";
+import { agentId, formatSoulMd, openHelperStore, parseSoulMd } from "./index.ts";
 
 // ADR-088: agents Keshab adds, each a folder with its own role, kit and soul.md.
 
@@ -21,11 +21,7 @@ test("a new agent becomes a folder with soul.md, joins the team, and works like 
     const view = store.createAgent(rumi);
     assert.deepEqual([view.id, view.name, view.role, view.kit, view.custom, view.available, view.soulVersion], ["rumi", "Rumi", "travel planner", "research", true, true, 1]);
     const text = readFileSync(join(agentsDir, "rumi", "soul.md"), "utf8");
-    // ADR-095: under the first Manager by name (no Agent has its role yet); Keshab can move it.
-    assert.match(text, /^---\nname: Rumi\nrole: travel planner\nkit: research\nmanager: coding\n---\n\n## Personality\nCalm and organised\.\n/);
-    assert.match(teamContext(store.list()), /Rumi \(travel planner\)/, "Pal knows the new agent");
-    assert.equal(createWorkerShortcut(store)("Rumi, plan a weekend in Kyoto"), "Rumi is on it.", "by voice");
-    assert.match(createDelegateTool({ store }).run({ goal: "trip", tasks: [{ worker: "rumi", task: "Plan" }] }), /Rumi \(task 2\)/);
+    assert.match(text, /^---\nname: Rumi\nrole: travel planner\nkit: research\n---\n\n## Personality\nCalm and organised\.\n/);
   } finally {
     done();
   }

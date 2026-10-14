@@ -65,15 +65,11 @@ export type IslandCommand =
   | { type: "helper.planFirst"; helper: string; on: boolean }
   | { type: "helper.browser"; helper: string; on: boolean }
   | { type: "routine.delete"; id: number }
-  /** ADR-094: pause or resume a routine; post a task to the team (no role: anyone) or take one back; a worker's wake-ups. */
+  /** ADR-094: pause or resume a routine. */
   | { type: "routine.pause"; id: number; paused: boolean }
   /** ADR-097: Keshab's own schedule from the Scheduled page, new or changed. */
   | ({ type: "routine.add" } & RoutineInput)
   | ({ type: "routine.update"; id: number } & RoutineInput)
-  | { type: "team.add"; task: string; role?: string }
-  | { type: "team.delete"; id: number }
-  | { type: "helper.wakeUp"; helper: string; every: "off" | "15m" | "1h" | "4h" | "1d" }
-  | { type: "helper.wakeUp.pause"; helper: string; paused: boolean }
   | { type: "grant.add"; helper: string; path: string }
   | { type: "helper.skills"; helper: string; skills: string[] }
   | { type: "job.rate"; id: number; good: boolean; comment?: string }
@@ -85,12 +81,6 @@ export type IslandCommand =
   | { type: "mcp.test"; id: number }
   | { type: "agent.create"; name: string; role: string; kit: "research" | "folders" | "think"; personality: string; howItWorks: string; rules: string }
   | { type: "agent.remove"; id: string }
-  /** ADR-095: Managers: add, rename, switch mode, remove (refused while it has Agents); move an Agent under a Manager. */
-  | { type: "manager.create"; name: string; mode?: "plan" | "group" }
-  | { type: "manager.rename"; id: string; name: string }
-  | { type: "manager.mode"; id: string; mode: "plan" | "group" }
-  | { type: "manager.delete"; id: string }
-  | { type: "agent.manager"; helper: string; manager: string }
   | { type: "proposal.accept"; id: number }
   | { type: "proposal.reject"; id: number }
   | { type: "proposal.undo"; id: number }
@@ -127,7 +117,7 @@ export type IslandCommand =
   | { type: "job.fresh"; id: number }
   | { type: "job.delete"; id: number }
   | { type: "helper.pin"; helper: string; model: string }
-  | { type: "helpers.settings"; allowLarge?: boolean; codexFallback?: boolean }
+  | { type: "helpers.settings"; allowLarge?: boolean }
   | { type: "soul.set"; helper: string; soul: SoulItem }
   | { type: "soul.restore"; helper: string; version: number }
   | { type: "quit" };
@@ -179,10 +169,6 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "routine.pause",
   "routine.add",
   "routine.update",
-  "team.add",
-  "team.delete",
-  "helper.wakeUp",
-  "helper.wakeUp.pause",
   "grant.add",
   "helper.skills",
   "job.rate",
@@ -194,11 +180,6 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "mcp.test",
   "agent.create",
   "agent.remove",
-  "manager.create",
-  "manager.rename",
-  "manager.mode",
-  "manager.delete",
-  "agent.manager",
   "proposal.accept",
   "proposal.reject",
   "proposal.undo",
@@ -314,33 +295,6 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof id !== "string" || !id) return { error: 'agent.remove needs an "id" string.' };
     return { command: { type, id } };
   }
-  if (type === "manager.create" || type === "manager.rename") {
-    // Names are the store's to refuse (stage "settings").
-    const { id, name, mode } = value as { id?: unknown; name?: unknown; mode?: unknown };
-    if (typeof name !== "string") return { error: `${type} needs a "name" string.` };
-    if (type === "manager.rename") {
-      if (typeof id !== "string" || !id) return { error: 'manager.rename needs an "id" string.' };
-      return { command: { type, id, name } };
-    }
-    if (mode !== undefined && mode !== "plan" && mode !== "group") return { error: 'manager.create needs "mode": "plan" or "group" (or left out).' };
-    return { command: { type, name, ...(mode ? { mode } : {}) } };
-  }
-  if (type === "manager.mode") {
-    const { id, mode } = value as { id?: unknown; mode?: unknown };
-    if (typeof id !== "string" || !id) return { error: 'manager.mode needs an "id" string.' };
-    if (mode !== "plan" && mode !== "group") return { error: 'manager.mode needs "mode": "plan" or "group".' };
-    return { command: { type, id, mode } };
-  }
-  if (type === "manager.delete") {
-    const { id } = value as { id?: unknown };
-    if (typeof id !== "string" || !id) return { error: 'manager.delete needs an "id" string.' };
-    return { command: { type, id } };
-  }
-  if (type === "agent.manager") {
-    const { helper, manager } = value as { helper?: unknown; manager?: unknown };
-    if (typeof helper !== "string" || !helper || typeof manager !== "string" || !manager) return { error: 'agent.manager needs "helper" and "manager" strings.' };
-    return { command: { type, helper, manager } };
-  }
   if (type === "mcp.add") {
     // Names, commands, addresses and lines are the store's to refuse (stage "settings").
     const v = value as Record<string, unknown>;
@@ -421,25 +375,6 @@ export function parseCommand(line: string): ParsedLine {
     if ("error" in input) return input;
     return { command: type === "routine.update" ? { type, id: id as number, ...input } : { type, ...input } };
   }
-  if (type === "team.add") {
-    // An empty or long task, and a role no worker has, are the store's to refuse (stage "settings").
-    const { task, role } = value as { task?: unknown; role?: unknown };
-    if (typeof task !== "string") return { error: 'team.add needs a "task" string.' };
-    if (role !== undefined && (typeof role !== "string" || role.length > 40)) return { error: 'team.add needs "role" to be a role name (or left out for anyone).' };
-    return { command: { type, task, ...(role ? { role } : {}) } };
-  }
-  if (type === "helper.wakeUp") {
-    const { helper, every } = value as { helper?: unknown; every?: unknown };
-    if (typeof helper !== "string" || helper === "") return { error: 'helper.wakeUp needs a "helper" string.' };
-    if (every !== "off" && every !== "15m" && every !== "1h" && every !== "4h" && every !== "1d") return { error: 'helper.wakeUp needs "every": "off", "15m", "1h", "4h" or "1d".' };
-    return { command: { type, helper, every } };
-  }
-  if (type === "helper.wakeUp.pause") {
-    const { helper, paused } = value as { helper?: unknown; paused?: unknown };
-    if (typeof helper !== "string" || helper === "") return { error: 'helper.wakeUp.pause needs a "helper" string.' };
-    if (typeof paused !== "boolean") return { error: 'helper.wakeUp.pause needs "paused" to be true or false.' };
-    return { command: { type, helper, paused } };
-  }
   if (type === "job.block") {
     const { id, blockedBy } = value as { id?: unknown; blockedBy?: unknown };
     if (!isId(id)) return { error: 'job.block needs an "id" that is a whole number.' };
@@ -486,17 +421,9 @@ export function parseCommand(line: string): ParsedLine {
     return { command: { type, helper, model } };
   }
   if (type === "helpers.settings") {
-    const { allowLarge, codexFallback } = value as { allowLarge?: unknown; codexFallback?: unknown };
-    if (allowLarge !== undefined && typeof allowLarge !== "boolean") return { error: 'helpers.settings needs "allowLarge" to be true or false.' };
-    if (codexFallback !== undefined && typeof codexFallback !== "boolean") return { error: 'helpers.settings needs "codexFallback" to be true or false.' };
-    if (allowLarge === undefined && codexFallback === undefined) return { error: 'helpers.settings needs "allowLarge" or "codexFallback".' };
-    return {
-      command: {
-        type,
-        ...(allowLarge !== undefined ? { allowLarge } : {}),
-        ...(codexFallback !== undefined ? { codexFallback } : {}),
-      },
-    };
+    const { allowLarge } = value as { allowLarge?: unknown };
+    if (typeof allowLarge !== "boolean") return { error: 'helpers.settings needs "allowLarge" to be true or false.' };
+    return { command: { type, allowLarge } };
   }
   if (type === "soul.set") {
     // Lengths, names and empty fields are the store's to refuse (stage "settings"), as the protocol says.
@@ -572,7 +499,7 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     return { command: { type, id } };
   }
-  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.interrupt" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "team.delete" || type === "job.open" || type === "job.retry" || type === "mcp.remove" || type === "mcp.test" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "thread.get" || type === "skill.make" || type === "skill.approve" || type === "skill.reject" || type === "skill.edit.accept" || type === "skill.edit.reject" || type === "skill.edit.undo") {
+  if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.interrupt" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "job.open" || type === "job.retry" || type === "mcp.remove" || type === "mcp.test" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "thread.get" || type === "skill.make" || type === "skill.approve" || type === "skill.reject" || type === "skill.edit.accept" || type === "skill.edit.reject" || type === "skill.edit.undo") {
     const { id } = value as { id?: unknown };
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     return { command: { type, id } };

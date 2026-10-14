@@ -102,7 +102,6 @@ export interface JobItem {
   autoRetries?: number;
   parentId?: number;
   /** ADR-095: the sub-agents its runs started (newest 12): name, state, short description and result. Never logged. */
-  subAgents?: { name: string; state: "started" | "done" | "failed"; description: string; result?: string }[];
   /** ADR-098: its labels, sorted; absent when none. */
   labels?: string[];
 }
@@ -370,55 +369,21 @@ export interface HelperItem {
    * ADR-094: whether it is paused, and when it next comes due (absent while paused).
    */
   routines: { id: number; task: string; when: string; lastAt?: string; lastSkipped?: boolean; paused?: boolean; nextAt?: string; schedule?: RoutineSchedule; notifyTelegram?: boolean; webhook?: boolean }[];
-  /** ADR-094: its wake-ups (absent: off): how often, in words, paused, the last and next wake. */
-  wakeUp?: WakeUpItem;
   /** Task 3.11: the folders it may work in (coder, designer, documenter). */
   grants: string[];
   /** Task 3.12: the skills chosen for it. */
   skills: string[];
   /** Task 3.13: Tinker's proposals for its soul: `field` changed to `text`, why, the task reviewed, and their state. */
   proposals: { id: number; field: string; text: string; reason: string; jobId: number; state: string; createdAt: string; tests?: TestsItem }[];
-  /** ADR-095: its Manager's id; absent when it has none. */
-  manager?: string;
   jobs: JobItem[];
 }
 
-/** ADR-095: a Manager: a domain with Agents under it, its mode and its own runs (plan mode). */
-export interface ManagerItem {
-  id: string;
-  name: string;
-  /** "plan": plans and reviews (short no-tools runs); "group": a department only, no model calls. */
-  mode: "plan" | "group";
-  soul: SoulItem;
-  soulVersion: number;
-  /** Its Agents' ids. */
-  agents: string[];
-  jobs: JobItem[];
-}
-
-/** ADR-094: a worker's wake-ups. `nextAt` is ISO 8601 (the time it would wake, also while paused). */
 /** ADR-097: a routine's schedule as numbers, so the window's form can show it for editing. */
 export interface RoutineSchedule {
   kind: "daily" | "weekly" | "hours";
   minute?: number;
   weekday?: number;
   every?: number;
-}
-
-export interface WakeUpItem {
-  every: "15m" | "1h" | "4h" | "1d";
-  when: string;
-  paused?: boolean;
-  lastAt?: string;
-  nextAt: string;
-}
-
-/** ADR-094: a task posted to the team, waiting to be taken (no `role`: anyone). Task text never logged. */
-export interface TeamTaskItem {
-  id: number;
-  task: string;
-  role?: string;
-  createdAt: string;
 }
 
 /** One job's report (ADR-081). Never logged. */

@@ -17,7 +17,6 @@ import {
   type IslandEvent,
   type EpisodeItem,
   type HelperItem,
-  type ManagerItem,
   type ModelItem,
   type MemoryItem,
   type MemoryChatItem,
@@ -27,7 +26,6 @@ import {
   type PaperclipItem,
   type McpItem,
   type SkillDraftItem,
-  type TeamTaskItem,
   type SkillEditItem,
   type TestCaseItem,
   type UsageItem,
@@ -193,13 +191,6 @@ export interface IslandHelpers {
   removeAgent(id: string): void;
   /** ADR-093: agent folders whose soul.md could not be loaded, for the Board (folder name and why, never task text). */
   agentProblems(): { id: string; problem: string }[];
-  /** ADR-095: the Managers with their Agents; add, rename, switch mode, remove one; move an Agent. Each throws with words for the user. */
-  managers(): ManagerItem[];
-  createManager(name: string, mode?: "plan" | "group"): void;
-  renameManager(id: string, name: string): void;
-  setManagerMode(id: string, mode: "plan" | "group"): void;
-  removeManager(id: string): void;
-  setManager(helper: string, manager: string): void;
   /** Task 3.16: the tasks handed to Keshab's Paperclip, for the board. Absent when the connection is off. */
   paperclip?(): { issues: PaperclipItem[] };
   /** Task 3.14: opens a task's report in its worker's app. Absent: `job.open` is refused. Rejects with words for the user. */
@@ -249,13 +240,6 @@ export interface IslandHelpers {
   removeRoutine(id: number): boolean;
   /** ADR-094: pauses or resumes a routine. Throws, with words for the user, for an unknown one. */
   pauseRoutine(id: number, paused: boolean): void;
-  /** ADR-094: the team tasks waiting to be taken; post one (no role: anyone; throws with words for the user) or take one back. */
-  teamTasks(): TeamTaskItem[];
-  addTeamTask(task: string, role?: string): void;
-  removeTeamTask(id: number): boolean;
-  /** ADR-094: a worker's wake-ups ("off" turns them off), and pausing them. Throw, with words for the user. */
-  setWakeUp(helper: string, every: "off" | "15m" | "1h" | "4h" | "1d"): void;
-  pauseWakeUp(helper: string, paused: boolean): void;
   /** Changes what a queued task waits for (ADR-087). Throws, with words for the user, for a started task or a circle. */
   setBlockers(id: number, blockedBy: number[]): void;
   /** Adds Keshab's note to a task, which wakes it (Task 3.6). Throws, with words for the user, for an unknown task or an empty or long note. */
@@ -286,9 +270,6 @@ export interface IslandHelpers {
   restoreSoul(helper: string, version: number): void;
   /** Whether worker jobs may use the large model (ADR-083). */
   allowLarge(): boolean;
-  /** ADR-098 item 7: "Use Codex when the Claude plan limit is reached" (default off), and whether Codex is found and signed in. */
-  codex?(): { codexFallback: boolean; codexReady: boolean };
-  setCodexFallback?(on: boolean): void;
   setAllowLarge(allowed: boolean): void;
   /** The plan's models offered to worker jobs; empty when the provider is not the Claude plan. */
   models(): ModelItem[];
@@ -608,21 +589,6 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "agent.remove":
         changeHelpers(command.type, (helpers) => helpers.removeAgent(command.id));
         return;
-      case "manager.create":
-        changeHelpers(command.type, (helpers) => helpers.createManager(command.name, command.mode));
-        return;
-      case "manager.rename":
-        changeHelpers(command.type, (helpers) => helpers.renameManager(command.id, command.name));
-        return;
-      case "manager.mode":
-        changeHelpers(command.type, (helpers) => helpers.setManagerMode(command.id, command.mode));
-        return;
-      case "manager.delete":
-        changeHelpers(command.type, (helpers) => helpers.removeManager(command.id));
-        return;
-      case "agent.manager":
-        changeHelpers(command.type, (helpers) => helpers.setManager(command.helper, command.manager));
-        return;
       case "job.open": {
         const helpers = options.helpers;
         if (!helpers?.openReport) return refuseHelpers(command.type, HELPERS_OFF);
@@ -746,19 +712,6 @@ export function runIsland(options: IslandOptions): IslandSession {
         changeHelpers(type, (helpers) => helpers.updateRoutine(id, input));
         return;
       }
-      case "team.add":
-        changeHelpers(command.type, (helpers) => helpers.addTeamTask(command.task, command.role));
-        return;
-      case "team.delete":
-        options.helpers?.removeTeamTask(command.id); // taken or gone: ignored
-        sendHelpers();
-        return;
-      case "helper.wakeUp":
-        changeHelpers(command.type, (helpers) => helpers.setWakeUp(command.helper, command.every));
-        return;
-      case "helper.wakeUp.pause":
-        changeHelpers(command.type, (helpers) => helpers.pauseWakeUp(command.helper, command.paused));
-        return;
       case "helper.planFirst":
         changeHelpers(command.type, (helpers) => helpers.setPlanFirst(command.helper, command.on));
         return;
@@ -779,7 +732,6 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "helpers.settings":
         changeHelpers(command.type, (helpers) => {
           if (command.allowLarge !== undefined) helpers.setAllowLarge(command.allowLarge);
-          if (command.codexFallback !== undefined) helpers.setCodexFallback?.(command.codexFallback);
         });
         return;
       case "job.block":
@@ -850,8 +802,7 @@ export function runIsland(options: IslandOptions): IslandSession {
       helpersQueued = false;
       const helpers = options.helpers;
       const agentProblems = helpers?.agentProblems() ?? [];
-      const managers = helpers?.managers() ?? [];
-      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), skills: helpers.skills(), skillDrafts: helpers.skillDrafts(), skillEdits: helpers.skillEdits(), ...(helpers.hub?.payload() ? { skillHub: helpers.hub.payload() } : {}), testCases: helpers.testCases(), mcp: helpers.mcp(), teamTasks: helpers.teamTasks(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.codex ? helpers.codex() : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}), ...(agentProblems.length ? { agentProblems } : {}), ...(managers.length ? { managers } : {}) });
+      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), skills: helpers.skills(), skillDrafts: helpers.skillDrafts(), skillEdits: helpers.skillEdits(), ...(helpers.hub?.payload() ? { skillHub: helpers.hub.payload() } : {}), testCases: helpers.testCases(), mcp: helpers.mcp(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}), ...(agentProblems.length ? { agentProblems } : {}), });
     });
   }
   function appNames(): Promise<string[]> {

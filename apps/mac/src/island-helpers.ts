@@ -1,8 +1,8 @@
 // ADR-081: the helper store as the island sees it (wire shapes, ISO dates, sorted app names).
 
-import { HelperError, describeSchedule, describeWake, nextDue, type HelperStore, type Job, type PlanModel, type Schedule, type TaskSearchHit, type TestKind } from "@atom/helpers";
+import { HelperError, describeSchedule, nextDue, type HelperStore, type Job, type PlanModel, type Schedule, type TaskSearchHit, type TestKind } from "@atom/helpers";
 import type { IslandHelpers } from "./island.ts";
-import type { JobItem, ManagerItem, RoutineInput, SkillDraftItem, SkillEditItem, TestCaseItem, TestsItem } from "./island-protocol.ts";
+import type { JobItem, RoutineInput, SkillDraftItem, SkillEditItem, TestCaseItem, TestsItem } from "./island-protocol.ts";
 
 /** ADR-097: the form's schedule as the store's; missing numbers become -1, which the store refuses with words. */
 const scheduleOf = (input: RoutineInput): Schedule =>
@@ -91,7 +91,6 @@ const toJobItem = (job: Job): JobItem => ({
   ...(job.reviews !== undefined ? { reviews: job.reviews } : {}),
   ...(job.autoRetries ? { autoRetries: job.autoRetries } : {}),
   ...(job.parentId !== undefined ? { parentId: job.parentId } : {}),
-  ...(job.subAgents?.length ? { subAgents: job.subAgents } : {}),
   ...(job.labels?.length ? { labels: job.labels } : {}),
 });
 
@@ -110,7 +109,7 @@ export function islandHelpers(
 ): IslandHelpers {
   return {
     list: () =>
-      store.list().map(({ wakeUp, ...h }) => ({
+      store.list().map((h) => ({
         ...h,
         soulVersions: h.soulVersions.map((v) => ({ version: v.version, createdAt: v.createdAt.toISOString() })),
         routines: h.routines.map((r) => ({
@@ -124,17 +123,6 @@ export function islandHelpers(
           ...(r.notifyTelegram ? { notifyTelegram: true } : {}),
           ...(r.webhook ? { webhook: true } : {}),
         })),
-        ...(wakeUp
-          ? {
-              wakeUp: {
-                every: wakeUp.every,
-                when: describeWake(wakeUp.every),
-                ...(wakeUp.paused ? { paused: true } : {}),
-                ...(wakeUp.lastAt ? { lastAt: wakeUp.lastAt.toISOString() } : {}),
-                nextAt: wakeUp.nextAt.toISOString(),
-              },
-            }
-          : {}),
         proposals: h.proposals.map((p) => {
           const tests = testsOf(store, "soul", p.id);
           return { id: p.id, field: p.field, text: p.text, reason: p.reason, jobId: p.jobId, state: p.state, createdAt: p.createdAt.toISOString(), ...(tests ? { tests } : {}) };
@@ -153,25 +141,13 @@ export function islandHelpers(
     updateRoutine: (id, input) => void store.updateRoutine(id, input.helper, input.task, scheduleOf(input), startOf(input), input.notifyTelegram, input.webhook),
     removeRoutine: (id) => store.removeRoutine(id),
     pauseRoutine: (id, paused) => store.pauseRoutine(id, paused),
-    teamTasks: () => store.teamTasks().map((t) => ({ id: t.id, task: t.task, ...(t.role ? { role: t.role } : {}), createdAt: t.createdAt.toISOString() })),
-    addTeamTask: (task, role) => void store.addTeamTask(task, role ?? null),
-    removeTeamTask: (id) => store.removeTeamTask(id),
-    setWakeUp: (helper, every) => store.setWakeUp(helper, every === "off" ? null : every),
-    pauseWakeUp: (helper, paused) => store.pauseWakeUp(helper, paused),
     createAgent: (input) => void store.createAgent(input),
     removeAgent: (id) => store.removeAgent(id),
     agentProblems: () => store.agentProblems().map(({ id, problem }) => ({ id, problem })),
-    managers: (): ManagerItem[] =>
-      store.managers().map((m) => ({ id: m.id, name: m.name, mode: m.mode, soul: m.soul, soulVersion: m.soulVersion, agents: m.agents, jobs: m.jobs.map((job) => toJobItem(job)) })),
-    createManager: (name, mode) => void store.createManager({ name, ...(mode ? { mode } : {}) }),
-    renameManager: (id, name) => store.renameManager(id, name),
-    setManagerMode: (id, mode) => store.setManagerMode(id, mode),
-    removeManager: (id) => store.removeManager(id),
-    setManager: (helper, manager) => store.setManager(helper, manager),
     retry: (id) => store.retry(id),
     usage: () => {
       const summary = store.usage();
-      const names = new Map([...store.list(), ...store.managers()].map((h) => [h.id, h.name]));
+      const names = new Map(store.list().map((h) => [h.id, h.name]));
       return { ...summary, byWorker: summary.byWorker.map((w) => ({ ...w, name: w.helper === null ? "ATOM chat" : (names.get(w.helper) ?? w.helper) })) };
     },
     mcp: () =>
