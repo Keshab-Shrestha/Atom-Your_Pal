@@ -21,6 +21,13 @@ struct HelpersView: View {
             let page = Self.page(model)
             WindowTopBar(title: page.title, symbol: page.symbol, back: model.history.canGoBack ? { model.goBack() } : nil) {
                 if model.windowPage == .chat {
+                    // New chat was only a small icon far down the sidebar; it belongs where the chat is.
+                    PillButton(title: "New chat", symbol: "square.and.pencil") {
+                        model.navigate {
+                            model.newConversation()
+                            model.windowPage = .chat
+                        }
+                    }
                     if let project = model.chats?.currentProject { ProjectChip(project: project) } // ADR-107
                     ChatModelMenu(model: model) // ADR-097
                     ChatSoundsMenu(model: model)

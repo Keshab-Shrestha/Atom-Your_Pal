@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import AtomIslandCore
 
@@ -38,7 +39,12 @@ struct Composer: View {
                     .accessibilityLabel("Message to ATOM")
             }
             if model.chats?.currentReadOnlyNotice == nil {
-                ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, action: send)
+                if answering && empty {
+                    // ATOM is thinking or speaking and nothing is typed: the button stops the answer.
+                    StopReplyButton { model.stopReply() }
+                } else {
+                    ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, action: send)
+                }
             }
         }
         .padding(.leading, 18)
@@ -55,10 +61,44 @@ struct Composer: View {
 
     private var empty: Bool { draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
+    /// ATOM is working out or saying an answer.
+    private var answering: Bool {
+        switch model.status.kind {
+        case .transcribing, .thinking, .speaking: return true
+        default: return false
+        }
+    }
+
     private func send() {
         guard !empty else { return }
         model.ask(draft.wrappedValue)
         draft.wrappedValue = ""
+    }
+}
+
+/// The composer's stop button: a filled square in a circle, in the place of the microphone while ATOM answers.
+private struct StopReplyButton: View {
+    let action: () -> Void
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Button(action: action) {
+            RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                .fill(theme.isGhost ? theme.text.color : theme.onAccent.color)
+                .frame(width: 10, height: 10)
+                .frame(width: 30, height: 30)
+                .background {
+                    if theme.isGhost {
+                        ControlFill(Circle(), fill: Color.clear, hovering: true)
+                    } else {
+                        Circle().fill(theme.accentFill)
+                    }
+                }
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help("Stop the answer")
+        .accessibilityLabel("Stop the answer")
     }
 }
 
@@ -141,6 +181,13 @@ struct ConversationTab: View {
         }
     }
 
+    /// "Try again" on a turn that failed: the same words, asked once more. Nil for any other turn.
+    private func retry(for turn: Conversation.Turn) -> (() -> Void)? {
+        guard case .failed = turn.outcome, !turn.transcript.isEmpty else { return nil }
+        let words = turn.transcript
+        return { model.ask(words) }
+    }
+
     private var composer: some View {
         Composer(model: model)
             .padding(.horizontal, theme.cornerGap)
@@ -165,7 +212,7 @@ struct ConversationTab: View {
                     Scrollable {
                         LazyVStack(alignment: .leading, spacing: Spacing.turn) {
                             ForEach(model.conversation.turns) { turn in
-                                TurnView(turn: turn, latest: model.conversation.isLatest(turn)).id(turn.id)
+                                TurnView(turn: turn, latest: model.conversation.isLatest(turn), retry: retry(for: turn)).id(turn.id)
                             }
                         }
                         .padding(.horizontal, Spacing.conversation)
@@ -223,6 +270,8 @@ struct TurnView: View {
     let turn: Conversation.Turn
     /// The newest turn: full brightness. Older turns recede to secondary text.
     var latest = true
+    /// Asks the same words again; only given for a turn that failed.
+    var retry: (() -> Void)? = nil
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
     private let hovering = State(initialValue: false)
     @Environment(\.theme) private var theme
@@ -252,11 +301,19 @@ struct TurnView: View {
                 case .failed(let message):
                     if let reply = turn.reply { ReplyText(text: reply, latest: latest, streaming: false) }
                     outcomeLine(message, symbol: "exclamationmark.triangle.fill", color: theme.problem.color)
+                    if let retry { QuietButton(title: "Try again", symbol: "arrow.clockwise", action: retry) }
                 default:
                     if let reply = turn.reply { ReplyText(text: reply, latest: latest, streaming: turn.isStreaming) }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            // Copy sits in the corner of a finished reply and shows while the pointer is over the turn.
+            .overlay(alignment: .topTrailing) {
+                if let reply = turn.reply, !turn.isStreaming, hovering.wrappedValue {
+                    IconButton(symbol: "doc.on.doc", label: "Copy the reply") { Self.copy(reply) }
+                        .transition(.opacity)
+                }
+            }
             // Timings stay out of the way: shown in the gap under the reply only while the pointer is over the turn,
             // so they take no room between turns.
             .overlay(alignment: .bottomLeading) {
@@ -274,6 +331,11 @@ struct TurnView: View {
         .contentShape(Rectangle())
         .onHover { hovering.wrappedValue = $0 }
         .animation(.easeOut(duration: 0.15), value: hovering.wrappedValue)
+    }
+
+    private static func copy(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 
     @ViewBuilder private func outcomeLine(_ text: String, symbol: String, color: Color) -> some View {

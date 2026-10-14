@@ -148,6 +148,9 @@ final class IslandModel {
         send(.conversationReset)
     }
 
+    /// Stops the answer ATOM is working on or saying (the same as Esc while it speaks).
+    func stopReply() { send(.talkCancel) }
+
     /// ADR-107: a new chat inside a project.
     func newChat(inProject id: String) { send(.chatNew(projectId: id)) }
 

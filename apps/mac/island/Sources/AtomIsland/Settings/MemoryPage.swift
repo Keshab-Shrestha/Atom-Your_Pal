@@ -15,10 +15,12 @@ struct MemorySection: View {
                         Row(title: "Memory is off", detail: "ATOM forgets everything when it quits") { EmptyView() }
                     }
                 } else if memory.memories.isEmpty {
+                    BrainLinkCard(model: model)
                     EmptyMemoryCard()
                     KeptChatsCard(model: model, chats: memory.chats)
                     EpisodesCard(model: model, episodes: memory.episodes)
                 } else {
+                    BrainLinkCard(model: model)
                     Card(memory.count == 1 ? "1 fact" : "\(memory.count) facts", footer: hint) {
                         ForEach(Array(memory.memories.enumerated()), id: \.element.id) { index, item in
                             if index > 0 { RowDivider() }
@@ -52,6 +54,19 @@ struct MemorySection: View {
 
     private var hint: String {
         "Kept on this Mac only and shared with the AI model when it helps answer. Say “Forget that…” or remove a fact here."
+    }
+}
+
+/// The way from Memory to the second brain: the same facts and notes, as a graph of linked notes.
+private struct BrainLinkCard: View {
+    let model: IslandModel
+
+    var body: some View {
+        Card(footer: "Facts and conversation notes appear in the graph too, linked by the names they share. Write your own notes there.") {
+            Row(title: "Second brain", detail: "Your notes as a graph") {
+                PillButton(title: "Open graph", symbol: "brain.head.profile") { model.navigate { model.windowPage = .brain } }
+            }
+        }
     }
 }
 
