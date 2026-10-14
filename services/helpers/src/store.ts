@@ -14,9 +14,8 @@ import { skillHubStore } from "./skill-hub.ts";
 import { mcpTable } from "./mcp.ts";
 import { usageTable } from "./usage.ts";
 import { toolCallTable } from "./tool-calls.ts";
-import { planTable, type StoredPlan } from "./plans.ts";
+import { planTable, viewOfPlan, type StoredPlan } from "./plans.ts";
 import { auditTable } from "./audit.ts";
-import { blockedPortions, isComplete } from "./work-plan.ts";
 import { checkpointTable } from "./checkpoints.ts";
 import { searchTable } from "./search.ts";
 import { MAX_TEST_CASES, TEST_CASES_RUN, skillInstructions, testCaseTable, type TestKind } from "./test-cases.ts";
@@ -50,7 +49,7 @@ export const CLOSED_WHILE_RUNNING = "ATOM was closed while this job ran";
 export const SOUL_VERSIONS_LISTED = 10;
 
 export type * from "./store-types.ts";
-import type { Activity, GoalReport, HelperChange, HelperStore, HelperStoreOptions, Job, PlanPortionView, PlanView, PortionState, Source } from "./store-types.ts";
+import type { Activity, GoalReport, HelperChange, HelperStore, HelperStoreOptions, Job, PlanView, Source } from "./store-types.ts";
 
 export { webSources } from "./store-schema.ts";
 
@@ -412,30 +411,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   });
 
   /** ADR-111: a stored plan with the state of each portion, read from the Board jobs. */
-  function planView(stored: StoredPlan): PlanView {
-    const jobs = new Map(workPlans.jobs(stored.id).map((j) => [j.n, j.job]));
-    const state = (n: number): PortionState => {
-      const job = jobs.get(n);
-      if (job === undefined) return "waiting";
-      const found = get(job)?.state;
-      return found === "done" || found === "failed" || found === "stopped" ? found : "running";
-    };
-    const failed = new Set(stored.portions.filter((p) => state(p.n) === "failed" || state(p.n) === "stopped").map((p) => p.n));
-    const blocked = new Set(blockedPortions(stored, failed));
-    const done = new Set(stored.portions.filter((p) => state(p.n) === "done").map((p) => p.n));
-    const portions: PlanPortionView[] = stored.portions.map((p) => ({
-      n: p.n,
-      agent: p.agent,
-      name: roster().some((m) => m.id === p.agent) ? current(p.agent).name : p.agent,
-      task: p.task,
-      after: p.after,
-      ...(jobs.has(p.n) ? { job: jobs.get(p.n)! } : {}),
-      state: blocked.has(p.n) ? "blocked" : state(p.n),
-    }));
-    const complete = isComplete(stored, done);
-    const running = portions.some((p) => p.state === "running");
-    return { id: stored.id, chatId: stored.chatId, goal: stored.goal, createdAt: stored.createdAt, portions, complete, stuck: !complete && !running && (failed.size > 0 || blocked.size > 0) && !portions.some((p) => p.state === "waiting" && p.after.every((a) => done.has(a))) };
-  }
+  const planView = (stored: StoredPlan): PlanView =>
+    viewOfPlan(stored, workPlans.jobs(stored.id), (job) => get(job)?.state, (agent) => (roster().some((m) => m.id === agent) ? current(agent).name : agent));
 
   return {
     list() {

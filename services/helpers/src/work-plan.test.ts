@@ -76,3 +76,34 @@ test("a brief carries the goal and the summaries of the portions it waited for, 
 test("the plan reads back as one short line a portion", () => {
   assert.equal(planTable(plan(), nameOf), "Plan: Compare mesh Wi-Fi kits for a flat\n1. Sid: Find three kits\n2. Penny (after 1): Price them\n3. Sid (after 1, 2): Write the advice");
 });
+
+test("viewOfPlan: states come from the jobs, a failed portion blocks what waits for it, and the plan is stuck or complete", async () => {
+  const { viewOfPlan } = await import("./plans.ts");
+  const stored = {
+    id: 1,
+    chatId: "c",
+    createdAt: new Date(0),
+    goal: "g",
+    portions: [
+      { n: 1, agent: "sid", task: "a", after: [] },
+      { n: 2, agent: "penny", task: "b", after: [1] },
+      { n: 3, agent: "sid", task: "c", after: [2] },
+    ],
+  };
+  const name = (a: string) => a.toUpperCase();
+  const states = new Map<number, string>();
+  const view = () => viewOfPlan(stored, [...states.keys()].map((n) => ({ n, job: n * 10 })), (job) => states.get(job / 10), name);
+  assert.deepEqual(view().portions.map((p) => p.state), ["waiting", "waiting", "waiting"]);
+  assert.deepEqual([view().complete, view().stuck], [false, false], "portion 1 can start");
+  states.set(1, "running");
+  assert.equal(view().portions[0]!.state, "running");
+  assert.equal(view().portions[0]!.job, 10);
+  assert.equal(view().portions[0]!.name, "SID");
+  states.set(1, "failed");
+  assert.deepEqual(view().portions.map((p) => p.state), ["failed", "blocked", "blocked"]);
+  assert.equal(view().stuck, true);
+  states.set(1, "done");
+  states.set(2, "done");
+  states.set(3, "done");
+  assert.deepEqual([view().complete, view().stuck], [true, false]);
+});

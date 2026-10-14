@@ -1,5 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
-import type { WorkPlan } from "./work-plan.ts";
+import type { PlanPortionView, PlanView, PortionState } from "./store-types.ts";
+import { blockedPortions, isComplete, type WorkPlan } from "./work-plan.ts";
 
 /**
  * ADR-111 slice B: work plans. One row per plan (its chat, goal and portions as JSON) and one row per portion that
@@ -57,4 +58,34 @@ export function planTable(db: DatabaseSync, now: () => Date) {
     link: (planId: number, n: number, job: number): boolean => Number(link.run(planId, n, job).changes) > 0,
     jobs: (planId: number): { n: number; job: number }[] => (jobsOf.all(planId) as { n: number; job_id: number }[]).map((r) => ({ n: r.n, job: r.job_id })),
   };
+}
+
+/**
+ * A stored plan with the state of each portion. Pure: `jobs` says which Board job each started portion became,
+ * `jobState` gives that job's state (undefined: the job is gone, so the portion reads as running), `nameOf` an agent's name.
+ */
+export function viewOfPlan(stored: StoredPlan, links: readonly { n: number; job: number }[], jobState: (job: number) => string | undefined, nameOf: (agent: string) => string): PlanView {
+  const jobs = new Map(links.map((j) => [j.n, j.job]));
+  const state = (n: number): PortionState => {
+    const job = jobs.get(n);
+    if (job === undefined) return "waiting";
+    const found = jobState(job);
+    return found === "done" || found === "failed" || found === "stopped" ? found : "running";
+  };
+  const failed = new Set(stored.portions.filter((p) => state(p.n) === "failed" || state(p.n) === "stopped").map((p) => p.n));
+  const blocked = new Set(blockedPortions(stored, failed));
+  const done = new Set(stored.portions.filter((p) => state(p.n) === "done").map((p) => p.n));
+  const portions: PlanPortionView[] = stored.portions.map((p) => ({
+    n: p.n,
+    agent: p.agent,
+    name: nameOf(p.agent),
+    task: p.task,
+    after: p.after,
+    ...(jobs.has(p.n) ? { job: jobs.get(p.n)! } : {}),
+    state: blocked.has(p.n) ? "blocked" : state(p.n),
+  }));
+  const complete = isComplete(stored, done);
+  const running = portions.some((p) => p.state === "running");
+  const canStart = portions.some((p) => p.state === "waiting" && p.after.every((a) => done.has(a)));
+  return { id: stored.id, chatId: stored.chatId, goal: stored.goal, createdAt: stored.createdAt, portions, complete, stuck: !complete && !running && (failed.size > 0 || blocked.size > 0) && !canStart };
 }
