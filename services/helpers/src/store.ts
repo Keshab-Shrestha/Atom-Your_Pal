@@ -240,7 +240,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const putGrant = db.prepare("INSERT OR IGNORE INTO grants (helper, path) VALUES (?, ?)");
   const dropGrant = db.prepare("DELETE FROM grants WHERE helper = ? AND path = ?");
   const listeners = new Set<(change: HelperChange) => void>();
-  const audit = auditTable(db, now); // docs/v2-plan.md item 9
+  const audit = auditTable(db, () => new Date()); // docs/v2-plan.md item 9
   const emit = (change: HelperChange) => {
     audit.record(change);
     for (const listener of listeners) listener(change);

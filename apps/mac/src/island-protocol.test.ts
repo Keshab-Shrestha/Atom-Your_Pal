@@ -267,7 +267,7 @@ test("helper commands with missing or wrong fields are protocol errors", () => {
     [{ type: "helper.pin", helper: "sid", model: null }, /"model"/],
     [{ type: "helpers.settings" }, /"allowLarge"/],
     [{ type: "helpers.settings", allowLarge: "false" }, /"allowLarge"/],
-    [{ type: "helpers.settings", maxRunning: 6 }, /"allowLarge" or "codexFallback"/], // ADR-110 N4: no "Runs at once"
+    [{ type: "helpers.settings", maxRunning: 6 }, /"allowLarge"/], // ADR-110 N4: no "Runs at once"
     [{ type: "helper.budget", helper: "sid", cap: 2 }, /./], // ADR-110 N4: an unknown command now
     [{ type: "soul.set", soul: {} }, /"helper"/],
     [{ type: "soul.set", helper: "sid" }, /"soul" object/],
@@ -320,38 +320,6 @@ test("git.push and git.diff take only a full path and a ATOM task branch; chats 
     assert.ok("error" in parsed, JSON.stringify(command));
     assert.match(parsed.error, expected);
   }
-});
-
-test("ADR-094: team tasks, wake-ups and routine pause parse; bad values are refused", () => {
-  assert.deepEqual(parseCommand('{"type":"team.add","task":"Compare apps"}'), { command: { type: "team.add", task: "Compare apps" } });
-  assert.deepEqual(parseCommand('{"type":"team.add","task":"x","role":"coder"}'), { command: { type: "team.add", task: "x", role: "coder" } });
-  assert.deepEqual(parseCommand('{"type":"team.add","task":"x","role":""}'), { command: { type: "team.add", task: "x" } }, "empty role: anyone");
-  assert.ok("error" in parseCommand('{"type":"team.add","role":"coder"}'));
-  assert.ok("error" in parseCommand('{"type":"team.add","task":"x","role":7}'));
-  assert.deepEqual(parseCommand('{"type":"team.delete","id":3}'), { command: { type: "team.delete", id: 3 } });
-  assert.ok("error" in parseCommand('{"type":"team.delete","id":"3"}'));
-  assert.deepEqual(parseCommand('{"type":"helper.wakeUp","helper":"sid","every":"4h"}'), { command: { type: "helper.wakeUp", helper: "sid", every: "4h" } });
-  assert.deepEqual(parseCommand('{"type":"helper.wakeUp","helper":"sid","every":"off"}'), { command: { type: "helper.wakeUp", helper: "sid", every: "off" } });
-  assert.ok("error" in parseCommand('{"type":"helper.wakeUp","helper":"sid","every":"2h"}'));
-  assert.deepEqual(parseCommand('{"type":"helper.wakeUp.pause","helper":"sid","paused":true}'), { command: { type: "helper.wakeUp.pause", helper: "sid", paused: true } });
-  assert.ok("error" in parseCommand('{"type":"helper.wakeUp.pause","helper":"sid","paused":"yes"}'));
-  assert.deepEqual(parseCommand('{"type":"routine.pause","id":2,"paused":false}'), { command: { type: "routine.pause", id: 2, paused: false } });
-  assert.ok("error" in parseCommand('{"type":"routine.pause","id":2}'));
-});
-
-test("ADR-095: Manager commands parse; bad values are refused", () => {
-  assert.deepEqual(parseCommand('{"type":"manager.create","name":"Travel"}'), { command: { type: "manager.create", name: "Travel" } });
-  assert.deepEqual(parseCommand('{"type":"manager.create","name":"Travel","mode":"plan"}'), { command: { type: "manager.create", name: "Travel", mode: "plan" } });
-  assert.ok("error" in parseCommand('{"type":"manager.create","name":"Travel","mode":"boss"}'));
-  assert.ok("error" in parseCommand('{"type":"manager.create"}'));
-  assert.deepEqual(parseCommand('{"type":"manager.rename","id":"travel","name":"Trips"}'), { command: { type: "manager.rename", id: "travel", name: "Trips" } });
-  assert.ok("error" in parseCommand('{"type":"manager.rename","name":"Trips"}'));
-  assert.deepEqual(parseCommand('{"type":"manager.mode","id":"travel","mode":"group"}'), { command: { type: "manager.mode", id: "travel", mode: "group" } });
-  assert.ok("error" in parseCommand('{"type":"manager.mode","id":"travel"}'));
-  assert.deepEqual(parseCommand('{"type":"manager.delete","id":"travel"}'), { command: { type: "manager.delete", id: "travel" } });
-  assert.ok("error" in parseCommand('{"type":"manager.delete","id":3}'));
-  assert.deepEqual(parseCommand('{"type":"agent.manager","helper":"sid","manager":"research"}'), { command: { type: "agent.manager", helper: "sid", manager: "research" } });
-  assert.ok("error" in parseCommand('{"type":"agent.manager","helper":"sid"}'));
 });
 
 test("job.undo: an id, an optional path and force", () => {

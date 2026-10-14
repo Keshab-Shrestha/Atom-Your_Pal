@@ -686,7 +686,6 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
       skillDrafts: [],
       skillEdits: [],
       mcp: [],
-      teamTasks: [],
       testCases: [], // ADR-098
       models: [
         { id: "claude-opus-5-5", name: "Claude Opus 5.5", tier: "large" },

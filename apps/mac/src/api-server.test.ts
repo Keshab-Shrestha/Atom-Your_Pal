@@ -38,7 +38,7 @@ async function boot(extra: Partial<ApiServerOptions> = {}) {
   const tokenFile = join(dir, `token-${seq}`);
   const api = createApiServer({
     log, port: String(47900 + Math.floor(Math.random() * 90) + (seq++ % 5) * 100), tokenFile, helpers: store,
-    approvals: { pending: () => [], answer() {} }, describe: (e) => String(e), ask: async (t) => `echo:${t}`, said: () => undefined, ...extra,
+    approvals: { pending: () => [], answer() {} }, describe: (e) => String(e), ask: async (t) => `echo:${t}`, said: () => undefined, startRoutine: () => true, ...extra,
   });
   const status = await api.set(true);
   assert.equal(status.on, true, status.error);
