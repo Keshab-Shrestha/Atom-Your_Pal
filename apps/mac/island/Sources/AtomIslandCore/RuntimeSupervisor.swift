@@ -49,7 +49,9 @@ public final class RuntimeSupervisor: @unchecked Sendable {
         policy: RestartPolicy = RestartPolicy(),
         queue: DispatchQueue = .main,
         log: IslandLog = IslandLog(url: nil),
-        stopTimeout: Double = 3,
+        // The runtime writes waiting conversation notes at quit for up to 10 s (NOTE_FLUSH_QUIT_MS in main.ts, ADR-108),
+        // so SIGTERM comes only after that; a runtime with nothing to write exits at once.
+        stopTimeout: Double = 12,
         onEvent: @escaping EventHandler,
         onStatus: @escaping StatusHandler = { _ in }
     ) {
