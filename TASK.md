@@ -1528,6 +1528,8 @@ With `ATOM_ENGINE=native`, ATOM's workers are Claude Code sub-agents. The legacy
 - Tests: `native-agents.test.ts`, `native-board.test.ts`, `native-safety.test.ts`, and N2 tests in `native-core.test.ts`, `claude-session.test.ts` and `helpers.test.ts`. All tests use a fake SDK and temporary folders.
 - Live probe: plain prefix 3.8k (target 3.5k), project prefix 5.7k (target 5.5k), research sub-agent prefix 2.5k (target 2k). A Sid task ran end to end: a Board job, a report, and a wake-up reply in the chat.
 
-Not built in N2: speech for a wake-up reply (N3), SendMessage steering to a running agent, and a worktree in a plain chat (a folders agent there works in its granted folders, with checkpoints).
+Review fixes (2026-10-14): Agent call input allowlist, plan-first file gate, `create_agent` on the approval card, built-in agent names refused, Board text masked, ToolSearch for agents with MCP or the browser, fail-closed tests.
+
+Not built in N2: speech for a wake-up reply (N3), SendMessage steering to a running agent, a worktree in a plain chat (a folders agent there works in its granted folders, with checkpoints), and an exact link from SubagentStart and WorktreeCreate to the Agent call (these hooks give no `tool_use_id`, so ATOM uses the oldest open job of that worker and the oldest waiting worktree).
 
 Next: Keshab tries Phase N2 in the real app. Then Phase N3: voice, Telegram, the API and schedules.

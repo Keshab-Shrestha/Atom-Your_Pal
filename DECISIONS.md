@@ -2529,6 +2529,9 @@ Keshab's decisions:
 1. Bash is only in project chats. Its sandbox is that project and its worktrees. In a plain chat, a folders-kit agent gets Write and Edit only, and code checks each path against that agent's grants.
 2. The native engine drops wake-ups and team tasks (ADR-094 B). ATOM's own delegation and routines replace them. The legacy code stays until Phase N5.
 3. A sub-agent's Board report is plain text. The body is the agent's last assistant message. The title is the description of the Agent call. The sources are the web addresses in the text.
+4. `create_agent` asks Keshab on the approval card before it makes an agent. The card shows the name, the role, the kit and the start of the soul text. A declined card makes nothing. A name whose id is the id of a Claude Code built-in agent (`general-purpose`, `claude`, `explore`, `plan`, `statusline-setup`, `fork`, `output-style-setup`) is refused.
+5. A think-kit agent may use its skills. A skill is instructions, not a tool.
+6. A plan-first agent cannot change files (Write, Edit, Bash) before Keshab approves its plan on the card. A declined plan keeps these tools refused.
 
 Phase N2 (built 2026-10-14):
 
