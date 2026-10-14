@@ -80,6 +80,13 @@ struct BoardPane: View {
             VStack(alignment: .leading, spacing: 18) {
                 // ADR-091: the team lives here now (the sidebar lists chats): each opens its page.
                 TeamChips(model: model)
+                // ADR-111: the work plans: a goal, its portions and how far each is.
+                if let plans = model.helpers.list?.plans, !plans.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Plans").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.leading, 4)
+                        ForEach(plans.prefix(3)) { plan in PlanCard(model: model, plan: plan) }
+                    }
+                }
                 // ADR-093: an agent whose soul.md is broken is missing from the team; say which and why.
                 if let problems = model.helpers.list?.agentProblems, !problems.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {

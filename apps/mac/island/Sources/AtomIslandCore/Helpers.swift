@@ -627,11 +627,14 @@ public struct HelpersList: Sendable, Equatable {
     /// signed in (the switch shows only then). False from an older runtime.
     public var codexFallback: Bool
     public var codexReady: Bool
+    /// ADR-111: the newest work plans, newest first; empty when there are none (or from an older runtime).
+    public var plans: [WorkPlanItem]
 
     public init(helpers: [Helper], apps: [String], allowLarge: Bool = true, models: [HelperModel] = [],
                 paperclip: [PaperclipTask]? = nil, mcp: [McpServerItem] = [], usage: TokenUsageSummary? = nil, skills: [SkillInfo] = [],
                 skillDrafts: [SkillDraftItem] = [], skillEdits: [SkillEditItem] = [], skillHub: HubState = .empty, agentProblems: [AgentProblem] = [], teamTasks: [TeamTask] = [],
-                managers: [HelperManager] = [], codexFallback: Bool = false, codexReady: Bool = false, testCases: [TestCaseItem] = []) {
+                managers: [HelperManager] = [], codexFallback: Bool = false, codexReady: Bool = false, testCases: [TestCaseItem] = [], plans: [WorkPlanItem] = []) {
+        self.plans = plans
         self.testCases = testCases
         self.helpers = helpers
         self.apps = apps

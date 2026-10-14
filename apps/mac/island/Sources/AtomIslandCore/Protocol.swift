@@ -946,7 +946,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
                                     managers: f.managers(),
                                     codexFallback: f.optionalBool("codexFallback") ?? false,
                                     codexReady: f.optionalBool("codexReady") ?? false,
-                                    testCases: Fields.testCases(f.values["testCases"])))
+                                    testCases: Fields.testCases(f.values["testCases"]),
+                                    plans: Fields.plans(f.values["plans"])))
     case "thread":
         return .thread(try f.thread())
     case "search.results":
@@ -1327,6 +1328,23 @@ private struct Fields {
             guard let t = entry as? [String: Any], let id = t["id"] as? NSNumber, CFGetTypeID(id) != CFBooleanGetTypeID(), let task = t["task"] as? String
             else { return nil }
             return TeamTask(id: id.intValue, task: task, role: t["role"] as? String, createdAt: (t["createdAt"] as? String).flatMap(Self.date))
+        }
+    }
+
+    /// ADR-111: the work plans; absent (an older runtime, or none) is empty. A malformed plan or portion is left out.
+    static func plans(_ value: Any?) -> [WorkPlanItem] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let p = entry as? [String: Any], let id = p["id"] as? NSNumber, CFGetTypeID(id) != CFBooleanGetTypeID(),
+                  let goal = p["goal"] as? String else { return nil }
+            let portions: [PlanPortion] = (p["portions"] as? [Any] ?? []).compactMap { raw in
+                guard let q = raw as? [String: Any], let n = q["n"] as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID(),
+                      let agent = q["agent"] as? String, let task = q["task"] as? String,
+                      let state = (q["state"] as? String).flatMap(PlanPortion.State.init(rawValue:)) else { return nil }
+                let job = (q["job"] as? NSNumber).flatMap { CFGetTypeID($0) == CFBooleanGetTypeID() ? nil : $0.intValue }
+                return PlanPortion(n: n.intValue, agent: agent, name: q["name"] as? String ?? agent, task: task, after: ids(q["after"]), job: job, state: state)
+            }
+            return WorkPlanItem(id: id.intValue, goal: goal, createdAt: (p["createdAt"] as? String).flatMap(Self.date), portions: portions,
+                                complete: flag(p["complete"]), stuck: flag(p["stuck"]))
         }
     }
 

@@ -160,6 +160,8 @@ private struct StepRow: View {
                 .contentTransition(.opacity)
                 .animation(.easeOut(duration: 0.18), value: model.work.line)
             Spacer(minLength: 6)
+            // ADR-111: a work plan that goes on shows one dot a portion.
+            if let plan = model.helpers.list?.activePlan { PlanDots(plan: plan) }
             if model.work.outcome == .working {
                 Button { model.stopWork() } label: {
                     HStack(spacing: 6) {
