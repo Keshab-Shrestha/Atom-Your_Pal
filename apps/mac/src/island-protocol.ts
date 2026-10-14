@@ -6,7 +6,7 @@ import type { LoopState } from "./voice-loop.ts";
 
 export const PROTOCOL_VERSION = 1;
 
-import type { ProjectItem, ThreadEvent, SearchResultsEvent, ErrorStage, PlanUsageEvent, NoticeKind, InfoEvent, MemoryItem, EpisodeItem, MemoryChatItem, ChatItem, GitBranchItem, HelperItem, ModelItem, SkillHubItem, SkillDraftItem, SkillEditItem, TestCaseItem, McpItem, UsageItem, PaperclipItem, PlanItem } from "./island-items.ts";
+import type { ProjectItem, ThreadEvent, SearchResultsEvent, ErrorStage, PlanUsageEvent, NoticeKind, InfoEvent, MemoryItem, EpisodeItem, MemoryChatItem, ChatItem, GitBranchItem, HelperItem, ModelItem, SkillHubItem, SkillDraftItem, SkillEditItem, TestCaseItem, McpItem, UsageItem, PaperclipItem, PlanItem, BrainNodeItem, BrainEdgeItem, BrainNoteItem, BrainHitItem } from "./island-items.ts";
 export * from "./island-items.ts";
 export * from "./island-commands.ts";
 
@@ -43,6 +43,10 @@ export type IslandEvent =
   | { type: "context.ready"; app: string; ok: false; message: string }
   | { type: "capabilities"; items: Capability[] }
   | PlanUsageEvent
+  /** The second brain's graph: the notes (the most linked first, at most 400), their links, and the tags with counts. */
+  | { type: "brain"; nodes: BrainNodeItem[]; edges: BrainEdgeItem[]; omitted: number; tags: { tag: string; count: number }[] }
+  | { type: "brain.note"; note: BrainNoteItem }
+  | { type: "brain.hits"; query: string; hits: BrainHitItem[] }
   | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[]; chats?: MemoryChatItem[] }
   /** ADR-091: Keshab's chats, newest first, and the one ATOM is in now (voice goes to it). */
   /** ADR-097: `currentProvider` / `currentModel`: the current chat's own model; absent when it uses the default. */

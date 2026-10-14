@@ -57,7 +57,7 @@ import {
 } from "@atom/helpers";
 import { createLayaEngine } from "@atom/decision-engine";
 import type { InputSource, LanguageModel, Message, RequestContext, ZenoInput } from "@atom/contracts";
-import type { IslandChats, IslandGit, IslandHelpers, IslandMemory, IslandProjects } from "./island.ts";
+import type { IslandBrain, IslandChats, IslandGit, IslandHelpers, IslandMemory, IslandProjects } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
 import { createHubCommands } from "./hub-commands.ts";
 import { SKILLS_PLUGIN, listSkills, prepareSkills, userSkillsDir } from "./skills.ts";
@@ -72,6 +72,7 @@ export { describe, errorFields, nowLine, seconds, withLogging } from "./runtime-
 import { TELEGRAM_CHAT, startTelegramBot, type TelegramBot } from "./telegram-bot.ts";
 import { createApiServer, type ApiServer } from "./api-server.ts";
 import { SCHEDULER_TICK_MS, scheduleTick } from "./scheduler.ts";
+import { createBrainWiring, type BrainWiring } from "./brain-wiring.ts";
 import { createProposeSkillTool, createSearchChatsTool } from "./reach-tools.ts";
 import { nativeSteering, routeWake, routineStarter, taskStarter, type TaskSteering } from "./native-entry.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
@@ -112,6 +113,8 @@ export interface Runtime {
   memory?: MemoryStore;
   /** The memory as Settings sees it (list, forget, clear, change updates). Undefined when memory is off. */
   islandMemory?: IslandMemory;
+  /** The second brain as the window sees it (Memory → Graph). Undefined when memory is off. */
+  islandBrain?: IslandBrain;
   /** ADR-091: Keshab's chat sessions as the ATOM window sees them. Undefined when memory is off. */
   islandChats?: IslandChats;
   /** ADR-107: projects as the ATOM window sees them. Undefined when memory is off. */
@@ -175,6 +178,18 @@ export function createRuntime(
   // The request a memory tool is running for, for provenance. Set by the Core's context hook, which runs first.
   let current: { source: InputSource; requestId?: string } = { source: "voice" };
   const memoryListeners = new Set<() => void>();
+  // The second brain: memory mirrored into linked notes (brain-wiring.ts). Mirrored again when memory changes.
+  const brainWiring: BrainWiring | undefined = memory && createBrainWiring({ memory, log });
+  if (brainWiring) {
+    let pending: ReturnType<typeof setTimeout> | undefined;
+    const soon = (ms: number) => {
+      clearTimeout(pending);
+      pending = setTimeout(() => brainWiring.sync(), ms);
+      pending.unref?.();
+    };
+    memoryListeners.add(() => soon(1500));
+    soon(3000); // at start, once the window is up
+  }
   // ADR-097: chats kept in memory. The digest is one no-tools run of the plan's small model; on any other provider, or
   // if it fails, the deterministic digest is used.
   const keptChats =
@@ -385,6 +400,7 @@ export function createRuntime(
     // Task 3.9: routines by voice in any wording. Logs the routine id and worker only.
     ...(helpers ? [createScheduleTool({ store: helpers, onScheduled: (e) => log.info("routine.scheduled", e) })] : []),
     // docs/v2-plan.md items 1 and 2: past chats by words; a skill proposed from a finished task. Logs counts and ids only.
+    ...(brainWiring ? brainWiring.tools : []),
     ...(memory ? [createSearchChatsTool({ search: (query) => memory.chats.search(query), onSearch: (e) => log.info("chats.search", e) })] : []),
     ...(helpers ? [createProposeSkillTool({ store: helpers, onProposed: (e) => log.info("skill.proposed", e) })] : []),
   ];
@@ -701,7 +717,7 @@ export function createRuntime(
     stt,
     tts,
     computer,
-    ...(memory ? { memory, islandMemory, islandChats, islandProjects: projects!.island } : {}),
+    ...(memory ? { memory, islandMemory, islandChats, islandProjects: projects!.island, ...(brainWiring ? { islandBrain: brainWiring.island } : {}) } : {}),
     ...(islandGit ? { islandGit } : {}),
     ...(helpers ? { helpers, islandHelpers: warmOnOpen(withPaperclip(paperclip, paperclipListeners, {
             ...islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name)))),

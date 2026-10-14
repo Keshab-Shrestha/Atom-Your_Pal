@@ -316,6 +316,52 @@ export interface McpItem {
   problem?: string;
 }
 
+/** The second brain: one note in the graph. Titles are the user's own words. */
+export interface BrainNodeItem {
+  id: number;
+  title: string;
+  kind: "note" | "memory" | "episode" | "chat" | "project" | "entity";
+  ghost: boolean;
+  tags: string[];
+  degree: number;
+  updatedAt: string;
+}
+
+export interface BrainEdgeItem {
+  a: number;
+  b: number;
+  /** Found by ATOM, not written in a note. */
+  auto: boolean;
+}
+
+export interface BrainLinkItem {
+  id: number;
+  title: string;
+  kind: BrainNodeItem["kind"];
+  ghost?: boolean;
+  auto: boolean;
+}
+
+/** One note with its text, links and backlinks. */
+export interface BrainNoteItem {
+  id: number;
+  title: string;
+  body: string;
+  kind: BrainNodeItem["kind"];
+  ghost: boolean;
+  tags: string[];
+  links: BrainLinkItem[];
+  backlinks: BrainLinkItem[];
+  updatedAt: string;
+}
+
+export interface BrainHitItem {
+  id: number;
+  title: string;
+  kind: BrainNodeItem["kind"];
+  snippet: string;
+}
+
 /** ADR-111: one portion of a work plan. `job` is its Board task once it started. Task text is Keshab's own. */
 export interface PlanPortionItem {
   n: number;

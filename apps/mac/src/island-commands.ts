@@ -23,6 +23,12 @@ export type IslandCommand =
   | { type: "chat.model"; id: string; provider: string; model: string }
   | { type: "approval.answer"; id: string; approved: boolean }
   | { type: "memory.list" }
+  /** The second brain: the graph (and, from then on, again after each change), one note, a save (new, or a rename with `id`), a delete, a search. */
+  | { type: "brain.get" }
+  | { type: "brain.note"; id: number }
+  | { type: "brain.save"; id?: number; title: string; body: string }
+  | { type: "brain.delete"; id: number }
+  | { type: "brain.search"; query: string }
   | { type: "chats.list" }
   /** ADR-107: a new chat, in a project when `projectId` is given (`conversation.reset` is the same without a project). */
   | { type: "chat.new"; projectId?: string }
@@ -132,6 +138,11 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "chat.model",
   "approval.answer",
   "memory.list",
+  "brain.get",
+  "brain.note",
+  "brain.save",
+  "brain.delete",
+  "brain.search",
   "chats.list",
   "chat.new",
   "chat.rename",
@@ -498,6 +509,24 @@ export function parseCommand(line: string): ParsedLine {
     const { id } = value as { id?: unknown };
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     return { command: { type, id } };
+  }
+  if (type === "brain.note" || type === "brain.delete") {
+    const { id } = value as { id?: unknown };
+    if (!isId(id)) return { error: `${type} needs an "id" that is a whole number.` };
+    return { command: { type, id } };
+  }
+  if (type === "brain.save") {
+    // The title and body limits are the brain's to refuse (stage "settings").
+    const { id, title, body } = value as { id?: unknown; title?: unknown; body?: unknown };
+    if (id !== undefined && !isId(id)) return { error: 'brain.save needs "id" to be a whole number (or left out for a new note).' };
+    if (typeof title !== "string" || typeof body !== "string") return { error: 'brain.save needs "title" and "body" strings.' };
+    if (title.length > 400 || body.length > 100_000) return { error: "brain.save: the note is too long." };
+    return { command: { type, ...(id !== undefined ? { id } : {}), title, body } };
+  }
+  if (type === "brain.search") {
+    const { query } = value as { query?: unknown };
+    if (typeof query !== "string" || query.length > 200) return { error: 'brain.search needs a "query" string of at most 200 characters.' };
+    return { command: { type, query } };
   }
   if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.interrupt" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "job.open" || type === "job.retry" || type === "mcp.remove" || type === "mcp.test" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "thread.get" || type === "skill.make" || type === "skill.approve" || type === "skill.reject" || type === "skill.edit.accept" || type === "skill.edit.reject" || type === "skill.edit.undo") {
     const { id } = value as { id?: unknown };

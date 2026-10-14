@@ -1,3 +1,4 @@
+import { openBrain, type Brain } from "./brain.ts";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -75,6 +76,8 @@ export interface MemoryStore {
   clearEpisodes(): number;
   /** ADR-091: Keshab's chat sessions. */
   readonly chats: ChatStore;
+  /** The second brain: notes that link to each other (brain.ts). */
+  readonly brain: Brain;
   /** ADR-097: the chats Keshab keeps in memory, at three depths, with hybrid search. */
   readonly chatIndex: ChatIndex;
   /** ADR-107: projects (a named folder and its chats). */
@@ -212,9 +215,11 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
   const chats = openChats(db, now);
   const chatIndex = openChatIndex(db, now);
   const projects = openProjects(db, now);
+  const brain = openBrain(db, now);
 
   return {
     chats,
+    brain,
     projects,
     chatIndex,
     add(raw, provenance) {

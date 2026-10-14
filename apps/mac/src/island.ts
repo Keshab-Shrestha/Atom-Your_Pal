@@ -25,6 +25,10 @@ import {
   type SearchHitItem,
   type PaperclipItem,
   type PlanItem,
+  type BrainNodeItem,
+  type BrainEdgeItem,
+  type BrainNoteItem,
+  type BrainHitItem,
   type McpItem,
   type SkillDraftItem,
   type SkillEditItem,
@@ -66,6 +70,8 @@ export interface IslandOptions {
   computer?: Pick<ComputerBridge, "attach" | "answer" | "cancelAll">;
   /** What ATOM keeps (ADR-058), for Settings. Absent when memory is off: `memory.*` answers `enabled: false`. */
   memory?: IslandMemory;
+  /** The second brain (Memory → Graph). */
+  brain?: IslandBrain;
   /** ADR-091: chat sessions. Absent when memory is off. */
   chats?: IslandChats;
   /** ADR-107: projects. Absent when memory is off: `project.*` and `chat.new` with a project are refused. */
@@ -101,6 +107,18 @@ export interface IslandOptions {
   onQuit(): void;
   silenceWarnMs?: number;
   levelIntervalMs?: number;
+}
+
+/** The second brain as the window sees it (services/memory/src/brain.ts). Each method throws, with words for the user, on a bad note. */
+export interface IslandBrain {
+  graph(): { nodes: BrainNodeItem[]; edges: BrainEdgeItem[]; omitted: number; tags: { tag: string; count: number }[] };
+  note(id: number): BrainNoteItem | undefined;
+  /** Saves a new note, or changes the note with `id` (a new title renames it). Returns the note. */
+  save(input: { id?: number; title: string; body: string }): BrainNoteItem;
+  remove(id: number): boolean;
+  search(query: string): BrainHitItem[];
+  /** Called after the brain changed (a note saved, memory mirrored). Returns an unsubscribe. */
+  onChange(listener: () => void): () => void;
 }
 
 export interface IslandMemory {
@@ -521,6 +539,33 @@ export function runIsland(options: IslandOptions): IslandSession {
         sendInfo();
         return;
       }
+      case "brain.get":
+        brainWatched = true; // from now on, changes are sent too
+        sendBrain();
+        return;
+      case "brain.note": {
+        const note = options.brain?.note(command.id);
+        if (note) send({ type: "brain.note", note });
+        else send({ type: "error", stage: "settings", message: "That note is gone." });
+        return;
+      }
+      case "brain.save":
+        try {
+          const note = options.brain?.save({ ...(command.id !== undefined ? { id: command.id } : {}), title: command.title, body: command.body });
+          if (!note) throw new Error("The second brain is off.");
+          send({ type: "brain.note", note });
+          sendBrain();
+        } catch (error) {
+          send({ type: "error", stage: "settings", message: describe(error) });
+        }
+        return;
+      case "brain.delete":
+        if (!options.brain?.remove(command.id)) send({ type: "error", stage: "settings", message: "That note is gone." });
+        sendBrain();
+        return;
+      case "brain.search":
+        send({ type: "brain.hits", query: command.query, hits: options.brain?.search(command.query) ?? [] });
+        return;
       case "memory.list":
         memoryWatched = true; // from now on, changes ATOM makes by itself are sent too
         sendMemory();
@@ -881,6 +926,14 @@ export function runIsland(options: IslandOptions): IslandSession {
     );
   }
   let memoryWatched = false;
+  let brainWatched = false;
+  function sendBrain() {
+    if (!options.brain) return;
+    send({ type: "brain", ...options.brain.graph() });
+  }
+  const stopBrainUpdates = options.brain?.onChange(() => {
+    if (brainWatched) sendBrain();
+  });
 
   // ADR-091: the chats, sent once asked for and again after each saved exchange.
   let chatsWatched = false;
@@ -1006,6 +1059,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     if (quitting) return;
     quitting = true;
     stopMemoryUpdates?.();
+    stopBrainUpdates?.();
     stopChatUpdates?.();
     stopPosted?.();
     stopHelperUpdates?.();
