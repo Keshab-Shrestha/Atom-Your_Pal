@@ -245,6 +245,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const insertJob = db.prepare(
     "INSERT INTO jobs (helper, task, state, created_at, goal, parent_id, goal_id, plan_first) VALUES (?, ?, 'queued', ?, ?, ?, ?, ?)",
   );
+  const setNativeLinks = db.prepare("UPDATE jobs SET chat_id = ?, sdk_task_id = ? WHERE id = ?");
+  const setNativeTask = db.prepare("UPDATE jobs SET sdk_task_id = ? WHERE id = ?");
   const planFirstOf = (helper: HelperId) => (settingOf.get(`planFirst:${helper}`) as { value: string } | undefined)?.value === "true";
   // ADR-098: whether an agent's runs get the browser (default off).
   const browserOf = (helper: HelperId) => (settingOf.get(`browser:${helper}`) as { value: string } | undefined)?.value === "true";
@@ -1251,6 +1253,25 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       transaction(() => (id = insertTask(known.id, task, blockers, { goal, parentId: options.parentId ?? null, goalId: null, planFirst: options.planFirst })));
       emit({ action: "job", helper: known.id, job: id, state: "queued" });
       return mustGet(id);
+    },
+
+    addNativeJob(helper, raw, links) {
+      const known = availableHelper(helper);
+      const trimmed = raw.trim();
+      const task = cleanTask(trimmed.length > MAX_TASK_CHARS ? `${trimmed.slice(0, MAX_TASK_CHARS - 1)}…` : trimmed);
+      let id = 0;
+      transaction(() => {
+        id = insertTask(known.id, task, [], { goal: null, parentId: null, goalId: null, planFirst: false });
+        setNativeLinks.run(links.chatId, links.sdkTaskId ?? null, id);
+        claim.run(id); // running at once: Claude Code runs it, never the legacy runner
+        log(id, "running");
+      });
+      emit({ action: "job", helper: known.id, job: id, state: "running" });
+      return mustGet(id);
+    },
+
+    linkNativeTask(id, sdkTaskId) {
+      setNativeTask.run(sdkTaskId, id);
     },
 
     addGoal(raw, parts, source, projectId) {

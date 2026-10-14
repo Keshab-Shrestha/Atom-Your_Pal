@@ -76,6 +76,9 @@ export interface Job {
   reviewSkill?: string;
   /** ADR-090: how many times a failure was retried by itself (at most MAX_AUTO_RETRIES). */
   autoRetries: number;
+  /** ADR-110 (N2): a native sub-agent's job: the chat whose session runs it, and Claude Code's task id. */
+  chatId?: string;
+  sdkTaskId?: string;
   parentId?: number;
   /** The tasks it waits for, and those of them not done yet (it starts when this is empty). */
   blockedBy: number[];
@@ -518,6 +521,13 @@ export interface HelperStore {
   setModel(id: number, model: string, reason: string): boolean;
   /** Queues a job. Throws HelperError for an unknown or unavailable helper, an empty or long task, or bad blockers. */
   addJob(helper: string, task: string, options?: AddJobOptions): Job;
+  /**
+   * ADR-110 (N2): a Board row for a native sub-agent that Claude Code already runs: made running at once, so the
+   * legacy runner never picks it up. A long prompt is cut to MAX_TASK_CHARS.
+   */
+  addNativeJob(helper: string, task: string, links: { chatId: string; sdkTaskId?: string }): Job;
+  /** ADR-110 (N2): Claude Code's task id of a native job, once the task has started. */
+  linkNativeTask(id: number, sdkTaskId: string): void;
   get(id: number): Job | undefined;
   /**
    * Creates a goal and its tasks in one go (Task 3.5), or nothing: throws HelperError for an empty or long goal, no

@@ -293,3 +293,16 @@ test("a file from before Task 3.2b gains the model columns and keeps its jobs", 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("ADR-110 N2: a native job is running at once, keeps its chat and task id, and the legacy queue never sees it", () => {
+  const store = openHelperStore({ path: ":memory:" });
+  const job = store.addNativeJob("sid", `  ${"x".repeat(1200)}  `, { chatId: "chat-1" });
+  assert.equal(job.state, "running");
+  assert.equal(job.chatId, "chat-1");
+  assert.equal(job.task.length, 1000, "a long prompt is cut, not refused");
+  assert.equal(store.queued().some((j) => j.id === job.id), false);
+  store.linkNativeTask(job.id, "task-9");
+  assert.equal(store.get(job.id)?.sdkTaskId, "task-9");
+  assert.throws(() => store.addNativeJob("tinker", "review", { chatId: "c" }), /only reviews/);
+  store.close();
+});

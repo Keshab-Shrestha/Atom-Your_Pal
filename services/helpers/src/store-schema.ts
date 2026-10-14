@@ -130,6 +130,8 @@ export function createSchema(db: DatabaseSync) {
   for (const column of ["review_kind", "review_skill"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);
   // ADR-098 item 3: an interrupted task waits for Keshab; his messages to a running task ("live" or "after").
   if (!columns.has("interrupted")) db.exec("ALTER TABLE jobs ADD COLUMN interrupted INTEGER");
+  // ADR-110 (N2): a native sub-agent's job: its chat and Claude Code's task id (both empty for legacy jobs).
+  for (const column of ["chat_id", "sdk_task_id"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);
   const noteColumns = new Set((db.prepare("PRAGMA table_info(job_comments)").all() as { name: string }[]).map((c) => c.name));
   if (!noteColumns.has("delivery")) db.exec("ALTER TABLE job_comments ADD COLUMN delivery TEXT");
 }
@@ -166,6 +168,8 @@ export interface JobRow {
   review_kind: string | null;
   review_skill: string | null;
   auto_retries: number | null;
+  chat_id?: string | null;
+  sdk_task_id?: string | null;
 }
 
 export interface SoulRow {
@@ -223,6 +227,8 @@ export const toJobRow = (row: JobRow): Omit<Job, "blockedBy" | "waitingFor" | "c
   ...(row.review_kind === "skill" || row.review_kind === "edit" ? { reviewKind: row.review_kind } : {}),
   ...(row.review_skill ? { reviewSkill: row.review_skill } : {}),
   autoRetries: row.auto_retries ?? 0,
+  ...(row.chat_id ? { chatId: row.chat_id } : {}),
+  ...(row.sdk_task_id ? { sdkTaskId: row.sdk_task_id } : {}),
 });
 
 /** Sources with an http or https address only; anything else (javascript:, file:, junk) is dropped. */
