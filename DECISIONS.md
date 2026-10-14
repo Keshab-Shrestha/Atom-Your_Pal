@@ -2551,3 +2551,29 @@ Phase N3 (built 2026-10-14), where it differs from the plan:
 Phase N4 (built 2026-10-14): budgets are gone in both engines. No worker or team daily budget, no plan limit that ATOM sets, and no "Runs at once". A legacy task starts when its blockers are done. It waits only for Keshab: a plan to approve, or an interrupted run. The plan meters, the Dashboard tokens and the `usage` table stay. Old databases keep the `spend` table and the `budget:*`, `planLimit` and `maxRunning` settings. Nothing reads, writes or drops them. The Codex fallback had only the plan limit to start it, so it starts nothing now; Settings no longer shows its switch.
 
 Phase N5 (built 2026-10-14): the native engine is the only engine. The `ATOM_ENGINE` switch, `createCore`, the per-turn plan adapter (`claude-plan.ts`), the job runner, goals, Managers, team tasks, wake-ups, the worker shortcut, sub-agent recording and the Codex fallback are deleted. What native still used moved: the plan helpers to `plan-support.ts`, `createScheduleTool` to `schedule-tool.ts`. Tinker keeps a small runner (`tinker-runner.ts`) because its tasks have no chat. `claude-plan-job.ts` keeps only the no-tool modes (Tinker, skills, tests, chat digest) and gains the conversation note. A turn on a provider other than the Claude plan is refused. Steering a task sends a note to the main agent of its chat; interrupting a step is refused. Old tables and rows stay in old databases, unread. No test ran in the cloud session; Keshab runs `pnpm test` and `pnpm island:test` on the Mac.
+
+## ADR-111 — Work plans: one big goal, specific agents for its portions, summaries between them (2026-10-14)
+
+Status: Proposed (Keshab asked for it, 2026-10-14). Slice A built.
+
+### Context
+
+Keshab wants ATOM to split a big task across specific agents, as Hermes does with subagents and Paperclip does with tasks that roll up into a goal. The agents finish the portions and the main task completes. Token use must stay low, replies fast, and nothing must be carried between portions that the next portion does not need.
+
+Where tokens go today: a sub-agent's full final message returns into the main agent's context. The main agent then copies what it needs into the next Agent call. That is the same text as input once, then as output (slower and dearer) once more. The prefix of a sub-agent is about 2.5k tokens and is cached; that cost stays.
+
+### Decision
+
+1. The main agent submits one plan with the `plan_work` tool: a goal and 1 to 6 portions `{agent, task, after}`. Code checks it (`parseWorkPlan`): known available agent, a task of 1 to 1000 characters, `after` only names earlier portions, so no circle can exist.
+2. Code, not the model, owns the order. The gate allows a portion's Agent call only when every portion it waits for is done (`readyPortions`). A failed portion blocks its dependants (`blockedPortions`).
+3. Code builds the brief. The gate adds `portionContext` to the Agent call (`updatedInput`): the goal in one line and, for each portion it waited for, a title and a summary of at most 160 characters. No body, no chat history. The main agent never copies a report.
+4. A portion ends with at most 80 words, so the Agent result that returns to the main agent is small. The full report is written to the Board; an agent reads another portion's body only on purpose, with a `read_report` tool.
+5. When the last portion is done, the main agent gets one line and writes the final answer from the summaries. A merge portion can write it instead.
+6. Small ad-hoc work keeps the plain Agent call. A plan is for work with more than one portion.
+7. Slices, each with its own tests: A the pure plan module (built); B the store rows for a plan (queued portions with blockers, one goal); C the `plan_work` tool and the gate checks; D the 80-word handoff, `read_report` and the completion line; E the notch strip that shows the portions.
+
+### Consequences
+
+- Between portions only about 40 tokens a portion travel through the main agent; bodies stay in the store.
+- The plan checks are deterministic, so the model cannot start a portion early or start one twice.
+- Needs a live probe in the real app before it counts as done.
