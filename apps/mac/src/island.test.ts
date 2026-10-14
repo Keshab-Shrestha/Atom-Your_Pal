@@ -1068,7 +1068,7 @@ test("grant.add refuses the home folder; grant.remove takes a folder back (Task 
 
 test("helper.skills keeps only Keshab's skills (Task 3.12)", async () => {
   const store = openHelperStore({ path: ":memory:" });
-  const h = islandHarness({ helpers: islandHelpers(store, async () => [], () => [], () => undefined, () => [{ name: "pdf", description: "PDFs" }]) });
+  const h = islandHarness({ helpers: islandHelpers(store, async () => [], () => [], () => [{ name: "pdf", description: "PDFs" }]) });
   await tick(5);
   await h.send({ type: "helper.skills", helper: "sid", skills: ["pdf"] });
   const event = h.events().at(-1) as HelpersEvent;

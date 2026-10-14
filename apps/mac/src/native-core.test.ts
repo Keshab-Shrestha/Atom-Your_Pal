@@ -1,6 +1,5 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Core } from "@atom/core";
 import type { Message, ProjectFiles, ToolRunner } from "@atom/contracts";
 import { answerTail, MAX_PROJECT_FILE_CALLS, type ChatSession, type SessionSdk } from "@atom/llm-gateway";
 import { openHelperStore } from "@atom/helpers";
@@ -40,30 +39,12 @@ function fakeSdk(answer: (text: string) => string = () => "ok") {
 }
 
 const runner: ToolRunner = { specs: () => [{ name: "delegate", description: "Hand work.", inputSchema: { type: "object" } }], run: async (c) => ({ callId: c.id, content: "ok" }) };
-const legacyCore = (calls: string[] = []): Core => {
-  let id = "x";
-  let turns: Message[] = [];
-  return {
-    get sessionId() {
-      return id;
-    },
-    handle: async (input) => {
-      calls.push(input.text);
-      turns = [...turns, { role: "user", content: input.text }, { role: "assistant", content: "legacy" }];
-      return { requestId: "r", text: "legacy" };
-    },
-    history: () => turns,
-    reset: () => {},
-    resume: (sid, t) => void ((id = sid), (turns = [...t])),
-    prepare: () => {},
-  };
-};
 const sessions = () => {
   const map = new Map<string, ChatSession>();
   return { map, store: { get: (id: string) => map.get(id), set: (id: string, s: ChatSession) => void map.set(id, s) } };
 };
 const make = (sdk: SessionSdk, over: Partial<NativeCoreDeps> = {}) =>
-  createNativeCore({ claudePath: "/bin/claude", tools: runner, modelFor: () => "claude-sonnet-5-5", legacy: legacyCore(), sdk, web: true, env: { PATH: "/bin" }, newId: () => "chat-1", ...over });
+  createNativeCore({ claudePath: "/bin/claude", tools: runner, modelFor: () => "claude-sonnet-5-5", sdk, web: true, env: { PATH: "/bin" }, newId: () => "chat-1", ...over });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 test("a plain chat: three turns in one session; the context goes last and labelled; the opening context only once", async () => {
@@ -141,11 +122,10 @@ test("a project chat: its note in the prompt, Read/Glob/Grep in the folder, web 
   assert.equal(queries[1]!.options.resume, "sess-1");
 });
 
-test("shortcuts answer first; a chat's own model reopens the session with resume; not on the plan, the legacy Core answers", async () => {
+test("shortcuts answer first; a chat's own model reopens the session with resume; not on the plan, the turn is refused", async () => {
   const { sdk, queries } = fakeSdk();
   let model: string | undefined = "claude-sonnet-5-5";
-  const calls: string[] = [];
-  const core = make(sdk, { modelFor: () => model, legacy: legacyCore(calls), chatSessions: sessions().store, shortcuts: async (t) => (t === "pause" ? "Paused." : undefined) });
+  const core = make(sdk, { modelFor: () => model, chatSessions: sessions().store, shortcuts: async (t) => (t === "pause" ? "Paused." : undefined) });
   assert.equal((await core.handle({ text: "pause", source: "voice" })).text, "Paused.");
   assert.equal(queries.length, 0);
   await core.handle({ text: "hi", source: "text" });
@@ -156,9 +136,8 @@ test("shortcuts answer first; a chat's own model reopens the session with resume
   assert.equal(queries[1]!.options.model, "claude-haiku-4-5");
   assert.equal(queries[1]!.options.resume, "sess-1");
   model = undefined;
-  assert.equal((await core.handle({ text: "on gemini", source: "text" })).text, "legacy");
-  assert.deepEqual(calls, ["on gemini"]);
-  assert.equal(core.history().length, 8);
+  await assert.rejects(core.handle({ text: "on gemini", source: "text" }), /Claude plan/);
+  assert.equal(core.history().length, 6);
 });
 
 test("each answer is one usage row with the chat id", async () => {

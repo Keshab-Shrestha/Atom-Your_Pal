@@ -42,9 +42,9 @@ test("needsYou: keys, push flags and button codes", () => {
     skillDrafts: () => [{ id: 4, state: "pending", name: "n", description: "d" }],
     skillEdits: () => [{ id: 5, state: "pending", skill: "k", reason: "r" }],
   });
-  const needs = needsYou(store, (j) => (j.id === 2 ? "Interrupted — waiting for you." : undefined), [ask("q1")] as any);
-  assert.deepEqual(needs.map((n) => n.key), ["ask-q1", "plan-1", "proposal-7", "skill-draft-4", "skill-edit-5", "held-2", "failed-3"]);
-  assert.deepEqual(needs.map((n) => n.push), [true, true, true, true, true, true, false]);
+  const needs = needsYou(store, [ask("q1")] as any);
+  assert.deepEqual(needs.map((n) => n.key), ["ask-q1", "plan-1", "proposal-7", "skill-draft-4", "skill-edit-5", "failed-3"]);
+  assert.deepEqual(needs.map((n) => n.push), [true, true, true, true, true, false]);
   const codes = (k: string) => needs.find((n) => n.key === k)!.buttons!.flat().map((b) => b.data);
   assert.deepEqual(codes("ask-q1"), ["a:q1:1", "a:q1:0"]);
   assert.deepEqual(codes("plan-1"), ["p:1:1", "p:1:0"]);
@@ -52,12 +52,11 @@ test("needsYou: keys, push flags and button codes", () => {
   assert.deepEqual(codes("skill-draft-4"), ["d:4:1", "d:4:0"]);
   assert.deepEqual(codes("skill-edit-5"), ["e:5:1", "e:5:0"]);
   assert.deepEqual(codes("failed-3"), ["r:3"]);
-  assert.equal(needs.find((n) => n.key === "held-2")!.buttons, undefined);
 });
 
 test("needsYou without a store still lists ATOM's questions; every code fits Telegram's 64 bytes", () => {
-  assert.deepEqual(needsYou(undefined, () => undefined, [ask("q")] as any).map((n) => n.key), ["ask-q"]);
-  const long = needsYou(undefined, () => undefined, [ask("x".repeat(40))] as any);
+  assert.deepEqual(needsYou(undefined, [ask("q")] as any).map((n) => n.key), ["ask-q"]);
+  const long = needsYou(undefined, [ask("x".repeat(40))] as any);
   assert.ok(long[0]!.buttons!.flat().every((b) => Buffer.byteLength(b.data) <= 64));
 });
 
@@ -69,7 +68,7 @@ test("needsYou: a hub skill shows name, source, short sha and flag kinds, never 
       { id: 10, kind: "update", name: "old-one", repo: "anthropics/skills", sha: "b".repeat(40), text: secret, flags: [] },
     ],
   });
-  const needs = needsYou(store, () => undefined, []);
+  const needs = needsYou(store, []);
   assert.deepEqual(needs.map((n) => [n.key, n.push]), [["skill-hub-9", true], ["skill-hub-10", true]]);
   assert.equal(needs[0]!.text, "Skill from the hub: pdf-tools\nanthropics/skills @ aaaaaaa\nFlags: url, shell-command\nRead it in the ATOM window before you approve.");
   assert.match(needs[1]!.text, /newer version of the old-one skill.*\nFlags: none/s);
@@ -121,7 +120,7 @@ async function run(opts: { updates: unknown[][]; store?: any; asks?: any[]; ask?
   const asks = opts.asks ?? [];
   const asked: string[] = [];
   const bot = startTelegramBot({
-    token: "t", chatId: "42", log, helpers: opts.store, held: () => undefined, describe: (e) => (e as Error).message, ...(opts.steering ? { steering: opts.steering } : {}), ...(opts.log ? { log: opts.log } : {}),
+    token: "t", chatId: "42", log, helpers: opts.store, describe: (e) => (e as Error).message, ...(opts.steering ? { steering: opts.steering } : {}), ...(opts.log ? { log: opts.log } : {}),
     ask: opts.ask ?? (async (t) => (asked.push(t), `ATOM:${t}`)),
     approvals: { pending: () => asks, answer() {}, onAsk: (l) => (listeners.push(l), () => {}) },
   });
@@ -288,7 +287,7 @@ test("needs text: a test line for a soul proposal and a skill edit, nothing with
     skillEdits: () => [{ id: 5, state: "pending", skill: "k", reason: "r" }],
     testResults: (kind: string, id: number) => (kind === "soul" && id === 7 ? [res("new"), res("new"), res("same")] : kind === "skill" ? [res("old"), res("", "running")] : []),
   });
-  const text = (k: string) => needsYou(store, () => undefined, []).find((n) => n.key === k)!.text;
+  const text = (k: string) => needsYou(store, []).find((n) => n.key === k)!.text;
   assert.match(text("proposal-7"), /\nTest cases: 2 better, 1 same$/);
   assert.doesNotMatch(text("proposal-8"), /Test cases/);
   assert.match(text("skill-edit-5"), /\nTest cases: running…$/);

@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { HAND_OFF_TOOL } from "@atom/llm-gateway";
 import { BROWSER_SERVER } from "./browser.ts";
 
 // ADR-105: the server names ATOM registers. A tool name `mcp__<server>__<tool>` in a run's flags must name one of them.
@@ -20,7 +19,6 @@ function sources(dir: string, out: string[] = []): string[] {
 
 test("the names are the new ones", () => {
   assert.equal(BROWSER_SERVER, "atom-browser");
-  assert.equal(HAND_OFF_TOOL, "mcp__atom__hand_off");
 });
 
 test("every mcp__<server>__ in the sources names a server ATOM registers", () => {

@@ -1,7 +1,4 @@
-import type { ToolRunner } from "@atom/contracts";
-import type { ProviderAdapter } from "../gateway.ts";
-import { createClaudePlanAdapter } from "./claude-plan.ts";
-import type { ChatSessions, PlanUsage, TokenMeta, TokenUsage } from "./plan-support.ts";
+import { ProviderError, type ProviderAdapter } from "../gateway.ts";
 import { createCodexAdapter, createGeminiCliAdapter } from "./cli-tools.ts";
 
 /** ADR-092, ADR-093: the signed-in tools on this Mac; Claude Code is the default. (Also in @atom/shared's PROVIDERS.) */
@@ -13,28 +10,17 @@ export interface ProviderSettings {
   /** The path of the signed-in program (`claude`, `codex` or `gemini`): not a secret. */
   apiKey: string;
   model: string;
-  /** For "claude-plan" only: Claude Code runs the tool loop itself, so it needs ATOM's tools. */
-  tools?: ToolRunner;
-  /** For "claude-plan" only: told how much of the plan is used. */
-  onUsage?: (usage: PlanUsage) => void;
-  /** For "claude-plan" only (ADR-091): told the tokens each answer used. */
-  onTokens?: (tokens: TokenUsage, model: string, meta?: TokenMeta) => void;
-  /** For "claude-plan" only (ADR-098 item 9): each chat's own Claude Code session. */
-  chatSessions?: ChatSessions;
 }
 
 /** Builds the configured provider adapter. The only place that knows every provider. */
 export function createProviderAdapter(settings: ProviderSettings): ProviderAdapter {
   switch (settings.provider) {
     case "claude-plan":
-      return createClaudePlanAdapter({
-        claudePath: settings.apiKey,
-        model: settings.model,
-        ...(settings.tools ? { tools: settings.tools } : {}),
-        ...(settings.onUsage ? { onUsage: settings.onUsage } : {}),
-        ...(settings.onTokens ? { onTokens: settings.onTokens } : {}),
-        ...(settings.chatSessions ? { chatSessions: settings.chatSessions } : {}),
-      });
+      // ADR-110 N5: the Claude plan answers in ATOM's native sessions (apps/mac), never through the gateway.
+      return {
+        name: "claude-plan",
+        complete: () => Promise.reject(new ProviderError("bad_request", "The Claude plan answers in ATOM's own chat sessions, not through the gateway.")),
+      };
     case "codex":
       return createCodexAdapter({ program: settings.apiKey, model: settings.model });
     case "gemini-cli":

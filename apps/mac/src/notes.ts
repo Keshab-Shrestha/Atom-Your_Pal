@@ -1,4 +1,5 @@
 import type { LanguageModel } from "@atom/contracts";
+import { runNote, type ClaudeSdk, type PlanUsage, type TokenMeta, type TokenUsage } from "@atom/llm-gateway";
 import { createEpisodeRecorder, noteQuietMs, type EpisodeRecorder, type MemoryStore } from "@atom/memory";
 import { readEnv, type Logger } from "@atom/shared";
 import { errorFields } from "./runtime-support.ts";
@@ -30,16 +31,33 @@ export function createNotes(options: {
 }
 
 /**
- * ADR-108: the model of the conversation note. On the Claude plan it is the small model (the one the chat digest uses),
- * whatever model the chat has. On any other provider there is no small model: the fallback (the chat's own) is used.
- * `smallModel` is read per note, so a change of provider applies at once. `gatewayFor` makes (and caches) a gateway.
+ * ADR-108: the model of the conversation note. It is the small model of the Claude plan (the one the chat digest uses),
+ * whatever model the chat has, in one run without tools. `smallModel` is read per note, so a change of provider applies
+ * at once; without a small model (not on the Claude plan) the note fails and the recorder logs it.
  */
-export function createNoteModel(options: { fallback: LanguageModel; smallModel: () => string | undefined; gatewayFor: (modelId: string) => LanguageModel }): LanguageModel {
-  const { fallback, smallModel, gatewayFor } = options;
+export function createNoteModel(options: {
+  claudePath: () => string;
+  smallModel: () => string | undefined;
+  onUsage?: (usage: PlanUsage) => void;
+  onTokens?: (tokens: TokenUsage, model: string, meta?: TokenMeta) => void;
+  /** For tests: the Agent SDK. */
+  sdk?: ClaudeSdk;
+}): LanguageModel {
   return {
-    complete: (request, signal) => {
-      const small = smallModel();
-      return (small ? gatewayFor(small) : fallback).complete(request, signal);
+    async complete(request, signal) {
+      const model = options.smallModel();
+      if (!model) throw new Error("Conversation notes need the Claude plan.");
+      const { note, tokens } = await runNote({
+        claudePath: options.claudePath(),
+        model,
+        task: request.messages.map((m) => m.content).join("\n\n"),
+        instructions: request.system,
+        signal: signal ?? AbortSignal.timeout(120_000),
+        ...(options.onUsage ? { onUsage: options.onUsage } : {}),
+        ...(options.sdk ? { sdk: options.sdk } : {}),
+      });
+      if (tokens) options.onTokens?.(tokens, model, { chatId: request.context.sessionId, background: true });
+      return { text: note };
     },
   };
 }

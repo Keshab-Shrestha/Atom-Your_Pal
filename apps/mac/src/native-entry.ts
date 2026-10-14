@@ -1,6 +1,6 @@
 import type { Core } from "@atom/core";
 import type { Message } from "@atom/contracts";
-import type { Routine } from "@atom/helpers";
+import { HelperError, MAX_COMMENT_CHARS, type Routine } from "@atom/helpers";
 import type { LogFields } from "@atom/shared";
 import { chatWriter } from "./chat-owner.ts";
 import { TELEGRAM_CHAT } from "./telegram-bot.ts";
@@ -75,5 +75,29 @@ export function routineStarter(deps: RoutineTurnDeps): (routine: Routine) => boo
       }
     });
     return true;
+  };
+}
+
+/** ADR-098 item 3, ADR-110 N5: Keshab's message to a running task (the ATOM window, Telegram). */
+export interface TaskSteering {
+  /** "live": the main agent of the task's chat took the note. Throws HelperError when no open chat runs the task. */
+  steer(id: number, text: string): "live";
+  /** Interrupting a step is not a native operation: stopping the task is. Always throws HelperError that says so. */
+  interrupt(id: number): Promise<void>;
+}
+
+/** Steering for the native engine: a note to a task is a message to the main agent of the chat that runs it. */
+export function nativeSteering(cores: () => Iterable<{ steer(job: number, text: string): boolean }>): TaskSteering {
+  return {
+    steer(id, raw) {
+      const text = raw.trim();
+      if (!text) throw new HelperError("The message is empty.");
+      if (text.length > MAX_COMMENT_CHARS) throw new HelperError(`The message is too long (${text.length} characters, limit ${MAX_COMMENT_CHARS}).`);
+      for (const core of cores()) if (core.steer(id, text)) return "live";
+      throw new HelperError("That task does not run in an open chat now, so it cannot take a message.");
+    },
+    async interrupt() {
+      throw new HelperError("A running task cannot be interrupted: stop it instead.");
+    },
   };
 }

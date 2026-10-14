@@ -63,7 +63,7 @@ export function compactChange(before: string, after: string): { before: string; 
   return { before: part(a), after: part(b) };
 }
 
-const toJobItem = (job: Job, held?: string): JobItem => ({
+const toJobItem = (job: Job): JobItem => ({
   id: job.id,
   task: job.task,
   state: job.state,
@@ -83,7 +83,6 @@ const toJobItem = (job: Job, held?: string): JobItem => ({
   ...(job.goalId !== undefined ? { goalId: job.goalId } : {}),
   ...(job.goalEnded ? { goalEnded: true } : {}),
   ...(job.resumable ? { resumable: true } : {}),
-  ...(held ? { held } : {}),
   ...(job.interrupted ? { interrupted: true } : {}),
   ...(job.planFirst ? { planFirst: true } : {}),
   ...(job.planStatus ? { planStatus: job.planStatus } : {}),
@@ -104,8 +103,6 @@ export function islandHelpers(
   store: HelperStore,
   apps: () => Promise<string[]>,
   models: () => PlanModel[] = () => [],
-  /** Why a queued task waits for Keshab (a plan to approve, an interrupted run), if so. */
-  held: (job: Job) => string | undefined = () => undefined,
   /** Task 3.12, ADR-094: the skills to choose from, Keshab's and ATOM's (default: none, for tests). */
   skills: () => { name: string; description: string; source?: "yours" | "zeno" | "hub" }[] = () => [],
   /** ADR-094: the clock for routines' next times (tests pass their own). */
@@ -142,7 +139,7 @@ export function islandHelpers(
           const tests = testsOf(store, "soul", p.id);
           return { id: p.id, field: p.field, text: p.text, reason: p.reason, jobId: p.jobId, state: p.state, createdAt: p.createdAt.toISOString(), ...(tests ? { tests } : {}) };
         }),
-        jobs: h.jobs.map((job) => toJobItem(job, held(job))),
+        jobs: h.jobs.map((job) => toJobItem(job)),
       })),
     apps: async () => [...(await apps())].sort((a, b) => a.localeCompare(b)),
     setApp: (helper, app) => store.setApp(helper, app),
@@ -165,7 +162,7 @@ export function islandHelpers(
     removeAgent: (id) => store.removeAgent(id),
     agentProblems: () => store.agentProblems().map(({ id, problem }) => ({ id, problem })),
     managers: (): ManagerItem[] =>
-      store.managers().map((m) => ({ id: m.id, name: m.name, mode: m.mode, soul: m.soul, soulVersion: m.soulVersion, agents: m.agents, jobs: m.jobs.map((job) => toJobItem(job, held(job))) })),
+      store.managers().map((m) => ({ id: m.id, name: m.name, mode: m.mode, soul: m.soul, soulVersion: m.soulVersion, agents: m.agents, jobs: m.jobs.map((job) => toJobItem(job)) })),
     createManager: (name, mode) => void store.createManager({ name, ...(mode ? { mode } : {}) }),
     renameManager: (id, name) => store.renameManager(id, name),
     setManagerMode: (id, mode) => store.setManagerMode(id, mode),

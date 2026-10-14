@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { openMemoryStore } from "@atom/memory";
 import type { LanguageModel, Message } from "@atom/contracts";
+import type { ClaudeSdk } from "@atom/llm-gateway";
 import { createNoteModel, createNotes } from "./notes.ts";
 
 const convo = (n: number): Message[] => Array.from({ length: n }, (_, i) => [{ role: "user" as const, content: `q${i}` }, { role: "assistant" as const, content: `a${i}` }]).flat();
@@ -31,21 +32,23 @@ test("ATOM_NOTE_QUIET_MS 0 restores a note after every reply; the default waits 
   assert.equal(waits.requests.length, 1);
 });
 
-test("the note runs on the small model even when the chat model is Opus or Sonnet (ADR-108)", async () => {
-  const used: string[] = [];
-  const gateway = (id: string): LanguageModel => ({ complete: async () => (used.push(id), { text: "A note." }) });
-  const chatModels = ["claude-opus-5", "claude-sonnet-5"];
-  for (const chat of chatModels) {
-    const fallback: LanguageModel = { complete: async () => (used.push(chat), { text: "wrong" }) };
-    const model = createNoteModel({ fallback, smallModel: () => "claude-haiku-5", gatewayFor: gateway });
-    const notes = createNotes({ memory: openMemoryStore({ path: ":memory:" }), model, env: { ATOM_NOTE_QUIET_MS: "0" }, log, changed: () => {} });
-    notes!.update("s", convo(1));
-    await notes!.idle();
-  }
-  assert.deepEqual(used, ["claude-haiku-5", "claude-haiku-5"]);
-  // No small model (another provider): the chat's own model writes it.
-  const own: string[] = [];
-  const other = createNoteModel({ fallback: { complete: async () => (own.push("chat"), { text: "x" }) }, smallModel: () => undefined, gatewayFor: gateway });
-  await other.complete({ system: "", messages: [], context: { requestId: "r", sessionId: "s", source: "text", receivedAt: new Date() } });
-  assert.deepEqual(own, ["chat"]);
+test("the note runs on the small model even when the chat model is Opus or Sonnet (ADR-108), in one run without tools", async () => {
+  const seen: Record<string, any>[] = [];
+  const sdk = {
+    query: ({ options }: { options: Record<string, any> }) => {
+      seen.push(options);
+      return (async function* () {
+        yield { type: "system", subtype: "init", apiKeySource: "none" };
+        yield { type: "result", subtype: "success", is_error: false, result: "", structured_output: { note: "A note." } };
+      })();
+    },
+  } as unknown as ClaudeSdk;
+  const model = createNoteModel({ claudePath: () => "/bin/claude", smallModel: () => "claude-haiku-5", sdk });
+  const request = { system: "Write a note.", messages: [{ role: "user" as const, content: "The conversation" }], context: { requestId: "r", sessionId: "s", source: "text" as const, receivedAt: new Date() } };
+  assert.equal((await model.complete(request)).text, "A note.");
+  assert.deepEqual([seen[0]!.model, seen[0]!.tools, seen[0]!.persistSession], ["claude-haiku-5", [], false]);
+  // No small model (not on the Claude plan): no note.
+  const other = createNoteModel({ claudePath: () => "/bin/claude", smallModel: () => undefined, sdk });
+  await assert.rejects(other.complete(request), /Claude plan/);
+  assert.equal(seen.length, 1);
 });

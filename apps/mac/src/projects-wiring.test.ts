@@ -5,7 +5,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCore } from "@atom/core";
 import { createDelegateTool, openHelperStore } from "@atom/helpers";
-import { createClaudePlanAdapter, type ClaudeSdk } from "@atom/llm-gateway";
 import { openMemoryStore } from "@atom/memory";
 import { PROJECT_REPLAY_TURNS, createProjects } from "./projects-wiring.ts";
 
@@ -392,42 +391,6 @@ test("renameChat: a saved chat gets the title; a bad title or an unsaved chat ge
     assert.match((t.projects.renameChat("c1", "") as { error: string }).error, /needs a title/);
     assert.match((t.projects.renameChat("c1", "a\nb") as { error: string }).error, /one line/);
     assert.match((t.projects.renameChat("ghost", "x") as { error: string }).error, /not saved yet/);
-  } finally {
-    t.done();
-  }
-});
-
-test("end to end: Core, the project's note and Claude Code's options for a turn in a project chat; the same Core gives a plain chat none", async () => {
-  const t = setup();
-  try {
-    t.projects.island.add("Haat", join(t.home, "Developer", "haat"));
-    const seen: Record<string, any>[] = [];
-    const sdk = {
-      tool: () => ({}),
-      createSdkMcpServer: () => ({}),
-      query: ({ options }: { options: Record<string, any> }) => {
-        seen.push(options);
-        return (async function* () {
-          yield { type: "system", subtype: "init", apiKeySource: "none" };
-          yield { type: "result", subtype: "success", is_error: false, result: "ok" };
-        })();
-      },
-    } as unknown as ClaudeSdk;
-    const model = createClaudePlanAdapter({ claudePath: "/bin/claude", model: "m", sdk, env: { PATH: "/bin" }, prewarmDelayMs: 0 });
-    let chat = "plain";
-    const core = createCore({ model: { complete: (r, signal) => model.complete(r, signal ?? new AbortController().signal) }, project: () => t.projects.turn(chat) });
-    await core.handle({ text: "hello", source: "text" });
-    t.projects.island.assign("project-chat", t.first().id);
-    chat = "project-chat";
-    await core.handle({ text: "what is in main.ts?", source: "text" });
-    assert.equal(seen[0]!.cwd, undefined);
-    assert.deepEqual(seen[0]!.tools, []);
-    assert.deepEqual(seen[1]!.tools, ["Read", "Glob", "Grep"]);
-    assert.equal(seen[1]!.cwd, join(t.home, "Developer", "haat"));
-    assert.match(seen[1]!.systemPrompt, /project "Haat"/);
-    assert.ok(!seen[0]!.systemPrompt.includes("project"), "the plain chat's instructions are untouched");
-    assert.match((await seen[1]!.canUseTool("Read", { file_path: join(t.home, ".ssh", "id_rsa") }, { toolUseID: "1" })).message, /outside/);
-    assert.equal((await seen[1]!.canUseTool("Read", { file_path: join(t.home, "Developer", "haat", "main.ts") }, { toolUseID: "2" })).behavior, "allow");
   } finally {
     t.done();
   }

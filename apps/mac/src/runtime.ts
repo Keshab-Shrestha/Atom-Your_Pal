@@ -3,8 +3,7 @@
 
 import { rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { createCore, type Core } from "@atom/core";
-import { turnChat, withTurnChat } from "./turn-chat.ts";
+import type { Core } from "@atom/core";
 import { createComputerBridge, type ComputerBridge } from "./computer-bridge.ts";
 import {
   calendarRunner,
@@ -33,6 +32,8 @@ import { createGateway, createProviderAdapter, createSwitchableModel, listPlanMo
 import { createNoteModel, createNotes } from "./notes.ts";
 import { createChatUsageRecorder } from "./usage-report.ts";
 import { createNativeCore, type NativeCore } from "./native-core.ts";
+import { createTinkerRun } from "./tinker.ts";
+import { startTinkerRunner, TINKER_TIME_LIMIT_MS, type TinkerRunner } from "./tinker-runner.ts";
 import { agentModel, createAgentTool } from "./native-agents.ts";
 import { browserServer } from "./browser.ts";
 import { CLAUDE_PLAN, createLogger, readEnv, type Config, type LlmChoice, type Logger, type LogFields, type ProviderKeys } from "@atom/shared";
@@ -46,38 +47,24 @@ import {
   type MemoryStore,
 } from "@atom/memory";
 import {
-  createDelegateTool,
   createScheduleTool,
-  createTeamTaskTool,
-  createWorkerShortcut,
-  JOB_TIME_LIMIT_MS,
-  teamContext,
-  watchGoals,
-  startJobRunner,
-  waitReason,
   tieredModels,
   modelForTier,
   isFinal,
   type TestKind,
   type HelperStore,
   type HelperView,
-  type Job,
-  type JobRun,
-  type JobRunner,
 } from "@atom/helpers";
 import { createLayaEngine } from "@atom/decision-engine";
 import type { InputSource, LanguageModel, Message, RequestContext, ZenoInput } from "@atom/contracts";
 import type { IslandChats, IslandGit, IslandHelpers, IslandMemory, IslandProjects } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
-import { taskSteering, type TaskSteering } from "./task-steering.ts";
 import { createHubCommands } from "./hub-commands.ts";
 import { SKILLS_PLUGIN, listSkills, prepareSkills, userSkillsDir } from "./skills.ts";
 import { runTestCases } from "./test-runs.ts";
 import { createEmbedder } from "./embedder.ts";
 import { createKeptChats } from "./kept-chats.ts";
-import { startGoalPosts } from "./goal-post.ts";
 import { MAX_PROJECT_MESSAGES, createProjects } from "./projects-wiring.ts";
-import { createRunOne } from "./run-job.ts";
 import { createIslandGit, withPaperclip } from "./island-wiring.ts";
 import { nowLine, createEchoCore, describe, errorFields, findCalendarHelper, openHelpers, openMemory, warmOnOpen } from "./runtime-support.ts";
 
@@ -85,7 +72,7 @@ export { describe, errorFields, nowLine, seconds, withLogging } from "./runtime-
 import { TELEGRAM_CHAT, startTelegramBot, type TelegramBot } from "./telegram-bot.ts";
 import { createApiServer, type ApiServer } from "./api-server.ts";
 import { SCHEDULER_TICK_MS, scheduleTick } from "./scheduler.ts";
-import { routeWake, routineStarter } from "./native-entry.ts";
+import { nativeSteering, routeWake, routineStarter, type TaskSteering } from "./native-entry.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { testMcpServer } from "./mcp-servers.ts";
 import { scanAiTools } from "./ai-tools.ts";
@@ -394,20 +381,15 @@ export function createRuntime(
           createLookAtScreenTool({ cua, onShot: (shot) => (lastShot = shot), onStep: (step) => computer.step(step) }),
         ]
       : []),
-    // ADR-082/087, Task 3.5: Pal hands work to the team. Logs the goal id and task count only.
-    ...(helpers ? [createDelegateTool({ store: helpers, source: () => turnChat.getStore(), project: () => projects?.delegate(turnChat.getStore()), onDelegated: (e) => log.info("goal.delegated", e) })] : []),
     // Task 3.9: routines by voice in any wording. Logs the routine id and worker only.
     ...(helpers ? [createScheduleTool({ store: helpers, onScheduled: (e) => log.info("routine.scheduled", e) })] : []),
-    // ADR-094: work no single worker fits waits for whoever wakes. Logs the team task id only.
-    ...(helpers ? [createTeamTaskTool({ store: helpers, onPosted: (e) => log.info("team.posted", e) })] : []),
   ];
-  const toolEngine = createToolEngine({ tools, onCall: (e) => log.info("tool.call", e) });
-  // ADR-110 (N2): the native engine's ATOM tools: no delegate and no post_to_team (sub-agents and routines replace
-  // them); create_agent instead. A new agent is ready once each open session restarts.
+  // ADR-110: the main agent's tools. A sub-agent does the delegating (the Agent tool); `create_agent` adds one. A new
+  // agent is ready once each open session restarts.
   const nativeCores = new Set<NativeCore>();
-  const nativeToolEngine = createToolEngine({
+  const toolEngine = createToolEngine({
     tools: [
-      ...tools.filter((t) => t.spec.name !== "delegate" && t.spec.name !== "post_to_team"),
+      ...tools,
       ...(helpers
         ? [
             createAgentTool({
@@ -429,65 +411,19 @@ export function createRuntime(
     for (const listener of planUsageListeners) listener(usage);
   };
   const recordChatUsage = createChatUsageRecorder(helpers, log); // Job 1 (token cost)
+  // ADR-110 N5: ATOM answers on the Claude plan in its native sessions. The gateway stays only for the model switch of
+  // Settings (ADR-092): `ModelSettings` replaces it when Keshab picks a provider.
   const createModel = (choice: LlmChoice, apiKey: string) =>
-    createGateway({
-      provider: createProviderAdapter({
-        ...choice,
-        apiKey,
-        tools: toolEngine,
-        onUsage: reportUsage,
-        // ADR-091: ATOM's own answers count on the Dashboard too.
-        onTokens: (tokens, model, meta) => recordChatUsage(tokens, model, meta),
-        ...(chatSessions ? { chatSessions } : {}), // ADR-098 item 9
-      }),
-      // Claude Code starts its own process and may take several tool turns, so it gets longer than one API call.
-      timeoutMs: choice.provider === "claude-plan" ? Math.max(config.llm.timeoutMs, PLAN_TIMEOUT_MS) : config.llm.timeoutMs,
-    });
+    createGateway({ provider: createProviderAdapter({ ...choice, apiKey }), timeoutMs: config.llm.timeoutMs });
   const initial = { provider: config.llm.provider, model: config.llm.model };
   const model = createSwitchableModel(createModel(initial, config.llm.apiKey));
-  // ADR-097: a typed turn in a chat with its own model uses that model; voice, new chats and the rest use the default.
-  // One gateway per chosen model, made when first needed and kept.
-  const chatGateways = new Map<string, LanguageModel>();
-  const modelForTurn = (context: RequestContext): LanguageModel => {
-    if (context.source !== "text") return model;
-    const own = islandChats?.modelOf?.(context.sessionId);
-    if (!own) return model;
-    const checked = settings.check(own.provider, own.model);
-    if ("error" in checked) {
-      log.warn("chat.model_unusable", { reason: checked.error });
-      return model;
-    }
-    const { choice } = checked;
-    const fallback = settings.current();
-    if (choice.provider === fallback.provider && choice.model === fallback.model) return model;
-    const key = `${choice.provider}\n${choice.model}`;
-    let gateway = chatGateways.get(key);
-    if (!gateway) {
-      gateway = createModel(choice, keys[choice.provider]!);
-      chatGateways.set(key, gateway);
-    }
-    return gateway;
-  };
-  const coreModel: LanguageModel = {
-    complete: (request, signal) => modelForTurn(request.context).complete(request, signal),
-    prepare: (request) => model.prepare?.(request),
-    close: () => model.close?.(),
-  };
-  // ADR-059: a short summary of each conversation, written in the background with the same model (no tools).
-  // ADR-097: the chat's own model when it has one; it never joins the chat's session (`background`).
-  // ADR-108: on the Claude plan the note runs on the small model (as the chat digest does), whatever the chat's model.
-  const noteGateways = new Map<string, LanguageModel>();
+  // ADR-059: a short summary of each conversation, written in the background. ADR-108: on the small model of the Claude
+  // plan, whatever model the chat has; it never joins the chat's session (no tools).
   const noteModel = createNoteModel({
-    fallback: coreModel,
+    claudePath: () => keys[CLAUDE_PLAN] ?? "",
     smallModel: () => modelForTier(planModels(), "small"),
-    gatewayFor: (id) => {
-      let gateway = noteGateways.get(id);
-      if (!gateway) {
-        gateway = createModel({ provider: CLAUDE_PLAN, model: id }, keys[CLAUDE_PLAN]!);
-        noteGateways.set(id, gateway);
-      }
-      return gateway;
-    },
+    onUsage: reportUsage,
+    onTokens: (tokens, model, meta) => recordChatUsage(tokens, model, meta),
   });
   const episodes = createNotes({ memory, model: noteModel, env: process.env, log, changed: () => memoryListeners.forEach((listener) => listener()) });
   // ADR-071: plain commands run in code, before any model. ATOM_SHORTCUTS=0 turns these off. Logs the name only.
@@ -512,54 +448,13 @@ export function createRuntime(
     log.info("report.opened", { helper: job.helper, job: taskId });
     return said;
   };
-  // ADR-081, Task 3.5: "Sid, …" goes straight to that worker, in code. Logs the worker and action only.
-  const workerShortcut = helpers && createWorkerShortcut(helpers, (e) => log.info("worker.command", e), openReport);
-  const shortcuts =
-    toolShortcuts || workerShortcut
-      ? async (text: string, signal?: AbortSignal) => (await workerShortcut?.(text)) ?? toolShortcuts?.(text, signal)
-      : undefined;
   // ATOM_VOICE_ONLY=1: test speech in and out without the AI. ATOM reads back what Whisper heard, and no
   // request is made to any model. (Typed as `Core` so every caller treats it the same.)
-  // ADR-098: one Core setup, used for the window's Core and the Telegram chat's own Core.
-  // The chat of the turn that runs now. The Claude plan runs ATOM's tools through one shared runner, so the delegate tool
-  // reads the chat from the turn (AsyncLocalStorage), not from a Core: two surfaces never share one value.
   const keys = { ...options.keys, [config.llm.provider]: config.llm.apiKey };
-  const makeLegacyCore = (): Core => withTurnChat(createCore({
-        model: coreModel,
-        tools: toolEngine,
-        context: async (input, context) => {
-          current = { source: input.source, requestId: context.requestId };
-          const pointed = screen.take(); // ADR-074: the window Pal was dropped on, for this request only
-          if (!memory) return [nowLine(), pointed].filter(Boolean).join("\n\n");
-          const facts = memoryContext(input.text, { store: memory });
-          const past = episodes ? episodeContext(memory, context.sessionId) : undefined;
-          const earlier = projects?.digest(context.sessionId); // ADR-107: a long project chat, replayed trimmed
-          const keptLines = await keptChats?.context(input.text).catch((error: unknown) => {
-            log.warn("memory.kept_search_failed", { requestId: context.requestId, message: describe(error) });
-            return undefined;
-          }); // ADR-097
-          log.debug("memory.context", {
-            requestId: context.requestId,
-            kept: memory.count(),
-            used: facts ? facts.split("\n").length - 1 : 0,
-            episodes: past ? past.split("\n").length - 1 : 0,
-          });
-          return [nowLine(), facts, keptLines, past, earlier, pointed].filter(Boolean).join("\n\n");
-        },
-        // ADR-098 item 9: what rarely changes goes with the system prompt, where Claude caches it.
-        // Task 3.5, ADR-095: who ATOM can hand work to; ADR-058: how to use memory.
-        ...(projects ? { project: (sessionId: string) => projects.turn(sessionId) } : {}), // ADR-107
-        standing: () => [helpers ? teamContext(helpers.list(), helpers.managers()) : undefined, memory ? MEMORY_GUIDANCE : undefined].filter(Boolean).join("\n\n"),
-        ...(shortcuts ? { shortcuts } : {}),
-        onExchange: (sessionId: string, turns: readonly Message[]) => {
-          saveChat(sessionId, turns); // ADR-091
-          episodes?.update(sessionId, turns);
-        },
-        onLeave: (sessionId: string) => void episodes?.flush(sessionId), // ADR-108: a chat that is left gets its note now
-      }));
-  // ADR-110 (Phase N1): ATOM_ENGINE=native gives each open chat one long-lived Claude Code session; legacy is the default.
+  // ADR-110: each open chat has one long-lived Claude Code session (native-core.ts). One Core setup serves the window's
+  // Core, the Telegram chat's, the API's and each routine's.
   // `composed`: Telegram and the API, whose text goes to Claude Code as written.
-  // Phase N2: the sub-agents of each native chat session; their Board rows, safety, worktrees, skills and wake-ups.
+  // Phase N2: the sub-agents of each native chat session; their Board rows, safety, worktrees and skills.
   const nativeTeam = helpers && {
     helpers,
     approve: (request: { summary: string; reason: string }) => computer.approve(request),
@@ -598,14 +493,11 @@ export function createRuntime(
     if (change.action !== "job" || change.state !== "stopped" || !helpers.get(change.job)?.sdkTaskId) return;
     for (const native of nativeCores) void native.stopJob(change.job).catch(() => log.warn("agent.stop_failed", { job: change.job }));
   });
-  const nativeEngine = readEnv(process.env, "ATOM_ENGINE") === "native";
   const makeCore = (composed = false): Core => {
-    if (!nativeEngine) return makeLegacyCore();
     const native = createNativeCore({
             claudePath: keys[CLAUDE_PLAN] ?? "",
-            tools: nativeToolEngine,
+            tools: toolEngine,
             ...(nativeTeam ? { team: nativeTeam } : {}),
-            legacy: makeLegacyCore(),
             modelFor: (chatId: string, source: InputSource) => {
               const own = source === "text" ? islandChats?.modelOf?.(chatId) : undefined;
               const checked = own && settings.check(own.provider, own.model);
@@ -640,7 +532,7 @@ export function createRuntime(
             log: (event, fields) => log.info(event, fields as LogFields),
           });
     nativeCores.add(native);
-    return withTurnChat(native);
+    return native;
   };
   const baseCore: Core = readEnv(process.env, "ATOM_VOICE_ONLY") === "1" ? createEchoCore() : makeCore();
   // ADR-080: with computer control on, replies lose their [POINT:…] marker before speech, and a valid one points.
@@ -678,46 +570,12 @@ export function createRuntime(
   // ADR-083: Laya rates each job's difficulty. Its server starts on the first job, stays warm, and stops in close().
   // ATOM_LAYA=0 turns it off (every job then gets the role's default tier).
   const decisions = createLayaEngine({ log });
-  // ADR-098 item 3: Keshab's messages to running tasks, and interrupts (the ATOM window; Telegram may call the same).
-  const steering = helpers ? taskSteering(helpers, log) : undefined;
+  // ADR-098 item 3: Keshab's messages to running tasks (the ATOM window; Telegram calls the same). ADR-110 N5: a note to a
+  // task is a message to the main agent of the chat that runs it.
+  const steering = helpers ? nativeSteering(() => nativeCores) : undefined;
   /** The Claude plan's models for worker jobs, by tier; empty on any other provider. */
   const planModels = () =>
     settings.current().provider === CLAUDE_PLAN ? tieredModels(settings.info().providers.find((p) => p.id === CLAUDE_PLAN)?.models ?? []) : [];
-  // ADR-095: a worker may run several tasks at once, so each run links its skills in a folder of its own, removed after.
-  const skillPlugin = (job: Job) => join(dirname(worktrees), "skill-plugins", job.helper, String(job.id));
-  // ADR-081/082, Task 3.2: helper jobs run beside the Core, on the Claude plan in use at the time each job starts.
-  const runJob: JobRun = (job, context) =>
-    runOne(job, context).finally(() => {
-      rmSync(skillPlugin(job), { recursive: true, force: true });
-      // B3.4: the files a run changed are noted as the run left them (a failure here never fails the task).
-      try {
-        helpers?.finishCheckpoints(job.id);
-      } catch {
-        log.warn("job.checkpoint_failed", { helper: job.helper, job: job.id, tool: "finish" });
-      }
-    });
-  /** Tasks to run on Codex. ADR-110 N4: the plan limit that filled it is gone, so it stays empty until the Codex fallback is removed. */
-  const codexJobs = new Set<number>();
-  const runOne: JobRun = createRunOne({
-    helpers,
-    settings,
-    keys,
-    decisions,
-    planModels,
-    reportUsage,
-    steering,
-    computer,
-    log,
-    worktrees,
-    skillsDir,
-    skillPlugin,
-    codexJobs,
-    runTests: (kind, id, signal, tinkerJob) => runTests(kind, id, signal, tinkerJob),
-  });
-  // Logs ids, states, timings and page counts only: never the task, report or addresses.
-  let codexReady = false;
-  /** Why a queued task waits for Keshab (a plan to approve, an interrupted run), for the window, Telegram and the API. */
-  const held = (job: Job) => (helpers ? waitReason(job, helpers.soul(job.helper).name) : undefined);
   /** Runs a soul proposal's or skill edit's test cases on Sonnet at most; the cost counts on the Tinker task that made it. */
   const runTests = async (kind: TestKind, id: number, signal: AbortSignal, tinkerJob = helpers?.tinkerTaskOf(kind, id)) => {
     if (!helpers) throw new Error("Test cases need the helpers file.");
@@ -739,26 +597,14 @@ export function createRuntime(
       throw error;
     }
   };
-  const runner: JobRunner | undefined =
+  // ADR-110 N5: Tinker's tasks have no chat; they keep a small runner of their own (tinker-runner.ts).
+  const tinker: TinkerRunner | undefined =
     helpers &&
-    startJobRunner({
+    startTinkerRunner({
       store: helpers,
-      run: runJob,
+      run: createTinkerRun({ helpers, settings, keys, decisions, planModels, reportUsage, log, runTests: (kind, id, signal, tinkerJob) => runTests(kind, id, signal, tinkerJob) }),
       onRun: (e) => log.info("job.run", e),
     });
-  /** Codex found (keys.codex) and signed in: looked at on start and when the switch is turned on. Logs the answer only. */
-  function checkCodex() {
-    if (!keys.codex) return;
-    void scanAiTools().then(
-      (items) => {
-        codexReady = items.some((item) => item.id === "codex" && item.signedIn === true);
-        log.info("codex.ready", { ready: codexReady });
-        runner?.poke();
-      },
-      () => (codexReady = false),
-    );
-  }
-  checkCodex();
   // Task 3.16: the Paperclip tasks ATOM handed over are looked at every minute; a finished one is said once.
   if (paperclip) {
     const look = () =>
@@ -770,62 +616,8 @@ export function createRuntime(
       });
     setInterval(look, 60_000).unref();
   }
-  // Task 3.5: a goal whose tasks have all ended gets its combined report (one model call, no tools) and one line.
+  // Lines to say aloud (the island's goal lines): a sub-agent's report in the voice chat (routeWake), a Paperclip task.
   const goalLineListeners = new Set<(line: string, after?: () => void) => void>();
-  // Task 3.8: a plan waits for Keshab: one line, then Pal's approval card. Allow approves; Decline or no answer leaves
-  // it waiting in the window (never a rejection). Logs ids only.
-  helpers?.onChange((change) => {
-    if (change.action !== "plan" || change.status !== "awaiting") return;
-    const job = helpers.get(change.job);
-    if (!job?.planSummary) return;
-    const name = helpers.soul(job.helper).name;
-    const ask = () =>
-      void computer
-        .approve({ summary: `${name}'s plan: ${job.planSummary}`, reason: "Allow starts the work. Decline leaves the plan waiting in the ATOM window." })
-        .then((ok) => {
-          log.info("plan.answer", { helper: job.helper, job: job.id, approved: ok });
-          if (!ok) return;
-          try {
-            helpers.approvePlan(job.id);
-          } catch {
-            // answered in the window meanwhile
-          }
-        });
-    for (const listener of goalLineListeners) listener(`${name} has a plan ready for your OK.`, ask);
-  });
-  const stopGoals =
-    helpers &&
-    watchGoals({
-      store: helpers,
-      write: async (system, input) =>
-        (
-          await model.complete({
-            system,
-            messages: [{ role: "user", content: input }],
-            context: { requestId: `goal-${Date.now()}`, sessionId: "goals", source: "text", receivedAt: new Date() },
-          })
-        ).text,
-      onEnded: ({ goal, tasks, line }) => {
-        log.info("goal.ended", { goal, tasks, spoken: Boolean(line) });
-        if (line) for (const listener of goalLineListeners) listener(line);
-      },
-      onFallback: (e) => log.warn("goal.report_fallback", e),
-    });
-  // ADR-109: a finished goal's result comes back into the chat that asked (a window chat), as one typed assistant turn.
-  const stopGoalPosts =
-    helpers &&
-    memory &&
-    startGoalPosts({
-      helpers,
-      chats: memory.chats,
-      currentChat: () => core.sessionId,
-      resume: (id, turns) => core.resume(id, turns),
-      posted: (chatId) => {
-        for (const listener of postedListeners) listener(chatId);
-        for (const listener of chatListeners) listener();
-      },
-      log,
-    });
   const tts = createSpeaker(createKokoroSynthesizer({ voice: config.tts.voice, dtype: config.tts.dtype }));
   // ADR-098: ATOM's own Telegram bot, only when both .env values are set. Its turns go to a Core of their own, saved as
   // the chat "Telegram". The token and the messages are never logged.
@@ -841,16 +633,15 @@ export function createRuntime(
       log,
       ask: async (text) => (await telegramCore.handle({ text, source: "text" })).text,
       ...(helpers ? { helpers } : {}),
-      held,
       approvals: computer,
       describe,
       ...(steering ? { steering } : {}),
     });
   }
-  // ADR-110 (N3): on the native engine a routine (due, or started by webhook) is a main-agent turn in its own chat,
-  // after the Telegram bot exists (its flag sends the result there).
+  // ADR-110 (N3): a routine (due, or started by webhook) is a main-agent turn in its own chat, after the Telegram bot
+  // exists (its flag sends the result there).
   const nativeStart =
-    nativeEngine && helpers
+    helpers
       ? routineStarter({
           core: makeCore(true),
           messages: (chatId) => memory?.chats.messages(chatId) ?? [],
@@ -880,17 +671,15 @@ export function createRuntime(
             return (await apiCore.handle({ text, source: "text" })).text;
           },
           ...(helpers ? { helpers } : {}),
-          held,
           approvals: computer,
           describe,
           // ADR-110 (N3): a goal is a turn in its own chat "api-goal-<id>"; its status reads that chat's Board rows.
-          ...(nativeEngine
-            ? { native: { said: (chatId: string) => memory?.chats.messages(chatId).find((m) => m.role === "user")?.content, ...(nativeStart ? { startRoutine: nativeStart } : {}) } }
-            : {}),
+          said: (chatId: string) => memory?.chats.messages(chatId).find((m) => m.role === "user")?.content,
+          ...(nativeStart ? { startRoutine: nativeStart } : {}),
         });
-  // Task 3.9, ADR-094: routines come due and workers wake on the clock. At start, one catch-up for each that came due
-  // while ATOM was closed. ADR-110 (N3): on the native engine a routine starts by `nativeStart`, and no worker wakes up.
-  if (helpers) {
+  // Task 3.9: routines come due on the clock. At start, one catch-up for each that came due while ATOM was closed. A
+  // routine starts by `nativeStart` (ADR-110 N3).
+  if (helpers && nativeStart) {
     const tick = () => scheduleTick(helpers, log, (error) => ({ ...errorFields(error) }), nativeStart);
     tick();
     setInterval(tick, SCHEDULER_TICK_MS).unref();
@@ -906,24 +695,13 @@ export function createRuntime(
     ...(memory ? { memory, islandMemory, islandChats, islandProjects: projects!.island } : {}),
     ...(islandGit ? { islandGit } : {}),
     ...(helpers ? { helpers, islandHelpers: warmOnOpen(withPaperclip(paperclip, paperclipListeners, {
-            ...islandHelpers(helpers, installedApps, planModels, held, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name)))),
+            ...islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name)))),
             hub: createHubCommands({ store: helpers, log }), // B3.5
             openReport,
-            ...(steering
-              ? {
-                  // Phase N2: a note to a native job is a message to the main agent of its chat.
-                  steer: (id: number, text: string) => ([...nativeCores].some((c) => c.steer(id, text)) ? "live" : steering.steer(id, text)),
-                  interrupt: steering.interrupt,
-                }
-              : {}),
+            // ADR-110 N5: a note to a task is a message to the main agent of its chat.
+            ...(steering ? { steer: steering.steer, interrupt: steering.interrupt } : {}),
             // ADR-098 item 8: "Run tests" on a pending soul proposal or skill edit.
-            runTests: (kind: TestKind, id: number) => runTests(kind, id, AbortSignal.timeout(JOB_TIME_LIMIT_MS)),
-            // ADR-098 item 7: the Codex switch, and whether Codex is found and signed in (the switch shows only then).
-            codex: () => ({ codexFallback: helpers.codexFallback(), codexReady: codexReady && Boolean(keys.codex) }),
-            setCodexFallback: (on: boolean) => {
-              helpers.setCodexFallback(on);
-              if (on) checkCodex();
-            },
+            runTests: (kind: TestKind, id: number) => runTests(kind, id, AbortSignal.timeout(TINKER_TIME_LIMIT_MS)),
             // ADR-090: a test starts the server (or connects), lists its tools, and records the outcome. Logs ids only.
             testMcp: async (id: number) => {
               const server = helpers.mcpServers().find((s) => s.id === id);
@@ -956,9 +734,7 @@ export function createRuntime(
     close: () => {
       telegram?.stop();
       api?.stop();
-      stopGoals?.();
-      stopGoalPosts?.();
-      runner?.close();
+      tinker?.close();
       void decisions.close();
     },
     record: (handlers) => startRecording(config.audio, handlers),

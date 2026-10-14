@@ -37,8 +37,8 @@ let seq = 0;
 async function boot(extra: Partial<ApiServerOptions> = {}) {
   const tokenFile = join(dir, `token-${seq}`);
   const api = createApiServer({
-    log, port: String(47900 + Math.floor(Math.random() * 90) + (seq++ % 5) * 100), tokenFile, helpers: store, held: () => undefined,
-    approvals: { pending: () => [], answer() {} }, describe: (e) => String(e), ask: async (t) => `echo:${t}`, ...extra,
+    log, port: String(47900 + Math.floor(Math.random() * 90) + (seq++ % 5) * 100), tokenFile, helpers: store,
+    approvals: { pending: () => [], answer() {} }, describe: (e) => String(e), ask: async (t) => `echo:${t}`, said: () => undefined, ...extra,
   });
   const status = await api.set(true);
   assert.equal(status.on, true, status.error);
@@ -184,9 +184,9 @@ test("webhook: only a routine with webhook on starts; no token no start", async 
   }
 });
 
-test("ADR-110 N3: on the native engine a webhook starts the routine natively: no task (taskId null)", async () => {
+test("ADR-110 N3: a webhook starts the routine natively: no task (taskId null)", async () => {
   const native: number[] = [];
-  const { api, port, token } = await boot({ native: { said: () => undefined, startRoutine: (r) => (native.push(r.id), true) } });
+  const { api, port, token } = await boot({ said: () => undefined, startRoutine: (r) => (native.push(r.id), true) });
   try {
     started.length = 0;
     const ok = await call(port, "POST", "/v1/hooks/1", { token });
@@ -236,7 +236,7 @@ test("a port in use gives an error status, not a throw", async () => {
   const a = await boot();
   try {
     const tokenFile = join(dir, "token-dup");
-    const second = createApiServer({ log, port: String(a.port), tokenFile, held: () => undefined, approvals: { pending: () => [], answer() {} }, describe: String, ask: async () => "" });
+    const second = createApiServer({ log, port: String(a.port), tokenFile, approvals: { pending: () => [], answer() {} }, describe: String, ask: async () => "", said: () => undefined });
     const s = await second.set(true);
     assert.equal(s.on, false);
     assert.match(s.error ?? "", /in use/);
@@ -245,26 +245,7 @@ test("a port in use gives an error status, not a throw", async () => {
   }
 });
 
-test("a goal turn returns the id of the goal with its own source, not another surface's goal", async () => {
-  const listeners = new Set<(c: unknown) => void>();
-  const withStore = { ...store, onChange: (l: (c: unknown) => void) => (listeners.add(l), () => listeners.delete(l)) } as unknown as NonNullable<ApiServerOptions["helpers"]>;
-  const { api, port, token } = await boot({
-    helpers: withStore,
-    ask: async () => {
-      // A Telegram goal (id 40) lands first, then this turn's own goal (id 41), then a window goal (id 42).
-      for (const [goal, source] of [[40, "telegram"], [41, "api"], [42, "chat-3"], [43, undefined]] as const) {
-        for (const l of listeners) l({ action: "goal", goal, tasks: 1, ended: false, ...(source ? { source } : {}) });
-      }
-      return "done";
-    },
-  });
-  const res = await call(port, "POST", "/v1/goals", { token, body: '{"goal":"research x"}' });
-  assert.equal(res.json.data.goalId, 41);
-  assert.equal(listeners.size, 0);
-  await api.set(false);
-});
-
-test("ADR-110 N3, native: a goal is a turn in its own chat api-goal-<id>; its status and report read that chat's job rows", async () => {
+test("ADR-110 N3: a goal is a turn in its own chat api-goal-<id>; its status and report read that chat's job rows", async () => {
   const jobs: any[] = [];
   const reports = new Map<number, any>();
   const asked: [string, string | undefined][] = [];
@@ -277,7 +258,7 @@ test("ADR-110 N3, native: a goal is a turn in its own chat api-goal-<id>; its st
   } as unknown as NonNullable<ApiServerOptions["helpers"]>;
   const { api, port, token } = await boot({
     helpers: nativeStore,
-    native: { said: (chat) => (chat.startsWith("api-goal-") ? "research mesh Wi-Fi" : undefined) },
+    said: (chat) => (chat.startsWith("api-goal-") ? "research mesh Wi-Fi" : undefined),
     ask: async (text, chatId) => {
       asked.push([text, chatId]);
       // The main agent hands it to Scout: the gate makes a job in this chat; an unrelated chat's job is not this goal's.
@@ -308,8 +289,8 @@ test("ADR-110 N3, native: a goal is a turn in its own chat api-goal-<id>; its st
   await api.set(false);
 });
 
-test("ADR-110 N3, native: a goal ATOM answers itself has goalId null", async () => {
-  const { api, port, token } = await boot({ native: { said: () => undefined }, ask: async () => "It is 3 pm." });
+test("ADR-110 N3: a goal ATOM answers itself has goalId null", async () => {
+  const { api, port, token } = await boot({ said: () => undefined, ask: async () => "It is 3 pm." });
   const given = await call(port, "POST", "/v1/goals", { token, body: '{"goal":"what time is it"}' });
   assert.deepEqual(given.json.data, { goalId: null, answer: "It is 3 pm." });
   await api.set(false);

@@ -23,8 +23,8 @@ import { boardRecorder, type BoardRecorder, type BoardStore } from "./native-boa
 import { nativeGate, type NativeGate, type TeamScope } from "./native-safety.ts";
 
 /**
- * ADR-110 (Phase N1): the native engine. The same Core interface as the legacy one, so voice, the island, Telegram and
- * the API do not change. Each open chat has one long-lived Claude Code session (claude-session.ts); a turn is pushed
+ * ADR-110 (Phase N1): the native engine, ATOM's only engine since Phase N5. The Core interface is the one voice, the
+ * island, Telegram and the API use. Each open chat has one long-lived Claude Code session (claude-session.ts); a turn is pushed
  * into it. The system prompt and the tool set stay the same for the session; what changes each turn goes last, in the
  * user message. A chat whose prefix changed (project note, web switch, folder) gets a new process that resumes.
  */
@@ -88,11 +88,10 @@ export interface NativeCoreDeps {
   /** Phase N2: sub-agents. Without it the main thread has no Agent tool. */
   team?: NativeTeamDeps;
   claudePath: string;
-  /** ATOM's tools; in P1 the legacy `delegate` tool is one of them. */
+  /** ATOM's tools (the `atom` server). */
   tools: ToolRunner;
-  /** The Claude plan model for this turn. Undefined: the provider in use is not the Claude plan, and `legacy` answers. */
+  /** The Claude plan model for this turn. Undefined: the provider in use is not the Claude plan, and the turn is refused. */
   modelFor(chatId: string, source: InputSource): string | undefined;
-  legacy: Core;
   /** Every turn: the time, memory facts, the pointed window. A throw is ignored. */
   context?(input: ZenoInput, context: RequestContext): Promise<string | undefined> | string | undefined;
   /** Only the first message after a session opens: memory guidance, conversation notes, kept chats, a project digest. */
@@ -136,7 +135,7 @@ export const needsComposed = (text: string) => text.includes("@") || /^\s*\//.te
 const ADDRESSED = /^\s*([\p{L}][\p{L}' -]{0,19}?)\s*,\s*\S/u;
 
 export function createNativeCore(deps: NativeCoreDeps): NativeCore {
-  const { legacy, newId = randomUUID, now = () => new Date(), maxHistory = 20 } = deps;
+  const { newId = randomUUID, now = () => new Date(), maxHistory = 20 } = deps;
   const live = new Map<string, Live>();
   let sessionId = newId();
   let turns: Message[] = [];
@@ -340,14 +339,8 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       if (busy) throw new CoreError("Still answering the previous request");
       const chat = sessionId;
       const model = deps.modelFor(chat, input.source);
-      if (!model) {
-        // Not on the Claude plan: the legacy Core answers, on this chat's history. The live session misses that turn.
-        live.get(chat)?.handle.close("legacy_turn");
-        legacy.resume(chat, turns);
-        const response = await legacy.handle(input, signal, hooks);
-        if (sessionId === chat) turns = [...legacy.history()];
-        return response;
-      }
+      // ADR-110 N5: ATOM answers on the Claude plan only. Another provider (Codex, Gemini) has no chat session.
+      if (!model) throw new GatewayError("bad_request", PROVIDER, "ATOM answers on the Claude plan. Choose a Claude model in Settings, then try again.");
       const context: RequestContext = { requestId: newId(), sessionId: chat, source: input.source, receivedAt: now() };
       const record = (replyText: string): ZenoResponse => {
         if (sessionId === chat) {

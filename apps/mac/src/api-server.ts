@@ -37,9 +37,6 @@ export interface ApiServer {
   stop(): void;
 }
 
-/** The chat id of the API's goal turns; a goal made in them has this `source`. */
-export const API_GOAL_SOURCE = "api";
-
 export interface ApiServerOptions {
   log: Logger;
   /** ATOM_API_PORT, or DEFAULT_API_PORT. */
@@ -48,15 +45,15 @@ export interface ApiServerOptions {
   /** One ATOM chat turn (the same Core setup as the window's) in an API chat; resolves to ATOM's answer. */
   ask(text: string, chatId?: string): Promise<string>;
   helpers?: HelperStore;
-  held(job: Job): string | undefined;
   approvals: Pick<TelegramBotOptions["approvals"], "pending" | "answer">;
   describe(error: unknown): string;
   /**
-   * ADR-110 (N3), the native engine: a goal is a main-agent turn in a chat of its own, "api-goal-<goalId>"; its status
-   * and report come from the Board rows of that chat. `said`: the first thing said in a chat (the goal's text).
-   * `startRoutine`: the native start of a routine (a webhook call), as the clock's; false while its last run still goes.
+   * ADR-110 (N3): a goal is a main-agent turn in a chat of its own, "api-goal-<goalId>"; its status and report come from
+   * the Board rows of that chat. `said`: the first thing said in a chat (the goal's text).
    */
-  native?: { said(chatId: string): string | undefined; startRoutine?(routine: Routine): boolean };
+  said(chatId: string): string | undefined;
+  /** The start of a routine (a webhook call), as the clock's; false while its last run still goes. */
+  startRoutine?(routine: Routine): boolean;
 }
 
 /** ADR-110 (N3): the chat of a native goal. */
@@ -109,7 +106,7 @@ interface Route {
 const digest = (text: string) => createHash("sha256").update(text).digest();
 
 export function createApiServer(options: ApiServerOptions): ApiServer {
-  const { log, helpers: store, held, approvals, describe } = options;
+  const { log, helpers: store, approvals, describe } = options;
   const tokenFile = resolve(options.tokenFile ?? API_TOKEN_FILE);
   let server: Server | undefined;
   let port = DEFAULT_API_PORT;
@@ -153,13 +150,12 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
     ...(job.summary ? { summary: job.summary } : {}),
     ...(job.step ? { step: job.step } : {}),
     ...(job.error ? { error: job.error } : {}),
-    ...(job.state === "queued" && held(job) ? { held: held(job) } : {}),
     ...(job.goalId ? { goalId: job.goalId } : {}),
     ...(job.labels ? { labels: job.labels } : {}),
     createdAt: job.createdAt.toISOString(),
     ...(job.endedAt ? { endedAt: job.endedAt.toISOString() } : {}),
   });
-  // ADR-110 (N3): native goals. ponytail: the id is the time in ms (one goal turn at a time, so it is unique); /v1/chat
+  // ADR-110 (N3): goals. ponytail: the id is the time in ms (one goal turn at a time, so it is unique); /v1/chat
   // refuses a chatId "goal-…", so no chat of its own is a goal's.
   let lastGoal = 0;
   const nativeJobs = (id: number) =>
@@ -170,13 +166,13 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
       const answer = await atom(goal, `goal-${id}`); // the chat "api-goal-<id>" (runtime.ts)
       return { goalId: nativeJobs(id).length ? id : null, answer };
     });
-  const nativeGoal = (id: number, said: (chatId: string) => string | undefined) => {
+  const nativeGoal = (id: number) => {
     const s = team();
     const tasks = nativeJobs(id);
     if (!tasks.length) throw new ApiError(404, "There is no such goal.");
     const ended = tasks.every((t) => isFinal(t.state));
     const reports = ended ? tasks.flatMap((t) => s.report(t.id) ?? []) : [];
-    const goal = said(nativeGoalChat(id)) ?? tasks[0]!.task;
+    const goal = options.said(nativeGoalChat(id)) ?? tasks[0]!.task;
     const ends = tasks.flatMap((t) => (t.endedAt ? [t.endedAt.getTime()] : []));
     const report: GoalReport | undefined = reports.length
       ? {
@@ -197,7 +193,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
     };
   };
   const needs = () =>
-    needsYou(store, held, approvals.pending()).map((need) => ({
+    needsYou(store, approvals.pending()).map((need) => ({
       key: need.key,
       text: need.text,
       actions: (need.buttons ?? []).flat().map((b) => ({ action: b.text.toLowerCase(), label: b.text, data: b.data })),
@@ -209,43 +205,14 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
       pattern: "/v1/goals",
       match: /^\/v1\/goals$/,
       body: true,
-      // The same path as a spoken or typed goal: ATOM reads it and hands it to the team with its delegate tool.
-      run: (_p, body) => {
-        const goal = text(body, "goal");
-        if (options.native) return giveNative(goal);
-        return turn(async () => {
-          const made: number[] = [];
-          const stop = store?.onChange((change) => {
-            // Only a goal this surface made: its Core's chat is "api" (runtime.ts), other surfaces have other sources.
-            if (change.action === "goal" && !change.ended && change.source === API_GOAL_SOURCE) made.push(change.goal);
-          });
-          try {
-            const answer = await atom(goal);
-            return { goalId: made[0] ?? null, answer };
-          } finally {
-            stop?.();
-          }
-        });
-      },
+      // The same path as a spoken or typed goal: ATOM reads it and hands it to one of its agents.
+      run: (_p, body) => giveNative(text(body, "goal")),
     },
     {
       method: "GET",
       pattern: "/v1/goals/:id",
       match: /^\/v1\/goals\/([^/]+)$/,
-      run: ([id]) => {
-        if (options.native) return nativeGoal(wholeId(id), options.native.said);
-        const goal = team().goal(wholeId(id));
-        if (!goal) throw new ApiError(404, "There is no such goal.");
-        return {
-          id: goal.id,
-          goal: goal.text,
-          status: goal.endedAt ? "ended" : "running",
-          createdAt: goal.createdAt.toISOString(),
-          ...(goal.endedAt ? { endedAt: goal.endedAt.toISOString() } : {}),
-          ...(goal.report ? { summary: goal.report.summary, report: goal.report } : {}),
-          tasks: goal.tasks.map(jobOut),
-        };
-      },
+      run: ([id]) => nativeGoal(wholeId(id)),
     },
     {
       method: "POST",
@@ -320,8 +287,8 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
         const routine = s.list().flatMap((h) => h.routines).find((r) => r.id === routineId);
         if (!routine) throw new ApiError(404, "There is no such routine.");
         if (!routine.webhook) throw new ApiError(403, 'This routine cannot be started by webhook. Turn on "Can be started by webhook" on the Scheduled page.');
-        // ADR-110 (N3): on the native engine a main-agent turn in the routine's chat: no task (taskId null).
-        return { taskId: s.startRoutine(routineId, options.native?.startRoutine)?.id ?? null };
+        // ADR-110 (N3): a main-agent turn in the routine's chat: no task (taskId null).
+        return { taskId: s.startRoutine(routineId, options.startRoutine)?.id ?? null };
       },
     },
   ];

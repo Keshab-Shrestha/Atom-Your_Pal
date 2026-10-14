@@ -1,12 +1,12 @@
 // ADR-098 items 1 and 2: ATOM on Telegram. Keshab talks to ATOM, reads and answers Needs you, lists tasks and reads
-// reports. ATOM sends what needs him, finished goals and the results of schedules marked "Send result to Telegram".
+// reports. ATOM sends what needs him and the results of schedules marked "Send result to Telegram".
 // Every button maps to a command the ATOM window already has. Logs command names, button kinds and counts only.
 
 import type { HelperStore, Job } from "@atom/helpers";
 import type { Logger } from "@atom/shared";
 import type { ApprovalAsk } from "./computer-bridge.ts";
 import { testsOf } from "./island-helpers.ts";
-import type { TaskSteering } from "./task-steering.ts";
+import type { TaskSteering } from "./native-entry.ts";
 import { startTelegram, type Button, type TelegramClient, type TelegramInput } from "./telegram.ts";
 
 /** The chat in the chats store that holds the Telegram conversation (the ATOM window lists it as "Telegram"). */
@@ -35,8 +35,6 @@ export interface TelegramBotOptions {
   /** One ATOM chat turn in the Telegram chat; resolves to ATOM's answer. */
   ask(text: string): Promise<string>;
   helpers?: HelperStore;
-  /** Why a queued task waits for Keshab (a plan to approve, an interrupted run), or undefined. */
-  held(job: Job): string | undefined;
   /** ATOM's questions (Pal's approval card). */
   approvals: { pending(): ApprovalAsk[]; answer(id: string, approved: boolean): void; onAsk(listener: (ask: ApprovalAsk) => void): () => void };
   describe(error: unknown): string;
@@ -78,13 +76,12 @@ function testLine(store: HelperStore, kind: "soul" | "skill", id: number): strin
 const yesNo = (yes: string, no: string, data: string): Button[][] => [[{ text: yes, data: `${data}:1` }, { text: no, data: `${data}:0` }]];
 
 /** Everything waiting, in the window's order: questions, plans, proposals, skill drafts and edits, held tasks, failures. */
-export function needsYou(store: HelperStore | undefined, held: (job: Job) => string | undefined, asks: readonly ApprovalAsk[]): Need[] {
+export function needsYou(store: HelperStore | undefined, asks: readonly ApprovalAsk[]): Need[] {
   const questions: Need[] = asks.map((a) => ({ key: `ask-${a.id}`, push: true, text: `ATOM asks: ${a.summary}\n${a.reason}`, buttons: yesNo("Allow", "Decline", `a:${a.id}`) }));
   if (!store) return questions;
   const team = store.list();
   const owners = [...team.map((h) => ({ name: h.name, jobs: h.jobs })), ...store.managers().map((m) => ({ name: m.name, jobs: m.jobs }))];
   const plans: Need[] = [];
-  const holds: Need[] = [];
   const failures: Need[] = [];
   for (const owner of owners) {
     for (const job of owner.jobs) {
@@ -92,9 +89,7 @@ export function needsYou(store: HelperStore | undefined, held: (job: Job) => str
         plans.push({ key: `plan-${job.id}`, push: true, text: `${owner.name}'s plan for #${job.id} ${titleOf(job)}:\n${job.planSummary ?? "A plan waits for your OK."}`, buttons: yesNo("Approve", "Reject", `p:${job.id}`) });
         continue;
       }
-      const reason = job.state === "queued" ? held(job) : undefined;
-      if (reason) holds.push({ key: `held-${job.id}`, push: true, text: `${owner.name}'s task #${job.id} ${titleOf(job)} waits: ${reason}` });
-      else if (job.state === "failed") {
+      if (job.state === "failed") {
         failures.push({ key: `failed-${job.id}`, push: false, text: `${owner.name}'s task #${job.id} ${titleOf(job)} failed: ${job.error ?? "It ended with a problem."}`, buttons: [[{ text: "Retry", data: `r:${job.id}` }]] });
       }
     }
@@ -118,7 +113,7 @@ export function needsYou(store: HelperStore | undefined, held: (job: Job) => str
     const head = p.kind === "update" ? `A newer version of the ${p.name} skill is ready` : `Skill from the hub: ${p.name}`;
     return { key: `skill-hub-${p.id}`, push: true, text: `${head}\n${p.repo} @ ${p.sha.slice(0, 7)}\nFlags: ${kinds.length ? kinds.join(", ") : "none"}\nRead it in the ATOM window before you approve.`, buttons: yesNo("Approve", "Reject", `h:${p.id}`) };
   });
-  return [...questions, ...plans, ...proposals, ...drafts, ...edits, ...hub, ...holds, ...failures.sort((a, b) => b.key.localeCompare(a.key, undefined, { numeric: true }))];
+  return [...questions, ...plans, ...proposals, ...drafts, ...edits, ...hub, ...failures.sort((a, b) => b.key.localeCompare(a.key, undefined, { numeric: true }))];
 }
 
 /**
@@ -169,7 +164,7 @@ export function answerNeed(data: string, store: HelperStore | undefined, approva
 
 /** Starts the bot. Off unless the runtime calls this (both .env values set). */
 export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
-  const { log, helpers: store, held, approvals, describe } = options;
+  const { log, helpers: store, approvals, describe } = options;
   let push = true;
   // One ATOM turn at a time: the Core answers one request at a time.
   let turns: Promise<void> = Promise.resolve();
@@ -238,7 +233,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
   }
 
   async function sendNeeds() {
-    const items = needsYou(store, held, approvals.pending());
+    const items = needsYou(store, approvals.pending());
     if (!items.length) return client.send("Nothing waits for you.");
     for (const item of items.slice(0, NEEDS_SHOWN)) await client.send(item.text, item.buttons);
     if (items.length > NEEDS_SHOWN) await client.send(`${items.length - NEEDS_SHOWN} more wait in the ATOM window.`);
@@ -278,12 +273,13 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     void client.answer(queryId, said);
   }
 
-  // Push: a new Needs you item, a finished goal, a schedule's result. Keys seen last time are not sent again.
-  let known = new Set(needsYou(store, held, approvals.pending()).map((n) => n.key));
+  // Push: a new Needs you item. Keys seen last time are not sent again. (A routine's result and an agent's report come
+  // from the native engine: `send`.)
+  let known = new Set(needsYou(store, approvals.pending()).map((n) => n.key));
   let timer: NodeJS.Timeout | undefined;
   const check = () => {
     timer = undefined;
-    const now = needsYou(store, held, approvals.pending());
+    const now = needsYou(store, approvals.pending());
     const fresh = now.filter((n) => n.push && !known.has(n.key));
     known = new Set(now.map((n) => n.key));
     if (!push || !fresh.length) return;
@@ -299,28 +295,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
   const stopStore = store?.onChange((change) => {
     if (change.action === "step" || change.action === "usage") return;
     soon();
-    if (!push) return;
-    if (change.action === "goal" && change.ended) sendGoal(change.goal);
-    if (change.action === "job" && (change.state === "done" || change.state === "failed" || change.state === "stopped")) sendRoutineResult(change.job);
   });
-
-  function sendGoal(id: number) {
-    const goal = store?.goal(id);
-    if (!goal) return;
-    log.info("telegram.push", { kind: "goal" });
-    const report = goal.report;
-    void client.send(report ? `Goal done: ${report.title}\n\n${report.summary}` : `A goal ended with no report: ${cut(flat(goal.text), 200)}`);
-  }
-
-  function sendRoutineResult(jobId: number) {
-    const routine = store?.list().flatMap((h) => h.routines).find((r) => r.lastTaskId === jobId);
-    if (!store || !routine?.notifyTelegram) return;
-    const job = store.get(jobId);
-    if (!job) return;
-    log.info("telegram.push", { kind: "routine" });
-    if (job.state !== "done") return void client.send(`Scheduled task #${jobId} ${titleOf(job)} ${job.state === "failed" ? `failed: ${job.error ?? "It ended with a problem."}` : "was stopped."}`);
-    void client.send(`Scheduled result #${jobId}\n${reportText(jobId)}`);
-  }
 
   return {
     send(text, pushed) {

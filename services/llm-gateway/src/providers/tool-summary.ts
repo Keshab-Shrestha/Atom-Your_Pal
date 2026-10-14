@@ -1,4 +1,3 @@
-import { resultText } from "./sub-agents.ts";
 
 /**
  * Activity timeline (TASK.md B3.1): a run's tool calls, as short redacted summaries for the task's thread. A summary is
@@ -142,4 +141,12 @@ export function toolCallRecorder(emit: ((event: ToolCallEvent) => void) | undefi
       });
     },
   };
+}
+
+/** Plain text from a tool result's content (a string, or text blocks), or from the Agent tool's own output. */
+export function resultText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map((b) => (b && typeof b === "object" && (b as { type?: unknown }).type === "text" ? String((b as { text?: unknown }).text ?? "") : "")).join(" ");
+  if (value && typeof value === "object" && "content" in value) return resultText((value as { content: unknown }).content);
+  return "";
 }
