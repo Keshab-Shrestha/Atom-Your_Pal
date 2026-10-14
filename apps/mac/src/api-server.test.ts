@@ -241,3 +241,54 @@ test("a goal turn returns the id of the goal with its own source, not another su
   assert.equal(listeners.size, 0);
   await api.set(false);
 });
+
+test("ADR-110 N3, native: a goal is a turn in its own chat api-goal-<id>; its status and report read that chat's job rows", async () => {
+  const jobs: any[] = [];
+  const reports = new Map<number, any>();
+  const asked: [string, string | undefined][] = [];
+  const nativeStore = {
+    ...store,
+    list: () => [{ jobs, routines: [], proposals: [], name: "Scout" }],
+    get: (id: number) => jobs.find((j) => j.id === id),
+    report: (id: number) => reports.get(id),
+    goal: () => { throw new Error("no legacy goals on the native engine"); },
+  } as unknown as NonNullable<ApiServerOptions["helpers"]>;
+  const { api, port, token } = await boot({
+    helpers: nativeStore,
+    native: { said: (chat) => (chat.startsWith("api-goal-") ? "research mesh Wi-Fi" : undefined) },
+    ask: async (text, chatId) => {
+      asked.push([text, chatId]);
+      // The main agent hands it to Scout: the gate makes a job in this chat; an unrelated chat's job is not this goal's.
+      jobs.push({ id: 7, helper: "h1", state: "running", task: "Find mesh Wi-Fi kits", chatId: `api-${chatId}`, createdAt: new Date(1000) });
+      jobs.push({ id: 8, helper: "h1", state: "done", task: "other", chatId: "chat-1", createdAt: new Date(0) });
+      return "Scout is on it.";
+    },
+  });
+  const given = await call(port, "POST", "/v1/goals", { token, body: '{"goal":"research mesh Wi-Fi"}' });
+  const id = given.json.data.goalId;
+  assert.equal(typeof id, "number");
+  assert.equal(given.json.data.answer, "Scout is on it.");
+  assert.deepEqual(asked, [["research mesh Wi-Fi", `goal-${id}`]]);
+  let status = await call(port, "GET", `/v1/goals/${id}`, { token });
+  assert.equal(status.json.data.status, "running");
+  assert.equal(status.json.data.goal, "research mesh Wi-Fi");
+  assert.deepEqual(status.json.data.tasks.map((t: any) => t.id), [7]);
+  jobs[0] = { ...jobs[0], state: "done", endedAt: new Date(5000) };
+  reports.set(7, { title: "Mesh kits", summary: "Two kits fit.", body: "Two kits fit the flat.", sources: [{ title: "a", url: "https://a.example" }] });
+  status = await call(port, "GET", `/v1/goals/${id}`, { token });
+  assert.equal(status.json.data.status, "ended");
+  assert.equal(status.json.data.endedAt, new Date(5000).toISOString());
+  assert.equal(status.json.data.summary, "Two kits fit.");
+  assert.deepEqual(status.json.data.report, { title: "Mesh kits", summary: "Two kits fit.", body: "Two kits fit the flat.", sources: [{ title: "a", url: "https://a.example" }] });
+  const task = await call(port, "GET", "/v1/tasks/7", { token });
+  assert.equal(task.json.data.report.summary, "Two kits fit.");
+  assert.equal((await call(port, "GET", "/v1/goals/12345", { token })).status, 404);
+  await api.set(false);
+});
+
+test("ADR-110 N3, native: a goal ATOM answers itself has goalId null", async () => {
+  const { api, port, token } = await boot({ native: { said: () => undefined }, ask: async () => "It is 3 pm." });
+  const given = await call(port, "POST", "/v1/goals", { token, body: '{"goal":"what time is it"}' });
+  assert.deepEqual(given.json.data, { goalId: null, answer: "It is 3 pm." });
+  await api.set(false);
+});

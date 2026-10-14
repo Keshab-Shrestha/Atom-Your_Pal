@@ -8,7 +8,7 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { dirname, resolve } from "node:path";
-import { HelperError, type HelperStore, type Job, type JobState } from "@atom/helpers";
+import { HelperError, isFinal, type GoalReport, type HelperStore, type Job, type JobState } from "@atom/helpers";
 import type { Logger } from "@atom/shared";
 import { answerNeed, needsYou, type TelegramBotOptions } from "./telegram-bot.ts";
 
@@ -49,7 +49,15 @@ export interface ApiServerOptions {
   held(job: Job): string | undefined;
   approvals: Pick<TelegramBotOptions["approvals"], "pending" | "answer">;
   describe(error: unknown): string;
+  /**
+   * ADR-110 (N3), the native engine: a goal is a main-agent turn in a chat of its own, "api-goal-<goalId>"; its status
+   * and report come from the Board rows of that chat. `said`: the first thing said in a chat (the goal's text).
+   */
+  native?: { said(chatId: string): string | undefined };
 }
+
+/** ADR-110 (N3): the chat of a native goal. */
+export const nativeGoalChat = (id: number) => `api-goal-${id}`;
 
 /** Reads data/api-token, or makes it (32 random bytes as hex, mode 0600) when it is not there. */
 export function readOrCreateToken(file: string): string {
@@ -148,6 +156,43 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
     createdAt: job.createdAt.toISOString(),
     ...(job.endedAt ? { endedAt: job.endedAt.toISOString() } : {}),
   });
+  // ADR-110 (N3): native goals. ponytail: the id is the time in ms (one goal turn at a time, so it is unique); a
+  // /v1/chat chatId "goal-<that number>" would share the chat.
+  let lastGoal = 0;
+  const nativeJobs = (id: number) =>
+    store ? [...store.list(), ...store.managers()].flatMap((owner) => owner.jobs).filter((j) => j.chatId === nativeGoalChat(id)).sort((a, b) => a.id - b.id) : [];
+  const giveNative = (goal: string) =>
+    turn(async () => {
+      const id = (lastGoal = Math.max(Date.now(), lastGoal + 1));
+      const answer = await atom(goal, `goal-${id}`); // the chat "api-goal-<id>" (runtime.ts)
+      return { goalId: nativeJobs(id).length ? id : null, answer };
+    });
+  const nativeGoal = (id: number, said: (chatId: string) => string | undefined) => {
+    const s = team();
+    const tasks = nativeJobs(id);
+    if (!tasks.length) throw new ApiError(404, "There is no such goal.");
+    const ended = tasks.every((t) => isFinal(t.state));
+    const reports = ended ? tasks.flatMap((t) => s.report(t.id) ?? []) : [];
+    const goal = said(nativeGoalChat(id)) ?? tasks[0]!.task;
+    const ends = tasks.flatMap((t) => (t.endedAt ? [t.endedAt.getTime()] : []));
+    const report: GoalReport | undefined = reports.length
+      ? {
+          title: reports.length === 1 ? reports[0]!.title : goal.slice(0, 80),
+          summary: reports.map((r) => r.summary).filter(Boolean).join(" "),
+          body: reports.map((r) => (reports.length === 1 ? r.body : `${r.title}\n\n${r.body}`)).join("\n\n"),
+          sources: [...new Map(reports.flatMap((r) => r.sources).map((x) => [x.url, x])).values()],
+        }
+      : undefined;
+    return {
+      id,
+      goal,
+      status: ended ? "ended" : "running",
+      createdAt: tasks[0]!.createdAt.toISOString(),
+      ...(ended && ends.length ? { endedAt: new Date(Math.max(...ends)).toISOString() } : {}),
+      ...(report ? { summary: report.summary, report } : {}),
+      tasks: tasks.map(jobOut),
+    };
+  };
   const needs = () =>
     needsYou(store, held, approvals.pending()).map((need) => ({
       key: need.key,
@@ -164,6 +209,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
       // The same path as a spoken or typed goal: ATOM reads it and hands it to the team with its delegate tool.
       run: (_p, body) => {
         const goal = text(body, "goal");
+        if (options.native) return giveNative(goal);
         return turn(async () => {
           const made: number[] = [];
           const stop = store?.onChange((change) => {
@@ -184,6 +230,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
       pattern: "/v1/goals/:id",
       match: /^\/v1\/goals\/([^/]+)$/,
       run: ([id]) => {
+        if (options.native) return nativeGoal(wholeId(id), options.native.said);
         const goal = team().goal(wholeId(id));
         if (!goal) throw new ApiError(404, "There is no such goal.");
         return {
