@@ -11,6 +11,8 @@ import AtomIslandCore
 struct Composer: View {
     let model: IslandModel
     private let draft = State(initialValue: "")
+    /// ADR-113: files waiting to go with the next message.
+    private let attached = State(initialValue: ComposerDraft())
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
 
@@ -20,30 +22,49 @@ struct Composer: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
-            if let notice = model.chats?.currentReadOnlyNotice {
-                // ADR-098: Telegram or the local API writes this chat. Reading, copying and search still work.
-                Text(notice).font(.system(size: 12.5)).foregroundStyle(theme.text3.color).lineLimit(2)
-                    .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
-                    .accessibilityLabel(notice)
-            } else if snapshot {
-                // `ImageRenderer` cannot draw a text field: show the placeholder as it would appear.
-                Text(placeholder).font(.system(size: 12.5)).foregroundStyle(theme.text3.color).lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                TextField(placeholder, text: draft.projectedValue)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 12.5))
-                    .foregroundStyle(theme.text.color)
-                    .onSubmit(send)
-                    .accessibilityLabel("Message to ATOM")
+        let readOnly = model.chats?.currentReadOnlyNotice
+        VStack(alignment: .leading, spacing: 6) {
+            if !attached.wrappedValue.files.isEmpty || attached.wrappedValue.notice != nil {
+                AttachedFilesRow(files: attached.wrappedValue.files, notice: attached.wrappedValue.notice) { path in
+                    attached.wrappedValue.remove(path)
+                }
             }
-            if model.chats?.currentReadOnlyNotice == nil {
-                if answering && empty {
-                    // ATOM is thinking or speaking and nothing is typed: the button stops the answer.
-                    StopReplyButton { model.stopReply() }
+            HStack(spacing: 8) {
+                if let notice = readOnly {
+                    // ADR-098: Telegram or the local API writes this chat. Reading, copying and search still work.
+                    Text(notice).font(.system(size: 12.5)).foregroundStyle(theme.text3.color).lineLimit(2)
+                        .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+                        .accessibilityLabel(notice)
+                } else if snapshot {
+                    // `ImageRenderer` cannot draw a text field: show the placeholder as it would appear.
+                    Text(placeholder).font(.system(size: 12.5)).foregroundStyle(theme.text3.color).lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
-                    ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, action: send)
+                    TextField(placeholder, text: draft.projectedValue)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(theme.text.color)
+                        .onSubmit(send)
+                        .accessibilityLabel("Message to ATOM")
+                }
+                if readOnly == nil {
+                    if answering && empty {
+                        // ATOM is thinking or speaking and nothing is typed: the button stops the answer.
+                        StopReplyButton { model.stopReply() }
+                    } else {
+                        ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, action: send)
+                    }
+                }
+            }
+            if readOnly == nil && !snapshot {
+                // The things that shape the next message sit with it: files, skills and the chat's model.
+                HStack(spacing: 8) {
+                    AttachButton { attached.wrappedValue.add($0) }
+                    SkillsMenu(skills: model.helpers.list?.skills ?? []) { name in
+                        draft.wrappedValue = ComposerDraft.applying(skill: name, to: draft.wrappedValue)
+                    }
+                    Spacer(minLength: 4)
+                    ChatModelMenu(model: model) // ADR-097, moved here from the top bar
                 }
             }
         }
@@ -52,6 +73,13 @@ struct Composer: View {
         .padding(.vertical, 5)
         .background(composerShape.fill(theme.fill1.color))
         .overlay(composerShape.strokeBorder(theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
+        // Dropping files on the composer attaches them.
+        .dropDestination(for: URL.self) { urls, _ in
+            let paths = urls.filter(\.isFileURL).map(\.path)
+            guard !paths.isEmpty else { return false }
+            attached.wrappedValue.add(paths)
+            return true
+        }
     }
 
     private var talkHint: String? { model.settings.shortcut(for: .talk).map { "Hold \($0.display) to talk" } }
@@ -59,7 +87,8 @@ struct Composer: View {
         model.settings.shortcut(for: .talk).map { "Ask ATOM, or hold \($0.display) to talk" } ?? "Ask ATOM…"
     }
 
-    private var empty: Bool { draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    /// Nothing to send: no words and no files.
+    private var empty: Bool { draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && attached.wrappedValue.files.isEmpty }
 
     /// ATOM is working out or saying an answer.
     private var answering: Bool {
@@ -71,8 +100,100 @@ struct Composer: View {
 
     private func send() {
         guard !empty else { return }
-        model.ask(draft.wrappedValue)
+        model.ask(draft.wrappedValue, draft: attached.wrappedValue)
         draft.wrappedValue = ""
+        attached.wrappedValue.clear()
+    }
+}
+
+/// The paperclip: chooses files (text, code, PDFs, images) for the next message.
+private struct AttachButton: View {
+    let add: ([String]) -> Void
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Button(action: choose) {
+            Image(systemName: "paperclip").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
+                .frame(width: 28, height: 28).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Attach files: text, code, PDFs or images. You can also drop them here.")
+        .accessibilityLabel("Attach files")
+    }
+
+    private func choose() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.prompt = "Attach"
+        if panel.runModal() == .OK { add(panel.urls.map(\.path)) }
+    }
+}
+
+/// "/": the user's skills. Choosing one puts "/name " in front of the words; ATOM then follows that skill for the message.
+private struct SkillsMenu: View {
+    let skills: [SkillInfo]
+    let choose: (String) -> Void
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Menu {
+            if skills.isEmpty {
+                Text("No skills yet. Add one in ~/.claude/skills.")
+            } else {
+                ForEach(skills, id: \.name) { skill in
+                    Button {
+                        choose(skill.name)
+                    } label: {
+                        Text(skill.description.isEmpty ? skill.name : "\(skill.name) — \(skill.description)")
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "sparkles").font(.system(size: 10.5, weight: .medium))
+                Text("Skills").font(.system(size: 11.5))
+            }
+            .foregroundStyle(theme.text2.color)
+            .padding(.horizontal, 8).frame(height: 28).contentShape(Rectangle())
+        }
+        .menuStyle(.button).buttonStyle(.plain).fixedSize()
+        .help("Use one of your skills for this message. You can also type /skill-name.")
+        .accessibilityLabel("Skills")
+    }
+}
+
+/// The files waiting to go with the message, each with a button to take it off.
+private struct AttachedFilesRow: View {
+    let files: [DraftFile]
+    let notice: String?
+    let remove: (String) -> Void
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if !files.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(files) { file in
+                        HStack(spacing: 4) {
+                            Image(systemName: "doc").font(.system(size: 10))
+                            Text(file.name).font(.system(size: 11.5)).lineLimit(1).truncationMode(.middle).frame(maxWidth: 160)
+                            Button { remove(file.path) } label: {
+                                Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).frame(width: 14, height: 14).contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Remove \(file.name)")
+                        }
+                        .foregroundStyle(theme.text2.color)
+                        .padding(.horizontal, 8).frame(height: 24)
+                        .background(Capsule().fill(theme.fill2.color))
+                    }
+                }
+            }
+            if let notice { Text(notice).font(.system(size: 11)).foregroundStyle(theme.problem.color) }
+        }
+        .padding(.top, 2)
     }
 }
 

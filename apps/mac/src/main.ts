@@ -134,6 +134,7 @@ function start(config: Config) {
     ...(runtime.islandBrain ? { brain: runtime.islandBrain } : {}),
     ...(runtime.islandChats ? { chats: runtime.islandChats } : {}),
     ...(runtime.islandProjects ? { projects: runtime.islandProjects } : {}),
+    ...(runtime.islandAttachments ? { attachments: runtime.islandAttachments } : {}),
     ...(runtime.islandGit ? { git: runtime.islandGit } : {}),
     ...(runtime.islandHelpers ? { helpers: runtime.islandHelpers } : {}),
     onTimer: runtime.onTimer,

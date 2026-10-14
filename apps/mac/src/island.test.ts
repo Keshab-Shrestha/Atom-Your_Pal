@@ -32,6 +32,7 @@ function islandHarness(
     tts: TextToSpeech;
     chats: IslandOptions["chats"];
     projects: IslandOptions["projects"];
+    attachments: IslandOptions["attachments"];
     git: IslandOptions["git"];
     clipMs: number;
     warmUp: () => Promise<void>;
@@ -92,6 +93,7 @@ function islandHarness(
     ...(over.memory ? { memory: over.memory } : {}),
     ...(over.chats ? { chats: over.chats } : {}),
     ...(over.projects ? { projects: over.projects } : {}),
+    ...(over.attachments ? { attachments: over.attachments } : {}),
     ...(over.git ? { git: over.git } : {}),
     ...(over.helpers ? { helpers: over.helpers } : {}),
     ...(over.onTimer ? { onTimer: over.onTimer } : {}),
@@ -1290,6 +1292,29 @@ test("text.send: answered and spoken like a voice turn, without the microphone; 
   assert.ok(!events.some((e) => e.type === "state" && e.state === "listening"));
   await h.send({ type: "text.send", text: "   " });
   assert.match(String((h.events().at(-1) as { message?: string }).message), /non-empty "text"/);
+});
+
+test("text.send with files: the files are attached first and named in the request; a refusal says why and asks nothing (ADR-113)", async () => {
+  const added: string[][] = [];
+  const h = islandHarness({
+    attachments: {
+      add: (_chat, paths) => (paths[0] === "/bad.exe" ? { error: "bad.exe: ATOM reads text, code, PDFs and images." } : (added.push([...paths]), { ok: true as const, text: "[Attached: a.txt — /data/a.txt]" })),
+    },
+  });
+  await h.send({ type: "text.send", text: "summarise this", files: ["/Users/k/a.txt"] });
+  await new Promise((r) => setTimeout(r, 10));
+  assert.deepEqual(added, [["/Users/k/a.txt"]]);
+  assert.ok(h.events().some((e) => e.type === "transcript" && e.text === "summarise this\n\n[Attached: a.txt — /data/a.txt]"));
+  h.clear();
+  await h.send({ type: "text.send", text: "", files: ["/bad.exe"] });
+  assert.deepEqual(h.types(), ["error"]);
+  assert.match(String((h.events()[0] as { message?: string }).message), /reads text, code, PDFs and images/);
+  h.clear();
+  await h.send({ type: "text.send", text: "x", files: "no" as never });
+  assert.match(String((h.events()[0] as { message?: string }).message), /list of up to 5 full paths/);
+  const plain = islandHarness();
+  await plain.send({ type: "text.send", text: "x", files: ["/a.txt"] });
+  assert.match(String((plain.events().find((e) => e.type === "error") as { message?: string } | undefined)?.message), /Attaching files is off/);
 });
 
 test("context.window reads the named app and answers context.ready", async () => {

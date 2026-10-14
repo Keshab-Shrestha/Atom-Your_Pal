@@ -51,7 +51,7 @@ export type IslandCommand =
   | { type: "git.diff"; repo: string; branch: string }
   | { type: "memory.forget"; id: number }
   | { type: "memory.clear" }
-  | { type: "text.send"; text: string }
+  | { type: "text.send"; text: string; files?: string[] }
   | { type: "episode.forget"; id: number }
   | { type: "episode.clear" }
   | { type: "context.window"; bundleId: string; name: string }
@@ -264,10 +264,15 @@ export function parseCommand(line: string): ParsedLine {
     return { command: { type, id, approved } };
   }
   if (type === "text.send") {
-    const { text } = value as { text?: unknown };
-    if (typeof text !== "string" || !text.trim()) return { error: 'text.send needs a non-empty "text".' };
+    const { text, files } = value as { text?: unknown; files?: unknown };
+    // Files may go with the words (ADR-113): up to 5 full paths; the words may then be empty.
+    if (files !== undefined && (!Array.isArray(files) || files.length > 5 || files.some((f) => typeof f !== "string" || f === "" || f.length > 1000))) {
+      return { error: 'text.send: "files" is a list of up to 5 full paths.' };
+    }
+    const attached = (files as string[] | undefined) ?? [];
+    if (typeof text !== "string" || (!text.trim() && !attached.length)) return { error: 'text.send needs a non-empty "text".' };
     if (text.length > 4000) return { error: "text.send: the text is longer than 4000 characters." };
-    return { command: { type, text } };
+    return { command: { type, text, ...(attached.length ? { files: attached } : {}) } };
   }
   if (type === "context.window") {
     const { bundleId, name } = value as { bundleId?: unknown; name?: unknown };

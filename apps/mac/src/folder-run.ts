@@ -145,8 +145,9 @@ const hasDotDot = (text: string) => text.split(/[\\/]/).includes("..");
  * folder and no git file, and a file is at most 2 MB. A pattern is never absolute outside the folder and never has `..`.
  * `onCheck` gets the tool and the verdict, never a path. `prepare` gives a search that names no glob the skips above.
  */
-export function projectReadCheck(roots: readonly string[], name: string, options: { home?: string; onCheck?(event: { tool: string; verdict: "allowed" | "refused" }): void } = {}) {
+export function projectReadCheck(roots: readonly string[], name: string, options: { home?: string; maxBytes?: number; onCheck?(event: { tool: string; verdict: "allowed" | "refused" }): void } = {}) {
   const home = options.home ?? homedir();
+  const maxBytes = options.maxBytes ?? PROJECT_FILE_BYTES;
   const real = roots.map((r) => realish(r));
   const cwd = real[0] ?? "/";
   const denied = denyRead(realish(home));
@@ -176,7 +177,7 @@ export function projectReadCheck(roots: readonly string[], name: string, options
         return undefined; // a missing file: Read itself says so
       }
       if (!info.isFile()) return "That is not a file. Use Glob to list a folder.";
-      if (info.size > PROJECT_FILE_BYTES) return "That file is over 2 MB, too big to read into a chat.";
+      if (info.size > maxBytes) return `That file is over ${Math.round(maxBytes / 1024 / 1024)} MB, too big to read into a chat.`;
     }
     if (tool === "Grep" && typeof input.glob === "string" && (SECRETISH.test(input.glob) || !EXTENSION_GLOB.test(input.glob))) {
       return "Use a glob like *.ts for the file type, or search without a glob.";

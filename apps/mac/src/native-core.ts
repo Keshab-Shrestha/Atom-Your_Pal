@@ -119,6 +119,14 @@ export interface NativeCoreDeps {
   opening?(chatId: string, text: string): Promise<string | undefined> | string | undefined;
   /** ADR-107: a project chat's note (constant per session) and read access. */
   project?(chatId: string): { note: string; files?: ProjectFiles } | undefined;
+  /**
+   * Files the user attached to a chat: read-only access confined to ATOM's copy of them (a project chat has its own folder
+   * instead). `expand` puts small text files inline for a provider without file tools.
+   */
+  attachments?: {
+    turn(chatId: string): { note: string; files: ProjectFiles } | undefined;
+    expand(chatId: string, text: string): string;
+  };
   shortcuts?(text: string, signal?: AbortSignal): Promise<string | undefined>;
   onExchange?(sessionId: string, turns: readonly Message[]): void;
   onLeave?(sessionId: string): void;
@@ -179,12 +187,12 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     }
   };
 
-  async function open(chat: string, model: string, prompt: string, tools: string[], files: ProjectFiles | undefined, key: string, resume?: string): Promise<Live> {
+  async function open(chat: string, model: string, prompt: string, tools: string[], files: ProjectFiles | undefined, key: string, resume?: string, readOnly = false): Promise<Live> {
     const team = deps.team;
     let gate: NativeGate | undefined;
     const plans: PlanBook | undefined = team && planBook(team.helpers, chat, deps.log);
     const board = team && boardRecorder(team.helpers, chat, { onEnd: (job) => gate?.agentEnded(job), ...(deps.log ? { log: deps.log } : {}) });
-    const project = files ? { cwd: files.cwd } : undefined;
+    const project = files && !readOnly ? { cwd: files.cwd } : undefined;
     gate = nativeGate({
       tools,
       ...(files ? { files } : {}),
@@ -218,7 +226,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       ...(agents ? { agents, disallowedTools: BUILT_IN_AGENTS.map((a) => `Agent(${a})`) } : {}),
       ...(skills ? { plugins: [{ type: "local" as const, path: skills.pluginDir }] } : {}),
       // Bash exists only for a project chat's agents: sandboxed, no network, writes in the project and the worktrees.
-      ...(team && files
+      ...(team && project
         ? {
             sandbox: {
               enabled: true,
@@ -226,7 +234,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
               autoAllowBashIfSandboxed: false, // every command still goes through the hook
               allowUnsandboxedCommands: false,
               network: { allowedDomains: [], strictAllowlist: true },
-              filesystem: { allowWrite: [files.cwd, team.worktrees], denyWrite: [join(files.cwd, ".git")], denyRead: denyRead() },
+              filesystem: { allowWrite: [project.cwd, team.worktrees], denyWrite: [join(project.cwd, ".git")], denyRead: denyRead() },
             },
           }
         : {}),
@@ -297,12 +305,15 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
   async function answer(chat: string, text: string, model: string, context: RequestContext, input: ZenoInput, signal: AbortSignal, hooks?: HandleHooks): Promise<string> {
     const extra = (await quiet(() => deps.context?.({ ...input, text }, context)))?.trim();
     const project = await quiet(() => deps.project?.(chat));
-    const files = project?.files;
+    // Attached files give read access to their own folder only: no sandbox, no worktrees, no Bash (those are for a project).
+    const attached = project ? undefined : await quiet(() => deps.attachments?.turn(chat));
+    const files = project?.files ?? attached?.files;
     const base = deps.team ? NATIVE_TEAM_PROMPT : NATIVE_SYSTEM_PROMPT;
-    const prompt = project ? `${base}\n\n${project.note}` : base;
+    const prompt = project ? `${base}\n\n${project.note}` : attached ? `${base}\n\n${attached.note}` : base;
     const web = Boolean(deps.web) && (!files || files.web === true); // as the plan adapter: ADR-069, ADR-107
     const tools = [...(files ? READ_TOOLS : []), ...(web ? WEB_TOOLS : []), ...(deps.team ? ["Agent"] : [])];
     const key = JSON.stringify([prompt, tools, files?.cwd]);
+    const readOnly = !project && Boolean(attached);
     let streamed = false;
     const onText = hooks?.onText ? (d: string) => ((streamed = true), hooks.onText!(d)) : undefined;
 
@@ -318,7 +329,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       }
       const opened = !entry;
       const resume = opened && !fresh ? savedSession(chat) : undefined;
-      if (!entry) entry = await open(chat, model, prompt, tools, files, key, resume);
+      if (!entry) entry = await open(chat, model, prompt, tools, files, key, resume, readOnly);
       else if (entry.handle.model !== model) await entry.handle.setModel(model); // ADR-097: background tasks still run, so switch live
       entry.gate.newAnswer(files);
       // A new session without a resumable one gets the conversation so far as a transcript.
@@ -372,7 +383,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       {
         system: PLAIN_SYSTEM_PROMPT,
         ...(opening || extra ? { systemExtra: [opening, extra].filter(Boolean).join("\n\n") } : {}),
-        messages: [...turns, { role: "user", content: text }],
+        messages: [...turns, { role: "user" as const, content: text }].map((m) => (deps.attachments ? { ...m, content: deps.attachments.expand(chat, m.content) } : m)),
         context,
         ...(hooks?.onText ? { onText: hooks.onText } : {}),
       },

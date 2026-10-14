@@ -33,7 +33,6 @@ struct HelpersView: View {
                         }
                     }
                     if let project = model.chats?.currentProject { ProjectChip(project: project) } // ADR-107
-                    ChatModelMenu(model: model) // ADR-097
                     ChatSoundsMenu(model: model)
                     DeleteChatButton(model: model)
                 }

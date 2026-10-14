@@ -34,6 +34,8 @@ public enum IslandCommand: Sendable, Equatable {
     case episodeClear
     /// A typed request: answered and spoken like a voice turn.
     case textSend(String)
+    /// A typed request with attached files (ADR-113): full paths; the runtime copies and checks them. At most 5.
+    case textSendFiles(text: String, files: [String])
     /// The user dropped Pal on a window to ask about it (ADR-074): its app, never the window's title.
     case contextWindow(bundleId: String, name: String)
     /// Helpers (ADR-081): ask for the list (and its changes from then on), give a helper its app (`""` for none),
@@ -183,7 +185,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .brainSearch: "brain.search"
         case .episodeForget: "episode.forget"
         case .episodeClear: "episode.clear"
-        case .textSend: "text.send"
+        case .textSend, .textSendFiles: "text.send"
         case .contextWindow: "context.window"
         case .helpersList: "helpers.list"
         case .speechSet: "speech.set"
@@ -305,6 +307,10 @@ public enum IslandCommand: Sendable, Equatable {
         }
         if case .textSend(let text) = self {
             fields["text"] = text
+        }
+        if case .textSendFiles(let text, let files) = self {
+            fields["text"] = text
+            fields["files"] = files
         }
         if case .contextWindow(let bundleId, let name) = self {
             fields["bundleId"] = bundleId

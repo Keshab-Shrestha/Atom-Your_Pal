@@ -344,3 +344,34 @@ test("a project chat refuses another provider with words; an empty reply is an e
   await assert.rejects(empty.handle({ text: "hi", source: "text" }), /gave no reply/);
   assert.equal(empty.history().length, 0, "a failed turn is not kept");
 });
+
+// ---- attached files
+
+test("a chat with attached files gets Read, Glob and Grep confined to its folder, and no sandbox or Bash; web stays on", async () => {
+  const { sdk, queries } = fakeSdk();
+  const files: ProjectFiles = { cwd: "/tmp/atom-attached", check: async () => undefined, web: true };
+  const store = openHelperStore({ path: ":memory:" });
+  const core = make(sdk, {
+    team: { helpers: store, approve: async () => false, worktrees: "/tmp/atom-attached-wt" },
+    attachments: { turn: () => ({ note: "Files were attached.", files }), expand: (_c, t) => t },
+  });
+  await core.handle({ text: "read the file", source: "text" });
+  const o = queries[0]!.options;
+  assert.deepEqual(o.tools, ["Read", "Glob", "Grep", "WebSearch", "WebFetch", "Agent", "ToolSearch"]);
+  assert.equal(o.cwd, "/tmp/atom-attached");
+  assert.match(String(o.systemPrompt), /Files were attached\./);
+  assert.equal(o.sandbox, undefined, "attached files are not a project: no sandbox, no Bash");
+  store.close();
+});
+
+test("another provider is given small attached text files inline, not their paths only", async () => {
+  const { sdk } = fakeSdk();
+  const o = other();
+  const core = make(sdk, {
+    modelFor: () => undefined,
+    otherModel: () => o.model,
+    attachments: { turn: () => undefined, expand: (_c, t) => t.replace("[Attached: a.txt — /x/a.txt]", "[Attached file a.txt: hello]") },
+  });
+  await core.handle({ text: "summarise [Attached: a.txt — /x/a.txt]", source: "text" });
+  assert.equal(o.requests[0]!.messages.at(-1)!.content, "summarise [Attached file a.txt: hello]");
+});

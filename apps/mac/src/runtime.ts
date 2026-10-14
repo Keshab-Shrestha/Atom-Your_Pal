@@ -56,13 +56,14 @@ import {
 } from "@atom/helpers";
 import { createLayaEngine } from "@atom/decision-engine";
 import type { InputSource, Message, ZenoInput } from "@atom/contracts";
-import type { IslandBrain, IslandChats, IslandGit, IslandHelpers, IslandMemory, IslandProjects } from "./island.ts";
+import type { IslandBrain, IslandChats, IslandGit, IslandHelpers, IslandMemory, IslandOptions, IslandProjects } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
 import { createHubCommands } from "./hub-commands.ts";
 import { SKILLS_PLUGIN, listSkills, prepareSkills, userSkillsDir } from "./skills.ts";
 import { runTestCases } from "./test-runs.ts";
 import { createEmbedder } from "./embedder.ts";
 import { createKeptChats } from "./kept-chats.ts";
+import { createAttachments } from "./attachments.ts";
 import { MAX_PROJECT_MESSAGES, createProjects } from "./projects-wiring.ts";
 import { createIslandGit, withPaperclip } from "./island-wiring.ts";
 import { nowLine, createEchoCore, describe, errorFields, findCalendarHelper, openHelpers, openMemory, warmOnOpen } from "./runtime-support.ts";
@@ -118,6 +119,8 @@ export interface Runtime {
   islandChats?: IslandChats;
   /** ADR-107: projects as the ATOM window sees them. Undefined when memory is off. */
   islandProjects?: IslandProjects;
+  /** ADR-113: files attached to a typed message. Undefined in tests. */
+  islandAttachments?: IslandOptions["attachments"];
   /** Helpers' apps, jobs and reports (ADR-081). Undefined when the store could not open. */
   helpers?: HelperStore;
   /** The helpers as the ATOM window sees them. Undefined when the store could not open. */
@@ -267,6 +270,7 @@ export function createRuntime(
     messages: (id) => memory.chats.messages(id),
     remove: (id) => {
       episodes?.discard(id); // ADR-108: no note for a deleted chat
+      attachments?.remove(id); // ADR-113: and none of its files
       return memory.chats.remove(id);
     },
     modelOf: (id) => memory.chats.model(id) ?? unsavedChatModels.get(id) ?? projects?.modelOf(id), // ADR-107: the chat's own, else its project's
@@ -304,6 +308,8 @@ export function createRuntime(
   // ADR-094: ATOM's own skills, approved by Keshab, live beside it too: data/skills/<name>/SKILL.md.
   const skillsDir = helpersPath === ":memory:" ? undefined : join(dirname(resolve(helpersPath)), "skills");
   const checkpointsDir = helpersPath === ":memory:" ? undefined : join(dirname(resolve(helpersPath)), "checkpoints"); // B3.4
+  // ADR-113: files attached to a chat are copied here (data/attachments/<chat>); none in tests.
+  const attachments = helpersPath === ":memory:" ? undefined : createAttachments({ dir: join(dirname(resolve(helpersPath)), "attachments"), log: { info: (event, fields) => log.info(event, fields as LogFields) } });
   const helpers = openHelpers(helpersPath, log, helpersPath === ":memory:" ? undefined : agentsDir, skillsDir, checkpointsDir);
   // ADR-107: projects (a named folder and its chats); the chat code above reads this lazily.
   const projects = memory ? createProjects({ memory, ...(helpers ? { helpers } : {}), log, checkModel: (provider, model) => settings.check(provider, model) }) : undefined;
@@ -549,6 +555,7 @@ export function createRuntime(
                 projects?.digest(chatId),
               ].filter(Boolean).join("\n\n"),
             ...(projects ? { project: (chatId: string) => projects.turn(chatId) } : {}),
+            ...(attachments ? { attachments } : {}),
             // Phase N2: no worker shortcut: "Sid, …" is a main-agent turn that hands the request to Sid.
             ...(toolShortcuts ? { shortcuts: toolShortcuts } : {}),
             onExchange: (sessionId: string, turns: readonly Message[]) => {
@@ -731,6 +738,17 @@ export function createRuntime(
     stt,
     tts,
     computer,
+    ...(attachments
+      ? {
+          islandAttachments: {
+            add: (chatId: string, paths: readonly string[]) => {
+              // A project chat reads its folder, not attachments: the file belongs in the project's folder.
+              if (projects?.projectOf(chatId)) return { error: "A project chat reads the project's folder. Put the file in that folder, or attach it in a chat outside the project." };
+              return attachments.add(chatId, paths);
+            },
+          },
+        }
+      : {}),
     ...(memory ? { memory, islandMemory, islandChats, islandProjects: projects!.island, ...(brainWiring ? { islandBrain: brainWiring.island } : {}) } : {}),
     ...(islandGit ? { islandGit } : {}),
     ...(helpers ? { helpers, islandHelpers: warmOnOpen(withPaperclip(paperclip, paperclipListeners, {

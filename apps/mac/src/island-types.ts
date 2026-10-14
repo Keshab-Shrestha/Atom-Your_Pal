@@ -40,6 +40,8 @@ export interface IslandOptions {
   brain?: IslandBrain;
   /** ADR-091: chat sessions. Absent when memory is off. */
   chats?: IslandChats;
+  /** ADR-113: files attached to a typed message. Absent: a message with files is refused. */
+  attachments?: { add(chatId: string, paths: readonly string[]): { ok: true; text: string } | { error: string } };
   /** ADR-107: projects. Absent when memory is off: `project.*` and `chat.new` with a project are refused. */
   projects?: IslandProjects;
   /** ADR-091: ATOM's task branches. */

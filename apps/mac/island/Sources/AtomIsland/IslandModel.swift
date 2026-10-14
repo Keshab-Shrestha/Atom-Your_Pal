@@ -232,11 +232,10 @@ final class IslandModel {
     var typedTurn = false
 
     /// A typed request from the Conversation tab. Ignored when empty or too long for the runtime.
-    func ask(_ text: String) {
+    func ask(_ text: String, draft: ComposerDraft = ComposerDraft()) {
         typedTurn = true
-        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !clean.isEmpty, clean.count <= 4000 else { return }
-        send(.textSend(clean))
+        guard let command = draft.command(text: text) else { return }
+        send(command)
     }
 
     // MARK: ADR-096: Back, and leaving unsaved edits

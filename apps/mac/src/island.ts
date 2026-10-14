@@ -110,10 +110,18 @@ export function runIsland(options: IslandOptions): IslandSession {
         options.computer?.cancelAll(); // Esc: anything waiting for the user is a no
         loop.cancel();
         return;
-      case "text.send":
+      case "text.send": {
         options.computer?.cancelAll();
-        loop.ask(command.text);
+        let text = command.text;
+        if (command.files?.length) {
+          // ADR-113: the files are copied and checked first; a refusal says why and sends nothing.
+          const added = options.attachments?.add(core.sessionId ?? "", command.files) ?? { error: "Attaching files is off." };
+          if ("error" in added) return send({ type: "error", stage: "settings", message: added.error });
+          text = `${text.trim() || "Please look at the attached file."}\n\n${added.text}`;
+        }
+        loop.ask(text);
         return;
+      }
       case "approval.answer":
         options.computer?.answer(command.id, command.approved);
         return;
