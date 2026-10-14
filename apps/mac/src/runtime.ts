@@ -72,7 +72,7 @@ export { describe, errorFields, nowLine, seconds, withLogging } from "./runtime-
 import { TELEGRAM_CHAT, startTelegramBot, type TelegramBot } from "./telegram-bot.ts";
 import { createApiServer, type ApiServer } from "./api-server.ts";
 import { SCHEDULER_TICK_MS, scheduleTick } from "./scheduler.ts";
-import { nativeSteering, routeWake, routineStarter, type TaskSteering } from "./native-entry.ts";
+import { nativeSteering, routeWake, routineStarter, taskStarter, type TaskSteering } from "./native-entry.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { testMcpServer } from "./mcp-servers.ts";
 import { scanAiTools } from "./ai-tools.ts";
@@ -651,6 +651,11 @@ export function createRuntime(
           log,
         })
       : undefined;
+  // ADR-110 N5: a task from a worker's page, or its Retry button, is a main-agent turn in a chat of its own ("task-<n>").
+  const startTask =
+    helpers
+      ? taskStarter({ core: makeCore(true), name: (helper) => helpers.list().find((h) => h.id === helper && h.available)?.name, log })
+      : undefined;
   // ADR-098 item 5: the local API. Its turns go to a Core of their own, saved as the chat "api" (or "api-<chatId>"). It
   // listens only after Settings' "Local API" switch is on.
   let apiCore: Core | undefined;
@@ -697,6 +702,16 @@ export function createRuntime(
     ...(helpers ? { helpers, islandHelpers: warmOnOpen(withPaperclip(paperclip, paperclipListeners, {
             ...islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name)))),
             hub: createHubCommands({ store: helpers, log }), // B3.5
+            // ADR-110 N5: no legacy runner starts a queued task, so the page's task field and Retry hand it to the main agent.
+            addJob: (helper: string, task: string) => {
+              if (!startTask) throw new Error("Tasks need the helpers file.");
+              startTask(helper, task);
+            },
+            retry: (id: number) => {
+              const old = helpers.get(id);
+              if (!old || !startTask) throw new Error("That task is gone.");
+              startTask(old.helper, old.task);
+            },
             openReport,
             // ADR-110 N5: a note to a task is a message to the main agent of its chat.
             ...(steering ? { steer: steering.steer, interrupt: steering.interrupt } : {}),

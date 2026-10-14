@@ -75,7 +75,7 @@ struct ModelSection: View {
             }
             if info.provider == "claude-plan" { PlanMetersCard(usage: model.planUsage) }
             // ADR-093: the AI tools on this Mac, found or not, and what ATOM does with them.
-            Card("Found on this Mac", footer: "Codex and the Gemini CLI answer in chat only: ATOM's tools and the team stay on Claude. Local models (Ollama, LM Studio) are not used.") {
+            Card("Found on this Mac", footer: "ATOM answers on the Claude plan only. Codex and the Gemini CLI are listed so you can see them, but they cannot run ATOM's chats. Local models (Ollama, LM Studio) are not used.") {
                 if info.tools.isEmpty {
                     Row(title: "Looking for AI tools…") { ProgressView().controlSize(.small) }
                 }
@@ -127,8 +127,8 @@ struct ModelSection: View {
         guard let provider else { return nil }
         switch provider.id {
         case "claude-plan": return "Runs on your Claude plan, no API key needed."
-        case "codex": return "Runs on your ChatGPT plan through Codex. Chat only: ATOM's tools stay with Claude."
-        case "gemini-cli": return "Runs on your Google sign-in through the Gemini CLI. Chat only: ATOM's tools stay with Claude."
+        case "codex": return "Found on this Mac. It cannot run ATOM's chats: ATOM answers on the Claude plan."
+        case "gemini-cli": return "Found on this Mac. It cannot run ATOM's chats: ATOM answers on the Claude plan."
         default: return nil
         }
     }

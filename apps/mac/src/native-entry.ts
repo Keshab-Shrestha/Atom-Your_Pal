@@ -101,3 +101,41 @@ export function nativeSteering(cores: () => Iterable<{ steer(job: number, text: 
     },
   };
 }
+
+/** A task given from the ATOM window's worker page or its Retry button: a chat of its own, "task-<n>". */
+export const taskChat = (n: number) => `task-${n}`;
+
+export interface TaskTurnDeps {
+  /** A native Core of its own, client_composed (makeCore(true)). */
+  core: Pick<Core, "handle" | "resume">;
+  /** The worker's name, so "Sid, <task>" hands the task to its own worker. */
+  name(helper: string): string | undefined;
+  log: { info(event: string, fields: LogFields): void; warn(event: string, fields: LogFields): void };
+  /** The chat ids need a number that never repeats: the clock by default. */
+  now?(): number;
+}
+
+/**
+ * ADR-110 N5: a task from the window is a main-agent turn that hands it to the worker (the legacy runner is gone). Turns go
+ * one at a time. Throws HelperError for an unknown worker or an empty task, so the window shows words.
+ */
+export function taskStarter(deps: TaskTurnDeps): (helper: string, task: string) => void {
+  let queue: Promise<void> = Promise.resolve();
+  let last = 0;
+  return (helper, raw) => {
+    const task = raw.trim();
+    if (!task) throw new HelperError("The task is empty.");
+    const name = deps.name(helper);
+    if (!name) throw new HelperError(`There is no worker called "${helper.slice(0, 40)}".`);
+    const chat = taskChat((last = Math.max((deps.now ?? Date.now)(), last + 1)));
+    queue = queue.then(async () => {
+      try {
+        deps.core.resume(chat, []);
+        await deps.core.handle({ text: `${name}, ${task}`, source: "text" });
+        deps.log.info("task.turn", { helper, ok: true });
+      } catch {
+        deps.log.warn("task.turn", { helper, ok: false });
+      }
+    });
+  };
+}
