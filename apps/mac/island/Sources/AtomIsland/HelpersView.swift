@@ -19,8 +19,10 @@ struct HelpersView: View {
             VStack(spacing: 0) {
             // ADR-091: a top bar over every page, with the page's name; it moves the window.
             let page = Self.page(model)
-            // Settings pages bring their own "‹ Settings"; two arrows on one page said the same thing twice.
-            let ownBack = model.windowPage == .settings && model.settingsPage != nil
+            // These pages bring their own back button ("‹ Settings", "‹ Board", "Cancel"); two arrows said the same thing twice.
+            let ownBack = (model.windowPage == .settings && model.settingsPage != nil)
+                || (model.windowPage == .agents && (model.helpers.isCreatingAgent || model.helpers.openJobId != nil
+                    || (!model.helpers.showsBoard && model.helpers.selectedHelper != nil && model.helpers.isSoulOpen)))
             WindowTopBar(title: page.title, symbol: page.symbol, back: model.history.canGoBack && !ownBack ? { model.goBack() } : nil) {
                 if model.windowPage == .chat {
                     // New chat was only a small icon far down the sidebar; it belongs where the chat is.

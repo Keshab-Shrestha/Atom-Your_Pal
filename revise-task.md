@@ -44,3 +44,5 @@ The progress log is at the end of this file.
 - Q3 done: new tests for the gate with plans (`native-safety-plan.test.ts`), the Tinker runner, `taskStarter`, `nativeSteering`, the audit log and the reach tools. Swift tests added but never compiled: `BrainTests.swift`, `WorkPlansTests.swift`.
 - Q4 done: `native-plan.live.test.ts` (run on the Mac: it checks the real SDK) and `sdk` in the `session.open` log line. Never run, because the cloud has no signed-in `claude`.
 - Q5 partly done: the island session's interface types moved to `island-types.ts` (island.ts 1105 to 816 lines), and the plan view moved from `store.ts` to a pure, tested function (`viewOfPlan` in `plans.ts`). Not done on purpose: `createRuntime` and the big Swift views share many private members, and a split cannot be compiled here. Do it on the Mac, with `pnpm island:build` open.
+- Q6 done: the top bar no longer shows a second Back on the soul, task and new-agent pages. Idea left out (a new protocol command): a Stop plan button on the plan card; today you stop each running portion on the Board.
+- Q7 done: TASK.md and STATUS.md updated.

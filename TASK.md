@@ -1584,7 +1584,15 @@ Next: Keshab runs `pnpm test` and `pnpm island:test` on the Mac, then tries plai
 - Reach: `search_chats`, `propose_skill` (`reach-tools.ts`), the audit log (`audit.ts`, `GET /v1/audit`).
 - Second brain (ADR-112): `brain.ts`, `brain-wiring.ts`; Swift `Brain.swift`, `BrainView.swift`; commands `brain.*`.
 - UI: Stop in the composer while ATOM answers, Copy and Try again on replies, New chat in the chat top bar, a link from Settings → Memory to the graph.
-- Tests: new tests run alone (`work-plan.test.ts`, `native-plan.test.ts`, `brain.test.ts`, `brain-wiring.test.ts`: 6, 6, 10, 3 pass). The full suites and Swift were not run (no macOS in the cloud session).
+- Tests: the whole TypeScript suite passes in the cloud session (815 tests, Linux). Swift was not compiled or run (no macOS in the cloud session).
 - Not done: a second chat app (Slack or Discord) for the gateway; it needs a token, an allowlist and a security review first.
 
 Next: Keshab runs `pnpm test` and `pnpm island:test` on the Mac, builds the app, tries a three-portion task and the graph, and fixes what the Swift compiler finds.
+
+### Quality pass (2026-10-14, brief in `revise-task.md`)
+
+- Removed dead goal, hand-off, plan-first and steer code from the store, with its tests. Found and fixed one real bug on the way: a native agent's checkpoints were never finished (`agentEnded` now calls `finishCheckpoints`).
+- Tests: the gate with plans, the Tinker runner, `taskStarter`, `nativeSteering`, the audit log, the reach tools, `viewOfPlan`; Swift tests `BrainTests.swift` and `WorkPlansTests.swift` (not compiled). `grants.test` no longer needs macOS.
+- Live probe `native-plan.live.test.ts` (Mac only) and the SDK version in the `session.open` log line.
+- UI: one Back on the soul, task and new-agent pages (the top bar hides its arrow when the page has its own).
+- Files: island interface types moved to `island-types.ts`; the plan view moved to `plans.ts`.
