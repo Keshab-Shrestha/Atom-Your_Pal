@@ -19,7 +19,9 @@ struct HelpersView: View {
             VStack(spacing: 0) {
             // ADR-091: a top bar over every page, with the page's name; it moves the window.
             let page = Self.page(model)
-            WindowTopBar(title: page.title, symbol: page.symbol, back: model.history.canGoBack ? { model.goBack() } : nil) {
+            // Settings pages bring their own "‹ Settings"; two arrows on one page said the same thing twice.
+            let ownBack = model.windowPage == .settings && model.settingsPage != nil
+            WindowTopBar(title: page.title, symbol: page.symbol, back: model.history.canGoBack && !ownBack ? { model.goBack() } : nil) {
                 if model.windowPage == .chat {
                     // New chat was only a small icon far down the sidebar; it belongs where the chat is.
                     PillButton(title: "New chat", symbol: "square.and.pencil") {
@@ -31,6 +33,7 @@ struct HelpersView: View {
                     if let project = model.chats?.currentProject { ProjectChip(project: project) } // ADR-107
                     ChatModelMenu(model: model) // ADR-097
                     ChatSoundsMenu(model: model)
+                    DeleteChatButton(model: model)
                 }
             }
             Group {
@@ -114,6 +117,24 @@ extension HelpersView {
             return (helper.roleTitle.isEmpty ? helper.name : "\(helper.name) · \(helper.roleTitle)", "person.crop.circle")
         }
         return ("ATOM", "sparkles")
+    }
+}
+
+/// Deletes the chat that is open, after asking. Only a saved chat can be deleted.
+private struct DeleteChatButton: View {
+    let model: IslandModel
+    @State private var confirming = false
+
+    var body: some View {
+        if let list = model.chats, let chat = list.chats.first(where: { $0.id == list.current }) {
+            IconButton(symbol: "trash", label: "Delete this chat") { confirming = true }
+                .confirmationDialog("Delete “\(chat.title)”?", isPresented: $confirming, titleVisibility: .visible) {
+                    Button("Delete chat", role: .destructive) { model.send(.chatDelete(id: chat.id)) }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("The chat and its messages are removed for good.")
+                }
+        }
     }
 }
 

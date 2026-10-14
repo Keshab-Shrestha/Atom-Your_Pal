@@ -115,7 +115,6 @@ struct ProjectsSection: View {
             let chats = list.chats(in: project.id)
             let more = allChats.contains(project.id)
             VStack(alignment: .leading, spacing: 0) {
-                if !project.archived { newChatRow(project) }
                 ForEach(ProjectList.shown(chats, all: more)) { chat in
                     SidebarChatRow(model: model, chat: chat, current: chat.id == list.current)
                 }
@@ -150,8 +149,10 @@ struct ProjectsSection: View {
             }
             Spacer(minLength: 4)
             Text("\(project.chatCount)").font(.system(size: 10.5)).foregroundStyle(theme.text3.color).monospacedDigit()
+            // A new chat in this project: a plus on the folder's own row, not a whole line under it.
+            if !project.archived { newChatButton(project) }
         }
-        .padding(.horizontal, 10).padding(.vertical, 6)
+        .padding(.leading, 10).padding(.trailing, 6).padding(.vertical, 4)
         .contentShape(Rectangle())
         .focusable()
         .focused($focused, equals: project.id)
@@ -179,19 +180,18 @@ struct ProjectsSection: View {
         Button("Remove project…", role: .destructive) { removing = project }
     }
 
-    private func newChatRow(_ project: ProjectInfo) -> some View {
+    private func newChatButton(_ project: ProjectInfo) -> some View {
         Button {
             model.navigate {
                 model.newChat(inProject: project.id)
                 model.windowPage = .chat
             }
         } label: {
-            Label("New chat in \(project.name)", systemImage: "square.and.pencil")
-                .font(.system(size: 12)).foregroundStyle(theme.text2.color).lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 10).padding(.vertical, 5).contentShape(Rectangle())
+            Image(systemName: "plus").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(theme.text2.color)
+                .frame(width: 22, height: 22).background(Circle().fill(theme.fill1.color)).contentShape(Circle())
         }
         .buttonStyle(.plain)
+        .help("New chat in \(project.name)")
         .accessibilityLabel("New chat in \(project.name)")
     }
 
@@ -319,10 +319,37 @@ struct SidebarChatRow: View {
     let current: Bool
     @State private var renaming = false
     @State private var draft = ""
+    @State private var hovering = false
+    @State private var confirming = false
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
 
     var body: some View {
+        row
+            // Delete shows on the row under the pointer (and for the open chat), and always asks first.
+            .overlay(alignment: .trailing) {
+                if (hovering || current) && !renaming && !snapshot {
+                    Button { confirming = true } label: {
+                        Image(systemName: "trash").font(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text2.color)
+                            .frame(width: 22, height: 22).background(Circle().fill(theme.fill2.color)).contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .opacity(hovering ? 1 : 0.55)
+                    .padding(.trailing, 6)
+                    .help("Delete this chat")
+                    .accessibilityLabel("Delete chat \(chat.title)")
+                }
+            }
+            .onHover { hovering = $0 }
+            .confirmationDialog("Delete “\(chat.title)”?", isPresented: $confirming, titleVisibility: .visible) {
+                Button("Delete chat", role: .destructive) { model.send(.chatDelete(id: chat.id)) }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("The chat and its messages are removed for good.")
+            }
+    }
+
+    private var row: some View {
         Button {
             guard !renaming else { return }
             model.navigate {
@@ -349,7 +376,7 @@ struct SidebarChatRow: View {
         .buttonStyle(.plain)
         .contextMenu {
             if !chat.readOnly { Button("Rename") { draft = chat.title; renaming = true } }
-            Button("Delete chat", role: .destructive) { model.send(.chatDelete(id: chat.id)) }
+            Button("Delete chat…", role: .destructive) { confirming = true }
         }
         .accessibilityLabel(current ? "\(chat.title), current chat" : chat.title)
     }
