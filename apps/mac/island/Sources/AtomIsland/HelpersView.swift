@@ -388,7 +388,6 @@ private struct HelperPane: View {
                     if let managers = model.helpers.list?.managers, !managers.isEmpty, helper.takesTasks {
                         ManagerPicker(model: model, helper: helper, managers: managers) // ADR-095
                     }
-                    if let budget = helper.budget { BudgetPicker(model: model, helper: helper, budget: budget) }
                     SkillsPicker(model: model, helper: helper, skills: model.helpers.list?.skills ?? [])
                     PlanFirstRow(model: model, helper: helper)
                     if helper.takesTasks, helper.kit != "think" { BrowserRow(model: model, helper: helper) } // ADR-098

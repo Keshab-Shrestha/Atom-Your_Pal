@@ -591,63 +591,29 @@ struct HelperWakeTests {
     }
 }
 
-@Suite("Budgets (Task 3.7)")
-struct HelperBudgetTests {
-    static let line = HelperTaskTests.line
-        .replacingOccurrences(of: #"{"type":"helpers","apps":[],"helpers":["#, with: #"{"type":"helpers","apps":[],"team":{"cap":15,"spent":12.5},"planLimit":80,"helpers":["#)
+@Suite("No budgets (ADR-110 N4)")
+struct NoBudgetTests {
+    /// An older runtime still sends budgets, the plan limit and "Runs at once"; the island ignores them.
+    static let older = HelperTaskTests.line
+        .replacingOccurrences(of: #"{"type":"helpers","apps":[],"helpers":["#, with: #"{"type":"helpers","apps":[],"team":{"cap":15,"spent":12.5},"planLimit":80,"maxRunning":6,"helpers":["#)
         .replacingOccurrences(of: #""name":"Sid","available":true,"app":null,"jobs""#, with: #""name":"Sid","available":true,"app":null,"budget":{"cap":5,"spent":5.2},"jobs""#)
-        .replacingOccurrences(of: #""id":6,"task":"Then this","state":"queued","#, with: #""id":6,"task":"Then this","state":"queued","held":"Hana's daily budget ($5.00) is used up.","#)
+        .replacingOccurrences(of: #""id":6,"task":"Then this","state":"queued","#, with: #""id":6,"task":"Then this","state":"queued","held":"Interrupted — waiting for you.","#)
 
-    @Test func decodesCapsSpendAndHolds() throws {
-        guard case .helpers(let list) = try decodeEvent(Self.line) else { Issue.record("not helpers"); return }
-        #expect(list.team == HelperBudget(cap: 15, spent: 12.5) && list.planLimit == 80)
-        let sid = try #require(list.helpers.first)
-        #expect(sid.budget == HelperBudget(cap: 5, spent: 5.2) && sid.budget?.isOver == true)
-        #expect(list.helpers.last?.budget == nil) // an older runtime sends none
-        #expect(list.item(6)?.job.held == "Hana's daily budget ($5.00) is used up.")
+    @Test func oldBudgetFieldsDecodeAndAreIgnored() throws {
+        guard case .helpers(let list) = try decodeEvent(Self.older) else { Issue.record("not helpers"); return }
+        guard case .helpers(let plain) = try decodeEvent(HelperTaskTests.line) else { Issue.record("not helpers"); return }
+        #expect(list.helpers.map(\.id) == plain.helpers.map(\.id))
+        #expect(list.item(6)?.job.held == "Interrupted — waiting for you.")
         #expect(list.board.first { $0.column == .needsYou }?.items.map(\.id) == [6, 3]) // held with the failed
-        #expect(throws: Never.self) { try decodeEvent(HelperTaskTests.line) } // budgets are optional
     }
 
-    @Test func linesWarnAt80PercentAndSayWhenUsedUp() {
-        #expect(HelperBudget(cap: 5, spent: 1.2).line == "$1.20 of $5.00 today")
-        #expect(HelperBudget(cap: nil, spent: 1.2).line == "$1.20 today")
-        #expect(HelperBudget(cap: 5, spent: 4).isNear && !HelperBudget(cap: 5, spent: 3.9).isNear)
-        #expect(!HelperBudget(cap: 5, spent: 5).isNear && HelperBudget(cap: 5, spent: 5).isOver)
-        #expect(!HelperBudget(cap: nil, spent: 999).isOver)
-        #expect(HelperBudget.capTitle(5) == "$5 a day" && HelperBudget.capTitle(nil) == "No cap")
-    }
-
-    @Test func capsAndThePlanLimitAreCommands() throws {
-        var state = HelpersState()
-        state.apply(try decodeEvent(Self.line))
-        #expect(state.setBudget(5) == nil) // unchanged
-        #expect(state.setBudget(10) == .helperBudget(helper: "sid", cap: 10))
-        #expect(state.setTeamBudget(nil) == .helperBudget(helper: "team", cap: nil))
-        #expect(state.setPlanLimit(80) == nil && state.setPlanLimit(5) == nil)
-        #expect(state.setPlanLimit(60) == .helpersPlanLimit(60))
-        #expect(IslandCommand.helperBudget(helper: "team", cap: nil).line == #"{"cap":null,"helper":"team","type":"helper.budget"}"# + "\n")
-        #expect(IslandCommand.helperBudget(helper: "sid", cap: 2.5).line == #"{"cap":2.5,"helper":"sid","type":"helper.budget"}"# + "\n")
-        #expect(IslandCommand.helpersPlanLimit(60).line == #"{"planLimit":60,"type":"helpers.settings"}"# + "\n")
+    @Test func settingsSendOnlyTheLargeModelAndCodex() {
+        #expect(IslandCommand.helpersSettings(allowLarge: false).line == #"{"allowLarge":false,"type":"helpers.settings"}"# + "\n")
     }
 }
 
-@Suite("Runs at once (ADR-095)")
+@Suite("Several runs of one worker (ADR-095)")
 struct RunsAtOnceTests {
-    static let line = HelperBudgetTests.line.replacingOccurrences(of: #""planLimit":80,"#, with: #""planLimit":80,"maxRunning":6,"#)
-
-    @Test func decodesTheLimitAndChangesItWithinOneToTen() throws {
-        guard case .helpers(let list) = try decodeEvent(Self.line) else { Issue.record("not helpers"); return }
-        #expect(list.maxRunning == 6)
-        guard case .helpers(let older) = try decodeEvent(HelperBudgetTests.line) else { Issue.record("not helpers"); return }
-        #expect(older.maxRunning == nil, "an older runtime sends none")
-        var state = HelpersState()
-        state.apply(try decodeEvent(Self.line))
-        #expect(state.setMaxRunning(6) == nil && state.setMaxRunning(0) == nil && state.setMaxRunning(11) == nil)
-        #expect(state.setMaxRunning(3) == .helpersMaxRunning(3))
-        #expect(IslandCommand.helpersMaxRunning(3).line == #"{"maxRunning":3,"type":"helpers.settings"}"# + "\n")
-    }
-
     @Test func aWorkerWithTwoRunsShowsTheNewestAndTheCount() {
         let now = Date()
         var newer = HelperJob(id: 2, task: "t", state: .running, createdAt: now.addingTimeInterval(-60))
@@ -1029,9 +995,8 @@ struct OfficePlanTests {
 
 @Suite("Notifications (ADR-091)")
 struct NoticeTests {
-    func list(_ jobs: [HelperJob], spent: Double = 0, team: Double = 0) -> HelpersList {
-        HelpersList(helpers: [Helper(id: "sid", name: "Sid", available: true, app: nil, jobs: jobs, budget: HelperBudget(cap: 5, spent: spent))],
-                    apps: [], team: HelperBudget(cap: 10, spent: team), planLimit: 80)
+    func list(_ jobs: [HelperJob]) -> HelpersList {
+        HelpersList(helpers: [Helper(id: "sid", name: "Sid", available: true, app: nil, jobs: jobs)], apps: [])
     }
 
     @Test func onlyWhatIsNewIsNotifiedNeverThePast() {
@@ -1052,22 +1017,21 @@ struct NoticeTests {
         var plan = HelperJob(id: 4, task: "t", state: .queued)
         plan.planStatus = "awaiting"
         var held = HelperJob(id: 5, task: "t", state: .queued)
-        held.held = "The team's budget is used up."
+        held.held = "Interrupted — waiting for you."
         let next = watcher.notices(for: list([old, running, failed, plan, held]))
         #expect(next.map(\.kind) == [.failed, .needsYou, .needsYou])
         #expect(next[0].body == "The pages would not load")
     }
 
-    @Test func budgetsAndThePlanWarnAt80AndWhenFullAgainAfterTheyReset() {
+    @Test func thePlanWarnsAt80AndAgainAfterItsWindowResets() {
         var watcher = NoticeWatcher()
-        _ = watcher.notices(for: list([], spent: 1))
-        let warn = watcher.notices(for: list([], spent: 4.1))
-        #expect(warn.map(\.title) == ["Sid's budget is 82% used"] && warn[0].body == "$4.10 of $5.00 today")
-        #expect(watcher.notices(for: list([], spent: 5, team: 10)).map(\.title) == ["Sid's budget is used up", "The team's budget is used up"])
-        _ = watcher.notices(for: list([], spent: 0))
-        #expect(watcher.notices(for: list([], spent: 4.5)).count == 1, "a new day warns again")
-        let plan = watcher.notices(for: list([], spent: 4.5), plan: PlanUsage(fiveHour: 0.86))
-        #expect(plan.map(\.title) == ["The Claude plan is at 86%"] && plan[0].body.contains("wait above 80%"))
+        _ = watcher.notices(for: list([]), plan: PlanUsage(fiveHour: 0.5))
+        let plan = watcher.notices(for: list([]), plan: PlanUsage(fiveHour: 0.86))
+        #expect(plan.map(\.title) == ["The Claude plan is at 86%"] && plan[0].kind == .planUse && plan[0].body == "Of its five-hour limit.")
+        #expect(watcher.notices(for: list([]), plan: PlanUsage(fiveHour: 0.9)).isEmpty, "once")
+        _ = watcher.notices(for: list([]), plan: PlanUsage(fiveHour: 0.1))
+        #expect(watcher.notices(for: list([]), plan: PlanUsage(fiveHour: 0.85)).count == 1, "a new window warns again")
+        #expect(AppNotice.Kind.planUse.rawValue == "budget", "the stored switch from before ADR-110 N4 still applies")
     }
 }
 

@@ -133,7 +133,7 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     public var goalEnded: Bool
     /// Task 3.6: its next run continues the last one's Claude session ("Start fresh" forgets it).
     public var resumable: Bool
-    /// Task 3.7: why a runnable task waits (a budget used up, the plan above its limit).
+    /// Why a runnable task waits for Keshab (a plan to approve, an interrupted run).
     public var held: String?
     /// ADR-098 item 3: Keshab interrupted its run; it waits for his next message.
     public var interrupted: Bool
@@ -292,8 +292,6 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public var soul: HelperSoul?
     public var soulVersion: Int
     public var soulVersions: [SoulVersion]
-    /// Task 3.7: its daily cap and today's spend; nil from an older runtime.
-    public var budget: HelperBudget?
     /// Task 3.8: its new tasks plan first.
     public var planFirst: Bool
     /// ADR-098: its runs get ATOM's browser (false from an older runtime).
@@ -326,7 +324,7 @@ public struct Helper: Sendable, Equatable, Identifiable {
 
     public init(id: String, name: String, available: Bool, app: String?, jobs: [HelperJob], pinnedModel: String? = nil,
                 role: String = "", soul: HelperSoul? = nil, soulVersion: Int = 1, soulVersions: [SoulVersion] = [],
-                budget: HelperBudget? = nil, planFirst: Bool = false, routines: [HelperRoutine] = [], grants: [String] = [], skills: [String] = [], proposals: [SoulProposal] = [], kit: String? = nil, custom: Bool = false,
+                planFirst: Bool = false, routines: [HelperRoutine] = [], grants: [String] = [], skills: [String] = [], proposals: [SoulProposal] = [], kit: String? = nil, custom: Bool = false,
                 wakeUp: HelperWakeUp? = nil, manager: String? = nil, browser: Bool = false) {
         self.id = id
         self.name = name
@@ -338,7 +336,6 @@ public struct Helper: Sendable, Equatable, Identifiable {
         self.soul = soul
         self.soulVersion = soulVersion
         self.soulVersions = soulVersions
-        self.budget = budget
         self.planFirst = planFirst
         self.browser = browser
         self.routines = routines
@@ -382,21 +379,18 @@ public struct HelperManager: Sendable, Equatable, Identifiable {
     public var mode: String
     public var soul: HelperSoul?
     public var soulVersion: Int
-    /// Its daily cap (the team's by default) and today's spend; nil from an older runtime.
-    public var budget: HelperBudget?
     /// Its Agents' ids.
     public var agents: [String]
     /// Its own runs (plan mode), newest first.
     public var jobs: [HelperJob]
 
-    public init(id: String, name: String, mode: String = "group", soul: HelperSoul? = nil, soulVersion: Int = 1, budget: HelperBudget? = nil,
+    public init(id: String, name: String, mode: String = "group", soul: HelperSoul? = nil, soulVersion: Int = 1,
                 agents: [String] = [], jobs: [HelperJob] = []) {
         self.id = id
         self.name = name
         self.mode = mode
         self.soul = soul
         self.soulVersion = soulVersion
-        self.budget = budget
         self.agents = agents
         self.jobs = jobs
     }
@@ -436,7 +430,7 @@ public enum BoardColumn: String, Sendable, Equatable, CaseIterable {
         }
     }
 
-    /// Failed tasks need you, and (Task 3.7) tasks held by a budget or the plan's limit; stopped ones are done with.
+    /// Failed tasks need you, and held tasks (a plan to approve, an interrupted run); stopped ones are done with.
     public static func of(_ job: HelperJob) -> BoardColumn {
         job.held != nil ? .needsYou : of(job.state)
     }
@@ -608,11 +602,6 @@ public struct HelpersList: Sendable, Equatable {
     public var allowLarge: Bool
     /// The plan's offered models; empty when the provider is not the Claude plan (or the runtime is older).
     public var models: [HelperModel]
-    /// Task 3.7: the team's daily cap and spend, and the plan limit (percent); nil from an older runtime.
-    public var team: HelperBudget?
-    public var planLimit: Int?
-    /// ADR-095: "Runs at once", the team-wide limit on runs at the same time; nil from an older runtime.
-    public var maxRunning: Int?
     /// Task 3.12: the skills to choose from (Keshab's in ~/.claude/skills and, ADR-094, ATOM's own).
     public var skills: [SkillInfo]
     /// ADR-094: Tinker's skill drafts and edits: every pending one and the newest few others.
@@ -639,8 +628,8 @@ public struct HelpersList: Sendable, Equatable {
     public var codexFallback: Bool
     public var codexReady: Bool
 
-    public init(helpers: [Helper], apps: [String], allowLarge: Bool = true, models: [HelperModel] = [], team: HelperBudget? = nil,
-                planLimit: Int? = nil, maxRunning: Int? = nil, paperclip: [PaperclipTask]? = nil, mcp: [McpServerItem] = [], usage: TokenUsageSummary? = nil, skills: [SkillInfo] = [],
+    public init(helpers: [Helper], apps: [String], allowLarge: Bool = true, models: [HelperModel] = [],
+                paperclip: [PaperclipTask]? = nil, mcp: [McpServerItem] = [], usage: TokenUsageSummary? = nil, skills: [SkillInfo] = [],
                 skillDrafts: [SkillDraftItem] = [], skillEdits: [SkillEditItem] = [], skillHub: HubState = .empty, agentProblems: [AgentProblem] = [], teamTasks: [TeamTask] = [],
                 managers: [HelperManager] = [], codexFallback: Bool = false, codexReady: Bool = false, testCases: [TestCaseItem] = []) {
         self.testCases = testCases
@@ -648,9 +637,6 @@ public struct HelpersList: Sendable, Equatable {
         self.apps = apps
         self.allowLarge = allowLarge
         self.models = models
-        self.team = team
-        self.planLimit = planLimit
-        self.maxRunning = maxRunning
         self.paperclip = paperclip
         self.mcp = mcp
         self.usage = usage
@@ -1256,15 +1242,9 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.helperBrowser(helper: helper.id, on: on))
     }
 
-    /// Task 3.7: the chosen worker's daily cap (nil: none). Nil when unchanged or from an older runtime.
-    public mutating func setBudget(_ cap: Double?) -> IslandCommand? {
-        guard let helper = selectedHelper, let budget = helper.budget, budget.cap != cap else { return nil }
-        return waiting(.helperBudget(helper: helper.id, cap: cap))
-    }
-
     // MARK: ADR-095: Managers
 
-    /// Opens a Manager's page: its Agents, mode, budget and their tasks.
+    /// Opens a Manager's page: its Agents, mode and their tasks.
     public mutating func selectManager(_ id: String) {
         guard list?.managers.contains(where: { $0.id == id }) == true else { return }
         selectedManagerId = id
@@ -1316,34 +1296,11 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.managerDelete(id: manager.id))
     }
 
-    public mutating func setManagerBudget(_ cap: Double?) -> IslandCommand? {
-        guard let manager = selectedManager, let budget = manager.budget, budget.cap != cap else { return nil }
-        return waiting(.helperBudget(helper: manager.id, cap: cap))
-    }
-
     /// Moves the chosen Agent under a Manager. Nil when it is there already, or for Tinker.
     public mutating func moveAgent(to managerId: String) -> IslandCommand? {
         guard let helper = selectedHelper, helper.takesTasks, helper.manager != managerId,
               list?.managers.contains(where: { $0.id == managerId }) == true else { return nil }
         return waiting(.agentManager(helper: helper.id, manager: managerId))
-    }
-
-    public mutating func setTeamBudget(_ cap: Double?) -> IslandCommand? {
-        guard let team = list?.team, team.cap != cap else { return nil }
-        return waiting(.helperBudget(helper: "team", cap: cap))
-    }
-
-    public mutating func setPlanLimit(_ percent: Int) -> IslandCommand? {
-        guard let limit = list?.planLimit, limit != percent, (10...100).contains(percent) else { return nil }
-        return waiting(.helpersPlanLimit(percent))
-    }
-
-    /// ADR-095: the range "Runs at once" offers.
-    public static let maxRunningRange = 1...10
-
-    public mutating func setMaxRunning(_ count: Int) -> IslandCommand? {
-        guard let current = list?.maxRunning, current != count, Self.maxRunningRange.contains(count) else { return nil }
-        return waiting(.helpersMaxRunning(count))
     }
 
     /// ADR-098 item 7: "Use Codex when the Claude plan limit is reached". Nil unless Codex is ready, or when unchanged.
@@ -1431,33 +1388,6 @@ public struct HelpersState: Sendable, Equatable {
         isWaiting = true
         problem = nil
         return command
-    }
-}
-
-/// Task 3.7: a daily cap in dollars of API-equivalent use (what the work would cost on the API; the plan does not charge
-/// it) and today's spend.
-public struct HelperBudget: Sendable, Equatable {
-    public var cap: Double?
-    public var spent: Double
-
-    public init(cap: Double?, spent: Double) {
-        self.cap = cap
-        self.spent = spent
-    }
-
-    /// The caps the window offers; nil is "No cap".
-    public static let presets: [Double?] = [1, 2, 5, 10, 20, 50, nil]
-
-    public var isOver: Bool { cap.map { spent >= $0 } ?? false }
-    /// At 80 % of the cap, before it is used up.
-    public var isNear: Bool { cap.map { !isOver && spent >= $0 * 0.8 } ?? false }
-
-    public static func dollars(_ value: Double) -> String { String(format: "$%.2f", value) }
-    public static func capTitle(_ cap: Double?) -> String { cap.map { String(format: "$%.0f a day", $0) } ?? "No cap" }
-
-    /// "$1.20 of $5.00 today", or "$1.20 today" without a cap.
-    public var line: String {
-        cap.map { "\(Self.dollars(spent)) of \(Self.dollars($0)) today" } ?? "\(Self.dollars(spent)) today"
     }
 }
 

@@ -138,11 +138,6 @@ public enum IslandCommand: Sendable, Equatable {
     /// ADR-083: pin a helper to a model (`""` lets Laya choose again); allow or forbid the large model for jobs.
     case helperPin(helper: String, model: String)
     case helpersSettings(allowLarge: Bool)
-    /// Task 3.7: a worker's or the team's ("team") daily cap, nil for none; the plan limit in percent.
-    case helperBudget(helper: String, cap: Double?)
-    case helpersPlanLimit(Int)
-    /// ADR-095: "Runs at once", the team-wide limit (1 to 10).
-    case helpersMaxRunning(Int)
     /// ADR-098 item 7: "Use Codex when the Claude plan limit is reached" (default off).
     case helpersCodexFallback(Bool)
     /// Task 3.3: save a worker's edited soul as a new version; make an older version current again.
@@ -253,8 +248,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .grantRemove: "grant.remove"
         case .jobDelete: "job.delete"
         case .helperPin: "helper.pin"
-        case .helpersSettings, .helpersPlanLimit, .helpersMaxRunning, .helpersCodexFallback: "helpers.settings"
-        case .helperBudget: "helper.budget"
+        case .helpersSettings, .helpersCodexFallback: "helpers.settings"
         case .soulSet: "soul.set"
         case .soulRestore: "soul.restore"
         case .projectAdd: "project.add"
@@ -430,13 +424,6 @@ public enum IslandCommand: Sendable, Equatable {
             fields["model"] = model
         case .helpersSettings(let allowLarge):
             fields["allowLarge"] = allowLarge // a real JSON boolean
-        case .helperBudget(let helper, let cap):
-            fields["helper"] = helper
-            fields["cap"] = cap.map { $0 as Any } ?? NSNull()
-        case .helpersPlanLimit(let percent):
-            fields["planLimit"] = percent
-        case .helpersMaxRunning(let count):
-            fields["maxRunning"] = count
         case .helpersCodexFallback(let on):
             fields["codexFallback"] = on // a real JSON boolean
         case .soulSet(let helper, let soul):
@@ -944,8 +931,6 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
     case "helpers":
         return .helpers(HelpersList(helpers: try f.helpers(), apps: try f.strings("apps"),
                                     allowLarge: try f.optionalStrictBool("allowLarge") ?? true, models: try f.helperModels(),
-                                    team: Fields.budget(f.values["team"]), planLimit: (f.values["planLimit"] as? NSNumber)?.intValue,
-                                    maxRunning: (f.values["maxRunning"] as? NSNumber)?.intValue,
                                     paperclip: Fields.paperclip(f.values["paperclip"]),
                                     mcp: Fields.mcp(f.values["mcp"]),
                                     usage: Fields.usage(f.values["usage"]),
@@ -1152,7 +1137,7 @@ private struct Fields {
                 guard let job = job(entry) else { throw invalid }
                 return job
             }, pinnedModel: pinned as? String, role: h["role"] as? String ?? "", soul: soul,
-               soulVersion: (h["soulVersion"] as? NSNumber)?.intValue ?? 1, soulVersions: versions, budget: Self.budget(h["budget"]),
+               soulVersion: (h["soulVersion"] as? NSNumber)?.intValue ?? 1, soulVersions: versions,
                planFirst: Self.flag(h["planFirst"]), routines: Self.routines(h["routines"]),
                grants: (h["grants"] as? [Any])?.compactMap { $0 as? String } ?? [],
                skills: (h["skills"] as? [Any])?.compactMap { $0 as? String } ?? [],
@@ -1171,7 +1156,7 @@ private struct Fields {
                 soul = HelperSoul(name: n, personality: p, howItWorks: s["howItWorks"] as? String ?? "", rules: s["rules"] as? String ?? "", lessons: s["lessons"] as? String ?? "")
             }
             return HelperManager(id: id, name: name, mode: m["mode"] as? String == "plan" ? "plan" : "group", soul: soul,
-                                 soulVersion: (m["soulVersion"] as? NSNumber)?.intValue ?? 1, budget: Self.budget(m["budget"]),
+                                 soulVersion: (m["soulVersion"] as? NSNumber)?.intValue ?? 1,
                                  agents: (m["agents"] as? [Any])?.compactMap { $0 as? String } ?? [],
                                  jobs: (m["jobs"] as? [Any] ?? []).compactMap(job))
         }
@@ -1217,13 +1202,6 @@ private struct Fields {
                   let state = (s["state"] as? String).flatMap(HelperSubAgent.State.init(rawValue:)) else { return nil }
             return HelperSubAgent(name: name, state: state, description: s["description"] as? String ?? "", result: s["result"] as? String)
         }
-    }
-
-    /// Task 3.7: `{ "cap": number | null, "spent": number }`; anything else reads as none.
-    static func budget(_ value: Any?) -> HelperBudget? {
-        guard let b = value as? [String: Any], let spent = b["spent"] as? NSNumber, CFGetTypeID(spent) != CFBooleanGetTypeID() else { return nil }
-        let cap = b["cap"] as? NSNumber
-        return HelperBudget(cap: cap.flatMap { CFGetTypeID($0) == CFBooleanGetTypeID() ? nil : $0.doubleValue }, spent: spent.doubleValue)
     }
 
     /// ADR-091: the Dashboard's tokens; nil when absent or malformed.

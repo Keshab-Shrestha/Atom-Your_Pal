@@ -1,8 +1,8 @@
 import SwiftUI
 import AtomIslandCore
 
-/// ADR-090: progress at a glance: the board's counts, who is at work on what, the goals and how far they are, today's
-/// spend and the plan's use, and what came in. Every row opens its task.
+/// ADR-090: progress at a glance: the board's counts, who is at work on what, the goals and how far they are, the
+/// plan's use, and what came in. Every row opens its task.
 struct OverviewPane: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
@@ -27,7 +27,7 @@ struct OverviewPane: View {
                     if !overview.goals.isEmpty {
                         section("Goals") { ForEach(overview.goals) { GoalRow(goal: $0) } }
                     }
-                    section("Today") { TodayMeters(model: model, list: list!) }
+                    section("Today") { TodayMeters(model: model) }
                     section("Just in") {
                         if overview.recent.isEmpty { quiet("No results yet.") }
                         ForEach(overview.recent) { item in RecentRow(model: model, item: item) }
@@ -136,22 +136,18 @@ private struct GoalRow: View {
     }
 }
 
-/// Today's spend against the team's cap, and the plan's five-hour window.
+/// The plan's five-hour window.
 private struct TodayMeters: View {
     let model: IslandModel
-    let list: HelpersList
     @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if let team = list.team {
-                meter("Team budget", value: team.cap.map { min(1, team.spent / max($0, 0.01)) }, text: team.line, warn: team.isNear || team.isOver)
-            }
             if let five = model.planUsage?.fiveHour {
-                meter("Claude plan, 5 hours", value: min(1, five), text: "\(Int((five * 100).rounded()))% used", warn: Double(list.planLimit ?? 100) / 100 <= five)
+                meter("Claude plan, 5 hours", value: min(1, five), text: "\(Int((five * 100).rounded()))% used", warn: five >= NoticeWatcher.warnAt)
             }
-            if list.team == nil, model.planUsage?.fiveHour == nil {
-                Text("No spend yet today.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
+            if model.planUsage?.fiveHour == nil {
+                Text("No plan use reported yet.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 12)

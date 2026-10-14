@@ -2,7 +2,7 @@ import SwiftUI
 import AtomIslandCore
 
 /// ADR-090: everything waiting on Keshab in one list, each with its own buttons: Pal's approval card, plans to
-/// approve, Tinker's proposals, tasks held by a budget or the plan's limit, and failed tasks.
+/// approve, Tinker's proposals, interrupted tasks, and failed tasks.
 struct NeedsYouPane: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
@@ -70,7 +70,6 @@ struct NeedsYouPane: View {
             }
         case .held:
             card(kind: "Held", who: item.helperName, title: item.title, detail: item.detail) {
-                QuietButton(title: "Budgets") { model.navigate { model.windowPage = .agents; model.helpers.selectBoard() } }
                 open(item)
             }
         case .failed:

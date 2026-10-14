@@ -30,12 +30,13 @@ private func team(_ managers: Int) -> HelpersList {
 struct ManagerTests {
     static let line = #"{"type":"helpers","apps":[],"helpers":[{"id":"sid","name":"Sid","available":true,"app":null,"manager":"research","jobs":[]},{"id":"tinker","name":"Tinker","available":false,"app":null,"jobs":[]}],"managers":[{"id":"research","name":"Research","mode":"plan","soul":{"name":"Research","personality":"Calm.","howItWorks":"","rules":"","lessons":""},"soulVersion":2,"budget":{"cap":15,"spent":0.4},"agents":["sid"],"jobs":[{"id":9,"task":"Research mesh","state":"queued","createdAt":"2026-10-12T00:00:00Z"},{"id":"bad"}]},{"id":"x"},{"id":"coding","name":"Coding","agents":[],"jobs":[]}]}"#
 
-    @Test func managersAreDecodedWithTheirAgentsModeBudgetAndRuns() throws {
+    /// The line keeps a `budget` from an older runtime: ADR-110 N4 ignores it.
+    @Test func managersAreDecodedWithTheirAgentsModeAndRuns() throws {
         guard case .helpers(let list) = try decodeEvent(Self.line) else { Issue.record("not helpers"); return }
         #expect(list.managers.map(\.id) == ["research", "coding"], "a malformed Manager is left out")
         let research = list.managers[0]
         #expect(research.plansAndReviews && research.modeTitle == "Plans and reviews")
-        #expect(research.soulVersion == 2 && research.budget == HelperBudget(cap: 15, spent: 0.4) && research.agents == ["sid"])
+        #expect(research.soulVersion == 2 && research.agents == ["sid"])
         #expect(research.jobs.map(\.id) == [9], "a malformed run is left out")
         #expect(list.managers[1].mode == "group" && !list.managers[1].plansAndReviews, "group by default")
         #expect(list.helpers.first?.manager == "research" && list.helpers.last?.manager == nil)
@@ -65,7 +66,6 @@ struct ManagerTests {
         #expect(state.setManagerMode(plansAndReviews: false) == .managerMode(id: "research", mode: "group"))
         #expect(state.renameManager(" Research ") == nil)
         #expect(state.renameManager("Finding") == .managerRename(id: "research", name: "Finding"))
-        #expect(state.setManagerBudget(5) == .helperBudget(helper: "research", cap: 5))
         #expect(state.deleteManager() == nil && state.problem?.contains("still has Agents") == true)
         state.selectHelper("sid")
         #expect(state.selectedManager == nil, "an Agent's page replaces it")
@@ -150,7 +150,7 @@ struct ManagerTests {
     @Test func aManagersHeldRunNeedsYou() {
         var one = team(1)
         var run = HelperJob(id: 9, task: "Research mesh", state: .queued)
-        run.held = "Manager 0's daily budget is used up."
+        run.held = "Interrupted — waiting for you."
         one.managers[0].jobs = [run]
         let needs = NeedsYouItem.all(in: one)
         #expect(needs.map(\.id) == ["held-9"] && needs[0].kind == .held && needs[0].helperId == "m0")

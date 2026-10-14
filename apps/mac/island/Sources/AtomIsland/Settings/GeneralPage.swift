@@ -29,29 +29,6 @@ struct GeneralSection: View {
             }
         }
         .onAppear { login.refresh() }
-        // ADR-095: the team-wide limit on parallel runs. Nil from an older runtime: no row.
-        if let maxRunning = model.helpers.list?.maxRunning {
-            Card("Team", footer: "Budgets and the plan limit still hold new runs. Lowering it stops nothing already running.") {
-                Row(title: "Runs at once", detail: "How many tasks the team runs at the same time. Each one uses your Claude plan.") {
-                    Stepper(value: Binding(get: { maxRunning }, set: { model.sendHelpers(model.helpers.setMaxRunning($0)) }),
-                            in: HelpersState.maxRunningRange) {
-                        Text("\(maxRunning)").font(.system(size: 12, weight: .medium)).monospacedDigit().foregroundStyle(theme.text.color)
-                    }
-                    .fixedSize()
-                    .accessibilityLabel("Runs at once")
-                    .accessibilityValue("\(maxRunning)")
-                }
-                // ADR-098 item 7: shown only when Codex is found and signed in.
-                if let list = model.helpers.list, list.codexReady {
-                    RowDivider()
-                    Row(title: "Use Codex when the Claude plan limit is reached",
-                        detail: "A task held only by the plan's limit runs on Codex (your ChatGPT plan). Same folders, no network.") {
-                        ThemedSwitch(isOn: list.codexFallback, set: { model.sendHelpers(model.helpers.setCodexFallback($0)) },
-                                     label: "Use Codex when the Claude plan limit is reached")
-                    }
-                }
-            }
-        }
         // ADR-091: which macOS notifications ATOM posts.
         Card("Notifications", footer: "Shown by macOS. Titles and short reasons only, never a report's text. Allow ATOM in System Settings → Notifications if none appear.") {
             ForEach(Array(AppNotice.Kind.allCases.enumerated()), id: \.element) { index, kind in
@@ -123,7 +100,7 @@ extension GeneralSection {
         case .needsYou: "A plan, a held task, a proposal, or ATOM asking for your OK"
         case .done: "A worker finished, with its report's title"
         case .failed: "A task failed, and why"
-        case .budget: "A budget or the Claude plan passing 80%, or used up"
+        case .planUse: "The Claude plan passing 80% of its five hours, or used up"
         }
     }
 }

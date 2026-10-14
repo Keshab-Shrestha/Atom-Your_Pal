@@ -1,7 +1,7 @@
 import SwiftUI
 import AtomIslandCore
 
-// ADR-095: Managers in the ATOM window: a chip each on the Board, a page each (its Agents, its mode, its budget and the
+// ADR-095: Managers in the ATOM window: a chip each on the Board, a page each (its Agents, its mode and the
 // Agents' tasks), a "New manager" form, and the "Manager" picker on an Agent's page. The logic lives in `HelpersState`
 // and `TeamRoster`; these views only draw it.
 
@@ -48,7 +48,7 @@ struct ManagerBadge: View {
     }
 }
 
-/// A Manager's page: who it is, its mode (switchable), budget, its Agents (each opens its page), and their tasks.
+/// A Manager's page: who it is, its mode (switchable), its Agents (each opens its page), and their tasks.
 struct ManagerPane: View {
     let model: IslandModel
     let manager: HelperManager
@@ -121,7 +121,6 @@ struct ManagerPane: View {
                         : "No model calls: ATOM gives tasks to its agents directly. \(manager.name) is a department on the Board and the floor.")
                         .font(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
                 }
-                if let budget = manager.budget { ManagerBudgetPicker(model: model, manager: manager, budget: budget) }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Agents · \(agents.count)").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)

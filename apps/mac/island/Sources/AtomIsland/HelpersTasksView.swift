@@ -87,9 +87,6 @@ struct BoardPane: View {
                         ForEach(problems, id: \.line) { ProblemLine(text: $0.line) }
                     }
                 }
-                if let list = model.helpers.list, let team = list.team, let limit = list.planLimit {
-                    TeamBudgets(model: model, team: team, planLimit: limit)
-                }
                 // ADR-091: the floor keeps its shape and fits the Board's width and the window's height.
                 if model.boardView == .floor {
                     OfficeFloor(model: model).frame(maxHeight: max(220, viewport.size.height - 48)).frame(maxWidth: .infinity)

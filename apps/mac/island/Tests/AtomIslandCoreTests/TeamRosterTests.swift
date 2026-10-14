@@ -49,7 +49,7 @@ struct TeamChipsTests {
         plan.planStatus = "awaiting"
         team[11].jobs = [plan]
         var held = job(6, .queued, minutesAgo: 60 * 40)
-        held.held = "The team's budget is spent."
+        held.held = "Interrupted — waiting for you."
         team[12].jobs = [held]
         // Used in the last day: ten of them, the later index more recent.
         for i in 20..<30 { team[i].jobs = [job(100 + i, .done, minutesAgo: Double(300 - i * 10))] }
@@ -149,7 +149,7 @@ struct FloorSeatingTests {
         var team = (0..<15).map { agent($0) }
         for i in 0..<15 {
             var held = job(i + 1, .queued, minutesAgo: Double(i))
-            held.held = "The team's budget is spent."
+            held.held = "Interrupted — waiting for you."
             team[i].jobs = [held]
         }
         let plan = OfficePlan(list: list(team), now: now)

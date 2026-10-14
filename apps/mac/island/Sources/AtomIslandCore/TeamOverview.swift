@@ -64,7 +64,7 @@ public struct NeedsYouItem: Sendable, Equatable, Identifiable {
         case skillEdit
         /// B3.5: a skill fetched from the skills hub, to install or reject.
         case skillHub
-        /// A runnable task held by a budget or the plan's limit.
+        /// A runnable task that waits for Keshab (an interrupted run).
         case held
         /// A task that failed.
         case failed
@@ -104,7 +104,7 @@ public struct NeedsYouItem: Sendable, Equatable, Identifiable {
                                               title: "\(p.fieldTitle): \(p.text)", detail: p.reason, jobId: nil, proposalId: p.id))
             }
         }
-        // ADR-095: a plan Manager's own runs wait on Keshab as a worker's tasks do (held by its budget, or failed).
+        // ADR-095: a plan Manager's own runs wait on Keshab as a worker's tasks do (held, or failed).
         let owners = list.helpers.map { (id: $0.id, name: $0.name, jobs: $0.jobs) } + list.managers.map { (id: $0.id, name: $0.name, jobs: $0.jobs) }
         for h in owners {
             for j in h.jobs.sorted(by: { $0.id > $1.id }) {

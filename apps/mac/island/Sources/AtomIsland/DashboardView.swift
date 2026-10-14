@@ -59,7 +59,7 @@ struct DashboardPane: View {
                             ShareRow(name: m.model, totals: m.totals, of: usage.week.total, identifier: true)
                         }
                     }
-                    Text("Cache reads are context read back from Claude's cache; they cost a tenth as much. To use fewer: lower a worker's model or budget on its page, or turn off the large model in the sidebar.")
+                    Text("Cache reads are context read back from Claude's cache; they cost a tenth as much. To use fewer: lower a worker's model on its page, or turn off the large model in the sidebar.")
                         .font(.system(size: 11)).foregroundStyle(theme.text3.color)
                 } else {
                     quiet("Waiting for ATOM…")

@@ -1,17 +1,18 @@
 import Foundation
 
-/// ADR-091: a macOS notification ATOM posts: something needs Keshab, a task is done or failed, or a budget or the
-/// plan is nearly used. Titles and short reasons only: never a report's text.
+/// ADR-091: a macOS notification ATOM posts: something needs Keshab, a task is done or failed, or the Claude plan is
+/// nearly used. Titles and short reasons only: never a report's text.
 public struct AppNotice: Sendable, Equatable {
     public enum Kind: String, Sendable, CaseIterable {
-        case needsYou, done, failed, budget
+        // ADR-110 N4: budgets are gone; `planUse` keeps the old stored key so a switch Keshab turned off stays off.
+        case needsYou, done, failed, planUse = "budget"
 
         public var title: String {
             switch self {
             case .needsYou: "Something needs you"
             case .done: "A task is done"
             case .failed: "A task failed"
-            case .budget: "Budget and plan use"
+            case .planUse: "Plan use"
             }
         }
     }
@@ -34,9 +35,9 @@ public struct AppNotice: Sendable, Equatable {
 }
 
 /// ADR-091: what is new in the team since the last list, as notices. The first list only learns what is already so
-/// (nothing old is announced). A condition that stops and starts again (a budget on a new day) is announced again.
+/// (nothing old is announced). A condition that stops and starts again (the plan's use in a new window) is announced again.
 public struct NoticeWatcher: Sendable {
-    /// Share of a budget or of the plan's five hours that earns a warning.
+    /// Share of the plan's five hours that earns a warning.
     public static let warnAt = 0.8
 
     private var known: Set<String> = []
@@ -75,7 +76,6 @@ public struct NoticeWatcher: Sendable {
             for p in h.proposals where p.state == "pending" {
                 out.append(AppNotice(kind: .needsYou, title: "A change to \(h.name)'s soul is proposed", body: "Open \(h.name)'s page to accept or reject it.", key: "proposal-\(h.id)-\(p.id)"))
             }
-            if let budget = h.budget { out += budgetNotices(budget, who: "\(h.name)'s", key: h.id) }
         }
         // ADR-094: a new skill draft or skill edit: its name only, never its steps.
         for d in list.skillDrafts where d.state == "pending" {
@@ -87,26 +87,11 @@ public struct NoticeWatcher: Sendable {
         for p in list.skillHub.pending {
             out.append(AppNotice(kind: .needsYou, title: "Install \(p.name) from the skills hub?", body: "Open Plugins to read it and answer.", key: "skill-hub-\(p.id)"))
         }
-        if let team = list.team { out += budgetNotices(team, who: "The team's", key: "team") }
         if let used = plan?.fiveHour, used >= warnAt {
             let percent = Int((used * 100).rounded())
-            let holds = list.planLimit.map { " New tasks wait above \($0)%." } ?? ""
-            out.append(AppNotice(kind: .budget, title: "The Claude plan is at \(percent)%", body: "Of its five-hour limit.\(holds)", key: "plan-\(used >= 1 ? "full" : "warn")"))
+            out.append(AppNotice(kind: .planUse, title: "The Claude plan is at \(percent)%", body: "Of its five-hour limit.", key: "plan-\(used >= 1 ? "full" : "warn")"))
         }
         return out
-    }
-
-    static func budgetNotices(_ budget: HelperBudget, who: String, key: String) -> [AppNotice] {
-        guard let cap = budget.cap, cap > 0 else { return [] }
-        let share = budget.spent / cap
-        let money = String(format: "$%.2f of $%.2f today", budget.spent, cap)
-        if share >= 1 {
-            return [AppNotice(kind: .budget, title: "\(who) budget is used up", body: "\(money). New tasks wait until tomorrow.", key: "budget-\(key)-full")]
-        }
-        if share >= warnAt {
-            return [AppNotice(kind: .budget, title: "\(who) budget is \(Int((share * 100).rounded()))% used", body: money, key: "budget-\(key)-warn")]
-        }
-        return []
     }
 
     public static func short(_ text: String) -> String {

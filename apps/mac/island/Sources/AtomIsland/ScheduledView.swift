@@ -36,7 +36,7 @@ struct ScheduledPane: View {
                 HStack(alignment: .top, spacing: 8) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Scheduled").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
-                        Text("What runs by itself: routines, and workers that wake up to take team tasks. Budgets and the plan's limit apply as to any task.")
+                        Text("What runs by itself: routines, and workers that wake up to take team tasks.")
                             .font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
@@ -326,7 +326,7 @@ struct WakeUpRow: View {
                 PillMenuLabel(label: "Wakes up", value: helper.wakeUp?.when ?? "Off", dimmed: helper.wakeUp == nil, identifier: false)
             }
             .menuStyle(.button).buttonStyle(.plain).fixedSize()
-            .help("On waking, if idle and within budget, \(helper.name) takes the oldest team task its role may do")
+            .help("On waking, \(helper.name) takes the oldest team task its role may do")
             .accessibilityLabel("\(helper.name)'s wake-ups")
             Text(helper.wakeUp == nil ? "Takes team tasks when on." : helper.wakeUp!.paused ? "Paused." : "Takes one team task each time, if idle.")
                 .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
