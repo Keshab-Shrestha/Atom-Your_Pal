@@ -1515,3 +1515,19 @@ Next: Keshab checks by hand that a goal from a window chat shows its result in t
 `ATOM_ENGINE=native` gives each open chat one long-lived Claude Code session (`services/llm-gateway/src/providers/claude-session.ts`). `apps/mac/src/native-core.ts` has the same Core interface as the legacy engine, so voice, the island, Telegram and the API do not change. `apps/mac/src/native-safety.ts` is the gate for every tool call. The session closes after `ATOM_SESSION_IDLE_MS` (default 600000) with no turn and no background task, and reopens with `resume`. The default is `legacy`, and the legacy engine is unchanged. Tests: `claude-session.test.ts`, `native-core.test.ts` (fake SDK). Live probe: plain prefix 2.3k (target 2.5k), project prefix about 4.6k (target 4.5k), ATOM tools deferred, second turn cached.
 
 Next: Keshab tries `ATOM_ENGINE=native` in the real app. Then Phase N2: sub-agents and the Board.
+
+## Phase N2: sub-agents and the Board (ADR-110, 2026-10-14)
+
+With `ATOM_ENGINE=native`, ATOM's workers are Claude Code sub-agents. The legacy engine is unchanged.
+
+- `apps/mac/src/native-agents.ts`: `agentDefinitions` (one AgentDefinition for each worker, tools by kit), `agentModel` (pin, else Laya with the role floor), and the `create_agent` tool.
+- `apps/mac/src/native-board.ts`: `boardRecorder` makes Board rows from the session stream and the SubagentStart and SubagentStop hooks.
+- `apps/mac/src/native-safety.ts`: hooks for sub-agents by `agent_type`: Agent, kit, files, Bash, browser, MCP, Skill, ExitPlanMode, WorktreeCreate. A project chat's session has a sandbox: no network, writes only in the project and the worktrees.
+- `native-core.ts`: the Agent tool, `restartWhenIdle`, `stopJob`, `steer`, and the wake-up reply. `runtime.ts`: the native tool set, the stop listener and the steer path.
+- Store: `jobs.chat_id`, `jobs.sdk_task_id`, `addNativeJob`, `linkNativeTask`.
+- Tests: `native-agents.test.ts`, `native-board.test.ts`, `native-safety.test.ts`, and N2 tests in `native-core.test.ts`, `claude-session.test.ts` and `helpers.test.ts`. All tests use a fake SDK and temporary folders.
+- Live probe: plain prefix 3.8k (target 3.5k), project prefix 5.7k (target 5.5k), research sub-agent prefix 2.5k (target 2k). A Sid task ran end to end: a Board job, a report, and a wake-up reply in the chat.
+
+Not built in N2: speech for a wake-up reply (N3), SendMessage steering to a running agent, and a worktree in a plain chat (a folders agent there works in its granted folders, with checkpoints).
+
+Next: Keshab tries Phase N2 in the real app. Then Phase N3: voice, Telegram, the API and schedules.

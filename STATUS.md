@@ -32,7 +32,9 @@ Built (2026-10-12): ADR-095 package 3: Sub-Agents: an Agent's run may start up t
 
 Built (2026-10-12): ADR-096: the ZENO window has Back (the arrow, ⌘[ and the mouse back button) and a Save button on each typed field. Leaving with unsaved edits asks first. It builds; no tests ran, and Keshab has not tried it yet.
 
-Built (2026-10-13, finished 2026-10-14): ADR-110 Phase N1, the native engine: with `ATOM_ENGINE=native`, each chat keeps one long-lived Claude Code session, so later turns read the prompt and tools from the cache. Off by default. Built and tested with a fake SDK; one small live probe (plain prefix 2.3k tokens, project 4.6k). Not yet tried in the real app. Phases N2-N5 not started.
+Built (2026-10-13, finished 2026-10-14): ADR-110 Phase N1, the native engine: with `ATOM_ENGINE=native`, each chat keeps one long-lived Claude Code session, so later turns read the prompt and tools from the cache. Off by default. Built and tested with a fake SDK; one small live probe (plain prefix 2.3k tokens, project 4.6k). Not yet tried in the real app.
+
+Built (2026-10-14): ADR-110 Phase N2: with `ATOM_ENGINE=native`, ATOM's workers are Claude Code sub-agents with Board rows, kit and grant checks in hooks, and Bash only in project chats. Built and tested with a fake SDK; one live probe ran a Sid task end to end (prefix 3.8k plain, 5.7k project, 2.5k sub-agent). Not yet tried in the real app. Phases N3-N5 not started.
 
 Planned (2026-10-10): four polish batches taken from Clicky, Coucou and a review of ZENO's setup: setup and errors (ADR-075, Task 2.A; built and tested, not yet tried on the real Mac), everyday polish (ADR-076, 2.B; built and tested, not yet tried on the real Mac), Wisp and voice polish (ADR-077, 2.C; built and tested, not yet seen on the real screen), Wisp's home display (ADR-078, 2.D; built and tested, not yet tried on two displays), settings tidy-up (ADR-079, 2.E; built and tested). Pointing from a screenshot (ADR-080, 2.F): built and tested, Cua only (main display), so it needs computer control on; not yet tried by voice.
 

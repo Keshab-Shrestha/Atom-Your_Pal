@@ -574,3 +574,10 @@ ATOM runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 - In a project chat, Read, Glob and Grep go through `projectReadCheck`, as in ADR-107.
 - Telegram, API, MCP and schedule messages go with `client_composed: true`. So does any text that contains `@` or starts with `/`. Claude Code then does not expand `@path` or `/command`, so no file or command passes the gate that way.
 - The session uses `scrubbedEnv`, `settingSources: []` and `strictMcpConfig: true`. `planGuard` checks `init` and `rate_limit_event`: the session must run on the plan, never on an API key.
+- Phase N2: sub-agents. Claude Code may not call `canUseTool` for a background sub-agent, so every sub-agent decision is in the `PreToolUse` hook, by `agent_type`. The hook memory keeps one decision for each call id, so Keshab gets one question for each call.
+- The Agent tool accepts only ATOM's agents. Deny rules hide Claude Code's built-in agents, and the hook refuses them.
+- A sub-agent gets only the tools of its kit, its granted MCP servers (`mcpCheck`), the browser when granted (`browserCheck`, one task for each worker at a time), its own skills, and `ExitPlanMode` on the approval card when it plans first. No sub-agent can start another sub-agent.
+- Files: `folderCheck` checks each path against that agent's grants plus its worktree. `checkpointBefore` keeps the original before the first change.
+- Bash is only in project chats (Keshab, 2026-10-14). A plain chat refuses it. In a project chat, `classifyCommand` checks each command, and a risky command waits for Keshab on the approval card. `dangerouslyDisableSandbox` is refused. The sandbox has no network, writes only in the project and the worktrees, and cannot read key folders (`denyRead`).
+- A folders agent in a project chat works in a git worktree on its task branch (`prepareWorkdir`). ATOM commits its work there when it stops (`commitWork`). Nothing is pushed.
+- Laya sets the model of each Agent call. A pin and the role floor win.

@@ -2521,3 +2521,19 @@ Keshab's decision: rewrite the orchestration so that ATOM works like a Claude Co
 - Each session open logs `session.open` with a short hash of the system prompt and the tool names. The same hash across restarts proves the prefix did not change.
 - Live probe (Phase N1, haiku, temporary folder): plain chat prefix 2.3k (5.1k before tools were deferred). Project chat prefix about 4.6k, a little over the target. ATOM tools wait behind tool search and ToolSearch loads one when needed. A second turn in the same session read 6.6k from the cache.
 - In Phase N1, delegation still uses the legacy `delegate` tool inside the `atom` server.
+
+### Update (2026-10-14)
+
+Keshab's decisions:
+
+1. Bash is only in project chats. Its sandbox is that project and its worktrees. In a plain chat, a folders-kit agent gets Write and Edit only, and code checks each path against that agent's grants.
+2. The native engine drops wake-ups and team tasks (ADR-094 B). ATOM's own delegation and routines replace them. The legacy code stays until Phase N5.
+3. A sub-agent's Board report is plain text. The body is the agent's last assistant message. The title is the description of the Agent call. The sources are the web addresses in the text.
+
+Phase N2 (built 2026-10-14):
+
+- Each available worker is a Claude Code sub-agent (`native-agents.ts`). The description is "Name: role". The kit alone sets the tools. The model is the pin, else `inherit`. A plan-first agent starts in `plan` mode, and Keshab approves its plan on the approval card. The `create_agent` tool adds an agent. The SDK cannot add an agent to a running process, so each open session restarts with `resume` before its next turn, when no background task runs.
+- The main thread gets the Agent tool. Rules deny Claude Code's built-in agents (`Agent(general-purpose)` and others), and the hook refuses any agent that is not ATOM's. The `delegate` tool, the `post_to_team` tool and the worker shortcut are not in the native tool set. "Sid, ..." is a main-agent turn with a fixed line that hands the request to Sid.
+- The safety gate makes the Board job when it allows an Agent call. Laya sets the model of the call (haiku, sonnet or opus). A pin and the role floor win. `native-board.ts` links the job to Claude Code's task, and records the steps, the tool calls (redacted), the token use and the report.
+- When an agent finishes, Claude Code wakes the main agent in the same chat. The reply goes into the chat as one assistant turn.
+- Live probe (haiku, temporary folder): plain chat prefix 3.8k (target 3.5k). Project chat prefix 5.7k (target 5.5k). A research sub-agent's prefix is 2.5k (target 2k). The probe used about 21k plan tokens, most of them cache writes.
