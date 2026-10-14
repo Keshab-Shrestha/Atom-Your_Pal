@@ -4,16 +4,15 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createCore } from "@atom/core";
-import { createGateway, createProviderAdapter } from "@atom/llm-gateway";
 import { loadConfig, readEnv } from "@atom/shared";
 import type { AudioClip } from "./audio.ts";
+import { createNativeCore } from "./native-core.ts";
 import { createWhisperStt } from "./stt.ts";
 import { createKokoroSynthesizer, createSpeaker } from "./tts.ts";
 import { createVoiceLoop, type TurnTimings } from "./voice-loop.ts";
 
 // The whole voice loop with real components: speech (made with macOS `say` instead of the microphone)
-// → Whisper → Core → gateway → the configured provider → Kokoro → your speakers.
+// → Whisper → Core → Claude Code (native session) → Kokoro → your speakers.
 // Costs two provider requests and plays audio. Run with: pnpm test:live
 const enabled = readEnv(process.env, "ATOM_LIVE_TESTS") === "1";
 
@@ -33,7 +32,8 @@ test("live: spoken questions are answered aloud, with conversation memory", { sk
   const config = loadConfig();
   const tts = createSpeaker(createKokoroSynthesizer({ voice: config.tts.voice, dtype: config.tts.dtype }));
   await tts.warmUp();
-  const core = createCore({ model: createGateway({ provider: createProviderAdapter(config.llm), timeoutMs: config.llm.timeoutMs }) });
+  // ADR-110 N5: the native engine on the Claude plan (config.llm.apiKey is the path of the signed-in `claude` program).
+  const core = createNativeCore({ claudePath: config.llm.apiKey, tools: { specs: () => [], run: async (call) => ({ callId: call.id, content: "No tools in this test.", isError: true }) }, modelFor: () => config.llm.model, timeoutMs: config.llm.timeoutMs });
 
   let clip: AudioClip;
   let turn: { heard: string; reply: string; timings?: TurnTimings; error?: unknown };

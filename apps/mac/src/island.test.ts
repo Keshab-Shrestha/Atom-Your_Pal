@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
-import { createCore } from "@atom/core";
+import type { Core } from "@atom/core";
 import { createSwitchableModel, type SwitchableModel } from "@atom/llm-gateway";
 import type { AudioClip, AudioError, Recording } from "./audio.ts";
 import type { IslandEvent } from "./island-protocol.ts";
@@ -342,7 +342,35 @@ type ModelRequest = Parameters<SwitchableModel["complete"]>[0];
 // ADR-092: Claude on the plan only; its "key" is the claude program's path (never sent or logged).
 const CLAUDE = "/Users/k/.local/bin/claude";
 
-/** The real Core and switchable model with fake gateways that record which model answered what. */
+/** A Core that asks the switchable model once per turn (ADR-110 N5: the engine's own Core is the native one), history kept. */
+function modelCore(model: { complete: (request: ModelRequest, signal?: AbortSignal) => Promise<{ text: string }> }): Core {
+  let sessionId = "test-session";
+  let turns: { role: "user" | "assistant"; content: string }[] = [];
+  return {
+    get sessionId() {
+      return sessionId;
+    },
+    async handle(input) {
+      const messages = [...turns, { role: "user" as const, content: input.text }];
+      const context = { requestId: `r-${messages.length}`, sessionId, source: input.source, receivedAt: new Date() };
+      const reply = await model.complete({ system: "", messages, context });
+      turns = [...messages, { role: "assistant" as const, content: reply.text }];
+      return { requestId: context.requestId, text: reply.text };
+    },
+    history: () => turns,
+    reset() {
+      turns = [];
+      sessionId = `test-session-${Date.now()}`;
+    },
+    resume(id, saved) {
+      sessionId = id;
+      turns = [...saved];
+    },
+    prepare() {},
+  };
+}
+
+/** A model Core and switchable model with fake gateways that record which model answered what. */
 function modelHarness(keys: ProviderKeys = { "claude-plan": CLAUDE }) {
   const path = join(mkdtempSync(join(tmpdir(), "atom-island-")), "config", "island.json");
   const requests: { model: string; request: ModelRequest }[] = [];
@@ -354,7 +382,7 @@ function modelHarness(keys: ProviderKeys = { "claude-plan": CLAUDE }) {
     },
   });
   const model = createSwitchableModel(fakeGateway("claude-sonnet-5-5"));
-  const core = createCore({ model });
+  const core = modelCore(model);
   const settings = createModelSettings({
     initial: { provider: "claude-plan", model: "claude-sonnet-5-5" },
     keys,
