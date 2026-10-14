@@ -275,3 +275,51 @@ test("N2: a new agent restarts the session with resume only at a turn when no ba
   await core.handle({ text: "again", source: "voice" });
   assert.equal(queries.length, 2, "one restart only");
 });
+
+test("N3 fix: a report that comes during a turn of the same chat stays in the saved chat, before the request it preceded", async () => {
+  // Claude Code starts a turn by itself after "one" (an agent reported); "two" comes while that turn runs.
+  const queries: FakeQuery[] = [];
+  const sdk: SessionSdk = {
+    tool: (name) => ({ name }) as never,
+    createSdkMcpServer: (o) => ({ type: "sdk", ...o }) as never,
+    query: ({ prompt, options }) => {
+      const q: FakeQuery = { options: options as Record<string, any>, sent: [] };
+      queries.push(q);
+      const result = (text: string) => ({ type: "result", subtype: "success", is_error: false, result: text, session_id: "sess-1" });
+      async function* run() {
+        yield { type: "system", subtype: "init", apiKeySource: "none", session_id: "sess-1" };
+        for await (const m of prompt) {
+          q.sent.push(m as Msg);
+          const text = String((m as Msg).message.content).split("\n")[0]!;
+          if (text === "one") {
+            yield result("re one");
+            yield { type: "assistant", parent_tool_use_id: null, message: { content: [{ type: "text", text: "Sid is done." }] } };
+          } else {
+            yield result("Sid found three flights.");
+            yield result(`re ${text}`);
+          }
+        }
+      }
+      return Object.assign(run(), { close: () => {} });
+    },
+  };
+  const store = openHelperStore({ path: ":memory:" });
+  const saved: Array<readonly Message[]> = [];
+  const wakes: Array<[string, boolean]> = [];
+  const core = make(sdk, {
+    onExchange: (_id, turns) => saved.push(turns),
+    team: { helpers: store, approve: async () => false, worktrees: "/tmp/atom-n3-wake", onWake: (_chat, text, done) => wakes.push([text, done]) },
+  });
+  await core.handle({ text: "one", source: "text" });
+  await sleep(5); // the self-started turn begins
+  assert.equal((await core.handle({ text: "two", source: "text" })).text, "re two");
+  assert.deepEqual(wakes, [["Sid found three flights.", true]], "the Core saved it: the owner does not save it again");
+  assert.deepEqual(saved.at(-1), [
+    { role: "user", content: "one" },
+    { role: "assistant", content: "re one" },
+    { role: "assistant", content: "Sid found three flights." },
+    { role: "user", content: "two" },
+    { role: "assistant", content: "re two" },
+  ]);
+  store.close();
+});

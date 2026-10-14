@@ -226,10 +226,13 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     return entry;
   }
 
-  /** The session replied by itself (an agent reported): into the open chat's turns, or to the owner for another chat. */
+  /**
+   * The session replied by itself (an agent reported): into the open chat's turns, or to the owner for another chat.
+   * During a turn too: the turn's own save then keeps it, in the order Claude Code saw it (the report, then the request).
+   */
   function woke(chat: string, text: string, handle: () => ChatSessionHandle) {
     const h = handle();
-    const saved = sessionId === chat && !busy;
+    const saved = sessionId === chat;
     if (saved) {
       turns = [...turns, { role: "assistant" as const, content: text }].slice(-maxHistory * 2);
       try {
