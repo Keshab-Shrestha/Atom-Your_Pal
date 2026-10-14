@@ -2,7 +2,7 @@
 
 /// ADR-089: the ATOM window's pages: the conversation, the board and the team, and Settings.
 public enum WindowPage: Equatable, Sendable {
-    case dashboard, chat, inbox, issues, scheduled, agents, plugins, settings
+    case dashboard, chat, inbox, issues, scheduled, agents, plugins, brain, settings
 }
 
 /// The Board's three views, in the order of its switch. Overview was a sidebar page; it now lives here, before Floor.

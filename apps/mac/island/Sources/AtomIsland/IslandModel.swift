@@ -27,6 +27,9 @@ final class IslandModel {
     var refreshingModels = false
     /// What ATOM keeps (ADR-058). Nil until the Memory page first asks the runtime.
     var memory: MemoryList?
+    /// The second brain: the notes, their links and the open note. Empty until the page first asks the runtime.
+    var brain = BrainState()
+    @ObservationIgnored private var brainCommandPending = false
     /// What ATOM can do (ADR-076), from the runtime's `capabilities` event. Nil until it arrives: only the shortcuts show.
     var capabilities: [CapabilityItem]?
     /// Claude plan usage (ADR-076), merged from `plan.usage` events. Nil until one arrives: no meters.
@@ -166,6 +169,26 @@ final class IslandModel {
 
     /// The Memory page opened: ask for the list. From then on the runtime also sends its changes.
     func loadMemory() { send(.memoryList) }
+
+    /// The second brain's page opened: ask for the graph. From then on the runtime also sends its changes.
+    func openBrain() { send(brain.open()) }
+    func selectBrainNote(_ id: Int?) {
+        guard let command = brain.select(id) else { return }
+        brainCommandPending = true
+        send(command)
+    }
+    func searchBrain(_ words: String) {
+        if let command = brain.search(words) { send(command) }
+    }
+    /// A new note (`id` nil), or a change or rename of the note with `id`. The runtime answers with the note, or an error shown on the page.
+    func saveBrainNote(id: Int?, title: String, body: String) {
+        brainCommandPending = true
+        send(brain.saveCommand(id: id, title: title, body: body))
+    }
+    func deleteBrainNote(_ id: Int) {
+        brainCommandPending = true
+        send(.brainDelete(id: id))
+    }
     func forgetMemory(_ id: Int) {
         memory?.memories.removeAll { $0.id == id } // at once; the runtime's answer confirms
         send(.memoryForget(id: id))
@@ -326,6 +349,7 @@ final class IslandModel {
             send(.telegramSet(push: settings.telegramPush))
             send(.apiSet(on: settings.localApi)) // ADR-098 item 5
             if memory != nil { send(.memoryList) } // a restarted runtime: ask again so updates keep coming
+            if brain.opened { send(.brainGet) }
             send(.helpersList) // Task 3.15: busy workers show on the island too, so the list is always kept
             sendSpeech() // ADR-091
             if chats != nil { send(.chatsList) } // a restarted runtime: ask again
@@ -335,6 +359,16 @@ final class IslandModel {
             pendingModel = nil
             modelError = nil
             refreshingModels = false
+        case .brain(let graph):
+            brain.setGraph(graph)
+        case .brainNote(let note):
+            brainCommandPending = false
+            brain.setNote(note)
+        case .brainHits(let query, let hits):
+            brain.setHits(query: query, hits)
+        case .error(let error) where error.stage == "settings" && brainCommandPending:
+            brainCommandPending = false
+            brain.fail(error.message)
         case .error(let error) where error.stage == "settings" && projectCommandPending:
             projectCommandPending = false
             projectError = error.message

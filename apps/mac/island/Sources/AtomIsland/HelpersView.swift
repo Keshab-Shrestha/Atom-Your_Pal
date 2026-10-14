@@ -37,6 +37,8 @@ struct HelpersView: View {
                     ScheduledPane(model: model)
                 } else if model.windowPage == .plugins {
                     PluginsPane(model: model)
+                } else if model.windowPage == .brain {
+                    BrainPane(model: model)
                 } else if model.windowPage == .chat {
                     // ADR-089: the conversation, as in the panel, a readable width in the middle of the window.
                     ConversationTab(model: model)
@@ -94,6 +96,7 @@ extension HelpersView {
         case .issues: return ("Issues", "exclamationmark.triangle")
         case .scheduled: return ("Scheduled", "clock")
         case .plugins: return ("Plugins", "puzzlepiece.extension")
+        case .brain: return ("Second brain", "brain.head.profile")
         case .settings: return ("Settings", "gearshape")
         case .agents: break
         }
@@ -162,6 +165,12 @@ private struct HelperSidebar: View {
             // ADR-094: everything that runs by itself, below Issues and Board.
             Button { model.navigate { model.windowPage = .scheduled } } label: {
                 SidebarRow(symbol: "clock", title: "Scheduled", detail: model.helpers.list.map(ScheduledRow.detail) ?? nil, selected: model.windowPage == .scheduled)
+            }
+            .buttonStyle(.plain)
+            // The second brain: notes that link to each other, as a graph.
+            Button { model.navigate { model.windowPage = .brain } } label: {
+                let notes = model.brain.graph?.noteCount
+                SidebarRow(symbol: "brain.head.profile", title: "Second brain", detail: notes.map { $0 == 0 ? "Empty" : "\($0) notes" }, selected: model.windowPage == .brain)
             }
             .buttonStyle(.plain)
             // ADR-107: projects (a folder and its chats) above the plain chats.

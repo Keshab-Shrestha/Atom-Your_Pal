@@ -22,6 +22,13 @@ public enum IslandCommand: Sendable, Equatable {
     /// Memory (ADR-058): ask for the list (and its changes from then on), forget one, or forget everything.
     case memoryList, memoryClear
     case memoryForget(id: Int)
+    /// The second brain: the graph (and its changes from then on), one note, a save (`id` nil: a new note; else a change or rename),
+    /// a delete, a search.
+    case brainGet
+    case brainNote(id: Int)
+    case brainSave(id: Int?, title: String, body: String)
+    case brainDelete(id: Int)
+    case brainSearch(query: String)
     /// Conversation notes (ADR-059): forget one, or all.
     case episodeForget(id: Int)
     case episodeClear
@@ -169,6 +176,11 @@ public enum IslandCommand: Sendable, Equatable {
         case .memoryList: "memory.list"
         case .memoryClear: "memory.clear"
         case .memoryForget: "memory.forget"
+        case .brainGet: "brain.get"
+        case .brainNote: "brain.note"
+        case .brainSave: "brain.save"
+        case .brainDelete: "brain.delete"
+        case .brainSearch: "brain.search"
         case .episodeForget: "episode.forget"
         case .episodeClear: "episode.clear"
         case .textSend: "text.send"
@@ -278,6 +290,18 @@ public enum IslandCommand: Sendable, Equatable {
         }
         if case .episodeForget(let id) = self {
             fields["id"] = id
+        }
+        switch self {
+        case .brainNote(let id), .brainDelete(let id):
+            fields["id"] = id
+        case .brainSave(let id, let title, let body):
+            if let id { fields["id"] = id }
+            fields["title"] = title
+            fields["body"] = body
+        case .brainSearch(let query):
+            fields["query"] = query
+        default:
+            break
         }
         if case .textSend(let text) = self {
             fields["text"] = text
@@ -751,6 +775,10 @@ public enum IslandEvent: Sendable, Equatable {
     case info(ModelInfo)
     /// What ATOM keeps (ADR-058): after `memory.list`, and after every change from then on.
     case memory(MemoryList)
+    /// The second brain: the notes and their links (after `brain.get`, and after each change from then on); one note; search hits.
+    case brain(BrainGraphData)
+    case brainNote(BrainNoteData)
+    case brainHits(query: String, hits: [BrainHit])
     /// A timer ended (ADR-061). The runtime also says `message` aloud.
     case timer(id: Int, label: String, message: String)
     /// Task 3.15: a line from the team, just before ATOM says it.
@@ -801,6 +829,9 @@ public enum IslandEvent: Sendable, Equatable {
         case .approvalClosed: "approval.closed"
         case .info: "info"
         case .memory: "memory"
+        case .brain: "brain"
+        case .brainNote: "brain.note"
+        case .brainHits: "brain.hits"
         case .timer: "timer"
         case .workerLine: "worker.line"
         case .contextReady: "context.ready"
@@ -907,6 +938,13 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .contextReady(app: try f.string("app"), ok: try f.bool("ok"), message: f.optionalString("message"))
     case "memory":
         return .memory(MemoryList(enabled: try f.bool("enabled"), count: try f.int("count"), memories: try f.memories(), episodes: try f.episodes(), chats: try f.memoryChats()))
+    case "brain":
+        return .brain(Fields.brainGraph(f.values))
+    case "brain.note":
+        guard let note = Fields.brainNote(f.values["note"]) else { throw ProtocolError.invalidValue(event: type, field: "note") }
+        return .brainNote(note)
+    case "brain.hits":
+        return .brainHits(query: f.optionalString("query") ?? "", hits: Fields.brainHits(f.values["hits"]))
     case "capabilities":
         return .capabilities(try f.capabilities())
     case "plan.usage":
@@ -1328,6 +1366,55 @@ private struct Fields {
             guard let t = entry as? [String: Any], let id = t["id"] as? NSNumber, CFGetTypeID(id) != CFBooleanGetTypeID(), let task = t["task"] as? String
             else { return nil }
             return TeamTask(id: id.intValue, task: task, role: t["role"] as? String, createdAt: (t["createdAt"] as? String).flatMap(Self.date))
+        }
+    }
+
+    private static func wholeNumber(_ value: Any?) -> Int? {
+        guard let n = value as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() else { return nil }
+        return n.intValue
+    }
+
+    private static func brainKind(_ value: Any?) -> BrainKind {
+        (value as? String).flatMap(BrainKind.init(rawValue:)) ?? .note
+    }
+
+    private static func brainLinks(_ value: Any?) -> [BrainLink] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let l = entry as? [String: Any], let id = wholeNumber(l["id"]), let title = l["title"] as? String else { return nil }
+            return BrainLink(id: id, title: title, kind: brainKind(l["kind"]), ghost: flag(l["ghost"]), auto: flag(l["auto"]))
+        }
+    }
+
+    /// The second brain's graph; absent fields read as empty, and a malformed node or edge is left out.
+    static func brainGraph(_ values: [String: Any]) -> BrainGraphData {
+        let nodes: [BrainNode] = (values["nodes"] as? [Any] ?? []).compactMap { entry in
+            guard let n = entry as? [String: Any], let id = wholeNumber(n["id"]), let title = n["title"] as? String else { return nil }
+            return BrainNode(id: id, title: title, kind: brainKind(n["kind"]), ghost: flag(n["ghost"]),
+                             tags: (n["tags"] as? [Any] ?? []).compactMap { $0 as? String }, degree: wholeNumber(n["degree"]) ?? 0,
+                             updatedAt: (n["updatedAt"] as? String).flatMap(Self.date))
+        }
+        let edges: [BrainEdge] = (values["edges"] as? [Any] ?? []).compactMap { entry in
+            guard let e = entry as? [String: Any], let a = wholeNumber(e["a"]), let b = wholeNumber(e["b"]) else { return nil }
+            return BrainEdge(a: a, b: b, auto: flag(e["auto"]))
+        }
+        let tags: [BrainTag] = (values["tags"] as? [Any] ?? []).compactMap { entry in
+            guard let t = entry as? [String: Any], let tag = t["tag"] as? String, let count = wholeNumber(t["count"]) else { return nil }
+            return BrainTag(tag: tag, count: count)
+        }
+        return BrainGraphData(nodes: nodes, edges: edges, omitted: wholeNumber(values["omitted"]) ?? 0, tags: tags)
+    }
+
+    static func brainNote(_ value: Any?) -> BrainNoteData? {
+        guard let n = value as? [String: Any], let id = wholeNumber(n["id"]), let title = n["title"] as? String else { return nil }
+        return BrainNoteData(id: id, title: title, body: n["body"] as? String ?? "", kind: brainKind(n["kind"]), ghost: flag(n["ghost"]),
+                             tags: (n["tags"] as? [Any] ?? []).compactMap { $0 as? String }, links: brainLinks(n["links"]),
+                             backlinks: brainLinks(n["backlinks"]), updatedAt: (n["updatedAt"] as? String).flatMap(Self.date))
+    }
+
+    static func brainHits(_ value: Any?) -> [BrainHit] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let h = entry as? [String: Any], let id = wholeNumber(h["id"]), let title = h["title"] as? String else { return nil }
+            return BrainHit(id: id, title: title, kind: brainKind(h["kind"]), snippet: h["snippet"] as? String ?? "")
         }
     }
 
