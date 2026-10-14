@@ -42,7 +42,7 @@ test("needsYou: keys, push flags and button codes", () => {
     skillDrafts: () => [{ id: 4, state: "pending", name: "n", description: "d" }],
     skillEdits: () => [{ id: 5, state: "pending", skill: "k", reason: "r" }],
   });
-  const needs = needsYou(store, (j) => (j.id === 2 ? "budget" : undefined), [ask("q1")] as any);
+  const needs = needsYou(store, (j) => (j.id === 2 ? "Interrupted — waiting for you." : undefined), [ask("q1")] as any);
   assert.deepEqual(needs.map((n) => n.key), ["ask-q1", "plan-1", "proposal-7", "skill-draft-4", "skill-edit-5", "held-2", "failed-3"]);
   assert.deepEqual(needs.map((n) => n.push), [true, true, true, true, true, true, false]);
   const codes = (k: string) => needs.find((n) => n.key === k)!.buttons!.flat().map((b) => b.data);

@@ -18,7 +18,7 @@ export interface ManagerRun {
     onUsage?: (usage: PlanUsage) => void;
     sdk?: ClaudeSdk;
   };
-  /** What the run cost and the tokens it used (for the Manager's budget and the Dashboard). */
+  /** What the run cost and the tokens it used (for the Dashboard). */
   count(costUsd: number | undefined, tokens: TokenUsage | undefined): void;
   /** For the log: ids, counts and outcomes only. */
   onEvent?(event: { manager: string; job: number; outcome: "split" | "revised" | "passed"; tasks: number }): void;

@@ -50,14 +50,13 @@ import {
   createScheduleTool,
   createTeamTaskTool,
   createWorkerShortcut,
-  holdFor,
   JOB_TIME_LIMIT_MS,
   teamContext,
   watchGoals,
   startJobRunner,
+  waitReason,
   tieredModels,
   modelForTier,
-  isOver,
   isFinal,
   type TestKind,
   type HelperStore,
@@ -73,7 +72,7 @@ import { islandHelpers } from "./island-helpers.ts";
 import { taskSteering, type TaskSteering } from "./task-steering.ts";
 import { createHubCommands } from "./hub-commands.ts";
 import { SKILLS_PLUGIN, listSkills, prepareSkills, userSkillsDir } from "./skills.ts";
-import { NOT_RUN_PLAN_LIMIT, runTestCases } from "./test-runs.ts";
+import { runTestCases } from "./test-runs.ts";
 import { createEmbedder } from "./embedder.ts";
 import { createKeptChats } from "./kept-chats.ts";
 import { startGoalPosts } from "./goal-post.ts";
@@ -425,14 +424,8 @@ export function createRuntime(
   const planUsageListeners = new Set<(usage: PlanUsage) => void>();
   // Plan use goes in the log so it is visible how much of the plan a day of ATOM takes. No keys, no text.
   // ADR-076: and to the island's meters. Helper jobs report theirs here too.
-  // Task 3.7: the plan's five-hour use in percent, last reported, so new worker runs can wait above the set limit.
-  let planUsed: number | undefined;
   const reportUsage = (usage: PlanUsage) => {
     log.info("plan.usage", { ...usage });
-    if (typeof usage.fiveHour === "number") {
-      planUsed = usage.fiveHour * 100;
-      queueMicrotask(() => runner?.poke()); // after start-up: the runner is made below
-    }
     for (const listener of planUsageListeners) listener(usage);
   };
   const recordChatUsage = createChatUsageRecorder(helpers, log); // Job 1 (token cost)
@@ -703,7 +696,7 @@ export function createRuntime(
         log.warn("job.checkpoint_failed", { helper: job.helper, job: job.id, tool: "finish" });
       }
     });
-  /** Tasks the runner let start on Codex; runOne takes each id out as it starts. */
+  /** Tasks to run on Codex. ADR-110 N4: the plan limit that filled it is gone, so it stays empty until the Codex fallback is removed. */
   const codexJobs = new Set<number>();
   const runOne: JobRun = createRunOne({
     helpers,
@@ -722,30 +715,9 @@ export function createRuntime(
     runTests: (kind, id, signal, tinkerJob) => runTests(kind, id, signal, tinkerJob),
   });
   // Logs ids, states, timings and page counts only: never the task, report or addresses.
-  // Task 3.7: a task waits while its worker's or the team's budget is used up, or the plan is above its limit.
   let codexReady = false;
-  const holdOf = (job: Job) => (helpers ? holdFor(job, helpers.budgets(), helpers.soul(job.helper).name, planUsed) : undefined);
-  // ADR-098 item 7: with the switch on and Codex signed in, a worker task held only by the Claude plan's limit (not a
-  // budget, not a plan waiting for Keshab; never Tinker or a Manager) starts on Codex instead, in a normal run slot.
-  const codexMay = (job: Job) => {
-    if (!helpers || !codexReady || !keys.codex || !helpers.codexFallback()) return false;
-    if (job.planFirst && job.planStatus !== "approved") return false;
-    const role = helpers.list().find((h) => h.id === job.helper)?.role;
-    if (!role || role === "improver" || helpers.managers().some((m) => m.id === job.helper)) return false;
-    return !holdFor(job, helpers.budgets(), helpers.soul(job.helper).name); // without the plan's use: held by nothing else
-  };
-  const held = (job: Job) => {
-    const why = holdOf(job);
-    return why && codexMay(job) ? undefined : why;
-  };
-  // ADR-098 item 8: test runs wait for the plan's limit and Tinker's (or the team's) budget like any run.
-  const testHeld = () => {
-    if (!helpers) return undefined;
-    const b = helpers.budgets();
-    if (planUsed !== undefined && b.planLimit < 100 && planUsed >= b.planLimit) return NOT_RUN_PLAN_LIMIT;
-    const own = b.workers["tinker"];
-    return (own && isOver(own)) || isOver(b.team) ? "Not run: budget used up" : undefined;
-  };
+  /** Why a queued task waits for Keshab (a plan to approve, an interrupted run), for the window, Telegram and the API. */
+  const held = (job: Job) => (helpers ? waitReason(job, helpers.soul(job.helper).name) : undefined);
   /** Runs a soul proposal's or skill edit's test cases on Sonnet at most; the cost counts on the Tinker task that made it. */
   const runTests = async (kind: TestKind, id: number, signal: AbortSignal, tinkerJob = helpers?.tinkerTaskOf(kind, id)) => {
     if (!helpers) throw new Error("Test cases need the helpers file.");
@@ -757,9 +729,7 @@ export function createRuntime(
         kind,
         id,
         run: { claudePath: keys["claude-plan"] ?? "", model, signal, onUsage: reportUsage },
-        held: testHeld,
-        count: (costUsd, tokens) => {
-          if (costUsd && tinkerJob !== undefined) helpers.addSpend(tinkerJob, costUsd);
+        count: (_costUsd, tokens) => {
           if (tokens) helpers.addUsage({ source: "job", helper: "tinker", ...(tinkerJob !== undefined ? { job: tinkerJob } : {}), model, ...tokens, ...(tokens.costUsd ? { dollars: tokens.costUsd } : {}) });
         },
         onEvent: (e) => log.info("test.run", e),
@@ -774,14 +744,7 @@ export function createRuntime(
     startJobRunner({
       store: helpers,
       run: runJob,
-      maxRunning: () => helpers.maxRunning(),
       onRun: (e) => log.info("job.run", e),
-      mayStart: (job) => {
-        if (!holdOf(job)) return true;
-        if (!codexMay(job)) return false;
-        codexJobs.add(job.id); // the runner starts it at once (it asks only with a free slot)
-        return true;
-      },
     });
   /** Codex found (keys.codex) and signed in: looked at on start and when the switch is turned on. Logs the answer only. */
   function checkCodex() {
@@ -796,8 +759,6 @@ export function createRuntime(
     );
   }
   checkCodex();
-  // A new day (budgets) or an older plan window (its use falls) frees held tasks without any change in the store.
-  if (runner) setInterval(() => runner.poke(), 60_000).unref();
   // Task 3.16: the Paperclip tasks ATOM handed over are looked at every minute; a finished one is said once.
   if (paperclip) {
     const look = () =>
@@ -930,7 +891,7 @@ export function createRuntime(
   // Task 3.9, ADR-094: routines come due and workers wake on the clock. At start, one catch-up for each that came due
   // while ATOM was closed. ADR-110 (N3): on the native engine a routine starts by `nativeStart`, and no worker wakes up.
   if (helpers) {
-    const tick = () => scheduleTick(helpers, planUsed, log, (error) => ({ ...errorFields(error) }), nativeStart);
+    const tick = () => scheduleTick(helpers, log, (error) => ({ ...errorFields(error) }), nativeStart);
     tick();
     setInterval(tick, SCHEDULER_TICK_MS).unref();
   }

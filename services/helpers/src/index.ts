@@ -4,7 +4,6 @@ export * from "./runner.ts";
 export * from "./models.ts";
 export * from "./goals.ts";
 export * from "./delegate.ts";
-export * from "./budgets.ts";
 export * from "./routines.ts";
 export * from "./grants.ts";
 export * from "./feedback.ts";

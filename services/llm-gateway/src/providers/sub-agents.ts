@@ -55,7 +55,7 @@ you were given; never change them.`;
 
 /** Added to the run's own instructions when it has sub-agents. */
 export const SUB_AGENT_NOTE = `
-- You may start up to ${MAX_SUB_AGENTS} sub-agents (the Agent tool) for parts of the job that can run side by side. Each one costs from your budget, so use them only when that saves real work; they end with this run.`;
+- You may start up to ${MAX_SUB_AGENTS} sub-agents (the Agent tool) for parts of the job that can run side by side. Each one uses the Claude plan, so use them only when that saves real work; they end with this run.`;
 
 const WEB: Record<string, Wanted> = {
   searcher: {

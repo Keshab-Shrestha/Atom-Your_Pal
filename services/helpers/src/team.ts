@@ -1,12 +1,10 @@
 import type { DatabaseSync } from "node:sqlite";
-import { isOver, type Budgets } from "./budgets.ts";
 import { HelperError, type HelperId } from "./jobs.ts";
 import type { HelperChange } from "./store-types.ts";
 
 // ADR-094 part B: team tasks (posted to the team, optionally for one role) and wake-ups (a worker's own clock). A worker
-// that wakes while a run slot is free (ADR-095: fewer runs than "Runs at once", whatever it has queued or running) and
-// within its budget and the plan's limit takes the oldest team task its role may do and runs it as its own task. Task
-// text stays in the store; changes carry ids and states only.
+// that wakes takes the oldest team task its role may do and runs it as its own task (ADR-110 N4: no run limit, budget
+// or plan limit stops it). Task text stays in the store; changes carry ids and states only.
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -57,7 +55,6 @@ export interface TeamDeps {
   emit: (change: HelperChange) => void;
   transaction: (work: () => void) => void;
   members: () => TeamMember[];
-  budgets: () => Budgets;
   cleanTask: (raw: string) => string;
   cleanRole: (raw: string) => string;
   /** Inserts a task for a worker (its own settings: plan first and so on); call inside a transaction. */
@@ -103,8 +100,6 @@ export function teamStore(deps: TeamDeps) {
   const dropWake = db.prepare("DELETE FROM wake_ups WHERE helper = ?");
   const pauseWake = db.prepare("UPDATE wake_ups SET paused = ?, next_at = COALESCE(?, next_at) WHERE helper = ?");
   const markWake = db.prepare("UPDATE wake_ups SET last_at = ?, next_at = ? WHERE helper = ?");
-  // ADR-095: a run slot is free when the team runs fewer than "Runs at once" (replaces ADR-094's "nothing queued").
-  const runningCount = db.prepare("SELECT COUNT(*) AS n FROM jobs WHERE state = 'running'");
 
   interface WakeRow {
     helper: string;
@@ -126,15 +121,6 @@ export function teamStore(deps: TeamDeps) {
     if (!member) throw new HelperError(`There is no helper called "${helper.slice(0, 40)}".`);
     if (!member.takesTasks) throw new HelperError(`${member.name} does not take tasks, so it has no wake-ups.`);
     return member;
-  }
-
-  /** A run slot free, within its own and the team's budget, and the plan below its limit (`planUsed` in percent, when known). */
-  function mayTake(member: TeamMember, planUsed: number | undefined, takenThisPass = 0): boolean {
-    const budgets = deps.budgets();
-    if ((runningCount.get() as { n: number }).n + takenThisPass >= budgets.maxRunning) return false;
-    const own = budgets.workers[member.id];
-    if ((own && isOver(own)) || isOver(budgets.team)) return false;
-    return planUsed === undefined || budgets.planLimit >= 100 || planUsed < budgets.planLimit;
   }
 
   /** Takes the oldest team task the worker's role may do, as its own queued task, in one transaction. */
@@ -199,23 +185,20 @@ export function teamStore(deps: TeamDeps) {
     },
 
     /**
-     * Wakes every worker whose time has come (not paused): its last and next wake are recorded; if it may take work now,
+     * Wakes every worker whose time has come (not paused): its last and next wake are recorded, and
      * it takes the oldest team task its role may do (one per wake). Missed wakes while ATOM was closed count once.
-     * Tasks taken in this pass count as runs, so one pass never takes more than the free run slots; the rest stay in the pool.
      */
-    runWakeUps(planUsed?: number): Woken[] {
+    runWakeUps(): Woken[] {
       const at = now();
       const team = new Map(deps.members().map((m) => [m.id, m]));
       const woken: Woken[] = [];
-      let takenThisPass = 0;
       for (const row of allWakes.all() as unknown as WakeRow[]) {
         const wake = toWake(row);
         if (wake.paused || wake.nextAt > at) continue;
         markWake.run(at.toISOString(), nextWake(wake.every, at).toISOString(), row.helper);
         const member = team.get(row.helper as HelperId);
         if (!member?.takesTasks) continue; // an agent removed since: it simply does not wake
-        const taken = mayTake(member, planUsed, takenThisPass) ? take(member) : undefined;
-        if (taken) takenThisPass++;
+        const taken = take(member);
         woken.push({ helper: member.id, ...taken });
         emit({ action: "wakeUp", helper: member.id, change: "woke", ...(taken ? { job: taken.job } : {}) });
         if (taken) {

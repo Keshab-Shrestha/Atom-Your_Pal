@@ -5,6 +5,7 @@
 import { runTestAnswer, runTestJudge, type ClaudeSdk, type PlanUsage, type TokenUsage } from "@atom/llm-gateway";
 import { testAnswerBrief, testJudgeBrief, type HelperStore, type TestKind } from "@atom/helpers";
 
+/** Claude's own rate limit stopped the rest (ADR-110 N4: ATOM sets no limit of its own). */
 export const NOT_RUN_PLAN_LIMIT = "Not run: plan limit";
 
 export interface TestRun {
@@ -13,9 +14,7 @@ export interface TestRun {
   /** The soul proposal's or skill edit's id. */
   id: number;
   run: { claudePath: string; model: string; signal: AbortSignal; onUsage?: (usage: PlanUsage) => void; sdk?: ClaudeSdk };
-  /** Why runs may not start now ("Not run: …"), or undefined. Asked before each case. */
-  held(): string | undefined;
-  /** What each run cost and its tokens (the improver's budget and the Dashboard). */
+  /** What each run cost and its tokens (for the Dashboard). */
   count(costUsd: number | undefined, tokens: TokenUsage | undefined): void;
   /** Logs ids, states and counts only. */
   onEvent?(event: Record<string, string | number>): void;
@@ -24,14 +23,13 @@ export interface TestRun {
 const JUDGE = "You are ATOM's test judge.";
 
 /** Runs the test cases; returns the counts (none when the target has no test cases). */
-export async function runTestCases({ store, kind, id, run, held, count, onEvent }: TestRun) {
+export async function runTestCases({ store, kind, id, run, count, onEvent }: TestRun) {
   const inputs = store.testInputs(kind, id);
   const counts = { better: 0, same: 0, worse: 0, notRun: 0, failed: 0 };
   if (!inputs.cases.length) return counts;
   store.startTestRun(kind, id, inputs.cases);
   let stop: string | undefined;
   for (const c of inputs.cases) {
-    stop ??= held();
     if (stop) {
       store.finishTestCase(kind, id, c, { state: "skipped", reason: stop });
       counts.notRun += 1;
@@ -51,7 +49,7 @@ export async function runTestCases({ store, kind, id, run, held, count, onEvent 
       counts[verdict.better === "new" ? "better" : verdict.better === "old" ? "worse" : "same"] += 1;
     } catch (error) {
       const kindOf = error instanceof Error && "kind" in error ? (error as { kind?: string }).kind : undefined;
-      // The plan's limit stops the rest; any other failure is this case's only.
+      // Claude's rate limit stops the rest; any other failure is this case's only.
       if (kindOf === "rate_limit") stop = NOT_RUN_PLAN_LIMIT;
       if (kindOf === "cancelled") stop = "Not run: stopped";
       store.finishTestCase(kind, id, c, { state: stop ? "skipped" : "failed", reason: stop ?? (error instanceof Error ? error.message : String(error)) });

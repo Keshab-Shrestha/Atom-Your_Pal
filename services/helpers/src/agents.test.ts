@@ -26,7 +26,6 @@ test("a new agent becomes a folder with soul.md, joins the team, and works like 
     assert.match(teamContext(store.list()), /Rumi \(travel planner\)/, "Pal knows the new agent");
     assert.equal(createWorkerShortcut(store)("Rumi, plan a weekend in Kyoto"), "Rumi is on it.", "by voice");
     assert.match(createDelegateTool({ store }).run({ goal: "trip", tasks: [{ worker: "rumi", task: "Plan" }] }), /Rumi \(task 2\)/);
-    assert.equal(store.budgets().workers.rumi!.cap, 5, "budgets apply");
   } finally {
     done();
   }

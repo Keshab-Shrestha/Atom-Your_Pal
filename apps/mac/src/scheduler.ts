@@ -9,12 +9,11 @@ export const SCHEDULER_TICK_MS = 30_000;
 
 /**
  * One tick. A failure in routines does not stop the wake-ups (each is logged with `describe`, which carries no task
- * text). `planUsed` is the plan's five-hour use in percent, when known.
+ * text).
  * ADR-110 (N3): `nativeStart` (the native engine) runs a due routine as a main-agent turn, and no worker wakes up.
  */
 export function scheduleTick(
   store: Pick<HelperStore, "runRoutines" | "runWakeUps">,
-  planUsed: number | undefined,
   log: Pick<Logger, "info" | "warn">,
   describe: (error: unknown) => LogFields,
   nativeStart?: (routine: Routine) => boolean,
@@ -26,7 +25,7 @@ export function scheduleTick(
   }
   if (nativeStart) return; // Keshab, 2026-10-14: no wake-ups or team tasks on the native engine
   try {
-    for (const woken of store.runWakeUps(planUsed)) log.info("wakeup.woke", { ...woken });
+    for (const woken of store.runWakeUps()) log.info("wakeup.woke", { ...woken });
   } catch (error) {
     log.warn("wakeups.failed", describe(error));
   }

@@ -193,11 +193,6 @@ test("parses the helper commands", () => {
     { type: "comment.add", id: 3, text: "Keep it short" },
     { type: "thread.get", id: 3 },
     { type: "job.fresh", id: 3 },
-    { type: "helper.budget", helper: "sid", cap: 2.5 },
-    { type: "helper.budget", helper: "team", cap: null },
-    { type: "helpers.settings", planLimit: 70 },
-    { type: "helpers.settings", maxRunning: 4 },
-    { type: "helpers.settings", maxRunning: 40 }, // refused later by the helpers, with stage "settings"
     { type: "job.add", helper: "sid", task: "x", planFirst: true },
     { type: "plan.approve", id: 3 },
     { type: "plan.reject", id: 3 },
@@ -272,7 +267,8 @@ test("helper commands with missing or wrong fields are protocol errors", () => {
     [{ type: "helper.pin", helper: "sid", model: null }, /"model"/],
     [{ type: "helpers.settings" }, /"allowLarge"/],
     [{ type: "helpers.settings", allowLarge: "false" }, /"allowLarge"/],
-    [{ type: "helpers.settings", maxRunning: "6" }, /"maxRunning" to be a number/],
+    [{ type: "helpers.settings", maxRunning: 6 }, /"allowLarge" or "codexFallback"/], // ADR-110 N4: no "Runs at once"
+    [{ type: "helper.budget", helper: "sid", cap: 2 }, /./], // ADR-110 N4: an unknown command now
     [{ type: "soul.set", soul: {} }, /"helper"/],
     [{ type: "soul.set", helper: "sid" }, /"soul" object/],
     [{ type: "soul.set", helper: "sid", soul: ["Sid"] }, /"soul" object/],

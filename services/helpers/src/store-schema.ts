@@ -92,15 +92,9 @@ export function createSchema(db: DatabaseSync) {
       path TEXT NOT NULL,
       PRIMARY KEY (helper, path)
     );
-    CREATE TABLE IF NOT EXISTS spend (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      job_id INTEGER NOT NULL,
-      helper TEXT NOT NULL,
-      dollars REAL NOT NULL,
-      at TEXT NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS spend_at ON spend(at);
   `);
+  // ADR-110 N4: budgets are gone. An older file keeps its `spend` table and its `budget:*`, `planLimit` and
+  // `maxRunning` settings; nothing reads or writes them, and nothing drops them.
   // ADR-098: goals from before the source column have none (NULL).
   const goalColumns = new Set((db.prepare("PRAGMA table_info(goals)").all() as { name: string }[]).map((c) => c.name));
   if (!goalColumns.has("source")) db.exec("ALTER TABLE goals ADD COLUMN source TEXT");

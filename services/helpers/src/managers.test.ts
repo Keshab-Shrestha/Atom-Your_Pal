@@ -8,7 +8,6 @@ import {
   createDelegateTool,
   formatSoulMd,
   handOffTool,
-  holdFor,
   managerNameFor,
   openHelperStore,
   parseSoulFile,
@@ -17,7 +16,7 @@ import {
   type HelperStore,
 } from "./index.ts";
 
-// ADR-095: Managers: soul files, the first-start migration, Keshab's commands, budgets, and ATOM's hand-over.
+// ADR-095: Managers: soul files, the first-start migration, Keshab's commands and ATOM's hand-over.
 
 function setup(seed?: (agentsDir: string) => void) {
   const root = mkdtempSync(join(tmpdir(), "atom-managers-"));
@@ -164,28 +163,6 @@ test("Keshab creates, renames, switches and removes Managers, and moves Agents b
     // A new agent goes under the Manager of an Agent with its role.
     store.createAgent({ name: "Ada", role: "researcher", kit: "research", personality: "Sharp." });
     assert.equal(managerOfView(store, "ada"), "research");
-  } finally {
-    s.done();
-  }
-});
-
-test("a Manager has a budget like a worker (the team's by default); its runs' spend counts toward it", () => {
-  const s = setup();
-  try {
-    const store = s.open();
-    store.setManagerMode("research", "plan");
-    assert.deepEqual(store.managers().find((m) => m.id === "research")!.budget, { cap: 15, spent: 0 });
-    store.setBudget("research", 0.5);
-    const goal = store.addGoal("Mesh Wi-Fi", [{ helper: "research", task: "Research mesh Wi-Fi" }]);
-    const job = goal.tasks[0]!;
-    assert.equal(job.helper, "research");
-    store.start(job.id);
-    store.addSpend(job.id, 0.6);
-    assert.deepEqual(store.managers().find((m) => m.id === "research")!.budget, { cap: 0.5, spent: 0.6 });
-    assert.equal(store.budgets().team.spent, 0.6, "and toward the team's");
-    store.fail(job.id, "x");
-    store.retry(job.id);
-    assert.match(holdFor(store.get(job.id)!, store.budgets(), store.soul("research").name) ?? "", /Research's daily budget \(\$0\.50\) is used up/);
   } finally {
     s.done();
   }

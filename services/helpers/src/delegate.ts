@@ -357,10 +357,9 @@ export function createWorkerShortcut(
         store.addComment(latest!.id, command.task);
         return latest!.state === "running" ? `${command.name} will look again when this run ends.` : `${command.name} will look again.`;
       }
-      // ADR-095: a worker may run several tasks at once; a new one waits only while every run slot is taken.
-      const full = workers.flatMap((w) => w.jobs).filter((j) => j.state === "running").length >= store.maxRunning();
+      // ADR-095: a worker may run several tasks at once; ADR-110 N4: there is no run limit, so a new one starts at once.
       store.addGoal(command.task, [{ helper: command.helper, task: command.task }]);
-      return full ? `${command.name} will start on it when another task ends.` : `${command.name} is on it.`;
+      return `${command.name} is on it.`;
     } catch (error) {
       if (error instanceof HelperError) return error.message;
       throw error;

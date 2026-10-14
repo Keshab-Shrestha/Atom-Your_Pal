@@ -31,7 +31,7 @@ test("Sid hands Penny a costs question; Sid finishes this run, waits for Penny, 
   runner.close();
 });
 
-test("a third level, a fourth sub-task, a role that may not take it, itself, and no budget are refused", () => {
+test("a third level, a fourth sub-task, a role that may not take it, and itself are refused", () => {
   const store = openHelperStore({ path: ":memory:" });
   const sid = store.addJob("sid", "Research");
   assert.throws(() => store.handOff(sid.id, "penny", "x"), /Only a running task/);
@@ -48,11 +48,6 @@ test("a third level, a fourth sub-task, a role that may not take it, itself, and
   const quill = store.addJob("quill", "Write");
   store.start(quill.id);
   assert.throws(() => store.handOff(quill.id, "penny", "x"), /Quill cannot hand work to Penny \(financial adviser\)/);
-  const hana = store.addJob("hana", "Policy");
-  store.start(hana.id);
-  store.setBudget("team", 1);
-  store.addSpend(hana.id, 1);
-  assert.throws(() => store.handOff(hana.id, "sid", "x"), /no budget left today/);
 });
 
 test("a sub-task that fails does not fail its parent: the parent runs again without it", () => {

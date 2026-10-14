@@ -226,7 +226,7 @@ export function findHelper(id: string) {
 
 /**
  * ADR-090: a failure a second try may fix (a time limit, Claude Code ending early or answering in the wrong shape) is
- * retried once by itself. Setup problems (no plan, no folder, no budget) and the plan's limits never are.
+ * retried once by itself. Setup problems (no plan, no folder) and the plan's limits never are.
  */
 export const MAX_AUTO_RETRIES = 1;
 const RETRYABLE = /took longer than|could not run|ended without a report|in the wrong shape|took more than \d+ steps|was closed while this job ran/i;

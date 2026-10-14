@@ -645,7 +645,6 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
         app: null,
         pinnedModel: null,
         browser: false, // ADR-098
-        budget: { cap: 5, spent: 0 },
         planFirst: false,
         routines: [],
         grants: [],
@@ -655,9 +654,6 @@ test("helpers.list sends every helper in order with the installed apps, sorted",
       })),
       apps: ["Arc", "Brave Browser", "Notes"],
       allowLarge: true,
-      team: { cap: 15, spent: 0 },
-      planLimit: 80,
-      maxRunning: 6,
       skills: [],
       skillDrafts: [],
       skillEdits: [],
@@ -837,32 +833,6 @@ test("job.fresh forgets an ended task's session and runs it again; a running tas
   await h.send({ type: "job.fresh", id });
   const sid = (h.events().at(-1) as HelpersEvent).helpers[0]!.jobs[0]!;
   assert.deepEqual([sid.state, sid.resumable], ["queued", undefined]);
-});
-
-test("budgets: helper.budget and helpers.settings planLimit, with caps, spend and the plan limit in helpers (Task 3.7)", async () => {
-  const { h, store } = helperHarness();
-  await tick(5);
-  h.clear();
-  await h.send({ type: "helper.budget", helper: "sid", cap: 2 }, { type: "helper.budget", helper: "team", cap: null }, { type: "helpers.settings", planLimit: 70 });
-  const event = h.events().at(-1) as HelpersEvent;
-  assert.deepEqual([event.helpers[0]!.budget, event.team, event.planLimit], [{ cap: 2, spent: 0 }, { cap: null, spent: 0 }, 70]);
-  h.clear();
-  await h.send({ type: "helper.budget", helper: "sid", cap: -1 });
-  assert.deepEqual(h.types(), ["error"]);
-  assert.equal(store.budgets().workers.sid!.cap, 2);
-});
-
-test("ADR-095: helpers.settings maxRunning sets Runs at once, sent back in helpers; out of range is refused", async () => {
-  const { h, store } = helperHarness();
-  await tick(5);
-  h.clear();
-  await h.send({ type: "helpers.settings", maxRunning: 3 });
-  assert.equal((h.events().at(-1) as HelpersEvent).maxRunning, 3);
-  assert.equal(store.maxRunning(), 3);
-  h.clear();
-  await h.send({ type: "helpers.settings", maxRunning: 11 });
-  assert.deepEqual(h.types(), ["error"]);
-  assert.equal(store.maxRunning(), 3);
 });
 
 test("plan first: helper.planFirst, job.add planFirst, the plan in thread.get, plan.approve and plan.reject (Task 3.8)", async () => {
@@ -1268,7 +1238,7 @@ test("helpers lists the Managers with their Agents; manager.* and agent.manager 
     await h.send({ type: "helpers.list" });
     const first = h.events().at(-1) as HelpersEvent;
     const research = first.managers!.find((m) => m.id === "research")!;
-    assert.deepEqual([research.name, research.mode, research.agents, research.budget], ["Research", "group", ["sid"], { cap: 15, spent: 0 }]);
+    assert.deepEqual([research.name, research.mode, research.agents], ["Research", "group", ["sid"]]);
     assert.equal(first.helpers.find((x) => x.id === "sid")!.manager, "research");
     await h.send({ type: "manager.create", name: "Travel", mode: "plan" });
     await h.send({ type: "agent.manager", helper: "sid", manager: "travel" });

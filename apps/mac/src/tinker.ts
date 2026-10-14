@@ -18,7 +18,7 @@ export interface TinkerRun {
     onUsage?: (usage: PlanUsage) => void;
     sdk?: ClaudeSdk;
   };
-  /** What the run cost and the tokens it used (for budgets and the Dashboard). */
+  /** What the run cost and the tokens it used (for the Dashboard). */
   count(costUsd: number | undefined, tokens: TokenUsage | undefined): void;
   /** ADR-098 item 8: runs the target's test cases on a new soul proposal or skill edit (inside this task). */
   test?(kind: "soul" | "skill", id: number): Promise<unknown>;

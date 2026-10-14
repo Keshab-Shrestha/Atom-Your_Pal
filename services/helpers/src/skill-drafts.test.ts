@@ -145,10 +145,10 @@ test("a rejected edit changes nothing; a failure a retry does not fix asks for a
   store.fail(id, "Claude Code could not run: boom"); // retried once by itself
   assert.equal(tinkerJobs().length, 0);
   store.start(id);
-  store.fail(id, "The budget is used up.");
+  store.fail(id, "The run failed.");
   const edit = tinkerJobs()[0]!;
   assert.equal(edit.reviewKind, "edit");
-  assert.equal(store.skillEditTarget(edit.id)!.error, "The budget is used up.");
+  assert.equal(store.skillEditTarget(edit.id)!.error, "The run failed.");
   const e = store.addSkillEdit(edit.id, { body: "New.", reason: "Why." });
   store.rejectSkillEdit(e.id);
   assert.match(readFileSync(join(skillsDir, "compare-laptops", "SKILL.md"), "utf8"), /2\. Compare\.\n$/);

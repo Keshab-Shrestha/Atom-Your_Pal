@@ -2,13 +2,10 @@ import type { HelperId } from "./jobs.ts";
 import type { HelperStore, Job, ReportInput } from "./store.ts";
 
 // ADR-081/082, Task 3.2: runs queued jobs in the background. Pure orchestration: the work itself is `run`.
-// At most `maxRunning` jobs at once, team-wide (ADR-095: a worker may run several at once); queued jobs start oldest
-// first. A running job never blocks anything: nothing waits for it, and a stop or delete in the store ends it at once
-// (its late result is dropped).
+// Every runnable job starts at once, oldest first (ADR-110 N4: no run limit, no budget, no plan limit). A job waits
+// only for its blockers or for Keshab (a plan to approve, an interrupted run). A running job never blocks anything:
+// nothing waits for it, and a stop or delete in the store ends it at once (its late result is dropped).
 
-/** ADR-095: "Runs at once", the team-wide limit: the default and the range Settings offers. */
-export const MAX_RUNNING = 6;
-export const MAX_RUNNING_RANGE = [1, 10] as const;
 export const JOB_TIME_LIMIT_MS = 15 * 60_000;
 /** After the time limit aborts a run, how long it may take to hand back what it has. */
 const LATE_GRACE_MS = 1000;
@@ -43,17 +40,13 @@ export type RunEvent =
 export interface JobRunnerOptions {
   store: Pick<HelperStore, "queued" | "get" | "start" | "step" | "finish" | "fail" | "savePlan" | "interrupt" | "onChange">;
   run: JobRun;
-  /** The team-wide limit; a function is read each time, so a change in Settings applies at once (then `poke`). */
-  maxRunning?: number | (() => number);
   timeLimitMs?: number;
   graceMs?: number;
   onRun?: (event: RunEvent) => void;
-  /** Task 3.7: whether a runnable task may start now (budgets, the plan's window). A held task waits; `poke` looks again. */
-  mayStart?: (job: Job) => boolean;
 }
 
 export interface JobRunner {
-  /** Looks again for tasks that may start (after something `mayStart` reads has changed). */
+  /** Looks again for tasks that may start. */
   poke(): void;
   /** Shutdown: aborts every run and writes nothing (the store marks them failed at the next start). */
   close(): void;
@@ -65,10 +58,21 @@ interface Running {
 }
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error)) || "The job failed.";
+/**
+ * Why a queued task waits for Keshab, in words for the window, or undefined. Task 3.8: a plan waits for his OK.
+ * ADR-098 item 3: an interrupted run waits for his next message. A task with open blockers waits anyway.
+ */
+export function waitReason(job: Job, workerName: string): string | undefined {
+  if (job.state !== "queued" || job.waitingFor.length) return undefined;
+  if (job.planStatus === "awaiting") return `${workerName}'s plan waits for your OK.`;
+  if (job.interrupted) return "Interrupted — waiting for you.";
+  return undefined;
+}
+
 const minutes = (ms: number) => `${Math.round(ms / 60_000)} minute${Math.round(ms / 60_000) === 1 ? "" : "s"}`;
 
 export function startJobRunner(options: JobRunnerOptions): JobRunner {
-  const { store, run, maxRunning = MAX_RUNNING, timeLimitMs = JOB_TIME_LIMIT_MS, graceMs = LATE_GRACE_MS, onRun, mayStart } = options;
+  const { store, run, timeLimitMs = JOB_TIME_LIMIT_MS, graceMs = LATE_GRACE_MS, onRun } = options;
   const running = new Map<number, Running>();
   let closed = false;
   let scheduled = false;
@@ -80,12 +84,7 @@ export function startJobRunner(options: JobRunnerOptions): JobRunner {
     queueMicrotask(() => {
       scheduled = false;
       if (closed) return;
-      const limit = typeof maxRunning === "function" ? maxRunning() : maxRunning;
-      for (const job of store.queued()) {
-        if (running.size >= limit) return;
-        if (mayStart && !mayStart(job)) continue;
-        void drive(job);
-      }
+      for (const job of store.queued()) if (!running.has(job.id) && !waitReason(job, "")) void drive(job);
     });
   }
 
@@ -156,7 +155,7 @@ export function startJobRunner(options: JobRunnerOptions): JobRunner {
     // A new task, or one that ended (its waiting tasks may now start), or a change to what a task waits for.
     if (
       (change.action === "job" && change.state !== "running") ||
-      ["blockers", "deleted", "budget", "plan"].includes(change.action)
+      ["blockers", "deleted", "plan"].includes(change.action)
     ) {
       schedule();
     }

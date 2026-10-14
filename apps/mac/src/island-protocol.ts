@@ -60,11 +60,6 @@ export type IslandEvent =
       apps: string[];
       allowLarge?: boolean;
       models?: ModelItem[];
-      /** Task 3.7: the team's daily cap and spend, and the plan limit (percent) above which new runs wait. */
-      team?: { cap: number | null; spent: number };
-      planLimit?: number;
-      /** ADR-095: "Runs at once", the team-wide limit on runs at the same time. */
-      maxRunning?: number;
       /** ADR-098 item 7: "Use Codex when the Claude plan limit is reached", and whether Codex is found and signed in. */
       codexFallback?: boolean;
       codexReady?: boolean;

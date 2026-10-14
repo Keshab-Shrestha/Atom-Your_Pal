@@ -1,7 +1,6 @@
 import { existsSync, mkdirSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { isOver } from "./budgets.ts";
 import { homedir } from "node:os";
 import { MAX_GRANTS, checkGrant } from "./grants.ts";
 import { KITS, MANAGER_MODES, MAX_AGENTS, MAX_MANAGERS, RESERVED_AGENT_IDS, agentId, cleanRole, loadAgents, retireAgent, writeAgent, type AgentProblem, type Kit, type ManagerMode } from "./agents.ts";
@@ -9,7 +8,6 @@ import { managerNameFor, managerSoul } from "./managers.ts";
 
 /** Task 3.12: most skills a worker may have. */
 export const MAX_SKILLS = 10;
-import { DEFAULT_PLAN_LIMIT, DEFAULT_TEAM_CAP, DEFAULT_WORKER_CAP, MAX_CAP, PLAN_LIMIT_RANGE, startOfDay, type Budgets } from "./budgets.ts";
 import { anchorFor, checkSchedule, isDue, routineTable } from "./routines.ts";
 import { SOUL_FIELDS, proposalTable } from "./feedback.ts";
 import { skillStore } from "./skill-drafts.ts";
@@ -22,7 +20,6 @@ import { toolCallTable } from "./tool-calls.ts";
 import { checkpointTable } from "./checkpoints.ts";
 import { searchTable } from "./search.ts";
 import { MAX_TEST_CASES, TEST_CASES_RUN, skillInstructions, testCaseTable, type TestKind } from "./test-cases.ts";
-import { MAX_RUNNING, MAX_RUNNING_RANGE } from "./runner.ts";
 import { createSchema, sameSoul, toJobRow, toSoul, webSources, type JobRow, type ReportRow, type SoulRow } from "./store-schema.ts";
 import {
   BUILT_IN_KITS,
@@ -80,8 +77,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const putPin = db.prepare("INSERT INTO helper_models (helper, model) VALUES (?, ?) ON CONFLICT (helper) DO UPDATE SET model = excluded.model");
   const dropPin = db.prepare("DELETE FROM helper_models WHERE helper = ?");
   const settingOf = db.prepare("SELECT value FROM helper_settings WHERE key = ?");
-  const insertSpend = db.prepare("INSERT INTO spend (job_id, helper, dollars, at) VALUES (?, ?, ?, ?)");
-  const spentSince = db.prepare("SELECT helper, SUM(dollars) AS total FROM spend WHERE at >= ? GROUP BY helper");
   const putSetting = db.prepare("INSERT INTO helper_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value");
   const soulRow = db.prepare("SELECT * FROM souls WHERE helper = ? AND version = ?");
   const latestSoul = db.prepare("SELECT * FROM souls WHERE helper = ? ORDER BY version DESC LIMIT 1");
@@ -442,7 +437,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       throw error;
     }
   }
-  /** Task 3.13, ADR-094: queues one Tinker task about a task; false when that one exists already. Budgets apply as to any task. */
+  /** Task 3.13, ADR-094: queues one Tinker task about a task; false when that one exists already. */
   function askTinker(jobId: number, task: string, kind: "skill" | "edit" | null, skill: string | null = null): boolean {
     if (tinkerOf.get(jobId, kind ?? "", skill ?? "")) return false;
     let id = 0;
@@ -453,27 +448,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     });
     emit({ action: "job", helper: "tinker", job: id, state: "queued" });
     return true;
-  }
-
-  /** ADR-095: "Runs at once" (the runner reads it before each start, so a change applies at once). */
-  function maxRunning(): number {
-    const value = Number((settingOf.get("maxRunning") as { value: string } | undefined)?.value);
-    return Number.isInteger(value) && value >= MAX_RUNNING_RANGE[0] && value <= MAX_RUNNING_RANGE[1] ? value : MAX_RUNNING;
-  }
-
-  /** Task 3.7: every cap and today's spend, and the plan limit. */
-  function budgets(): Budgets {
-    const since = startOfDay(now()).toISOString();
-    const spent = new Map((spentSince.all(since) as { helper: string; total: number }[]).map((r) => [r.helper, r.total]));
-    const cap = (key: string, fallback: number) => {
-      const value = (settingOf.get(key) as { value: string } | undefined)?.value;
-      return value === undefined ? fallback : value === "none" ? null : Number(value);
-    };
-    const workers = Object.fromEntries(roster().map((h) => [h.id, { cap: cap(`budget:${h.id}`, DEFAULT_WORKER_CAP), spent: spent.get(h.id) ?? 0 }])) as Budgets["workers"];
-    // ADR-095: a Manager's plan and review runs count toward its own budget (by default as big as the team's).
-    for (const m of rosterManagers) workers[m.id] = { cap: cap(`budget:${m.id}`, DEFAULT_TEAM_CAP), spent: spent.get(m.id) ?? 0 };
-    const team = { cap: cap("budget:team", DEFAULT_TEAM_CAP), spent: [...spent.values()].reduce((a, b) => a + b, 0) };
-    return { team, workers, planLimit: cap("planLimit", DEFAULT_PLAN_LIMIT) ?? 100, maxRunning: maxRunning() };
   }
 
   const hub = skillHubStore({ db, now, ...(skillsDir ? { skillsDir } : {}), userSkillsDir: join(home, ".claude", "skills"), emit }); // B3.5
@@ -543,7 +517,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     putSetting.run("managers:migrated", now().toISOString());
   }
 
-  function managerView(m: ManagerMember, all = budgets(), team = roster()): ManagerView {
+  function managerView(m: ManagerMember, team = roster()): ManagerView {
     const soul = current(m.id);
     return {
       id: m.id,
@@ -551,7 +525,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       mode: m.mode,
       soul: toSoul(soul),
       soulVersion: soul.version,
-      budget: all.workers[m.id]!,
       agents: team.filter((w) => w.manager === m.id).map((w) => w.id),
       jobs: (newestJobs.all(m.id, JOBS_PER_HELPER) as unknown as JobRow[]).map(toJob),
     };
@@ -583,14 +556,13 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
   const revisedOf = (jobId: number) => (eventsOf.all(jobId) as { kind: string }[]).some((e) => e.kind === "revised");
 
-  // ADR-094 part B: team tasks and wake-ups. A taken task is an ordinary task of the worker (plan first, budgets apply).
+  // ADR-094 part B: team tasks and wake-ups. A taken task is an ordinary task of the worker (plan first applies).
   const team = teamStore({
     db,
     now,
     emit,
     transaction,
     members: () => roster().map((m) => ({ id: m.id, name: current(m.id).name, role: m.role, takesTasks: m.available && m.role !== "improver" })),
-    budgets: () => budgets(),
     cleanTask,
     cleanRole,
     insertTask: (helper, task) => insertTask(helper, task, [], { goal: null, parentId: null, goalId: null }),
@@ -601,7 +573,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
   return {
     list() {
-      const all = budgets();
       const wakeUps = team.wakeUps();
       return roster().map((h) => ({
         id: h.id,
@@ -618,7 +589,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         })),
         app: (appOf.get(h.id) as { app: string } | undefined)?.app ?? null,
         pinnedModel: (pinOf.get(h.id) as { model: string } | undefined)?.model ?? null,
-        budget: all.workers[h.id],
         planFirst: planFirstOf(h.id),
         browser: browserOf(h.id),
         routines: routines.list().filter((r) => r.helper === h.id),
@@ -632,9 +602,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     },
 
     managers() {
-      const all = budgets(); // reads the team (and its Managers) once
       const team = roster();
-      return rosterManagers.map((m) => managerView(m, all, team));
+      return rosterManagers.map((m) => managerView(m, team));
     },
 
     createManager(input) {
@@ -766,8 +735,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       writeBack(known);
     },
 
-    budgets,
-
     teamTasks: team.teamTasks,
     addTeamTask: (task, role) => team.addTeamTask(task, role),
     removeTeamTask: team.removeTeamTask,
@@ -781,29 +748,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if (routine.paused === paused) return;
       routines.pause(id, paused, now());
       emit({ action: "routine", helper: routine.helper, routine: id, outcome: paused ? "paused" : "resumed" });
-    },
-
-    setBudget(helper, cap) {
-      const who = helper === "team" ? "team" : (managerOf(helper)?.id ?? mustHelper(helper).id);
-      if (cap !== null && !(Number.isFinite(cap) && cap > 0 && cap <= MAX_CAP)) throw new HelperError(`A daily budget is more than $0 and at most $${MAX_CAP}.`);
-      putSetting.run(`budget:${who}`, cap === null ? "none" : String(cap));
-      emit({ action: "budget", helper: who });
-    },
-
-    setPlanLimit(percent) {
-      const [low, high] = PLAN_LIMIT_RANGE;
-      if (!Number.isInteger(percent) || percent < low || percent > high) throw new HelperError(`The plan limit is a whole percent from ${low} to ${high}.`);
-      putSetting.run("planLimit", String(percent));
-      emit({ action: "budget", helper: "team" });
-    },
-
-    maxRunning,
-
-    setMaxRunning(count) {
-      const [low, high] = MAX_RUNNING_RANGE;
-      if (!Number.isInteger(count) || count < low || count > high) throw new HelperError(`Runs at once is a whole number from ${low} to ${high}.`);
-      putSetting.run("maxRunning", String(count));
-      emit({ action: "budget", helper: "team" });
     },
 
     addGrant(helper, path) {
@@ -860,7 +804,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         if (job.state === "done") skills.askDraft(job);
         return;
       }
-      // One review per task: Tinker's task waits in the queue like any other (budgets apply). ADR-094: and one edit
+      // One review per task: Tinker's task waits in the queue like any other. ADR-094: and one edit
       // for each of ATOM's skills the task used.
       askTinker(id, `Review task ${id} (${current(job.helper).name})`, null);
       skills.askEdits(job);
@@ -1086,8 +1030,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       for (let p: Job | undefined = parent; p?.parentId !== undefined; p = get(p.parentId)) if (!managerOf(get(p.parentId)?.helper)) level++;
       if (level + 1 > MAX_LEVELS) throw new HelperError("A sub-task cannot hand off work again. Do it yourself or say what is missing.");
       if ((childrenOf.all(parentId) as unknown[]).length >= MAX_HAND_OFFS) throw new HelperError(`A task can hand off at most ${MAX_HAND_OFFS} sub-tasks.`);
-      const budgets = this.budgets();
-      if (isOver(budgets.workers[target.id]!) || isOver(budgets.team)) throw new HelperError(`${to} has no budget left today. Carry on without the sub-task.`);
       const task = cleanTask(raw);
       let id = 0;
       transaction(() => {
@@ -1229,13 +1171,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       transition(job, "stopped");
     },
 
-    addSpend(id, dollars) {
-      const job = get(id);
-      if (!job || !Number.isFinite(dollars) || dollars <= 0) return;
-      insertSpend.run(id, job.helper, dollars, now().toISOString());
-      emit({ action: "spend", helper: job.helper, job: id });
-    },
-
     allowLarge() {
       return (settingOf.get("allowLarge") as { value: string } | undefined)?.value !== "false";
     },
@@ -1251,7 +1186,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
     setCodexFallback(on) {
       putSetting.run("codexFallback", String(on));
-      emit({ action: "budget", helper: "team" }); // the runner looks again at held tasks
+      emit({ action: "settings" });
     },
 
     setModel(id, model, reason) {

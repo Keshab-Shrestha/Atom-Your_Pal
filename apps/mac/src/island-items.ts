@@ -87,7 +87,7 @@ export interface JobItem {
   goalEnded?: boolean;
   /** Task 3.6: its next run continues the last one's session ("Start fresh" forgets it). */
   resumable?: boolean;
-  /** Task 3.7: why a runnable task waits (a budget used up, the plan above its limit); it shows under "Needs you". */
+  /** Why a runnable task waits for Keshab (a plan to approve, an interrupted run); it shows under "Needs you". */
   held?: string;
   /** ADR-098 item 3: Keshab interrupted its run; it waits ("queued", held) for his next message. */
   interrupted?: boolean;
@@ -361,8 +361,6 @@ export interface HelperItem {
   app: string | null;
   /** The pinned model id (ADR-083), or null to let Laya choose. */
   pinnedModel: string | null;
-  /** Task 3.7: the daily cap in dollars of API-equivalent use (null: none) and today's spend. */
-  budget: { cap: number | null; spent: number };
   /** Task 3.8: its new tasks plan first. */
   planFirst: boolean;
   /** ADR-098: its runs get the browser (default false). */
@@ -385,7 +383,7 @@ export interface HelperItem {
   jobs: JobItem[];
 }
 
-/** ADR-095: a Manager: a domain with Agents under it, its mode, budget and its own runs (plan mode). */
+/** ADR-095: a Manager: a domain with Agents under it, its mode and its own runs (plan mode). */
 export interface ManagerItem {
   id: string;
   name: string;
@@ -393,7 +391,6 @@ export interface ManagerItem {
   mode: "plan" | "group";
   soul: SoulItem;
   soulVersion: number;
-  budget: { cap: number | null; spent: number };
   /** Its Agents' ids. */
   agents: string[];
   jobs: JobItem[];

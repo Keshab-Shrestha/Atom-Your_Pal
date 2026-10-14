@@ -35,7 +35,7 @@ export interface TelegramBotOptions {
   /** One ATOM chat turn in the Telegram chat; resolves to ATOM's answer. */
   ask(text: string): Promise<string>;
   helpers?: HelperStore;
-  /** Why a queued task waits (a budget or the plan's limit), or undefined. */
+  /** Why a queued task waits for Keshab (a plan to approve, an interrupted run), or undefined. */
   held(job: Job): string | undefined;
   /** ATOM's questions (Pal's approval card). */
   approvals: { pending(): ApprovalAsk[]; answer(id: string, approved: boolean): void; onAsk(listener: (ask: ApprovalAsk) => void): () => void };
@@ -297,7 +297,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
   };
   const stopAsks = approvals.onAsk(soon);
   const stopStore = store?.onChange((change) => {
-    if (change.action === "step" || change.action === "usage" || change.action === "spend") return;
+    if (change.action === "step" || change.action === "usage") return;
     soon();
     if (!push) return;
     if (change.action === "goal" && change.ended) sendGoal(change.goal);

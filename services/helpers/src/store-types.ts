@@ -1,4 +1,3 @@
-import type { Budget, Budgets } from "./budgets.ts";
 import type { HandOffOutcome, HelperId, JobState, Soul, TaskContext } from "./jobs.ts";
 import type { Routine, Schedule } from "./routines.ts";
 import type { Proposal, ReviewTarget, SoulField } from "./feedback.ts";
@@ -184,8 +183,6 @@ export interface HelperView {
   app: string | null;
   /** The model Keshab pinned this helper to (ADR-083), or null to let the Decision Engine choose. */
   pinnedModel: string | null;
-  /** Task 3.7: its daily cap and today's spend. */
-  budget: Budget;
   /** Task 3.8: its new tasks plan first. */
   planFirst: boolean;
   /** ADR-098: its runs get the browser (Playwright, ATOM's own profile). Default false. */
@@ -206,15 +203,13 @@ export interface HelperView {
   jobs: Job[];
 }
 
-/** ADR-095: a Manager: a domain with Agents under it. It has a soul and a budget, never a kit or tasks of its own. */
+/** ADR-095: a Manager: a domain with Agents under it. It has a soul, never a kit or tasks of its own. */
 export interface ManagerView {
   id: string;
   name: string;
   mode: ManagerMode;
   soul: Soul;
   soulVersion: number;
-  /** Its daily cap (default the team's) and today's spend on its plan and review runs. */
-  budget: Budget;
   /** Its Agents' ids, in the team's order. */
   agents: HelperId[];
   /** Its own runs (plan mode: one per part ATOM handed it), newest first, at most JOBS_PER_HELPER. */
@@ -233,8 +228,6 @@ export type HelperChange =
   | { action: "pin"; helper: HelperId }
   | { action: "soul"; helper: HelperId; version: number }
   | { action: "settings" }
-  | { action: "budget"; helper: HelperId | "team" }
-  | { action: "spend"; helper: HelperId; job: number }
   | { action: "plan"; helper: HelperId; job: number; status: "awaiting" | "approved" | "rejected" }
   | { action: "routine"; helper: HelperId; routine: number; outcome: "added" | "changed" | "removed" | "made" | "skipped" | "paused" | "resumed" }
   | { action: "team"; task: number; change: "added" | "removed" | "taken"; helper?: HelperId; job?: number }
@@ -279,24 +272,12 @@ export interface HelperStore {
   restoreSoul(helper: string, version: number): void;
   /** Whether jobs may use the large model (ADR-083). Default true. */
   allowLarge(): boolean;
-  /** ADR-098 item 7: a task held only by the Claude plan's limit runs on Codex instead. Default false. */
+  /** ADR-098 item 7: the Codex switch. ADR-110 N4 removed the plan limit that made a task wait for Codex, so nothing starts a Codex run now. Default false. */
   codexFallback(): boolean;
   setCodexFallback(on: boolean): void;
-  /** Task 3.7: every cap and today's spend, and the plan limit. */
-  budgets(): Budgets;
-  /** Sets a worker's or the team's daily cap in dollars (null: no cap). Throws HelperError for an unknown worker or a bad amount. */
-  setBudget(helper: string, cap: number | null): void;
-  /** Sets the plan's five-hour use (percent) above which new runs wait. Throws HelperError outside 10 to 100. */
-  setPlanLimit(percent: number): void;
-  /** ADR-095: "Runs at once", the team-wide limit on runs at the same time (default 6). */
-  maxRunning(): number;
-  /** Sets "Runs at once". Throws HelperError outside 1 to 10. */
-  setMaxRunning(count: number): void;
-  /** Records what a run of a task cost (dollars of API-equivalent use; a Manager's run counts toward its budget). Nothing for an unknown task or a bad amount. */
-  addSpend(id: number, dollars: number): void;
   /**
    * Task 3.10: a running task hands a sub-task to another worker. Checked here: the target is available and its role
-   * may take work from this one, at most two levels and three sub-tasks a task, and neither budget is used up. The
+   * may take work from this one, at most two levels and three sub-tasks a task. The
    * task waits for the sub-task: when this run ends it runs again once the sub-task has. Throws HelperError otherwise.
    */
   handOff(parentId: number, helper: string, task: string): Job;
@@ -494,10 +475,10 @@ export interface HelperStore {
   /** Throws HelperError when the worker has no wake-ups. */
   pauseWakeUp(helper: string, paused: boolean): void;
   /**
-   * ADR-094: wakes the workers whose time has come. One that wakes while a run slot is free (ADR-095), within its and the team's budget and below the
-   * plan's limit (`planUsed`, percent, when known) takes the oldest team task its role may do, as its own task.
+   * ADR-094: wakes the workers whose time has come. Each one that wakes takes the oldest team task its role may do, as
+   * its own task (ADR-110 N4: no run limit, budget or plan limit stops it).
    */
-  runWakeUps(planUsed?: number): Woken[];
+  runWakeUps(): Woken[];
   /**
    * Makes a task for each routine that came due since it last did (missed times count once). One whose last task is
    * still to do or running is skipped this time. Returns what was made and skipped, by routine id.

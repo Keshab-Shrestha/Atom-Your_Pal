@@ -49,7 +49,7 @@ export interface RunOneContext {
   worktrees: string;
   skillsDir: string | undefined;
   skillPlugin: (job: Job) => string;
-  /** Tasks the runner let start on Codex; the run takes each id out as it starts. */
+  /** Tasks to run on Codex; the run takes each id out as it starts. ADR-110 N4: the plan limit that filled it is gone, so it stays empty. */
   codexJobs: Set<number>;
   runTests: (kind: TestKind, id: number, signal: AbortSignal, tinkerJob?: number) => Promise<void>;
 }
@@ -97,8 +97,7 @@ export function createRunOne(ctx: RunOneContext): JobRun {
         store,
         job,
         run: { claudePath: keys["claude-plan"] ?? "", model, signal, onStep, onUsage: reportUsage },
-        count: (costUsd, tokens) => {
-          if (costUsd) store.addSpend(job.id, costUsd); // the Manager's own budget
+        count: (_costUsd, tokens) => {
           if (tokens) store.addUsage({ source: "job", helper: job.helper, job: job.id, model, ...tokens, ...(tokens.costUsd ? { dollars: tokens.costUsd } : {}) });
         },
         onEvent: (e) => log.info("manager.run", e),
@@ -230,18 +229,14 @@ export function createRunOne(ctx: RunOneContext): JobRun {
         store: helpers,
         job,
         run: { claudePath: keys["claude-plan"] ?? "", model, instructions, signal, onStep, onUsage: reportUsage },
-        count: (costUsd, tokens) => {
-          if (costUsd) helpers.addSpend(job.id, costUsd);
-          countTokens(tokens);
-        },
-        // ADR-098 item 8: the new proposal or edit is tested inside this task, so it counts on Tinker's budget.
+        count: (_costUsd, tokens) => countTokens(tokens),
+        // ADR-098 item 8: the new proposal or edit is tested inside this task, so its tokens count on Tinker's task.
         test: (testKind, id) => runTests(testKind, id, signal, job.id).catch(() => undefined),
       });
     }
     // Task 3.8: a plan-first task's first run only plans (no tools); the plan then waits for Keshab.
     if (job.planFirst && job.planStatus !== "approved") {
-      const { plan, costUsd, tokens } = await runPlan({ claudePath: keys["claude-plan"] ?? "", model, task: fresh(), instructions, signal, onStep, onUsage: reportUsage });
-      if (costUsd) helpers?.addSpend(job.id, costUsd);
+      const { plan, tokens } = await runPlan({ claudePath: keys["claude-plan"] ?? "", model, task: fresh(), instructions, signal, onStep, onUsage: reportUsage });
       countTokens(tokens);
       return { plan };
     }
@@ -255,7 +250,7 @@ export function createRunOne(ctx: RunOneContext): JobRun {
     // longer has (or any other failure to resume, except the plan's limits) falls back to one fresh run.
     const resume = onCodex ? undefined : helpers?.resumeOf(job.id);
     let result: Awaited<ReturnType<typeof research>>;
-    // ADR-098 item 7: on Codex, the same brief and report; its tokens count on the Dashboard as "codex", $0 to budgets.
+    // ADR-098 item 7: on Codex, the same brief and report; its tokens count on the Dashboard as "codex".
     if (onCodex) {
       helpers?.setModel(job.id, "codex", CODEX_REASON);
       onStep(CODEX_REASON);
@@ -285,7 +280,6 @@ export function createRunOne(ctx: RunOneContext): JobRun {
       }
     }
     if (result.sessionId) helpers?.setSession(job.id, result.sessionId);
-    if (result.costUsd) helpers?.addSpend(job.id, result.costUsd); // Task 3.7: counts toward the day's budgets
     countTokens(result.tokens);
     // Task 3.11: in a repository, ATOM commits the work on the task's own branch. Never pushed.
     if (work?.branch) {

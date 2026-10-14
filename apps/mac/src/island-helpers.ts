@@ -104,7 +104,7 @@ export function islandHelpers(
   store: HelperStore,
   apps: () => Promise<string[]>,
   models: () => PlanModel[] = () => [],
-  /** Task 3.7: why a task may not start now (budgets, the plan's window), if so. */
+  /** Why a queued task waits for Keshab (a plan to approve, an interrupted run), if so. */
   held: (job: Job) => string | undefined = () => undefined,
   /** Task 3.12, ADR-094: the skills to choose from, Keshab's and ATOM's (default: none, for tests). */
   skills: () => { name: string; description: string; source?: "yours" | "zeno" | "hub" }[] = () => [],
@@ -144,13 +144,6 @@ export function islandHelpers(
         }),
         jobs: h.jobs.map((job) => toJobItem(job, held(job))),
       })),
-    budgets: () => {
-      const { team, planLimit, maxRunning } = store.budgets();
-      return { team, planLimit, maxRunning };
-    },
-    setBudget: (helper, cap) => store.setBudget(helper, cap),
-    setPlanLimit: (percent) => store.setPlanLimit(percent),
-    setMaxRunning: (count) => store.setMaxRunning(count),
     apps: async () => [...(await apps())].sort((a, b) => a.localeCompare(b)),
     setApp: (helper, app) => store.setApp(helper, app),
     addJob: (helper, task, blockedBy, planFirst) =>
@@ -172,7 +165,7 @@ export function islandHelpers(
     removeAgent: (id) => store.removeAgent(id),
     agentProblems: () => store.agentProblems().map(({ id, problem }) => ({ id, problem })),
     managers: (): ManagerItem[] =>
-      store.managers().map((m) => ({ id: m.id, name: m.name, mode: m.mode, soul: m.soul, soulVersion: m.soulVersion, budget: m.budget, agents: m.agents, jobs: m.jobs.map((job) => toJobItem(job, held(job))) })),
+      store.managers().map((m) => ({ id: m.id, name: m.name, mode: m.mode, soul: m.soul, soulVersion: m.soulVersion, agents: m.agents, jobs: m.jobs.map((job) => toJobItem(job, held(job))) })),
     createManager: (name, mode) => void store.createManager({ name, ...(mode ? { mode } : {}) }),
     renameManager: (id, name) => store.renameManager(id, name),
     setManagerMode: (id, mode) => store.setManagerMode(id, mode),

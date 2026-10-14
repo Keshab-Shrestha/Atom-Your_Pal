@@ -127,8 +127,7 @@ export type IslandCommand =
   | { type: "job.fresh"; id: number }
   | { type: "job.delete"; id: number }
   | { type: "helper.pin"; helper: string; model: string }
-  | { type: "helpers.settings"; allowLarge?: boolean; planLimit?: number; maxRunning?: number; codexFallback?: boolean }
-  | { type: "helper.budget"; helper: string; cap: number | null }
+  | { type: "helpers.settings"; allowLarge?: boolean; codexFallback?: boolean }
   | { type: "soul.set"; helper: string; soul: SoulItem }
   | { type: "soul.restore"; helper: string; version: number }
   | { type: "quit" };
@@ -224,7 +223,6 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "job.delete",
   "helper.pin",
   "helpers.settings",
-  "helper.budget",
   "soul.set",
   "soul.restore",
   "job.block",
@@ -488,31 +486,17 @@ export function parseCommand(line: string): ParsedLine {
     return { command: { type, helper, model } };
   }
   if (type === "helpers.settings") {
-    // The ranges are the store's to refuse (stage "settings").
-    const { allowLarge, planLimit, maxRunning, codexFallback } = value as { allowLarge?: unknown; planLimit?: unknown; maxRunning?: unknown; codexFallback?: unknown };
+    const { allowLarge, codexFallback } = value as { allowLarge?: unknown; codexFallback?: unknown };
     if (allowLarge !== undefined && typeof allowLarge !== "boolean") return { error: 'helpers.settings needs "allowLarge" to be true or false.' };
-    if (planLimit !== undefined && typeof planLimit !== "number") return { error: 'helpers.settings needs "planLimit" to be a number.' };
-    if (maxRunning !== undefined && typeof maxRunning !== "number") return { error: 'helpers.settings needs "maxRunning" to be a number.' };
     if (codexFallback !== undefined && typeof codexFallback !== "boolean") return { error: 'helpers.settings needs "codexFallback" to be true or false.' };
-    if (allowLarge === undefined && planLimit === undefined && maxRunning === undefined && codexFallback === undefined) {
-      return { error: 'helpers.settings needs "allowLarge", "planLimit", "maxRunning" or "codexFallback".' };
-    }
+    if (allowLarge === undefined && codexFallback === undefined) return { error: 'helpers.settings needs "allowLarge" or "codexFallback".' };
     return {
       command: {
         type,
         ...(allowLarge !== undefined ? { allowLarge } : {}),
-        ...(planLimit !== undefined ? { planLimit } : {}),
-        ...(maxRunning !== undefined ? { maxRunning } : {}),
         ...(codexFallback !== undefined ? { codexFallback } : {}),
       },
     };
-  }
-  if (type === "helper.budget") {
-    // The amount's range is the store's to refuse (stage "settings").
-    const { helper, cap } = value as { helper?: unknown; cap?: unknown };
-    if (typeof helper !== "string" || helper === "") return { error: 'helper.budget needs a "helper" string ("team" for the team).' };
-    if (cap !== null && typeof cap !== "number") return { error: 'helper.budget needs a "cap" number, or null for none.' };
-    return { command: { type, helper, cap } };
   }
   if (type === "soul.set") {
     // Lengths, names and empty fields are the store's to refuse (stage "settings"), as the protocol says.

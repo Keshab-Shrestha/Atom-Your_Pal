@@ -1,13 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { briefFor, createWorkerShortcut, holdFor, openHelperStore, startJobRunner, type HelperStore, type Job, type JobRun, type RunOutcome } from "./index.ts";
+import { briefFor, createWorkerShortcut, openHelperStore, startJobRunner, waitReason, type HelperStore, type Job, type JobRun, type RunOutcome } from "./index.ts";
 
 // ADR-087, Task 3.8: plan first.
 
 const plan = { summary: "Search three router makers, then compare.", steps: "1. Search\n2. Compare" };
 const report = { title: "T", summary: "S.", body: "B", sources: [] };
 const tick = () => new Promise((r) => setTimeout(r, 5));
-const hold = (store: HelperStore) => (job: Job) => holdFor(job, store.budgets(), store.soul(job.helper).name);
+const hold = (store: HelperStore) => (job: Job) => waitReason(job, store.soul(job.helper).name);
 
 test("a worker's switch makes its new tasks plan first; a task can say otherwise", () => {
   const store = openHelperStore({ path: ":memory:" });
@@ -25,7 +25,7 @@ test("a plan-first task stops after planning and waits; an approval runs it with
   const store = openHelperStore({ path: ":memory:" });
   const calls: { job: Job; resolve(o: RunOutcome): void }[] = [];
   const run: JobRun = (job) => new Promise((resolve) => calls.push({ job, resolve }));
-  const runner = startJobRunner({ store, run, mayStart: (job) => !hold(store)(job) });
+  const runner = startJobRunner({ store, run });
   const { id } = store.addJob("sid", "Compare mesh routers", { planFirst: true });
   await tick();
   calls[0]!.resolve({ plan });

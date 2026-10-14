@@ -284,14 +284,6 @@ export interface IslandHelpers {
   saveSoul(helper: string, soul: SoulItem): void;
   /** Makes an older soul version current again, as a new version. Throws, with words for the user, for an unknown one. */
   restoreSoul(helper: string, version: number): void;
-  /** Task 3.7: the team's cap and today's spend, and the plan limit. */
-  budgets(): { team: { cap: number | null; spent: number }; planLimit: number; maxRunning: number };
-  /** Throws, with words for the user, for an unknown worker or a bad amount. "team" sets the team's cap. */
-  setBudget(helper: string, cap: number | null): void;
-  /** Throws, with words for the user, outside 10 to 100. */
-  setPlanLimit(percent: number): void;
-  /** ADR-095: "Runs at once". Throws, with words for the user, outside 1 to 10. */
-  setMaxRunning(count: number): void;
   /** Whether worker jobs may use the large model (ADR-083). */
   allowLarge(): boolean;
   /** ADR-098 item 7: "Use Codex when the Claude plan limit is reached" (default off), and whether Codex is found and signed in. */
@@ -786,14 +778,9 @@ export function runIsland(options: IslandOptions): IslandSession {
         return;
       case "helpers.settings":
         changeHelpers(command.type, (helpers) => {
-          if (command.planLimit !== undefined) helpers.setPlanLimit(command.planLimit);
-          if (command.maxRunning !== undefined) helpers.setMaxRunning(command.maxRunning);
           if (command.allowLarge !== undefined) helpers.setAllowLarge(command.allowLarge);
           if (command.codexFallback !== undefined) helpers.setCodexFallback?.(command.codexFallback);
         });
-        return;
-      case "helper.budget":
-        changeHelpers(command.type, (helpers) => helpers.setBudget(command.helper, command.cap));
         return;
       case "job.block":
         changeHelpers(command.type, (helpers) => helpers.setBlockers(command.id, command.blockedBy));
@@ -864,7 +851,7 @@ export function runIsland(options: IslandOptions): IslandSession {
       const helpers = options.helpers;
       const agentProblems = helpers?.agentProblems() ?? [];
       const managers = helpers?.managers() ?? [];
-      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), ...helpers.budgets(), skills: helpers.skills(), skillDrafts: helpers.skillDrafts(), skillEdits: helpers.skillEdits(), ...(helpers.hub?.payload() ? { skillHub: helpers.hub.payload() } : {}), testCases: helpers.testCases(), mcp: helpers.mcp(), teamTasks: helpers.teamTasks(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.codex ? helpers.codex() : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}), ...(agentProblems.length ? { agentProblems } : {}), ...(managers.length ? { managers } : {}) });
+      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), skills: helpers.skills(), skillDrafts: helpers.skillDrafts(), skillEdits: helpers.skillEdits(), ...(helpers.hub?.payload() ? { skillHub: helpers.hub.payload() } : {}), testCases: helpers.testCases(), mcp: helpers.mcp(), teamTasks: helpers.teamTasks(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.codex ? helpers.codex() : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}), ...(agentProblems.length ? { agentProblems } : {}), ...(managers.length ? { managers } : {}) });
     });
   }
   function appNames(): Promise<string[]> {
