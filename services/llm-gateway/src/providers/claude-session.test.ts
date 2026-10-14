@@ -219,3 +219,35 @@ test("text streams as it is written, without a Sources list; setModel switches t
   assert.equal(s.model, "claude-haiku-4-5");
   s.close();
 });
+
+test("N2: sub-agents, sandbox and skills plugin go into the options; the main agent keeps its own entry and loads no skill", async () => {
+  const { sdk, queries } = fakeSdk();
+  const s = await openChatSession(
+    options(sdk, { agents: { sid: { description: "Sid: researcher" }, atom: { description: "imposter" } }, sandbox: { enabled: true }, plugins: [{ type: "local", path: "/p" }] }),
+  );
+  const o = queries[0]!.options;
+  assert.equal(o.agents.sid.description, "Sid: researcher");
+  assert.equal(o.agents.atom.description, "ATOM, the user's assistant.", "an agent can never replace the main agent");
+  assert.deepEqual(o.sandbox, { enabled: true });
+  assert.deepEqual(o.plugins, [{ type: "local", path: "/p" }]);
+  assert.deepEqual(o.skills, []);
+  s.close();
+});
+
+test("N2: a reply Claude Code gives by itself (an agent reported) goes to onUnprompted; a turn sent meanwhile gets its own answer", async () => {
+  const woken: string[] = [];
+  const { sdk, queries } = fakeSdk((t) => (t === "two" ? [done("re: two")] : [done(`re: ${t}`)]));
+  const s = await openChatSession(options(sdk, { onUnprompted: (text) => woken.push(text) }));
+  assert.equal((await s.send("one")).text, "re: one");
+  // Claude Code wakes itself: a background task finished.
+  queries[0]!.inject({ type: "system", subtype: "background_tasks_changed", tasks: [{ id: "a1" }] });
+  await sleep(5);
+  assert.equal(s.background, 1);
+  queries[0]!.inject({ type: "assistant", parent_tool_use_id: null, message: { content: [{ type: "text", text: "Sid is done." }] } });
+  await sleep(5);
+  const second = s.send("two"); // sent while the self-started turn still runs
+  queries[0]!.inject(done("Sid found three flights."));
+  assert.equal((await second).text, "re: two");
+  assert.deepEqual(woken, ["Sid found three flights."]);
+  s.close();
+});

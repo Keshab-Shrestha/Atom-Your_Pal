@@ -6,3 +6,4 @@ export * from "./providers/cli-tools.ts";
 export * from "./providers/codex-job.ts";
 export * from "./providers/index.ts";
 export * from "./switchable.ts";
+export { toolCallRecorder } from "./providers/tool-summary.ts";

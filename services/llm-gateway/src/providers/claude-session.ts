@@ -29,6 +29,7 @@ export interface SessionSdk extends Pick<ClaudeSdk, "tool" | "createSdkMcpServer
   query(args: { prompt: AsyncIterable<Record<string, unknown>>; options: Record<string, unknown> }): AsyncIterable<Record<string, any>> & {
     interrupt?(): Promise<unknown>;
     setModel?(model?: string): Promise<void>;
+    stopTask?(taskId: string): Promise<void>;
     close?(): void;
   };
 }
@@ -56,7 +57,7 @@ export const SESSION_ENV: Record<string, string> = {
 
 /** The permission gate of the main thread (see apps/mac native-safety.ts). */
 export interface SessionGate {
-  canUseTool: (name: string, input: Record<string, unknown>, extra?: { toolUseID?: string }) => Promise<Record<string, unknown>>;
+  canUseTool: (name: string, input: Record<string, unknown>, extra?: { toolUseID?: string; agentID?: string }) => Promise<Record<string, unknown>>;
   hooks: Record<string, unknown>;
 }
 
@@ -71,6 +72,15 @@ export interface ChatSessionOptions {
   gate: SessionGate;
   /** ATOM's tools, all in the one `atom` server, deferred behind tool search. */
   atomTools?: ToolRunner;
+  /**
+   * Phase N2: the chat's sub-agents (Claude Code AgentDefinitions by name). Claude Code lists them to the model in an
+   * agent_listing_delta message, not in the system prompt, so they do not change the cached prefix.
+   */
+  agents?: Record<string, unknown>;
+  /** Phase N2: Claude Code's Bash sandbox (a project chat's sub-agents). */
+  sandbox?: Record<string, unknown>;
+  /** Phase N2: local plugins (the sub-agents' skills). The main thread loads no skill. */
+  plugins?: { type: "local"; path: string }[];
   cwd?: string;
   /** A Claude Code session id to continue. */
   resume?: string;
@@ -80,6 +90,8 @@ export interface ChatSessionOptions {
   sdk?: SessionSdk;
   onUsage?: (usage: PlanUsage) => void;
   onTokens?: (tokens: TokenUsage, model: string, meta?: TokenMeta) => void;
+  /** A reply Claude Code gave with no turn of ATOM's waiting: it woke itself, e.g. when a background agent finished. */
+  onUnprompted?: (text: string) => void;
   /** Called once when the session has closed (idle, error or `close`). */
   onClose?: (reason: string) => void;
   /** Names and numbers only, never text. */
@@ -101,6 +113,10 @@ export interface ChatSessionHandle {
   readonly sessionId: string | undefined;
   /** Short hash of the system prompt and the tool names: the same value means the same cached prefix. */
   readonly prefix: string;
+  /** Background tasks (sub-agents, commands) that run now. */
+  readonly background: number;
+  /** Stops one background task (a sub-agent) by Claude Code's task id. */
+  stopTask(taskId: string): Promise<void>;
   send(text: string, options?: SendOptions): Promise<{ text: string; sessionId?: string }>;
   interrupt(): Promise<void>;
   setModel(model: string): Promise<void>;
@@ -152,12 +168,14 @@ export function sessionOptions(sdk: SessionSdk, o: ChatSessionOptions, controlle
     // The main thread runs as the `atom` agent: only its tools reach the model.
     agent: MAIN_AGENT,
     // ToolSearch must be listed: without it Claude Code cannot defer the ATOM tools and sends every schema.
-    agents: { [MAIN_AGENT]: { description: "ATOM, the user's assistant.", prompt: o.systemPrompt, tools: [...o.tools, TOOL_SEARCH, ...atomNames] } },
+    agents: { ...(o.agents ?? {}), [MAIN_AGENT]: { description: "ATOM, the user's assistant.", prompt: o.systemPrompt, tools: [...o.tools, TOOL_SEARCH, ...atomNames] } },
     tools: [...o.tools, TOOL_SEARCH],
     ...(specs.length
       ? { mcpServers: { [TOOL_SERVER]: sdk.createSdkMcpServer({ name: TOOL_SERVER, version: "1.0.0", tools: sdkToolsFor(sdk, specs, o.atomTools!, toolSignal) }) } }
       : {}),
     // Nothing is allowed without the gate: every call goes through canUseTool and the PreToolUse hook.
+    ...(o.sandbox ? { sandbox: o.sandbox } : {}),
+    ...(o.plugins?.length ? { plugins: o.plugins, skills: [] } : {}),
     allowedTools: [],
     canUseTool: o.gate.canUseTool,
     hooks: o.gate.hooks,
@@ -186,6 +204,8 @@ interface Turn {
   lastError?: string;
   cancelled: boolean;
   grace?: ReturnType<typeof setTimeout>;
+  /** Results that belong to a turn Claude Code started by itself before this one was sent. */
+  skip: number;
 }
 
 export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessionHandle> {
@@ -200,6 +220,8 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
   let turnSignal: AbortSignal | undefined;
   let sessionId = o.resume;
   let background = 0;
+  /** Claude Code runs a turn of its own (a background task woke it). */
+  let selfTurn = false;
   let costSoFar = 0;
   let closed = false;
   let idle: ReturnType<typeof setTimeout> | undefined;
@@ -236,12 +258,12 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
     if (closed || turn) return;
     idle = setTimeout(() => {
       // Background work holds the session open; the next change of the task list starts the wait again.
-      if (background === 0 && !turn) close("idle");
+      if (background === 0 && !turn && !selfTurn) close("idle");
     }, idleMs);
     idle.unref?.();
   };
 
-  const finish = (t: Turn, result: Record<string, any>) => {
+  const count = (result: Record<string, any>) => {
     if (typeof result.session_id === "string") sessionId = result.session_id;
     // `usage` is this turn's; `total_cost_usd` counts from the process start, so the turn's cost is the difference.
     const tokens = tokensOf(result);
@@ -252,6 +274,26 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
       const { costUsd: _, ...rest } = tokens;
       o.onTokens?.(cost && cost > 0 ? { ...rest, costUsd: cost } : rest, model, { chatId: o.chatId });
     }
+  };
+
+  /** A turn Claude Code ran by itself: its reply goes to `onUnprompted`. */
+  const unprompted = (result: Record<string, any>) => {
+    selfTurn = false;
+    count(result);
+    const text = result.subtype === "success" && !result.is_error && typeof result.result === "string" ? withoutSources(result.result.trim()) : "";
+    log("session.unprompted", { ok: Boolean(text) });
+    if (text) {
+      try {
+        o.onUnprompted?.(text);
+      } catch {
+        // the owner's bookkeeping never stops the session
+      }
+    }
+    armIdle();
+  };
+
+  const finish = (t: Turn, result: Record<string, any>) => {
+    count(result);
     if (t.cancelled) return end(t, { error: new ProviderError("cancelled", "Request cancelled") });
     if (result.subtype === "error_max_turns") return end(t, { error: new ProviderError("bad_request", "Claude used too many steps on this request and stopped.") });
     if (result.is_error || result.subtype !== "success") {
@@ -300,7 +342,14 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
         } else if (message.type === "system" && message.subtype === "background_tasks_changed") {
           background = Array.isArray(message.tasks) ? message.tasks.filter((x: Record<string, unknown>) => !x?.ambient).length : 0;
           armIdle();
-        } else if (!t) {
+        } else if (!t || t.skip > 0) {
+          if (message.type === "result") {
+            if (t) t.skip -= 1;
+            unprompted(message);
+          } else if (!message.parent_tool_use_id && (message.type === "assistant" || message.type === "stream_event")) {
+            selfTurn = true;
+            clearTimeout(idle);
+          }
           continue;
         } else if (message.type === "stream_event") {
           if (message.parent_tool_use_id) continue;
@@ -345,13 +394,20 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
       return sessionId;
     },
     prefix,
+    get background() {
+      return background;
+    },
+    async stopTask(taskId) {
+      await q.stopTask?.(taskId);
+    },
     send(text, so = {}) {
       if (closed) return Promise.reject(new ProviderError("unavailable", "The chat session is closed."));
       if (turn) return Promise.reject(new ProviderError("bad_request", "Still answering the previous request"));
       if (so.signal?.aborted) return Promise.reject(new ProviderError("cancelled", "Request cancelled"));
       clearTimeout(idle);
       return new Promise((resolve, reject) => {
-        const t: Turn = { resolve, reject, wrote: false, acted: false, cancelled: false, ...(so.onText ? { filter: sourcesFilter(so.onText) } : {}) };
+        // Claude Code is in a turn of its own: its result comes first, then this one's.
+        const t: Turn = { resolve, reject, wrote: false, acted: false, cancelled: false, skip: selfTurn ? 1 : 0, ...(so.onText ? { filter: sourcesFilter(so.onText) } : {}) };
         turn = t;
         turnSignal = so.signal;
         // Stop = interrupt: the process stays; the turn ends when Claude Code reports it, or the session closes.
