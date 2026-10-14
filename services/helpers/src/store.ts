@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import { isOver } from "./budgets.ts";
 import { homedir } from "node:os";
 import { MAX_GRANTS, checkGrant } from "./grants.ts";
-import { KITS, MANAGER_MODES, MAX_AGENTS, MAX_MANAGERS, agentId, cleanRole, loadAgents, retireAgent, writeAgent, type AgentProblem, type Kit, type ManagerMode } from "./agents.ts";
+import { KITS, MANAGER_MODES, MAX_AGENTS, MAX_MANAGERS, RESERVED_AGENT_IDS, agentId, cleanRole, loadAgents, retireAgent, writeAgent, type AgentProblem, type Kit, type ManagerMode } from "./agents.ts";
 import { managerNameFor, managerSoul } from "./managers.ts";
 
 /** Task 3.12: most skills a worker may have. */
@@ -822,6 +822,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       const role = cleanRole(input.role);
       if (!KITS.includes(input.kit)) throw new HelperError("Choose what the agent may use: research, folders or think.");
       const soul = cleanSoul({ name: input.name, personality: input.personality, howItWorks: input.howItWorks ?? "", rules: input.rules ?? "", lessons: "" }, allNames());
+      if (RESERVED_AGENT_IDS.includes(agentId(soul.name, []))) throw new HelperError(`"${soul.name}" is the name of one of Claude Code's own agents. Choose another name.`);
       const id = agentId(soul.name, takenIds());
       // ADR-095: under the Manager of an Agent with the same role, else the first Manager by name (Keshab can move it).
       const bosses = managers();

@@ -1,5 +1,5 @@
 import type { DecisionEngine } from "@atom/decision-engine";
-import { KITS, ROLE_FLOORS, chooseJobModel, instructionsFor, resolveModel, type HelperStore, type HelperView, type Kit, type McpServer, type PlanModel } from "@atom/helpers";
+import { KITS, RESERVED_AGENT_IDS, ROLE_FLOORS, agentId, chooseJobModel, instructionsFor, resolveModel, type HelperStore, type HelperView, type Kit, type McpServer, type PlanModel } from "@atom/helpers";
 import { sdkConfig } from "./mcp-servers.ts";
 import { BROWSER_SERVER } from "./browser.ts";
 
@@ -128,9 +128,17 @@ export async function agentModel(input: {
   return { ...(model ? { model } : {}), tier: pick.tier, reason: pick.reason };
 }
 
-/** ADR-110 (N2): the `create_agent` tool. The store checks the name, role and kit; the chat's process restarts when idle. */
+/** The soul text Keshab sees on the create_agent approval card. */
+export const SOUL_PREVIEW_CHARS = 400;
+
+/**
+ * ADR-110 (N2): the `create_agent` tool. Keshab approves each new agent on the approval card (2026-10-14); the store
+ * checks the name, role and kit; the chat's process restarts when idle.
+ */
 export function createAgentTool(options: {
   store: Pick<HelperStore, "createAgent">;
+  /** ATOM's approval card, the same one risky actions use. No answer is a refusal. */
+  approve(request: { summary: string; reason: string }, signal?: AbortSignal): Promise<boolean>;
   /** Marks the open sessions to restart (with resume) at their next idle moment with no background work. */
   restartWhenIdle(): void;
   onCreated?(event: { helper: string; kit: Kit }): void;
@@ -155,16 +163,21 @@ export function createAgentTool(options: {
       },
     },
     capability: { title: "Create an agent", examples: ["Make me a travel planner agent"] },
-    run(input: Record<string, unknown>): string {
+    async run(input: Record<string, unknown>, signal?: AbortSignal): Promise<string> {
       const kit = String(input.kit ?? "") as Kit;
       if (!KITS.includes(kit)) return "kit must be research, folders or think.";
-      const made = options.store.createAgent({
-        name: String(input.name ?? ""),
-        role: String(input.role ?? ""),
-        kit,
-        personality: String(input.personality ?? ""),
-        ...(typeof input.howItWorks === "string" ? { howItWorks: input.howItWorks } : {}),
-      });
+      const name = String(input.name ?? "").trim();
+      const role = String(input.role ?? "");
+      const personality = String(input.personality ?? "");
+      const howItWorks = typeof input.howItWorks === "string" ? input.howItWorks : undefined;
+      if (RESERVED_AGENT_IDS.includes(agentId(name, []))) return `"${name.slice(0, 40)}" is the name of one of Claude Code's own agents. Choose another name.`;
+      const soul = [personality, howItWorks].filter(Boolean).join("\n");
+      const ok = await options.approve(
+        { summary: `Make a new agent: ${name.slice(0, 40)}`, reason: `Role: ${role.slice(0, 60)}. Kit: ${kit}.\n${soul.slice(0, SOUL_PREVIEW_CHARS)}` },
+        signal,
+      );
+      if (!ok) return "The user did not approve the new agent on the approval card. Nothing was made. Tell the user in one short sentence.";
+      const made = options.store.createAgent({ name, role, kit, personality, ...(howItWorks !== undefined ? { howItWorks } : {}) });
       options.onCreated?.({ helper: made.id, kit });
       options.restartWhenIdle();
       return `${made.name} (${made.role}) is added and is ready from your next message. Tell the user in one short sentence.`;

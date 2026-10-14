@@ -411,6 +411,7 @@ export function createRuntime(
         ? [
             createAgentTool({
               store: helpers,
+              approve: (request, signal) => computer.approve(request, signal),
               restartWhenIdle: () => nativeCores.forEach((c) => c.restartWhenIdle()),
               onCreated: (e) => log.info("agent.created", e),
             }),

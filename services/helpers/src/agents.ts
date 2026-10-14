@@ -49,6 +49,9 @@ export function cleanRole(raw: string): string {
 }
 
 /** The folder name for a new agent: its name in lower case, letters and digits, unique among `taken`. */
+/** ADR-110: the ids of Claude Code's built-in agents, in lower case. A new agent's id is never one of them. */
+export const RESERVED_AGENT_IDS: readonly string[] = ["general-purpose", "claude", "explore", "plan", "statusline-setup", "fork", "output-style-setup"];
+
 export function agentId(name: string, taken: readonly string[]): string {
   const base = name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "agent";
   const start = /^[a-z]/.test(base) ? base : `a-${base}`;

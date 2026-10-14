@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openHelperStore, type PlanModel } from "@atom/helpers";
+import { MAX_AGENTS, RESERVED_AGENT_IDS, openHelperStore, type PlanModel } from "@atom/helpers";
 import { BROWSER_SERVER } from "./browser.ts";
-import { agentDefinitions, agentModel, createAgentTool } from "./native-agents.ts";
+import { BUILT_IN_AGENTS, agentDefinitions, agentModel, createAgentTool } from "./native-agents.ts";
 
 const models: PlanModel[] = [
   { id: "claude-haiku-5", name: "Haiku", tier: "small" },
@@ -58,19 +58,62 @@ test("the model of an Agent call: Laya's tier as an alias, the role's floor, a p
   assert.equal((await agentModel({ member: { role: "designer", pinnedModel: null }, task: "x", engine: broken, allowLarge: true, models })).model, "sonnet");
 });
 
-test("create_agent writes the agent's soul.md (the store checks name, role and kit) and asks the sessions to restart", () => {
+test("create_agent asks on the approval card, then writes the agent's soul.md (the store checks name, role and kit) and asks the sessions to restart", async () => {
   const { store, agentsDir, done } = setup();
   let restarts = 0;
-  const tool = createAgentTool({ store, restartWhenIdle: () => restarts++ });
-  assert.match(tool.run({ name: "Tara", role: "travel planner", kit: "research", personality: "Calm." }), /ready from your next message/);
+  const asked: { summary: string; reason: string }[] = [];
+  const tool = createAgentTool({ store, approve: async (r) => (asked.push(r), true), restartWhenIdle: () => restarts++ });
+  assert.match(await tool.run({ name: "Tara", role: "travel planner", kit: "research", personality: "Calm." }), /ready from your next message/);
+  assert.equal(asked[0]!.summary, "Make a new agent: Tara");
+  assert.match(asked[0]!.reason, /^Role: travel planner\. Kit: research\.\nCalm\.$/);
   assert.equal(restarts, 1);
   const soul = join(agentsDir, "tara", "soul.md");
   assert.ok(existsSync(soul));
   assert.match(readFileSync(soul, "utf8"), /kit: research/);
   assert.equal(agentDefinitions(store, {}).tara!.description, "Tara: travel planner");
-  assert.match(tool.run({ name: "Bo", role: "x", kit: "root", personality: "p" }), /kit must be/);
-  assert.throws(() => tool.run({ name: "Atom", role: "x", kit: "think", personality: "p" }), /taken/);
+  assert.match(await tool.run({ name: "Bo", role: "x", kit: "root", personality: "p" }), /kit must be/);
+  await assert.rejects(tool.run({ name: "Atom", role: "x", kit: "think", personality: "p" }), /taken/);
   assert.equal(restarts, 1);
+  done();
+});
+
+test("create_agent: a declined card makes nothing; the soul preview is cut", async () => {
+  const { store, agentsDir, done } = setup();
+  const asked: string[] = [];
+  const tool = createAgentTool({ store, approve: async (r) => (asked.push(r.reason), false), restartWhenIdle: () => assert.fail("no restart") });
+  assert.match(await tool.run({ name: "Tara", role: "travel planner", kit: "research", personality: "p".repeat(600) }), /did not approve.*Nothing was made/);
+  assert.ok(!existsSync(join(agentsDir, "tara")));
+  assert.ok(!store.list().some((h) => h.id === "tara"));
+  assert.ok(asked[0]!.length < 460, "about 400 characters of the soul");
+  done();
+});
+
+test("create_agent refuses Claude Code's built-in agent names, a path in the name, and more than MAX_AGENTS agents", async () => {
+  const { store, agentsDir, done } = setup();
+  let cards = 0;
+  const tool = createAgentTool({ store, approve: async () => (cards++, true), restartWhenIdle: () => {} });
+  for (const name of ["Plan", "explore", "General-Purpose", "Statusline Setup", "Claude", "Fork"]) {
+    assert.match(await tool.run({ name, role: "x", kit: "think", personality: "p" }), /Claude Code's own agents/, name);
+  }
+  assert.equal(cards, 0, "no card for a name that cannot be made");
+  assert.throws(() => store.createAgent({ name: "Output Style Setup", role: "x", kit: "think", personality: "p" }), /Claude Code's own agents/, "the store refuses too");
+  assert.deepEqual(BUILT_IN_AGENTS.map((a) => a.toLowerCase()), RESERVED_AGENT_IDS);
+  await tool.run({ name: "Tara", role: "x", kit: "think", personality: "Calm." });
+  const tara = readFileSync(join(agentsDir, "tara", "soul.md"), "utf8");
+  const folders = readdirSync(agentsDir);
+  await assert.rejects(tool.run({ name: "../tara", role: "x", kit: "folders", personality: "p" }), /letters only/);
+  assert.equal(readFileSync(join(agentsDir, "tara", "soul.md"), "utf8"), tara, "no other soul is overwritten");
+  assert.deepEqual(readdirSync(agentsDir), folders, "no new folder");
+  const names = ["Ana", "Ben", "Cy", "Dee", "Eli", "Fay", "Gus", "Hal", "Ivy", "Jo", "Kai", "Lu", "Mo", "Ned", "Oz", "Pia", "Quin", "Rex", "Sue", "Ty"];
+  for (const name of names) {
+    try {
+      await tool.run({ name, role: "x", kit: "think", personality: "p" });
+    } catch (error) {
+      assert.match(String(error), new RegExp(`already ${MAX_AGENTS} agents`));
+      break;
+    }
+  }
+  await assert.rejects(tool.run({ name: "Zed", role: "x", kit: "think", personality: "p" }), new RegExp(`already ${MAX_AGENTS} agents`));
   done();
 });
 
