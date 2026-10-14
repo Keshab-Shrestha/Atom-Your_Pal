@@ -1,9 +1,11 @@
 // ADR-098: the "telegram" chat and the "api" / "api-<chatId>" chats each have one writer. The ATOM window only reads them.
+// ADR-110 (N3): so does a routine's chat ("routine-<id>") on the native engine.
 
 /** Who writes this chat, in words for the window ("Telegram", "the local API"). Undefined for a chat the window writes. */
 export function chatWriter(id: string): string | undefined {
   if (id === "telegram") return "Telegram";
   if (id === "api" || id.startsWith("api-")) return "the local API";
+  if (/^routine-\d+$/.test(id)) return "a routine";
   return undefined;
 }
 

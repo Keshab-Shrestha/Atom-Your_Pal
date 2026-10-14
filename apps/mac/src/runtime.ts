@@ -58,6 +58,7 @@ import {
   tieredModels,
   modelForTier,
   isOver,
+  isFinal,
   type TestKind,
   type HelperStore,
   type HelperView,
@@ -85,6 +86,7 @@ export { describe, errorFields, nowLine, seconds, withLogging } from "./runtime-
 import { TELEGRAM_CHAT, startTelegramBot, type TelegramBot } from "./telegram-bot.ts";
 import { createApiServer, type ApiServer } from "./api-server.ts";
 import { SCHEDULER_TICK_MS, scheduleTick } from "./scheduler.ts";
+import { routeWake, routineStarter } from "./native-entry.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { testMcpServer } from "./mcp-servers.ts";
 import { scanAiTools } from "./ai-tools.ts";
@@ -589,6 +591,13 @@ export function createRuntime(
       }
       for (const listener of postedListeners) listener(chatId);
       for (const listener of chatListeners) listener();
+      // Phase N3: said in the voice chat (ADR-106 rules), sent to Telegram for its chat or a routine with the flag.
+      routeWake(chatId, text, {
+        voiceChat: () => core.sessionId,
+        speak: (line) => goalLineListeners.forEach((listener) => listener(line)),
+        telegram: (line, pushed) => telegram?.send(line, pushed),
+        routine: (id) => helpers.list().flatMap((h) => h.routines).find((r) => r.id === id),
+      });
     },
   };
   // Phase N2: a native job stopped anywhere (the window, Telegram) stops its sub-agent in the session that runs it.
@@ -596,8 +605,9 @@ export function createRuntime(
     if (change.action !== "job" || change.state !== "stopped" || !helpers.get(change.job)?.sdkTaskId) return;
     for (const native of nativeCores) void native.stopJob(change.job).catch(() => log.warn("agent.stop_failed", { job: change.job }));
   });
+  const nativeEngine = readEnv(process.env, "ATOM_ENGINE") === "native";
   const makeCore = (composed = false): Core => {
-    if (readEnv(process.env, "ATOM_ENGINE") !== "native") return makeLegacyCore();
+    if (!nativeEngine) return makeLegacyCore();
     const native = createNativeCore({
             claudePath: keys[CLAUDE_PLAN] ?? "",
             tools: nativeToolEngine,
@@ -799,13 +809,6 @@ export function createRuntime(
       });
     setInterval(look, 60_000).unref();
   }
-  // Task 3.9, ADR-094: routines come due and workers wake on the clock. At start, one catch-up for each that came due
-  // while ATOM was closed.
-  if (helpers) {
-    const tick = () => scheduleTick(helpers, planUsed, log, (error) => ({ ...errorFields(error) }));
-    tick();
-    setInterval(tick, SCHEDULER_TICK_MS).unref();
-  }
   // Task 3.5: a goal whose tasks have all ended gets its combined report (one model call, no tools) and one line.
   const goalLineListeners = new Set<(line: string, after?: () => void) => void>();
   // Task 3.8: a plan waits for Keshab: one line, then Pal's approval card. Allow approves; Decline or no answer leaves
@@ -906,7 +909,27 @@ export function createRuntime(
           held,
           approvals: computer,
           describe,
+          // ADR-110 (N3): a goal is a turn in its own chat "api-goal-<id>"; its status reads that chat's Board rows.
+          ...(nativeEngine ? { native: { said: (chatId: string) => memory?.chats.messages(chatId).find((m) => m.role === "user")?.content } } : {}),
         });
+  // Task 3.9, ADR-094: routines come due and workers wake on the clock. At start, one catch-up for each that came due
+  // while ATOM was closed. ADR-110 (N3): on the native engine a routine is a main-agent turn in its own chat, after
+  // the Telegram bot exists (its flag sends the result there), and no worker wakes up.
+  if (helpers) {
+    const nativeStart = nativeEngine
+      ? routineStarter({
+          core: makeCore(true),
+          messages: (chatId) => memory?.chats.messages(chatId) ?? [],
+          busy: (chatId) => helpers.list().some((h) => h.jobs.some((j) => j.chatId === chatId && !isFinal(j.state))),
+          name: (helper) => helpers.list().find((h) => h.id === helper)?.name,
+          telegram: (line, pushed) => telegram?.send(line, pushed),
+          log,
+        })
+      : undefined;
+    const tick = () => scheduleTick(helpers, planUsed, log, (error) => ({ ...errorFields(error) }), nativeStart);
+    tick();
+    setInterval(tick, SCHEDULER_TICK_MS).unref();
+  }
   return {
     config,
     log,

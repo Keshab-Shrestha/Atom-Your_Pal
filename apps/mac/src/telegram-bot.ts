@@ -47,6 +47,11 @@ export interface TelegramBotOptions {
 export interface TelegramBot {
   /** Settings' "Send to Telegram": what ATOM sends by itself. Replies to Keshab always go. */
   setPush(on: boolean): void;
+  /**
+   * ADR-110 (N3): a message ATOM writes by itself. `pushed` false: a later reply in the Telegram chat (an agent
+   * reported), which always goes. `pushed` true: a routine's result, which follows "Send to Telegram".
+   */
+  send(text: string, pushed: boolean): void;
   stop(): void;
 }
 
@@ -318,6 +323,11 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
   }
 
   return {
+    send(text, pushed) {
+      if ((pushed && !push) || !text.trim()) return;
+      log.info("telegram.push", { kind: pushed ? "routine" : "reply" });
+      void client.send(text);
+    },
     setPush(on) {
       if (on !== push) log.info("telegram.push_setting", { on });
       push = on;

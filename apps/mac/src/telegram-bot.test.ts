@@ -212,6 +212,23 @@ test("push: a new Needs you item is sent once with buttons; setPush(false) stops
   assert.equal(texts(r.sent).length, 1);
 });
 
+test("ADR-110 N3: send(): a later reply always goes; a routine's result follows Send to Telegram", async () => {
+  const r = await run({
+    updates: [],
+    store: fakeStore(),
+    after: async (bot) => {
+      bot.send("Sid found three flights.", false);
+      bot.send("Morning news: calm.", true);
+      bot.setPush(false);
+      bot.send("Evening news: calm.", true);
+      bot.send("Penny wrote the draft.", false);
+      await tick(50);
+    },
+    wait: 10,
+  });
+  assert.deepEqual(texts(r.sent), ["Sid found three flights.", "Morning news: calm.", "Penny wrote the draft."]);
+});
+
 // ---- steering and test results ----
 
 function fakeSteering(how: "live" | "queued" = "live", fail?: Error) {

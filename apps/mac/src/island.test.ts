@@ -909,6 +909,20 @@ test("speech.set: muted reports still show on the island but are not said; turne
   assert.deepEqual(h.spoken, ["Kame is done."]);
 });
 
+test("ADR-110 N3: a later reply (an agent reported) goes the report-line path: a Quiet chat shows it and does not say it (ADR-106)", async () => {
+  let say!: (line: string, after?: () => void) => void;
+  const h = islandHarness({ onGoalLine: (listener) => ((say = listener), () => {}) });
+  await new Promise((r) => setTimeout(r, 5));
+  await h.send({ type: "speech.set", reports: false, updates: false }); // Quiet: "Off, they only show"
+  say("Sid found three flights under $400.");
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepEqual(h.spoken, []);
+  await h.send({ type: "speech.set", reports: true, updates: true });
+  say("Penny wrote the draft.");
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepEqual(h.spoken, ["Penny wrote the draft."]);
+});
+
 test("chats: listed with the current one; opened, ATOM continues it; deleting the current one starts a new chat (ADR-091)", async () => {
   const saved = new Map([["chat-a", [{ role: "user" as const, content: "Plan my trip" }, { role: "assistant" as const, content: "Where to?" }]]]);
   let session = "chat-new";
