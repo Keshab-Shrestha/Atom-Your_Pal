@@ -104,3 +104,21 @@ test("the report, the step line and failure text are masked before they are kept
   assert.ok(!store.get(b.id)!.error!.includes("abc.def.ghi"));
   store.close();
 });
+
+test("Phase N3: the job's model is the one Claude Code ran the agent on, from its usage or its AgentOutput", () => {
+  const store = openHelperStore({ path: ":memory:" });
+  const board = boardRecorder(store, "chat-1");
+  const a = store.addNativeJob("sid", "Find flights", { chatId: "chat-1" });
+  const b = store.addNativeJob("sid", "Find hotels", { chatId: "chat-1" });
+  board.opened("toolu_a", a.id, "Flights");
+  board.opened("toolu_b", b.id, "Hotels");
+  board.onEvent({ type: "assistant", parent_tool_use_id: "toolu_a", message: { model: "claude-haiku-5", usage: { input_tokens: 5, output_tokens: 1 }, content: [] } });
+  assert.equal(store.get(a.id)!.model, "claude-haiku-5");
+  board.onEvent({
+    type: "user",
+    message: { content: [{ type: "tool_result", tool_use_id: "toolu_b", content: "done" }] },
+    tool_use_result: { status: "completed", agentId: "agent-b", resolvedModel: "claude-sonnet-5", usage: { input_tokens: 5, output_tokens: 1 } },
+  });
+  assert.equal(store.get(b.id)!.model, "claude-sonnet-5");
+  store.close();
+});

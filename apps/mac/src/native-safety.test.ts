@@ -53,12 +53,14 @@ test("main thread: general-purpose and unknown agents are denied; one of ATOM's 
   const job = store.list().find((h) => h.id === "sid")!.jobs[0]!;
   assert.equal(job.state, "running");
   assert.equal(job.chatId, "chat-1");
+  assert.equal(job.model, "haiku", "Phase N3: the Board shows Laya's model at once");
   // The same call again (canUseTool after the hook): one decision, one job.
   await gate.canUseTool("Agent", { prompt: "Find flights", subagent_type: "sid" }, { toolUseID: "c4" });
   assert.equal(store.list().find((h) => h.id === "sid")!.jobs.length, 1);
   store.pin("sid", "claude-opus-5-5");
   const pinned = await pre(gate, { tool_name: "Agent", tool_input: { prompt: "y", description: "d", subagent_type: "sid", model: "haiku" } }, "c5");
   assert.equal(pinned.input!.model, undefined, "a pin wins: the definition's model stands");
+  assert.equal(store.list().find((h) => h.id === "sid")!.jobs.find((j) => j.task === "y")!.model, "claude-opus-5-5", "the pin shows on the Board");
   done();
 });
 

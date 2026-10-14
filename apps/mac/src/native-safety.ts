@@ -40,7 +40,7 @@ const MAX_REMEMBERED = 500;
 
 export interface TeamScope {
   chatId: string;
-  helpers: Pick<HelperStore, "list" | "mcpServers" | "addNativeJob" | "checkpoint">;
+  helpers: Pick<HelperStore, "list" | "mcpServers" | "addNativeJob" | "checkpoint" | "setModel">;
   board: BoardRecorder;
   approve(request: { summary: string; reason: string }): Promise<boolean>;
   /** Laya's model alias for this Agent call; undefined keeps the definition's model. */
@@ -111,6 +111,9 @@ export function nativeGate(scope: NativeScope): NativeGate {
       return deny(error instanceof Error ? error.message : String(error));
     }
     team.board.opened(id, job.id, String(input.description ?? ""));
+    // Phase N3: the Board shows the model at once (the pin or Laya's choice); the recorder puts the exact one when it runs.
+    const chosen = typeof updated.model === "string" ? updated.model : member.pinnedModel;
+    if (chosen) team.helpers.setModel(job.id, chosen, updated.model ? "Chosen by Laya." : "Pinned by Keshab.");
     if (member.kit === "folders" && team.project && (await isRepo(team.project.cwd))) {
       updated.isolation = "worktree";
       pendingTrees.push(job.id);

@@ -9,7 +9,7 @@ import { redact, tokensOf, toolCallRecorder } from "@atom/llm-gateway";
  * description; the sources are the web addresses in the text. Logs ids and states only, never text.
  */
 
-export type BoardStore = Pick<HelperStore, "get" | "step" | "finish" | "fail" | "stop" | "recordToolCall" | "addUsage" | "linkNativeTask" | "list">;
+export type BoardStore = Pick<HelperStore, "get" | "step" | "finish" | "fail" | "stop" | "recordToolCall" | "addUsage" | "linkNativeTask" | "list" | "setModel">;
 
 export interface BoardRecorder {
   /** The gate made a job for this Agent call (its tool_use_id). */
@@ -117,7 +117,12 @@ export function boardRecorder(
       .catch(() => log("agent.end_failed", { job }));
   };
 
+  const modelled = new Set<number>();
   const usage = (job: number, model: unknown, u: unknown) => {
+    // Phase N3: the Board shows the model Claude Code ran the agent on (a running job only, so the first one seen).
+    if (typeof model === "string" && model && model !== "unknown" && !modelled.has(job)) {
+      safe(() => void (helpers.setModel(job, model, "The model Claude Code ran this agent on.") && modelled.add(job)));
+    }
     const tokens = tokensOf({ usage: u });
     if (!tokens) return;
     const { costUsd: _, cacheTtl, ...counts } = tokens;
