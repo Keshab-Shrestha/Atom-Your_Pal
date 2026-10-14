@@ -1533,3 +1533,20 @@ Review fixes (2026-10-14): Agent call input allowlist, plan-first file gate, `cr
 Not built in N2: speech for a wake-up reply (N3), SendMessage steering to a running agent, a worktree in a plain chat (a folders agent there works in its granted folders, with checkpoints), and an exact link from SubagentStart and WorktreeCreate to the Agent call (these hooks give no `tool_use_id`, so ATOM uses the oldest open job of that worker and the oldest waiting worktree).
 
 Next: Keshab tries Phase N2 in the real app. Then Phase N3: voice, Telegram, the API and schedules.
+
+## Phase N3: voice, Telegram, the API and schedules (ADR-110, 2026-10-14)
+
+With `ATOM_ENGINE=native`, the other entry points use the native engine. The legacy engine is unchanged.
+
+- `apps/mac/src/native-entry.ts`: `routeWake` sends a reply that the session gives by itself (an agent reported). In the voice chat, ATOM says it on the report-line path, so a Quiet chat shows it and does not say it (ADR-106). In the `telegram` chat, the bot sends it. In a routine chat, the bot sends it when the routine's "Send to Telegram" is on.
+- `routineStarter`: a due routine is one main-agent turn in its chat `routine-<id>`, with the text "<worker name>, <task>". The text goes `client_composed`. A routine whose last turn or agent still runs is skipped this time. `store.runRoutines(start)` makes no legacy task and keeps the catch-up rule. `scheduleTick` runs no wake-ups on the native engine.
+- `api-server.ts`: `POST /v1/goals` sends the goal into the chat `api-goal-<goalId>`. `goalId` is null when ATOM answers without an agent. `GET /v1/goals/:id` reads the job rows of that chat. `mcp-serve.ts` is unchanged.
+- `telegram-bot.ts`: `send(text, pushed)`. A later reply always goes. A routine result follows "Send to Telegram".
+- `chat-owner.ts`: a routine chat is read-only in the window, as the Telegram and API chats are.
+- Board: the gate puts Laya's model or the pin on the job at once. The recorder puts the exact model from the sub-agent's usage while the job runs.
+- The native opening no longer has the team line. The agents reach Claude Code as its agent listing. The line also named the legacy `delegate` tool. Saving: about 35 to 60 tokens for each session open.
+- Tests: `native-entry.test.ts`, and N3 tests in `api-server.test.ts`, `telegram-bot.test.ts`, `scheduler.test.ts`, `routines.test.ts`, `native-board.test.ts`, `native-safety.test.ts` and `island.test.ts`. The Telegram, API and scheduler tests also pass with `ATOM_ENGINE=native`. All tests use fakes.
+
+Not built in N3: a webhook (`POST /v1/hooks/:routineId`) still makes a legacy task, also on the native engine. A test of `native-core.ts` with a fake unprompted reply (the session tests cover `onUnprompted`).
+
+Next: Keshab tries Phase N3 in the real app. Then Phase N4: budgets removed.

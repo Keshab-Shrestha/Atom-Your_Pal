@@ -2540,3 +2540,10 @@ Phase N2 (built 2026-10-14):
 - The safety gate makes the Board job when it allows an Agent call. Laya sets the model of the call (haiku, sonnet or opus). A pin and the role floor win. `native-board.ts` links the job to Claude Code's task, and records the steps, the tool calls (redacted), the token use and the report.
 - When an agent finishes, Claude Code wakes the main agent in the same chat. The reply goes into the chat as one assistant turn.
 - Live probe (haiku, temporary folder): plain chat prefix 3.8k (target 3.5k). Project chat prefix 5.7k (target 5.5k). A research sub-agent's prefix is 2.5k (target 2k). The probe used about 21k plan tokens, most of them cache writes.
+
+Phase N3 (built 2026-10-14), where it differs from the plan:
+
+- A routine's chat is `routine-<id>`. Its turn text is "<worker name>, <task>", so the main agent hands it to that worker. A webhook start still makes a legacy task.
+- An API goal's chat is `api-goal-<goalId>`. The goal id is the time in milliseconds. `goalId` is null when ATOM answers without an agent.
+- A later reply in the voice chat uses the report-line path. It follows "Speak the team's reports", so a Quiet chat does not say it.
+- The native opening drops the team line completely: it named the legacy `delegate` tool, and the agent listing holds the names and roles.
