@@ -32,7 +32,8 @@ import {
 import { createGateway, createProviderAdapter, createSwitchableModel, listPlanModels, runChatDigest, type ChatSession, type ChatSessions, type PlanUsage } from "@atom/llm-gateway";
 import { createNoteModel, createNotes } from "./notes.ts";
 import { createChatUsageRecorder } from "./usage-report.ts";
-import { CLAUDE_PLAN, createLogger, readEnv, type Config, type LlmChoice, type Logger, type ProviderKeys } from "@atom/shared";
+import { createNativeCore } from "./native-core.ts";
+import { CLAUDE_PLAN, createLogger, readEnv, type Config, type LlmChoice, type Logger, type LogFields, type ProviderKeys } from "@atom/shared";
 import {
   createMemoryTools,
   DEFAULT_MAX_EPISODES,
@@ -62,7 +63,7 @@ import {
   type JobRunner,
 } from "@atom/helpers";
 import { createLayaEngine } from "@atom/decision-engine";
-import type { InputSource, LanguageModel, Message, RequestContext } from "@atom/contracts";
+import type { InputSource, LanguageModel, Message, RequestContext, ZenoInput } from "@atom/contracts";
 import type { IslandChats, IslandGit, IslandHelpers, IslandMemory, IslandProjects } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
 import { taskSteering, type TaskSteering } from "./task-steering.ts";
@@ -505,7 +506,7 @@ export function createRuntime(
   // ADR-098: one Core setup, used for the window's Core and the Telegram chat's own Core.
   // The chat of the turn that runs now. The Claude plan runs ATOM's tools through one shared runner, so the delegate tool
   // reads the chat from the turn (AsyncLocalStorage), not from a Core: two surfaces never share one value.
-  const makeCore = (): Core => withTurnChat(createCore({
+  const makeLegacyCore = (): Core => withTurnChat(createCore({
         model: coreModel,
         tools: toolEngine,
         context: async (input, context) => {
@@ -538,6 +539,48 @@ export function createRuntime(
         },
         onLeave: (sessionId: string) => void episodes?.flush(sessionId), // ADR-108: a chat that is left gets its note now
       }));
+  // ADR-110 (Phase N1): ATOM_ENGINE=native gives each open chat one long-lived Claude Code session; legacy is the default.
+  // `composed`: Telegram and the API, whose text goes to Claude Code as written.
+  const makeCore = (composed = false): Core =>
+    readEnv(process.env, "ATOM_ENGINE") !== "native"
+      ? makeLegacyCore()
+      : withTurnChat(
+          createNativeCore({
+            claudePath: keys[CLAUDE_PLAN] ?? "",
+            tools: toolEngine,
+            legacy: makeLegacyCore(),
+            modelFor: (chatId: string, source: InputSource) => {
+              const own = source === "text" ? islandChats?.modelOf?.(chatId) : undefined;
+              const checked = own && settings.check(own.provider, own.model);
+              const choice = checked && !("error" in checked) ? checked.choice : settings.current();
+              return choice.provider === CLAUDE_PLAN ? choice.model : undefined;
+            },
+            context: (input: ZenoInput) => [nowLine(), memory ? memoryContext(input.text, { store: memory }) : undefined, screen.take()].filter(Boolean).join("\n\n"),
+            opening: async (chatId: string, text: string) =>
+              [
+                helpers ? teamContext(helpers.list(), helpers.managers()) : undefined,
+                memory ? MEMORY_GUIDANCE : undefined,
+                await keptChats?.context(text).catch((error: unknown) => void log.warn("memory.kept_search_failed", { message: describe(error) })),
+                memory && episodes ? episodeContext(memory, chatId) : undefined,
+                projects?.digest(chatId),
+              ].filter(Boolean).join("\n\n"),
+            ...(projects ? { project: (chatId: string) => projects.turn(chatId) } : {}),
+            ...(shortcuts ? { shortcuts } : {}),
+            onExchange: (sessionId: string, turns: readonly Message[]) => {
+              saveChat(sessionId, turns);
+              episodes?.update(sessionId, turns);
+            },
+            onLeave: (sessionId: string) => void episodes?.flush(sessionId),
+            ...(chatSessions ? { chatSessions } : {}),
+            clientComposed: composed,
+            web: readEnv(process.env, "ATOM_WEB") !== "0",
+            timeoutMs: Math.max(config.llm.timeoutMs, PLAN_TIMEOUT_MS),
+            ...(Number(readEnv(process.env, "ATOM_SESSION_IDLE_MS")) > 0 ? { idleMs: Number(readEnv(process.env, "ATOM_SESSION_IDLE_MS")) } : {}),
+            onUsage: reportUsage,
+            onTokens: (tokens, model, meta) => recordChatUsage(tokens, model, meta),
+            log: (event, fields) => log.info(event, fields as LogFields),
+          }),
+        );
   const baseCore: Core = readEnv(process.env, "ATOM_VOICE_ONLY") === "1" ? createEchoCore() : makeCore();
   // ADR-080: with computer control on, replies lose their [POINT:…] marker before speech, and a valid one points.
   const core: Core = computerOn
@@ -769,7 +812,7 @@ export function createRuntime(
   const telegramChat = readEnv(process.env, "ATOM_TELEGRAM_CHAT_ID")?.trim();
   let telegram: TelegramBot | undefined;
   if (telegramToken && telegramChat && readEnv(process.env, "ATOM_VOICE_ONLY") !== "1") {
-    const telegramCore = makeCore();
+    const telegramCore = makeCore(true);
     telegramCore.resume(TELEGRAM_CHAT, memory?.chats.messages(TELEGRAM_CHAT) ?? []);
     telegram = startTelegramBot({
       token: telegramToken,
@@ -795,7 +838,7 @@ export function createRuntime(
           port: readEnv(process.env, "ATOM_API_PORT"),
           ask: async (text, chatId) => {
             const chat = chatId ? `api-${chatId}` : "api";
-            apiCore ??= makeCore();
+            apiCore ??= makeCore(true);
             if (apiChat !== chat) {
               apiCore.resume(chat, memory?.chats.messages(chat) ?? []);
               apiChat = chat;

@@ -237,8 +237,24 @@ function shapeOf(spec: ToolSpec): Record<string, ZodType> {
   return Object.fromEntries(Object.entries(spec.inputSchema.properties ?? {}).map(([name, p]) => [name, zodFor(p, required.has(name))]));
 }
 
+/**
+ * ATOM's tools as SDK tools of an in-process MCP server: each call goes straight to ATOM's own tool engine, so
+ * approvals and safety rules are unchanged. `onCall` is told before a tool runs.
+ */
+export function sdkToolsFor(sdk: Pick<ClaudeSdk, "tool">, specs: ToolSpec[], runner: ToolRunner, signal: () => AbortSignal, onCall?: () => void): unknown[] {
+  return specs.map((spec) =>
+    sdk.tool(spec.name, spec.description, shapeOf(spec), async (input) => {
+      onCall?.();
+      const result = await runner.run({ id: randomUUID(), name: spec.name, input }, signal());
+      // ADR-080: a screenshot goes after the words as MCP image content, which Claude Code shows the model.
+      const images = (result.images ?? []).map((i) => ({ type: "image" as const, data: i.data, mimeType: i.mimeType }));
+      return { content: [{ type: "text" as const, text: result.content }, ...images], ...(result.isError ? { isError: true } : {}) };
+    }),
+  );
+}
+
 /** The conversation as one prompt: earlier turns as a transcript, then the newest message as the question. */
-function promptFrom(messages: Message[]): string {
+export function promptFrom(messages: Message[]): string {
   const turns = messages.filter((m) => m.content.trim());
   const last = turns.at(-1)?.content.trim() ?? "";
   if (turns.length <= 1) return last;
@@ -448,15 +464,7 @@ export function createClaudePlanAdapter(options: ClaudePlanOptions): ProviderAda
           },
         }
       : {};
-    const sdkTools = specs.map((spec) =>
-      sdk.tool(spec.name, spec.description, shapeOf(spec), async (input) => {
-        state.acted = true;
-        const result = await tools!.run({ id: randomUUID(), name: spec.name, input }, state.signal ?? controller.signal);
-        // ADR-080: a screenshot goes after the words as MCP image content, which Claude Code shows the model.
-        const images = (result.images ?? []).map((i) => ({ type: "image" as const, data: i.data, mimeType: i.mimeType }));
-        return { content: [{ type: "text" as const, text: result.content }, ...images], ...(result.isError ? { isError: true } : {}) };
-      }),
-    );
+    const sdkTools = specs.length ? sdkToolsFor(sdk, specs, tools!, () => state.signal ?? controller.signal, () => (state.acted = true)) : [];
     return {
       model,
       // A chat's session renders its system prompt each time (snapshot off), so a changed team list still arrives;
