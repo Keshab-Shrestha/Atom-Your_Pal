@@ -32,7 +32,9 @@ import {
 import { createGateway, createProviderAdapter, createSwitchableModel, listPlanModels, runChatDigest, type ChatSession, type ChatSessions, type PlanUsage } from "@atom/llm-gateway";
 import { createNoteModel, createNotes } from "./notes.ts";
 import { createChatUsageRecorder } from "./usage-report.ts";
-import { createNativeCore } from "./native-core.ts";
+import { createNativeCore, type NativeCore } from "./native-core.ts";
+import { agentModel, createAgentTool } from "./native-agents.ts";
+import { browserServer } from "./browser.ts";
 import { CLAUDE_PLAN, createLogger, readEnv, type Config, type LlmChoice, type Logger, type LogFields, type ProviderKeys } from "@atom/shared";
 import {
   createMemoryTools,
@@ -58,6 +60,7 @@ import {
   isOver,
   type TestKind,
   type HelperStore,
+  type HelperView,
   type Job,
   type JobRun,
   type JobRunner,
@@ -68,12 +71,12 @@ import type { IslandChats, IslandGit, IslandHelpers, IslandMemory, IslandProject
 import { islandHelpers } from "./island-helpers.ts";
 import { taskSteering, type TaskSteering } from "./task-steering.ts";
 import { createHubCommands } from "./hub-commands.ts";
-import { listSkills, userSkillsDir } from "./skills.ts";
+import { SKILLS_PLUGIN, listSkills, prepareSkills, userSkillsDir } from "./skills.ts";
 import { NOT_RUN_PLAN_LIMIT, runTestCases } from "./test-runs.ts";
 import { createEmbedder } from "./embedder.ts";
 import { createKeptChats } from "./kept-chats.ts";
 import { startGoalPosts } from "./goal-post.ts";
-import { createProjects } from "./projects-wiring.ts";
+import { MAX_PROJECT_MESSAGES, createProjects } from "./projects-wiring.ts";
 import { createRunOne } from "./run-job.ts";
 import { createIslandGit, withPaperclip } from "./island-wiring.ts";
 import { nowLine, createEchoCore, describe, errorFields, findCalendarHelper, openHelpers, openMemory, warmOnOpen } from "./runtime-support.ts";
@@ -398,6 +401,24 @@ export function createRuntime(
     ...(helpers ? [createTeamTaskTool({ store: helpers, onPosted: (e) => log.info("team.posted", e) })] : []),
   ];
   const toolEngine = createToolEngine({ tools, onCall: (e) => log.info("tool.call", e) });
+  // ADR-110 (N2): the native engine's ATOM tools: no delegate and no post_to_team (sub-agents and routines replace
+  // them); create_agent instead. A new agent is ready once each open session restarts.
+  const nativeCores = new Set<NativeCore>();
+  const nativeToolEngine = createToolEngine({
+    tools: [
+      ...tools.filter((t) => t.spec.name !== "delegate" && t.spec.name !== "post_to_team"),
+      ...(helpers
+        ? [
+            createAgentTool({
+              store: helpers,
+              restartWhenIdle: () => nativeCores.forEach((c) => c.restartWhenIdle()),
+              onCreated: (e) => log.info("agent.created", e),
+            }),
+          ]
+        : []),
+    ],
+    onCall: (e) => log.info("tool.call", e),
+  });
   const planUsageListeners = new Set<(usage: PlanUsage) => void>();
   // Plan use goes in the log so it is visible how much of the plan a day of ATOM takes. No keys, no text.
   // ADR-076: and to the island's meters. Helper jobs report theirs here too.
@@ -542,13 +563,44 @@ export function createRuntime(
       }));
   // ADR-110 (Phase N1): ATOM_ENGINE=native gives each open chat one long-lived Claude Code session; legacy is the default.
   // `composed`: Telegram and the API, whose text goes to Claude Code as written.
-  const makeCore = (composed = false): Core =>
-    readEnv(process.env, "ATOM_ENGINE") !== "native"
-      ? makeLegacyCore()
-      : withTurnChat(
-          createNativeCore({
+  // Phase N2: the sub-agents of each native chat session; their Board rows, safety, worktrees, skills and wake-ups.
+  const nativeTeam = helpers && {
+    helpers,
+    approve: (request: { summary: string; reason: string }) => computer.approve(request),
+    // `decisions` and `planModels` are made further down: read only when an Agent call runs.
+    chooseModel: async (task: string, member: HelperView) =>
+      (await agentModel({ member, task, engine: decisions, allowLarge: helpers.allowLarge(), models: planModels() })).model,
+    worktrees,
+    browser: (helper: string) => browserServer(dirname(worktrees), helper),
+    skills: (chatId: string) => {
+      const names = [...new Set(helpers.list().flatMap((h) => h.skills))];
+      if (!names.length) return undefined;
+      const dir = join(dirname(worktrees), "skill-plugins", "chats", chatId.replace(/[^\w.-]/g, "_"));
+      return { ...prepareSkills(dir, names, userSkillsDir(), skillsDir), plugin: SKILLS_PLUGIN };
+    },
+    onWake: (chatId: string, text: string, saved: boolean) => {
+      log.info("agent.woke", { chatId, saved });
+      if (!saved && memory) {
+        const stored = memory.chats.messages(chatId);
+        if (!stored.length) return;
+        const all: Message[] = [...stored, { role: "assistant", content: text }];
+        memory.chats.save(chatId, memory.chats.project(chatId) ? all.slice(-MAX_PROJECT_MESSAGES) : all);
+      }
+      for (const listener of postedListeners) listener(chatId);
+      for (const listener of chatListeners) listener();
+    },
+  };
+  // Phase N2: a native job stopped anywhere (the window, Telegram) stops its sub-agent in the session that runs it.
+  helpers?.onChange((change) => {
+    if (change.action !== "job" || change.state !== "stopped" || !helpers.get(change.job)?.sdkTaskId) return;
+    for (const native of nativeCores) void native.stopJob(change.job).catch(() => log.warn("agent.stop_failed", { job: change.job }));
+  });
+  const makeCore = (composed = false): Core => {
+    if (readEnv(process.env, "ATOM_ENGINE") !== "native") return makeLegacyCore();
+    const native = createNativeCore({
             claudePath: keys[CLAUDE_PLAN] ?? "",
-            tools: toolEngine,
+            tools: nativeToolEngine,
+            ...(nativeTeam ? { team: nativeTeam } : {}),
             legacy: makeLegacyCore(),
             modelFor: (chatId: string, source: InputSource) => {
               const own = source === "text" ? islandChats?.modelOf?.(chatId) : undefined;
@@ -566,7 +618,8 @@ export function createRuntime(
                 projects?.digest(chatId),
               ].filter(Boolean).join("\n\n"),
             ...(projects ? { project: (chatId: string) => projects.turn(chatId) } : {}),
-            ...(shortcuts ? { shortcuts } : {}),
+            // Phase N2: no worker shortcut: "Sid, …" is a main-agent turn that hands the request to Sid.
+            ...(toolShortcuts ? { shortcuts: toolShortcuts } : {}),
             onExchange: (sessionId: string, turns: readonly Message[]) => {
               saveChat(sessionId, turns);
               episodes?.update(sessionId, turns);
@@ -580,8 +633,10 @@ export function createRuntime(
             onUsage: reportUsage,
             onTokens: (tokens, model, meta) => recordChatUsage(tokens, model, meta),
             log: (event, fields) => log.info(event, fields as LogFields),
-          }),
-        );
+          });
+    nativeCores.add(native);
+    return withTurnChat(native);
+  };
   const baseCore: Core = readEnv(process.env, "ATOM_VOICE_ONLY") === "1" ? createEchoCore() : makeCore();
   // ADR-080: with computer control on, replies lose their [POINT:…] marker before speech, and a valid one points.
   const core: Core = computerOn
@@ -864,7 +919,13 @@ export function createRuntime(
             ...islandHelpers(helpers, installedApps, planModels, held, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name)))),
             hub: createHubCommands({ store: helpers, log }), // B3.5
             openReport,
-            ...(steering ? { steer: steering.steer, interrupt: steering.interrupt } : {}),
+            ...(steering
+              ? {
+                  // Phase N2: a note to a native job is a message to the main agent of its chat.
+                  steer: (id: number, text: string) => ([...nativeCores].some((c) => c.steer(id, text)) ? "live" : steering.steer(id, text)),
+                  interrupt: steering.interrupt,
+                }
+              : {}),
             // ADR-098 item 8: "Run tests" on a pending soul proposal or skill edit.
             runTests: (kind: TestKind, id: number) => runTests(kind, id, AbortSignal.timeout(JOB_TIME_LIMIT_MS)),
             // ADR-098 item 7: the Codex switch, and whether Codex is found and signed in (the switch shows only then).

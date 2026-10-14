@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import type { Core } from "@atom/core";
 import type { Message, ProjectFiles, ToolRunner } from "@atom/contracts";
 import { answerTail, MAX_PROJECT_FILE_CALLS, type ChatSession, type SessionSdk } from "@atom/llm-gateway";
-import { CONTEXT_LABEL, createNativeCore, NATIVE_SYSTEM_PROMPT, type NativeCoreDeps } from "./native-core.ts";
+import { openHelperStore } from "@atom/helpers";
+import { CONTEXT_LABEL, createNativeCore, NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, type NativeCoreDeps } from "./native-core.ts";
 import { nativeGate } from "./native-safety.ts";
 
 // ---- a fake SDK: each query is one scripted Claude Code process that answers every pushed message
@@ -211,4 +212,65 @@ test("one call is checked once by hook and callback; the ninth read of an answer
   assert.equal(await decision(gate, "Read", { file_path: "/Users/k/app/f9.ts" }, "c10"), "allow");
   gate.newAnswer(undefined);
   assert.equal(await decision(gate, "Read", { file_path: "/Users/k/app/f1.ts" }, "c11"), "deny", "the folder is gone: no reads");
+});
+
+// ---- Phase N2: sub-agents
+
+/** A fake whose turn text sets the background task list: "spawn" adds one, "clear" empties it. */
+function backgroundSdk() {
+  const queries: FakeQuery[] = [];
+  const sdk: SessionSdk = {
+    tool: (name) => ({ name }) as never,
+    createSdkMcpServer: (o) => ({ type: "sdk", ...o }) as never,
+    query: ({ prompt, options }) => {
+      const q: FakeQuery = { options: options as Record<string, any>, sent: [] };
+      queries.push(q);
+      async function* run() {
+        yield { type: "system", subtype: "init", apiKeySource: "none", session_id: "sess-1" };
+        for await (const m of prompt) {
+          q.sent.push(m as Msg);
+          const text = String((m as Msg).message.content);
+          if (text.startsWith("spawn")) yield { type: "system", subtype: "background_tasks_changed", tasks: [{ id: "a1" }] };
+          if (text.startsWith("clear")) yield { type: "system", subtype: "background_tasks_changed", tasks: [] };
+          yield { type: "result", subtype: "success", is_error: false, result: `re ${text.split("\n")[0]}`, session_id: "sess-1" };
+        }
+      }
+      return Object.assign(run(), { close: () => {} });
+    },
+  };
+  return { sdk, queries };
+}
+
+test("N2: with a team the main thread gets the Agent tool, the team prompt and the sub-agents; 'Sid, …' adds the fixed hand-over line", async () => {
+  const { sdk, queries } = fakeSdk();
+  const store = openHelperStore({ path: ":memory:" });
+  const core = make(sdk, { team: { helpers: store, approve: async () => false, worktrees: "/tmp/atom-n2-worktrees" } });
+  await core.handle({ text: "Sid, find cheap flights", source: "voice" });
+  const o = queries[0]!.options;
+  assert.deepEqual(o.tools, ["WebSearch", "WebFetch", "Agent", "ToolSearch"]);
+  assert.equal(o.systemPrompt, NATIVE_TEAM_PROMPT);
+  assert.ok(!NATIVE_TEAM_PROMPT.includes("delegate tool"));
+  assert.equal(o.agents.sid.description, "Sid: researcher");
+  assert.equal(o.agents["general-purpose"], undefined);
+  assert.equal(o.sandbox, undefined, "no sandbox (and no Bash) in a plain chat");
+  assert.ok(o.hooks.SubagentStop && o.hooks.WorktreeCreate);
+  assert.match(String(queries[0]!.sent[0]!.message.content), /delegate this request to Sid as it is, with the Agent tool \(subagent_type "sid"\)/);
+  await core.handle({ text: "Well, what time is it", source: "voice" });
+  assert.doesNotMatch(String(queries[0]!.sent[1]!.message.content), /delegate this request/);
+  store.close();
+});
+
+test("N2: a new agent restarts the session with resume only at a turn when no background task runs", async () => {
+  const { sdk, queries } = backgroundSdk();
+  const { store: chatSessions } = sessions();
+  const core = make(sdk, { chatSessions });
+  await core.handle({ text: "spawn an agent", source: "voice" });
+  core.restartWhenIdle();
+  await core.handle({ text: "clear when done", source: "voice" });
+  assert.equal(queries.length, 1, "a background task held the old process");
+  await core.handle({ text: "next", source: "voice" });
+  assert.equal(queries.length, 2, "restarted once the background set was empty");
+  assert.equal(queries[1]!.options.resume, "sess-1");
+  await core.handle({ text: "again", source: "voice" });
+  assert.equal(queries.length, 2, "one restart only");
 });
