@@ -7,6 +7,7 @@ import { checkpointBefore, folderCheck } from "./folder-run.ts";
 import { mcpCheck } from "./mcp-servers.ts";
 import { grantedServers, kitTools, nativeMembers } from "./native-agents.ts";
 import type { BoardRecorder } from "./native-board.ts";
+import type { PlanBook } from "./native-plan.ts";
 import { commitWork, git, prepareWorkdir, type Workdir } from "./worktree.ts";
 
 /**
@@ -40,8 +41,10 @@ const MAX_REMEMBERED = 500;
 
 export interface TeamScope {
   chatId: string;
-  helpers: Pick<HelperStore, "list" | "mcpServers" | "addNativeJob" | "checkpoint" | "setModel">;
+  helpers: Pick<HelperStore, "list" | "mcpServers" | "addNativeJob" | "checkpoint" | "setModel" | "linkPlanJob">;
   board: BoardRecorder;
+  /** ADR-111: the chat's work plan; an Agent call with description "P<n>" is a portion of it. */
+  plans?: PlanBook;
   approve(request: { summary: string; reason: string }): Promise<boolean>;
   /** Laya's model alias for this Agent call; undefined keeps the definition's model. */
   chooseModel?(task: string, member: HelperView): Promise<string | undefined>;
@@ -98,18 +101,31 @@ export function nativeGate(scope: NativeScope): NativeGate {
     const type = typeof input.subagent_type === "string" ? input.subagent_type : "general-purpose";
     const member = nativeMembers(team.helpers.list()).find((m) => m.id === type);
     if (!member) return deny(`"${type.slice(0, 40)}" is not one of your agents. Pick one by its description, or make one with create_agent.`);
+    // ADR-111: a portion of the chat's work plan. Code checks the order and writes the prompt: its stored task, the goal
+    // and the reports it waited for. The main agent's own prompt text is not used.
+    const claim = team.plans?.claim(String(input.description ?? ""), member) ?? ({ kind: "none" } as const);
+    if (claim.kind === "deny") return deny(claim.message);
+    const planned = claim.kind === "ok" ? claim : undefined;
+    const release = () => {
+      if (planned) team.plans?.release(planned.plan, planned.n);
+    };
     const updated: Record<string, unknown> = Object.fromEntries(AGENT_FIELDS.filter((k) => k in input).map((k) => [k, input[k]]));
+    if (planned) updated.prompt = planned.prompt;
     updated.run_in_background = true;
+    const task = planned ? planned.task : String(input.prompt ?? "");
     if (!member.pinnedModel && team.chooseModel) {
-      const model = await team.chooseModel(String(input.prompt ?? ""), member).catch(() => undefined);
+      const model = await team.chooseModel(task, member).catch(() => undefined);
       if (model) updated.model = model;
     }
     let job;
     try {
-      job = team.helpers.addNativeJob(member.id, String(input.prompt ?? ""), { chatId: team.chatId });
+      job = team.helpers.addNativeJob(member.id, task, { chatId: team.chatId });
+      if (planned) team.helpers.linkPlanJob(planned.plan, planned.n, job.id);
     } catch (error) {
+      release();
       return deny(error instanceof Error ? error.message : String(error));
     }
+    release();
     team.board.opened(id, job.id, String(input.description ?? ""));
     // Phase N3: the Board shows the model at once (the pin or Laya's choice); the recorder puts the exact one when it runs.
     const chosen = typeof updated.model === "string" ? updated.model : member.pinnedModel;

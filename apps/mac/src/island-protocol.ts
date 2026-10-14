@@ -6,7 +6,7 @@ import type { LoopState } from "./voice-loop.ts";
 
 export const PROTOCOL_VERSION = 1;
 
-import type { ProjectItem, ThreadEvent, SearchResultsEvent, ErrorStage, PlanUsageEvent, NoticeKind, InfoEvent, MemoryItem, EpisodeItem, MemoryChatItem, ChatItem, GitBranchItem, HelperItem, ModelItem, SkillHubItem, SkillDraftItem, SkillEditItem, TestCaseItem, McpItem, UsageItem, PaperclipItem } from "./island-items.ts";
+import type { ProjectItem, ThreadEvent, SearchResultsEvent, ErrorStage, PlanUsageEvent, NoticeKind, InfoEvent, MemoryItem, EpisodeItem, MemoryChatItem, ChatItem, GitBranchItem, HelperItem, ModelItem, SkillHubItem, SkillDraftItem, SkillEditItem, TestCaseItem, McpItem, UsageItem, PaperclipItem, PlanItem } from "./island-items.ts";
 export * from "./island-items.ts";
 export * from "./island-commands.ts";
 
@@ -75,6 +75,8 @@ export type IslandEvent =
       usage?: UsageItem;
       /** Task 3.16: the tasks handed to Keshab's Paperclip; absent when the connection is off. */
       paperclip?: { issues: PaperclipItem[] };
+      /** ADR-111: the newest work plans with the state of each portion; absent when there are none. */
+      plans?: PlanItem[];
       /** ADR-093: agent folders whose soul.md could not be loaded (folder name and why); absent when there are none. */
       agentProblems?: { id: string; problem: string }[];
     }

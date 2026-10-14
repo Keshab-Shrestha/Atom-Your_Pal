@@ -316,6 +316,27 @@ export interface McpItem {
   problem?: string;
 }
 
+/** ADR-111: one portion of a work plan. `job` is its Board task once it started. Task text is Keshab's own. */
+export interface PlanPortionItem {
+  n: number;
+  agent: string;
+  name: string;
+  task: string;
+  after: number[];
+  job?: number;
+  state: "waiting" | "running" | "done" | "failed" | "stopped" | "blocked";
+}
+
+/** ADR-111: a work plan with the state of each portion (the notch's dots and the Board's plan card). */
+export interface PlanItem {
+  id: number;
+  goal: string;
+  createdAt: string;
+  portions: PlanPortionItem[];
+  complete: boolean;
+  stuck: boolean;
+}
+
 /** Task 3.16: a task ATOM handed to Keshab's Paperclip. Titles and results never logged. */
 export interface PaperclipItem {
   id: string;

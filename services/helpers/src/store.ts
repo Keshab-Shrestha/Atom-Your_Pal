@@ -14,6 +14,8 @@ import { skillHubStore } from "./skill-hub.ts";
 import { mcpTable } from "./mcp.ts";
 import { usageTable } from "./usage.ts";
 import { toolCallTable } from "./tool-calls.ts";
+import { planTable, type StoredPlan } from "./plans.ts";
+import { blockedPortions, isComplete } from "./work-plan.ts";
 import { checkpointTable } from "./checkpoints.ts";
 import { searchTable } from "./search.ts";
 import { MAX_TEST_CASES, TEST_CASES_RUN, skillInstructions, testCaseTable, type TestKind } from "./test-cases.ts";
@@ -51,7 +53,7 @@ export const CLOSED_WHILE_RUNNING = "ATOM was closed while this job ran";
 export const SOUL_VERSIONS_LISTED = 10;
 
 export type * from "./store-types.ts";
-import type { Activity, GoalPart, GoalReport, HelperChange, HelperStore, HelperStoreOptions, Job, Source } from "./store-types.ts";
+import type { Activity, GoalPart, GoalReport, HelperChange, HelperStore, HelperStoreOptions, Job, PlanPortionView, PlanView, PortionState, Source } from "./store-types.ts";
 
 export { webSources } from "./store-schema.ts";
 
@@ -221,6 +223,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const mcp = mcpTable(db);
   const tokens = usageTable(db, now);
   const toolCalls = toolCallTable(db); // B3.1
+  const workPlans = planTable(db, now); // ADR-111
   const checkpoints = checkpointTable(db, checkpointsDir, home); // B3.4
   checkpoints.sweep(opened);
   const finder = searchTable(db); // ADR-098: labels and the window's search
@@ -420,6 +423,32 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     askTinker: (jobId, task, kind, skill) => askTinker(jobId, task, kind, skill ?? null),
   });
 
+  /** ADR-111: a stored plan with the state of each portion, read from the Board jobs. */
+  function planView(stored: StoredPlan): PlanView {
+    const jobs = new Map(workPlans.jobs(stored.id).map((j) => [j.n, j.job]));
+    const state = (n: number): PortionState => {
+      const job = jobs.get(n);
+      if (job === undefined) return "waiting";
+      const found = get(job)?.state;
+      return found === "done" || found === "failed" || found === "stopped" ? found : "running";
+    };
+    const failed = new Set(stored.portions.filter((p) => state(p.n) === "failed" || state(p.n) === "stopped").map((p) => p.n));
+    const blocked = new Set(blockedPortions(stored, failed));
+    const done = new Set(stored.portions.filter((p) => state(p.n) === "done").map((p) => p.n));
+    const portions: PlanPortionView[] = stored.portions.map((p) => ({
+      n: p.n,
+      agent: p.agent,
+      name: roster().some((m) => m.id === p.agent) ? current(p.agent).name : p.agent,
+      task: p.task,
+      after: p.after,
+      ...(jobs.has(p.n) ? { job: jobs.get(p.n)! } : {}),
+      state: blocked.has(p.n) ? "blocked" : state(p.n),
+    }));
+    const complete = isComplete(stored, done);
+    const running = portions.some((p) => p.state === "running");
+    return { id: stored.id, chatId: stored.chatId, goal: stored.goal, createdAt: stored.createdAt, portions, complete, stuck: !complete && !running && (failed.size > 0 || blocked.size > 0) && !portions.some((p) => p.state === "waiting" && p.after.every((a) => done.has(a))) };
+  }
+
   /** Who a goal's part goes to: an available worker. */
   const goalHelper = (id: string): HelperId => availableHelper(id).id;
 
@@ -617,6 +646,34 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     rejectSkillEdit: skills.rejectSkillEdit,
     undoSkillEdit: skills.undoSkillEdit,
     recordSkillUse: skills.recordSkillUse,
+    addPlan(chatId, plan) {
+      const id = workPlans.add(chatId, plan);
+      emit({ action: "plan_work", plan: id });
+      return this.plan(id)!;
+    },
+
+    plan(id) {
+      const stored = workPlans.get(id);
+      return stored && planView(stored);
+    },
+
+    latestPlan(chatId) {
+      const stored = workPlans.latestOf(chatId);
+      return stored && planView(stored);
+    },
+
+    plans(limit) {
+      return workPlans.newest(Math.max(1, Math.min(limit, 50))).map(planView);
+    },
+
+    linkPlanJob(planId, n, job) {
+      const stored = workPlans.get(planId);
+      if (!stored?.portions.some((p) => p.n === n)) throw new HelperError("There is no such portion.");
+      if (!get(job)) throw new HelperError(`There is no task ${job}.`);
+      if (!workPlans.link(planId, n, job)) throw new HelperError(`Portion ${n} has started already.`);
+      emit({ action: "plan_work", plan: planId, portion: n });
+    },
+
     recordToolCall(jobId, event) {
       const job = get(jobId);
       // Start and end are both announced, so the last call of a run does not stay "started".

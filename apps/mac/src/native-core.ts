@@ -21,6 +21,7 @@ import { denyRead } from "./folder-run.ts";
 import { BUILT_IN_AGENTS, agentDefinitions, nativeMembers } from "./native-agents.ts";
 import { boardRecorder, type BoardRecorder, type BoardStore } from "./native-board.ts";
 import { nativeGate, type NativeGate, type TeamScope } from "./native-safety.ts";
+import { planBook, withPlanTools, type PlanBook, type PlanStore } from "./native-plan.ts";
 
 /**
  * ADR-110 (Phase N1): the native engine, ATOM's only engine since Phase N5. The Core interface is the one voice, the
@@ -52,7 +53,9 @@ export const NATIVE_TEAM_PROMPT = NATIVE_SYSTEM_PROMPT.replace(
     "worker with the delegate tool; pick the worker whose description fits the task.",
   "Answer quick questions yourself. Hand multi-step work, research that takes minutes, and any change to files to one " +
     "of your agents with the Agent tool: pick the agent whose description fits, and give it the whole task. If none " +
-    "fits, make one with the create_agent tool. Agents work in the background; when one reports, tell the user in a sentence.",
+    "fits, make one with the create_agent tool. For a big job with several parts, call plan_work first, then start each " +
+    'portion with the Agent tool: description "P<n>", prompt "go"; ATOM gives each agent what it needs. ' +
+    "Agents work in the background; when one reports, tell the user in a sentence.",
 );
 
 export const CONTEXT_LABEL = "Context from ATOM, not said by the user:";
@@ -62,7 +65,7 @@ const WEB_TOOLS = ["WebSearch", "WebFetch"];
 
 /** Phase N2: the chat's sub-agents, their Board rows and their safety. */
 export interface NativeTeamDeps {
-  helpers: TeamScope["helpers"] & BoardStore & Pick<HelperStore, "mcpServers">;
+  helpers: TeamScope["helpers"] & BoardStore & Pick<HelperStore, "mcpServers"> & PlanStore;
   approve(request: { summary: string; reason: string }): Promise<boolean>;
   /** Laya's model alias for an Agent call (undefined: the agent's own model). */
   chooseModel?(task: string, member: HelperView): Promise<string | undefined>;
@@ -159,6 +162,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
   async function open(chat: string, model: string, prompt: string, tools: string[], files: ProjectFiles | undefined, key: string, resume?: string): Promise<Live> {
     const team = deps.team;
     let gate: NativeGate | undefined;
+    const plans: PlanBook | undefined = team && planBook(team.helpers, chat, deps.log);
     const board = team && boardRecorder(team.helpers, chat, { onEnd: (job) => gate?.agentEnded(job), ...(deps.log ? { log: deps.log } : {}) });
     const project = files ? { cwd: files.cwd } : undefined;
     gate = nativeGate({
@@ -170,6 +174,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
               chatId: chat,
               helpers: team.helpers,
               board,
+              ...(plans ? { plans } : {}),
               approve: team.approve,
               ...(team.chooseModel ? { chooseModel: team.chooseModel } : {}),
               worktrees: team.worktrees,
@@ -189,7 +194,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       systemPrompt: prompt,
       tools,
       gate: board ? { canUseTool: gate.canUseTool, hooks: { ...gate.hooks, ...board.hooks } } : gate,
-      atomTools: deps.tools,
+      atomTools: plans ? withPlanTools(deps.tools, plans) : deps.tools,
       ...(agents ? { agents, disallowedTools: BUILT_IN_AGENTS.map((a) => `Agent(${a})`) } : {}),
       ...(skills ? { plugins: [{ type: "local" as const, path: skills.pluginDir }] } : {}),
       // Bash exists only for a project chat's agents: sandboxed, no network, writes in the project and the worktrees.

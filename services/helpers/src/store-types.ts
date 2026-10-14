@@ -4,6 +4,7 @@ import type { Proposal, ReviewTarget, SoulField } from "./feedback.ts";
 import type { SkillDraft, SkillDraftState, SkillDraftTarget, SkillEdit, SkillEditState, SkillEditTarget } from "./skill-drafts.ts";
 import type { HubFile, HubInstalled, HubPending } from "./skill-hub.ts";
 import type { AgentProblem, Kit } from "./agents.ts";
+import type { WorkPlan } from "./work-plan.ts";
 import type { McpServer, McpServerInput } from "./mcp.ts";
 import type { UsageEntry, UsageSummary } from "./usage.ts";
 import type { ToolCall, ToolCallEvent } from "./tool-calls.ts";
@@ -195,6 +196,34 @@ export interface HelperView {
   jobs: Job[];
 }
 
+/** ADR-111: where a portion of a work plan stands. "blocked": a portion it waits for failed or was stopped. */
+export type PortionState = "waiting" | "running" | "done" | "failed" | "stopped" | "blocked";
+
+export interface PlanPortionView {
+  n: number;
+  agent: HelperId;
+  /** The agent's current name. */
+  name: string;
+  task: string;
+  after: number[];
+  /** The Board job the portion became; absent while it waits. */
+  job?: number;
+  state: PortionState;
+}
+
+/** ADR-111: a work plan with the state of each portion. */
+export interface PlanView {
+  id: number;
+  chatId: string;
+  goal: string;
+  createdAt: Date;
+  portions: PlanPortionView[];
+  /** Every portion is done. */
+  complete: boolean;
+  /** No portion can run any more: nothing runs, and a portion is failed, stopped or blocked. */
+  stuck: boolean;
+}
+
 /** What changed, for logs and updates: ids, states and timings only. */
 export type HelperChange =
   | { action: "app"; helper: HelperId }
@@ -221,6 +250,7 @@ export type HelperChange =
   | { action: "blockers"; helper: HelperId; job: number }
   | { action: "deleted"; helper: HelperId; job: number }
   | { action: "toolCall"; helper: HelperId; job: number }
+  | { action: "plan_work"; plan: number; portion?: number }
   | { action: "checkpoint"; helper: HelperId; job: number; change: "kept" | "finished" | "undone"; count?: number }
   | { action: "goal"; goal: number; tasks: number; ended: boolean; source?: string }
   | { action: "testCase"; kind: TestKind; target: string; testCase: number; change: "saved" | "deleted" }
@@ -317,6 +347,18 @@ export interface HelperStore {
   undoSkillEdit(id: number): void;
   /** Records that a run of a task used a skill (Skill tool calls). Bad names and unknown tasks are ignored. */
   recordSkillUse(jobId: number, skill: string): void;
+  /**
+   * ADR-111: saves a checked work plan for a chat and returns it with every portion waiting. The caller checks it with
+   * `parseWorkPlan` first.
+   */
+  addPlan(chatId: string, plan: WorkPlan): PlanView;
+  plan(id: number): PlanView | undefined;
+  /** The newest plan of a chat. */
+  latestPlan(chatId: string): PlanView | undefined;
+  /** The newest plans of every chat, newest first. */
+  plans(limit: number): PlanView[];
+  /** Ties a portion to the Board job it became. Throws HelperError when the portion has a job already. */
+  linkPlanJob(planId: number, n: number, job: number): void;
   /** B3.1: one tool call's start or end in a run of this task (an unknown task, a bad state, an end without its start is ignored). */
   recordToolCall(jobId: number, event: ToolCallEvent): void;
   /** B3.1: the task's newest tool calls (at most 100), oldest first. */

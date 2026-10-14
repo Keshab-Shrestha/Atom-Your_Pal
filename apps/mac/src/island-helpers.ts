@@ -2,7 +2,7 @@
 
 import { HelperError, describeSchedule, nextDue, type HelperStore, type Job, type PlanModel, type Schedule, type TaskSearchHit, type TestKind } from "@atom/helpers";
 import type { IslandHelpers } from "./island.ts";
-import type { JobItem, RoutineInput, SkillDraftItem, SkillEditItem, TestCaseItem, TestsItem } from "./island-protocol.ts";
+import type { JobItem, PlanItem, RoutineInput, SkillDraftItem, SkillEditItem, TestCaseItem, TestsItem } from "./island-protocol.ts";
 
 /** ADR-097: the form's schedule as the store's; missing numbers become -1, which the store refuses with words. */
 const scheduleOf = (input: RoutineInput): Schedule =>
@@ -145,6 +145,15 @@ export function islandHelpers(
     removeAgent: (id) => store.removeAgent(id),
     agentProblems: () => store.agentProblems().map(({ id, problem }) => ({ id, problem })),
     retry: (id) => store.retry(id),
+    plans: (): PlanItem[] =>
+      store.plans(5).map((p) => ({
+        id: p.id,
+        goal: p.goal,
+        createdAt: p.createdAt.toISOString(),
+        portions: p.portions.map((x) => ({ n: x.n, agent: x.agent, name: x.name, task: x.task, after: x.after, ...(x.job !== undefined ? { job: x.job } : {}), state: x.state })),
+        complete: p.complete,
+        stuck: p.stuck,
+      })),
     usage: () => {
       const summary = store.usage();
       const names = new Map(store.list().map((h) => [h.id, h.name]));

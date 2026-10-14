@@ -24,6 +24,7 @@ import {
   type ThreadEvent,
   type SearchHitItem,
   type PaperclipItem,
+  type PlanItem,
   type McpItem,
   type SkillDraftItem,
   type SkillEditItem,
@@ -193,6 +194,8 @@ export interface IslandHelpers {
   agentProblems(): { id: string; problem: string }[];
   /** Task 3.16: the tasks handed to Keshab's Paperclip, for the board. Absent when the connection is off. */
   paperclip?(): { issues: PaperclipItem[] };
+  /** ADR-111: the newest work plans with the state of each portion. */
+  plans?(): PlanItem[];
   /** Task 3.14: opens a task's report in its worker's app. Absent: `job.open` is refused. Rejects with words for the user. */
   openReport?(id: number): Promise<string>;
   /** ADR-091: the Dashboard's tokens. */
@@ -802,7 +805,7 @@ export function runIsland(options: IslandOptions): IslandSession {
       helpersQueued = false;
       const helpers = options.helpers;
       const agentProblems = helpers?.agentProblems() ?? [];
-      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), skills: helpers.skills(), skillDrafts: helpers.skillDrafts(), skillEdits: helpers.skillEdits(), ...(helpers.hub?.payload() ? { skillHub: helpers.hub.payload() } : {}), testCases: helpers.testCases(), mcp: helpers.mcp(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}) } : {}), ...(agentProblems.length ? { agentProblems } : {}), });
+      send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), skills: helpers.skills(), skillDrafts: helpers.skillDrafts(), skillEdits: helpers.skillEdits(), ...(helpers.hub?.payload() ? { skillHub: helpers.hub.payload() } : {}), testCases: helpers.testCases(), mcp: helpers.mcp(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}), ...(helpers.plans?.().length ? { plans: helpers.plans() } : {}) } : {}), ...(agentProblems.length ? { agentProblems } : {}), });
     });
   }
   function appNames(): Promise<string[]> {

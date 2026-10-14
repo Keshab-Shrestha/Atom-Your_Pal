@@ -45,7 +45,7 @@ export function kitTools(kit: Kit, project: boolean): string[] {
 }
 
 /** How a sub-agent ends: a plain-text report, which the Board keeps (Keshab, 2026-10-14 item 3). */
-const REPORT = "End with your report as plain text: a first sentence that sums it up, then the details. No markdown.";
+const REPORT = "End with your report as plain text, at most 150 words: a first sentence that sums it up, then only the details that matter. No markdown.";
 const KIT_CONTRACT: Readonly<Record<Kit, (project: boolean, grants: readonly string[]) => string>> = {
   research: () =>
     [

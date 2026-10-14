@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { HANDOFF_SUMMARY_CHARS, blockedPortions, isComplete, parseWorkPlan, planTable, portionContext, readyPortions, type PlanMember } from "./work-plan.ts";
+import { HANDOFF_BODY_CHARS, HANDOFF_SUMMARY_CHARS, blockedPortions, isComplete, parseWorkPlan, planTable, portionContext, readyPortions, type PlanMember } from "./work-plan.ts";
 
 // ADR-111: the work plan: checked in code, started in order, briefed with summaries only.
 
@@ -58,14 +58,15 @@ test("a failed portion blocks everything that waits for it, down the chain, and 
 test("a brief carries the goal and the summaries of the portions it waited for, cut short, and no bodies", () => {
   const p = plan();
   const long = "A".repeat(500);
-  const results = [{ n: 1, agent: "sid", title: "Three kits", summary: long }, { n: 2, agent: "penny", title: "Prices", summary: "Eero 200, Orbi 350." }];
+  const results = [{ n: 1, agent: "sid", title: "Three kits", summary: long }, { n: 2, agent: "penny", title: "Prices", summary: "Eero.", body: "Eero 200, Orbi 350.\n" + "B".repeat(3000) }];
   const text = portionContext(p, p.portions[2]!, results, nameOf);
   assert.match(text, /^Goal of the whole job: Compare mesh Wi-Fi kits for a flat\n/);
   assert.match(text, /- Portion 1, Sid: Three kits\. A+…/);
-  assert.match(text, /- Portion 2, Penny: Prices\. Eero 200, Orbi 350\./);
-  assert.match(text, /end with at most 80 words/);
-  assert.ok(text.length < 600, `the brief stays small (${text.length} characters)`);
-  assert.ok(!text.includes("A".repeat(HANDOFF_SUMMARY_CHARS + 1)), "the summary is cut");
+  assert.match(text, /- Portion 2, Penny: Prices\. Eero 200, Orbi 350\. B+…/);
+  assert.match(text, /report is at most 150 words/);
+  assert.ok(text.length < 1700, `the brief stays small (${text.length} characters)`);
+  assert.ok(!text.includes("A".repeat(HANDOFF_SUMMARY_CHARS + 1)), "a summary with no body is cut");
+  assert.ok(!text.includes("B".repeat(HANDOFF_BODY_CHARS)), "a body is cut");
   // A portion that waits for nothing gets no earlier-portions block.
   assert.ok(!portionContext(p, p.portions[0]!, results, nameOf).includes("Earlier portions"));
   // A result that is missing (not done) leaves its line out rather than inventing one.
