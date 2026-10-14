@@ -41,3 +41,4 @@ The progress log is at the end of this file.
 
 - Q1 done: dead goal, hand-off, plan-first and steer store methods removed with their tests; unused imports and prepared statements removed; one real N5 bug found and fixed (a native agent's checkpoints were never finished). Left on purpose: `handOffs`, `context`, `setPlanFirst`, `rejectPlan` and the manager parser in `agents.ts` (old soul files still load). Look at them again on the Mac.
 - Q2 done: `grants.test` skips the `/System` check off macOS. The whole suite passes on Linux (796 tests).
+- Q3 done: new tests for the gate with plans (`native-safety-plan.test.ts`), the Tinker runner, `taskStarter`, `nativeSteering`, the audit log and the reach tools. Swift tests added but never compiled: `BrainTests.swift`, `WorkPlansTests.swift`.

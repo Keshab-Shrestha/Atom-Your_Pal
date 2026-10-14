@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Routine } from "@atom/helpers";
-import { routeWake, routineChat, routineStarter, type WakeTargets } from "./native-entry.ts";
+import { MAX_COMMENT_CHARS } from "@atom/helpers";
+import { nativeSteering, routeWake, routineChat, routineStarter, taskStarter, type WakeTargets } from "./native-entry.ts";
 
 // ADR-110 (Phase N3): where a reply the native session gave by itself goes, and routines as main-agent turns. Fakes only.
 
@@ -102,4 +103,48 @@ test("a routine whose agent still runs is skipped; a reply while an agent works 
   await new Promise((r) => setTimeout(r, 5));
   assert.deepEqual(failed.pushed, []);
   assert.deepEqual(failed.logged, [["routine.turn", { routine: 3, ok: false }]]);
+});
+
+test("a task from the window is one main-agent turn in a chat of its own, handed to the worker by name", async () => {
+  const calls: string[] = [];
+  const logs: string[] = [];
+  const start = taskStarter({
+    core: { resume: (chat: string) => void calls.push(`resume:${chat}`), handle: async (input: { text: string }) => void calls.push(`handle:${input.text}`) } as never,
+    name: (helper) => (helper === "sid" ? "Sid" : undefined),
+    log: { info: (e) => void logs.push(e), warn: (e) => void logs.push(e) },
+    now: () => 100,
+  });
+  start("sid", "  find three kits  ");
+  start("sid", "second");
+  assert.throws(() => start("sid", "  "), /task is empty/);
+  assert.throws(() => start("nobody", "x"), /no worker called "nobody"/);
+  await new Promise((r) => setTimeout(r, 10));
+  assert.deepEqual(calls, ["resume:task-100", "handle:Sid, find three kits", "resume:task-101", "handle:Sid, second"], "one at a time, chat ids never repeat");
+  assert.deepEqual(logs, ["task.turn", "task.turn"]);
+});
+
+test("a failing task turn is logged and the next task still runs", async () => {
+  const calls: string[] = [];
+  const logs: string[] = [];
+  let n = 0;
+  const start = taskStarter({
+    core: { resume: () => {}, handle: async () => { if (n++ === 0) throw new Error("boom"); calls.push("ok"); } } as never,
+    name: () => "Sid",
+    log: { info: (e) => void logs.push(`info:${e}`), warn: (e) => void logs.push(`warn:${e}`) },
+  });
+  start("sid", "a");
+  start("sid", "b");
+  await new Promise((r) => setTimeout(r, 10));
+  assert.deepEqual([calls, logs], [["ok"], ["warn:task.turn", "info:task.turn"]]);
+});
+
+test("steering: a note goes to the chat that runs the task; an empty or long note, or a task nobody runs, is refused", async () => {
+  const taken: string[] = [];
+  const steering = nativeSteering(() => [{ steer: () => false }, { steer: (job, text) => (job === 5 ? (taken.push(text), true) : false) }]);
+  assert.equal(steering.steer(5, "  use the cheaper kit "), "live");
+  assert.deepEqual(taken, ["use the cheaper kit"]);
+  assert.throws(() => steering.steer(5, "   "), /message is empty/);
+  assert.throws(() => steering.steer(5, "x".repeat(MAX_COMMENT_CHARS + 1)), /too long/);
+  assert.throws(() => steering.steer(6, "hi"), /does not run in an open chat/);
+  await assert.rejects(steering.interrupt(5), /stop it instead/);
 });
