@@ -502,15 +502,8 @@ ATOM runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 
 ## Codex fallback (ADR-098 item 7)
 
-- ADR-110 N4: ATOM sets no plan limit now, so no task waits for Codex and ATOM starts no Codex run. Settings no longer shows the switch. The runtime keeps the Codex code until a later phase removes it. The rules below apply if a Codex run starts again.
-- Codex runs as `codex exec` with `--ephemeral` and `--ignore-user-config`. ATOM closes stdin. ATOM removes all API keys from its environment, so Codex uses Keshab's ChatGPT sign-in. ATOM never reads the Codex login file.
-- A worker without a folder (think, research, a write-up) runs in the `read-only` sandbox. Codex cannot run commands that change files. Only a research kit or a write-up gets Codex's own web search.
-- A folder worker runs in the `workspace-write` sandbox. Codex writes only in the task's folder (its worktree) and the worker's other granted folders. Commands have no network (`sandbox_workspace_write.network_access=false`). Codex does not commit. ATOM commits on the task's branch and never pushes.
-- Codex runs have the same time limit as Claude runs.
-- A Codex run gets no browser and no MCP server. ATOM starts `codex exec` with `--ignore-user-config`, so Keshab's own Codex MCP servers do not load. ATOM passes no MCP, browser, skill or sub-agent option. The test "a Codex run is never started with MCP servers or a browser" in `services/llm-gateway/src/providers/codex-job.test.ts` fails if this changes. The browser and MCP safety checks have no gap for Codex.
-- The tokens go to the Dashboard with the model `codex`.
-- The log records the task id, the kit and whether the run has a folder. It never records the task, the report or Codex's output.
-
+- ADR-110 N5: the Codex fallback is deleted. ATOM has no `codexFallback` setting or command, no `runCodexJob`, no `codexJobs` set and no Codex readiness check. ATOM starts no `codex exec` run for a task. Old databases keep the `codexFallback` setting row; nothing reads it.
+- The Codex and Gemini CLI providers stay in the model list, but a chat turn on them is refused: ATOM answers on the Claude plan only. The notes of a conversation also need the Claude plan.
 
 ## Skills hub (ADR-102)
 
@@ -567,7 +560,7 @@ ATOM runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 
 ## Native chat sessions (ADR-110)
 
-- `ATOM_ENGINE=native` runs each chat in one long-lived Claude Code session. The default is `legacy`.
+- Each chat runs in one long-lived Claude Code session. ADR-110 N5: this is the only engine; the `ATOM_ENGINE` switch and the legacy engine are gone.
 - The session sets `permissionMode: "default"` explicitly. Without it, Claude Code uses its `auto` classifier for approvals. `allowedTools` is empty, so every tool call goes to ATOM's gate (`native-safety.ts`): a `PreToolUse` hook and `canUseTool`, counted once per call.
 - The gate allows ATOM's own tools and ToolSearch. ATOM's tool engine keeps its own approvals. The gate refuses every tool outside the chat's set. The main thread never has Bash, Write, Edit or TodoWrite.
 - In a project chat, Read, Glob and Grep go through `projectReadCheck`, as in ADR-107.

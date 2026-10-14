@@ -40,6 +40,8 @@ Built (2026-10-14): ADR-110 Phase N3: with `ATOM_ENGINE=native`, a later reply f
 
 Built (2026-10-14): ADR-110 Phase N4: budgets, the plan limit that ATOM set and "Runs at once" are gone in both engines. Tasks start at once and wait only for Keshab (a plan to approve, an interrupted run). Old budget rows stay in the database, unread. Built and tested. Not yet tried in the real app. Phase N5 not started.
 
+Built (2026-10-14): ADR-110 Phase N5: `native` is the only engine and the legacy engine, the job runner, Managers, team tasks, wake-ups and the Codex fallback are deleted. Typecheck is clean; no test ran. Not yet tried in the real app.
+
 Planned (2026-10-10): four polish batches taken from Clicky, Coucou and a review of ZENO's setup: setup and errors (ADR-075, Task 2.A; built and tested, not yet tried on the real Mac), everyday polish (ADR-076, 2.B; built and tested, not yet tried on the real Mac), Wisp and voice polish (ADR-077, 2.C; built and tested, not yet seen on the real screen), Wisp's home display (ADR-078, 2.D; built and tested, not yet tried on two displays), settings tidy-up (ADR-079, 2.E; built and tested). Pointing from a screenshot (ADR-080, 2.F): built and tested, Cua only (main display), so it needs computer control on; not yet tried by voice.
 
 ---

@@ -1564,3 +1564,15 @@ Keshab removed the budgets on 2026-10-13. The change applies to both engines.
 - Tests: node 969 (967 pass, 2 skipped); Swift 550 pass.
 
 Next: Keshab tries Phase N4 in the real app. Then Phase N5: `native` becomes the default, then the legacy code goes. The inert Codex fallback goes with it, or Keshab gives it a new start condition.
+
+## Phase N5: native is the only engine (ADR-110, 2026-10-14)
+
+`native` is the default and only engine. The legacy code is deleted.
+
+- Moved: `scrubbedEnv`, `planGuard`, `classify`, `tokensOf`, `sourcesFilter`, `sdkToolsFor`, `promptFrom`, `listPlanModels` and the shared types to `services/llm-gateway/src/providers/plan-support.ts`. `createScheduleTool` to `services/helpers/src/schedule-tool.ts`.
+- Added: `apps/mac/src/tinker-runner.ts` and `createTinkerRun` (Tinker's tasks), `nativeSteering` in `native-entry.ts`, the `note` mode in `claude-plan-job.ts`.
+- Deleted: `claude-plan.ts`, `sub-agents.ts`, `codex-job.ts`; in helpers `runner.ts`, `delegate.ts`, `goals.ts`, `managers.ts`, `team.ts`, `sub-agents.ts`; in `apps/mac/src` `run-job.ts`, `manager-run.ts`, `goal-post.ts`, `task-steering.ts`, `turn-chat.ts`; `createCore`; Swift `ManagerViews.swift`, the team-task and wake-up views.
+- Removed: the `ATOM_ENGINE` switch, the Codex fallback, `sendGoal`, `sendRoutineResult`, `held`, the legacy goal path of the API, and the manager, team and wake-up commands of the island.
+- Tests: no test ran (the cloud session has no `data/`, no macOS). `pnpm typecheck` is clean. Tests of deleted code are deleted.
+
+Next: Keshab runs `pnpm test` and `pnpm island:test` on the Mac, then tries plain chat, project chat, voice, Telegram, Sid, a new agent and a routine by hand.
