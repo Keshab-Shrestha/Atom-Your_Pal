@@ -77,6 +77,8 @@ export interface ChatSessionOptions {
    * agent_listing_delta message, not in the system prompt, so they do not change the cached prefix.
    */
   agents?: Record<string, unknown>;
+  /** Phase N2: deny rules, e.g. `Agent(general-purpose)`: Claude Code's built-in agents leave the agent listing. */
+  disallowedTools?: string[];
   /** Phase N2: Claude Code's Bash sandbox (a project chat's sub-agents). */
   sandbox?: Record<string, unknown>;
   /** Phase N2: local plugins (the sub-agents' skills). The main thread loads no skill. */
@@ -177,6 +179,7 @@ export function sessionOptions(sdk: SessionSdk, o: ChatSessionOptions, controlle
     ...(o.sandbox ? { sandbox: o.sandbox } : {}),
     ...(o.plugins?.length ? { plugins: o.plugins, skills: [] } : {}),
     allowedTools: [],
+    ...(o.disallowedTools?.length ? { disallowedTools: o.disallowedTools } : {}),
     canUseTool: o.gate.canUseTool,
     hooks: o.gate.hooks,
     settingSources: [],

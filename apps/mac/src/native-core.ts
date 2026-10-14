@@ -18,7 +18,7 @@ import {
 import { join } from "node:path";
 import type { HelperStore, HelperView } from "@atom/helpers";
 import { denyRead } from "./folder-run.ts";
-import { agentDefinitions, nativeMembers } from "./native-agents.ts";
+import { BUILT_IN_AGENTS, agentDefinitions, nativeMembers } from "./native-agents.ts";
 import { boardRecorder, type BoardRecorder, type BoardStore } from "./native-board.ts";
 import { nativeGate, type NativeGate, type TeamScope } from "./native-safety.ts";
 
@@ -191,7 +191,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       tools,
       gate: board ? { canUseTool: gate.canUseTool, hooks: { ...gate.hooks, ...board.hooks } } : gate,
       atomTools: deps.tools,
-      ...(agents ? { agents } : {}),
+      ...(agents ? { agents, disallowedTools: BUILT_IN_AGENTS.map((a) => `Agent(${a})`) } : {}),
       ...(skills ? { plugins: [{ type: "local" as const, path: skills.pluginDir }] } : {}),
       // Bash exists only for a project chat's agents: sandboxed, no network, writes in the project and the worktrees.
       ...(team && files

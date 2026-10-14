@@ -252,6 +252,7 @@ test("N2: with a team the main thread gets the Agent tool, the team prompt and t
   assert.ok(!NATIVE_TEAM_PROMPT.includes("delegate tool"));
   assert.equal(o.agents.sid.description, "Sid: researcher");
   assert.equal(o.agents["general-purpose"], undefined);
+  assert.ok(o.disallowedTools.includes("Agent(general-purpose)"), "the built-in agents leave the listing");
   assert.equal(o.sandbox, undefined, "no sandbox (and no Bash) in a plain chat");
   assert.ok(o.hooks.SubagentStop && o.hooks.WorktreeCreate);
   assert.match(String(queries[0]!.sent[0]!.message.content), /delegate this request to Sid as it is, with the Agent tool \(subagent_type "sid"\)/);
