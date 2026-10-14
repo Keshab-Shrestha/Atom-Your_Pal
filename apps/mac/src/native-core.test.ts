@@ -122,7 +122,7 @@ test("a project chat: its note in the prompt, Read/Glob/Grep in the folder, web 
   assert.equal(queries[1]!.options.resume, "sess-1");
 });
 
-test("shortcuts answer first; a chat's own model reopens the session with resume; not on the plan, the turn is refused", async () => {
+test("shortcuts answer first; a chat's own model reopens the session with resume; with no model at all, the turn is refused", async () => {
   const { sdk, queries } = fakeSdk();
   let model: string | undefined = "claude-sonnet-5-5";
   const core = make(sdk, { modelFor: () => model, chatSessions: sessions().store, shortcuts: async (t) => (t === "pause" ? "Paused." : undefined) });
@@ -136,7 +136,7 @@ test("shortcuts answer first; a chat's own model reopens the session with resume
   assert.equal(queries[1]!.options.model, "claude-haiku-4-5");
   assert.equal(queries[1]!.options.resume, "sess-1");
   model = undefined;
-  await assert.rejects(core.handle({ text: "on gemini", source: "text" }), /Claude plan/);
+  await assert.rejects(core.handle({ text: "on gemini", source: "text" }), /could not find a model/);
   assert.equal(core.history().length, 6);
 });
 
@@ -303,4 +303,44 @@ test("N3 fix: a report that comes during a turn of the same chat stays in the sa
     { role: "assistant", content: "re two" },
   ]);
   store.close();
+});
+
+// ---- shared context across providers
+
+const other = (reply: (text: string) => string = (t) => `other: ${t}`) => {
+  const requests: import("@atom/contracts").ModelRequest[] = [];
+  return { requests, model: { complete: async (r: import("@atom/contracts").ModelRequest) => (requests.push(r), { text: reply(r.messages.at(-1)!.content) }) } };
+};
+
+test("a chat that moves to another provider keeps its context, and moving back hands the Claude session the exchange it missed", async () => {
+  const { sdk, queries } = fakeSdk((t) => `claude: ${t.split("\n")[0]}`);
+  const o = other();
+  let onClaude = true;
+  const core = make(sdk, { modelFor: () => (onClaude ? "claude-sonnet-5-5" : undefined), otherModel: () => (onClaude ? undefined : o.model) });
+  await core.handle({ text: "my name is Keshab", source: "text" });
+  onClaude = false;
+  const second = await core.handle({ text: "what is my name", source: "text" });
+  assert.equal(second.text, "other: what is my name");
+  const r = o.requests[0]!;
+  assert.deepEqual(r.messages.map((m) => m.content), ["my name is Keshab", "claude: my name is Keshab", "what is my name"], "the other model sees the whole conversation");
+  assert.match(r.system, /no tools, no agents and no file access/);
+  assert.equal(r.tools, undefined);
+  onClaude = true;
+  await core.handle({ text: "and what did we say", source: "text" });
+  const last = String(queries.at(-1)!.sent.at(-1)!.message.content);
+  assert.match(last, /what is my name/, "the Claude session is told what the other model answered");
+  assert.match(last, /other: what is my name/);
+  assert.equal(core.history().length, 6);
+});
+
+test("a project chat refuses another provider with words; an empty reply is an error; an abort stays an abort", async () => {
+  const { sdk } = fakeSdk();
+  const files: ProjectFiles = { cwd: "/tmp/p", check: async () => undefined };
+  const o = other();
+  const core = make(sdk, { modelFor: () => undefined, otherModel: () => o.model, project: () => ({ note: "A project.", files }) });
+  await assert.rejects(core.handle({ text: "hi", source: "text" }), /Projects need a Claude model/);
+  assert.equal(o.requests.length, 0);
+  const empty = make(sdk, { modelFor: () => undefined, otherModel: () => ({ complete: async () => ({ text: "  " }) }) });
+  await assert.rejects(empty.handle({ text: "hi", source: "text" }), /gave no reply/);
+  assert.equal(empty.history().length, 0, "a failed turn is not kept");
 });

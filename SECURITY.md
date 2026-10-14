@@ -503,7 +503,7 @@ ATOM runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 ## Codex fallback (ADR-098 item 7)
 
 - ADR-110 N5: the Codex fallback is deleted. ATOM has no `codexFallback` setting or command, no `runCodexJob`, no `codexJobs` set and no Codex readiness check. ATOM starts no `codex exec` run for a task. Old databases keep the `codexFallback` setting row; nothing reads it.
-- The Codex and Gemini CLI providers stay in the model list, but a chat turn on them is refused: ATOM answers on the Claude plan only. The notes of a conversation also need the Claude plan.
+- A chat on Codex or the Gemini CLI is plain text over the shared transcript (ADR-113): no ATOM tools, no agents, no project files (a project chat on them is refused). The transcript, which can hold anything said in the chat, goes to that provider's program as the prompt; nothing else is sent. The notes of a conversation need the Claude plan.
 
 ## Skills hub (ADR-102)
 

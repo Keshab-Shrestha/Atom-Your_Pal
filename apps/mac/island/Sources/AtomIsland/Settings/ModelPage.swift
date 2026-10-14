@@ -75,7 +75,7 @@ struct ModelSection: View {
             }
             if info.provider == "claude-plan" { PlanMetersCard(usage: model.planUsage) }
             // ADR-093: the AI tools on this Mac, found or not, and what ATOM does with them.
-            Card("Found on this Mac", footer: "ATOM answers on the Claude plan only. Codex and the Gemini CLI are listed so you can see them, but they cannot run ATOM's chats. Local models (Ollama, LM Studio) are not used.") {
+            Card("Found on this Mac", footer: "Claude does ATOM's work: tools, agents and project files. Codex and the Gemini CLI can answer a chat as plain text, with the same conversation, and a chat can move between them. Local models (Ollama, LM Studio) are not used.") {
                 if info.tools.isEmpty {
                     Row(title: "Looking for AI tools…") { ProgressView().controlSize(.small) }
                 }

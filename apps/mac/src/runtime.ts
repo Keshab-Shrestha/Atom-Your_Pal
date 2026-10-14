@@ -512,16 +512,31 @@ export function createRuntime(
     if (change.action !== "job" || change.state !== "stopped" || !helpers.get(change.job)?.sdkTaskId) return;
     for (const native of nativeCores) void native.stopJob(change.job).catch(() => log.warn("agent.stop_failed", { job: change.job }));
   });
+  /** The provider and model of a chat: its own choice (a text chat), else the one in Settings. */
+  const chatChoice = (chatId: string, source: InputSource) => {
+    const own = source === "text" ? islandChats?.modelOf?.(chatId) : undefined;
+    const checked = own && settings.check(own.provider, own.model);
+    return checked && !("error" in checked) ? checked.choice : settings.current();
+  };
+  const otherModels = new Map<string, ReturnType<typeof createModel>>();
   const makeCore = (composed = false): Core => {
     const native = createNativeCore({
             claudePath: keys[CLAUDE_PLAN] ?? "",
             tools: toolEngine,
             ...(nativeTeam ? { team: nativeTeam } : {}),
             modelFor: (chatId: string, source: InputSource) => {
-              const own = source === "text" ? islandChats?.modelOf?.(chatId) : undefined;
-              const checked = own && settings.check(own.provider, own.model);
-              const choice = checked && !("error" in checked) ? checked.choice : settings.current();
+              const choice = chatChoice(chatId, source);
               return choice.provider === CLAUDE_PLAN ? choice.model : undefined;
+            },
+            // Codex and the Gemini CLI answer a chat as plain text over the shared transcript (no tools, no team).
+            otherModel: (chatId: string, source: InputSource) => {
+              const choice = chatChoice(chatId, source);
+              const apiKey = keys[choice.provider];
+              if (choice.provider === CLAUDE_PLAN || !apiKey) return undefined;
+              const id = `${choice.provider}:${choice.model}`;
+              let other = otherModels.get(id);
+              if (!other) otherModels.set(id, (other = createModel(choice, apiKey)));
+              return other;
             },
             context: (input: ZenoInput) => [nowLine(), memory ? memoryContext(input.text, { store: memory }) : undefined, screen.take()].filter(Boolean).join("\n\n"),
             // Phase N3: no team line: the agents reach Claude Code as its agent listing ("Name: role"), and the
