@@ -29,7 +29,8 @@ const store = {
   skillEdits: () => [],
   skillHubPending: () => [],
   onChange: () => () => {},
-  startRoutine: (id: number) => (started.push(id), { id: 99 }),
+  // ADR-110 (N3): with a native start the store makes no task (null).
+  startRoutine: (id: number, start?: (r: unknown) => boolean) => (started.push(id), start ? (start(routines.find((r) => r.id === id)), null) : { id: 99 }),
 } as unknown as NonNullable<ApiServerOptions["helpers"]>;
 
 let seq = 0;
@@ -171,6 +172,20 @@ test("webhook: only a routine with webhook on starts; no token no start", async 
     const ok = await call(port, "POST", "/v1/hooks/1", { token });
     assert.equal(ok.status, 200);
     assert.deepEqual(started, [1]);
+  } finally {
+    api.stop();
+  }
+});
+
+test("ADR-110 N3: on the native engine a webhook starts the routine natively: no task (taskId null)", async () => {
+  const native: number[] = [];
+  const { api, port, token } = await boot({ native: { said: () => undefined, startRoutine: (r) => (native.push(r.id), true) } });
+  try {
+    started.length = 0;
+    const ok = await call(port, "POST", "/v1/hooks/1", { token });
+    assert.equal(ok.status, 200);
+    assert.deepEqual(ok.json.data, { taskId: null });
+    assert.deepEqual([started, native], [[1], [1]]);
   } finally {
     api.stop();
   }

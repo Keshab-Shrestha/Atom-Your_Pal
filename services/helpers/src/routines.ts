@@ -179,6 +179,7 @@ export function routineTable(db: DatabaseSync) {
   const drop = db.prepare("DELETE FROM routines WHERE id = ?");
   const setPaused = db.prepare("UPDATE routines SET paused = ?, resumed_at = COALESCE(?, resumed_at) WHERE id = ?");
   const mark = db.prepare("UPDATE routines SET last_at = ?, last_task_id = COALESCE(?, last_task_id), last_skipped = ? WHERE id = ?");
+  const markNative = db.prepare("UPDATE routines SET last_at = ?, last_task_id = NULL, last_skipped = ? WHERE id = ?");
   const change = db.prepare("UPDATE routines SET helper = ?, task = ?, schedule = ?, created_at = ?, resumed_at = ? WHERE id = ?");
   const setNotify = db.prepare("UPDATE routines SET notify_telegram = ? WHERE id = ?");
   const setWebhook = db.prepare("UPDATE routines SET webhook = ? WHERE id = ?");
@@ -194,6 +195,8 @@ export function routineTable(db: DatabaseSync) {
     },
     remove: (id: number) => Number(drop.run(id).changes) > 0,
     mark: (id: number, at: Date, taskId: number | null, skipped: boolean) => void mark.run(at.toISOString(), taskId, skipped ? 1 : 0, id),
+    /** ADR-110 (N3): a native run makes no task, so the routine keeps no last task (an old one would show forever). */
+    markNative: (id: number, at: Date, skipped: boolean) => void markNative.run(at.toISOString(), skipped ? 1 : 0, id),
     /** ADR-097: a new worker, task or schedule. It counts from `at` (no missed time comes due); `createdAt` is the hourly anchor. */
     update: (id: number, helper: HelperId, task: string, schedule: Schedule, createdAt: Date, at: Date) =>
       Number(change.run(helper, task, JSON.stringify(checkSchedule(schedule)), createdAt.toISOString(), at.toISOString(), id).changes) > 0,

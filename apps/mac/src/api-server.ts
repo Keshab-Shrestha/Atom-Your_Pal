@@ -8,7 +8,7 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { dirname, resolve } from "node:path";
-import { HelperError, isFinal, type GoalReport, type HelperStore, type Job, type JobState } from "@atom/helpers";
+import { HelperError, isFinal, type GoalReport, type HelperStore, type Job, type JobState, type Routine } from "@atom/helpers";
 import type { Logger } from "@atom/shared";
 import { answerNeed, needsYou, type TelegramBotOptions } from "./telegram-bot.ts";
 
@@ -52,8 +52,9 @@ export interface ApiServerOptions {
   /**
    * ADR-110 (N3), the native engine: a goal is a main-agent turn in a chat of its own, "api-goal-<goalId>"; its status
    * and report come from the Board rows of that chat. `said`: the first thing said in a chat (the goal's text).
+   * `startRoutine`: the native start of a routine (a webhook call), as the clock's; false while its last run still goes.
    */
-  native?: { said(chatId: string): string | undefined };
+  native?: { said(chatId: string): string | undefined; startRoutine?(routine: Routine): boolean };
 }
 
 /** ADR-110 (N3): the chat of a native goal. */
@@ -315,7 +316,8 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
         const routine = s.list().flatMap((h) => h.routines).find((r) => r.id === routineId);
         if (!routine) throw new ApiError(404, "There is no such routine.");
         if (!routine.webhook) throw new ApiError(403, 'This routine cannot be started by webhook. Turn on "Can be started by webhook" on the Scheduled page.');
-        return { taskId: s.startRoutine(routineId).id };
+        // ADR-110 (N3): on the native engine a main-agent turn in the routine's chat: no task (taskId null).
+        return { taskId: s.startRoutine(routineId, options.native?.startRoutine)?.id ?? null };
       },
     },
   ];

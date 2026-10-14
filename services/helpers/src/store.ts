@@ -1136,9 +1136,15 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       return routines.get(id)!;
     },
 
-    startRoutine(id) {
+    startRoutine(id, start) {
       const routine = routines.get(id);
       if (!routine) throw new HelperError("There is no such routine.");
+      if (start) {
+        if (!start(routine)) throw new HelperError("Its last run has not ended.");
+        routines.markNative(id, now(), false);
+        emit({ action: "routine", helper: routine.helper, routine: id, outcome: "made" });
+        return null;
+      }
       const last = routine.lastTaskId === undefined ? undefined : get(routine.lastTaskId);
       if (last && !isFinal(last.state)) throw new HelperError(`Its last task (#${last.id}) has not ended.`);
       const job = this.addJob(routine.helper, routine.task);
@@ -1167,7 +1173,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
           } catch {
             // the native start failed: skipped this time
           }
-          routines.mark(r.id, at, null, !started);
+          routines.markNative(r.id, at, !started);
           (started ? made : skipped).push(r.id);
           emit({ action: "routine", helper: r.helper, routine: r.id, outcome: started ? "made" : "skipped" });
           continue;

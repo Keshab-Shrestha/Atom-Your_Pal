@@ -111,3 +111,19 @@ test("ADR-110 N3: with a native start a due routine makes no task; missed mornin
   assert.deepEqual(store.runRoutines(() => false), { made: [], skipped: [r.id] }, "its last run still goes");
   assert.equal(store.list()[0]!.routines[0]!.lastSkipped, true);
 });
+
+test("ADR-110 N3: a native webhook start makes no task and marks the run; a refused start throws; native runs keep no old last task", () => {
+  let clock = at("2026-10-11T09:00:00");
+  const store = openHelperStore({ path: ":memory:", now: () => clock });
+  const r = store.addRoutine("sid", "News", { kind: "daily", minute: 480 }, undefined, false, true);
+  const legacy = store.startRoutine(r.id)!; // a task from the legacy engine (still to do: the native start does not wait for it)
+  assert.equal(store.list()[0]!.routines[0]!.lastTaskId, legacy.id);
+  clock = at("2026-10-11T10:00:00");
+  const started: number[] = [];
+  assert.equal(store.startRoutine(r.id, (x) => (started.push(x.id), true)), null);
+  assert.deepEqual(started, [r.id]);
+  assert.equal(store.list()[0]!.jobs.length, 1, "no new task");
+  const after = store.list()[0]!.routines[0]!;
+  assert.deepEqual([after.lastAt?.getTime(), after.lastTaskId, Boolean(after.lastSkipped)], [clock.getTime(), undefined, false], "no stale last task");
+  assert.throws(() => store.startRoutine(r.id, () => false), /last run has not ended/);
+});

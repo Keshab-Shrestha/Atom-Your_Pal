@@ -474,8 +474,10 @@ export interface HelperStore {
   /**
    * ADR-098 item 5: makes the routine's task now (a webhook call). Its schedule does not change. Throws HelperError for an
    * unknown routine, an unavailable worker, or when its last task has not ended.
+   * ADR-110 (N3): with `start` (the native engine), no task is made (null): `start` runs the routine, as runRoutines does;
+   * false (its last run still goes) throws HelperError.
    */
-  startRoutine(id: number): Job;
+  startRoutine(id: number, start?: (routine: Routine) => boolean): Job | null;
   removeRoutine(id: number): boolean;
   /** ADR-094: pauses or resumes a routine (a resumed one does not make up missed times). Throws HelperError for an unknown one. */
   pauseRoutine(id: number, paused: boolean): void;

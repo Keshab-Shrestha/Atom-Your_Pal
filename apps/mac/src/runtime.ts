@@ -886,6 +886,19 @@ export function createRuntime(
       ...(steering ? { steering } : {}),
     });
   }
+  // ADR-110 (N3): on the native engine a routine (due, or started by webhook) is a main-agent turn in its own chat,
+  // after the Telegram bot exists (its flag sends the result there).
+  const nativeStart =
+    nativeEngine && helpers
+      ? routineStarter({
+          core: makeCore(true),
+          messages: (chatId) => memory?.chats.messages(chatId) ?? [],
+          busy: (chatId) => helpers.list().some((h) => h.jobs.some((j) => j.chatId === chatId && !isFinal(j.state))),
+          name: (helper) => helpers.list().find((h) => h.id === helper)?.name,
+          telegram: (line, pushed) => telegram?.send(line, pushed),
+          log,
+        })
+      : undefined;
   // ADR-098 item 5: the local API. Its turns go to a Core of their own, saved as the chat "api" (or "api-<chatId>"). It
   // listens only after Settings' "Local API" switch is on.
   let apiCore: Core | undefined;
@@ -910,22 +923,13 @@ export function createRuntime(
           approvals: computer,
           describe,
           // ADR-110 (N3): a goal is a turn in its own chat "api-goal-<id>"; its status reads that chat's Board rows.
-          ...(nativeEngine ? { native: { said: (chatId: string) => memory?.chats.messages(chatId).find((m) => m.role === "user")?.content } } : {}),
+          ...(nativeEngine
+            ? { native: { said: (chatId: string) => memory?.chats.messages(chatId).find((m) => m.role === "user")?.content, ...(nativeStart ? { startRoutine: nativeStart } : {}) } }
+            : {}),
         });
   // Task 3.9, ADR-094: routines come due and workers wake on the clock. At start, one catch-up for each that came due
-  // while ATOM was closed. ADR-110 (N3): on the native engine a routine is a main-agent turn in its own chat, after
-  // the Telegram bot exists (its flag sends the result there), and no worker wakes up.
+  // while ATOM was closed. ADR-110 (N3): on the native engine a routine starts by `nativeStart`, and no worker wakes up.
   if (helpers) {
-    const nativeStart = nativeEngine
-      ? routineStarter({
-          core: makeCore(true),
-          messages: (chatId) => memory?.chats.messages(chatId) ?? [],
-          busy: (chatId) => helpers.list().some((h) => h.jobs.some((j) => j.chatId === chatId && !isFinal(j.state))),
-          name: (helper) => helpers.list().find((h) => h.id === helper)?.name,
-          telegram: (line, pushed) => telegram?.send(line, pushed),
-          log,
-        })
-      : undefined;
     const tick = () => scheduleTick(helpers, planUsed, log, (error) => ({ ...errorFields(error) }), nativeStart);
     tick();
     setInterval(tick, SCHEDULER_TICK_MS).unref();
