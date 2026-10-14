@@ -4,6 +4,7 @@ import type { ToolRunner } from "@atom/contracts";
 import { openChatSession, prefixHash, type ChatSessionOptions, type SessionSdk } from "./claude-session.ts";
 import { ProviderError } from "../gateway.ts";
 
+import { sdkVersion } from "./plan-support.ts";
 // ---- fakes: one scripted Claude Code process per query; no `claude` process and no network
 
 type Msg = Record<string, any>;
@@ -250,4 +251,8 @@ test("N2: a reply Claude Code gives by itself (an agent reported) goes to onUnpr
   assert.equal((await second).text, "re: two");
   assert.deepEqual(woken, ["Sid found three flights."]);
   s.close();
+});
+
+test("the installed Agent SDK's version is readable, for the session.open log", () => {
+  assert.match(sdkVersion(), /^\d+\.\d+\.\d+/);
 });

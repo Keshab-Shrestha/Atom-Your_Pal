@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { z, type ZodType } from "zod";
 import type { Message, ToolRunner, ToolSpec } from "@atom/contracts";
@@ -111,6 +114,21 @@ export function scrubbedEnv(env: Record<string, string | undefined>): Record<str
     out[key] = value;
   }
   return out;
+}
+
+/**
+ * The installed Agent SDK's version, for the log: ATOM's safety gate depends on how Claude Code treats hook output, so
+ * a changed version explains a changed behaviour. "unknown" when it cannot be read.
+ */
+export function sdkVersion(): string {
+  try {
+    // The package does not export its package.json: read the file beside the entry point.
+    const entry = createRequire(import.meta.url).resolve("@anthropic-ai/claude-agent-sdk");
+    const manifest = JSON.parse(readFileSync(join(dirname(entry), "package.json"), "utf8")) as { version?: unknown };
+    return typeof manifest.version === "string" ? manifest.version : "unknown";
+  } catch {
+    return "unknown";
+  }
 }
 
 export async function loadSdk(): Promise<ClaudeSdk> {

@@ -8,6 +8,7 @@ import {
   planGuard,
   scrubbedEnv,
   sdkToolsFor,
+  sdkVersion,
   sourcesFilter,
   tokensOf,
   withoutSources,
@@ -239,7 +240,7 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
   const options = sessionOptions(sdk, o, controller, () => turnSignal ?? controller.signal);
   const toolNames = [...o.tools, ...(o.atomTools?.specs() ?? []).map((s) => s.name)];
   const prefix = prefixHash(o.systemPrompt, toolNames);
-  log("session.open", { prefix, model, resume: Boolean(o.resume), tools: toolNames.length });
+  log("session.open", { sdk: sdkVersion(), prefix, model, resume: Boolean(o.resume), tools: toolNames.length });
   const q = sdk.query({ prompt: input.messages, options });
 
   const end = (t: Turn, outcome: { text: string; sessionId?: string } | { error: unknown }) => {
