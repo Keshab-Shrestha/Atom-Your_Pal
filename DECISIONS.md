@@ -2547,3 +2547,5 @@ Phase N3 (built 2026-10-14), where it differs from the plan:
 - An API goal's chat is `api-goal-<goalId>`. The goal id is the time in milliseconds. `goalId` is null when ATOM answers without an agent.
 - A later reply in the voice chat uses the report-line path. It follows "Speak the team's reports", so a Quiet chat does not say it.
 - The native opening drops the team line completely: it named the legacy `delegate` tool, and the agent listing holds the names and roles.
+
+Phase N4 (built 2026-10-14): budgets are gone in both engines. No worker or team daily budget, no plan limit that ATOM sets, and no "Runs at once". A legacy task starts when its blockers are done. It waits only for Keshab: a plan to approve, or an interrupted run. The plan meters, the Dashboard tokens and the `usage` table stay. Old databases keep the `spend` table and the `budget:*`, `planLimit` and `maxRunning` settings. Nothing reads, writes or drops them. The Codex fallback had only the plan limit to start it, so it starts nothing now; Settings no longer shows its switch.

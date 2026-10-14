@@ -478,7 +478,7 @@ ATOM runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 - ATOM never logs the token and never shows it. "Copy token" in Settings reads the file only when you click it and puts the token on the clipboard.
 - To make a new token, turn off the API, delete `data/api-token`, then turn on the API.
 - A request body is at most 64 KB.
-- An API goal or chat turn goes to ATOM, the same as a typed goal. The grants, the budgets, the plan limit and the approvals stay the same. An API call cannot approve ATOM's own computer actions without an answer to a Needs you item.
+- An API goal or chat turn goes to ATOM, the same as a typed goal. The grants and the approvals stay the same. ATOM has no budgets and no plan limit (ADR-110 N4). An API call cannot approve ATOM's own computer actions without an answer to a Needs you item.
 - The Needs you actions are the same as the Telegram buttons and the ATOM window. The store checks each one.
 - A webhook can start only a routine with "Can be started by webhook" on. The switch is off by default. Other routines get 403.
 - The log records the method, the route pattern (for example `/v1/tasks/:id`), the status and the time. It never records bodies, goals, answers or reports.
@@ -502,14 +502,13 @@ ATOM runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 
 ## Codex fallback (ADR-098 item 7)
 
-- The switch "Use Codex when the Claude plan limit is reached" is in Settings → General, in the Team card. The switch is off by default. The switch shows only when Codex is found and signed in.
-- Codex runs a task only when the Claude plan's limit holds the task. A budget hold, a plan that waits for Keshab, Tinker and Managers stay on Claude.
+- ADR-110 N4: ATOM sets no plan limit now, so no task waits for Codex and ATOM starts no Codex run. Settings no longer shows the switch. The runtime keeps the Codex code until a later phase removes it. The rules below apply if a Codex run starts again.
 - Codex runs as `codex exec` with `--ephemeral` and `--ignore-user-config`. ATOM closes stdin. ATOM removes all API keys from its environment, so Codex uses Keshab's ChatGPT sign-in. ATOM never reads the Codex login file.
 - A worker without a folder (think, research, a write-up) runs in the `read-only` sandbox. Codex cannot run commands that change files. Only a research kit or a write-up gets Codex's own web search.
 - A folder worker runs in the `workspace-write` sandbox. Codex writes only in the task's folder (its worktree) and the worker's other granted folders. Commands have no network (`sandbox_workspace_write.network_access=false`). Codex does not commit. ATOM commits on the task's branch and never pushes.
 - Codex runs have the same time limit as Claude runs.
 - A Codex run gets no browser and no MCP server. ATOM starts `codex exec` with `--ignore-user-config`, so Keshab's own Codex MCP servers do not load. ATOM passes no MCP, browser, skill or sub-agent option. The test "a Codex run is never started with MCP servers or a browser" in `services/llm-gateway/src/providers/codex-job.test.ts` fails if this changes. The browser and MCP safety checks have no gap for Codex.
-- The run costs $0 against the budgets. The tokens go to the Dashboard with the model `codex`.
+- The tokens go to the Dashboard with the model `codex`.
 - The log records the task id, the kit and whether the run has a folder. It never records the task, the report or Codex's output.
 
 

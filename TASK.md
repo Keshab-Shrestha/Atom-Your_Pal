@@ -1550,3 +1550,17 @@ With `ATOM_ENGINE=native`, the other entry points use the native engine. The leg
 - Fixes after N3 (2026-10-14): 1. An agent's report that comes during a turn of the same chat goes into the Core's turns, before the request (the order that Claude Code saw). The turn's save keeps it. Before, the turn's save deleted it. 2. On the native engine, a webhook starts the routine with `routineStarter`, as the clock does: no legacy task, the same overlap rule (409 while its last run goes), answer `{ taskId: null }`. 3. `/v1/chat` refuses a `chatId` that starts with `goal-`. Thus an API chat cannot share the chat `api-goal-<id>` of a goal. 4. A native run clears the routine's old last task. The window shows the time of the last run, which a native run sets.
 
 Next: Keshab tries Phase N3 in the real app. Then Phase N4: budgets removed.
+
+## Phase N4: budgets removed (ADR-110, 2026-10-14)
+
+Keshab removed the budgets on 2026-10-13. The change applies to both engines.
+
+- `services/helpers/src/budgets.ts` is deleted. The store has no budgets, no daily caps, no plan limit, no "Runs at once" and no spend. `runWakeUps` takes no plan use: each worker that wakes takes a team task.
+- `runner.ts`: no run limit and no `mayStart`. Every runnable task starts at once. `waitReason` keeps two waits for Keshab: a plan to approve, and an interrupted run. The window, Telegram and the API show this reason as `held`.
+- `runtime.ts`: no budget holds, no Codex hold and no clock poke. Test cases stop only on Claude's own rate limit.
+- Island protocol: `helper.budget` is an unknown command. `helpers.settings` takes `allowLarge` and `codexFallback` only. The `helpers` event has no `budget`, `team`, `planLimit` or `maxRunning`. The island ignores these fields from an older runtime.
+- Window: no budget pickers, no team budget row on the Board, no "Team budget" meter, no "Budgets" button in Needs you, and no Team card in Settings → General. The plan-use notice stays and keeps its stored switch.
+- Data: no table and no row is dropped. Old databases keep `spend` and the `budget:*`, `planLimit` and `maxRunning` settings. New databases do not make `spend`.
+- Tests: node 969 (967 pass, 2 skipped); Swift 550 pass.
+
+Next: Keshab tries Phase N4 in the real app. Then Phase N5: `native` becomes the default, then the legacy code goes. The inert Codex fallback goes with it, or Keshab gives it a new start condition.
