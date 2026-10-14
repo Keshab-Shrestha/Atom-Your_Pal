@@ -72,6 +72,7 @@ export { describe, errorFields, nowLine, seconds, withLogging } from "./runtime-
 import { TELEGRAM_CHAT, startTelegramBot, type TelegramBot } from "./telegram-bot.ts";
 import { createApiServer, type ApiServer } from "./api-server.ts";
 import { SCHEDULER_TICK_MS, scheduleTick } from "./scheduler.ts";
+import { createProposeSkillTool, createSearchChatsTool } from "./reach-tools.ts";
 import { nativeSteering, routeWake, routineStarter, taskStarter, type TaskSteering } from "./native-entry.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { testMcpServer } from "./mcp-servers.ts";
@@ -383,6 +384,9 @@ export function createRuntime(
       : []),
     // Task 3.9: routines by voice in any wording. Logs the routine id and worker only.
     ...(helpers ? [createScheduleTool({ store: helpers, onScheduled: (e) => log.info("routine.scheduled", e) })] : []),
+    // docs/v2-plan.md items 1 and 2: past chats by words; a skill proposed from a finished task. Logs counts and ids only.
+    ...(memory ? [createSearchChatsTool({ search: (query) => memory.chats.search(query), onSearch: (e) => log.info("chats.search", e) })] : []),
+    ...(helpers ? [createProposeSkillTool({ store: helpers, onProposed: (e) => log.info("skill.proposed", e) })] : []),
   ];
   // ADR-110: the main agent's tools. A sub-agent does the delegating (the Agent tool); `create_agent` adds one. A new
   // agent is ready once each open session restarts.

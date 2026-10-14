@@ -15,3 +15,4 @@ export * from "./checkpoints.ts";
 export * from "./test-cases.ts";
 export { MAX_LABELS, MAX_LABEL_CHARS, type TaskSearchHit } from "./search.ts";
 export * from "./work-plan.ts";
+export * from "./audit.ts";

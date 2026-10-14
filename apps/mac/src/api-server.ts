@@ -256,6 +256,17 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
     },
     {
       method: "GET",
+      pattern: "/v1/audit",
+      match: /^\/v1\/audit$/,
+      // The newest changes ATOM made (ids and states only, never task text), newest first.
+      run: (_p, _b, query) => {
+        const limit = Number(query.get("limit") ?? 50);
+        if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw new ApiError(400, '"limit" must be a whole number from 1 to 500.');
+        return { entries: team().audit(limit).map((e) => ({ id: e.id, at: e.at.toISOString(), action: e.action, detail: e.detail })) };
+      },
+    },
+    {
+      method: "GET",
       pattern: "/v1/needs",
       match: /^\/v1\/needs$/,
       run: () => ({ needs: needs().map(({ actions, ...need }) => ({ ...need, actions: actions.map(({ data: _data, ...a }) => a) })) }),

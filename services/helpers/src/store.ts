@@ -15,6 +15,7 @@ import { mcpTable } from "./mcp.ts";
 import { usageTable } from "./usage.ts";
 import { toolCallTable } from "./tool-calls.ts";
 import { planTable, type StoredPlan } from "./plans.ts";
+import { auditTable } from "./audit.ts";
 import { blockedPortions, isComplete } from "./work-plan.ts";
 import { checkpointTable } from "./checkpoints.ts";
 import { searchTable } from "./search.ts";
@@ -239,7 +240,9 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const putGrant = db.prepare("INSERT OR IGNORE INTO grants (helper, path) VALUES (?, ?)");
   const dropGrant = db.prepare("DELETE FROM grants WHERE helper = ? AND path = ?");
   const listeners = new Set<(change: HelperChange) => void>();
+  const audit = auditTable(db, now); // docs/v2-plan.md item 9
   const emit = (change: HelperChange) => {
+    audit.record(change);
     for (const listener of listeners) listener(change);
   };
 
@@ -646,6 +649,10 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     rejectSkillEdit: skills.rejectSkillEdit,
     undoSkillEdit: skills.undoSkillEdit,
     recordSkillUse: skills.recordSkillUse,
+    audit: (limit) => audit.recent(limit),
+
+    proposeSkill: skills.proposeSkill,
+
     addPlan(chatId, plan) {
       const id = workPlans.add(chatId, plan);
       emit({ action: "plan_work", plan: id });

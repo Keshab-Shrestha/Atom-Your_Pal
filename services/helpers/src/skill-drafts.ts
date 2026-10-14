@@ -275,6 +275,20 @@ export function skillStore(deps: SkillStoreDeps) {
     return deps.askTinker(job.id, `Make a skill from task ${job.id} (${deps.worker(job.helper).name})`, "skill");
   }
 
+  /** A skill draft for a finished task, checked: name, description, steps, and one draft for each task. */
+  function insertDraft(reviewed: Job, draft: { name: string; description: string; body: string }): SkillDraft {
+    const name = draft.name.trim();
+    const description = draft.description.replace(/\s+/g, " ").trim();
+    const body = draft.body.trim();
+    if (!SKILL_DRAFT_NAME.test(name)) throw new HelperError("A skill's name is 2 to 41 lower-case letters, digits and dashes.");
+    if (!description || description.length > MAX_SKILL_DESCRIPTION) throw new HelperError(`A skill needs a description of at most ${MAX_SKILL_DESCRIPTION} characters.`);
+    if (!body || body.length > MAX_SKILL_BODY) throw new HelperError(`A skill needs its steps, at most ${MAX_SKILL_BODY} characters.`);
+    if (t.draftFor.get(reviewed.id)) throw new HelperError("That task already has a skill draft.");
+    const id = Number(t.addDraft.run(reviewed.id, reviewed.helper, name, description, body, now().toISOString()).lastInsertRowid);
+    emit({ action: "skillDraft", draft: id, job: reviewed.id, skill: name, state: "pending" });
+    return draftOf(id)!;
+  }
+
   return {
     askDraft,
 
@@ -328,16 +342,15 @@ export function skillStore(deps: SkillStoreDeps) {
     addSkillDraft(tinkerTaskId: number, draft: { name: string; description: string; body: string }): SkillDraft {
       const { reviewed } = about(tinkerTaskId, "skill");
       if (!reviewed) throw new HelperError("The task to make a skill from is gone.");
-      const name = draft.name.trim();
-      const description = draft.description.replace(/\s+/g, " ").trim();
-      const body = draft.body.trim();
-      if (!SKILL_DRAFT_NAME.test(name)) throw new HelperError("A skill's name is 2 to 41 lower-case letters, digits and dashes.");
-      if (!description || description.length > MAX_SKILL_DESCRIPTION) throw new HelperError(`A skill needs a description of at most ${MAX_SKILL_DESCRIPTION} characters.`);
-      if (!body || body.length > MAX_SKILL_BODY) throw new HelperError(`A skill needs its steps, at most ${MAX_SKILL_BODY} characters.`);
-      if (t.draftFor.get(reviewed.id)) throw new HelperError("That task already has a skill draft.");
-      const id = Number(t.addDraft.run(reviewed.id, reviewed.helper, name, description, body, now().toISOString()).lastInsertRowid);
-      emit({ action: "skillDraft", draft: id, job: reviewed.id, skill: name, state: "pending" });
-      return draftOf(id)!;
+      return insertDraft(reviewed, draft);
+    },
+
+    /** ADR-111 follow-up: the main agent proposes a skill from a finished task, with no Tinker run. Keshab still approves it. */
+    proposeSkill(jobId: number, draft: { name: string; description: string; body: string }): SkillDraft {
+      const reviewed = deps.get(jobId);
+      if (!reviewed) throw new HelperError(`There is no task ${jobId}.`);
+      if (reviewed.state !== "done") throw new HelperError("Only a finished task can become a skill.");
+      return insertDraft(reviewed, draft);
     },
 
     approveSkillDraft(id: number) {

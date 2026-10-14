@@ -5,6 +5,7 @@ import type { SkillDraft, SkillDraftState, SkillDraftTarget, SkillEdit, SkillEdi
 import type { HubFile, HubInstalled, HubPending } from "./skill-hub.ts";
 import type { AgentProblem, Kit } from "./agents.ts";
 import type { WorkPlan } from "./work-plan.ts";
+import type { AuditEntry } from "./audit.ts";
 import type { McpServer, McpServerInput } from "./mcp.ts";
 import type { UsageEntry, UsageSummary } from "./usage.ts";
 import type { ToolCall, ToolCallEvent } from "./tool-calls.ts";
@@ -352,6 +353,10 @@ export interface HelperStore {
    * `parseWorkPlan` first.
    */
   addPlan(chatId: string, plan: WorkPlan): PlanView;
+  /** The newest audit rows, newest first (1 to 500): when, the kind of change and its ids and states. Never task text. */
+  audit(limit: number): AuditEntry[];
+  /** The main agent proposes a skill from a finished task; Keshab approves or rejects it like Tinker's drafts. Throws HelperError. */
+  proposeSkill(jobId: number, draft: { name: string; description: string; body: string }): SkillDraft;
   plan(id: number): PlanView | undefined;
   /** The newest plan of a chat. */
   latestPlan(chatId: string): PlanView | undefined;
