@@ -30,3 +30,14 @@ test("a routine failure does not stop the wake-ups; each failure is logged", () 
   scheduleTick(store, undefined, log, (e) => ({ message: (e as Error).message }));
   assert.deepEqual(log.lines.map((l) => [l[0], l[1]]), [["warn", "routines.failed"], ["warn", "wakeups.failed"]]);
 });
+
+test("ADR-110 N3: on the native engine routines get the native start and no worker wakes", () => {
+  const calls: unknown[] = [];
+  const start = () => true;
+  const store = {
+    runRoutines: (s?: unknown) => (calls.push(["routines", s === start]), { made: [], skipped: [] }),
+    runWakeUps: () => (calls.push("wake"), []),
+  };
+  scheduleTick(store, 10, fakeLog(), () => ({}), start);
+  assert.deepEqual(calls, [["routines", true]]);
+});

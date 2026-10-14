@@ -1154,12 +1154,24 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       return true;
     },
 
-    runRoutines() {
+    runRoutines(start) {
       const at = now();
       const made: number[] = [];
       const skipped: number[] = [];
       for (const r of routines.list()) {
         if (r.paused || !isDue(r, at)) continue;
+        if (start) {
+          let started = false;
+          try {
+            started = start(r);
+          } catch {
+            // the native start failed: skipped this time
+          }
+          routines.mark(r.id, at, null, !started);
+          (started ? made : skipped).push(r.id);
+          emit({ action: "routine", helper: r.helper, routine: r.id, outcome: started ? "made" : "skipped" });
+          continue;
+        }
         const last = r.lastTaskId === undefined ? undefined : get(r.lastTaskId);
         let taskId: number | null = null;
         if (!last || isFinal(last.state)) {

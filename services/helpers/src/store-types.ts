@@ -499,8 +499,10 @@ export interface HelperStore {
   /**
    * Makes a task for each routine that came due since it last did (missed times count once). One whose last task is
    * still to do or running is skipped this time. Returns what was made and skipped, by routine id.
+   * ADR-110 (N3): with `start` (the native engine), no task is made: `start` runs the routine and says whether it did
+   * (false: skipped, as its last run still goes).
    */
-  runRoutines(): { made: number[]; skipped: number[] };
+  runRoutines(start?: (routine: Routine) => boolean): { made: number[]; skipped: number[] };
   /** Task 3.8: whether a worker's new tasks plan first. Throws HelperError for an unknown worker. */
   setPlanFirst(helper: string, on: boolean): void;
   /** ADR-098: whether a worker's runs get the browser. Throws HelperError for an unknown worker. */

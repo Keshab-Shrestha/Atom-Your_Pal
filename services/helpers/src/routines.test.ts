@@ -96,3 +96,18 @@ test("the schedule tool reads the model's words and checks them", () => {
   assert.ok(store.removeRoutine(1));
   assert.equal(store.list()[4]!.routines.length, 0);
 });
+
+test("ADR-110 N3: with a native start a due routine makes no task; missed mornings still count once; a refused start is skipped", () => {
+  let clock = at("2026-10-11T09:00:00");
+  const store = openHelperStore({ path: ":memory:", now: () => clock });
+  const r = store.addRoutine("sid", "News", { kind: "daily", minute: 480 });
+  const started: number[] = [];
+  clock = at("2026-10-14T10:00:00"); // three mornings later
+  assert.deepEqual(store.runRoutines((x) => (started.push(x.id), true)), { made: [r.id], skipped: [] });
+  assert.deepEqual(started, [r.id], "one catch-up");
+  assert.equal(store.list()[0]!.jobs.length, 0, "no legacy task");
+  assert.deepEqual(store.runRoutines(() => true).made, [], "once per morning");
+  clock = at("2026-10-15T08:00:30");
+  assert.deepEqual(store.runRoutines(() => false), { made: [], skipped: [r.id] }, "its last run still goes");
+  assert.equal(store.list()[0]!.routines[0]!.lastSkipped, true);
+});
