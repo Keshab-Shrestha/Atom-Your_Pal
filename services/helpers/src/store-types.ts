@@ -272,12 +272,6 @@ export interface HelperStore {
   restoreSoul(helper: string, version: number): void;
   /** Whether jobs may use the large model (ADR-083). Default true. */
   allowLarge(): boolean;
-  /**
-   * Task 3.10: a running task hands a sub-task to another worker. Checked here: the target is available and its role
-   * may take work from this one, at most two levels and three sub-tasks a task. The
-   * task waits for the sub-task: when this run ends it runs again once the sub-task has. Throws HelperError otherwise.
-   */
-  handOff(parentId: number, helper: string, task: string): Job;
   /** Task 3.10: the sub-tasks a task handed off, with their outcomes. */
   handOffs(parentId: number): HandOffOutcome[];
   /**
@@ -375,7 +369,7 @@ export interface HelperStore {
   checkpoint(jobId: number, roots: readonly string[], path: string): void;
   /** B3.4: at the run's end: notes how each kept file was left; a file the run did not change drops out. */
   finishCheckpoints(jobId: number): void;
-  /** B3.4: the task's kept files (at most 100), oldest first. */
+/** B3.4: the task's kept files (at most 100), oldest first. */
   checkpoints(jobId: number): CheckpointItem[];
   /**
    * B3.4: undoes the run's file edits: one file (`path`, relative) or all. A file changed since the run is a conflict
@@ -458,8 +452,6 @@ export interface HelperStore {
    * note (which resumes its session); when a note already waits, it runs again at once.
    */
   interrupt(id: number): void;
-  /** For the runner: a plan-first run's plan. The task goes back to "to do", held until Keshab approves. */
-  savePlan(id: number, plan: { summary: string; steps: string }): void;
   /** Approves a task's waiting plan, so its next run does the job with it. Throws HelperError when no plan waits. */
   approvePlan(id: number): void;
   /** Rejects a task's waiting plan: the task is stopped. Throws HelperError when no plan waits. */
@@ -477,18 +469,7 @@ export interface HelperStore {
   /** ADR-110 (N2): Claude Code's task id of a native job, once the task has started. */
   linkNativeTask(id: number, sdkTaskId: string): void;
   get(id: number): Job | undefined;
-  /**
-   * Creates a goal and its tasks in one go (Task 3.5), or nothing: throws HelperError for an empty or long goal, no
-   * tasks or more than MAX_GOAL_TASKS, a bad task, or an `after` that is not an earlier task of the goal.
-   */
-  addGoal(text: string, parts: readonly GoalPart[], source?: string, projectId?: string): Goal;
   goal(id: number): Goal | undefined;
-  /** Ends a goal, with its combined report or null when no task was done. Throws HelperError for an unknown or ended goal. */
-  endGoal(id: number, report: GoalReport | null): void;
-  /** ADR-109: ended goals with a source whose result was not posted into that chat yet, oldest first. */
-  goalsToPost(): Goal[];
-  /** ADR-109: marks a goal's result as posted (or skipped). False when it was marked before: post once only. */
-  markGoalPosted(id: number): boolean;
   /** Every queued job whose blockers are all done, oldest first (for the job runner). */
   queued(): Job[];
   /** Changes what a queued task waits for. Throws HelperError for a task that is not queued, bad blockers, or a circle. */
@@ -500,8 +481,6 @@ export interface HelperStore {
    * marks Keshab's message to a running task: "live" (the run took it, so nothing wakes) or "after" (one more run).
    */
   addComment(id: number, text: string, delivery?: "live" | "after"): void;
-  /** ADR-098 item 3: the last `count` "live" messages the run may not have read become "after": one more run. */
-  steerUnread(id: number, count: number): void;
   /** ADR-098: adds a label to a task (returns it cleaned). Throws HelperError for an unknown task, a bad label or a seventh. */
   addLabel(id: number, label: string): string;
   /** ADR-098: removes a task's label. Throws HelperError for an unknown task. */
@@ -514,8 +493,6 @@ export interface HelperStore {
   startFresh(id: number): void;
   /** Keeps the session a run used, so the next run resumes it. False (nothing saved) for an unknown task. */
   setSession(id: number, sessionId: string): boolean;
-  /** How the next run continues: the session to resume and the notes added since the last run started. */
-  resumeOf(id: number): { sessionId: string; notes: string[] } | undefined;
   thread(id: number): Thread | undefined;
   /** What a task is given when it runs: its goal, notes and the reports of the tasks it waited for. */
   context(id: number): TaskContext;

@@ -41,7 +41,7 @@ const MAX_REMEMBERED = 500;
 
 export interface TeamScope {
   chatId: string;
-  helpers: Pick<HelperStore, "list" | "mcpServers" | "addNativeJob" | "checkpoint" | "setModel" | "linkPlanJob">;
+  helpers: Pick<HelperStore, "list" | "mcpServers" | "addNativeJob" | "checkpoint" | "finishCheckpoints" | "setModel" | "linkPlanJob">;
   board: BoardRecorder;
   /** ADR-111: the chat's work plan; an Agent call with description "P<n>" is a portion of it. */
   plans?: PlanBook;
@@ -316,6 +316,12 @@ export function nativeGate(scope: NativeScope): NativeGate {
       browsers.delete(job);
       browser?.stop.abort();
       browser?.release?.();
+      // B3.4: the files the run changed are noted as the run left them (a failure here never fails the task).
+      try {
+        team?.helpers.finishCheckpoints(job);
+      } catch {
+        log("job.checkpoint_failed", { job, tool: "finish" });
+      }
       const tree = work.get(job);
       work.delete(job);
       if (tree?.tree) {

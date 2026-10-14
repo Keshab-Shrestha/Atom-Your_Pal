@@ -819,31 +819,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       return true;
     },
 
-    handOff(parentId, helper, raw) {
-      const parent = mustGet(parentId);
-      if (parent.state !== "running") throw new HelperError("Only a running task can hand off work.");
-      const target = availableHelper(helper);
-      const from = current(parent.helper).name;
-      const to = current(target.id).name;
-      if (target.id === parent.helper) throw new HelperError("A worker cannot hand a task to itself.");
-      if (!HAND_OFFS[mustHelper(parent.helper).role]?.includes(target.role)) throw new HelperError(`${from} cannot hand work to ${to} (${target.role}).`);
-      let level = 1;
-      for (let p: Job | undefined = parent; p?.parentId !== undefined; p = get(p.parentId)) level++;
-      if (level + 1 > MAX_LEVELS) throw new HelperError("A sub-task cannot hand off work again. Do it yourself or say what is missing.");
-      if ((childrenOf.all(parentId) as unknown[]).length >= MAX_HAND_OFFS) throw new HelperError(`A task can hand off at most ${MAX_HAND_OFFS} sub-tasks.`);
-      const task = cleanTask(raw);
-      let id = 0;
-      transaction(() => {
-        id = insertTask(target.id, task, [], { goal: parent.goal ?? null, parentId, goalId: parent.goalId ?? null, planFirst: false });
-        insertBlocker.run(parentId, id);
-        setPending.run(1, parentId); // runs again, once the sub-task is done
-        log(parentId, "handed");
-      });
-      emit({ action: "job", helper: target.id, job: id, state: "queued" });
-      emit({ action: "blockers", helper: parent.helper, job: parentId });
-      return mustGet(id);
-    },
-
     handOffs(parentId) {
       return (childrenOf.all(parentId) as unknown as JobRow[]).map((row) => {
         const report = row.state === "done" ? this.report(row.id) : undefined;
@@ -925,14 +900,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       emit({ action: "settings" });
     },
 
-    savePlan(id, plan) {
-      const job = mustGet(id);
-      if (Number(putPlan.run(plan.steps, plan.summary, id).changes) === 0) throw new HelperError(`A ${job.state} job cannot save a plan.`);
-      log(id, "planned");
-      emit({ action: "plan", helper: job.helper, job: id, status: "awaiting" });
-      emit({ action: "job", helper: job.helper, job: id, state: "queued" });
-    },
-
     approvePlan(id) {
       const job = mustGet(id);
       if (job.state !== "queued" || Number(setPlanStatus.run("approved", id).changes) === 0) throw new HelperError("No plan waits for your OK on that task.");
@@ -997,30 +964,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       setNativeTask.run(sdkTaskId, id);
     },
 
-    addGoal(raw, parts, source, projectId) {
-      const text = raw.trim();
-      if (!text) throw new HelperError("The goal is empty.");
-      if (text.length > MAX_GOAL_CHARS) throw new HelperError(`The goal is too long (${text.length} characters, limit ${MAX_GOAL_CHARS}).`);
-      if (!parts.length || parts.length > MAX_GOAL_TASKS) throw new HelperError(`A goal has 1 to ${MAX_GOAL_TASKS} tasks.`);
-      // Everything is checked before anything is written; `after` points back only, so a goal can never be a circle.
-      const checked = parts.map((part, i) => {
-        const after = [...new Set(part.after ?? [])];
-        const bad = after.find((n) => !Number.isInteger(n) || n < 1 || n > i);
-        if (bad !== undefined) throw new HelperError(`Task ${i + 1} can only wait for tasks before it, not ${bad}.`);
-        if (after.length > MAX_BLOCKERS) throw new HelperError(`A task can wait for at most ${MAX_BLOCKERS} others.`);
-        return { helper: goalHelper(part.helper), task: cleanTask(part.task), after };
-      });
-      let goalId = 0;
-      const ids: number[] = [];
-      transaction(() => {
-        goalId = Number(insertGoal.run(text, now().toISOString(), source ?? null, projectId ?? null).lastInsertRowid);
-        for (const part of checked) ids.push(insertTask(part.helper, part.task, part.after.map((n) => ids[n - 1]!), { goal: text, parentId: null, goalId }));
-      });
-      emit({ action: "goal", goal: goalId, tasks: ids.length, ended: false, ...(source ? { source } : {}) });
-      ids.forEach((id, i) => emit({ action: "job", helper: checked[i]!.helper, job: id, state: "queued" }));
-      return this.goal(goalId)!;
-    },
-
     goal(id) {
       const row = goalRow.get(id) as { id: number; text: string; created_at: string; ended_at: string | null; report: string | null; source: string | null; project_id: string | null; chat_posted_at: string | null } | undefined;
       if (!row) return undefined;
@@ -1036,20 +979,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         ...(row.chat_posted_at ? { chatPostedAt: new Date(row.chat_posted_at) } : {}),
       };
     },
-
-    endGoal(id, report) {
-      const goal = this.goal(id);
-      if (!goal) throw new HelperError(`There is no goal ${id}.`);
-      const saved = report && { ...report, sources: webSources(report.sources).map((s) => ({ title: s.title, url: s.url })) };
-      if (Number(closeGoal.run(now().toISOString(), saved ? JSON.stringify(saved) : null, id).changes) === 0) throw new HelperError(`Goal ${id} has already ended.`);
-      emit({ action: "goal", goal: id, tasks: goal.tasks.length, ended: true });
-    },
-
-    goalsToPost() {
-      return (toPost.all() as { id: number }[]).map((r) => this.goal(r.id)!);
-    },
-
-    markGoalPosted: (id) => Number(markPosted.run(now().toISOString(), id).changes) > 0,
 
     setBlockers(id, raw) {
       const job = mustGet(id);
@@ -1160,29 +1089,11 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       return true;
     },
 
-    steerUnread(id, count) {
-      const job = get(id);
-      if (!job || count < 1 || Number(unsteer.run(id, count).changes) === 0) return;
-      emit({ action: "comment", helper: job.helper, job: id });
-      wake(job);
-    },
-
     interrupt(id) {
       const job = mustGet(id);
       if (Number(putInterrupted.run(id).changes) === 0) throw new HelperError(`A ${job.state} job cannot be interrupted.`);
       log(id, "interrupted");
       emit({ action: "job", helper: job.helper, job: id, state: "queued" });
-    },
-
-    resumeOf(id) {
-      const row = jobById.get(id) as JobRow | undefined;
-      if (!row?.session_id) return undefined;
-      // ADR-098 item 3: "live" messages are in the session already.
-      const notes = (commentsOf.all(id) as { text: string; delivery: string | null }[])
-        .slice(row.state === "running" ? (row.brief_from ?? 0) : (row.seen_comments ?? 0))
-        .filter((c) => c.delivery !== "live")
-        .map((c) => c.text);
-      return { sessionId: row.session_id, notes };
     },
 
     thread(id) {

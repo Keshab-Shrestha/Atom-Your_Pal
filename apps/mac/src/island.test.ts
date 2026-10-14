@@ -828,23 +828,6 @@ test("tasks: job.add with blockedBy, job.block refusing a circle, comment.add an
   assert.equal(store.get(2)!.comments, 1);
 });
 
-test("thread.get carries the task's goal, and its combined report once it has ended (Task 3.5)", async () => {
-  const { h, store } = helperHarness();
-  await tick(5);
-  const goal = store.addGoal("guide", [{ helper: "sid", task: "a" }, { helper: "quill", task: "b", after: [1] }]);
-  h.clear();
-  await h.send({ type: "thread.get", id: goal.tasks[1]!.id });
-  const open = h.events().at(-1) as Extract<IslandEvent, { type: "thread" }>;
-  assert.deepEqual(open.goal, { id: goal.id, text: "guide", ended: false, tasks: [1, 2] });
-  store.endGoal(goal.id, { title: "T", summary: "S", body: "B", sources: [{ title: "x", url: "javascript:alert(1)" }] });
-  h.clear();
-  await h.send({ type: "thread.get", id: 1 });
-  const ended = h.events().at(-1) as Extract<IslandEvent, { type: "thread" }>;
-  assert.deepEqual(ended.goal, { id: goal.id, text: "guide", ended: true, tasks: [1, 2], report: { title: "T", summary: "S", body: "B", sources: [] } });
-  const sid = store.list()[0]!.jobs[0]!;
-  assert.deepEqual([sid.goalId, sid.goalEnded], [goal.id, true]);
-});
-
 test("job.fresh forgets an ended task's session and runs it again; a running task is refused (Task 3.6)", async () => {
   const { h, store } = helperHarness();
   await tick(5);
@@ -860,24 +843,6 @@ test("job.fresh forgets an ended task's session and runs it again; a running tas
   await h.send({ type: "job.fresh", id });
   const sid = (h.events().at(-1) as HelpersEvent).helpers[0]!.jobs[0]!;
   assert.deepEqual([sid.state, sid.resumable], ["queued", undefined]);
-});
-
-test("plan first: helper.planFirst, job.add planFirst, the plan in thread.get, plan.approve and plan.reject (Task 3.8)", async () => {
-  const { h, store } = helperHarness();
-  await tick(5);
-  await h.send({ type: "helper.planFirst", helper: "sid", on: true }, { type: "job.add", helper: "sid", task: "a" }, { type: "job.add", helper: "sid", task: "b", planFirst: false });
-  const sid = (h.events().at(-1) as HelpersEvent).helpers[0]!;
-  assert.deepEqual([sid.planFirst, sid.jobs.map((j) => j.planFirst)], [true, [undefined, true]]);
-  store.start(1);
-  store.savePlan(1, { summary: "S", steps: "1. x" });
-  h.clear();
-  await h.send({ type: "thread.get", id: 1 });
-  assert.deepEqual((h.events().at(-1) as Extract<IslandEvent, { type: "thread" }>).plan, { summary: "S", steps: "1. x" });
-  await h.send({ type: "plan.approve", id: 1 });
-  assert.equal(store.get(1)!.planStatus, "approved");
-  h.clear();
-  await h.send({ type: "plan.reject", id: 1 });
-  assert.deepEqual(h.types(), ["error"], "no plan waits any more");
 });
 
 test("a line with something to do after it: done once it has been said (Task 3.8)", async () => {
@@ -1047,18 +1012,6 @@ test("routines in helpers, and routine.delete (Task 3.9)", async () => {
   assert.deepEqual((h.events().at(-1) as HelpersEvent).helpers[0]!.routines, [{ id: r.id, task: "News", when: "Every day at 8:00 AM", schedule: { kind: "daily", minute: 480 }, paused: true }]);
   await h.send({ type: "routine.delete", id: r.id });
   assert.deepEqual((h.events().at(-1) as HelpersEvent).helpers[0]!.routines, []);
-});
-
-test("thread.get lists the sub-tasks a task handed off (Task 3.10)", async () => {
-  const { h, store } = helperHarness();
-  await tick(5);
-  const sid = store.addJob("sid", "Research");
-  store.start(sid.id);
-  const penny = store.handOff(sid.id, "penny", "Costs");
-  h.clear();
-  await h.send({ type: "thread.get", id: sid.id });
-  const thread = h.events().at(-1) as Extract<IslandEvent, { type: "thread" }>;
-  assert.deepEqual([thread.handOffs, thread.activity.map((a) => a.kind)], [[penny.id], ["created", "running", "handed"]]);
 });
 
 test("grant.add refuses the home folder; grant.remove takes a folder back (Task 3.11)", async () => {
