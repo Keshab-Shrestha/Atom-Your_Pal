@@ -1576,3 +1576,15 @@ Next: Keshab tries Phase N4 in the real app. Then Phase N5: `native` becomes the
 - Tests: no test ran (the cloud session has no `data/`, no macOS). `pnpm typecheck` is clean. Tests of deleted code are deleted.
 
 Next: Keshab runs `pnpm test` and `pnpm island:test` on the Mac, then tries plain chat, project chat, voice, Telegram, Sid, a new agent and a routine by hand.
+
+## ADR-111 and ADR-112: work plans, the second brain, reach tools and the UI pass (2026-10-14)
+
+- N5 follow-up: a task from a worker's page and Retry are main-agent turns (`taskStarter`); the project note names the Agent tool; Settings → Model says Codex and Gemini cannot run chats.
+- Work plans (ADR-111): `work-plan.ts`, `plans.ts`, `native-plan.ts`; Swift `WorkPlans.swift`, `PlanViews.swift`.
+- Reach: `search_chats`, `propose_skill` (`reach-tools.ts`), the audit log (`audit.ts`, `GET /v1/audit`).
+- Second brain (ADR-112): `brain.ts`, `brain-wiring.ts`; Swift `Brain.swift`, `BrainView.swift`; commands `brain.*`.
+- UI: Stop in the composer while ATOM answers, Copy and Try again on replies, New chat in the chat top bar, a link from Settings → Memory to the graph.
+- Tests: new tests run alone (`work-plan.test.ts`, `native-plan.test.ts`, `brain.test.ts`, `brain-wiring.test.ts`: 6, 6, 10, 3 pass). The full suites and Swift were not run (no macOS in the cloud session).
+- Not done: a second chat app (Slack or Discord) for the gateway; it needs a token, an allowlist and a security review first.
+
+Next: Keshab runs `pnpm test` and `pnpm island:test` on the Mac, builds the app, tries a three-portion task and the graph, and fixes what the Swift compiler finds.

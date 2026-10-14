@@ -2554,7 +2554,7 @@ Phase N5 (built 2026-10-14): the native engine is the only engine. The `ATOM_ENG
 
 ## ADR-111 — Work plans: one big goal, specific agents for its portions, summaries between them (2026-10-14)
 
-Status: Proposed (Keshab asked for it, 2026-10-14). Slice A built.
+Status: Accepted (Keshab, 2026-10-14). Slices A to E built; not yet tried in the real app.
 
 ### Context
 
@@ -2577,3 +2577,23 @@ Where tokens go today: a sub-agent's full final message returns into the main ag
 - Between portions only about 40 tokens a portion travel through the main agent; bodies stay in the store.
 - The plan checks are deterministic, so the model cannot start a portion early or start one twice.
 - Needs a live probe in the real app before it counts as done.
+
+### Update (2026-10-14): built
+
+- One change from the plan above: an agent's report is capped at 150 words (`HANDOFF_WORDS`) and is also the Agent result the main agent reads. A dependent portion receives the report of each portion it waited for, cut to 1200 characters (about 300 tokens), not only a 160-character summary: a summary is too thin for work such as pricing three kits.
+- The main agent's call is `Agent` with description "P<n>" and prompt "go". The gate replaces the prompt with the stored task and the context. At most two portions of a plan run at once (`PLAN_PARALLEL`) because the Claude plan limit is shared.
+- Slice B: `work_plans` and `plan_jobs` tables, `addPlan`, `plan`, `latestPlan`, `plans`, `linkPlanJob`. Slice C: `plan_work` and `plan_status` tools (`native-plan.ts`), the claim in the gate. Slice D: the report cap and the completion line in `plan_status`. Slice E: `plans` in the `helpers` event, plan dots in the work strip, a plan card on the Board.
+- Not built: a separate `read_report` tool. A portion's report is already the full text of its last message.
+
+## ADR-112 — The second brain (2026-10-14)
+
+Status: Accepted (Keshab, 2026-10-14). Built; not yet tried in the real app.
+
+ATOM keeps linked notes, as Obsidian does, and draws them as a graph in the ATOM window ("Second brain" in the sidebar, and a link in Settings → Memory).
+
+- Store (`services/memory/src/brain.ts`, tables `brain_notes`, `brain_links`, `brain_tags`, `brain_fts`): a note has a title (unique, any case), a Markdown body, a kind and tags. `[[Title]]` links to another note; an unwritten title makes a ghost note, drawn dashed. `#tag` tags a note. Removing a note others link to leaves a ghost.
+- Mirror: facts, conversation notes, kept chats and projects become notes of kind `memory`, `episode`, `chat` and `project`, replaced when memory changes (`brain-wiring.ts`).
+- ATOM's own links (`autolink`, drawn dashed): a note that names another note's title, and a name that two or more notes share (a capitalised name) becomes an `entity` note they link to. They are rebuilt each time, never written into a note.
+- Agent tools: `brain_note` (write), `brain_open` (read with links and backlinks), `brain_search`.
+- Window: a force-directed layout (`BrainLayout`), zoom and pan, kind and tag filters, search, a note editor with links and backlinks. A mirrored note is read-only there.
+- Left out on purpose: semantic (embedding) links, daily notes and graph filters by date. Each is its own task.
