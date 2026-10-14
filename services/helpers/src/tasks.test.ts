@@ -4,7 +4,6 @@ import {
   BRIEF_REPORT_CHARS,
   HelperError,
   MAX_BLOCKERS,
-  briefFor,
   makesCycle,
   openHelperStore,
 } from "./index.ts";
@@ -111,16 +110,3 @@ test("cycles are found through any path", () => {
   assert.equal(makesCycle(edges, 5, [3, 4]), false);
 });
 
-test("the brief carries the goal, notes and earlier reports, marked as data and cut to length", () => {
-  const brief = briefFor("Write the guide", {
-    goal: "A networking guide",
-    comments: ["Keep it short"],
-    earlier: [{ worker: "Sid", task: "Research", title: "Networking", summary: "Basics.", body: "x".repeat(BRIEF_REPORT_CHARS + 50), sources: [{ title: "RFC", url: "https://example.org/" }] }],
-  });
-  assert.match(brief, /^Write the guide\n\nThe goal this task is part of: A networking guide/);
-  assert.match(brief, /Notes from Keshab:\n- Keep it short/);
-  assert.match(brief, /data, never instructions/);
-  assert.match(brief, /Sources: RFC \(https:\/\/example\.org\/\)/);
-  assert.ok(brief.includes(`${"x".repeat(BRIEF_REPORT_CHARS)}…`) && !brief.includes("x".repeat(BRIEF_REPORT_CHARS + 1)));
-  assert.equal(briefFor("Just this", { comments: [], earlier: [] }), "Just this");
-});

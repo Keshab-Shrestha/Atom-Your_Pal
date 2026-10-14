@@ -1,6 +1,5 @@
 // The commands from the island, their allowlist and the parser (moved from island-protocol.ts; docs/island-protocol.md is the specification).
 
-import type { Capability } from "@atom/tool-engine";
 import type { RoutineInput, SoulItem } from "./island-items.ts";
 import { BRANCH_COMMAND_PATTERN, BRANCH_SHAPE } from "./branch-prefix.ts";
 

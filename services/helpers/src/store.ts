@@ -23,15 +23,11 @@ import { MAX_TEST_CASES, TEST_CASES_RUN, skillInstructions, testCaseTable, type 
 import { createSchema, sameSoul, toJobRow, toSoul, webSources, type JobRow, type ReportRow, type SoulRow } from "./store-schema.ts";
 import {
   BUILT_IN_KITS,
-  HAND_OFFS,
   HELPERS,
   HelperError,
   MAX_AUTO_RETRIES,
-  MAX_HAND_OFFS,
-  MAX_LEVELS,
   isRetryable,
   MAX_BLOCKERS,
-  MAX_GOAL_TASKS,
   cleanSoul,
   instructionsFor,
   isFinal,
@@ -54,7 +50,7 @@ export const CLOSED_WHILE_RUNNING = "ATOM was closed while this job ran";
 export const SOUL_VERSIONS_LISTED = 10;
 
 export type * from "./store-types.ts";
-import type { Activity, GoalPart, GoalReport, HelperChange, HelperStore, HelperStoreOptions, Job, PlanPortionView, PlanView, PortionState, Source } from "./store-types.ts";
+import type { Activity, GoalReport, HelperChange, HelperStore, HelperStoreOptions, Job, PlanPortionView, PlanView, PortionState, Source } from "./store-types.ts";
 
 export { webSources } from "./store-schema.ts";
 
@@ -167,10 +163,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const dropLinks = db.prepare("DELETE FROM job_blockers WHERE job_id = ? OR blocker_id = ?");
   const insertComment = db.prepare("INSERT INTO job_comments (job_id, text, created_at, delivery) VALUES (?, ?, ?, ?)");
   const commentsOf = db.prepare("SELECT id, text, created_at, delivery FROM job_comments WHERE job_id = ? ORDER BY id");
-  // ADR-098 item 3: the last "live" messages a run may not have read wait for one more run.
-  const unsteer = db.prepare(
-    "UPDATE job_comments SET delivery = 'after' WHERE id IN (SELECT id FROM job_comments WHERE job_id = ? AND delivery = 'live' ORDER BY id DESC LIMIT ?)",
-  );
   // ADR-098 item 3: an interrupted run's task waits for Keshab, unless a note already waits (then it runs again).
   const putInterrupted = db.prepare(
     "UPDATE jobs SET state = 'queued', step = NULL, interrupted = CASE WHEN wake_pending = 1 THEN 0 ELSE 1 END, wake_pending = 0 WHERE id = ? AND state = 'running'",
@@ -189,9 +181,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const setPending = db.prepare("UPDATE jobs SET wake_pending = ? WHERE id = ?");
   const putSession = db.prepare("UPDATE jobs SET session_id = ? WHERE id = ?");
   const bumpRetries = db.prepare("UPDATE jobs SET auto_retries = COALESCE(auto_retries, 0) + 1 WHERE id = ?");
-  const putPlan = db.prepare(
-    "UPDATE jobs SET state = 'queued', step = NULL, wake_pending = 0, plan = ?, plan_summary = ?, plan_status = 'awaiting' WHERE id = ? AND state = 'running'",
-  );
   const setPlanStatus = db.prepare("UPDATE jobs SET plan_status = ? WHERE id = ? AND plan_status = 'awaiting'");
   const reopenGoal = db.prepare("UPDATE goals SET ended_at = NULL WHERE id = ?");
   const childrenOf = db.prepare("SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.parent_id = ? ORDER BY j.id");
@@ -205,13 +194,9 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const planFirstOf = (helper: HelperId) => (settingOf.get(`planFirst:${helper}`) as { value: string } | undefined)?.value === "true";
   // ADR-098: whether an agent's runs get the browser (default off).
   const browserOf = (helper: HelperId) => (settingOf.get(`browser:${helper}`) as { value: string } | undefined)?.value === "true";
-  const insertGoal = db.prepare("INSERT INTO goals (text, created_at, source, project_id) VALUES (?, ?, ?, ?)");
   const goalRow = db.prepare("SELECT * FROM goals WHERE id = ?");
   const goalEndedAt = db.prepare("SELECT ended_at FROM goals WHERE id = ?");
   const goalTasks = db.prepare("SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.goal_id = ? ORDER BY j.id");
-  const closeGoal = db.prepare("UPDATE goals SET ended_at = ?, report = ? WHERE id = ? AND ended_at IS NULL");
-  const toPost = db.prepare("SELECT id FROM goals WHERE ended_at IS NOT NULL AND source IS NOT NULL AND chat_posted_at IS NULL ORDER BY id");
-  const markPosted = db.prepare("UPDATE goals SET chat_posted_at = ? WHERE id = ? AND chat_posted_at IS NULL");
   const setState = db.prepare("UPDATE jobs SET state = ?, step = NULL, partial = ?, error = ?, ended_at = ?, wake_pending = 0 WHERE id = ?");
   const setStep = db.prepare("UPDATE jobs SET step = ? WHERE id = ? AND state = 'running'");
   const insertReport = db.prepare("INSERT OR REPLACE INTO reports (job_id, title, summary, body, sources) VALUES (?, ?, ?, ?, ?)");
@@ -451,9 +436,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     const running = portions.some((p) => p.state === "running");
     return { id: stored.id, chatId: stored.chatId, goal: stored.goal, createdAt: stored.createdAt, portions, complete, stuck: !complete && !running && (failed.size > 0 || blocked.size > 0) && !portions.some((p) => p.state === "waiting" && p.after.every((a) => done.has(a))) };
   }
-
-  /** Who a goal's part goes to: an available worker. */
-  const goalHelper = (id: string): HelperId => availableHelper(id).id;
 
   return {
     list() {

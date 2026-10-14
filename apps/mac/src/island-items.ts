@@ -1,6 +1,5 @@
 // Item and event shapes of the island protocol (moved from island-protocol.ts; docs/island-protocol.md is the specification).
 
-import type { Capability } from "@atom/tool-engine";
 
 /**
  * ADR-097: a schedule from the window's form: the worker, the task, and one of the store's three kinds. `minute` is

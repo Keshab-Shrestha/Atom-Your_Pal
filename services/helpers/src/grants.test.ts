@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { checkGrant, classifyCommand, folderForTask, openHelperStore, pathProblem, toolPaths, wantsFiles } from "./index.ts";
@@ -21,7 +21,7 @@ test("only project folders inside home (or on an external drive) can be granted"
     for (const [path, why] of [
       [home, /whole home folder/],
       ["/", /Only folders inside your home folder/],
-      ["/System", /Only folders inside your home folder/],
+      ...(existsSync("/System") ? ([["/System", /Only folders inside your home folder/]] as const) : []), // macOS only
       ["/etc", /Only folders inside your home folder/],
       [join(home, "Library", "Keys"), /~\/Library/],
       [join(home, ".ssh"), /Hidden folders/],

@@ -1,7 +1,6 @@
 // The parts of the Mac runtime shared by both interfaces (terminal and island):
 // Microphone → Whisper → ATOM Core → LLM Gateway → provider → Kokoro → speaker.
 
-import { rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import type { Core } from "@atom/core";
 import { createComputerBridge, type ComputerBridge } from "./computer-bridge.ts";
@@ -56,7 +55,7 @@ import {
   type HelperView,
 } from "@atom/helpers";
 import { createLayaEngine } from "@atom/decision-engine";
-import type { InputSource, LanguageModel, Message, RequestContext, ZenoInput } from "@atom/contracts";
+import type { InputSource, Message, ZenoInput } from "@atom/contracts";
 import type { IslandBrain, IslandChats, IslandGit, IslandHelpers, IslandMemory, IslandProjects } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
 import { createHubCommands } from "./hub-commands.ts";

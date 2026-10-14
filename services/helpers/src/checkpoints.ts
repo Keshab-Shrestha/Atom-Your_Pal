@@ -94,7 +94,6 @@ export function checkpointTable(db: DatabaseSync, dir: string | undefined, home:
   db.exec(CHECKPOINTS_SCHEMA);
   const byPath = db.prepare("SELECT * FROM checkpoints WHERE job_id = ? AND path = ?");
   const byJob = db.prepare("SELECT * FROM checkpoints WHERE job_id = ? ORDER BY id");
-  const byId = db.prepare("SELECT * FROM checkpoints WHERE id = ?");
   const usage = db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(size), 0) AS bytes FROM checkpoints WHERE job_id = ? AND state = 'ready' AND kind = 'modified'");
   const count = db.prepare("SELECT COUNT(*) AS n FROM checkpoints WHERE job_id = ? AND state = 'ready'");
   const insert = db.prepare("INSERT INTO checkpoints (job_id, path, rel, kind, state, reason, size) VALUES (?, ?, ?, ?, ?, ?, ?)");

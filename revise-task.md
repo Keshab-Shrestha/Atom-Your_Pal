@@ -38,3 +38,6 @@ The progress log is at the end of this file.
 ## Progress log
 
 (The quality pass adds a line here for each step.)
+
+- Q1 done: dead goal, hand-off, plan-first and steer store methods removed with their tests; unused imports and prepared statements removed; one real N5 bug found and fixed (a native agent's checkpoints were never finished). Left on purpose: `handOffs`, `context`, `setPlanFirst`, `rejectPlan` and the manager parser in `agents.ts` (old soul files still load). Look at them again on the Mac.
+- Q2 done: `grants.test` skips the `/System` check off macOS. The whole suite passes on Linux (796 tests).
