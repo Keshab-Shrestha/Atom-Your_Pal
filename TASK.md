@@ -1596,3 +1596,13 @@ Next: Keshab runs `pnpm test` and `pnpm island:test` on the Mac, builds the app,
 - Live probe `native-plan.live.test.ts` (Mac only) and the SDK version in the `session.open` log line.
 - UI: one Back on the soul, task and new-agent pages (the top bar hides its arrow when the page has its own).
 - Files: island interface types moved to `island-types.ts`; the plan view moved to `plans.ts`.
+
+## ADR-113: shared context, files, skills and the model menu in the chat (2026-10-14)
+
+- Shared context: `otherModel` in `native-core.ts`; Codex and the Gemini CLI answer as plain text over the whole transcript; moving back to Claude reopens the session with the transcript.
+- Files: `attachments.ts` (copy and check), `text.send` with `files`, the paperclip and drop in the composer, `ComposerDraft.swift`.
+- Skills: `/name` and the Skills menu (`useSkill` in `skills.ts`), the `use_skill` tool (`skill-tool.ts`).
+- The model menu moved into the composer.
+- Tests: `attachments.test.ts`, `skills-chat.test.ts`, new tests in `native-core.test.ts` and `island.test.ts`; Swift `ComposerDraftTests.swift` (not compiled).
+
+Next: Keshab builds the app on the Mac, attaches a PDF and an image, switches a chat from Claude to Codex and back, and uses `/skill-name`.

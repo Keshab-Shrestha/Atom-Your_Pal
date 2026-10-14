@@ -375,3 +375,28 @@ test("another provider is given small attached text files inline, not their path
   await core.handle({ text: "summarise [Attached: a.txt — /x/a.txt]", source: "text" });
   assert.equal(o.requests[0]!.messages.at(-1)!.content, "summarise [Attached file a.txt: hello]");
 });
+
+// ---- skills in chat
+
+const skills = { use: (text: string) => (text.startsWith("/summarise") ? { text: text.replace("/summarise", "").trim() || "Use the summarise skill.", block: "SKILL STEPS: three lines." } : undefined) };
+
+test("a message that starts with /skill goes to Claude as its words, with the skill's steps as context; the chat keeps what the user typed", async () => {
+  const { sdk, queries } = fakeSdk();
+  const core = make(sdk, { skills });
+  await core.handle({ text: "/summarise this page", source: "text" });
+  const sent = String(queries[0]!.sent[0]!.message.content);
+  assert.match(sent, /^this page\n\n/);
+  assert.match(sent, /SKILL STEPS: three lines\./);
+  assert.equal(core.history()[0]!.content, "/summarise this page");
+  await core.handle({ text: "thanks", source: "text" });
+  assert.doesNotMatch(String(queries[0]!.sent[1]!.message.content), /SKILL STEPS/, "the steps are sent for the message that asked, not after");
+});
+
+test("a /skill message on another provider carries the steps in the request's extra context", async () => {
+  const { sdk } = fakeSdk();
+  const o = other();
+  const core = make(sdk, { modelFor: () => undefined, otherModel: () => o.model, skills });
+  await core.handle({ text: "/summarise this", source: "text" });
+  assert.equal(o.requests[0]!.messages.at(-1)!.content, "this");
+  assert.match(o.requests[0]!.systemExtra!, /SKILL STEPS/);
+});

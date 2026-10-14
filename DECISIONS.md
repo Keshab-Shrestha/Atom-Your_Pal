@@ -2597,3 +2597,39 @@ ATOM keeps linked notes, as Obsidian does, and draws them as a graph in the ATOM
 - Agent tools: `brain_note` (write), `brain_open` (read with links and backlinks), `brain_search`.
 - Window: a force-directed layout (`BrainLayout`), zoom and pan, kind and tag filters, search, a note editor with links and backlinks. A mirrored note is read-only there.
 - Left out on purpose: semantic (embedding) links, daily notes and graph filters by date. Each is its own task.
+
+## ADR-113 — One conversation across providers, files in a chat, skills in a chat, and the model next to the input (2026-10-14)
+
+Status: Accepted (Keshab, 2026-10-14). Built; the TypeScript is tested, the Swift is not compiled, and none of it has been tried in the real app.
+
+### Shared context across providers
+
+The Core owns the conversation. The transcript (`turns`) is saved with the chat and does not belong to a provider. A chat can use Claude, Codex or the Gemini CLI, and can move between them.
+
+- Claude (the Claude plan) works as before: a long-lived Claude Code session with tools, agents and project files.
+- Codex and the Gemini CLI answer as plain text (`otherModel` in the native Core). The request is ATOM's plain system prompt, the whole transcript and the new message. They get no tools, no agents and no file access. A project chat on them is refused with words.
+- Back on Claude: the saved session no longer matches the last answer, so the session reopens with the transcript. If a background agent keeps the Claude session open, the exchange it missed goes in front of its next message (`missed`).
+- Money rule unchanged (ADR-092, ADR-093): these programs run on the user's sign-in with API keys removed from their environment.
+- Trade-off: the transcript goes to the provider the chat uses. SECURITY.md says so.
+
+### Files in a chat
+
+- The paperclip in the composer, or a drop on it, attaches up to 5 files to one message: text, code, PDFs and images, up to 10 MB each.
+- `attachments.ts` checks each file (a real file, not a secret or key file, a type a model can read), then copies it into `data/attachments/<chat>`. The original is never read again. A chat keeps at most 20 files. Deleting the chat deletes its copies.
+- Claude reads a copy with Read, Glob and Grep, confined to that folder by the same gate that confines a project chat. This is not a project: there is no Bash, no sandbox and no worktree.
+- Another provider gets small text files inline (20,000 characters each, 40,000 in all); a PDF or image gets a plain note.
+- A project chat refuses attachments; the file belongs in the project folder.
+
+### Skills in a chat
+
+- The main agent loaded no skill before. Now the user can use one for a message: the Skills menu in the composer, or `/skill-name` at the start of the words. Code reads the skill (`useSkill`) and adds its steps to that message as context. Nothing is added to the cached prefix.
+- The `use_skill` tool lets the model read a skill by name, or list them, when a request fits.
+- A skill is data for the request: it adds no tools or permissions. The gate is unchanged.
+
+### The model next to the input
+
+The chat's model menu moved from the top bar to the composer, in a row with the paperclip and the Skills menu. A model chosen there changes only that chat (ADR-097).
+
+### Left out on purpose
+
+Word and Excel files (a model cannot read them without a converter), attachments in Telegram, and a skill that runs on its own without the user or the model asking for it.

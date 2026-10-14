@@ -44,6 +44,8 @@ Built (2026-10-14): ADR-110 Phase N5: `native` is the only engine and the legacy
 
 Built (2026-10-14): ADR-111 work plans (a big goal split across specific agents; code keeps the order and writes each brief), ADR-112 the second brain (linked notes and a graph), `search_chats`, `propose_skill`, an audit log, and a UI pass (Stop, Copy, Try again, New chat). Quality pass the same day (`revise-task.md`): dead code removed, more tests; the whole TypeScript suite passes in the cloud (815 tests). All Swift is uncompiled. Not yet tried in the real app.
 
+Built (2026-10-14): ADR-113: a chat keeps its context when the provider changes (Claude, Codex, Gemini CLI), files can be attached to a message (text, code, PDFs, images), skills work in a chat (`/name`, the Skills menu, `use_skill`), and the model menu sits next to the input. TypeScript tested; Swift not compiled; not yet tried in the real app.
+
 Planned (2026-10-10): four polish batches taken from Clicky, Coucou and a review of ZENO's setup: setup and errors (ADR-075, Task 2.A; built and tested, not yet tried on the real Mac), everyday polish (ADR-076, 2.B; built and tested, not yet tried on the real Mac), Wisp and voice polish (ADR-077, 2.C; built and tested, not yet seen on the real screen), Wisp's home display (ADR-078, 2.D; built and tested, not yet tried on two displays), settings tidy-up (ADR-079, 2.E; built and tested). Pointing from a screenshot (ADR-080, 2.F): built and tested, Cua only (main display), so it needs computer control on; not yet tried by voice.
 
 ---

@@ -30,6 +30,16 @@ The progress log is at the end of this file.
 6. Try by hand: plain chat, project chat, voice, Telegram, a three-portion plan ("compare three mesh Wi-Fi kits and give advice"), a routine, the second brain (write a note with `[[a link]]`, open the graph), delete a chat, New chat in a project.
 7. Write what you found at the end of this file, then give it back to Claude.
 
+## Added after the quality pass (ADR-113)
+
+Check these by hand on the Mac too:
+
+- A chat moves from Claude to Codex (or the Gemini CLI) and back, and keeps its context.
+- The paperclip and a drop on the composer attach a PDF, an image and a text file. Claude reads them. A secret file (`.env`) is refused.
+- The Skills menu and `/skill-name` use a skill for one message.
+- The model menu is in the composer, not in the top bar.
+- Swift to compile first: `ConversationView.swift` (the new composer), `ComposerDraft.swift`, `ComposerDraftTests.swift`.
+
 ## Open decisions
 
 - A second chat app (Slack or Discord) for the gateway. Needs a token, an allowlist and a security review first.

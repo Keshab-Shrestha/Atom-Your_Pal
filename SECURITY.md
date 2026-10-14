@@ -589,3 +589,10 @@ ATOM runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 - `plan_work`, `plan_status`, `search_chats`, `propose_skill`, `brain_note`, `brain_open` and `brain_search` are ATOM tools of the main agent. A proposed skill waits for Keshab's approval, like Tinker's drafts. A note is stored on this Mac in the memory file; its text is never logged (the log has ids and counts).
 - The second brain mirrors ATOM's memory into notes. A mirrored note is replaced when memory changes; forgetting a fact removes its note on the next mirror. Notes the user or the agent wrote are never changed by a mirror.
 - The audit log (`audit_log` table) holds one row for each change the store announces: the time, the kind and the ids and states. It holds no task text. Rows are never updated or deleted. `GET /v1/audit` reads it on the local API with the API token.
+
+## Files and skills in a chat (ADR-113)
+
+- An attached file is checked, then copied into `data/attachments/<chat>`. Secret and key files (`.env`, `.ssh`, keys) are refused. Claude reads only that folder: the gate confines Read, Glob and Grep to it, the same as a project chat, and gives no Bash. Attached file text is data, never instructions.
+- A file is read once into the copy; the original is not touched. Deleting a chat deletes its copies.
+- Codex and the Gemini CLI receive small attached text files inline, as part of the transcript.
+- A skill chosen with `/name`, the Skills menu or `use_skill` adds its steps to one message as context. A skill cannot add tools or permissions: the gate and the user's approvals decide, as always.

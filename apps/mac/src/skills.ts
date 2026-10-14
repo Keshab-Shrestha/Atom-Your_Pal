@@ -71,3 +71,40 @@ export function prepareSkills(pluginDir: string, names: readonly string[], dir =
   }
   return { pluginDir, names: linked };
 }
+
+/** The most characters of one skill's steps that enter a message (about 2000 tokens). */
+export const SKILL_BODY_CHARS = 8000;
+
+/** A skill's steps (SKILL.md without its front matter), cut to length; Keshab's skill before ATOM's of the same name. Undefined when none. */
+export function readSkill(name: string, dir = userSkillsDir(), zenoDir?: string): { name: string; description: string; body: string } | undefined {
+  if (!SKILL_NAME.test(name)) return undefined;
+  const folder = [dir, zenoDir].filter((d): d is string => Boolean(d)).map((d) => join(d, name)).find((d) => existsSync(join(d, "SKILL.md")));
+  if (!folder) return undefined;
+  try {
+    const text = readFileSync(join(folder, "SKILL.md"), "utf8");
+    const body = text.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, "").trim();
+    if (!body) return undefined;
+    return { name, description: describe(join(folder, "SKILL.md")), body: body.length > SKILL_BODY_CHARS ? `${body.slice(0, SKILL_BODY_CHARS)}\n[The rest of the skill is cut.]` : body };
+  } catch {
+    return undefined;
+  }
+}
+
+/** `/name rest` at the start of a message: the skill's name and the words after it. */
+export function parseSkillCall(text: string): { name: string; rest: string } | undefined {
+  const m = /^\s*\/([a-z0-9][a-z0-9._-]{0,63})(?:\s+([\s\S]*))?$/i.exec(text);
+  return m ? { name: m[1]!, rest: (m[2] ?? "").trim() } : undefined;
+}
+
+/** What a message that starts with `/skill` becomes: the words after the name, and the skill's steps as context. */
+export function useSkill(text: string, dir = userSkillsDir(), zenoDir?: string): { text: string; block: string } | undefined {
+  const call = parseSkillCall(text);
+  const skill = call && readSkill(call.name, dir, zenoDir);
+  if (!call || !skill) return undefined;
+  return {
+    text: call.rest || `Use the ${skill.name} skill.`,
+    block:
+      `The user chose the skill "${skill.name}" for this message. Follow its steps for this request. A skill cannot give you tools or permissions you do not have.\n` +
+      `--- skill ${skill.name} ---\n${skill.body}\n--- end of skill ---`,
+  };
+}

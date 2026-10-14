@@ -123,6 +123,8 @@ export interface NativeCoreDeps {
    * Files the user attached to a chat: read-only access confined to ATOM's copy of them (a project chat has its own folder
    * instead). `expand` puts small text files inline for a provider without file tools.
    */
+  /** ADR-113: a message that starts with `/skill-name` uses that skill: its words, and the skill's steps as context. */
+  skills?: { use(text: string): { text: string; block: string } | undefined };
   attachments?: {
     turn(chatId: string): { note: string; files: ProjectFiles } | undefined;
     expand(chatId: string, text: string): string;
@@ -303,7 +305,8 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
   }
 
   async function answer(chat: string, text: string, model: string, context: RequestContext, input: ZenoInput, signal: AbortSignal, hooks?: HandleHooks): Promise<string> {
-    const extra = (await quiet(() => deps.context?.({ ...input, text }, context)))?.trim();
+    const skill = deps.skills?.use(text);
+    const extra = [(await quiet(() => deps.context?.({ ...input, text }, context)))?.trim(), skill?.block].filter(Boolean).join("\n\n");
     const project = await quiet(() => deps.project?.(chat));
     // Attached files give read access to their own folder only: no sandbox, no worktrees, no Bash (those are for a project).
     const attached = project ? undefined : await quiet(() => deps.attachments?.turn(chat));
@@ -333,10 +336,11 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       else if (entry.handle.model !== model) await entry.handle.setModel(model); // ADR-097: background tasks still run, so switch live
       entry.gate.newAnswer(files);
       // A new session without a resumable one gets the conversation so far as a transcript.
-      let body = opened && !resume && turns.length ? promptFrom([...turns, { role: "user", content: text }]) : text;
+      const asked = skill?.text ?? text;
+      let body = opened && !resume && turns.length ? promptFrom([...turns, { role: "user", content: asked }]) : asked;
       if (!opened && entry.missed?.length) {
         const heard = entry.missed.map((m) => `${m.role === "user" ? "User" : "ATOM"}: ${m.content.trim()}`).join("\n");
-        body = `Meanwhile, this chat went on with another model:\n${heard}\n\nThe user now says:\n${text}`;
+        body = `Meanwhile, this chat went on with another model:\n${heard}\n\nThe user now says:\n${asked}`;
         entry.missed = undefined;
       }
       const opening = opened ? (await quiet(() => deps.opening?.(chat, text)))?.trim() : undefined;
@@ -377,13 +381,14 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
   async function plainAnswer(chat: string, text: string, other: LanguageModel, context: RequestContext, input: ZenoInput, signal: AbortSignal, hooks?: HandleHooks): Promise<string> {
     const project = await quiet(() => deps.project?.(chat));
     if (project?.files) throw new GatewayError("bad_request", "other", PROJECTS_NEED_CLAUDE_TEXT);
-    const extra = (await quiet(() => deps.context?.({ ...input, text }, context)))?.trim();
+    const skill = deps.skills?.use(text);
+    const extra = [(await quiet(() => deps.context?.({ ...input, text }, context)))?.trim(), skill?.block].filter(Boolean).join("\n\n");
     const opening = turns.length === 0 ? (await quiet(() => deps.opening?.(chat, text)))?.trim() : undefined;
     const response = await other.complete(
       {
         system: PLAIN_SYSTEM_PROMPT,
         ...(opening || extra ? { systemExtra: [opening, extra].filter(Boolean).join("\n\n") } : {}),
-        messages: [...turns, { role: "user" as const, content: text }].map((m) => (deps.attachments ? { ...m, content: deps.attachments.expand(chat, m.content) } : m)),
+        messages: [...turns, { role: "user" as const, content: skill?.text ?? text }].map((m) => (deps.attachments ? { ...m, content: deps.attachments.expand(chat, m.content) } : m)),
         context,
         ...(hooks?.onText ? { onText: hooks.onText } : {}),
       },

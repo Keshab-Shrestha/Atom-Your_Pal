@@ -59,7 +59,8 @@ import type { InputSource, Message, ZenoInput } from "@atom/contracts";
 import type { IslandBrain, IslandChats, IslandGit, IslandHelpers, IslandMemory, IslandOptions, IslandProjects } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
 import { createHubCommands } from "./hub-commands.ts";
-import { SKILLS_PLUGIN, listSkills, prepareSkills, userSkillsDir } from "./skills.ts";
+import { SKILLS_PLUGIN, listSkills, prepareSkills, readSkill, useSkill, userSkillsDir } from "./skills.ts";
+import { createUseSkillTool } from "./skill-tool.ts";
 import { runTestCases } from "./test-runs.ts";
 import { createEmbedder } from "./embedder.ts";
 import { createKeptChats } from "./kept-chats.ts";
@@ -408,6 +409,12 @@ export function createRuntime(
     ...(brainWiring ? brainWiring.tools : []),
     ...(memory ? [createSearchChatsTool({ search: (query) => memory.chats.search(query), onSearch: (e) => log.info("chats.search", e) })] : []),
     ...(helpers ? [createProposeSkillTool({ store: helpers, onProposed: (e) => log.info("skill.proposed", e) })] : []),
+    // ADR-113: the model reads one of Keshab's skills by name; he can also pick one in the composer (`/name`).
+    createUseSkillTool({
+      list: () => listSkills(userSkillsDir(), skillsDir, new Set(helpers?.skillHubInstalled().map((i) => i.name) ?? [])),
+      read: (name) => readSkill(name, userSkillsDir(), skillsDir),
+      onUse: (e) => log.info("skill.used", e),
+    }),
   ];
   // ADR-110: the main agent's tools. A sub-agent does the delegating (the Agent tool); `create_agent` adds one. A new
   // agent is ready once each open session restarts.
@@ -556,6 +563,7 @@ export function createRuntime(
               ].filter(Boolean).join("\n\n"),
             ...(projects ? { project: (chatId: string) => projects.turn(chatId) } : {}),
             ...(attachments ? { attachments } : {}),
+            skills: { use: (text: string) => useSkill(text, userSkillsDir(), skillsDir) },
             // Phase N2: no worker shortcut: "Sid, …" is a main-agent turn that hands the request to Sid.
             ...(toolShortcuts ? { shortcuts: toolShortcuts } : {}),
             onExchange: (sessionId: string, turns: readonly Message[]) => {
