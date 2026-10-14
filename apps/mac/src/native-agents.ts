@@ -85,8 +85,9 @@ export function agentDefinition(member: HelperView, scope: AgentScope, servers: 
   return {
     description: description.length > DESCRIPTION_CHARS ? `${description.slice(0, DESCRIPTION_CHARS - 1)}…` : description,
     prompt: `${instructionsFor(member.soul, member.role)}\n${KIT_CONTRACT[member.kit](project, member.grants)}`,
-    // MCP servers by server-level name; the hooks check each call against the same grants.
-    tools: [...kitTools(member.kit, project), ...mcpServers.map((s) => `mcp__${Object.keys(s)[0]}`)],
+    // MCP servers by server-level name; the hooks check each call against the same grants. Their tools are deferred
+    // (ENABLE_TOOL_SEARCH=force), so ToolSearch comes with them.
+    tools: [...kitTools(member.kit, project), ...mcpServers.map((s) => `mcp__${Object.keys(s)[0]}`), ...(mcpServers.length ? ["ToolSearch"] : [])],
     model: member.pinnedModel ?? "inherit",
     ...(mcpServers.length ? { mcpServers } : {}),
     ...(skills.length ? { skills } : {}),

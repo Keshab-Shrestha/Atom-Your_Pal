@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openHelperStore, type PlanModel } from "@atom/helpers";
+import { BROWSER_SERVER } from "./browser.ts";
 import { agentDefinitions, agentModel, createAgentTool } from "./native-agents.ts";
 
 const models: PlanModel[] = [
@@ -70,5 +71,14 @@ test("create_agent writes the agent's soul.md (the store checks name, role and k
   assert.match(tool.run({ name: "Bo", role: "x", kit: "root", personality: "p" }), /kit must be/);
   assert.throws(() => tool.run({ name: "Atom", role: "x", kit: "think", personality: "p" }), /taken/);
   assert.equal(restarts, 1);
+  done();
+});
+
+test("an agent with the browser or MCP servers gets ToolSearch (its tools are deferred); one without does not", () => {
+  const { store, done } = setup();
+  store.setBrowser("sid", true);
+  const defs = agentDefinitions(store, { browser: () => ({ command: "npx" }) });
+  assert.deepEqual(defs.sid!.tools, ["WebSearch", "WebFetch", `mcp__${BROWSER_SERVER}`, "ToolSearch"]);
+  assert.ok(!defs.kame!.tools.includes("ToolSearch"));
   done();
 });

@@ -120,3 +120,56 @@ test("project chat in a git repository: a folders agent works in a worktree on i
   git("worktree", "remove", "--force", tree);
   done();
 });
+
+test("main thread: an Agent call passes on only description, prompt, subagent_type and run_in_background", async () => {
+  const { gate, done } = setup();
+  const input = { prompt: "Find flights", description: "Flights", subagent_type: "sid", mode: "bypassPermissions", name: "boss", team_name: "t", effort: "max" };
+  const ok = await pre(gate, { tool_name: "Agent", tool_input: input });
+  assert.equal(ok.decision, "allow");
+  assert.deepEqual(ok.input, { prompt: "Find flights", description: "Flights", subagent_type: "sid", run_in_background: true, model: "haiku" });
+  done();
+});
+
+test("plan-first: no Write, Edit or Bash before Keshab approves the plan; approved, the agent may change files", async () => {
+  const yes = setup({ project: true, approve: true });
+  yes.store.setPlanFirst("kame", true);
+  const write = { file_path: join(yes.work, "a.txt"), content: "x" };
+  const before = await pre(yes.gate, sub("kame", "Write", write));
+  assert.equal(before.decision, "deny");
+  assert.match(before.reason!, /plans first/);
+  assert.equal((await pre(yes.gate, sub("kame", "Bash", { command: "ls" }), "c2")).decision, "deny");
+  assert.equal((await pre(yes.gate, sub("kame", "Read", { file_path: join(yes.work, "a.txt") }), "c3")).decision, "allow", "reading is planning");
+  assert.equal((await pre(yes.gate, sub("kame", "ExitPlanMode", { plan: "Write a.txt" }), "c4")).decision, "allow");
+  assert.equal((await pre(yes.gate, sub("kame", "Write", write), "c5")).decision, "allow");
+  yes.done();
+
+  const no = setup({ project: true, approve: false });
+  no.store.setPlanFirst("kame", true);
+  assert.equal((await pre(no.gate, sub("kame", "ExitPlanMode", { plan: "Write a.txt" }))).decision, "deny");
+  assert.equal((await pre(no.gate, sub("kame", "Edit", { file_path: join(no.work, "a.txt"), old_string: "a", new_string: "b" }), "c2")).decision, "deny");
+  assert.equal((await pre(no.gate, sub("kame", "Bash", { command: "ls" }), "c3")).decision, "deny", "a declined plan keeps them denied");
+  no.done();
+});
+
+test("sub-agents: ToolSearch only for an agent with MCP servers or the browser", async () => {
+  const { gate, store, done } = setup();
+  assert.equal((await pre(gate, sub("sid", "ToolSearch", { query: "x" }))).decision, "deny");
+  store.setBrowser("sid", true);
+  assert.equal((await pre(gate, sub("sid", "ToolSearch", { query: "x" }), "c2")).decision, "allow");
+  done();
+});
+
+test("fail closed: a decision that throws, an unknown agent, a missing agent type, TodoWrite on the main thread", async () => {
+  const { gate, store, done } = setup();
+  assert.equal((await pre(gate, { agent_id: "a-x", agent_type: "nobody", tool_name: "WebSearch", tool_input: {} })).decision, "deny");
+  assert.equal((await pre(gate, { agent_id: "never-seen", tool_name: "WebSearch", tool_input: {} }, "c2")).decision, "deny", "no agent_type");
+  assert.equal((await pre(gate, { tool_name: "TodoWrite", tool_input: { todos: [] } }, "c3")).decision, "deny");
+  const broken = nativeGate({
+    tools: ["Agent"],
+    team: { chatId: "c", helpers: { ...store, list: () => { throw new Error("db gone"); } }, board: boardRecorder(store, "c"), approve: async () => true, worktrees: "/tmp" },
+  });
+  const thrown = await pre(broken, sub("sid", "WebSearch", { query: "q" }));
+  assert.equal(thrown.decision, "deny");
+  assert.match(thrown.reason!, /could not check/);
+  done();
+});

@@ -18,17 +18,22 @@ import { commitWork, git, prepareWorkdir, type Workdir } from "./worktree.ts";
  * Main thread (no agent_id):
  * - ATOM's tools (the `atom` server) and ToolSearch: allowed; ATOM's tool engine keeps its own approvals.
  * - Agent: only one of ATOM's agents (never general-purpose or another built-in); the call makes the Board job, and
- *   gets its model from Laya unless the agent is pinned.
+ *   gets its model from Laya unless the agent is pinned. Only description, prompt and subagent_type pass on.
  * - Any tool outside the chat's set: denied. Bash, Write and Edit are never in a main thread's set.
  * - Read, Glob, Grep (project chat, ADR-107): the project's read check, at most MAX_PROJECT_FILE_CALLS per answer.
  *
  * Sub-agents (agent_type = the worker's id): only the tools of its kit, its granted MCP servers, the browser (when
- * granted), its own skills and, plan-first, ExitPlanMode on Keshab's approval card. Files: its grants plus its
- * worktree. Bash only in a project chat (Keshab, 2026-10-14), sandboxed, classified in code, risky ones on the card.
+ * granted), ToolSearch (with MCP servers or the browser), its own skills and, plan-first, ExitPlanMode on Keshab's
+ * approval card; a plan-first agent changes no file before that approval. Files: its grants plus its worktree. Bash
+ * only in a project chat (Keshab, 2026-10-14), sandboxed, classified in code, risky ones on the card.
  */
 
 const READ_TOOLS = ["Read", "Glob", "Grep"];
 const FILE_TOOLS = ["Read", "Glob", "Grep", "Write", "Edit", "Bash"];
+/** A plan-first agent may not use these before Keshab approved its plan (Keshab, 2026-10-14). */
+const CHANGE_TOOLS = ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash"];
+/** The only fields of an Agent call that pass on; `mode`, `name`, `team_name`, `effort` and the rest never do. */
+const AGENT_FIELDS = ["description", "prompt", "subagent_type"];
 /** A Bash call may wait for Keshab's answer on the approval card. */
 export const HOOK_TIMEOUT_S = 600;
 const MAX_REMEMBERED = 500;
@@ -76,6 +81,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
   const agentCalls = new Map<string, Promise<Verdict>>();
   const team = scope.team;
   const work = new Map<number, Workdir>();
+  const planApproved = new Set<string>(); // agent ids whose ExitPlanMode Keshab approved on the card
   const pendingTrees: number[] = []; // jobs whose Agent call asked for a worktree, oldest first
   const browsers = new Map<number, { policy: ReturnType<typeof browserCheck>; release?: () => void; stop: AbortController }>();
   const log = (event: string, fields: Record<string, unknown>) => {
@@ -92,8 +98,8 @@ export function nativeGate(scope: NativeScope): NativeGate {
     const type = typeof input.subagent_type === "string" ? input.subagent_type : "general-purpose";
     const member = nativeMembers(team.helpers.list()).find((m) => m.id === type);
     if (!member) return deny(`"${type.slice(0, 40)}" is not one of your agents. Pick one by its description, or make one with create_agent.`);
-    const { isolation: _i, model: _m, ...rest } = input;
-    const updated: Record<string, unknown> = { ...rest, run_in_background: true };
+    const updated: Record<string, unknown> = Object.fromEntries(AGENT_FIELDS.filter((k) => k in input).map((k) => [k, input[k]]));
+    updated.run_in_background = true;
     if (!member.pinnedModel && team.chooseModel) {
       const model = await team.chooseModel(String(input.prompt ?? ""), member).catch(() => undefined);
       if (model) updated.model = model;
@@ -151,7 +157,15 @@ export function nativeGate(scope: NativeScope): NativeGate {
       return say(problem ? "refused" : "allowed"), problem ? deny(problem) : { allow: true, input };
     }
     if (name === "Bash" && !project) return say("refused"), deny("Commands run only in a project chat. Do the task with the file tools.");
-    const kit = new Set([...kitTools(member.kit, project), ...(member.skills.length ? ["Skill"] : []), ...(member.planFirst ? ["ExitPlanMode"] : [])]);
+    // Its MCP and browser tools are deferred (ENABLE_TOOL_SEARCH=force): an agent with them needs ToolSearch to load them.
+    const deferred = member.kit !== "think" && (member.browser || grantedServers(team.helpers.mcpServers(), member.id).length > 0);
+    // Skill for every kit, think too: a skill is instructions, not a tool (Keshab, 2026-10-14).
+    const kit = new Set([
+      ...kitTools(member.kit, project),
+      ...(member.skills.length ? ["Skill"] : []),
+      ...(member.planFirst ? ["ExitPlanMode"] : []),
+      ...(deferred ? ["ToolSearch"] : []),
+    ]);
     if (!kit.has(name)) return say("refused"), deny(`${name} is not in ${member.name}'s kit (${member.kit}).`);
     if (name === "Skill") {
       const skill = String(input.skill ?? "").split(":").at(-1) ?? "";
@@ -161,9 +175,13 @@ export function nativeGate(scope: NativeScope): NativeGate {
       const plan = typeof input.plan === "string" ? input.plan : "";
       const ok = await team.approve({ summary: `${member.name} has a plan for the task`, reason: plan.slice(0, 600) || "Approve the plan to let it start." });
       say(ok ? "allowed" : "declined");
+      if (ok) planApproved.add(agentId);
       return ok ? { allow: true, input } : deny("Keshab did not approve this plan. Stop and report what you planned, so he can change the task.");
     }
-    if (!FILE_TOOLS.includes(name)) return { allow: true, input }; // WebSearch, WebFetch
+    if (member.planFirst && CHANGE_TOOLS.includes(name) && !planApproved.has(agentId)) {
+      return say("refused"), deny(`${member.name} plans first: no file changes before Keshab approves the plan. Call ExitPlanMode with your plan.`);
+    }
+    if (!FILE_TOOLS.includes(name)) return { allow: true, input }; // WebSearch, WebFetch, ToolSearch
     if (name === "Bash" && input.dangerouslyDisableSandbox) return say("refused"), deny("Commands always run in the sandbox.");
     const tree = job !== undefined ? work.get(job) : undefined;
     const roots = [...member.grants, ...(tree ? [tree.dir] : team.project ? [team.project.cwd] : [])];
