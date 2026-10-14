@@ -141,18 +141,20 @@ test("a project chat: its note in the prompt, Read/Glob/Grep in the folder, web 
   assert.equal(queries[1]!.options.resume, "sess-1");
 });
 
-test("shortcuts answer first; a chat's own model switches the live session; not on the plan, the legacy Core answers", async () => {
+test("shortcuts answer first; a chat's own model reopens the session with resume; not on the plan, the legacy Core answers", async () => {
   const { sdk, queries } = fakeSdk();
   let model: string | undefined = "claude-sonnet-5-5";
   const calls: string[] = [];
-  const core = make(sdk, { modelFor: () => model, legacy: legacyCore(calls), shortcuts: async (t) => (t === "pause" ? "Paused." : undefined) });
+  const core = make(sdk, { modelFor: () => model, legacy: legacyCore(calls), chatSessions: sessions().store, shortcuts: async (t) => (t === "pause" ? "Paused." : undefined) });
   assert.equal((await core.handle({ text: "pause", source: "voice" })).text, "Paused.");
   assert.equal(queries.length, 0);
   await core.handle({ text: "hi", source: "text" });
   model = "claude-haiku-4-5";
   await core.handle({ text: "hi", source: "text" });
-  assert.equal(queries.length, 1);
-  assert.equal(queries[0]!.model, "claude-haiku-4-5");
+  // A new process on the new model, resuming the same conversation: its system prompt names the right model.
+  assert.equal(queries.length, 2);
+  assert.equal(queries[1]!.options.model, "claude-haiku-4-5");
+  assert.equal(queries[1]!.options.resume, "sess-1");
   model = undefined;
   assert.equal((await core.handle({ text: "on gemini", source: "text" })).text, "legacy");
   assert.deepEqual(calls, ["on gemini"]);

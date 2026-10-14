@@ -285,14 +285,17 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     const turn = async (fresh: boolean): Promise<{ text: string; sessionId?: string; resumed: boolean }> => {
       let entry = live.get(chat);
       const restart = Boolean(entry?.stale) && entry!.handle.background === 0;
-      if (entry && (entry.key !== key || entry.handle.closed || fresh || restart)) {
-        entry.handle.close(fresh ? "resume_failed" : restart ? "agents_changed" : "prefix_changed");
+      // A new model reopens the session with resume: Claude Code writes the model's name into the system prompt at
+      // start, so a live /model switch leaves the old name there. The cache is per model, so this costs no extra.
+      const switched = Boolean(entry) && entry!.handle.model !== model && entry!.handle.background === 0;
+      if (entry && (entry.key !== key || entry.handle.closed || fresh || restart || switched)) {
+        entry.handle.close(fresh ? "resume_failed" : restart ? "agents_changed" : switched ? "model_changed" : "prefix_changed");
         entry = undefined;
       }
       const opened = !entry;
       const resume = opened && !fresh ? savedSession(chat) : undefined;
       if (!entry) entry = await open(chat, model, prompt, tools, files, key, resume);
-      else if (entry.handle.model !== model) await entry.handle.setModel(model); // ADR-097: a chat's own model
+      else if (entry.handle.model !== model) await entry.handle.setModel(model); // ADR-097: background tasks still run, so switch live
       entry.gate.newAnswer(files);
       // A new session without a resumable one gets the conversation so far as a transcript.
       const body = opened && !resume && turns.length ? promptFrom([...turns, { role: "user", content: text }]) : text;
