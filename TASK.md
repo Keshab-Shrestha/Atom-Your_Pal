@@ -1547,6 +1547,6 @@ With `ATOM_ENGINE=native`, the other entry points use the native engine. The leg
 - The native opening no longer has the team line. The agents reach Claude Code as its agent listing. The line also named the legacy `delegate` tool. Saving: about 35 to 60 tokens for each session open.
 - Tests: `native-entry.test.ts`, and N3 tests in `api-server.test.ts`, `telegram-bot.test.ts`, `scheduler.test.ts`, `routines.test.ts`, `native-board.test.ts`, `native-safety.test.ts` and `island.test.ts`. The Telegram, API and scheduler tests also pass with `ATOM_ENGINE=native`. All tests use fakes.
 
-Not built in N3: a webhook (`POST /v1/hooks/:routineId`) still makes a legacy task, also on the native engine. A test of `native-core.ts` with a fake unprompted reply (the session tests cover `onUnprompted`).
+- Fixes after N3 (2026-10-14): 1. An agent's report that comes during a turn of the same chat goes into the Core's turns, before the request (the order that Claude Code saw). The turn's save keeps it. Before, the turn's save deleted it. 2. On the native engine, a webhook starts the routine with `routineStarter`, as the clock does: no legacy task, the same overlap rule (409 while its last run goes), answer `{ taskId: null }`. 3. `/v1/chat` refuses a `chatId` that starts with `goal-`. Thus an API chat cannot share the chat `api-goal-<id>` of a goal. 4. A native run clears the routine's old last task. The window shows the time of the last run, which a native run sets.
 
 Next: Keshab tries Phase N3 in the real app. Then Phase N4: budgets removed.
