@@ -610,9 +610,10 @@ export function createRuntime(
               return choice.provider === CLAUDE_PLAN ? choice.model : undefined;
             },
             context: (input: ZenoInput) => [nowLine(), memory ? memoryContext(input.text, { store: memory }) : undefined, screen.take()].filter(Boolean).join("\n\n"),
+            // Phase N3: no team line: the agents reach Claude Code as its agent listing ("Name: role"), and the
+            // line named the legacy delegate tool, which the native engine does not have.
             opening: async (chatId: string, text: string) =>
               [
-                helpers ? teamContext(helpers.list(), helpers.managers()) : undefined,
                 memory ? MEMORY_GUIDANCE : undefined,
                 await keptChats?.context(text).catch((error: unknown) => void log.warn("memory.kept_search_failed", { message: describe(error) })),
                 memory && episodes ? episodeContext(memory, chatId) : undefined,

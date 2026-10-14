@@ -95,7 +95,7 @@ export interface NativeCoreDeps {
   legacy: Core;
   /** Every turn: the time, memory facts, the pointed window. A throw is ignored. */
   context?(input: ZenoInput, context: RequestContext): Promise<string | undefined> | string | undefined;
-  /** Only the first message after a session opens: the team, conversation notes, kept chats, a project digest. */
+  /** Only the first message after a session opens: memory guidance, conversation notes, kept chats, a project digest. */
   opening?(chatId: string, text: string): Promise<string | undefined> | string | undefined;
   /** ADR-107: a project chat's note (constant per session) and read access. */
   project?(chatId: string): { note: string; files?: ProjectFiles } | undefined;
