@@ -1,7 +1,7 @@
 import { tmpdir } from "node:os";
 import { z } from "zod";
 import { ProviderError } from "../gateway.ts";
-import { classify, isPlanMessage, loadSdk, planGuard, scrubbedEnv, tokensOf, type ClaudeSdk, type PlanUsage, type TokenUsage } from "./claude-plan.ts";
+import { classify, isPlanMessage, loadSdk, planGuard, scrubbedEnv, tokensOf, type ClaudeSdk, type PlanUsage, type TokenUsage } from "./plan-support.ts";
 import { toolCallRecorder, type ToolCallEvent } from "./tool-summary.ts";
 import { AGENT_TOOLS, SUB_AGENT_NOTE, resultText, subAgentGate, subAgentsFor, type SubAgentEvent } from "./sub-agents.ts";
 

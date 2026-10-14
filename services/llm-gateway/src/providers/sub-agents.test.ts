@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { FILE_TOOLS, runPlan, runResearch, runReview, type ResearchOptions } from "./claude-plan-job.ts";
 import { MAX_SUB_AGENTS, subAgentsFor, type SubAgentEvent } from "./sub-agents.ts";
-import type { ClaudeSdk } from "./claude-plan.ts";
+import type { ClaudeSdk } from "./plan-support.ts";
 
 // ADR-095: sub-agents inside a worker's run. The SDK is a script that calls canUseTool and the PreToolUse hook as
 // Claude Code would (a sub-agent's own calls carry its agentID).

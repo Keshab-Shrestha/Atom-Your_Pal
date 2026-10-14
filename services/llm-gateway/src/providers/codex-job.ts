@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ProviderError } from "../gateway.ts";
 import { parseReport, type ResearchReport } from "./claude-plan-job.ts";
-import type { TokenUsage } from "./claude-plan.ts";
+import type { TokenUsage } from "./plan-support.ts";
 import { defaultRunner, failure, signedInEnv, type CliRunner } from "./cli-tools.ts";
 
 export interface CodexJobOptions {

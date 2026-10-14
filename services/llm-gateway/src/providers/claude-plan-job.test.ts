@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { FILE_MAX_TURNS, FILE_TOOLS, HAND_OFF_TOOL, RESEARCH_MAX_TURNS, RESEARCH_PAGE_LIMIT, runPlan, runResearch, runReview, runSkillDraft, runSkillEdit, type ResearchOptions } from "./claude-plan-job.ts";
-import type { ClaudeSdk, PlanUsage } from "./claude-plan.ts";
+import type { ClaudeSdk, PlanUsage } from "./plan-support.ts";
 import { ProviderError } from "../gateway.ts";
 
 // The SDK is replaced by a script that may call the options' canUseTool, as Claude Code would.

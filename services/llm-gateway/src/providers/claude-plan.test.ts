@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ModelRequest, ToolCall, ToolResult, ToolRunner, ToolSpec } from "@atom/contracts";
-import { MAX_PROJECT_FILE_CALLS, createClaudePlanAdapter, scrubbedEnv, tokensOf, type ClaudeSdk, type PlanUsage } from "./claude-plan.ts";
+import { createClaudePlanAdapter } from "./claude-plan.ts";
+import { MAX_PROJECT_FILE_CALLS, scrubbedEnv, tokensOf, type ClaudeSdk, type PlanUsage } from "./plan-support.ts";
 import { createProviderAdapter } from "./index.ts";
 import { ProviderError } from "../gateway.ts";
 
@@ -421,7 +422,7 @@ test("ATOM_PREWARM=0 never pre-starts", async () => {
 });
 
 test("withoutSources / sourcesFilter: a web search's Sources list is never spoken or shown (ADR-069)", async () => {
-  const { withoutSources, sourcesFilter } = await import("./claude-plan.ts");
+  const { withoutSources, sourcesFilter } = await import("./plan-support.ts");
   const text = "Antelli won.\n\nSources:\n- [ESPN](https://espn.com)";
   assert.equal(withoutSources(text), "Antelli won.");
   assert.equal(withoutSources("No sources here."), "No sources here.");

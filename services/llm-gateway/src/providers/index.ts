@@ -1,6 +1,7 @@
 import type { ToolRunner } from "@atom/contracts";
 import type { ProviderAdapter } from "../gateway.ts";
-import { createClaudePlanAdapter, type ChatSessions, type PlanUsage, type TokenMeta, type TokenUsage } from "./claude-plan.ts";
+import { createClaudePlanAdapter } from "./claude-plan.ts";
+import type { ChatSessions, PlanUsage, TokenMeta, TokenUsage } from "./plan-support.ts";
 import { createCodexAdapter, createGeminiCliAdapter } from "./cli-tools.ts";
 
 /** ADR-092, ADR-093: the signed-in tools on this Mac; Claude Code is the default. (Also in @atom/shared's PROVIDERS.) */

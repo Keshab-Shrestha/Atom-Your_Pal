@@ -15,7 +15,7 @@ import {
   type PlanUsage,
   type TokenMeta,
   type TokenUsage,
-} from "./claude-plan.ts";
+} from "./plan-support.ts";
 
 /**
  * ADR-110 (Phase N1): one long-lived Claude Code session per open chat. The SDK `query` gets an input stream; each
