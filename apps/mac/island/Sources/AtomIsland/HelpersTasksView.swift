@@ -96,8 +96,6 @@ struct BoardPane: View {
                 } else if board.isEmpty {
                     Text("No tasks yet. Choose a worker and give it one.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
                 }
-                // ADR-094: tasks posted to the team, waiting for a worker to wake up and take them.
-                if let tasks = model.helpers.list?.teamTasks, !tasks.isEmpty { TeamTasksSection(model: model, tasks: tasks) }
                 if let tasks = model.helpers.list?.paperclip { PaperclipSection(tasks: tasks) }
                 ForEach(model.boardView == .floor ? [] : board, id: \.column) { group in
                     VStack(alignment: .leading, spacing: 8) {
@@ -611,11 +609,8 @@ private struct TeamChips: View {
 
     var body: some View {
         let everyone = model.helpers.list?.helpers ?? []
-        // ADR-095: with Managers, the chips are the Managers; every agent is in "All agents", grouped by manager.
-        let managers = model.helpers.list.map { TeamRoster.managerChips(in: $0) } ?? []
-        let chips = managers.isEmpty ? (model.helpers.list.map { TeamRoster.chips(in: $0) } ?? []) : []
+        let chips = model.helpers.list.map { TeamRoster.chips(in: $0) } ?? []
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8, alignment: .leading)], alignment: .leading, spacing: 8) {
-            ForEach(managers) { status in ManagerChip(model: model, status: status) }
             ForEach(chips) { helper in
                 Button { model.navigate { model.helpers.selectHelper(helper.id) } } label: {
                     HStack(spacing: 8) {
@@ -640,9 +635,6 @@ private struct TeamChips: View {
             }
             if model.helpers.list != nil {
                 quiet("New agent", symbol: "plus", help: "Add an agent with its own role and soul") { model.navigate { model.helpers.openNewAgent() } }
-            }
-            if !managers.isEmpty {
-                quiet("New manager", symbol: "person.3", help: "Add a manager for a domain, such as Research") { model.navigate { model.helpers.openNewManager() } }
             }
         }
     }

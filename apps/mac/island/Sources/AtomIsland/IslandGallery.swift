@@ -155,10 +155,6 @@ enum IslandGallery {
         boarded.helpers.selectBoard()
         let kamed = model(theme)
         kamed.helpers.selectHelper("kame")
-        let managing = model(theme) // ADR-095
-        managing.helpers.selectManager("research")
-        let hiring = model(theme)
-        hiring.helpers.openNewManager()
         let creating = model(theme)
         creating.helpers.openNewAgent()
         creating.windowPage = .agents
@@ -232,8 +228,6 @@ enum IslandGallery {
                 window("Kame: a granted folder, its own branch, its manager (Task 3.11, ADR-095)", kamed)
             }
             HStack(alignment: .top, spacing: 18) {
-                window("Research: a manager's page, its agents and their tasks (ADR-095)", managing)
-                window("New manager: a domain, plans and reviews or group only (ADR-095)", hiring)
             }
             HStack(alignment: .top, spacing: 18) {
                 window("New agent: its own role, kit and soul.md (ADR-088)", creating)

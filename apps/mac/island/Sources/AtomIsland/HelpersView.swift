@@ -50,13 +50,8 @@ struct HelpersView: View {
                         .padding(.top, 8)
                 } else if model.helpers.isCreatingAgent {
                     NewAgentPane(model: model)
-                } else if model.helpers.isCreatingManager {
-                    NewManagerPane(model: model)
                 } else if model.helpers.openJobId != nil {
                     ThreadPane(model: model)
-                } else if let manager = model.helpers.selectedManager {
-                    // ADR-095: a Manager's page; a new name starts its form again.
-                    ManagerPane(model: model, manager: manager).id("\(manager.id)-\(manager.soulVersion)")
                 } else if model.helpers.showsBoard {
                     BoardPane(model: model)
                 } else if let helper = model.helpers.selectedHelper {
@@ -103,9 +98,7 @@ extension HelpersView {
         case .agents: break
         }
         if model.helpers.isCreatingAgent { return ("New agent", "person.badge.plus") }
-        if model.helpers.isCreatingManager { return ("New manager", "person.3") }
         if model.helpers.openJobId != nil { return ("Task", "text.page") }
-        if let manager = model.helpers.selectedManager { return ("\(manager.name) · Manager", "person.3") }
         if model.helpers.showsBoard { return (model.boardView == .overview ? "Board · Overview" : "Board", "square.grid.2x2") }
         if let helper = model.helpers.selectedHelper {
             return (helper.roleTitle.isEmpty ? helper.name : "\(helper.name) · \(helper.roleTitle)", "person.crop.circle")
@@ -385,20 +378,14 @@ private struct HelperPane: View {
                         AppPicker(model: model, helper: helper)
                         ModelPicker(model: model, helper: helper, models: model.helpers.list?.models ?? [])
                     }
-                    if let managers = model.helpers.list?.managers, !managers.isEmpty, helper.takesTasks {
-                        ManagerPicker(model: model, helper: helper, managers: managers) // ADR-095
-                    }
                     SkillsPicker(model: model, helper: helper, skills: model.helpers.list?.skills ?? [])
                     PlanFirstRow(model: model, helper: helper)
                     if helper.takesTasks, helper.kit != "think" { BrowserRow(model: model, helper: helper) } // ADR-098
-                    WakeUpRow(model: model, helper: helper)
                     if helper.worksInFolders { FoldersSection(model: model, helper: helper) }
                     VStack(alignment: .leading, spacing: 8) {
                         TaskField(model: model, helper: helper)
                         HStack(spacing: 8) {
-                            PostToMenu(model: model, helper: helper)
-                            // A team task runs as whoever takes it, with nothing to wait for.
-                            if model.helpers.postTo == nil { WaitsForMenu(model: model) }
+                            WaitsForMenu(model: model)
                         }
                     }
                     if let problem = model.helpers.problem { ProblemLine(text: problem) }
@@ -570,8 +557,7 @@ private struct TaskField: View {
         .overlay { if !theme.isFlat { Capsule().strokeBorder(theme.separator.color, lineWidth: 0.6) } }
     }
 
-    /// ADR-094: "Post a task to the team" while the team is chosen.
-    private var placeholder: String { model.helpers.postTo == nil ? "Give \(helper.name) a task" : "Post a task to the team" }
+    private var placeholder: String { "Give \(helper.name) a task" }
 
     private func add() {
         guard let command = model.helpers.addJob(draft.wrappedValue) else { return }
