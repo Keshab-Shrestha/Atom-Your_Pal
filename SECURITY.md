@@ -565,3 +565,12 @@ ATOM runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 - The project's Agent has one grant: the project folder, in the existing grant format. Removing a project leaves the Agent and its grant. Keshab removes the Agent on its own page.
 - ATOM never logs a project name, a folder, a file name or file text. The log holds ids, tool names and verdicts (`project.file`, `project.added`, `project.change`).
 - Removing a project never touches the files. `deleteChats` deletes chat rows only.
+
+## Native chat sessions (ADR-110)
+
+- `ATOM_ENGINE=native` runs each chat in one long-lived Claude Code session. The default is `legacy`.
+- The session sets `permissionMode: "default"` explicitly. Without it, Claude Code uses its `auto` classifier for approvals. `allowedTools` is empty, so every tool call goes to ATOM's gate (`native-safety.ts`): a `PreToolUse` hook and `canUseTool`, counted once per call.
+- The gate allows ATOM's own tools and ToolSearch. ATOM's tool engine keeps its own approvals. The gate refuses every tool outside the chat's set. The main thread never has Bash, Write, Edit or TodoWrite.
+- In a project chat, Read, Glob and Grep go through `projectReadCheck`, as in ADR-107.
+- Telegram, API, MCP and schedule messages go with `client_composed: true`. So does any text that contains `@` or starts with `/`. Claude Code then does not expand `@path` or `/command`, so no file or command passes the gate that way.
+- The session uses `scrubbedEnv`, `settingSources: []` and `strictMcpConfig: true`. `planGuard` checks `init` and `rate_limit_event`: the session must run on the plan, never on an API key.

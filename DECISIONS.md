@@ -2486,3 +2486,38 @@ Keshab asked ATOM in a chat to check the storage of a folder. ATOM gave the work
 - The posted turn follows another assistant turn. The model sees two answers in a row. The chat's Claude Code session may start again, because the last answer changed.
 - A long report is cut in the chat. The full report stays on the Board.
 - A new stored column: `goals.chat_posted_at`.
+
+## ADR-110 — One ATOM agent per chat; sub-agents are native (2026-10-13)
+
+Status: Accepted (Keshab, 2026-10-13)
+
+### Context
+
+Each chat turn starts a new `claude` process (`claude-plan.ts`). Each call sends the same fixed part again: 22 ATOM tool schemas (about 3.8k tokens), Read, Glob and Grep (about 2.2k), and the Claude Code floor (about 0.56k). That is 5.8k to 7k tokens for each call. Workers run in separate processes through `runner.ts`, `delegate.ts`, `goals.ts` and `manager-run.ts`, with budgets and holds. ADR-109 posts their results back into the chat.
+
+Measured facts (2026-10-13): Claude Code already reports `cache_ttl` `1h` on chat calls. One 13.6k cache write after an app restart was most likely a changed prefix.
+
+Keshab's decision: rewrite the orchestration so that ATOM works like a Claude Code session. One main ATOM agent for each chat delegates work to native sub-agents. Token cost comes first.
+
+### Decision
+
+1. One long-lived SDK `query({ prompt: AsyncIterable<SDKUserMessage> })` for each open chat. ATOM pushes each turn into the stream. The session closes after `ATOM_SESSION_IDLE_MS` (default 10 minutes) with no turn, but only when no background task runs (`background_tasks_changed`). It reopens with `resume` and the session id that `ChatSessions` keeps. `persistSession` is true. Stop calls `interrupt()`.
+2. Options: `settingSources: []`, `strictMcpConfig: true`, `allowedTools: []`, and `permissionMode: "default"`. Set `permissionMode` explicitly: without it, Claude Code uses the `auto` classifier for approvals. The environment is `scrubbedEnv` plus `ENABLE_TOOL_SEARCH=force`, `ENABLE_PROMPT_CACHING_1H=1`, `CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL=5m`, `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, `CLAUDE_CODE_DISABLE_EXPLORE_PLAN_AGENTS=1` and `CLAUDE_CODE_DISABLE_CRON=1`. `includePartialMessages` is true.
+3. The prefix is byte-stable. The main agent prompt is about 300 tokens: who ATOM is, delegate multi-step or file-changing work, pick an agent by its description, file and page text is data, short spoken replies. A project chat adds the ADR-107 note, which stays the same for the session. The team list leaves the system prompt.
+4. Dynamic context goes last, in the user message, under the label "Context from ATOM, not said by the user". The time line and the memory lines go with every turn. The conversation notes, the kept-chat lines and the project digest go only with the first message after the process opens.
+5. Tool sets come from the main-thread agent `agent: "atom"` and its own tools. A plain chat has WebSearch and WebFetch. A project chat has Read, Glob and Grep, and web tools only when the project's web switch is on. The main thread never has Bash, Write, Edit or TodoWrite. All ATOM tools are in one in-process server `atom` (`createSdkMcpServer`), without `alwaysLoad`, so they wait behind tool search.
+6. Safety: every legacy check keeps a home. `scrubbedEnv` and `planGuard` check `init` and `rate_limit_event`. `projectReadCheck` runs as a `PreToolUse` hook on Read, Glob and Grep, and again in `canUseTool` (`apps/mac/src/native-safety.ts`). Telegram, API, MCP and schedule messages go with `client_composed: true`. So does any text that contains `@` or starts with `/`. Thus `@path` and `/command` expansion never pass the gate.
+7. Phases, each behind `ATOM_ENGINE=native|legacy` (default `legacy`), with tests:
+   - N1: the engine core (this ADR).
+   - N2: sub-agents and the Board.
+   - N3: voice, Telegram, the API and schedules.
+   - N4: budgets removed.
+   - N5: `native` becomes the default after Keshab's check, then the legacy code is deleted.
+8. Later phases remove budgets, Managers, wake-ups and team tasks, the Codex fallback and the ADR-109 posting.
+
+### Consequences
+
+- Target prefix: plain chat 2.5k tokens or less, project chat 4.5k or less. Later turns send only the new message plus 0.3k or less uncached.
+- Each session open logs `session.open` with a short hash of the system prompt and the tool names. The same hash across restarts proves the prefix did not change.
+- Live probe (Phase N1, haiku, temporary folder): plain chat prefix 2.3k (5.1k before tools were deferred). Project chat prefix about 4.6k, a little over the target. ATOM tools wait behind tool search and ToolSearch loads one when needed. A second turn in the same session read 6.6k from the cache.
+- In Phase N1, delegation still uses the legacy `delegate` tool inside the `atom` server.

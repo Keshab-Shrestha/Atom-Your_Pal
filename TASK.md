@@ -1509,3 +1509,9 @@ The conversation note (ADR-108) runs on the small model of the Claude plan (Haik
 A finished goal posts its result into the chat that asked, as one typed assistant turn (`apps/mac/src/goal-post.ts`). The goal keeps `chat_posted_at`, so it posts once, also after a restart. An open chat shows the turn at once: the runtime calls `IslandChats.onPosted`, and the island sends `chat.opened` again. The Conversation view shows an answer with no question before it. In a project chat, `delegate` sends a named worker without a grant for the project folder to the project's Agent.
 
 Next: Keshab checks by hand that a goal from a window chat shows its result in that chat, also in a project chat.
+
+## Phase N1: the native engine core (ADR-110, 2026-10-13)
+
+`ATOM_ENGINE=native` gives each open chat one long-lived Claude Code session (`services/llm-gateway/src/providers/claude-session.ts`). `apps/mac/src/native-core.ts` has the same Core interface as the legacy engine, so voice, the island, Telegram and the API do not change. `apps/mac/src/native-safety.ts` is the gate for every tool call. The session closes after `ATOM_SESSION_IDLE_MS` (default 600000) with no turn and no background task, and reopens with `resume`. The default is `legacy`, and the legacy engine is unchanged. Tests: `claude-session.test.ts`, `native-core.test.ts` (fake SDK). Live probe: plain prefix 2.3k (target 2.5k), project prefix about 4.6k (target 4.5k), ATOM tools deferred, second turn cached.
+
+Next: Keshab tries `ATOM_ENGINE=native` in the real app. Then Phase N2: sub-agents and the Board.

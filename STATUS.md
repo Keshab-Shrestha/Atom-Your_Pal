@@ -2,7 +2,7 @@
 
 Renamed ZENO -> ATOM on 2026-10-13; entries below keep the name they were written under.
 
-Last updated: 2026-10-13
+Last updated: 2026-10-14
 
 Phase 1 (Memory) has started at Keshab's request, with Phase 0.5's hands-on checks deferred, not dropped. Task 1.1 (ADR-058): ZENO keeps facts the user asks it to remember in a local SQLite file, uses them in every request, and forgets them on request; Settings → Memory lists and deletes them. Checked live in text on the Claude plan, across a restart. Task 1.2 (ADR-059): ZENO notes each conversation in two sentences in the background so a new one can pick up the thread, and offers to remember facts mentioned in passing. Task 1.3 (ADR-060): Calendar and Reminders through an EventKit helper inside ZENO.app; read the schedule, list reminders, add one. Task 1.4 (ADR-061): timers, spoken and shown when they end. Task 1.5 (ADR-062): weather. Task 1.6: answers 4–6 s instead of up to 19 s (thinking off, weather cached), and typing to ZENO in the Conversation tab. Next: Keshab allows Calendar and Reminders when macOS asks, and tries all of it by voice.
 
@@ -31,6 +31,8 @@ Built (2026-10-12): ADR-095 packages 1–2: tasks run in parallel (Runs at once 
 Built (2026-10-12): ADR-095 package 3: Sub-Agents: an Agent's run may start up to 4 helpers inside its own Claude Code run (searcher and reader for web work, coder and checker for folders), each with no more than the Agent's own tools, grants and skills; their cost counts toward its budget, and the task's thread lists them with their state and short result. ADR-095 is done. Built and tested; not yet tried with the real Claude Code.
 
 Built (2026-10-12): ADR-096: the ZENO window has Back (the arrow, ⌘[ and the mouse back button) and a Save button on each typed field. Leaving with unsaved edits asks first. It builds; no tests ran, and Keshab has not tried it yet.
+
+Built (2026-10-13, finished 2026-10-14): ADR-110 Phase N1, the native engine: with `ATOM_ENGINE=native`, each chat keeps one long-lived Claude Code session, so later turns read the prompt and tools from the cache. Off by default. Built and tested with a fake SDK; one small live probe (plain prefix 2.3k tokens, project 4.6k). Not yet tried in the real app. Phases N2-N5 not started.
 
 Planned (2026-10-10): four polish batches taken from Clicky, Coucou and a review of ZENO's setup: setup and errors (ADR-075, Task 2.A; built and tested, not yet tried on the real Mac), everyday polish (ADR-076, 2.B; built and tested, not yet tried on the real Mac), Wisp and voice polish (ADR-077, 2.C; built and tested, not yet seen on the real screen), Wisp's home display (ADR-078, 2.D; built and tested, not yet tried on two displays), settings tidy-up (ADR-079, 2.E; built and tested). Pointing from a screenshot (ADR-080, 2.F): built and tested, Cua only (main display), so it needs computer control on; not yet tried by voice.
 
