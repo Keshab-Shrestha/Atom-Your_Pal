@@ -131,6 +131,13 @@ test("unknown route 404, wrong method 404, bad JSON and bad shapes 400", async (
       assert.equal((await call(port, "POST", "/v1/chat", { token, body })).status, 400, body);
     }
     assert.equal((await call(port, "POST", "/v1/chat", { token, body: '{"text":"hi","chatId":"ok_1-x"}' })).status, 200);
+    // ADR-110 (N3): "goal-…" is a goal's chat ("api-goal-<id>"): /v1/chat never shares it.
+    for (const chatId of ["goal-1760000000000", "GOAL-1", "goal-x"]) {
+      const refused = await call(port, "POST", "/v1/chat", { token, body: JSON.stringify({ text: "hi", chatId }) });
+      assert.equal(refused.status, 400, chatId);
+      assert.match(refused.json.error, /goal-/);
+    }
+    assert.equal((await call(port, "POST", "/v1/chat", { token, body: '{"text":"hi","chatId":"my-goal-1"}' })).status, 200);
   } finally {
     api.stop();
   }

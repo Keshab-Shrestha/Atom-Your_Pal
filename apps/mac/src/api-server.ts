@@ -18,6 +18,8 @@ export const API_TOKEN_FILE = "data/api-token";
 const MAX_BODY_BYTES = 64 * 1024;
 const TOKEN_PATTERN = /^[0-9a-f]{64}$/;
 const CHAT_ID_PATTERN = /^[A-Za-z0-9_-]{1,40}$/;
+/** ADR-110 (N3): the chatIds of goal chats ("goal-<id>", saved as "api-goal-<id>"); /v1/chat refuses them. */
+const GOAL_CHAT_ID = /^goal-/i;
 const NEED_KEY_PATTERN = /^[A-Za-z0-9_-]{1,80}$/;
 const STATES: readonly JobState[] = ["queued", "running", "done", "failed", "stopped"];
 
@@ -157,8 +159,8 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
     createdAt: job.createdAt.toISOString(),
     ...(job.endedAt ? { endedAt: job.endedAt.toISOString() } : {}),
   });
-  // ADR-110 (N3): native goals. ponytail: the id is the time in ms (one goal turn at a time, so it is unique); a
-  // /v1/chat chatId "goal-<that number>" would share the chat.
+  // ADR-110 (N3): native goals. ponytail: the id is the time in ms (one goal turn at a time, so it is unique); /v1/chat
+  // refuses a chatId "goal-…", so no chat of its own is a goal's.
   let lastGoal = 0;
   const nativeJobs = (id: number) =>
     store ? [...store.list(), ...store.managers()].flatMap((owner) => owner.jobs).filter((j) => j.chatId === nativeGoalChat(id)).sort((a, b) => a.id - b.id) : [];
@@ -256,6 +258,8 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
         if (chatId !== undefined && (typeof chatId !== "string" || !CHAT_ID_PATTERN.test(chatId))) {
           throw new ApiError(400, '"chatId" must be 1 to 40 letters, digits, "-" or "_".');
         }
+        // "api-goal-<id>" is a native goal's chat: a /v1/chat chatId never reaches it.
+        if (typeof chatId === "string" && GOAL_CHAT_ID.test(chatId)) throw new ApiError(400, '"chatId" must not start with "goal-": goals have those chats.');
         return turn(async () => ({ answer: await atom(said, chatId as string | undefined) }));
       },
     },
