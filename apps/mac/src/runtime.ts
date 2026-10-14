@@ -506,6 +506,7 @@ export function createRuntime(
   // ADR-098: one Core setup, used for the window's Core and the Telegram chat's own Core.
   // The chat of the turn that runs now. The Claude plan runs ATOM's tools through one shared runner, so the delegate tool
   // reads the chat from the turn (AsyncLocalStorage), not from a Core: two surfaces never share one value.
+  const keys = { ...options.keys, [config.llm.provider]: config.llm.apiKey };
   const makeLegacyCore = (): Core => withTurnChat(createCore({
         model: coreModel,
         tools: toolEngine,
@@ -598,7 +599,6 @@ export function createRuntime(
   // ADR-064: start the model up now (the Claude plan pre-starts Claude Code), and again after a model switch.
   core.prepare();
   const settingsPath = options.settingsPath;
-  const keys = { ...options.keys, [config.llm.provider]: config.llm.apiKey };
   const settings = createModelSettings({
     initial,
     keys,
