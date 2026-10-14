@@ -84,3 +84,23 @@ test("a financial report ends with the notice; a report without a link has no so
   assert.match(r.body, /not professional financial advice\.$/);
   assert.deepEqual(r.sources, []);
 });
+
+test("the report, the step line and failure text are masked before they are kept (ADR-099)", async () => {
+  const store = openHelperStore({ path: ":memory:" });
+  const board = boardRecorder(store, "chat-1");
+  const a = store.addNativeJob("sid", "x", { chatId: "chat-1" });
+  const b = store.addNativeJob("sid", "y", { chatId: "chat-1" });
+  board.opened("u-a", a.id, "A");
+  board.opened("u-b", b.id, "B");
+  board.onEvent({ type: "system", subtype: "task_started", task_id: "ag-a", tool_use_id: "u-a" });
+  board.onEvent({ type: "system", subtype: "task_started", task_id: "ag-b", tool_use_id: "u-b" });
+  board.onEvent({ type: "system", subtype: "task_progress", task_id: "ag-a", summary: "Logging in with password=hunter2" });
+  assert.ok(!store.get(a.id)!.step!.includes("hunter2"));
+  await run(board.hooks, "SubagentStop", { agent_id: "ag-a", agent_type: "sid", last_assistant_message: "Done. Use https://admin:hunter2@db.example.com/x to log in." });
+  const report = store.report(a.id)!;
+  assert.ok(!JSON.stringify(report).includes("hunter2"), "the password in the URL is masked");
+  assert.deepEqual(report.sources.map((s) => s.url), ["https://db.example.com/x"]);
+  board.onEvent({ type: "system", subtype: "task_notification", task_id: "ag-b", status: "failed", summary: "Auth failed with Bearer abc.def.ghi" });
+  assert.ok(!store.get(b.id)!.error!.includes("abc.def.ghi"));
+  store.close();
+});

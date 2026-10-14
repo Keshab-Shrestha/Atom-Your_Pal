@@ -1,10 +1,10 @@
 import { withRoleNotice, type HelperStore, type ReportInput } from "@atom/helpers";
-import { tokensOf, toolCallRecorder } from "@atom/llm-gateway";
+import { redact, tokensOf, toolCallRecorder } from "@atom/llm-gateway";
 
 /**
  * ADR-110 (Phase N2): the Board rows of one chat's sub-agents, from its Claude Code session. The safety gate makes the
  * job row when it allows an Agent call (it needs the id for the worktree); this links it to Claude Code's task, keeps
- * its step, its tool calls (redacted, ADR-099) and its token use, and writes the report when the agent stops.
+ * its step, its tool calls, its report and failure text (all redacted, ADR-099) and its token use, and writes the report when the agent stops.
  * Keshab, 2026-10-14 item 3: the report is plain text: the agent's last message; the title is the Agent call's
  * description; the sources are the web addresses in the text. Logs ids and states only, never text.
  */
@@ -107,8 +107,8 @@ export function boardRecorder(
     taskOfJob.delete(job);
     safe(() => {
       if (outcome.stopped) helpers.stop(job);
-      else if (outcome.failed !== undefined) helpers.fail(job, outcome.failed || "The agent stopped with an error.");
-      else helpers.finish(job, reportFrom(outcome.report ?? "", description, roleOf(job)));
+      else if (outcome.failed !== undefined) helpers.fail(job, redact(outcome.failed) || "The agent stopped with an error.");
+      else helpers.finish(job, reportFrom(redact(outcome.report ?? ""), description, roleOf(job)));
     });
     log("agent.end", { job, state: outcome.stopped ? "stopped" : outcome.failed !== undefined ? "failed" : "done" });
     timelines.delete(job);
@@ -134,7 +134,7 @@ export function boardRecorder(
     } else if (m.subtype === "task_progress" && typeof m.task_id === "string") {
       const job = jobOfTask.get(m.task_id);
       const step = typeof m.summary === "string" && m.summary ? m.summary : typeof m.last_tool_name === "string" ? `Using ${m.last_tool_name}` : undefined;
-      if (job !== undefined && step) safe(() => void helpers.step(job, cut(step, 120)));
+      if (job !== undefined && step) safe(() => void helpers.step(job, cut(redact(step), 120)));
     } else if (m.subtype === "task_notification" && typeof m.task_id === "string") {
       const job = jobOfTask.get(m.task_id);
       if (job === undefined) return;
