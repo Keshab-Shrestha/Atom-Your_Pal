@@ -1057,11 +1057,12 @@ struct TokenSplitTests {
     }
 
     @Test func decodesRecentTurnsAndSplitsTheLine() throws {
-        let json = #"{"type":"helpers","apps":[],"usage":{"today":{"input":1,"output":1,"cacheRead":0,"cacheWrite":0,"dollars":0,"runs":1},"week":{"input":1,"output":1,"cacheRead":0,"cacheWrite":0,"dollars":0,"runs":1},"recent":[{"at":"2026-10-13T00:41:27.248Z","kind":"turn","model":"opus","input":3,"output":15,"cacheRead":0,"cacheWrite":6149,"gapMs":42000},{"kind":"note","model":"opus","input":2,"output":7,"cacheRead":0,"cacheWrite":1000},{"kind":"weird","model":"x"},{"kind":"job"}]},"helpers":[]}"#
+        let json = #"{"type":"helpers","apps":[],"usage":{"today":{"input":1,"output":1,"cacheRead":0,"cacheWrite":0,"dollars":0,"runs":1},"week":{"input":1,"output":1,"cacheRead":0,"cacheWrite":0,"dollars":0,"runs":1},"recent":[{"at":"2026-10-13T00:41:27.248Z","kind":"turn","model":"opus","input":3,"output":15,"cacheRead":0,"cacheWrite":6149,"gapMs":42000},{"kind":"note","model":"opus","input":2,"output":7,"cacheRead":0,"cacheWrite":1000},{"kind":"other","model":"haiku","input":1178,"output":14,"cacheRead":0,"cacheWrite":0},{"kind":"weird","model":"x"},{"kind":"job"}]},"helpers":[]}"#
         var state = HelpersState()
         state.apply(try decodeEvent(json))
         let recent = try #require(state.list?.usage?.recent)
-        #expect(recent.map(\.kind) == [.turn, .note], "a malformed entry is left out")
+        #expect(recent.map(\.kind) == [.turn, .note, .other], "a malformed entry is left out")
+        #expect(recent[2].kindTitle == "Other", "calls Claude Code made itself")
         #expect(recent[0].gapMs == 42000 && recent[0].at != nil && recent[1].gapMs == nil && recent[1].at == nil)
         #expect(recent[0].splitLine == "This turn: 18 tokens · cache written: 6.1K · cache read: 0")
     }

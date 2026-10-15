@@ -230,7 +230,7 @@ export interface UsageItem {
   /** ADR-098 item 9: ATOM's last chat answers read nothing from the prompt cache. */
   chatCacheCold?: boolean;
   /** Token cost, job 4: the newest calls, newest first. Absent from an older runtime. */
-  recent?: { at: string; kind: "turn" | "note" | "job"; model: string; input: number; output: number; cacheRead: number; cacheWrite: number; gapMs?: number }[];
+  recent?: { at: string; kind: "turn" | "note" | "job" | "other"; model: string; input: number; output: number; cacheRead: number; cacheWrite: number; gapMs?: number }[];
 }
 
 /** ADR-090: an MCP server as the island sees it: never a secret value. */

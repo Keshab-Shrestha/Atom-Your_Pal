@@ -34,12 +34,15 @@ export interface UsageTotals extends TokenCounts {
 export interface RecentRun extends TokenCounts {
   /** ISO time the call ended. */
   at: string;
-  /** "turn": a chat answer; "note": the conversation note; "job": a worker's run. */
-  kind: "turn" | "note" | "job";
+  /** "turn": a chat answer; "note": the conversation note; "job": a worker's run; "other": calls Claude Code made itself. */
+  kind: "turn" | "note" | "job" | "other";
   model: string;
   /** Milliseconds since the last call of the same chat and model; absent for the first. */
   gapMs?: number;
 }
+
+/** The `helper` of a row that holds the calls Claude Code made itself (reading a web page, its small model). */
+export const OVERHEAD_HELPER = "claude-code";
 
 /** How many recent calls the summary lists. */
 export const RECENT_RUNS = 8;
@@ -136,6 +139,11 @@ export function usageTable(db: DatabaseSync, now: () => Date = () => new Date())
   const prune = db.prepare("DELETE FROM usage WHERE at < ?");
   const lastChats = db.prepare("SELECT cache_read FROM usage WHERE source = 'chat' ORDER BY id DESC LIMIT ?");
   const newest = db.prepare("SELECT at, source, helper, model, input, output, cache_read, cache_write, gap_ms FROM usage ORDER BY id DESC LIMIT ?");
+  // 2026-10-15: what the table holds for one chat and model, for the "Other" rows (usage-overhead.ts). A conversation note is
+  // another process, so it is not part of the chat session's own totals.
+  const recordedOf = db.prepare(
+    "SELECT COALESCE(SUM(input),0) AS input, COALESCE(SUM(output),0) AS output, COALESCE(SUM(cache_read),0) AS cache_read, COALESCE(SUM(cache_write),0) AS cache_write FROM usage WHERE chat_id = ? AND model = ? AND COALESCE(helper, '') != 'note'",
+  );
   const since = db.prepare("SELECT at, helper, source, model, input, output, cache_read, cache_write, dollars FROM usage WHERE at >= ? ORDER BY at");
 
   return {
@@ -163,6 +171,12 @@ export function usageTable(db: DatabaseSync, now: () => Date = () => new Date())
         chatId, gapMs, entry.cacheTtl?.slice(0, 8) || null, typeof entry.dollars === "number" && entry.dollars > 0 ? entry.dollars : null);
       prune.run(new Date(at.getTime() - USAGE_KEEP_DAYS * 86_400_000).toISOString());
       return { gapMs };
+    },
+
+    /** The tokens already recorded for a chat's session on one model (notes excluded). */
+    recorded(chatId: string, model: string): TokenCounts {
+      const r = recordedOf.get(chatId, model.slice(0, 80)) as Record<string, number>;
+      return { input: Number(r.input), output: Number(r.output), cacheRead: Number(r.cache_read), cacheWrite: Number(r.cache_write) };
     },
 
     summary(): UsageSummary {
@@ -195,7 +209,7 @@ export function usageTable(db: DatabaseSync, now: () => Date = () => new Date())
         byModel: [...models.values()].sort(most),
         recent: (newest.all(RECENT_RUNS) as Record<string, unknown>[]).map((r) => ({
           at: String(r.at),
-          kind: r.source === "job" ? ("job" as const) : r.helper === "note" ? ("note" as const) : ("turn" as const),
+          kind: r.source === "job" ? ("job" as const) : r.helper === "note" ? ("note" as const) : r.helper === OVERHEAD_HELPER ? ("other" as const) : ("turn" as const),
           model: String(r.model),
           input: Number(r.input),
           output: Number(r.output),

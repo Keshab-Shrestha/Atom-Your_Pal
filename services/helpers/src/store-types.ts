@@ -7,7 +7,7 @@ import type { AgentProblem, Kit } from "./agents.ts";
 import type { WorkPlan } from "./work-plan.ts";
 import type { AuditEntry } from "./audit.ts";
 import type { McpServer, McpServerInput } from "./mcp.ts";
-import type { UsageEntry, UsageSummary } from "./usage.ts";
+import type { TokenCounts, UsageEntry, UsageSummary } from "./usage.ts";
 import type { ToolCall, ToolCallEvent } from "./tool-calls.ts";
 import type { CheckpointItem, UndoResult } from "./checkpoints.ts";
 import type { TaskSearchHit } from "./search.ts";
@@ -292,6 +292,8 @@ export interface HelperStore {
   /** ADR-090: MCP servers (secrets included: for the runtime only, never for the island or the log). */
   /** ADR-091: records the tokens one run used (a job or a chat answer). */
   addUsage(entry: UsageEntry): { gapMs: number | null };
+  /** The tokens recorded for one chat's session on one model (a note is not counted). */
+  recordedUsage(chatId: string, model: string): TokenCounts;
   /** ADR-091: today and the last 7 days, by day, worker and model. */
   usage(): UsageSummary;
   mcpServers(): McpServer[];

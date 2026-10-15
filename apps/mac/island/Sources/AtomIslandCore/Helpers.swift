@@ -1681,7 +1681,7 @@ public struct ModelTokens: Sendable, Equatable {
 
 /// Token cost, job 4: one recent call, for the Dashboard's list of turns.
 public struct RecentTokens: Sendable, Equatable {
-    public enum Kind: String, Sendable { case turn, note, job }
+    public enum Kind: String, Sendable { case turn, note, job, other }
     public var at: Date?
     public var kind: Kind
     public var model: String
@@ -1702,14 +1702,14 @@ public struct RecentTokens: Sendable, Equatable {
 
     public var io: Int { input + output }
 
-    /// The row's first column: "This turn", "Note" or "Job".
+    /// The row's first column: "This turn", "Note", "Job" or "Other" (calls Claude Code made itself).
     public var kindTitle: String {
-        switch kind { case .turn: "This turn"; case .note: "Note"; case .job: "Job" }
+        switch kind { case .turn: "This turn"; case .note: "Note"; case .job: "Job"; case .other: "Other" }
     }
 
     /// "This turn: 18 tokens · cache written: 6.1k · cache read: 0".
     public var splitLine: String {
-        let who = switch kind { case .turn: "This turn"; case .note: "Note"; case .job: "Job" }
+        let who = switch kind { case .turn: "This turn"; case .note: "Note"; case .job: "Job"; case .other: "Other" }
         return "\(who): \(TokenTotals.short(io)) tokens · cache written: \(TokenTotals.short(cacheWrite)) · cache read: \(TokenTotals.short(cacheRead))"
     }
 }

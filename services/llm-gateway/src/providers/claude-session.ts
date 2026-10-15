@@ -35,6 +35,26 @@ export interface SessionSdk extends Pick<ClaudeSdk, "tool" | "createSdkMcpServer
   };
 }
 
+/** One model's running totals in a session. */
+export interface ModelTotal {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+}
+
+/** `modelUsage` of a result, by model; undefined when it names none. */
+export function modelTotalsOf(result: Record<string, any>): Record<string, ModelTotal> | undefined {
+  const usage = result?.modelUsage;
+  if (!usage || typeof usage !== "object") return undefined;
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.round(v) : 0);
+  const out: Record<string, ModelTotal> = {};
+  for (const [model, m] of Object.entries(usage as Record<string, Record<string, unknown>>)) {
+    out[model] = { input: n(m?.inputTokens), output: n(m?.outputTokens), cacheRead: n(m?.cacheReadInputTokens), cacheWrite: n(m?.cacheCreationInputTokens) };
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 /** The main-thread agent of every session. Its tool list limits what the model sees. */
 export const MAIN_AGENT = "atom";
 /** The one in-process MCP server that holds every ATOM tool. */
@@ -97,6 +117,11 @@ export interface ChatSessionOptions {
   sdk?: SessionSdk;
   onUsage?: (usage: PlanUsage) => void;
   onTokens?: (tokens: TokenUsage, model: string, meta?: TokenMeta) => void;
+  /**
+   * Claude Code's running totals per model for this session (`modelUsage`): the main loop, the agents and its own calls. The
+   * owner books what no row holds yet. `resumed`: the totals may include earlier processes; `first`: the first result of this one.
+   */
+  onModelTotals?: (totals: Record<string, ModelTotal>, meta: { chatId: string; resumed: boolean; first: boolean; background: number }) => void;
   /** A reply Claude Code gave with no turn of ATOM's waiting: it woke itself, e.g. when a background agent finished. */
   onUnprompted?: (text: string) => void;
   /** Called once when the session has closed (idle, error or `close`). */
@@ -271,8 +296,18 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
     idle.unref?.();
   };
 
+  let resultsSeen = 0;
   const count = (result: Record<string, any>) => {
     if (typeof result.session_id === "string") sessionId = result.session_id;
+    const totals = modelTotalsOf(result);
+    if (totals) {
+      try {
+        o.onModelTotals?.(totals, { chatId: o.chatId, resumed: Boolean(o.resume), first: resultsSeen === 0, background });
+      } catch {
+        // the owner's bookkeeping never stops the session
+      }
+    }
+    resultsSeen += 1;
     // `usage` is this turn's; `total_cost_usd` counts from the process start, so the turn's cost is the difference.
     const tokens = tokensOf(result);
     const total = typeof result.total_cost_usd === "number" ? result.total_cost_usd : undefined;

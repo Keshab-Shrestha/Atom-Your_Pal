@@ -29,7 +29,7 @@ import {
 } from "@atom/tool-engine";
 import { createGateway, createProviderAdapter, createSwitchableModel, listPlanModels, runChatDigest, type ChatSession, type ChatSessions, type PlanUsage } from "@atom/llm-gateway";
 import { createNoteModel, createNotes } from "./notes.ts";
-import { createChatUsageRecorder } from "./usage-report.ts";
+import { createChatUsageRecorder, createOverheadRecorder } from "./usage-report.ts";
 import { createNativeCore, type NativeCore } from "./native-core.ts";
 import { createTinkerRun } from "./tinker.ts";
 import { startTinkerRunner, TINKER_TIME_LIMIT_MS, type TinkerRunner } from "./tinker-runner.ts";
@@ -448,6 +448,8 @@ export function createRuntime(
     for (const listener of planUsageListeners) listener(usage);
   };
   const recordChatUsage = createChatUsageRecorder(helpers, log); // Job 1 (token cost)
+  const recordOverhead = createOverheadRecorder(helpers, log); // 2026-10-15: the calls Claude Code makes itself
+
   // ADR-110 N5: ATOM answers on the Claude plan in its native sessions. The gateway stays only for the model switch of
   // Settings (ADR-092): `ModelSettings` replaces it when Keshab picks a provider.
   const createModel = (choice: LlmChoice, apiKey: string) =>
@@ -585,6 +587,7 @@ export function createRuntime(
             ...(Number(readEnv(process.env, "ATOM_SESSION_IDLE_MS")) > 0 ? { idleMs: Number(readEnv(process.env, "ATOM_SESSION_IDLE_MS")) } : {}),
             onUsage: reportUsage,
             onTokens: (tokens, model, meta) => recordChatUsage(tokens, model, meta),
+            onModelTotals: recordOverhead,
             log: (event, fields) => log.info(event, fields as LogFields),
           });
     nativeCores.add(native);

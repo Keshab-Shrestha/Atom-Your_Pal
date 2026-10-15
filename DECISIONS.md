@@ -2636,6 +2636,12 @@ Before this change, each Sid run that fetched a page left one `claude-haiku-4-5`
 
 Cold starts need no change. Since the 1-hour cache, 3 of 14 Opus chat turns started cold, each after at least 2.5 hours idle or an app restart. A keep-alive ping costs more than it saves.
 
+### Addendum 2, 2026-10-15: the "Other" rows
+
+Claude Code's running totals per model (`modelUsage`) cover the main loop, the agents and its own calls. After a turn settles (3 s, and no agent running), what the totals hold and the table lacks for that chat and model goes in one row: `source` chat, `helper` `claude-code`, shown as "Other" in the Dashboard's Recent list (`usage-report.ts`, `createOverheadRecorder`). The comparison is of running totals, so a missed turn is caught by the next one. A resumed session's first result only sets a base. A conversation note is another process and is not counted against the session.
+
+First live run (Sid, 2 searches, 1 fetch): Claude Code's page reader used 25.9k Haiku input tokens and 2.3k output, and Sid's output was 640 tokens in the transcript against 24 in the rows (the first stream event cuts a message's usage short). Both are now rows. The rest of the gap ($0.02 of $0.047) equals the 2 web searches: Anthropic bills a search at $0.01, not per token. That fee is not in any row yet.
+
 ### Left out on purpose
 
 Word and Excel files (a model cannot read them without a converter), attachments in Telegram, and a skill that runs on its own without the user or the model asking for it.

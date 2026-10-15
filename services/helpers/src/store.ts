@@ -975,6 +975,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       return result;
     },
     usage: () => tokens.summary(),
+    recordedUsage: (chatId, model) => tokens.recorded(chatId, model),
 
     addLabel(id, raw) {
       const job = mustGet(id);

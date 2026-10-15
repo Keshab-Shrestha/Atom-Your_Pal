@@ -1630,6 +1630,7 @@ Keshab saw "research about quantum physics" go to Sid: "all 3 please .. and thin
 - Fix 2, the limits: a research agent may search 3 times and read 2 pages and uses the search results first; the main agent gives it a narrow task. (The native engine has no helper sub-agents: the two Haiku rows were not sub-agents. The hidden cost is Claude Code's own page processing.) `native-agents.test.ts`.
 - Live, same topic: direct 1 call, 3.6k tokens, $0.036; delegated by name with sources, 5 calls, 14.8k tokens, $0.093 (was 8 calls, 27.5k, $0.107). Claude Code's own total for the delegated run went from $0.223 to $0.134.
 - Dashboard text says the dollars are for the calls counted, and a page a worker reads costs more.
+- Done later the same day: the "Other" rows (ADR-118 addendum 2). Not done: the web search fee ($0.01 per search) is in no row.
 - Not done: itemising Claude Code's own calls (web pages, a small Haiku call of about 1.2k tokens in every session); about 30% of a research run's cost is still not in any row. Test chats from this work ("research about quantum physics", "Sid, research quantum physics with sources") are in the chat list.
 
 ## "/" commands in the chat (2026-10-15)

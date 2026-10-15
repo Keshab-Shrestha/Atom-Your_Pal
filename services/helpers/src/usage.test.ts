@@ -129,3 +129,15 @@ test("an old table is repriced once: the reported dollars are kept in dollars_sd
   usageTable(raw); // a second open does not reprice again
   assert.deepEqual((raw.prepare("SELECT dollars FROM usage ORDER BY id").all() as { dollars: number }[]).map((r) => r.dollars), before);
 });
+
+test("recorded() sums a chat's rows on one model, without its conversation notes; an Other row has its own kind", () => {
+  const usage = usageTable(new DatabaseSync(":memory:"), () => new Date("2026-10-15T10:00:00.000Z"));
+  const row = { source: "chat" as const, model: "claude-haiku-5-5", output: 0, cacheRead: 0, cacheWrite: 0 };
+  usage.add({ ...row, input: 10, chatId: "c1" });
+  usage.add({ ...row, input: 5, chatId: "c1", helper: "claude-code" });
+  usage.add({ ...row, input: 700, chatId: "c1", helper: "note" });
+  usage.add({ ...row, input: 900, chatId: "c2" });
+  assert.equal(usage.recorded("c1", "claude-haiku-5-5").input, 15);
+  assert.equal(usage.recorded("c1", "other-model").input, 0);
+  assert.deepEqual(usage.summary().recent.map((r) => r.kind), ["turn", "note", "other", "turn"]);
+});

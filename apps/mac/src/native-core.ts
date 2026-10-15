@@ -9,6 +9,7 @@ import {
   promptFrom,
   ProviderError,
   type ChatSessionHandle,
+  type ChatSessionOptions,
   type ChatSessions,
   type PlanUsage,
   type SessionSdk,
@@ -161,6 +162,7 @@ export interface NativeCoreDeps {
   sdk?: SessionSdk;
   onUsage?: (usage: PlanUsage) => void;
   onTokens?: (tokens: TokenUsage, model: string, meta?: TokenMeta) => void;
+  onModelTotals?: ChatSessionOptions["onModelTotals"];
   log?: (event: string, fields: Record<string, unknown>) => void;
   newId?: () => string;
   now?: () => Date;
@@ -266,6 +268,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       ...(deps.sdk ? { sdk: deps.sdk } : {}),
       ...(deps.onUsage ? { onUsage: deps.onUsage } : {}),
       ...(deps.onTokens ? { onTokens: deps.onTokens } : {}),
+      ...(deps.onModelTotals ? { onModelTotals: deps.onModelTotals } : {}),
       ...(deps.log ? { log: deps.log } : {}),
       onClose: () => {
         if (live.get(chat)?.handle === handle) live.delete(chat);

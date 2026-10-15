@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ToolRunner } from "@atom/contracts";
-import { openChatSession, prefixHash, type ChatSessionOptions, type SessionSdk } from "./claude-session.ts";
+import { modelTotalsOf, openChatSession, prefixHash, type ChatSessionOptions, type SessionSdk } from "./claude-session.ts";
 import { ProviderError } from "../gateway.ts";
 
 import { sdkVersion } from "./plan-support.ts";
@@ -256,4 +256,28 @@ test("N2: a reply Claude Code gives by itself (an agent reported) goes to onUnpr
 
 test("the installed Agent SDK's version is readable, for the session.open log", () => {
   assert.match(sdkVersion(), /^\d+\.\d+\.\d+/);
+});
+
+// 2026-10-15: a result's modelUsage, by model, for the "Other" rows (usage-report.ts).
+test("modelTotalsOf reads the running totals per model and ignores bad numbers", () => {
+  assert.deepEqual(
+    modelTotalsOf({ modelUsage: { "claude-haiku-5-5": { inputTokens: 1178, outputTokens: 14.4, cacheReadInputTokens: -3, cacheCreationInputTokens: Number.NaN, costUSD: 0.1 } } }),
+    { "claude-haiku-5-5": { input: 1178, output: 14, cacheRead: 0, cacheWrite: 0 } },
+  );
+  assert.equal(modelTotalsOf({}), undefined);
+  assert.equal(modelTotalsOf({ modelUsage: {} }), undefined);
+});
+
+test("each result hands its running totals per model to the owner, with the chat, resume and first-result flags", async () => {
+  const modelUsage = (n: number) => ({ "claude-haiku-5-5": { inputTokens: 10 * n, outputTokens: n, cacheReadInputTokens: 0, cacheCreationInputTokens: 0 } });
+  const { sdk } = fakeSdk((t) => [done(t, { usage: usage(2, 0, 100), modelUsage: modelUsage(t === "a" ? 1 : 2) })]);
+  const seen: Array<[unknown, unknown]> = [];
+  const s = await openChatSession(options(sdk, { resume: "old", onModelTotals: (totals, meta) => seen.push([totals, meta]) }));
+  await s.send("a");
+  await s.send("b");
+  assert.equal(seen.length, 2);
+  assert.deepEqual(seen[0]![1], { chatId: "c1", resumed: true, first: true, background: 0 });
+  assert.deepEqual(seen[1]![1], { chatId: "c1", resumed: true, first: false, background: 0 });
+  assert.deepEqual(seen[1]![0], { "claude-haiku-5-5": { input: 20, output: 2, cacheRead: 0, cacheWrite: 0 } });
+  s.close();
 });
