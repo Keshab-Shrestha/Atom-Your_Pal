@@ -71,7 +71,7 @@ ATOM is not a chatbot. The language model is one part of it. Permissions, memory
 **Tools and computer control**
 - Music, notes, opening apps, and "what is this page?" for the browser in front.
 - Computer control is off until you set `ATOM_COMPUTER=1`. Risky steps wait for your approval.
-- A test on 2026-10-15 asked ATOM to type text into TextEdit through the local API. ATOM did not do it. The cause is not yet known.
+- With computer control off, ATOM says it cannot type into other apps. It does not guess.
 - A browser tool for agents. A password field always asks.
 
 **Phone: Telegram**
