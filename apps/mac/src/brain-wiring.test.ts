@@ -52,3 +52,30 @@ test("the window saves, renames and deletes notes", () => {
   assert.equal(wiring.island.remove(a.id), true);
   assert.equal(wiring.island.remove(a.id), false);
 });
+
+// 2026-10-16 (review): brain_note was an upsert by title, so a model call (also one steered by text from a web page or an attached file)
+// replaced the whole body of any existing note. The tool now only adds to the end of a note, and cannot touch mirrored notes.
+test("brain_note adds to the end of an existing note and says so; it never replaces the user's text", async () => {
+  const { wiring, tool } = setup();
+  wiring.island.save({ title: "Mortgage plan", body: "Rate 3.1%. Pay on the 25th. #money" });
+  const said = await tool("brain_note").run({ title: "mortgage PLAN", body: "Add: ask about overpaying." });
+  assert.match(said, /Added to your existing note "Mortgage plan"/);
+  const text = await tool("brain_open").run({ title: "Mortgage plan" });
+  assert.ok(text.includes("Rate 3.1%. Pay on the 25th."), "the earlier text is kept");
+  assert.ok(text.includes("Add: ask about overpaying."), "the new text is added");
+  assert.ok(text.indexOf("Rate 3.1%") < text.indexOf("Add: ask"), "at the end");
+  // Even a body meant to wipe the note only adds to it.
+  await tool("brain_note").run({ title: "Mortgage plan", body: "x" });
+  assert.ok((await tool("brain_open").run({ title: "Mortgage plan" })).includes("Rate 3.1%. Pay on the 25th."));
+});
+
+test("brain_note cannot change a note that mirrors a memory or a chat summary, and still makes a new note", async () => {
+  const { memory, wiring, tool } = setup();
+  memory.add("My sister Mira Haugen lives in Oslo", { source: "voice" });
+  wiring.sync();
+  const mirrored = wiring.island.graph().nodes.find((n) => n.kind === "memory")!;
+  const refused = await tool("brain_note").run({ title: mirrored.title, body: "overwritten" });
+  assert.match(refused, /mirrors a memory/i);
+  assert.ok(!(await tool("brain_open").run({ title: mirrored.title })).includes("overwritten"));
+  assert.match(await tool("brain_note").run({ title: "A brand new note", body: "hello [[Mira Haugen]]" }), /Saved "A brand new note"/);
+});

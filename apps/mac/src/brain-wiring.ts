@@ -101,7 +101,7 @@ export function createBrainWiring(options: {
       spec: {
         name: "brain_note",
         description:
-          "Write or update a note in the user's second brain. title: a short name. body: Markdown; link other notes with [[Title]] and tag with #tag. " +
+          "Write a note in the user's second brain, or add to the end of one that exists (the earlier text is always kept). title: a short name. body: Markdown; link other notes with [[Title]] and tag with #tag. " +
           "Use it when the user says to note, file or remember something longer than a fact, or links ideas. Prefer linking to notes that exist (brain_search first).",
         inputSchema: {
           type: "object",
@@ -111,7 +111,17 @@ export function createBrainWiring(options: {
       },
       capability: { title: "Second brain", examples: ["Note this in my second brain: the mesh plan", "What links to my Oslo trip note?"] },
       run(input) {
-        const note = island.save({ title: String(input.title ?? ""), body: String(input.body ?? "") });
+        const title = String(input.title ?? "");
+        const body = String(input.body ?? "");
+        // 2026-10-16 (review): this was an upsert by title, so one call (also one steered by a web page or an attached file) replaced the whole
+        // text of any note. Now it only adds to the end of a note the user wrote, and does not touch a note that mirrors a memory or a summary.
+        const existing = title.trim() ? brain.byTitle(title) : undefined;
+        if (existing && !existing.ghost) {
+          if (existing.kind !== "note") return `"${cut(existing.title, 60)}" mirrors a ${existing.kind}, so it cannot be changed here. Save a new note with another title.`;
+          const note = island.save({ title: existing.title, body: `${existing.body}\n\n${body}` });
+          return `Added to your existing note "${note.title}" (its earlier text is kept).`;
+        }
+        const note = island.save({ title, body });
         return `Saved "${note.title}"${note.links.length ? ` with ${note.links.length} link${note.links.length === 1 ? "" : "s"}` : ""}.`;
       },
     },
