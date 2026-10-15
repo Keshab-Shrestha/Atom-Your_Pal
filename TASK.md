@@ -1627,4 +1627,5 @@ Next: Keshab uses the window for a week, and names the features he never opens.
 - Live half: the check reads the text of the open window through Accessibility and fails on raw Markdown on screen. `ATOM_OPEN_WINDOW=1` opens the window at launch. Needs Accessibility for the terminal. It does not need Screen Recording. Skip it with `LIVE=0`.
 - Limits: the live half cannot read button labels (System Events does not show SwiftUI labels) and cannot read the sidebar rows. The gallery check does not compare pixels: look at the shots.
 - `MarkdownReply` draws wide tables and code flat in snapshots (`SideScroll`), as `Scrollable` does.
+- Wide tables (2026-10-15): a table that fits the chat width is drawn as a grid. A wider one is drawn as a card for each row, with one "Header: value" line per column (`ViewThatFits` in `MarkdownReply.swift`). Nothing hides off the side, because scroll bars stay hidden until used. The live check found raw `**` in a card label; the label now goes through the same inline Markdown as the cells.
 
