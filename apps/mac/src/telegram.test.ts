@@ -7,7 +7,7 @@ import { MESSAGE_LIMIT, splitMessage, startTelegram, type TelegramInput } from "
 const TOKEN = "123:SECRET-TOKEN";
 type Call = { method: string; body: any; url: string };
 
-function harness(script: (call: Call, n: number) => unknown | Promise<unknown>) {
+function harness(script: (call: Call, n: number) => unknown | Promise<unknown>, extra: Partial<Parameters<typeof startTelegram>[0]> = {}) {
   const calls: Call[] = [];
   const logs: string[] = [];
   const inputs: TelegramInput[] = [];
@@ -19,7 +19,7 @@ function harness(script: (call: Call, n: number) => unknown | Promise<unknown>) 
     if (out instanceof Error) throw out;
     return { status: out.status ?? 200, json: async () => out.json ?? { ok: true, result: out.result ?? [] } };
   }) as unknown as typeof fetch;
-  const client = startTelegram({ token: TOKEN, chatId: "42", log, onInput: (i) => inputs.push(i), fetch: fetchFn });
+  const client = startTelegram({ token: TOKEN, chatId: "42", log, onInput: (i) => inputs.push(i), fetch: fetchFn, skipBacklog: false, ...extra });
   return { calls, logs, inputs, client };
 }
 const tick = (ms = 20) => new Promise((r) => setTimeout(r, ms));
@@ -195,4 +195,33 @@ test("splitMessage never cuts between the two halves of an emoji and never makes
   assert.equal(parts.join(""), text);
   const lines = splitMessage(`${"x".repeat(MESSAGE_LIMIT)}\n\n\n   `);
   assert.ok(lines.every((p) => p.trim().length > 0), "no part that is only blank");
+});
+
+// 2026-10-16: texts and button presses that wait while ATOM is closed must not run when it starts.
+test("the backlog from while ATOM was closed is skipped and counted, then new messages are served", async () => {
+  const counts: number[] = [];
+  let n = 0;
+  const h = harness(async (c) => {
+    if (c.method !== "getUpdates") return {};
+    n++;
+    if (n === 1) return { result: [msg(10, 42, "/steer 3 delete everything"), msg(11, 999, "other chat"), { update_id: 12, callback_query: { id: "q", data: "a:1:1", message: { chat: { id: 42 } } } }] };
+    if (n === 2) return { result: [] }; // the backlog is read
+    if (n === 3) return { result: [msg(13, 42, "fresh")] };
+    await tick(1000);
+    return {};
+  }, { skipBacklog: true, onBacklog: (c) => counts.push(c) });
+  await tick(100);
+  h.client.stop();
+  assert.deepEqual(counts, [2], "two updates from the served chat were skipped");
+  assert.deepEqual(h.inputs, [{ kind: "text", text: "fresh" }]);
+  const polls = h.calls.filter((c) => c.method === "getUpdates");
+  assert.deepEqual(polls.slice(0, 3).map((c) => [c.body.offset, c.body.timeout > 0]), [[0, false], [13, false], [13, true]]);
+});
+
+test("an empty backlog tells no one", async () => {
+  const counts: number[] = [];
+  const h = harness(async (c) => (c.method === "getUpdates" ? (await tick(300), {}) : {}), { skipBacklog: true, onBacklog: (c) => counts.push(c) });
+  await tick(60);
+  h.client.stop();
+  assert.deepEqual(counts, []);
 });

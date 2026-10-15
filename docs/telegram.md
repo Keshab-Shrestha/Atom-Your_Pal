@@ -72,6 +72,10 @@ A task that is running cannot be interrupted by step. Send `/steer` to give it a
 
 To stop the messages that ATOM sends by itself, turn off **Send to Telegram** in Settings → General. Answers to your own messages still come.
 
+## When ATOM was closed
+
+ATOM does not run messages that arrived while it was closed. A command or a button press that is hours old could do the wrong thing. When ATOM starts, it skips them and sends you one message with the count. Send again what still matters.
+
 ## When the network fails
 
 ATOM tries again. A message that fails to send is sent again after 1, 3 and 9 seconds. When Telegram asks ATOM to wait, ATOM waits. A new item that could not be sent is tried again every 30 seconds, six tries in all (the first one included). After that it waits in `/needs` and in the ATOM window.

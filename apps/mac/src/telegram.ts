@@ -40,6 +40,12 @@ export interface TelegramClient {
 }
 
 export interface TelegramOptions {
+  /**
+   * Skip what was sent while ATOM was closed (default true). A command or a button press that is hours old must not run unattended on start.
+   * `onBacklog` gets the number of skipped updates from the served chat, so ATOM can tell the user once. Tests of the polling itself turn it off.
+   */
+  skipBacklog?: boolean;
+  onBacklog?(count: number): void;
   token: string;
   /** The one chat ATOM serves. */
   chatId: string;
@@ -98,6 +104,8 @@ export function startTelegram(options: TelegramOptions): TelegramClient {
   const stopping = new AbortController();
   let offset = 0;
   let ignored = 0;
+  let draining = options.skipBacklog ?? true;
+  let skipped = 0;
 
   async function call<T>(method: string, body: object, timeoutMs: number): Promise<T> {
     const signal = AbortSignal.any([stopping.signal, AbortSignal.timeout(timeoutMs)]);
@@ -138,10 +146,23 @@ export function startTelegram(options: TelegramOptions): TelegramClient {
       try {
         const updates = await call<RawUpdate[]>(
           "getUpdates",
-          { offset, timeout: POLL_SECONDS, allowed_updates: ["message", "callback_query"] },
+          { offset, timeout: draining ? 0 : POLL_SECONDS, allowed_updates: ["message", "callback_query"] },
           (POLL_SECONDS + 15) * 1000,
         );
         backoff = FIRST_BACKOFF_MS;
+        if (draining) {
+          // The backlog: read past it without serving it. An empty answer means it is gone and real polling starts.
+          for (const update of updates) {
+            offset = update.update_id + 1;
+            const from = update.message?.chat.id ?? update.callback_query?.message?.chat.id;
+            if (from !== undefined && String(from) === chatId) skipped++;
+          }
+          if (!updates.length) {
+            draining = false;
+            if (skipped > 0) options.onBacklog?.(skipped);
+          }
+          continue;
+        }
         for (const update of updates) {
           offset = update.update_id + 1;
           take(update);

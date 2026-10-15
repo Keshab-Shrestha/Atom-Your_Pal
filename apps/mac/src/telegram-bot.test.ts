@@ -122,7 +122,7 @@ async function run(opts: { updates: unknown[][]; store?: any; asks?: any[]; ask?
   const asks = opts.asks ?? [];
   const asked: string[] = [];
   const bot = startTelegramBot({
-    token: "t", chatId: "42", log, helpers: opts.store, describe: (e) => (e as Error).message, ...(opts.steering ? { steering: opts.steering } : {}), ...(opts.log ? { log: opts.log } : {}),
+    token: "t", chatId: "42", skipBacklog: false, log, helpers: opts.store, describe: (e) => (e as Error).message, ...(opts.steering ? { steering: opts.steering } : {}), ...(opts.log ? { log: opts.log } : {}),
     ...(opts.tune ?? {}),
     ask: opts.ask ?? (async (t) => (asked.push(t), `ATOM:${t}`)),
     approvals: { pending: () => asks, answer() {}, onAsk: (l) => (listeners.push(l), () => {}) },
@@ -418,4 +418,12 @@ test("a store change during the retry wait does not bring the retry forward", as
       assert.ok(gaps.every((g) => g >= 500), `rounds keep their distance: ${gaps.join(", ")}`);
     },
   });
+});
+
+test("messages that arrived while ATOM was closed are not run; the user is told once", async () => {
+  const r = await run({ updates: [[text(1, 42, "/steer 3 delete everything"), text(2, 42, "hello")], []], store: fakeStore(), wait: 150, tune: { skipBacklog: true } });
+  assert.deepEqual(r.asked, [], "nothing ran");
+  const out = texts(r.sent);
+  assert.equal(out.filter((m) => /was closed/.test(m)).length, 1);
+  assert.ok(out.some((m) => /2 messages arrived/.test(m)));
 });

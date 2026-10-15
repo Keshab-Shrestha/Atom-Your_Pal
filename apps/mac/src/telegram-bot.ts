@@ -45,6 +45,8 @@ export interface TelegramBotOptions {
   describe(error: unknown): string;
   /** ADR-098 item 3: the window's steer and interrupt. Absent: the commands answer "Steering is off." */
   steering?: Pick<TaskSteering, "steer" | "interrupt">;
+  /** Skip what was sent while ATOM was closed and tell the user once (default true). Tests that replay updates as live turn it off. */
+  skipBacklog?: boolean;
   /** How long one ATOM turn may take before the next message is served (ms). Default TURN_TIMEOUT_MS. */
   turnTimeoutMs?: number;
   /** How long to wait before a Needs you push that failed is tried again (ms). Default PUSH_RETRY_MS. */
@@ -186,6 +188,11 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     chatId: options.chatId,
     log,
     onInput: (input) => take(input),
+    ...(options.skipBacklog !== undefined ? { skipBacklog: options.skipBacklog } : {}),
+    onBacklog: (count) => {
+      log.info("telegram.backlog_skipped", { count });
+      later("backlog", client.send(`ATOM was closed. ${count} ${count === 1 ? "message" : "messages"} arrived meanwhile and ${count === 1 ? "was" : "were"} not run. Send ${count === 1 ? "it" : "them"} again if ${count === 1 ? "it" : "they"} still matter${count === 1 ? "s" : ""}.`));
+    },
     ...(options.retryDelaysMs ? { retryDelaysMs: options.retryDelaysMs } : {}),
   });
   /** A fire-and-forget step: a failure inside it is logged by name, never an unhandled rejection (that ends the whole app). */
