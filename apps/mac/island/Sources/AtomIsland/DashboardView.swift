@@ -16,7 +16,7 @@ struct DashboardPane: View {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Dashboard").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
-                        Text("Tokens used by ATOM's chat and the team. On the Claude plan they count toward its limits; dollars are what the API would charge.")
+                        Text("Tokens used by ATOM's chat and the team. On the Claude plan they count toward its limits; dollars are list prices for the calls counted here. A web page a worker reads costs more, in calls Claude Code does not itemise.")
                             .font(.system(size: 12)).foregroundStyle(theme.text2.color)
                     }
                     Spacer(minLength: 12)

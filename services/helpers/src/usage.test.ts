@@ -85,3 +85,47 @@ test("the summary lists the newest calls with their kind, tokens and gap, no tex
   assert.deepEqual(small.summary().recent.map((r) => [r.kind, r.gapMs]), [["job", undefined], ["note", 3000], ["turn", undefined]]);
   assert.equal(small.summary().recent[2].cacheWrite, 6100);
 });
+
+// 2026-10-15: dollars are priced from each row's own tokens (pricing.ts), so a worker's row has its own dollars and a chat
+// row no longer carries the cost of the agents it started.
+
+test("a worker's row is priced from its tokens, even when Claude Code reported no cost; the total is the sum of the rows", () => {
+  const raw = new DatabaseSync(":memory:");
+  const usage = usageTable(raw, () => new Date("2026-10-15T10:00:00.000Z"));
+  // Sid on Sonnet: 10003 written (1 h), 9588 read, 734 out, 6 in. Claude Code reported no cost for it (the old $0.00).
+  usage.add({ source: "job", helper: "sid", job: 5, model: "claude-sonnet-5-5", input: 6, output: 734, cacheRead: 9588, cacheWrite: 10003, cacheTtl: "1h" });
+  // The chat's own Opus turn, with a Claude Code cost that included Sid's work: ignored for a model that has a price.
+  usage.add({ source: "chat", model: "claude-opus-5-5", input: 2, output: 16, cacheRead: 3623, cacheWrite: 1623, cacheTtl: "1h", dollars: 0.5 });
+  const rows = raw.prepare("SELECT source, dollars, dollars_sdk FROM usage ORDER BY id").all() as { source: string; dollars: number; dollars_sdk: number | null }[];
+  assert.ok(Math.abs(rows[0]!.dollars - 0.049282) < 1e-6, `Sid's row is $0.0493, got ${rows[0]!.dollars}`);
+  assert.ok(Math.abs(rows[1]!.dollars - 0.01475) < 0.0005, `the chat row is its own Opus tokens, got ${rows[1]!.dollars}`);
+  assert.equal(rows[1]!.dollars_sdk, 0.5, "what Claude Code reported is kept");
+  assert.ok(Math.abs(usage.summary().today.dollars - (rows[0]!.dollars + rows[1]!.dollars)) < 1e-9);
+  const sid = usage.summary().byWorker.find((w) => w.helper === "sid")!;
+  assert.ok(sid.dollars > 0.049, "the worker's share shows its dollars");
+});
+
+test("a model with no listed price keeps the dollars Claude Code reported", () => {
+  const usage = usageTable(new DatabaseSync(":memory:"), () => new Date("2026-10-15T10:00:00.000Z"));
+  usage.add({ source: "chat", model: "claude-future-9", input: 1, output: 1, cacheRead: 0, cacheWrite: 0, dollars: 0.07 });
+  usage.add({ source: "job", helper: "sid", job: 1, model: "claude-future-9", input: 1, output: 1, cacheRead: 0, cacheWrite: 0 });
+  assert.equal(usage.summary().today.dollars, 0.07, "reported when there is one, else nothing");
+});
+
+test("an old table is repriced once: the reported dollars are kept in dollars_sdk, rows of unknown models are left as they were", () => {
+  const raw = new DatabaseSync(":memory:");
+  raw.exec(`CREATE TABLE usage (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, source TEXT NOT NULL CHECK (source IN ('chat', 'job')),
+    helper TEXT, job_id INTEGER, model TEXT NOT NULL, input INTEGER NOT NULL, output INTEGER NOT NULL, cache_read INTEGER NOT NULL,
+    cache_write INTEGER NOT NULL, dollars REAL NOT NULL DEFAULT 0)`);
+  raw.exec("INSERT INTO usage (at, source, helper, job_id, model, input, output, cache_read, cache_write, dollars) VALUES ('2026-10-14T01:00:00.000Z', 'job', 'sid', 5, 'claude-sonnet-5-5', 6, 734, 9588, 10003, 0)");
+  raw.exec("INSERT INTO usage (at, source, model, input, output, cache_read, cache_write, dollars) VALUES ('2026-10-14T01:00:00.000Z', 'chat', 'claude-opus-5-5', 2, 13, 0, 5097, 0.5)");
+  raw.exec("INSERT INTO usage (at, source, model, input, output, cache_read, cache_write, dollars) VALUES ('2026-10-14T01:00:00.000Z', 'chat', 'claude-future-9', 1, 1, 0, 0, 0.07)");
+  usageTable(raw, () => new Date("2026-10-15T00:00:00.000Z"));
+  const rows = raw.prepare("SELECT dollars, dollars_sdk FROM usage ORDER BY id").all() as { dollars: number; dollars_sdk: number }[];
+  assert.ok(Math.abs(rows[0]!.dollars - 0.049282) < 1e-6 && rows[0]!.dollars_sdk === 0, "a worker row that had $0 now has its dollars");
+  assert.ok(Math.abs(rows[1]!.dollars - 0.041044) < 1e-6 && rows[1]!.dollars_sdk === 0.5, "the Opus row is priced from its own tokens");
+  assert.deepEqual([rows[2]!.dollars, rows[2]!.dollars_sdk], [0.07, 0.07], "an unknown model is left as it was");
+  const before = rows.map((r) => r.dollars);
+  usageTable(raw); // a second open does not reprice again
+  assert.deepEqual((raw.prepare("SELECT dollars FROM usage ORDER BY id").all() as { dollars: number }[]).map((r) => r.dollars), before);
+});

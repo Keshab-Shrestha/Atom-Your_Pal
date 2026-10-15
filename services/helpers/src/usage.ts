@@ -1,4 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
+import { dollarsFor } from "./pricing.ts";
 
 // ADR-091: the tokens every Claude run used (a worker's task or ATOM's own chat answer), for the Dashboard. Counts and
 // model ids only: never a task's or answer's text. Kept 90 days.
@@ -16,7 +17,7 @@ export interface UsageEntry extends TokenCounts {
   helper?: string;
   job?: number;
   model: string;
-  /** API-equivalent dollars, as Claude Code reports them (the plan does not charge them). */
+  /** API-equivalent dollars as Claude Code reported them. Kept as `dollars_sdk`; the dollars used are priced from the tokens (pricing.ts) when the model has a price, else these. */
   dollars?: number;
   /** Job 1 (token cost): the chat this call belongs to (the turn or its background note). */
   chatId?: string;
@@ -104,8 +105,30 @@ export function usageTable(db: DatabaseSync, now: () => Date = () => new Date())
   if (!columns.has("chat_id")) db.exec("ALTER TABLE usage ADD COLUMN chat_id TEXT");
   if (!columns.has("gap_ms")) db.exec("ALTER TABLE usage ADD COLUMN gap_ms INTEGER");
   if (!columns.has("cache_ttl")) db.exec("ALTER TABLE usage ADD COLUMN cache_ttl TEXT");
+  if (!columns.has("dollars_sdk")) {
+    // 2026-10-15: dollars are priced from each row's own tokens (pricing.ts). Claude Code's own cost is a running total for
+    // the session, so a chat row held its background agents' cost and the agents' rows held none. Keep what it reported
+    // (dollars_sdk), then price every old row whose model has a price. A row with no ttl is priced as a 1-hour write.
+    db.exec("BEGIN");
+    try {
+      db.exec("ALTER TABLE usage ADD COLUMN dollars_sdk REAL");
+      db.exec("UPDATE usage SET dollars_sdk = dollars");
+      const old = db.prepare("SELECT id, model, input, output, cache_read, cache_write, cache_ttl FROM usage").all() as {
+        id: number; model: string; input: number; output: number; cache_read: number; cache_write: number; cache_ttl: string | null;
+      }[];
+      const reprice = db.prepare("UPDATE usage SET dollars = ? WHERE id = ?");
+      for (const row of old) {
+        const dollars = dollarsFor(row.model, { input: row.input, output: row.output, cacheRead: row.cache_read, cacheWrite: row.cache_write }, row.cache_ttl ?? undefined);
+        if (dollars !== undefined) reprice.run(dollars, row.id);
+      }
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+  }
   const insert = db.prepare(
-    "INSERT INTO usage (at, source, helper, job_id, model, input, output, cache_read, cache_write, dollars, chat_id, gap_ms, cache_ttl) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO usage (at, source, helper, job_id, model, input, output, cache_read, cache_write, dollars, chat_id, gap_ms, cache_ttl, dollars_sdk) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
   );
   const newestOfChat = db.prepare("SELECT at FROM usage WHERE chat_id = ? AND model = ? ORDER BY id DESC LIMIT 1");
   /** chat id + model → time of the last call, in ms. Seeded lazily from the table. */
@@ -132,10 +155,12 @@ export function usageTable(db: DatabaseSync, now: () => Date = () => new Date())
         if (last !== undefined && Number.isFinite(last)) gapMs = Math.max(0, at.getTime() - last);
         lastCallAt.set(key, at.getTime());
       }
+      const tokens = { input: count(entry.input), output: count(entry.output), cacheRead: count(entry.cacheRead), cacheWrite: count(entry.cacheWrite) };
       insert.run(at.toISOString(), entry.source, entry.helper ?? null, entry.job ?? null, model,
-        count(entry.input), count(entry.output), count(entry.cacheRead), count(entry.cacheWrite),
-        typeof entry.dollars === "number" && entry.dollars > 0 ? entry.dollars : 0,
-        chatId, gapMs, entry.cacheTtl?.slice(0, 8) || null);
+        tokens.input, tokens.output, tokens.cacheRead, tokens.cacheWrite,
+        // Priced from this row's own (cleaned) tokens; a model with no price falls back to what Claude Code reported.
+        dollarsFor(model, tokens, entry.cacheTtl) ?? (typeof entry.dollars === "number" && entry.dollars > 0 ? entry.dollars : 0),
+        chatId, gapMs, entry.cacheTtl?.slice(0, 8) || null, typeof entry.dollars === "number" && entry.dollars > 0 ? entry.dollars : null);
       prune.run(new Date(at.getTime() - USAGE_KEEP_DAYS * 86_400_000).toISOString());
       return { gapMs };
     },

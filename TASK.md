@@ -1620,6 +1620,18 @@ Next: Keshab builds the app on the Mac, attaches a PDF and an image, switches a 
 
 Next: Keshab uses the window for a week, and names the features he never opens.
 
+## Token discipline (2026-10-15)
+
+Keshab saw "research about quantum physics" go to Sid: "all 3 please .. and think about tokens as well .. token is a big factor". ADR-118.
+
+- Measured first: that request was 7 calls in 4 contexts, 24k tokens the plan counts (22.8k cache writes), $0.22 on the Dashboard. A direct Opus answer is 1 call, 3.6k tokens, $0.036.
+- Fix 3, the dollars: each usage row is priced from its own tokens (`pricing.ts`, rates measured against the SDK, 4 tests). Claude Code's `total_cost_usd` is a session total, so chat rows held the agents' cost and worker rows held $0. `dollars_sdk` keeps what it reported. Old rows were repriced once at the first start. By-worker and by-model numbers are right now. 3 tests in `usage.test.ts`.
+- Fix 1, the rule: the main prompt answers a topic itself in a few sentences and offers depth; it delegates only when named, when sources are asked for, when files change, or for many separate lookups. `native-core.test.ts`.
+- Fix 2, the limits: a research agent may search 3 times and read 2 pages and uses the search results first; the main agent gives it a narrow task. (The native engine has no helper sub-agents: the two Haiku rows were not sub-agents. The hidden cost is Claude Code's own page processing.) `native-agents.test.ts`.
+- Live, same topic: direct 1 call, 3.6k tokens, $0.036; delegated by name with sources, 5 calls, 14.8k tokens, $0.093 (was 8 calls, 27.5k, $0.107). Claude Code's own total for the delegated run went from $0.223 to $0.134.
+- Dashboard text says the dollars are for the calls counted, and a page a worker reads costs more.
+- Not done: itemising Claude Code's own calls (web pages, a small Haiku call of about 1.2k tokens in every session); about 30% of a research run's cost is still not in any row. Test chats from this work ("research about quantum physics", "Sid, research quantum physics with sources") are in the chat list.
+
 ## "/" commands in the chat (2026-10-15)
 
 Keshab: "lets make sure we call / commands from Atom as well"; asked which, he chose both with a picker. ADR-117.

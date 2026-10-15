@@ -2727,3 +2727,36 @@ ATOM understood "/" for skills only (`/skill-name words`). Keshab has 96 Claude 
 ### Left out on purpose
 
 Claude commands in Telegram (its "/" commands are its own), commands in subfolders (`folder/name.md`), `allowed-tools` and `model` in a command's front matter, `@file` includes, shell lines, and editing commands in the window.
+
+## ADR-118 — Token discipline: price each row, answer topics directly, limit web work (2026-10-15)
+
+Date: 2026-10-15. Status: **accepted** (Keshab: "all 3 please .. and think about tokens as well .. token is a big factor in using this app").
+
+### Context
+
+"Research about quantum physics" in the window became a task for Sid: 7 model calls in 4 contexts, about 24k tokens that the plan counts (22.8k of them cache writes), and the Dashboard showed $0.22 for it. A direct Opus answer is one call of about 3.6k tokens and $0.036. Three faults were behind it.
+
+1. The prompt said to hand "research that takes minutes" to an agent. "Research about X" matched it, though it is a topic the model knows.
+2. Dollars were wrong. Claude Code's `total_cost_usd` is a running total for the whole session. A chat row therefore held the cost of every agent it started, and the agents' own rows held none (a worker's row said $0.00). The by-worker and by-model numbers were wrong.
+3. A research agent read "a few good pages" with no limit. Each page is read again by a small model and kept in the agent's context.
+
+### Decision
+
+1. **Price each row from its own tokens** (`services/helpers/src/pricing.ts`), when the row is recorded. The rates were measured, one tiny call per model against the SDK's per-model `costUSD`: Opus 5.5 $4 in and $20 out, Sonnet 5.5 $2 and $10, Haiku 5.5 $0.10 and $0.50, Haiku 4.5 $1 and $5, per million tokens; a cache read is 0.1 of the input price, a cache write 2 times (1 hour) or 1.25 times (5 minutes). `pricing.test.ts` keeps those measured numbers. A model with no listed price keeps the dollars Claude Code reported. What Claude Code reported is kept in `usage.dollars_sdk`. Old rows were repriced once at the first start (the real table went from $1.34 to $1.07; the chat rows from $1.25 to $0.68, the worker rows from $0.09 to $0.38).
+2. **The main agent answers a topic itself**, in a few sentences, and offers to have a worker look deeper with sources. It hands work to an agent only when the user names one or asks for sources, when files change, or when it needs many separate lookups or parts that run on their own. An agent's task is narrow, with a clear end.
+3. **A research agent has limits** in its contract: at most 3 searches and 2 pages (`RESEARCH_SEARCHES`, `RESEARCH_PAGES`), and it uses the search results before it fetches a page.
+4. The Dashboard says its dollars are list prices for the calls counted, and that a page a worker reads costs more, in calls Claude Code does not itemise.
+
+### Measured, 2026-10-15, the same topic
+
+| Request | Calls | Tokens the plan counts (excluding cache reads) | Dollars priced | Dollars Claude Code reported |
+|---|---|---|---|---|
+| Before: delegated, no limits | 8 | 27.5k | $0.107 | $0.223 |
+| After: "Sid, … with sources", limits | 5 | 14.8k | $0.093 | $0.134 |
+| After: "research about …", direct | 1 | 3.6k | $0.036 | $0.036 |
+
+The direct answer is about 7 times cheaper in tokens. Limits make a delegated task about 46% cheaper in tokens (and 40% in reported dollars). The gap between priced and reported is the web pages: $0.116 before, $0.041 after.
+
+### Left out on purpose
+
+Itemising the calls Claude Code makes for web pages and its own small model (about 1,200 tokens of Haiku in every session). The model list for pricing needs a row for each new model.

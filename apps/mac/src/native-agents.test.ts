@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MAX_AGENTS, RESERVED_AGENT_IDS, openHelperStore, type PlanModel } from "@atom/helpers";
 import { BROWSER_SERVER } from "./browser.ts";
-import { BUILT_IN_AGENTS, agentDefinitions, agentModel, createAgentTool } from "./native-agents.ts";
+import { BUILT_IN_AGENTS, agentDefinitions, agentModel, createAgentTool, RESEARCH_PAGES, RESEARCH_SEARCHES } from "./native-agents.ts";
 
 const models: PlanModel[] = [
   { id: "claude-haiku-5", name: "Haiku", tier: "small" },
@@ -124,4 +124,17 @@ test("an agent with the browser or MCP servers gets ToolSearch (its tools are de
   assert.deepEqual(defs.sid!.tools, ["WebSearch", "WebFetch", `mcp__${BROWSER_SERVER}`, "ToolSearch"]);
   assert.ok(!defs.kame!.tools.includes("ToolSearch"));
   done();
+});
+
+// 2026-10-15: a research worker's web work has limits. Every page it fetches is read again by a small model and kept in its
+// context; "read a few good pages" had no limit, and one request used 4 searches and 2 pages (about 24k tokens in all).
+test("a research agent is told the most searches and pages it may use, and to use the search results first", () => {
+  const sid = agentDefinitions(
+    { list: () => [{ id: "sid", name: "Sid", role: "researcher", available: true, kit: "research", grants: [], skills: [], soul: { name: "Sid", personality: "Curious.", howItWorks: "", rules: "", lessons: [] }, pinnedModel: null, planFirst: false } as never], mcpServers: () => [] },
+    {},
+  ).sid!;
+  assert.match(sid.prompt, new RegExp(`Search at most ${RESEARCH_SEARCHES} times and read at most ${RESEARCH_PAGES} pages, then stop and report`));
+  assert.match(sid.prompt, /use them before you fetch a page/);
+  assert.ok(RESEARCH_SEARCHES <= 3 && RESEARCH_PAGES <= 2, "the limits stay small");
+  assert.doesNotMatch(sid.prompt, /a few good pages/);
 });

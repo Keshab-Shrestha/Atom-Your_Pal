@@ -411,3 +411,17 @@ test("a typed message in the window gets the screen note; a spoken one and a cli
   assert.equal(await sentTo({ screenReplies: true }, "voice"), "hi");
   assert.equal(await sentTo({}, "text"), "hi");
 });
+
+// 2026-10-15: "research about X" matched "research that takes minutes" and sent a general-knowledge question to an agent
+// (7 model calls, about 24k tokens, instead of 1 call, about 3k). The rule is now: answer a topic yourself, offer depth.
+test("the prompt answers a topic itself and delegates only when named, when sources are asked for, when files change or when it needs many lookups", () => {
+  for (const prompt of [NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT]) {
+    assert.match(prompt, /Answer yourself, in a few sentences, any question or request to research or explain a topic you know well/);
+    assert.match(prompt, /offer to have an? (worker|agent) look deeper with sources/);
+    assert.match(prompt, /costs several times a direct reply/);
+    assert.match(prompt, /only when the user names one or asks for sources, when files change, or when it needs many separate lookups/);
+    assert.doesNotMatch(prompt, /research that takes minutes/, "the old trigger word is gone");
+  }
+  assert.match(NATIVE_TEAM_PROMPT, /with the Agent tool only when/);
+  assert.ok(!NATIVE_TEAM_PROMPT.includes("delegate tool"), "the team prompt names the Agent tool");
+});
