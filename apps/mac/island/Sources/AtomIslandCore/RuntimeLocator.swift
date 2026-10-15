@@ -167,18 +167,33 @@ extension RuntimeLocator {
             homeDirectory: fm.homeDirectoryForCurrentUser.path,
             isExecutable: { fm.isExecutableFile(atPath: $0) },
             fileExists: { fm.fileExists(atPath: $0) },
-            nodeVersion: { path in
-                let process = Process()
-                process.executableURL = URL(fileURLWithPath: path)
-                process.arguments = ["--version"]
-                let out = Pipe()
-                process.standardOutput = out
-                process.standardError = FileHandle.nullDevice
-                do { try process.run() } catch { return nil }
-                let data = out.fileHandleForReading.readDataToEndOfFile()
-                process.waitUntilExit()
-                return process.terminationStatus == 0 ? String(decoding: data, as: UTF8.self) : nil
-            },
+            nodeVersion: { RuntimeLocator.probeNodeVersion(at: $0) },
             calendarHelper: bundle.executableURL.map { $0.deletingLastPathComponent().appendingPathComponent("atom-calendar").path })
+    }
+}
+
+extension RuntimeLocator {
+    /// How long `node --version` may take before the candidate is skipped (seconds).
+    public static let versionTimeout: Double = 5
+
+    /// The output of `<path> --version`, or nil when it fails, cannot start, or takes longer than `timeout`. It runs at launch on the
+    /// main thread, before any window: a hung Node shim (a version manager's wrapper, say) used to freeze ATOM there for good
+    /// (code review, 2026-10-16).
+    public static func probeNodeVersion(at path: String, timeout: Double = versionTimeout) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = ["--version"]
+        let out = Pipe()
+        process.standardOutput = out
+        process.standardError = FileHandle.nullDevice
+        let finished = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in finished.signal() }
+        do { try process.run() } catch { return nil }
+        if finished.wait(timeout: .now() + timeout) == .timedOut {
+            process.terminate()
+            return nil
+        }
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        return process.terminationStatus == 0 ? String(decoding: data, as: UTF8.self) : nil
     }
 }

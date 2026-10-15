@@ -110,6 +110,12 @@ final class DictationController {
     func setPaused(_ paused: Bool) {
         guard paused != self.paused else { return }
         self.paused = paused
+        // 2026-10-16 (code review): a lock or sleep only paused new captures. A dictation, a Talk or a follow-up that was listening kept the
+        // microphone open (a hands-free dictation for up to 5 minutes) and then typed into whatever was in front. Nothing listens while locked.
+        if paused {
+            cancel()
+            talkCancelled()
+        }
         capture.setSuspended(paused)
         if !paused, !isActive, talkSince == nil { prepareMicrophone() }
     }
