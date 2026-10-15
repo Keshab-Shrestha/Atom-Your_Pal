@@ -21,6 +21,15 @@ const CHAT_ID_PATTERN = /^[A-Za-z0-9_-]{1,40}$/;
 /** ADR-110 (N3): the chatIds of goal chats ("goal-<id>", saved as "api-goal-<id>"); /v1/chat refuses them. */
 const GOAL_CHAT_ID = /^goal-/i;
 const NEED_KEY_PATTERN = /^[A-Za-z0-9_-]{1,80}$/;
+/**
+ * The Needs you kinds (the first part of a button's data) the Local API may answer: a plan (`p`) and a retry (`r`). Risky-action
+ * cards (`a`), soul changes (`s`), skill drafts, edits and hub installs (`d`, `e`, `h`) are answered in the ATOM window or on
+ * Telegram only. A token that could answer them would let whoever holds it start a task and then approve that task's risky steps
+ * (security review, 2026-10-16; Keshab chose "plans only").
+ */
+export const API_ANSWERABLE_KINDS: ReadonlySet<string> = new Set(["p", "r"]);
+const kindOf = (data: string) => data.split(":")[0] ?? "";
+
 const STATES: readonly JobState[] = ["queued", "running", "done", "failed", "stopped"];
 
 /** The API's state, for Settings. `tokenFile` is a path; the island reads the file only when Keshab clicks "Copy token". */
@@ -274,7 +283,13 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
       method: "GET",
       pattern: "/v1/needs",
       match: /^\/v1\/needs$/,
-      run: () => ({ needs: needs().map(({ actions, ...need }) => ({ ...need, actions: actions.map(({ data: _data, ...a }) => a) })) }),
+      // A need the API may not answer shows with `answerable: false` and no actions, so a client does not offer a button it cannot press.
+      run: () => ({
+        needs: needs().map(({ actions, ...need }) => {
+          const canAnswer = actions.every((a) => API_ANSWERABLE_KINDS.has(kindOf(a.data)));
+          return { ...need, answerable: canAnswer, actions: canAnswer ? actions.map(({ data: _data, ...a }) => a) : [] };
+        }),
+      }),
     },
     {
       method: "POST",
@@ -290,6 +305,9 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
         if (!need) throw new ApiError(404, "Nothing waits under that key now.");
         const button = need.actions.find((a) => a.action === action);
         if (!button) throw new ApiError(400, `"action" must be one of: ${need.actions.map((a) => a.action).join(", ") || "none (it has no actions)"}.`);
+        if (!API_ANSWERABLE_KINDS.has(kindOf(button.data))) {
+          throw new ApiError(403, "The Local API cannot answer this. Answer it in the ATOM window or on Telegram.");
+        }
         return { said: answerNeed(button.data, store, approvals) };
       },
     },

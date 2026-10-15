@@ -205,8 +205,6 @@ test("needs: key pattern and unknown key/action are refused", async () => {
     assert.equal((await call(port, "POST", "/v1/needs/ask-nope", { token, body: '{"action":"allow"}' })).status, 404);
     assert.equal((await call(port, "POST", "/v1/needs/ask-q1", { token, body: '{"action":"explode"}' })).status, 400);
     assert.equal((await call(port, "POST", "/v1/needs/ask-q1", { token, body: '{}' })).status, 400);
-    const ok = await call(port, "POST", "/v1/needs/ask-q1", { token, body: '{"action":"Allow"}' });
-    assert.equal(ok.json.data.said, "Allowed.");
     const list = await call(port, "GET", "/v1/needs", { token });
     assert.ok(!JSON.stringify(list.json).includes("a:q1"), "button data is not leaked");
   } finally {
@@ -332,6 +330,42 @@ test("regenerate works while the server is off: the next start uses the new toke
     const fresh = readFileSync(tokenFile, "utf8").trim();
     assert.equal((await call(started.port, "GET", "/v1/needs", { token: old })).status, 401);
     assert.equal((await call(started.port, "GET", "/v1/needs", { token: fresh })).status, 200);
+  } finally {
+    api.stop();
+  }
+});
+
+// 2026-10-16 (security review): the token could answer every card, including "allow this click / command". Keshab chose: plans and
+// retries only; risky-action cards, soul changes and skill installs are answered in the window or on Telegram.
+test("needs: the API answers a plan, but a risky-action card is refused and listed as not answerable", async () => {
+  const approved: number[] = [];
+  const answered: string[] = [];
+  const planStore = {
+    ...store,
+    list: () => [{ jobs: [{ id: 8, helper: "h1", state: "queued", planStatus: "awaiting", planSummary: "Do it in 3 steps", task: "write" }], routines: [], proposals: [], name: "Scout" }],
+    approvePlan: (n: number) => void approved.push(n),
+    rejectPlan: () => {},
+  } as unknown as NonNullable<ApiServerOptions["helpers"]>;
+  const { api, port, token } = await boot({
+    helpers: planStore,
+    approvals: { pending: () => [{ id: "q1", summary: "Click Send", reason: "it sends" }] as any, answer: (id: string) => void answered.push(id) },
+  });
+  try {
+    const list = await call(port, "GET", "/v1/needs", { token });
+    const byKey = Object.fromEntries((list.json.data.needs as { key: string; answerable: boolean; actions: unknown[] }[]).map((n) => [n.key, n]));
+    assert.equal(byKey["plan-8"]!.answerable, true);
+    assert.equal(byKey["plan-8"]!.actions.length, 2, "approve and reject");
+    assert.equal(byKey["ask-q1"]!.answerable, false);
+    assert.deepEqual(byKey["ask-q1"]!.actions, [], "no button to press");
+
+    const denied = await call(port, "POST", "/v1/needs/ask-q1", { token, body: '{"action":"allow"}' });
+    assert.equal(denied.status, 403);
+    assert.match(denied.json.error, /ATOM window or on Telegram/);
+    assert.deepEqual(answered, [], "the card was not answered");
+
+    const plan = await call(port, "POST", "/v1/needs/plan-8", { token, body: '{"action":"approve"}' });
+    assert.equal(plan.status, 200);
+    assert.deepEqual(approved, [8]);
   } finally {
     api.stop();
   }

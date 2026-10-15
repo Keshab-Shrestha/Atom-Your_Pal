@@ -2797,3 +2797,20 @@ A live switch without a restart. It would put the computer tool in the model's l
 Keshab saw the strip ("what ATOM is doing") appear at the start of a computer task and stay on the screen until they closed it, after ATOM had answered. Cause: the island's strip ended only when its own voice loop went idle (`state idle`). A turn from the local API, Telegram or a goal shows steps but never makes the voice loop idle. Fix: the runtime's computer bridge sends `computer.end` 6 seconds after the last step or point, and only when no approval waits. The strip finishes on that event. It works for every path that uses computer control.
 
 Also fixed the same day: `look` found no process for TextEdit when it had only its Open panel (Cua's `list_apps` showed pid 0 and not running). It now finds the app by the pid of its windows.
+
+## ADR-120 — What the Local API token may answer (2026-10-16)
+
+Date: 2026-10-16. Status: **accepted** (Keshab chose "plans only" when the code review showed the gap).
+
+### Context
+
+`POST /v1/needs/:key` answered every Needs you card, with the same code as the Telegram buttons. A holder of the token could give ATOM a goal and then answer "Allow" on that goal's risky steps (a click, a command, a new agent, a skill install). The token had no scopes.
+
+### Decision
+
+The API answers two kinds of card only: a plan (`p`: approve or reject) and a retry (`r`). A risky-action card (`a`), a soul change (`s`), a skill draft or edit (`d`, `e`) and a skill-hub install (`h`) are answered in the ATOM window or on Telegram. A refused answer is `403` with the reason. `GET /v1/needs` still lists every card, marks the ones the API cannot answer with `answerable: false`, and gives them no actions. The MCP tool `atom_answer_need` says so.
+
+### Left out on purpose
+
+Several tokens with scopes (read-only, goals, approvals). One token and a short list of what it may answer is enough for one user on one Mac. Telegram keeps its own rule: only the one configured chat.
+

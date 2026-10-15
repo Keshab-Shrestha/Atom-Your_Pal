@@ -170,7 +170,7 @@ Turn on Settings → General → Local API. Then add the MCP server to Claude Co
 claude mcp add atom -- node /path/to/atom/apps/mac/src/mcp-serve.ts
 ```
 
-The tools are `atom_give_goal`, `atom_goal_status`, `atom_chat`, `atom_list_tasks`, `atom_task_report`, `atom_needs_you` and `atom_answer_need`. The local API listens on `http://127.0.0.1:4790`. Change the port with `ATOM_API_PORT`. Each request needs the bearer token from `data/api-token`. Turn the API off when you do not use it. Settings → General has "Regenerate" to replace the token.
+The tools are `atom_give_goal`, `atom_goal_status`, `atom_chat`, `atom_list_tasks`, `atom_task_report`, `atom_needs_you` and `atom_answer_need`. The local API listens on `http://127.0.0.1:4790`. Change the port with `ATOM_API_PORT`. Each request needs the bearer token from `data/api-token`. The token can approve or reject plans and retry tasks; it cannot answer risky-action cards, skill installs or soul changes (those are answered in the ATOM window or on Telegram). Turn the API off when you do not use it. Settings → General has "Regenerate" to replace the token.
 
 ## Architecture
 

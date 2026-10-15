@@ -98,7 +98,7 @@ const TOOLS: ToolDef[] = [
   },
   {
     name: "atom_answer_need",
-    description: "Answer one thing that waits in ATOM (see atom_needs_you). Give its key and one of its actions, such as allow, decline, approve, reject, accept or retry.",
+    description: "Answer one thing that waits in ATOM (see atom_needs_you). Give its key and one of its actions. Only plans (approve, reject) and retries can be answered here; every other card (a risky action, a skill, a soul change) is answered in the ATOM window or on Telegram, and atom_needs_you marks it answerable: false.",
     properties: {
       key: { type: "string", description: "The key from atom_needs_you" },
       action: { type: "string", description: "One of the actions listed for that key" },
