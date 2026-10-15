@@ -181,3 +181,13 @@ test("a request can ask for its own, longer wait", async () => {
   bridge.answer((events[0] as { id: string }).id, true);
   assert.equal(await answer, true);
 });
+
+test("a reason is cut at 140 characters unless the caller asks for more, and never goes past the hard limit", async () => {
+  const { bridge, events } = setup();
+  void bridge.approve({ summary: "s", reason: "r".repeat(300) });
+  void bridge.approve({ summary: "s", reason: "r".repeat(300), reasonMax: 400 });
+  void bridge.approve({ summary: "s", reason: "r".repeat(2000), reasonMax: 5000 });
+  const lengths = events.filter((e) => e.type === "approval.request").map((e) => (e as { reason: string }).reason.length);
+  assert.deepEqual(lengths, [140, 300, 600]);
+  bridge.cancelAll();
+});

@@ -133,8 +133,14 @@ export async function agentModel(input: {
   return { ...(model ? { model } : {}), tier: pick.tier, reason: pick.reason };
 }
 
-/** The soul text Keshab sees on the create_agent approval card. */
-export const SOUL_PREVIEW_CHARS = 400;
+/**
+ * The most soul text (personality and how-it-works together) a created agent may have. The approval card shows all of it:
+ * before (2026-10-16, security review) the card showed the first 140 characters while the soul saved was up to 2,100, so a
+ * hidden instruction could be approved unseen. What Keshab approves is now what is saved.
+ */
+export const SOUL_PREVIEW_CHARS = 320;
+/** The card's reason: the role and kit line plus the whole soul. */
+const CARD_REASON_CHARS = SOUL_PREVIEW_CHARS + 120;
 
 /**
  * ADR-110 (N2): the `create_agent` tool. Keshab approves each new agent on the approval card (2026-10-14); the store
@@ -143,7 +149,7 @@ export const SOUL_PREVIEW_CHARS = 400;
 export function createAgentTool(options: {
   store: Pick<HelperStore, "createAgent">;
   /** ATOM's approval card, the same one risky actions use. No answer is a refusal. */
-  approve(request: { summary: string; reason: string }, signal?: AbortSignal): Promise<boolean>;
+  approve(request: { summary: string; reason: string; reasonMax?: number }, signal?: AbortSignal): Promise<boolean>;
   /** Marks the open sessions to restart (with resume) at their next idle moment with no background work. */
   restartWhenIdle(): void;
   onCreated?(event: { helper: string; kit: Kit }): void;
@@ -154,7 +160,7 @@ export function createAgentTool(options: {
       description:
         "Add a new agent to the user's team when none of your agents fits a task. name: a short first name. role: a few " +
         "words (such as travel planner). kit: research (web), folders (files) or think (no tools). personality: one or two " +
-        "sentences. howItWorks (optional): how it works. The agent is ready from the user's next message.",
+        "sentences. howItWorks (optional): how it works. Together they are at most 320 characters: the user approves only what the card can show. The agent is ready from the user's next message.",
       inputSchema: {
         type: "object" as const,
         properties: {
@@ -177,8 +183,11 @@ export function createAgentTool(options: {
       const howItWorks = typeof input.howItWorks === "string" ? input.howItWorks : undefined;
       if (RESERVED_AGENT_IDS.includes(agentId(name, []))) return `"${name.slice(0, 40)}" is the name of one of Claude Code's own agents. Choose another name.`;
       const soul = [personality, howItWorks].filter(Boolean).join("\n");
+      if (soul.length > SOUL_PREVIEW_CHARS) {
+        return `The personality and how-it-works text are ${soul.length} characters together. The approval card can show ${SOUL_PREVIEW_CHARS}, and Keshab approves only what he can read. Shorten them (one or two sentences each) and ask again.`;
+      }
       const ok = await options.approve(
-        { summary: `Make a new agent: ${name.slice(0, 40)}`, reason: `Role: ${role.slice(0, 60)}. Kit: ${kit}.\n${soul.slice(0, SOUL_PREVIEW_CHARS)}` },
+        { summary: `Make a new agent: ${name.slice(0, 40)}`, reason: `Role: ${role.slice(0, 60)}. Kit: ${kit}.\n${soul}`, reasonMax: CARD_REASON_CHARS },
         signal,
       );
       if (!ok) return "The user did not approve the new agent on the approval card. Nothing was made. Tell the user in one short sentence.";

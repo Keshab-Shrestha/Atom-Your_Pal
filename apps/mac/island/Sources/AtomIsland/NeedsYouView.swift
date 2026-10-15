@@ -110,7 +110,7 @@ struct NeedsYouPane: View {
                 if !who.isEmpty { Text(who).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2)) }
             }
             Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).fixedSize(horizontal: false, vertical: true).lineLimit(3)
-            Text(detail).font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true).lineLimit(4)
+            Text(detail).font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true).lineLimit(8) // 8: an approval can carry a whole soul (create_agent)
             if let tests { tests.padding(.top, 2) }
             HStack(spacing: 8) { actions() }.padding(.top, 4)
         }

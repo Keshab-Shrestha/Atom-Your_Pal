@@ -9,7 +9,7 @@ export interface ComputerBridge {
   attach(send: (event: IslandEvent) => void): void;
   /** Passed to the computer tool as `approve`. Resolves true only if the user answers yes. */
   /** `timeoutMs` overrides the default wait for this one request. */
-  approve(request: { summary: string; reason: string; timeoutMs?: number }, signal?: AbortSignal): Promise<boolean>;
+  approve(request: { summary: string; reason: string; timeoutMs?: number; reasonMax?: number }, signal?: AbortSignal): Promise<boolean>;
   /** Passed to the computer tool as `onPoint`. False if there is no island to show it. */
   point(target: { x: number; y: number; w: number; h: number; label: string }): boolean;
   /** Task 2.x: the island opens its Settings page. False if there is no island. */
@@ -64,6 +64,9 @@ export function stepText(step: { action: string; app?: string }): string {
   }
 }
 
+/** The longest reason a card may carry, whatever a caller asks for. */
+export const MAX_REASON_CHARS = 600;
+
 /** Quiet time after the last step before the island is told the work is over. */
 export const COMPUTER_END_MS = 6000;
 
@@ -111,7 +114,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
           resolve(approved);
         });
         signal?.addEventListener("abort", onAbort, { once: true });
-        const ask = { id, summary: oneLine(request.summary, 140), reason: oneLine(request.reason, 140) };
+        const ask = { id, summary: oneLine(request.summary, 140), reason: oneLine(request.reason, Math.min(Math.max(request.reasonMax ?? 140, 140), MAX_REASON_CHARS)) };
         asks.set(id, ask);
         sendEvent!({ type: "approval.request", ...ask });
         for (const listener of askListeners) listener(ask);
