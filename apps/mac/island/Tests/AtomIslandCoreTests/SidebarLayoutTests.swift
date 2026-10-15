@@ -7,30 +7,30 @@ import Testing
 struct SidebarLayoutTests {
     @Test func startsInTheStandardOrder() {
         let layout = SidebarLayout.standard
-        #expect(layout.top == [.dashboard, .inbox, .issues, .board, .scheduled, .brain])
+        #expect(layout.top == [.dashboard, .board, .scheduled, .brain])
         #expect(layout.bottom == [.plugins, .settings])
     }
 
     @Test func aPageMovesBeforeAnotherInTheSameGroup() {
         var layout = SidebarLayout.standard
-        layout.move(.board, onto: .inbox)
-        #expect(layout.top == [.dashboard, .board, .inbox, .issues, .scheduled, .brain])
+        layout.move(.scheduled, onto: .board)
+        #expect(layout.top == [.dashboard, .scheduled, .board, .brain])
         layout.move(.settings, onto: .plugins)
         #expect(layout.bottom == [.settings, .plugins])
     }
 
     @Test func aPageDraggedDownPassesTheOneBelowIt() {
         var layout = SidebarLayout.standard
-        layout.move(.dashboard, onto: .inbox)
-        #expect(layout.top == [.inbox, .dashboard, .issues, .board, .scheduled, .brain])
+        layout.move(.dashboard, onto: .board)
+        #expect(layout.top == [.board, .dashboard, .scheduled, .brain])
         layout.move(.dashboard, onto: .brain) // down to the last place of the group
         #expect(layout.top.last == .dashboard)
     }
 
     @Test func theMenuMovesAPageOnePlaceInsideItsGroup() {
         var layout = SidebarLayout.standard
-        layout.shift(.issues, by: -1)
-        #expect(layout.top.prefix(3) == [.dashboard, .issues, .inbox])
+        layout.shift(.scheduled, by: -1)
+        #expect(layout.top.prefix(3) == [.dashboard, .scheduled, .board])
         layout.shift(.dashboard, by: -1) // already first: nothing happens
         layout.shift(.settings, by: 1) // already last: nothing happens
         #expect(layout.top.first == .dashboard && layout.bottom == [.plugins, .settings])
@@ -60,8 +60,8 @@ struct SidebarLayoutTests {
 
     @Test func aPageDroppedOnItselfStaysWhereItIs() {
         var layout = SidebarLayout.standard
-        layout.move(.issues, onto: .issues)
-        layout.move(.issues, before: .issues, toBottom: false)
+        layout.move(.scheduled, onto: .scheduled)
+        layout.move(.scheduled, before: .scheduled, toBottom: false)
         #expect(layout == .standard)
     }
 
@@ -74,10 +74,20 @@ struct SidebarLayoutTests {
         #expect(SidebarLayout(storage: "") == .standard)
         #expect(SidebarLayout(storage: "garbage|more,garbage") == .standard)
         // A page named twice keeps its first place; a page left out comes back to its standard group.
-        let odd = SidebarLayout(storage: "inbox,inbox,dashboard|settings")
-        #expect(odd.top.prefix(2) == [.inbox, .dashboard] && odd.bottom.first == .settings)
+        let odd = SidebarLayout(storage: "board,board,dashboard|settings")
+        #expect(odd.top.prefix(2) == [.board, .dashboard] && odd.bottom.first == .settings)
         #expect(Set(odd.top + odd.bottom) == Set(SidebarItem.allCases) && odd.top.count + odd.bottom.count == SidebarItem.allCases.count)
         #expect(odd.bottom.contains(.plugins) && odd.top.contains(.brain))
+    }
+
+    /// 2026-10-15: Needs you and Issues moved into the Board. A layout saved before that still loads, without them.
+    @Test func anOldSavedLayoutThatNamesNeedsYouAndIssuesStillLoads() {
+        let old = SidebarLayout(storage: "dashboard,inbox,issues,board,scheduled,brain|plugins,settings")
+        #expect(old == .standard)
+        let moved = SidebarLayout(storage: "scheduled,inbox,dashboard|issues,settings,plugins")
+        #expect(moved.top.prefix(2) == [.scheduled, .dashboard] && moved.bottom.prefix(2) == [.settings, .plugins])
+        #expect(Set(moved.top + moved.bottom) == Set(SidebarItem.allCases), "every page is still in exactly one group")
+        #expect(!SidebarItem.allCases.map(\.rawValue).contains("inbox") && !SidebarItem.allCases.map(\.rawValue).contains("issues"))
     }
 
     @MainActor @Test func theSettingKeepsTheLayoutAcrossRestarts() {

@@ -1620,6 +1620,16 @@ Next: Keshab builds the app on the Mac, attaches a PDF and an image, switches a 
 
 Next: Keshab uses the window for a week, and names the features he never opens.
 
+## Needs you and Issues move into the Board (2026-10-15)
+
+Keshab: "can we move needs you, issues to board? if we do that we can increase our space for chats and projects". ADR-116.
+
+- Needs you and Issues are Board views (tabs after Overview, Floor and Columns, with counts). The sidebar loses two rows, so Projects and Chats get the room. The sidebar's Board row says "N need you" (or failed or running) and shows a yellow dot (needs you) and a red dot (failed).
+- `BoardView` has `.needsYou` and `.issues`; `WindowPage` lost `.inbox` and `.issues`; `SidebarItem` lost `inbox` and `issues`. Saved sidebar orders and old stored page names still load (tests: `SidebarLayoutTests`, `BoardViewTests`).
+- The tabs adapt: full names when wide, symbols with counts when narrow (`ViewChoice` has `badge` and `compact`).
+- Gallery shot `13-helpers-board-needs-you` and its golden; the other goldens changed with the sidebar.
+- Not tried live: opening Needs you from a notification (nothing navigated there by page before, so nothing needed to change).
+
 ## Design research and system (2026-10-15)
 
 Keshab: research the Open Design `design-systems` and `design-templates`, then improve ATOM's system and design with them. Full notes: `docs/design-research.md`.

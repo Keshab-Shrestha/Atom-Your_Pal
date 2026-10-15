@@ -38,10 +38,6 @@ struct HelpersView: View {
             Group {
                 if model.windowPage == .dashboard {
                     DashboardPane(model: model)
-                } else if model.windowPage == .inbox {
-                    NeedsYouPane(model: model)
-                } else if model.windowPage == .issues {
-                    IssuesPane(model: model)
                 } else if model.windowPage == .scheduled {
                     ScheduledPane(model: model)
                 } else if model.windowPage == .plugins {
@@ -101,8 +97,6 @@ extension HelpersView {
         case .chat:
             let chats = model.chats
             return (chats?.chats.first { $0.id == chats?.current }?.title ?? "New chat", "bubble.left.and.text.bubble.right")
-        case .inbox: return ("Needs you", "tray")
-        case .issues: return ("Issues", "exclamationmark.triangle")
         case .scheduled: return ("Scheduled", "clock")
         case .plugins: return ("Plugins", "puzzlepiece.extension")
         case .brain: return ("Second brain", "brain.head.profile")
@@ -111,7 +105,10 @@ extension HelpersView {
         }
         if model.helpers.isCreatingAgent { return ("New agent", "person.badge.plus") }
         if model.helpers.openJobId != nil { return ("Task", "text.page") }
-        if model.helpers.showsBoard { return (model.boardView == .overview ? "Board · Overview" : "Board", "square.grid.2x2") }
+        if model.helpers.showsBoard {
+            let view = model.boardView == .overview || model.boardView == .needsYou || model.boardView == .issues ? " · " + model.boardView.title : ""
+            return ("Board" + view, "square.grid.2x2")
+        }
         if let helper = model.helpers.selectedHelper {
             return (helper.roleTitle.isEmpty ? helper.name : "\(helper.name) · \(helper.roleTitle)", "person.crop.circle")
         }
@@ -214,19 +211,6 @@ private struct HelperSidebar: View {
             page { model.navigate { model.windowPage = .dashboard } } label: {
                 let today = model.helpers.list?.usage?.today.total ?? 0
                 SidebarRow(symbol: "chart.bar.xaxis", title: "Dashboard", detail: today == 0 ? nil : "\(TokenTotals.short(today)) tokens today", selected: model.windowPage == .dashboard)
-            }
-        case .inbox:
-            // ADR-091: no Chat row: the chats below open the chat (ATOM's state is under its name above).
-            page { model.navigate { model.windowPage = .inbox } } label: {
-                let waiting = (model.helpers.list.map { NeedsYouItem.all(in: $0).count } ?? 0) + (model.approval.pending == nil ? 0 : 1)
-                SidebarRow(symbol: "tray", title: "Needs you", detail: waiting == 0 ? "Nothing waits" : "\(waiting) waiting", selected: model.windowPage == .inbox)
-                    .overlay(alignment: .trailing) { if waiting > 0 { StatusDot(color: theme.attention.color, size: 6).padding(.trailing, 14) } }
-            }
-        case .issues:
-            page { model.navigate { model.windowPage = .issues } } label: {
-                let issues = model.helpers.list.map { TeamIssues.all(in: $0).count } ?? 0
-                SidebarRow(symbol: "exclamationmark.triangle", title: "Issues", detail: issues == 0 ? "None" : "\(issues) failed", selected: model.windowPage == .issues)
-                    .overlay(alignment: .trailing) { if issues > 0 { StatusDot(color: theme.problem.color, size: 6).padding(.trailing, 14) } }
             }
         case .board:
             page { model.navigate { model.windowPage = .agents; model.helpers.selectBoard() } } label: {

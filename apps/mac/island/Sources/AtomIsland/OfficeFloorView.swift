@@ -293,19 +293,30 @@ struct ViewChoice: View {
     let title: String
     let symbol: String
     let selected: Bool
+    /// A count shown after the name ("Needs you · 5"); nothing when 0.
+    var badge = 0
+    /// Only the symbol and the count: for a narrow pane. The name is the help tip and the VoiceOver label.
+    var compact = false
     let action: () -> Void
     @Environment(\.theme) private var theme
 
     var body: some View {
         Button(action: action) {
-            Label(title, systemImage: symbol).font(.system(size: 12, weight: .medium))
+            HStack(spacing: 5) {
+                if compact { Image(systemName: symbol) } else { Label(title, systemImage: symbol) }
+                if badge > 0 { Text(compact ? "\(badge)" : "· \(badge)") }
+            }
+            .lineLimit(1).fixedSize()
+            .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(selected ? theme.text.color : theme.text3.color)
-                .padding(.horizontal, 12).padding(.vertical, 6)
+                .padding(.horizontal, compact ? 9 : 12).padding(.vertical, 6)
                 .background(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous)
                     .strokeBorder(selected ? (theme.isFlat ? theme.border.color : theme.separator.color) : .clear, lineWidth: 1))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .help(title)
+        .accessibilityLabel(badge > 0 ? "\(title), \(badge)" : title)
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 }

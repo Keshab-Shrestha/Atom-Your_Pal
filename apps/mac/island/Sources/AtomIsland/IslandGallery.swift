@@ -172,7 +172,8 @@ enum IslandGallery {
         overviewing.helpers.selectBoard()
         overviewing.boardView = .overview
         let inboxing = model(theme, failed: true)
-        inboxing.windowPage = .inbox
+        inboxing.helpers.selectBoard() // Needs you is a Board view now
+        inboxing.boardView = .needsYou
         let plugging = model(theme)
         plugging.windowPage = .plugins
         let scheduling = model(theme) // ADR-094
@@ -279,6 +280,7 @@ enum IslandGallery {
         paged.windowPage = .settings
         paged.settingsPage = .model
         save(window("Settings page: Back is the top bar's arrow", paged), name: name + "-settings-page", to: directory)
+        save(window("Board: the Needs you tab (it was a sidebar page)", inboxing), name: name + "-board-needs-you", to: directory)
         // ADR-094: the floor with fifty agents: twelve seated, ten in the lounge, "+2 at work" and "+26 more".
         save(OfficeFloor(model: crowded).environment(\.islandSnapshot, true).environment(\.theme, theme.palette).frame(width: 660)
             .padding(16).background(Color.black), name: name + "-floor-crowd", to: directory)

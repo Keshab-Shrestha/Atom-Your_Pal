@@ -1,9 +1,10 @@
 import Foundation
 
 /// The pages in the ATOM window's left sidebar that Keshab can put in any order (2026-10-15). The Chats list and the
-/// Projects section are not here: they stay where they are.
+/// Projects section are not here: they stay where they are. Needs you and Issues moved into the Board (a saved order that
+/// still names them loads: unknown names are dropped).
 public enum SidebarItem: String, CaseIterable, Sendable {
-    case dashboard, inbox, issues, board, scheduled, brain, plugins, settings
+    case dashboard, board, scheduled, brain, plugins, settings
 }
 
 /// Where the sidebar's pages sit: the `top` group above Projects and Chats, and the `bottom` group below them. A page can
@@ -13,14 +14,14 @@ public struct SidebarLayout: Sendable, Equatable {
     public private(set) var bottom: [SidebarItem]
 
     /// The order ATOM starts with.
-    public static let standard = SidebarLayout(top: [.dashboard, .inbox, .issues, .board, .scheduled, .brain], bottom: [.plugins, .settings])
+    public static let standard = SidebarLayout(top: [.dashboard, .board, .scheduled, .brain], bottom: [.plugins, .settings])
 
     /// Any lists: a page named twice keeps its first place, and a page left out goes back to the end of its standard group.
     public init(top: [SidebarItem], bottom: [SidebarItem]) {
         var seen = Set<SidebarItem>()
         let cleanTop = top.filter { seen.insert($0).inserted }
         let cleanBottom = bottom.filter { seen.insert($0).inserted }
-        let standardTop: [SidebarItem] = [.dashboard, .inbox, .issues, .board, .scheduled, .brain]
+        let standardTop: [SidebarItem] = [.dashboard, .board, .scheduled, .brain]
         let missing = SidebarItem.allCases.filter { !seen.contains($0) }
         self.top = cleanTop + missing.filter { standardTop.contains($0) }
         self.bottom = cleanBottom + missing.filter { !standardTop.contains($0) }

@@ -5,6 +5,8 @@ import AtomIslandCore
 /// approve, Tinker's proposals, interrupted tasks, and failed tasks.
 struct NeedsYouPane: View {
     let model: IslandModel
+    /// Inside the Board (the Board's header already names the page): no big title and less room above.
+    var embedded = false
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -12,7 +14,7 @@ struct NeedsYouPane: View {
         Scrollable {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Needs you").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                    if !embedded { Text("Needs you").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color) }
                     Text("What waits for your answer. Nothing here is done without you.").font(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
@@ -34,7 +36,7 @@ struct NeedsYouPane: View {
             .frame(maxWidth: 680, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.panel)
-            .padding(.top, 28)
+            .padding(.top, embedded ? 4 : 28)
             .padding(.bottom, Spacing.panel)
         }
     }
@@ -114,6 +116,8 @@ struct NeedsYouPane: View {
 /// ADR-090: failed tasks with why, how often they were tried, and Retry, Start fresh and Open.
 struct IssuesPane: View {
     let model: IslandModel
+    /// Inside the Board (the Board's header already names the page): no big title and less room above.
+    var embedded = false
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -121,7 +125,7 @@ struct IssuesPane: View {
         Scrollable {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Issues").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                    if !embedded { Text("Issues").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color) }
                     Text("Tasks that failed. A failure a second try may fix is retried once by itself; the rest wait for you.")
                         .font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
                 }
@@ -159,7 +163,7 @@ struct IssuesPane: View {
             .frame(maxWidth: 680, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.panel)
-            .padding(.top, 28)
+            .padding(.top, embedded ? 4 : 28)
             .padding(.bottom, Spacing.panel)
         }
     }

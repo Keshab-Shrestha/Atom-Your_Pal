@@ -2676,3 +2676,23 @@ Adding an MCP server meant a form with a name, a command, arguments one per line
 ### Left out on purpose
 
 Reading `disabled` or other client-only keys, OAuth sign-in for remote servers, and syncing in both directions with Claude Desktop.
+
+## ADR-116 — Needs you and Issues are views of the Board (2026-10-15)
+
+Date: 2026-10-15. Status: **accepted** (Keshab: "can we move needs you, issues to board? if we do that we can increase our space for chats and projects").
+
+### Decision
+
+1. Needs you and Issues are no longer sidebar pages. They are two more views of the Board, after Overview, Floor and Columns. Each tab shows its count. The top bar says "Board · Needs you" or "Board · Issues". The Board view and the window's Back history remember the choice.
+2. The sidebar's Board row speaks for all three. Its line says how many need you (or how many failed, or how many run). A yellow dot means something needs you. A red dot means a task failed. The tip has all three numbers.
+3. The sidebar pages that can be arranged are now Dashboard, Board, Scheduled, Second brain, Plugins and Settings. A saved order that still names Needs you or Issues loads without them.
+4. The old stored page names "inbox" and "issues" open the Board's views of the same names.
+5. The tabs show full names when the pane is wide and symbols with counts when it is narrow.
+
+### Why
+
+Overview moved into the Board the same way. Two rows less in the sidebar gives Projects and Chats room, and what needs the user sits with the tasks it is about.
+
+### Unchanged
+
+The content and rules of both pages (ADR-090, ADR-091, the loading and empty states).

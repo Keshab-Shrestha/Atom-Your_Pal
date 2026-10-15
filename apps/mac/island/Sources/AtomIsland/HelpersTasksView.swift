@@ -12,7 +12,9 @@ struct BoardRow: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let needsYou = model.helpers.list?.board.first { $0.column == .needsYou }?.items.count ?? 0
+        // The row speaks for the Board and for Needs you and Issues, which are Board views now (2026-10-15).
+        let needsYou = (model.helpers.list.map { NeedsYouItem.all(in: $0).count } ?? 0) + (model.approval.pending == nil ? 0 : 1)
+        let failed = model.helpers.list.map { TeamIssues.all(in: $0).count } ?? 0
         let running = model.helpers.list?.board.first { $0.column == .running }?.items.count ?? 0
         HStack(spacing: 11) {
             Image(systemName: "square.grid.2x2").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
@@ -20,12 +22,16 @@ struct BoardRow: View {
                 .overlay { if theme.isFlat { Circle().strokeBorder(theme.border.color, lineWidth: 1) } }
             VStack(alignment: .leading, spacing: 1) {
                 Text("Board").font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
-                Text(needsYou > 0 ? "\(needsYou) need\(needsYou == 1 ? "s" : "") you" : running > 0 ? "\(running) running" : "Every task")
-                    .font(.system(size: 11)).foregroundStyle(needsYou > 0 ? theme.text.color : theme.text3.color)
+                // One short phrase; the two dots say the rest (yellow: needs you, red: failed), and the tip has both.
+                Text(needsYou > 0 ? "\(needsYou) need\(needsYou == 1 ? "s" : "") you"
+                     : failed > 0 ? "\(failed) failed" : running > 0 ? "\(running) running" : "Every task")
+                    .font(.system(size: 11)).foregroundStyle(needsYou > 0 || failed > 0 ? theme.text.color : theme.text3.color)
             }
             Spacer(minLength: 0)
-            if needsYou > 0 { StatusDot(color: theme.problem.color, size: 6) }
+            if needsYou > 0 { StatusDot(color: theme.attention.color, size: 6) }
+            if failed > 0 { StatusDot(color: theme.problem.color, size: 6) }
         }
+        .help("\(needsYou) need you, \(failed) failed, \(running) running")
         .padding(.horizontal, 9)
         .padding(.vertical, 4)
         .background {
@@ -61,12 +67,16 @@ struct BoardPane: View {
                 Text("Every worker's tasks. A task that waits for another starts when that one is done.")
                     .font(.system(size: 12)).foregroundStyle(theme.text2.color)
             }
+            let attention = (model.helpers.list.map { NeedsYouItem.all(in: $0).count } ?? 0) + (model.approval.pending == nil ? 0 : 1)
+            let failed = model.helpers.list.map { TeamIssues.all(in: $0).count } ?? 0
             HStack(spacing: 6) {
-                ViewChoice(title: "Overview", symbol: "gauge.with.dots.needle.33percent", selected: model.boardView == .overview) { model.boardView = .overview }
-                ViewChoice(title: "Floor", symbol: "person.3", selected: model.boardView == .floor) { model.boardView = .floor }
-                ViewChoice(title: "Columns", symbol: "rectangle.split.3x1", selected: model.boardView == .columns) { model.boardView = .columns }
+                // Five views: full names when the pane is wide enough, symbols and counts when it is not.
+                ViewThatFits(in: .horizontal) {
+                    boardTabs(attention: attention, failed: failed, compact: false)
+                    boardTabs(attention: attention, failed: failed, compact: true)
+                }
                 Spacer(minLength: 0)
-                if model.boardView != .overview { BoardLabelMenu(model: model) }
+                if model.boardView == .floor || model.boardView == .columns { BoardLabelMenu(model: model) }
             }
         }
         .padding(.horizontal, Spacing.panel)
@@ -74,6 +84,10 @@ struct BoardPane: View {
         .padding(.bottom, 12)
         if model.boardView == .overview {
             OverviewPane(model: model)
+        } else if model.boardView == .needsYou {
+            NeedsYouPane(model: model, embedded: true)
+        } else if model.boardView == .issues {
+            IssuesPane(model: model, embedded: true)
         } else {
         GeometryReader { viewport in
         Scrollable {
@@ -762,6 +776,19 @@ private struct AllAgentsList: View {
         model.navigate {
             model.showsAllAgents = false
             model.helpers.selectHelper(helper.id)
+        }
+    }
+}
+
+extension BoardPane {
+    /// The Board's switch. Needs you and Issues moved here from the sidebar (2026-10-15); each carries its count.
+    fileprivate func boardTabs(attention: Int, failed: Int, compact: Bool) -> some View {
+        HStack(spacing: 6) {
+            ViewChoice(title: "Overview", symbol: "gauge.with.dots.needle.33percent", selected: model.boardView == .overview, compact: compact) { model.boardView = .overview }
+            ViewChoice(title: "Floor", symbol: "person.3", selected: model.boardView == .floor, compact: compact) { model.boardView = .floor }
+            ViewChoice(title: "Columns", symbol: "rectangle.split.3x1", selected: model.boardView == .columns, compact: compact) { model.boardView = .columns }
+            ViewChoice(title: "Needs you", symbol: "tray", selected: model.boardView == .needsYou, badge: attention, compact: compact) { model.boardView = .needsYou }
+            ViewChoice(title: "Issues", symbol: "exclamationmark.triangle", selected: model.boardView == .issues, badge: failed, compact: compact) { model.boardView = .issues }
         }
     }
 }
