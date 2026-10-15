@@ -26,6 +26,9 @@ export interface AppToolOptions {
   osascript?: Osascript;
 }
 
+/** The most characters a query and a fragment may have in an address `open_url` opens. A search link is far shorter. */
+export const MAX_URL_DATA = 300;
+
 /** Apps that may be opened although ATOM never controls them: opening System Settings shows it, nothing more. */
 const OPEN_ONLY = new Set(["com.apple.systempreferences"]);
 
@@ -120,6 +123,10 @@ export function createAppTools(options: AppToolOptions = {}): Tool[] {
           throw new Error(`"${raw}" is not a web address`);
         }
         if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error("only web pages (http or https) can be opened");
+        // 2026-10-16 (security review): a page, a file or an agent report can tell ATOM to open an address, and the address itself can carry
+        // data out (https://evil.test/?d=<secret>). No login in the address, and no long query or fragment: ask the user to open that one.
+        if (url.username || url.password) throw new Error("an address with a login in it is not opened; ask the user to open it themselves");
+        if (url.search.length + url.hash.length > MAX_URL_DATA) throw new Error(`that address carries ${url.search.length + url.hash.length} characters of data after the page name; ask the user to open it themselves`);
         if (input.same_tab === true && (await openInFrontTab(url, frontApp, osascript))) return `Opened ${url.hostname} in this tab.`;
         await exec("/usr/bin/open", [url.href]);
         return `Opened ${url.hostname}.`;

@@ -153,18 +153,27 @@ export function browserCheck(options: BrowserCheckOptions) {
     return verdict;
   };
 
-  /** Whether a call types into or submits something on the page. */
+  /** Whether a call types into or submits something on the page: asked once for the site, for the rest of the task. */
   const submits = (tool: string, input: Record<string, unknown>): boolean => {
     if (tool === "type" || tool === "fill_form" || tool === "file_upload") return true;
     if (tool === "drop") return input.data !== undefined;
     if (tool === "press_key") return !MOVE_KEYS.test(String(input.key ?? ""));
     if (tool === "handle_dialog") return input.accept === true;
-    if (tool === "click") {
-      const target = String(input.target ?? input.ref ?? "");
-      const line = target ? (snapshot.split("\n").find((l) => l.includes(`[ref=${target}]`)) ?? "") : "";
-      return SUBMIT_WORDS.test(`${String(input.element ?? "")} ${target} ${line}`);
-    }
     return false;
+  };
+
+  /**
+   * A click on a control that sends, buys, deletes or logs in, or null. It is asked about every time and never remembered: one
+   * "allow typing on this site" must not also allow every later "Send", "Pay" or "Delete" (security review, 2026-10-16).
+   * Returns the control's name for the card.
+   */
+  const finalClick = (tool: string, input: Record<string, unknown>): string | null => {
+    if (tool !== "click") return null;
+    const target = String(input.target ?? input.ref ?? "");
+    const line = target ? (snapshot.split("\n").find((l) => l.includes(`[ref=${target}]`)) ?? "") : "";
+    if (!SUBMIT_WORDS.test(`${String(input.element ?? "")} ${target} ${line}`)) return null;
+    const name = (String(input.element ?? "") || line.replace(/\[[^\]]*\]/g, "").replace(/^[\s-]+/, "")).replace(/\s+/g, " ").trim().slice(0, 60);
+    return name || "a button";
   };
 
   const outsideGrants = (paths: unknown) =>
@@ -200,6 +209,17 @@ export function browserCheck(options: BrowserCheckOptions) {
         say("declined", page);
         return { deny: `Keshab did not allow ${page}. Go back or open another site.` };
       }
+      const final = finalClick(tool, input);
+      if (final !== null) {
+        const allowed = await options.approve({
+          summary: `${options.name} wants to click "${final}" on ${page}`,
+          reason: "This may send, buy, delete or log in. Allow this one click.",
+        });
+        if (!allowed) {
+          say("declined", page);
+          return { deny: `Keshab did not allow clicking "${final}" on ${page}. Do the task without it, or say in the report what is needed.` };
+        }
+      }
       if (submits(tool, input) && !(await maySubmit(page))) {
         say("declined", page);
         return { deny: `Keshab did not allow typing or submitting on ${page}. Do the task without it, or say in the report what is needed.` };
@@ -221,11 +241,13 @@ export function browserCheck(options: BrowserCheckOptions) {
   /** A browser tool's result: remembers the page's origin (the last "Page URL") and the last page snapshot. */
   function seen(result: unknown): void {
     const text = textOf(result);
-    const urls = [...text.matchAll(/- Page URL: (\S+)/g)];
-    if (urls.length) {
-      page = originOf(urls.at(-1)![1]!);
-      if (urls.at(-1)![1] !== pageUrl) refs.clear(); // a new page: the old refs are gone
-      pageUrl = urls.at(-1)![1]!;
+    // The page's address is the one in the result's own header ("### Page state"), else the first "Page URL" line. Never the last one:
+    // the page's own text comes after the header, and a page could print "- Page URL: <a site Keshab allowed>" (security review, 2026-10-16).
+    const header = /### Page state\s*\n- Page URL: (\S+)/.exec(text) ?? /- Page URL: (\S+)/.exec(text);
+    if (header) {
+      page = originOf(header[1]!);
+      if (header[1] !== pageUrl) refs.clear(); // a new page: the old refs are gone
+      pageUrl = header[1]!;
     }
     if (text.includes("[ref=")) {
       snapshot = text;

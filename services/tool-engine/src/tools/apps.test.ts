@@ -94,3 +94,14 @@ test("open_url without same_tab never asks the browser", async () => {
   await h.run({ url: SEARCH });
   assert.equal(h.scripts.length, 0);
 });
+
+// 2026-10-16 (security review): open_url needs no approval, so the address itself must not be a way to send data out.
+test("open_url refuses a login in the address and a long query or fragment, but opens ordinary search links", async () => {
+  const h = harness();
+  await assert.rejects(() => Promise.resolve(h.run("open_url", { url: "https://user:pass@example.com/" })), /login in it/);
+  await assert.rejects(() => Promise.resolve(h.run("open_url", { url: `https://evil.test/?d=${"a".repeat(400)}` })), /carries \d+ characters of data/);
+  await assert.rejects(() => Promise.resolve(h.run("open_url", { url: `https://evil.test/#${"b".repeat(400)}` })), /carries \d+ characters/);
+  assert.equal(await h.run("open_url", { url: "https://www.google.com/search?q=pasta+recipes+for+two" }), "Opened www.google.com.");
+  assert.equal(await h.run("open_url", { url: "http://localhost:3000" }), "Opened localhost.", "a local dev server is fine");
+});
+
