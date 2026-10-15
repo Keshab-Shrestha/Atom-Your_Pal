@@ -1,0 +1,93 @@
+/* ATOM design tokens. They mirror ThemePalette in apps/mac/island/Sources/AtomIslandCore/Theme.swift for the two flat
+ * themes, Void and Daylight. A test (DesignTokensTests.swift) fails when a value here differs from the Swift theme, so
+ * change both together. The glass themes (Lantern, Lantern Day, Quiet Native, Luminous, Warm) use blur and are not
+ * described here.
+ *
+ * Names follow the Open Design semantic-token contract (design-systems/_schema): identity tokens (--bg, --fg, --accent,
+ * fonts), then shared tokens (state colours, spacing, radius, elevation, focus, motion), then ATOM extensions.
+ */
+
+:root,
+[data-theme="void"] {
+  /* Identity: surfaces */
+  --bg: #000000;
+  --surface: #000000;          /* Void does not fill cards: a hairline is the card */
+  --surface-2: #16181B;        /* tracks and a selected segment */
+  --surface-3: #222529;
+  --border: #292D30;
+  --border-hover: #6E727A;
+
+  /* Identity: text. Three levels, all at least 4.5:1 on --bg */
+  --fg: #F0F0F0;
+  --fg-2: #A1A4A5;
+  --fg-3: #878B92;
+
+  /* Identity: accent. Void's accent is white; colour appears only as status */
+  --accent: #FFFFFF;
+  --accent-on: #000000;
+
+  /* State colours. Use under 5% of any screen. Each one is also shown by a shape or a word, never by colour alone */
+  --live: #70B8FF;             /* listening, running */
+  --warn: #FFCA16;             /* needs you */
+  --danger: #FF9592;           /* a problem */
+  --success: #3AD389;         /* done, ready */
+  --identifier: #BAA7FF;       /* model names, app names, timings in mono */
+
+  /* Radius: the window, a card in it, a control in a card. Each step is smaller, so corners stay concentric */
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 6px;
+}
+
+[data-theme="daylight"] {
+  --bg: #F6F6F8;
+  --surface: #F6F6F8;
+  --surface-2: #ECEEF3;
+  --surface-3: #E0E3EB;
+  --border: #D8DBE3;
+  --border-hover: #A3A8B6;
+
+  --fg: #3F3F50;
+  --fg-2: #6B6B78;             /* softer than --fg on purpose */
+  --fg-3: #6B6B78;
+
+  --accent: #5B50E6;
+  --accent-on: #FFFFFF;
+
+  --live: #1D5FD1;
+  --warn: #8F5600;
+  --danger: #B42318;
+  --success: #167A53;
+  --identifier: #5B50E6;
+
+  --radius-lg: 20px;
+  --radius-md: 8px;
+  --radius-sm: 6px;
+}
+
+/* Shared by every theme */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Spacing on a 4 px grid */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Elevation: two levels in the flat themes. No drop shadows; a hairline is the edge */
+  --elev-flat: none;
+  --elev-ring: 0 0 0 1px var(--border);
+
+  /* Focus: a 2 px ring in the text colour, 3:1 or more against both the control and the page */
+  --focus-ring: 0 0 0 2px var(--fg);
+
+  /* Motion: two short durations and one curve. With Reduce Motion every move is a plain 150 ms fade */
+  --motion-fast: 150ms;
+  --motion-base: 200ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}

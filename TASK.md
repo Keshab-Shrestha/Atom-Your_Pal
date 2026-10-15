@@ -1620,6 +1620,17 @@ Next: Keshab builds the app on the Mac, attaches a PDF and an image, switches a 
 
 Next: Keshab uses the window for a week, and names the features he never opens.
 
+## Design research and system (2026-10-15)
+
+Keshab: research the Open Design `design-systems` and `design-templates`, then improve ATOM's system and design with them. Full notes: `docs/design-research.md`.
+
+- Read: the README and schema of `design-systems` (151 packages), seven systems (HUD, Agentic, Dashboard, Linear, Raycast, Warp, Claude), five templates (Dashboard, Kanban, Live dashboard, Worker visualizer, Critique), and the `craft` rules (state coverage, anti-AI-slop, animation, accessibility, typography hierarchy, laws of UX, colour).
+- Done: `design/atom-design-system/` (`manifest.json`, `DESIGN.md`, `tokens.css`) for Void and Daylight, in the Open Design package shape. `DesignTokensTests.swift` (3 tests) fails when `tokens.css` differs from `Theme.swift`; proved with a one-digit change.
+- Done: spacing constants on a 4 pt grid (22, 14, 18, 26 became 24, 16, 20, 24). Goldens updated.
+- Done: a fault I caused is fixed. The draggable sidebar rows lost keyboard focus when they stopped being `Button`s. They now take focus, Return and Space press them, and VoiceOver can press them. The drag still works (tested with a real synthetic drag). Not proved by keyboard in the live app.
+- Review (Critique's five dimensions, my own scores): philosophy 8, hierarchy 6, detail 7, functionality 7, innovation 8.
+- Next, in this order, each its own task: (1) Dashboard hierarchy, colour and "updated N s ago"; (2) the five states on each page, with a gallery shot per state; (3) the type scale (11, 12, 13, 15, 18, 26) in place of half-point sizes; (4) a count chip on each Board column.
+
 ## Chat top bar and top space (2026-10-15)
 
 Keshab: "on each chat .. lets not have newchat sounds toggle and delete" and "make sure there is a little gap on top" on the right side.

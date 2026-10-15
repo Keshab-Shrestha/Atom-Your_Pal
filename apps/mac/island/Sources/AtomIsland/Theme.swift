@@ -183,14 +183,16 @@ struct StatusDot: View {
 /// conversation's own, stiller margins.
 enum Spacing {
     /// Between the panel's edge and its content: header, tabs, Settings wells, the composer.
-    static let panel: CGFloat = 22
+    static let panel: CGFloat = 24
     /// Inside a well (rounded group of rows): a row's side padding.
-    static let well: CGFloat = 14
+    static let well: CGFloat = 16
     /// Between wells in Settings.
-    static let wells: CGFloat = 18
+    static let wells: CGFloat = 20
     /// The conversation's side margin and the space between turns.
-    static let conversation: CGFloat = 26
+    static let conversation: CGFloat = 24
     static let turn: CGFloat = 28
+    // 2026-10-15: these sit on a 4 pt grid (they were 22, 14, 18 and 26), as in design/atom-design-system. `composer`
+    // below stays 10: it is tied to the corner radius (the composer's corners are concentric with the panel's).
     /// The composer sits this close to the panel's sides and bottom, with corners concentric to the panel's
     /// (panel radius = composer radius + this gap), so the bottom corners read as one shape.
     static let composer: CGFloat = 10

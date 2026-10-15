@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "od-design-system-project/v1",
+  "id": "atom",
+  "name": "ATOM",
+  "category": "Productivity & SaaS",
+  "description": "ATOM's own system for a Mac assistant window: flat surfaces with hairlines, one accent, status as small dots, monospaced identifiers. Void (dark) and Daylight (light).",
+  "source": {
+    "type": "bundled",
+    "origin": "ATOM repository: apps/mac/island/Sources/AtomIslandCore/Theme.swift"
+  },
+  "files": {
+    "design": "DESIGN.md",
+    "tokens": "tokens.css"
+  }
+}

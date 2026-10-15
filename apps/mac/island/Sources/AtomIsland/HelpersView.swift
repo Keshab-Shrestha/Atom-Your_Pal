@@ -255,9 +255,17 @@ private struct HelperSidebar: View {
         }
     }
 
-    /// A sidebar page as a tap target. Not a `Button`: a button takes the mouse-down and the row could not be dragged.
+    /// A sidebar page as a tap target. Not a `Button`: a button takes the mouse-down and the row could not be dragged. It
+    /// keeps what a button gives: it takes keyboard focus (the system focus ring shows), Return and Space press it, and
+    /// VoiceOver can press it. (Open Design's accessibility baseline: focus must stay visible and keys must work.)
     private func page<Label: View>(_ action: @escaping () -> Void, @ViewBuilder label: () -> Label) -> some View {
-        label().contentShape(Rectangle()).onTapGesture(perform: action)
+        label()
+            .contentShape(Rectangle())
+            .onTapGesture(perform: action)
+            .focusable()
+            .onKeyPress(.return) { action(); return .handled }
+            .onKeyPress(.space) { action(); return .handled }
+            .accessibilityAction(.default, action)
     }
 }
 
