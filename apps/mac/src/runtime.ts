@@ -25,7 +25,6 @@ import {
   type Capability,
   type ScreenShot,
   type TimerInfo,
-  type Timers,
 } from "@atom/tool-engine";
 import { createGateway, createProviderAdapter, createSwitchableModel, listPlanModels, runChatDigest, type ChatSession, type ChatSessions, type PlanUsage } from "@atom/llm-gateway";
 import { createNoteModel, createNotes } from "./notes.ts";
@@ -44,7 +43,6 @@ import {
   episodeContext,
   MEMORY_GUIDANCE,
   memoryContext,
-  type MemoryStore,
 } from "@atom/memory";
 import {
   createScheduleTool,
@@ -52,7 +50,6 @@ import {
   modelForTier,
   isFinal,
   type TestKind,
-  type HelperStore,
   type HelperView,
 } from "@atom/helpers";
 import { createLayaEngine } from "@atom/decision-engine";
@@ -77,7 +74,7 @@ import { createApiServer, type ApiServer } from "./api-server.ts";
 import { SCHEDULER_TICK_MS, scheduleTick } from "./scheduler.ts";
 import { createBrainWiring, type BrainWiring } from "./brain-wiring.ts";
 import { createProposeSkillTool, createSearchChatsTool } from "./reach-tools.ts";
-import { nativeSteering, routeWake, routineStarter, taskStarter, type TaskSteering } from "./native-entry.ts";
+import { nativeSteering, routeWake, routineStarter, taskStarter } from "./native-entry.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { testMcpServer } from "./mcp-servers.ts";
 import { scanAiTools } from "./ai-tools.ts";
@@ -114,8 +111,6 @@ export interface Runtime {
   computer: ComputerBridge;
   /** ADR-054: computer control is on in this run (ATOM_COMPUTER=1); the island's switch shows it. */
   computerOn: boolean;
-  /** What the user asked ATOM to keep (ADR-058). Undefined when ATOM_MEMORY=0 or the store could not open. */
-  memory?: MemoryStore;
   /** The memory as Settings sees it (list, forget, clear, change updates). Undefined when memory is off. */
   islandMemory?: IslandMemory;
   /** The second brain as the window sees it (Memory → Graph). Undefined when memory is off. */
@@ -130,16 +125,12 @@ export interface Runtime {
   islandProjects?: IslandProjects;
   /** ADR-113: files attached to a typed message. Undefined in tests. */
   islandAttachments?: IslandOptions["attachments"];
-  /** Helpers' apps, jobs and reports (ADR-081). Undefined when the store could not open. */
-  helpers?: HelperStore;
   /** The helpers as the ATOM window sees them. Undefined when the store could not open. */
   islandHelpers?: IslandHelpers;
   /** ADR-091: ATOM's task branches, and Keshab's push. Undefined when the helpers store could not open. */
   islandGit?: IslandGit;
   /** Pal dropped on a window (ADR-074): that app's read, held for the next request only. */
   screen: WindowPointer;
-  /** Countdown timers (ADR-061). */
-  timers: Timers;
   /** Called when a timer ends; returns a function that stops listening. */
   onTimer(listener: (timer: TimerInfo) => void): () => void;
   /** "What can I ask?" (ADR-076): the tools that are on, plus web search when the Claude plan is in use. */
@@ -154,7 +145,6 @@ export interface Runtime {
   /** ADR-098: ATOM's Telegram bot. Undefined unless ATOM_TELEGRAM_BOT_TOKEN and ATOM_TELEGRAM_CHAT_ID are both set. */
   telegram?: TelegramBot;
   /** ADR-098 item 3: Keshab's messages to running tasks, and interrupts. Undefined when the helpers store could not open. */
-  steering?: TaskSteering;
   /** ADR-098 item 5: the local HTTP API, off until Settings turns it on. Undefined with ATOM_VOICE_ONLY=1. */
   api?: ApiServer;
   /** ADR-108: writes the notes that wait for a quiet chat. Called when the app quits; may take a few seconds. */
@@ -777,11 +767,11 @@ export function createRuntime(
           },
         }
       : {}),
-    ...(memory ? { memory, islandMemory, islandChats, islandProjects: projects!.island, ...(brainWiring ? { islandBrain: brainWiring.island } : {}) } : {}),
+    ...(memory ? { islandMemory, islandChats, islandProjects: projects!.island, ...(brainWiring ? { islandBrain: brainWiring.island } : {}) } : {}),
     ...(islandGit ? { islandGit } : {}),
     islandSlashCommands: { list: () => listCommands(userCommandsDir()) },
     islandSkillFiles: { read: (name) => readSkillFile(name, userSkillsDir(), skillsDir), write: (name, text) => writeSkillFile(name, text, userSkillsDir(), skillsDir) },
-    ...(helpers ? { helpers, islandHelpers: warmOnOpen(withPaperclip(paperclip, paperclipListeners, {
+    ...(helpers ? { islandHelpers: warmOnOpen(withPaperclip(paperclip, paperclipListeners, {
             ...islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name)))),
             hub: createHubCommands({ store: helpers, log }), // B3.5
             // ADR-110 N5: no legacy runner starts a queued task, so the page's task field and Retry hand it to the main agent.
@@ -809,7 +799,6 @@ export function createRuntime(
             },
           }), decisions) } : {}),
     screen,
-    timers,
     onTimer(listener) {
       timerListeners.add(listener);
       return () => timerListeners.delete(listener);
@@ -827,7 +816,6 @@ export function createRuntime(
     /** ADR-054: computer control is on in this run (ATOM_COMPUTER=1). Reported to the island, whose switch shows it. */
     computerOn,
     ...(telegram ? { telegram } : {}),
-    ...(steering ? { steering } : {}),
     ...(api ? { api } : {}),
     flushNotes: () => episodes?.flush() ?? Promise.resolve(),
     close: () => {

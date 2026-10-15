@@ -230,19 +230,6 @@ export const isRetryable = (error: string | undefined) => Boolean(error && RETRY
 
 /** At most this many tasks one task may wait for (ADR-087). */
 export const MAX_BLOCKERS = 6;
-/**
- * Task 3.10: which roles a worker may hand a sub-task to, by its own role. Code, never a soul. Workers never hand work
- * back up to Pal.
- */
-export const HAND_OFFS: Readonly<Record<string, readonly string[]>> = {
-  researcher: ["financial adviser", "documenter", "hr"],
-  "financial adviser": ["researcher", "documenter"],
-  hr: ["researcher", "documenter"],
-  documenter: ["researcher"],
-};
-/** A task and its sub-tasks: two levels; a sub-task cannot hand off again. */
-export const MAX_LEVELS = 2;
-export const MAX_HAND_OFFS = 3;
 /** Most tasks in one goal Pal hands the team (ADR-082: up to six parts). */
 export const MAX_GOAL_TASKS = 6;
 /** How much of an earlier report's body a later task is given. */
@@ -263,21 +250,4 @@ export function makesCycle(edges: ReadonlyMap<number, readonly number[]>, id: nu
     stack.push(...(edges.get(next) ?? []));
   }
   return false;
-}
-
-/** What a task is given besides its own words (ADR-087): the goal, Keshab's notes and the reports it waited for. */
-export interface TaskContext {
-  goal?: string;
-  /** Task 3.8: the plan Keshab approved. */
-  plan?: string;
-  comments: string[];
-  earlier: { worker: string; task: string; title: string; summary: string; body: string; sources: { title: string; url: string }[] }[];
-}
-
-/** A sub-task's outcome, for the task that handed it off. */
-export interface HandOffOutcome {
-  worker: string;
-  task: string;
-  report?: { title: string; summary: string; body: string };
-  error?: string;
 }

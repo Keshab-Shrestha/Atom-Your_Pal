@@ -1,4 +1,4 @@
-import type { HandOffOutcome, HelperId, JobState, Soul, TaskContext } from "./jobs.ts";
+import type { HelperId, JobState, Soul } from "./jobs.ts";
 import type { Routine, Schedule } from "./routines.ts";
 import type { Proposal, ReviewTarget, SoulField } from "./feedback.ts";
 import type { SkillDraft, SkillDraftState, SkillDraftTarget, SkillEdit, SkillEditState, SkillEditTarget } from "./skill-drafts.ts";
@@ -272,8 +272,6 @@ export interface HelperStore {
   restoreSoul(helper: string, version: number): void;
   /** Whether jobs may use the large model (ADR-083). Default true. */
   allowLarge(): boolean;
-  /** Task 3.10: the sub-tasks a task handed off, with their outcomes. */
-  handOffs(parentId: number): HandOffOutcome[];
   /**
    * Task 3.11: grants a folder to a worker whose role works in folders. Throws HelperError for another role, too many
    * grants, or a folder `checkGrant` refuses (the home folder itself, ~/Library, hidden folders, system folders).
@@ -496,8 +494,6 @@ export interface HelperStore {
   /** Keeps the session a run used, so the next run resumes it. False (nothing saved) for an unknown task. */
   setSession(id: number, sessionId: string): boolean;
   thread(id: number): Thread | undefined;
-  /** What a task is given when it runs: its goal, notes and the reports of the tasks it waited for. */
-  context(id: number): TaskContext;
   /** Stops a queued or running job. False when there is no such job or it has ended. */
   stop(id: number): boolean;
   /** Deletes a job and its report, stopping it first if it has not ended. False when there is none. */

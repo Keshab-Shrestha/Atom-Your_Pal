@@ -1633,6 +1633,7 @@ Four read-only reviewers (runtime/island, helpers/gateway, security, Swift) foun
 - **Folder agents no longer open secrets.** `folderCheck` had no secret check (only the project chat had one). It now refuses `.env` files, keys, `data/api-token` and ATOM's databases (`isSecretLike` knows `data/helpers.db` and `data/memory.db`) for read and write. Test in `folder-run.test.ts`.
 - **Private files.** The data folder is mode 0700. `helpers.db`, `memory.db` (with their WAL files) and the log are 0600 (`private-files.ts`, called at startup).
 - Open from the review: soul `##` truncation, the Swift items (recorder, model reload, dropped commands), the sandbox git config escape, token scopes, and the delete candidates (Keshab decides).
+- **Dead code removed (85 lines).** Checked by search first; each item had no caller outside its definition and its own test. Removed: `HAND_OFFS`, `MAX_LEVELS`, `MAX_HAND_OFFS`, `TaskContext`, `HandOffOutcome`, `store.handOffs()`, `store.context()`, `wantsFiles`, and the `Runtime` fields `memory`, `helpers`, `timers` and `steering` (nothing read them; `config` and `log` stay, `terminal.ts` reads them). Kept on purpose: the `goals` table and `store.goal()` (the Board and the API read them), `reopenGoal`, `core.prepare()` (part of the `Core` interface) and the `spend` table (a schema line; no data is dropped).
 ## Regenerate the Local API token (2026-10-15)
 
 Keshab pasted the token in chat three times and found no way to replace it ("i dont see regenerate option").

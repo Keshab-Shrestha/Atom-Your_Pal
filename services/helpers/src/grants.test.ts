@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkGrant, classifyCommand, folderForTask, openHelperStore, pathProblem, toolPaths, wantsFiles } from "./index.ts";
+import { checkGrant, classifyCommand, folderForTask, openHelperStore, pathProblem, toolPaths } from "./index.ts";
 
 // ADR-082, Task 3.11: folder grants and the checks on every file tool and command.
 
@@ -106,5 +106,4 @@ test("a file worker without a folder is offered the one its task names, inside t
   for (const task of ["Save it to ~/", "Save it in ~/Library/Prefs", "Save to ~/.ssh/x", "Save to /etc/hosts", "a folder named ../../etc", "Write a file"]) {
     assert.equal(folderForTask(task, home), "/Users/me/Documents/ATOM", task);
   }
-  assert.ok(wantsFiles(quill) && wantsFiles("write it to a markdown file") && !wantsFiles("Summarise the news about IPv6"));
 });

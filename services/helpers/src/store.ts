@@ -778,18 +778,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       return true;
     },
 
-    handOffs(parentId) {
-      return (childrenOf.all(parentId) as unknown as JobRow[]).map((row) => {
-        const report = row.state === "done" ? this.report(row.id) : undefined;
-        return {
-          worker: current(row.helper as HelperId).name,
-          task: row.task,
-          ...(report ? { report: { title: report.title, summary: report.summary, body: report.body } } : {}),
-          ...(row.error ? { error: row.error } : {}),
-        };
-      });
-    },
-
     addRoutine(helper, raw, schedule, startAt, notifyTelegram, webhook) {
       const known = availableHelper(helper);
       const id = routines.add(known.id, cleanTask(raw), schedule, anchorFor(schedule, startAt, now()));
@@ -1072,22 +1060,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         })),
         activity: (eventsOf.all(id) as { kind: Activity["kind"]; at: string }[]).map((e) => ({ kind: e.kind, at: new Date(e.at) })),
         ...(report ? { report } : {}),
-      };
-    },
-
-    context(id) {
-      const job = mustGet(id);
-      const row = jobById.get(id) as unknown as JobRow;
-      return {
-        ...(job.goal ? { goal: job.goal } : {}),
-        ...(job.planStatus === "approved" && row.plan ? { plan: row.plan } : {}),
-        comments: (commentsOf.all(id) as { text: string }[]).map((c) => c.text),
-        earlier: job.blockedBy.flatMap((b) => {
-          const blocker = get(b);
-          const report = this.report(b);
-          if (!blocker || !report) return [];
-          return [{ worker: current(blocker.helper).name, task: blocker.task, title: report.title, summary: report.summary, body: report.body, sources: report.sources }];
-        }),
       };
     },
 

@@ -29,10 +29,6 @@ test("a task waiting for another is not runnable until that one is done, then ge
   store.start(costs.id);
   store.finish(costs.id, report("Costs"));
   assert.deepEqual(store.queued().map((j) => j.id), [guide.id]);
-
-  const context = store.context(guide.id);
-  assert.equal(context.goal, "A home networking guide");
-  assert.deepEqual(context.earlier.map((r) => [r.worker, r.title]), [["Sid", "Networking"], ["Penny", "Costs"]]);
 });
 
 test("two claims on one task give one run", () => {
@@ -97,7 +93,6 @@ test("the thread keeps Keshab's notes, what happened, and the report; notes go t
   assert.deepEqual(thread.comments.map((c) => c.text), ["Focus on home routers."]);
   assert.deepEqual(thread.activity.map((a) => a.kind), ["created", "commented", "running", "done"]);
   assert.equal(thread.report?.title, "IPv6");
-  assert.deepEqual(store.context(id).comments, ["Focus on home routers."]);
   assert.equal(store.thread(999), undefined);
   store.remove(id);
   assert.equal(store.thread(id), undefined);

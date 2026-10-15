@@ -54,10 +54,6 @@ export function checkGrant(path: string, home: string): string {
 }
 
 /** Words in a task that mean files are to be saved, so a file worker without a folder asks for one. */
-const SAVES_FILES = /\b(save|saved|saving|file|files|folder|directory|pdf|docx?|markdown|\.md|\.txt|write (it |this )?(to|into)|create (a |the )?(document|file|folder|doc))\b/i;
-
-export const wantsFiles = (task: string) => SAVES_FILES.test(task);
-
 /**
  * ADR-090: the folder to offer a file worker that has none: a path the task names inside the home folder ("~/Notes",
  * "/Users/me/Notes"), a folder it names ("a folder named ZenoDoc", in Documents or on the Desktop if it says so,
