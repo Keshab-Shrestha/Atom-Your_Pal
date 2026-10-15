@@ -43,6 +43,7 @@ public final class RuntimeSupervisor: @unchecked Sendable {
     private var exitCode: Int32?
     private var stdoutClosed = false
     private var pending: [DispatchWorkItem] = [] // restart and stop-escalation timers
+    private var quitting = false
 
     public init(
         launch: RuntimeLaunch,
@@ -81,7 +82,8 @@ public final class RuntimeSupervisor: @unchecked Sendable {
         stop { [self] in
             queue.async { [self] in
                 launch.environment.merge(environment) { _, new in new }
-                guard process == nil else { return }
+                // The app is quitting: a restart that was under way must not start a runtime nobody will stop (code review, 2026-10-16).
+                guard !quitting, process == nil else { return }
                 cancelPending()
                 policy.reset()
                 spawn()
@@ -111,16 +113,22 @@ public final class RuntimeSupervisor: @unchecked Sendable {
 
     /// Asks the runtime to quit, escalating to SIGTERM and then SIGKILL if it does not.
     /// `completion` runs on `queue` once it has exited (at once if it is not running).
-    public func stop(completion: @escaping @Sendable () -> Void = {}) {
+    /// `forQuit`: the app is quitting. Any restart under way then ends without starting a new runtime.
+    public func stop(forQuit: Bool = false, completion: @escaping @Sendable () -> Void = {}) {
         queue.async { [self] in
-            cancelPending()
+            if forQuit { quitting = true }
             guard let process else {
+                cancelPending()
                 setStatus(.stopped)
                 completion()
                 return
             }
             stopCompletions.append(completion)
+            // A second stop (the user quits while a Computer-control restart is stopping the runtime) only waits for the first. It must not
+            // cancel the first one's SIGTERM and SIGKILL timers: with a runtime that ignores quit, nothing would then ever stop it, and
+            // the app would hang on quit (code review, 2026-10-16).
             if stopping { return }
+            cancelPending()
             stopping = true
             let pid = process.processIdentifier
             if let input {

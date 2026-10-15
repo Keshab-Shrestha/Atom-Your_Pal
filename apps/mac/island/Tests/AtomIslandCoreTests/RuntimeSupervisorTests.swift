@@ -190,6 +190,42 @@ struct RuntimeSupervisorTests {
         }
     }
 
+    /// 2026-10-16 (code review): a second stop() cancelled the SIGTERM and SIGKILL timers the first one had scheduled and scheduled none.
+    /// Quitting ATOM during a Computer-control restart (two stops) with a runtime that ignores quit hung forever.
+    @Test func aSecondStopDoesNotCancelTheFirstOnesKillTimers() async throws {
+        let script = """
+        trap '' PIPE
+        echo '\(Self.ready)'
+        while true; do sleep 0.05; done
+        """
+        let (supervisor, recorder) = make(script, stopTimeout: 0.3)
+        supervisor.start()
+        try await waitUntil { !recorder.events.isEmpty }
+        let started = Date()
+        async let first: Void = stop(supervisor)
+        try await Task.sleep(for: .milliseconds(100)) // the first stop is waiting out its timeout
+        async let second: Void = stop(supervisor) // the quit
+        _ = await (first, second)
+        #expect(Date().timeIntervalSince(started) < 3, "both stops finished: the runtime was signalled")
+        #expect(supervisor.currentStatus() == .stopped)
+    }
+
+    /// 2026-10-16 (code review): a Computer-control restart in flight and a quit: the restart started a new runtime after the app had decided to exit.
+    @Test func aRestartUnderWayDoesNotStartARuntimeWhenTheAppIsQuitting() async throws {
+        let script = """
+        echo '\(Self.ready)'
+        while IFS= read -r line; do case "$line" in *quit*) exit 0 ;; esac; done
+        """
+        let (supervisor, recorder) = make(script)
+        supervisor.start()
+        try await waitUntil { recorder.pids.count == 1 }
+        supervisor.restart(environment: ["ATOM_COMPUTER": "1"])
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in supervisor.stop(forQuit: true) { done.resume() } }
+        try await Task.sleep(for: .milliseconds(400)) // time enough for a wrong restart to spawn
+        #expect(recorder.pids.count == 1, "no second runtime was started")
+        #expect(supervisor.currentStatus() == .stopped)
+    }
+
     @Test func commandsWhileStoppedAreDropped() async throws {
         let (supervisor, _) = make("exec cat > /dev/null")
         supervisor.send(.talkStart) // nothing running: must not crash

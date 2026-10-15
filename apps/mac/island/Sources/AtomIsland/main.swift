@@ -98,7 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // Let the runtime release the microphone and stop speaking before the app goes away.
         let log = self.log
-        supervisor.stop {
+        supervisor.stop(forQuit: true) {
             log.info("island.quit")
             log.flush()
             onMain { NSApp.reply(toApplicationShouldTerminate: true) }
