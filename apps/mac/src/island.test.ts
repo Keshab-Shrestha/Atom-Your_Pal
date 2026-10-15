@@ -1814,3 +1814,102 @@ test("a result posted into the open chat re-sends chat.opened; a chat that is no
   });
   assert.deepEqual(resumed, [], "the runtime already gave the Core the turn");
 });
+
+// 2026-10-15 (code review): chat.open called core.resume() right after loop.cancel(), while the Core was still busy with the aborted
+// request. resume() throws then; nothing caught it, and the crash handler ended the app. Switching chats during an answer closed ATOM.
+test("chat.open during an answer waits for the Core to finish, then opens the chat; the app keeps running", async () => {
+  const saved = new Map([["chat-a", [{ role: "user" as const, content: "Plan my trip" }, { role: "assistant" as const, content: "Where to?" }]]]);
+  let busy = true;
+  let session = "chat-now";
+  const h = islandHarness({
+    core: {
+      handle: async () => ({ text: "x" }),
+      reset: () => void (session = "r"),
+      resume: (id) => {
+        if (busy) throw new Error("Still answering the previous request");
+        session = id;
+      },
+      get busy() {
+        return busy;
+      },
+      get sessionId() {
+        return session;
+      },
+    },
+    chats: { list: () => [], messages: (id) => saved.get(id) ?? [], remove: () => true, onChange: () => () => {} },
+  });
+  await tick(3);
+  h.clear();
+  await h.send({ type: "chat.open", id: "chat-a" });
+  assert.ok(!h.events().some((e) => e.type === "chat.opened"), "not yet: the Core still unwinds the aborted request");
+  busy = false;
+  await new Promise((r) => setTimeout(r, 60));
+  assert.ok(h.events().some((e) => e.type === "chat.opened"), "opened once the Core was idle");
+  assert.equal(session, "chat-a");
+  assert.ok(!h.events().some((e) => e.type === "error"), "no error");
+});
+
+test("a command that throws is reported as an error event and does not end the app", async () => {
+  const h = islandHarness({
+    core: {
+      handle: async () => ({ text: "x" }),
+      reset: () => {
+        throw new Error("database is locked");
+      },
+      resume: () => {},
+      get sessionId() {
+        return "s";
+      },
+    },
+    chats: { list: () => [], messages: () => [], remove: () => true, onChange: () => () => {} },
+  });
+  await tick(3);
+  h.clear();
+  await h.send({ type: "chat.delete", id: "s" });
+  const error = h.events().find((e) => e.type === "error") as { stage: string; message: string } | undefined;
+  assert.ok(error, "an error event");
+  assert.equal(error!.stage, "protocol");
+  assert.match(error!.message, /chat\.delete.*database is locked/);
+  await h.send({ type: "chats.list" });
+  assert.ok(h.events().some((e) => e.type === "chats"), "still answering commands");
+});
+
+test("a failing helpers list is logged and does not end the app; the next update still goes out", async () => {
+  let fail = true;
+  const logs: string[] = [];
+  const h = islandHarness({
+    helpers: {
+      apps: async () => [],
+      list: () => {
+        if (fail) throw new Error("db locked");
+        return [];
+      },
+      agentProblems: () => [],
+      allowLarge: () => false,
+      models: () => [],
+      skills: () => [],
+      skillDrafts: () => [],
+      skillEdits: () => [],
+      testCases: () => [],
+      mcp: () => [],
+      onChange: () => () => {},
+    } as never,
+  });
+  await tick(3);
+  const rejections: unknown[] = [];
+  const onRejection = (e: unknown) => rejections.push(e);
+  process.on("unhandledRejection", onRejection);
+  try {
+    await h.send({ type: "helpers.list" });
+    await tick(5);
+    assert.equal(rejections.length, 0, "no unhandled rejection");
+    fail = false;
+    h.clear();
+    await h.send({ type: "helpers.list" });
+    await tick(5);
+    assert.ok(h.events().some((e) => e.type === "helpers"), "the next update went out");
+  } finally {
+    process.off("unhandledRejection", onRejection);
+    void logs;
+  }
+});

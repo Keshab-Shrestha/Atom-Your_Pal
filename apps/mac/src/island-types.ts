@@ -22,7 +22,7 @@ export interface IslandOptions {
   record: VoiceLoopOptions["record"];
   stt: SpeechToText;
   /** ADR-091: a Core that can resume a saved chat names its session (the chat voice and typing go to). */
-  core: CoreLike & { reset(): void; resume?(id: string, turns: readonly Message[]): void; readonly sessionId?: string };
+  core: CoreLike & { reset(): void; resume?(id: string, turns: readonly Message[]): void; readonly sessionId?: string; readonly busy?: boolean };
   tts: TextToSpeech;
   /** Reported in the `ready` event. ADR-098: `telegram` is true when ATOM's Telegram bot is set up in .env. */
   info: { provider: string; model: string; microphone: string; telegram?: boolean; computer?: boolean };

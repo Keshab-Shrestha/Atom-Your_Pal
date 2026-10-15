@@ -429,6 +429,9 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     get sessionId() {
       return sessionId;
     },
+    get busy() {
+      return busy;
+    },
 
     async handle(input, signal, hooks): Promise<ZenoResponse> {
       const text = input.text.trim();

@@ -14,6 +14,8 @@ export interface HandleHooks {
 
 export interface Core {
   readonly sessionId: string;
+  /** True while a request is being answered. A Core that does not say is treated as idle. */
+  readonly busy?: boolean;
   /**
    * Receives one input, establishes context, routes it and returns the response.
    * Aborting `signal` cancels the request; a cancelled exchange is not added to history.

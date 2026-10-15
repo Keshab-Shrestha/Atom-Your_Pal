@@ -96,6 +96,32 @@ export function runIsland(options: IslandOptions): IslandSession {
     }),
   });
 
+  /** How long a command waits for the Core to finish an aborted request, and how often it looks. */
+  const IDLE_WAIT_MS = 2000;
+  const IDLE_POLL_MS = 20;
+
+  /** Runs `work` now when the Core is idle, else as soon as it is (at most IDLE_WAIT_MS). Never throws: a failure is reported. */
+  function whenCoreIdle(work: () => void, what: string) {
+    const attempt = (waited: number) => {
+      if (core.busy && waited < IDLE_WAIT_MS) {
+        setTimeout(() => attempt(waited + IDLE_POLL_MS), IDLE_POLL_MS).unref?.();
+        return;
+      }
+      try {
+        work();
+      } catch (error) {
+        commandFailed(what, error);
+      }
+    };
+    attempt(0);
+  }
+
+  /** A command failed: log its name (never its text) and tell the island, instead of letting the error end the app. */
+  function commandFailed(what: string, error: unknown) {
+    options.log?.warn("island.command_failed", { command: what, message: describe(error).slice(0, 200) });
+    send({ type: "error", stage: "protocol", message: `That did not work (${what}): ${describe(error)}` });
+  }
+
   function handle(command: IslandCommand) {
     switch (command.type) {
       case "talk.start":
@@ -202,10 +228,14 @@ export function runIsland(options: IslandOptions): IslandSession {
         options.computer?.cancelAll();
         loop.cancel();
         options.screen?.clear();
-        const replay = chats.replay?.(command.id, turns) ?? { turns, trimmed: false }; // ADR-107: a long project chat is replayed capped
-        core.resume(command.id, replay.turns);
-        sendOpened(command.id, turns, replay.trimmed);
-        sendChats();
+        // 2026-10-15: cancel() only aborts; the Core stays busy until the aborted request unwinds, and resume() throws while busy.
+        // That throw was uncaught and ended the app whenever a chat was opened during an answer. Wait for the Core, then resume.
+        whenCoreIdle(() => {
+          const replay = chats.replay?.(command.id, turns) ?? { turns, trimmed: false }; // ADR-107: a long project chat is replayed capped
+          core.resume!(command.id, replay.turns);
+          sendOpened(command.id, turns, replay.trimmed);
+          sendChats();
+        }, "chat.open");
         return;
       }
       case "chat.delete": {
@@ -593,6 +623,10 @@ export function runIsland(options: IslandOptions): IslandSession {
       const helpers = options.helpers;
       const agentProblems = helpers?.agentProblems() ?? [];
       send({ type: "helpers", helpers: helpers?.list() ?? [], apps, ...(helpers ? { allowLarge: helpers.allowLarge(), models: helpers.models(), skills: helpers.skills(), skillDrafts: helpers.skillDrafts(), skillEdits: helpers.skillEdits(), ...(helpers.hub?.payload() ? { skillHub: helpers.hub.payload() } : {}), testCases: helpers.testCases(), mcp: helpers.mcp(), ...(helpers.usage ? { usage: helpers.usage() } : {}), ...(helpers.paperclip ? { paperclip: helpers.paperclip() } : {}), ...(helpers.plans?.().length ? { plans: helpers.plans() } : {}) } : {}), ...(agentProblems.length ? { agentProblems } : {}), });
+    }).catch((error: unknown) => {
+      // 2026-10-15: an error here was an unhandled rejection, which ends the app; the flag must also clear or no update ever goes out.
+      helpersQueued = false;
+      options.log?.warn("helpers.send_failed", { message: describe(error).slice(0, 200) });
     });
   }
   function appNames(): Promise<string[]> {
@@ -792,7 +826,12 @@ export function runIsland(options: IslandOptions): IslandSession {
       send({ type: "error", stage: "protocol", message: parsed.error });
       return;
     }
-    handle(parsed.command);
+    // 2026-10-15: an error here reached the app's crash handler and ended ATOM; one failed command must not.
+    try {
+      handle(parsed.command);
+    } catch (error) {
+      commandFailed(parsed.command.type, error);
+    }
   });
   // The island closing our stdin means it has gone away: leave too.
   lines.on("close", () => quit());
