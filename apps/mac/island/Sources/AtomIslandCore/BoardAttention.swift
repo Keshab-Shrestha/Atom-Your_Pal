@@ -19,7 +19,8 @@ public struct BoardAttention: Sendable, Equatable {
     /// `approvalPending`: ATOM itself asks for a go-ahead (a command to run, a click to make).
     public init(list: HelpersList?, approvalPending: Bool) {
         self.init(
-            asks: (list.map { NeedsYouItem.all(in: $0).count } ?? 0) + (approvalPending ? 1 : 0),
+            // Failed tasks are the `failed` count: counting them here too showed one failure as "1 ask · 1 failed" and a badge of 2 (review, 2026-10-16).
+            asks: (list.map { NeedsYouItem.all(in: $0).filter { $0.kind != .failed }.count } ?? 0) + (approvalPending ? 1 : 0),
             failed: list.map { TeamIssues.all(in: $0).count } ?? 0,
             running: list?.board.first { $0.column == .running }?.items.count ?? 0)
     }

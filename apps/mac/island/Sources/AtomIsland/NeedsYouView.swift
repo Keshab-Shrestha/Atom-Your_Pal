@@ -10,7 +10,8 @@ struct NeedsYouPane: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let items = model.helpers.list.map(NeedsYouItem.all(in:)) ?? []
+        // Failed tasks have their own section below ("Failed"); listing them here too showed each one twice.
+        let items = (model.helpers.list.map(NeedsYouItem.all(in:)) ?? []).filter { $0.kind != .failed }
         // Failed tasks wait for Keshab too (ADR-116): they sit under the things to answer.
         let failed = model.helpers.list.map(TeamIssues.all(in:)) ?? []
         Scrollable {

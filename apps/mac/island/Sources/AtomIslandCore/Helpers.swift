@@ -866,7 +866,17 @@ public struct HelpersState: Sendable, Equatable {
         isCreatingAgent = false
         isCreatingManager = false
         selectedManagerId = nil
-        guard list?.helpers.contains(where: { $0.id == id }) == true, id != selectedHelperId else { return }
+        guard list?.helpers.contains(where: { $0.id == id }) == true else { return }
+        if id == selectedHelperId {
+            // The agent is already the selected one but may be hidden behind the Board: opening it must leave the Board (code review, 2026-10-16).
+            // Anything else (a soul being edited, a task open) stays as it is.
+            if showsBoard {
+                showsBoard = false
+                closeReport()
+                isSoulOpen = false
+            }
+            return
+        }
         selectedHelperId = id
         showsBoard = false
         closeReport()

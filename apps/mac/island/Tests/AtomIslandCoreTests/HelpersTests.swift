@@ -112,6 +112,21 @@ struct HelpersStateTests {
         #expect(state.addJob("x") == nil)
     }
 
+    /// 2026-10-16 (code review): with the Board open and the default agent already selected (but hidden), clicking that agent did nothing,
+    /// because selecting the agent that is already selected returned early and never left the Board.
+    @Test func clickingTheAlreadySelectedHelperLeavesTheBoard() throws {
+        var state = HelpersState()
+        state.apply(try list())
+        #expect(state.selectedHelperId == "sid")
+        state.selectBoard()
+        #expect(state.showsBoard)
+        state.selectHelper("sid")
+        #expect(!state.showsBoard, "the agent's page opens")
+        #expect(state.selectedHelperId == "sid")
+        state.selectHelper("sid") // again, on its own page: nothing changes
+        #expect(!state.showsBoard && state.selectedHelperId == "sid")
+    }
+
     @Test func appPickerSendsHelperSet() throws {
         var state = try loaded()
         #expect(state.setApp("Brave Browser") == nil) // already set

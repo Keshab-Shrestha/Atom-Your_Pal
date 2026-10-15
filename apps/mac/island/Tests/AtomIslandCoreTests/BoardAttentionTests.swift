@@ -34,4 +34,19 @@ struct BoardAttentionTests {
         #expect(BoardAttention(list: nil, approvalPending: false) == BoardAttention())
         #expect(BoardAttention(list: nil, approvalPending: true).asks == 1, "ATOM's own ask counts")
     }
+
+    /// 2026-10-16 (code review): a failed task was counted twice (as an ask and as a failure), so one failure showed "1 ask · 1 failed" and a badge of 2.
+    @Test func aFailedTaskIsCountedOnceNotAsAnAskToo() throws {
+        let line = #"{"type":"helpers","apps":[],"helpers":[{"id":"sid","name":"Sid","role":"researcher","available":true,"soul":{"name":"Sid","personality":"p","howItWorks":"h","rules":"r","lessons":""},"jobs":[{"id":4,"task":"find kits","state":"failed","error":"It could not run.","createdAt":"2026-10-16T01:00:00.000Z"}]}]}"#
+        var state = HelpersState()
+        state.apply(try decodeEvent(line))
+        let list = try #require(state.list)
+        #expect(NeedsYouItem.all(in: list).contains { $0.kind == .failed }, "notifications still see it")
+        let attention = BoardAttention(list: list, approvalPending: false)
+        #expect(attention.asks == 0, "it is not something to answer")
+        #expect(attention.failed == 1)
+        #expect(attention.total == 1, "one failure, one on the badge")
+        #expect(attention.rowText == "1 failed")
+    }
 }
+
