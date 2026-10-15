@@ -105,4 +105,12 @@ struct PostedResultTests {
         #expect(c.turns.map(\.reply) == ["On it.", "Kame finished: storage", "Welcome."])
         #expect(Set(c.turns.map(\.id)).count == 3)
     }
+
+    /// 2026-10-15: a window opened before the runtime was ready had its first chat-list ask dropped, and the list
+    /// stayed empty until a model change sent it. When the runtime becomes ready, an open window asks again.
+    @Test func anOpenWindowAsksForChatsWhenTheRuntimeIsReady() {
+        #expect(ChatList.shouldAskAfterReady(listKnown: false, windowOpen: true), "the first ask was dropped")
+        #expect(ChatList.shouldAskAfterReady(listKnown: true, windowOpen: false), "a restarted runtime")
+        #expect(!ChatList.shouldAskAfterReady(listKnown: false, windowOpen: false), "no window, nothing to show")
+    }
 }

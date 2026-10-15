@@ -354,7 +354,8 @@ final class IslandModel {
             if brain.opened { send(.brainGet) }
             send(.helpersList) // Task 3.15: busy workers show on the island too, so the list is always kept
             sendSpeech() // ADR-091
-            if chats != nil { send(.chatsList) } // a restarted runtime: ask again
+            // A restarted runtime, or a window opened before the runtime was ready (its first ask was dropped): ask again.
+            if ChatList.shouldAskAfterReady(listKnown: chats != nil, windowOpen: helpersWindowOpen) { send(.chatsList) }
         case .info(let info):
             modelInfo = info
             syncChatModelName()

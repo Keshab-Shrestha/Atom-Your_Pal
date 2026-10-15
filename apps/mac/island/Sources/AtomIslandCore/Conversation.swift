@@ -136,6 +136,11 @@ public struct ChatInfo: Sendable, Equatable, Identifiable {
 
 /// ADR-091: the chats, newest first, and the one ATOM is in now (voice and typing go to it).
 public struct ChatList: Sendable, Equatable {
+    /// When the runtime says it is ready: ask for the chats again if the list was loaded before (a restarted runtime)
+    /// or if the ATOM window is open. A window opened before the runtime was ready had its first ask dropped, so the
+    /// list would stay empty until some other change sent it (2026-10-15).
+    public static func shouldAskAfterReady(listKnown: Bool, windowOpen: Bool) -> Bool { listKnown || windowOpen }
+
     public var chats: [ChatInfo]
     public var current: String
     /// ADR-097: the current chat's own model; nil when it uses the default.
