@@ -121,3 +121,22 @@ test("saving by id renames a note, keeps its links in, refuses a title another n
   assert.equal(brain.count(), 2);
   void b;
 });
+
+// 2026-10-16 (review): renaming a mirrored note to a title that a ghost already holds broke the unique-title rule inside the sync transaction;
+// the whole sync rolled back on every run and the mirror stayed stuck.
+test("a mirrored note renamed to a title a ghost holds gets its own title instead of failing the sync", () => {
+  const brain = open();
+  brain.save({ title: "Plans", body: "See [[Project Foo]]" }); // makes the ghost "Project Foo"
+  assert.deepEqual(brain.sync([{ ref: "memory:1", kind: "memory", title: "Project Bar", body: "bar" }], ["memory:"]), { added: 1, updated: 0, removed: 0 });
+  // The project is renamed: the same ref now carries the title the ghost has.
+  const result = brain.sync([{ ref: "memory:1", kind: "memory", title: "Project Foo", body: "bar renamed" }], ["memory:"]);
+  assert.deepEqual(result, { added: 0, updated: 1, removed: 0 }, "the sync went through");
+  assert.equal(brain.sync([{ ref: "memory:1", kind: "memory", title: "Project Foo", body: "bar renamed" }], ["memory:"]).updated, 0, "and it is stable");
+});
+
+test("a ghost still becomes a new mirrored note with its title, and the links to it stay", () => {
+  const brain = open();
+  const plans = brain.save({ title: "Plans", body: "See [[Project Foo]]" });
+  assert.deepEqual(brain.sync([{ ref: "memory:2", kind: "memory", title: "Project Foo", body: "now written" }], ["memory:"]), { added: 1, updated: 0, removed: 0 });
+  assert.deepEqual(brain.links(plans.id).map((l) => [l.title, l.ghost]), [["Project Foo", false]]);
+});

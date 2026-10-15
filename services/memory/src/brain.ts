@@ -387,7 +387,9 @@ export function openBrain(db: DatabaseSync, now: () => Date): Brain {
         let title = cleanTitle(item.title).slice(0, MAX_TITLE_CHARS - 4);
         for (let n = 2; ; n++) {
           const clash = byTitleQ.get(title) as Row | undefined;
-          if ((!clash || clash.id === existing?.id || clash.ghost === 1) && !taken.has(title.toLowerCase())) break;
+          // A ghost's title is free only for a NEW note, which takes the ghost's place (below). A note that already exists keeps its own row,
+          // so it must not take a title the ghost holds: that broke the unique-title rule and rolled back the whole sync (review, 2026-10-16).
+          if ((!clash || clash.id === existing?.id || (clash.ghost === 1 && !existing)) && !taken.has(title.toLowerCase())) break;
           title = `${cleanTitle(item.title).slice(0, MAX_TITLE_CHARS - 6)} (${n})`;
         }
         taken.add(title.toLowerCase());
