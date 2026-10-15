@@ -30,6 +30,7 @@ import {
 import { createGateway, createProviderAdapter, createSwitchableModel, listPlanModels, runChatDigest, type ChatSession, type ChatSessions, type PlanUsage } from "@atom/llm-gateway";
 import { createNoteModel, createNotes } from "./notes.ts";
 import { createChatUsageRecorder, createOverheadRecorder } from "./usage-report.ts";
+import { makePrivate } from "./private-files.ts";
 import { createNativeCore, type NativeCore } from "./native-core.ts";
 import { createTinkerRun } from "./tinker.ts";
 import { startTinkerRunner, TINKER_TIME_LIMIT_MS, type TinkerRunner } from "./tinker-runner.ts";
@@ -319,6 +320,13 @@ export function createRuntime(
   // ADR-113: files attached to a chat are copied here (data/attachments/<chat>); none in tests.
   const attachments = helpersPath === ":memory:" ? undefined : createAttachments({ dir: join(dirname(resolve(helpersPath)), "attachments"), log: { info: (event, fields) => log.info(event, fields as LogFields) } });
   const helpers = openHelpers(helpersPath, log, helpersPath === ":memory:" ? undefined : agentsDir, skillsDir, checkpointsDir);
+  // 2026-10-15: the databases hold MCP secrets and every chat; keep them (and the log) owner-only.
+  {
+    const memoryFile = resolve(options.memoryPath ?? readEnv(process.env, "ATOM_MEMORY_FILE") ?? "data/memory.db");
+    const databases = [helpersPath, memoryFile].filter((p) => p !== ":memory:").map((p) => resolve(p));
+    const failed = makePrivate({ dirs: [...databases.map((d) => dirname(d)), dirname(resolve(config.log.file))], databases, files: [resolve(config.log.file)] });
+    if (failed.length) log.warn("files.not_private", { count: failed.length });
+  }
   // ADR-107: projects (a named folder and its chats); the chat code above reads this lazily.
   const projects = memory ? createProjects({ memory, ...(helpers ? { helpers } : {}), log, checkModel: (provider, model) => settings.check(provider, model) }) : undefined;
   // ADR-091: ATOM's task branches in the repositories Keshab granted; pushing one is his alone, asked from the window.
