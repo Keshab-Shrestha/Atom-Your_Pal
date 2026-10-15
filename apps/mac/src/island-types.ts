@@ -38,6 +38,8 @@ export interface IslandOptions {
   memory?: IslandMemory;
   /** The second brain (Memory → Graph). */
   brain?: IslandBrain;
+  /** The "/" picker: Keshab's Claude commands, read from ~/.claude/commands (ADR-117). */
+  slashCommands?: { list(): { name: string; description: string; hint: string }[] };
   /** Plugins → Skills: open a skill's SKILL.md and save Keshab's edit. `write` throws with words for the user. */
   skillFiles?: {
     read(name: string): { name: string; source: "yours" | "zeno"; text: string } | undefined;

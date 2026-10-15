@@ -38,6 +38,8 @@ final class IslandModel {
     var chats: ChatList?
     /// The skill open in Plugins → Skills (its whole SKILL.md), the last answer to `skillGet` or `skillSave`.
     var skillFile: SkillFileData?
+    /// Keshab's Claude commands for the "/" picker (ADR-117), as the runtime listed them.
+    var claudeCommands: [SlashCommandInfo] = []
     var skillError: String?
     @ObservationIgnored private var skillCommandPending = false
     /// ADR-107: the chat that was opened with only its newest turns given to the model; its note shows over the chat.
@@ -195,6 +197,17 @@ final class IslandModel {
     func deleteBrainNote(_ id: Int) {
         brainCommandPending = true
         send(.brainDelete(id: id))
+    }
+    /// One of ATOM's own "/" commands (ADR-117): the window runs it; the model never sees it. `help` is the composer's (it opens
+    /// the full list).
+    func runSlash(_ action: SlashAction) {
+        switch action {
+        case .newChat: navigate { self.newConversation(); self.windowPage = .chat }
+        case .model: navigate { self.windowPage = .settings; self.settingsPage = .model }
+        case .skills: navigate { self.windowPage = .plugins }
+        case .memory: navigate { self.windowPage = .brain }
+        case .help: break
+        }
     }
     /// Plugins → Skills: open a skill's SKILL.md in the editor (the runtime answers with `skillFile`, or an error shown there).
     func openSkill(_ name: String) {
@@ -356,6 +369,8 @@ final class IslandModel {
             apiStatus = status
         case .searchResults(let results) where results.query == searchQuery:
             searchResults = results // an answer to older words is dropped
+        case .commands(let list):
+            claudeCommands = list
         case .skillFile(let file):
             skillFile = file
             skillCommandPending = false
@@ -379,6 +394,7 @@ final class IslandModel {
             sendSpeech() // ADR-091
             // A restarted runtime, or a window opened before the runtime was ready (its first ask was dropped): ask again.
             if ChatList.shouldAskAfterReady(listKnown: chats != nil, windowOpen: helpersWindowOpen) { send(.chatsList) }
+            if helpersWindowOpen { send(.commandsList) } // the "/" picker (ADR-117)
         case .info(let info):
             modelInfo = info
             syncChatModelName()

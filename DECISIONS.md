@@ -2706,3 +2706,24 @@ Keshab used the layout and asked for the changes below. Each answers a weakness 
 3. **A number, not a dot.** The Board row shows one count (things to answer plus failed tasks) in a small badge: yellow when something is for him to answer, red when only failures wait. Its line says "N need you", "N failed" or "N ask · M failed". `BoardAttention` (Core) is the one source for the row and the tab, so they agree.
 4. **Chat rows.** A chat in the sidebar is one line (the title). The time is the hover tip and VoiceOver's. The row is shorter, so more chats fit.
 
+
+## ADR-117 — "/" commands in ATOM's chat (2026-10-15)
+
+Date: 2026-10-15. Status: **accepted** (Keshab: "lets make sure we call / commands from Atom as well" and, asked what he meant, "Both, with a picker").
+
+### Context
+
+ATOM understood "/" for skills only (`/skill-name words`). Keshab has 96 Claude Code custom commands in `~/.claude/commands` (`/code-review`, `/build-fix`, `/checkpoint`, …) and wants them in ATOM's chat, with ATOM's own commands.
+
+### Decision
+
+1. Typing "/" in the message box opens a **picker** of up to eight rows: ATOM's own commands, Keshab's skills and his Claude commands, each marked ATOM, Skill or Command. More letters narrow it (a name that starts with the letters first, then a name that contains them, then a description that does). Up and Down move, Return or Tab picks, Escape closes, a click picks.
+2. **ATOM's own commands** run in the window and never reach the model: `/new` (new chat), `/model` (Settings → AI model), `/skills` (Plugins), `/memory` (Second brain), `/help` (shows the whole list).
+3. A **skill** or a **Claude command** fills `/name ` in the box for the words. Sending `/name words` expands it in the runtime (`slash-commands.ts`): the command's prompt, with `$ARGUMENTS` (all the words) and `$1`…`$9` (one by one) filled in; a command with no placeholder gets the words added at the end. The chat shows what Keshab typed.
+4. **One name, one owner:** ATOM's command first, then a skill, then a Claude command. The picker lists each name once, so no row is unreachable.
+5. **A command is only a prompt.** ATOM reads the file and never writes it. Lines that start with `!` (shell commands in Claude Code) are not run: they stay text, and the model is told so. `@file` includes are not expanded. A command's prompt is cut at 20,000 characters. A name that is not a plain file name (`../x`) never matches.
+6. The runtime lists the commands on request (`commands.list`, answered by `commands`); the window asks when it opens and when the runtime becomes ready.
+
+### Left out on purpose
+
+Claude commands in Telegram (its "/" commands are its own), commands in subfolders (`folder/name.md`), `allowed-tools` and `model` in a command's front matter, `@file` includes, shell lines, and editing commands in the window.

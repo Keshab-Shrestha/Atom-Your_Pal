@@ -42,6 +42,7 @@ function islandHarness(
     memory: IslandOptions["memory"];
     helpers: IslandOptions["helpers"];
     skillFiles: IslandOptions["skillFiles"];
+    slashCommands: IslandOptions["slashCommands"];
     onTimer: IslandOptions["onTimer"];
     onGoalLine: IslandOptions["onGoalLine"];
     screen: IslandOptions["screen"];
@@ -98,6 +99,7 @@ function islandHarness(
     ...(over.git ? { git: over.git } : {}),
     ...(over.helpers ? { helpers: over.helpers } : {}),
     ...(over.skillFiles ? { skillFiles: over.skillFiles } : {}),
+    ...(over.slashCommands ? { slashCommands: over.slashCommands } : {}),
     ...(over.onTimer ? { onTimer: over.onTimer } : {}),
     ...(over.onGoalLine ? { onGoalLine: over.onGoalLine } : {}),
     ...(over.screen ? { screen: over.screen } : {}),
@@ -672,6 +674,21 @@ test("skill.get opens a skill's SKILL.md; skill.save answers with the saved file
   await h.send({ type: "skill.get" }, { type: "skill.save", name: "pdf" }, { type: "skill.save", name: "x".repeat(65), text: "a" });
   assert.deepEqual(h.types(), ["error", "error", "error"]);
   for (const e of h.events()) assert.equal((e as { stage: string }).stage, "protocol");
+});
+
+// --- slash commands (ADR-117) ---
+
+test("commands.list answers with Keshab's Claude commands for the picker; with none it answers an empty list", async () => {
+  const h = islandHarness({ slashCommands: { list: () => [{ name: "review", description: "Review a file.", hint: "[file]" }] } });
+  await tick(5);
+  h.clear();
+  await h.send({ type: "commands.list" });
+  assert.deepEqual(h.events().at(-1), { type: "commands", commands: [{ name: "review", description: "Review a file.", hint: "[file]" }] });
+  const bare = islandHarness();
+  await tick(5);
+  bare.clear();
+  await bare.send({ type: "commands.list" });
+  assert.deepEqual(bare.events().at(-1), { type: "commands", commands: [] });
 });
 
 // --- helpers (ADR-081) ---

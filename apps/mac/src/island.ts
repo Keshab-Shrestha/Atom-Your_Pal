@@ -285,6 +285,9 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "brain.search":
         send({ type: "brain.hits", query: command.query, hits: options.brain?.search(command.query) ?? [] });
         return;
+      case "commands.list":
+        send({ type: "commands", commands: options.slashCommands?.list() ?? [] });
+        return;
       case "skill.get": {
         const file = options.skillFiles?.read(command.name);
         if (file) send({ type: "skill.file", ...file });

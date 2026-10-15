@@ -29,6 +29,8 @@ export type IslandCommand =
   | { type: "brain.delete"; id: number }
   | { type: "brain.search"; query: string }
   /** Plugins → Skills: one skill's whole SKILL.md for the editor, and Keshab's save of it (the answer is `skill.file`). */
+  /** The "/" picker: ask for Keshab's Claude commands (ADR-117; the answer is `commands`). */
+  | { type: "commands.list" }
   | { type: "skill.get"; name: string }
   | { type: "skill.save"; name: string; text: string }
   | { type: "chats.list" }
@@ -145,6 +147,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "brain.save",
   "brain.delete",
   "brain.search",
+  "commands.list",
   "skill.get",
   "skill.save",
   "chats.list",

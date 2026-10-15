@@ -1620,6 +1620,15 @@ Next: Keshab builds the app on the Mac, attaches a PDF and an image, switches a 
 
 Next: Keshab uses the window for a week, and names the features he never opens.
 
+## "/" commands in the chat (2026-10-15)
+
+Keshab: "lets make sure we call / commands from Atom as well"; asked which, he chose both with a picker. ADR-117.
+
+- Typing "/" opens a picker over the message box: ATOM's commands (`/new`, `/model`, `/skills`, `/memory`, `/help`), his skills and his 96 Claude commands from `~/.claude/commands`. Keys: Up, Down, Return or Tab, Escape; a click picks. `SlashMenu.swift` (pure, 6 tests) ranks and merges them; `SlashPicker.swift` draws it; the composer owns the keys.
+- Runtime: `slash-commands.ts` (6 tests) reads the command files, fills `$ARGUMENTS` and `$1`..`$9`, never runs a `!` shell line, never writes. A skill of the same name wins. `commands.list` and `commands` carry the list to the window (`island.test.ts`).
+- Checked live: `/new` + Return starts a new chat and sends nothing; `/code-rev` + Return fills `/code-review ` from the real command list; `/mem` + Return opens the Second brain; and a temporary command of mine, `/zz-atom-test hello world`, reached the model as its expanded prompt and ATOM answered exactly "COMMAND-OK hello world" (I deleted the file after; the test chat stays in the list). Not checked: the picker's look in the live window (Accessibility cannot read it); the gallery shot `21-slash-picker` and its golden show it.
+- Not done: Claude commands in Telegram, subfolder commands, `allowed-tools`, `@file` includes.
+
 ## Needs you and Issues move into the Board (2026-10-15)
 
 Keshab: "can we move needs you, issues to board? if we do that we can increase our space for chats and projects". ADR-116.

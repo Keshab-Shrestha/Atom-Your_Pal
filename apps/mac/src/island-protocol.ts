@@ -47,6 +47,8 @@ export type IslandEvent =
   | { type: "brain"; nodes: BrainNodeItem[]; edges: BrainEdgeItem[]; omitted: number; tags: { tag: string; count: number }[] }
   | { type: "brain.note"; note: BrainNoteItem }
   | { type: "brain.hits"; query: string; hits: BrainHitItem[] }
+  /** Keshab's Claude commands for the "/" picker (ADR-117): name, one-line description, argument hint. */
+  | { type: "commands"; commands: { name: string; description: string; hint: string }[] }
   /** A skill's whole SKILL.md for the editor (the answer to `skill.get` and `skill.save`). */
   | { type: "skill.file"; name: string; source: "yours" | "zeno"; text: string }
   | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[]; chats?: MemoryChatItem[] }

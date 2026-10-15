@@ -163,5 +163,25 @@ extension IslandGallery {
             .themed(palette)
         save(page, name: name, to: directory)
     }
+
+    /// The "/" picker over the message box: "/re" with ATOM's commands, a skill and Claude commands.
+    static func writeSlashPicker(to directory: URL, theme: AppTheme = .void, name: String = "21-slash-picker") {
+        let suite = "atom.gallery.slash.\(ProcessInfo.processInfo.processIdentifier)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let palette = theme.palette
+        let m = IslandModel(settings: IslandSettings(defaults: defaults))
+        m.settings.theme = theme
+        if let event = try? decodeEvent(#"{"type":"commands","commands":[{"name":"review","description":"Review a file and list problems.","hint":"[file]"},{"name":"build-fix","description":"Fix build errors with minimal changes."},{"name":"checkpoint","description":"Create or verify a checkpoint."},{"name":"code-review","description":"Review the changes in this branch."}]}"#) { m.apply(event) }
+        let page = VStack(spacing: 16) {
+            Composer(model: m, initialDraft: "/re").frame(width: 560)
+            Composer(model: m, initialDraft: "/").frame(width: 560)
+        }
+        .environment(\.islandSnapshot, true)
+        .padding(24)
+        .background(palette.surfaceSolid.color)
+        .themed(palette)
+        save(page, name: name, to: directory)
+    }
 }
 

@@ -30,6 +30,8 @@ public enum IslandCommand: Sendable, Equatable {
     case brainDelete(id: Int)
     case brainSearch(query: String)
     /// Plugins → Skills: open one skill's SKILL.md for the editor, and save Keshab's edit of it (the answer is `skillFile`).
+    /// The "/" picker: ask for Keshab's Claude commands (ADR-117; the answer is `commands`).
+    case commandsList
     case skillGet(name: String)
     case skillSave(name: String, text: String)
     /// Conversation notes (ADR-059): forget one, or all.
@@ -186,6 +188,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .brainSave: "brain.save"
         case .brainDelete: "brain.delete"
         case .brainSearch: "brain.search"
+        case .commandsList: "commands.list"
         case .skillGet: "skill.get"
         case .skillSave: "skill.save"
         case .episodeForget: "episode.forget"
@@ -795,6 +798,8 @@ public enum IslandEvent: Sendable, Equatable {
     case brain(BrainGraphData)
     case brainNote(BrainNoteData)
     case brainHits(query: String, hits: [BrainHit])
+    /// Keshab's Claude commands for the "/" picker (ADR-117).
+    case commands([SlashCommandInfo])
     /// A skill's whole SKILL.md for the editor (the answer to `skillGet` and `skillSave`).
     case skillFile(SkillFileData)
     /// A timer ended (ADR-061). The runtime also says `message` aloud.
@@ -850,6 +855,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .brain: "brain"
         case .brainNote: "brain.note"
         case .brainHits: "brain.hits"
+        case .commands: "commands"
         case .skillFile: "skill.file"
         case .timer: "timer"
         case .workerLine: "worker.line"
@@ -962,6 +968,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
     case "brain.note":
         guard let note = Fields.brainNote(f.values["note"]) else { throw ProtocolError.invalidValue(event: type, field: "note") }
         return .brainNote(note)
+    case "commands":
+        return .commands(Fields.slashCommands(f.values["commands"]))
     case "skill.file":
         return .skillFile(SkillFileData(name: try f.string("name"), source: f.optionalString("source") ?? "yours", text: try f.string("text")))
     case "brain.hits":
@@ -1423,6 +1431,14 @@ private struct Fields {
             return BrainTag(tag: tag, count: count)
         }
         return BrainGraphData(nodes: nodes, edges: edges, omitted: wholeNumber(values["omitted"]) ?? 0, tags: tags)
+    }
+
+    /// The "/" picker's commands; an entry without a name is left out.
+    static func slashCommands(_ value: Any?) -> [SlashCommandInfo] {
+        (value as? [[String: Any]] ?? []).compactMap { entry in
+            guard let name = entry["name"] as? String, !name.isEmpty else { return nil }
+            return SlashCommandInfo(name: name, description: entry["description"] as? String ?? "", hint: entry["hint"] as? String ?? "")
+        }
     }
 
     static func brainNote(_ value: Any?) -> BrainNoteData? {

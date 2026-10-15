@@ -35,6 +35,7 @@ final class MainWindowController: NSObject, NSWindowDelegate {
             model.helpersWindowOpen = true
             model.send(.helpersList)
             model.send(.chatsList) // ADR-091
+            model.send(.commandsList) // the "/" picker (ADR-117)
         }
         let palette = model.settings.theme.palette
         window.appearance = NSAppearance(named: palette.isDark ? .darkAqua : .aqua)

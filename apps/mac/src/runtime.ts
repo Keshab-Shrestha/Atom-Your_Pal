@@ -59,6 +59,7 @@ import type { InputSource, Message, ZenoInput } from "@atom/contracts";
 import type { IslandBrain, IslandChats, IslandGit, IslandHelpers, IslandMemory, IslandOptions, IslandProjects } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
 import { createHubCommands } from "./hub-commands.ts";
+import { listCommands, useCommand, userCommandsDir } from "./slash-commands.ts";
 import { SKILLS_PLUGIN, listSkills, prepareSkills, readSkill, readSkillFile, useSkill, userSkillsDir, writeSkillFile } from "./skills.ts";
 import { createUseSkillTool } from "./skill-tool.ts";
 import { runTestCases } from "./test-runs.ts";
@@ -118,6 +119,8 @@ export interface Runtime {
   islandBrain?: IslandBrain;
   /** Plugins → Skills: open and save a skill's SKILL.md on Keshab's click (skills.ts). */
   islandSkillFiles: NonNullable<IslandOptions["skillFiles"]>;
+  /** The "/" picker: Keshab's Claude commands (ADR-117). */
+  islandSlashCommands: NonNullable<IslandOptions["slashCommands"]>;
   /** ADR-091: Keshab's chat sessions as the ATOM window sees them. Undefined when memory is off. */
   islandChats?: IslandChats;
   /** ADR-107: projects as the ATOM window sees them. Undefined when memory is off. */
@@ -565,7 +568,8 @@ export function createRuntime(
               ].filter(Boolean).join("\n\n"),
             ...(projects ? { project: (chatId: string) => projects.turn(chatId) } : {}),
             ...(attachments ? { attachments } : {}),
-            skills: { use: (text: string) => useSkill(text, userSkillsDir(), skillsDir) },
+            // A skill of the name first, then one of Keshab's Claude commands (ADR-117): both are "/name words".
+            skills: { use: (text: string) => useSkill(text, userSkillsDir(), skillsDir) ?? useCommand(text, userCommandsDir()) },
             // Phase N2: no worker shortcut: "Sid, …" is a main-agent turn that hands the request to Sid.
             ...(toolShortcuts ? { shortcuts: toolShortcuts } : {}),
             onExchange: (sessionId: string, turns: readonly Message[]) => {
@@ -762,6 +766,7 @@ export function createRuntime(
       : {}),
     ...(memory ? { memory, islandMemory, islandChats, islandProjects: projects!.island, ...(brainWiring ? { islandBrain: brainWiring.island } : {}) } : {}),
     ...(islandGit ? { islandGit } : {}),
+    islandSlashCommands: { list: () => listCommands(userCommandsDir()) },
     islandSkillFiles: { read: (name) => readSkillFile(name, userSkillsDir(), skillsDir), write: (name, text) => writeSkillFile(name, text, userSkillsDir(), skillsDir) },
     ...(helpers ? { helpers, islandHelpers: warmOnOpen(withPaperclip(paperclip, paperclipListeners, {
             ...islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name)))),

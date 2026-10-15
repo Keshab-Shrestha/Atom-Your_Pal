@@ -133,6 +133,7 @@ function start(config: Config) {
     ...(runtime.islandMemory ? { memory: runtime.islandMemory } : {}),
     ...(runtime.islandBrain ? { brain: runtime.islandBrain } : {}),
     skillFiles: runtime.islandSkillFiles,
+    slashCommands: runtime.islandSlashCommands,
     ...(runtime.islandChats ? { chats: runtime.islandChats } : {}),
     ...(runtime.islandProjects ? { projects: runtime.islandProjects } : {}),
     ...(runtime.islandAttachments ? { attachments: runtime.islandAttachments } : {}),

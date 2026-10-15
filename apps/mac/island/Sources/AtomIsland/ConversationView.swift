@@ -10,13 +10,21 @@ import AtomIslandCore
 /// microphone that names the hold shortcut; with words, it sends them.
 struct Composer: View {
     let model: IslandModel
-    private let draft = State(initialValue: "")
+    private let draft: State<String>
     /// ADR-113: files waiting to go with the next message.
     private let attached = State(initialValue: ComposerDraft())
+    /// ADR-117: the row of the "/" picker that Return or Tab picks.
+    private let pick = State(initialValue: 0)
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
 
     /// Concentric with the panel's bottom corners (the theme's `cornerGap`: 24 = 16 + 8 in Void).
+    /// `initialDraft` is for the gallery: the box starts with these words (the "/" picker shows for "/re").
+    init(model: IslandModel, initialDraft: String = "") {
+        self.model = model
+        self.draft = State(initialValue: initialDraft)
+    }
+
     private var composerShape: RoundedRectangle {
         RoundedRectangle(cornerRadius: max(10, theme.radiusSurface - theme.cornerGap), style: .continuous)
     }
@@ -24,6 +32,10 @@ struct Composer: View {
     var body: some View {
         let readOnly = model.chats?.currentReadOnlyNotice
         VStack(alignment: .leading, spacing: 6) {
+            // ADR-117: typing "/" lists ATOM's commands, Keshab's skills and his Claude commands above the field.
+            if !slashItems.isEmpty && readOnly == nil {
+                SlashPicker(items: slashItems, selected: min(pick.wrappedValue, slashItems.count - 1), choose: choose)
+            }
             if !attached.wrappedValue.files.isEmpty || attached.wrappedValue.notice != nil {
                 AttachedFilesRow(files: attached.wrappedValue.files, notice: attached.wrappedValue.notice) { path in
                     attached.wrappedValue.remove(path)
@@ -48,6 +60,10 @@ struct Composer: View {
                             .font(.system(size: 12.5))
                             .foregroundStyle(theme.text.color)
                             .onSubmit(send)
+                            .onKeyPress(.upArrow) { moveSlash(-1) }
+                            .onKeyPress(.downArrow) { moveSlash(1) }
+                            .onKeyPress(.tab) { pickSlash() }
+                            .onKeyPress(.escape) { closeSlash() }
                             .accessibilityLabel("Message to ATOM")
                     }
                     if readOnly == nil && !snapshot {
@@ -72,6 +88,7 @@ struct Composer: View {
                 }
             }
         }
+        .onChange(of: draft.wrappedValue) { _, _ in pick.wrappedValue = 0 }
         .padding(.leading, 18)
         .padding(.trailing, 5)
         .padding(.vertical, 5)
@@ -102,7 +119,48 @@ struct Composer: View {
         }
     }
 
+    // MARK: the "/" picker (ADR-117)
+
+    private var slashItems: [SlashItem] {
+        Array(SlashMenu.items(for: draft.wrappedValue, skills: model.helpers.list?.skills ?? [], commands: model.claudeCommands).prefix(SlashMenu.limit))
+    }
+
+    /// A row picked: ATOM's own command runs now; a skill or a Claude command fills its name, ready for the words.
+    private func choose(_ item: SlashItem) {
+        if let action = item.action { run(action) } else { draft.wrappedValue = SlashMenu.completion(for: item) }
+    }
+
+    private func run(_ action: SlashAction) {
+        draft.wrappedValue = action == .help ? "/" : "" // help shows the whole list
+        pick.wrappedValue = 0
+        if action != .help { model.runSlash(action) }
+    }
+
+    private func moveSlash(_ step: Int) -> KeyPress.Result {
+        let count = slashItems.count
+        guard count > 0 else { return .ignored }
+        pick.wrappedValue = (min(pick.wrappedValue, count - 1) + step + count) % count
+        return .handled
+    }
+
+    private func pickSlash() -> KeyPress.Result {
+        let items = slashItems
+        guard !items.isEmpty else { return .ignored }
+        choose(items[min(pick.wrappedValue, items.count - 1)])
+        return .handled
+    }
+
+    private func closeSlash() -> KeyPress.Result {
+        guard !slashItems.isEmpty else { return .ignored }
+        draft.wrappedValue = ""
+        return .handled
+    }
+
     private func send() {
+        // The picker is open: Return picks the highlighted row (a full "/new" runs ATOM's command; "/review" gets a space).
+        let items = slashItems
+        if !items.isEmpty { choose(items[min(pick.wrappedValue, items.count - 1)]); return }
+        if let built = SlashMenu.builtIn(in: draft.wrappedValue) { run(built.action); return }
         guard !empty else { return }
         model.ask(draft.wrappedValue, draft: attached.wrappedValue)
         draft.wrappedValue = ""
