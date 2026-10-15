@@ -103,3 +103,20 @@ test("soul.md round trip and folder names", () => {
   assert.equal(agentId("Ana Lí", ["ana-li"]), "ana-li-2");
   assert.equal(agentId("42", []), "a-42");
 });
+
+// 2026-10-16 (code review): a lesson with a "## " line was cut at that line the next time soul.md was read, and a bogus new soul version
+// was saved. A line of soul text that starts with "## " is written with a backslash and read back without it.
+test("soul text with lines that start with ## survives a write and a read unchanged", () => {
+  const soul = {
+    name: "Ana",
+    personality: "Warm.\n## Not a section\nStill the personality.",
+    howItWorks: "Steps:\n\\## already has a backslash\n\\\\## two backslashes\n### three hashes stay as they are\n# one hash too",
+    rules: "## Rule heading\n## Another",
+    lessons: "- First\n## Lesson 1\nDetail under it",
+  };
+  const text = formatSoulMd({ role: "coach", kit: "think", soul });
+  assert.equal((text.match(/^## /gm) ?? []).length, 4, "only the four real section headings start with ##");
+  const back = parseSoulMd("ana", text);
+  assert.deepEqual(back.soul, soul);
+  assert.equal(formatSoulMd({ role: back.role, kit: back.kit, soul: back.soul }), text, "writing it again changes nothing, so no bogus version");
+});

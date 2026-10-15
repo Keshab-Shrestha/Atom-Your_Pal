@@ -61,12 +61,20 @@ export function agentId(name: string, taken: readonly string[]): string {
 }
 
 /** soul.md as text: an Agent's (name, role, kit, manager) or, ADR-095, a Manager's (name, kind, mode). */
+/**
+ * A line of soul text that starts with "## " would be read back as a section heading and cut the text there (2026-10-16). It is
+ * written with a backslash in front, and a line that already starts with backslashes before "## " gets one more, so reading it
+ * back removes exactly one and gives the original text.
+ */
+const escapeBody = (text: string) => text.replace(/^(\\*## )/gm, "\\$1");
+const unescapeBody = (text: string) => text.replace(/^\\(\\*## )/gm, "$1");
+
 export function formatSoulMd(agent: Omit<AgentFile, "id"> | Omit<ManagerFile, "id">): string {
   const front =
     "mode" in agent
       ? `---\nname: ${agent.soul.name}\nkind: manager\nmode: ${agent.mode}\n---\n`
       : `---\nname: ${agent.soul.name}\nrole: ${agent.role}\nkit: ${agent.kit}\n${agent.manager ? `manager: ${agent.manager}\n` : ""}---\n`;
-  return front + SECTIONS.map(([key, title]) => `\n## ${title}\n${agent.soul[key]}\n`).join("");
+  return front + SECTIONS.map(([key, title]) => `\n## ${title}\n${escapeBody(agent.soul[key])}\n`).join("");
 }
 
 /** soul.md read back. Missing sections are empty; an unknown kit reads as think (no tools). Throws HelperError when unreadable. */
@@ -93,7 +101,7 @@ export function parseSoulFile(id: string, text: string): AgentFile | ManagerFile
   let current: string | undefined;
   const lines: string[] = [];
   const flush = () => {
-    if (current) sections.set(current, lines.join("\n").trim());
+    if (current) sections.set(current, unescapeBody(lines.join("\n")).trim());
     lines.length = 0;
   };
   for (const line of m[2]!.split("\n")) {
