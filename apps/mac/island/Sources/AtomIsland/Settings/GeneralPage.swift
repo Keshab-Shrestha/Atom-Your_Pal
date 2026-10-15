@@ -64,6 +64,14 @@ struct GeneralSection: View {
                 }
             }
         }
+        // ADR-054: computer control. The runtime restarts to apply the switch; the switch shows the runtime's real state.
+        Card("Computer control", footer: "ATOM can click, type and read the screen in other apps. Risky steps ask you first. It needs Screen Recording and Accessibility for Cua Driver.") {
+            Row(title: "Computer control", detail: model.computerRestarting ? "Restarting ATOM…" : "Lets ATOM use other apps for you. ATOM restarts when you change this.") {
+                ThemedSwitch(isOn: model.computerRestarting ? (model.settings.computerOverride ?? model.computerOn) : model.computerOn,
+                             set: { model.setComputer($0) }, label: "Computer control")
+                    .disabled(model.computerRestarting)
+            }
+        }
         PermissionsCard(model: model)
             .onAppear { model.permissions.startPolling() }
             .onDisappear { model.permissions.stopPolling() }

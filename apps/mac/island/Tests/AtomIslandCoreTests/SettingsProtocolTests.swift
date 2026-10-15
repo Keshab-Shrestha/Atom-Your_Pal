@@ -273,3 +273,26 @@ struct MemoryProtocolTests {
         #expect(status.kind == .notice && status.title == "Ask about Brave Browser")
     }
 }
+
+@Suite("Computer control switch (ADR-054)")
+struct ComputerSwitchTests {
+    @Test func readyCarriesWhetherComputerControlIsOn() throws {
+        let on = try decodeEvent(#"{"type":"ready","protocol":1,"provider":"p","model":"m","microphone":":default","voice":true,"computer":true}"#)
+        let old = try decodeEvent(#"{"type":"ready","protocol":1,"provider":"p","model":"m","microphone":":default","voice":true}"#)
+        guard case .ready(let a) = on, case .ready(let b) = old else { Issue.record("not ready events"); return }
+        #expect(a.computer == true)
+        #expect(b.computer == false, "an older runtime: off")
+    }
+
+    @MainActor @Test func theChoiceIsSavedAndNoChoiceStaysNil() {
+        let suite = UserDefaults(suiteName: "atom-computer-\(UUID().uuidString)")!
+        let first = IslandSettings(defaults: suite)
+        #expect(first.computerOverride == nil, "no choice: .env decides")
+        first.computerOverride = true
+        #expect(IslandSettings(defaults: suite).computerOverride == true)
+        first.computerOverride = false
+        #expect(IslandSettings(defaults: suite).computerOverride == false, "off is a choice too")
+        first.computerOverride = nil
+        #expect(IslandSettings(defaults: suite).computerOverride == nil)
+    }
+}

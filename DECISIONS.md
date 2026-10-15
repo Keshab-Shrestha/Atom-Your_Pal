@@ -2772,3 +2772,22 @@ The direct answer is about 7 times cheaper in tokens. Limits make a delegated ta
 ### Left out on purpose
 
 Itemising the calls Claude Code makes for web pages and its own small model (about 1,200 tokens of Haiku in every session). The model list for pricing needs a row for each new model.
+
+## ADR-119 — A switch for computer control in Settings → General (2026-10-15)
+
+Date: 2026-10-15. Status: **accepted** (Keshab: "you add that and also in app setting for toggle").
+
+### Context
+
+Computer control is off unless `ATOM_COMPUTER=1` (ADR-054). The benchmark of 2026-10-15 asked ATOM to type into TextEdit. ATOM said it could not, because the setting was off. The only way to turn it on was to edit `.env` and restart.
+
+### Decision
+
+1. Settings → General has a "Computer control" switch. The runtime tells the app the real state in the `ready` event (`computer`). The switch shows that state.
+2. A change saves the choice (`atom.computer.override` in the app's defaults) and restarts the runtime with `ATOM_COMPUTER` set to `1` or `0`. The runtime builds its tools once at start, and computer control is not among them when it is off. So a restart is the safe way. The tool stays absent from the model's list when the switch is off.
+3. The choice wins over `.env`. With no choice (the switch never used), `.env` decides.
+4. The permission rules stay: risky steps wait for the approval card, and Screen Recording and Accessibility for Cua Driver stay with macOS.
+
+### Left out on purpose
+
+A live switch without a restart. It would put the computer tool in the model's list while the switch is off.

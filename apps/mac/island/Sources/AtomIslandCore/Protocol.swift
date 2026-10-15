@@ -723,6 +723,8 @@ public struct ReadyInfo: Sendable, Equatable {
     public var voice: Bool
     /// ADR-098: ATOM's Telegram bot is set up in .env (false from an older runtime).
     public var telegram: Bool = false
+    /// ADR-054: computer control is on in this run (false from an older runtime).
+    public var computer: Bool = false
 }
 
 /// ADR-098 item 5: the local API's state. `tokenFile` is a path; the island reads the file only for "Copy token".
@@ -911,7 +913,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
             model: try f.string("model"),
             microphone: try f.string("microphone"),
             voice: try f.bool("voice"),
-            telegram: f.optionalBool("telegram") ?? false))
+            telegram: f.optionalBool("telegram") ?? false,
+            computer: f.optionalBool("computer") ?? false))
     case "api":
         return .api(ApiStatus(on: try f.bool("on"), port: try f.int("port"), tokenFile: f.optionalString("tokenFile") ?? "", error: f.optionalString("error")))
     case "state":

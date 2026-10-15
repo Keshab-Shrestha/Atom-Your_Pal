@@ -38,7 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        let launch: RuntimeLaunch
+        var launch: RuntimeLaunch
         do {
             launch = try RuntimeLocator.live().locate()
         } catch {
@@ -47,6 +47,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             showProblem(title: "ATOM cannot start", message: "\(error)")
             NSApp.terminate(nil)
             return
+        }
+
+        // ADR-054: the user's choice from Settings → General wins over ATOM_COMPUTER in .env; with no choice, .env decides.
+        if let choice = UserDefaults.standard.object(forKey: IslandSettings.computerOverrideKey) as? Bool {
+            launch.environment["ATOM_COMPUTER"] = choice ? "1" : "0"
         }
 
         log = IslandLog(url: launch.directory.appendingPathComponent("logs/atom.log"))
@@ -77,6 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 onMain { self?.statusChanged(status) }
             })
         island.model.send = { [weak self] command in self?.supervisor?.send(command) }
+        island.model.applyComputer = { [weak self] on in self?.supervisor?.restart(environment: ["ATOM_COMPUTER": on ? "1" : "0"]) }
         // ADR-075: "Restart ATOM" starts it again with a fresh restart policy; "Open log" opens this file.
         island.restartRuntime = { [weak self] in self?.supervisor?.start() }
         island.logURL = launch.directory.appendingPathComponent("logs/atom.log")

@@ -125,7 +125,7 @@ function start(config: Config) {
     stt: runtime.stt,
     core: runtime.core,
     tts: runtime.tts,
-    info: { provider: config.llm.provider, model: config.llm.model, microphone: config.audio.inputDevice, telegram: Boolean(runtime.telegram) },
+    info: { provider: config.llm.provider, model: config.llm.model, microphone: config.audio.inputDevice, telegram: Boolean(runtime.telegram), computer: runtime.computerOn },
     ...(runtime.telegram ? { telegram: runtime.telegram } : {}),
     ...(runtime.api ? { api: runtime.api } : {}),
     settings: runtime.settings,

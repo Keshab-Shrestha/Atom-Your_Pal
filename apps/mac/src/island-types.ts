@@ -25,7 +25,7 @@ export interface IslandOptions {
   core: CoreLike & { reset(): void; resume?(id: string, turns: readonly Message[]): void; readonly sessionId?: string };
   tts: TextToSpeech;
   /** Reported in the `ready` event. ADR-098: `telegram` is true when ATOM's Telegram bot is set up in .env. */
-  info: { provider: string; model: string; microphone: string; telegram?: boolean };
+  info: { provider: string; model: string; microphone: string; telegram?: boolean; computer?: boolean };
   /** ADR-098: Settings' "Send to Telegram" switch. Absent when Telegram is not set up: `telegram.set` does nothing. */
   telegram?: { setPush(on: boolean): void };
   /** ADR-098 item 5: the local API. Absent (voice-only mode): `api.set` answers with `on: false` and an error. */

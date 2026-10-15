@@ -86,6 +86,24 @@ struct RuntimeSupervisorTests {
         #expect(recorder.pids.count == 1) // a requested stop is not restarted
     }
 
+    /// ADR-054: the switch in Settings → General restarts the runtime with ATOM_COMPUTER set; the new run sees it.
+    @Test func restartWithAnEnvironmentValueStartsANewRunThatSeesIt() async throws {
+        let script = """
+        echo "{\\"type\\":\\"ready\\",\\"protocol\\":1,\\"provider\\":\\"fake\\",\\"model\\":\\"${ATOM_COMPUTER:-unset}\\",\\"microphone\\":\\":default\\",\\"voice\\":true}"
+        while IFS= read -r line; do
+          case "$line" in *quit*) exit 0 ;; esac
+        done
+        """
+        let (supervisor, recorder) = make(script)
+        supervisor.start()
+        try await waitUntil { recorder.pids.count == 1 }
+        supervisor.restart(environment: ["ATOM_COMPUTER": "1"])
+        try await waitUntil { recorder.pids.count == 2 }
+        try await waitUntil { recorder.events.contains { if case .ready(let r) = $0 { return r.model == "1" } else { return false } } }
+        #expect(recorder.pids[0] != recorder.pids[1], "a new process")
+        await stop(supervisor)
+    }
+
     @Test func badOutputLinesAreSkipped() async throws {
         let script = """
         echo 'npm WARN something'

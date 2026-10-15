@@ -133,7 +133,7 @@ Holding Ctrl+Option maps to `talk.start` on press and `talk.send` on release. Pr
 
 | Event | Fields | Meaning |
 |---|---|---|
-| `ready` | `protocol`, `provider`, `model`, `microphone`, `voice`, `telegram`? | Started. `voice` is `false` if the voice failed to load (an `error` with stage `speech` comes first); replies still arrive as text. ADR-098: `telegram` is `true` when ATOM's Telegram bot is set up in `.env` |
+| `ready` | `protocol`, `provider`, `model`, `microphone`, `voice`, `telegram`?, `computer`? | Started. `voice` is `false` if the voice failed to load (an `error` with stage `speech` comes first); replies still arrive as text. ADR-098: `telegram` is `true` when ATOM's Telegram bot is set up in `.env` `computer` is `true` when computer control is on in this run (ADR-054, ADR-119); absent from an older runtime means off. |
 | `state` | `state` | One of `idle`, `listening`, `transcribing`, `thinking`, `speaking` |
 | `mic.ready` | — | The microphone is capturing. Speech from now on is recorded. The island shows a turn as "Listening…" until this arrives, then "Speak now": ATOM raises its arms with pixel sound bars (no bubble), and the card under the menu-bar icon says it when ATOM is off. |
 | `mic.level` | `peak` | Loudest sample since the last `mic.level`, 0–1. At most 20 per second, only while listening |

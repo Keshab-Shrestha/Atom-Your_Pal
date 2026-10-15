@@ -12,7 +12,7 @@ export * from "./island-commands.ts";
 
 
 export type IslandEvent =
-  | { type: "ready"; protocol: number; provider: string; model: string; microphone: string; voice: boolean; telegram?: boolean }
+  | { type: "ready"; protocol: number; provider: string; model: string; microphone: string; voice: boolean; telegram?: boolean; computer?: boolean }
   | { type: "state"; state: LoopState }
   /** ADR-098 item 5: the local API's state after `api.set`. `tokenFile` is a path: the island reads it only for "Copy token". */
   | { type: "api"; on: boolean; port: number; tokenFile: string; error?: string }

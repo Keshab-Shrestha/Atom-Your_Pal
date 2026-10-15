@@ -49,6 +49,10 @@ final class IslandModel {
     @ObservationIgnored private var projectCommandPending = false
     /// ADR-098: ATOM's Telegram bot is set up in .env (from the runtime's `ready`).
     var telegramConnected = false
+    /// ADR-054: computer control is on in the running runtime (from `ready`). The switch in Settings → General shows it.
+    var computerOn = false
+    /// The runtime is restarting to apply the switch.
+    var computerRestarting = false
     /// ADR-098 item 5: the local API's state, from the runtime's `api` event (nil until Settings' switch is sent).
     var apiStatus: ApiStatus?
     /// The ATOM window's content (ADR-081): helpers, their jobs, the report being read.
@@ -100,6 +104,17 @@ final class IslandModel {
 
     /// Sends a command to the runtime. Set by the app.
     @ObservationIgnored var send: (IslandCommand) -> Void = { _ in }
+    /// Restarts the runtime with computer control on or off (set by main.swift).
+    @ObservationIgnored var applyComputer: (Bool) -> Void = { _ in }
+
+    /// ADR-054: the switch in Settings → General. The choice is saved; the runtime restarts to apply it, because ATOM's tools
+    /// are made once at start and computer control is not among them when it is off.
+    func setComputer(_ on: Bool) {
+        guard on != computerOn || settings.computerOverride != on else { return }
+        settings.computerOverride = on
+        computerRestarting = true
+        applyComputer(on)
+    }
     /// `true` opens the ATOM window (ADR-089; the compact card's click). Set by the controller.
     @ObservationIgnored var setExpanded: (Bool) -> Void = { _ in }
     /// The work strip's Stop button: the same as Esc. Set by the controller.
@@ -386,6 +401,8 @@ final class IslandModel {
             planUsage = (planUsage ?? PlanUsage()).merging(usage)
         case .ready(let ready):
             telegramConnected = ready.telegram // ADR-098
+            computerOn = ready.computer // ADR-054
+            computerRestarting = false
             send(.telegramSet(push: settings.telegramPush))
             send(.apiSet(on: settings.localApi)) // ADR-098 item 5
             if memory != nil { send(.memoryList) } // a restarted runtime: ask again so updates keep coming

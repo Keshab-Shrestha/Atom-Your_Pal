@@ -111,6 +111,8 @@ export interface Runtime {
   micName(): Promise<string>;
   /** Computer control's link to the island (steps and approvals). Used only when ATOM_COMPUTER=1. */
   computer: ComputerBridge;
+  /** ADR-054: computer control is on in this run (ATOM_COMPUTER=1); the island's switch shows it. */
+  computerOn: boolean;
   /** What the user asked ATOM to keep (ADR-058). Undefined when ATOM_MEMORY=0 or the store could not open. */
   memory?: MemoryStore;
   /** The memory as Settings sees it (list, forget, clear, change updates). Undefined when memory is off. */
@@ -814,6 +816,8 @@ export function createRuntime(
       goalLineListeners.add(listener);
       return () => goalLineListeners.delete(listener);
     },
+    /** ADR-054: computer control is on in this run (ATOM_COMPUTER=1). Reported to the island, whose switch shows it. */
+    computerOn,
     ...(telegram ? { telegram } : {}),
     ...(steering ? { steering } : {}),
     ...(api ? { api } : {}),

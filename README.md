@@ -70,7 +70,7 @@ ATOM is not a chatbot. The language model is one part of it. Permissions, memory
 
 **Tools and computer control**
 - Music, notes, opening apps, and "what is this page?" for the browser in front.
-- Computer control is off until you set `ATOM_COMPUTER=1`. Risky steps wait for your approval.
+- Computer control is off until you turn it on in Settings → General (or set `ATOM_COMPUTER=1`). ATOM restarts to apply the switch. Risky steps wait for your approval.
 - With computer control off, ATOM says it cannot type into other apps. It does not guess.
 - A browser tool for agents. A password field always asks.
 

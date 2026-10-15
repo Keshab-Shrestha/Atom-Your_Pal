@@ -1620,6 +1620,15 @@ Next: Keshab builds the app on the Mac, attaches a PDF and an image, switches a 
 
 Next: Keshab uses the window for a week, and names the features he never opens.
 
+## Computer control switch (2026-10-15)
+
+Keshab: "you add that and also in app setting for toggle". ADR-119.
+
+- Cause found first: the benchmark's computer prompt did not fail. `ATOM_COMPUTER` was not set, so the tool did not exist (ADR-054).
+- `ready` carries `computer`; the runtime reports `computerOn`. `RuntimeSupervisor.restart(environment:)` stops the runtime and starts it with the new value. Settings → General has the switch; the choice is saved as `atom.computer.override` and wins over `.env`.
+- Tests: `island.test.ts` (ready), `SettingsProtocolTests` (decode, saved choice), `RuntimeSupervisorTests` (a real restart sees the value).
+- The `.env` line was not added: the permission system blocked the command, and the switch makes it unnecessary.
+
 ## Token discipline (2026-10-15)
 
 Keshab saw "research about quantum physics" go to Sid: "all 3 please .. and think about tokens as well .. token is a big factor". ADR-118.

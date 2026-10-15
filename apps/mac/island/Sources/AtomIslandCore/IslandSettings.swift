@@ -21,6 +21,8 @@ public final class IslandSettings {
     static let notifySoundKey = "atom.notify.sound"
     static let telegramPushKey = "atom.telegram.push"
     static let localApiKey = "atom.api.on"
+    /// The user's choice for computer control. Absent: the runtime decides from .env (ATOM_COMPUTER).
+    public static let computerOverrideKey = "atom.computer.override"
     static let notifyOffKey = "atom.notify.off"
     static let followUpKey = "atom.followUp"
     static let petSpotKey = "atom.petSpot"
@@ -139,6 +141,14 @@ public final class IslandSettings {
         didSet { save(localApi, Self.localApiKey) }
     }
 
+    /// ADR-054: the user's choice for computer control, from the switch in Settings → General. Nil until the user uses the
+    /// switch; then the app starts the runtime with ATOM_COMPUTER set to it, which wins over .env.
+    public var computerOverride: Bool? {
+        didSet {
+            if let value = computerOverride { defaults.set(value, forKey: Self.computerOverrideKey) } else { defaults.removeObject(forKey: Self.computerOverrideKey) }
+        }
+    }
+
     /// ADR-091: the kinds of notification turned off (all are on at first).
     public private(set) var notifyOff: Set<String> {
         didSet { defaults.set(notifyOff.sorted(), forKey: Self.notifyOffKey) }
@@ -188,6 +198,7 @@ public final class IslandSettings {
         notificationSounds = defaults.object(forKey: Self.notifySoundKey) as? Bool ?? true
         telegramPush = defaults.object(forKey: Self.telegramPushKey) as? Bool ?? true
         localApi = defaults.bool(forKey: Self.localApiKey)
+        computerOverride = defaults.object(forKey: Self.computerOverrideKey) as? Bool
         notifyOff = Set(defaults.stringArray(forKey: Self.notifyOffKey) ?? [])
         followUpEnabled = defaults.object(forKey: Self.followUpKey) as? Bool ?? false
         palSize = Self.choice(defaults, Self.palSizeKey, .medium)

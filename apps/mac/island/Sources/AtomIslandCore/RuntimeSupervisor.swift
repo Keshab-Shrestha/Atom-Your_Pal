@@ -20,7 +20,7 @@ public final class RuntimeSupervisor: @unchecked Sendable {
     public typealias EventHandler = @Sendable (IslandEvent) -> Void
     public typealias StatusHandler = @Sendable (Status) -> Void
 
-    private let launch: RuntimeLaunch
+    private var launch: RuntimeLaunch
     private var policy: RestartPolicy
     private let queue: DispatchQueue
     private let log: IslandLog
@@ -73,6 +73,19 @@ public final class RuntimeSupervisor: @unchecked Sendable {
             cancelPending()
             policy.reset()
             spawn()
+        }
+    }
+
+    /// Stops the runtime, then starts it again with `environment` added to its environment (the computer-control switch).
+    public func restart(environment: [String: String]) {
+        stop { [self] in
+            queue.async { [self] in
+                launch.environment.merge(environment) { _, new in new }
+                guard process == nil else { return }
+                cancelPending()
+                policy.reset()
+                spawn()
+            }
         }
     }
 

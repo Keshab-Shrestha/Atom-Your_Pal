@@ -48,6 +48,7 @@ function islandHarness(
     screen: IslandOptions["screen"];
     capabilities: IslandOptions["capabilities"];
     onPlanUsage: IslandOptions["onPlanUsage"];
+    info: IslandOptions["info"];
   }> = {},
 ) {
   const input = new PassThrough();
@@ -89,7 +90,7 @@ function islandHarness(
     stt: over.stt ?? { transcribe: async () => "what is the capital of Japan" },
     core,
     tts,
-    info: { provider: "fake", model: "fake-1", microphone: ":default" },
+    info: over.info ?? { provider: "fake", model: "fake-1", microphone: ":default" },
     settings: over.settings,
     computer: over.computer,
     ...(over.memory ? { memory: over.memory } : {}),
@@ -139,6 +140,12 @@ function islandHarness(
     counts: () => ({ resets, quits, closed }),
   };
 }
+
+test("ready tells the island whether computer control is on, so its switch shows the real state", async () => {
+  const h = islandHarness({ info: { provider: "fake", model: "fake-1", microphone: ":default", computer: true } });
+  await tick(2);
+  assert.deepEqual(h.events(), [{ type: "ready", protocol: 1, provider: "fake", model: "fake-1", microphone: ":default", computer: true, voice: true }]);
+});
 
 test("sends ready with protocol version and settings once the voice has loaded", async () => {
   const h = islandHarness();
