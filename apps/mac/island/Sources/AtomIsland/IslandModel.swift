@@ -114,6 +114,11 @@ final class IslandModel {
         settings.computerOverride = on
         computerRestarting = true
         applyComputer(on)
+        // A restart that never reports `ready` (the runtime hangs while loading) must not leave the switch disabled for good.
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(ComputerRestart.patience))
+            self?.computerRestarting = false
+        }
     }
     /// `true` opens the ATOM window (ADR-089; the compact card's click). Set by the controller.
     @ObservationIgnored var setExpanded: (Bool) -> Void = { _ in }

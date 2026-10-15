@@ -219,3 +219,18 @@ struct RuntimeSupervisorTests {
         #expect(!text.contains("secret"))
     }
 }
+
+@Suite("Computer control restart (2026-10-15)")
+struct ComputerRestartTests {
+    @Test func aFailedOrBrokenRestartEndsTheWaitButNormalSteps() {
+        #expect(ComputerRestart.endsWithout(ready: .failed("crashed")))
+        #expect(ComputerRestart.endsWithout(ready: .configError("bad")))
+        #expect(!ComputerRestart.endsWithout(ready: .stopped), "stopped is the step between the old runtime and the new one")
+        #expect(!ComputerRestart.endsWithout(ready: .running(pid: 1)))
+        #expect(!ComputerRestart.endsWithout(ready: .restarting(after: 1)))
+    }
+
+    @Test func theWaitHasALimit() {
+        #expect(ComputerRestart.patience > 10 && ComputerRestart.patience <= 120)
+    }
+}

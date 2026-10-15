@@ -322,3 +322,18 @@ public final class RuntimeSupervisor: @unchecked Sendable {
         pending = []
     }
 }
+
+/// 2026-10-15 (code review): the Computer control switch waits for the restarted runtime's `ready`. If the restart ends in a failure it
+/// never comes, and the switch stayed disabled with "Restarting ATOM…" for good. These are the ways the wait ends without `ready`.
+public enum ComputerRestart {
+    /// How long the switch waits for `ready` before it gives up (seconds). A cold start loads the speech model and the memory index.
+    public static let patience: Double = 45
+
+    /// True when this status means the restart will not finish by itself (the runtime failed or its configuration is invalid).
+    public static func endsWithout(ready status: RuntimeSupervisor.Status) -> Bool {
+        switch status {
+        case .failed, .configError: true
+        case .stopped, .running, .restarting: false
+        }
+    }
+}

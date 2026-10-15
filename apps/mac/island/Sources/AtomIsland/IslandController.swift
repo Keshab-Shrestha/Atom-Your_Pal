@@ -241,6 +241,7 @@ final class IslandController {
 
     func apply(_ status: RuntimeSupervisor.Status) {
         model.status.apply(status)
+        if ComputerRestart.endsWithout(ready: status) { model.computerRestarting = false } // the switch is not stuck on "Restarting…"
         if case .running = status {} else { // whatever it asked or showed is over
             runtimeReady = false
             model.approval.runtimeStopped()

@@ -1620,6 +1620,15 @@ Next: Keshab builds the app on the Mac, attaches a PDF and an image, switches a 
 
 Next: Keshab uses the window for a week, and names the features he never opens.
 
+## Fixes from the code review (2026-10-16)
+
+Four read-only reviewers (runtime/island, helpers/gateway, security, Swift) found the problems below. The first three were fixed first, each with a test that failed before the fix. The rest of the list is in the audit notes.
+
+- **A failed command no longer ends ATOM.** `handle()` in `island.ts` had no try/catch, and the crash handler ends the app on any uncaught error. A failing command now logs its name and sends an `error` event. The `sendHelpers` promise got a `.catch` (it also clears its queued flag).
+- **Opening a chat during an answer no longer crashes ATOM.** `loop.cancel()` only aborts, and `resume()` threw while the Core was still busy. `Core.busy` is new and optional. `chat.open` waits up to 2 s for the Core, then resumes. Tests in `island.test.ts`.
+- **A task the user stopped still gets its cleanup.** `end()` in `native-board.ts` returned early when the row was no longer "running", so the browser lock, checkpoints and worktree commit never ran. The row stays as the user set it, and `onEnd` runs once. Failed Board writes are logged (`board.write_failed`).
+- **The Computer control switch cannot stay stuck.** It cleared only on `ready`. It now also clears when the runtime fails or its configuration is invalid, and after 45 s (`ComputerRestart`).
+
 ## Regenerate the Local API token (2026-10-15)
 
 Keshab pasted the token in chat three times and found no way to replace it ("i dont see regenerate option").
