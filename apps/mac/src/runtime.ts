@@ -707,13 +707,14 @@ export function createRuntime(
           busy: (chatId) => helpers.list().some((h) => h.jobs.some((j) => j.chatId === chatId && !isFinal(j.state))),
           name: (helper) => helpers.list().find((h) => h.id === helper)?.name,
           telegram: (line, pushed) => telegram?.send(line, pushed),
+          failed: (line) => goalLineListeners.forEach((listener) => listener(line)),
           log,
         })
       : undefined;
   // ADR-110 N5: a task from a worker's page, or its Retry button, is a main-agent turn in a chat of its own ("task-<n>").
   const startTask =
     helpers
-      ? taskStarter({ core: makeCore(true), name: (helper) => helpers.list().find((h) => h.id === helper && h.available)?.name, log })
+      ? taskStarter({ core: makeCore(true), name: (helper) => helpers.list().find((h) => h.id === helper && h.available)?.name, failed: (line) => goalLineListeners.forEach((listener) => listener(line)), log })
       : undefined;
   // ADR-098 item 5: the local API. Its turns go to a Core of their own, saved as the chat "api" (or "api-<chatId>"). It
   // listens only after Settings' "Local API" switch is on.

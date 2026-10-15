@@ -45,8 +45,13 @@ export interface RoutineTurnDeps {
   /** The worker's name, so "Sid, <task>" hands the routine to its own worker. */
   name(helper: string): string | undefined;
   telegram?(text: string, pushed: boolean): void;
+  /** A line for Keshab when a routine's turn could not run (2026-10-16: it used to fail with only a log line and no reason). */
+  failed?(line: string): void;
   log: { info(event: string, fields: LogFields): void; warn(event: string, fields: LogFields): void };
 }
+
+/** Why a turn failed, in a few words and never the request's text: an Error's own message, cut. */
+const reasonOf = (error: unknown): string => (error instanceof Error && error.message ? error.message.replace(/\s+/g, " ").slice(0, 160) : "unknown reason");
 
 /**
  * The native start of a due routine (store.runRoutines): one main-agent turn in the routine's chat. False (skipped this
@@ -68,8 +73,10 @@ export function routineStarter(deps: RoutineTurnDeps): (routine: Routine) => boo
         deps.log.info("routine.turn", { routine: routine.id, ok: true });
         // An agent still works: its result comes later (routeWake). Else this reply is the result.
         if (routine.notifyTelegram && !deps.busy(chat)) deps.telegram?.(reply.text, true);
-      } catch {
-        deps.log.warn("routine.turn", { routine: routine.id, ok: false });
+      } catch (error) {
+        const reason = reasonOf(error);
+        deps.log.warn("routine.turn", { routine: routine.id, ok: false, message: reason });
+        deps.failed?.(`A routine did not run: ${reason}`);
       } finally {
         running.delete(routine.id);
       }
@@ -111,6 +118,8 @@ export interface TaskTurnDeps {
   /** The worker's name, so "Sid, <task>" hands the task to its own worker. */
   name(helper: string): string | undefined;
   log: { info(event: string, fields: LogFields): void; warn(event: string, fields: LogFields): void };
+  /** A line for Keshab when a task's turn could not run (it used to fail with only a log line and no reason). */
+  failed?(line: string): void;
   /** The chat ids need a number that never repeats: the clock by default. */
   now?(): number;
 }
@@ -133,8 +142,10 @@ export function taskStarter(deps: TaskTurnDeps): (helper: string, task: string) 
         deps.core.resume(chat, []);
         await deps.core.handle({ text: `${name}, ${task}`, source: "text" });
         deps.log.info("task.turn", { helper, ok: true });
-      } catch {
-        deps.log.warn("task.turn", { helper, ok: false });
+      } catch (error) {
+        const reason = reasonOf(error);
+        deps.log.warn("task.turn", { helper, ok: false, message: reason });
+        deps.failed?.(`${name}'s task did not run: ${reason}`);
       }
     });
   };

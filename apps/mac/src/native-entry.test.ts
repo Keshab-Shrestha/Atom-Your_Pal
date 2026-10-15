@@ -102,7 +102,7 @@ test("a routine whose agent still runs is skipped; a reply while an agent works 
   failed.release();
   await new Promise((r) => setTimeout(r, 5));
   assert.deepEqual(failed.pushed, []);
-  assert.deepEqual(failed.logged, [["routine.turn", { routine: 3, ok: false }]]);
+  assert.deepEqual(failed.logged, [["routine.turn", { routine: 3, ok: false, message: "down" }]]);
 });
 
 test("a task from the window is one main-agent turn in a chat of its own, handed to the worker by name", async () => {
@@ -147,4 +147,36 @@ test("steering: a note goes to the chat that runs the task; an empty or long not
   assert.throws(() => steering.steer(5, "x".repeat(MAX_COMMENT_CHARS + 1)), /too long/);
   assert.throws(() => steering.steer(6, "hi"), /does not run in an open chat/);
   await assert.rejects(steering.interrupt(5), /stop it instead/);
+});
+
+// 2026-10-16 (code review): a failed task or routine turn logged ok:false with no reason and told Keshab nothing; "Run task" just did nothing.
+test("a failing task turn says why, in the log and in a line for Keshab", async () => {
+  const lines: string[] = [];
+  const logs: [string, Record<string, unknown>][] = [];
+  const start = taskStarter({
+    core: { resume: () => {}, handle: async () => { throw new Error("No Claude model is signed in"); } } as never,
+    name: () => "Sid",
+    failed: (line) => void lines.push(line),
+    log: { info: () => {}, warn: (e, f) => void logs.push([e, f]) },
+  });
+  start("sid", "find kits");
+  await new Promise((r) => setTimeout(r, 10));
+  assert.deepEqual(lines, ["Sid's task did not run: No Claude model is signed in"]);
+  assert.deepEqual(logs, [["task.turn", { helper: "sid", ok: false, message: "No Claude model is signed in" }]]);
+  assert.ok(!JSON.stringify(logs).includes("find kits"), "the task's own words never reach the log");
+});
+
+test("a failing routine turn says why too, and a failure without a message still gets a line", async () => {
+  const lines: string[] = [];
+  const s = routineStarter({
+    core: { resume: () => {}, handle: async () => { throw "plain string, not an Error"; } } as never,
+    messages: () => [],
+    busy: () => false,
+    name: () => "Sid",
+    failed: (line) => void lines.push(line),
+    log: { info: () => {}, warn: () => {} },
+  });
+  s({ id: 9, helper: "sid", task: "news", notifyTelegram: false } as unknown as Routine);
+  await new Promise((r) => setTimeout(r, 10));
+  assert.deepEqual(lines, ["A routine did not run: unknown reason"]);
 });
