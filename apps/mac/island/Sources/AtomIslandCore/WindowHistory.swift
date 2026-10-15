@@ -5,10 +5,11 @@ public enum WindowPage: Equatable, Sendable {
     case dashboard, chat, scheduled, agents, plugins, brain, settings
 }
 
-/// The Board's views, in the order of its switch. Overview, Needs you and Issues were sidebar pages; they live here now
-/// (2026-10-15 for the last two, which freed room in the sidebar for Projects and Chats).
+/// The Board's views, in the order of its switch: what waits for Keshab first. Overview, Needs you and Issues were sidebar
+/// pages; they live here now (2026-10-15 for the last two, which freed room in the sidebar for Projects and Chats). Failed
+/// tasks are part of Needs you: they wait for him (ADR-116).
 public enum BoardView: String, CaseIterable, Sendable {
-    case overview, floor, columns, needsYou, issues
+    case needsYou, overview, floor, columns
 
     /// The name the switch shows.
     public var title: String {
@@ -18,13 +19,13 @@ public enum BoardView: String, CaseIterable, Sendable {
         }
     }
 
-    /// Reads a stored page name: the old "overview", "inbox" (Needs you) and "issues" pages are Board views. Other names
+    /// Reads a stored page name: the old "overview", "inbox" (Needs you) and "issues" (also Needs you) pages are Board views. Other names
     /// are not Board views.
     public init?(storedPage: String) {
         switch storedPage {
         case "overview": self = .overview
         case "inbox": self = .needsYou
-        case "issues": self = .issues
+        case "issues": self = .needsYou // failed tasks are part of Needs you
         default: return nil
         }
     }

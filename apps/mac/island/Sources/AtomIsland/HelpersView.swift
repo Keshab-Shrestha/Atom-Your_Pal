@@ -106,7 +106,7 @@ extension HelpersView {
         if model.helpers.isCreatingAgent { return ("New agent", "person.badge.plus") }
         if model.helpers.openJobId != nil { return ("Task", "text.page") }
         if model.helpers.showsBoard {
-            let view = model.boardView == .overview || model.boardView == .needsYou || model.boardView == .issues ? " · " + model.boardView.title : ""
+            let view = model.boardView == .overview || model.boardView == .needsYou ? " · " + model.boardView.title : ""
             return ("Board" + view, "square.grid.2x2")
         }
         if let helper = model.helpers.selectedHelper {
@@ -213,7 +213,14 @@ private struct HelperSidebar: View {
                 SidebarRow(symbol: "chart.bar.xaxis", title: "Dashboard", detail: today == 0 ? nil : "\(TokenTotals.short(today)) tokens today", selected: model.windowPage == .dashboard)
             }
         case .board:
-            page { model.navigate { model.windowPage = .agents; model.helpers.selectBoard() } } label: {
+            page {
+                model.navigate {
+                    model.windowPage = .agents
+                    model.helpers.selectBoard()
+                    // Anything that waits for Keshab opens Needs you, so it cannot be missed; otherwise the view in use.
+                    model.boardView = BoardAttention(list: model.helpers.list, approvalPending: model.approval.pending != nil).view(whenOpening: model.boardView)
+                }
+            } label: {
                 BoardRow(model: model, selected: model.windowPage == .agents && model.helpers.showsBoard)
             }
         case .scheduled:

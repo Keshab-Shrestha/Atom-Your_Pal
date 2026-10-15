@@ -2696,3 +2696,13 @@ Overview moved into the Board the same way. Two rows less in the sidebar gives P
 ### Unchanged
 
 The content and rules of both pages (ADR-090, ADR-091, the loading and empty states).
+
+### Revision, the same day (ADR-116)
+
+Keshab used the layout and asked for the changes below. Each answers a weakness in the first version.
+
+1. **Opens where it matters.** A click on the sidebar's Board row opens the Needs you tab when anything waits for Keshab. Otherwise it opens the view he was in. (Before, it opened the last view, often Floor, so a waiting approval could be missed.)
+2. **Issues is part of Needs you.** The Board's own "Needs you" column already held failed tasks, and a failed task waits for Keshab. So Issues is no longer a tab: failed tasks are a "Failed" section under the things to answer, with Retry and Open. The Board has four views, and Needs you is first. The old stored page name "issues" opens Needs you.
+3. **A number, not a dot.** The Board row shows one count (things to answer plus failed tasks) in a small badge: yellow when something is for him to answer, red when only failures wait. Its line says "N need you", "N failed" or "N ask · M failed". `BoardAttention` (Core) is the one source for the row and the tab, so they agree.
+4. **Chat rows.** A chat in the sidebar is one line (the title). The time is the hover tip and VoiceOver's. The row is shorter, so more chats fit.
+

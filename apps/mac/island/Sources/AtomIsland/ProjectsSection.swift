@@ -349,6 +349,11 @@ struct SidebarChatRow: View {
             }
     }
 
+    /// "Updated 5 minutes ago": what the second line used to say.
+    static func updatedText(_ chat: ChatInfo) -> String {
+        chat.updatedAt.map { "Updated " + $0.formatted(.relative(presentation: .named)) } ?? ""
+    }
+
     private var row: some View {
         Button {
             guard !renaming else { return }
@@ -363,17 +368,17 @@ struct SidebarChatRow: View {
                 } else {
                     Text(chat.title).font(.system(size: 12.5, weight: current ? .semibold : .regular)).foregroundStyle(theme.text.color).lineLimit(1)
                 }
-                if let at = chat.updatedAt {
-                    Text(at, format: .relative(presentation: .named)).font(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1)
-                }
+                // 2026-10-15: the time is not a second line any more (one line is a shorter row); it is the tip and VoiceOver's.
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 10).padding(.vertical, 6)
+            .padding(.horizontal, 10).padding(.vertical, 5)
             .background(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous)
                 .strokeBorder(current && model.windowPage == .chat ? (theme.isFlat ? theme.border.color : theme.separator.color) : .clear, lineWidth: 1))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .help(Self.updatedText(chat))
+        .accessibilityLabel(Self.updatedText(chat).isEmpty ? chat.title : "\(chat.title), \(Self.updatedText(chat))")
         .contextMenu {
             if !chat.readOnly { Button("Rename") { draft = chat.title; renaming = true } }
             Button("Delete chat…", role: .destructive) { confirming = true }
