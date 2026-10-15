@@ -81,9 +81,13 @@ export async function prepareWorkdir(folder: string, taskId: number, worktrees: 
 /** Commits everything changed in the worktree on its branch, as ATOM. False when nothing changed. */
 export async function commitWork(dir: string, message: string, guard?: { tree: string; repo: string }): Promise<boolean> {
   if (guard && !(await worktreeIntact(guard.tree, guard.repo))) throw new Error("The task's worktree was changed since ATOM made it, so nothing was committed.");
-  await git(dir, "add", "-A");
-  const changed = await git(dir, "diff", "--cached", "--quiet").then(() => false, () => true);
+  // With a guard, git runs from the verified top of the worktree, never from the project's subfolder inside it: an agent can `git init`
+  // there, and git would use that repository, with filter drivers and other config the guard never looked at (review, 2026-10-16).
+  // A repository below the top is then only a folder git records as a nested repository; its config is not read.
+  const top = guard?.tree ?? dir;
+  await git(top, "add", "-A");
+  const changed = await git(top, "diff", "--cached", "--quiet").then(() => false, () => true);
   if (!changed) return false;
-  await git(dir, "-c", "user.name=ATOM", "-c", "user.email=atom@localhost", "commit", "--no-verify", "-m", message);
+  await git(top, "-c", "user.name=ATOM", "-c", "user.email=atom@localhost", "commit", "--no-verify", "-m", message);
   return true;
 }

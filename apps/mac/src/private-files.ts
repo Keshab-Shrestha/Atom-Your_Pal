@@ -1,4 +1,5 @@
 import { chmodSync, existsSync } from "node:fs";
+import { basename, dirname } from "node:path";
 
 // 2026-10-15 (security review): data/helpers.db and data/memory.db hold MCP secrets and every chat; they were mode 0644 in a 0755
 // folder, readable by any other account on the Mac. Only data/api-token was private. This makes the data folder, its databases (with
@@ -23,4 +24,14 @@ export function makePrivate(paths: { dirs?: readonly string[]; files?: readonly 
   for (const file of paths.files ?? []) apply(file, PRIVATE_FILE);
   for (const db of paths.databases ?? []) for (const side of SIDE_FILES) apply(`${db}${side}`, PRIVATE_FILE);
   return failed;
+}
+
+/**
+ * The folders to make private among the folders of these files: only ATOM's own `data` and `logs` (their default names), each once.
+ * Never the folder of a file the user pointed ATOM at (ATOM_LOG_FILE, ATOM_MEMORY_FILE in a home or shared folder): changing that
+ * folder's mode would be ATOM reaching outside itself. The files themselves are always made private.
+ */
+export function ownFolders(files: readonly string[]): string[] {
+  const folders = files.filter((f) => f !== ":memory:").map((f) => dirname(f)).filter((d) => ["data", "logs"].includes(basename(d)));
+  return [...new Set(folders)];
 }

@@ -139,3 +139,32 @@ test("a worktree whose .git file points somewhere else, or is a symlink, is not 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+// 2026-10-16 (review of the fixes): the guard looked only at the worktree's top .git, but git ran in the project's subfolder. An agent
+// could `git init` inside that subfolder; git then used that repository (and its core.fsmonitor) first.
+test("a repository the agent makes in the project's subfolder is not used: git runs from the verified top of the worktree", async () => {
+  const root = mkdtempSync(join(tmpdir(), "atom-wt-"));
+  try {
+    const repo = join(root, "repo");
+    mkdirSync(join(repo, "app"), { recursive: true });
+    sh(root, "init", "-q", "-b", "main", repo);
+    writeFileSync(join(repo, "app", "a.txt"), "one\n");
+    sh(repo, "add", "-A");
+    sh(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "first");
+    const work = await prepareWorkdir(join(repo, "app"), 33, join(root, "worktrees"));
+    assert.equal(work.dir, join(work.tree!, "app"), "the work folder is a subfolder of the worktree");
+    const guard = { tree: work.tree!, repo: work.repo! };
+    const marker = join(root, "ran-marker");
+    sh(work.dir, "init", "-q"); // the agent's own repository inside the subfolder
+    // A clean filter runs at `git add` and fsmonitor is already overridden on ATOM's command line, so the live route is a filter driver.
+    writeFileSync(join(work.dir, "hook.sh"), `#!/bin/sh\necho ran > ${marker}\ncat\n`, { mode: 0o755 });
+    sh(work.dir, "config", "filter.evil.clean", join(work.dir, "hook.sh"));
+    writeFileSync(join(work.dir, ".gitattributes"), "* filter=evil\n");
+    writeFileSync(join(work.dir, "a.txt"), "two\n");
+    await commitWork(work.dir, "attack", guard).catch(() => false);
+    assert.equal(existsSync(marker), false, "the agent's command never ran");
+    assert.equal(sh(repo, "rev-parse", "--abbrev-ref", "HEAD"), "main", "the current branch is untouched");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
