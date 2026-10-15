@@ -452,6 +452,8 @@ final class DictationController {
                 self.onPhase(.loading(detail: DictationModel.isDownloaded ? "Almost ready" : "First use: downloading, about 450 MB"))
                 await self.modelLoading?.value
                 if await !self.model.isLoaded {
+                    // A cancelled task must not end a newer dictation (2026-10-16, code review): Esc, then a new hold, then this late failure.
+                    if Task.isCancelled { return }
                     self.end(.failed(title: "Speech model missing", message: self.modelError ?? "The speech model did not load."), [:])
                     return
                 }
@@ -477,6 +479,9 @@ final class DictationController {
                     self.end(.copied(reason: reason), fields)
                 }
             } catch {
+                // Cancelling the model's work throws CancellationError here. That is not a failure, and `end` would set the state to idle
+                // under a dictation that began after the Esc (its microphone would then stay open with nothing watching it).
+                if Task.isCancelled || error is CancellationError { return }
                 self.end(.failed(title: "Couldn't transcribe", message: "\(error)"), ["message": "\(error)"])
             }
         }
