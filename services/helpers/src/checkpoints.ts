@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { chmodSync, closeSync, copyFileSync, existsSync, lstatSync, mkdirSync, openSync, readSync, readdirSync, renameSync, rmSync, statSync, unlinkSync } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
-import { DENY_READ_DIRS, isInside, pathProblem, realish } from "./grants.ts";
+import { DENY_READ_DIRS, hasGitPart, isInside, pathProblem, realish } from "./grants.ts";
 
 /**
  * B3.4, ADR-101: checkpoint and undo of a run's file edits. Before the first edit of a file in a run, ATOM copies the
@@ -157,7 +157,7 @@ export function checkpointTable(db: DatabaseSync, dir: string | undefined, home:
       const existing = root ? lstatOrUndefined(real) : undefined;
       const kind: CheckpointKind = existing ? "modified" : "created";
       if (!root) return skipRow(jobId, key, rel, kind, "outside the folders");
-      if (real.split(sep).includes(".git")) return skipRow(jobId, key, rel, kind, "git's own file");
+      if (hasGitPart(real)) return skipRow(jobId, key, rel, kind, "git's own file");
       if (isSecretLike(real, home) || isSecretLike(requested, home)) return skipRow(jobId, key, rel, kind, "secret file");
       if ((count.get(jobId) as { n: number }).n >= CHECKPOINT_JOB_FILES) return skipRow(jobId, key, rel, kind, "too many files");
       if (!existing) {

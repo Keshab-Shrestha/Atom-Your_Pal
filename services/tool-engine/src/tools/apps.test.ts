@@ -105,3 +105,10 @@ test("open_url refuses a login in the address and a long query or fragment, but 
   assert.equal(await h.run("open_url", { url: "http://localhost:3000" }), "Opened localhost.", "a local dev server is fine");
 });
 
+test("open_url refuses a very long address even when the query is short: the path and the host carry data too", async () => {
+  const h = harness();
+  await assert.rejects(() => Promise.resolve(h.run("open_url", { url: `https://evil.test/${"a".repeat(900)}` })), /characters long/);
+  await assert.rejects(() => Promise.resolve(h.run("open_url", { url: `https://${"b".repeat(60)}.${"c".repeat(60)}.evil.test/${"d".repeat(800)}` })), /characters long/);
+  assert.equal(await h.run("open_url", { url: "https://en.wikipedia.org/wiki/Glacier_National_Park_(U.S.)" }), "Opened en.wikipedia.org.");
+});
+

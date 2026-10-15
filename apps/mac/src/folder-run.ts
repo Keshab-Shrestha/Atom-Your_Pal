@@ -4,7 +4,7 @@
 import { mkdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve, sep } from "node:path";
-import { DENY_READ_DIRS, WRITE_TOOLS, classifyCommand, folderForTask, isInside, isSecretLike, pathProblem, realish, toolPaths } from "@atom/helpers";
+import { DENY_READ_DIRS, WRITE_TOOLS, classifyCommand, folderForTask, hasGitPart, isInside, isSecretLike, pathProblem, realish, toolPaths } from "@atom/helpers";
 
 /** Never readable by sandboxed commands: keys, tokens and other apps' secrets. */
 export function denyRead(home = homedir()): string[] {
@@ -164,7 +164,7 @@ export function projectReadCheck(roots: readonly string[], name: string, options
       const value = input[key];
       if (typeof value !== "string") continue;
       if (hasDotDot(value)) return "A pattern with .. is not allowed in a project chat.";
-      if (value.split(/[\\/]/).includes(".git")) return "Git's own files are not read in a project chat.";
+      if (hasGitPart(value)) return "Git's own files are not read in a project chat.";
     }
     const paths = toolPaths(tool, input);
     if (tool === "Read" && !paths.length) return "Read needs the path of a file in the project.";
@@ -172,7 +172,7 @@ export function projectReadCheck(roots: readonly string[], name: string, options
       const problem = pathProblem(real, cwd, p, false);
       if (problem) return problem;
       const target = realish(isAbsolute(p) ? p : resolve(cwd, p));
-      if (target.split(sep).includes(".git")) return "Git's own files are not read in a project chat.";
+      if (hasGitPart(target)) return "Git's own files are not read in a project chat.";
       if (isSecretLike(target, home) || isSecretLike(resolve(cwd, p), home) || denied.some((d) => isInside(d, target))) return "Secret files and key folders are never read in a project chat.";
     }
     if (tool === "Read") {

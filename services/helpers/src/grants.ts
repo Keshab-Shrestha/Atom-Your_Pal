@@ -1,4 +1,4 @@
-import { realpathSync, statSync } from "node:fs";
+import { lstatSync, readlinkSync, realpathSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { HelperError } from "./jobs.ts";
 
@@ -10,14 +10,28 @@ export const MAX_GRANTS = 8;
 /** Folders inside the home folder that hold keys, tokens and other apps' secrets (never readable by commands, never checkpointed). */
 export const DENY_READ_DIRS = [".ssh", ".aws", ".gnupg", ".config", ".netrc", ".npmrc", ".docker", ".kube", ".azure", ".claude", ".codex", ".hermes", "Library/Keychains", "Library/Cookies"];
 
-/** The real path of `p`, or of its nearest existing ancestor joined with the rest (for a file not written yet). */
-export function realish(p: string): string {
+/** The most links followed when a path ends in links that point at files not made yet. */
+const MAX_LINK_HOPS = 32;
+
+/**
+ * The real path of `p`, or of its nearest existing ancestor joined with the rest (for a file not written yet). A link whose target does
+ * not exist yet (a dangling link) is followed to where it points: `realpathSync` throws for it, and the walk up used to treat it as a plain
+ * missing name inside its folder, so a write through `proj/x -> ~/.ssh/authorized_keys` looked like a write inside `proj` (code check, 2026-10-16).
+ */
+export function realish(p: string, hops = 0): string {
   let head = resolve(p);
   const tail: string[] = [];
   for (;;) {
     try {
       return [realpathSync(head), ...tail].join(sep);
     } catch {
+      try {
+        if (hops < MAX_LINK_HOPS && lstatSync(head).isSymbolicLink()) {
+          return realish([resolve(dirname(head), readlinkSync(head)), ...tail].join(sep), hops + 1);
+        }
+      } catch {
+        // not a link, or it cannot be read: treat it as a missing name, as before
+      }
       const parent = dirname(head);
       if (parent === head) return resolve(p);
       tail.unshift(head.slice(parent.length + (parent.endsWith(sep) ? 0 : 1)));
@@ -25,6 +39,9 @@ export function realish(p: string): string {
     }
   }
 }
+
+/** Does the path have a folder or file named `.git`, in any case? macOS ignores case, so `.GIT/hooks` is git's own folder too. */
+export const hasGitPart = (p: string) => p.split(/[\\/]/).some((part) => part.toLowerCase() === ".git");
 
 export const isInside = (root: string, p: string) => p === root || p.startsWith(root.endsWith(sep) ? root : root + sep);
 
@@ -45,7 +62,7 @@ export function checkGrant(path: string, home: string): string {
   if (real === homeReal) throw new HelperError("The whole home folder cannot be granted. Choose a project folder inside it.");
   if (isInside(homeReal, real)) {
     const parts = real.slice(homeReal.length + 1).split(sep);
-    if (parts[0] === "Library") throw new HelperError("~/Library holds apps' data and cannot be granted.");
+    if (parts[0]?.toLowerCase() === "library") throw new HelperError("~/Library holds apps' data and cannot be granted."); // any case: macOS ignores it
     if (parts.some((part) => part.startsWith("."))) throw new HelperError("Hidden folders (such as ~/.ssh) hold keys and settings and cannot be granted.");
     return real;
   }
@@ -65,7 +82,7 @@ export function folderForTask(task: string, home: string): string {
     const real = resolve(p);
     if (!isInside(home, real) || real === resolve(home)) return false;
     const parts = real.slice(resolve(home).length + 1).split(sep);
-    return parts[0] !== "Library" && !parts.some((part) => part.startsWith("."));
+    return parts[0]?.toLowerCase() !== "library" && !parts.some((part) => part.startsWith("."));
   };
   const tidy = (p: string) => p.replace(/[.,;:!?)"'’]+$/, "");
   const path = task.match(/(?:^|\s)(~\/[^\s"']+|\/Users\/[^\s"']+)/)?.[1];
@@ -89,7 +106,7 @@ export function folderForTask(task: string, home: string): string {
 export function pathProblem(roots: readonly string[], cwd: string, p: string, writing = false): string | undefined {
   const real = realish(isAbsolute(p) ? p : resolve(cwd, p));
   if (!roots.some((root) => isInside(root, real))) return `${p} is outside the folders this task may use.`;
-  if (writing && real.split(sep).includes(".git")) return "Git's own files are not changed by hand: ATOM commits the work.";
+  if (writing && hasGitPart(real)) return "Git's own files are not changed by hand: ATOM commits the work.";
   return undefined;
 }
 
@@ -118,18 +135,21 @@ export function toolPaths(name: string, input: Record<string, unknown>): string[
 
 export type CommandVerdict = { verdict: "allow" } | { verdict: "ask"; reason: string } | { verdict: "refuse"; reason: string };
 
+// git's own options may stand between "git" and the subcommand ("git -C . push", "git -c k=v push", "git --git-dir=x push"): the rules below read
+// through them (code check, 2026-10-16). A newline, `env`, `xargs` and `command` can stand in front of sudo.
+const GIT = String.raw`\bgit(?:\s+(?:-[cC]\s+\S+|--[\w-]+(?:=\S+)?|-[a-zA-Z]))*\s+`;
 const REFUSED: [RegExp, string][] = [
-  [/\bgit\s+push\b/, "Pushing is never done: the work stays on its branch on this Mac."],
-  [/\bgit\s+remote\s+(?:add|set-url|rename|remove|rm)\b/, "Changing the repository's remotes is not allowed."],
-  [/\bgit\s+(?:checkout|switch)\s+(?:main|master)\b|\bgit\s+(?:reset\s+--hard|rebase|filter-branch|update-ref)\b/, "Only the task's own branch is touched."],
-  [/(?:^|[;&|(]\s*)(?:sudo|doas|su)\b/, "Nothing runs as an administrator."],
+  [new RegExp(`${GIT}push\\b`), "Pushing is never done: the work stays on its branch on this Mac."],
+  [new RegExp(`${GIT}remote\\s+(?:add|set-url|rename|remove|rm)\\b`), "Changing the repository's remotes is not allowed."],
+  [new RegExp(`${GIT}(?:checkout|switch)(?:\\s+-\\S+)*\\s+(?:main|master)\\b|${GIT}(?:reset\\s+--hard|rebase|filter-branch|update-ref)\\b`), "Only the task's own branch is touched."],
+  [/(?:^|[;&|(\n]\s*|\b(?:env|xargs|command|exec|nohup|time)\s+)(?:sudo|doas|su)\b/, "Nothing runs as an administrator."],
   [/\bsecurity\s+(?:find|dump|export)|\bdefaults\s+write\b|\blaunchctl\b|\bosascript\b/, "System settings, keychains and other apps are out of reach."],
   [/\bcurl\b|\bwget\b|\bssh\b|\bscp\b|\brsync\b.*:|\bnc\b/, "Commands have no network."],
 ];
 const ASKED: [RegExp, string][] = [
   [/\brm\s+(?:-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)\b/, "deletes folders"],
   [/\b(?:npm|pnpm|yarn|bun)\s+(?:i|install|add)\b|\bpip3?\s+install\b|\bbrew\s+install\b|\bcargo\s+install\b|\bgem\s+install\b/, "installs software"],
-  [/\bgit\s+(?:clean|branch\s+-[dD])\b/, "deletes files or branches"],
+  [new RegExp(`${GIT}(?:clean|branch\\s+(?:-[dD]|--delete))\\b`), "deletes files or branches"],
 ];
 
 /** A sandboxed command's fate, in code: some are never run, some ask Keshab first, the rest run. */

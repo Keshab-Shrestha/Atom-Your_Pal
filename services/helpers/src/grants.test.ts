@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkGrant, classifyCommand, folderForTask, openHelperStore, pathProblem, toolPaths } from "./index.ts";
+import { checkGrant, classifyCommand, folderForTask, openHelperStore, pathProblem, realish, toolPaths } from "./index.ts";
 
 // ADR-082, Task 3.11: folder grants and the checks on every file tool and command.
 
@@ -106,4 +106,47 @@ test("a file worker without a folder is offered the one its task names, inside t
   for (const task of ["Save it to ~/", "Save it in ~/Library/Prefs", "Save to ~/.ssh/x", "Save to /etc/hosts", "a folder named ../../etc", "Write a file"]) {
     assert.equal(folderForTask(task, home), "/Users/me/Documents/ATOM", task);
   }
+});
+
+// 2026-10-16 (code check, third review pass).
+test("a dangling symlink inside a folder is followed to where it points: a write through it is outside the folder", () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-grants-")));
+  try {
+    const proj = join(root, "proj");
+    const outside = join(root, "outside");
+    mkdirSync(proj);
+    mkdirSync(outside);
+    symlinkSync(join(outside, "not-there-yet.txt"), join(proj, "x")); // points at a file that does not exist
+    assert.equal(realish(join(proj, "x")), join(outside, "not-there-yet.txt"), "resolved through the link");
+    assert.match(pathProblem([proj], proj, join(proj, "x"), true) ?? "", /outside the folders/);
+    symlinkSync("loop-b", join(proj, "loop-a"));
+    symlinkSync("loop-a", join(proj, "loop-b"));
+    assert.equal(typeof realish(join(proj, "loop-a")), "string", "a loop of links ends");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("macOS ignores case: .GIT and Library in any case are refused", () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-grants-")));
+  try {
+    const proj = join(root, "proj");
+    mkdirSync(join(proj, ".GIT", "hooks"), { recursive: true });
+    assert.match(pathProblem([proj], proj, join(proj, ".GIT", "hooks", "pre-commit"), true) ?? "", /Git's own files/);
+    assert.match(pathProblem([proj], proj, join(proj, ".Git", "config"), true) ?? "", /Git's own files/);
+    mkdirSync(join(root, "library", "x"), { recursive: true });
+    assert.throws(() => checkGrant(join(root, "library", "x"), root), /Library/);
+    assert.equal(folderForTask("save to ~/library/stuff", root), join(root, "Documents", "ATOM"), "the Library in any case is not offered");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("classifyCommand sees through git's own options, a newline, env and xargs", () => {
+  for (const c of ["git -C . push", "git -c core.x=y push origin main", "git --git-dir=.git push", "git --no-pager push", "git checkout -f main", "git -C . reset --hard HEAD~1", "git -C sub rebase main"]) {
+    assert.equal(classifyCommand(c).verdict, "refuse", c);
+  }
+  for (const c of ["echo hi\nsudo ls", "env sudo ls", "xargs sudo rm", "command sudo ls", "echo ok && sudo -n true"]) assert.equal(classifyCommand(c).verdict, "refuse", c);
+  for (const c of ["git -C . branch --delete old", "git -C . clean -fd"]) assert.equal(classifyCommand(c).verdict, "ask", c);
+  for (const c of ["git status", "git -C . diff --stat", "git commit -m 'sudo is a word'", "echo pseudo"]) assert.equal(classifyCommand(c).verdict, "allow", c);
 });

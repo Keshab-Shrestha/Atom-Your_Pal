@@ -7,6 +7,8 @@
 
 /** The most characters of query and fragment a fetched address may carry. Longer than open_url's 300: a fetch of an article may keep tracking parameters. */
 export const MAX_FETCH_URL_DATA = 500;
+/** The longest whole address a fetch may have: the path and host carry data out as well as the query (code check, 2026-10-16). */
+export const MAX_FETCH_URL_LENGTH = 1200;
 
 const PRIVATE_SUFFIXES = [".localhost", ".local", ".lan", ".internal", ".home.arpa", ".corp", ".intranet"];
 
@@ -33,6 +35,7 @@ export function webFetchProblem(raw: unknown): string | undefined {
     return "That is not a web address. WebFetch needs the full address of a page, starting with https://.";
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") return "WebFetch reads only http and https pages.";
+  if (url.href.length > MAX_FETCH_URL_LENGTH) return `That address is ${url.href.length} characters long. Skip it and say so in the report.`;
   if (url.username || url.password) return "An address with a login in it is not fetched. Skip that page and say so in the report.";
   const host = url.hostname.toLowerCase().replace(/\.$/, "");
   const notPublic = "That address is a local or private one, not a public page. Skip it and say so in the report.";

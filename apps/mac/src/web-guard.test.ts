@@ -41,3 +41,9 @@ test("only http and https; no login in the address; no long query or fragment", 
 test("a missing or malformed address is a plain problem, never a throw", () => {
   for (const bad of [undefined, null, 42, "", "not a url", {}]) assert.match(webFetchProblem(bad) ?? "", /address/i);
 });
+
+test("a very long path is refused even with no query", () => {
+  assert.match(webFetchProblem(`https://evil.test/${"a".repeat(1300)}`) ?? "", /characters long/);
+  assert.equal(webFetchProblem(`https://ok.test/${"a".repeat(500)}`), undefined);
+});
+
