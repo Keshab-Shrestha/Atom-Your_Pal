@@ -51,8 +51,13 @@ export interface ApiServer {
   stop(): void;
 }
 
+/** How long one API turn may take before the next request is served (ms). */
+export const API_TURN_TIMEOUT_MS = 10 * 60_000;
+
 export interface ApiServerOptions {
   log: Logger;
+  /** Default API_TURN_TIMEOUT_MS. */
+  turnTimeoutMs?: number;
   /** ATOM_API_PORT, or DEFAULT_API_PORT. */
   port?: string | undefined;
   tokenFile?: string;
@@ -128,8 +133,20 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
   let refused = 0;
   // One ATOM turn at a time: the API chat's Core answers one request at a time.
   let turns: Promise<unknown> = Promise.resolve();
+  // A turn that has not answered after turnTimeoutMs is given up on (504) so the next one is not stuck behind it. The work itself is not
+  // cancelled. Telegram had this limit; the API had none (code check, 2026-10-16).
+  const turnLimitMs = options.turnTimeoutMs ?? API_TURN_TIMEOUT_MS;
+  const withinLimit = <T>(work: Promise<T>): Promise<T> => {
+    let timer: NodeJS.Timeout | undefined;
+    const limit = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new ApiError(504, "ATOM did not answer in time. Ask again.")), turnLimitMs);
+      timer.unref();
+    });
+    return Promise.race([work, limit]).finally(() => clearTimeout(timer));
+  };
   const turn = <T>(work: () => Promise<T>): Promise<T> => {
-    const next = turns.then(work, work);
+    const bounded = () => withinLimit(work());
+    const next = turns.then(bounded, bounded);
     turns = next.catch(() => undefined);
     return next;
   };
@@ -298,7 +315,12 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
       body: true,
       // The same actions as the Telegram buttons, by the button's word: allow, decline, approve, reject, accept, retry.
       run: ([raw], body) => {
-        const key = decodeURIComponent(raw ?? "");
+        let key: string;
+        try {
+          key = decodeURIComponent(raw ?? "");
+        } catch {
+          throw new ApiError(400, "That is not a Needs you key."); // a broken percent-encoding is the client's mistake, not a 500
+        }
         if (!NEED_KEY_PATTERN.test(key)) throw new ApiError(400, "That is not a Needs you key.");
         const action = text(body, "action").toLowerCase();
         const need = needs().find((n) => n.key === key);
@@ -378,8 +400,15 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
 
   async function handle(req: IncomingMessage, res: ServerResponse) {
     const started = Date.now();
-    const url = new URL(req.url ?? "/", "http://127.0.0.1");
-    const route = routes.find((r) => r.method === req.method && r.match.test(url.pathname));
+    // An address the URL parser rejects (a path of "//" does) used to throw here, before the token check and outside any try: the rejection
+    // reached the app's crash handler and ended ATOM, with no token and from any web page that could reach 127.0.0.1 (code check, 2026-10-16).
+    let url: URL | undefined;
+    try {
+      url = new URL(req.url ?? "/", "http://127.0.0.1");
+    } catch {
+      url = undefined;
+    }
+    const route = url ? routes.find((r) => r.method === req.method && r.match.test(url.pathname)) : undefined;
     let status = 200;
     try {
       if (!authorized(req)) {
@@ -388,6 +417,11 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
         status = 401;
         req.resume();
         return reply(res, status, null, "A valid token is needed: Authorization: Bearer <the token in data/api-token>.");
+      }
+      if (!url) {
+        req.resume();
+        status = 400;
+        return reply(res, status, null, "That is not a valid address.");
       }
       if (!route) {
         req.resume();
@@ -432,7 +466,16 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
         log.warn("api.start_failed", { reason: "setup" });
         return status(false, describe(error));
       }
-      const next = createServer((req, res) => void handle(req, res));
+      const next = createServer((req, res) => {
+        // Whatever happens inside handle(), nothing may escape as an unhandled rejection: that ends the whole app.
+        handle(req, res).catch(() => {
+          try {
+            res.destroy();
+          } catch {
+            // already gone
+          }
+        });
+      });
       next.requestTimeout = 30_000; // receiving the request; an ATOM turn after that may take longer
       return new Promise<ApiStatus>((done) => {
         next.once("error", (error: NodeJS.ErrnoException) => {

@@ -370,3 +370,54 @@ test("needs: the API answers a plan, but a risky-action card is refused and list
     api.stop();
   }
 });
+
+// 2026-10-16 (code check): `new URL("//", base)` threw before the token check, outside any try. handle() rejected, nothing caught it, and the app's
+// crash handler ended ATOM: no token needed, from any web page that could reach 127.0.0.1.
+test("a request with an address the URL parser rejects gets an answer and the app keeps running", async () => {
+  const rejections: unknown[] = [];
+  const onRejection = (e: unknown) => rejections.push(e);
+  process.on("unhandledRejection", onRejection);
+  const { api, port, token } = await boot();
+  try {
+    for (const path of ["//", "//%", "//x//"]) {
+      const anon = await call(port, "GET", path);
+      assert.equal(anon.status, 401, `${path}: without a token it is refused like everything else`);
+      const authed = await call(port, "GET", path, { token });
+      assert.ok(authed.status === 400 || authed.status === 404, `${path}: ${authed.status}`);
+    }
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(rejections.length, 0, "no unhandled rejection: nothing ended the app");
+    assert.equal((await call(port, "GET", "/v1/tasks", { token })).status, 200, "the API still answers");
+  } finally {
+    process.off("unhandledRejection", onRejection);
+    api.stop();
+  }
+});
+
+test("a broken percent-encoding in a Needs you key is a 400, not a 500", async () => {
+  const { api, port, token } = await boot();
+  try {
+    const r = await call(port, "POST", "/v1/needs/%E0%A4%A", { token, body: '{"action":"approve"}' });
+    assert.equal(r.status, 400);
+  } finally {
+    api.stop();
+  }
+});
+
+// 2026-10-16 (code check): API turns were queued with no limit, so one hung answer held every later /v1/chat and /v1/goals forever (Telegram had a limit).
+test("a hung API turn is given up on after the limit and the next request is served", async () => {
+  let n = 0;
+  const { api, port, token } = await boot({
+    turnTimeoutMs: 40,
+    ask: (t: string) => (++n === 1 ? new Promise<string>(() => {}) : Promise.resolve(`echo:${t}`)),
+  } as never);
+  try {
+    const first = await call(port, "POST", "/v1/chat", { token, body: '{"text":"one"}' });
+    assert.equal(first.status, 504, "the hung turn is answered with a timeout");
+    const second = await call(port, "POST", "/v1/chat", { token, body: '{"text":"two"}' });
+    assert.equal(second.status, 200);
+    assert.equal(second.json.data.answer, "echo:two");
+  } finally {
+    api.stop();
+  }
+});
