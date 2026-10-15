@@ -82,6 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 onMain { self?.statusChanged(status) }
             })
         island.model.send = { [weak self] command in self?.supervisor?.send(command) }
+        supervisor?.onCommandDropped = { command in onMain { [weak island] in island?.model.commandDropped(command) } }
         island.model.applyComputer = { [weak self] on in self?.supervisor?.restart(environment: ["ATOM_COMPUTER": on ? "1" : "0"]) }
         // ADR-075: "Restart ATOM" starts it again with a fresh restart policy; "Open log" opens this file.
         island.restartRuntime = { [weak self] in self?.supervisor?.start() }

@@ -197,6 +197,16 @@ struct RuntimeSupervisorTests {
         #expect(supervisor.currentStatus() == .stopped)
     }
 
+    /// 2026-10-15 (code review): a typed prompt or a saved note sent while the runtime was down vanished with only a log line.
+    @Test func aDroppedCommandIsReportedSoTheAppCanSayIt() async throws {
+        let (supervisor, _) = make("exec cat > /dev/null")
+        let types = LockedList()
+        supervisor.onCommandDropped = { types.add($0.type) }
+        supervisor.send(.talkStart) // nothing running
+        try await waitUntil { types.items == ["talk.start"] }
+        await stop(supervisor)
+    }
+
     @Test func logsLifecycleWithoutSpokenText() async throws {
         let logURL = dir.appendingPathComponent("atom.log")
         let log = IslandLog(url: logURL)
@@ -232,5 +242,27 @@ struct ComputerRestartTests {
 
     @Test func theWaitHasALimit() {
         #expect(ComputerRestart.patience > 10 && ComputerRestart.patience <= 120)
+    }
+}
+
+/// A list that several threads may add to.
+final class LockedList: @unchecked Sendable {
+    private let lock = NSLock()
+    private var values: [String] = []
+    func add(_ value: String) { lock.withLock { values.append(value) } }
+    var items: [String] { lock.withLock { values } }
+}
+
+@Suite("Dropped commands (2026-10-15)")
+struct DroppedCommandTests {
+    @Test func theMessageSaysItWasNotSentAndWhatToDo() {
+        #expect(DroppedCommand.message.contains("not sent") || DroppedCommand.message.contains("was not sent"))
+        #expect(DroppedCommand.message.contains("Try again"))
+    }
+
+    @Test func aCommandWaitingInSettingsGetsASettingsErrorOthersARuntimeError() {
+        #expect(DroppedCommand.error(waitingInSettings: true).stage == "settings", "this clears the waiting state of a skill, note or project")
+        #expect(DroppedCommand.error(waitingInSettings: false).stage == "runtime")
+        #expect(DroppedCommand.error(waitingInSettings: false).message == DroppedCommand.message)
     }
 }

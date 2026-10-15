@@ -89,11 +89,16 @@ public final class RuntimeSupervisor: @unchecked Sendable {
         }
     }
 
-    /// Sends a command. Ignored (and logged) if the runtime is not running.
+    /// Called (on `queue`) with each command that was not sent because the runtime is not running, so the app can say so and stop
+    /// waiting for an answer. Set once at start. Before this (2026-10-15, code review) the text was dropped with only a log line.
+    public var onCommandDropped: (@Sendable (IslandCommand) -> Void)?
+
+    /// Sends a command. If the runtime is not running the command is dropped: logged, and reported to `onCommandDropped`.
     public func send(_ command: IslandCommand) {
         queue.async { [self] in
             guard let input, !stopping else {
                 log.warn("island.command_dropped", ["command": command.type])
+                onCommandDropped?(command)
                 return
             }
             do {
@@ -335,5 +340,16 @@ public enum ComputerRestart {
         case .failed, .configError: true
         case .stopped, .running, .restarting: false
         }
+    }
+}
+
+/// What the island says when a command could not be sent because the runtime is not running (restarting, failed or stopped).
+public enum DroppedCommand {
+    public static let message = "ATOM is not running right now (it may be restarting), so that was not sent. Try again in a moment."
+
+    /// The error to show. A command that waits for an answer in Settings (a skill, a note, a project) gets a "settings" error,
+    /// which clears its waiting state; anything else is a "runtime" error.
+    public static func error(waitingInSettings: Bool) -> RuntimeError {
+        RuntimeError(stage: waitingInSettings ? "settings" : "runtime", message: message, kind: nil)
     }
 }
