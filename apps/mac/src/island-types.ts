@@ -29,7 +29,7 @@ export interface IslandOptions {
   /** ADR-098: Settings' "Send to Telegram" switch. Absent when Telegram is not set up: `telegram.set` does nothing. */
   telegram?: { setPush(on: boolean): void };
   /** ADR-098 item 5: the local API. Absent (voice-only mode): `api.set` answers with `on: false` and an error. */
-  api?: Pick<ApiServer, "set">;
+  api?: Pick<ApiServer, "set" | "regenerate">;
   /** The AI model choice: sent as `info` after `ready`, changed by `model.set`. Without it, `model.set` is refused. */
   settings?: Pick<ModelSettings, "info" | "setModel" | "scanTools" | "refreshModels">;
   /** Computer control (ADR-054): shows what ATOM is doing and asks before risky actions. Absent when it is off. */

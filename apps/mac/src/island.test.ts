@@ -49,6 +49,7 @@ function islandHarness(
     capabilities: IslandOptions["capabilities"];
     onPlanUsage: IslandOptions["onPlanUsage"];
     info: IslandOptions["info"];
+    api: IslandOptions["api"];
   }> = {},
 ) {
   const input = new PassThrough();
@@ -106,6 +107,7 @@ function islandHarness(
     ...(over.screen ? { screen: over.screen } : {}),
     ...(over.capabilities ? { capabilities: over.capabilities } : {}),
     ...(over.onPlanUsage ? { onPlanUsage: over.onPlanUsage } : {}),
+    ...(over.api ? { api: over.api } : {}),
     micName: async () => "macOS default: Test Mic",
     describe: (error) => (error instanceof Error ? error.message : String(error)),
     errorDetails: (error) => ((error as { kind?: string }).kind ? { kind: (error as { kind: string }).kind, retryable: true } : {}),
@@ -140,6 +142,23 @@ function islandHarness(
     counts: () => ({ resets, quits, closed }),
   };
 }
+
+test("api.regenerate asks the API for a new token and answers with an api event; with no API it says so", async () => {
+  let made = 0;
+  const h = islandHarness({ api: { set: async () => ({ on: true, port: 4790, tokenFile: "data/api-token" }), regenerate: () => (made++, { on: true, port: 4790, tokenFile: "data/api-token" }) } });
+  await tick(2);
+  await h.send({ type: "api.regenerate" });
+  await tick(2);
+  assert.equal(made, 1);
+  assert.deepEqual(h.events().at(-1), { type: "api", on: true, port: 4790, tokenFile: "data/api-token" });
+  const none = islandHarness();
+  await tick(2);
+  await none.send({ type: "api.regenerate" });
+  await tick(2);
+  const last = none.events().at(-1) as { type: string; on: boolean; error?: string };
+  assert.deepEqual([last.type, last.on], ["api", false]);
+  assert.match(last.error ?? "", /not available/);
+});
 
 test("ready tells the island whether computer control is on, so its switch shows the real state", async () => {
   const h = islandHarness({ info: { provider: "fake", model: "fake-1", microphone: ":default", computer: true } });

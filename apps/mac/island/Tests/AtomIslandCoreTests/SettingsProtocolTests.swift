@@ -296,3 +296,15 @@ struct ComputerSwitchTests {
         #expect(IslandSettings(defaults: suite).computerOverride == nil)
     }
 }
+
+@Suite("Local API token (2026-10-15)")
+struct ApiRegenerateTests {
+    @Test func regenerateIsOneLineWithNoFields() throws {
+        let line = IslandCommand.apiRegenerate.line
+        #expect(line.hasSuffix("\n") && !line.dropLast().contains("\n"))
+        let object = try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any]
+        #expect(object?["type"] as? String == "api.regenerate")
+        #expect(object?.count == 1, "no token, no other field")
+        #expect(IslandCommand.apiRegenerate.type == "api.regenerate")
+    }
+}

@@ -347,6 +347,10 @@ export function runIsland(options: IslandOptions): IslandSession {
         if (!options.api) return send({ type: "api", on: false, port: 0, tokenFile: "", error: "The local API is not available in this mode." });
         void options.api.set(command.on).then((status) => send({ type: "api", ...status }));
         return;
+      case "api.regenerate":
+        if (!options.api) return send({ type: "api", on: false, port: 0, tokenFile: "", error: "The local API is not available in this mode." });
+        send({ type: "api", ...options.api.regenerate() });
+        return;
       case "speech.set":
         // ADR-091: muted kinds still show (the island card, Pal's line); they are not said or chimed.
         speech = { reports: command.reports, updates: command.updates, chime: command.chime ?? true };

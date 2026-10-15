@@ -295,3 +295,44 @@ test("ADR-110 N3: a goal ATOM answers itself has goalId null", async () => {
   assert.deepEqual(given.json.data, { goalId: null, answer: "It is 3 pm." });
   await api.set(false);
 });
+
+// 2026-10-15: Settings had Copy token but no way to replace a token that was shown in a chat or a log.
+test("regenerate: a running server rejects the old token at once and takes the new one; the file stays mode 0600", async () => {
+  logged.length = 0;
+  const { api, port, token } = await boot({ log: spyLog });
+  try {
+    assert.equal((await call(port, "GET", "/v1/tasks", { token })).status, 200);
+    const status = api.regenerate();
+    assert.equal(status.on, true);
+    assert.equal(status.error, undefined);
+    const fresh = readFileSync(join(dir, `token-${seq - 1}`), "utf8").trim();
+    assert.match(fresh, /^[0-9a-f]{64}$/);
+    assert.notEqual(fresh, token, "a different token");
+    assert.equal((await call(port, "GET", "/v1/tasks", { token })).status, 401, "the old token is dead");
+    assert.equal((await call(port, "GET", "/v1/tasks", { token: fresh })).status, 200, "the new one works");
+    assert.equal(statSync(join(dir, `token-${seq - 1}`)).mode & 0o777, 0o600);
+    const lines = logged.join("\n");
+    assert.match(lines, /api\.token_regenerated/);
+    assert.ok(!lines.includes(token) && !lines.includes(fresh), "no token in the log");
+  } finally {
+    api.stop();
+  }
+});
+
+test("regenerate works while the server is off: the next start uses the new token", async () => {
+  const tokenFile = join(dir, "token-off");
+  const old = readOrCreateToken(tokenFile);
+  const api = createApiServer({ log, port: String(47500 + Math.floor(Math.random() * 90)), tokenFile, approvals: { pending: () => [], answer() {} }, describe: (e) => String(e), ask: async () => "", said: () => undefined, startRoutine: () => true });
+  const status = api.regenerate();
+  assert.equal(status.on, false);
+  assert.equal(status.error, undefined);
+  assert.notEqual(readFileSync(tokenFile, "utf8").trim(), old);
+  const started = await api.set(true);
+  try {
+    const fresh = readFileSync(tokenFile, "utf8").trim();
+    assert.equal((await call(started.port, "GET", "/v1/needs", { token: old })).status, 401);
+    assert.equal((await call(started.port, "GET", "/v1/needs", { token: fresh })).status, 200);
+  } finally {
+    api.stop();
+  }
+});

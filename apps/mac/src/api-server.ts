@@ -5,7 +5,7 @@
 // answers or the token.
 
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { dirname, resolve } from "node:path";
 import { HelperError, isFinal, type GoalReport, type HelperStore, type Job, type JobState, type Routine } from "@atom/helpers";
@@ -34,6 +34,11 @@ export interface ApiStatus {
 export interface ApiServer {
   /** Starts or stops listening. Resolves when the change is done (or has failed: `error`). */
   set(on: boolean): Promise<ApiStatus>;
+  /**
+   * 2026-10-15: makes a new token. The old one stops working at once, also while the server runs. The file is
+   * data/api-token; the token itself is never logged or returned.
+   */
+  regenerate(): ApiStatus;
   stop(): void;
 }
 
@@ -422,6 +427,22 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
           done(status(true));
         });
       });
+    },
+    regenerate() {
+      try {
+        try {
+          unlinkSync(tokenFile);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        }
+        const token = readOrCreateToken(tokenFile);
+        if (server) tokenDigest = digest(token); // a running server takes the new token on its next request
+        log.info("api.token_regenerated", { running: Boolean(server) });
+        return status(Boolean(server));
+      } catch (error) {
+        log.warn("api.regenerate_failed", { reason: "file" });
+        return status(Boolean(server), describe(error));
+      }
     },
     stop() {
       void this.set(false);

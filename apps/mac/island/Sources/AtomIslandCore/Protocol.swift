@@ -52,6 +52,8 @@ public enum IslandCommand: Sendable, Equatable {
     case telegramSet(push: Bool)
     /// ADR-098 item 5: Settings' "Local API" switch. The runtime answers with an `api` event.
     case apiSet(on: Bool)
+    /// Settings' "Regenerate" next to "Copy token": the runtime makes a new token and answers with an `api` event.
+    case apiRegenerate
     /// ADR-093: look for the AI tools on this Mac again.
     case toolsScan
     /// ADR-091: Keshab's chats: list them, continue one, delete one.
@@ -199,6 +201,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .speechSet: "speech.set"
         case .telegramSet: "telegram.set"
         case .apiSet: "api.set"
+        case .apiRegenerate: "api.regenerate"
         case .toolsScan: "tools.scan"
         case .chatsList: "chats.list"
         case .chatOpen: "chat.open"

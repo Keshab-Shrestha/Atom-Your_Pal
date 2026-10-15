@@ -67,6 +67,8 @@ export type IslandCommand =
   | { type: "telegram.set"; push: boolean }
   /** ADR-098 item 5: Settings' "Local API" switch. The runtime answers with an `api` event. */
   | { type: "api.set"; on: boolean }
+  /** 2026-10-15: Settings' "Regenerate" next to "Copy token". The runtime answers with an `api` event. */
+  | { type: "api.regenerate" }
   | { type: "tools.scan" }
   | { type: "helper.set"; helper: string; app: string }
   | { type: "job.add"; helper: string; task: string; blockedBy?: number[]; planFirst?: boolean }
@@ -176,6 +178,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "speech.set",
   "telegram.set",
   "api.set",
+  "api.regenerate",
   "tools.scan",
   "helper.set",
   "job.add",

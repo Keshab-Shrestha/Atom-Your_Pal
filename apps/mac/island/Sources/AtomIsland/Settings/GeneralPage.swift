@@ -8,6 +8,8 @@ struct GeneralSection: View {
     @Environment(\.theme) private var theme
     /// ADR-098 item 5: what "Copy token" did ("Copied", or why not). Never the token.
     @State private var tokenNote: String?
+    /// "Regenerate" asks first: tools that hold the old token stop working.
+    @State private var askingRegenerate = false
 
     var body: some View {
         let settings = model.settings
@@ -61,6 +63,16 @@ struct GeneralSection: View {
                 RowDivider()
                 Row(title: "Token", detail: tokenNote ?? "For the header Authorization: Bearer <token>") {
                     PillButton(title: "Copy token") { copyToken(api.tokenFile) }
+                    PillButton(title: "Regenerate") { askingRegenerate = true }
+                        .confirmationDialog("Make a new token?", isPresented: $askingRegenerate) {
+                            Button("Make a new token", role: .destructive) {
+                                model.send(.apiRegenerate)
+                                tokenNote = "New token made. The old one no longer works. Copy the new one."
+                            }
+                            Button("Cancel", role: .cancel) {}
+                        } message: {
+                            Text("Every tool that uses the old token (the MCP server, Hermes, scripts) stops working until you give it the new one.")
+                        }
                 }
             }
         }
