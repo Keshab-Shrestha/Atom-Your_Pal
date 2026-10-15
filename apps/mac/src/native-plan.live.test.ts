@@ -24,6 +24,7 @@ test("live: a planned portion's stored task reaches the sub-agent, not the main 
       modelFor: () => config.llm.model,
       team: { helpers: store, approve: async () => false, worktrees: join(dir, "worktrees") },
       timeoutMs: 200_000,
+      idleMs: 20_000, // the session closes soon after the last turn, so the test run can end
       log: (event, fields) => console.log(event, JSON.stringify(fields)),
     });
     await core.handle({
