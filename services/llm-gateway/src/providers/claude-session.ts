@@ -41,7 +41,8 @@ export const MAIN_AGENT = "atom";
 export const TOOL_SERVER = "atom";
 /** Claude Code's tool search: loads a deferred tool's schema when the model asks for it. */
 export const TOOL_SEARCH = "ToolSearch";
-export const DEFAULT_SESSION_IDLE_MS = 10 * 60_000;
+/** One hour, as long as the 1 h prompt cache lasts: a chat kept longer than the cache would pay the memory for no saving. */
+export const DEFAULT_SESSION_IDLE_MS = 60 * 60_000;
 /** After Stop, how long the session waits for Claude Code to end the turn before it closes the process. */
 const INTERRUPT_GRACE_MS = 3000;
 const DEFAULT_MAX_TURNS = 12;
