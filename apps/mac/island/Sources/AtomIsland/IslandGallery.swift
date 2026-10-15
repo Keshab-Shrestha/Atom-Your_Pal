@@ -259,6 +259,20 @@ enum IslandGallery {
         // ADR-090: the office floor on its own, at the Board's width.
         save(OfficeFloor(model: boarded).environment(\.islandSnapshot, true).environment(\.theme, theme.palette).frame(width: 660)
             .padding(16).background(Color.black), name: name + "-floor", to: directory)
+        // Regression shots for what broke in use: a typed question answered with a table, and a Settings page with
+        // the Back arrow in the window's top bar (and no second one in the page).
+        let tabled = model(theme)
+        tabled.windowPage = .chat
+        let tableReply = "Here is the comparison.\\n\\n| City | Days | Best for |\\n|---|---|---|\\n| Tokyo | 3 | Food and **shopping** |\\n| Kyoto | 2 | Temples |\\n| Osaka | 1 | Street food |\\n\\nSteps:\\n1. Book the train\\n2. Pick a hotel\\n\\nUse `Suica` for transit."
+        for line in [#"{"type":"transcript","text":"Compare Tokyo, Kyoto and Osaka in a table"}"#, #"{"type":"reply","text":"\#(tableReply)"}"#,
+                     #"{"type":"turn.complete","speechMs":0,"transcriptionMs":0,"modelMs":1800,"firstSoundMs":0}"#, #"{"type":"state","state":"idle"}"#] {
+            if let event = try? decodeEvent(line) { tabled.apply(event) } else { FileHandle.standardError.write(Data("gallery: could not decode a chat line\n".utf8)) }
+        }
+        save(window("Chat: a reply with a table, a list and code", tabled), name: name + "-chat-table", to: directory)
+        let paged = model(theme)
+        paged.windowPage = .settings
+        paged.settingsPage = .model
+        save(window("Settings page: Back is the top bar's arrow", paged), name: name + "-settings-page", to: directory)
         // ADR-094: the floor with fifty agents: twelve seated, ten in the lounge, "+2 at work" and "+26 more".
         save(OfficeFloor(model: crowded).environment(\.islandSnapshot, true).environment(\.theme, theme.palette).frame(width: 660)
             .padding(16).background(Color.black), name: name + "-floor-crowd", to: directory)

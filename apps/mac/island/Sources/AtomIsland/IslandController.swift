@@ -175,6 +175,8 @@ final class IslandController {
         refresh()
         let env = ProcessInfo.processInfo.environment
         if AtomEnv.read("ATOM_BUBBLE_DEMO", env) != nil { playBubbleDemo() }
+        // Development and the UI check (scripts/ui-check.sh): open the window at launch, as a click on the menu bar icon does.
+        if AtomEnv.read("ATOM_OPEN_WINDOW", env) == "1" { helpersWindow.show(page: .chat) }
         if AtomEnv.read("ATOM_LOOK_DEMO", env) != nil { playLookDemo() }
         if AtomEnv.read("ATOM_WORK_DEMO", env) != nil { playWorkDemo() }
         if let spots = AtomEnv.read("ATOM_POINT_DEMO", env) { playPointDemo(spots) }

@@ -36,7 +36,7 @@ struct MarkdownReply: View {
                 }
             }
         case .code(let s):
-            ScrollView(.horizontal, showsIndicators: false) {
+            SideScroll {
                 Text(s).font(.system(size: 12, design: .monospaced)).padding(10)
             }
             .background(RoundedRectangle(cornerRadius: 8).fill(theme.text.color.opacity(0.06)))
@@ -46,7 +46,7 @@ struct MarkdownReply: View {
     }
 
     private func table(header: [String], rows: [[String]]) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        SideScroll {
             Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
                 GridRow { ForEach(Array(header.enumerated()), id: \.offset) { _, h in inline(h).fontWeight(.semibold) } }
                 Divider().gridCellUnsizedAxes(.horizontal)
@@ -65,5 +65,19 @@ struct MarkdownReply: View {
         let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         if let attributed = try? AttributedString(markdown: s, options: options) { return Text(attributed) }
         return Text(s)
+    }
+}
+
+/// A sideways scroll view for wide tables and code; laid out flat in development snapshots, which cannot draw scroll views.
+private struct SideScroll<Content: View>: View {
+    @ViewBuilder let content: Content
+    @Environment(\.islandSnapshot) private var snapshot
+
+    var body: some View {
+        if snapshot {
+            content.frame(maxWidth: .infinity, alignment: .leading).clipped()
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) { content }
+        }
     }
 }

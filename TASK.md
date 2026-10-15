@@ -1620,3 +1620,11 @@ Next: Keshab builds the app on the Mac, attaches a PDF and an image, switches a 
 
 Next: Keshab uses the window for a week, and names the features he never opens.
 
+## UI check (2026-10-15)
+
+- `pnpm island:ui-check` (`scripts/ui-check.sh`, `scripts/ui-check.js`) runs after `pnpm island:build`.
+- Gallery half: the app renders every window with sample data to PNG files, with no screen. The check fails on a `gallery:` error, a missing shot, or an almost empty file. Two shots cover what broke in use: `13-helpers-chat-table.png` (a reply with a table, list and code) and `13-helpers-settings-page.png` (a Settings page with one Back arrow). Keep the files with `GALLERY_DIR=<dir>` and look at them.
+- Live half: the check reads the text of the open window through Accessibility and fails on raw Markdown on screen. `ATOM_OPEN_WINDOW=1` opens the window at launch. Needs Accessibility for the terminal. It does not need Screen Recording. Skip it with `LIVE=0`.
+- Limits: the live half cannot read button labels (System Events does not show SwiftUI labels) and cannot read the sidebar rows. The gallery check does not compare pixels: look at the shots.
+- `MarkdownReply` draws wide tables and code flat in snapshots (`SideScroll`), as `Scrollable` does.
+
