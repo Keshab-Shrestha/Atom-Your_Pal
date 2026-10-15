@@ -33,7 +33,7 @@ struct OverviewPane: View {
                         ForEach(overview.recent) { item in RecentRow(model: model, item: item) }
                     }
                 } else {
-                    quiet("Waiting for ATOM…")
+                    LoadingStateView(text: "Loading the overview…", retry: { model.send(.helpersList) })
                 }
             }
             .frame(maxWidth: 680, alignment: .leading)

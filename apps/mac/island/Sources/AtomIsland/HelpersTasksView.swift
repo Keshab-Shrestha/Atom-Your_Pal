@@ -98,10 +98,13 @@ struct BoardPane: View {
                 if model.boardView == .floor {
                     OfficeFloor(model: model).frame(maxHeight: max(220, viewport.size.height - 48)).frame(maxWidth: .infinity)
                 }
-                if board.isEmpty, label != nil {
+                if model.helpers.list == nil {
+                    LoadingStateView(text: "Loading the Board…", retry: { model.send(.helpersList) })
+                } else if board.isEmpty, label != nil {
                     Text("No task on the Board has this label.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
                 } else if board.isEmpty {
-                    Text("No tasks yet. Choose a worker and give it one.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
+                    EmptyStateView(title: "No tasks yet",
+                                   detail: "Choose a worker and give it a task, or ask ATOM in chat to delegate one. Tasks show here by status, with a count for each.")
                 }
                 if let tasks = model.helpers.list?.paperclip { PaperclipSection(tasks: tasks) }
                 ForEach(model.boardView == .floor ? [] : board, id: \.column) { group in

@@ -88,11 +88,11 @@ Check each page for the five states. A page that lacks a state is a task.
 | Chats list | "Loading chats…", then "taking longer" and Ask again after 15 s (done) | yes | not shown | 40 rows cap; a very long title |
 | Needs you | "Loading what waits for you…" (done; it said "Nothing waits" before) | headline and a sentence (done) | the command error line | long titles clip at two lines |
 | Issues | "Loading issues…" (done; it said "No issues" before) | headline and a sentence (done) | the command error line; each failed task shows its reason | many failures |
-| Board | not checked | yes | not checked | 50 agents (done in the gallery) |
-| Scheduled | not checked | yes | not checked | not checked |
+| Board | "Loading the Board…" (done) | headline and a sentence (done); each column shows a count | the command error line | 50 agents (done in the gallery) |
+| Scheduled | "Loading what is scheduled…" (done; it said "Nothing is scheduled" before) | headline and a sentence (done) | the command error line | not checked |
 | Second brain | "Waiting for ATOM…" | yes | yes | 400 notes cap |
-| Plugins | not checked | yes | server test fails | very long skill list (dropdown now) |
-| Dashboard | not checked | not checked | not checked | not checked |
+| Plugins | "Loading servers…", "Loading skills…" (done; they said "None yet" and "No skills" before) | a headline, a sentence and Add server (done) | server test fails | very long skill list (dropdown now) |
+| Dashboard | "Loading tokens…" with the slow fallback (done) | zero use shows zeros and "Nothing used yet." | not checked | many models and workers |
 
 "Not checked" means I did not verify it. Do this next, one page at a time, with a gallery shot for each state.
 

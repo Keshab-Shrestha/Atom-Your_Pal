@@ -43,9 +43,11 @@ struct ScheduledPane: View {
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
                 if form.wrappedValue != nil { ScheduleFormCard(model: model, form: form.projectedValue) }
-                if page?.isEmpty ?? true {
-                    Text("Nothing is scheduled. Give a worker a routine (\"Sid, every morning at 8, …\") or use New schedule.")
-                        .font(.system(size: 12.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true).padding(.top, 6)
+                if page == nil {
+                    LoadingStateView(text: "Loading what is scheduled…", retry: { model.send(.helpersList) })
+                } else if page?.isEmpty == true {
+                    EmptyStateView(title: "Nothing is scheduled",
+                                   detail: "A routine runs a task for a worker by itself, for example \"Sid, every morning at 8, …\". Say one in chat, or use New schedule.")
                 }
                 if let page {
                     ForEach(page.entries) { entry in

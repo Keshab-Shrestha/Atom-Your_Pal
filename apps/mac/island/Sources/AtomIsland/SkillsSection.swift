@@ -7,6 +7,8 @@ import AtomIslandCore
 struct SkillsSection: View {
     let model: IslandModel
     let skills: [SkillInfo]
+    /// False until the skill list has arrived: then the section says "Loading", not "No skills".
+    let loaded: Bool
     /// The names of the workers that use a skill.
     let users: (String) -> [String]
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
@@ -16,9 +18,10 @@ struct SkillsSection: View {
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
 
-    init(model: IslandModel, skills: [SkillInfo], users: @escaping (String) -> [String]) {
+    init(model: IslandModel, skills: [SkillInfo], loaded: Bool = true, users: @escaping (String) -> [String]) {
         self.model = model
         self.skills = skills
+        self.loaded = loaded
         self.users = users
     }
 
@@ -35,9 +38,11 @@ struct SkillsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if skills.isEmpty {
-                Text("No skills yet: yours come from ~/.claude/skills, and ATOM's from tasks you rate good.")
-                    .font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
+            if !loaded {
+                LoadingStateView(text: "Loading skills…", retry: { model.send(.helpersList) })
+            } else if skills.isEmpty {
+                EmptyStateView(title: "No skills yet",
+                               detail: "Your skills come from ~/.claude/skills. ATOM's come from tasks you rate good, and you approve each one here.")
             } else {
                 picker
                 if let name = selected.wrappedValue, let skill = skills.first(where: { $0.name == name }) { detail(skill) }

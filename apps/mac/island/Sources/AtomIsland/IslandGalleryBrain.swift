@@ -126,6 +126,16 @@ extension IslandGallery {
                 cell("Issues: error") { IssuesPane(model: model(loaded: true, failed: true)) }
             }
             HStack(alignment: .top, spacing: 16) {
+                cell("Scheduled: loading") { ScheduledPane(model: model(loaded: false)) }
+                cell("Scheduled: empty") { ScheduledPane(model: model(loaded: true)) }
+                cell("Dashboard: loading") { DashboardPane(model: model(loaded: false)) }
+            }
+            HStack(alignment: .top, spacing: 16) {
+                cell("Plugins: loading") { PluginsPane(model: model(loaded: false)) }
+                cell("Plugins: empty") { PluginsPane(model: model(loaded: true)) }
+                cell("Overview: loading") { OverviewPane(model: model(loaded: false)) }
+            }
+            HStack(alignment: .top, spacing: 16) {
                 cell("Loading, slow") { LoadingStateView(text: "Loading chats…", retry: {}, slow: true).padding(16) }
                 cell("Empty with an action") {
                     EmptyStateView(title: "No skills yet", detail: "Your skills come from ~/.claude/skills. ATOM's come from tasks you rate good.",

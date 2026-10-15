@@ -71,7 +71,7 @@ struct DashboardPane: View {
                     Text("Cache reads are context read back from Claude's cache; they cost a tenth as much. To use fewer: lower a worker's model on its page, or turn off the large model in the sidebar.")
                         .font(.system(size: 11)).foregroundStyle(theme.text3.color)
                 } else {
-                    quiet("Waiting for ATOM…")
+                    LoadingStateView(text: "Loading tokens…", retry: { model.send(.helpersList) })
                 }
                 // ADR-091: the branches workers made, like pull requests; Keshab pushes one.
                 VStack(alignment: .leading, spacing: 8) {

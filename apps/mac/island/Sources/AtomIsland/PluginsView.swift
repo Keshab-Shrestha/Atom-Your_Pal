@@ -35,9 +35,12 @@ struct PluginsPane: View {
                         }
                     }
                     if adding.wrappedValue { addPanel(existing: Set((list?.mcp ?? []).map(\.name))) }
-                    if (list?.mcp ?? []).isEmpty && !adding.wrappedValue {
-                        Text("None yet. Add a server that runs a command or one you connect to by its address.")
-                            .font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
+                    if list == nil {
+                        LoadingStateView(text: "Loading servers…", retry: { model.send(.helpersList) })
+                    } else if (list?.mcp ?? []).isEmpty && !adding.wrappedValue {
+                        EmptyStateView(title: "No MCP servers yet",
+                                       detail: "An MCP server gives your workers more tools, such as files or a database. Paste one from Claude Desktop, or fill it in by hand.",
+                                       action: (title: "Add server", symbol: "plus", run: { adding.wrappedValue = true }))
                     }
                     ForEach(list?.mcp ?? []) { server in ServerCard(model: model, server: server, team: list?.helpers ?? []) }
                 }
@@ -47,7 +50,7 @@ struct PluginsPane: View {
                     ForEach((list?.skillDrafts ?? []).filter { $0.state == "pending" }) { draft in SkillDraftCard(model: model, draft: draft) }
                     ForEach((list?.skillEdits ?? []).filter { $0.state == "pending" || $0.state == "accepted" }) { edit in SkillEditCard(model: model, edit: edit) }
                     // 2026-10-15: one dropdown for the long list, and an editor for the chosen skill (SkillsSection.swift).
-                    SkillsSection(model: model, skills: list?.skills ?? []) { name in
+                    SkillsSection(model: model, skills: list?.skills ?? [], loaded: list != nil) { name in
                         (list?.helpers ?? []).filter { $0.skills.contains(name) }.map(\.name)
                     }
                 }
