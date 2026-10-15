@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ATOM UI Playground</title>
+<style>
+:root {
+  --bg: #0b0b0d; --surface: #111114; --surface2: #17171b; --border: #26262b;
+  --text: #ededf0; --text2: #a0a0aa; --text3: #6c6c76; --accent: #8b7cff;
+  --radius: 10px; --gap: 12px; --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: #050506; color: #ddd; font: 13px/1.45 -apple-system, BlinkMacSystemFont, system-ui, sans-serif; display: flex; flex-direction: column; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+input[type=text], select, textarea { background: #17171b; border: 1px solid #2a2a31; border-radius: 6px; padding: 4px 7px; color: #e4e4ea; }
+input[type=range], input[type=checkbox] { accent-color: #7c6cff; }
+select option { background: #17171b; color: #e4e4ea; }
+
+/* ---- tool chrome (not part of ATOM's design) ---- */
+.top { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: #101013; border-bottom: 1px solid #222; flex-wrap: wrap; }
+.top h1 { font-size: 13px; margin: 0 14px 0 0; letter-spacing: .04em; color: #fff; }
+.tab, .btn { background: #1a1a1f; border: 1px solid #2a2a31; border-radius: 7px; padding: 5px 11px; color: #cfcfd6; }
+.tab[aria-selected="true"] { background: #2b2570; border-color: #4a3fd0; color: #fff; }
+.btn:hover, .tab:hover { border-color: #4a4a55; }
+.btn.primary { background: #4a3fd0; border-color: #5b50e6; color: #fff; }
+.btn.small { padding: 2px 8px; font-size: 12px; }
+.btn.danger:hover { border-color: #f87171; color: #f87171; }
+.spacer { flex: 1; }
+.count { background: #2b2570; border-radius: 9px; padding: 0 6px; font-size: 11px; margin-left: 5px; }
+main { flex: 1; min-height: 0; display: flex; }
+.view { display: none; flex: 1; min-width: 0; min-height: 0; }
+.view.on { display: flex; }
+
+/* ---- window view ---- */
+.stage-wrap { flex: 1; min-width: 0; overflow: auto; padding: 18px; display: flex; justify-content: center; align-items: flex-start; background: #08080a; }
+.side { width: 330px; flex: none; border-left: 1px solid #222; background: #0e0e11; overflow: auto; padding: 12px; }
+.side h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #8a8a96; margin: 14px 0 6px; }
+.side h2:first-child { margin-top: 0; }
+.row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+.row label { width: 96px; color: #9a9aa6; flex: none; font-size: 12px; }
+.row input[type=color] { width: 34px; height: 24px; padding: 0; border: 1px solid #333; background: none; }
+.row input[type=range] { flex: 1; }
+.row input[type=text], .row select, .field, textarea.field { flex: 1; min-width: 0; background: #17171b; border: 1px solid #2a2a31; border-radius: 6px; padding: 4px 7px; }
+textarea.field { width: 100%; min-height: 64px; resize: vertical; }
+.hint { color: #7c7c88; font-size: 12px; margin: 4px 0 8px; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 9px; background: #1d1d23; border: 1px solid #2a2a31; margin: 2px 3px 2px 0; font-size: 12px; }
+.pill button { background: none; border: 0; color: #888; padding: 0 0 0 5px; }
+.mode { display: inline-flex; gap: 0; border: 1px solid #2a2a31; border-radius: 7px; overflow: hidden; }
+.mode button { background: #17171b; border: 0; padding: 4px 10px; color: #aaa; }
+.mode button[aria-pressed="true"] { background: #2b2570; color: #fff; }
+
+/* ---- the mock ATOM window (uses the tokens above) ---- */
+#win { width: 980px; max-width: 100%; height: 640px; display: flex; background: var(--bg); color: var(--text); font-family: var(--font); border: 1px solid var(--border); border-radius: calc(var(--radius) + 4px); overflow: hidden; box-shadow: 0 20px 60px #000a; }
+#win.edit *:hover { outline: 1px dashed var(--accent); outline-offset: 1px; cursor: grab; }
+#win.edit { user-select: none; -webkit-user-select: none; }
+#dropLine { position: fixed; background: #8b7cff; border-radius: 2px; z-index: 50; pointer-events: none; box-shadow: 0 0 0 1px #0008; }
+.chip { display: inline-block; background: var(--accent); color: #000; border-radius: 9px; font-size: 11px; padding: 1px 8px; }
+.addgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.addgrid .btn { text-align: left; }
+#win .sel { outline: 2px solid var(--accent) !important; outline-offset: 1px; }
+.sb { width: 210px; flex: none; background: var(--surface); border-right: 1px solid var(--border); padding: 14px 10px; display: flex; flex-direction: column; gap: 3px; }
+.pal { display: flex; align-items: center; gap: 10px; padding: 4px 6px 14px; }
+.pal i { width: 34px; height: 34px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff 0 6%, var(--accent) 7% 100%); display: block; }
+.pal b { display: block; font-size: 13px; } .pal span { color: var(--text3); font-size: 11px; }
+.nav { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: calc(var(--radius) - 2px); border: 1px solid transparent; color: var(--text); background: none; text-align: left; width: 100%; }
+.nav .ic { width: 22px; height: 22px; border: 1px solid var(--border); border-radius: 50%; display: grid; place-items: center; color: var(--text2); font-size: 11px; flex: none; }
+.nav small { color: var(--text3); display: block; font-size: 10.5px; }
+.nav[aria-current="page"] { border-color: var(--border); background: var(--surface2); }
+.nav .badge { margin-left: auto; background: var(--accent); color: #000; border-radius: 9px; font-size: 10px; padding: 0 6px; }
+.sb .grow { flex: 1; }
+.chat-item { color: var(--text2); padding: 4px 8px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pg { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.bar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+.bar h3 { margin: 0; font-size: 14px; } .bar .st { color: var(--text3); font-size: 12px; margin-left: auto; }
+.body { flex: 1; min-height: 0; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: var(--gap); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+.card h4 { margin: 0 0 4px; font-size: 13px; } .card p { margin: 0; color: var(--text2); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--gap); }
+.num { font-size: 26px; font-weight: 600; } .lbl { color: var(--text3); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.msg { max-width: 78%; padding: 9px 13px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); }
+.msg.me { align-self: flex-end; background: var(--surface2); }
+.mono { font-family: var(--mono); color: var(--accent); font-size: 12px; }
+table.t { border-collapse: collapse; width: 100%; margin-top: 8px; }
+table.t th, table.t td { text-align: left; padding: 5px 9px; border: 1px solid var(--border); font-size: 12px; }
+table.t th { background: var(--surface2); }
+.input { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
+.input .box { flex: 1; border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; color: var(--text3); background: var(--surface); }
+.gbtn { background: none; border: 1px solid var(--border); color: var(--text); border-radius: calc(var(--radius) - 2px); padding: 5px 12px; }
+.gbtn.main { background: var(--accent); color: #000; border-color: var(--accent); }
+.cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap); align-items: start; }
+.col h4 { margin: 0 0 8px; color: var(--text2); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+.task { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 11px; margin-bottom: 8px; }
+.task .who { color: var(--text3); font-size: 11px; }
+.setrow { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.tog { width: 34px; height: 19px; border-radius: 10px; background: var(--border); position: relative; display: inline-block; }
+.tog::after { content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: var(--text2); }
+.tog.on { background: var(--accent); } .tog.on::after { left: 17px; background: #000; }
+
+/* ---- other views ---- */
+.pane { flex: 1; overflow: auto; padding: 18px 22px; max-width: 980px; margin: 0 auto; width: 100%; }
+.pane h2 { margin: 0 0 4px; font-size: 16px; color: #fff; }
+.box { background: #121216; border: 1px solid #25252c; border-radius: 9px; padding: 12px 14px; margin: 12px 0; }
+.box h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: #9a9aa6; }
+.idea { display: flex; gap: 10px; align-items: flex-start; border-bottom: 1px solid #222; padding: 8px 0; }
+.idea:last-child { border: 0; }
+.idea p { margin: 2px 0 0; color: #ccc; }
+.tag { font-size: 11px; padding: 0 7px; border-radius: 8px; background: #23233a; color: #b9b3ff; margin-right: 5px; }
+.tag.p-high { background: #3a1f1f; color: #fca5a5; } .tag.p-low { background: #1f2a1f; color: #9ae6b4; }
+table.pol { width: 100%; border-collapse: collapse; }
+table.pol td { padding: 5px 4px; border-bottom: 1px solid #222; }
+.step { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.step .n { color: #666; width: 18px; text-align: right; }
+.log { font-family: ui-monospace, Menlo, monospace; font-size: 12px; background: #09090b; border: 1px solid #222; border-radius: 7px; padding: 8px 10px; white-space: pre-wrap; max-height: 260px; overflow: auto; margin-top: 8px; }
+.auto { color: #4ade80; } .ask { color: #fbbf24; } .never { color: #f87171; }
+#exportText { width: 100%; min-height: 420px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; background: #09090b; border: 1px solid #222; border-radius: 7px; color: #d6d6dc; padding: 10px; margin-top: 8px; }
+#toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: #2b2570; color: #fff; padding: 7px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+#toast.on { opacity: 1; }
+@media (max-width: 900px) { .side { width: 250px; } .sb { width: 160px; } }
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>ATOM UI PLAYGROUND</h1>
+  <button class="tab" data-view="window" aria-selected="true">Window</button>
+  <button class="tab" data-view="browser" aria-selected="false">Browser automation</button>
+  <button class="tab" data-view="ideas" aria-selected="false">Ideas<span class="count" id="nIdeas">0</span></button>
+  <button class="tab" data-view="export" aria-selected="false">Export<span class="count" id="nChanges">0</span></button>
+  <span class="spacer"></span>
+  <button class="btn" id="reset">Reset all</button>
+</div>
+
+<main>
+  <section class="view on" id="v-window">
+    <div class="stage-wrap"><div id="win"></div></div>
+    <aside class="side">
+      <h2>Mode</h2>
+      <div class="mode" id="modeSw"><button data-m="use" aria-pressed="true">Use</button><button data-m="edit" aria-pressed="false">Edit</button></div>
+      <div class="hint">Use: click around the mock window. Edit: click a part to select it, drag it to move it.</div>
+      <div class="row"><button class="btn small" id="undo">Undo last change</button><span class="hint" id="opCount" style="margin:0"></span></div>
+      <h2>Add to window</h2>
+      <div class="hint">Select a box first to add inside it. A button or text goes after the selected part.</div>
+      <div class="addgrid" id="addGrid"></div>
+      <h2>Theme (the whole window)</h2>
+      <div id="tokens"></div>
+      <h2>Selected part</h2>
+      <div id="inspector"><div class="hint">Nothing selected. Switch to Edit and click a part of the window.</div></div>
+    </aside>
+  </section>
+
+  <section class="view" id="v-browser"><div class="pane" id="browserPane"></div></section>
+
+  <section class="view" id="v-ideas"><div class="pane">
+    <h2>Ideas</h2>
+    <div class="hint">Write what to add or change. Pick a part in Edit mode if the idea is about one part of the window.</div>
+    <div class="box">
+      <div class="row"><label>Area</label>
+        <select id="iCat"><option>Window / look</option><option>Chat</option><option>Board and agents</option><option>Skills</option><option>Browser automation</option><option>Mobile web app</option><option>Voice and Pal</option><option>Cost and tokens</option><option>Other</option></select>
+        <label style="width:auto">Priority</label>
+        <select id="iPri"><option>high</option><option selected>normal</option><option>low</option></select></div>
+      <div class="row"><label>About part</label><input type="text" id="iTarget" placeholder="optional; filled when you press “Idea about this”"></div>
+      <textarea class="field" id="iText" placeholder="Describe the idea. One idea per card."></textarea>
+      <div class="row"><button class="btn primary" id="iAdd">Add idea</button></div>
+    </div>
+    <div class="box" id="ideaList"></div>
+  </div></section>
+
+  <section class="view" id="v-export"><div class="pane">
+    <h2>Export for Claude</h2>
+    <div class="hint">Copy this text and send it to Claude. It lists your theme changes, part edits, ideas and the browser automation spec.</div>
+    <div class="row"><button class="btn primary" id="copyMd">Copy text</button><button class="btn" id="dlMd">Download .md</button><button class="btn" id="dlJson">Download .json</button><button class="btn" id="impJson">Import .json</button><input type="file" id="impFile" accept=".json" hidden></div>
+    <textarea id="exportText" readonly></textarea>
+  </div></section>
+</main>
+<div id="dropLine" hidden></div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const toast = (t) => { const e = $("#toast"); e.textContent = t; e.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove("on"), 1600); };
+
+/* ================= state ================= */
+const KEY = "atom-ui-playground-v2";
+const FONT_SYS = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif';
+const TOKEN_DEFS = [
+  { v: "--accent", name: "Accent", type: "color", def: "#8b7cff" },
+  { v: "--bg", name: "Window", type: "color", def: "#0b0b0d" },
+  { v: "--surface", name: "Surface", type: "color", def: "#111114" },
+  { v: "--surface2", name: "Surface 2", type: "color", def: "#17171b" },
+  { v: "--border", name: "Hairline", type: "color", def: "#26262b" },
+  { v: "--text", name: "Text", type: "color", def: "#ededf0" },
+  { v: "--text2", name: "Text 2", type: "color", def: "#a0a0aa" },
+  { v: "--radius", name: "Corner radius", type: "range", min: 0, max: 28, def: "10" },
+  { v: "--gap", name: "Spacing", type: "range", min: 4, max: 28, def: "12" },
+  { v: "--font", name: "Font", type: "select", def: FONT_SYS,
+    opts: [["System (SF Pro)", FONT_SYS], ["Rounded", 'ui-rounded, "SF Pro Rounded", system-ui, sans-serif'], ["Serif", 'Georgia, "New York", serif'], ["Mono", 'ui-monospace, "SF Mono", Menlo, monospace']] },
+];
+const PRESETS = {
+  Void: {},
+  Lantern: { "--bg": "#14121f", "--surface": "#1c1930", "--surface2": "#26224a", "--border": "#34306a", "--accent": "#ffb86b", "--radius": "16", "--font": 'ui-rounded, "SF Pro Rounded", system-ui, sans-serif' },
+  Daylight: { "--bg": "#f6f6f8", "--surface": "#ffffff", "--surface2": "#eceef3", "--border": "#d8dbe3", "--text": "#16161a", "--text2": "#55555f", "--accent": "#5b50e6", "--radius": "12" },
+};
+const POLICY_ACTIONS = [
+  ["read", "Read the page"], ["click", "Click a link or button"], ["type", "Type text"], ["submit", "Submit a form"],
+  ["download", "Download a file"], ["upload", "Upload a file"], ["login", "Log in"], ["pay", "Buy or pay"],
+];
+const DEFAULT_BROWSER = () => ({
+  agent: "Sid", mode: "visible", sites: ["wikipedia.org", "github.com"],
+  policy: { read: "auto", click: "auto", type: "ask", submit: "ask", download: "ask", upload: "never", login: "ask", pay: "never" },
+  maxSteps: 30, maxMinutes: 10, shots: true, stopOnCaptcha: true, goal: "", steps: [],
+});
+const fresh = () => ({ tokens: {}, ops: [], addSeq: 0, ideas: [], browser: DEFAULT_BROWSER(), page: "chat", mode: "use" });
+let S = fresh();
+try { const raw = localStorage.getItem(KEY); if (raw) S = { ...fresh(), ...JSON.parse(raw) }; } catch (e) { /* storage blocked: the page still works */ }
+S.browser = { ...DEFAULT_BROWSER(), ...S.browser };
+const counts = () => { $("#nIdeas").textContent = S.ideas.length; $("#nChanges").textContent = Object.keys(S.tokens).length + S.ops.length + S.ideas.length; const oc = $("#opCount"); if (oc) oc.textContent = S.ops.length ? `${S.ops.length} change${S.ops.length > 1 ? "s" : ""}` : ""; };
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* ignore */ } counts(); };
+
+/* ================= mock window ================= */
+const NAV = [
+  ["overview", "Overview", "◔", "3 running"], ["chat", "Chat", "✎", "Ask ATOM"], ["board", "Board", "▦", "Tasks and agents"],
+  ["needs", "Needs you", "!", "2 waiting"], ["issues", "Issues", "△", "1 failed"], ["scheduled", "Scheduled", "◷", "4 routines"],
+  ["plugins", "Plugins", "⚙", "Skills and MCP"], ["settings", "Settings", "☰", ""],
+];
+const PAGES = {
+  overview: () => `<div class="grid"><div class="card"><div class="lbl">Running</div><div class="num">3</div></div><div class="card"><div class="lbl">Waiting for you</div><div class="num">2</div></div><div class="card"><div class="lbl">Done today</div><div class="num">11</div></div><div class="card"><div class="lbl">Plan use</div><div class="num">34%</div></div></div>
+    <div class="card"><h4>At work now</h4><p>Sid is comparing flights. Kame is fixing a test. Quill is writing a report.</p></div>
+    <div class="card"><h4>Goals</h4><p>Plan the Kyoto trip · Ship the table fix · Weekly report</p></div>`,
+  chat: () => `<div class="msg me">Compare Tokyo, Kyoto and Osaka for a 3-day trip in a table.</div>
+    <div class="msg"><b>Here is the comparison.</b>
+      <table class="t"><tr><th>City</th><th>Best for</th><th>Cost / day</th></tr><tr><td><b>Tokyo</b></td><td>Food, shopping</td><td class="mono">$180</td></tr><tr><td><b>Kyoto</b></td><td>Temples, calm</td><td class="mono">$140</td></tr><tr><td><b>Osaka</b></td><td>Street food</td><td class="mono">$120</td></tr></table>
+      <p style="margin-top:8px"><button class="gbtn">Copy</button> <button class="gbtn">Try again</button></p></div>
+    <div class="msg me">Which one is cheapest?</div><div class="msg">Osaka is cheapest at about <span class="mono">$120</span> a day.</div>`,
+  board: () => `<div class="cols"><div class="col"><h4>Waiting</h4><div class="task"><b>Book hotel</b><div class="who">Penny · plan to approve</div></div></div>
+    <div class="col"><h4>Running</h4><div class="task"><b>Compare flights</b><div class="who">Sid · 2 min</div></div><div class="task"><b>Fix the table test</b><div class="who">Kame · branch task-41</div></div></div>
+    <div class="col"><h4>Done</h4><div class="task"><b>Trip summary</b><div class="who">Quill · report ready</div></div></div></div>`,
+  needs: () => `<div class="card"><h4>Skill draft: trip-planning</h4><p>Steps for planning a short trip, from task 38.</p><p style="margin-top:8px"><button class="gbtn main">Approve</button> <button class="gbtn">Reject</button></p></div>
+    <div class="card"><h4>Kame wants to run a command</h4><p class="mono">git push origin task-41</p><p style="margin-top:8px"><button class="gbtn main">Allow</button> <button class="gbtn">Decline</button></p></div>`,
+  issues: () => `<div class="card"><h4>Compare hotels failed</h4><p>The site blocked the request. One retry may work.</p><p style="margin-top:8px"><button class="gbtn main">Retry</button></p></div>`,
+  scheduled: () => `<div class="card"><h4>Weekly report</h4><p>Every Monday 09:00 · next in 3 days</p></div><div class="card"><h4>Check flight prices</h4><p>Every 4 hours · paused</p></div>`,
+  plugins: () => `<div class="card"><h4>Skills</h4><p><span class="mono">trip-planning</span> · <span class="mono">weekly-report</span></p></div><div class="card"><h4>MCP servers</h4><p>None added yet.</p></div>`,
+  settings: () => `<div class="setrow"><span>Chat sounds</span><span class="tog on"></span></div><div class="setrow"><span>Notifications</span><span class="tog on"></span></div><div class="setrow"><span>Computer control</span><span class="tog"></span></div><div class="setrow"><span>Browser for agents</span><span class="tog"></span></div>`,
+};
+function renderWin() {
+  const w = $("#win");
+  w.className = S.mode === "edit" ? "edit" : "";
+  const title = (NAV.find((n) => n[0] === S.page) || NAV[1])[1];
+  w.innerHTML = `<nav class="sb"><div class="pal"><i></i><div><b>ATOM</b><span>Ready</span></div></div>
+    ${NAV.map(([id, t, ic, d]) => `<button class="nav" data-page="${id}" ${id === S.page ? 'aria-current="page"' : ""}><span class="ic">${ic}</span><span>${t}${d ? `<small>${d}</small>` : ""}</span>${id === "needs" ? '<span class="badge">2</span>' : ""}</button>`).join("")}
+    <div class="grow"></div><div class="chat-item">Compare Tokyo, Kyoto, Osaka…</div><div class="chat-item">Weekly report draft</div></nav>
+    <section class="pg"><div class="bar"><h3>${title}</h3><span class="st">Claude plan · Opus</span></div>
+    <div class="body">${PAGES[S.page]()}</div>
+    ${S.page === "chat" ? '<div class="input"><div class="box">Message ATOM…</div><button class="gbtn main">Send</button></div>' : ""}</section>`;
+  assignIds(w, "e");
+  S.ops.forEach(applyOp);
+  selected = null;
+}
+// Capture phase: in Edit mode a click only selects (a drag moves); nothing else happens.
+let justDragged = false;
+$("#win").addEventListener("click", (e) => {
+  if (S.mode === "edit") { e.preventDefault(); e.stopPropagation(); if (justDragged) { justDragged = false; return; } select(e.target); return; }
+  const nav = e.target.closest(".nav");
+  if (nav) { S.page = nav.dataset.page; save(); renderWin(); return; }
+  const tog = e.target.closest(".tog"); if (tog) tog.classList.toggle("on");
+}, true);
+$("#win").addEventListener("mousedown", (e) => {
+  if (S.mode !== "edit" || e.button !== 0 || e.target === $("#win")) return;
+  e.preventDefault(); select(e.target); startDrag(e.target.closest(MOVABLE) || e.target, e);
+}, true);
+
+/* ---- editing the mock ----
+   Every change is an "op" (style, text, move, add, del) tied to a part's stable id. The window is drawn fresh,
+   then the ops of the page (and of the sidebar) are replayed in order. */
+let selected = null;
+// Boxes that take a dropped part (a task or a message does not); CONTAINER is where "add" may put a part.
+const DROP_INTO = ".body,.card,.col,.sb,.grid,.cols,.bar";
+const CONTAINER = ".body,.card,.col,.sb,.msg,.task,.pg,.grid,.cols,.input,.bar,.setrow";
+// What a drag grabs: the nearest of these around the pressed spot (a click still selects the exact part).
+const MOVABLE = ".card,.task,.msg,.col,.setrow,.nav,.gbtn,.chip,.box,.input,.bar,hr,.grid,.cols,.chat-item,.pal,table.t,p,h4";
+const ADD_KINDS = {
+  button: { name: "Button", html: '<button class="gbtn main">New button</button>' },
+  ghost: { name: "Ghost button", html: '<button class="gbtn">New button</button>' },
+  card: { name: "Card", html: '<div class="card"><h4>New card</h4><p>Describe it here.</p></div>' },
+  text: { name: "Text", html: '<p style="margin:0;color:var(--text2)">New text</p>' },
+  toggle: { name: "Toggle row", html: '<div class="setrow"><span>New setting</span><span class="tog on"></span></div>' },
+  field: { name: "Text field", html: '<div class="box" style="border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;color:var(--text3);background:var(--surface)">New field…</div>' },
+  chip: { name: "Chip", html: '<span class="chip">New</span>' },
+  message: { name: "Message", html: '<div class="msg">New message</div>' },
+  task: { name: "Task card", html: '<div class="task"><b>New task</b><div class="who">Agent · status</div></div>' },
+  divider: { name: "Divider", html: '<hr style="border:0;border-top:1px solid var(--border);width:100%;margin:4px 0">' },
+};
+const makeEl = (kind) => { const t = document.createElement("template"); t.innerHTML = ADD_KINDS[kind].html.trim(); return t.content.firstElementChild; };
+function assignIds(root, prefix) { let n = 0; root.dataset.id = prefix; root.querySelectorAll("*").forEach((el) => { el.dataset.id = `${prefix}.${++n}`; }); }
+const byId = (id) => id == null ? null : $("#win").querySelector(`[data-id="${id}"]`);
+const scopeOf = (el) => (el.closest(".sb") ? "*" : S.page);
+const labelOf = (el) => {
+  const t = (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 28);
+  const cls = [...el.classList].filter((c) => c !== "sel" && c !== "edit")[0];
+  return `${el.tagName.toLowerCase()}${cls ? "." + cls : ""}${t ? ` “${t}”` : ""}`;
+};
+const place = (parent, el, before) => parent.insertBefore(el, before && before.parentElement === parent ? before : null);
+function applyOp(op) {
+  if (op.page !== "*" && op.page !== S.page) return;
+  if (op.op === "add") { const parent = byId(op.parent); if (!parent) return; const el = makeEl(op.kind); assignIds(el, op.id); place(parent, el, byId(op.before)); return; }
+  const el = byId(op.id); if (!el) return;
+  if (op.op === "style") el.style[op.prop] = op.to;
+  else if (op.op === "text") el.textContent = op.to;
+  else if (op.op === "del") el.remove();
+  else if (op.op === "move") { const parent = byId(op.parent); if (parent && !el.contains(parent)) place(parent, el, byId(op.before)); }
+}
+const place2 = (el) => { const p = el.parentElement; return `${labelOf(p)} #${[...p.children].indexOf(el) + 1}`; };
+
+const PROPS = [
+  { p: "color", n: "Text colour", k: "color" }, { p: "backgroundColor", n: "Background", k: "color" }, { p: "borderColor", n: "Border colour", k: "color" },
+  { p: "fontSize", n: "Font size (px)", k: "num", u: "px", min: 8, max: 48, get: (el, cs) => parseFloat(cs.fontSize) },
+  { p: "borderRadius", n: "Radius (px)", k: "num", u: "px", min: 0, max: 40, get: (el, cs) => parseFloat(cs.borderTopLeftRadius) || 0 },
+  { p: "padding", n: "Padding (px)", k: "num", u: "px", min: 0, max: 40, get: (el, cs) => parseFloat(cs.paddingTop) || 0 },
+  { p: "width", n: "Width (%)", k: "num", u: "%", min: 10, max: 100, get: (el) => Math.min(100, Math.round((el.offsetWidth / ((el.parentElement || el).clientWidth || 1)) * 100)) },
+  { p: "height", n: "Height (px)", k: "num", u: "px", min: 10, max: 400, get: (el) => el.offsetHeight },
+];
+const toHex = (css) => { const m = String(css).match(/\d+(\.\d+)?/g); if (!m || m.length < 3) return "#000000"; return "#" + m.slice(0, 3).map((x) => (+x | 0).toString(16).padStart(2, "0")).join(""); };
+
+function select(el) {
+  if (!el || el === $("#win")) return;
+  $$(".sel").forEach((x) => x.classList.remove("sel"));
+  selected = el; el.classList.add("sel");
+  const cs = getComputedStyle(el);
+  const simpleText = !el.children.length && el.textContent.trim();
+  $("#inspector").innerHTML = `<div class="hint"><b>${esc(labelOf(el))}</b> — drag it to move it</div>
+    ${simpleText ? `<div class="row"><label>Text</label><input type="text" id="insText" value="${esc(el.textContent)}"></div>` : ""}
+    ${PROPS.map((d) => `<div class="row"><label>${d.n}</label>${d.k === "color" ? `<input type="color" data-p="${d.p}" value="${toHex(cs[d.p])}">` : `<input type="range" data-p="${d.p}" min="${d.min}" max="${d.max}" value="${d.get(el, cs)}">`}</div>`).join("")}
+    <div class="row"><label>Visible</label><input type="checkbox" id="insVis" ${el.style.display === "none" ? "" : "checked"}></div>
+    <div class="row"><label>Move</label><button class="btn small" id="mvUp" title="Earlier in its box">↑ Earlier</button><button class="btn small" id="mvDown" title="Later in its box">↓ Later</button><button class="btn small" id="mvOut" title="Out of its box">⇤ Out</button><button class="btn small" id="selUp" title="Select the box around it">⤴ Box</button></div>
+    <div class="row"><button class="btn small" id="insIdea">Idea about this</button><button class="btn small danger" id="insClear">Undo edits here</button><button class="btn small danger" id="insDel">Delete part</button></div>`;
+  $$("#inspector [data-p]").forEach((i) => i.addEventListener("input", () => {
+    const d = PROPS.find((x) => x.p === i.dataset.p);
+    recordStyle(el, d.p, i.type === "color" ? i.value : i.value + (d.u || ""));
+  }));
+  const t = $("#insText"); if (t) t.addEventListener("input", () => recordStyle(el, "text", t.value));
+  $("#insVis").addEventListener("change", (e) => recordStyle(el, "display", e.target.checked ? "" : "none"));
+  $("#selUp").addEventListener("click", () => { const p = el.parentElement; if (p && p !== $("#win")) select(p); });
+  $("#mvUp").addEventListener("click", () => step(el, -1));
+  $("#mvDown").addEventListener("click", () => step(el, 1));
+  $("#mvOut").addEventListener("click", () => { const p = el.parentElement, g = p && p.parentElement; if (g && p !== $("#win")) commitMove(el, g, p.nextElementSibling); });
+  $("#insIdea").addEventListener("click", () => { $("#iTarget").value = `${S.page}: ${labelOf(el)}`; show("ideas"); $("#iText").focus(); });
+  $("#insClear").addEventListener("click", () => { const id = el.dataset.id; S.ops = S.ops.filter((x) => x.id !== id && !(x.id || "").startsWith(id + ".")); save(); renderWin(); clearInspector(); toast("Edits undone for this part"); });
+  $("#insDel").addEventListener("click", () => deletePart(el));
+}
+const clearInspector = () => { selected = null; $("#inspector").innerHTML = '<div class="hint">Nothing selected. Switch to Edit and click a part of the window.</div>'; };
+
+function recordStyle(el, prop, to) {
+  const id = el.dataset.id, kind = prop === "text" ? "text" : "style";
+  let o = S.ops.find((x) => x.op === kind && x.id === id && (kind === "text" || x.prop === prop) && (x.page === "*" || x.page === S.page));
+  if (!o) { o = { page: scopeOf(el), op: kind, id, label: labelOf(el), prop, from: kind === "text" ? el.textContent : prop === "display" ? "" : getComputedStyle(el)[prop], to }; S.ops.push(o); }
+  o.to = to;
+  if (kind === "text") el.textContent = to; else el.style[prop] = to;
+  save();
+}
+function commitMove(el, parent, before) {
+  if (!parent || el.contains(parent) || (parent === el.parentElement && (before === el.nextElementSibling || before === el))) return;
+  const scope = scopeOf(el), id = el.dataset.id, label = labelOf(el);
+  const prev = S.ops.find((x) => x.op === "move" && x.id === id && x.page === scope);
+  const from = prev ? prev.from : place2(el);
+  S.ops = S.ops.filter((x) => x !== prev);
+  place(parent, el, before);
+  S.ops.push({ page: scope, op: "move", id, label, from, parent: parent.dataset.id, before: before ? before.dataset.id : null, to: `${labelOf(parent)} ${before ? "before " + labelOf(before) : "at the end"}` });
+  save(); select(el);
+}
+function step(el, dir) {
+  const p = el.parentElement; if (!p) return;
+  const sib = [...p.children], i = sib.indexOf(el);
+  if (dir < 0 && i > 0) commitMove(el, p, sib[i - 1]);
+  else if (dir > 0 && i < sib.length - 1) commitMove(el, p, sib[i + 1].nextElementSibling);
+}
+function deletePart(el) {
+  const id = el.dataset.id;
+  if (/^a\d+$/.test(id)) S.ops = S.ops.filter((x) => !(x.id === id || (x.id || "").startsWith(id + ".") || x.parent === id || (x.parent || "").startsWith(id + ".")));
+  else S.ops.push({ page: scopeOf(el), op: "del", id, label: labelOf(el) });
+  el.remove(); save(); clearInspector(); toast("Part deleted");
+}
+function addPart(kind) {
+  if (S.mode !== "edit") { S.mode = "edit"; $$("#modeSw button").forEach((x) => x.setAttribute("aria-pressed", x.dataset.m === "edit")); renderWin(); }
+  const ref = selected && selected.isConnected ? selected : null;
+  let parent, before = null;
+  if (ref && ref.matches(CONTAINER)) parent = ref;
+  else if (ref && ref.parentElement && ref.parentElement !== $("#win")) { parent = ref.parentElement; before = ref.nextElementSibling; }
+  else parent = $("#win .body");
+  const id = "a" + (++S.addSeq), el = makeEl(kind);
+  assignIds(el, id); place(parent, el, before);
+  S.ops.push({ page: scopeOf(parent), op: "add", id, kind, label: `${ADD_KINDS[kind].name}`, parent: parent.dataset.id, before: before ? before.dataset.id : null, to: `${labelOf(parent)} ${before ? "before " + labelOf(before) : "at the end"}` });
+  save(); select(el); el.scrollIntoView({ block: "nearest" });
+}
+function undo() { if (!S.ops.length) return toast("Nothing to undo"); const o = S.ops.pop(); save(); renderWin(); clearInspector(); toast(`Undone: ${o.op} ${o.label || ""}`); }
+$("#undo").addEventListener("click", undo);
+document.addEventListener("keydown", (e) => { if ((e.metaKey || e.ctrlKey) && e.key === "z" && !/INPUT|TEXTAREA|SELECT/.test(e.target.tagName) && $("#v-window").classList.contains("on")) { e.preventDefault(); undo(); } });
+$("#addGrid").innerHTML = Object.entries(ADD_KINDS).map(([k, v]) => `<button class="btn small" data-add="${k}">+ ${v.name}</button>`).join("");
+$$("[data-add]").forEach((b) => b.addEventListener("click", () => addPart(b.dataset.add)));
+
+$("#modeSw").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  S.mode = b.dataset.m; $$("#modeSw button").forEach((x) => x.setAttribute("aria-pressed", x === b)); save(); renderWin(); clearInspector();
+});
+
+/* ---- drag to move ---- */
+const axisOf = (parent) => { const cs = getComputedStyle(parent); return cs.display === "grid" || (cs.display === "flex" && cs.flexDirection.startsWith("row")) ? "x" : "y"; };
+const mid = (r, axis) => (axis === "x" ? r.left + r.width / 2 : r.top + r.height / 2);
+function dropTarget(el, x, y) {
+  const t = document.elementFromPoint(x, y), win = $("#win");
+  if (!t || !win.contains(t) || t === win || el.contains(t)) return null;
+  let c = t;
+  while (c && c.parentElement !== el.parentElement) c = c.parentElement;
+  let parent, before;
+  if (c && c !== el && win.contains(c)) { // reorder beside a sibling
+    parent = c.parentElement; const axis = axisOf(parent), after = (axis === "x" ? x : y) > mid(c.getBoundingClientRect(), axis);
+    before = after ? c.nextElementSibling : c; if (before === el) before = el.nextElementSibling;
+  } else if (t.matches(DROP_INTO)) { // into a box: before the first child that is past the pointer
+    parent = t; const axis = axisOf(parent);
+    before = [...t.children].filter((k) => k !== el).find((k) => mid(k.getBoundingClientRect(), axis) > (axis === "x" ? x : y)) || null;
+  } else { // beside the nearest part that sits directly in a box
+    c = t; while (c.parentElement && !c.parentElement.matches(DROP_INTO)) c = c.parentElement;
+    if (!c.parentElement || c === el) return null;
+    parent = c.parentElement; const axis = axisOf(parent), after = (axis === "x" ? x : y) > mid(c.getBoundingClientRect(), axis);
+    before = after ? c.nextElementSibling : c; if (before === el) before = el.nextElementSibling;
+  }
+  return { parent, before };
+}
+function showLine(d) {
+  const L = $("#dropLine");
+  if (!d) { L.hidden = true; return; }
+  const axis = axisOf(d.parent), kids = [...d.parent.children].filter((k) => !k.style.pointerEvents);
+  let r, atEnd = false;
+  if (d.before) r = d.before.getBoundingClientRect(); else if (kids.length) { r = kids[kids.length - 1].getBoundingClientRect(); atEnd = true; } else { r = d.parent.getBoundingClientRect(); }
+  const empty = !d.before && !kids.length;
+  L.hidden = false;
+  if (axis === "x" && !empty) Object.assign(L.style, { left: (atEnd ? r.right : r.left - 2) + "px", top: r.top + "px", width: "3px", height: r.height + "px" });
+  else Object.assign(L.style, { left: (empty ? r.left + 8 : r.left) + "px", top: (empty ? r.top + 8 : atEnd ? r.bottom : r.top - 2) + "px", width: (empty ? r.width - 16 : r.width) + "px", height: "3px" });
+}
+function startDrag(el, e0) {
+  let moved = false, drop = null;
+  const move = (e) => {
+    if (!moved && Math.hypot(e.clientX - e0.clientX, e.clientY - e0.clientY) < 5) return;
+    if (!moved) { moved = true; el.style.pointerEvents = "none"; el.style.opacity = ".4"; document.body.style.cursor = "grabbing"; }
+    drop = dropTarget(el, e.clientX, e.clientY); showLine(drop);
+  };
+  const up = () => {
+    document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up);
+    $("#dropLine").hidden = true; document.body.style.cursor = "";
+    if (!moved) return;
+    el.style.removeProperty("pointer-events"); el.style.removeProperty("opacity");
+    justDragged = true; setTimeout(() => { justDragged = false; }, 0);
+    if (drop) commitMove(el, drop.parent, drop.before);
+  };
+  document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
+}
+
+/* ---- theme tokens ---- */
+function renderTokens() {
+  $("#tokens").innerHTML = `<div class="row"><label>Preset</label><select id="preset"><option value="">—</option>${Object.keys(PRESETS).map((p) => `<option>${p}</option>`).join("")}</select></div>` +
+    TOKEN_DEFS.map((d) => {
+      const cur = S.tokens[d.v] ?? d.def;
+      if (d.type === "color") return `<div class="row"><label>${d.name}</label><input type="color" data-v="${d.v}" value="${cur}"></div>`;
+      if (d.type === "range") return `<div class="row"><label>${d.name}</label><input type="range" data-v="${d.v}" min="${d.min}" max="${d.max}" value="${cur}"><span>${cur}</span></div>`;
+      return `<div class="row"><label>${d.name}</label><select data-v="${d.v}">${d.opts.map(([n, v]) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${n}</option>`).join("")}</select></div>`;
+    }).join("");
+  $$("#tokens [data-v]").forEach((i) => i.addEventListener("input", () => { setToken(i.dataset.v, i.value); if (i.type === "range") i.nextElementSibling.textContent = i.value; }));
+  $("#preset").addEventListener("change", (e) => {
+    if (!e.target.value) return;
+    S.tokens = { ...PRESETS[e.target.value] }; applyTokens(); renderTokens(); save();
+  });
+}
+function setToken(v, val) { const d = TOKEN_DEFS.find((x) => x.v === v); if (val === d.def) delete S.tokens[v]; else S.tokens[v] = val; applyTokens(); save(); }
+function applyTokens() {
+  const w = $("#win");
+  TOKEN_DEFS.forEach((d) => { const v = S.tokens[d.v] ?? d.def; w.style.setProperty(d.v, d.type === "range" ? v + "px" : v); });
+}
+
+/* ================= ideas ================= */
+function renderIdeas() {
+  const box = $("#ideaList");
+  if (!S.ideas.length) { box.innerHTML = '<div class="hint">No ideas yet.</div>'; return; }
+  box.innerHTML = S.ideas.map((x, i) => `<div class="idea"><div style="flex:1"><span class="tag">${esc(x.cat)}</span><span class="tag p-${x.pri === "high" ? "high" : x.pri === "low" ? "low" : "n"}">${esc(x.pri)}</span>${x.target ? `<span class="mono">${esc(x.target)}</span>` : ""}<p>${esc(x.text)}</p></div><button class="btn small danger" data-del="${i}">Delete</button></div>`).join("");
+  $$("[data-del]", box).forEach((b) => b.addEventListener("click", () => { S.ideas.splice(+b.dataset.del, 1); save(); renderIdeas(); }));
+}
+$("#iAdd").addEventListener("click", () => {
+  const text = $("#iText").value.trim(); if (!text) return toast("Write the idea first");
+  S.ideas.push({ cat: $("#iCat").value, pri: $("#iPri").value, target: $("#iTarget").value.trim(), text });
+  $("#iText").value = ""; $("#iTarget").value = ""; save(); renderIdeas(); toast("Idea added");
+});
+
+/* ================= browser automation ================= */
+const STEP_TYPES = { goto: "Go to address", click: "Click", type: "Type text", extract: "Read text into the report", wait: "Wait (seconds)", shot: "Take a screenshot", ask: "Ask me before going on", download: "Download a file", submit: "Submit the form" };
+const STEP_ACTION = { goto: "read", click: "click", type: "type", extract: "read", wait: null, shot: "read", ask: null, download: "download", submit: "submit" };
+const PRESET_FLOWS = {
+  "Price check": { goal: "Find the price of an item on a shop page and put it in the report.", sites: ["example-shop.com"], steps: [["goto", "https://example-shop.com/item/123"], ["extract", ".price"], ["shot", ""]] },
+  "Fill a form": { goal: "Fill the contact form and wait for me to confirm.", sites: ["example.org"], steps: [["goto", "https://example.org/contact"], ["type", "#name = Keshab"], ["type", "#message = Hello"], ["ask", "Send this?"], ["submit", "form"]] },
+  "Download invoice": { goal: "Log in to the billing page and download the latest invoice.", sites: ["billing.example.com"], steps: [["goto", "https://billing.example.com"], ["click", "Invoices"], ["download", "latest PDF"]] },
+};
+const hostOf = (u) => { try { return new URL(/^https?:/.test(u) ? u : "https://" + u).hostname.replace(/^www\./, ""); } catch (e) { return ""; } };
+const allowed = (host) => S.browser.sites.some((s) => host === s || host.endsWith("." + s));
+function renderBrowser() {
+  const b = S.browser, p = $("#browserPane");
+  p.innerHTML = `<h2>Browser automation</h2><div class="hint">Design how an agent may use a browser. Code checks the rules, not the model: a site that is not on the list is blocked, and each action is Auto, Ask me or Never.</div>
+  <div class="box"><h3>Who and how</h3>
+    <div class="row"><label>Agent</label><select id="bAgent">${["Any agent", "Sid", "Kame", "Puff", "Quill", "Penny", "Hana", "Tinker"].map((a) => `<option ${a === b.agent ? "selected" : ""}>${a}</option>`).join("")}</select></div>
+    <div class="row"><label>Browser</label><div class="mode" id="bMode">${[["headless", "Hidden"], ["visible", "Visible window"], ["profile", "My Chrome profile"]].map(([k, n]) => `<button data-k="${k}" aria-pressed="${b.mode === k}">${n}</button>`).join("")}</div></div>
+    <div class="hint">${b.mode === "profile" ? "My Chrome profile reuses your logins. Strongest power, highest risk." : b.mode === "visible" ? "You can watch every step and press Stop." : "No window. Fast, but you cannot watch."}</div>
+    <div class="row"><label>Goal</label><input type="text" id="bGoal" value="${esc(b.goal)}" placeholder="What should the agent get done?"></div>
+    <div class="row"><label>Start from</label><select id="bPreset"><option value="">—</option>${Object.keys(PRESET_FLOWS).map((n) => `<option>${n}</option>`).join("")}</select></div></div>
+  <div class="box"><h3>Allowed sites (every other site is blocked)</h3><div id="bSites">${b.sites.map((s, i) => `<span class="pill">${esc(s)}<button data-rm="${i}">×</button></span>`).join("") || '<span class="hint">None. The agent cannot open any page.</span>'}</div>
+    <div class="row"><input type="text" id="bSiteIn" placeholder="example.com"><button class="btn small" id="bSiteAdd">Add</button></div></div>
+  <div class="box"><h3>What may it do?</h3><table class="pol">${POLICY_ACTIONS.map(([k, n]) => `<tr><td>${n}</td><td><select data-pol="${k}">${["auto", "ask", "never"].map((o) => `<option value="${o}" ${b.policy[k] === o ? "selected" : ""}>${{ auto: "Auto", ask: "Ask me", never: "Never" }[o]}</option>`).join("")}</select></td></tr>`).join("")}</table></div>
+  <div class="box"><h3>Limits</h3>
+    <div class="row"><label>Max steps</label><input type="range" id="bSteps" min="5" max="100" value="${b.maxSteps}"><span id="bStepsV">${b.maxSteps}</span></div>
+    <div class="row"><label>Max minutes</label><input type="range" id="bMin" min="1" max="60" value="${b.maxMinutes}"><span id="bMinV">${b.maxMinutes}</span></div>
+    <div class="row"><label>Screenshots</label><input type="checkbox" id="bShots" ${b.shots ? "checked" : ""}> <span class="hint">save one after each step</span></div>
+    <div class="row"><label>Captcha</label><input type="checkbox" id="bCap" ${b.stopOnCaptcha ? "checked" : ""}> <span class="hint">stop and ask me</span></div></div>
+  <div class="box"><h3>Steps (a plan to try; the agent may also decide its own)</h3><div id="bStepList">${b.steps.map((s, i) => `<div class="step"><span class="n">${i + 1}</span><select data-st="${i}" data-f="t">${Object.entries(STEP_TYPES).map(([k, n]) => `<option value="${k}" ${s.t === k ? "selected" : ""}>${n}</option>`).join("")}</select><input type="text" data-st="${i}" data-f="v" value="${esc(s.v)}" style="flex:1" placeholder="address, selector, text…"><button class="btn small" data-up="${i}">↑</button><button class="btn small" data-down="${i}">↓</button><button class="btn small danger" data-sdel="${i}">×</button></div>`).join("") || '<div class="hint">No steps yet.</div>'}</div>
+    <div class="row"><button class="btn small" id="bAddStep">Add step</button><button class="btn small primary" id="bRun">Dry run</button></div>
+    <div class="hint">A dry run checks each step against the site list and the action rules. It opens no browser.</div><div class="log" id="bLog" hidden></div></div>`;
+  const on = (sel, ev, fn) => { const e = $(sel, p); if (e) e.addEventListener(ev, fn); };
+  on("#bAgent", "change", (e) => { b.agent = e.target.value; save(); });
+  on("#bGoal", "input", (e) => { b.goal = e.target.value; save(); });
+  $$("#bMode button", p).forEach((x) => x.addEventListener("click", () => { b.mode = x.dataset.k; save(); renderBrowser(); }));
+  on("#bPreset", "change", (e) => { const f = PRESET_FLOWS[e.target.value]; if (!f) return; b.goal = f.goal; b.sites = [...f.sites]; b.steps = f.steps.map(([t, v]) => ({ t, v })); save(); renderBrowser(); });
+  const addSite = () => { const h = hostOf($("#bSiteIn", p).value.trim()); if (!h) return toast("Enter a site like example.com"); if (!b.sites.includes(h)) b.sites.push(h); save(); renderBrowser(); };
+  on("#bSiteAdd", "click", addSite); on("#bSiteIn", "keydown", (e) => { if (e.key === "Enter") addSite(); });
+  $$("[data-rm]", p).forEach((x) => x.addEventListener("click", () => { b.sites.splice(+x.dataset.rm, 1); save(); renderBrowser(); }));
+  $$("[data-pol]", p).forEach((x) => x.addEventListener("change", () => { b.policy[x.dataset.pol] = x.value; save(); }));
+  on("#bSteps", "input", (e) => { b.maxSteps = +e.target.value; $("#bStepsV", p).textContent = e.target.value; save(); });
+  on("#bMin", "input", (e) => { b.maxMinutes = +e.target.value; $("#bMinV", p).textContent = e.target.value; save(); });
+  on("#bShots", "change", (e) => { b.shots = e.target.checked; save(); }); on("#bCap", "change", (e) => { b.stopOnCaptcha = e.target.checked; save(); });
+  $$("[data-st]", p).forEach((x) => x.addEventListener("input", () => { b.steps[+x.dataset.st][x.dataset.f] = x.value; save(); }));
+  $$("[data-sdel]", p).forEach((x) => x.addEventListener("click", () => { b.steps.splice(+x.dataset.sdel, 1); save(); renderBrowser(); }));
+  $$("[data-up]", p).forEach((x) => x.addEventListener("click", () => { const i = +x.dataset.up; if (i > 0) [b.steps[i - 1], b.steps[i]] = [b.steps[i], b.steps[i - 1]]; save(); renderBrowser(); }));
+  $$("[data-down]", p).forEach((x) => x.addEventListener("click", () => { const i = +x.dataset.down; if (i < b.steps.length - 1) [b.steps[i + 1], b.steps[i]] = [b.steps[i], b.steps[i + 1]]; save(); renderBrowser(); }));
+  on("#bAddStep", "click", () => { b.steps.push({ t: "goto", v: "" }); save(); renderBrowser(); });
+  on("#bRun", "click", () => dryRun());
+}
+function dryRun() {
+  const b = S.browser, out = []; let host = "";
+  b.steps.forEach((s, i) => {
+    let verdict = "auto", why = "";
+    if (i >= b.maxSteps) { verdict = "never"; why = `over the limit of ${b.maxSteps} steps`; }
+    else if (s.t === "goto") {
+      host = hostOf(s.v);
+      if (!host) { verdict = "never"; why = "not an address"; }
+      else if (!allowed(host)) { verdict = "never"; why = `${host} is not on the list`; }
+      else verdict = b.policy.read;
+    } else if (s.t === "ask") { verdict = "ask"; why = "waits for you"; }
+    else if (STEP_ACTION[s.t]) {
+      verdict = b.policy[STEP_ACTION[s.t]];
+      if (!host) { verdict = "never"; why = "no page is open yet; add a “Go to address” step first"; }
+      else if (!allowed(host)) { verdict = "never"; why = `${host} is not on the list`; }
+    }
+    if (!why) why = { auto: "runs by itself", ask: "asks you first", never: "blocked by your rule" }[verdict];
+    out.push(`<span class="${verdict}">${String(i + 1).padStart(2)}. ${{ auto: "AUTO ", ask: "ASK  ", never: "BLOCK" }[verdict]}</span> ${esc(STEP_TYPES[s.t])} ${esc(s.v)} — ${esc(why)}`);
+  });
+  const log = $("#bLog"); log.hidden = false; log.innerHTML = out.join("\n") || "No steps to check.";
+}
+
+/* ================= export ================= */
+function buildMd() {
+  const L = [], b = S.browser;
+  L.push("# ATOM UI changes and ideas", "", "Source: design/ui-playground.html (a mock of the ATOM window). Apply what is listed to the real SwiftUI app (apps/mac/island/Sources/AtomIsland). Ask before you change anything that is not listed.", "");
+  const toks = Object.entries(S.tokens);
+  L.push("## Theme changes", "");
+  if (toks.length) toks.forEach(([k, v]) => { const d = TOKEN_DEFS.find((x) => x.v === k); L.push(`- ${d.name} (${k}): ${d.def} -> ${v}`); }); else L.push("- None.");
+  L.push("", "## Part edits (in order; apply them one by one)", "");
+  const where = (o) => (o.page === "*" ? "all pages (sidebar)" : `page "${o.page}"`);
+  if (S.ops.length) S.ops.forEach((o) => {
+    if (o.op === "style") L.push(`- ${where(o)}, ${o.label}: ${o.prop} "${o.from}" -> "${o.to}"`);
+    else if (o.op === "text") L.push(`- ${where(o)}, ${o.label}: text "${o.from}" -> "${o.to}"`);
+    else if (o.op === "move") L.push(`- ${where(o)}: MOVE ${o.label} from ${o.from} to ${o.to}`);
+    else if (o.op === "add") L.push(`- ${where(o)}: ADD a new ${o.label} in ${o.to}`);
+    else if (o.op === "del") L.push(`- ${where(o)}: REMOVE ${o.label}`);
+  }); else L.push("- None.");
+  L.push("", "## Ideas", "");
+  if (S.ideas.length) S.ideas.forEach((x, i) => L.push(`${i + 1}. [${x.cat}] [${x.pri}]${x.target ? ` (${x.target})` : ""} ${x.text}`)); else L.push("- None.");
+  L.push("", "## Browser automation spec", "", `- Agent: ${b.agent}`, `- Browser: ${{ headless: "hidden", visible: "visible window", profile: "my Chrome profile" }[b.mode]}`, `- Goal: ${b.goal || "(not set)"}`,
+    `- Allowed sites: ${b.sites.join(", ") || "none"} (every other site is blocked)`, `- Rules: ${POLICY_ACTIONS.map(([k, n]) => `${n.toLowerCase()} = ${b.policy[k]}`).join("; ")}`,
+    `- Limits: ${b.maxSteps} steps, ${b.maxMinutes} minutes, screenshots ${b.shots ? "on" : "off"}, ${b.stopOnCaptcha ? "stop at a captcha" : "no captcha stop"}`);
+  if (b.steps.length) { L.push("- Steps:"); b.steps.forEach((s, i) => L.push(`  ${i + 1}. ${STEP_TYPES[s.t]}${s.v ? `: ${s.v}` : ""}`)); }
+  L.push("", "## How to work", "", "- Do one item at a time. Follow CLAUDE.md. Test each change.", "- Browser rules must be checked in code (a policy engine), never by the model.");
+  return L.join("\n");
+}
+const refreshExport = () => { $("#exportText").value = buildMd(); };
+const download = (name, text, type) => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
+$("#copyMd").addEventListener("click", async () => { refreshExport(); try { await navigator.clipboard.writeText($("#exportText").value); toast("Copied"); } catch (e) { $("#exportText").select(); toast("Press Cmd+C to copy"); } });
+$("#dlMd").addEventListener("click", () => download("atom-ui-ideas.md", buildMd(), "text/markdown"));
+$("#dlJson").addEventListener("click", () => download("atom-ui-ideas.json", JSON.stringify(S, null, 2), "application/json"));
+$("#impJson").addEventListener("click", () => $("#impFile").click());
+$("#impFile").addEventListener("change", async (e) => {
+  try { const j = JSON.parse(await e.target.files[0].text()); S = { ...fresh(), ...j }; S.browser = { ...DEFAULT_BROWSER(), ...S.browser }; save(); boot(); toast("Imported"); }
+  catch (err) { toast("That file is not valid"); }
+});
+$("#reset").addEventListener("click", () => { if (!confirm("Remove all changes, ideas and the browser spec?")) return; S = fresh(); save(); boot(); });
+
+/* ================= tabs and boot ================= */
+function show(v) {
+  $$(".tab").forEach((t) => t.setAttribute("aria-selected", t.dataset.view === v));
+  $$(".view").forEach((x) => x.classList.toggle("on", x.id === "v-" + v));
+  if (v === "export") refreshExport();
+  if (v === "ideas") renderIdeas();
+}
+$$(".tab").forEach((t) => t.addEventListener("click", () => show(t.dataset.view)));
+function boot() {
+  renderTokens(); renderWin(); applyTokens(); renderIdeas(); renderBrowser();
+  $$("#modeSw button").forEach((x) => x.setAttribute("aria-pressed", x.dataset.m === S.mode));
+  counts();
+}
+boot();
+</script>
+</body>
+</html>
