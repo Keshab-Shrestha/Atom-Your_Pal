@@ -5,6 +5,7 @@ import { TOOL_SERVER, MAX_PROJECT_FILE_CALLS } from "@atom/llm-gateway";
 import { BROWSER_SERVER, browserCheck } from "./browser.ts";
 import { checkpointBefore, folderCheck } from "./folder-run.ts";
 import { mcpCheck } from "./mcp-servers.ts";
+import { webFetchProblem } from "./web-guard.ts";
 import { grantedServers, kitTools, nativeMembers } from "./native-agents.ts";
 import type { BoardRecorder } from "./native-board.ts";
 import type { PlanBook } from "./native-plan.ts";
@@ -147,6 +148,10 @@ export function nativeGate(scope: NativeScope): NativeGate {
       if (!agentCalls.has(id)) agentCalls.set(id, agentCall(input, id));
       return agentCalls.get(id)!;
     }
+    if (name === "WebFetch") {
+      const problem = webFetchProblem(input.url);
+      if (problem) return log("web.refused", { tool: name }), deny(problem);
+    }
     if (!READ_TOOLS.includes(name)) return { allow: true, input };
     if (!files) return deny("This chat has no file access now. Answer from the chat.");
     if (!fileCalls.has(id) && fileCalls.size >= MAX_PROJECT_FILE_CALLS) {
@@ -202,6 +207,10 @@ export function nativeGate(scope: NativeScope): NativeGate {
     }
     if (member.planFirst && CHANGE_TOOLS.includes(name) && !planApproved.has(agentId)) {
       return say("refused"), deny(`${member.name} plans first: no file changes before Keshab approves the plan. Call ExitPlanMode with your plan.`);
+    }
+    if (name === "WebFetch") {
+      const problem = webFetchProblem(input.url);
+      if (problem) return say("refused"), deny(problem);
     }
     if (!FILE_TOOLS.includes(name)) return { allow: true, input }; // WebSearch, WebFetch, ToolSearch
     if (name === "Bash" && input.dangerouslyDisableSandbox) return say("refused"), deny("Commands always run in the sandbox.");

@@ -164,7 +164,7 @@ test("the main thread never gets Bash, Write, Edit or a tool outside its set; AT
   for (const tool of ["mcp__atom__delegate", "ToolSearch"]) assert.equal((await gate.canUseTool(tool, {}, { toolUseID: tool })).behavior, "allow", tool);
   const plain = nativeGate({ tools: ["WebSearch", "WebFetch"] });
   assert.equal(await decision(plain, "Read", { file_path: "/etc/hosts" }, "r1"), "deny", "a plain chat reads no files");
-  assert.equal(await decision(plain, "WebFetch", { url: "https://x" }, "w1"), "allow");
+  assert.equal(await decision(plain, "WebFetch", { url: "https://example.com/x" }, "w1"), "allow");
 });
 
 test("every project read goes through the check by hook and by callback; a refusal is a deny; prepare changes the input", async () => {
