@@ -773,7 +773,11 @@ export function runIsland(options: IslandOptions): IslandSession {
         }
         const { message, timer, after } = timerQueue.shift()!;
         const spoken = timer ? speech.updates : speech.reports;
-        if (spoken && speech.chime) await options.chime?.();
+        try {
+          if (spoken && speech.chime) await options.chime?.();
+        } catch (error) {
+          options.log?.warn("announce.chime_failed", { message: describe(error) });
+        }
         // Task 3.15: Pal flies over with the line while ATOM says it.
         if (!timer) send({ type: "worker.line", line: message });
         if (spoken) {
@@ -787,7 +791,12 @@ export function runIsland(options: IslandOptions): IslandSession {
         }
         // Last, so the island's "Timer done" stays up after the speaking ends.
         if (timer) send({ type: "timer", ...timer });
-        after?.();
+        try {
+          after?.();
+        } catch (error) {
+          // The callback is the caller's (a plan waits for its line to be said): its failure must not stop the queue or end the app.
+          options.log?.warn("announce.after_failed", { message: describe(error) });
+        }
       }
     } finally {
       announcing = false;
@@ -796,11 +805,11 @@ export function runIsland(options: IslandOptions): IslandSession {
   const stopTimers = options.onTimer?.((timer) => {
     const message = timer.label ? `Your ${timer.label} timer is done.` : `Your ${spokenDuration(timer.seconds)} timer is done.`;
     timerQueue.push({ message, timer: { id: timer.id, label: timer.label, message } });
-    void announce();
+    void announce().catch((error: unknown) => options.log?.warn("announce.failed", { message: describe(error) }));
   });
   const stopGoalLines = options.onGoalLine?.((line, after) => {
     timerQueue.push({ message: line, ...(after ? { after } : {}) });
-    void announce();
+    void announce().catch((error: unknown) => options.log?.warn("announce.failed", { message: describe(error) }));
   });
   const stopMemoryUpdates = options.memory?.onChange(() => {
     if (memoryWatched) sendMemory();

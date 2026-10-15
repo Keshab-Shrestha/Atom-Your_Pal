@@ -1913,3 +1913,26 @@ test("a failing helpers list is logged and does not end the app; the next update
     void logs;
   }
 });
+
+// 2026-10-16 (code check): announce() ran as `void announce()` and its `after` callback and the chime sat outside any try/catch, so a throw there
+// was an unhandled rejection, which the crash handler turns into the end of the app. One bad callback must not end ATOM.
+test("a goal line whose after-callback throws does not end the app, and the next line is still said", async () => {
+  let say!: (line: string, after?: () => void) => void;
+  const h = islandHarness({ onGoalLine: (listener) => ((say = listener), () => {}) });
+  await new Promise((r) => setTimeout(r, 5));
+  const rejections: unknown[] = [];
+  const onRejection = (e: unknown) => rejections.push(e);
+  process.on("unhandledRejection", onRejection);
+  try {
+    say("First line.", () => {
+      throw new Error("callback failed");
+    });
+    await new Promise((r) => setTimeout(r, 30));
+    say("Second line.");
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(rejections.length, 0, "no unhandled rejection");
+    assert.deepEqual(h.spoken, ["First line.", "Second line."], "the queue went on");
+  } finally {
+    process.off("unhandledRejection", onRejection);
+  }
+});

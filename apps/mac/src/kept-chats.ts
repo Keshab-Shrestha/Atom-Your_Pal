@@ -42,7 +42,7 @@ export function createKeptChats({ memory, embedder, digest, changed, log }: Kept
       } catch (error) {
         log.warn("memory.vectors_fill_failed", { message: error instanceof Error ? error.message : String(error) });
       }
-    });
+    }).catch((error: unknown) => log.warn("memory.embedder_warm_failed", { message: error instanceof Error ? error.message : String(error) }));
   if (index.count() > 0) warm();
 
   const keepNow = async (id: string) => {
