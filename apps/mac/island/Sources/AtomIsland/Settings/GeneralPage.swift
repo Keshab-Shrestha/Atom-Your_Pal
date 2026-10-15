@@ -42,8 +42,8 @@ struct GeneralSection: View {
         }
         // ADR-098: ATOM's own Telegram bot. The names only, never the values.
         Card("Telegram", footer: model.telegramConnected
-             ? "Only the chat in ATOM_TELEGRAM_CHAT_ID is served. Send /help to the bot for its commands."
-             : "Make a bot for ATOM with @BotFather. Add ATOM_TELEGRAM_BOT_TOKEN and ATOM_TELEGRAM_CHAT_ID to .env, then restart ATOM.") {
+             ? "Only the chat in ATOM_TELEGRAM_CHAT_ID is served. Send /help to the bot for its commands. More: docs/telegram.md."
+             : "Make a bot for ATOM with @BotFather. Add ATOM_TELEGRAM_BOT_TOKEN and ATOM_TELEGRAM_CHAT_ID to .env, then restart ATOM. Steps: docs/telegram.md in the ATOM folder.") {
             Row(title: "Telegram", detail: model.telegramConnected ? "Connected" : "Not set up") {
                 StatusDot(color: model.telegramConnected ? theme.success.color : theme.text3.color, size: 8)
             }

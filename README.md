@@ -76,7 +76,7 @@ ATOM is not a chatbot. The language model is one part of it. Permissions, memory
 
 **Phone: Telegram**
 - Talk to ATOM, answer the Needs you list, steer tasks and read reports from your phone.
-- Add `ATOM_TELEGRAM_BOT_TOKEN` and `ATOM_TELEGRAM_CHAT_ID` to `.env`. ATOM serves only that chat.
+- Add `ATOM_TELEGRAM_BOT_TOKEN` and `ATOM_TELEGRAM_CHAT_ID` to `.env`. ATOM serves only that chat. Step by step: [docs/telegram.md](docs/telegram.md).
 
 **Integrations: local API, MCP server, skills hub, Paperclip**
 - Local API on `127.0.0.1` (off by default). Other tools give goals to ATOM and read results.
@@ -213,6 +213,7 @@ Every part is described in [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md).
 | [DECISIONS.md](DECISIONS.md) | Every architecture decision (ADRs) |
 | [SECURITY.md](SECURITY.md) | What ATOM may and may not do |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | How the parts fit |
+| [docs/telegram.md](docs/telegram.md) | How to set up and use ATOM from Telegram |
 | [docs/island-protocol.md](docs/island-protocol.md) | The app and runtime protocol |
 | [docs/VISION.md](docs/VISION.md) | The long-term vision |
 | [CLAUDE.md](CLAUDE.md) | The engineering rules |

@@ -1662,6 +1662,17 @@ Three more read-only reviewers. Findings I checked against the code, then fixed 
 - **Left alone on purpose.** Strict decoding of the `helpers` event (tests pin it; the app and runtime ship together). Committing the partial work of a task Keshab stopped (it is on the task's own branch and can be undone). The page address in browser results can still be faked by a result that prints its own "### Page state" before the real one (Playwright's output order does not let ATOM tell; the tools that print arbitrary page text first are not in the allowed list).
 - **Open.** Telegram pushes are lost silently when a send fails (no retry; the "known" set is updated first). The Telegram turn queue has no timeout. `runRoutines` marks a routine as run even when its start threw. Attachments of pruned chats stay on disk. Checkpoints of failed or stopped tasks are never swept. `TaskField` keeps its draft when another agent is selected. The brain note editor does not track unsaved edits. `NoteEditor`, `PalBubble` show/hide race, `PetController.setEnabled` and `HelpersState.setPostTo` (wired only in tests: the "post to the team" path is unreachable from the window) need a decision.
 
+
+### Telegram (2026-10-16)
+
+- **Reliable sends.** `send()` now returns whether the message was delivered. A part that fails for a passing reason (no network, a 5xx, a 429 with `retry_after`, cut to 30 s) is tried again after 1, 3 and 9 s; a 4xx is not. A long message resends only the part that failed.
+- **A push counts as sent only when delivered.** The "already pushed" set was updated before the send, so a failed send was never repeated. A failed Needs you push is tried again every 30 s, six times at most (`PUSH_TRIES`), then left to `/needs`. `sending` stops two runs from sending one item twice.
+- **A hung turn no longer blocks the chat.** The turn queue gives up on an answer after 10 minutes (`TURN_TIMEOUT_MS`) and says so.
+- **Commands cannot end the app.** A throw while building an answer (a locked database) became an unhandled rejection; it is now answered ("That did not work: …") and logged by command name. Answers still leave in the order the commands came.
+- **How-to:** `docs/telegram.md` (set-up, commands, buttons, what is pushed, retries, safety, fixes), linked from the README and from the Settings card.
+- Tests: `telegram.test.ts` (retries, rate limit, 4xx, part-by-part), `telegram-bot.test.ts` (a lost push arrives once, a hung turn, a throwing command).
+- Open: the sender is not checked (`from.id`); only the chat id is. A group chat id would let every member press Allow. The how-to says to use a private chat.
+
 ## Regenerate the Local API token (2026-10-15)
 
 Keshab pasted the token in chat three times and found no way to replace it ("i dont see regenerate option").
