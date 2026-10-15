@@ -105,9 +105,10 @@ final class IslandModel {
     /// Sends a command to the runtime. Set by the app.
     @ObservationIgnored var send: (IslandCommand) -> Void = { _ in }
     /// A command was not sent because the runtime is not running: tell the user, and stop any "waiting" that expected its answer.
-    func commandDropped(_ command: IslandCommand) {
-        let waiting = skillCommandPending || brainCommandPending || projectCommandPending
-        apply(.error(DroppedCommand.error(waitingInSettings: waiting)))
+    func droppedCommandError(for command: IslandCommand) -> RuntimeError? {
+        guard DroppedCommand.shouldTell(commandType: command.type) else { return nil }
+        let waiting = skillCommandPending || brainCommandPending || projectCommandPending || helpers.isWaiting || pendingModel != nil || refreshingModels
+        return DroppedCommand.error(waitingInSettings: waiting)
     }
 
     /// Restarts the runtime with computer control on or off (set by main.swift).

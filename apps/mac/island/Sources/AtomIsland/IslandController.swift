@@ -251,6 +251,14 @@ final class IslandController {
         statusChanged()
     }
 
+    /// A command was not sent because the runtime is not running (restarting, failed or stopped). The user hears about what they did, not
+    /// about the app's own housekeeping; the error goes through the same path as the runtime's own, so the status card shows it (code review, 2026-10-16:
+    /// it went to the model only, which changed nothing visible and could mark a turn in progress as failed).
+    func commandDropped(_ command: IslandCommand) {
+        guard let error = model.droppedCommandError(for: command) else { return }
+        apply(.error(error))
+    }
+
     func apply(_ event: IslandEvent) {
         if localListening, case .state(.idle) = event { return } // the turn we interrupted, ending
         let helperRefusal = model.helpers.claims(event) // shown in the ATOM window, not as ATOM's status

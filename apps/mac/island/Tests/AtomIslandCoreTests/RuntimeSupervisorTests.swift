@@ -296,6 +296,16 @@ struct DroppedCommandTests {
         #expect(DroppedCommand.message.contains("Try again"))
     }
 
+    /// 2026-10-16 (code review): the app's own housekeeping after a restart (telegram.set, api.set, helpers.list...) showed "not sent" too.
+    @Test func onlyWhatTheUserDidIsReportedNotTheAppsOwnHousekeeping() {
+        for type in ["telegram.set", "api.set", "speech.set", "helpers.list", "memory.list", "chats.list", "commands.list", "git.list", "brain.get", "tools.scan"] {
+            #expect(!DroppedCommand.shouldTell(commandType: type), "\(type)")
+        }
+        for type in ["text.send", "soul.set", "brain.save", "skill.save", "job.add", "helper.set", "model.set", "chat.delete", "api.regenerate"] {
+            #expect(DroppedCommand.shouldTell(commandType: type), "\(type)")
+        }
+    }
+
     @Test func aCommandWaitingInSettingsGetsASettingsErrorOthersARuntimeError() {
         #expect(DroppedCommand.error(waitingInSettings: true).stage == "settings", "this clears the waiting state of a skill, note or project")
         #expect(DroppedCommand.error(waitingInSettings: false).stage == "runtime")

@@ -355,6 +355,14 @@ public enum ComputerRestart {
 public enum DroppedCommand {
     public static let message = "ATOM is not running right now (it may be restarting), so that was not sent. Try again in a moment."
 
+    /// Commands the app sends by itself (right after `ready`, and reads): losing one is harmless, because they go out again at the next
+    /// `ready`, so the user is not told. Everything else is something the user did (a typed prompt, a save, a switch).
+    private static let automatic: Set<String> = ["telegram.set", "api.set", "speech.set", "tools.scan", "quit"]
+
+    public static func shouldTell(commandType type: String) -> Bool {
+        !(automatic.contains(type) || type.hasSuffix(".list") || type.hasSuffix(".get"))
+    }
+
     /// The error to show. A command that waits for an answer in Settings (a skill, a note, a project) gets a "settings" error,
     /// which clears its waiting state; anything else is a "runtime" error.
     public static func error(waitingInSettings: Bool) -> RuntimeError {
