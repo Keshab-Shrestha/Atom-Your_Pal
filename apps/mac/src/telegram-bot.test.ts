@@ -101,7 +101,7 @@ test("an unexpected yes value is a No, never an approval", () => {
 // ---- the running bot, over a stubbed fetch ----
 
 type Sent = { method: string; body: any };
-async function run(opts: { updates: unknown[][]; store?: any; asks?: any[]; ask?: (t: string) => Promise<string>; after?: (bot: any, h: any) => Promise<void>; wait?: number; steering?: any; log?: any }) {
+async function run(opts: { updates: unknown[][]; store?: any; asks?: any[]; ask?: (t: string) => Promise<string>; after?: (bot: any, h: any) => Promise<void>; wait?: number; steering?: any; log?: any; sendStatus?: () => number; tune?: Record<string, unknown> }) {
   const realFetch = globalThis.fetch;
   const sent: Sent[] = [];
   let polls = 0;
@@ -113,6 +113,8 @@ async function run(opts: { updates: unknown[][]; store?: any; asks?: any[]; ask?
       if (!batch) await new Promise((r, j) => init.signal.addEventListener("abort", () => j(new Error("aborted"))));
       return { status: 200, json: async () => ({ ok: true, result: batch }) };
     }
+    const status = method === "sendMessage" ? (opts.sendStatus?.() ?? 200) : 200;
+    if (status !== 200) return { status, json: async () => ({ ok: false, error_code: status }) };
     sent.push({ method, body });
     return { status: 200, json: async () => ({ ok: true, result: true }) };
   }) as any;
@@ -121,6 +123,7 @@ async function run(opts: { updates: unknown[][]; store?: any; asks?: any[]; ask?
   const asked: string[] = [];
   const bot = startTelegramBot({
     token: "t", chatId: "42", log, helpers: opts.store, describe: (e) => (e as Error).message, ...(opts.steering ? { steering: opts.steering } : {}), ...(opts.log ? { log: opts.log } : {}),
+    ...(opts.tune ?? {}),
     ask: opts.ask ?? (async (t) => (asked.push(t), `ATOM:${t}`)),
     approvals: { pending: () => asks, answer() {}, onAsk: (l) => (listeners.push(l), () => {}) },
   });
@@ -292,3 +295,61 @@ test("needs text: a test line for a soul proposal and a skill edit, nothing with
   assert.doesNotMatch(text("proposal-8"), /Test cases/);
   assert.match(text("skill-edit-5"), /\nTest cases: running…$/);
 });
+
+// 2026-10-16 (code review): a failed push was marked as sent before it was sent, so a Wi-Fi blip lost it for good; the turn queue had no
+// limit, so one hung answer blocked every later message; and a throw inside a fire-and-forget command was an unhandled rejection.
+test("push: a Needs you item whose send failed is tried again later and then arrives, once", async () => {
+  const asks: any[] = [];
+  let down = true;
+  const r = await run({
+    updates: [],
+    store: fakeStore(),
+    asks,
+    tune: { retryDelaysMs: [1, 1, 1], pushRetryMs: 60 },
+    sendStatus: () => (down ? 500 : 200),
+    wait: 10,
+    after: async (_bot, h) => {
+      asks.push(ask("n1"));
+      h.listeners.forEach((l: any) => l(asks[0]));
+      await tick(1300); // the push runs and every try fails
+      assert.equal(texts(h.sent).length, 0, "nothing got through while the network was down");
+      down = false;
+      await tick(400); // the retry
+      assert.equal(texts(h.sent).length, 1, "it arrived after the network came back");
+      assert.match(texts(h.sent)[0]!, /ATOM asks: sum n1/);
+      await tick(400);
+      assert.equal(texts(h.sent).length, 1, "and only once");
+    },
+  });
+  assert.equal(texts(r.sent).length, 1);
+});
+
+test("a hung answer does not block the next message: the turn is given up on after the limit", async () => {
+  let n = 0;
+  const r = await run({
+    updates: [[text(1, 42, "first")], [text(2, 42, "second")]],
+    tune: { turnTimeoutMs: 40 },
+    ask: (t) => (++n === 1 ? new Promise<string>(() => {}) : Promise.resolve(`ATOM:${t}`)),
+    wait: 400,
+  });
+  const out = texts(r.sent);
+  assert.ok(out.some((m) => /could not answer.*did not answer in/i.test(m)), out.join(" | "));
+  assert.ok(out.includes("ATOM:second"), "the second message was answered");
+});
+
+test("a command that throws on the way is answered, not an unhandled rejection that ends ATOM", async () => {
+  const rejections: unknown[] = [];
+  const onRejection = (e: unknown) => rejections.push(e);
+  process.on("unhandledRejection", onRejection);
+  try {
+    const base = fakeStore();
+    let reads = 0;
+    const store = { ...base, list: () => { if (++reads > 1) throw new Error("database is locked"); return base.list(); } }; // the bot reads the list once when it starts
+    const r = await run({ updates: [[text(1, 42, "/needs"), text(2, 42, "/tasks")]], store, wait: 150 });
+    assert.equal(rejections.length, 0, "no unhandled rejection");
+    assert.ok(texts(r.sent).some((m) => /database is locked|could not/i.test(m)), texts(r.sent).join(" | "));
+  } finally {
+    process.off("unhandledRejection", onRejection);
+  }
+});
+

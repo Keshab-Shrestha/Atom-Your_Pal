@@ -12,6 +12,10 @@ const FIRST_BACKOFF_MS = 1_000;
 const MAX_BACKOFF_MS = 60_000;
 /** A send or a button answer that takes longer than this has failed. */
 const CALL_TIMEOUT_MS = 20_000;
+/** How long a failed send waits before each new try. Three retries: a Wi-Fi blip passes, a dead network is given up on. */
+export const SEND_RETRY_DELAYS_MS: readonly number[] = [1_000, 3_000, 9_000];
+/** The longest wait a rate-limit answer (429 and `retry_after`) can ask for. */
+const MAX_RETRY_AFTER_MS = 30_000;
 
 /** One inline button. `data` is at most 64 bytes (Telegram's limit for callback data). */
 export interface Button {
@@ -23,8 +27,12 @@ export interface Button {
 export type TelegramInput = { kind: "text"; text: string } | { kind: "button"; data: string; queryId: string };
 
 export interface TelegramClient {
-  /** Plain text (no Markdown, so nothing in it can break the message), split at MESSAGE_LIMIT. Buttons go on the last part. */
-  send(text: string, buttons?: Button[][]): Promise<void>;
+  /**
+   * Plain text (no Markdown, so nothing in it can break the message), split at MESSAGE_LIMIT. Buttons go on the last part. A part that fails
+   * for a passing reason (no network, a server error, a rate limit) is tried again; an answer that retrying cannot change (the bot was blocked,
+   * a wrong chat) is not. True when every part was delivered; false when one was not.
+   */
+  send(text: string, buttons?: Button[][]): Promise<boolean>;
   /** Ends a button's spinner, with a short toast. */
   answer(queryId: string, text?: string): Promise<void>;
   /** Stops polling. A call in flight is aborted. */
@@ -38,14 +46,25 @@ export interface TelegramOptions {
   onInput(input: TelegramInput): void;
   log: Logger;
   fetch?: typeof fetch;
+  /** The waits between tries of a failed send. Default SEND_RETRY_DELAYS_MS. */
+  retryDelaysMs?: readonly number[];
+  /** Waits for `ms`. Default: a timer. */
+  sleep?(ms: number): Promise<void>;
 }
 
 class TelegramError extends Error {
   readonly code: number;
-  constructor(method: string, code: number) {
+  /** How long Telegram asks to wait (a 429), in ms. */
+  readonly retryAfterMs: number | undefined;
+  constructor(method: string, code: number, retryAfterMs?: number) {
     super(`Telegram ${method} failed (${code}).`);
     this.name = "TelegramError";
     this.code = code;
+    this.retryAfterMs = retryAfterMs;
+  }
+  /** A passing problem: a rate limit or a server error. A 4xx (blocked bot, wrong chat, bad message) will fail again. */
+  get transient(): boolean {
+    return this.code === 429 || this.code >= 500;
   }
 }
 
@@ -71,7 +90,8 @@ export function splitMessage(text: string, limit = MESSAGE_LIMIT): string[] {
 
 /** Starts long polling. Errors back off (1 s, doubling, at most 60 s); stop() ends it cleanly. */
 export function startTelegram(options: TelegramOptions): TelegramClient {
-  const { token, chatId, onInput, log, fetch: fetchFn = fetch } = options;
+  const { token, chatId, onInput, log, fetch: fetchFn = fetch, retryDelaysMs = SEND_RETRY_DELAYS_MS } = options;
+  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms).unref()));
   const stopping = new AbortController();
   let offset = 0;
   let ignored = 0;
@@ -84,8 +104,11 @@ export function startTelegram(options: TelegramOptions): TelegramClient {
       body: JSON.stringify(body),
       signal,
     });
-    const json = (await response.json().catch(() => ({ ok: false }))) as { ok: boolean; result?: T; error_code?: number };
-    if (!json.ok) throw new TelegramError(method, json.error_code ?? response.status);
+    const json = (await response.json().catch(() => ({ ok: false }))) as { ok: boolean; result?: T; error_code?: number; parameters?: { retry_after?: number } };
+    if (!json.ok) {
+      const seconds = json.parameters?.retry_after;
+      throw new TelegramError(method, json.error_code ?? response.status, typeof seconds === "number" && seconds > 0 ? seconds * 1000 : undefined);
+    }
     return json.result as T;
   }
 
@@ -132,6 +155,23 @@ export function startTelegram(options: TelegramOptions): TelegramClient {
   void poll();
   log.info("telegram.start");
 
+  /** One part, tried again after a passing failure (2026-10-16: it used to be one try, so a Wi-Fi blip lost a plan or an approval for good). */
+  async function sendPart(body: object): Promise<boolean> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await call("sendMessage", body, CALL_TIMEOUT_MS);
+        return true;
+      } catch (error) {
+        log.warn("telegram.send_failed", { code: codeOf(error), attempt: attempt + 1 });
+        const passing = error instanceof TelegramError ? error.transient : !stopping.signal.aborted; // a network error passes; a 4xx does not
+        if (stopping.signal.aborted || !passing || attempt >= retryDelaysMs.length) return false;
+        const asked = error instanceof TelegramError ? (error.retryAfterMs ?? 0) : 0;
+        await sleep(Math.min(Math.max(retryDelaysMs[attempt]!, asked), MAX_RETRY_AFTER_MS));
+        if (stopping.signal.aborted) return false;
+      }
+    }
+  }
+
   return {
     async send(text, buttons) {
       const parts = splitMessage(text);
@@ -140,13 +180,9 @@ export function startTelegram(options: TelegramOptions): TelegramClient {
           buttons?.length && i === parts.length - 1
             ? { reply_markup: { inline_keyboard: buttons.map((row) => row.map((b) => ({ text: b.text, callback_data: b.data }))) } }
             : {};
-        try {
-          await call("sendMessage", { chat_id: chatId, text: part, ...markup }, CALL_TIMEOUT_MS);
-        } catch (error) {
-          log.warn("telegram.send_failed", { code: codeOf(error) });
-          return;
-        }
+        if (!(await sendPart({ chat_id: chatId, text: part, ...markup }))) return false;
       }
+      return true;
     },
     async answer(queryId, text) {
       try {

@@ -17,6 +17,11 @@ const NEEDS_SHOWN = 10;
 const TASKS_SHOWN = 20;
 /** Store changes come in bursts: Needs you is looked at once they settle. */
 const SETTLE_MS = 1_000;
+/** One ATOM turn that has not answered after this long is given up on, so the next message is not stuck behind it (2026-10-16). */
+export const TURN_TIMEOUT_MS = 10 * 60_000;
+/** A Needs you push that failed (the network was down) is tried again after this long, up to PUSH_TRIES times. */
+export const PUSH_RETRY_MS = 30_000;
+const PUSH_TRIES = 6;
 
 const HELP = [
   "I am ATOM, your assistant. Send a message to talk to me.",
@@ -40,6 +45,12 @@ export interface TelegramBotOptions {
   describe(error: unknown): string;
   /** ADR-098 item 3: the window's steer and interrupt. Absent: the commands answer "Steering is off." */
   steering?: Pick<TaskSteering, "steer" | "interrupt">;
+  /** How long one ATOM turn may take before the next message is served (ms). Default TURN_TIMEOUT_MS. */
+  turnTimeoutMs?: number;
+  /** How long to wait before a Needs you push that failed is tried again (ms). Default PUSH_RETRY_MS. */
+  pushRetryMs?: number;
+  /** The waits between the tries of one failed send (ms); see telegram.ts. */
+  retryDelaysMs?: readonly number[];
 }
 
 export interface TelegramBot {
@@ -168,7 +179,19 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
   let push = true;
   // One ATOM turn at a time: the Core answers one request at a time.
   let turns: Promise<void> = Promise.resolve();
-  const client: TelegramClient = startTelegram({ token: options.token, chatId: options.chatId, log, onInput: (input) => take(input) });
+  const turnTimeoutMs = options.turnTimeoutMs ?? TURN_TIMEOUT_MS;
+  const pushRetryMs = options.pushRetryMs ?? PUSH_RETRY_MS;
+  const client: TelegramClient = startTelegram({
+    token: options.token,
+    chatId: options.chatId,
+    log,
+    onInput: (input) => take(input),
+    ...(options.retryDelaysMs ? { retryDelaysMs: options.retryDelaysMs } : {}),
+  });
+  /** A fire-and-forget step: a failure inside it is logged by name, never an unhandled rejection (that ends the whole app). */
+  const later = (what: string, work: Promise<unknown> | void) => {
+    void Promise.resolve(work).catch(() => log.warn("telegram.step_failed", { step: what }));
+  };
 
   function take(input: TelegramInput) {
     if (input.kind === "button") return press(input.data, input.queryId);
@@ -181,7 +204,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
   async function talk(text: string) {
     const started = Date.now();
     try {
-      const answer = await options.ask(text);
+      const answer = await withTimeout(options.ask(text), turnTimeoutMs);
       log.info("telegram.turn", { ok: true, ms: Date.now() - started });
       await client.send(answer);
     } catch (error) {
@@ -194,13 +217,25 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     const [head = "", ...rest] = text.split(/\s+/);
     const name = head.slice(1).split("@")[0]!.toLowerCase();
     log.info("telegram.command", { name: ["needs", "tasks", "report", "steer", "interrupt", "help", "start"].includes(name) ? name : "unknown" });
-    if (name === "needs") return void sendNeeds();
-    if (name === "tasks") return void client.send(tasksText());
-    if (name === "report") return void client.send(reportText(Number(rest[0]?.replace(/^#/, ""))));
-    if (name === "steer") return void steer(rest);
-    if (name === "interrupt") return void interrupt(rest);
-    if (name === "help" || name === "start") return void client.send(HELP);
-    void client.send(`I do not know that command.\n\n${HELP}`);
+    // Each answer is built inside `reply`, so a failure while building it (a locked database) is told to Keshab, not thrown. A text answer is
+    // sent at once (no await first), so answers leave in the order the commands came.
+    const failed = (error: unknown) => client.send(`That did not work: ${describe(error)}`);
+    const reply = (build: () => string | Promise<unknown> | void) => {
+      try {
+        const out = build();
+        if (typeof out === "string") return later(name, client.send(out));
+        later(name, Promise.resolve(out).catch(failed));
+      } catch (error) {
+        later(name, failed(error));
+      }
+    };
+    if (name === "needs") return reply(() => sendNeeds());
+    if (name === "tasks") return reply(() => tasksText());
+    if (name === "report") return reply(() => reportText(Number(rest[0]?.replace(/^#/, ""))));
+    if (name === "steer") return reply(() => steer(rest));
+    if (name === "interrupt") return reply(() => interrupt(rest));
+    if (name === "help" || name === "start") return reply(() => HELP);
+    reply(() => `I do not know that command.\n\n${HELP}`);
   }
 
   const taskNumber = (word: string | undefined) => {
@@ -277,16 +312,45 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
   // from the native engine: `send`.)
   let known = new Set(needsYou(store, approvals.pending()).map((n) => n.key));
   let timer: NodeJS.Timeout | undefined;
+  // 2026-10-16 (code review): an item was marked as sent BEFORE it was sent, so a failed send (the network was down) was never tried again and
+  // Keshab never learned that a plan or an approval waited. Now an item counts as sent only once Telegram has it. One that failed is tried
+  // again after PUSH_RETRY_MS, up to PUSH_TRIES times; `sending` keeps two runs from sending the same item twice.
+  const sending = new Set<string>();
+  const failedTries = new Map<string, number>();
   const check = () => {
     timer = undefined;
     const now = needsYou(store, approvals.pending());
-    const fresh = now.filter((n) => n.push && !known.has(n.key));
-    known = new Set(now.map((n) => n.key));
-    if (!push || !fresh.length) return;
+    const fresh = now.filter((n) => n.push && !known.has(n.key) && !sending.has(n.key));
+    const live = new Set(now.map((n) => n.key));
+    // What was sent or is not pushed stays known; what is gone from the list is forgotten; what is new waits for its send.
+    known = new Set(now.filter((n) => known.has(n.key) || sending.has(n.key) || !fresh.includes(n) ).map((n) => n.key));
+    for (const key of failedTries.keys()) if (!live.has(key)) failedTries.delete(key);
+    if (!push) {
+      for (const item of fresh) known.add(item.key); // push is off: do not pile them up for when it is turned on
+      return;
+    }
+    if (!fresh.length) return;
     log.info("telegram.push", { kind: "needs", count: fresh.length });
-    void (async () => {
-      for (const item of fresh) await client.send(item.text, item.buttons);
-    })();
+    for (const item of fresh) sending.add(item.key);
+    later("push", (async () => {
+      let retry = false;
+      for (const item of fresh) {
+        const delivered = await client.send(item.text, item.buttons);
+        sending.delete(item.key);
+        if (delivered) {
+          known.add(item.key);
+          failedTries.delete(item.key);
+          continue;
+        }
+        const tries = (failedTries.get(item.key) ?? 0) + 1;
+        failedTries.set(item.key, tries);
+        if (tries >= PUSH_TRIES) {
+          known.add(item.key); // given up: it still waits in the ATOM window and in /needs
+          log.warn("telegram.push_given_up", { kind: "needs" });
+        } else retry = true;
+      }
+      if (retry) timer ??= setTimeout(check, pushRetryMs);
+    })());
   };
   const soon = () => {
     timer ??= setTimeout(check, SETTLE_MS);
@@ -315,3 +379,14 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     },
   };
 }
+
+/** `work`, or a rejection after `ms`: a hung answer must not hold up the next message. The work itself is not cancelled. */
+function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const limit = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`ATOM did not answer in ${ms >= 60_000 ? `${Math.round(ms / 60_000)} minutes` : `${Math.max(1, Math.round(ms / 1000))} seconds`}, so that message was dropped. Send it again.`)), ms);
+    timer.unref();
+  });
+  return Promise.race([work, limit]).finally(() => clearTimeout(timer));
+}
+

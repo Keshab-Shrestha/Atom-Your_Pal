@@ -128,3 +128,61 @@ test("answer: toast cut to 200 characters; failure is swallowed", async () => {
   assert.equal(a.body.text.length, 200);
   assert.ok(h.logs.some((l) => l.includes("answer_failed")));
 });
+
+// 2026-10-16 (code review): send() gave up after one failure, so a Wi-Fi blip at the wrong moment lost a plan or an approval request for good.
+function flaky(failures: Array<{ status: number; json?: unknown } | Error>, waits: number[]) {
+  const calls: Call[] = [];
+  let sends = 0;
+  const fetchFn = (async (url: string, init: any) => {
+    const call = { url, method: url.split("/").pop()!, body: JSON.parse(init.body) };
+    calls.push(call);
+    if (call.method === "getUpdates") {
+      await new Promise((_, j) => init.signal.addEventListener("abort", () => j(new Error("aborted"))));
+    }
+    const failure = failures[sends++];
+    if (failure instanceof Error) throw failure;
+    if (failure) return { status: failure.status, json: async () => failure.json ?? { ok: false, error_code: failure.status } };
+    return { status: 200, json: async () => ({ ok: true, result: true }) };
+  }) as unknown as typeof fetch;
+  const logs: string[] = [];
+  const log = { debug() {}, info: (e: string, f?: unknown) => logs.push(JSON.stringify([e, f])), warn: (e: string, f?: unknown) => logs.push(JSON.stringify([e, f])), error() {} } as never;
+  const client = startTelegram({ token: TOKEN, chatId: "42", log, onInput: () => {}, fetch: fetchFn, sleep: async (ms) => void waits.push(ms) });
+  return { client, calls, logs };
+}
+const sendCalls = (calls: Call[]) => calls.filter((c) => c.method === "sendMessage");
+
+test("send: a server error or a network error is retried and the message gets through", async () => {
+  const waits: number[] = [];
+  const f = flaky([{ status: 500 }, new TypeError("fetch failed"), { status: 502 }], waits);
+  assert.equal(await f.client.send("plan waits"), true);
+  f.client.stop();
+  assert.equal(sendCalls(f.calls).length, 4, "three failures, then the delivery");
+  assert.deepEqual(waits, [1000, 3000, 9000], "waits grow");
+  assert.ok(!f.logs.join("").includes("SECRET-TOKEN"));
+});
+
+test("send: a rate limit waits as long as Telegram says (cut to 30 s), and 4xx errors are not retried", async () => {
+  const waits: number[] = [];
+  const f = flaky([{ status: 429, json: { ok: false, error_code: 429, parameters: { retry_after: 7 } } }, { status: 429, json: { ok: false, error_code: 429, parameters: { retry_after: 500 } } }], waits);
+  assert.equal(await f.client.send("hi"), true);
+  assert.deepEqual(waits, [7000, 30_000]);
+  const waits2: number[] = [];
+  const g = flaky([{ status: 403 }], waits2);
+  assert.equal(await g.client.send("hi"), false, "the bot was blocked or the chat is wrong: retrying cannot help");
+  assert.equal(sendCalls(g.calls).length, 1);
+  assert.deepEqual(waits2, []);
+  f.client.stop();
+  g.client.stop();
+});
+
+test("send: after the last retry it reports false; a long message resends only the part that failed", async () => {
+  const f = flaky([{ status: 500 }, { status: 500 }, { status: 500 }, { status: 500 }], []);
+  assert.equal(await f.client.send("never arrives"), false);
+  assert.equal(sendCalls(f.calls).length, 4, "the first try and three retries");
+  f.client.stop();
+  const g = flaky([undefined as never, { status: 500 }], []);
+  assert.equal(await g.client.send("p".repeat(MESSAGE_LIMIT + 5)), true);
+  const parts = sendCalls(g.calls).map((c) => c.body.text.length);
+  assert.deepEqual(parts, [MESSAGE_LIMIT, 5, 5], "part 1 once; part 2 failed once and was sent again");
+  g.client.stop();
+});
