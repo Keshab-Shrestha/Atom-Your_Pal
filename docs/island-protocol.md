@@ -318,6 +318,7 @@ The `info` event carries `tools`: each AI tool ATOM looked for on this Mac, `{"i
 - The `api` event has `on`, `port`, `tokenFile` and `error` (optional).
   - `tokenFile` is the full path of the token file. The island reads the file only when Keshab clicks "Copy token". The token is never in a protocol message.
   - `error` tells why the API does not listen, for example a port in use.
+- `{"type":"api.regenerate"}`: Settings' "Regenerate" next to "Copy token" (2026-10-15). Deletes `data/api-token` and makes a new one (mode 0600). A running API takes the new token at once, and the old token stops working. Answered with an `api` event (`error` if the file cannot be changed). The token is never in the event or the log.
 - `routine.add` and `routine.update` take `webhook` (optional, `true` or `false`). With `true`, `POST /v1/hooks/<id>` can start the routine. On `routine.update`, a missing `webhook` keeps the current choice.
 - Each routine in the `helpers` event has `webhook: true` when a webhook can start it. The field is absent when it cannot.
 - API chat turns go to the chat `api`, or `api-<chatId>` when the request has a `chatId`. The `chats` event lists them.

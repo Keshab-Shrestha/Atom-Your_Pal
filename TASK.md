@@ -1620,6 +1620,13 @@ Next: Keshab builds the app on the Mac, attaches a PDF and an image, switches a 
 
 Next: Keshab uses the window for a week, and names the features he never opens.
 
+## Regenerate the Local API token (2026-10-15)
+
+Keshab pasted the token in chat three times and found no way to replace it ("i dont see regenerate option").
+
+- `ApiServer.regenerate()` deletes `data/api-token`, makes a new one (mode 0600) and, when the server runs, switches to it at once. Settings → General → Local API has a "Regenerate" button next to "Copy token", behind a confirmation (tools that hold the old token stop working). Command `api.regenerate`; the answer is the `api` event.
+- Tests: `api-server.test.ts` (old token dead at once, new works, mode 0600, no token in the log, works while off), `island.test.ts`, `ApiRegenerateTests`.
+
 ## Computer control: fixes found by the benchmark (2026-10-15)
 
 - `look` refused TextEdit after `open`: Cua's `list_apps` shows an app with no document window as pid 0, not running. `pidOf` falls back to the pid of the app's windows (`list_windows`). Two tests in `tool.test.ts`. The TextEdit prompt then passed live: $0.0019, 6.8k tokens.
