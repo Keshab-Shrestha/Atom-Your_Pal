@@ -1631,6 +1631,7 @@ Keshab: "can we move needs you, issues to board? if we do that we can increase o
 - Not tried live: opening Needs you from a notification (nothing navigated there by page before, so nothing needed to change).
 - Revised the same day (ADR-116): Issues is part of the Needs you tab (a "Failed" section with Retry and Open); the Board has four views, Needs you first; a click on the sidebar's Board row opens Needs you when anything waits; the row shows one number in a badge (yellow: to answer, red: only failures) and a short phrase ("5 ask · 1 failed"). `BoardAttention.swift` (4 tests) is the single count. `IssuesPane` was removed; `FailedTaskCard` is its card.
 - Chat rows in the sidebar are one line: the time moved to the tip and VoiceOver, and the row has less padding (5 pt instead of 6).
+- "Allow the large model for helpers" moved from the bottom of the sidebar to Settings → AI model (its own card; the same `setAllowLarge` command, and off with "Needs the Claude plan" when there is no plan). The sidebar's bottom block is gone, so the gap for Projects and Chats grows. Gallery shot `20-settings-model` and its golden. Not seen live.
 
 ## Design research and system (2026-10-15)
 

@@ -73,6 +73,8 @@ struct ModelSection: View {
                         .padding(Spacing.well)
                 }
             }
+            // ADR-083: window-wide, so it is a setting. It was the last block of the sidebar until 2026-10-15.
+            if let list = model.helpers.list { AllowLargeCard(model: model, list: list) }
             if info.provider == "claude-plan" { PlanMetersCard(usage: model.planUsage) }
             // ADR-093: the AI tools on this Mac, found or not, and what ATOM does with them.
             Card("Found on this Mac", footer: "Claude does ATOM's work: tools, agents and project files. Codex and the Gemini CLI can answer a chat as plain text, with the same conversation, and a chat can move between them. Local models (Ollama, LM Studio) are not used.") {
@@ -133,3 +135,28 @@ struct ModelSection: View {
         }
     }
 }
+
+/// "Allow the large model for helpers" (ADR-083): jobs use at most the medium model when it is off, which saves the plan.
+/// Moved here from the bottom of the sidebar (2026-10-15).
+private struct AllowLargeCard: View {
+    let model: IslandModel
+    let list: HelpersList
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let enabled = !list.models.isEmpty
+        Card(footer: "A helper's model is chosen for each task. The large model costs the most of your plan.") {
+            Row(title: "Allow the large model for helpers",
+                detail: !enabled ? "Needs the Claude plan"
+                    : list.allowLarge ? "On: a helper may use the large model when the task needs it."
+                    : "Off: helpers use at most the medium model, saving your plan.") {
+                ThemedSwitch(isOn: list.allowLarge, set: { model.sendHelpers(model.helpers.setAllowLarge($0)) },
+                             label: "Allow the large model for helpers")
+                    .shadow(color: theme.accent.color.opacity(list.allowLarge && enabled && theme.isDark && theme.usesGlow ? 0.5 : 0), radius: 6)
+                    .disabled(!enabled)
+            }
+        }
+        .opacity(enabled ? 1 : 0.6)
+    }
+}
+

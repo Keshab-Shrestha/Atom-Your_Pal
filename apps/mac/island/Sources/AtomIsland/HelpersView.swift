@@ -157,7 +157,6 @@ private struct HelperSidebar: View {
             }
             if !model.searchQuery.isEmpty { Spacer(minLength: 0) }
             group(model.settings.sidebar.bottom, bottom: true)
-            if let list = model.helpers.list, model.windowPage == .agents { AllowLargeSwitch(model: model, list: list) }
         }
         .padding(.horizontal, 14)
         .padding(.top, HelpersView.titleBarRoom)
@@ -341,33 +340,6 @@ struct SidebarRow: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
-    }
-}
-
-/// "Allow the large model for helpers" (ADR-083): window-wide, so it sits at the bottom of the sidebar.
-private struct AllowLargeSwitch: View {
-    let model: IslandModel
-    let list: HelpersList
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        let enabled = !list.models.isEmpty
-        HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Allow the large model for helpers")
-                    .font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
-                Text(enabled ? "Off: jobs use at most the medium model, saving your plan." : "Needs the Claude plan")
-                    .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 4)
-            ThemedSwitch(isOn: list.allowLarge, set: { model.sendHelpers(model.helpers.setAllowLarge($0)) },
-                         label: "Allow the large model for helpers")
-                .shadow(color: theme.accent.color.opacity(list.allowLarge && enabled && theme.isDark && theme.usesGlow ? 0.5 : 0), radius: 6)
-                .disabled(!enabled)
-        }
-        .padding(.horizontal, 8)
-        .opacity(enabled ? 1 : 0.6)
     }
 }
 

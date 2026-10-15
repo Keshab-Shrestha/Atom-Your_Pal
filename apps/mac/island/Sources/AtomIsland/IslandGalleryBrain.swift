@@ -143,4 +143,25 @@ extension IslandGallery {
         .background(Color(red: 0.36, green: 0.42, blue: 0.52))
         save(sheet, name: name, to: directory)
     }
+
+    /// Settings → AI model, with "Allow the large model for helpers" (it was the bottom block of the sidebar until 2026-10-15).
+    static func writeModelPage(to directory: URL, theme: AppTheme = .void, name: String = "20-settings-model") {
+        let suite = "atom.gallery.model.\(ProcessInfo.processInfo.processIdentifier)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let palette = theme.palette
+        let info = #"{"type":"info","provider":"claude-plan","model":"claude-sonnet-5-5","providers":[{"id":"claude-plan","name":"Claude (my plan)","available":true,"models":[{"id":"claude-opus-5-5","name":"Claude Opus 5.5"},{"id":"claude-sonnet-5-5","name":"Claude Sonnet 5.5"},{"id":"claude-haiku-4-5-20251001","name":"Claude Haiku 4.5"}]}]}"#
+        let helpers = #"{"type":"helpers","apps":[],"teamTasks":[],"helpers":[],"managers":[],"allowLarge":false,"models":[{"id":"claude-haiku-4-5","name":"Claude Haiku 4.5","tier":"small"},{"id":"claude-sonnet-4-5","name":"Claude Sonnet 4.5","tier":"medium"},{"id":"claude-opus-5-5","name":"Claude Opus 5.5","tier":"large"}]}"#
+        let m = IslandModel(settings: IslandSettings(defaults: defaults))
+        m.settings.theme = theme
+        for line in [info, helpers] { if let event = try? decodeEvent(line) { m.apply(event) } }
+        let page = ModelSection(model: m)
+            .environment(\.islandSnapshot, true)
+            .frame(width: 560)
+            .padding(24)
+            .background(palette.surfaceSolid.color)
+            .themed(palette)
+        save(page, name: name, to: directory)
+    }
 }
+

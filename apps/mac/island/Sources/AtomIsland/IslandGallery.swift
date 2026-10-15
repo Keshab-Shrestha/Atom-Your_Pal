@@ -79,6 +79,7 @@ enum IslandGallery {
         writeBrain(to: directory)
         writeMcpPaste(to: directory)
         writeStates(to: directory)
+        writeModelPage(to: directory)
         writeBrain(to: directory, theme: .daylight, name: "17-brain-daylight")
         writeBrain(to: directory, theme: .lantern, name: "17-brain-lantern")
     }
