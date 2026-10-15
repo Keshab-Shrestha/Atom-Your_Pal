@@ -2,7 +2,7 @@
 
 Renamed ZENO -> ATOM on 2026-10-13; entries below keep the name they were written under.
 
-Last updated: 2026-10-14
+Last updated: 2026-10-15
 
 Phase 1 (Memory) has started at Keshab's request, with Phase 0.5's hands-on checks deferred, not dropped. Task 1.1 (ADR-058): ZENO keeps facts the user asks it to remember in a local SQLite file, uses them in every request, and forgets them on request; Settings → Memory lists and deletes them. Checked live in text on the Claude plan, across a restart. Task 1.2 (ADR-059): ZENO notes each conversation in two sentences in the background so a new one can pick up the thread, and offers to remember facts mentioned in passing. Task 1.3 (ADR-060): Calendar and Reminders through an EventKit helper inside ZENO.app; read the schedule, list reminders, add one. Task 1.4 (ADR-061): timers, spoken and shown when they end. Task 1.5 (ADR-062): weather. Task 1.6: answers 4–6 s instead of up to 19 s (thinking off, weather cached), and typing to ZENO in the Conversation tab. Next: Keshab allows Calendar and Reminders when macOS asks, and tries all of it by voice.
 
@@ -37,6 +37,8 @@ Built (2026-10-13, finished 2026-10-14): ADR-110 Phase N1, the native engine: wi
 Built (2026-10-14): ADR-110 Phase N2: with `ATOM_ENGINE=native`, ATOM's workers are Claude Code sub-agents with Board rows, kit and grant checks in hooks, and Bash only in project chats. Built and tested with a fake SDK; one live probe ran a Sid task end to end (prefix 3.8k plain, 5.7k project, 2.5k sub-agent). Not yet tried in the real app.
 
 Built (2026-10-14): ADR-110 Phase N3: with `ATOM_ENGINE=native`, a later reply from an agent is spoken in the voice chat (not in a Quiet chat) and sent to Telegram for its chat. Routines and local API goals are main-agent turns, and the Board shows each agent's model. Built and tested with fakes. Not yet tried in the real app.
+
+Fixed (2026-10-15), after Keshab used the app: Settings pages go back with the top-bar arrow. The window chat draws Markdown (tables, lists, code) and copies a table as HTML. A message typed in the window may get a structured reply; voice replies stay short and plain. Job token counts were too high (one message counted two or three times); new rows are right. `test:live` ends and passes. Built and tested (836 TypeScript, 584 Swift tests). Keshab tried the app by hand before these fixes; he has not yet tried the fixes.
 
 Built (2026-10-14): ADR-110 Phase N4: budgets, the plan limit that ATOM set and "Runs at once" are gone in both engines. Tasks start at once and wait only for Keshab (a plan to approve, an interrupted run). Old budget rows stay in the database, unread. Built and tested. Not yet tried in the real app. Phase N5 not started.
 

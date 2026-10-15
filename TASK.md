@@ -1606,3 +1606,17 @@ Next: Keshab runs `pnpm test` and `pnpm island:test` on the Mac, builds the app,
 - Tests: `attachments.test.ts`, `skills-chat.test.ts`, new tests in `native-core.test.ts` and `island.test.ts`; Swift `ComposerDraftTests.swift` (not compiled).
 
 Next: Keshab builds the app on the Mac, attaches a PDF and an image, switches a chat from Claude to Codex and back, and uses `/skill-name`.
+
+## Fixes after the first hands-on check (2026-10-15)
+
+- Settings pages: the Back arrow in the window top bar closes a Settings page. The page has no Back of its own (`HelpersView.swift`, `SettingsTab.swift`).
+- Markdown in the window chat: `MarkdownBlocks.swift` splits a reply into paragraphs, headings, lists, code and tables. `MarkdownReply.swift` draws them. Plain replies keep the old view.
+- Copy: a reply with a table, list or code goes to the clipboard as Markdown text and as HTML (`MarkdownHTML.swift`).
+- Prompt: the model writes Markdown when the user asks for a table, list, steps or code. A message typed in the window also gets `TYPED_NOTE`, so a reply may have structure. Voice, Telegram, the API and routines do not get the note (`screenReplies` in `native-core.ts`, set in `runtime.ts`).
+- Speech: `toSpeakable` skips table rows.
+- Usage: one assistant message is counted once. Claude Code sends one message per content block with the same id (`native-board.ts`). Job rows written before this fix are too high.
+- Live tests: `provider.live.test.ts` skips `claude-plan`. `test:live` skips `data/worktrees`. The two `apps/mac` live tests set a short `idleMs`, so the Claude Code process ends and the run exits.
+- Tests: `MarkdownBlocksTests.swift`, new tests in `native-board.test.ts`, `native-core.test.ts` and `tts.test.ts`.
+
+Next: Keshab uses the window for a week, and names the features he never opens.
+
