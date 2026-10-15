@@ -110,9 +110,8 @@ extension GeneralSection {
             tokenNote = "Could not read \(path)"
             return
         }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(token, forType: .string)
-        tokenNote = "Copied"
+        SecretClipboard.copy(token) // concealed, and cleared after 60 seconds
+        tokenNote = "Copied. It leaves the clipboard in \(Int(SecretClipboard.clearAfter)) seconds."
     }
 
     static func detail(_ kind: AppNotice.Kind) -> String {
