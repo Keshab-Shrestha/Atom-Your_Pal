@@ -15,6 +15,8 @@ public struct DraftFile: Sendable, Equatable, Identifiable {
 public struct ComposerDraft: Sendable, Equatable {
     /// The most files one message takes (the runtime's limit).
     public static let maxFiles = 5
+    /// The most characters one message takes (the runtime's limit).
+    public static let maxCharacters = 4000
     public private(set) var files: [DraftFile] = []
     /// Why the last file was not added ("5 files at most").
     public private(set) var notice: String?
@@ -43,10 +45,20 @@ public struct ComposerDraft: Sendable, Equatable {
         notice = nil
     }
 
+    /// Why these words cannot be sent as they are, or nil. The composer keeps the draft and says so, instead of clearing it: a long paste
+    /// used to vanish without a word (code review, 2026-10-16).
+    public static func refusal(forText text: String) -> String? {
+        let count = text.trimmingCharacters(in: .whitespacesAndNewlines).count
+        return count > maxCharacters ? "That message is \(count) characters; one message takes \(maxCharacters). Shorten it, or attach it as a file." : nil
+    }
+
+    /// Shows `message` in the composer's notice line (nothing else changes).
+    public mutating func refuse(_ message: String) { notice = message }
+
     /// The command for these words and files; nil when there is nothing to send.
     public func command(text: String) -> IslandCommand? {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard clean.count <= 4000, !clean.isEmpty || !files.isEmpty else { return nil }
+        guard clean.count <= Self.maxCharacters, !clean.isEmpty || !files.isEmpty else { return nil }
         return files.isEmpty ? .textSend(clean) : .textSendFiles(text: clean, files: files.map(\.path))
     }
 

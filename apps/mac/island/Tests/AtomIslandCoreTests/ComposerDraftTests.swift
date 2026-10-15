@@ -46,4 +46,20 @@ struct ComposerDraftTests {
         #expect(ComposerDraft.applying(skill: "summarise", to: "/other this page") == "/summarise this page")
         #expect(ComposerDraft.applying(skill: "summarise", to: "") == "/summarise ")
     }
+
+    /// 2026-10-16 (code review): a message over 4,000 characters was dropped by `ask` and the composer cleared the draft anyway.
+    @Test func aTooLongMessageIsRefusedWithAReasonAndTheDraftIsKept() {
+        let long = String(repeating: "a", count: 4001)
+        let why = ComposerDraft.refusal(forText: long)
+        #expect(why?.contains("4001") == true && why?.contains("4000") == true)
+        #expect(ComposerDraft.refusal(forText: String(repeating: "a", count: 4000)) == nil)
+        #expect(ComposerDraft.refusal(forText: "  short  ") == nil)
+        var d = ComposerDraft()
+        d.refuse(why!)
+        #expect(d.notice == why)
+        #expect(d.command(text: long) == nil, "it is still not sendable")
+        d.clear()
+        #expect(d.notice == nil)
+    }
 }
+

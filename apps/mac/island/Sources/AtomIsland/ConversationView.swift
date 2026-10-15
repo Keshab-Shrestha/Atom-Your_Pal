@@ -162,6 +162,10 @@ struct Composer: View {
         if !items.isEmpty { choose(items[min(pick.wrappedValue, items.count - 1)]); return }
         if let built = SlashMenu.builtIn(in: draft.wrappedValue) { run(built.action); return }
         guard !empty else { return }
+        if let why = ComposerDraft.refusal(forText: draft.wrappedValue) {
+            attached.wrappedValue.refuse(why) // the text stays, and the notice says why
+            return
+        }
         model.ask(draft.wrappedValue, draft: attached.wrappedValue)
         draft.wrappedValue = ""
         attached.wrappedValue.clear()
