@@ -29,23 +29,38 @@ struct Composer: View {
                     attached.wrappedValue.remove(path)
                 }
             }
-            HStack(spacing: 8) {
-                if let notice = readOnly {
-                    // ADR-098: Telegram or the local API writes this chat. Reading, copying and search still work.
-                    Text(notice).font(.system(size: 12.5)).foregroundStyle(theme.text3.color).lineLimit(2)
-                        .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
-                        .accessibilityLabel(notice)
-                } else if snapshot {
-                    // `ImageRenderer` cannot draw a text field: show the placeholder as it would appear.
-                    Text(placeholder).font(.system(size: 12.5)).foregroundStyle(theme.text3.color).lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                } else {
-                    TextField(placeholder, text: draft.projectedValue)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 12.5))
-                        .foregroundStyle(theme.text.color)
-                        .onSubmit(send)
-                        .accessibilityLabel("Message to ATOM")
+            // Two columns: the field and the tools on the left, the voice button alone at the right edge, centred on
+            // both rows. The model menu used to sit under the button and fight it for the corner (2026-10-15).
+            HStack(alignment: .center, spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
+                    if let notice = readOnly {
+                        // ADR-098: Telegram or the local API writes this chat. Reading, copying and search still work.
+                        Text(notice).font(.system(size: 12.5)).foregroundStyle(theme.text3.color).lineLimit(2)
+                            .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+                            .accessibilityLabel(notice)
+                    } else if snapshot {
+                        // `ImageRenderer` cannot draw a text field: show the placeholder as it would appear.
+                        Text(placeholder).font(.system(size: 12.5)).foregroundStyle(theme.text3.color).lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        TextField(placeholder, text: draft.projectedValue)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(theme.text.color)
+                            .onSubmit(send)
+                            .accessibilityLabel("Message to ATOM")
+                    }
+                    if readOnly == nil && !snapshot {
+                        // The things that shape the next message sit with it: files, skills and the chat's model.
+                        HStack(spacing: 8) {
+                            AttachButton { attached.wrappedValue.add($0) }
+                            SkillsMenu(skills: model.helpers.list?.skills ?? []) { name in
+                                draft.wrappedValue = ComposerDraft.applying(skill: name, to: draft.wrappedValue)
+                            }
+                            Spacer(minLength: 4)
+                            ChatModelMenu(model: model) // ADR-097, moved here from the top bar
+                        }
+                    }
                 }
                 if readOnly == nil {
                     if answering && empty {
@@ -54,17 +69,6 @@ struct Composer: View {
                     } else {
                         ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, action: send)
                     }
-                }
-            }
-            if readOnly == nil && !snapshot {
-                // The things that shape the next message sit with it: files, skills and the chat's model.
-                HStack(spacing: 8) {
-                    AttachButton { attached.wrappedValue.add($0) }
-                    SkillsMenu(skills: model.helpers.list?.skills ?? []) { name in
-                        draft.wrappedValue = ComposerDraft.applying(skill: name, to: draft.wrappedValue)
-                    }
-                    Spacer(minLength: 4)
-                    ChatModelMenu(model: model) // ADR-097, moved here from the top bar
                 }
             }
         }
