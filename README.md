@@ -39,6 +39,8 @@ ATOM is not a chatbot. The language model is one part of it. Permissions, memory
 - Push-to-talk from any app (Control + Option). ATOM answers out loud.
 - Dictation into any text field (Right ⌘ + Right ⌥). The Mac transcribes your speech.
 - Chats: ATOM saves each conversation. You continue it by voice or text.
+- Type "/" in the chat to open a list of commands. It shows ATOM's own commands (`/new`, `/model`, `/skills`, `/memory`, `/help`), your skills, and your Claude commands from `~/.claude/commands`. ATOM reads those files and never changes them.
+- The window has a Daylight theme and a dark theme. You can drag the sidebar rows into your own order.
 
 **Pal and the office floor**
 - Pal is a smooth 2D mascot. It shows what ATOM does: listening, thinking, speaking, asking.
@@ -51,6 +53,16 @@ ATOM is not a chatbot. The language model is one part of it. Permissions, memory
 - Managers lead groups of agents. Agents start sub-agents inside a run.
 - Tasks wait for each other. Plans wait for your OK. Routines run on a schedule. Agents hand work to each other.
 - Each run has an activity timeline.
+- The Board has four views: Needs you, Overview, Floor and Columns. Needs you holds what waits for your answer and what failed. A badge on the Board row shows the count.
+- Skills: you can open a skill's `SKILL.md` in a built-in editor. ATOM writes the file only when you click Save, and it keeps a `.bak` copy.
+- MCP servers: paste a server's JSON config and ATOM fills in the form. You give each server to the agents you choose.
+
+**Tokens and cost**
+- The Dashboard shows tokens and dollars by day, agent and model. Dollars are list prices, worked out from the tokens of each call.
+- ATOM answers a topic you ask about itself, in a few sentences. It hands work to an agent only when you name one, ask for sources, change files, or need many separate lookups.
+- A research agent searches at most 3 times and reads at most 2 pages.
+- Claude Code's own calls (a small model that reads web pages) show as "Other" rows. A web search costs $0.01 and is not yet in any row.
+- Measured on 2026-10-15, with the same model on both sides and a fresh chat each time: a simple question cost $0.0005 in ATOM and $0.0097 in Claude Code with a full personal setup. Details are in [DECISIONS.md](DECISIONS.md) (ADR-118). These are single runs, so treat them as rough.
 
 **Memory, calendar, reminders, timers, weather**
 - ATOM keeps facts you ask it to remember and picks up earlier conversations.
@@ -59,6 +71,7 @@ ATOM is not a chatbot. The language model is one part of it. Permissions, memory
 **Tools and computer control**
 - Music, notes, opening apps, and "what is this page?" for the browser in front.
 - Computer control is off until you set `ATOM_COMPUTER=1`. Risky steps wait for your approval.
+- A test on 2026-10-15 asked ATOM to type text into TextEdit through the local API. ATOM did not do it. The cause is not yet known.
 - A browser tool for agents. A password field always asks.
 
 **Phone: Telegram**
@@ -157,7 +170,7 @@ Turn on Settings → General → Local API. Then add the MCP server to Claude Co
 claude mcp add atom -- node /path/to/atom/apps/mac/src/mcp-serve.ts
 ```
 
-The tools are `atom_give_goal`, `atom_goal_status`, `atom_chat`, `atom_list_tasks`, `atom_task_report`, `atom_needs_you` and `atom_answer_need`. The local API listens on `http://127.0.0.1:4790`. Change the port with `ATOM_API_PORT`. Each request needs the bearer token from `data/api-token`.
+The tools are `atom_give_goal`, `atom_goal_status`, `atom_chat`, `atom_list_tasks`, `atom_task_report`, `atom_needs_you` and `atom_answer_need`. The local API listens on `http://127.0.0.1:4790`. Change the port with `ATOM_API_PORT`. Each request needs the bearer token from `data/api-token`. Turn the API off when you do not use it.
 
 ## Architecture
 
