@@ -16,6 +16,12 @@ private func kindColor(_ kind: BrainKind, _ theme: ThemePalette) -> Color {
     }
 }
 
+/// The two tabs of the Second brain page: the graph of notes, and what ATOM keeps (facts, conversation notes, kept chats;
+/// it was Settings → Memory until 2026-10-15).
+private enum BrainTab: String, CaseIterable {
+    case graph = "Graph", memory = "Memory"
+}
+
 struct BrainPane: View {
     let model: IslandModel
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
@@ -26,6 +32,7 @@ struct BrainPane: View {
     private let panStart = State(initialValue: CGSize.zero)
     private let words = State(initialValue: "")
     private let creating = State(initialValue: false)
+    private let tab = State(initialValue: BrainTab.graph)
     @Environment(\.theme) private var theme
 
     init(model: IslandModel) { self.model = model }
@@ -35,7 +42,9 @@ struct BrainPane: View {
         VStack(alignment: .leading, spacing: 0) {
             header(state)
             Rectangle().fill(theme.separator.color).frame(height: theme.isFlat ? 1 : 0.5)
-            if let graph = state.graph {
+            if tab.wrappedValue == .memory {
+                memoryTab
+            } else if let graph = state.graph {
                 if graph.noteCount == 0 && graph.nodes.isEmpty {
                     emptyState
                 } else {
@@ -64,20 +73,56 @@ struct BrainPane: View {
                     Text(subtitle(state)).font(.system(size: 12)).foregroundStyle(theme.text2.color)
                 }
                 Spacer(minLength: 8)
-                searchField
-                PillButton(title: "New note", symbol: "plus", prominent: true) {
-                    model.selectBrainNote(nil)
-                    creating.wrappedValue = true
+                tabSwitch
+                if tab.wrappedValue == .graph {
+                    searchField
+                    PillButton(title: "New note", symbol: "plus", prominent: true) {
+                        model.selectBrainNote(nil)
+                        creating.wrappedValue = true
+                    }
                 }
             }
-            if state.graph != nil { legend(state) }
+            if tab.wrappedValue == .graph, state.graph != nil { legend(state) }
         }
         .padding(.horizontal, Spacing.panel)
         .padding(.top, 28)
         .padding(.bottom, 12)
     }
 
+    /// Graph or Memory: one page for everything ATOM keeps.
+    private var tabSwitch: some View {
+        HStack(spacing: 2) {
+            ForEach(BrainTab.allCases, id: \.self) { item in
+                let on = tab.wrappedValue == item
+                Button { tab.wrappedValue = item } label: {
+                    Text(item.rawValue).font(.system(size: 12, weight: on ? .semibold : .regular))
+                        .foregroundStyle(on ? theme.text.color : theme.text2.color)
+                        .padding(.horizontal, 12).frame(height: 24)
+                        .background(Capsule().fill(on ? theme.fill3.color : Color.clear))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
+            }
+        }
+        .padding(2)
+        .background(Capsule().fill(theme.fill1.color))
+        .overlay(Capsule().strokeBorder(theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
+    }
+
+    /// What ATOM keeps: the facts, the conversation notes and the kept chats, with a way to forget each.
+    private var memoryTab: some View {
+        Scrollable {
+            VStack(alignment: .leading, spacing: 14) { MemorySection(model: model) }
+                .frame(maxWidth: 680, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Spacing.panel)
+                .padding(.vertical, Spacing.panel)
+        }
+    }
+
     private func subtitle(_ state: BrainState) -> String {
+        if tab.wrappedValue == .memory { return "What ATOM keeps about you: facts, conversation notes and kept chats." }
         guard let graph = state.graph else { return "Notes that link to each other." }
         let links = graph.edges.count
         let base = "\(graph.noteCount) note\(graph.noteCount == 1 ? "" : "s"), \(links) link\(links == 1 ? "" : "s")"

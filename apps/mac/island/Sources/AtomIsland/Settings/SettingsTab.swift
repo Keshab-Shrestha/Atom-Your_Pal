@@ -79,10 +79,6 @@ struct SettingsTab: View {
         case .sounds:
             let on = [s.speakReports, s.speakUpdates, s.speechChime, s.soundsEnabled, s.notificationSounds].filter { $0 }.count
             return on == 5 ? "All on" : on == 0 ? "Quiet" : "\(on) of 5 on"
-        case .memory:
-            guard let memory = model.memory else { return "" }
-            if !memory.enabled { return "Off" }
-            return memory.count == 0 ? "Nothing kept" : memory.count == 1 ? "1 fact" : "\(memory.count) facts"
         case .general: return model.loginItem.enabled ? "Opens at login" : ""
         }
     }
@@ -96,7 +92,6 @@ struct SettingsTab: View {
         case .dictation: DictationSection(model: model)
         case .pal: PalSection(model: model)
         case .sounds: SoundsSection(model: model)
-        case .memory: MemorySection(model: model)
         case .general: GeneralSection(model: model)
         }
     }
