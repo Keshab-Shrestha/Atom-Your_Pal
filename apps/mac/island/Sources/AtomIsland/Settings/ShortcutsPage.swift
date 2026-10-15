@@ -44,6 +44,7 @@ struct ShortcutSection: View {
                 .padding(Spacing.well)
             }
         }
+        .onDisappear { model.recorder.stop() } // leaving the page ends a recording: shortcuts and ATOM's keys come back
         ResetPageCard(footer: "Every shortcut goes back to its default, including any you turned off.") {
             model.recorder.stop()
             model.settings.resetAllShortcuts()

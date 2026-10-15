@@ -21,6 +21,10 @@ final class ShortcutRecorder {
     /// The single modifier in `peak` was pressed with its right-hand key.
     @ObservationIgnored private var peakRightHand = false
     @ObservationIgnored private var keyPressedSinceRelease = false
+    /// Ends a recording nobody finished. While recording, every global shortcut is paused and the keys of ATOM's windows are taken, so a
+    /// recording left behind (the page changed, the window closed, the user walked away) must not last (2026-10-15, code review).
+    @ObservationIgnored private var lease: Task<Void, Never>?
+    static let leaseSeconds: Double = 30
 
     /// Key codes of the right-hand modifier keys: Right ⌘, Right ⇧, Right ⌥, Right ⌃.
     private static let rightHandKeys: Set<UInt16> = [54, 60, 61, 62]
@@ -38,6 +42,12 @@ final class ShortcutRecorder {
     }
 
     func start(_ action: ShortcutAction) {
+        lease?.cancel()
+        lease = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.leaseSeconds))
+            guard !Task.isCancelled, let self, self.action == action else { return }
+            self.stop()
+        }
         self.action = action
         problem = nil
         held = []
@@ -47,6 +57,8 @@ final class ShortcutRecorder {
     }
 
     func stop() {
+        lease?.cancel()
+        lease = nil
         action = nil
         held = []
     }
