@@ -853,6 +853,9 @@ public struct HelpersState: Sendable, Equatable {
             gitDiff = diff
         case .thread(let newThread) where newThread.id == openJobId:
             thread = newThread
+            // Opening a task set `isWaiting`, and only `helpers`, `git` and `error` cleared it: until one of them came, the next Settings error was
+            // swallowed here and never reached its page (code review, 2026-10-16).
+            isWaiting = false
         case .error(let error) where claims(event):
             isWaiting = false
             problem = error.message
@@ -1398,6 +1401,11 @@ public struct HelpersState: Sendable, Equatable {
         openJobId = nil
         openJobSeen = nil
         thread = nil
+    }
+
+    /// The runtime stopped or restarted: nothing it was asked will be answered, so nothing is waited for.
+    public mutating func runtimeStopped() {
+        isWaiting = false
     }
 
     private mutating func waiting(_ command: IslandCommand) -> IslandCommand {

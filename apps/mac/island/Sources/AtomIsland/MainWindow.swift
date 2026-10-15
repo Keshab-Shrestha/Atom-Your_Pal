@@ -62,6 +62,7 @@ final class MainWindowController: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         model.helpersWindowOpen = false
+        model.recorder.stop() // a shortcut recording left open keeps every global shortcut paused and takes ATOM's keys (onDisappear does not fire here)
         model.helpers.closeReport()
         NSApp.mainMenu = previousMenu
         NSApp.setActivationPolicy(previousPolicy)

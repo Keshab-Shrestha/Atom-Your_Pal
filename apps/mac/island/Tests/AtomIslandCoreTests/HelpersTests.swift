@@ -127,6 +127,26 @@ struct HelpersStateTests {
         #expect(!state.showsBoard && state.selectedHelperId == "sid")
     }
 
+    /// 2026-10-16 (code review): opening a task set `isWaiting` and the thread reply did not clear it, so the next Settings error was swallowed.
+    @Test func theThreadReplyEndsTheWaitForOpeningATask() throws {
+        var state = HelpersState()
+        state.apply(try list())
+        let command = state.openThread(1)
+        #expect(command != nil && state.isWaiting)
+        state.apply(try decodeEvent(#"{"type":"thread","id":1,"comments":[],"activity":[]}"#))
+        #expect(!state.isWaiting, "the reply is the answer")
+        #expect(state.thread != nil)
+    }
+
+    @Test func aStoppedRuntimeEndsEveryWait() throws {
+        var state = HelpersState()
+        state.apply(try list())
+        _ = state.openThread(1)
+        #expect(state.isWaiting)
+        state.runtimeStopped()
+        #expect(!state.isWaiting)
+    }
+
     @Test func appPickerSendsHelperSet() throws {
         var state = try loaded()
         #expect(state.setApp("Brave Browser") == nil) // already set

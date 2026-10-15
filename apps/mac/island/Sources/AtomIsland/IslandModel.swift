@@ -121,11 +121,27 @@ final class IslandModel {
         settings.computerOverride = on
         computerRestarting = true
         applyComputer(on)
-        // A restart that never reports `ready` (the runtime hangs while loading) must not leave the switch disabled for good.
-        Task { @MainActor [weak self] in
+        // A restart that never reports `ready` (the runtime hangs while loading) must not leave the switch disabled for good. One timer for
+        // the latest toggle: an earlier one used to enable the switch in the middle of a newer restart.
+        computerTimeout?.cancel()
+        computerTimeout = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(ComputerRestart.patience))
+            guard !Task.isCancelled else { return }
             self?.computerRestarting = false
         }
+    }
+    @ObservationIgnored private var computerTimeout: Task<Void, Never>?
+
+    /// The runtime stopped or restarted: what the window was waiting for will not be answered (code review, 2026-10-16). Nothing reset
+    /// these before, so a Save or a model switch could stay "waiting" for good.
+    func runtimeStopped() {
+        helpers.runtimeStopped()
+        skillCommandPending = false
+        brainCommandPending = false
+        projectCommandPending = false
+        pendingModel = nil
+        refreshingModels = false
+        computerTimeout?.cancel()
     }
     /// `true` opens the ATOM window (ADR-089; the compact card's click). Set by the controller.
     @ObservationIgnored var setExpanded: (Bool) -> Void = { _ in }
@@ -429,6 +445,7 @@ final class IslandModel {
             telegramConnected = ready.telegram // ADR-098
             computerOn = ready.computer // ADR-054
             computerRestarting = false
+            computerTimeout?.cancel()
             send(.telegramSet(push: settings.telegramPush))
             send(.apiSet(on: settings.localApi)) // ADR-098 item 5
             if memory != nil { send(.memoryList) } // a restarted runtime: ask again so updates keep coming
@@ -446,6 +463,9 @@ final class IslandModel {
             refreshingModels = false
         case .brain(let graph):
             brain.setGraph(graph)
+            // A note delete answers with the graph only (a save answers with the note), so the flag must end here too; left set, it sent
+            // the next unrelated Settings error to the brain page and left the model menus disabled (code review, 2026-10-16).
+            brainCommandPending = false
         case .brainNote(let note):
             brainCommandPending = false
             brain.setNote(note)
