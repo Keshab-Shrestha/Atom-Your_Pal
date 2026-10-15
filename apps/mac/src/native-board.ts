@@ -60,6 +60,7 @@ export function boardRecorder(
   const taskOfJob = new Map<number, string>();
   const jobOfTask = new Map<string, number>();
   const jobOfAgentId = new Map<string, number>();
+  const countedMessages = new Set<string>(); // assistant message ids whose usage is already recorded
   const metered = new Set<number>(); // jobs whose usage came per message: their AgentOutput is not counted again
   const ended = new Set<number>();
   const timelines = new Map<number, ReturnType<typeof toolCallRecorder>>();
@@ -172,7 +173,12 @@ export function boardRecorder(
     }
     if (m.type === "assistant" && m.message?.usage) {
       metered.add(job);
-      usage(job, m.message.model, m.message.usage);
+      // Claude Code sends one message per content block, all with the same id and usage: count each id once.
+      const id = typeof m.message.id === "string" ? m.message.id : undefined;
+      if (!id || !countedMessages.has(id)) {
+        if (id) countedMessages.add(id);
+        usage(job, m.message.model, m.message.usage);
+      }
     }
     if (!Array.isArray(content)) return;
     const t = timeline(job);

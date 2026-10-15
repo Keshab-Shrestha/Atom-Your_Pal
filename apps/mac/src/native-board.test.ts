@@ -122,3 +122,16 @@ test("Phase N3: the job's model is the one Claude Code ran the agent on, from it
   assert.equal(store.get(b.id)!.model, "claude-sonnet-5");
   store.close();
 });
+
+test("token usage: blocks of one assistant message (same id) are counted once", () => {
+  const store = openHelperStore({ path: ":memory:" });
+  const board = boardRecorder(store, "chat-1");
+  const job = store.addNativeJob("sid", "Find flights", { chatId: "chat-1" });
+  board.opened("toolu_a", job.id, "Flights");
+  const message = (id: string) => ({ id, model: "claude-haiku-5", usage: { input_tokens: 5, output_tokens: 7 }, content: [] });
+  for (const id of ["msg_1", "msg_1", "msg_1", "msg_2"]) board.onEvent({ type: "assistant", parent_tool_use_id: "toolu_a", message: message(id) });
+  const { recent, today } = store.usage();
+  assert.equal(recent.length, 2);
+  assert.equal(today.output, 14);
+  store.close();
+});
