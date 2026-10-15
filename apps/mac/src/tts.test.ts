@@ -275,3 +275,10 @@ test("openingCut: a long opening with no comma is cut before a word people pause
 test("toSpeakable skips Markdown table rows: the table stays on screen", () => {
   assert.equal(toSpeakable("Here is the table.\n| Name | Age |\n|---|---|\n| Ann | 30 |"), "Here is the table.");
 });
+
+// 2026-10-16 (review): a "." between digits ended a sentence, so "pi is 3.14159" was spoken as "pi is 3." and "14159 ...".
+test("splitSentences keeps decimals, version numbers and times whole", () => {
+  assert.deepEqual(splitSentences("The value of pi is 3.14159 and it never ends. The next sentence is here."), ["The value of pi is 3.14159 and it never ends.", "The next sentence is here."]);
+  assert.deepEqual(splitSentences("Version 2.5.1 is out and it fixes the crash. Meet at 10.30 tomorrow morning."), ["Version 2.5.1 is out and it fixes the crash.", "Meet at 10.30 tomorrow morning."]);
+  assert.deepEqual(splitSentences("It costs 4.99 dollars!"), ["It costs 4.99 dollars!"]);
+});

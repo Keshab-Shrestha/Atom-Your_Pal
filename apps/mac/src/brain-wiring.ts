@@ -12,7 +12,8 @@ import type { BrainNoteItem } from "./island-items.ts";
 
 const flat = (text: string) => text.replace(/\s+/g, " ").trim();
 const cut = (text: string, max: number) => (flat(text).length > max ? `${flat(text).slice(0, max - 1).trimEnd()}…` : flat(text));
-const day = (d: Date) => d.toISOString().slice(0, 10);
+// The local date: in Japan (UTC+9) the UTC date was the day before for a note made in the morning (review, 2026-10-16).
+const day = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 export interface BrainWiring {
   island: IslandBrain;

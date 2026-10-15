@@ -242,7 +242,8 @@ export function splitSentences(text: string): string[] {
   const parts = text
     .replace(/\s+/g, " ")
     .trim()
-    .match(/[^.!?]+(?:[.!?]+["')\]]*|$)/g);
+    // A "." between two digits (3.14, 2.5.1, 10.30) is not the end of a sentence.
+    .match(/(?:[^.!?]|(?<=\d)\.(?=\d))+(?:[.!?]+["')\]]*|$)/g);
   if (!parts) return [];
   const sentences: string[] = [];
   for (const raw of parts) {

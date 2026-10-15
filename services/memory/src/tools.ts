@@ -40,7 +40,9 @@ export function createMemoryTools(options: MemoryToolOptions): MemoryTool[] {
         },
       },
       run(input) {
-        const fact = String(input.fact);
+        // A missing fact must not become the text "undefined" (review, 2026-10-16).
+        const fact = typeof input.fact === "string" ? input.fact.trim() : "";
+        if (!fact) throw new MemoryError("Say what to remember: the fact is missing or empty.");
         if (looksSecret(fact)) throw new MemoryError("That looks like a password or other secret; ATOM does not keep those.");
         const before = store.count();
         const memory = store.add(fact, provenance());

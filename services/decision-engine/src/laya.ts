@@ -97,15 +97,20 @@ export interface LayaEngineOptions {
   /** Default: the real server at layaServerPath(env). */
   connect?: LayaConnect;
   timeoutMs?: number;
+  /** A session that lived this long (ms) before it crashed was healthy: the crash counts as a first failure again. Default 5 minutes. */
+  stableMs?: number;
   /** ATOM_LAYA=0 turns Laya off; ATOM_LAYA_SERVER moves the server. Default: process.env. */
   env?: Env;
   log?: Pick<Logger, "info" | "warn">;
 }
 
+/** How long a session must have lived for its crash to count as a first failure again (ms). */
+export const LAYA_STABLE_MS = 5 * 60_000;
+
 const reason = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export function createLayaEngine(options: LayaEngineOptions = {}): DecisionEngine {
-  const { env = process.env, timeoutMs = LAYA_TIMEOUT_MS, log } = options;
+  const { env = process.env, timeoutMs = LAYA_TIMEOUT_MS, stableMs = LAYA_STABLE_MS, log } = options;
   const connect = options.connect ?? stdioLaya(layaServerPath(env));
   /** Why Laya is off for good (until ATOM restarts); undefined while it may be used. */
   let off: string | undefined = readEnv(env, "ATOM_LAYA") === "0" ? "turned off" : undefined;
@@ -114,9 +119,11 @@ export function createLayaEngine(options: LayaEngineOptions = {}): DecisionEngin
   let failures = 0;
   let closed = false;
 
-  function lost(which: Promise<LayaClient>, why: string) {
+  function lost(which: Promise<LayaClient>, why: string, startedAt: number) {
     if (session !== which) return; // an older session, already replaced
     session = undefined;
+    // 2026-10-16: the count meant "two crashes in a row", but it never went back to zero: a crash days after the first turned Laya off for good.
+    if (Date.now() - startedAt >= stableMs) failures = 0;
     failures += 1;
     if (failures > 1) off = "failed twice";
     log?.warn("laya.lost", { reason: why, restart: !off });
@@ -127,7 +134,7 @@ export function createLayaEngine(options: LayaEngineOptions = {}): DecisionEngin
     if (session) return session;
     const started = Date.now();
     log?.info("laya.start");
-    const current: Promise<LayaClient> = connect(() => lost(current, "crashed")).then(
+    const current: Promise<LayaClient> = connect(() => lost(current, "crashed", started)).then(
       (client) => {
         if (closed || session !== current) {
           void client.close().catch(() => {});
@@ -141,7 +148,7 @@ export function createLayaEngine(options: LayaEngineOptions = {}): DecisionEngin
           off = "missing";
           session = undefined;
           log?.warn("laya.unavailable", { reason: reason(error) });
-        } else lost(current, `could not start: ${reason(error)}`);
+        } else lost(current, `could not start: ${reason(error)}`, started);
         throw error;
       },
     );

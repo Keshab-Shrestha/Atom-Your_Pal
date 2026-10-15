@@ -79,3 +79,14 @@ test("brain_note cannot change a note that mirrors a memory or a chat summary, a
   assert.ok(!(await tool("brain_open").run({ title: mirrored.title })).includes("overwritten"));
   assert.match(await tool("brain_note").run({ title: "A brand new note", body: "hello [[Mira Haugen]]" }), /Saved "A brand new note"/);
 });
+
+// 2026-10-16 (review): day() used the UTC date, so in Japan (UTC+9) a note made at 07:00 on 16 October was titled "2026-10-15".
+test("a conversation note is titled with the local date", () => {
+  const { memory, wiring } = setup();
+  memory.saveEpisode("s1", "We planned a trip.", 3);
+  wiring.sync();
+  const title = wiring.island.graph().nodes.find((n) => n.kind === "episode")!.title;
+  const d = new Date();
+  const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  assert.ok(title.includes(local), `${title} should name ${local}`);
+});

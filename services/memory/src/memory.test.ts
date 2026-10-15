@@ -352,3 +352,15 @@ test("chats are saved per session with a title from their first words, listed ne
   assert.ok(store.chats.remove("a") && !store.chats.remove("a"));
   assert.deepEqual([store.chats.messages("a"), store.chats.list().map((c) => c.id)], [[], ["b"]]);
 });
+
+// 2026-10-16 (review): String(input.fact) turned a missing fact into the text "undefined", which was kept as a real memory.
+test("remember refuses a missing or empty fact instead of keeping the word 'undefined'", () => {
+  const store = openMemoryStore({ path: ":memory:" });
+  const [remember] = createMemoryTools({ store, provenance: () => ({ source: "text" }) });
+  for (const input of [{}, { fact: undefined }, { fact: null }, { fact: "   " }, { fact: 42 }, { fact: ["a"] }]) {
+    assert.throws(() => remember!.run(input as never), /what to remember/i, JSON.stringify(input));
+  }
+  assert.equal(store.count(), 0);
+  assert.match(String(remember!.run({ fact: "  My sister lives in Oslo  " } as never)), /Kept as memory/);
+  assert.equal(store.get(1)?.text, "My sister lives in Oslo", "trimmed");
+});

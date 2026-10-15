@@ -184,3 +184,17 @@ test("warm() starts the server ahead of the first job, so a slow start no longer
   engine.warm();
   assert.equal(laya.starts(), 1, "nothing starts after close");
 });
+
+// 2026-10-16 (review): `failures` never reset, so a second crash days after the first still turned Laya off until ATOM restarted.
+test("a crash after a long healthy session is a first failure again; two quick crashes still turn Laya off", async () => {
+  const laya = fakeLaya();
+  const engine = createLayaEngine({ connect: laya.connect, env: {}, stableMs: 30 });
+  await engine.chooseTier("a", "x");
+  laya.crash(); // the first crash, soon after it started
+  assert.equal((await engine.chooseTier("b", "x")).source, "laya", "restarted");
+  await wait(60); // the restarted session stays up longer than the stable time
+  laya.crash(); // a crash long after the last one: a first failure again, not a second
+  assert.equal((await engine.chooseTier("c", "x")).source, "laya", "restarted again");
+  assert.equal(laya.starts(), 3);
+  await engine.close();
+});
