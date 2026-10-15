@@ -1629,7 +1629,8 @@ Keshab: research the Open Design `design-systems` and `design-templates`, then i
 - Done: spacing constants on a 4 pt grid (22, 14, 18, 26 became 24, 16, 20, 24). Goldens updated.
 - Done: a fault I caused is fixed. The draggable sidebar rows lost keyboard focus when they stopped being `Button`s. They now take focus, Return and Space press them, and VoiceOver can press them. The drag still works (tested with a real synthetic drag). Not proved by keyboard in the live app.
 - Review (Critique's five dimensions, my own scores): philosophy 8, hierarchy 6, detail 7, functionality 7, innovation 8.
-- Next, in this order, each its own task: (1) Dashboard hierarchy, colour and "updated N s ago"; (2) the five states on each page, with a gallery shot per state; (3) the type scale (11, 12, 13, 15, 18, 26) in place of half-point sizes; (4) a count chip on each Board column.
+- Done (2026-10-15): the Dashboard. One lead number (today's input + output, with "N% above/below a usual day so far", `TokenUsageSummary.todayTrend`), three medium tiles for the week, two small cache tiles; colour only on today's bar (the other bars, share bars and the plan meters are neutral, and the plan meter turns amber only as a warning); "Updated N sec ago" in the header (`HelpersState.usageUpdatedAt`); Recent turns as aligned columns (Model, Kind, Tokens, Cache w, Cache r). Tests: `UsageTrendTests.swift` (6). Golden updated. Not seen live.
+- Next, in this order, each its own task: (1) the five states on each page, with a gallery shot per state; (2) the type scale (11, 12, 13, 15, 18, 26) in place of half-point sizes; (3) a count chip on each Board column.
 
 ## Chat top bar and top space (2026-10-15)
 

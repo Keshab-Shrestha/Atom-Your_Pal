@@ -760,6 +760,8 @@ public struct HelpersState: Sendable, Equatable {
     public static let maxTaskLength = 1000
 
     public private(set) var list: HelpersList?
+    /// When the usage numbers last arrived (the Dashboard says "Updated … ago"). Nil until they do.
+    public private(set) var usageUpdatedAt: Date?
     public private(set) var selectedHelperId: String?
     /// The task whose thread is open (ADR-087), and that thread once the runtime sends it.
     public private(set) var openJobId: Int?
@@ -817,6 +819,7 @@ public struct HelpersState: Sendable, Equatable {
     public mutating func apply(_ event: IslandEvent) {
         switch event {
         case .helpers(let newList):
+            if newList.usage != nil { usageUpdatedAt = Date() }
             // ADR-088: the agent just created is chosen, and its form closes.
             if isCreatingAgent, isWaiting, let old = list, let added = newList.helpers.first(where: { new in !old.helpers.contains { $0.id == new.id } }) {
                 isCreatingAgent = false
@@ -1699,6 +1702,11 @@ public struct RecentTokens: Sendable, Equatable {
 
     public var io: Int { input + output }
 
+    /// The row's first column: "This turn", "Note" or "Job".
+    public var kindTitle: String {
+        switch kind { case .turn: "This turn"; case .note: "Note"; case .job: "Job" }
+    }
+
     /// "This turn: 18 tokens · cache written: 6.1k · cache read: 0".
     public var splitLine: String {
         let who = switch kind { case .turn: "This turn"; case .note: "Note"; case .job: "Job" }
@@ -1726,6 +1734,36 @@ public struct TokenUsageSummary: Sendable, Equatable {
         self.byWorker = byWorker
         self.byModel = byModel
         self.chatCacheCold = chatCacheCold
+    }
+}
+
+/// How today's input + output compares with a usual day (2026-10-15): the Dashboard's lead number says more with it.
+public enum UsageTrend: Sendable, Equatable {
+    case above(percent: Int)
+    case below(percent: Int)
+    case usual
+
+    /// "12% above a usual day so far", "about a usual day so far".
+    public var text: String {
+        switch self {
+        case .above(let percent): "\(percent)% above a usual day so far"
+        case .below(let percent): "\(percent)% below a usual day so far"
+        case .usual: "about a usual day so far"
+        }
+    }
+}
+
+extension TokenUsageSummary {
+    /// Today against the mean of the other days that had any use. Nil when no other day had use. Within 5% is "usual".
+    /// Today is the last day in `days`; it is a partial day, which the words say ("so far").
+    public var todayTrend: UsageTrend? {
+        let others = days.dropLast().map(\.totals.io).filter { $0 > 0 }
+        guard !others.isEmpty else { return nil }
+        let mean = Double(others.reduce(0, +)) / Double(others.count)
+        let change = (Double(today.io) - mean) / mean * 100
+        let percent = Int(abs(change).rounded())
+        if percent < 5 { return .usual }
+        return change > 0 ? .above(percent: percent) : .below(percent: percent)
     }
 }
 

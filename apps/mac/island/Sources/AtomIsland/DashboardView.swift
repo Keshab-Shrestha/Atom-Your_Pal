@@ -7,26 +7,34 @@ import AtomIslandCore
 struct DashboardPane: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
+    @Environment(\.islandSnapshot) private var snapshot
 
     var body: some View {
         let usage = model.helpers.list?.usage
         Scrollable {
             VStack(alignment: .leading, spacing: 22) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Dashboard").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
-                    Text("Tokens used by ATOM's chat and the team. On the Claude plan they count toward its limits; dollars are what the API would charge.")
-                        .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Dashboard").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                        Text("Tokens used by ATOM's chat and the team. On the Claude plan they count toward its limits; dollars are what the API would charge.")
+                            .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    }
+                    Spacer(minLength: 12)
+                    updated
                 }
                 if let usage {
-                    // Token cost, job 4: what you typed and ATOM answered is the main number; the cache counts are apart.
-                    HStack(spacing: 10) {
-                        TokenTile(value: TokenTotals.short(usage.today.io), label: "Input + output today", detail: "\(usage.today.runs) runs")
-                        TokenTile(value: TokenTotals.short(usage.week.io), label: "Input + output, 7 days", detail: "\(usage.week.runs) runs")
-                        TokenTile(value: String(format: "$%.2f", usage.week.dollars), label: "API-equivalent, 7 days", detail: String(format: "$%.2f today", usage.today.dollars))
+                    // One lead number (today's input + output, with how it compares to a usual day), three smaller ones for
+                    // the week, and the cache counts smallest. Equal cards say nothing is more important than anything else.
+                    HeroTile(value: TokenTotals.short(usage.today.io), label: "Input + output today",
+                             detail: "\(usage.today.runs) run\(usage.today.runs == 1 ? "" : "s") · " + String(format: "$%.2f API-equivalent", usage.today.dollars),
+                             trend: usage.todayTrend?.text)
+                    HStack(spacing: 12) {
+                        TokenTile(value: TokenTotals.short(usage.week.io), label: "Input + output, 7 days", detail: "\(usage.week.runs) runs", medium: true)
+                        TokenTile(value: String(format: "$%.2f", usage.week.dollars), label: "API-equivalent, 7 days", detail: String(format: "$%.2f today", usage.today.dollars), medium: true)
                         // ADR-098 item 9: how much of the prompt came back from the cache.
-                        TokenTile(value: usage.week.cacheHitText, label: "Cache hits, 7 days", detail: "\(usage.today.cacheHitText) today")
+                        TokenTile(value: usage.week.cacheHitText, label: "Cache hits, 7 days", detail: "\(usage.today.cacheHitText) today", medium: true)
                     }
-                    HStack(spacing: 10) {
+                    HStack(spacing: 12) {
                         TokenTile(value: TokenTotals.short(usage.week.cacheWrite), label: "Cache written, 7 days", detail: "\(TokenTotals.short(usage.today.cacheWrite)) today", small: true)
                         TokenTile(value: TokenTotals.short(usage.week.cacheRead), label: "Cache read, 7 days", detail: "\(TokenTotals.short(usage.today.cacheRead)) today", small: true)
                     }
@@ -37,13 +45,14 @@ struct DashboardPane: View {
                     }
                     if !usage.recent.isEmpty {
                         section("Recent turns") {
+                            RecentHeader()
                             ForEach(Array(usage.recent.enumerated()), id: \.offset) { index, run in
-                                if index > 0 { RowDivider() }
+                                RowDivider()
                                 RecentRow(run: run)
                             }
                         }
                     }
-                    section("Each day") { DayBars(days: usage.days) }
+                    section("Each day") { DayBars(days: usage.days, today: usage.days.last?.day) }
                     if let plan = model.planUsage, !plan.isEmpty { section("Claude plan") { PlanMeters(plan: plan) } }
                     section("By worker, 7 days") {
                         if usage.byWorker.isEmpty { quiet("Nothing used yet.") }
@@ -79,6 +88,21 @@ struct DashboardPane: View {
         }
     }
 
+    /// "Updated 12 sec ago": how old the numbers are. A snapshot cannot tick, so it says "just now".
+    @ViewBuilder private var updated: some View {
+        if let at = model.helpers.usageUpdatedAt {
+            Group {
+                if snapshot {
+                    Text("Updated just now")
+                } else {
+                    (Text("Updated ") + Text(at, style: .relative) + Text(" ago"))
+                }
+            }
+            .font(.system(size: 11)).foregroundStyle(theme.text3.color).lineLimit(1)
+            .accessibilityLabel("Numbers updated \(at.formatted(.relative(presentation: .named)))")
+        }
+    }
+
     /// One line under the tiles: what the two cache counts mean.
     static let cacheHelp = "Cache written: the fixed prompt, stored once per pause. Cache read: the stored prompt used again, much cheaper."
 
@@ -104,13 +128,14 @@ private struct TokenTile: View {
     let value: String
     let label: String
     let detail: String
-    /// The cache tiles are smaller than the main ones.
+    /// The cache tiles are the smallest, the week's tiles are medium.
     var small = false
+    var medium = false
     @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(value).font(theme.idFont(.system(size: small ? 16 : 24, weight: .semibold), size: small ? 15 : 22)).foregroundStyle(small ? theme.text2.color : theme.text.color)
+            Text(value).font(theme.idFont(.system(size: small ? 15 : medium ? 18 : 24, weight: .semibold), size: small ? 14 : medium ? 17 : 22)).foregroundStyle(small ? theme.text2.color : theme.text.color)
             Text(label).font(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1).minimumScaleFactor(0.8)
             Text(detail).font(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1).minimumScaleFactor(0.8)
         }
@@ -124,6 +149,8 @@ private struct TokenTile: View {
 /// Seven bars: input + output solid, cache written and cache read fainter above them; input + output over each.
 private struct DayBars: View {
     let days: [DayTokens]
+    /// The newest day: the only bar in colour. The rule is one accent for the thing that matters (today).
+    var today: String? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -133,10 +160,11 @@ private struct DayBars: View {
                 VStack(spacing: 6) {
                     Text(day.totals.total == 0 ? "–" : TokenTotals.short(day.totals.io))
                         .font(theme.idFont(.system(size: 10), size: 9.5)).foregroundStyle(theme.text3.color)
+                    let tint = day.day == today ? theme.live.color : theme.text2.color
                     VStack(spacing: 0) {
-                        Rectangle().fill(theme.live.color.opacity(0.28)).frame(height: bar(day.totals.cacheRead, most))
-                        Rectangle().fill(theme.live.color.opacity(0.6)).frame(height: bar(day.totals.cacheWrite, most))
-                        Rectangle().fill(theme.live.color).frame(height: bar(day.totals.io, most))
+                        Rectangle().fill(tint.opacity(0.28)).frame(height: bar(day.totals.cacheRead, most))
+                        Rectangle().fill(tint.opacity(0.6)).frame(height: bar(day.totals.cacheWrite, most))
+                        Rectangle().fill(tint).frame(height: bar(day.totals.io, most))
                     }
                     .frame(maxWidth: .infinity)
                     .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
@@ -164,18 +192,78 @@ private struct DayBars: View {
     }
 }
 
-/// Token cost, job 4: one recent call: when and on which model, then the split of its tokens.
+/// Columns of the Recent turns table: the same widths in the header and in every row, so the numbers line up.
+private enum RecentColumns {
+    static let kind: CGFloat = 70
+    static let number: CGFloat = 64
+}
+
+private struct RecentHeader: View {
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("Model").frame(maxWidth: .infinity, alignment: .leading)
+            Text("Kind").frame(width: RecentColumns.kind, alignment: .leading)
+            Text("Tokens").frame(width: RecentColumns.number, alignment: .trailing)
+            Text("Cache w").frame(width: RecentColumns.number, alignment: .trailing)
+            Text("Cache r").frame(width: RecentColumns.number, alignment: .trailing)
+        }
+        .font(.system(size: 10, weight: .medium)).foregroundStyle(theme.text3.color)
+        .padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 6)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Token cost, job 4: one recent call: on which model, what kind, then the split of its tokens in columns.
 private struct RecentRow: View {
     let run: RecentTokens
     @Environment(\.theme) private var theme
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(spacing: 8) {
             Text(run.model).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2)).lineLimit(1)
-            Spacer(minLength: 12)
-            Text(run.splitLine).font(.system(size: 12)).foregroundStyle(theme.text.color).lineLimit(1).minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(run.kindTitle).font(.system(size: 11.5)).foregroundStyle(theme.text2.color).lineLimit(1)
+                .frame(width: RecentColumns.kind, alignment: .leading)
+            number(run.io, strong: true)
+            number(run.cacheWrite)
+            number(run.cacheRead)
         }
-        .padding(.horizontal, 16).padding(.vertical, 10)
+        .padding(.horizontal, 16).padding(.vertical, 8)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(run.kindTitle) on \(run.model): \(TokenTotals.short(run.io)) tokens, cache written \(TokenTotals.short(run.cacheWrite)), cache read \(TokenTotals.short(run.cacheRead))")
+    }
+
+    private func number(_ n: Int, strong: Bool = false) -> some View {
+        Text(TokenTotals.short(n)).font(theme.idFont(.system(size: 12, weight: strong ? .medium : .regular), size: 11.5))
+            .foregroundStyle(strong ? theme.text.color : theme.text2.color)
+            .frame(width: RecentColumns.number, alignment: .trailing)
+    }
+}
+
+/// The lead of the page: today's input + output in large type, what it cost, and how it compares with a usual day.
+private struct HeroTile: View {
+    let value: String
+    let label: String
+    let detail: String
+    let trend: String?
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 18) {
+            Text(value).font(theme.idFont(.system(size: 40, weight: .semibold), size: 36)).foregroundStyle(theme.text.color)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(label).font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
+                Text(detail).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+                if let trend { Text(trend).font(.system(size: 11.5)).foregroundStyle(theme.text2.color) }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20).padding(.vertical, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
+            .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
         .accessibilityElement(children: .combine)
     }
 }
@@ -201,7 +289,7 @@ private struct ShareRow: View {
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
                     Capsule().fill(theme.fill2.color)
-                    Capsule().fill(theme.live.color).frame(width: max(3, proxy.size.width * share))
+                    Capsule().fill(theme.text2.color).frame(width: max(3, proxy.size.width * share))
                 }
             }
             .frame(height: 4)
@@ -234,7 +322,7 @@ private struct PlanMeters: View {
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
                     Capsule().fill(theme.fill2.color)
-                    Capsule().fill(used >= NoticeWatcher.warnAt ? theme.attention.color : theme.live.color).frame(width: proxy.size.width * min(1, used))
+                    Capsule().fill(used >= NoticeWatcher.warnAt ? theme.attention.color : theme.text2.color).frame(width: proxy.size.width * min(1, used))
                 }
             }
             .frame(height: 5)
