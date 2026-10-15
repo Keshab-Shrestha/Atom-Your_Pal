@@ -45,23 +45,10 @@ struct SettingsTab: View {
 
     private func pageView(_ page: IslandModel.SettingsPage) -> some View {
         VStack(spacing: 0) {
+            // The way back is the arrow in the window's top bar (HelpersView).
             HStack(spacing: 6) {
-                Button {
-                    withAnimation(Motion.settle(reduceMotion)) { model.settingsPage = nil }
-                } label: {
-                    HStack(spacing: 3) {
-                        Image(systemName: "chevron.left").font(.system(size: 11, weight: .semibold))
-                        Text("Settings").font(.system(size: 12, weight: .medium))
-                    }
-                    .foregroundStyle(theme.accent.color)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Back to Settings")
-                Spacer()
                 Text(page.rawValue).font(.system(size: 13, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
                 Spacer()
-                Color.clear.frame(width: 64, height: 1)
             }
             .padding(.horizontal, Spacing.panel)
             .padding(.top, 14)

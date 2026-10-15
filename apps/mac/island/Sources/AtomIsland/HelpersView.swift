@@ -7,6 +7,7 @@ import AtomIslandCore
 /// The logic lives in `HelpersState`; these views only draw it.
 struct HelpersView: View {
     let model: IslandModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Room at the top of the sidebar for the window's buttons (the title bar is transparent over the content).
     static let titleBarRoom: CGFloat = 40
@@ -20,10 +21,12 @@ struct HelpersView: View {
             // ADR-091: a top bar over every page, with the page's name; it moves the window.
             let page = Self.page(model)
             // These pages bring their own back button ("‹ Settings", "‹ Board", "Cancel"); two arrows said the same thing twice.
-            let ownBack = (model.windowPage == .settings && model.settingsPage != nil)
-                || (model.windowPage == .agents && (model.helpers.isCreatingAgent || model.helpers.openJobId != nil
-                    || (!model.helpers.showsBoard && model.helpers.selectedHelper != nil && model.helpers.isSoulOpen)))
-            WindowTopBar(title: page.title, symbol: page.symbol, back: model.history.canGoBack && !ownBack ? { model.goBack() } : nil) {
+            let ownBack = model.windowPage == .agents && (model.helpers.isCreatingAgent || model.helpers.openJobId != nil
+                || (!model.helpers.showsBoard && model.helpers.selectedHelper != nil && model.helpers.isSoulOpen))
+            // A Settings page (Model, Voice...) goes back to the Settings list with this arrow, the one in the top bar.
+            let settingsBack: (() -> Void)? = model.windowPage == .settings && model.settingsPage != nil
+                ? { withAnimation(Motion.settle(reduceMotion)) { model.settingsPage = nil } } : nil
+            WindowTopBar(title: page.title, symbol: page.symbol, back: settingsBack ?? (model.history.canGoBack && !ownBack ? { model.goBack() } : nil)) {
                 if model.windowPage == .chat {
                     // New chat was only a small icon far down the sidebar; it belongs where the chat is.
                     PillButton(title: "New chat", symbol: "square.and.pencil") {
