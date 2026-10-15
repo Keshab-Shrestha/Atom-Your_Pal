@@ -457,6 +457,8 @@ struct TurnView: View {
     private static func copy(_ text: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
+        // A reply with a table, list or code also goes as HTML, so Notes, Pages and Mail paste the real thing.
+        if MarkdownBlocks.isRich(text) { NSPasteboard.general.setString(MarkdownBlocks.html(text), forType: .html) }
     }
 
     @ViewBuilder private func outcomeLine(_ text: String, symbol: String, color: Color) -> some View {
@@ -487,8 +489,16 @@ private struct ReplyText: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        if MarkdownBlocks.isRich(text) {
+            MarkdownReply(text: text, latest: latest)
+        } else {
+            plain
+        }
+    }
+
+    private var plain: some View {
         let light = theme.glow.a > 0 ? theme.glow.with(alpha: 1).color : theme.accent.color
-        ZStack(alignment: .topLeading) {
+        return ZStack(alignment: .topLeading) {
             if streaming, theme.usesGlow {
                 (Text(text).foregroundColor(.clear) + caret(theme.isDark ? light : theme.accent.color))
                     .shadow(color: light.opacity(0.9), radius: 5)

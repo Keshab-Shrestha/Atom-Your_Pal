@@ -271,3 +271,7 @@ test("openingCut: a long opening with no comma is cut before a word people pause
   assert.deepEqual(splitFirstClause([s]), ["The sky appears blue", "because of a phenomenon called Rayleigh scattering."]);
   assert.equal(openingCut("Supercalifragilisticexpialidocious is a very long word indeed without breaks"), -1);
 });
+
+test("toSpeakable skips Markdown table rows: the table stays on screen", () => {
+  assert.equal(toSpeakable("Here is the table.\n| Name | Age |\n|---|---|\n| Ann | 30 |"), "Here is the table.");
+});

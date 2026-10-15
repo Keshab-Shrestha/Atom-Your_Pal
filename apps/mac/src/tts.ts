@@ -223,7 +223,7 @@ export function toSpeakable(text: string): string {
     .replace(/https?:\/\/(?:www\.)?([^\/\s]+)\S*/g, "$1") // URL → its domain
     .split(/\n+/)
     .map((line) =>
-      line
+      (/^\s*\|/.test(line) ? "" : line) // table rows stay on screen
         .replace(/^\s*(?:#{1,6}\s+|[-*+•]\s+|\d+[.)]\s+|>\s*)/, "") // headings, bullets, numbers, quotes
         .replace(/(\*\*|__|\*|`|~~)/g, "") // emphasis and inline code markers
         .replace(/[\p{Extended_Pictographic}\p{Regional_Indicator}\u200D\uFE0F]/gu, "") // emoji, incl. flags

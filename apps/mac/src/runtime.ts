@@ -573,6 +573,7 @@ export function createRuntime(
             onLeave: (sessionId: string) => void episodes?.flush(sessionId),
             ...(chatSessions ? { chatSessions } : {}),
             clientComposed: composed,
+            screenReplies: !composed,
             web: readEnv(process.env, "ATOM_WEB") !== "0",
             timeoutMs: Math.max(config.llm.timeoutMs, PLAN_TIMEOUT_MS),
             ...(Number(readEnv(process.env, "ATOM_SESSION_IDLE_MS")) > 0 ? { idleMs: Number(readEnv(process.env, "ATOM_SESSION_IDLE_MS")) } : {}),

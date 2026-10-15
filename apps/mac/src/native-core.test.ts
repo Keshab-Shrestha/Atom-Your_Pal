@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { Message, ProjectFiles, ToolRunner } from "@atom/contracts";
 import { answerTail, MAX_PROJECT_FILE_CALLS, type ChatSession, type SessionSdk } from "@atom/llm-gateway";
 import { openHelperStore } from "@atom/helpers";
-import { CONTEXT_LABEL, createNativeCore, NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, type NativeCoreDeps } from "./native-core.ts";
+import { CONTEXT_LABEL, createNativeCore, NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, TYPED_NOTE, type NativeCoreDeps } from "./native-core.ts";
 import { nativeGate } from "./native-safety.ts";
 
 // ---- a fake SDK: each query is one scripted Claude Code process that answers every pushed message
@@ -399,4 +399,15 @@ test("a /skill message on another provider carries the steps in the request's ex
   await core.handle({ text: "/summarise this", source: "text" });
   assert.equal(o.requests[0]!.messages.at(-1)!.content, "this");
   assert.match(o.requests[0]!.systemExtra!, /SKILL STEPS/);
+});
+
+test("a typed message in the window gets the screen note; a spoken one and a client-composed core do not", async () => {
+  const sentTo = async (over: Partial<NativeCoreDeps>, source: "text" | "voice") => {
+    const { sdk, queries } = fakeSdk(() => "ok");
+    await make(sdk, over).handle({ text: "hi", source });
+    return queries[0]!.sent[0]!.message.content as string;
+  };
+  assert.equal(await sentTo({ screenReplies: true }, "text"), `hi\n\n${CONTEXT_LABEL}\n${TYPED_NOTE}`);
+  assert.equal(await sentTo({ screenReplies: true }, "voice"), "hi");
+  assert.equal(await sentTo({}, "text"), "hi");
 });
