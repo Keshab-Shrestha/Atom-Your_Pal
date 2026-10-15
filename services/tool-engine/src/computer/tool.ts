@@ -92,6 +92,9 @@ function usableFrame(f: Element["frame"]): { x: number; y: number; w: number; h:
   return { x: x as number, y: y as number, w: w as number, h: h as number };
 }
 
+/** A window this high or lower is a menu-bar strip, not something to read (a TextEdit with no document owns several). */
+const MIN_WINDOW_HEIGHT = 40;
+
 /**
  * The one computer-control tool the model sees (ADR-054). It exposes a small set of actions on top of Cua Driver,
  * and enforces ATOM's rules around every one: blocked apps, approval for risky clicks and keys, no typing into
@@ -132,9 +135,11 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     const app = await findApp(appName, signal);
     const pid = await pidOf(app, signal);
     if (pid === undefined) throw new Refused(`${app.name} is not running. Use action "open" first.`);
-    const wins = ((await cua.call("list_windows", { pid }, signal)).data.windows ?? []) as Array<{ window_id: number; title?: string; is_on_screen?: boolean }>;
+    const all = ((await cua.call("list_windows", { pid }, signal)).data.windows ?? []) as Array<{ window_id: number; title?: string; is_on_screen?: boolean; bounds?: { height?: number } }>;
+    // A running app with no document still owns thin menu-bar windows (30 points high, 1 per screen): they are no window to read.
+    const wins = all.filter((w) => (w.bounds?.height ?? Number.POSITIVE_INFINITY) > MIN_WINDOW_HEIGHT);
     const win = wins.find((w) => w.is_on_screen) ?? wins[0];
-    if (!win) throw new Refused(`${app.name} has no window yet. Wait a moment and look again.`);
+    if (!win) throw new Refused(`${app.name} has no window open (no document). Open or create one, or ask the user to, then look again.`);
     const state = await cua.call("get_window_state", { pid, window_id: win.window_id }, signal);
     if (state.isError) refuse(state.refusal?.code, app.name, `Could not read ${app.name}: ${state.refusal?.message ?? state.text}`);
     const elements = withoutMenuBar((state.data.elements ?? []) as Element[]);

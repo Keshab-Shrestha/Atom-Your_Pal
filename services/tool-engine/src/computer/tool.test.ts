@@ -634,3 +634,27 @@ test("look still refuses an app with no process and no window", async () => {
   assert.equal(r.ok, false);
   assert.match(r.text, /not running.*open/i);
 });
+
+// 2026-10-15: TextEdit with no document owns only 30-point menu-bar windows. `look` read one and said "no title and no readable text".
+test("look says there is no document when an app has only thin menu-bar windows", async () => {
+  const s = setup({
+    handlers: {
+      list_windows: () => ok("wins", { windows: [{ window_id: 1, app_name: "TextEdit", pid: 11, bounds: { x: 0, y: 0, width: 1920, height: 30 }, is_on_screen: false }, { window_id: 2, app_name: "TextEdit", pid: 11, bounds: { x: -1920, y: 0, width: 1920, height: 30 } }] }),
+    },
+  });
+  const r = await sees(s);
+  assert.equal(r.ok, false);
+  assert.match(r.text, /no window open \(no document\)/);
+  assert.equal(s.calls.some((c) => c.name === "get_window_state"), false, "nothing was read");
+});
+
+test("look still reads a real window next to the thin ones", async () => {
+  const s = setup({
+    handlers: {
+      list_windows: () => ok("wins", { windows: [{ window_id: 1, pid: 11, bounds: { height: 30 } }, { window_id: 7, pid: 11, bounds: { height: 448 }, is_on_screen: true }] }),
+    },
+  });
+  const r = await sees(s);
+  assert.equal(r.ok, true, r.text);
+  assert.equal(s.calls.find((c) => c.name === "get_window_state")?.args.window_id, 7);
+});
