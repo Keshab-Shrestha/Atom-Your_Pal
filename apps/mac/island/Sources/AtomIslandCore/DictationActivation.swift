@@ -53,6 +53,10 @@ public enum DictationActivation {
     /// A hands-free dictation stops by itself after this long, so one forgotten tap cannot record all day.
     public static let longestHandsFree = 300.0
 
+    /// A hold-to-talk dictation also ends after this long, even if no key-up came (the key tap was disabled, a permission was revoked mid-hold). Before
+    /// (code check, 2026-10-16) only hands-free had a limit, so a lost key-up left the microphone open and the recording growing for good.
+    public static let longestHold = 180.0
+
     /// A hands-free dictation in which nothing but silence was heard is dropped after this long.
     public static let silentHandsFree = 20.0
 

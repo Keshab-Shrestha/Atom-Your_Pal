@@ -235,6 +235,11 @@ final class IslandController {
         log(sleep.paused ? "system.pause" : "system.resume", [:])
         pet.setPaused(sleep.paused)
         dictation.setPaused(sleep.paused)
+        // A Talk that went through the runtime keeps the runtime's microphone open: the app-side cancel above does not reach it.
+        if sleep.paused, talking, !talkingLocally {
+            talking = false
+            model.send(.talkCancel)
+        }
     }
 
     // MARK: - Runtime
@@ -428,6 +433,12 @@ final class IslandController {
         switch trigger {
         case .holdBegan(.talk):
             skipTour()
+            if dictation.isActive {
+                // A dictation is listening or working: Talk would open a second microphone through the runtime, and the dictated speech could be
+                // taken as a question (code check, 2026-10-16). Finish or cancel the dictation first.
+                trace("talk ignored: a dictation is in progress")
+                return
+            }
             dictation.followUpCancelled() // the keys take over from listening for an answer
             model.typedTurn = false
             talking = true
@@ -440,6 +451,7 @@ final class IslandController {
                 model.send(.talkStart)
             }
         case .holdEnded(.talk):
+            guard talking else { return } // cancelled meanwhile (a lock or a sleep): the key-up that follows sends nothing
             talking = false
             if talkingLocally { dictation.talkEnded() } else { model.send(.talkSend) }
         case .holdCancelled(.talk):
@@ -683,7 +695,7 @@ final class IslandController {
             localListening = true
         case .heard(let text):
             localListening = false
-            model.ask(text) // the runtime answers with transcript, thinking, reply, speaking
+            model.ask(text, spoken: true) // the runtime answers with transcript, thinking, reply, speaking
         case .nothing:
             localListening = false
             apply(.notice(kind: "no_speech", message: "Didn't catch that. Hold the keys while you speak, then let go."))

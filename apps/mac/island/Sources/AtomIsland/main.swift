@@ -90,7 +90,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         supervisor?.start()
     }
 
+    private var terminating = false
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // A second request (SIGTERM, then Command-Q) must not stop the runtime and reply a second time.
+        if terminating { return .terminateLater }
+        terminating = true
         SecretClipboard.clearIfStillSecret() // a copied API token does not outlive the app
         island?.stop()
         guard let supervisor else {

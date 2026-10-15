@@ -401,6 +401,11 @@ final class DictationController {
                 let (total, clip) = self.capture.snapshot(maxSamples: window)
                 let elapsed = ProcessInfo.processInfo.systemUptime - since
 
+                if !handsFree, elapsed >= DictationActivation.longestHold {
+                    self.log("dictation.limit", ["stage": "longest_hold", "seconds": Int(elapsed)])
+                    self.finishListening(since: since, target: target)
+                    return
+                }
                 if handsFree {
                     if elapsed >= DictationActivation.longestHandsFree {
                         self.log("dictation.limit", ["stage": "longest", "seconds": Int(elapsed)])

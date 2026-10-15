@@ -141,7 +141,8 @@ final class IslandModel {
         projectCommandPending = false
         pendingModel = nil
         refreshingModels = false
-        computerTimeout?.cancel()
+        // Not the Computer-switch timer: a restart passes through "stopped" on its way, and cancelling it here left the switch disabled for good
+        // when the new runtime hung before `ready` (code check, 2026-10-16). Only `ready` or a newer toggle ends that timer.
     }
     /// `true` opens the ATOM window (ADR-089; the compact card's click). Set by the controller.
     @ObservationIgnored var setExpanded: (Bool) -> Void = { _ in }
@@ -312,8 +313,10 @@ final class IslandModel {
     var typedTurn = false
 
     /// A typed request from the Conversation tab. Ignored when empty or too long for the runtime.
-    func ask(_ text: String, draft: ComposerDraft = ComposerDraft()) {
-        typedTurn = true
+    func ask(_ text: String, draft: ComposerDraft = ComposerDraft(), spoken: Bool = false) {
+        // A spoken question (the local Talk path) is not a typed turn: ATOM may listen for an answer to its follow-up (ADR-067). It used to be
+        // marked as typed, so follow-up listening never began for a voice question (code check, 2026-10-16).
+        typedTurn = !spoken
         guard let command = draft.command(text: text) else { return }
         send(command)
     }

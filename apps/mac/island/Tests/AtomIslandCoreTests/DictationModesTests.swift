@@ -171,4 +171,11 @@ struct DictationSettingsTests {
         #expect(status.detail == "Tap again to finish")
         #expect(status.preview == "so far")
     }
+
+    /// 2026-10-16 (code check): hold-to-talk had no time limit, so a lost key-up kept the microphone open for good.
+    @Test func holdToTalkHasALimitShorterThanHandsFree() {
+        #expect(DictationActivation.longestHold >= 60 && DictationActivation.longestHold <= 600)
+        #expect(DictationActivation.longestHold < DictationActivation.longestHandsFree)
+    }
 }
+
