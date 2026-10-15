@@ -80,11 +80,14 @@ export function splitMessage(text: string, limit = MESSAGE_LIMIT): string[] {
   let rest = text.trim() || "…";
   while (rest.length > limit) {
     const cut = rest.lastIndexOf("\n", limit);
-    const at = cut > limit / 2 ? cut : limit;
+    let at = cut > limit / 2 ? cut : limit;
+    // Never between the two halves of an emoji (a lone half makes Telegram refuse the part).
+    const before = rest.charCodeAt(at - 1);
+    if (before >= 0xd800 && before <= 0xdbff) at -= 1;
     parts.push(rest.slice(0, at));
     rest = rest.slice(at).replace(/^\n/, "");
   }
-  parts.push(rest);
+  if (rest.trim() || !parts.length) parts.push(rest); // no part that is only blank (Telegram answers 400)
   return parts;
 }
 

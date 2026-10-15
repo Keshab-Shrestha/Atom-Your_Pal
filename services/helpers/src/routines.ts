@@ -113,10 +113,14 @@ export function parseRoutine(text: string): { schedule: Schedule; task: string }
   let hour = Number(h);
   const minutes = min ? Number(min) : 0;
   const word = when!.toLowerCase();
-  const pm = ampm ? ampm.toLowerCase().startsWith("p") : (word === "evening" || word === "night" || word === "afternoon") && hour < 12;
+  // Without am or pm: "evening" and "afternoon" are pm. "night" is the small hours for 12 (midnight) and 1 to 5, and the evening for 6 to 11
+  // ("every night at 12" used to be saved as noon, and "at 1" as 1 PM; code check, 2026-10-16).
+  const night = !ampm && word === "night";
+  const pm = ampm ? ampm.toLowerCase().startsWith("p") : (word === "evening" || word === "afternoon" || (night && hour >= 6)) && hour < 12;
   if (ampm && (hour < 1 || hour > 12)) return undefined;
   if (pm && hour < 12) hour += 12;
   if (ampm && !pm && hour === 12) hour = 0;
+  if (night && hour === 12) hour = 0;
   if (hour > 23 || minutes > 59 || !rest?.trim()) return undefined;
   const minute = hour * 60 + minutes;
   const weekday = WEEKDAYS.indexOf(word as (typeof WEEKDAYS)[number]);

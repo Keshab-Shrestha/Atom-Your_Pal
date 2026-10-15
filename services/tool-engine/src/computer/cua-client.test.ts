@@ -152,3 +152,20 @@ test("close stops the process", async () => {
   await new Promise((r) => setTimeout(r, 50));
   assert.throws(() => process.kill(pid, 0), /ESRCH/);
 });
+
+// 2026-10-16 (code check): the exit handler of an old Cua process cleared the shared state and rejected every pending request. When a new call had
+// started a second process while the first was still exiting, the second process's request was rejected ("stopped unexpectedly") and a third was spawned.
+test("an old process that exits late does not reject the request of the new process", async () => {
+  const cua = make({ env: { ...process.env, CUA_FIXTURE_EXIT_DELAY_MS: "300" } });
+  try {
+    await cua.call("echo", { text: "first process is up" });
+    const closing = cua.close(); // the first process is told to stop and takes about 300 ms to go
+    await new Promise((r) => setTimeout(r, 50));
+    const r = await cua.call("later", { ms: 700 }); // the second process answers after the first has exited
+    assert.equal(r.text, "later");
+    await closing;
+  } finally {
+    await cua.close();
+  }
+});
+

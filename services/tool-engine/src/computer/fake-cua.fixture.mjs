@@ -1,6 +1,12 @@
 // A stand-in for `cua-driver mcp` used by transport tests. Speaks JSON-RPC lines on stdio.
 import { createInterface } from "node:readline";
 let cancelled = 0;
+// A test knob: with CUA_FIXTURE_EXIT_DELAY_MS the process takes that long to exit after SIGTERM (a driver that is slow to stop).
+const exitDelay = Number(process.env.CUA_FIXTURE_EXIT_DELAY_MS ?? 0);
+if (exitDelay > 0) {
+  setInterval(() => {}, 1000); // stay alive after stdin closes
+  process.on("SIGTERM", () => setTimeout(() => process.exit(0), exitDelay));
+}
 const out = (m) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...m }) + "\n");
 createInterface({ input: process.stdin }).on("line", (line) => {
   const m = JSON.parse(line);
@@ -12,6 +18,7 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   const ok = (text, structuredContent = {}) => out({ id: m.id, result: { content: [{ type: "text", text }], structuredContent } });
   if (name === "echo") return ok(String(a.text), { args: a });
   if (name === "pid") return ok("pid", { pid: process.pid });
+  if (name === "later") return void setTimeout(() => ok("later"), Number(a.ms ?? 0));
   if (name === "env") return ok("env", { mode: process.env.CUA_DRIVER_PERMISSION_MODE, bypass: process.env.CUA_DRIVER_DANGEROUSLY_BYPASS_APPROVALS ?? null, telemetry: process.env.CUA_TELEMETRY_ENABLED, telemetryRs: process.env.CUA_DRIVER_RS_TELEMETRY_ENABLED });
   if (name === "cancelled") return ok("n", { cancelled });
   if (name === "refuse") return out({ id: m.id, result: { isError: true, content: [{ type: "text", text: "not allowed" }], structuredContent: { status: "refused", refusal: { code: "denied", message: "not allowed" } } } });

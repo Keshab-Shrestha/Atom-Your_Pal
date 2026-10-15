@@ -287,3 +287,18 @@ test("modelTotalsOf also reads the web searches of each model", () => {
   assert.equal(totals["claude-sonnet-5-5"]!.webSearches, 3);
   assert.equal(totals["claude-haiku-5-5"]!.webSearches, 0, "absent means none");
 });
+
+// 2026-10-16 (code check): a throwing onTokens left the stream loop and closed the chat session.
+test("a usage callback that throws does not end the turn or close the session", async () => {
+  const { sdk } = fakeSdk((t) => [done(t, { usage: usage(2, 0, 100), total_cost_usd: 0.001 })]);
+  let calls = 0;
+  const s = await openChatSession(options(sdk, { onTokens: () => { calls++; throw new Error("database is locked"); } }));
+  const first = await s.send("a");
+  assert.ok(first, "the answer came");
+  const second = await s.send("b");
+  assert.ok(second, "and the session still answers");
+  assert.equal(calls, 2);
+  assert.equal(s.closed, false);
+  s.close();
+});
+

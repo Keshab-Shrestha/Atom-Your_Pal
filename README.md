@@ -13,7 +13,7 @@ Also: Autonomous Thinking and Optimization Mechanism, Adaptive Task Oriented Mac
 
 ATOM is a voice and desktop assistant that lives on your Mac. A smooth 2D mascot, Pal, shows what ATOM does. An office floor shows a team of agents at work. ATOM has memory, tools, a Telegram bot, a local API and an MCP server, a skills hub, and timelines and undo for every run. You talk to ATOM. ATOM does small things itself and hands bigger ones to the team. You approve what matters. Your data stays on your Mac.
 
-ATOM is not a chatbot. The language model is one part of it. Permissions, memory, budgets and safety checks are ordinary code. A model cannot talk its way around them.
+ATOM is not a chatbot. The language model is one part of it. Permissions, memory, approvals and safety checks are ordinary code. A model cannot talk its way around them.
 
 ## Screenshots
 
@@ -46,12 +46,12 @@ ATOM is not a chatbot. The language model is one part of it. Permissions, memory
 - Pal is a smooth 2D mascot. It shows what ATOM does: listening, thinking, speaking, asking.
 - The office floor shows each agent at a desk with its current step, or in the lounge when it waits.
 
-**Agents, Managers, ATOM and sub-agents**
+**Agents, ATOM and sub-agents**
 - Each agent has a role and a `soul.md` file. You can edit, rename and version it.
 - A kit decides the tools of an agent in code: research (the web), folders (files in folders you grant), or think (no tools).
 - ATOM splits a goal, hands the parts to the right agents, and reports in one line.
-- Managers lead groups of agents. Agents start sub-agents inside a run.
-- Tasks wait for each other. Plans wait for your OK. Routines run on a schedule. Agents hand work to each other.
+- Each agent runs as a sub-agent inside the chat that handed it the task.
+- Tasks wait for each other. Plans wait for your OK. Routines run on a schedule.
 - Each run has an activity timeline.
 - The Board has four views: Needs you, Overview, Floor and Columns. Needs you holds what waits for your answer and what failed. A badge on the Board row shows the count.
 - Skills: you can open a skill's `SKILL.md` in a built-in editor. ATOM writes the file only when you click Save, and it keeps a `.bak` copy.
@@ -61,7 +61,7 @@ ATOM is not a chatbot. The language model is one part of it. Permissions, memory
 - The Dashboard shows tokens and dollars by day, agent and model. Dollars are list prices, worked out from the tokens of each call.
 - ATOM answers a topic you ask about itself, in a few sentences. It hands work to an agent only when you name one, ask for sources, change files, or need many separate lookups.
 - A research agent searches at most 3 times and reads at most 2 pages.
-- Claude Code's own calls (a small model that reads web pages) show as "Other" rows. A web search costs $0.01 and is not yet in any row.
+- Claude Code's own calls (a small model that reads web pages) show as "Other" rows. A web search costs $0.01 and is priced in the rows.
 - Measured on 2026-10-15, with Haiku 5.5 on both sides and a fresh chat for each prompt. Costs are list prices, and Claude Code ran with a full personal setup (rules, hooks, plugins). ATOM cost $0.030 in total and Claude Code $0.098. By prompt, ATOM cost $0.0005 against $0.0097 (a simple question), $0.0015 against $0.0175 (a design question with code), $0.026 against $0.060 (a sourced web summary), and $0.0019 against $0.011 (typing text into TextEdit). Both sides gave correct answers. These are single runs on cold sessions, so treat them as rough. Details are in [DECISIONS.md](DECISIONS.md) (ADR-118).
 
 **Memory, calendar, reminders, timers, weather**
@@ -184,9 +184,9 @@ ATOM.app (Swift): Pal, the island, the ATOM window, notifications
 ATOM runtime (Node.js, TypeScript)
   ├── Speech: Whisper (hearing), Kokoro (voice), Parakeet (dictation)
   ├── ATOM Core: requests, chats, tools, memory
-  ├── Helpers: agents, souls, tasks, budgets, routines, grants (SQLite)
+  ├── Helpers: agents, souls, tasks, routines, grants (SQLite)
   ├── LLM Gateway: Claude Code, or Codex and Gemini CLI for chat
-  └── Policy in code: folder checks, approvals, budgets, the sandbox
+  └── Policy in code: folder checks, approvals, the sandbox
 ```
 
 More: [ARCHITECTURE.md](ARCHITECTURE.md).

@@ -166,3 +166,15 @@ test("an old table gets the web_searches column and its rows count as zero searc
   usageTable(raw); // a second open is harmless
   assert.equal(usage.recorded("c1", "m").webSearches, 0);
 });
+
+// 2026-10-16 (code check): the goals migration added chat_posted_at and filled it in two separate statements.
+test("an old goals table gets chat_posted_at filled for goals that had ended, in one step", async () => {
+  const { createSchema } = await import("./store-schema.ts");
+  const raw = new DatabaseSync(":memory:");
+  raw.exec("CREATE TABLE goals (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, created_at TEXT NOT NULL, ended_at TEXT, report TEXT, source TEXT)");
+  raw.exec("INSERT INTO goals (text, created_at, ended_at) VALUES ('done goal', '2026-10-01T00:00:00.000Z', '2026-10-02T00:00:00.000Z'), ('open goal', '2026-10-03T00:00:00.000Z', NULL)");
+  createSchema(raw);
+  createSchema(raw); // a second open changes nothing
+  const rows = raw.prepare("SELECT text, chat_posted_at FROM goals ORDER BY id").all() as { text: string; chat_posted_at: string | null }[];
+  assert.deepEqual(rows.map((r) => [r.text, r.chat_posted_at]), [["done goal", "2026-10-02T00:00:00.000Z"], ["open goal", null]]);
+});

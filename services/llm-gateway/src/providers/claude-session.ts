@@ -317,7 +317,12 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
     if (total !== undefined) costSoFar = total;
     if (tokens) {
       const { costUsd: _, ...rest } = tokens;
-      o.onTokens?.(cost && cost > 0 ? { ...rest, costUsd: cost } : rest, model, { chatId: o.chatId });
+      try {
+        o.onTokens?.(cost && cost > 0 ? { ...rest, costUsd: cost } : rest, model, { chatId: o.chatId });
+      } catch {
+        // The owner's bookkeeping (a usage row) never ends a turn: a failed insert (the database busy, a full disk) used to leave the stream loop
+        // and close the whole chat session (code check, 2026-10-16).
+      }
     }
   };
 

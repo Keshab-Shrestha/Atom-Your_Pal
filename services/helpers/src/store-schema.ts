@@ -100,8 +100,17 @@ export function createSchema(db: DatabaseSync) {
   if (!goalColumns.has("source")) db.exec("ALTER TABLE goals ADD COLUMN source TEXT");
   // ADR-109: when the result was posted into the chat that asked. Goals that ended before this column count as posted.
   if (!goalColumns.has("chat_posted_at")) {
-    db.exec("ALTER TABLE goals ADD COLUMN chat_posted_at TEXT");
-    db.exec("UPDATE goals SET chat_posted_at = ended_at WHERE ended_at IS NOT NULL");
+    // One step: a crash between the two statements left the column present with every ended goal NULL, the guard above never ran again, and every
+    // ended goal looked "not yet posted" and was posted into its chat a second time (code check, 2026-10-16).
+    db.exec("BEGIN");
+    try {
+      db.exec("ALTER TABLE goals ADD COLUMN chat_posted_at TEXT");
+      db.exec("UPDATE goals SET chat_posted_at = ended_at WHERE ended_at IS NOT NULL");
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
   }
   // ADR-107: the project of the chat that made the goal; NULL for goals from before projects.
   if (!goalColumns.has("project_id")) db.exec("ALTER TABLE goals ADD COLUMN project_id TEXT");

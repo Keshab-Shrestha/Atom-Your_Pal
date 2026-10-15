@@ -2,7 +2,7 @@
 
 Renamed ZENO -> ATOM on 2026-10-13; entries below keep the name they were written under.
 
-Last updated: 2026-10-15
+Last updated: 2026-10-16
 
 Phase 1 (Memory) has started at Keshab's request, with Phase 0.5's hands-on checks deferred, not dropped. Task 1.1 (ADR-058): ZENO keeps facts the user asks it to remember in a local SQLite file, uses them in every request, and forgets them on request; Settings → Memory lists and deletes them. Checked live in text on the Claude plan, across a restart. Task 1.2 (ADR-059): ZENO notes each conversation in two sentences in the background so a new one can pick up the thread, and offers to remember facts mentioned in passing. Task 1.3 (ADR-060): Calendar and Reminders through an EventKit helper inside ZENO.app; read the schedule, list reminders, add one. Task 1.4 (ADR-061): timers, spoken and shown when they end. Task 1.5 (ADR-062): weather. Task 1.6: answers 4–6 s instead of up to 19 s (thinking off, weather cached), and typing to ZENO in the Conversation tab. Next: Keshab allows Calendar and Reminders when macOS asks, and tries all of it by voice.
 
@@ -327,3 +327,10 @@ Older steps are in TASK.md.
 > Build the smallest system that can become the larger system.
 
 **ADR-089 (2026-10-11):** Wisp is now Pal, in the app, its words and the code (saved settings keep their stored `zeno.wisp.*` names). Earlier entries above say Wisp as written then. Pal and every worker are now drawn from avatar definitions (Pal is Keshab's "Strobi copy"), and chat, the board and agents, and Settings are in one ZENO window.
+
+## 2026-10-16: review and fixes
+
+- Four rounds of read-only code review (runtime, helpers and gateway, security, Swift, tests and docs) found and fixed more than 60 problems. The list is in TASK.md ("Fixes from the code review", "Second review pass", "Third review pass") and in ADR-118 to ADR-120.
+- Entries above about budgets, Managers, wake-ups and hand-offs are history: ADR-110 (N4 and N5) removed them.
+- New: the Local API answers plans and retries only (ADR-120); Telegram sends are retried and have a how-to (`docs/telegram.md`); web searches are priced in the usage rows; WebFetch refuses local and private addresses.
+

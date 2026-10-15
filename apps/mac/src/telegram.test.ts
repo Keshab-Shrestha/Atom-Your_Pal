@@ -186,3 +186,13 @@ test("send: after the last retry it reports false; a long message resends only t
   assert.deepEqual(parts, [MESSAGE_LIMIT, 5, 5], "part 1 once; part 2 failed once and was sent again");
   g.client.stop();
 });
+
+// 2026-10-16 (code check): splitMessage cut at an arbitrary index, so an emoji on the boundary became two broken halves and Telegram refused the part.
+test("splitMessage never cuts between the two halves of an emoji and never makes a blank part", () => {
+  const text = "a".repeat(MESSAGE_LIMIT - 1) + "😀" + "b".repeat(10);
+  const parts = splitMessage(text);
+  assert.ok(parts.every((p) => !/[\ud800-\udbff]$/.test(p) && !/^[\udc00-\udfff]/.test(p)), "no lone surrogate at an edge");
+  assert.equal(parts.join(""), text);
+  const lines = splitMessage(`${"x".repeat(MESSAGE_LIMIT)}\n\n\n   `);
+  assert.ok(lines.every((p) => p.trim().length > 0), "no part that is only blank");
+});

@@ -69,6 +69,8 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
   const env = cuaEnvironment(options.env ?? process.env);
 
   let child: Proc | undefined;
+  /** The newest process started. An older one that exits late must not clear what belongs to this one (code check, 2026-10-16). */
+  let newest: Proc | undefined;
   let ready: Promise<Proc> | undefined;
   let nextId = 0;
   const pending = new Map<number, Pending>();
@@ -109,8 +111,10 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
     if (ready) return ready;
     ready = new Promise<Proc>((resolve, reject) => {
       const proc = spawn(command, args, { env, stdio: ["pipe", "pipe", "ignore"] });
+      newest = proc;
       let started = false;
       proc.on("error", (error) => {
+        if (newest !== proc) return; // an older process: its failure is not this one's
         child = undefined;
         ready = undefined;
         const e = new Error(`Could not start Cua Driver (${error.message}). Is it installed?`);
@@ -118,6 +122,9 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
         failAll(e.message); // also clears the pending initialize request's timer, which would otherwise hold the process open
       });
       proc.on("exit", () => {
+        // The exit of a process that a newer one has replaced (the idle timer stopped it, a new call started another) changes nothing: it used to
+        // clear `ready` and reject the newer process's pending request, and the next call then spawned a third process.
+        if (newest !== proc) return;
         if (child === proc) child = undefined;
         ready = undefined;
         failAll("Cua Driver stopped unexpectedly.");

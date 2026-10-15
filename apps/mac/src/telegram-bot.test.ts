@@ -353,3 +353,69 @@ test("a command that throws on the way is answered, not an unhandled rejection t
   }
 });
 
+// 2026-10-16 (code check, third review pass).
+test("a text that merely starts with a slash is a message for ATOM, not an unknown command", async () => {
+  const r = await run({ updates: [[text(1, 42, "/tmp/build.log is huge, why?"), text(2, 42, "/evil"), text(3, 42, "/needs@zeno_bot")]], store: fakeStore(), wait: 150 });
+  assert.ok(r.asked.includes("/tmp/build.log is huge, why?"), "reached ATOM");
+  const out = texts(r.sent);
+  assert.ok(out.some((m) => /I do not know that command/.test(m)), "a real unknown command is still answered");
+  assert.ok(out.includes("Nothing waits for you."), "a command with a bot name still works");
+});
+
+test("the help list does not promise /interrupt, which native tasks refuse", async () => {
+  const r = await run({ updates: [[text(1, 42, "/help")]], store: fakeStore(), wait: 100 });
+  const help = texts(r.sent)[0]!;
+  assert.ok(help.includes("/steer") && help.includes("/tasks"));
+  assert.ok(!help.includes("/interrupt"));
+});
+
+test("after stop(), a failed push does not keep timers alive or send again", async () => {
+  const asks: any[] = [];
+  let sends = 0;
+  await run({
+    updates: [],
+    store: fakeStore(),
+    asks,
+    tune: { retryDelaysMs: [1], pushRetryMs: 40 },
+    sendStatus: () => (sends++, 500),
+    wait: 10,
+    after: async (bot, h) => {
+      asks.push(ask("n1"));
+      h.listeners.forEach((l: any) => l(asks[0]));
+      await tick(1200); // the push ran and failed
+      bot.stop();
+      const before = sends;
+      await tick(300); // a retry timer left running would send again
+      assert.equal(sends, before, "nothing is sent after stop()");
+    },
+  });
+});
+
+test("a store change during the retry wait does not bring the retry forward", async () => {
+  const asks: any[] = [];
+  const times: number[] = [];
+  const store = fakeStore();
+  let notify: ((change: unknown) => void) | undefined;
+  (store as any).onChange = (l: (change: unknown) => void) => ((notify = l), () => {});
+  await run({
+    updates: [],
+    store,
+    asks,
+    tune: { retryDelaysMs: [1], pushRetryMs: 600 },
+    sendStatus: () => (times.push(Date.now()), 500),
+    wait: 10,
+    after: async (_bot, h) => {
+      asks.push(ask("n1"));
+      h.listeners.forEach((l: any) => l(asks[0]));
+      await tick(1300); // first push: 2 tries fail, a retry is planned 600 ms later
+      const n = times.length;
+      notify?.({ action: "job" }); // a change in the store while the retry waits
+      await tick(1200);
+      const starts = times.slice(n).filter((t, i, a) => i === 0 || t - a[i - 1]! > 100); // a round is a try and its quick retry
+      const rounds = [times[n - 1]!, ...starts];
+      const gaps = rounds.slice(1).map((t, i) => t - rounds[i]!);
+      assert.ok(gaps.length >= 1, "a retry did run");
+      assert.ok(gaps.every((g) => g >= 500), `rounds keep their distance: ${gaps.join(", ")}`);
+    },
+  });
+});

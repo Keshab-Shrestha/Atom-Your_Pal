@@ -180,3 +180,8 @@ test("a failing routine turn says why too, and a failure without a message still
   await new Promise((r) => setTimeout(r, 10));
   assert.deepEqual(lines, ["A routine did not run: unknown reason"]);
 });
+
+// 2026-10-16 (test audit): the Telegram /interrupt test used a fake steering whose interrupt succeeds; the real one always refuses. Nothing said so.
+test("native steering refuses to interrupt a running task and says to stop it instead", async () => {
+  await assert.rejects(nativeSteering(() => []).interrupt(5), /stop it instead/);
+});

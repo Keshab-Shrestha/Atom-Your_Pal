@@ -43,8 +43,7 @@ Send a normal message. ATOM answers as it does in the window. Your chat in Teleg
 | `/tasks` | Lists tasks that run or wait to run. |
 | `/report 12` | Shows the report of task 12. |
 | `/steer 12 use the shorter plan` | Sends a message to task 12. |
-| `/interrupt 12` | Stops the current step of task 12. The task waits for your message. |
-| `/help` | Shows this list. |
+| `/help` or `/start` | Shows this list. |
 
 ## Buttons
 
@@ -69,11 +68,13 @@ ATOM also sends the result of a routine when the routine has "Send result to Tel
 
 Failed tasks are not sent by themselves. They show in `/needs`.
 
+A task that is running cannot be interrupted by step. Send `/steer` to give it a message, or stop it in the ATOM window.
+
 To stop the messages that ATOM sends by itself, turn off **Send to Telegram** in Settings → General. Answers to your own messages still come.
 
 ## When the network fails
 
-ATOM tries again. A message that fails to send is sent again after 1, 3 and 9 seconds. When Telegram asks ATOM to wait, ATOM waits. A new item that could not be sent is tried again every 30 seconds, six times at most. After that it waits in `/needs` and in the ATOM window.
+ATOM tries again. A message that fails to send is sent again after 1, 3 and 9 seconds. When Telegram asks ATOM to wait, ATOM waits. A new item that could not be sent is tried again every 30 seconds, six tries in all (the first one included). After that it waits in `/needs` and in the ATOM window.
 
 A message to ATOM that takes more than ten minutes to answer is dropped. ATOM tells you. Send it again.
 

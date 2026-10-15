@@ -17,6 +17,7 @@ const NEEDS_SHOWN = 10;
 const TASKS_SHOWN = 20;
 /** Store changes come in bursts: Needs you is looked at once they settle. */
 const SETTLE_MS = 1_000;
+const COMMAND = /^\/[A-Za-z_]+(?:@\w+)?(?:\s|$)/;
 /** One ATOM turn that has not answered after this long is given up on, so the next message is not stuck behind it (2026-10-16). */
 export const TURN_TIMEOUT_MS = 10 * 60_000;
 /** A Needs you push that failed (the network was down) is tried again after this long, up to PUSH_TRIES times. */
@@ -29,7 +30,6 @@ const HELP = [
   "/tasks: tasks that run or wait to run",
   "/report <number>: a task's report",
   "/steer <number> <text>: send a message to a task",
-  "/interrupt <number>: stop a task's current step",
   "/help: this list",
 ].join("\n");
 
@@ -197,7 +197,8 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     if (input.kind === "button") return press(input.data, input.queryId);
     const text = input.text.trim();
     if (!text) return void client.send("I read text only.");
-    if (text.startsWith("/")) return command(text);
+    // A command is "/word" (and "@botname"), then a space or the end. "/tmp/build.log is huge" is a message for ATOM, not an unknown command.
+    if (COMMAND.test(text)) return command(text);
     turns = turns.then(() => talk(text));
   }
 
@@ -312,19 +313,25 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
   // from the native engine: `send`.)
   let known = new Set(needsYou(store, approvals.pending()).map((n) => n.key));
   let timer: NodeJS.Timeout | undefined;
+  /** The retry of a failed push has its own timer: a store change used to merge it into the 1 s settle timer, so it ran at once and the tries ran out in minutes. */
+  let retryTimer: NodeJS.Timeout | undefined;
+  let stopped = false;
   // 2026-10-16 (code review): an item was marked as sent BEFORE it was sent, so a failed send (the network was down) was never tried again and
   // Keshab never learned that a plan or an approval waited. Now an item counts as sent only once Telegram has it. One that failed is tried
   // again after PUSH_RETRY_MS, up to PUSH_TRIES times; `sending` keeps two runs from sending the same item twice.
   const sending = new Set<string>();
   const failedTries = new Map<string, number>();
+  /** An item whose push failed is not tried again before this time, whatever else makes `check` run (a store change must not use up its tries). */
+  const notBefore = new Map<string, number>();
   const check = () => {
     timer = undefined;
+    if (stopped) return;
     const now = needsYou(store, approvals.pending());
-    const fresh = now.filter((n) => n.push && !known.has(n.key) && !sending.has(n.key));
+    const fresh = now.filter((n) => n.push && !known.has(n.key) && !sending.has(n.key) && (notBefore.get(n.key) ?? 0) <= Date.now());
     const live = new Set(now.map((n) => n.key));
     // What was sent or is not pushed stays known; what is gone from the list is forgotten; what is new waits for its send.
     known = new Set(now.filter((n) => known.has(n.key) || sending.has(n.key) || !fresh.includes(n) ).map((n) => n.key));
-    for (const key of failedTries.keys()) if (!live.has(key)) failedTries.delete(key);
+    for (const key of failedTries.keys()) if (!live.has(key)) (failedTries.delete(key), notBefore.delete(key));
     if (!push) {
       for (const item of fresh) known.add(item.key); // push is off: do not pile them up for when it is turned on
       return;
@@ -340,20 +347,30 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
         if (delivered) {
           known.add(item.key);
           failedTries.delete(item.key);
+          notBefore.delete(item.key);
           continue;
         }
         const tries = (failedTries.get(item.key) ?? 0) + 1;
         failedTries.set(item.key, tries);
+        notBefore.set(item.key, Date.now() + pushRetryMs);
         if (tries >= PUSH_TRIES) {
           known.add(item.key); // given up: it still waits in the ATOM window and in /needs
           log.warn("telegram.push_given_up", { kind: "needs" });
         } else retry = true;
       }
-      if (retry) timer ??= setTimeout(check, pushRetryMs);
+      if (retry && !stopped) {
+        retryTimer ??= setTimeout(() => {
+          retryTimer = undefined;
+          check();
+        }, pushRetryMs);
+        retryTimer.unref();
+      }
     })());
   };
   const soon = () => {
+    if (stopped) return;
     timer ??= setTimeout(check, SETTLE_MS);
+    timer.unref();
   };
   const stopAsks = approvals.onAsk(soon);
   const stopStore = store?.onChange((change) => {
@@ -372,7 +389,9 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
       push = on;
     },
     stop() {
+      stopped = true;
       if (timer) clearTimeout(timer);
+      if (retryTimer) clearTimeout(retryTimer);
       stopAsks();
       stopStore?.();
       client.stop();

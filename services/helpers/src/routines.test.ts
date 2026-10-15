@@ -72,3 +72,19 @@ test("ADR-110 N3: a webhook start makes no task and marks the run; a refused sta
   assert.deepEqual([after.lastAt?.getTime(), after.lastTaskId, Boolean(after.lastSkipped)], [clock.getTime(), undefined, false], "no last task");
   assert.throws(() => store.startRoutine(r.id, () => false), /last run has not ended/);
 });
+
+// 2026-10-16 (code check): "every night at 12" was saved as 12:00 noon and "every night at 1" as 13:00. At night, 12 is midnight and 1 to 5 are the small hours.
+test("a routine at night: 12 is midnight, 1 to 5 are the small hours, 6 to 11 are the evening", () => {
+  const at = (text: string) => (parseRoutine(text)?.schedule as { minute: number } | undefined)?.minute;
+  assert.equal(at("every night at 12, back up the notes"), 0, "midnight");
+  assert.equal(at("every night at 1, back up the notes"), 60, "1 AM");
+  assert.equal(at("every night at 5:30, back up the notes"), 5 * 60 + 30);
+  assert.equal(at("every night at 9:30, back up the notes"), 21 * 60 + 30);
+  assert.equal(at("every night at 11, back up the notes"), 23 * 60);
+  assert.equal(at("every night at 12 pm, back up the notes"), 12 * 60, "explicit pm is noon");
+  assert.equal(at("every night at 12 am, back up the notes"), 0);
+  assert.equal(at("every evening at 7, read the news"), 19 * 60);
+  assert.equal(at("every afternoon at 3, read the news"), 15 * 60);
+  assert.equal(at("every afternoon at 12, read the news"), 12 * 60, "afternoon at 12 is noon");
+  assert.equal(at("every morning at 7, read the news"), 7 * 60);
+});
