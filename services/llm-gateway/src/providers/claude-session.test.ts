@@ -111,7 +111,8 @@ test("options: no ANTHROPIC_* or other keys, no settings, strict MCP, permission
   const { sdk, queries } = fakeSdk();
   const s = await openChatSession(options(sdk, { resume: "old-sess", cwd: "/p" }));
   const o = queries[0]!.options;
-  assert.ok(!Object.keys(o.env).some((k) => /^(ANTHROPIC_|OPENAI_)/.test(k)), "no API keys reach Claude Code");
+  assert.ok(!Object.keys(o.env).some((k) => /^(ANTHROPIC_|OPENAI_)/.test(k) && k !== "ANTHROPIC_DEFAULT_HAIKU_MODEL"), "no API keys reach Claude Code");
+  assert.equal(o.env.ANTHROPIC_DEFAULT_HAIKU_MODEL, "claude-haiku-5-5", "its own small-model calls use Haiku 5.5, not 4.5");
   assert.equal(o.env.PATH, "/bin");
   for (const [k, v] of Object.entries({ ENABLE_TOOL_SEARCH: "force", ENABLE_PROMPT_CACHING_1H: "1", CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL: "5m", CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1", CLAUDE_CODE_DISABLE_EXPLORE_PLAN_AGENTS: "1", CLAUDE_CODE_DISABLE_CRON: "1" })) {
     assert.equal(o.env[k], v, k);

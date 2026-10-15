@@ -52,6 +52,9 @@ export const SESSION_ENV: Record<string, string> = {
   ENABLE_TOOL_SEARCH: "force",
   ENABLE_PROMPT_CACHING_1H: "1",
   CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL: "5m",
+  // 2026-10-15: Claude Code's own small-model calls (it reads a fetched web page with one) used Haiku 4.5, 10 times the price of
+  // Haiku 5.5 per token ($1 against $0.10 per million input). A model name, not a key.
+  ANTHROPIC_DEFAULT_HAIKU_MODEL: "claude-haiku-5-5",
   CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1",
   CLAUDE_CODE_DISABLE_EXPLORE_PLAN_AGENTS: "1",
   CLAUDE_CODE_DISABLE_CRON: "1",

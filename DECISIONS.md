@@ -2630,6 +2630,12 @@ The Core owns the conversation. The transcript (`turns`) is saved with the chat 
 
 The chat's model menu moved from the top bar to the composer, in a row with the paperclip and the Skills menu. A model chosen there changes only that chat (ADR-097).
 
+### Addendum, 2026-10-15: Claude Code's own small calls
+
+Before this change, each Sid run that fetched a page left one `claude-haiku-4-5` row in the chat's usage (Haiku 4.5 costs 10 times Haiku 5.5 per token). `SESSION_ENV` now sets `ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-haiku-5-5`. The test still blocks every API-key variable. First live run after the change (3 searches, 1 fetch): no Haiku 4.5 row. The gap between reported and priced dollars stays ($0.083 against $0.025), because Claude Code's own calls are not itemised.
+
+Cold starts need no change. Since the 1-hour cache, 3 of 14 Opus chat turns started cold, each after at least 2.5 hours idle or an app restart. A keep-alive ping costs more than it saves.
+
 ### Left out on purpose
 
 Word and Excel files (a model cannot read them without a converter), attachments in Telegram, and a skill that runs on its own without the user or the model asking for it.
