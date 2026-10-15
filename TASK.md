@@ -1629,6 +1629,10 @@ Four read-only reviewers (runtime/island, helpers/gateway, security, Swift) foun
 - **A task the user stopped still gets its cleanup.** `end()` in `native-board.ts` returned early when the row was no longer "running", so the browser lock, checkpoints and worktree commit never ran. The row stays as the user set it, and `onEnd` runs once. Failed Board writes are logged (`board.write_failed`).
 - **The Computer control switch cannot stay stuck.** It cleared only on `ready`. It now also clears when the runtime fails or its configuration is invalid, and after 45 s (`ComputerRestart`).
 
+- **Approval gaps in computer control.** Return skipped its card after typing in any field, so "type, then Return" sent a message from a compose box. Now it skips only after typing in a search or address field (`isSearchField`). Text with a line break asks before it is typed. Key aliases (`command`, `alt`, `esc`, `kp_enter`) are normalised to the names the rules use. Static text, images and headings ask when their label is risky (a page can make them clickable). The risky-word list gained allow, accept, agree, authorize, approve, grant, unlock, yes, continue, sign in, log in. Tests: `policy.test.ts`, `tool.test.ts`.
+- **Folder agents no longer open secrets.** `folderCheck` had no secret check (only the project chat had one). It now refuses `.env` files, keys, `data/api-token` and ATOM's databases (`isSecretLike` knows `data/helpers.db` and `data/memory.db`) for read and write. Test in `folder-run.test.ts`.
+- **Private files.** The data folder is mode 0700. `helpers.db`, `memory.db` (with their WAL files) and the log are 0600 (`private-files.ts`, called at startup).
+- Open from the review: soul `##` truncation, the Swift items (recorder, model reload, dropped commands), the sandbox git config escape, token scopes, and the delete candidates (Keshab decides).
 ## Regenerate the Local API token (2026-10-15)
 
 Keshab pasted the token in chat three times and found no way to replace it ("i dont see regenerate option").

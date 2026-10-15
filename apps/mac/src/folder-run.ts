@@ -18,6 +18,8 @@ export interface FolderCheckOptions {
   /** The worker's name, for the approval card. */
   name: string;
   approve(request: { summary: string; reason: string }): Promise<boolean>;
+  /** Keshab's home folder, for the secret-folder check. Default: the real home. */
+  home?: string;
   /** For the log: the tool and the verdict, never paths or command text. */
   onCheck?(event: { tool: string; verdict: "allowed" | "refused" | "asked" | "declined" }): void;
   /**
@@ -33,6 +35,7 @@ const oneLine = (s: string, max: number) => (s.replace(/\s+/g, " ").trim().lengt
 /** The `check` a file run's tool calls go through: why a call is refused, or undefined to allow it. */
 export function folderCheck(options: FolderCheckOptions) {
   const roots = options.roots.map((r) => realish(r));
+  const home = options.home ?? homedir();
   const say = (tool: string, verdict: "allowed" | "refused" | "asked" | "declined") => options.onCheck?.({ tool, verdict });
   return async (name: string, input: Record<string, unknown>): Promise<string | undefined> => {
     if (name === "Bash") {
@@ -50,6 +53,10 @@ export function folderCheck(options: FolderCheckOptions) {
     for (const p of paths) {
       const problem = pathProblem(roots, options.cwd, p, WRITE_TOOLS.includes(name));
       if (problem) return say(name, "refused"), problem;
+      // 2026-10-15 (security review): only the main thread's project check refused secret files. A granted folder that holds ATOM's
+      // own data (or any .env or key) let a folders agent read the API token and the databases, or write over the token.
+      const target = realish(isAbsolute(p) ? p : resolve(options.cwd, p));
+      if (isSecretLike(target, home) || isSecretLike(resolve(options.cwd, p), home)) return say(name, "refused"), "Secret files and key folders are never opened by an agent.";
     }
     if (options.before && WRITE_TOOLS.includes(name)) {
       try {

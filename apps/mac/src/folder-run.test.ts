@@ -291,3 +291,23 @@ test("a folder question answered late (inside 10 minutes) is allowed; stopping t
     rmSync(home, { recursive: true, force: true });
   }
 });
+
+// 2026-10-15 (security review): a folders agent had no secret-file check (only the project chat had), so a granted folder that held
+// ATOM's own data or a .env let it read the API token and the databases, or write over the token.
+test("a folders agent never opens .env files, keys, the API token or ATOM's databases, even inside its granted folder", async () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-secret-")));
+  try {
+    mkdirSync(join(root, "data"));
+    const check = folderCheck({ roots: [root], cwd: root, name: "Kame", home: "/Users/nobody", approve: async () => true });
+    for (const [tool, file] of [
+      ["Read", ".env"], ["Read", ".env.local"], ["Read", "data/api-token"], ["Read", "data/helpers.db"], ["Grep", "data/memory.db-wal"],
+      ["Write", "data/api-token"], ["Edit", "keys/server.pem"], ["Read", "id_rsa"],
+    ] as const) {
+      assert.match((await check(tool, { file_path: join(root, file), path: join(root, file) }))!, /Secret files and key folders/, `${tool} ${file}`);
+    }
+    assert.equal(await check("Read", { file_path: join(root, "src", "a.ts") }), undefined, "an ordinary file is fine");
+    assert.equal(await check("Write", { file_path: join(root, "data", "notes.md") }), undefined, "other files in data/ are fine");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
