@@ -71,11 +71,13 @@ export function boardRecorder(
       // the log is a help
     }
   };
-  const safe = (f: () => void) => {
+  const safe = (f: () => void, fields: Record<string, unknown> = {}) => {
     try {
       f();
-    } catch {
-      // a Board row is a help, never a reason to break the session (a job Keshab deleted, a finished one)
+    } catch (error) {
+      // A Board row is a help, never a reason to break the session (a job Keshab deleted, a finished one). It is logged now
+      // (2026-10-15): a failed finish() left a job "running" until the next start with no trace.
+      log("board.write_failed", { ...fields, message: error instanceof Error ? error.message.slice(0, 120) : "unknown" });
     }
   };
   const helperOf = (job: number) => helpers.get(job)?.helper;
@@ -98,20 +100,25 @@ export function boardRecorder(
 
   const end = (job: number, outcome: { report?: string; failed?: string; stopped?: boolean }) => {
     if (ended.has(job)) return;
-    const row = helpers.get(job);
-    if (!row || row.state !== "running") return void ended.add(job);
     ended.add(job);
+    const row = helpers.get(job);
     const description = [...byCall.values()].find((c) => c.job === job)?.description ?? "";
     // Unlinked first: a stop written below must not try to stop the ended task again.
     const task = taskOfJob.get(job);
     if (task) jobOfTask.delete(task);
     taskOfJob.delete(job);
-    safe(() => {
-      if (outcome.stopped) helpers.stop(job);
-      else if (outcome.failed !== undefined) helpers.fail(job, redact(outcome.failed) || "The agent stopped with an error.");
-      else helpers.finish(job, reportFrom(redact(outcome.report ?? ""), description, roleOf(job)));
-    });
-    log("agent.end", { job, state: outcome.stopped ? "stopped" : outcome.failed !== undefined ? "failed" : "done" });
+    if (row?.state === "running") {
+      safe(() => {
+        if (outcome.stopped) helpers.stop(job);
+        else if (outcome.failed !== undefined) helpers.fail(job, redact(outcome.failed) || "The agent stopped with an error.");
+        else helpers.finish(job, reportFrom(redact(outcome.report ?? ""), description, roleOf(job)));
+      }, { job });
+      log("agent.end", { job, state: outcome.stopped ? "stopped" : outcome.failed !== undefined ? "failed" : "done" });
+    } else {
+      // 2026-10-15: the row was changed first (Keshab pressed Stop) or deleted. The row stays as it is, but the cleanup below
+      // (browser lock, checkpoints, the worktree commit) must still run: it used to be skipped.
+      log("agent.end", { job, state: row?.state ?? "gone", already: true });
+    }
     timelines.delete(job);
     void Promise.resolve()
       .then(() => options.onEnd?.(job))

@@ -135,3 +135,41 @@ test("token usage: blocks of one assistant message (same id) are counted once", 
   assert.equal(today.output, 14);
   store.close();
 });
+
+// 2026-10-15 (code review): Stop in the window set the row to "stopped" first, so the end notice found a row that was not "running" and
+// returned before onEnd. The browser lock, the checkpoints and the worktree commit (agentEnded) never ran for a stopped task.
+test("a task the user already stopped still gets its cleanup (onEnd) when the agent's end notice arrives, once", async () => {
+  const store = openHelperStore({ path: ":memory:" });
+  const ended: number[] = [];
+  const board = boardRecorder(store, "chat-1", { onEnd: (job) => void ended.push(job) });
+  const job = store.addNativeJob("sid", "Write the report", { chatId: "chat-1" });
+  board.opened("toolu_1", job.id, "Report");
+  board.onEvent({ type: "system", subtype: "task_started", task_id: "agent-7", tool_use_id: "toolu_1", subagent_type: "sid", description: "Report" });
+  store.stop(job.id); // the user pressed Stop: the row changes first
+  assert.equal(store.get(job.id)!.state, "stopped");
+  board.onEvent({ type: "system", subtype: "task_notification", task_id: "agent-7", status: "stopped", summary: "", output_file: "" });
+  await sleep(5);
+  assert.deepEqual(ended, [job.id], "cleanup ran");
+  assert.equal(store.get(job.id)!.state, "stopped", "the row is left as the user set it");
+  board.onEvent({ type: "system", subtype: "task_notification", task_id: "agent-7", status: "stopped", summary: "", output_file: "" });
+  await sleep(5);
+  assert.deepEqual(ended, [job.id], "not twice");
+  store.close();
+});
+
+test("a Board write that fails is logged, not swallowed", () => {
+  const store = openHelperStore({ path: ":memory:" });
+  const lines: string[] = [];
+  const board = boardRecorder(store, "chat-1", { log: (event) => void lines.push(event) });
+  const job = store.addNativeJob("sid", "Write the report", { chatId: "chat-1" });
+  board.opened("toolu_1", job.id, "Report");
+  board.onEvent({ type: "system", subtype: "task_started", task_id: "agent-7", tool_use_id: "toolu_1", subagent_type: "sid", description: "Report" });
+  const finish = store.finish.bind(store);
+  (store as { finish: unknown }).finish = () => {
+    throw new Error("database is locked");
+  };
+  board.onEvent({ type: "system", subtype: "task_notification", task_id: "agent-7", status: "completed", summary: "done", output_file: "" });
+  (store as { finish: unknown }).finish = finish;
+  assert.ok(lines.includes("board.write_failed"), `logged: ${lines.join(",")}`);
+  store.close();
+});
