@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { appBlock, isSearchField, keyApproval, labelApproval, secretField, typeApproval } from "./policy.ts";
+import { appBlock, isSearchField, keyApproval, labelApproval, normalizeLabel, secretField, typeApproval } from "./policy.ts";
 
 test("never controls terminals, password managers, system settings, or agents", () => {
   const blocked: Array<[string, string]> = [
@@ -125,8 +125,8 @@ test("a search or address field is told apart from a compose box, and a line bre
 // 2026-10-16 (review): isSearchField matched a word ANYWHERE in the label, so "Email address", "Shipping address" or "Message #search-help"
 // let Return send with no card. It now matches only a label that starts with the word.
 test("Return after typing is free only in a field whose label starts with search, find, filter, address, url, location or go to", () => {
-  for (const label of ["Search", "Search Google or type a URL", "Find in page", "Filter", "Address and search bar", "URL", "Location", "Go to"]) assert.equal(isSearchField(label, "AXTextField"), true, label);
-  for (const label of ["Email address", "Shipping address", "Message #search-help", "Reply to find-a-friend", "Compose", "Message", "Subject", "Home location notes"]) assert.equal(isSearchField(label, "AXTextField"), false, label);
+  for (const label of ["Search", "Search Google or type a URL", "Address and search bar", "URL"]) assert.equal(isSearchField(label, "AXTextField"), true, label);
+  for (const label of ["Email address", "Shipping address", "Message #search-help", "Reply to find-a-friend", "Compose", "Message", "Subject", "Home location notes", "Find in page", "Filter", "Location", "Go to"]) assert.equal(isSearchField(label, "AXTextField"), false, label);
 });
 
 // 2026-10-16 (review): the words added for consent buttons made "Continue reading", "Yes, I'm interested" and "Grant Smith" ask when they were
@@ -138,3 +138,48 @@ test("static text, images and headings ask only for strong action words; buttons
   }
   for (const label of ["Continue", "Allow", "Yes", "Grant access"]) assert.ok(labelApproval(label, "AXButton"), `button ${label}`);
 });
+
+// 2026-10-16 (code check, third review pass).
+test("the Space key activates the focused button, so it asks like Return; Spotlight (cmd+space) still says so", () => {
+  assert.ok(keyApproval(["space"], false), "plain space");
+  assert.ok(keyApproval([" "], false), "a space written as the character");
+  assert.match(keyApproval(["cmd", "space"], false) ?? "", /Spotlight/);
+  assert.equal(keyApproval(["space"], true), undefined, "straight after typing in a search field, like Return");
+});
+
+test("only a search or address box frees Return: 'Address line 1', 'Location', 'Filter by' and 'Find' do not", () => {
+  for (const label of ["Search", "Search or enter address", "Address and search bar", "Smart Search field", "Address bar", "URL"]) assert.equal(isSearchField(label, "AXTextField"), true, label);
+  for (const label of ["Address line 1", "Shipping address", "Location", "Filter by tag", "Find a friend", "Go to checkout", "Message"]) assert.equal(isSearchField(label, "AXTextField"), false, label);
+  assert.equal(isSearchField("anything", "AXSearchField"), true, "the search role");
+});
+
+test("labels are read after normalisation: fullwidth, zero-width, camelCase and underscores no longer hide a risky word", () => {
+  assert.equal(normalizeLabel("Ｓｅｎｄ"), "Send");
+  assert.equal(normalizeLabel("Se\u200bnd"), "Send");
+  assert.equal(normalizeLabel("SendEmail"), "Send Email");
+  assert.equal(normalizeLabel("Send_now"), "Send now");
+  for (const label of ["Ｓｅｎｄ", "Se\u200bnd", "SendEmail", "Send_now", "ＤＥＬＥＴＥ account"]) assert.ok(labelApproval(label, "AXButton"), label);
+});
+
+test("buttons that confirm a dialog or hand something over ask: OK, Reply, Forward, Sign up, Register, Upload, Overwrite, Discard", () => {
+  for (const label of ["OK", "Reply", "Forward", "Sign up", "Register", "Upload", "Overwrite", "Discard", "Book now", "Reserve"]) assert.ok(labelApproval(label, "AXButton"), label);
+  assert.equal(labelApproval("Okay then, tell me more", "AXStaticText"), undefined, "plain text still asks only for strong words");
+  assert.equal(labelApproval("Bold", "AXButton"), undefined);
+  for (const label of ["Save", "Done", "Open", "Cancel", "Next"]) assert.equal(labelApproval(label, "AXButton"), undefined, `${label} stays harmless`);
+});
+
+test("scripting, automation and editor apps with a terminal are never controlled", () => {
+  for (const [id, name] of [["com.apple.ScriptEditor2", "Script Editor"], ["com.apple.Automator", "Automator"], ["com.apple.shortcuts", "Shortcuts"], ["com.raycast.macos", "Raycast"], ["com.runningwithcrayons.Alfred", "Alfred"], ["com.microsoft.VSCode", "Code"], ["com.apple.dt.Xcode", "Xcode"], ["com.apple.Console", "Console"], ["com.github.wez.wezterm", "WezTerm"]] as const) {
+    assert.match(appBlock(id, name) ?? "", /never control/, name);
+  }
+  assert.equal(appBlock("com.apple.TextEdit", "TextEdit"), undefined);
+  assert.equal(appBlock("com.apple.Safari", "Safari"), undefined, "ordinary apps stay allowed");
+});
+
+test("more secret field names are refused for typing: plural passwords, API and private keys, credit card, SSN, account number", () => {
+  for (const label of ["Passwords", "API key", "Api-Key", "Access key", "Private key", "Credit card", "Card no.", "SSN", "Social security number", "Account number", "IBAN", "Routing number"]) {
+    assert.ok(secretField({ role: "AXTextField", label }), label);
+  }
+  assert.equal(secretField({ role: "AXTextField", label: "Search" }), undefined);
+});
+

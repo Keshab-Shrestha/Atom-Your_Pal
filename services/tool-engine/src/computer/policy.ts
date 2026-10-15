@@ -25,6 +25,18 @@ const BLOCKED_BUNDLES = [
   /^com\.zeno\./i, // the island under its old name
   /^dev\.zeno\./i, // ADR-105: the bundle id ZENO moves to
   /^dev\.atom\./i, // ATOM's own island
+  // 2026-10-16 (code check): apps that run scripts or shell commands (or hold an integrated terminal), so a click on "Run" would be code on the Mac.
+  /^com\.apple\.scripteditor/i,
+  /^com\.apple\.automator$/i,
+  /^com\.apple\.shortcuts/i,
+  /^com\.apple\.console$/i,
+  /^com\.apple\.dt\.xcode$/i,
+  /^com\.microsoft\.vscode/i,
+  /^com\.todesktop\./i, // Cursor and other Electron editors built with ToDesktop
+  /^com\.raycast\./i,
+  /^com\.runningwithcrayons\.alfred/i,
+  /^com\.github\.wez\.wezterm$/i,
+  /^co\.zeit\.hyper$/i,
 ];
 
 /** Why an app is off limits, or undefined if ATOM may control it. An app with no bundle id is not trusted. */
@@ -38,7 +50,7 @@ export function appBlock(bundleId: string | undefined, name: string): string | u
 const STRONG_LABEL =
   /\b(send|submit|buy|purchase|pay|place\s+order|checkout|check\s+out|order|confirm|delete|remove|erase|trash|empty|sign\s*out|log\s*out|publish|post|share|transfer|donate|subscribe|unsubscribe|quit|force\s+quit|shut\s*down|restart|reset|install|uninstall|format|deactivate|close\s+account|apply)\b/i;
 /** Consent and sign-in words: a button says these, but text that merely contains them ("Continue reading", "Grant Smith") does not act. */
-const CONSENT_LABEL = /\b(allow|accept|agree|authorize|approve|grant|unlock|yes|continue|sign\s*in|log\s*in)\b/i;
+const CONSENT_LABEL = /\b(allow|accept|agree|authorize|approve|grant|unlock|yes|continue|sign\s*in|log\s*in|ok|okay|reply|forward|sign\s*up|register|upload|overwrite|discard|replace|book|reserve)\b/i;
 const RISKY_LABEL = { test: (text: string) => STRONG_LABEL.test(text) || CONSENT_LABEL.test(text) };
 
 /**
@@ -54,8 +66,23 @@ const PLAIN_ROLES = new Set(["AXStaticText", "AXImage", "AXHeading"]);
  * Why a click on this element needs the user's approval, or undefined. Only the label of something that can do
  * an action counts: a text area's "label" is the document itself. Unlabeled buttons are unknown, so they ask.
  */
+/**
+ * A label as the rules read it (code check, 2026-10-16): Unicode compatibility form (fullwidth "Ｓｅｎｄ" becomes "Send"), no zero-width or
+ * format characters inside a word, underscores and camelCase read as word breaks ("SendEmail", "Send_now"). A page chooses its own labels.
+ * Not covered: look-alike letters from another script (a Cyrillic "Р" in "Рay"); that needs a confusables table.
+ */
+export function normalizeLabel(label: string): string {
+  return label
+    .normalize("NFKC")
+    .replace(/[\u00ad\u200b-\u200f\u2060-\u2064\ufeff]/g, "")
+    .replace(/_+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function labelApproval(label: string | undefined, role: string | undefined): string | undefined {
-  const text = (label ?? "").trim();
+  const text = normalizeLabel(label ?? "");
   if (role && CONTENT_ROLES.has(role)) return undefined;
   if (!text) {
     return role === "AXButton" || role === "AXMenuItem" || role === "AXMenuButton" || role === "AXPopUpButton"
@@ -73,6 +100,7 @@ const KEY_ALIASES: Readonly<Record<string, string>> = {
 };
 const canonicalKey = (key: string): string => {
   const k = key.trim().toLowerCase();
+  if (!k && key.length > 0) return "space"; // the space character itself, which trimming turned into nothing
   return KEY_ALIASES[k] ?? k;
 };
 
@@ -81,7 +109,9 @@ const canonicalKey = (key: string): string => {
  * (it used to follow any typing, so "type, then Return" sent a message in a compose box).
  */
 export function isSearchField(label: string | undefined, role: string | undefined): boolean {
-  return /search/i.test(role ?? "") || /^\s*(search|find|filter|address|url|location|go\s+to|spotlight)\b/i.test(label ?? "");
+  // Only the search role, or a label that starts like a browser's address and search box. "Address line 1", "Location", "Filter by..." and "Find a
+  // friend" are ordinary fields (a page chooses its labels, so this stays narrow; code check, 2026-10-16).
+  return /search/i.test(role ?? "") || /^\s*(search\b|smart search|address and search|address bar|url\b|enter url)/i.test(normalizeLabel(label ?? ""));
 }
 
 /** Why typing this text needs approval, or undefined. A line break inside typed text presses Return. */
@@ -90,7 +120,7 @@ export function typeApproval(text: string): string | undefined {
 }
 
 const DELETE_KEYS = new Set(["delete", "backspace", "forwarddelete", "del"]);
-const SENDING_KEYS = new Set(["return", "enter"]);
+const SENDING_KEYS = new Set(["return", "enter", "space", " ", "spacebar"]); // Space presses the focused button or checkbox
 
 /**
  * Why a key press needs approval, or undefined. Return can send or confirm, so it asks, except straight after
@@ -102,6 +132,7 @@ export function keyApproval(keys: string[], justTyped: boolean): string | undefi
   const mods = lower.slice(0, -1).filter((k) => k !== "shift");
   const hasMod = mods.length > 0;
   if (DELETE_KEYS.has(key)) return "the Delete key";
+  if (key === "space" && lower.includes("cmd")) return "Spotlight";
   if (SENDING_KEYS.has(key)) return justTyped && !hasMod ? undefined : hasMod ? `${lower.join("+")}, which can send or confirm` : "the Return key, which can send or confirm";
   if (key === "q" && lower.includes("cmd")) return "Quit";
   if (key === "space" && lower.includes("cmd")) return "Spotlight";
@@ -109,11 +140,12 @@ export function keyApproval(keys: string[], justTyped: boolean): string | undefi
   return undefined;
 }
 
-const SECRET_LABEL = /\b(password|passcode|pass\s*phrase|pin|otp|one[-\s]*time|verification\s+code|security\s+code|cvv|cvc|card\s+number|secret|token|recovery\s+key)\b/i;
+const SECRET_LABEL =
+  /\b(passwords?|passcode|pass\s*phrase|pin|otp|one[-\s]*time|verification\s+code|security\s+code|cvv|cvc|card\s+(number|no\b)|credit\s+card|secret|token|recovery\s+key|api[-\s]*keys?|access\s+keys?|private\s+keys?|ssn|social\s+security|account\s+number|iban|routing\s+number)\b/i;
 
 /** Why ATOM must not type into this element, or undefined. */
 export function secretField(el: { role?: string; label?: string }): string | undefined {
   if (el.role === "AXSecureTextField") return "a password field";
-  if (el.label && SECRET_LABEL.test(el.label)) return `a field named "${el.label}"`;
+  if (el.label && SECRET_LABEL.test(normalizeLabel(el.label))) return `a field named "${el.label}"`;
   return undefined;
 }

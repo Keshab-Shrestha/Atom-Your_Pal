@@ -146,7 +146,8 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     const shown = elements.slice(0, maxElements).map((e) => {
       const bits = [`[${e.element_index}] ${e.role ?? "?"}`];
       if (e.label) bits.push(`"${e.label.slice(0, 80)}"`);
-      if (e.value && e.role !== "AXSecureTextField") bits.push(`value=${JSON.stringify(e.value.slice(0, 80))}`);
+      // A field named like a secret (card number, API key...) is not shown with its value either: type and set_value refuse the same names.
+      if (e.value && e.role !== "AXSecureTextField" && !secretField(e)) bits.push(`value=${JSON.stringify(e.value.slice(0, 80))}`);
       if (e.enabled === false) bits.push("(disabled)");
       return bits.join(" ");
     });

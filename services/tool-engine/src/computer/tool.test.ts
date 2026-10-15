@@ -683,3 +683,26 @@ test("look still reads a real window next to the thin ones", async () => {
   assert.equal(r.ok, true, r.text);
   assert.equal(s.calls.find((c) => c.name === "get_window_state")?.args.window_id, 7);
 });
+
+// 2026-10-16 (code check): look printed every field's value except a secure text field's, so a field labelled "Card number" or "API key" showed its
+// value to the model and the log, while type and set_value refuse the same names.
+test("look does not show the value of a field named like a secret", async () => {
+  const s = setup({
+    handlers: {
+      get_window_state: (args) =>
+        ok("state", {
+          pid: args.pid, window_id: args.window_id, app_name: "TextEdit", window_title: "x", snapshot_id: "s1",
+          elements: [
+            { element_index: 0, element_token: "t0", role: "AXTextField", label: "Card number", value: "4111111111111111" },
+            { element_index: 1, element_token: "t1", role: "AXTextField", label: "API key", value: "sk-secret-value" },
+            { element_index: 2, element_token: "t2", role: "AXTextField", label: "Name", value: "Keshab" },
+          ],
+        }),
+    },
+  });
+  const r = await sees(s);
+  assert.equal(r.ok, true, r.text);
+  assert.ok(!r.text.includes("4111111111111111") && !r.text.includes("sk-secret-value"), "secret values are hidden");
+  assert.ok(r.text.includes("Keshab"), "an ordinary field's value still shows");
+  assert.ok(r.text.includes("Card number"), "the label still shows");
+});
