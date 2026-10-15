@@ -1620,6 +1620,14 @@ Next: Keshab builds the app on the Mac, attaches a PDF and an image, switches a 
 
 Next: Keshab uses the window for a week, and names the features he never opens.
 
+## Chat top bar and top space (2026-10-15)
+
+Keshab: "on each chat .. lets not have newchat sounds toggle and delete" and "make sure there is a little gap on top" on the right side.
+
+- The chat's top bar no longer has New chat, Sounds or Delete. Each already has a place: New chat is the icon beside "Chats" in the sidebar, Delete is the trash on a chat's row there (on hover and for the open chat, it asks first), and the sounds are in Settings → Sounds (all five switches). The code for the Sounds menu and the top-bar delete button is removed. The project chip stays.
+- Every page's top bar (back arrow, icon, page name) now has 36 pt above it (`HelpersView.topBarGap`), so it sits level with the app name in the sidebar and not beside the window's buttons. The gap is part of the bar, so it still moves the window and a double click still zooms it.
+- Goldens updated (the pages moved down by the gap).
+
 ## UI playground, second batch (2026-10-15)
 
 Keshab's list after trying the first batch. One capability at a time; each is its own commit.

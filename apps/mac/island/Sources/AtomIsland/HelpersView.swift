@@ -11,6 +11,8 @@ struct HelpersView: View {
 
     /// Room at the top of the sidebar for the window's buttons (the title bar is transparent over the content).
     static let titleBarRoom: CGFloat = 40
+    /// Space above the top bar of the main pane (2026-10-15): the bar's content sits level with the app name in the sidebar.
+    static let topBarGap: CGFloat = 36
 
     var body: some View {
         let palette = model.settings.theme.palette
@@ -28,16 +30,9 @@ struct HelpersView: View {
                 ? { withAnimation(Motion.settle(reduceMotion)) { model.settingsPage = nil } } : nil
             WindowTopBar(title: page.title, symbol: page.symbol, back: settingsBack ?? (model.history.canGoBack && !ownBack ? { model.goBack() } : nil)) {
                 if model.windowPage == .chat {
-                    // New chat was only a small icon far down the sidebar; it belongs where the chat is.
-                    PillButton(title: "New chat", symbol: "square.and.pencil") {
-                        model.navigate {
-                            model.newConversation()
-                            model.windowPage = .chat
-                        }
-                    }
+                    // 2026-10-15: New chat, Sounds and Delete are not here. New chat is the icon beside "Chats" in the
+                    // sidebar, Delete is on a chat's row there, and the sounds are in Settings → Sounds.
                     if let project = model.chats?.currentProject { ProjectChip(project: project) } // ADR-107
-                    ChatSoundsMenu(model: model)
-                    DeleteChatButton(model: model)
                 }
             }
             Group {
@@ -121,24 +116,6 @@ extension HelpersView {
             return (helper.roleTitle.isEmpty ? helper.name : "\(helper.name) · \(helper.roleTitle)", "person.crop.circle")
         }
         return ("ATOM", "sparkles")
-    }
-}
-
-/// Deletes the chat that is open, after asking. Only a saved chat can be deleted.
-private struct DeleteChatButton: View {
-    let model: IslandModel
-    @State private var confirming = false
-
-    var body: some View {
-        if let list = model.chats, let chat = list.chats.first(where: { $0.id == list.current }) {
-            IconButton(symbol: "trash", label: "Delete this chat") { confirming = true }
-                .confirmationDialog("Delete “\(chat.title)”?", isPresented: $confirming, titleVisibility: .visible) {
-                    Button("Delete chat", role: .destructive) { model.send(.chatDelete(id: chat.id)) }
-                    Button("Cancel", role: .cancel) {}
-                } message: {
-                    Text("The chat and its messages are removed for good.")
-                }
-        }
     }
 }
 

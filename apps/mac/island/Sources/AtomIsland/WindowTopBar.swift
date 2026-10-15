@@ -3,7 +3,7 @@ import SwiftUI
 import AtomIslandCore
 
 /// ADR-091: the bar along the top of the window's main pane: the page's name, a hairline under it, and room for the
-/// page's own controls (the chat's sounds). It moves the window like a title bar, and a double click zooms it.
+/// page's own controls. It moves the window like a title bar, and a double click zooms it.
 struct WindowTopBar<Trailing: View>: View {
     let title: String
     let symbol: String
@@ -31,6 +31,9 @@ struct WindowTopBar<Trailing: View>: View {
         }
         .padding(.horizontal, 18)
         .frame(height: HelpersView.titleBarRoom)
+        // 2026-10-15: room above the bar, so the back arrow and the page's name sit level with the app name in the
+        // sidebar and not up beside the window's buttons. It is part of the bar: it still moves the window.
+        .padding(.top, HelpersView.topBarGap)
         // Snapshots cannot draw an AppKit view; the window can.
         .background { if !snapshot { WindowDragArea() } }
         .overlay(alignment: .bottom) {
@@ -58,35 +61,6 @@ struct WindowDragArea: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSView { DragView() }
     func updateNSView(_ nsView: NSView, context: Context) {}
-}
-
-/// ADR-091: the chat's sounds: reports and updates said aloud, and the start and stop sounds. Off, they only show.
-struct ChatSoundsMenu: View {
-    let model: IslandModel
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        let settings = model.settings
-        let quiet = !settings.speakReports && !settings.speakUpdates
-        Menu {
-            Toggle("Speak the team's reports", isOn: Binding(get: { settings.speakReports }, set: { settings.speakReports = $0; push() }))
-            Toggle("Speak timers and updates", isOn: Binding(get: { settings.speakUpdates }, set: { settings.speakUpdates = $0; push() }))
-            Divider()
-            Toggle("Chime before speaking", isOn: Binding(get: { settings.speechChime }, set: { settings.speechChime = $0; push() }))
-            Divider()
-            Toggle("Start and stop sounds", isOn: Binding(get: { settings.soundsEnabled }, set: { settings.soundsEnabled = $0 }))
-            Toggle("Notification sounds", isOn: Binding(get: { settings.notificationSounds }, set: { settings.notificationSounds = $0 }))
-            Divider()
-            Button("Sound settings…") { model.navigate { model.openSoundSettings() } }
-        } label: {
-            PillMenuLabel(label: "Sounds", value: quiet ? "Quiet" : settings.speakReports && settings.speakUpdates ? "On" : "Some", dimmed: quiet, identifier: false)
-        }
-        .menuStyle(.button).buttonStyle(.plain).fixedSize()
-        .help("What ATOM says aloud while you chat")
-        .accessibilityLabel("Sounds")
-    }
-
-    private func push() { model.sendSpeech() }
 }
 
 /// ADR-097: the chat's own model. Picking one applies to this chat only; "Default" follows Settings → Model.
