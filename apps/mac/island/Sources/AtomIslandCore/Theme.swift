@@ -18,6 +18,8 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
     case luminous
     /// Warm off-white paper glass, ink text, a coral accent and mint for live states.
     case warm
+    /// Void's flat, hairline look on a light canvas, one indigo accent. From Keshab's UI playground (2026-10-15).
+    case daylight = 6
 
     public var id: Int { rawValue }
     public var title: String {
@@ -28,6 +30,7 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
         case .native: "Quiet Native"
         case .luminous: "Luminous"
         case .warm: "Warm"
+        case .daylight: "Daylight"
         }
     }
     public var detail: String {
@@ -38,6 +41,7 @@ public enum AppTheme: Int, SettingsChoice, Identifiable {
         case .native: "Dark glass with one teal accent, like a built-in Mac app"
         case .luminous: "Near-black glass with a cyan-to-violet glow"
         case .warm: "Light paper glass with a coral accent"
+        case .daylight: "Flat light with hairlines and one indigo accent"
         }
     }
     public var palette: ThemePalette { ThemePalette.for(self) }
@@ -159,8 +163,27 @@ public struct ThemePalette: Sendable, Equatable {
         case .native: native
         case .luminous: luminous
         case .warm: warm
+        case .daylight: daylight
         }
     }
+
+    /// Daylight: Void's flat look in light. The window is `#f6f6f8`, cards are not filled, hairlines are `#d8dbe3`,
+    /// the accent is indigo `#5b50e6` (also the identifier colour), radii are 20 / 8 / 6 (the playground's 8 for cards, and buttons at 8 - 2). Text is
+    /// `#3f3f50`; secondary text is `#6b6b78` (the playground had `#000000`, which would be stronger than the main
+    /// text). Status colours are the deeper light-theme ones so they read on the pale canvas.
+    public static let daylight = ThemePalette(
+        isDark: false,
+        surface: RGBA(hex: 0xF6F6F8), surfaceSolid: RGBA(hex: 0xF6F6F8),
+        border: RGBA(hex: 0xD8DBE3), rim: RGBA(hex: 0xD8DBE3),
+        text: RGBA(hex: 0x3F3F50), text2: RGBA(hex: 0x6B6B78), text3: RGBA(hex: 0x6B6B78),
+        fill1: .ink(0x3F3F50, 0), fill2: RGBA(hex: 0xECEEF3), fill3: RGBA(hex: 0xE0E3EB), separator: RGBA(hex: 0xD8DBE3),
+        accent: RGBA(hex: 0x5B50E6), accentEnd: RGBA(hex: 0x5B50E6), onAccent: .white(1),
+        live: RGBA(hex: 0x1D5FD1),
+        attention: RGBA(hex: 0x8F5600), onAttention: .white(1),
+        problem: RGBA(hex: 0xB42318), success: RGBA(hex: 0x167A53),
+        radiusSurface: 20, radiusCard: 8, radiusControl: 6,
+        surfaceStyle: .flat, buttonStyle: .filled, usesGlow: false, usesShadows: false, monoIdentifiers: true,
+        statusDots: true, borderHover: RGBA(hex: 0xA3A8B6), identifier: RGBA(hex: 0x5B50E6), cornerGap: 8)
 
     /// Void (ADR-086, docs/design/resend-reference.md): a pure black canvas, `#292d30` hairlines instead of shadows,
     /// bone-white text, ghost buttons, radii 24 / 16 / 6. Colour only for status: blue listening or running, violet

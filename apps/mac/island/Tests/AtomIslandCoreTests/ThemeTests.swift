@@ -29,6 +29,7 @@ import Testing
         #expect(AppTheme.lantern.palette.isDark)
         #expect(!AppTheme.lanternDay.palette.isDark)
         #expect(AppTheme.void.palette.isDark)
+        #expect(!AppTheme.daylight.palette.isDark)
         #expect(AppTheme.luminous.palette.accentIsGradient)
         #expect(!AppTheme.native.palette.accentIsGradient)
     }
@@ -86,6 +87,20 @@ import Testing
             #expect(RGBA.contrast(p.attention, p.surfaceSolid) >= 4.5, "amber as text (meter at 86%)")
         }
         #expect(ThemePalette.warm.glow.a == 0, "Warm keeps its paper look: no glow")
+    }
+
+    /// Daylight (2026-10-15): Void's flat look in light, from the UI playground. A stored choice of 6 reads back, and
+    /// the secondary text is lighter than the main text (the playground's `#000000` was not).
+    @MainActor @Test func daylightIsFlatLightAndStored() {
+        let p = AppTheme.daylight.palette
+        #expect(p.surfaceStyle == .flat && !p.usesGlow && !p.usesShadows && p.accent == RGBA(hex: 0x5B50E6))
+        #expect(RGBA.contrast(p.text2, p.surfaceSolid) < RGBA.contrast(p.text, p.surfaceSolid), "secondary text is softer")
+        #expect(AppTheme.allCases.contains(.daylight) && AppTheme(rawValue: 6) == .daylight)
+        let suite = "atom.test.theme.daylight.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.set(AppTheme.daylight.rawValue, forKey: IslandSettings.themeKey)
+        #expect(IslandSettings(defaults: defaults).theme == .daylight)
+        defaults.removePersistentDomain(forName: suite)
     }
 
     /// ADR-084, then ADR-086: anyone still on an old default (Quiet Native, then Lantern) moves on once.
@@ -152,7 +167,7 @@ import Testing
         #expect(on(p.identifier!) >= 4.5, "violet identifiers")
         #expect(on(p.live) >= 4.5 && on(p.attention) >= 4.5 && on(p.accent) >= 7)
         #expect(on(p.borderHover) > on(p.border), "hover brightens the hairline")
-        #expect(!AppTheme.allCases.filter { $0 != .void }.contains { t in
+        #expect(!AppTheme.allCases.filter { $0 != .void && $0 != .daylight }.contains { t in
             let q = t.palette
             return q.surfaceStyle != .glass || q.buttonStyle != .filled || !q.usesGlow || !q.usesShadows || q.monoIdentifiers || q.statusDots
         }, "the other themes look as before")

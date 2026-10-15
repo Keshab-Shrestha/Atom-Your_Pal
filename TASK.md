@@ -1620,6 +1620,14 @@ Next: Keshab builds the app on the Mac, attaches a PDF and an image, switches a 
 
 Next: Keshab uses the window for a week, and names the features he never opens.
 
+## UI playground, first batch (2026-10-15)
+
+- Source: Keshab's export from `design/ui-playground.html`. It holds four separate changes. One capability at a time (CLAUDE.md), so they go in this order: 1 the light theme, 2 the sidebar, 3 the chat, 4 browser automation.
+- Found: ideas 1 to 3 for the chat box already exist in the real app. The composer has an Attach button and drops of files (ADR-113), the model menu (`ChatModelMenu`), and one round button that is a microphone while the field is empty and an arrow when words are typed. The playground mock was a simplified copy.
+- Done (1): a new theme, Daylight (`AppTheme.daylight`, raw value 6, Settings → Appearance). Void stays the default. It is Void's flat, hairline look in light: window `#f6f6f8`, hairlines `#d8dbe3`, text `#3f3f50`, indigo accent `#5b50e6`, radii 20 / 8 / 6. The playground's secondary text `#000000` became `#6b6b78` (Keshab agreed), because black would be stronger than the main text. Tests: `ThemeTests.swift` (contrast for every theme, flat and stored). The gallery has `13-helpers-daylight*` shots, and `tests/ui-golden/` holds the chat-table shot.
+- Next (2): the sidebar. The playground order is Overview, Chat, Needs you, Board, Issues, the recent chats, then Scheduled, Plugins and Settings pinned at the bottom, with compact rows (about 34 px). The real sidebar has Dashboard, Needs you, Issues, Board, Scheduled, Second brain, Chats, Plugins, Settings, so Second brain needs a place. Ask Keshab before starting.
+- Later: (3) the chat, with tighter bubbles and the model name beside the field; (4) browser automation (allowed sites, per-action rules, limits), which needs its own ADR and a policy engine in code.
+
 ## Skills that improve themselves (2026-10-15)
 
 - Objective: the "improve" half of ADR-094 A works in the native engine. A task that used one of ATOM's skills and then fails or gets a bad rating makes Tinker propose an edit to that skill. Keshab accepts, rejects or undoes it.
