@@ -603,3 +603,34 @@ test("the schema offers look_after and describes set_value", () => {
   assert.ok(props.look_after);
   assert.match(props.action.description, /set_value/);
 });
+
+// 2026-10-15 (benchmark): TextEdit was running with its Open panel and no document window. Cua's list_apps showed it as pid 0 and
+// not running, so `look` refused ("TextEdit is not running") after every `open`. list_windows still names the app and its pid.
+test("look finds a running app that list_apps shows as pid 0 and not running, by the pid of its windows", async () => {
+  const s = setup({
+    handlers: {
+      list_apps: () => ok("apps", { apps: [{ name: "TextEdit", bundle_id: "com.apple.TextEdit", pid: 0, running: false, windows: [] }] }),
+      list_windows: (args) =>
+        ok("wins", {
+          windows: args.pid === undefined
+            ? [{ app_name: "Finder", pid: 5, window_id: 1 }, { app_name: "TextEdit", pid: 6522, window_id: 3545, title: "Open", is_on_screen: true }]
+            : [{ app_name: "TextEdit", pid: args.pid, window_id: 3545, title: "Open", is_on_screen: true }],
+        }),
+    },
+  });
+  const r = await sees(s);
+  assert.equal(r.ok, true, r.text);
+  assert.deepEqual(s.calls.map((c) => [c.name, c.args.pid]), [["list_apps", undefined], ["list_windows", undefined], ["list_windows", 6522], ["get_window_state", 6522]]);
+});
+
+test("look still refuses an app with no process and no window", async () => {
+  const s = setup({
+    handlers: {
+      list_apps: () => ok("apps", { apps: [{ name: "Pages", bundle_id: "com.apple.iWork.Pages", pid: 0, running: false, windows: [] }] }),
+      list_windows: () => ok("wins", { windows: [{ app_name: "Finder", pid: 5, window_id: 1 }] }),
+    },
+  });
+  const r = await s.run({ action: "look", app: "Pages" });
+  assert.equal(r.ok, false);
+  assert.match(r.text, /not running.*open/i);
+});

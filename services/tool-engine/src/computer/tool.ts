@@ -118,16 +118,27 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     return match;
   }
 
+  /**
+   * The process id of a running app. Cua's list_apps shows a running app with no document window yet (TextEdit with its Open
+   * panel) as pid 0 and not running (benchmark of 2026-10-15), but list_windows names it: use the pid of its windows.
+   */
+  async function pidOf(app: { name: string; pid?: number; running?: boolean }, signal?: AbortSignal): Promise<number | undefined> {
+    if (app.running && app.pid) return app.pid;
+    const all = ((await cua.call("list_windows", {}, signal)).data.windows ?? []) as Array<{ app_name?: string; pid?: number }>;
+    return all.find((w) => w.app_name === app.name && typeof w.pid === "number" && w.pid > 0)?.pid;
+  }
+
   async function look(appName: string, signal?: AbortSignal): Promise<string> {
     const app = await findApp(appName, signal);
-    if (!app.running || app.pid === undefined) throw new Refused(`${app.name} is not running. Use action "open" first.`);
-    const wins = ((await cua.call("list_windows", { pid: app.pid }, signal)).data.windows ?? []) as Array<{ window_id: number; title?: string; is_on_screen?: boolean }>;
+    const pid = await pidOf(app, signal);
+    if (pid === undefined) throw new Refused(`${app.name} is not running. Use action "open" first.`);
+    const wins = ((await cua.call("list_windows", { pid }, signal)).data.windows ?? []) as Array<{ window_id: number; title?: string; is_on_screen?: boolean }>;
     const win = wins.find((w) => w.is_on_screen) ?? wins[0];
     if (!win) throw new Refused(`${app.name} has no window yet. Wait a moment and look again.`);
-    const state = await cua.call("get_window_state", { pid: app.pid, window_id: win.window_id }, signal);
+    const state = await cua.call("get_window_state", { pid, window_id: win.window_id }, signal);
     if (state.isError) refuse(state.refusal?.code, app.name, `Could not read ${app.name}: ${state.refusal?.message ?? state.text}`);
     const elements = withoutMenuBar((state.data.elements ?? []) as Element[]);
-    target = { pid: app.pid, windowId: win.window_id, app: app.name, bundleId: app.bundle_id, elements: new Map(elements.map((e) => [e.element_index, e])), justTyped: false };
+    target = { pid, windowId: win.window_id, app: app.name, bundleId: app.bundle_id, elements: new Map(elements.map((e) => [e.element_index, e])), justTyped: false };
     const shown = elements.slice(0, maxElements).map((e) => {
       const bits = [`[${e.element_index}] ${e.role ?? "?"}`];
       if (e.label) bits.push(`"${e.label.slice(0, 80)}"`);
