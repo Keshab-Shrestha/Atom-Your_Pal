@@ -23,7 +23,7 @@ struct SoulPane: View {
         Scrollable {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 8) {
-                    QuietButton(title: helper.available ? "Jobs" : helper.name, symbol: "chevron.left") { model.navigate { model.helpers.closeSoul() } }
+                    QuietButton(title: helper.available ? "Jobs" : helper.name, symbol: "chevron.left") { model.navigateUp { model.helpers.closeSoul() } }
                     Spacer(minLength: 8)
                     VersionsMenu(model: model, helper: helper)
                     SaveButton(enabled: changed, saved: model.savedField == "soul" && model.helpers.problem == nil, commandS: true, label: "Save soul") { save() }
@@ -205,7 +205,7 @@ struct NewAgentPane: View {
         Scrollable {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 8) {
-                    QuietButton(title: "Cancel", symbol: "chevron.left") { model.navigate { model.helpers.closeNewAgent() } }
+                    QuietButton(title: "Cancel", symbol: "chevron.left") { model.navigateUp { model.helpers.closeNewAgent() } }
                     Spacer(minLength: 8)
                     SaveButton(title: "Create", enabled: typed, commandS: true, label: "Create agent", action: create)
                 }

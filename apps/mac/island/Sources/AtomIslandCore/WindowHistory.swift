@@ -92,6 +92,13 @@ public struct WindowHistory: Equatable, Sendable {
         if steps.count > Self.limit { steps.removeFirst(steps.count - Self.limit) }
     }
 
+    /// A move away from `last`: it becomes a step Back returns to, unless the move went up a level with a page's own "‹" button
+    /// (Soul → Jobs, a report → Board). Then the page left is not a step to come back to; without this, the top bar's Back led
+    /// into the Soul page and its "‹" led out again, in a loop (found by Keshab, 2026-10-16).
+    public mutating func recordMove(from last: WindowLocation, up: Bool) {
+        if !up { push(last) }
+    }
+
     /// The newest step that `isUsable` accepts; the steps after it, and it, leave the history.
     public mutating func back(where isUsable: (WindowLocation) -> Bool) -> WindowLocation? {
         while let last = steps.popLast() {

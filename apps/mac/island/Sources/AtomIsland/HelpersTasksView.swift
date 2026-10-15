@@ -249,7 +249,7 @@ struct ThreadPane: View {
     var body: some View {
         Scrollable {
             VStack(alignment: .leading, spacing: 16) {
-                QuietButton(title: model.helpers.showsBoard ? "Board" : "Jobs", symbol: "chevron.left") { model.navigate { model.helpers.closeReport() } }
+                QuietButton(title: model.helpers.showsBoard ? "Board" : "Jobs", symbol: "chevron.left") { model.navigateUp { model.helpers.closeReport() } }
                 if let item = model.helpers.openItem {
                     header(item)
                     if let problem = model.helpers.problem { ProblemLine(text: problem) }

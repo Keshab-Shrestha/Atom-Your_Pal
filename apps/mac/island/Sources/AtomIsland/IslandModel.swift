@@ -305,8 +305,22 @@ final class IslandModel {
     /// Called on every change of `location` (the window's `onChange`): the step before becomes a Back step.
     func recordLocation() {
         let now = location
-        if let last = lastLocation, last != now { history.push(last) }
+        if let last = lastLocation, last != now {
+            history.recordMove(from: last, up: leavingUp == last)
+            leavingUp = nil
+        }
         lastLocation = now
+    }
+
+    /// The page the last "‹" (up one level) came from, so recording that move does not make it a Back step.
+    @ObservationIgnored private var leavingUp: WindowLocation?
+
+    /// A page's own "‹" button: goes up one level (after "Discard changes?" when needed) and does not add the page it leaves to Back.
+    func navigateUp(_ change: @escaping () -> Void) {
+        navigate { [self] in
+            leavingUp = location
+            change()
+        }
     }
 
     /// Back (the top bar's arrow, ⌘[ and the mouse's back button): the newest step that still exists.
