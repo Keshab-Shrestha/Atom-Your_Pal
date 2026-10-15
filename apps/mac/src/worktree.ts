@@ -3,15 +3,38 @@
 // after the run. Workers never push (ADR-091: Keshab can push a branch from the Dashboard, see git-branches.ts).
 
 import { execFile } from "node:child_process";
-import { existsSync, mkdirSync, realpathSync } from "node:fs";
-import { isAbsolute, join, relative } from "node:path";
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { taskBranch } from "./branch-prefix.ts";
 
 const run = promisify(execFile);
-// No repository hooks ever run from here (they would run outside the sandbox).
+// No repository hooks and no file-system monitor ever run from here (they would run outside the sandbox). A worktree is only used
+// after worktreeIntact() says its .git is still ATOM's link: the rest of a repository's config is Keshab's own.
 export const git = async (cwd: string, ...args: string[]) =>
-  (await run("git", ["-C", cwd, "-c", "core.hooksPath=/dev/null", ...args], { timeout: 30_000 })).stdout.trim();
+  (await run("git", ["-C", cwd, "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", ...args], { timeout: 30_000 })).stdout.trim();
+
+/**
+ * Is the task's worktree still the one ATOM made? Its top folder holds a `.git` FILE that points into the repository's own
+ * `.git/worktrees/` folder. An agent in the sandbox can write the worktree, so it could delete that file and run `git init`: the new
+ * `.git/config` could then name a command (core.fsmonitor, a filter driver) that runs when ATOM runs git there, outside the sandbox
+ * (security review, 2026-10-16). False for anything else, and for anything that cannot be checked.
+ */
+export async function worktreeIntact(tree: string, repo: string): Promise<boolean> {
+  try {
+    const link = join(tree, ".git");
+    if (!lstatSync(link).isFile()) return false; // a folder or a symlink: the agent made its own repository
+    const pointer = /^gitdir:\s*(.+?)\s*$/m.exec(readFileSync(link, "utf8"));
+    if (!pointer) return false;
+    const target = realpathSync.native(resolve(tree, pointer[1]!));
+    // The repository's common git folder: `repo/.git`, or elsewhere when the repository is itself a worktree or a submodule.
+    const common = await git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir").catch(() => join(repo, ".git"));
+    const allowed = realpathSync.native(join(common, "worktrees"));
+    return target.startsWith(allowed + sep);
+  } catch {
+    return false;
+  }
+}
 
 export interface Workdir {
   /** Where the worker works: the folder itself, or the same folder inside the task's worktree. */
@@ -56,7 +79,8 @@ export async function prepareWorkdir(folder: string, taskId: number, worktrees: 
 }
 
 /** Commits everything changed in the worktree on its branch, as ATOM. False when nothing changed. */
-export async function commitWork(dir: string, message: string): Promise<boolean> {
+export async function commitWork(dir: string, message: string, guard?: { tree: string; repo: string }): Promise<boolean> {
+  if (guard && !(await worktreeIntact(guard.tree, guard.repo))) throw new Error("The task's worktree was changed since ATOM made it, so nothing was committed.");
   await git(dir, "add", "-A");
   const changed = await git(dir, "diff", "--cached", "--quiet").then(() => false, () => true);
   if (!changed) return false;

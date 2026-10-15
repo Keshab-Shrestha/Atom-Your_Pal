@@ -328,8 +328,13 @@ export function nativeGate(scope: NativeScope): NativeGate {
       const tree = work.get(job);
       work.delete(job);
       if (tree?.tree) {
-        const committed = await commitWork(tree.dir, `ATOM task ${job}`);
-        log("agent.commit", { job, committed });
+        try {
+          const committed = await commitWork(tree.dir, `ATOM task ${job}`, tree.repo ? { tree: tree.tree, repo: tree.repo } : undefined);
+          log("agent.commit", { job, committed });
+        } catch {
+          // 2026-10-16: the worktree's .git was replaced (or git failed): nothing is committed, and the reason is the name of this event.
+          log("agent.commit_refused", { job });
+        }
       }
     },
   };

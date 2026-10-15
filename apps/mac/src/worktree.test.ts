@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { commitWork, prepareWorkdir } from "./worktree.ts";
+import { commitWork, prepareWorkdir, worktreeIntact } from "./worktree.ts";
 
 // Task 3.11: the task's own branch in a worktree; the current branch is never touched; nothing is pushed.
 
@@ -82,6 +82,59 @@ test("a folder written in a different letter case than its repository is still i
     const work = await prepareWorkdir(join(root, "REPO", "app"), 13, join(root, "worktrees"));
     assert.equal(work.branch, "atom/task-13");
     assert.equal(work.dir, join(root, "worktrees", "task-13", "app"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// 2026-10-16 (security review): an agent in its worktree could `rm .git; git init`, set core.fsmonitor in the new .git/config, and ATOM's
+// `git add -A` ran that command outside the sandbox. ATOM now commits only when the worktree's .git is still its link into the repository.
+test("a worktree whose .git link was replaced by the agent's own repository is never committed, and its commands never run", async () => {
+  const root = mkdtempSync(join(tmpdir(), "atom-wt-"));
+  try {
+    const repo = join(root, "repo");
+    mkdirSync(repo, { recursive: true });
+    sh(root, "init", "-q", "-b", "main", repo);
+    writeFileSync(join(repo, "a.txt"), "one\n");
+    sh(repo, "add", "-A");
+    sh(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "first");
+    const work = await prepareWorkdir(repo, 31, join(root, "worktrees"));
+    const guard = { tree: work.tree!, repo: work.repo! };
+    assert.equal(await worktreeIntact(guard.tree, guard.repo), true, "a fresh worktree is intact");
+    writeFileSync(join(work.dir, "a.txt"), "two\n");
+    assert.equal(await commitWork(work.dir, "ok", guard), true, "an intact worktree commits");
+
+    // The attack: replace .git with a repository of the agent's own, whose config runs a command at `git add`.
+    const marker = join(root, "ran-marker");
+    rmSync(join(work.tree!, ".git"), { force: true });
+    sh(work.tree!, "init", "-q");
+    writeFileSync(join(work.tree!, "hook.sh"), `#!/bin/sh\necho ran > ${marker}\n`, { mode: 0o755 });
+    sh(work.tree!, "config", "core.fsmonitor", join(work.tree!, "hook.sh"));
+    writeFileSync(join(work.dir, "a.txt"), "three\n");
+    assert.equal(await worktreeIntact(guard.tree, guard.repo), false, "the swapped .git is detected");
+    await assert.rejects(() => commitWork(work.dir, "attack", guard), /worktree/i);
+    assert.equal(existsSync(marker), false, "the agent's command never ran");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a worktree whose .git file points somewhere else, or is a symlink, is not intact", async () => {
+  const root = mkdtempSync(join(tmpdir(), "atom-wt-"));
+  try {
+    const repo = join(root, "repo");
+    mkdirSync(repo, { recursive: true });
+    sh(root, "init", "-q", "-b", "main", repo);
+    writeFileSync(join(repo, "a.txt"), "one\n");
+    sh(repo, "add", "-A");
+    sh(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "first");
+    const work = await prepareWorkdir(repo, 32, join(root, "worktrees"));
+    const link = join(work.tree!, ".git");
+    writeFileSync(link, `gitdir: ${join(root, "elsewhere")}\n`);
+    assert.equal(await worktreeIntact(work.tree!, work.repo!), false, "points outside the repository's worktrees folder");
+    writeFileSync(link, "not a gitdir line\n");
+    assert.equal(await worktreeIntact(work.tree!, work.repo!), false, "not a link at all");
+    assert.equal(await worktreeIntact(join(root, "no-such-tree"), work.repo!), false, "a missing worktree");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
