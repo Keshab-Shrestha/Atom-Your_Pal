@@ -1001,8 +1001,12 @@ private struct ChatsList: View {
                 SidebarChatRow(model: model, chat: chat, current: chat.id == list.current)
             }
         } else {
-            Text(list == nil ? "Loading…" : "No chats yet. Talk or type to ATOM.").font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
-                .padding(.horizontal, 10).padding(.vertical, 4)
+            if list == nil {
+                LoadingStateView(text: "Loading chats…", retry: { model.send(.chatsList) }).padding(.horizontal, 10)
+            } else {
+                Text("No chats yet. Talk or type to ATOM.").font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+                    .padding(.horizontal, 10).padding(.vertical, 4)
+            }
         }
     }
 }

@@ -22,8 +22,12 @@ struct NeedsYouPane: View {
                         QuietButton(title: "Decline", symbol: "xmark") { model.answerApproval(false) }
                     }
                 }
-                if items.isEmpty && model.approval.pending == nil {
-                    Text("Nothing waits for you.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.top, 6)
+                if model.helpers.list == nil && model.approval.pending == nil {
+                    // Not heard from ATOM yet: that is not the same as "nothing waits".
+                    LoadingStateView(text: "Loading what waits for you…", retry: { model.send(.helpersList) })
+                } else if items.isEmpty && model.approval.pending == nil {
+                    EmptyStateView(title: "Nothing waits for you",
+                                   detail: "When an agent needs a plan approved, a command allowed or a skill accepted, it shows here. Nothing is done without you.")
                 }
                 ForEach(items) { item in row(item) }
             }
@@ -122,7 +126,12 @@ struct IssuesPane: View {
                         .font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
-                if issues.isEmpty { Text("No issues.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.top, 6) }
+                if model.helpers.list == nil {
+                    LoadingStateView(text: "Loading issues…", retry: { model.send(.helpersList) })
+                } else if issues.isEmpty {
+                    EmptyStateView(title: "No issues",
+                                   detail: "A task that fails shows here with its reason and a Retry. A failure that a second try may fix is retried once by itself.")
+                }
                 ForEach(issues) { item in
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 6) {

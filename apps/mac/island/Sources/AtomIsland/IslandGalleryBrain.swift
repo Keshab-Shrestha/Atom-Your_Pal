@@ -81,4 +81,61 @@ extension IslandGallery {
             .themed(palette)
         save(page, name: name, to: directory)
     }
+
+    /// The states besides "full": Needs you and Issues while loading, empty and with an error, and the loading view when it
+    /// is slow. A list that has not heard from ATOM must not look empty.
+    static func writeStates(to directory: URL, theme: AppTheme = .void, name: String = "19-states") {
+        let suite = "atom.gallery.states.\(ProcessInfo.processInfo.processIdentifier)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let palette = theme.palette
+        let empty = #"{"type":"helpers","apps":[],"teamTasks":[],"helpers":[],"managers":[]}"#
+        let failure = #"{"type":"error","stage":"settings","message":"ATOM did not answer. Nothing was changed."}"#
+
+        func model(loaded: Bool, failed: Bool = false) -> IslandModel {
+            let m = IslandModel(settings: IslandSettings(defaults: defaults))
+            m.settings.theme = theme
+            if loaded, let event = try? decodeEvent(empty) { m.apply(event) }
+            if failed {
+                _ = m.helpers.mcpCommand(.mcpRemove(id: 1)) // the window waits for an answer, so the refusal is shown
+                if let event = try? decodeEvent(failure) { m.apply(event) }
+            }
+            return m
+        }
+        func cell<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(.system(size: 10.5, weight: .semibold)).foregroundStyle(.white.opacity(0.75))
+                content()
+                    .environment(\.islandSnapshot, true)
+                    .frame(width: 440, height: 210, alignment: .topLeading)
+                    .background(palette.surfaceSolid.color)
+                    .themed(palette)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(palette.border.color, lineWidth: 1))
+            }
+        }
+        let sheet = VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 16) {
+                cell("Needs you: loading") { NeedsYouPane(model: model(loaded: false)) }
+                cell("Needs you: empty") { NeedsYouPane(model: model(loaded: true)) }
+                cell("Needs you: error") { NeedsYouPane(model: model(loaded: true, failed: true)) }
+            }
+            HStack(alignment: .top, spacing: 16) {
+                cell("Issues: loading") { IssuesPane(model: model(loaded: false)) }
+                cell("Issues: empty") { IssuesPane(model: model(loaded: true)) }
+                cell("Issues: error") { IssuesPane(model: model(loaded: true, failed: true)) }
+            }
+            HStack(alignment: .top, spacing: 16) {
+                cell("Loading, slow") { LoadingStateView(text: "Loading chats…", retry: {}, slow: true).padding(16) }
+                cell("Empty with an action") {
+                    EmptyStateView(title: "No skills yet", detail: "Your skills come from ~/.claude/skills. ATOM's come from tasks you rate good.",
+                                   action: (title: "Open the skills folder", symbol: "folder", run: {})).padding(16)
+                }
+                Color.clear.frame(width: 440, height: 210)
+            }
+        }
+        .padding(24)
+        .background(Color(red: 0.36, green: 0.42, blue: 0.52))
+        save(sheet, name: name, to: directory)
+    }
 }

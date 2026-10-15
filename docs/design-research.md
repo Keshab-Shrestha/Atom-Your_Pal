@@ -85,9 +85,9 @@ Check each page for the five states. A page that lacks a state is a task.
 
 | Page | Loading | Empty | Error | Edge |
 |---|---|---|---|---|
-| Chats list | "Loading…" | yes | not shown | 40 rows cap; a very long title |
-| Needs you | not checked | yes | not checked | not checked |
-| Issues | not checked | "None" | the page is the error list | many failures |
+| Chats list | "Loading chats…", then "taking longer" and Ask again after 15 s (done) | yes | not shown | 40 rows cap; a very long title |
+| Needs you | "Loading what waits for you…" (done; it said "Nothing waits" before) | headline and a sentence (done) | the command error line | long titles clip at two lines |
+| Issues | "Loading issues…" (done; it said "No issues" before) | headline and a sentence (done) | the command error line; each failed task shows its reason | many failures |
 | Board | not checked | yes | not checked | 50 agents (done in the gallery) |
 | Scheduled | not checked | yes | not checked | not checked |
 | Second brain | "Waiting for ATOM…" | yes | yes | 400 notes cap |
