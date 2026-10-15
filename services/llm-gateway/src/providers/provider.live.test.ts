@@ -11,6 +11,8 @@ const enabled = readEnv(process.env, "ATOM_LIVE_TESTS") === "1";
 test("live: the configured provider answers through the gateway", { skip: !enabled && "set ATOM_LIVE_TESTS=1 (pnpm test:live)" }, async (t) => {
   const { llm } = loadConfig();
   t.diagnostic(`provider=${llm.provider} model=${llm.model}`);
+  // The Claude plan runs in ATOM's own chat sessions, never through the gateway (ADR-110).
+  if (llm.provider === "claude-plan") return t.skip("claude-plan does not answer through the gateway");
   const gateway = createGateway({ provider: createProviderAdapter(llm), timeoutMs: llm.timeoutMs });
   const started = Date.now();
   const reply = await gateway.complete({
