@@ -34,8 +34,12 @@ export function appBlock(bundleId: string | undefined, name: string): string | u
   return undefined;
 }
 
-const RISKY_LABEL =
-  /\b(send|submit|buy|purchase|pay|place\s+order|checkout|check\s+out|order|confirm|delete|remove|erase|trash|empty|sign\s*out|log\s*out|publish|post|share|transfer|donate|subscribe|unsubscribe|quit|force\s+quit|shut\s*down|restart|reset|install|uninstall|format|deactivate|close\s+account|apply|allow|accept|agree|authorize|approve|grant|unlock|yes|continue|sign\s*in|log\s*in)\b/i;
+/** Words that name an action which sends, buys, deletes or changes something. */
+const STRONG_LABEL =
+  /\b(send|submit|buy|purchase|pay|place\s+order|checkout|check\s+out|order|confirm|delete|remove|erase|trash|empty|sign\s*out|log\s*out|publish|post|share|transfer|donate|subscribe|unsubscribe|quit|force\s+quit|shut\s*down|restart|reset|install|uninstall|format|deactivate|close\s+account|apply)\b/i;
+/** Consent and sign-in words: a button says these, but text that merely contains them ("Continue reading", "Grant Smith") does not act. */
+const CONSENT_LABEL = /\b(allow|accept|agree|authorize|approve|grant|unlock|yes|continue|sign\s*in|log\s*in)\b/i;
+const RISKY_LABEL = { test: (text: string) => STRONG_LABEL.test(text) || CONSENT_LABEL.test(text) };
 
 /**
  * Roles whose label is content the user wrote or read, not the name of an action. Clicking them only moves the cursor.
@@ -43,6 +47,8 @@ const RISKY_LABEL =
  * clickable, so these ask when their label names a risky action, like a button.
  */
 const CONTENT_ROLES = new Set(["AXTextArea", "AXTextField", "AXWebArea", "AXScrollArea"]);
+/** Roles that are text or pictures: clickable on a web page, so they ask, but only for the strong action words (2026-10-16). */
+const PLAIN_ROLES = new Set(["AXStaticText", "AXImage", "AXHeading"]);
 
 /**
  * Why a click on this element needs the user's approval, or undefined. Only the label of something that can do
@@ -56,7 +62,8 @@ export function labelApproval(label: string | undefined, role: string | undefine
       ? "a button with no name, so ATOM cannot tell what it does"
       : undefined;
   }
-  return RISKY_LABEL.test(text) ? `"${text.length > 40 ? `${text.slice(0, 40)}…` : text}"` : undefined;
+  const risky = role && PLAIN_ROLES.has(role) ? STRONG_LABEL.test(text) : RISKY_LABEL.test(text);
+  return risky ? `"${text.length > 40 ? `${text.slice(0, 40)}…` : text}"` : undefined;
 }
 
 /** Other names for the same key, so "command", "alt" or "kp_enter" cannot get past a rule written for "cmd", "option" or "enter". */
@@ -74,7 +81,7 @@ const canonicalKey = (key: string): string => {
  * (it used to follow any typing, so "type, then Return" sent a message in a compose box).
  */
 export function isSearchField(label: string | undefined, role: string | undefined): boolean {
-  return /search/i.test(role ?? "") || /\b(search|find|filter|address|url|location|go\s+to|spotlight)\b/i.test(label ?? "");
+  return /search/i.test(role ?? "") || /^\s*(search|find|filter|address|url|location|go\s+to|spotlight)\b/i.test(label ?? "");
 }
 
 /** Why typing this text needs approval, or undefined. A line break inside typed text presses Return. */

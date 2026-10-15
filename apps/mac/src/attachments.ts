@@ -75,7 +75,8 @@ export interface Attachments {
 export function createAttachments(options: { dir: string; home?: string; log?: { info(event: string, fields: Record<string, unknown>): void } }): Attachments {
   const home = options.home ?? homedir();
   const root = realish(options.dir);
-  const folder = (chatId: string) => join(root, chatId.replace(/[^\w-]/g, "_"));
+  // An empty id must not become the root itself (remove("") would delete every chat's files; review, 2026-10-16): it gets a folder of its own.
+  const folder = (chatId: string) => join(root, chatId.replace(/[^\w-]/g, "_") || "_");
   const listing = (chatId: string): string[] => {
     const dir = folder(chatId);
     return existsSync(dir) ? readdirSync(dir) : [];

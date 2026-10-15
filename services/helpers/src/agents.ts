@@ -66,8 +66,8 @@ export function agentId(name: string, taken: readonly string[]): string {
  * written with a backslash in front, and a line that already starts with backslashes before "## " gets one more, so reading it
  * back removes exactly one and gives the original text.
  */
-const escapeBody = (text: string) => text.replace(/^(\\*## )/gm, "\\$1");
-const unescapeBody = (text: string) => text.replace(/^\\(\\*## )/gm, "$1");
+const escapeBody = (text: string) => text.replace(/^(\\*##)(?=\s)/gm, "\\$1");
+const unescapeBody = (text: string) => text.replace(/^\\(\\*##(?=\s))/gm, "$1");
 
 export function formatSoulMd(agent: Omit<AgentFile, "id"> | Omit<ManagerFile, "id">): string {
   const front =

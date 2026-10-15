@@ -121,3 +121,20 @@ test("a search or address field is told apart from a compose box, and a line bre
   assert.ok(typeApproval("hi\r"));
   assert.equal(typeApproval("hello"), undefined);
 });
+
+// 2026-10-16 (review): isSearchField matched a word ANYWHERE in the label, so "Email address", "Shipping address" or "Message #search-help"
+// let Return send with no card. It now matches only a label that starts with the word.
+test("Return after typing is free only in a field whose label starts with search, find, filter, address, url, location or go to", () => {
+  for (const label of ["Search", "Search Google or type a URL", "Find in page", "Filter", "Address and search bar", "URL", "Location", "Go to"]) assert.equal(isSearchField(label, "AXTextField"), true, label);
+  for (const label of ["Email address", "Shipping address", "Message #search-help", "Reply to find-a-friend", "Compose", "Message", "Subject", "Home location notes"]) assert.equal(isSearchField(label, "AXTextField"), false, label);
+});
+
+// 2026-10-16 (review): the words added for consent buttons made "Continue reading", "Yes, I'm interested" and "Grant Smith" ask when they were
+// text, an image or a heading. Those roles now ask only for the strong action words; buttons keep the full list.
+test("static text, images and headings ask only for strong action words; buttons ask for the whole list", () => {
+  for (const role of ["AXStaticText", "AXImage", "AXHeading"]) {
+    for (const label of ["Continue reading", "Yes, I'm interested", "Grant Smith", "Allow me to explain", "Accept the terms of the story"]) assert.equal(labelApproval(label, role), undefined, `${role} ${label}`);
+    for (const label of ["Delete account", "Pay now", "Place order", "Send message", "Confirm purchase"]) assert.ok(labelApproval(label, role), `${role} ${label}`);
+  }
+  for (const label of ["Continue", "Allow", "Yes", "Grant access"]) assert.ok(labelApproval(label, "AXButton"), `button ${label}`);
+});

@@ -83,3 +83,18 @@ test("expand: a small text file goes inline; a PDF or image is named as unreadab
   assert.equal(attachments.turn("chat-1"), undefined);
   done();
 });
+
+// 2026-10-16 (review): an empty chat id sanitised to "", so folder("") was the attachments ROOT and remove("") deleted every chat's files.
+test("an empty chat id cannot reach the attachments root: remove('') leaves other chats' files alone", () => {
+  const { attachments, write, done } = setup();
+  const notes = write("notes.md", "keep me");
+  const kept = attachments.add("chat-1", [notes]);
+  assert.ok("ok" in kept);
+  attachments.add("", [write("other.md", "no chat")]);
+  attachments.remove("");
+  if ("ok" in kept) assert.ok(existsSync(kept.files[0]!.path), "chat-1's file is still there");
+  attachments.remove("..");
+  attachments.remove("../chat-1");
+  if ("ok" in kept) assert.ok(existsSync(kept.files[0]!.path), "dots and slashes cannot climb out either");
+  done();
+});

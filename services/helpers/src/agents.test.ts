@@ -120,3 +120,12 @@ test("soul text with lines that start with ## survives a write and a read unchan
   assert.deepEqual(back.soul, soul);
   assert.equal(formatSoulMd({ role: back.role, kit: back.kit, soul: back.soul }), text, "writing it again changes nothing, so no bogus version");
 });
+
+// 2026-10-16 (review): the parser's heading is "##" plus any whitespace; only "## " (one space) was escaped, so "##<tab>Rules" cut the soul.
+test("a soul line that starts with ## and a tab or other whitespace also survives a write and a read", () => {
+  const soul = { name: "Ana", personality: "A\n##\tRules\nB\n##\u00a0not a section", howItWorks: "x", rules: "##  two spaces", lessons: "" };
+  const text = formatSoulMd({ role: "coach", kit: "think", soul });
+  const back = parseSoulMd("ana", text);
+  assert.deepEqual(back.soul, soul);
+  assert.equal(formatSoulMd({ role: back.role, kit: back.kit, soul: back.soul }), text);
+});

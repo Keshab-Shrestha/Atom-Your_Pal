@@ -100,7 +100,7 @@ export async function zenoBranches(repo: string): Promise<ZenoBranch[]> {
 export async function branchDiff(repo: string, branch: string, limit = 200_000): Promise<{ text: string; truncated: boolean }> {
   if (!BRANCH_PATTERN.test(branch)) throw new Error("Only ATOM's task branches can be shown.");
   const base = await baseOf(repo);
-  const { stdout } = await run("git", ["-C", repo, "-c", "core.hooksPath=/dev/null", "diff", "--no-color", `${base}...${branch}`], { timeout: 30_000, maxBuffer: 20 * 1024 * 1024 });
+  const { stdout } = await run("git", ["-C", repo, "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "diff", "--no-color", `${base}...${branch}`], { timeout: 30_000, maxBuffer: 20 * 1024 * 1024 });
   return stdout.length > limit ? { text: stdout.slice(0, limit), truncated: true } : { text: stdout, truncated: false };
 }
 
@@ -117,7 +117,7 @@ export async function pushBranch(repo: string, branch: string): Promise<void> {
     throw new Error("This repository has no remote named origin to push to.");
   });
   try {
-    await run("git", ["-C", repo, "-c", "core.hooksPath=/dev/null", "push", "--no-verify", "origin", `refs/heads/${branch}:refs/heads/${branch}`], {
+    await run("git", ["-C", repo, "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "push", "--no-verify", "origin", `refs/heads/${branch}:refs/heads/${branch}`], {
       timeout: PUSH_TIMEOUT_MS,
       // Never wait for a password: a remote that needs one fails with words instead.
       env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_ASKPASS: "", SSH_ASKPASS: "" },
