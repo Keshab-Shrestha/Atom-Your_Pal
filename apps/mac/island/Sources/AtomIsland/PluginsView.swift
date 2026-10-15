@@ -8,6 +8,8 @@ struct PluginsPane: View {
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
     private let adding = State(initialValue: false)
     private let draft = State(initialValue: McpServerDraft())
+    /// Add server: false is the paste box (the Claude Desktop JSON), true is the by-hand form.
+    private let byHand = State(initialValue: false)
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
 
@@ -32,7 +34,7 @@ struct PluginsPane: View {
                             model.helpers.clearProblem()
                         }
                     }
-                    if adding.wrappedValue { form }
+                    if adding.wrappedValue { addPanel(existing: Set((list?.mcp ?? []).map(\.name))) }
                     if (list?.mcp ?? []).isEmpty && !adding.wrappedValue {
                         Text("None yet. Add a server that runs a command or one you connect to by its address.")
                             .font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
@@ -67,6 +69,22 @@ struct PluginsPane: View {
         draft.wrappedValue = McpServerDraft()
         adding.wrappedValue = false
         model.showSaved("mcp")
+    }
+
+    /// Add server: paste the same JSON as Claude Desktop (the default), or fill the form in by hand.
+    private func addPanel(existing: Set<String>) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Picker("", selection: byHand.projectedValue) {
+                Text("Paste config").tag(false)
+                Text("By hand").tag(true)
+            }
+            .pickerStyle(.segmented).labelsHidden().frame(maxWidth: 320)
+            if byHand.wrappedValue {
+                form
+            } else {
+                McpPasteForm(model: model, existing: existing) { adding.wrappedValue = false }
+            }
+        }
     }
 
     private var form: some View {

@@ -55,4 +55,30 @@ extension IslandGallery {
             .overlay(shape.strokeBorder(palette.border.color, lineWidth: 1))
         save(page.padding(20).background(Color(red: 0.36, green: 0.42, blue: 0.52)), name: name, to: directory)
     }
+
+    /// Plugins → Add server → Paste config: a Claude Desktop config with three servers, one of them already added.
+    static func writeMcpPaste(to directory: URL, theme: AppTheme = .void, name: String = "18-mcp-paste") {
+        let suite = "atom.gallery.mcp.\(ProcessInfo.processInfo.processIdentifier)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let palette = theme.palette
+        let m = IslandModel(settings: IslandSettings(defaults: defaults))
+        m.settings.theme = theme
+        let config = """
+        {
+          "mcpServers": {
+            "filesystem": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/me/Documents"] },
+            "GitHub Tools": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-github"], "env": { "GITHUB_TOKEN": "ghp_example" } },
+            "notes": { "url": "https://example.com/mcp", "headers": { "Authorization": "Bearer example" } }
+          }
+        }
+        """
+        let page = McpPasteForm(model: m, existing: ["notes"], initialText: config) {}
+            .environment(\.islandSnapshot, true)
+            .frame(width: 640)
+            .padding(24)
+            .background(palette.surfaceSolid.color)
+            .themed(palette)
+        save(page, name: name, to: directory)
+    }
 }

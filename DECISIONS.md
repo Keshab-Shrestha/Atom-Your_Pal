@@ -2657,3 +2657,22 @@ ADR-094 still holds for ATOM itself: Tinker and the main agent never write `~/.c
 ### Left out on purpose
 
 Making and deleting skills in the editor, and a history longer than one backup.
+
+## ADR-115 — MCP servers are added by pasting the Claude Desktop config (2026-10-15)
+
+Date: 2026-10-15. Status: **accepted** (Keshab: "make sure the mcp connection setting is same as the claude desktop and not too difficult").
+
+### Context
+
+Adding an MCP server meant a form with a name, a command, arguments one per line, and environment lines. Claude Desktop uses one JSON block (`mcpServers`) that every MCP server's README shows. Keshab already has such a config.
+
+### Decision
+
+1. Plugins → MCP servers → Add server opens on **Paste config**. Keshab pastes the whole `claude_desktop_config.json`, its `mcpServers` block, one `"name": { … }` entry, or one bare server. **By hand** is the other choice and the old form is unchanged.
+2. A parser in Core (`McpConfigImport`) reads it: `command`, `args`, `env` for a program; `url` or `serverUrl`, `type` (`sse` or HTTP) and `headers` for an address. It shows each server as a line before anything is saved. A name is made to fit the runtime's rule (lower case, digits, "-" and "_", at most 32) and the change is shown. A server whose name is already added is skipped.
+3. **Import from Claude Desktop** reads `~/Library/Application Support/Claude/claude_desktop_config.json` into the box, only on Keshab's click. ATOM never reads it by itself and never writes it.
+4. Add uses the existing add command for each server. So every server is saved **switched off**, checked by the runtime, private values kept as before, and turned on, trusted and given to workers only by Keshab. A paste changes none of ADR-090's rules.
+
+### Left out on purpose
+
+Reading `disabled` or other client-only keys, OAuth sign-in for remote servers, and syncing in both directions with Claude Desktop.
