@@ -41,6 +41,7 @@ function islandHarness(
     computer: IslandOptions["computer"];
     memory: IslandOptions["memory"];
     helpers: IslandOptions["helpers"];
+    skillFiles: IslandOptions["skillFiles"];
     onTimer: IslandOptions["onTimer"];
     onGoalLine: IslandOptions["onGoalLine"];
     screen: IslandOptions["screen"];
@@ -96,6 +97,7 @@ function islandHarness(
     ...(over.attachments ? { attachments: over.attachments } : {}),
     ...(over.git ? { git: over.git } : {}),
     ...(over.helpers ? { helpers: over.helpers } : {}),
+    ...(over.skillFiles ? { skillFiles: over.skillFiles } : {}),
     ...(over.onTimer ? { onTimer: over.onTimer } : {}),
     ...(over.onGoalLine ? { onGoalLine: over.onGoalLine } : {}),
     ...(over.screen ? { screen: over.screen } : {}),
@@ -632,6 +634,42 @@ test("memory commands with memory off answer enabled: false; a bad id is a proto
   assert.deepEqual(h.events().at(-1), { type: "memory", enabled: false, count: 0, memories: [], episodes: [] });
   h.clear();
   await h.send({ type: "memory.forget", id: "2" }, { type: "memory.forget", id: 1.5 }, { type: "memory.forget" });
+  assert.deepEqual(h.types(), ["error", "error", "error"]);
+  for (const e of h.events()) assert.equal((e as { stage: string }).stage, "protocol");
+});
+
+// --- skills editor (2026-10-15) ---
+
+test("skill.get opens a skill's SKILL.md; skill.save answers with the saved file; a refused save and an unknown skill are errors", async () => {
+  const files = new Map([["pdf", "---\nname: pdf\ndescription: Read PDFs.\n---\n\nStep 1.\n"]]);
+  const saved: string[] = [];
+  const h = islandHarness({
+    skillFiles: {
+      read: (name) => (files.has(name) ? { name, source: "yours", text: files.get(name)! } : undefined),
+      write: (name, text) => {
+        if (!files.has(name)) throw new Error(`There is no skill called "${name}".`);
+        if (!text.trim()) throw new Error("A skill cannot be empty.");
+        files.set(name, text);
+        saved.push(name);
+        return { name, source: "yours", text };
+      },
+    },
+  });
+  await tick(5);
+  h.clear();
+  await h.send({ type: "skill.get", name: "pdf" });
+  assert.deepEqual(h.events().at(-1), { type: "skill.file", name: "pdf", source: "yours", text: files.get("pdf") });
+  await h.send({ type: "skill.save", name: "pdf", text: "---\nname: pdf\ndescription: Merge PDFs.\n---\n\nStep 1.\n" });
+  const reply = h.events().filter((e) => e.type === "skill.file").at(-1) as Extract<IslandEvent, { type: "skill.file" }>;
+  assert.match(reply.text, /Merge PDFs/);
+  assert.deepEqual(saved, ["pdf"]);
+  h.clear();
+  await h.send({ type: "skill.save", name: "pdf", text: "  " }, { type: "skill.get", name: "nope" });
+  assert.deepEqual(h.types(), ["error", "error"]);
+  assert.match((h.events()[0] as { message: string }).message, /cannot be empty/);
+  assert.deepEqual(saved, ["pdf"], "a refused save wrote nothing");
+  h.clear();
+  await h.send({ type: "skill.get" }, { type: "skill.save", name: "pdf" }, { type: "skill.save", name: "x".repeat(65), text: "a" });
   assert.deepEqual(h.types(), ["error", "error", "error"]);
   for (const e of h.events()) assert.equal((e as { stage: string }).stage, "protocol");
 });

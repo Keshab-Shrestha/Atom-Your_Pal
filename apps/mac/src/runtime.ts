@@ -59,7 +59,7 @@ import type { InputSource, Message, ZenoInput } from "@atom/contracts";
 import type { IslandBrain, IslandChats, IslandGit, IslandHelpers, IslandMemory, IslandOptions, IslandProjects } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
 import { createHubCommands } from "./hub-commands.ts";
-import { SKILLS_PLUGIN, listSkills, prepareSkills, readSkill, useSkill, userSkillsDir } from "./skills.ts";
+import { SKILLS_PLUGIN, listSkills, prepareSkills, readSkill, readSkillFile, useSkill, userSkillsDir, writeSkillFile } from "./skills.ts";
 import { createUseSkillTool } from "./skill-tool.ts";
 import { runTestCases } from "./test-runs.ts";
 import { createEmbedder } from "./embedder.ts";
@@ -116,6 +116,8 @@ export interface Runtime {
   islandMemory?: IslandMemory;
   /** The second brain as the window sees it (Memory → Graph). Undefined when memory is off. */
   islandBrain?: IslandBrain;
+  /** Plugins → Skills: open and save a skill's SKILL.md on Keshab's click (skills.ts). */
+  islandSkillFiles: NonNullable<IslandOptions["skillFiles"]>;
   /** ADR-091: Keshab's chat sessions as the ATOM window sees them. Undefined when memory is off. */
   islandChats?: IslandChats;
   /** ADR-107: projects as the ATOM window sees them. Undefined when memory is off. */
@@ -760,6 +762,7 @@ export function createRuntime(
       : {}),
     ...(memory ? { memory, islandMemory, islandChats, islandProjects: projects!.island, ...(brainWiring ? { islandBrain: brainWiring.island } : {}) } : {}),
     ...(islandGit ? { islandGit } : {}),
+    islandSkillFiles: { read: (name) => readSkillFile(name, userSkillsDir(), skillsDir), write: (name, text) => writeSkillFile(name, text, userSkillsDir(), skillsDir) },
     ...(helpers ? { helpers, islandHelpers: warmOnOpen(withPaperclip(paperclip, paperclipListeners, {
             ...islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name)))),
             hub: createHubCommands({ store: helpers, log }), // B3.5

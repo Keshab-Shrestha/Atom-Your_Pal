@@ -29,6 +29,9 @@ public enum IslandCommand: Sendable, Equatable {
     case brainSave(id: Int?, title: String, body: String)
     case brainDelete(id: Int)
     case brainSearch(query: String)
+    /// Plugins → Skills: open one skill's SKILL.md for the editor, and save Keshab's edit of it (the answer is `skillFile`).
+    case skillGet(name: String)
+    case skillSave(name: String, text: String)
     /// Conversation notes (ADR-059): forget one, or all.
     case episodeForget(id: Int)
     case episodeClear
@@ -183,6 +186,8 @@ public enum IslandCommand: Sendable, Equatable {
         case .brainSave: "brain.save"
         case .brainDelete: "brain.delete"
         case .brainSearch: "brain.search"
+        case .skillGet: "skill.get"
+        case .skillSave: "skill.save"
         case .episodeForget: "episode.forget"
         case .episodeClear: "episode.clear"
         case .textSend, .textSendFiles: "text.send"
@@ -302,6 +307,11 @@ public enum IslandCommand: Sendable, Equatable {
             fields["body"] = body
         case .brainSearch(let query):
             fields["query"] = query
+        case .skillGet(let name):
+            fields["name"] = name
+        case .skillSave(let name, let text):
+            fields["name"] = name
+            fields["text"] = text
         default:
             break
         }
@@ -785,6 +795,8 @@ public enum IslandEvent: Sendable, Equatable {
     case brain(BrainGraphData)
     case brainNote(BrainNoteData)
     case brainHits(query: String, hits: [BrainHit])
+    /// A skill's whole SKILL.md for the editor (the answer to `skillGet` and `skillSave`).
+    case skillFile(SkillFileData)
     /// A timer ended (ADR-061). The runtime also says `message` aloud.
     case timer(id: Int, label: String, message: String)
     /// Task 3.15: a line from the team, just before ATOM says it.
@@ -838,6 +850,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .brain: "brain"
         case .brainNote: "brain.note"
         case .brainHits: "brain.hits"
+        case .skillFile: "skill.file"
         case .timer: "timer"
         case .workerLine: "worker.line"
         case .contextReady: "context.ready"
@@ -949,6 +962,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
     case "brain.note":
         guard let note = Fields.brainNote(f.values["note"]) else { throw ProtocolError.invalidValue(event: type, field: "note") }
         return .brainNote(note)
+    case "skill.file":
+        return .skillFile(SkillFileData(name: try f.string("name"), source: f.optionalString("source") ?? "yours", text: try f.string("text")))
     case "brain.hits":
         return .brainHits(query: f.optionalString("query") ?? "", hits: Fields.brainHits(f.values["hits"]))
     case "capabilities":

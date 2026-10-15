@@ -2633,3 +2633,27 @@ The chat's model menu moved from the top bar to the composer, in a row with the 
 ### Left out on purpose
 
 Word and Excel files (a model cannot read them without a converter), attachments in Telegram, and a skill that runs on its own without the user or the model asking for it.
+
+## ADR-114 — Keshab edits a skill in the Plugins page (2026-10-15)
+
+Date: 2026-10-15. Status: **accepted** (Keshab: "when i select a skill make me able to make changes / edit the skill").
+
+### Context
+
+Keshab's skill list is long. The Plugins page showed every skill as a row, and a skill could not be changed there. ADR-094 says ATOM never writes `~/.claude/skills`.
+
+### Decision
+
+1. Plugins → Skills is one dropdown. It lists Keshab's skills first, then ATOM's. The chosen skill shows its description, the workers that use it, and an editor for its whole `SKILL.md`.
+2. **Save** writes the file. This is the only write to `~/.claude/skills`, and only Keshab's click causes it. No model and no task calls it (`writeSkillFile` in `apps/mac/src/skills.ts`, command `skill.save`).
+3. The write changes only the `SKILL.md` of a skill that exists. It never makes or removes a skill. The name must be a plain folder name. The text is not empty and is at most 40,000 characters.
+4. The text it replaces stays in `SKILL.md.bak` (one backup, the newest). A temporary file and a rename keep the file whole.
+5. The composer's Skills menu lists the names only. The description is the hover tip.
+
+### Unchanged
+
+ADR-094 still holds for ATOM itself: Tinker and the main agent never write `~/.claude/skills`. A skill edit that Tinker proposes still waits for Keshab's Accept.
+
+### Left out on purpose
+
+Making and deleting skills in the editor, and a history longer than one backup.

@@ -47,6 +47,8 @@ export type IslandEvent =
   | { type: "brain"; nodes: BrainNodeItem[]; edges: BrainEdgeItem[]; omitted: number; tags: { tag: string; count: number }[] }
   | { type: "brain.note"; note: BrainNoteItem }
   | { type: "brain.hits"; query: string; hits: BrainHitItem[] }
+  /** A skill's whole SKILL.md for the editor (the answer to `skill.get` and `skill.save`). */
+  | { type: "skill.file"; name: string; source: "yours" | "zeno"; text: string }
   | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[]; chats?: MemoryChatItem[] }
   /** ADR-091: Keshab's chats, newest first, and the one ATOM is in now (voice goes to it). */
   /** ADR-097: `currentProvider` / `currentModel`: the current chat's own model; absent when it uses the default. */

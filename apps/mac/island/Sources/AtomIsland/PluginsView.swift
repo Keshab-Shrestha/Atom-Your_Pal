@@ -44,23 +44,10 @@ struct PluginsPane: View {
                     // ADR-094: Tinker's drafts and edits wait here; nothing is used or changed before you answer.
                     ForEach((list?.skillDrafts ?? []).filter { $0.state == "pending" }) { draft in SkillDraftCard(model: model, draft: draft) }
                     ForEach((list?.skillEdits ?? []).filter { $0.state == "pending" || $0.state == "accepted" }) { edit in SkillEditCard(model: model, edit: edit) }
-                    let skills = list?.skills ?? []
-                    if skills.isEmpty { Text("No skills yet: yours come from ~/.claude/skills, and ATOM's from tasks you rate good.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color) }
-                    ForEach(skills) { skill in
-                        let users = (list?.helpers ?? []).filter { $0.skills.contains(skill.name) }.map(\.name)
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 8) {
-                                Text(skill.name).font(theme.idFont(.system(size: 12.5, weight: .medium), size: 12)).foregroundStyle(theme.text.color)
-                                Text(skill.sourceTitle).font(.system(size: 10.5)).foregroundStyle(skill.source == "zeno" ? theme.accent.color : theme.text3.color)
-                                Spacer()
-                                Text(users.isEmpty ? "No worker" : users.joined(separator: ", ")).font(.system(size: 11)).foregroundStyle(users.isEmpty ? theme.text3.color : theme.text2.color)
-                            }
-                            if !skill.description.isEmpty { Text(skill.description).font(.system(size: 11.5)).foregroundStyle(theme.text3.color).lineLimit(2) }
-                            if skill.source == "zeno" { TestCasesList(model: model, kind: "skill", target: skill.name).padding(.top, 4) } // ADR-098 item 8
-                        }
-                        .padding(.vertical, 4)
+                    // 2026-10-15: one dropdown for the long list, and an editor for the chosen skill (SkillsSection.swift).
+                    SkillsSection(model: model, skills: list?.skills ?? []) { name in
+                        (list?.helpers ?? []).filter { $0.skills.contains(name) }.map(\.name)
                     }
-                    Text("Choose a worker's skills on its page. ATOM writes only its own skills, never those in ~/.claude/skills.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                 }
                 HubSkillsSection(model: model, hub: list?.skillHub ?? .empty) // B3.5
             }

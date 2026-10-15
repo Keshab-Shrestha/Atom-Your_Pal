@@ -1620,6 +1620,16 @@ Next: Keshab builds the app on the Mac, attaches a PDF and an image, switches a 
 
 Next: Keshab uses the window for a week, and names the features he never opens.
 
+## UI playground, second batch (2026-10-15)
+
+Keshab's list after trying the first batch. One capability at a time; each is its own commit.
+
+- Done: the Chats list stays empty until a model change. Cause: a window opened before the runtime was ready had its first `chats.list` ask dropped, and the `ready` event asked again only if the list was already known. Now an open window asks again (`ChatList.shouldAskAfterReady`, test in `ConversationTests.swift`). Not proved live: Accessibility cannot read the sidebar rows.
+- Done: the composer. The voice button has the right edge to itself, and the field and the tools row (Attach, Skills, model) sit in one column to its left. Checked by the positions of the live controls; Keshab to look.
+- Done: the Skills menu in the composer lists names only (the description is the hover tip), so it is no longer as wide as the window.
+- Done: Plugins → Skills is one dropdown with an editor for the chosen skill (ADR-114). Save writes `SKILL.md` and keeps `SKILL.md.bak`. Tests: `skills.test.ts`, `island.test.ts`, `SkillFileTests.swift`. Not tried by hand.
+- Next, in this order: the sidebar (drag to reorder every item, Settings and Plugins too; only the Chats list scrolls); Second brain looks (futuristic, robotic) with Settings → Memory merged into it; MCP setup like Claude Desktop (paste the same JSON, an easy form).
+
 ## UI playground, first batch (2026-10-15)
 
 - Source: Keshab's export from `design/ui-playground.html`. It holds four separate changes. One capability at a time (CLAUDE.md), so they go in this order: 1 the light theme, 2 the sidebar, 3 the chat, 4 browser automation.

@@ -28,6 +28,9 @@ export type IslandCommand =
   | { type: "brain.save"; id?: number; title: string; body: string }
   | { type: "brain.delete"; id: number }
   | { type: "brain.search"; query: string }
+  /** Plugins → Skills: one skill's whole SKILL.md for the editor, and Keshab's save of it (the answer is `skill.file`). */
+  | { type: "skill.get"; name: string }
+  | { type: "skill.save"; name: string; text: string }
   | { type: "chats.list" }
   /** ADR-107: a new chat, in a project when `projectId` is given (`conversation.reset` is the same without a project). */
   | { type: "chat.new"; projectId?: string }
@@ -142,6 +145,8 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "brain.save",
   "brain.delete",
   "brain.search",
+  "skill.get",
+  "skill.save",
   "chats.list",
   "chat.new",
   "chat.rename",
@@ -526,6 +531,14 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof title !== "string" || typeof body !== "string") return { error: 'brain.save needs "title" and "body" strings.' };
     if (title.length > 400 || body.length > 100_000) return { error: "brain.save: the note is too long." };
     return { command: { type, ...(id !== undefined ? { id } : {}), title, body } };
+  }
+  if (type === "skill.get" || type === "skill.save") {
+    // The name is checked again where the file is read or written (SKILL_NAME); here only the shape and size.
+    const { name, text } = value as { name?: unknown; text?: unknown };
+    if (typeof name !== "string" || !name || name.length > 64) return { error: `${type} needs a skill "name".` };
+    if (type === "skill.get") return { command: { type, name } };
+    if (typeof text !== "string" || text.length > 100_000) return { error: 'skill.save needs "text", a string.' };
+    return { command: { type, name, text } };
   }
   if (type === "brain.search") {
     const { query } = value as { query?: unknown };

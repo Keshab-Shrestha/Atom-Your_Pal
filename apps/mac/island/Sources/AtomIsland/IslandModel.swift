@@ -36,6 +36,10 @@ final class IslandModel {
     var planUsage: PlanUsage?
     /// ADR-091: Keshab's chats and the one ATOM is in; nil until the window asks.
     var chats: ChatList?
+    /// The skill open in Plugins → Skills (its whole SKILL.md), the last answer to `skillGet` or `skillSave`.
+    var skillFile: SkillFileData?
+    var skillError: String?
+    @ObservationIgnored private var skillCommandPending = false
     /// ADR-107: the chat that was opened with only its newest turns given to the model; its note shows over the chat.
     var trimmedChatId: String?
     /// ADR-107: why the last project command was refused; shown under "Projects" until the next one.
@@ -192,6 +196,18 @@ final class IslandModel {
         brainCommandPending = true
         send(.brainDelete(id: id))
     }
+    /// Plugins → Skills: open a skill's SKILL.md in the editor (the runtime answers with `skillFile`, or an error shown there).
+    func openSkill(_ name: String) {
+        skillError = nil
+        skillCommandPending = true
+        send(.skillGet(name: name))
+    }
+    /// Keshab's Save: the runtime writes the file (the old text stays as SKILL.md.bak) and answers with it.
+    func saveSkill(_ name: String, text: String) {
+        skillError = nil
+        skillCommandPending = true
+        send(.skillSave(name: name, text: text))
+    }
     func forgetMemory(_ id: Int) {
         memory?.memories.removeAll { $0.id == id } // at once; the runtime's answer confirms
         send(.memoryForget(id: id))
@@ -340,6 +356,13 @@ final class IslandModel {
             apiStatus = status
         case .searchResults(let results) where results.query == searchQuery:
             searchResults = results // an answer to older words is dropped
+        case .skillFile(let file):
+            skillFile = file
+            skillCommandPending = false
+            skillError = nil
+        case .error(let error) where error.stage == "settings" && skillCommandPending:
+            skillCommandPending = false
+            skillError = error.message
         case .memory(let list):
             memory = list
         case .capabilities(let items):

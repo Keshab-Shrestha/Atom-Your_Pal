@@ -285,6 +285,22 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "brain.search":
         send({ type: "brain.hits", query: command.query, hits: options.brain?.search(command.query) ?? [] });
         return;
+      case "skill.get": {
+        const file = options.skillFiles?.read(command.name);
+        if (file) send({ type: "skill.file", ...file });
+        else send({ type: "error", stage: "settings", message: `There is no skill called "${command.name}".` });
+        return;
+      }
+      case "skill.save":
+        try {
+          if (!options.skillFiles) throw new Error("Skills cannot be saved now.");
+          send({ type: "skill.file", ...options.skillFiles.write(command.name, command.text) });
+          options.log?.info("skill.saved", { skill: command.name, chars: command.text.length }); // never the text
+          sendHelpers(); // the description may have changed
+        } catch (error) {
+          send({ type: "error", stage: "settings", message: describe(error) });
+        }
+        return;
       case "memory.list":
         memoryWatched = true; // from now on, changes ATOM makes by itself are sent too
         sendMemory();

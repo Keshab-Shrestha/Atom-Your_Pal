@@ -4,7 +4,7 @@
 // ADR-094: ATOM's own skills (data/skills/<name>/SKILL.md, approved by Keshab) can be chosen too. A name in both places
 // is Keshab's: ATOM's is used only when it does not clash.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -88,6 +88,54 @@ export function readSkill(name: string, dir = userSkillsDir(), zenoDir?: string)
   } catch {
     return undefined;
   }
+}
+
+/** The most characters of a SKILL.md the editor opens or saves. */
+export const SKILL_FILE_CHARS = 40_000;
+
+export interface SkillFile {
+  name: string;
+  /** Where it lives: Keshab's own folder, or ATOM's (made by ATOM or from the hub). */
+  source: "yours" | "zeno";
+  /** The whole SKILL.md, front matter and steps. */
+  text: string;
+}
+
+const skillFolder = (name: string, dir: string, zenoDir?: string): { folder: string; source: SkillFile["source"] } | undefined => {
+  if (!SKILL_NAME.test(name)) return undefined;
+  for (const [d, source] of [[dir, "yours"], [zenoDir, "zeno"]] as const) {
+    if (d && existsSync(join(d, name, "SKILL.md"))) return { folder: join(d, name), source };
+  }
+  return undefined;
+};
+
+/** One skill's whole SKILL.md for the editor (Keshab's before ATOM's of the same name). Undefined when there is none. */
+export function readSkillFile(name: string, dir = userSkillsDir(), zenoDir?: string): SkillFile | undefined {
+  const found = skillFolder(name, dir, zenoDir);
+  if (!found) return undefined;
+  try {
+    return { name, source: found.source, text: readFileSync(join(found.folder, "SKILL.md"), "utf8").slice(0, SKILL_FILE_CHARS) };
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Keshab's edit of a skill, saved when he clicks Save (a model never calls this). It changes only the SKILL.md of a skill
+ * that exists, never makes or removes one, and keeps the text it replaced in SKILL.md.bak (one backup, the newest).
+ * Throws with words for the user.
+ */
+export function writeSkillFile(name: string, text: string, dir = userSkillsDir(), zenoDir?: string): SkillFile {
+  const found = skillFolder(name, dir, zenoDir);
+  if (!found) throw new Error(`There is no skill called "${name}".`);
+  if (!text.trim()) throw new Error("A skill cannot be empty.");
+  if (text.length > SKILL_FILE_CHARS) throw new Error(`A skill is at most ${SKILL_FILE_CHARS} characters.`);
+  const file = join(found.folder, "SKILL.md");
+  const tmp = join(found.folder, "SKILL.md.tmp");
+  writeFileSync(join(found.folder, "SKILL.md.bak"), readFileSync(file, "utf8"));
+  writeFileSync(tmp, text);
+  renameSync(tmp, file);
+  return { name, source: found.source, text };
 }
 
 /** `/name rest` at the start of a message: the skill's name and the words after it. */

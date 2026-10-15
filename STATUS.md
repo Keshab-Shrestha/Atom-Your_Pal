@@ -40,6 +40,8 @@ Built (2026-10-14): ADR-110 Phase N3: with `ATOM_ENGINE=native`, a later reply f
 
 Fixed (2026-10-15), after Keshab used the app: Settings pages go back with the top-bar arrow. The window chat draws Markdown (tables, lists, code) and copies a table as HTML. A message typed in the window may get a structured reply; voice replies stay short and plain. Job token counts were too high (one message counted two or three times); new rows are right. `test:live` ends and passes. Built and tested (836 TypeScript, 584 Swift tests). Keshab tried the app by hand before these fixes; he has not yet tried the fixes.
 
+Fixed and built (2026-10-15), after Keshab's try of the Daylight build: the Chats list loads when the runtime is ready; the composer's voice button has its own corner and the model menu moved left; the Skills menu is names only; Plugins → Skills is a dropdown with an editor (ADR-114). Built and tested (588 Swift tests, 424 TypeScript tests in `apps/mac`); not yet tried by hand. Next: the sidebar, then Second brain with Memory merged in, then MCP like Claude Desktop.
+
 Built (2026-10-15): a new theme, Daylight (Settings → Appearance): Void's flat look in light, from Keshab's UI playground. Void stays the default. Built and tested (585 Swift tests); not yet tried on the real screen. Next from the playground: the sidebar order and compact rows, then the chat, then browser automation.
 
 Fixed (2026-10-15): skills that improve themselves (ADR-094 A) had no trigger in the native engine, because nothing recorded which skill a task used. An agent's `Skill` call is now recorded, so a failed or badly rated task asks Tinker for an edit to that skill, and Keshab decides. Built and tested; not yet tried live (no ATOM skill has been used by an agent yet).

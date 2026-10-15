@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { listSkills, prepareSkills } from "./skills.ts";
+import { SKILL_FILE_CHARS, listSkills, prepareSkills, readSkillFile, writeSkillFile } from "./skills.ts";
 
 // Task 3.12: only the skills chosen for a worker are linked into its plugin.
 
@@ -80,5 +80,48 @@ test("a ATOM skill whose name is in the hub list has source \"hub\" (B3.5)", () 
   } finally {
     rmSync(dir, { recursive: true, force: true });
     rmSync(zeno, { recursive: true, force: true });
+  }
+});
+
+test("the editor reads a whole SKILL.md and saves Keshab's edit with one backup, touching nothing else", () => {
+  const dir = skillsDir();
+  const zeno = mkdtempSync(join(tmpdir(), "atom-zeno-skills-"));
+  try {
+    mkdirSync(join(zeno, "mine"));
+    writeFileSync(join(zeno, "mine", "SKILL.md"), "---\nname: mine\ndescription: Made by ATOM.\n---\n\nStep 1.\n");
+    const before = readSkillFile("pdf", dir, zeno)!;
+    assert.equal(before.source, "yours");
+    assert.match(before.text, /description: Read and write PDFs\./);
+    assert.equal(readSkillFile("mine", dir, zeno)!.source, "zeno");
+
+    const edited = before.text.replace("Read and write PDFs.", "Read, write and merge PDFs.");
+    writeSkillFile("pdf", edited, dir, zeno);
+    assert.equal(readFileSync(join(dir, "pdf", "SKILL.md"), "utf8"), edited);
+    assert.equal(readFileSync(join(dir, "pdf", "SKILL.md.bak"), "utf8"), before.text, "the replaced text is kept");
+    assert.deepEqual(readdirSync(join(dir, "pdf")).sort(), ["SKILL.md", "SKILL.md.bak"], "no temp file stays");
+    assert.equal(listSkills(dir).find((x) => x.name === "pdf")!.description, "Read, write and merge PDFs.");
+
+    writeSkillFile("pdf", "# second edit\n", dir, zeno);
+    assert.equal(readFileSync(join(dir, "pdf", "SKILL.md.bak"), "utf8"), edited, "only the newest backup");
+    assert.deepEqual(readdirSync(dir).sort(), ["council", "no-skill-md", "pdf"], "no skill was made or removed");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+    rmSync(zeno, { recursive: true, force: true });
+  }
+});
+
+test("the editor refuses a name that is not a skill, a path, empty text and a file that is too long", () => {
+  const dir = skillsDir();
+  try {
+    assert.equal(readSkillFile("../etc", dir), undefined);
+    assert.equal(readSkillFile("nope", dir), undefined);
+    assert.throws(() => writeSkillFile("nope", "x", dir), /no skill called/);
+    assert.throws(() => writeSkillFile("../pdf", "x", dir), /no skill called/);
+    assert.throws(() => writeSkillFile("pdf", "  \n", dir), /cannot be empty/);
+    assert.throws(() => writeSkillFile("pdf", "x".repeat(SKILL_FILE_CHARS + 1), dir), /at most/);
+    assert.match(readFileSync(join(dir, "pdf", "SKILL.md"), "utf8"), /Read and write PDFs/, "a refused save changes nothing");
+    assert.equal(existsSync(join(dir, "pdf", "SKILL.md.bak")), false, "and makes no backup");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });

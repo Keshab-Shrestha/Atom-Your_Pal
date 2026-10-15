@@ -38,6 +38,11 @@ export interface IslandOptions {
   memory?: IslandMemory;
   /** The second brain (Memory → Graph). */
   brain?: IslandBrain;
+  /** Plugins → Skills: open a skill's SKILL.md and save Keshab's edit. `write` throws with words for the user. */
+  skillFiles?: {
+    read(name: string): { name: string; source: "yours" | "zeno"; text: string } | undefined;
+    write(name: string, text: string): { name: string; source: "yours" | "zeno"; text: string };
+  };
   /** ADR-091: chat sessions. Absent when memory is off. */
   chats?: IslandChats;
   /** ADR-113: files attached to a typed message. Absent: a message with files is refused. */

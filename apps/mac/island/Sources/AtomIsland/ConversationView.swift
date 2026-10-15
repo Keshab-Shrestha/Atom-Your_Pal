@@ -147,11 +147,13 @@ private struct SkillsMenu: View {
                 Text("No skills yet. Add one in ~/.claude/skills.")
             } else {
                 ForEach(skills, id: \.name) { skill in
+                    // The name only: a long description made the menu as wide as the window. It is the hover tip.
                     Button {
                         choose(skill.name)
                     } label: {
-                        Text(skill.description.isEmpty ? skill.name : "\(skill.name) — \(skill.description)")
+                        Text(skill.name)
                     }
+                    .help(skill.description)
                 }
             }
         } label: {

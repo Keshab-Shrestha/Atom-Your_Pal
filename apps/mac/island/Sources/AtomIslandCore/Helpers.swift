@@ -1428,6 +1428,20 @@ public struct HelperRoutine: Sendable, Equatable, Identifiable {
 }
 
 /// Task 3.12: one of the skills a worker can be given: Keshab's ("yours") or, ADR-094, made by ATOM ("zeno").
+/// One skill's whole SKILL.md (front matter and steps) for the editor in Plugins → Skills.
+public struct SkillFileData: Sendable, Equatable {
+    public var name: String
+    /// "yours" (~/.claude/skills) or "zeno" (ATOM's own folder).
+    public var source: String
+    public var text: String
+
+    public init(name: String, source: String = "yours", text: String) {
+        self.name = name
+        self.source = source
+        self.text = text
+    }
+}
+
 public struct SkillInfo: Sendable, Equatable, Identifiable {
     public var name: String
     public var description: String
