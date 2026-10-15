@@ -86,9 +86,16 @@ final class DictationController {
                 let seconds = ProcessInfo.processInfo.systemUptime - started
                 await MainActor.run { self.modelError = nil; self.modelReady = true; self.log("dictation.model_ready", ["seconds": (seconds * 10).rounded() / 10]) }
             } catch {
-                await MainActor.run { self.modelError = "\(error)"; self.log("dictation.model_failed", ["message": "\(error)"]) }
+                // Cleared so the next use tries again: a first launch offline (the 450 MB download failed) must not leave dictation
+                // and local Talk dead until the app is relaunched (2026-10-15, code review).
+                await MainActor.run { self.modelError = "\(error)"; self.modelLoading = nil; self.log("dictation.model_failed", ["message": "\(error)"]) }
             }
         }
+    }
+
+    /// A model that failed to load starts again at the next dictation or Talk (the network may be back).
+    private func retryModelIfFailed() {
+        if !modelReady, modelLoading == nil { warmUp() }
     }
 
     private func prepareMicrophone() {
@@ -147,6 +154,7 @@ final class DictationController {
     // MARK: - The shortcut
 
     func holdBegan() {
+        retryModelIfFailed()
         // A tap while a hands-free dictation is listening finishes it.
         if case .listening(let since, let target, true, _) = state {
             finishListening(since: since, target: target)
@@ -247,6 +255,7 @@ final class DictationController {
     /// Starts listening for a question. False when this path cannot be used right now (model not loaded, no microphone
     /// permission, dictating): the caller falls back to the runtime's own microphone and Whisper.
     func talkBegan() -> Bool {
+        retryModelIfFailed()
         guard modelReady, !paused, case .idle = state, talkSince == nil, DictationCapture.permission == .authorized else { return false }
         talkWork?.cancel()
         talkWork = nil
