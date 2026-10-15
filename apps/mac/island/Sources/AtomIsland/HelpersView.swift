@@ -160,68 +160,29 @@ private struct Waiting: View {
 private struct HelperSidebar: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
+    /// The page being dragged. `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
+    private let dragging = State<SidebarItem?>(initialValue: nil)
+    @Environment(\.islandSnapshot) private var snapshot
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-          // ADR-088: the team can grow, so the list scrolls; the switch stays at the bottom.
-          Scrollable {
-           VStack(alignment: .leading, spacing: 4) {
             WindowHeader(model: model)
             // ADR-098: one search over chats, tasks and reports; its results replace the pages while there are words.
             SidebarSearchField(model: model).padding(.bottom, 4)
             if !model.searchQuery.isEmpty {
-                SidebarSearchResults(model: model)
+                Scrollable { SidebarSearchResults(model: model) }
             } else {
-            Button { model.navigate { model.windowPage = .dashboard } } label: {
-                let today = model.helpers.list?.usage?.today.total ?? 0
-                SidebarRow(symbol: "chart.bar.xaxis", title: "Dashboard", detail: today == 0 ? nil : "\(TokenTotals.short(today)) tokens today", selected: model.windowPage == .dashboard)
+                // 2026-10-15: the pages are in two groups Keshab arranges by dragging. Only the Chats list scrolls; the
+                // header, the pages and Projects stay where they are.
+                group(model.settings.sidebar.top, bottom: false)
+                // ADR-107: projects (a folder and its chats) above the plain chats.
+                ProjectsSection(model: model)
+                // ADR-091: Keshab's chats where the team was (the team is on the Board and each worker's page).
+                Scrollable { ChatsList(model: model) }
+                    .frame(maxHeight: .infinity)
             }
-            .buttonStyle(.plain)
-            // ADR-091: no Chat row: the chats below open the chat (ATOM's state is under its name above).
-            Button { model.navigate { model.windowPage = .inbox } } label: {
-                let waiting = (model.helpers.list.map { NeedsYouItem.all(in: $0).count } ?? 0) + (model.approval.pending == nil ? 0 : 1)
-                SidebarRow(symbol: "tray", title: "Needs you", detail: waiting == 0 ? "Nothing waits" : "\(waiting) waiting", selected: model.windowPage == .inbox)
-                    .overlay(alignment: .trailing) { if waiting > 0 { StatusDot(color: theme.attention.color, size: 6).padding(.trailing, 14) } }
-            }
-            .buttonStyle(.plain)
-            Button { model.navigate { model.windowPage = .issues } } label: {
-                let issues = model.helpers.list.map { TeamIssues.all(in: $0).count } ?? 0
-                SidebarRow(symbol: "exclamationmark.triangle", title: "Issues", detail: issues == 0 ? "None" : "\(issues) failed", selected: model.windowPage == .issues)
-                    .overlay(alignment: .trailing) { if issues > 0 { StatusDot(color: theme.problem.color, size: 6).padding(.trailing, 14) } }
-            }
-            .buttonStyle(.plain)
-            Button { model.navigate { model.windowPage = .agents; model.helpers.selectBoard() } } label: {
-                BoardRow(model: model, selected: model.windowPage == .agents && model.helpers.showsBoard)
-            }
-            .buttonStyle(.plain)
-            // ADR-094: everything that runs by itself, below Issues and Board.
-            Button { model.navigate { model.windowPage = .scheduled } } label: {
-                SidebarRow(symbol: "clock", title: "Scheduled", detail: model.helpers.list.map(ScheduledRow.detail) ?? nil, selected: model.windowPage == .scheduled)
-            }
-            .buttonStyle(.plain)
-            // The second brain: notes that link to each other, as a graph.
-            Button { model.navigate { model.windowPage = .brain } } label: {
-                let notes = model.brain.graph?.noteCount
-                SidebarRow(symbol: "brain.head.profile", title: "Second brain", detail: notes.map { $0 == 0 ? "Empty" : "\($0) notes" }, selected: model.windowPage == .brain)
-            }
-            .buttonStyle(.plain)
-            // ADR-107: projects (a folder and its chats) above the plain chats.
-            ProjectsSection(model: model)
-            // ADR-091: Keshab's chats where the team was (the team is on the Board and each worker's page).
-            ChatsList(model: model)
-            }
-           }
-          }
-            Spacer(minLength: 0)
-            Button { model.navigate { model.windowPage = .plugins } } label: {
-                let on = model.helpers.list?.mcp.filter(\.enabled).count ?? 0
-                SidebarRow(symbol: "puzzlepiece.extension", title: "Plugins", detail: on == 0 ? nil : "\(on) on", selected: model.windowPage == .plugins)
-            }
-            .buttonStyle(.plain)
-            Button { model.navigate { model.windowPage = .settings } } label: {
-                SidebarRow(symbol: "gearshape", title: "Settings", detail: nil, selected: model.windowPage == .settings)
-            }
-            .buttonStyle(.plain)
+            if !model.searchQuery.isEmpty { Spacer(minLength: 0) }
+            group(model.settings.sidebar.bottom, bottom: true)
             if let list = model.helpers.list, model.windowPage == .agents { AllowLargeSwitch(model: model, list: list) }
         }
         .padding(.horizontal, 14)
@@ -231,6 +192,121 @@ private struct HelperSidebar: View {
         // Darker than the window: the list sits back, the chosen helper comes forward. Void: one black, the hairline
         // between them is enough.
         .background((theme.isFlat ? Color.clear : theme.isDark ? Color.black.opacity(0.2) : theme.fill1.color).ignoresSafeArea())
+    }
+
+    /// One group of pages. Each row can be dragged onto another row, or onto the strip at the end of the group (the way
+    /// into an empty group). The right-click menu does the same without a mouse.
+    private func group(_ items: [SidebarItem], bottom: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(items, id: \.self) { item in
+                if snapshot {
+                    row(item) // `ImageRenderer` cannot draw drag and drop: the gallery shows plain rows
+                } else {
+                    row(item)
+                        .onDrag {
+                            dragging.wrappedValue = item
+                            return NSItemProvider(object: item.rawValue as NSString)
+                        }
+                        .onDrop(of: [.text], delegate: SidebarDrop(target: item, toBottom: bottom, dragging: dragging.projectedValue, layout: layout))
+                        .contextMenu {
+                            Button("Move up") { withAnimation(.easeInOut(duration: 0.15)) { model.settings.sidebar.shift(item, by: -1) } }
+                            Button("Move down") { withAnimation(.easeInOut(duration: 0.15)) { model.settings.sidebar.shift(item, by: 1) } }
+                            Button(bottom ? "Move to the top group" : "Move to the bottom group") {
+                                withAnimation(.easeInOut(duration: 0.15)) { model.settings.sidebar.move(item, before: nil, toBottom: !bottom) }
+                            }
+                        }
+                }
+            }
+            if snapshot {
+                Color.clear.frame(height: bottom ? 6 : 8)
+            } else {
+                Color.clear.frame(height: bottom ? 6 : 8)
+                    .onDrop(of: [.text], delegate: SidebarDrop(target: nil, toBottom: bottom, dragging: dragging.projectedValue, layout: layout))
+            }
+        }
+    }
+
+    private var layout: Binding<SidebarLayout> {
+        Binding(get: { model.settings.sidebar }, set: { model.settings.sidebar = $0 })
+    }
+
+    @ViewBuilder
+    private func row(_ item: SidebarItem) -> some View {
+        switch item {
+        case .dashboard:
+            page { model.navigate { model.windowPage = .dashboard } } label: {
+                let today = model.helpers.list?.usage?.today.total ?? 0
+                SidebarRow(symbol: "chart.bar.xaxis", title: "Dashboard", detail: today == 0 ? nil : "\(TokenTotals.short(today)) tokens today", selected: model.windowPage == .dashboard)
+            }
+        case .inbox:
+            // ADR-091: no Chat row: the chats below open the chat (ATOM's state is under its name above).
+            page { model.navigate { model.windowPage = .inbox } } label: {
+                let waiting = (model.helpers.list.map { NeedsYouItem.all(in: $0).count } ?? 0) + (model.approval.pending == nil ? 0 : 1)
+                SidebarRow(symbol: "tray", title: "Needs you", detail: waiting == 0 ? "Nothing waits" : "\(waiting) waiting", selected: model.windowPage == .inbox)
+                    .overlay(alignment: .trailing) { if waiting > 0 { StatusDot(color: theme.attention.color, size: 6).padding(.trailing, 14) } }
+            }
+        case .issues:
+            page { model.navigate { model.windowPage = .issues } } label: {
+                let issues = model.helpers.list.map { TeamIssues.all(in: $0).count } ?? 0
+                SidebarRow(symbol: "exclamationmark.triangle", title: "Issues", detail: issues == 0 ? "None" : "\(issues) failed", selected: model.windowPage == .issues)
+                    .overlay(alignment: .trailing) { if issues > 0 { StatusDot(color: theme.problem.color, size: 6).padding(.trailing, 14) } }
+            }
+        case .board:
+            page { model.navigate { model.windowPage = .agents; model.helpers.selectBoard() } } label: {
+                BoardRow(model: model, selected: model.windowPage == .agents && model.helpers.showsBoard)
+            }
+        case .scheduled:
+            // ADR-094: everything that runs by itself.
+            page { model.navigate { model.windowPage = .scheduled } } label: {
+                SidebarRow(symbol: "clock", title: "Scheduled", detail: model.helpers.list.map(ScheduledRow.detail) ?? nil, selected: model.windowPage == .scheduled)
+            }
+        case .brain:
+            // The second brain: notes that link to each other, as a graph.
+            page { model.navigate { model.windowPage = .brain } } label: {
+                let notes = model.brain.graph?.noteCount
+                SidebarRow(symbol: "brain.head.profile", title: "Second brain", detail: notes.map { $0 == 0 ? "Empty" : "\($0) notes" }, selected: model.windowPage == .brain)
+            }
+        case .plugins:
+            page { model.navigate { model.windowPage = .plugins } } label: {
+                let on = model.helpers.list?.mcp.filter(\.enabled).count ?? 0
+                SidebarRow(symbol: "puzzlepiece.extension", title: "Plugins", detail: on == 0 ? nil : "\(on) on", selected: model.windowPage == .plugins)
+            }
+        case .settings:
+            page { model.navigate { model.windowPage = .settings } } label: {
+                SidebarRow(symbol: "gearshape", title: "Settings", detail: nil, selected: model.windowPage == .settings)
+            }
+        }
+    }
+
+    /// A sidebar page as a tap target. Not a `Button`: a button takes the mouse-down and the row could not be dragged.
+    private func page<Label: View>(_ action: @escaping () -> Void, @ViewBuilder label: () -> Label) -> some View {
+        label().contentShape(Rectangle()).onTapGesture(perform: action)
+    }
+}
+
+/// A drag of a sidebar page over a row (or over the strip at the end of a group): the page moves there at once, so the
+/// rows make room while it is held. Dropping ends the drag.
+private struct SidebarDrop: DropDelegate {
+    /// The row dropped on; nil for the strip at the end of the group.
+    let target: SidebarItem?
+    let toBottom: Bool
+    let dragging: Binding<SidebarItem?>
+    let layout: Binding<SidebarLayout>
+
+    func validateDrop(info: DropInfo) -> Bool { dragging.wrappedValue != nil }
+
+    func dropEntered(info: DropInfo) {
+        guard let item = dragging.wrappedValue else { return }
+        withAnimation(.easeInOut(duration: 0.15)) {
+            if let target { layout.wrappedValue.move(item, onto: target) } else { layout.wrappedValue.move(item, before: nil, toBottom: toBottom) }
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+
+    func performDrop(info: DropInfo) -> Bool {
+        dragging.wrappedValue = nil
+        return true
     }
 }
 
