@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { appBlock, keyApproval, labelApproval, secretField } from "./policy.ts";
+import { appBlock, isSearchField, keyApproval, labelApproval, secretField, typeApproval } from "./policy.ts";
 
 test("never controls terminals, password managers, system settings, or agents", () => {
   const blocked: Array<[string, string]> = [
@@ -46,7 +46,7 @@ test("an unlabeled button needs approval, an unlabeled text area does not", () =
   assert.ok(labelApproval(undefined, "AXButton"));
   assert.ok(labelApproval("", "AXButton"));
   assert.equal(labelApproval(undefined, "AXTextArea"), undefined);
-  assert.equal(labelApproval(undefined, "AXStaticText"), undefined);
+  assert.equal(labelApproval(undefined, "AXStaticText"), undefined, "unnamed static text is only text");
 });
 
 test("Return, Delete, Quit, Spotlight and force-quit keys need approval", () => {
@@ -79,7 +79,10 @@ test("secret fields are recognised by role or by label", () => {
 
 test("document text is not a button: a text area whose content says \"buy milk\" does not need approval", () => {
   assert.equal(labelApproval("buy milk, send the report", "AXTextArea"), undefined);
-  assert.equal(labelApproval("Delete everything", "AXStaticText"), undefined);
+  // 2026-10-15: a page can make static text, an image or a heading clickable, so a risky name on them asks like a button.
+  assert.ok(labelApproval("Delete everything", "AXStaticText"));
+  assert.ok(labelApproval("Delete account", "AXImage"));
+  assert.ok(labelApproval("Pay now", "AXHeading"));
   assert.equal(labelApproval("Delete everything", "AXTextField"), undefined);
   assert.ok(labelApproval("Delete", "AXButton"));
   assert.ok(labelApproval("Send", "AXLink"));
@@ -91,4 +94,30 @@ test("document text is not a button: a text area whose content says \"buy milk\"
 test("a long label is cut in the approval wording", () => {
   const why = labelApproval("Send " + "x".repeat(300), "AXButton")!;
   assert.ok(why.length < 80);
+});
+
+test("the risky-word list covers consent and sign-in buttons", () => {
+  for (const label of ["Allow", "Accept all", "I agree", "Authorize", "Approve", "Grant access", "Unlock", "Yes", "Continue", "Sign in", "Log in"]) {
+    assert.ok(labelApproval(label, "AXButton"), label);
+  }
+  assert.equal(labelApproval("Bold", "AXButton"), undefined);
+});
+
+test("key aliases mean the same as the key they name", () => {
+  assert.ok(keyApproval(["command", "q"], false), "Quit");
+  assert.ok(keyApproval(["super", "space"], false), "Spotlight");
+  assert.ok(keyApproval(["command", "alt", "esc"], false), "Force Quit");
+  assert.ok(keyApproval(["kp_enter"], false), "Enter");
+  assert.equal(keyApproval(["kp_enter"], true), undefined, "after typing in a search field");
+});
+
+test("a search or address field is told apart from a compose box, and a line break in typed text asks", () => {
+  assert.equal(isSearchField("Search", "AXTextField"), true);
+  assert.equal(isSearchField("", "AXSearchField"), true);
+  assert.equal(isSearchField("Address and Search", "AXTextField"), true);
+  assert.equal(isSearchField("Message", "AXTextArea"), false);
+  assert.equal(isSearchField(undefined, undefined), false);
+  assert.ok(typeApproval("hi\nthere"));
+  assert.ok(typeApproval("hi\r"));
+  assert.equal(typeApproval("hello"), undefined);
 });

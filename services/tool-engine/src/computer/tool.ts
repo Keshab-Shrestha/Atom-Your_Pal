@@ -1,6 +1,6 @@
 import type { Tool } from "../engine.ts";
 import type { CuaTransport } from "./cua-client.ts";
-import { appBlock, keyApproval, labelApproval, secretField } from "./policy.ts";
+import { appBlock, isSearchField, keyApproval, labelApproval, secretField, typeApproval } from "./policy.ts";
 
 export interface ApprovalRequest {
   /** What ATOM is about to do, in words for the user: "Click \"Send\" in Mail". */
@@ -80,7 +80,6 @@ const ACTIONS = ["list_apps", "look", "open", "click", "type", "key", "scroll", 
 const INPUT_ACTIONS = new Set(["click", "type", "key", "scroll", "set_value"]);
 
 /** Roles that take typed text, so a value set into one counts as typing. */
-const TEXT_ROLE = /text|combo|search/i;
 
 /** An element's place on screen, or nothing if it has none worth flying to (missing, not a number, empty, or off in space). */
 function usableFrame(f: Element["frame"]): { x: number; y: number; w: number; h: number } | undefined {
@@ -286,9 +285,11 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const secret = secretField(el);
         if (secret) throw new Refused(`ATOM never types into ${secret}. Ask the user to type it themselves.`);
         if (typeof input.text !== "string" || !input.text) throw new Refused('"text" is required.');
+        const lineBreak = typeApproval(input.text);
+        if (lineBreak) await ask(`Type text with a line break into ${t.app}`, `it has ${lineBreak}`, signal);
         const r = await cua.call("type_text", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, text: input.text, delivery_mode: "background" }, signal);
         checkResult(r, "Typing", t.app);
-        t.justTyped = true;
+        t.justTyped = isSearchField(el.label, el.role); // Return may follow without a card only in a search or address field
         return `Typed ${input.text.length} characters into [${el.element_index}].${verdict(r, `type:${el.element_index}`)}`;
       }
       case "key": {
@@ -336,7 +337,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         if (why) await ask(`Change ${why} in ${t.app}`, "it may send, buy, delete or change something", signal);
         const r = await cua.call("set_value", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, value: input.text }, signal);
         checkResult(r, "Setting the value", t.app);
-        t.justTyped = TEXT_ROLE.test(el.role ?? "");
+        t.justTyped = isSearchField(el.label, el.role);
         return `Set [${el.element_index}]${el.label ? ` "${el.label}"` : ""} to ${JSON.stringify(input.text.slice(0, 80))}.${verdict(r, `set_value:${el.element_index}`)}`;
       }
       default:

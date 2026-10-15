@@ -526,10 +526,10 @@ test("a look_after that cannot read the window still reports the action", async 
   assert.match(r.text, /could not read|look again/i);
 });
 
-test("typing then look_after still counts as just typed, so Return after it does not ask", async () => {
+test("typing in a search field then look_after still counts as just typed, so Return after it does not ask", async () => {
   const s = setup({ approve: () => false });
   await sees(s);
-  await s.run({ action: "type", element: 1, text: "hello", look_after: true });
+  await s.run({ action: "type", element: 5, text: "hello", look_after: true }); // element 5 is the "Search" field
   const r = await s.run({ action: "key", keys: ["return"] });
   assert.equal(r.ok, true);
   assert.equal(s.asked.length, 0);
@@ -538,6 +538,31 @@ test("typing then look_after still counts as just typed, so Return after it does
   await sees(fresh);
   assert.equal((await fresh.run({ action: "key", keys: ["return"] })).ok, false);
   assert.equal(fresh.asked.length, 1);
+});
+
+// 2026-10-15 (security review): Return skipped its card after typing in ANY field, so "type, then Return" sent a message from a compose box.
+test("Return after typing in a text area or compose box asks; text with a line break asks before it is typed", async () => {
+  const s = setup({ approve: () => false });
+  await sees(s);
+  await s.run({ action: "type", element: 1, text: "hello" }); // element 1 is the document text area, not a search field
+  const r = await s.run({ action: "key", keys: ["return"] });
+  assert.equal(r.ok, false, "Return after typing in a document asks");
+  assert.equal(s.asked.length, 1);
+  const lines = setup({ approve: () => false });
+  await sees(lines);
+  const typed = await lines.run({ action: "type", element: 1, text: "hi\nsend this" });
+  assert.equal(typed.ok, false, "a line break in the text asks first");
+  assert.equal(lines.asked.length, 1);
+  assert.equal(lines.calls.some((c) => c.name === "type_text"), false, "nothing was typed");
+});
+
+test("key aliases cannot dodge the rules: command+q, alt+escape-style names and kp_enter ask like cmd+q and enter", async () => {
+  const s = setup({ approve: () => false });
+  await sees(s);
+  for (const keys of [["command", "q"], ["super", "space"], ["kp_enter"], ["numpad enter"], ["command", "alt", "esc"]]) {
+    assert.equal((await s.run({ action: "key", keys })).ok, false, keys.join("+"));
+  }
+  assert.equal(s.asked.length, 5);
 });
 
 test("set_value sets a slider by its element and says what it set", async () => {
@@ -578,10 +603,10 @@ test("set_value on a risky control asks first, like a click", async () => {
   assert.equal(s.calls.some((c) => c.name === "set_value"), false);
 });
 
-test("set_value into a text area counts as typing, but into a slider does not", async () => {
+test("set_value into a search field counts as typing, but into a slider or a document does not", async () => {
   const typed = setup({ approve: () => false, handlers: { set_value: () => ok("set", { effect: "confirmed" }) } });
   await sees(typed);
-  await typed.run({ action: "set_value", element: 1, text: "hello" });
+  await typed.run({ action: "set_value", element: 5, text: "hello" });
   assert.equal((await typed.run({ action: "key", keys: ["return"] })).ok, true);
   const slid = setup({ approve: () => false, handlers: { set_value: () => ok("set", { effect: "confirmed" }) } });
   await sees(slid);

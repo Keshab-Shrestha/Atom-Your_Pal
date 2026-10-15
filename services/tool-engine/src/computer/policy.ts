@@ -35,10 +35,14 @@ export function appBlock(bundleId: string | undefined, name: string): string | u
 }
 
 const RISKY_LABEL =
-  /\b(send|submit|buy|purchase|pay|place\s+order|checkout|check\s+out|order|confirm|delete|remove|erase|trash|empty|sign\s*out|log\s*out|publish|post|share|transfer|donate|subscribe|unsubscribe|quit|force\s+quit|shut\s*down|restart|reset|install|uninstall|format|deactivate|close\s+account|apply)\b/i;
+  /\b(send|submit|buy|purchase|pay|place\s+order|checkout|check\s+out|order|confirm|delete|remove|erase|trash|empty|sign\s*out|log\s*out|publish|post|share|transfer|donate|subscribe|unsubscribe|quit|force\s+quit|shut\s*down|restart|reset|install|uninstall|format|deactivate|close\s+account|apply|allow|accept|agree|authorize|approve|grant|unlock|yes|continue|sign\s*in|log\s*in)\b/i;
 
-/** Roles whose label is content the user wrote or read, not the name of an action. Clicking them only moves the cursor. */
-const CONTENT_ROLES = new Set(["AXTextArea", "AXTextField", "AXStaticText", "AXWebArea", "AXScrollArea", "AXImage", "AXHeading"]);
+/**
+ * Roles whose label is content the user wrote or read, not the name of an action. Clicking them only moves the cursor.
+ * Not static text, images or headings (2026-10-15, security review): a web page can make a "Delete account" image or a "Pay" heading
+ * clickable, so these ask when their label names a risky action, like a button.
+ */
+const CONTENT_ROLES = new Set(["AXTextArea", "AXTextField", "AXWebArea", "AXScrollArea"]);
 
 /**
  * Why a click on this element needs the user's approval, or undefined. Only the label of something that can do
@@ -55,6 +59,29 @@ export function labelApproval(label: string | undefined, role: string | undefine
   return RISKY_LABEL.test(text) ? `"${text.length > 40 ? `${text.slice(0, 40)}…` : text}"` : undefined;
 }
 
+/** Other names for the same key, so "command", "alt" or "kp_enter" cannot get past a rule written for "cmd", "option" or "enter". */
+const KEY_ALIASES: Readonly<Record<string, string>> = {
+  command: "cmd", "⌘": "cmd", super: "cmd", meta: "cmd", opt: "option", alt: "option", esc: "escape",
+  kp_enter: "enter", kpenter: "enter", keypadenter: "enter", numpadenter: "enter", "numpad enter": "enter", "keypad enter": "enter",
+};
+const canonicalKey = (key: string): string => {
+  const k = key.trim().toLowerCase();
+  return KEY_ALIASES[k] ?? k;
+};
+
+/**
+ * A field where Return runs a search or opens an address and sends nothing. Only here may Return follow typing without a card
+ * (it used to follow any typing, so "type, then Return" sent a message in a compose box).
+ */
+export function isSearchField(label: string | undefined, role: string | undefined): boolean {
+  return /search/i.test(role ?? "") || /\b(search|find|filter|address|url|location|go\s+to|spotlight)\b/i.test(label ?? "");
+}
+
+/** Why typing this text needs approval, or undefined. A line break inside typed text presses Return. */
+export function typeApproval(text: string): string | undefined {
+  return /[\r\n]/.test(text) ? "text with a line break, which can send or confirm" : undefined;
+}
+
 const DELETE_KEYS = new Set(["delete", "backspace", "forwarddelete", "del"]);
 const SENDING_KEYS = new Set(["return", "enter"]);
 
@@ -63,7 +90,7 @@ const SENDING_KEYS = new Set(["return", "enter"]);
  * typing into a field with no modifier (a search or address box). Delete, Quit, Spotlight and force-quit always ask.
  */
 export function keyApproval(keys: string[], justTyped: boolean): string | undefined {
-  const lower = keys.map((k) => k.toLowerCase());
+  const lower = keys.map(canonicalKey);
   const key = lower[lower.length - 1] ?? "";
   const mods = lower.slice(0, -1).filter((k) => k !== "shift");
   const hasMod = mods.length > 0;
