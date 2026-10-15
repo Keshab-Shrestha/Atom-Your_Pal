@@ -41,7 +41,7 @@ const MAX_REMEMBERED = 500;
 
 export interface TeamScope {
   chatId: string;
-  helpers: Pick<HelperStore, "list" | "mcpServers" | "addNativeJob" | "checkpoint" | "finishCheckpoints" | "setModel" | "linkPlanJob">;
+  helpers: Pick<HelperStore, "list" | "mcpServers" | "addNativeJob" | "checkpoint" | "finishCheckpoints" | "setModel" | "linkPlanJob" | "recordSkillUse">;
   board: BoardRecorder;
   /** ADR-111: the chat's work plan; an Agent call with description "P<n>" is a portion of it. */
   plans?: PlanBook;
@@ -188,7 +188,10 @@ export function nativeGate(scope: NativeScope): NativeGate {
     if (!kit.has(name)) return say("refused"), deny(`${name} is not in ${member.name}'s kit (${member.kit}).`);
     if (name === "Skill") {
       const skill = String(input.skill ?? "").split(":").at(-1) ?? "";
-      return member.skills.includes(skill) ? { allow: true, input } : (say("refused"), deny(`${skill || "That skill"} is not one of ${member.name}'s skills.`));
+      if (!member.skills.includes(skill)) return say("refused"), deny(`${skill || "That skill"} is not one of ${member.name}'s skills.`);
+      // ADR-094: a task that used one of ATOM's skills and then goes badly asks Tinker for an edit to it (store.askEdits).
+      if (job !== undefined) team.helpers.recordSkillUse(job, skill);
+      return { allow: true, input };
     }
     if (name === "ExitPlanMode") {
       const plan = typeof input.plan === "string" ? input.plan : "";

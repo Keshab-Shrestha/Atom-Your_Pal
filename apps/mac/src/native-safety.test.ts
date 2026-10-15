@@ -175,3 +175,15 @@ test("fail closed: a decision that throws, an unknown agent, a missing agent typ
   assert.match(thrown.reason!, /could not check/);
   done();
 });
+
+test("sub-agents: a Skill call is recorded for the agent's task, so a bad or failed task can ask for an edit to that skill", async () => {
+  const { gate, store, done } = setup();
+  store.setSkills("sid", ["trip-planning"]);
+  await pre(gate, { tool_name: "Agent", tool_input: { prompt: "Find flights", description: "Flights", subagent_type: "sid" } });
+  const job = store.list().find((h) => h.id === "sid")!.jobs[0]!.id;
+  assert.equal((await pre(gate, sub("sid", "Skill", { skill: "other" }), "c2")).decision, "deny", "not its skill");
+  assert.deepEqual(store.skillsUsed(job), [], "a refused skill is not a use");
+  assert.equal((await pre(gate, sub("sid", "Skill", { skill: "trip-planning" }), "c3")).decision, "allow");
+  assert.deepEqual(store.skillsUsed(job), ["trip-planning"]);
+  done();
+});
