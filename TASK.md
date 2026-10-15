@@ -1620,6 +1620,11 @@ Next: Keshab builds the app on the Mac, attaches a PDF and an image, switches a 
 
 Next: Keshab uses the window for a week, and names the features he never opens.
 
+## Computer control: fixes found by the benchmark (2026-10-15)
+
+- `look` refused TextEdit after `open`: Cua's `list_apps` shows an app with no document window as pid 0, not running. `pidOf` falls back to the pid of the app's windows (`list_windows`). Two tests in `tool.test.ts`. The TextEdit prompt then passed live: $0.0019, 6.8k tokens.
+- The work strip stayed on screen until Keshab closed it: it ended only on the voice loop's `idle`. The bridge now sends `computer.end` 6 s after the last step with no approval waiting; the strip finishes on it. Tests: `computer-bridge.test.ts`, `WorkStripTests`. Not yet seen live by eye (the local API was off).
+
 ## Computer control switch (2026-10-15)
 
 Keshab: "you add that and also in app setting for toggle". ADR-119.

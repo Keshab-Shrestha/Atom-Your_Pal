@@ -40,6 +40,17 @@ struct WorkStripStateTests {
         #expect(!s.isShown(at: 12.5))
     }
 
+    /// 2026-10-15: a turn started by the local API never made the voice loop idle, so the strip stayed until the user closed it.
+    @Test func theRuntimeSayingTheWorkIsOverEndsItWithoutTheVoiceLoop() throws {
+        var s = WorkStripState(linger: 2.5)
+        s.apply(step, now: 1)
+        #expect(s.isShown(at: 100), "no idle event, no end: it stays")
+        s.apply(try decodeEvent(#"{"type":"computer.end"}"#), now: 100)
+        #expect(s.line == "Done")
+        #expect(s.isShown(at: 102.4))
+        #expect(!s.isShown(at: 102.5))
+    }
+
     @Test func itStaysUpForAsLongAsTheTurnRuns() {
         var s = WorkStripState()
         s.apply(step, now: 1)

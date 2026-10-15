@@ -38,6 +38,8 @@ export interface ApprovalAsk {
 export interface ComputerBridgeOptions {
   /** How long a request waits for the user before it counts as "no". */
   timeoutMs?: number;
+  /** How long after the last step (with no approval waiting) the island is told that the work is over. */
+  endAfterMs?: number;
   newId?: () => string;
 }
 
@@ -62,12 +64,26 @@ export function stepText(step: { action: string; app?: string }): string {
   }
 }
 
+/** Quiet time after the last step before the island is told the work is over. */
+export const COMPUTER_END_MS = 6000;
+
 export function createComputerBridge(options: ComputerBridgeOptions = {}): ComputerBridge {
-  const { timeoutMs = 60_000, newId = randomUUID } = options;
+  const { timeoutMs = 60_000, endAfterMs = COMPUTER_END_MS, newId = randomUUID } = options;
   let sendEvent: ((event: IslandEvent) => void) | undefined;
   const waiting = new Map<string, (approved: boolean) => void>();
   const asks = new Map<string, ApprovalAsk>();
   const askListeners = new Set<(ask: ApprovalAsk) => void>();
+
+  // 2026-10-15: the island's work strip ended only when its own voice loop went idle, so a turn started by the local API, Telegram or
+  // a goal left it on screen until the user closed it. Now the bridge says when the work is over: a quiet moment after the last step.
+  let endTimer: ReturnType<typeof setTimeout> | undefined;
+  function scheduleEnd() {
+    clearTimeout(endTimer);
+    endTimer = setTimeout(() => {
+      if (waiting.size === 0) sendEvent?.({ type: "computer.end" });
+    }, endAfterMs);
+    endTimer.unref?.();
+  }
 
   function settle(id: string, approved: boolean) {
     const done = waiting.get(id);
@@ -76,6 +92,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
     asks.delete(id);
     done(approved);
     sendEvent?.({ type: "approval.closed", id });
+    scheduleEnd();
   }
 
   return {
@@ -104,6 +121,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
       if (!sendEvent) return false;
       const whole = (n: number) => Math.round(n);
       sendEvent({ type: "computer.point", x: whole(target.x), y: whole(target.y), w: whole(target.w), h: whole(target.h), label: oneLine(target.label, 48) });
+      scheduleEnd();
       return true;
     },
     openSettings() {
@@ -116,6 +134,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
     },
     step(step) {
       sendEvent?.({ type: "computer.step", text: stepText(step) });
+      scheduleEnd();
     },
     answer: (id, approved) => settle(id, approved),
     cancelAll() {

@@ -2791,3 +2791,9 @@ Computer control is off unless `ATOM_COMPUTER=1` (ADR-054). The benchmark of 202
 ### Left out on purpose
 
 A live switch without a restart. It would put the computer tool in the model's list while the switch is off.
+
+### Addendum, 2026-10-15: the work strip that stayed on
+
+Keshab saw the strip ("what ATOM is doing") appear at the start of a computer task and stay on the screen until they closed it, after ATOM had answered. Cause: the island's strip ended only when its own voice loop went idle (`state idle`). A turn from the local API, Telegram or a goal shows steps but never makes the voice loop idle. Fix: the runtime's computer bridge sends `computer.end` 6 seconds after the last step or point, and only when no approval waits. The strip finishes on that event. It works for every path that uses computer control.
+
+Also fixed the same day: `look` found no process for TextEdit when it had only its Open panel (Cua's `list_apps` showed pid 0 and not running). It now finds the app by the pid of its windows.

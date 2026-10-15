@@ -44,7 +44,7 @@ public struct WorkStripState: Sendable, Equatable {
         case .approvalRequest(let request):
             begin()
             step = IslandStatus.short(request.summary)
-        case .state(.idle):
+        case .state(.idle), .computerEnd:
             finish(.done, now: now)
         case .state(.listening), .conversationReset:
             clear() // a new request: the old work is over and out of the way at once

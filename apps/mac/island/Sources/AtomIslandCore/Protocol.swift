@@ -787,6 +787,8 @@ public enum IslandEvent: Sendable, Equatable {
     case conversationReset
     /// ATOM is about to do something on the Mac, in plain words (ADR-054).
     case computerStep(String)
+    /// ADR-054: no step for a while and no approval waits: the computer work is over (any turn, not only the voice loop's).
+    case computerEnd
     /// ATOM shows the user a place on screen: Pal flies there and the bubble says what it is (ADR-054).
     case computerPoint(PointTarget)
     /// ATOM is waiting for the user to allow or decline an action.
@@ -849,6 +851,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .notice(let kind, _): "notice:\(kind)"
         case .conversationReset: "conversation.reset"
         case .computerStep: "computer.step"
+        case .computerEnd: "computer.end"
         case .computerPoint: "computer.point"
         case .approvalRequest: "approval.request"
         case .approvalClosed: "approval.closed"
@@ -944,6 +947,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .conversationReset
     case "computer.step":
         return .computerStep(try f.string("text"))
+    case "computer.end":
+        return .computerEnd
     case "computer.point":
         let w = try f.double("w"), h = try f.double("h")
         guard w > 0, h > 0 else { throw ProtocolError.invalidValue(event: "computer.point", field: w > 0 ? "h" : "w") }

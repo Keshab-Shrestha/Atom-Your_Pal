@@ -10,6 +10,36 @@ function setup(over: { timeoutMs?: number } = {}) {
   bridge.attach((e) => events.push(e));
   return { bridge, events };
 }
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// 2026-10-15: the island's strip ended only when its voice loop went idle; an API turn left it up until the user closed it.
+test("a quiet moment after the last step tells the island the work is over; a new step moves the end later", async () => {
+  const events: IslandEvent[] = [];
+  const bridge = createComputerBridge({ endAfterMs: 40 });
+  bridge.attach((e) => events.push(e));
+  bridge.step({ action: "look", app: "TextEdit" });
+  await sleep(25);
+  bridge.step({ action: "type", app: "TextEdit" });
+  await sleep(25);
+  assert.deepEqual(events.map((e) => e.type), ["computer.step", "computer.step"], "not yet: the second step moved the end");
+  await sleep(40);
+  assert.deepEqual(events.map((e) => e.type), ["computer.step", "computer.step", "computer.end"]);
+});
+
+test("the end waits for an approval and comes after it is answered", async () => {
+  const events: IslandEvent[] = [];
+  const bridge = createComputerBridge({ endAfterMs: 20, newId: () => "a1" });
+  bridge.attach((e) => events.push(e));
+  bridge.step({ action: "click", app: "Mail" });
+  const answer = bridge.approve({ summary: "Click Send", reason: "it may send" });
+  await sleep(60);
+  assert.ok(!events.some((e) => e.type === "computer.end"), "an approval is waiting: the work is not over");
+  bridge.answer("a1", true);
+  await answer;
+  await sleep(40);
+  assert.equal(events.at(-1)?.type, "computer.end");
+});
+
 const req = { summary: 'Click "Send" in Mail', reason: "it may send" };
 
 test("a request goes to the island and resolves with the user's answer", async () => {
