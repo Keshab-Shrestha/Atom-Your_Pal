@@ -91,6 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        SecretClipboard.clearIfStillSecret() // a copied API token does not outlive the app
         island?.stop()
         guard let supervisor else {
             log.flush()

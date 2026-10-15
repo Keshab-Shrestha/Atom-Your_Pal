@@ -77,8 +77,7 @@ struct FailureCard: View {
                     Spacer(minLength: 0)
                     // The full message is in Settings' now card, under the last turn (ADR-084).
                     Button {
-                        model.settingsPage = nil
-                        model.tab = .settings
+                        model.openSettings(nil)
                     } label: {
                         Text("Details in Settings")
                             .font(.system(size: 10))

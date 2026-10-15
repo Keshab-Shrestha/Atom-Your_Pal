@@ -18,11 +18,29 @@ public enum SecretClipboard {
         board.setData(Data(), forType: transient)
         let mine = board.changeCount
         let holder = Holder(board)
+        pending.set(holder, mine)
         Task {
             try? await Task.sleep(for: .seconds(seconds))
             // Only if it is still the secret: a later copy of anything else is the user's and stays.
             if holder.board.changeCount == mine { holder.board.clearContents() }
         }
+    }
+
+    /// What is still waiting to be cleared, so that quitting inside the delay clears it too (the token stayed on the pasteboard for good
+    /// when ATOM quit within 60 seconds of "Copy token"; code review, 2026-10-16).
+    private static let pending = Pending()
+
+    /// Clears the pasteboard now if it still holds the secret that was copied last. Call it when the app quits.
+    public static func clearIfStillSecret() {
+        guard let (holder, count) = pending.take() else { return }
+        if holder.board.changeCount == count { holder.board.clearContents() }
+    }
+
+    private final class Pending: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value: (Holder, Int)?
+        func set(_ holder: Holder, _ count: Int) { lock.withLock { value = (holder, count) } }
+        func take() -> (Holder, Int)? { lock.withLock { defer { value = nil }; return value } }
     }
 
     /// NSPasteboard is not marked Sendable, but reading its change count and clearing it are safe from any thread.

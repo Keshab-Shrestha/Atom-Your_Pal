@@ -189,8 +189,16 @@ final class IslandModel {
 
     /// Opens Settings → What can I ask? (the link under the empty conversation).
     func showExamples() {
+        openSettings(.examples)
+    }
+
+    /// Opens the ATOM window on Settings (a page, or the list). `tab` alone is read only when the window opens: with the window already open
+    /// on Chat, "What can I ask?" and "Details in Settings" did nothing visible (code review, 2026-10-16).
+    func openSettings(_ page: SettingsPage?) {
         tab = .settings
-        settingsPage = .examples
+        settingsPage = page
+        windowPage = .settings
+        setExpanded(true)
     }
 
     func newConversation() {

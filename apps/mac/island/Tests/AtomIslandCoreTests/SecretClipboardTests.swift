@@ -33,4 +33,23 @@ struct SecretClipboardTests {
         #expect(b.string(forType: .string) == "my own text")
         b.clearContents()
     }
+
+    /// 2026-10-16 (code review): quitting inside the 60 seconds left the token on the clipboard for good.
+    @Test func quittingClearsASecretThatIsStillThere() {
+        let b = board()
+        SecretClipboard.copy("s3cret", to: b, clearAfter: 60)
+        SecretClipboard.clearIfStillSecret()
+        #expect(b.string(forType: .string) == nil)
+    }
+
+    @Test func quittingLeavesSomethingCopiedLaterAlone() {
+        let b = board()
+        SecretClipboard.copy("s3cret", to: b, clearAfter: 60)
+        b.clearContents()
+        b.setString("my own text", forType: .string)
+        SecretClipboard.clearIfStillSecret()
+        #expect(b.string(forType: .string) == "my own text")
+        b.clearContents()
+    }
 }
+
