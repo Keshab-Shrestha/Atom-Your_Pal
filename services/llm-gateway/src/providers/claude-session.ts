@@ -41,6 +41,8 @@ export interface ModelTotal {
   output: number;
   cacheRead: number;
   cacheWrite: number;
+  /** Web searches the model ran (billed per search, not per token). Absent means none. */
+  webSearches?: number;
 }
 
 /** `modelUsage` of a result, by model; undefined when it names none. */
@@ -50,7 +52,7 @@ export function modelTotalsOf(result: Record<string, any>): Record<string, Model
   const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.round(v) : 0);
   const out: Record<string, ModelTotal> = {};
   for (const [model, m] of Object.entries(usage as Record<string, Record<string, unknown>>)) {
-    out[model] = { input: n(m?.inputTokens), output: n(m?.outputTokens), cacheRead: n(m?.cacheReadInputTokens), cacheWrite: n(m?.cacheCreationInputTokens) };
+    out[model] = { input: n(m?.inputTokens), output: n(m?.outputTokens), cacheRead: n(m?.cacheReadInputTokens), cacheWrite: n(m?.cacheCreationInputTokens), webSearches: n(m?.webSearchRequests) };
   }
   return Object.keys(out).length ? out : undefined;
 }

@@ -1,6 +1,6 @@
 import type { Logger } from "@atom/shared";
 import type { ModelTotal, TokenMeta, TokenUsage } from "@atom/llm-gateway";
-import { OVERHEAD_HELPER, type HelperStore, type TokenCounts, type UsageEntry } from "@atom/helpers";
+import { OVERHEAD_HELPER, type HelperStore, type RecordedUsage, type UsageEntry } from "@atom/helpers";
 
 // Job 1 (token cost): records one chat answer or its background note. The chat id and the gap since the chat's last
 // call (same model) go in the usage table; the log line gets names and numbers only, never text.
@@ -49,12 +49,13 @@ export function createOverheadRecorder(
   log: Pick<Logger, "info">,
   settleMs: number = OVERHEAD_SETTLE_MS,
 ) {
-  const base = new Map<string, TokenCounts>();
+  const base = new Map<string, RecordedUsage>();
   const latest = new Map<string, Record<string, ModelTotal>>();
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
-  const fields = ["input", "output", "cacheRead", "cacheWrite"] as const;
-  const missing = (total: TokenCounts, recorded: TokenCounts, from?: TokenCounts): TokenCounts =>
-    Object.fromEntries(fields.map((f) => [f, Math.max(0, total[f] - recorded[f] - (from?.[f] ?? 0))])) as unknown as TokenCounts;
+  // The web searches are counted the same way as the tokens: what the totals have and the table lacks (2026-10-16).
+  const fields = ["input", "output", "cacheRead", "cacheWrite", "webSearches"] as const;
+  const missing = (total: ModelTotal, recorded: RecordedUsage, from?: RecordedUsage): RecordedUsage =>
+    Object.fromEntries(fields.map((f) => [f, Math.max(0, (total[f] ?? 0) - recorded[f] - (from?.[f] ?? 0))])) as unknown as RecordedUsage;
 
   const settle = (chatId: string, first: boolean, resumed: boolean) => {
     const totals = latest.get(chatId);

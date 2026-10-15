@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import { dollarsFor } from "./pricing.ts";
+import { dollarsFor, webSearchDollars } from "./pricing.ts";
 
 // ADR-091: the tokens every Claude run used (a worker's task or ATOM's own chat answer), for the Dashboard. Counts and
 // model ids only: never a task's or answer's text. Kept 90 days.
@@ -11,7 +11,14 @@ export interface TokenCounts {
   cacheWrite: number;
 }
 
+/** What the table holds for one chat and model: the four token counts and the web searches (2026-10-16). */
+export interface RecordedUsage extends TokenCounts {
+  webSearches: number;
+}
+
 export interface UsageEntry extends TokenCounts {
+  /** Web searches this row stands for. Each costs a cent (pricing.ts) on top of the tokens. */
+  webSearches?: number;
   source: "chat" | "job";
   /** The worker, for a job. */
   helper?: string;
@@ -108,6 +115,7 @@ export function usageTable(db: DatabaseSync, now: () => Date = () => new Date())
   if (!columns.has("chat_id")) db.exec("ALTER TABLE usage ADD COLUMN chat_id TEXT");
   if (!columns.has("gap_ms")) db.exec("ALTER TABLE usage ADD COLUMN gap_ms INTEGER");
   if (!columns.has("cache_ttl")) db.exec("ALTER TABLE usage ADD COLUMN cache_ttl TEXT");
+  if (!columns.has("web_searches")) db.exec("ALTER TABLE usage ADD COLUMN web_searches INTEGER NOT NULL DEFAULT 0");
   if (!columns.has("dollars_sdk")) {
     // 2026-10-15: dollars are priced from each row's own tokens (pricing.ts). Claude Code's own cost is a running total for
     // the session, so a chat row held its background agents' cost and the agents' rows held none. Keep what it reported
@@ -131,7 +139,7 @@ export function usageTable(db: DatabaseSync, now: () => Date = () => new Date())
     }
   }
   const insert = db.prepare(
-    "INSERT INTO usage (at, source, helper, job_id, model, input, output, cache_read, cache_write, dollars, chat_id, gap_ms, cache_ttl, dollars_sdk) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO usage (at, source, helper, job_id, model, input, output, cache_read, cache_write, dollars, chat_id, gap_ms, cache_ttl, dollars_sdk, web_searches) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
   );
   const newestOfChat = db.prepare("SELECT at FROM usage WHERE chat_id = ? AND model = ? ORDER BY id DESC LIMIT 1");
   /** chat id + model → time of the last call, in ms. Seeded lazily from the table. */
@@ -142,7 +150,7 @@ export function usageTable(db: DatabaseSync, now: () => Date = () => new Date())
   // 2026-10-15: what the table holds for one chat and model, for the "Other" rows (usage-overhead.ts). A conversation note is
   // another process, so it is not part of the chat session's own totals.
   const recordedOf = db.prepare(
-    "SELECT COALESCE(SUM(input),0) AS input, COALESCE(SUM(output),0) AS output, COALESCE(SUM(cache_read),0) AS cache_read, COALESCE(SUM(cache_write),0) AS cache_write FROM usage WHERE chat_id = ? AND model = ? AND COALESCE(helper, '') != 'note'",
+    "SELECT COALESCE(SUM(input),0) AS input, COALESCE(SUM(output),0) AS output, COALESCE(SUM(cache_read),0) AS cache_read, COALESCE(SUM(cache_write),0) AS cache_write, COALESCE(SUM(web_searches),0) AS web_searches FROM usage WHERE chat_id = ? AND model = ? AND COALESCE(helper, '') != 'note'",
   );
   const since = db.prepare("SELECT at, helper, source, model, input, output, cache_read, cache_write, dollars FROM usage WHERE at >= ? ORDER BY at");
 
@@ -163,20 +171,21 @@ export function usageTable(db: DatabaseSync, now: () => Date = () => new Date())
         if (last !== undefined && Number.isFinite(last)) gapMs = Math.max(0, at.getTime() - last);
         lastCallAt.set(key, at.getTime());
       }
+      const searches = count(entry.webSearches);
       const tokens = { input: count(entry.input), output: count(entry.output), cacheRead: count(entry.cacheRead), cacheWrite: count(entry.cacheWrite) };
       insert.run(at.toISOString(), entry.source, entry.helper ?? null, entry.job ?? null, model,
         tokens.input, tokens.output, tokens.cacheRead, tokens.cacheWrite,
         // Priced from this row's own (cleaned) tokens; a model with no price falls back to what Claude Code reported.
-        dollarsFor(model, tokens, entry.cacheTtl) ?? (typeof entry.dollars === "number" && entry.dollars > 0 ? entry.dollars : 0),
-        chatId, gapMs, entry.cacheTtl?.slice(0, 8) || null, typeof entry.dollars === "number" && entry.dollars > 0 ? entry.dollars : null);
+        Math.round(((dollarsFor(model, tokens, entry.cacheTtl) ?? (typeof entry.dollars === "number" && entry.dollars > 0 ? entry.dollars : 0)) + webSearchDollars(searches)) * 1e6) / 1e6,
+        chatId, gapMs, entry.cacheTtl?.slice(0, 8) || null, typeof entry.dollars === "number" && entry.dollars > 0 ? entry.dollars : null, searches);
       prune.run(new Date(at.getTime() - USAGE_KEEP_DAYS * 86_400_000).toISOString());
       return { gapMs };
     },
 
     /** The tokens already recorded for a chat's session on one model (notes excluded). */
-    recorded(chatId: string, model: string): TokenCounts {
+    recorded(chatId: string, model: string): RecordedUsage {
       const r = recordedOf.get(chatId, model.slice(0, 80)) as Record<string, number>;
-      return { input: Number(r.input), output: Number(r.output), cacheRead: Number(r.cache_read), cacheWrite: Number(r.cache_write) };
+      return { input: Number(r.input), output: Number(r.output), cacheRead: Number(r.cache_read), cacheWrite: Number(r.cache_write), webSearches: Number(r.web_searches) };
     },
 
     summary(): UsageSummary {

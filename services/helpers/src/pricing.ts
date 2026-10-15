@@ -46,3 +46,15 @@ export function dollarsFor(model: string, tokens: TokenCounts, ttl?: string): nu
     1_000_000;
   return Math.round(total * 1e6) / 1e6;
 }
+
+/**
+ * Claude's web search is billed per search, not per token: $10 per 1,000 searches (list price). Claude Code's own cost for a run
+ * includes it; before 2026-10-16 it was in no row, which was most of the gap between a research run's reported and priced dollars.
+ */
+export const WEB_SEARCH_DOLLARS = 0.01;
+
+/** The dollars of `count` web searches; 0 for a count that is not a positive number. */
+export function webSearchDollars(count: number | undefined): number {
+  return typeof count === "number" && Number.isFinite(count) && count > 0 ? Math.round(count * WEB_SEARCH_DOLLARS * 1e6) / 1e6 : 0;
+}
+

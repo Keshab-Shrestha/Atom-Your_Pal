@@ -40,3 +40,13 @@ test("a model id with a date suffix finds its family; an unknown model has no pr
   assert.equal(dollarsFor("some-future-model", { input: 1, output: 1, cacheRead: 0, cacheWrite: 0 }), undefined);
   assert.equal(dollarsFor("unknown", { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }), undefined);
 });
+
+// 2026-10-16: a web search is billed per search, not per token: $10 per 1,000 (list price). It was in no row.
+test("a web search costs a cent: webSearchDollars is linear and ignores bad counts", async () => {
+  const { webSearchDollars, WEB_SEARCH_DOLLARS } = await import("./pricing.ts");
+  assert.equal(WEB_SEARCH_DOLLARS, 0.01);
+  assert.equal(webSearchDollars(2), 0.02);
+  assert.equal(webSearchDollars(0), 0);
+  assert.equal(webSearchDollars(-3), 0);
+  assert.equal(webSearchDollars(Number.NaN), 0);
+});

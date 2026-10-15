@@ -141,3 +141,28 @@ test("recorded() sums a chat's rows on one model, without its conversation notes
   assert.equal(usage.recorded("c1", "other-model").input, 0);
   assert.deepEqual(usage.summary().recent.map((r) => r.kind), ["turn", "note", "other", "turn"]);
 });
+
+// 2026-10-16: web searches are counted on a row and priced at a cent each, on top of the tokens; recorded() reports them for the "Other" rows.
+test("web searches on a row add a cent each to its dollars, and recorded() counts them (also for a model with no listed price)", () => {
+  const raw = new DatabaseSync(":memory:");
+  const usage = usageTable(raw, () => new Date("2026-10-16T10:00:00.000Z"));
+  const row = { source: "chat" as const, helper: "claude-code", chatId: "c1", input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+  usage.add({ ...row, model: "claude-sonnet-5-5", webSearches: 2 });
+  usage.add({ ...row, model: "claude-future-9", webSearches: 1, dollars: 0.5 });
+  const rows = raw.prepare("SELECT model, dollars, web_searches FROM usage ORDER BY id").all() as { model: string; dollars: number; web_searches: number }[];
+  assert.deepEqual(rows.map((r) => [r.model, r.web_searches]), [["claude-sonnet-5-5", 2], ["claude-future-9", 1]]);
+  assert.equal(rows[0]!.dollars, 0.02, "two searches, no tokens");
+  assert.equal(rows[1]!.dollars, 0.51, "an unpriced model: what Claude Code reported plus the search");
+  assert.deepEqual(usage.recorded("c1", "claude-sonnet-5-5"), { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, webSearches: 2 });
+});
+
+test("an old table gets the web_searches column and its rows count as zero searches", () => {
+  const raw = new DatabaseSync(":memory:");
+  raw.exec(`CREATE TABLE usage (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, source TEXT NOT NULL CHECK (source IN ('chat', 'job')),
+    helper TEXT, job_id INTEGER, model TEXT NOT NULL, input INTEGER NOT NULL, output INTEGER NOT NULL, cache_read INTEGER NOT NULL,
+    cache_write INTEGER NOT NULL, dollars REAL NOT NULL DEFAULT 0, chat_id TEXT, gap_ms INTEGER, cache_ttl TEXT, dollars_sdk REAL)`);
+  raw.exec("INSERT INTO usage (at, source, model, input, output, cache_read, cache_write, dollars, chat_id) VALUES ('2026-10-15T01:00:00.000Z', 'chat', 'm', 1, 1, 0, 0, 0.01, 'c1')");
+  const usage = usageTable(raw, () => new Date("2026-10-16T00:00:00.000Z"));
+  usageTable(raw); // a second open is harmless
+  assert.equal(usage.recorded("c1", "m").webSearches, 0);
+});

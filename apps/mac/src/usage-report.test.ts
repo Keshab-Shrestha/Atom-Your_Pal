@@ -75,3 +75,20 @@ test("a resumed session's first result sets the base: the earlier totals are not
   await new Promise((r) => setTimeout(r, 30));
   assert.deepEqual(rows(store).filter((r) => r[0] === "other").map((r) => r[2]), [150], "only what came after");
 });
+
+// 2026-10-16: the web searches a session made (modelUsage.webSearchRequests) that no row holds become part of the Other row.
+test("web searches in Claude Code's totals and in no row are booked, once, with their cent each", async () => {
+  const store = openHelperStore({ path: ":memory:" });
+  const record = createOverheadRecorder(store, quiet, 5);
+  const totals = { "claude-sonnet-5-5": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, webSearches: 2 } };
+  record(totals, meta);
+  await new Promise((r) => setTimeout(r, 30));
+  assert.deepEqual(store.recordedUsage("c1", "claude-sonnet-5-5"), { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, webSearches: 2 });
+  assert.equal(store.usage().today.dollars, 0.02);
+  record(totals, meta);
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(store.usage().today.dollars, 0.02, "the same totals book nothing twice");
+  record({ "claude-sonnet-5-5": { ...totals["claude-sonnet-5-5"], webSearches: 3 } }, meta);
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(store.usage().today.dollars, 0.03, "one more search, one more cent");
+});

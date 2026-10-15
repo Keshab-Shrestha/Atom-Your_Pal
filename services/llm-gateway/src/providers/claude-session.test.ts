@@ -262,7 +262,7 @@ test("the installed Agent SDK's version is readable, for the session.open log", 
 test("modelTotalsOf reads the running totals per model and ignores bad numbers", () => {
   assert.deepEqual(
     modelTotalsOf({ modelUsage: { "claude-haiku-5-5": { inputTokens: 1178, outputTokens: 14.4, cacheReadInputTokens: -3, cacheCreationInputTokens: Number.NaN, costUSD: 0.1 } } }),
-    { "claude-haiku-5-5": { input: 1178, output: 14, cacheRead: 0, cacheWrite: 0 } },
+    { "claude-haiku-5-5": { input: 1178, output: 14, cacheRead: 0, cacheWrite: 0, webSearches: 0 } },
   );
   assert.equal(modelTotalsOf({}), undefined);
   assert.equal(modelTotalsOf({ modelUsage: {} }), undefined);
@@ -278,6 +278,12 @@ test("each result hands its running totals per model to the owner, with the chat
   assert.equal(seen.length, 2);
   assert.deepEqual(seen[0]![1], { chatId: "c1", resumed: true, first: true, background: 0 });
   assert.deepEqual(seen[1]![1], { chatId: "c1", resumed: true, first: false, background: 0 });
-  assert.deepEqual(seen[1]![0], { "claude-haiku-5-5": { input: 20, output: 2, cacheRead: 0, cacheWrite: 0 } });
+  assert.deepEqual(seen[1]![0], { "claude-haiku-5-5": { input: 20, output: 2, cacheRead: 0, cacheWrite: 0, webSearches: 0 } });
   s.close();
+});
+
+test("modelTotalsOf also reads the web searches of each model", () => {
+  const totals = modelTotalsOf({ modelUsage: { "claude-sonnet-5-5": { inputTokens: 1, outputTokens: 2, webSearchRequests: 3 }, "claude-haiku-5-5": { inputTokens: 1 } } })!;
+  assert.equal(totals["claude-sonnet-5-5"]!.webSearches, 3);
+  assert.equal(totals["claude-haiku-5-5"]!.webSearches, 0, "absent means none");
 });

@@ -2814,3 +2814,7 @@ The API answers two kinds of card only: a plan (`p`: approve or reject) and a re
 
 Several tokens with scopes (read-only, goals, approvals). One token and a short list of what it may answer is enough for one user on one Mac. Telegram keeps its own rule: only the one configured chat.
 
+### Addendum 3, 2026-10-16: web searches are in the rows
+
+The gap between Claude Code's reported cost and the priced rows was the web search fee: $0.01 per search, not per token. `modelUsage.webSearchRequests` gives the count per model. It is stored on the usage row (`web_searches`) and priced in `pricing.ts` (`WEB_SEARCH_DOLLARS`). The "Other" row books the searches that no row holds, the same way it books the tokens. First live run: rows $0.0481, Claude Code $0.0469.
+
