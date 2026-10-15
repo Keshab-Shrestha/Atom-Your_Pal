@@ -476,13 +476,14 @@ ATOM runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 - Each request needs `Authorization: Bearer <token>`. The token is in `data/api-token`. ATOM makes it on the first start: 32 random bytes as hex, file mode 0600. `data/` is not in git.
 - ATOM compares the token in constant time. A request without the correct token gets 401. The log records only the count of refused requests.
 - ATOM never logs the token and never shows it. "Copy token" in Settings reads the file only when you click it and puts the token on the clipboard.
-- To make a new token, turn off the API, delete `data/api-token`, then turn on the API.
+- To make a new token, click "Regenerate" next to "Copy token" in Settings → General → Local API. The old token stops working at once, also while the API runs. Tools that hold the old token need the new one.
 - A request body is at most 64 KB.
-- An API goal or chat turn goes to ATOM, the same as a typed goal. The grants and the approvals stay the same. ATOM has no budgets and no plan limit (ADR-110 N4). An API call cannot approve ATOM's own computer actions without an answer to a Needs you item.
-- The Needs you actions are the same as the Telegram buttons and the ATOM window. The store checks each one.
+- An API goal or chat turn goes to ATOM, the same as a typed goal. The grants and the approvals stay the same. ATOM has no budgets and no plan limit (ADR-110 N4). The API token cannot approve a risky action (ADR-120).
+- The API answers two kinds of Needs you item: a plan (approve or reject) and a retry. It cannot answer a risky-action card (a click, a command, the browser, a new agent), a skill draft, a skill edit, a skill-hub install or a soul change. Those are answered in the ATOM window or on Telegram. A refused answer returns 403, and `GET /v1/needs` marks such an item `answerable: false`.
 - A webhook can start only a routine with "Can be started by webhook" on. The switch is off by default. Other routines get 403.
 - The log records the method, the route pattern (for example `/v1/tasks/:id`), the status and the time. It never records bodies, goals, answers or reports.
 - The MCP server (`apps/mac/src/mcp-serve.ts`) is a client of the API. It reads `data/api-token` and calls 127.0.0.1 only. It has the same access as the API and no more.
+- `data/`, the databases (with their WAL files) and the log are mode 0700 or 0600: only your account can read them.
 
 ## Browser for workers (ADR-098 item 4)
 
