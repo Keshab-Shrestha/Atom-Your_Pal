@@ -34,6 +34,7 @@ struct BrainPane: View {
     private let creating = State(initialValue: false)
     private let tab = State(initialValue: BrainTab.graph)
     @Environment(\.theme) private var theme
+    @Environment(\.islandSnapshot) private var snapshot
 
     init(model: IslandModel) { self.model = model }
 
@@ -68,9 +69,13 @@ struct BrainPane: View {
     @ViewBuilder private func header(_ state: BrainState) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 10) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Second brain").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
-                    Text(subtitle(state)).font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 8) {
+                        Circle().fill(hud).frame(width: 7, height: 7).opacity(0.9)
+                        Text("SECOND BRAIN").font(.system(size: 17, weight: .semibold, design: .monospaced)).tracking(2).foregroundStyle(theme.text.color)
+                    }
+                    Text("// " + subtitle(state).uppercased()).font(.system(size: 10, design: .monospaced)).tracking(0.8).foregroundStyle(theme.text2.color)
+                        .lineLimit(2)
                 }
                 Spacer(minLength: 8)
                 tabSwitch
@@ -95,7 +100,7 @@ struct BrainPane: View {
             ForEach(BrainTab.allCases, id: \.self) { item in
                 let on = tab.wrappedValue == item
                 Button { tab.wrappedValue = item } label: {
-                    Text(item.rawValue).font(.system(size: 12, weight: on ? .semibold : .regular))
+                    Text(item.rawValue.uppercased()).font(.system(size: 10.5, weight: on ? .semibold : .regular, design: .monospaced)).tracking(1)
                         .foregroundStyle(on ? theme.text.color : theme.text2.color)
                         .padding(.horizontal, 12).frame(height: 24)
                         .background(Capsule().fill(on ? theme.fill3.color : Color.clear))
@@ -132,11 +137,15 @@ struct BrainPane: View {
     private var searchField: some View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(theme.text3.color)
-            TextField("Search notes", text: words.projectedValue)
-                .textFieldStyle(.plain)
-                .font(.system(size: 12.5))
-                .frame(width: 170)
-                .onChange(of: words.wrappedValue) { _, value in model.searchBrain(value) }
+            if snapshot {
+                Text("Search notes").font(.system(size: 12.5)).foregroundStyle(theme.text3.color).frame(width: 170, alignment: .leading) // `ImageRenderer` cannot draw a text field
+            } else {
+                TextField("Search notes", text: words.projectedValue)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12.5))
+                    .frame(width: 170)
+                    .onChange(of: words.wrappedValue) { _, value in model.searchBrain(value) }
+            }
             if !words.wrappedValue.isEmpty {
                 Button { words.wrappedValue = "" } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 11)).foregroundStyle(theme.text3.color) }
                     .buttonStyle(.plain)
@@ -162,7 +171,7 @@ struct BrainPane: View {
                 } label: {
                     HStack(spacing: 5) {
                         Circle().fill(kindColor(entry.kind, theme)).frame(width: 7, height: 7).opacity(hidden ? 0.3 : 1)
-                        Text("\(entry.kind.title) \(entry.count)").font(.system(size: 11)).foregroundStyle(hidden ? theme.text3.color : theme.text2.color)
+                        Text("\(entry.kind.title) \(entry.count)".uppercased()).font(.system(size: 9.5, design: .monospaced)).tracking(0.5).foregroundStyle(hidden ? theme.text3.color : theme.text2.color)
                     }
                     .padding(.horizontal, 9).frame(height: 22)
                     .background(Capsule().fill(theme.fill1.color))
@@ -175,7 +184,7 @@ struct BrainPane: View {
                 ForEach(tags) { tag in
                     let on = state.tagFilter == tag.tag
                     Button { model.brain.tagFilter = on ? nil : tag.tag } label: {
-                        Text("#\(tag.tag) \(tag.count)").font(.system(size: 11, weight: on ? .semibold : .regular))
+                        Text("#\(tag.tag) \(tag.count)".uppercased()).font(.system(size: 9.5, weight: on ? .semibold : .regular, design: .monospaced)).tracking(0.5)
                             .foregroundStyle(on ? theme.text.color : theme.text2.color)
                             .padding(.horizontal, 9).frame(height: 22)
                             .background(Capsule().fill(on ? theme.fill3.color : theme.fill1.color))
@@ -236,7 +245,14 @@ struct BrainPane: View {
             zoomButtons
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.fill1.color.opacity(0.35))
+        .background {
+            ZStack {
+                theme.fill1.color.opacity(0.25)
+                RadialGradient(colors: [hud.opacity(0.08), .clear], center: .center, startRadius: 0, endRadius: 460)
+            }
+        }
+        .overlay(alignment: .topLeading) { hudReadout(state, graph) }
+        .overlay { HUDBrackets().stroke(hud.opacity(0.55), lineWidth: 1.2).padding(10).allowsHitTesting(false) }
         .task(id: key) { await relayout(graph) }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Graph of \(graph.noteCount) notes")
@@ -289,54 +305,126 @@ struct BrainPane: View {
     }
 
     private func radius(_ node: BrainNode) -> CGFloat {
-        4 + min(9, CGFloat(node.degree).squareRoot() * 2.2)
+        3.5 + min(8, CGFloat(node.degree).squareRoot() * 2)
+    }
+
+    /// The HUD colour of the grid, the rings and the links: the theme's "live" colour (blue in Void).
+    private var hud: Color { theme.live.color }
+
+    /// Corner readouts: what is on the screen, and what is locked.
+    private func hudReadout(_ state: BrainState, _ graph: BrainGraphData) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("SYS // ONLINE").foregroundStyle(hud.opacity(0.9))
+            Text(String(format: "NODES %03d  LINKS %03d  ZOOM %.2f×", graph.nodes.count, graph.edges.count, zoom.wrappedValue)).foregroundStyle(theme.text3.color)
+            Text("TARGET: " + (state.note?.title.uppercased() ?? "NONE")).foregroundStyle(state.note == nil ? theme.text3.color : theme.accent.color).lineLimit(1)
+        }
+        .font(.system(size: 9, design: .monospaced)).tracking(0.8)
+        .padding(.leading, 22).padding(.top, 20)
+        .allowsHitTesting(false)
+    }
+
+    /// The grid, three range rings with ticks, and the two axes. They move with the pan and grow with the zoom.
+    private func drawGrid(context: GraphicsContext, size: CGSize, t: (center: CGPoint, scale: Double)) {
+        let spacing = max(18, min(64, 30 * CGFloat(zoom.wrappedValue)))
+        var grid = Path()
+        var x = t.center.x.truncatingRemainder(dividingBy: spacing)
+        while x < size.width { grid.move(to: CGPoint(x: x, y: 0)); grid.addLine(to: CGPoint(x: x, y: size.height)); x += spacing }
+        var y = t.center.y.truncatingRemainder(dividingBy: spacing)
+        while y < size.height { grid.move(to: CGPoint(x: 0, y: y)); grid.addLine(to: CGPoint(x: size.width, y: y)); y += spacing }
+        context.stroke(grid, with: .color(hud.opacity(0.06)), lineWidth: 0.5)
+        var axes = Path()
+        axes.move(to: CGPoint(x: 0, y: t.center.y)); axes.addLine(to: CGPoint(x: size.width, y: t.center.y))
+        axes.move(to: CGPoint(x: t.center.x, y: 0)); axes.addLine(to: CGPoint(x: t.center.x, y: size.height))
+        context.stroke(axes, with: .color(hud.opacity(0.10)), lineWidth: 0.6)
+        let scale = CGFloat(t.scale)
+        for fraction in [0.34, 0.67, 1.0] as [CGFloat] {
+            let r = scale * fraction
+            let ring = Path(ellipseIn: CGRect(x: t.center.x - r, y: t.center.y - r, width: r * 2, height: r * 2))
+            context.stroke(ring, with: .color(hud.opacity(0.17)), style: StrokeStyle(lineWidth: 0.7, dash: [1.5, 5]))
+        }
+        var ticks = Path()
+        for step in 0..<36 {
+            let angle = Double(step) * .pi / 18, long = step % 3 == 0, outer = scale, inner = scale - (long ? 8 : 4)
+            ticks.move(to: CGPoint(x: t.center.x + cos(angle) * inner, y: t.center.y + sin(angle) * inner))
+            ticks.addLine(to: CGPoint(x: t.center.x + cos(angle) * outer, y: t.center.y + sin(angle) * outer))
+        }
+        context.stroke(ticks, with: .color(hud.opacity(0.28)), lineWidth: 0.8)
     }
 
     private func draw(context: GraphicsContext, size: CGSize, state: BrainState, graph: BrainGraphData) {
         let t = transform(size)
+        drawGrid(context: context, size: size, t: t)
         let visible = state.visibleIds
         let matched = state.matchedIds
         let selected = state.selectedId
-        let pos = positions.wrappedValue
+        // A snapshot has no async task to lay the graph out: solve it here, once.
+        let pos = snapshot ? BrainLayout.solve(ids: graph.nodes.map(\.id), edges: graph.edges.map { ($0.a, $0.b) }, previous: [:]) : positions.wrappedValue
         func point(_ id: Int) -> CGPoint? {
             guard let p = pos[id] else { return nil }
             return CGPoint(x: t.center.x + p.x * CGFloat(t.scale), y: t.center.y + p.y * CGFloat(t.scale))
         }
-        // Lines first.
+        // Links first: thin HUD lines; the ones that touch the target light up.
         for edge in graph.edges where visible.contains(edge.a) && visible.contains(edge.b) {
             guard let a = point(edge.a), let b = point(edge.b) else { continue }
             var path = Path()
             path.move(to: a)
             path.addLine(to: b)
             let touchesSelected = selected == edge.a || selected == edge.b
-            let color = touchesSelected ? theme.accent.color.opacity(0.9) : theme.text3.color.opacity(matched == nil ? 0.38 : 0.14)
-            context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: touchesSelected ? 1.6 : 0.9, dash: edge.auto ? [3, 3] : []))
+            let color = touchesSelected ? theme.accent.color.opacity(0.95) : hud.opacity(matched == nil ? 0.34 : 0.10)
+            context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: touchesSelected ? 1.5 : 0.8, dash: edge.auto ? [2, 4] : []))
         }
-        // Then the dots, and the names of the ones worth naming.
+        // Then the nodes as small targets: a core, a ring, and a second dashed ring for the hubs.
         let neighbours = Set(graph.edges.filter { $0.a == selected || $0.b == selected }.flatMap { [$0.a, $0.b] })
         for node in graph.nodes where visible.contains(node.id) {
             guard let p = point(node.id) else { continue }
             let r = radius(node)
             let dim = matched.map { !$0.contains(node.id) } ?? false
             let color = kindColor(node.kind, theme).opacity(dim ? 0.22 : 1)
-            let circle = Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2))
+            let ring = Path(ellipseIn: CGRect(x: p.x - r - 2.5, y: p.y - r - 2.5, width: (r + 2.5) * 2, height: (r + 2.5) * 2))
             if node.ghost {
-                context.stroke(circle, with: .color(theme.text3.color.opacity(dim ? 0.2 : 0.8)), style: StrokeStyle(lineWidth: 1.2, dash: [2.5, 2.5]))
+                context.stroke(ring, with: .color(theme.text3.color.opacity(dim ? 0.2 : 0.8)), style: StrokeStyle(lineWidth: 1, dash: [2.5, 2.5]))
             } else {
-                context.fill(circle, with: .color(color))
+                let core = Path(ellipseIn: CGRect(x: p.x - r * 0.62, y: p.y - r * 0.62, width: r * 1.24, height: r * 1.24))
+                var lit = context
+                if theme.usesGlow && !dim { lit.addFilter(.shadow(color: color.opacity(0.75), radius: 5)) }
+                lit.fill(core, with: .color(color))
+                context.stroke(ring, with: .color(color.opacity(dim ? 0.15 : 0.55)), lineWidth: 0.8)
+                if node.degree >= 4 {
+                    let outer = Path(ellipseIn: CGRect(x: p.x - r - 6, y: p.y - r - 6, width: (r + 6) * 2, height: (r + 6) * 2))
+                    context.stroke(outer, with: .color(color.opacity(dim ? 0.1 : 0.3)), style: StrokeStyle(lineWidth: 0.7, dash: [2, 3]))
+                }
             }
             if node.id == selected {
-                let ring = Path(ellipseIn: CGRect(x: p.x - r - 4, y: p.y - r - 4, width: (r + 4) * 2, height: (r + 4) * 2))
-                context.stroke(ring, with: .color(theme.accent.color), lineWidth: 1.6)
+                // The target lock: four corner brackets around the node.
+                let reach = r + 11, arm: CGFloat = 5
+                var lock = Path()
+                for (sx, sy) in [(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)] as [(CGFloat, CGFloat)] {
+                    let corner = CGPoint(x: p.x + sx * reach, y: p.y + sy * reach)
+                    lock.move(to: CGPoint(x: corner.x - sx * arm, y: corner.y)); lock.addLine(to: corner); lock.addLine(to: CGPoint(x: corner.x, y: corner.y - sy * arm))
+                }
+                context.stroke(lock, with: .color(theme.accent.color), lineWidth: 1.5)
             }
             let named = node.id == selected || neighbours.contains(node.id) || (matched?.contains(node.id) ?? false) || zoom.wrappedValue > 1.5 || node.degree >= 4
             if named && !dim {
-                let label = Text(node.title.count > 26 ? String(node.title.prefix(25)) + "…" : node.title)
-                    .font(.system(size: 10.5, weight: node.id == selected ? .semibold : .regular))
-                    .foregroundStyle(theme.text.color.opacity(node.ghost ? 0.6 : 0.92))
-                context.draw(label, at: CGPoint(x: p.x, y: p.y + r + 8), anchor: .top)
+                let name = node.title.count > 24 ? String(node.title.prefix(23)) + "…" : node.title
+                let label = Text(name.uppercased())
+                    .font(.system(size: 8.5, weight: node.id == selected ? .semibold : .regular, design: .monospaced))
+                    .foregroundStyle(theme.text.color.opacity(node.ghost ? 0.6 : 0.9))
+                context.draw(label, at: CGPoint(x: p.x, y: p.y + r + 10), anchor: .top)
             }
         }
+    }
+}
+
+/// Four corner brackets around a rectangle, like a viewfinder.
+private struct HUDBrackets: Shape {
+    func path(in rect: CGRect) -> Path {
+        let arm: CGFloat = 16
+        var path = Path()
+        for (x, y, dx, dy) in [(rect.minX, rect.minY, 1.0, 1.0), (rect.maxX, rect.minY, -1.0, 1.0), (rect.maxX, rect.maxY, -1.0, -1.0), (rect.minX, rect.maxY, 1.0, -1.0)] as [(CGFloat, CGFloat, CGFloat, CGFloat)] {
+            path.move(to: CGPoint(x: x + dx * arm, y: y)); path.addLine(to: CGPoint(x: x, y: y)); path.addLine(to: CGPoint(x: x, y: y + dy * arm))
+        }
+        return path
     }
 }
 
@@ -383,7 +471,7 @@ private struct BrainLinksSection: View {
     var body: some View {
         if !links.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
-                Text("\(title) · \(links.count)").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+                Text("// \(title) · \(links.count)".uppercased()).font(.system(size: 9.5, weight: .medium, design: .monospaced)).tracking(0.8).foregroundStyle(theme.text3.color)
                 ForEach(links) { link in
                     Button { model.selectBrainNote(link.id) } label: {
                         HStack(spacing: 8) {
@@ -457,7 +545,7 @@ private struct NoteEditor: View {
             if let note {
                 HStack(spacing: 6) {
                     Image(systemName: note.kind.symbol).font(.system(size: 10.5)).foregroundStyle(kindColor(note.kind, theme))
-                    Text(note.ghost ? "Not written yet" : note.kind.title).font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                    Text((note.ghost ? "Not written yet" : note.kind.title).uppercased()).font(.system(size: 9.5, design: .monospaced)).tracking(0.8).foregroundStyle(theme.text3.color)
                     Spacer(minLength: 0)
                     if let date = note.updatedAt, !note.ghost { Text(date.formatted(date: .abbreviated, time: .omitted)).font(.system(size: 11)).foregroundStyle(theme.text3.color) }
                 }
@@ -499,7 +587,7 @@ private struct NoteEditor: View {
                 Text(note.title).font(.system(size: 15, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
                 Text(note.body.isEmpty ? "(empty)" : note.body).font(.system(size: 12.5)).foregroundStyle(theme.text.color).textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("ATOM mirrors this from its memory, so it changes there. Forget it in Settings → Memory.")
+                Text("ATOM mirrors this from its memory, so it changes there. Forget it on the Memory tab.")
                     .font(.system(size: 10.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
             }
             if let note, !note.tags.isEmpty {

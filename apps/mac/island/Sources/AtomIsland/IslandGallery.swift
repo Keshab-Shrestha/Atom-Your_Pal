@@ -76,6 +76,9 @@ enum IslandGallery {
         writeMenuBar(to: directory, flat: false, name: "15-menu-bar-item-lantern")
         writeProjects(to: directory)
         writeProjects(to: directory, theme: .lantern, name: "16-projects-lantern")
+        writeBrain(to: directory)
+        writeBrain(to: directory, theme: .daylight, name: "17-brain-daylight")
+        writeBrain(to: directory, theme: .lantern, name: "17-brain-lantern")
     }
 
     /// ADR-081: the ATOM window with Sid running one job and done with another, the rest of the team (Task 3.3); Sid's
