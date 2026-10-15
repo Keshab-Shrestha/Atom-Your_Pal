@@ -62,7 +62,7 @@ ATOM is not a chatbot. The language model is one part of it. Permissions, memory
 - ATOM answers a topic you ask about itself, in a few sentences. It hands work to an agent only when you name one, ask for sources, change files, or need many separate lookups.
 - A research agent searches at most 3 times and reads at most 2 pages.
 - Claude Code's own calls (a small model that reads web pages) show as "Other" rows. A web search costs $0.01 and is not yet in any row.
-- Measured on 2026-10-15, with the same model on both sides and a fresh chat each time: a simple question cost $0.0005 in ATOM and $0.0097 in Claude Code with a full personal setup. Details are in [DECISIONS.md](DECISIONS.md) (ADR-118). These are single runs, so treat them as rough.
+- Measured on 2026-10-15, with Haiku 5.5 on both sides and a fresh chat for each prompt. Costs are list prices, and Claude Code ran with a full personal setup (rules, hooks, plugins). ATOM cost $0.030 in total and Claude Code $0.098. By prompt, ATOM cost $0.0005 against $0.0097 (a simple question), $0.0015 against $0.0175 (a design question with code), $0.026 against $0.060 (a sourced web summary), and $0.0019 against $0.011 (typing text into TextEdit). Both sides gave correct answers. These are single runs on cold sessions, so treat them as rough. Details are in [DECISIONS.md](DECISIONS.md) (ADR-118).
 
 **Memory, calendar, reminders, timers, weather**
 - ATOM keeps facts you ask it to remember and picks up earlier conversations.
