@@ -80,6 +80,9 @@ struct ResetPageTests {
 
     @Test func pagesDoNotShareKeys() {
         let all = [Self.appearanceKeys, Self.dictationKeys, Self.palKeys, Self.shortcutKeys]
-        #expect(all.map(\.count).reduce(0, +) == all.reduce(Set<String>()) { $0.union($1) }.count)
+        // Two simple lines: the one-line form is too much for the type checker of newer Swift compilers (CI failed with "unable to type-check in reasonable time").
+        let total: Int = all.reduce(0) { $0 + $1.count }
+        let distinct: Int = all.reduce(into: Set<String>()) { $0.formUnion($1) }.count
+        #expect(total == distinct)
     }
 }
