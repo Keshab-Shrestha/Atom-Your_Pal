@@ -160,6 +160,7 @@ After a rebuild under a new bundle id (`dev.atom.island`), grant them again.
 pnpm typecheck
 pnpm test          # all TypeScript tests, including a smoke test that starts a real runtime (about 30 seconds)
 pnpm island:test   # the Swift tests
+pnpm window:shot   # captures the real, open ATOM window to /tmp/atom-window.png (needs Screen Recording for your terminal)
 pnpm test:visual   # draws every window offscreen and compares it to tests/ui-golden (build the app first: pnpm island:build)
 pnpm test:live     # the live smoke test: a real Claude session and a real agent (about one minute, uses a little of your plan)
 ```
