@@ -1698,7 +1698,8 @@ Four more read-only reviewers (runtime and API, services, Swift logic, tests and
 - Removed from the Swift app, with their tests: the commands and state functions of Managers, team tasks, wake-ups and the Codex fallback (the runtime dropped them in ADR-110); the whole Manager model (state, navigation, floor desks, chips, grouping); the Scheduled page's wake-up rows. An older runtime that still sends `managers`, `teamTasks` or `wakeUp` is ignored, not rejected (tests pin it).
 - Split by moving declarations only: `Helpers.swift` (1,850 lines) into `Helpers.swift`, `HelperJobs.swift`, `HelpersSkillsMcp.swift`, `HelpersUsage.swift`, `HelpersGit.swift`; `Protocol.swift` (1,737) into `Protocol.swift`, `IslandCommand.swift`, `ProtocolModels.swift`. No code changed.
 - `store.ts` (1,165 lines) is split by method groups: `openHelperStore` builds a small shared context (`store-context.ts`) and spreads the groups into the store: `store-routines.ts`, `store-mcp.ts`, `store-souls.ts` (souls, ratings, proposals), `store-notes.ts` (comments, labels, usage, goals), `store-testcases.ts`, `store-plans.ts`, `store-checkpoints.ts`. The `HelperStore` interface, the callers and the tests are unchanged. It is now 802 lines.
-- Left as they are: `IslandController.swift` and `HelpersView.swift`.
+- `IslandController.swift` (1,122 lines) is split into extensions by its MARK sections: `IslandController+Shortcuts.swift`, `+Drop.swift` (follow-up and dropping Pal on a window), `+Pointing.swift` (pointing, Talk through Parakeet, dictation), `+Setup.swift` (setup help and the first-run tour), `+Displays.swift`, `+Demos.swift`. The class keeps its stored state, the runtime events and "what shows where" (492 lines). `private` members became internal so the extensions can reach them (same module, no behavior change).
+- Left as it is: `HelpersView.swift` (975 lines, under the 1,000 mark).
 
 ### Smoke tests and CI (2026-10-16)
 
