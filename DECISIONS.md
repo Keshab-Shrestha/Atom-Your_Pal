@@ -2818,3 +2818,63 @@ Several tokens with scopes (read-only, goals, approvals). One token and a short 
 
 The gap between Claude Code's reported cost and the priced rows was the web search fee: $0.01 per search, not per token. `modelUsage.webSearchRequests` gives the count per model. It is stored on the usage row (`web_searches`) and priced in `pricing.ts` (`WEB_SEARCH_DOLLARS`). The "Other" row books the searches that no row holds, the same way it books the tokens. First live run: rows $0.0481, Claude Code $0.0469.
 
+
+## ADR-121 — A mobile web app over Tailscale (2026-10-16)
+
+Date: 2026-10-16. Status: **proposed** (Keshab chose Tailscale on 2026-10-16; the details below wait for approval).
+
+### Context
+
+Task 3.21 plans a mobile web app: the board and approvals from a phone. The Local API (ADR-098, ADR-120) listens on `127.0.0.1` only, so a phone cannot reach it. Telegram is the only remote control today.
+
+ATOM serves one person on one Mac. Many users on many PCs need accounts, a cloud relay and isolation between users. That is a separate decision for the day ATOM ships to other people (see "Left out on purpose").
+
+### Decision
+
+**1. Reach: Tailscale Serve, with no change to the bind address.**
+- The API keeps listening on `127.0.0.1`. ATOM does not open a port on the Wi-Fi or on the internet.
+- `tailscale serve` on the Mac forwards `https://<mac-name>.<tailnet>.ts.net` to `127.0.0.1:4790`. Only devices in Keshab's own tailnet can reach that address. Tailscale gives it a real HTTPS certificate.
+- Keshab installs the Tailscale app on the Mac and on the phone and signs in to the same account. ATOM does not install it and does not read its keys.
+- Funnel (public internet) is never used. A test checks that ATOM's docs and Settings text say so.
+
+**2. The page: one small static page served by the API.**
+- `GET /app` returns the page. It needs no token, because it holds no data. The page is plain HTML, CSS and JavaScript in one file, with no framework and no build step. It works on a slow phone.
+- Every data call still needs the token (`Authorization: Bearer`), as today. The page asks for the token once. The phone keeps it in `localStorage` of that one site. A "Sign out" button clears it.
+- The first version has English text only.
+
+**3. What the phone may do (first version).** It uses only the routes that exist:
+- See what waits for Keshab (`GET /v1/needs`) and the tasks (`GET /v1/tasks`).
+- Approve or reject a plan, and retry a failed task (`POST /v1/needs/:key`). The rule of ADR-120 stays: risky-action cards, soul changes and skill cards are answered in the ATOM window or on Telegram, never from the phone.
+- Read one task's report (`GET /v1/tasks/:id`).
+- It does **not** start a goal in the first version. A goal from a phone with a stolen token could spend the plan. Keshab can ask to add it later.
+
+**4. Safety rules in code.**
+- The server checks the `Host` header. It accepts `127.0.0.1`, `localhost` and the one name in `ATOM_API_HOST` (the `.ts.net` name). Any other name gets 403. This stops DNS rebinding from a web page.
+- `GET /app` sends `Content-Security-Policy: default-src 'self'`, `X-Frame-Options: DENY` and `Cache-Control: no-store`. The page holds no third-party script.
+- A wrong token is a 401. After 10 wrong tokens in a minute, the API answers 429 for a minute. (Tailscale limits who can reach it; this limits a guess from a stolen phone.)
+- The phone never gets the token from ATOM. Keshab copies it from Settings, as today. "Regenerate" still kills every phone at once.
+- Logs hold the route pattern, the status and the time. They never hold the token, the Host name, a task or a report.
+
+**5. Settings.** The "Local API" card gets one line: the address to use on the phone, and the command to run once (`tailscale serve --bg 4790`). ATOM shows the text and does not run Tailscale itself.
+
+### Left out on purpose
+
+- **Many users and many PCs.** Needs accounts, a cloud relay, one token per phone and isolation between users. Decide it with the first real second user. Nothing here blocks it: the page and routes stay the same, only the way the phone reaches a PC changes.
+- **Token scopes.** One token, as in ADR-120. Revisit with the relay.
+- **Starting a goal from the phone, push alerts, offline mode, a native iOS app.**
+- **Bind to `0.0.0.0` or to the Tailscale interface.** `tailscale serve` is safer: ATOM stays on localhost.
+- **नेपाली text in the page** in the first version.
+
+### How to test
+
+- Unit tests: the `Host` rule (allowed names, a foreign name, a missing header, a name in different case); the 429 limit; `GET /app` needs no token and carries the three headers; every `/v1` route still needs the token; a `/v1/needs` card of kind `a`, `s`, `d`, `e` or `h` is still 403.
+- A test that the page's JavaScript has no `eval`, no inline script from outside, and no request to another site.
+- A manual check on Keshab's phone: open the address, paste the token, see the needs list, approve one plan, sign out. I cannot do this myself (no phone, and Tailscale is not installed on this Mac).
+
+### Prerequisite
+
+Tailscale is **not installed** on this Mac (`tailscale` is not found). Keshab installs it first (App Store or tailscale.com), signs in, and enables HTTPS in the Tailscale admin page.
+
+### Cost and risk
+
+About 400 lines: one page, one route, the `Host` check, the limit, the Settings line, tests. The risk is the token on a phone: a lost phone holds a token that can approve plans and retry tasks until Keshab clicks Regenerate. The Tailscale layer also needs the attacker to be in the tailnet, so a stolen token alone does not work from outside.
