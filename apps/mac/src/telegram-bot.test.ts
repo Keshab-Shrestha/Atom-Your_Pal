@@ -456,3 +456,27 @@ test("a failed push is still tried again after a store change during the wait", 
     },
   });
 });
+
+// 2026-10-16: an answer that Telegram did not get was lost; now it waits in an outbox and is sent again.
+test("an answer that failed to send is sent again later, once, in order", async () => {
+  let down = true;
+  let attempts = 0;
+  const waitFor = async (ok: () => boolean) => { for (let i = 0; i < 500 && !ok(); i++) await tick(10); };
+  const r = await run({
+    updates: [[text(1, 42, "hello")]],
+    store: fakeStore(),
+    tune: { retryDelaysMs: [1], pushRetryMs: 60 },
+    sendStatus: () => (attempts++, down ? 500 : 200),
+    wait: 10,
+    after: async (_bot, h) => {
+      await waitFor(() => attempts >= 2); // the answer and its quick retry failed
+      assert.equal(texts(h.sent).length, 0, "nothing got through while the network was down");
+      down = false;
+      await waitFor(() => texts(h.sent).length === 1);
+      assert.match(texts(h.sent)[0]!, /ATOM:hello/);
+      await tick(300);
+      assert.equal(texts(h.sent).length, 1, "and only once");
+    },
+  });
+  assert.equal(texts(r.sent).length, 1);
+});

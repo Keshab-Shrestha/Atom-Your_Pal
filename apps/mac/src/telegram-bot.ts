@@ -191,10 +191,43 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     ...(options.skipBacklog !== undefined ? { skipBacklog: options.skipBacklog } : {}),
     onBacklog: (count) => {
       log.info("telegram.backlog_skipped", { count });
-      later("backlog", client.send(`ATOM was closed. ${count} ${count === 1 ? "message" : "messages"} arrived meanwhile and ${count === 1 ? "was" : "were"} not run. Send ${count === 1 ? "it" : "them"} again if ${count === 1 ? "it" : "they"} still matter${count === 1 ? "s" : ""}.`));
+      later("backlog", say(`ATOM was closed. ${count} ${count === 1 ? "message" : "messages"} arrived meanwhile and ${count === 1 ? "was" : "were"} not run. Send ${count === 1 ? "it" : "them"} again if ${count === 1 ? "it" : "they"} still matter${count === 1 ? "s" : ""}.`));
     },
     ...(options.retryDelaysMs ? { retryDelaysMs: options.retryDelaysMs } : {}),
   });
+  // Replies, command answers and routine results: sent through `say`. One that Telegram did not get (after the client's own quick retries) waits in a small
+  // outbox and is tried again every `pushRetryMs`, in order, up to PUSH_TRIES times in all (2026-10-16: they used to be lost, and a plan or approval push was
+  // the only message that was tried again).
+  const outbox: { text: string; buttons?: Button[][]; tries: number }[] = [];
+  const OUTBOX_MAX = 20;
+  let outboxTimer: NodeJS.Timeout | undefined;
+  let closed = false;
+  const armOutbox = () => {
+    if (outboxTimer || closed || !outbox.length) return;
+    outboxTimer = setTimeout(flushOutbox, pushRetryMs);
+    outboxTimer.unref();
+  };
+  async function flushOutbox() {
+    outboxTimer = undefined;
+    const item = outbox[0];
+    if (!item || closed) return;
+    const ok = await client.send(item.text, item.buttons);
+    if (closed) return;
+    if (ok || ++item.tries > PUSH_TRIES) {
+      outbox.shift();
+      if (!ok) log.warn("telegram.reply_dropped", {});
+    }
+    armOutbox();
+  }
+  async function say(text: string, buttons?: Button[][]): Promise<boolean> {
+    const ok = await client.send(text, buttons);
+    if (!ok && !closed) {
+      if (outbox.length >= OUTBOX_MAX) outbox.shift();
+      outbox.push({ text, ...(buttons ? { buttons } : {}), tries: 1 });
+      armOutbox();
+    }
+    return ok;
+  }
   /** A fire-and-forget step: a failure inside it is logged by name, never an unhandled rejection (that ends the whole app). */
   const later = (what: string, work: Promise<unknown> | void) => {
     void Promise.resolve(work).catch(() => log.warn("telegram.step_failed", { step: what }));
@@ -203,7 +236,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
   function take(input: TelegramInput) {
     if (input.kind === "button") return press(input.data, input.queryId);
     const text = input.text.trim();
-    if (!text) return void client.send("I read text only.");
+    if (!text) return void say("I read text only.");
     // A command is "/word" (and "@botname"), then a space or the end. "/tmp/build.log is huge" is a message for ATOM, not an unknown command.
     if (COMMAND.test(text)) return command(text);
     turns = turns.then(() => talk(text));
@@ -214,10 +247,10 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     try {
       const answer = await withTimeout(options.ask(text), turnTimeoutMs);
       log.info("telegram.turn", { ok: true, ms: Date.now() - started });
-      await client.send(answer);
+      await say(answer);
     } catch (error) {
       log.warn("telegram.turn", { ok: false, ms: Date.now() - started });
-      await client.send(`ATOM could not answer: ${describe(error)}`);
+      await say(`ATOM could not answer: ${describe(error)}`);
     }
   }
 
@@ -227,11 +260,11 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     log.info("telegram.command", { name: ["needs", "tasks", "report", "steer", "interrupt", "help", "start"].includes(name) ? name : "unknown" });
     // Each answer is built inside `reply`, so a failure while building it (a locked database) is told to Keshab, not thrown. A text answer is
     // sent at once (no await first), so answers leave in the order the commands came.
-    const failed = (error: unknown) => client.send(`That did not work: ${describe(error)}`);
+    const failed = (error: unknown) => say(`That did not work: ${describe(error)}`);
     const reply = (build: () => string | Promise<unknown> | void) => {
       try {
         const out = build();
-        if (typeof out === "string") return later(name, client.send(out));
+        if (typeof out === "string") return later(name, say(out));
         later(name, Promise.resolve(out).catch(failed));
       } catch (error) {
         later(name, failed(error));
@@ -252,34 +285,34 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
   };
 
   function steer(args: string[]) {
-    if (!options.steering) return void client.send("Steering is off.");
+    if (!options.steering) return void say("Steering is off.");
     const id = taskNumber(args[0]);
-    if (!id) return void client.send("Send /steer, a task number and your message, for example /steer 12 use the shorter plan.");
+    if (!id) return void say("Send /steer, a task number and your message, for example /steer 12 use the shorter plan.");
     try {
       const how = options.steering.steer(id, args.slice(1).join(" "));
-      void client.send(how === "live" ? `Sent to task #${id} now.` : `Kept for task #${id}. It runs after this step.`);
+      void say(how === "live" ? `Sent to task #${id} now.` : `Kept for task #${id}. It runs after this step.`);
     } catch (error) {
-      void client.send(describe(error));
+      void say(describe(error));
     }
   }
 
   async function interrupt(args: string[]) {
-    if (!options.steering) return void client.send("Steering is off.");
+    if (!options.steering) return void say("Steering is off.");
     const id = taskNumber(args[0]);
-    if (!id) return void client.send("Send /interrupt and a task number, for example /interrupt 12.");
+    if (!id) return void say("Send /interrupt and a task number, for example /interrupt 12.");
     try {
       await options.steering.interrupt(id);
-      await client.send(`Task #${id} stopped. It waits for your message.`);
+      await say(`Task #${id} stopped. It waits for your message.`);
     } catch (error) {
-      await client.send(describe(error));
+      await say(describe(error));
     }
   }
 
   async function sendNeeds() {
     const items = needsYou(store, approvals.pending());
-    if (!items.length) return client.send("Nothing waits for you.");
-    for (const item of items.slice(0, NEEDS_SHOWN)) await client.send(item.text, item.buttons);
-    if (items.length > NEEDS_SHOWN) await client.send(`${items.length - NEEDS_SHOWN} more wait in the ATOM window.`);
+    if (!items.length) return say("Nothing waits for you.");
+    for (const item of items.slice(0, NEEDS_SHOWN)) await say(item.text, item.buttons);
+    if (items.length > NEEDS_SHOWN) await say(`${items.length - NEEDS_SHOWN} more wait in the ATOM window.`);
   }
 
   function tasksText(): string {
@@ -390,7 +423,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     send(text, pushed) {
       if ((pushed && !push) || !text.trim()) return;
       log.info("telegram.push", { kind: pushed ? "routine" : "reply" });
-      void client.send(text);
+      void say(text);
     },
     setPush(on) {
       if (on !== push) log.info("telegram.push_setting", { on });
@@ -398,6 +431,8 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     },
     stop() {
       stopped = true;
+      closed = true;
+      if (outboxTimer) clearTimeout(outboxTimer);
       if (timer) clearTimeout(timer);
       if (retryTimer) clearTimeout(retryTimer);
       stopAsks();

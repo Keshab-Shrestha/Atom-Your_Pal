@@ -67,10 +67,11 @@ function cleanEnv(dir: string, port: number, model: string): Record<string, stri
   };
 }
 
-export async function startRuntime(options: { model?: string; readyMs?: number } = {}): Promise<SmokeRuntime> {
+export async function startRuntime(options: { model?: string; readyMs?: number; prepare?: (dir: string) => void } = {}): Promise<SmokeRuntime> {
   const dir = mkdtempSync(join(tmpdir(), "atom-smoke-"));
   mkdirSync(join(dir, "config"), { recursive: true });
   mkdirSync(join(dir, "logs"), { recursive: true });
+  options.prepare?.(dir); // files the test needs in the temp folder before the runtime starts (a skill, a settings file)
   const port = await freePort();
   const child: ChildProcess = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", MAIN, "--island"], {
     cwd: dir,

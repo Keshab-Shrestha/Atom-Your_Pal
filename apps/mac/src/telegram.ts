@@ -9,6 +9,8 @@ export const MESSAGE_LIMIT = 4096;
 /** How long one getUpdates call waits for something new. */
 const POLL_SECONDS = 50;
 const FIRST_BACKOFF_MS = 1_000;
+/** Wait this long after a 401 or a 409 from getUpdates (a wrong token, or another program on the same bot). */
+const STUCK_BACKOFF_MS = 5 * 60_000;
 const MAX_BACKOFF_MS = 60_000;
 /** A send or a button answer that takes longer than this has failed. */
 const CALL_TIMEOUT_MS = 20_000;
@@ -105,6 +107,7 @@ export function startTelegram(options: TelegramOptions): TelegramClient {
   let offset = 0;
   let ignored = 0;
   let draining = options.skipBacklog ?? true;
+  const warnedStuck = new Set<unknown>();
   let skipped = 0;
 
   async function call<T>(method: string, body: object, timeoutMs: number): Promise<T> {
@@ -170,8 +173,17 @@ export function startTelegram(options: TelegramOptions): TelegramClient {
         }
       } catch (error) {
         if (stopping.signal.aborted) return;
-        log.warn("telegram.poll_failed", { code: codeOf(error), retryMs: backoff });
-        await new Promise((resolve) => setTimeout(resolve, backoff).unref());
+        const code = codeOf(error);
+        // 401: the token is wrong or was revoked. 409: another program reads the same bot. Neither passes by itself in seconds, and a quick retry
+        // fights the other reader (409) or hammers Telegram (401): wait long, and say what is wrong once (2026-10-16).
+        const stuck = code === 401 || code === 409;
+        const wait = stuck ? STUCK_BACKOFF_MS : backoff;
+        if (stuck && !warnedStuck.has(code)) {
+          warnedStuck.add(code);
+          log.warn(code === 401 ? "telegram.token_rejected" : "telegram.conflict", { hint: code === 401 ? "make a new token with BotFather" : "another program reads this bot: give ATOM its own bot" });
+        }
+        log.warn("telegram.poll_failed", { code, retryMs: wait });
+        await new Promise((resolve) => setTimeout(resolve, wait).unref());
         backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
       }
     }
@@ -197,16 +209,32 @@ export function startTelegram(options: TelegramOptions): TelegramClient {
     }
   }
 
+  // A long message that failed partway: how many parts Telegram has. The same message sent again (the bot retries) starts after them, so the first
+  // part is not sent twice (2026-10-16).
+  const partial = new Map<string, { parts: number; at: number }>();
+  const PARTIAL_KEEP_MS = 15 * 60_000;
+
   return {
     async send(text, buttons) {
       const parts = splitMessage(text);
+      const key = `${text}\u0000${JSON.stringify(buttons ?? [])}`;
+      const before = partial.get(key);
+      const from = before && Date.now() - before.at < PARTIAL_KEEP_MS && before.parts < parts.length ? before.parts : 0;
       for (const [i, part] of parts.entries()) {
+        if (i < from) continue;
         const markup =
           buttons?.length && i === parts.length - 1
             ? { reply_markup: { inline_keyboard: buttons.map((row) => row.map((b) => ({ text: b.text, callback_data: b.data }))) } }
             : {};
-        if (!(await sendPart({ chat_id: chatId, text: part, ...markup }))) return false;
+        if (!(await sendPart({ chat_id: chatId, text: part, ...markup }))) {
+          if (parts.length > 1) {
+            partial.set(key, { parts: i, at: Date.now() });
+            if (partial.size > 20) partial.delete(partial.keys().next().value!);
+          }
+          return false;
+        }
       }
+      partial.delete(key);
       return true;
     },
     async answer(queryId, text) {

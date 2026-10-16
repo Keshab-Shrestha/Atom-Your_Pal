@@ -80,6 +80,10 @@ ATOM does not run messages that arrived while it was closed. A command or a butt
 
 ATOM tries again. A message that fails to send is sent again after 1, 3 and 9 seconds. When Telegram asks ATOM to wait, ATOM waits. A new item that could not be sent is tried again every 30 seconds, six tries in all (the first one included). After that it waits in `/needs` and in the ATOM window.
 
+An answer, a command reply or a routine result that could not be sent waits and is tried again every 30 seconds, in order, six tries in all. A long message that failed partway is sent again from the part that failed, so no part arrives twice.
+
+If the token is wrong or was revoked (the log shows `telegram.token_rejected`), or another program reads the same bot (`telegram.conflict`), ATOM waits five minutes between tries and does not hammer Telegram. Fix the cause (a new token, or a bot of its own) and restart ATOM.
+
 A message to ATOM that takes more than ten minutes to answer is dropped. ATOM tells you. Send it again.
 
 ## Safety

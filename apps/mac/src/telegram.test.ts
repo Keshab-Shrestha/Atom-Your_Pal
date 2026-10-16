@@ -225,3 +225,37 @@ test("an empty backlog tells no one", async () => {
   h.client.stop();
   assert.deepEqual(counts, []);
 });
+
+// 2026-10-16: a long message that failed partway was resent whole by the caller, so its first part reached the chat twice.
+test("a long message that failed partway is sent again from the part that failed", async () => {
+  let sends = 0;
+  let failSecondPart = true;
+  const bodies: string[] = [];
+  const h = harness(async (c) => {
+    if (c.method !== "sendMessage") { await tick(1000); return {}; }
+    sends++;
+    bodies.push(String(c.body.text).slice(0, 12));
+    if (failSecondPart && sends === 2) return { status: 400, json: { ok: false, error_code: 400 } };
+    return {};
+  }, { skipBacklog: false });
+  const long = `${"a".repeat(MESSAGE_LIMIT - 10)}\n${"b".repeat(MESSAGE_LIMIT - 10)}`;
+  assert.equal(await h.client.send(long), false, "the second part failed");
+  failSecondPart = false;
+  assert.equal(await h.client.send(long), true);
+  assert.equal(sends, 3, "two parts the first time, only the second part the second time");
+  assert.ok(bodies[2]!.startsWith("b"), "the part that was sent again is the second one");
+  assert.equal(await h.client.send(long), true);
+  assert.equal(sends, 5, "a new send of the same text starts from the beginning again");
+  h.client.stop();
+});
+
+// 2026-10-16: a wrong token (401) or a second reader of the bot (409) is not retried every few seconds, and the log says what is wrong.
+test("a 401 or a 409 from getUpdates waits five minutes and logs what is wrong once", async () => {
+  for (const [code, event] of [[401, "telegram.token_rejected"], [409, "telegram.conflict"]] as const) {
+    const h = harness(async (c) => (c.method === "getUpdates" ? { status: code, json: { ok: false, error_code: code } } : {}), { skipBacklog: false });
+    await tick(80);
+    h.client.stop();
+    assert.ok(h.logs.some((l) => l.includes(event)), `${code}: the hint is logged`);
+    assert.ok(h.logs.some((l) => l.includes("telegram.poll_failed") && l.includes("300000")), `${code}: the wait is five minutes`);
+  }
+});
