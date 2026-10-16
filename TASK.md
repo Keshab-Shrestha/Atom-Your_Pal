@@ -1691,6 +1691,12 @@ Four more read-only reviewers (runtime and API, services, Swift logic, tests and
 - **Telegram backlog (done after the pass).** Messages and button presses that arrived while ATOM was closed are skipped on start and counted; ATOM sends one notice with the count (`skipBacklog`, `onBacklog`).
 - **Open from this pass.** A multi-part Telegram message whose later part fails is resent whole (part 1 twice). Replies, agent reports and routine results sent to Telegram are not retried at the bot level. A 409 or 401 from Telegram is only logged. A reported `Cyrillic` look-alike in a label ("Рay") still passes (needs a confusables table). Text inserter: Accessibility calls run on the main thread without a timeout; Command-V uses a QWERTY key code (Dvorak). `HelpersState` clears its wait on any `helpers` push. An unlabeled AXGroup or AXLink click asks nothing. The `computer` tool's shared target could be switched by parallel calls (not confirmed that calls run in parallel).
 
+### Cleanup (2026-10-16)
+
+- Removed from the Swift app, with their tests: the commands and state functions of Managers, team tasks, wake-ups and the Codex fallback (the runtime dropped them in ADR-110); the whole Manager model (state, navigation, floor desks, chips, grouping); the Scheduled page's wake-up rows. An older runtime that still sends `managers`, `teamTasks` or `wakeUp` is ignored, not rejected (tests pin it).
+- Split by moving declarations only: `Helpers.swift` (1,850 lines) into `Helpers.swift`, `HelperJobs.swift`, `HelpersSkillsMcp.swift`, `HelpersUsage.swift`, `HelpersGit.swift`; `Protocol.swift` (1,737) into `Protocol.swift`, `IslandCommand.swift`, `ProtocolModels.swift`. No code changed.
+- Left as they are: `store.ts` (1,145 lines, one closure that shares state), `IslandController.swift` and `HelpersView.swift`. Splitting them needs real refactoring, not moving.
+
 ### Smoke tests and CI (2026-10-16)
 
 - Why: the bug that no folders agent could use Write, Edit or Read in a normal chat passed about 970 unit tests, because they use fakes of the Claude session. Nothing started the real runtime.
