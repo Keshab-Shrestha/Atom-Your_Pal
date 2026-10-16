@@ -1,7 +1,7 @@
 // The parts of the Mac runtime shared by both interfaces (terminal and island):
 // Microphone → Whisper → ATOM Core → LLM Gateway → provider → Kokoro → speaker.
 
-import { ChatBusyError, createChatTurns, type ChatTurns } from "./chat-turns.ts";
+import { createChatTurns, type ChatTurns } from "./chat-turns.ts";
 import { dirname, join, resolve } from "node:path";
 import type { Core } from "@atom/core";
 import { createComputerBridge, type ComputerBridge } from "./computer-bridge.ts";
@@ -71,6 +71,7 @@ import { nowLine, createEchoCore, describe, errorFields, findCalendarHelper, ope
 
 export { describe, errorFields, nowLine, seconds, withLogging } from "./runtime-support.ts";
 import { TELEGRAM_CHAT, startTelegramBot, type TelegramBot } from "./telegram-bot.ts";
+import { createApiTurnRunner } from "./api-turns.ts";
 import { createApiServer, type ApiServer } from "./api-server.ts";
 import { SCHEDULER_TICK_MS, scheduleTick } from "./scheduler.ts";
 import { createBrainWiring, type BrainWiring } from "./brain-wiring.ts";
@@ -326,7 +327,15 @@ export function createRuntime(
     if (failed.length) log.warn("files.not_private", { count: failed.length });
   }
   // ADR-107: projects (a named folder and its chats); the chat code above reads this lazily.
-  const projects = memory ? createProjects({ memory, ...(helpers ? { helpers } : {}), log, checkModel: (provider, model) => settings.check(provider, model) }) : undefined;
+  const projects = memory
+    ? createProjects({
+        memory,
+        ...(helpers ? { helpers } : {}),
+        log,
+        checkModel: (provider, model) => settings.check(provider, model),
+        onChatsDeleted: (chatIds) => chatIds.forEach((chatId) => chatTurns.markDeleted(chatId)),
+      })
+    : undefined;
   // ADR-091: ATOM's task branches in the repositories Keshab granted; pushing one is his alone, asked from the window.
   const islandGit: IslandGit | undefined = helpers && createIslandGit(helpers);
   // Task 3.11: the tasks' git worktrees live beside the helpers file, never inside a granted repository.
@@ -737,10 +746,13 @@ export function createRuntime(
     helpers
       ? taskStarter({ core: makeCore(true), name: (helper) => helpers.list().find((h) => h.id === helper && h.available)?.name, failed: (line) => goalLineListeners.forEach((listener) => listener(line)), log })
       : undefined;
-  // ADR-098 item 5: the local API. Its turns go to a Core of their own, saved as the chat "api" (or "api-<chatId>"). It
+  // ADR-098 item 5: the local API. Its turns go to a singleton Core, saved as the chat "api" (or "api-<chatId>"). It
   // listens only after Settings' "Local API" switch is on.
-  let apiCore: Core | undefined;
-  let apiChat = "";
+  const apiAsk = createApiTurnRunner({
+    chatTurns,
+    makeCore: () => makeCore(true),
+    ...(memory ? { messages: (chat: string) => memory.chats.messages(chat) } : {}),
+  });
   const api: ApiServer | undefined =
     readEnv(process.env, "ATOM_VOICE_ONLY") === "1"
       ? undefined
@@ -748,22 +760,7 @@ export function createRuntime(
           log,
           port: readEnv(process.env, "ATOM_API_PORT"),
           host: readEnv(process.env, "ATOM_API_HOST"),
-          ask: async (text, chatId) => {
-            const chat = chatId ? `api-${chatId}` : "api";
-            apiCore ??= makeCore(true);
-            const busy = chatTurns.begin(chat, "api");
-            if (busy) throw new ChatBusyError(busy);
-            try {
-              // The window may have written this chat too: read the saved messages before every turn. `resume` gives the live session what it missed.
-              // Without a chat store there is nothing to read, and an empty list would wipe the Core's own history.
-              if (memory) apiCore.resume(chat, memory.chats.messages(chat));
-              else if (apiChat !== chat) apiCore.resume(chat, []);
-              apiChat = chat;
-              return (await apiCore.handle({ text, source: "text" })).text;
-            } finally {
-              chatTurns.end(chat, "api");
-            }
-          },
+          ask: apiAsk,
           ...(helpers ? { helpers } : {}),
           approvals: computer,
           describe,

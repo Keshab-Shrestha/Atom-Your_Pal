@@ -82,8 +82,7 @@ struct BrainPane: View {
                 if tab.wrappedValue == .graph {
                     searchField
                     PillButton(title: "New note", symbol: "plus", prominent: true) {
-                        model.selectBrainNote(nil)
-                        creating.wrappedValue = true
+                        selectBrain(nil, newEditor: true)
                     }
                 }
             }
@@ -99,7 +98,10 @@ struct BrainPane: View {
         HStack(spacing: 2) {
             ForEach(BrainTab.allCases, id: \.self) { item in
                 let on = tab.wrappedValue == item
-                Button { tab.wrappedValue = item } label: {
+                Button {
+                    guard tab.wrappedValue != item else { return }
+                    model.navigate { tab.wrappedValue = item }
+                } label: {
                     Text(item.rawValue.uppercased()).font(.system(size: 10.5, weight: on ? .semibold : .regular, design: .monospaced)).tracking(1)
                         .foregroundStyle(on ? theme.text.color : theme.text2.color)
                         .padding(.horizontal, 12).frame(height: 24)
@@ -203,7 +205,9 @@ struct BrainPane: View {
             Text("Your second brain is empty").font(.system(size: 14, weight: .semibold)).foregroundStyle(theme.text.color)
             Text("Tell ATOM “Note this in my second brain…”, or write a note yourself. Link notes with [[double brackets]] and tag them with #tags. Facts and conversation notes ATOM keeps appear here too.")
                 .font(.system(size: 12)).foregroundStyle(theme.text2.color).multilineTextAlignment(.center).frame(maxWidth: 420)
-            PillButton(title: "Write the first note", symbol: "plus", prominent: true) { creating.wrappedValue = true; model.selectBrainNote(nil) }
+            PillButton(title: "Write the first note", symbol: "plus", prominent: true) {
+                selectBrain(nil, newEditor: true)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(Spacing.panel)
@@ -221,12 +225,8 @@ struct BrainPane: View {
                 .contentShape(Rectangle())
                 .gesture(
                     SpatialTapGesture().onEnded { value in
-                        if let id = nodeAt(value.location, size: proxy.size, state: state) {
-                            creating.wrappedValue = false
-                            model.selectBrainNote(id)
-                        } else {
-                            model.selectBrainNote(nil)
-                        }
+                        let id = nodeAt(value.location, size: proxy.size, state: state)
+                        selectBrain(id, newEditor: id == nil ? nil : false)
                     }
                 )
                 .simultaneousGesture(
@@ -274,6 +274,18 @@ struct BrainPane: View {
     private func setZoom(_ value: Double) {
         zoom.wrappedValue = min(6, max(0.3, value))
         zoomStart.wrappedValue = zoom.wrappedValue
+    }
+
+    /// Selects or clears the Brain editor only after the window has had a chance to guard unsaved text.
+    /// Dragging the graph never calls this; only a tap or an explicit selection does.
+    private func selectBrain(_ id: Int?, newEditor: Bool? = nil) {
+        let selectionChanges = model.brain.selectedId != id
+        let editorChanges = newEditor.map { creating.wrappedValue != $0 } ?? false
+        guard selectionChanges || editorChanges else { return }
+        model.navigate {
+            if let newEditor { creating.wrappedValue = newEditor }
+            model.selectBrainNote(id)
+        }
     }
 
     /// Changes whenever the notes or links change, so the layout runs again.
@@ -448,7 +460,11 @@ private struct BrainSidePanel: View {
                         // The runtime answered with a note while the new-note editor was open: the note was made, so the editor closes. An error does not
                         // close it (the text stays, the problem shows above).
                         .onChange(of: state.note?.id) { _, _ in
-                            if submitted.wrappedValue { creating.wrappedValue = false; submitted.wrappedValue = false }
+                            if submitted.wrappedValue {
+                                model.markEdited("brain-note", false)
+                                creating.wrappedValue = false
+                                submitted.wrappedValue = false
+                            }
                         }
                         .onChange(of: state.error) { _, error in if error != nil { submitted.wrappedValue = false } }
                 } else if let note = state.note {
@@ -481,7 +497,10 @@ private struct BrainLinksSection: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("// \(title) · \(links.count)".uppercased()).font(.system(size: 9.5, weight: .medium, design: .monospaced)).tracking(0.8).foregroundStyle(theme.text3.color)
                 ForEach(links) { link in
-                    Button { model.selectBrainNote(link.id) } label: {
+                    Button {
+                        guard model.brain.selectedId != link.id else { return }
+                        model.navigate { model.selectBrainNote(link.id) }
+                    } label: {
                         HStack(spacing: 8) {
                             Circle().fill(kindColor(link.kind, theme)).frame(width: 7, height: 7).opacity(link.ghost ? 0.4 : 1)
                             Text(link.title).font(.system(size: 12.5)).foregroundStyle(link.ghost ? theme.text3.color : theme.text.color).lineLimit(1)
@@ -507,7 +526,10 @@ private struct BrainHitsSection: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(hits.isEmpty ? "No note matches" : "\(hits.count) match\(hits.count == 1 ? "" : "es")").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             ForEach(hits) { hit in
-                Button { model.selectBrainNote(hit.id) } label: {
+                Button {
+                    guard model.brain.selectedId != hit.id else { return }
+                    model.navigate { model.selectBrainNote(hit.id) }
+                } label: {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
                             Circle().fill(kindColor(hit.kind, theme)).frame(width: 7, height: 7)
@@ -546,7 +568,10 @@ private struct NoteEditor: View {
 
     private var editable: Bool { note == nil || note!.isEditable }
     private var changed: Bool {
-        guard let note else { return !title.wrappedValue.trimmingCharacters(in: .whitespaces).isEmpty }
+        guard let note else {
+            return !title.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || !text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
         return title.wrappedValue != note.title || text.wrappedValue != note.body
     }
 
@@ -583,7 +608,11 @@ private struct NoteEditor: View {
                         // note; closing at once threw away the title and the text with the error (code check, 2026-10-16).
                     }
                     if note == nil {
-                        PillButton(title: "Cancel") { creating.wrappedValue = false }
+                        PillButton(title: "Cancel") {
+                            model.markEdited("brain-note", false)
+                            submitted.wrappedValue = false
+                            creating.wrappedValue = false
+                        }
                     } else if confirming.wrappedValue {
                         PillButton(title: "Cancel") { confirming.wrappedValue = false }
                         PillButton(title: "Delete for good", prominent: true) {

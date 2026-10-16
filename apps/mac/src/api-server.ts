@@ -67,7 +67,7 @@ export interface ApiServerOptions {
   now?: () => number;
   tokenFile?: string;
   /** One ATOM chat turn (the same Core setup as the window's) in an API chat; resolves to ATOM's answer. */
-  ask(text: string, chatId?: string): Promise<string>;
+  ask(text: string, chatId?: string, signal?: AbortSignal): Promise<string>;
   helpers?: HelperStore;
   approvals: Pick<TelegramBotOptions["approvals"], "pending" | "answer">;
   describe(error: unknown): string;
@@ -170,25 +170,22 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
     wrongAt = wrongAt.filter((t) => t > from);
     return wrongAt.length >= MAX_WRONG_TOKENS;
   };
-  // One ATOM turn at a time: the API chat's Core answers one request at a time.
-  let turns: Promise<unknown> = Promise.resolve();
-  // A turn that has not answered after turnTimeoutMs is given up on (504) so the next one is not stuck behind it. The work itself is not
-  // cancelled. Telegram had this limit; the API had none (code check, 2026-10-16).
+  // The runtime serializes API turns around its singleton Core and rejects a duplicate chat before it waits.
+  // A timeout aborts the underlying request so the singleton can safely serve the next queued chat.
   const turnLimitMs = options.turnTimeoutMs ?? API_TURN_TIMEOUT_MS;
-  const withinLimit = <T>(work: Promise<T>): Promise<T> => {
+  const withinLimit = <T>(work: (signal: AbortSignal) => Promise<T>): Promise<T> => {
+    const controller = new AbortController();
     let timer: NodeJS.Timeout | undefined;
     const limit = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new ApiError(504, "ATOM did not answer in time. Ask again.")), turnLimitMs);
+      timer = setTimeout(() => {
+        controller.abort();
+        reject(new ApiError(504, "ATOM did not answer in time. Ask again."));
+      }, turnLimitMs);
       timer.unref();
     });
-    return Promise.race([work, limit]).finally(() => clearTimeout(timer));
+    return Promise.race([work(controller.signal), limit]).finally(() => clearTimeout(timer));
   };
-  const turn = <T>(work: () => Promise<T>): Promise<T> => {
-    const bounded = () => withinLimit(work());
-    const next = turns.then(bounded, bounded);
-    turns = next.catch(() => undefined);
-    return next;
-  };
+  const turn = <T>(work: (signal: AbortSignal) => Promise<T>): Promise<T> => withinLimit(work);
 
   const team = () => {
     if (!store) throw new ApiError(503, "The team is not available.");
@@ -231,9 +228,9 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
   const nativeJobs = (id: number) =>
     store ? store.list().flatMap((owner) => owner.jobs).filter((j) => j.chatId === nativeGoalChat(id)).sort((a, b) => a.id - b.id) : [];
   const giveNative = (goal: string) =>
-    turn(async () => {
+    turn(async (signal) => {
       const id = (lastGoal = Math.max(Date.now(), lastGoal + 1));
-      const answer = await atom(goal, `goal-${id}`); // the chat "api-goal-<id>" (runtime.ts)
+      const answer = await atom(goal, `goal-${id}`, signal); // the chat "api-goal-<id>" (runtime.ts)
       return { goalId: nativeJobs(id).length ? id : null, answer };
     });
   const nativeGoal = (id: number) => {
@@ -297,7 +294,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
         }
         // "api-goal-<id>" is a native goal's chat: a /v1/chat chatId never reaches it.
         if (typeof chatId === "string" && GOAL_CHAT_ID.test(chatId)) throw new ApiError(400, '"chatId" must not start with "goal-": goals have those chats.');
-        return turn(async () => ({ answer: await atom(said, chatId as string | undefined) }));
+        return turn(async (signal) => ({ answer: await atom(said, chatId as string | undefined, signal) }));
       },
     },
     {
@@ -390,9 +387,9 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
     },
   ];
 
-  async function atom(said: string, chatId?: string): Promise<string> {
+  async function atom(said: string, chatId?: string, signal?: AbortSignal): Promise<string> {
     try {
-      return await options.ask(said, chatId);
+      return await options.ask(said, chatId, signal);
     } catch (error) {
       if (error instanceof Error && error.name === "ChatBusy") throw new ApiError(409, error.message); // the window is answering in this chat
       throw new ApiError(502, `ATOM could not answer: ${describe(error)}`);

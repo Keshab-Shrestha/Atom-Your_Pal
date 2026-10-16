@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import { checkGrant, HelperError, type HelperStore } from "@atom/helpers";
 import type { Message, ProjectFiles } from "@atom/contracts";
-import { ProjectError, type ChatSummary, type MemoryStore, type Project } from "@atom/memory";
+import { MAX_PROJECT_CHATS, ProjectError, type ChatSummary, type MemoryStore, type Project } from "@atom/memory";
 import type { Logger } from "@atom/shared";
 import { projectReadCheck } from "./folder-run.ts";
 import type { IslandProjects, ProjectResult } from "./island.ts";
@@ -28,6 +28,8 @@ export interface ProjectsOptions {
   log: Pick<Logger, "info" | "warn">;
   /** The same check as `model.set`: a choice, or why not. */
   checkModel(provider: string, model: string): { choice: { provider: string; model: string } } | { error: string };
+  /** Marks chats as deleted after the database removal succeeds, so a running turn cannot resurrect them. */
+  onChatsDeleted?(chatIds: readonly string[]): void;
 }
 
 export interface Projects {
@@ -160,7 +162,16 @@ export function createProjects(options: ProjectsOptions): Projects {
 
     rename: (id, name) => attempt(() => store.rename(id, name)),
     // The files are never touched, and the project's Agent (with its folder grant) stays: remove it on its own page.
-    remove: (id, deleteChats) => attempt(() => store.remove(id, { deleteChats })),
+    remove(id, deleteChats) {
+      try {
+        const chatIds = deleteChats ? memory.chats.list({ projectId: id, limit: MAX_PROJECT_CHATS }).map((chat) => chat.id) : [];
+        const removed = store.remove(id, { deleteChats });
+        if (removed && chatIds.length) options.onChatsDeleted?.(chatIds);
+        return removed ? { ok: true } : { error: NO_PROJECT };
+      } catch (error) {
+        return say(error);
+      }
+    },
     archive: (id, archived) => attempt(() => store.archive(id, archived)),
     setWeb: (id, web) => attempt(() => store.setWeb(id, web)),
 

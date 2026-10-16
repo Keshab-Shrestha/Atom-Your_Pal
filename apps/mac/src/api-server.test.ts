@@ -5,6 +5,8 @@ import { networkInterfaces, tmpdir } from "node:os";
 import { join } from "node:path";
 import { request } from "node:http";
 import { createApiServer, parsePort, readOrCreateToken, type ApiServerOptions } from "./api-server.ts";
+import { createApiTurnRunner } from "./api-turns.ts";
+import { createChatTurns } from "./chat-turns.ts";
 
 // ADR-098 item 5: the local API. Real loopback server on a random port, fake store, no real ATOM.
 
@@ -406,15 +408,96 @@ test("a broken percent-encoding in a Needs you key is a 400, not a 500", async (
 });
 
 // 2026-10-16 (code check): API turns were queued with no limit, so one hung answer held every later /v1/chat and /v1/goals forever (Telegram had a limit).
-test("a hung API turn is given up on after the limit and the next request is served", async () => {
+test("same-chat concurrent API requests are refused before the first turn completes", async () => {
+  const chatTurns = createChatTurns();
+  let release!: () => void;
+  let started = false;
+  const core = {
+    resume: () => {},
+    handle: async ({ text }: { text: string }) => {
+      started = true;
+      await new Promise<void>((resolve) => (release = resolve));
+      return { text: `echo:${text}` };
+    },
+  };
+  const ask = createApiTurnRunner({ chatTurns, makeCore: () => core });
+  const { api, port, token } = await boot({ ask });
+  try {
+    const first = call(port, "POST", "/v1/chat", { token, body: '{"text":"one","chatId":"same"}' });
+    while (!started) await new Promise((resolve) => setImmediate(resolve));
+    const second = await Promise.race([
+      call(port, "POST", "/v1/chat", { token, body: '{"text":"two","chatId":"same"}' }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 100)),
+    ]);
+    assert.ok(second, "the second same-chat request did not wait for the first turn");
+    assert.equal(second.status, 409);
+    release();
+    assert.equal((await first).status, 200);
+  } finally {
+    release?.();
+    api.stop();
+  }
+});
+
+test("different API chat IDs wait for the singleton Core, and no-memory resumes only when the chat changes", async () => {
+  const chatTurns = createChatTurns();
+  const resumed: string[] = [];
+  const handled: string[] = [];
+  let release!: () => void;
+  let firstStarted = false;
+  const core = {
+    resume: (chat: string, messages: readonly unknown[]) => {
+      assert.deepEqual(messages, [], "no-memory mode resumes an empty transcript");
+      resumed.push(chat);
+    },
+    handle: async ({ text }: { text: string }) => {
+      firstStarted = true;
+      if (handled.length === 0) await new Promise<void>((resolve) => (release = resolve));
+      handled.push(text);
+      return { text: `echo:${text}` };
+    },
+  };
+  const ask = createApiTurnRunner({ chatTurns, makeCore: () => core });
+  const { api, port, token } = await boot({ ask });
+  try {
+    const first = call(port, "POST", "/v1/chat", { token, body: '{"text":"one","chatId":"first"}' });
+    while (!firstStarted) await new Promise((resolve) => setImmediate(resolve));
+    const other = call(port, "POST", "/v1/chat", { token, body: '{"text":"other","chatId":"second"}' });
+    assert.equal(await Promise.race([other.then(() => "done"), new Promise<"waiting">((resolve) => setTimeout(() => resolve("waiting"), 40))]), "waiting");
+    release();
+    assert.equal((await first).status, 200);
+    assert.equal((await other).status, 200);
+    assert.deepEqual(handled, ["one", "other"]);
+    assert.deepEqual(resumed, ["api-first", "api-second"]);
+
+    const sameChat = await call(port, "POST", "/v1/chat", { token, body: '{"text":"again","chatId":"second"}' });
+    assert.equal(sameChat.status, 200);
+    assert.deepEqual(resumed, ["api-first", "api-second"], "same chat keeps the singleton Core history without memory");
+  } finally {
+    release?.();
+    api.stop();
+  }
+});
+
+test("a hung API turn is aborted after the limit so the singleton serves the next request", async () => {
+  const chatTurns = createChatTurns();
   let n = 0;
-  const { api, port, token } = await boot({
-    turnTimeoutMs: 40,
-    ask: (t: string) => (++n === 1 ? new Promise<string>(() => {}) : Promise.resolve(`echo:${t}`)),
-  } as never);
+  let aborted = false;
+  const core = {
+    resume: () => {},
+    handle: async ({ text }: { text: string }, signal?: AbortSignal) => {
+      if (++n === 1) {
+        await new Promise<void>((resolve) => signal?.addEventListener("abort", () => (aborted = true, resolve()), { once: true }));
+      }
+      return { text: `echo:${text}` };
+    },
+  };
+  const ask = createApiTurnRunner({ chatTurns, makeCore: () => core });
+  const { api, port, token } = await boot({ turnTimeoutMs: 40, ask });
   try {
     const first = await call(port, "POST", "/v1/chat", { token, body: '{"text":"one"}' });
     assert.equal(first.status, 504, "the hung turn is answered with a timeout");
+    assert.equal(aborted, true, "the timeout aborts the Core turn");
     const second = await call(port, "POST", "/v1/chat", { token, body: '{"text":"two"}' });
     assert.equal(second.status, 200);
     assert.equal(second.json.data.answer, "echo:two");

@@ -9,7 +9,7 @@ import { PROJECT_REPLAY_TURNS, createProjects } from "./projects-wiring.ts";
 
 // ADR-107: projects in the runtime: folders checked like grants, the project's Agent, the chat's note and read access.
 
-function setup(options: { noHelpers?: boolean } = {}) {
+function setup(options: { noHelpers?: boolean; onChatsDeleted?: (chatIds: readonly string[]) => void } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "atom-projects-")));
   const home = join(root, "home");
   for (const d of ["Developer/haat", "Developer/other", "Library/Keys", ".ssh", "Documents/.hidden/x", "Developer/notes"]) mkdirSync(join(home, d), { recursive: true });
@@ -26,11 +26,30 @@ function setup(options: { noHelpers?: boolean } = {}) {
     home,
     log,
     checkModel: (provider, model) => (provider === "claude-plan" && model === "opus" ? { choice: { provider, model } } : { error: "That model is not available." }),
+    ...(options.onChatsDeleted ? { onChatsDeleted: options.onChatsDeleted } : {}),
   });
   const first = () => memory.projects.list()[0]!;
   return { root, home, outside, memory, helpers, projects, logs, first, done: () => rmSync(root, { recursive: true, force: true }) };
 }
 const turn = (i: number) => [{ role: "user" as const, content: `u${i}` }, { role: "assistant" as const, content: `a${i}` }];
+
+test("deleting a project's chats reports their ids only after the database removal succeeds", () => {
+  const deleted: string[][] = [];
+  const t = setup({ onChatsDeleted: (ids) => deleted.push([...ids]) });
+  try {
+    assert.deepEqual(t.projects.island.add("Haat", join(t.home, "Developer", "haat")), { ok: true });
+    const project = t.first();
+    t.memory.chats.save("inside", turn(1));
+    assert.equal(t.memory.chats.setProject("inside", project.id), true);
+    assert.deepEqual(t.projects.island.remove(project.id, true), { ok: true });
+    assert.deepEqual(deleted, [["inside"]]);
+    assert.equal(t.memory.chats.messages("inside").length, 0);
+    assert.deepEqual(t.projects.island.remove(project.id, true), { error: "There is no such project." });
+    assert.deepEqual(deleted, [["inside"]], "a failed removal does not mark chats again");
+  } finally {
+    t.done();
+  }
+});
 
 test("a project's folder goes through the grant rules: home, ~/Library, hidden, outside and missing folders are refused; nothing is made", () => {
   const t = setup();
