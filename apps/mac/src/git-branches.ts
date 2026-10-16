@@ -78,7 +78,7 @@ export async function zenoBranches(repo: string): Promise<ZenoBranch[]> {
         const [added = "-", removed = "-", ...path] = line.split("\t");
         return { path: path.join("\t"), added: added === "-" ? null : Number(added), removed: removed === "-" ? null : Number(removed) };
       }) : [];
-      const head = await git(repo, "rev-parse", branch);
+      const head = await git(repo, "rev-parse", branch).catch(() => ""); // a branch deleted since it was listed must not empty the whole repo's list
       const onRemote = await git(repo, "rev-parse", "--verify", "--quiet", `refs/remotes/origin/${branch}`).catch(() => "");
       return {
         repo,

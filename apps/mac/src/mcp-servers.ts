@@ -55,7 +55,9 @@ export interface McpCheckOptions {
 /** The check every MCP tool call of a run passes. */
 export function mcpCheck(options: McpCheckOptions) {
   return async (tool: string): Promise<string | undefined> => {
-    const [, name = "", toolName = tool] = tool.split("__");
+    const parts = tool.split("__");
+    const name = parts[1] ?? "";
+    const toolName = parts.length > 2 ? parts.slice(2).join("__") : tool; // a tool named "do__thing" shows as "do__thing" on the card, not "do"
     const server = options.servers.find((s) => s.name === name);
     if (!server) return "That server is not one of this worker's.";
     if (server.trusted) return options.onCheck?.({ server: name, verdict: "trusted" }), undefined;

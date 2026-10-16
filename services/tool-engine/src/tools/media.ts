@@ -75,15 +75,21 @@ export function createMediaTools(options: { osascript?: Osascript } = {}): Tool[
         },
       },
       async run(input) {
-        const current = Number(await run("output volume of (get volume settings)"));
+        const reading = Number(await run("output volume of (get volume settings)"));
+        const current = Number.isFinite(reading) ? reading : 50; // "missing value" (HDMI and some outputs) is not a number
+        const known = Number.isFinite(reading);
         if (typeof input.mute === "boolean") {
           await run(`set volume output muted ${input.mute}`);
-          return input.mute ? "Muted." : `Unmuted, volume ${current}.`;
+          return input.mute ? "Muted." : known ? `Unmuted, volume ${current}.` : "Unmuted.";
         }
         let target: number | undefined;
         if (typeof input.level === "number") target = input.level;
-        else if (typeof input.change === "number") target = current + input.change;
-        if (target === undefined) return `Volume is ${current}.`;
+        else if (typeof input.change === "number") {
+          if (!known) return "This output does not report its volume, so it cannot be changed by an amount. Say the level you want.";
+          target = current + input.change;
+        }
+        if (target === undefined) return known ? `Volume is ${current}.` : "This output does not report its volume.";
+        if (!Number.isFinite(target)) return "The level must be a number from 0 to 100.";
         target = Math.max(0, Math.min(100, Math.round(target)));
         await run(`set volume output volume ${target} without output muted`);
         return `Volume set to ${target}.`;

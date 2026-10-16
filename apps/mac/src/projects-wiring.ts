@@ -254,7 +254,7 @@ export function createProjects(options: ProjectsOptions): Projects {
 
     chatSummaries() {
       const byId = new Map<string, ChatSummary>();
-      for (const c of memory.chats.list(LISTED_PLAIN)) byId.set(c.id, c);
+      for (const c of memory.chats.list({ projectId: null, limit: LISTED_PLAIN })) byId.set(c.id, c); // plain chats only: 60 newer project chats used to fill the window and hide them
       for (const p of store.list()) for (const c of memory.chats.list({ projectId: p.id, limit: LISTED_PER_PROJECT })) byId.set(c.id, c);
       return [...byId.values()].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
     },

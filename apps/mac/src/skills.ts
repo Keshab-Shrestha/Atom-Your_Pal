@@ -132,7 +132,10 @@ export function writeSkillFile(name: string, text: string, dir = userSkillsDir()
   if (text.length > SKILL_FILE_CHARS) throw new Error(`A skill is at most ${SKILL_FILE_CHARS} characters.`);
   const file = join(found.folder, "SKILL.md");
   const tmp = join(found.folder, "SKILL.md.tmp");
-  writeFileSync(join(found.folder, "SKILL.md.bak"), readFileSync(file, "utf8"));
+  const before = readFileSync(file, "utf8");
+  // The editor shows at most SKILL_FILE_CHARS: saving from it would cut a longer file for good, and the backup would then hold the cut text.
+  if (before.length > SKILL_FILE_CHARS) throw new Error(`This skill is longer than the editor shows (${SKILL_FILE_CHARS} characters). Edit its SKILL.md in a text editor.`);
+  writeFileSync(join(found.folder, "SKILL.md.bak"), before);
   writeFileSync(tmp, text);
   renameSync(tmp, file);
   return { name, source: found.source, text };

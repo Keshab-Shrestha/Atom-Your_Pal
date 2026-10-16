@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { Message } from "@atom/contracts";
 import { chatSearch, type ChatSearchHit } from "./chat-search.ts";
-import { ProjectError } from "./projects.ts";
+import { PLAIN_CHAT_LIMIT, ProjectError } from "./projects.ts";
 
 // ADR-091: Keshab's chat sessions with ATOM, kept on this Mac (in the memory file) so he can go back to one. A chat is
 // ATOM Core's session: its id, a title from its first words and its turns. Never logged; the newest 200 are kept.
@@ -20,7 +20,8 @@ export interface ChatStore {
   /** Saves a session's turns (after each exchange); the title comes from its first words. */
   save(id: string, turns: readonly Message[]): void;
   /** The newest first: a limit, or `{ projectId, limit }` for one project's chats (ADR-107). */
-  list(options?: number | { projectId?: string; limit?: number }): ChatSummary[];
+  /** The newest first: a limit, or `{ projectId, limit }` for one project's chats; `projectId: null` lists plain chats only (ADR-107). */
+  list(options?: number | { projectId?: string | null; limit?: number }): ChatSummary[];
   /** ADR-107: gives the chat its own title (kept when it is saved again). False when the chat is not saved yet. Throws ProjectError for a bad title. */
   rename(id: string, title: string): boolean;
   /** ADR-107: the chat's project; undefined for a plain chat. */
@@ -48,7 +49,7 @@ export interface ChatSessionRef {
 }
 
 /** Plain chats kept (a project's chats are never pruned by this). */
-export const MAX_CHATS = 200;
+export const MAX_CHATS = PLAIN_CHAT_LIMIT;
 /** ADR-107: chats kept in one project, the newest. */
 export const MAX_PROJECT_CHATS = 500;
 export const CHAT_TITLE_LENGTH = 60;
@@ -114,6 +115,7 @@ export function openChats(db: DatabaseSync, now: () => Date): ChatStore {
   const drop = db.prepare("DELETE FROM chats WHERE id = ?");
   const columnsOf = "c.id, c.title, c.updated_at, c.project_id, (SELECT COUNT(*) FROM chat_messages m WHERE m.chat_id = c.id) AS n";
   const listed = db.prepare(`SELECT ${columnsOf} FROM chats c ORDER BY c.updated_at DESC, c.rowid DESC LIMIT ?`);
+  const listedPlain = db.prepare(`SELECT ${columnsOf} FROM chats c WHERE c.project_id IS NULL ORDER BY c.updated_at DESC, c.rowid DESC LIMIT ?`);
   const listedIn = db.prepare(`SELECT ${columnsOf} FROM chats c WHERE c.project_id = ? ORDER BY c.updated_at DESC, c.rowid DESC LIMIT ?`);
   const read = db.prepare("SELECT role, content FROM chat_messages WHERE chat_id = ? ORDER BY seq");
   // ADR-107: the plain chats beyond 200, and a project's chats beyond 500, oldest first. A project chat is never in the first.
@@ -148,7 +150,7 @@ export function openChats(db: DatabaseSync, now: () => Date): ChatStore {
 
     list(options = 50) {
       const { projectId, limit = 50 } = typeof options === "number" ? { projectId: undefined, limit: options } : options;
-      const rows = (projectId ? listedIn.all(projectId, limit) : listed.all(limit)) as Record<string, unknown>[];
+      const rows = (projectId ? listedIn.all(projectId, limit) : projectId === null ? listedPlain.all(limit) : listed.all(limit)) as Record<string, unknown>[];
       return rows.map((r) => ({
         id: String(r.id),
         title: String(r.title),

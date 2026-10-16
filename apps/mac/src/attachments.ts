@@ -110,13 +110,14 @@ export function createAttachments(options: { dir: string; home?: string; log?: {
       }
       const dir = folder(chatId);
       mkdirSync(dir, { recursive: true });
-      const taken = new Set(listing(chatId));
+      // macOS keeps the case of a name but treats "Notes.txt" and "notes.txt" as one file: compared in lower case, so the second is renamed and does not overwrite.
+      const taken = new Set(listing(chatId).map((n) => n.toLowerCase()));
       const files: Attached[] = checked.map((c) => {
         const base = safeName(c.from);
         const ext = extname(base);
         let name = base;
-        for (let n = 2; taken.has(name); n++) name = `${base.slice(0, base.length - ext.length)} (${n})${ext}`;
-        taken.add(name);
+        for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${base.slice(0, base.length - ext.length)} (${n})${ext}`;
+        taken.add(name.toLowerCase());
         const path = join(dir, name);
         copyFileSync(c.from, path);
         return { name, path, kind: c.kind, size: c.size };

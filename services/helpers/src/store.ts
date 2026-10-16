@@ -209,6 +209,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const tokens = usageTable(db, now);
   const toolCalls = toolCallTable(db); // B3.1
   const workPlans = planTable(db, now); // ADR-111
+  const dropPlanLink = db.prepare("DELETE FROM plan_jobs WHERE job_id = ?"); // a removed task frees its portion (it showed "running" for ever)
+  const unlinkParent = db.prepare("UPDATE jobs SET parent_id = NULL WHERE parent_id = ?");
   const checkpoints = checkpointTable(db, checkpointsDir, home); // B3.4
   checkpoints.sweep(opened);
   const finder = searchTable(db); // ADR-098: labels and the window's search
@@ -223,6 +225,10 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const putSkill = db.prepare("INSERT OR IGNORE INTO helper_skills (helper, skill) VALUES (?, ?)");
   const putGrant = db.prepare("INSERT OR IGNORE INTO grants (helper, path) VALUES (?, ?)");
   const dropGrant = db.prepare("DELETE FROM grants WHERE helper = ? AND path = ?");
+  const dropGrants = db.prepare("DELETE FROM grants WHERE helper = ?");
+  const dropSouls = db.prepare("DELETE FROM souls WHERE helper = ?");
+  const dropRoutines = db.prepare("DELETE FROM routines WHERE helper = ?");
+  const openJobsOf = db.prepare("SELECT id FROM jobs WHERE helper = ? AND state IN ('queued', 'running')");
   const listeners = new Set<(change: HelperChange) => void>();
   const audit = auditTable(db, () => new Date()); // docs/v2-plan.md item 9
   const emit = (change: HelperChange) => {
@@ -515,8 +521,19 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     removeAgent(id) {
       const member = mustHelper(id);
       if (!member.custom || !agentsDir) throw new HelperError("Only an agent you added can be removed.");
-      for (const job of this.list().find((h) => h.id === id)!.jobs) if (!isFinal(job.state)) this.stop(job.id);
+      // Every unfinished task of the agent, not only the newest 20 that list() holds.
+      for (const row of openJobsOf.all(id) as { id: number }[]) this.stop(row.id);
       retireAgent(agentsDir, id, now());
+      // Nothing of the old agent may pass to a new agent that gets the same id (its folder name): grants, skills, app, pin, souls, routines, MCP access.
+      transaction(() => {
+        dropGrants.run(id);
+        clearSkills.run(id);
+        dropApp.run(id);
+        dropPin.run(id);
+        dropSouls.run(id);
+        dropRoutines.run(id);
+      });
+      for (const server of mcp.list()) if (server.workers.includes(id)) mcp.flags(server.id, server.enabled, server.trusted, server.workers.filter((w) => w !== id));
       emit({ action: "agent", helper: id, added: false });
     },
 
@@ -1085,6 +1102,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         deleteReport.run(id);
         deleteJob.run(id);
         dropLinks.run(id, id);
+        dropPlanLink.run(id);
+        unlinkParent.run(id);
         deleteComments.run(id);
         deleteEvents.run(id);
         toolCalls.drop(id);

@@ -164,8 +164,9 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
       if (target) target.justTyped = keep;
       return `\n\n${seen}`;
     } catch (error) {
-      if (error instanceof Refused || (error as Error)?.name !== "AbortError") return "\n\nATOM could not read the window again. Look again.";
-      throw error;
+      // A cancel is not "could not read": Cua's cancel is a plain Error("Cancelled."), not an AbortError, so the name alone never caught it.
+      if (signal?.aborted || (error as Error)?.name === "AbortError" || /^cancel/i.test((error as Error)?.message ?? "")) throw error;
+      return "\n\nATOM could not read the window again. Look again.";
     }
   }
 

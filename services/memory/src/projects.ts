@@ -8,6 +8,9 @@ import type { DatabaseSync } from "node:sqlite";
 export const MAX_PROJECTS = 20;
 export const MAX_PROJECT_NAME = 60;
 
+/** How many plain chats are kept (chats.ts cuts the oldest beyond this). Here, so projects.ts and chats.ts share one number without importing each other. */
+export const PLAIN_CHAT_LIMIT = 200;
+
 export class ProjectError extends Error {
   constructor(message: string) {
     super(message);
@@ -128,6 +131,7 @@ export function openProjects(db: DatabaseSync, now: () => Date): ProjectStore {
   const dropChat = db.prepare("DELETE FROM chats WHERE id = ?");
   const detach = db.prepare("UPDATE chats SET project_id = NULL WHERE project_id = ?");
   const counter = db.prepare("SELECT COUNT(*) AS n FROM chats WHERE project_id = ?");
+  const plainCount = db.prepare("SELECT COUNT(*) AS n FROM chats WHERE project_id IS NULL");
   const openCount = () => Number((open.get() as { n: number }).n);
   const changed = (r: { changes: number | bigint }) => Number(r.changes) > 0;
   const at = () => now().toISOString();
@@ -166,7 +170,16 @@ export function openProjects(db: DatabaseSync, now: () => Date): ProjectStore {
             clearMessages.run(row.id);
             dropChat.run(row.id);
           }
-        } else detach.run(id);
+        } else {
+          // The chats become plain chats, and plain chats are cut to MAX_CHATS at the next save: with more than that, the oldest would be deleted
+          // although "keep the chats" was chosen. Refused instead, with the way out in the message (code check, 2026-10-16).
+          const keep = Number((counter.get(id) as { n: number }).n);
+          const plain = Number((plainCount.get() as { n: number }).n);
+          if (keep + plain > PLAIN_CHAT_LIMIT) {
+            throw new ProjectError(`Keeping this project's ${keep} chats would make ${keep + plain} plain chats, and ATOM keeps ${PLAIN_CHAT_LIMIT}. Delete some chats first, or remove the project with its chats.`);
+          }
+          detach.run(id);
+        }
         removed = changed(drop.run(id));
         db.exec("COMMIT");
       } catch (error) {

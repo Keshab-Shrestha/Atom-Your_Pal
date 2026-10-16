@@ -10,6 +10,9 @@ export interface CalendarRunner {
 }
 
 /** Runs the helper and parses its one JSON line. */
+/** The longest range `calendar_events` reads (its description says 62 days; nothing enforced it). */
+export const MAX_EVENT_RANGE_DAYS = 62;
+
 export function calendarRunner(helperPath: string, timeoutMs = 30_000): CalendarRunner {
   return (args) =>
     new Promise((resolve, reject) => {
@@ -94,6 +97,8 @@ export function createCalendarTools(options: CalendarToolOptions): Tool[] {
           to.setDate(to.getDate() + 2);
           to.setHours(0, 0, 0, 0);
         } else to = parseWhen(input.to, "to");
+        if (to.getTime() <= from.getTime()) throw new Error("to must be after from");
+        if (to.getTime() - from.getTime() > MAX_EVENT_RANGE_DAYS * 86_400_000) throw new Error(`at most ${MAX_EVENT_RANGE_DAYS} days at a time`);
         const result = await call(run, ["events", from.toISOString(), to.toISOString()]);
         const events = Array.isArray(result.events) ? (result.events as Record<string, unknown>[]) : [];
         if (events.length === 0) return `No events between ${local(from.toISOString(), timeZone)} and ${local(to.toISOString(), timeZone)}.`;

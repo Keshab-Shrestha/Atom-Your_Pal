@@ -133,11 +133,27 @@ export function memoryContext(request: string, options: MemoryContextOptions): s
   ].join("\n");
 }
 
+/** A run of 13 to 19 digits that passes the Luhn check and does not follow a "+" (an international phone number is long but not a card). */
+function hasCardNumber(text: string): boolean {
+  for (const m of text.matchAll(/(?<![\d+])(?:\d[ -]?){12,18}\d(?!\d)/g)) {
+    const digits = m[0].replace(/\D/g, "");
+    if (digits.length < 13 || digits.length > 19) continue;
+    let sum = 0;
+    for (let i = 0; i < digits.length; i++) {
+      let d = Number(digits[digits.length - 1 - i]);
+      if (i % 2 === 1) d = d * 2 > 9 ? d * 2 - 9 : d * 2;
+      sum += d;
+    }
+    if (sum % 10 === 0) return true;
+  }
+  return false;
+}
+
 /** A cheap guard: refuses facts that look like credentials. The model is also told never to keep them. */
 export function looksSecret(text: string): boolean {
   return (
     /\b(password|passcode|passwd|pin code|pin is|api key|secret key|cvv|cvc|security code)\b/i.test(text) ||
-    /\b(?:\d[ -]?){13,19}\b/.test(text) || // a card number
+    hasCardNumber(text) ||
     /\b(sk|pk|ghp|xox[abp])[-_][A-Za-z0-9]{12,}/.test(text) // an API token
   );
 }

@@ -67,7 +67,7 @@ export async function prepareWorkdir(folder: string, taskId: number, worktrees: 
   // `.native` gives the case the disk stores: macOS ignores case, and git reports the repository in the stored case.
   // Checked before anything is made, so a refusal leaves no worktree or branch behind.
   const inside = relative(realpathSync.native(repo), realpathSync.native(folder));
-  if (inside.startsWith("..") || isAbsolute(inside)) throw new Error("The folder is not inside its repository.");
+  if (inside === ".." || inside.startsWith("../") || isAbsolute(inside)) throw new Error("The folder is not inside its repository.");
   const branch = await branchFor(repo, taskId);
   const tree = join(worktrees, `task-${taskId}`);
   if (!existsSync(tree)) {

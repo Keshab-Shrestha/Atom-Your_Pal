@@ -42,3 +42,11 @@ test("a trusted server's tools run; any other asks on the card, and no is a refu
   assert.deepEqual(asked, ["Sid wants to use send from mail", "Sid wants to use send from mail"]);
   assert.deepEqual(logged.map((e) => (e as { verdict: string }).verdict), ["trusted", "declined", "allowed"]);
 });
+
+// 2026-10-16 (code check): a tool named "do__thing" showed as "do" on the approval card.
+test("the approval card shows the whole tool name, even with a double underscore in it", async () => {
+  const cards: string[] = [];
+  const check = mcpCheck({ servers: [base], worker: "Sid", approve: async (r) => (cards.push(`${r.summary} ${r.reason}`), true) });
+  await check("mcp__echo__do__thing");
+  assert.match(cards[0]!, /do__thing/);
+});

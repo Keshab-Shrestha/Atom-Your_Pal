@@ -155,7 +155,8 @@ export const TRACKED_MAX = 30;
 export function issueTracker(file: string) {
   const read = (): TrackedIssue[] => {
     try {
-      return existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as TrackedIssue[]) : [];
+      const parsed: unknown = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : [];
+      return Array.isArray(parsed) ? (parsed as TrackedIssue[]) : []; // a file that holds {} or null made .filter throw every minute
     } catch {
       return [];
     }

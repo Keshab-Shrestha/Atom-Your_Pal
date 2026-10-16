@@ -669,12 +669,14 @@ export function createRuntime(
   // Task 3.16: the Paperclip tasks ATOM handed over are looked at every minute; a finished one is said once.
   if (paperclip) {
     const look = () =>
-      void checkIssues(paperclip.client, paperclip.tracker).then((lines) => {
-        if (!lines.length) return;
-        log.info("paperclip.done", { count: lines.length });
-        paperclipChanged();
-        for (const line of lines) for (const listener of goalLineListeners) listener(line);
-      });
+      void checkIssues(paperclip.client, paperclip.tracker)
+        .then((lines) => {
+          if (!lines.length) return;
+          log.info("paperclip.done", { count: lines.length });
+          paperclipChanged();
+          for (const line of lines) for (const listener of goalLineListeners) listener(line);
+        })
+        .catch(() => log.warn("paperclip.check_failed", {})); // an unhandled rejection ends the whole app
     setInterval(look, 60_000).unref();
   }
   // Lines to say aloud (the island's goal lines): a sub-agent's report in the voice chat (routeWake), a Paperclip task.

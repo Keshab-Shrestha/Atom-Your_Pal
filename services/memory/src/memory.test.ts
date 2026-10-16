@@ -364,3 +364,12 @@ test("remember refuses a missing or empty fact instead of keeping the word 'unde
   assert.match(String(remember!.run({ fact: "  My sister lives in Oslo  " } as never)), /Kept as memory/);
   assert.equal(store.get(1)?.text, "My sister lives in Oslo", "trimmed");
 });
+
+// 2026-10-16 (code check): any run of 13 to 19 digits was refused as a card number, so an international phone number could not be remembered.
+test("looksSecret refuses a card number (Luhn) but not a long phone number", () => {
+  assert.equal(looksSecret("my card is 4111 1111 1111 1111"), true);
+  assert.equal(looksSecret("card 4111-1111-1111-1111 exp 12/29"), true);
+  assert.equal(looksSecret("Keshab's number is +977 9812345678"), false, "13 digits after a plus");
+  assert.equal(looksSecret("call 00977 9812345678"), false, "does not pass the Luhn check");
+  assert.equal(looksSecret("password is hunter2"), true);
+});

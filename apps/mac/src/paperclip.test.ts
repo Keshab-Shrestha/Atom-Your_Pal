@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { checkIssues, createPaperclip, createPaperclipTools, issueTracker, paperclipBase } from "./paperclip.ts";
@@ -89,4 +89,18 @@ test("a Paperclip that is down or refuses comes back as words", async () => {
   const refusing = createPaperclip("http://localhost:3100/api", { company: "co1", fetch: async () => ({ ok: false, status: 403, json: async () => ({ error: "Forbidden" }) }) });
   await assert.rejects(refusing.agents(), /refused that \(403: Forbidden\)/);
   await assert.rejects(refusing.issue("../../x"), /not a Paperclip id/);
+});
+
+// 2026-10-16 (code check): a tracker file that holds valid JSON that is not a list made .filter throw every minute.
+test("a tracker file that is not a list reads as empty", () => {
+  const dir = mkdtempSync(join(tmpdir(), "atom-pc-"));
+  try {
+    const file = join(dir, "tracked.json");
+    writeFileSync(file, "{}");
+    assert.deepEqual(issueTracker(file).list(), []);
+    writeFileSync(file, "null");
+    assert.deepEqual(issueTracker(file).list(), []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

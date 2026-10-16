@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import type { ModelRequest } from "@atom/contracts";
-import { PROJECTS_NEED_CLAUDE, createCodexAdapter, createGeminiCliAdapter, promptText, signedInEnv, type CliRunner } from "./cli-tools.ts";
+import { PROJECTS_NEED_CLAUDE, createCodexAdapter, failure, createGeminiCliAdapter, promptText, signedInEnv, type CliRunner } from "./cli-tools.ts";
 
 // ADR-093: ATOM's chat on Codex (ChatGPT plan) or the Gemini CLI (Google sign-in), headless and read-only.
 
@@ -80,4 +80,15 @@ test("Codex and the Gemini CLI refuse a project chat, before any process starts"
     await assert.rejects(adapter.complete({ ...request(), files }, live()), (e: any) => e.kind === "bad_request" && e.message === PROJECTS_NEED_CLAUDE);
   }
   assert.match(PROJECTS_NEED_CLAUDE, /Projects need the Claude plan/);
+});
+
+// 2026-10-16 (code check): the error's message holds the command line, which includes the prompt: a chat about "quota" read as a limit.
+test("a failure is classified from what the tool printed, not from the command line with the prompt in it", () => {
+  const signal = new AbortController().signal;
+  const error = Object.assign(new Error("Command failed: codex exec tell me about the quota and the 401 error"), { stderr: "something broke" });
+  const result = failure("Codex", "Sign in.", error, signal);
+  assert.equal(result.kind, "unknown");
+  assert.match(result.message, /something broke/);
+  assert.equal(failure("Codex", "Sign in.", Object.assign(new Error("x"), { stderr: "Error: 401 unauthorized" }), signal).kind, "auth");
+  assert.equal(failure("Codex", "Sign in.", Object.assign(new Error("x"), { stderr: "rate limit reached" }), signal).kind, "rate_limit");
 });

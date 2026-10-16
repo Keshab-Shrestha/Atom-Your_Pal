@@ -125,3 +125,18 @@ test("the editor refuses a name that is not a skill, a path, empty text and a fi
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// 2026-10-16 (code check): the editor shows the first SKILL_FILE_CHARS characters; saving from it cut a longer file for good.
+test("a skill longer than the editor shows is not saved from the editor", () => {
+  const dir = skillsDir();
+  try {
+    const long = `---\nname: pdf\ndescription: Long.\n---\n\n${"x".repeat(SKILL_FILE_CHARS + 500)}`;
+    writeFileSync(join(dir, "pdf", "SKILL.md"), long);
+    const shown = readSkillFile("pdf", dir)!;
+    assert.equal(shown.text.length, SKILL_FILE_CHARS);
+    assert.throws(() => writeSkillFile("pdf", shown.text, dir), /longer than the editor shows/);
+    assert.equal(readFileSync(join(dir, "pdf", "SKILL.md"), "utf8"), long, "the file is untouched");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

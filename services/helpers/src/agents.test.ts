@@ -129,3 +129,25 @@ test("a soul line that starts with ## and a tab or other whitespace also survive
   assert.deepEqual(back.soul, soul);
   assert.equal(formatSoulMd({ role: back.role, kit: back.kit, soul: back.soul }), text);
 });
+
+// 2026-10-16 (code check): removing an agent kept its grants, skills, souls, routines and MCP access, and a new agent with the same name got them all.
+test("a removed agent leaves nothing behind for a new agent of the same name", () => {
+  const { store, done } = setup();
+  try {
+    store.createAgent({ ...rumi, kit: "folders" as const, role: "coder" });
+    const server = store.addMcpServer({ name: "Files", kind: "command", command: "/usr/local/bin/files-mcp", args: [], env: [] });
+    store.setMcpServer(server.id, { workers: ["rumi"] });
+    store.addRoutine("rumi", "check the news", { kind: "daily", minute: 480 });
+    assert.equal(store.list().find((h) => h.id === "rumi")!.routines.length, 1);
+    store.removeAgent("rumi");
+    assert.equal(store.mcpServers().find((s) => s.id === server.id)!.workers.includes("rumi"), false, "MCP access is gone");
+    store.createAgent({ ...rumi, kit: "folders" as const, role: "coder" });
+    const again = store.list().find((h) => h.id === "rumi")!;
+    assert.deepEqual(again.grants, [], "no old folders");
+    assert.deepEqual(again.skills, []);
+    assert.deepEqual(again.routines, [], "no old routines");
+    assert.equal(store.mcpServers().find((s) => s.id === server.id)!.workers.includes("rumi"), false);
+  } finally {
+    done();
+  }
+});

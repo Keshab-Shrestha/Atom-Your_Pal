@@ -163,3 +163,23 @@ test("an old file without the name flag is migrated", () => {
   store.close();
   rmSync(dir, { recursive: true, force: true });
 });
+
+// 2026-10-16 (code check): keeping a project's chats could make more plain chats than ATOM keeps, and the next save deleted the oldest.
+test("removing a project and keeping its chats is refused when the plain chats would pass the limit; the plain list is not filled by project chats", () => {
+  let n = 0;
+  const { chats, projects } = openMemoryStore({ path: ":memory:", now: () => new Date(Date.UTC(2026, 0, 1) + ++n * 1000) });
+  const p = projects.add({ name: "Big", folder: "/tmp/big" });
+  for (let i = 0; i < 60; i++) {
+    chats.save(`proj-${i}`, [{ role: "user", content: `project chat ${i}` }]);
+    chats.setProject(`proj-${i}`, p.id);
+  }
+  for (let i = 0; i < 5; i++) chats.save(`plain-${i}`, [{ role: "user", content: `plain ${i}` }]);
+  chats.save("proj-newest", [{ role: "user", content: "newest" }]);
+  chats.setProject("proj-newest", p.id);
+  assert.equal(chats.list({ projectId: null, limit: 50 }).length, 5, "plain chats only, whatever else is newer");
+  assert.ok(chats.list({ projectId: null, limit: 50 }).every((c) => c.projectId === undefined));
+  for (let i = 0; i < MAX_CHATS - 5 + 10; i++) chats.save(`more-${i}`, [{ role: "user", content: `more ${i}` }]);
+  assert.throws(() => projects.remove(p.id, { deleteChats: false }), /plain chats/);
+  assert.equal(chats.list({ projectId: p.id, limit: 100 }).length, 61, "nothing was deleted or moved");
+  assert.equal(projects.remove(p.id, { deleteChats: true }), true, "removing it with its chats still works");
+});

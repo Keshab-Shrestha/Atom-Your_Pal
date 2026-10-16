@@ -145,7 +145,11 @@ export function taskStarter(deps: TaskTurnDeps): (helper: string, task: string) 
       } catch (error) {
         const reason = reasonOf(error);
         deps.log.warn("task.turn", { helper, ok: false, message: reason });
-        deps.failed?.(`${name}'s task did not run: ${reason}`);
+        try {
+          deps.failed?.(`${name}'s task did not run: ${reason}`);
+        } catch {
+          // A throwing notice must not leave the queue rejected: every later task would be skipped.
+        }
       }
     });
   };

@@ -54,7 +54,8 @@ export function failure(tool: string, signIn: string, error: unknown, signal: Ab
   const e = error as { code?: unknown; killed?: boolean; stderr?: string; message?: string };
   if (e.code === "ENOENT") return new ProviderError("auth", `${tool} was not found on this Mac. ${signIn}`);
   if (e.killed) return new ProviderError("timeout", `${tool} took longer than ${CLI_TIMEOUT_MS / 1000} seconds.`);
-  const said = `${e.stderr ?? ""}\n${e.message ?? ""}`;
+  // Only what the tool printed: the error's message holds the whole command line, which includes the prompt, so a chat that mentions "quota" or "401" was read as a limit or a sign-in problem.
+  const said = e.stderr ?? "";
   if (/not (logged|signed) in|login required|unauthori[sz]ed|authenticat|401/i.test(said)) return new ProviderError("auth", `${tool} is not signed in. ${signIn}`);
   if (/rate.?limit|quota|429|usage limit/i.test(said)) return new ProviderError("rate_limit", `${tool} has reached its limit for now.`);
   const line = said.split("\n").map((l) => l.trim()).find((l) => l && !/^\s*at /.test(l)) ?? "it stopped with an error";

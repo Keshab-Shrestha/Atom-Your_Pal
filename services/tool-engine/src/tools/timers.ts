@@ -85,7 +85,11 @@ export function createTimers(options: TimerOptions): Timers {
         const info: TimerInfo = { id: nextId++, label, seconds, endsAt: new Date(now() + seconds * 1000) };
         const handle = set(() => {
           running.delete(info.id);
-          onFire(info);
+          try {
+            onFire(info);
+          } catch {
+            // A listener that throws must not end the app from a timer callback (an uncaught exception ends it).
+          }
         }, seconds * 1000);
         running.set(info.id, { info, handle });
         return `Timer #${info.id}${label ? ` for ${label}` : ""} set for ${spokenDuration(seconds)}.`;
