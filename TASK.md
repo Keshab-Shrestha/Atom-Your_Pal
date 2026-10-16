@@ -1859,3 +1859,9 @@ Keshab's list after trying the first batch. One capability at a time; each is it
   - `ChoiceRow` is a `Row`: the detail under the title, the control centred on the row (Pal, bubble and Dictation pages).
   - Void's off switch: the track is the caption colour at 1.5 pt (6.1:1 on black; the hover hairline was 4.3:1).
 - Next: the type scale in the app (11, 12, 13, 15, 18, 26), then the polish items above, checked on this page.
+
+## Chat box, part 1 (2026-10-17, ADR-125)
+
+- Done: Shift+Return for a new line (grows to 8 lines), ⌘V attaches copied files and pasted images (JPEG over 10 MB), ↑ in an empty box brings back the last message (↓ back), each chat keeps its unsent words and files. Tests: `ComposerInputTests` (17). Checked in the running app: ↑/↓, Shift+Return, Return still sends, image/file/text paste, draft kept across a chat switch and a Settings visit.
+- Not checked live: Return while composing Japanese (marked text) — try it once.
+- Next (part 2, one ADR each): "@" mentions (files, helpers, notes); queue a message while ATOM answers; context strip above the box; edit the last message.

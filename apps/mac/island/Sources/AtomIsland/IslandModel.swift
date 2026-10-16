@@ -63,6 +63,8 @@ final class IslandModel {
     /// Settings home has already cascaded in (ADR-084): once per launch, now that the drop-down panel that reset it on
     /// each opening is gone (ADR-093).
     @ObservationIgnored var settingsCascaded = false
+    /// ADR-125: unsent words and files of the chats not open now (in memory only).
+    @ObservationIgnored var chatDrafts = ChatDrafts()
     /// The card's content at full size (ADR-084). False for the moment it opens, so it can grow in from the menu-bar
     /// icon, and while it closes. Set by the controller, inside the open and close animations.
     var presented = true

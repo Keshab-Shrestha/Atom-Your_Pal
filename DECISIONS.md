@@ -2998,3 +2998,19 @@ More cards when an agent reads the web and then writes a file in the same turn (
 **Left out.** Editing tokens on the page; the glass themes; the Dashboard, chat and Brain surfaces (they need sample data and are in the gallery already).
 
 **Cost.** One more Settings page and four gallery shots (`22-design-*`). A token added to tokens.css fails the test until the catalog has it, which is the point.
+
+## ADR-125 — The chat box takes several lines, pasted images, ↑ for the last message, and a draft per chat (2026-10-17)
+
+**Context.** The chat box was one line. A screenshot could only be attached with 📎 or by dragging it, ⌘V did nothing with an image, and half a message was lost when another chat opened. These are the four things a chat box is expected to do first.
+
+**Decision.**
+1. **Several lines.** Shift+Return starts a new line where the caret is. The box grows to 8 lines, then scrolls (`ComposerLines.range`). Return still sends. While Japanese or other input is being composed (marked text), Return belongs to the input method.
+2. **Paste.** ⌘V in the box: copied files attach (Finder also puts their names on the clipboard as text; the files win). A bare image (a screenshot copied with ⌃⇧⌘4) is saved as `Pasted image <date> at <time>.png` in the system temp folder (`atom-pasted/`) and attached. Text pastes as before. An image whose PNG is over the runtime's 10 MB goes as JPEG (0.85). The runtime copies an attached file into the chat when it is sent, so temp copies older than a day are removed on the next paste. A local key monitor sees ⌘V first, because SwiftUI's TextField has no paste hook; it acts only when this composer's field has focus in the window the key went to.
+3. **↑ for the last message.** In an empty box, ↑ brings back the last message sent in this chat, ↑ again the one before (up to 50, no blanks or repeats); ↓ goes back toward an empty box. In words you typed or changed, the arrows move the caret. The "/" picker keeps ↑ and ↓ while it is open.
+4. **A draft per chat.** Changing chats keeps the unsent words and files of the chat being left and brings back those of the chat being opened (in memory, at most 20 chats, gone when ATOM quits). Leaving the conversation for another page keeps it too. A new chat has no id until its first answer; when the id arrives the box keeps its words.
+
+The rules are in `AtomIslandCore/ComposerInput.swift` (`MessageRecall`, `ChatDrafts`, `PastedImage`, `PasteChoice`) with tests in `ComposerInputTests`; the AppKit parts (key monitor, image encoding, window probe) are in `AtomIsland/ComposerPaste.swift`.
+
+**Left out (next, each with its own decision).** "@" mentions for files, helpers and notes; typing while ATOM answers (queue the next message); a context strip above the box; editing the last message and asking again. Drafts are not saved across quits.
+
+**Cost.** One key monitor per visible composer; a temp folder of pasted images, pruned daily.

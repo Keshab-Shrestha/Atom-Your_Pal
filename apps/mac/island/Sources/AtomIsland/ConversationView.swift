@@ -7,7 +7,9 @@ import AtomIslandCore
 // a capsule with a lit microphone and the hold shortcut in its placeholder.
 
 /// Type to ATOM: Return sends, the reply is spoken and shown like a voice turn. Empty, the button is the lit
-/// microphone that names the hold shortcut; with words, it sends them.
+/// microphone that names the hold shortcut; with words, it sends them. ADR-125: Shift+Return starts a new line (the box
+/// grows to 8 lines, then scrolls), ⌘V attaches a copied file or image, ↑ in an empty box brings back the last message,
+/// and each chat keeps its own unsent words and files.
 struct Composer: View {
     let model: IslandModel
     private let draft: State<String>
@@ -15,6 +17,11 @@ struct Composer: View {
     private let attached = State(initialValue: ComposerDraft())
     /// ADR-117: the row of the "/" picker that Return or Tab picks.
     private let pick = State(initialValue: 0)
+    /// ADR-125: ↑ and ↓ through the messages sent in this chat.
+    private let recall = State(initialValue: MessageRecall(sent: []))
+    /// ADR-125: ⌘V attaches files and images.
+    private let paste = State(initialValue: ComposerPaste())
+    @FocusState private var focused: Bool
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
 
@@ -55,13 +62,16 @@ struct Composer: View {
                         Text(placeholder).font(.system(size: 12.5)).foregroundStyle(theme.text3.color).lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     } else {
-                        TextField(placeholder, text: draft.projectedValue)
+                        TextField(placeholder, text: draft.projectedValue, axis: .vertical)
+                            .lineLimit(ComposerLines.range)
                             .textFieldStyle(.plain)
                             .font(.system(size: 12.5))
                             .foregroundStyle(theme.text.color)
+                            .focused($focused)
                             .onSubmit(send)
-                            .onKeyPress(.upArrow) { moveSlash(-1) }
-                            .onKeyPress(.downArrow) { moveSlash(1) }
+                            .onKeyPress(.return, phases: .down) { press in newLine(press) }
+                            .onKeyPress(.upArrow) { moveSlash(-1) == .handled ? .handled : recallMessage(older: true) }
+                            .onKeyPress(.downArrow) { moveSlash(1) == .handled ? .handled : recallMessage(older: false) }
                             .onKeyPress(.tab) { pickSlash() }
                             .onKeyPress(.escape) { closeSlash() }
                             .accessibilityLabel("Message to ATOM")
@@ -89,6 +99,21 @@ struct Composer: View {
             }
         }
         .onChange(of: draft.wrappedValue) { _, _ in pick.wrappedValue = 0 }
+        // ADR-125: each chat keeps its unsent words and files; they come back when it opens again.
+        .onChange(of: model.chats?.current) { old, new in switchDraft(from: old, to: new) }
+        .onChange(of: focused) { _, now in paste.wrappedValue.focused = now }
+        .onAppear {
+            guard !snapshot else { return }
+            if draft.wrappedValue.isEmpty { switchDraft(from: nil, to: model.chats?.current) }
+            paste.wrappedValue.start { attached.wrappedValue.add($0) }
+        }
+        .onDisappear {
+            guard !snapshot else { return }
+            paste.wrappedValue.stop()
+            // The composer is rebuilt when setup cards come and go: the words wait in the chat's draft.
+            switchDraft(from: model.chats?.current, to: nil)
+        }
+        .background(WindowProbe { paste.wrappedValue.window = $0 })
         .padding(.leading, 18)
         .padding(.trailing, 5)
         .padding(.vertical, 5)
@@ -154,6 +179,35 @@ struct Composer: View {
         guard !slashItems.isEmpty else { return .ignored }
         draft.wrappedValue = ""
         return .handled
+    }
+
+    // MARK: ADR-125
+
+    /// Shift+Return starts a new line where the caret is. Plain Return sends (`onSubmit`); while Japanese or other
+    /// input is being composed, Return is the input method's.
+    private func newLine(_ press: KeyPress) -> KeyPress.Result {
+        guard press.modifiers.contains(.shift), !FieldEditor.composing, let editor = FieldEditor.current else { return .ignored }
+        editor.insertNewlineIgnoringFieldEditor(nil)
+        return .handled
+    }
+
+    /// ↑ in an empty box: the last message sent in this chat, then earlier ones; ↓ back toward an empty box. In words
+    /// of your own the arrows move the caret.
+    private func recallMessage(older: Bool) -> KeyPress.Result {
+        let current = draft.wrappedValue
+        if older && current.isEmpty { recall.wrappedValue = MessageRecall(sent: model.conversation.turns.map(\.transcript)) }
+        guard let text = older ? recall.wrappedValue.older(current: current) : recall.wrappedValue.newer(current: current) else { return .ignored }
+        draft.wrappedValue = text
+        return .handled
+    }
+
+    /// Keeps the words and files of the chat being left and puts those of the chat being opened in the box.
+    private func switchDraft(from old: String?, to new: String?) {
+        let next = model.chatDrafts.switching(from: old, to: new, text: draft.wrappedValue, files: attached.wrappedValue)
+        guard new != nil else { return }
+        draft.wrappedValue = next.text
+        attached.wrappedValue = next.files
+        recall.wrappedValue = MessageRecall(sent: [])
     }
 
     private func send() {

@@ -344,3 +344,4 @@ Older steps are in TASK.md.
 - **Cleanup.** Dead Manager, wake-up and team-task code removed from the Swift app; `store.ts`, `Helpers.swift`, `Protocol.swift` and `IslandController.swift` split into cohesive files.
 - Open items are listed in TASK.md ("Fourth review pass").
 - **Design system page (ADR-124).** Settings → Design system shows the shared components (Showcase) and every token with value, Swift name and contrast (Tokens), in Void or Daylight. A test holds the page's catalog equal to tokens.css.
+- **Chat box (ADR-125).** Shift+Return for new lines (up to 8, then scrolls), ⌘V attaches copied files and screenshots, ↑ brings back the last message, and every chat keeps its own unsent draft.
