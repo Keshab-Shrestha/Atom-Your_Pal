@@ -1,7 +1,7 @@
 // ADR-082, Task 3.11: what a worker in granted folders may touch. Every file tool's path is checked against the run's
 // folders; every command is classified in code; risky ones ask Keshab on Pal's approval card (no answer is a no).
 
-import { existsSync, mkdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, openSync, readSync, closeSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve, sep } from "node:path";
 import { DENY_READ_DIRS, WRITE_TOOLS, classifyCommand, floorProblem, folderForTask, hasGitPart, isInside, isSecretLike, pathProblem, realish, toolPaths } from "@atom/helpers";
@@ -41,6 +41,51 @@ export interface FolderCheckOptions {
   onBeforeError?(event: { tool: string }): void;
 }
 
+/**
+ * ADR-123: shapes of secrets (private-key blocks, API keys, cloud and chat tokens). A file that holds one is not read by an agent: the read result
+ * cannot be edited afterwards, so the file is refused. A hex string of 64 characters is not on the list (hashes and lock files hold them).
+ */
+export const SECRET_SHAPES: readonly RegExp[] = [
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
+  /\bsk-(?:ant-|proj-)?[A-Za-z0-9_-]{24,}/,
+  /\bgh[pousr]_[A-Za-z0-9]{30,}/,
+  /\bgithub_pat_[A-Za-z0-9_]{40,}/,
+  /\bAKIA[0-9A-Z]{16}\b/,
+  /\bxox[baprs]-[A-Za-z0-9-]{10,}/,
+  /\bAIza[0-9A-Za-z_-]{30,}/,
+  /\b\d{8,10}:[A-Za-z0-9_-]{35}\b/, // a Telegram bot token
+];
+const SECRET_SCAN_BYTES = 1024 * 1024;
+/** Does this file (its first megabyte) hold a secret shape? False for a missing file, a folder or an unreadable one. */
+export function holdsSecret(path: string): boolean {
+  let fd: number | undefined;
+  try {
+    if (!statSync(path).isFile()) return false;
+    fd = openSync(path, "r");
+    const buffer = Buffer.alloc(SECRET_SCAN_BYTES);
+    const n = readSync(fd, buffer, 0, SECRET_SCAN_BYTES, 0);
+    const text = buffer.subarray(0, n).toString("latin1");
+    return SECRET_SHAPES.some((re) => re.test(text));
+  } catch {
+    return false;
+  } finally {
+    if (fd !== undefined) closeSync(fd);
+  }
+}
+
+/** A few words of what a write or edit will do, for the approval card (no more than 160 characters of the file's own text). */
+function preview(name: string, input: Record<string, unknown>): string {
+  const str = (v: unknown) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "");
+  const cut = (v: string, n: number) => (v.length > n ? `${v.slice(0, n - 1)}…` : v);
+  if (name === "Write") return `New content starts: "${cut(str(input.content), 160)}"`;
+  if (name === "Edit") return `Replace "${cut(str(input.old_string), 70)}" with "${cut(str(input.new_string), 70)}"`;
+  if (name === "MultiEdit" && Array.isArray(input.edits)) {
+    const first = (input.edits[0] ?? {}) as Record<string, unknown>;
+    return `${input.edits.length} edits, the first: replace "${cut(str(first.old_string), 50)}" with "${cut(str(first.new_string), 50)}"`;
+  }
+  return "";
+}
+
 const shortPath = (real: string, home: string) => (isInside(realish(home), real) ? `~${real.slice(realish(home).length)}` : real);
 const oneLine = (s: string, max: number) => (s.replace(/\s+/g, " ").trim().length > max ? `${s.replace(/\s+/g, " ").trim().slice(0, max - 1)}…` : s.replace(/\s+/g, " ").trim());
 
@@ -73,6 +118,7 @@ export function folderCheck(options: FolderCheckOptions) {
       if ((name === "Glob" || name === "Grep") && target === realish(home)) return say(name, "refused"), "Search inside a folder, not the whole home folder.";
       // 2026-10-15 (security review): a folder that holds ATOM's own data (or any .env or key) let a folders agent read the API token and the databases.
       if (isSecretLike(target, home) || isSecretLike(resolve(options.cwd, p), home)) return say(name, "refused"), "Secret files and key folders are never opened by an agent.";
+      if (name === "Read" && holdsSecret(target)) return say(name, "refused"), "This file holds a secret (an API key, a token or a private key), so an agent does not read it. Say in the report that you skipped it.";
     }
     if (writing) {
       // ADR-123: a new file is free; an edit or overwrite of a file that exists asks Keshab once per file. Inside the task's own folders it is free
@@ -86,7 +132,7 @@ export function folderCheck(options: FolderCheckOptions) {
         if (!memory.written.has(real) && memory.written.size >= MAX_OUTSIDE_WRITES) asks.push(`change more than ${MAX_OUTSIDE_WRITES} files outside its own folder`);
         if (asks.length) {
           say(name, "asked");
-          const ok = await options.approve({ summary: `${options.name} wants to ${asks[0]}`, reason: `${name} ${asks.join(" and ")}. A copy of the file is kept so you can undo it.` });
+          const ok = await options.approve({ summary: `${options.name} wants to ${asks[0]}`, reason: `${name} ${asks.join(" and ")}. ${preview(name, input)} A copy of the file is kept so you can undo it.`.replace(/\s+/g, " ") });
           if (!ok) return say(name, "declined"), "Keshab did not allow this change. Do the job without it, or say in the report what is needed.";
           memory.approved.add(real);
         }

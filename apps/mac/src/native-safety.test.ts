@@ -224,3 +224,42 @@ test("WebFetch is refused for a local address or an address that carries data, o
     s.done();
   }
 });
+
+// ADR-123: after web text, the main thread may not make anything that lasts or send data out; the user's next message clears it.
+async function post(gate: NativeGate, hook: Record<string, unknown>) {
+  const entries = gate.hooks.PostToolUse as { matcher?: string; hooks: ((h: unknown) => Promise<unknown>)[] }[];
+  const entry = entries.find((e) => e.matcher && new RegExp(e.matcher).test(String(hook.tool_name)))!;
+  await entry.hooks[0]!(hook);
+}
+test("taint: after the main thread read the web, create_agent, remember, open_url and the rest are refused until the user speaks", async () => {
+  const { gate, done } = setup();
+  const atomTool = (tool: string) => ({ tool_name: `mcp__atom__${tool}`, tool_input: { name: "x" } });
+  assert.equal((await pre(gate, atomTool("create_agent"), "t1")).decision, "allow", "not tainted: the tool's own approval card applies");
+  await post(gate, { tool_name: "WebFetch", tool_input: { url: "https://evil.example/page" } });
+  for (const tool of ["create_agent", "propose_skill", "open_url", "remember", "forget", "brain_note", "schedule", "note_add"]) {
+    const r = await pre(gate, atomTool(tool), `t-${tool}`);
+    assert.equal(r.decision, "deny", tool);
+    assert.match(r.reason!, /web text/);
+  }
+  assert.equal((await pre(gate, atomTool("weather"), "t-weather")).decision, "allow", "harmless tools stay");
+  gate.newAnswer(undefined);
+  assert.equal((await pre(gate, atomTool("create_agent"), "t-after")).decision, "allow", "the user's next message clears it");
+  done();
+});
+
+test("taint: a sub-agent that read the web may fetch only short addresses; another agent is not tainted by it", async () => {
+  const { gate, store, board, done } = setup();
+  await pre(gate, { tool_name: "Agent", tool_input: { prompt: "x", description: "a", subagent_type: "sid" } }, "u1");
+  await pre(gate, { tool_name: "Agent", tool_input: { prompt: "y", description: "b", subagent_type: "kame" } }, "u2");
+  board.onEvent({ type: "system", subtype: "task_started", task_id: "ag-1", tool_use_id: "u1" });
+  board.onEvent({ type: "system", subtype: "task_started", task_id: "ag-2", tool_use_id: "u2" });
+  const longData = `https://ok.example/a?${"q=1&".repeat(40)}`;
+  const fetchAs = (agent: string, type: string, url: string, id: string) => pre(gate, { agent_id: agent, agent_type: type, tool_name: "WebFetch", tool_input: { url } }, id);
+  assert.equal((await fetchAs("ag-1", "sid", longData, "f1")).decision, "allow", "before reading: the normal 500-character allowance");
+  await post(gate, { agent_id: "ag-1", agent_type: "sid", tool_name: "WebSearch", tool_input: { query: "q" } });
+  assert.equal((await fetchAs("ag-1", "sid", longData, "f2")).decision, "deny", "tainted: data in the address is refused");
+  assert.equal((await fetchAs("ag-1", "sid", "https://ok.example/wiki/Glacier", "f3")).decision, "allow", "a plain page is fine");
+  assert.equal((await fetchAs("ag-2", "kame", longData, "f4")).decision, "deny", "kame has no WebFetch in its kit anyway");
+  void store;
+  done();
+});

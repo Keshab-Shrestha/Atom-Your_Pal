@@ -2933,7 +2933,7 @@ An agent that is wrong, or that obeys text it found on a web page or in a file, 
 
 ## ADR-123 — Only the user gives commands: web and file text is data, and acting on it needs the user (2026-10-16)
 
-Date: 2026-10-16. Status: **accepted** (Keshab, 2026-10-16). Phase A built: the three tiers, the floor, delete and OS-harm denial, for every agent. Phase B not built: the taint gate (steps 2 and 3 "tainted" rows) and the secret-shape scan of read results. A new file is free anywhere the floor allows (Keshab removed the `~/Documents/ATOM` limit).
+Date: 2026-10-16. Status: **accepted** (Keshab, 2026-10-16). Phase A built: the three tiers, the floor, delete and OS-harm denial, for every agent. Phase B first version built (2026-10-16), smaller than step 2 and 3 describe: web text only taints; tainted refuses the self-change and send-out tools and long fetch addresses; new files stay free; a file with a secret shape is refused for Read (a read result cannot be rewritten); edit cards show a preview. Not built: taint from files, MCP and agent reports; the text scanner banner; hiding secrets in Grep output. A new file is free anywhere the floor allows (Keshab removed the `~/Documents/ATOM` limit).
 
 ### Context
 

@@ -47,3 +47,11 @@ test("a very long path is refused even with no query", () => {
   assert.equal(webFetchProblem(`https://ok.test/${"a".repeat(500)}`), undefined);
 });
 
+test("after web text was read, an address may carry only a little data and a short path", () => {
+  const tainted = { tainted: true };
+  assert.equal(webFetchProblem("https://en.wikipedia.org/wiki/Glacier_National_Park_(U.S.)", tainted), undefined);
+  assert.equal(webFetchProblem(`https://ok.test/a?${"x".repeat(60)}`, tainted), undefined);
+  assert.match(webFetchProblem(`https://ok.test/a?${"x".repeat(100)}`, tainted) ?? "", /too much data/);
+  assert.match(webFetchProblem(`https://ok.test/${"a".repeat(400)}`, tainted) ?? "", /too much data/);
+  assert.equal(webFetchProblem(`https://ok.test/a?${"x".repeat(100)}`), undefined, "not tainted: the normal allowance");
+});

@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openHelperStore } from "@atom/helpers";
-import { MAX_OUTSIDE_WRITES, PROJECT_FILE_BYTES, askForFolder, checkpointBefore, denyRead, folderCheck, newFolderMemory, projectReadCheck } from "./folder-run.ts";
+import { MAX_OUTSIDE_WRITES, PROJECT_FILE_BYTES, holdsSecret, askForFolder, checkpointBefore, denyRead, folderCheck, newFolderMemory, projectReadCheck } from "./folder-run.ts";
 
 // Task 3.11: every tool call of a run in folders, checked in code; risky commands ask on Pal's card.
 
@@ -358,6 +358,51 @@ test("tiers: more than 200 files outside the task's folder asks once more", asyn
     assert.equal(await check("Write", { file_path: join(home, "out", "one-more.txt") }), undefined);
     assert.equal(asked.length, 1);
     assert.match(asked[0]!, /more than 200 files/);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+// ADR-123: a file that holds a secret is not read; an edit card says what will change.
+test("a file that holds a secret shape is not read; an ordinary file is", async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-sec-")));
+  try {
+    mkdirSync(join(home, "Documents"), { recursive: true });
+    const write = (name: string, text: string) => (writeFileSync(join(home, "Documents", name), text), join(home, "Documents", name));
+    const check = folderCheck({ roots: [], home, cwd: join(home, "Documents"), name: "Sid", approve: async () => true });
+    const secrets = {
+      "key.txt": "-----BEGIN OPENSSH PRIVATE KEY-----\nabc",
+      "a.md": "my key is sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789",
+      "b.md": "token ghp_abcdefghijklmnopqrstuvwxyz0123456789AB",
+      "c.md": "AKIAABCDEFGHIJKLMNOP",
+      "d.md": "bot 123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw9",
+    };
+    for (const [name, text] of Object.entries(secrets)) {
+      assert.ok(holdsSecret(write(name, text)), name);
+      assert.match((await check("Read", { file_path: join(home, "Documents", name) })) ?? "", /holds a secret/, name);
+    }
+    for (const [name, text] of [["ok.md", "# Notes\nsk-short and ghp_ nothing here"], ["hash.txt", "a".repeat(64)]] as const) {
+      assert.equal(holdsSecret(write(name, text)), false, name);
+      assert.equal(await check("Read", { file_path: join(home, "Documents", name) }), undefined, name);
+    }
+    assert.equal(holdsSecret(join(home, "nothing")), false);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("the edit card says what will change", async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-card-")));
+  try {
+    mkdirSync(join(home, "Documents"), { recursive: true });
+    writeFileSync(join(home, "Documents", "plan.md"), "old");
+    const cards: { summary: string; reason: string }[] = [];
+    const check = folderCheck({ roots: [], home, cwd: home, name: "Kame", memory: newFolderMemory(), approve: async (r) => (cards.push(r), true) });
+    await check("Edit", { file_path: join(home, "Documents", "plan.md"), old_string: "old line", new_string: "new line" });
+    assert.match(cards[0]!.reason, /Replace "old line" with "new line"/);
+    writeFileSync(join(home, "Documents", "two.md"), "x");
+    await check("Write", { file_path: join(home, "Documents", "two.md"), content: "Fresh start\nof the file" });
+    assert.match(cards[1]!.reason, /New content starts: "Fresh start of the file"/);
   } finally {
     rmSync(home, { recursive: true, force: true });
   }
