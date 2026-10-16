@@ -332,6 +332,9 @@ export function createKokoroSynthesizer(options: KokoroOptions): Synthesizer {
             else request.reject(new TtsError(`Speech synthesis failed: ${message.message}`));
           }
         });
+        // A send to a worker whose channel is already closed is an 'error' event on the process; with no listener it ends the app. The exit handler
+        // below fails the waiting requests.
+        proc.on("error", () => {});
         proc.on("exit", (code, signal) => {
           if (child !== proc) return; // intentionally stopped
           child = null;
@@ -351,7 +354,13 @@ export function createKokoroSynthesizer(options: KokoroOptions): Synthesizer {
       const id = nextId++;
       const result = new Promise<SpeechAudio>((resolveAudio, reject) => pending.set(id, { resolve: resolveAudio, reject }));
       updateRef();
-      proc.send({ type: "synthesize", id, text });
+      proc.send({ type: "synthesize", id, text }, (error) => {
+        if (!error) return;
+        const request = pending.get(id);
+        pending.delete(id); // the worker is gone: this request fails now, and nothing keeps the process referenced for it
+        updateRef();
+        request?.reject(new TtsError("Speech synthesis could not reach the voice worker."));
+      });
       return result;
     },
     close() {

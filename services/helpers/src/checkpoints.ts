@@ -239,11 +239,11 @@ export function checkpointTable(db: DatabaseSync, dir: string | undefined, home:
     /** Removes the task's copies and rows. */
     drop,
 
-    /** Startup: forgets finished tasks older than 14 days, rows of gone tasks, and folders with no row. */
+    /** Startup: forgets finished, failed and stopped tasks older than 14 days (failed and stopped ones kept their copies for ever before), rows of gone tasks, and folders with no row. */
     sweep(now: Date) {
       const cutoff = new Date(now.getTime() - CHECKPOINT_KEEP_DAYS * 86_400_000).toISOString();
       const stale = db
-        .prepare("SELECT DISTINCT c.job_id AS id FROM checkpoints c LEFT JOIN jobs j ON j.id = c.job_id WHERE j.id IS NULL OR (j.state = 'done' AND j.ended_at < ?)")
+        .prepare("SELECT DISTINCT c.job_id AS id FROM checkpoints c LEFT JOIN jobs j ON j.id = c.job_id WHERE j.id IS NULL OR (j.state IN ('done', 'failed', 'stopped') AND j.ended_at < ?)")
         .all(cutoff) as { id: number }[];
       for (const { id } of stale) drop(id);
       if (!dir || !existsSync(dir)) return;
