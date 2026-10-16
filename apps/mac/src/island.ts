@@ -169,6 +169,14 @@ export function runIsland(options: IslandOptions): IslandSession {
           if ("error" in added) return send({ type: "error", stage: "settings", message: added.error });
           text = `${text.trim() || "Please look at the attached file."}\n\n${added.text}`;
         }
+        // Typing over an answer stops it. The Core needs a moment to unwind the aborted request; a turn started before
+        // that was refused as "answering in this chat" (ADR-127, found live). Wait for it, as chat.open does.
+        if (core.busy) {
+          loop.cancel();
+          const words = text;
+          whenCoreIdle(() => loop.ask(words), "text.send");
+          return;
+        }
         loop.ask(text);
         return;
       }

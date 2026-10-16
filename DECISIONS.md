@@ -3028,3 +3028,17 @@ The rules are in `AtomIslandCore/ComposerInput.swift` (`MessageRecall`, `ChatDra
 The rules are in `AtomIslandCore/MentionMenu.swift` and `ComposerDraft` (`DraftNote`), with tests in `MentionMenuTests`; the runtime parts are `noteFile` in `island.ts`, `text.send` checks in `island-commands.ts` and `MENTIONED` in `native-core.ts`.
 
 **Left out.** Mentions placed mid-text with the caret elsewhere; files from the project folder in the menu (the file chooser covers them); several helpers in one message (the first one named takes it).
+
+## ADR-127 — Typing while ATOM answers: the message waits its turn (2026-10-17)
+
+**Context.** Sending a message while ATOM answered stopped the answer and asked the new one, so a follow-up typed during a long answer threw the answer away. Chat apps let the next message wait instead.
+
+**Decision.**
+1. **Return waits.** While a turn runs (the runtime says transcribing, thinking or speaking; listening is the microphone's turn and still sends at once), Return puts the message in a "Next" row above the box, with its files and pages, and clears the box. It goes when the answer ends, in the chat it was typed in. A second message joins the first after a blank line, so they go as one turn.
+2. **⌘Return sends now.** It stops the answer and sends, as Return did before; a message already waiting goes with it. The "Next" row's **Send now** does the same, and **Edit** puts the message back in the box.
+3. **Nothing is lost or sent by surprise.** A stopped or failed answer, or leaving the chat (opening another, a new chat, deleting this one), puts the waiting message back in the box, in front of anything typed since; it is not sent. Joined messages over the length limit come back to the box too.
+4. **The runtime waits for a stopped answer.** Found live: a message sent over an answer was refused with "The ATOM window is answering in this chat", because the next turn began before the Core finished the aborted one. `text.send` now stops the answer and waits until the Core is idle, as `chat.open` does. The real cause was `withPointing` (ADR-080), which wraps the Core when computer control is on and dropped its `busy`, so the runtime never waited, in `chat.open` either. It passes `busy` through now.
+
+The rules are in `AtomIslandCore/MessageQueue.swift` (`MessageQueueTests`); `IslandModel` keeps the queue and settles it from runtime events; the row is `QueuedRow` in `ConversationView.swift`. Runtime: `text.send` in `island.ts`, `busy` in `pointing.ts`, with tests in both.
+
+**Left out.** Several waiting messages in a list (they join into one); a waiting message surviving a quit; voice turns joining the queue (speaking still interrupts, ADR-036).

@@ -2005,3 +2005,46 @@ test("a window turn in a chat where the phone is answering is refused with a cle
   await tick(10);
   assert.deepEqual(handled, ["again"]);
 });
+
+// ADR-127 (found live, 2026-10-17): typing over an answer stopped it but started the new turn while the Core was still
+// unwinding the old one, so the new message was refused with "The ATOM window is answering in this chat".
+test("text.send over a running answer stops it, waits for the Core to finish it, then answers the new message", async () => {
+  const { createChatTurns } = await import("./chat-turns.ts");
+  let busy = false;
+  const handled: string[] = [];
+  const h = islandHarness({
+    chatTurns: createChatTurns(),
+    core: {
+      handle: async (input, signal) => {
+        handled.push(input.text);
+        busy = true;
+        try {
+          // An aborted request takes a moment to unwind, as the real one does.
+          await new Promise<void>((done) => {
+            const late = setTimeout(done, 2000);
+            signal?.addEventListener("abort", () => (clearTimeout(late), setTimeout(done, 60)));
+          });
+        } finally {
+          busy = false;
+        }
+        return { text: `reply to ${input.text}` };
+      },
+      reset: () => {},
+      get sessionId() {
+        return "s1";
+      },
+      get busy() {
+        return busy;
+      },
+    },
+  });
+  await tick(5);
+  await h.send({ type: "text.send", text: "a long story" });
+  await tick(10);
+  h.clear();
+  await h.send({ type: "text.send", text: "now this" });
+  await tick(250);
+  assert.deepEqual(handled, ["a long story", "now this"]);
+  const refused = h.events().find((e) => e.type === "error" && /answering in this chat/.test((e as { message: string }).message));
+  assert.equal(refused, undefined, "the new message is not refused");
+});

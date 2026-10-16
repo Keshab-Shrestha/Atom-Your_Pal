@@ -10,7 +10,8 @@ import AtomIslandCore
 /// microphone that names the hold shortcut; with words, it sends them. ADR-125: Shift+Return starts a new line (the box
 /// grows to 8 lines, then scrolls), ⌘V attaches a copied file or image, ↑ in an empty box brings back the last message,
 /// and each chat keeps its own unsent words and files. ADR-126: "@" lists helpers (the message goes to the one chosen),
-/// Second brain notes (sent with it as files) and "A file…".
+/// Second brain notes (sent with it as files) and "A file…". ADR-127: while ATOM answers, Return makes the message wait
+/// for the answer (a "Next" row shows it); ⌘Return sends at once, stopping the answer.
 struct Composer: View {
     let model: IslandModel
     private let draft: State<String>
@@ -47,6 +48,9 @@ struct Composer: View {
                 SlashPicker(items: slashItems, selected: min(pick.wrappedValue, slashItems.count - 1), choose: choose)
             } else if !mentionItems.isEmpty && readOnly == nil {
                 MentionPicker(items: mentionItems, selected: min(pick.wrappedValue, mentionItems.count - 1), choose: choose)
+            }
+            if let next = model.queue.next, readOnly == nil {
+                QueuedRow(message: next, edit: model.editQueued, sendNow: model.sendQueuedNow)
             }
             if !attached.wrappedValue.isEmpty || attached.wrappedValue.notice != nil {
                 AttachedFilesRow(files: attached.wrappedValue.files, notes: attached.wrappedValue.notes, notice: attached.wrappedValue.notice,
@@ -109,10 +113,12 @@ struct Composer: View {
         }
         // ADR-125: each chat keeps its unsent words and files; they come back when it opens again.
         .onChange(of: model.chats?.current) { old, new in switchDraft(from: old, to: new) }
+        .onChange(of: model.returned) { _, _ in takeReturned() }
         .onChange(of: focused) { _, now in paste.wrappedValue.focused = now }
         .onAppear {
             guard !snapshot else { return }
             if draft.wrappedValue.isEmpty { switchDraft(from: nil, to: model.chats?.current) }
+            takeReturned()
             paste.wrappedValue.start { attached.wrappedValue.add($0) }
         }
         .onDisappear {
@@ -219,6 +225,8 @@ struct Composer: View {
     /// Shift+Return starts a new line where the caret is. Plain Return sends (`onSubmit`); while Japanese or other
     /// input is being composed, Return is the input method's.
     private func newLine(_ press: KeyPress) -> KeyPress.Result {
+        // ADR-127: ⌘Return sends now, even while ATOM answers (the answer stops).
+        if press.modifiers.contains(.command), !FieldEditor.composing { send(now: true); return .handled }
         guard press.modifiers.contains(.shift), !FieldEditor.composing, let editor = FieldEditor.current else { return .ignored }
         editor.insertNewlineIgnoringFieldEditor(nil)
         return .handled
@@ -243,7 +251,18 @@ struct Composer: View {
         recall.wrappedValue = MessageRecall(sent: [])
     }
 
-    private func send() {
+    /// ADR-127: a waiting message that was not sent comes back in front of what is in the box.
+    private func takeReturned() {
+        guard !snapshot, let back = model.takeReturned() else { return }
+        let typed = draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        draft.wrappedValue = typed.isEmpty ? back.text : back.text + "\n\n" + typed
+        attached.wrappedValue.add(back.files.files.map(\.path))
+        for note in back.files.notes { attached.wrappedValue.add(note: note) }
+    }
+
+    private func send() { send(now: false) }
+
+    private func send(now: Bool) {
         // The picker is open: Return picks the highlighted row (a full "/new" runs ATOM's command; "/review" gets a space).
         if pickRow() == .handled { return }
         if let built = SlashMenu.builtIn(in: draft.wrappedValue) { run(built.action); return }
@@ -252,7 +271,12 @@ struct Composer: View {
             attached.wrappedValue.refuse(why) // the text stays, and the notice says why
             return
         }
-        model.ask(draft.wrappedValue, draft: attached.wrappedValue)
+        if model.queue.running {
+            model.queueMessage(draft.wrappedValue, draft: attached.wrappedValue) // goes when the answer ends…
+            if now { model.sendQueuedNow() } // …or now, joined to one already waiting so the two go as one
+        } else {
+            model.ask(draft.wrappedValue, draft: attached.wrappedValue)
+        }
         draft.wrappedValue = ""
         attached.wrappedValue.clear()
     }
@@ -357,6 +381,40 @@ private struct AttachedFilesRow: View {
         .foregroundStyle(theme.text2.color)
         .padding(.horizontal, 8).frame(height: 24)
         .background(Capsule().fill(theme.fill2.color))
+    }
+}
+
+/// ADR-127: the message waiting for ATOM's answer to end. Edit puts it back in the box; Send now stops the answer.
+private struct QueuedRow: View {
+    let message: QueuedMessage
+    let edit: () -> Void
+    let sendNow: () -> Void
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "arrow.turn.down.right").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(theme.text3.color)
+            Text("Next").font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text2.color)
+            Text(summary).font(.system(size: 12)).foregroundStyle(theme.text.color).lineLimit(1).truncationMode(.tail)
+            Spacer(minLength: 8)
+            Button("Edit", action: edit).buttonStyle(.plain).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+                .help("Put it back in the box")
+            Button("Send now", action: sendNow).buttonStyle(.plain).font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text.color)
+                .help("Stop the answer and send this (⌘Return)")
+        }
+        .padding(.horizontal, 10).frame(height: 28)
+        .background(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).fill(theme.fill2.color))
+        .padding(.top, 3).padding(.trailing, 4)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Next message, sent when ATOM finishes: \(summary)")
+    }
+
+    /// The first line, and how many files go with it.
+    private var summary: String {
+        let line = message.text.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
+        let count = message.files.files.count + message.files.notes.count
+        let files = count == 0 ? "" : count == 1 ? "1 file" : "\(count) files"
+        return [line, files].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 }
 

@@ -104,8 +104,63 @@ final class IslandModel {
     /// Listens for shortcuts in every app. Set by the controller.
     @ObservationIgnored weak var shortcuts: ShortcutEngine?
 
-    /// Sends a command to the runtime. Set by the app.
-    @ObservationIgnored var send: (IslandCommand) -> Void = { _ in }
+    /// Carries a command to the runtime. Set by the app.
+    @ObservationIgnored var transport: (IslandCommand) -> Void = { _ in }
+
+    /// Sends a command to the runtime. ADR-127: a stop, or leaving the chat, settles a waiting message first.
+    func send(_ command: IslandCommand) {
+        if command == .talkCancel { queue.stopped() }
+        if let back = queue.sending(command) { returned = back }
+        transport(command)
+    }
+
+    // MARK: ADR-127: a message typed while ATOM answers
+
+    /// The message waiting for the answer to end, and whether a turn is running.
+    private(set) var queue = MessageQueue()
+    /// A waiting message that was not sent (stopped, failed, chat left, or Edit): the composer puts it back in the box.
+    private(set) var returned: QueuedMessage?
+
+    /// The words and files wait for the answer; a second message joins the first.
+    func queueMessage(_ text: String, draft: ComposerDraft) {
+        queue.add(text: text, files: draft, chat: chats?.current)
+    }
+
+    /// The composer takes a returned message (once: the panel and the window each have a composer).
+    func takeReturned() -> QueuedMessage? {
+        defer { returned = nil }
+        return returned
+    }
+
+    /// Send now: like typing over ATOM before ADR-127, the answer stops and this message goes.
+    func sendQueuedNow() {
+        guard let message = queue.take() else { return }
+        sendQueued(message)
+    }
+
+    /// Edit: the waiting message goes back into the box.
+    func editQueued() { returned = queue.take() }
+
+    private func sendQueued(_ message: QueuedMessage) {
+        // Joined messages can pass the length limit: then the box gets it back, and says why when sent.
+        guard ComposerDraft.refusal(forText: message.text) == nil else { return returned = message }
+        ask(message.text, draft: message.files)
+    }
+
+    private func settleQueue(_ event: IslandEvent) {
+        switch event {
+        case .state(let state):
+            switch queue.turn(state, chat: chats?.current) {
+            case .none: break
+            case .send(let message): sendQueued(message)
+            case .backToBox(let message): returned = message
+            }
+        case .error(let error) where error.stage != "settings":
+            queue.failed()
+        default:
+            break
+        }
+    }
     /// A command was not sent because the runtime is not running: tell the user, and stop any "waiting" that expected its answer.
     func droppedCommandError(for command: IslandCommand) -> RuntimeError? {
         guard DroppedCommand.shouldTell(commandType: command.type) else { return nil }
@@ -425,6 +480,7 @@ final class IslandModel {
         if let refresh = helpers.takeRefresh() { send(refresh) } // the open task changed: ask for its thread again
         if helperRefusal { return } // a refused helper command is shown in the ATOM window only
         conversation.apply(event)
+        settleQueue(event)
         approval.apply(event)
         pointing.apply(event)
         switch event {

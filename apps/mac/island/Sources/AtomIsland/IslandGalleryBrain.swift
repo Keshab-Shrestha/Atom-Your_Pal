@@ -185,6 +185,7 @@ extension IslandGallery {
     }
 
     /// ADR-126: the "@" menu: "@" alone (helpers, newest notes, a file) and "@tr" (notes with a word starting "tr").
+    /// ADR-127: under them, a message waiting for ATOM's answer to end.
     static func writeMentionPicker(to directory: URL, theme: AppTheme = .void, name: String = "21-mention-picker") {
         let suite = "atom.gallery.mention.\(ProcessInfo.processInfo.processIdentifier)"
         let defaults = UserDefaults(suiteName: suite)!
@@ -199,9 +200,15 @@ extension IslandGallery {
             BrainNode(id: 1, title: "Kyoto trip", updatedAt: now - day), BrainNode(id: 2, title: "Trip budget", updatedAt: now - 3 * day),
             BrainNode(id: 3, title: "Home office", updatedAt: now - 2 * day), BrainNode(id: 4, title: "Travel insurance", updatedAt: now - 9 * day),
         ], edges: [], tags: []))
+        let waiting = IslandModel(settings: IslandSettings(defaults: defaults)) // ADR-127: a message waiting for the answer
+        waiting.settings.theme = theme
+        var files = ComposerDraft()
+        files.add(["/Users/k/Desktop/osaka-hotels.pdf"])
+        waiting.queueMessage("And which of these is closest to Namba station?", draft: files)
         let page = VStack(spacing: 16) {
             Composer(model: m, initialDraft: "Ask @").frame(width: 560)
             Composer(model: m, initialDraft: "Plan days around @tr").frame(width: 560)
+            Composer(model: waiting).frame(width: 560)
         }
         .environment(\.islandSnapshot, true)
         .padding(24)

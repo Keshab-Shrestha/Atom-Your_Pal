@@ -86,3 +86,23 @@ test("a reply without a marker passes through unchanged, and the rest of the Cor
   assert.equal(ctx.wrapped.sessionId, "s1");
   assert.deepEqual(ctx.logged, []);
 });
+
+test("the wrapped Core says when the inner one is busy (ADR-127: the runtime waits on it)", () => {
+  let busy = false;
+  const inner = { ...fakeCoreForBusy(), get busy() { return busy; } };
+  const wrapped = withPointing(inner, { takeShot: () => undefined, point: () => {} }) as { readonly busy?: boolean };
+  assert.equal(wrapped.busy, false);
+  busy = true;
+  assert.equal(wrapped.busy, true);
+});
+
+function fakeCoreForBusy() {
+  return {
+    sessionId: "s",
+    history: () => [],
+    reset: () => {},
+    resume: () => {},
+    prepare: () => {},
+    handle: async () => ({ text: "" }),
+  } as unknown as Parameters<typeof withPointing>[0];
+}

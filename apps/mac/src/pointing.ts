@@ -20,6 +20,11 @@ export function withPointing(core: Core, options: PointingOptions): Core {
     get sessionId() {
       return core.sessionId;
     },
+    // Without this the runtime saw the Core as idle while it unwound a stopped answer, so a message typed over it was
+    // refused as "answering in this chat" (ADR-127, found live) and chat.open did not wait either.
+    get busy() {
+      return (core as { readonly busy?: boolean }).busy;
+    },
     history: () => core.history(),
     reset: () => core.reset(),
     resume: (id, turns) => core.resume(id, turns),
