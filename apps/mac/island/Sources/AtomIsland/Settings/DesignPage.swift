@@ -95,8 +95,8 @@ private struct DesignShowcase: View {
                     PillButton(title: "Not now") {}
                     PillButton(title: "New chat", symbol: "plus") {}
                     PillButton(title: "Unavailable") {}.disabled(true).opacity(0.45)
-                    IconButton(symbol: "arrow.clockwise", label: "Try again") {}
-                    IconButton(symbol: "xmark", label: "Close") {}
+                    IconButton(symbol: "arrow.clockwise", label: "Try again", diameter: ControlMetrics.buttonHeight) {}
+                    IconButton(symbol: "xmark", label: "Close", diameter: ControlMetrics.buttonHeight) {}
                 }
                 caption(theme.isGhost
                         ? "Void never fills a button, the main action included: every button is a hairline (ADR-086). Disabled sits at 45 percent."

@@ -1853,9 +1853,9 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 ## Design system page (2026-10-16, ADR-124)
 
 - Done: Settings → Design system, with Showcase and Tokens, previewing Void or Daylight without changing the app's theme. Files: `AtomIslandCore/DesignCatalog.swift`, `AtomIsland/Settings/DesignPage.swift`, `SettingsPage.design`. tokens.css has the type scale. Tests: `DesignCatalogTests.swift` (catalog equals tokens.css both ways, colours from the palette, contrast). Gallery: `22-design-showcase*.png`, `22-design-tokens*.png`.
-- Found by the page (not changed, for Keshab to decide):
-  - Daylight `--fg-2` and `--fg-3` are the same colour (`#6B6B78`), so caption and secondary text do not differ.
-  - Icon buttons (22 pt) are shorter than pill buttons (26 pt) in one row.
-  - `ChoiceRow` puts its detail under the control, not under the title, so a Menu row is taller than a Switch row.
-  - Void's off switch has little contrast on black.
+- Fixed (2026-10-16), the four problems the page found:
+  - Daylight secondary text is `#55555F` (6.8:1); captions stay `#6B6B78` (4.9:1). They were one colour. Warm had the same gap (secondary 5.8:1, captions 5.1:1); its secondary text is now ink at 76% (7.6:1). Test: `ThemeTests.textLevelsDiffer` (every theme: captions at least 1 contrast step below secondary text).
+  - One button height, `ControlMetrics.buttonHeight` (26). An icon button beside text buttons uses it (Helpers job row, the page). In Daylight an icon button at rest takes the pills' fill; it was clear and showed a bare glyph.
+  - `ChoiceRow` is a `Row`: the detail under the title, the control centred on the row (Pal, bubble and Dictation pages).
+  - Void's off switch: the track is the caption colour at 1.5 pt (6.1:1 on black; the hover hairline was 4.3:1).
 - Next: the type scale in the app (11, 12, 13, 15, 18, 26), then the polish items above, checked on this page.

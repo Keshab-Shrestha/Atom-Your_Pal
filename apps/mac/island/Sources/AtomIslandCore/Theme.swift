@@ -169,13 +169,14 @@ public struct ThemePalette: Sendable, Equatable {
 
     /// Daylight: Void's flat look in light. The window is `#f6f6f8`, cards are not filled, hairlines are `#d8dbe3`,
     /// the accent is indigo `#5b50e6` (also the identifier colour), radii are 20 / 8 / 6 (the playground's 8 for cards, and buttons at 8 - 2). Text is
-    /// `#3f3f50`; secondary text is `#6b6b78` (the playground had `#000000`, which would be stronger than the main
-    /// text). Status colours are the deeper light-theme ones so they read on the pale canvas.
+    /// `#3f3f50`; secondary text is `#55555f` and captions `#6b6b78` (the playground had `#000000`, which would be
+    /// stronger than the main text; until 2026-10-16 both levels were `#6b6b78`, so they did not differ). Status
+    /// colours are the deeper light-theme ones so they read on the pale canvas.
     public static let daylight = ThemePalette(
         isDark: false,
         surface: RGBA(hex: 0xF6F6F8), surfaceSolid: RGBA(hex: 0xF6F6F8),
         border: RGBA(hex: 0xD8DBE3), rim: RGBA(hex: 0xD8DBE3),
-        text: RGBA(hex: 0x3F3F50), text2: RGBA(hex: 0x6B6B78), text3: RGBA(hex: 0x6B6B78),
+        text: RGBA(hex: 0x3F3F50), text2: RGBA(hex: 0x55555F), text3: RGBA(hex: 0x6B6B78),
         fill1: .ink(0x3F3F50, 0), fill2: RGBA(hex: 0xECEEF3), fill3: RGBA(hex: 0xE0E3EB), separator: RGBA(hex: 0xD8DBE3),
         accent: RGBA(hex: 0x5B50E6), accentEnd: RGBA(hex: 0x5B50E6), onAccent: .white(1),
         live: RGBA(hex: 0x1D5FD1),
@@ -267,7 +268,7 @@ public struct ThemePalette: Sendable, Equatable {
         isDark: false,
         surface: RGBA(hex: 0xFBF8F3, alpha: 0.88), surfaceSolid: RGBA(hex: 0xFBF8F3),
         border: .ink(0x462D14, 0.14), rim: .white(0.9),
-        text: RGBA(hex: 0x1D1B18), text2: .ink(0x1D1B18, 0.68), text3: .ink(0x1D1B18, 0.64),
+        text: RGBA(hex: 0x1D1B18), text2: .ink(0x1D1B18, 0.76), text3: .ink(0x1D1B18, 0.64),
         fill1: .ink(0x604828, 0.05), fill2: .ink(0x604828, 0.08), fill3: .ink(0x604828, 0.13), separator: .ink(0x1D1B18, 0.09),
         accent: RGBA(hex: 0xBF4527), accentEnd: RGBA(hex: 0xBF4527), onAccent: .white(1),
         live: RGBA(hex: 0x08776A),

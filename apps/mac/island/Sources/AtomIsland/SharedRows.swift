@@ -4,7 +4,8 @@ import AtomIslandCore
 struct IconButton: View {
     let symbol: String
     let label: String
-    /// The circle's size: 22 in rows, 26 in the panel header (ADR-084).
+    /// The circle's size: 22 alone in a row, `ControlMetrics.buttonHeight` (26) beside text buttons and in the
+    /// panel header (ADR-084), so a row of buttons shares one height.
     var diameter: CGFloat = 22
     let action: () -> Void
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
@@ -19,7 +20,7 @@ struct IconButton: View {
                 .font(.system(size: large ? 11 : 10, weight: large ? .semibold : .bold))
                 .foregroundStyle(hovering.wrappedValue ? theme.text.color : theme.text2.color)
                 .frame(width: diameter, height: diameter)
-                .background(ControlFill(Circle(), fill: hovering.wrappedValue ? theme.fill3.color : theme.fill1.color, hovering: hovering.wrappedValue))
+                .background(ControlFill(Circle(), fill: hovering.wrappedValue ? theme.fill3.color : restFill, hovering: hovering.wrappedValue))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -28,6 +29,10 @@ struct IconButton: View {
         .help(label)
         .accessibilityLabel(label)
     }
+
+    /// At rest the circle has the theme's lightest fill; Daylight's is clear (its cards are not filled), so the
+    /// circle takes the pill buttons' fill there and reads as a button of the same height.
+    private var restFill: Color { theme.fill1.a > 0 ? theme.fill1.color : theme.fill2.color }
 }
 
 /// A rounded group of rows, like a System Settings section.
@@ -107,9 +112,10 @@ struct ThemedSwitch: View {
         Button { set(!isOn) } label: {
             ZStack(alignment: isOn ? .trailing : .leading) {
                 if theme.isGhost {
-                    // Void: on is a bone-white track with a black knob; off is a hairline track. No shadow.
+                    // Void: on is a bone-white track with a black knob; off is a track in the caption colour (6:1 on
+                    // black; the hover hairline was 4.3:1 and read as missing). No shadow.
                     Capsule().fill(isOn ? theme.text.color : .clear)
-                    Capsule().strokeBorder(isOn ? theme.text.color : theme.hairline(true), lineWidth: 1)
+                    Capsule().strokeBorder(isOn ? theme.text.color : theme.text3.color, lineWidth: isOn ? 1 : 1.5)
                     Circle().fill(isOn ? theme.surfaceSolid.color : theme.text2.color).padding(isOn ? 2.5 : 4)
                 } else {
                     Capsule().fill(isOn ? theme.accentFill : AnyShapeStyle(theme.fill3.color))
@@ -230,7 +236,7 @@ struct PillButton: View {
             }
             .foregroundStyle(prominent && !theme.isGhost ? theme.onAccent.color : theme.text.color)
             .padding(.horizontal, theme.isGhost ? 12 : 11)
-            .frame(height: 26)
+            .frame(height: ControlMetrics.buttonHeight)
             .background {
                 if theme.isGhost {
                     // Void: never filled, prominent or not (ADR-086).
@@ -279,26 +285,14 @@ struct ChoiceRow<Choice: SettingsChoice>: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                Text(title).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
-                Spacer(minLength: 6)
-                if Choice.allCases.count <= 4 {
-                    Segmented(selection: selection, set: set)
-                } else {
-                    ThemedMenu(selection: selection, set: set)
-                }
-            }
-            if let detail, !detail.isEmpty {
-                Text(detail)
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(theme.text2.color)
-                    .fixedSize(horizontal: false, vertical: true)
+        // The same shape as `Row`: title with its detail under it, the control centred on the row.
+        Row(title: title, detail: detail) {
+            if Choice.allCases.count <= 4 {
+                Segmented(selection: selection, set: set)
+            } else {
+                ThemedMenu(selection: selection, set: set)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, Spacing.well)
-        .padding(.vertical, 8)
     }
 }
 

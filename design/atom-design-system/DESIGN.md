@@ -29,7 +29,7 @@ Use tokens. Do not write a hex value in a view.
 | Hairline | `--border` | `#292D30` | `#D8DBE3` |
 | Hairline on hover | `--border-hover` | `#6E727A` | `#A3A8B6` |
 | Main text | `--fg` | `#F0F0F0` | `#3F3F50` |
-| Secondary text | `--fg-2` | `#A1A4A5` | `#6B6B78` |
+| Secondary text | `--fg-2` | `#A1A4A5` | `#55555F` |
 | Caption | `--fg-3` | `#878B92` | `#6B6B78` |
 | Accent | `--accent` | `#FFFFFF` | `#5B50E6` |
 | Text on accent | `--accent-on` | `#000000` | `#FFFFFF` |

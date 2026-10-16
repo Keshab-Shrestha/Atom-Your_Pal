@@ -22,6 +22,17 @@ import Testing
         #expect(on(p.attention, bg) >= 3, "attention icon")
     }
 
+    /// The three text levels are three colours, each softer than the one above (Daylight's secondary text and captions
+    /// were one colour until 2026-10-16, found on the Design system page).
+    @Test(arguments: AppTheme.allCases)
+    func textLevelsDiffer(theme: AppTheme) {
+        let p = theme.palette
+        let bg = p.surfaceSolid
+        func on(_ c: RGBA) -> Double { RGBA.contrast(c.over(bg), bg) }
+        #expect(on(p.text) > on(p.text2), "\(theme.title): secondary text is softer than main text")
+        #expect(on(p.text2) - on(p.text3) >= 1, "\(theme.title): captions are visibly softer than secondary text (\(on(p.text2)) vs \(on(p.text3)))")
+    }
+
     @Test func darkAndLightThemes() {
         #expect(AppTheme.native.palette.isDark)
         #expect(AppTheme.luminous.palette.isDark)

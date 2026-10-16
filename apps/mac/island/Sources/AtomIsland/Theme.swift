@@ -181,6 +181,12 @@ struct StatusDot: View {
 /// Lantern's spacing (ADR-084, design study §3 A, one step more generous after Keshab's "lets have a padding for the
 /// whole and more when it is in conversation"): the panel's side inset, the inset inside a well, and the
 /// conversation's own, stiller margins.
+/// Control sizes shared by every button.
+enum ControlMetrics {
+    /// A text button (pill, quiet, read report), and an icon button that sits beside one.
+    static let buttonHeight: CGFloat = 26
+}
+
 enum Spacing {
     /// Between the panel's edge and its content: header, tabs, Settings wells, the composer.
     static let panel: CGFloat = 24

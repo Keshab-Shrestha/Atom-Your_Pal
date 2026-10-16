@@ -700,7 +700,7 @@ private struct JobRow: View {
                 if job.state.isActive {
                     QuietButton(title: "Stop") { model.sendHelpers(model.helpers.stopJob(job.id)) }
                 }
-                IconButton(symbol: "trash", label: "Delete") { model.sendHelpers(model.helpers.deleteJob(job.id)) }
+                IconButton(symbol: "trash", label: "Delete", diameter: ControlMetrics.buttonHeight) { model.sendHelpers(model.helpers.deleteJob(job.id)) }
             }
         }
         .padding(.horizontal, 16)
@@ -794,7 +794,7 @@ struct ReadReportButton: View {
                 .font(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(violet)
                 .padding(.horizontal, 12)
-                .frame(height: 26)
+                .frame(height: ControlMetrics.buttonHeight)
                 .background(ControlFill(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous), fill: Color.clear,
                                         hovering: hovering.wrappedValue, tint: violet))
                 .contentShape(Rectangle())
@@ -810,7 +810,7 @@ struct ReadReportButton: View {
                 .font(.system(size: 11.5, weight: .semibold))
                 .foregroundStyle(theme.accent.color)
                 .padding(.horizontal, 13)
-                .frame(height: 26)
+                .frame(height: ControlMetrics.buttonHeight)
                 .background(Capsule().fill(theme.accent.color.opacity(hovering.wrappedValue ? 0.12 : 0)))
                 .overlay(Capsule().strokeBorder(theme.accent.color.opacity(0.45), lineWidth: 0.8))
                 .contentShape(Capsule())
@@ -838,7 +838,7 @@ struct QuietButton: View {
             }
             .foregroundStyle(hovering.wrappedValue ? theme.text.color : theme.text2.color)
             .padding(.horizontal, 12)
-            .frame(height: 26)
+            .frame(height: ControlMetrics.buttonHeight)
             .background {
                 if theme.isGhost {
                     ControlFill(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous), fill: Color.clear, hovering: hovering.wrappedValue)
