@@ -1829,10 +1829,11 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 
 - Objective: the "improve" half of ADR-094 A works in the native engine. A task that used one of ATOM's skills and then fails or gets a bad rating makes Tinker propose an edit to that skill. Keshab accepts, rejects or undoes it.
 - Found: nothing recorded which skill a task used since the job runner went away (ADR-110 N5). `skill_uses` had 0 rows, so `askEdits` found nothing to improve. The "create" half was also unused: 0 drafts, 0 edits in `data/helpers.db`.
-- Change: `native-safety.ts` records the skill when an agent's `Skill` call passes the kit check (`recordSkillUse`). A refused call is not a use. Test: `native-safety.test.ts`.
+- Change: `native-safety.ts` records every skill an agent was given when its task starts (`recordSkillUse` in `agentCall`). Claude Code preloads an agent's skills into its context, so the agent never calls the `Skill` tool, and the first version (a record at that call) never recorded anything: found by the live test on 2026-10-16. A refused `Skill` call is still not a use. Test: `native-safety.test.ts`.
 - Unchanged: a model never adds or changes a skill without Keshab's click; `~/.claude/skills` is never written; hub skills are never edited.
 - Not done: skills used in a plain chat (`/name`, `use_skill`) have no task, so they cannot trigger an edit. Nothing prompts the main agent to call `propose_skill` after a good task. Not tried live: no agent has used an ATOM skill yet.
-- Next: Keshab approves one skill, lets an agent use it, rates the task bad, and checks that an edit appears in Needs you.
+- Live test (2026-10-16, passes): `tests/skills-loop.live.test.ts` (`pnpm test:live`, about 5 minutes, uses the plan). Kame uses an ATOM skill, the task is rated "not good", Tinker (a real model call) proposes an edit, accepting changes the skill file, undo restores its name, description and steps. Undo writes the file in ATOM's canonical form (description in quotes).
+- Still not done: skills used in a plain chat have no task and cannot trigger an edit; nothing prompts the main agent to call `propose_skill` after a good task.
 
 ## UI check (2026-10-15)
 

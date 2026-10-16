@@ -159,7 +159,8 @@ export async function startRuntime(options: { model?: string; readyMs?: number; 
           child.once("exit", () => (clearTimeout(force), resolve()));
         });
       }
-      rmSync(dir, { recursive: true, force: true });
+      if (process.env.SMOKE_KEEP === "1") console.error(`smoke: kept ${dir}`); // for looking at the runtime's own log and database after a failure
+      else rmSync(dir, { recursive: true, force: true });
     },
   };
 

@@ -62,7 +62,7 @@ test("live: a task that used one of ATOM's skills and was rated not good makes T
     // 4. Tinker (a real model call, in its own runner) proposes an edit to the skill. It shows in the helpers event as a pending edit.
     const withEdit = await runtime.waitFor(
       (e) => e.type === "helpers" && Array.isArray(e.skillEdits) && e.skillEdits.some((x: any) => x.skill === SKILL && x.state === "pending"),
-      300_000,
+      Number(process.env.SMOKE_EDIT_WAIT_MS ?? 300_000),
       "Tinker's proposed edit to the skill",
     );
     const edit = withEdit.skillEdits.find((x: any) => x.skill === SKILL && x.state === "pending");
@@ -77,7 +77,14 @@ test("live: a task that used one of ATOM's skills and was rated not good makes T
     assert.match(changed, /name: smoke-greeting/, "the skill keeps its name");
     runtime.send({ type: "skill.edit.undo", id: edit.id });
     await runtime.waitFor((e) => e.type === "helpers" && e.skillEdits?.some((x: any) => x.id === edit.id && x.state === "undone"), 30_000, "the edit to be undone");
-    assert.equal(readFileSync(skillFile(runtime.dir), "utf8"), ORIGINAL, "undo restores the skill exactly");
+    // ATOM writes the skill back in its own canonical form (the description in quotes), so the content is compared, not the bytes.
+    const parts = (text: string) => {
+      const m = /^---\nname: (.+)\ndescription: "?(.*?)"?\n---\n\n([\s\S]*)$/.exec(text);
+      assert.ok(m, `the skill file keeps its front matter: ${JSON.stringify(text.slice(0, 120))}`);
+      return { name: m[1], description: m[2], body: m[3]!.trim() };
+    };
+    assert.deepEqual(parts(readFileSync(skillFile(runtime.dir), "utf8")), parts(ORIGINAL), "undo restores the skill's name, description and steps");
+    assert.notDeepEqual(parts(changed).body, parts(ORIGINAL).body, "and the accepted edit had changed the steps");
   } finally {
     try {
       rmSync(folder, { recursive: true, force: true });

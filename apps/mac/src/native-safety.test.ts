@@ -192,15 +192,20 @@ test("fail closed: a decision that throws, an unknown agent, a missing agent typ
   done();
 });
 
-test("sub-agents: a Skill call is recorded for the agent's task, so a bad or failed task can ask for an edit to that skill", async () => {
+test("sub-agents: the skills an agent was given count as used by its task (they are preloaded), so a bad or failed task can ask for an edit to them", async () => {
   const { gate, store, done } = setup();
   store.setSkills("sid", ["trip-planning"]);
   await pre(gate, { tool_name: "Agent", tool_input: { prompt: "Find flights", description: "Flights", subagent_type: "sid" } });
   const job = store.list().find((h) => h.id === "sid")!.jobs[0]!.id;
+  assert.deepEqual(store.skillsUsed(job), ["trip-planning"], "recorded when the task starts: the skill is already in the agent's context");
   assert.equal((await pre(gate, sub("sid", "Skill", { skill: "other" }), "c2")).decision, "deny", "not its skill");
-  assert.deepEqual(store.skillsUsed(job), [], "a refused skill is not a use");
+  assert.deepEqual(store.skillsUsed(job), ["trip-planning"], "a refused skill is not a use");
   assert.equal((await pre(gate, sub("sid", "Skill", { skill: "trip-planning" }), "c3")).decision, "allow");
-  assert.deepEqual(store.skillsUsed(job), ["trip-planning"]);
+  assert.deepEqual(store.skillsUsed(job), ["trip-planning"], "calling the tool too records nothing twice");
+  // An agent with no skills records none.
+  await pre(gate, { tool_name: "Agent", tool_input: { prompt: "Find hotels", description: "Hotels", subagent_type: "kame" } }, "c4");
+  const other = store.list().find((h) => h.id === "kame")!.jobs[0]!.id;
+  assert.deepEqual(store.skillsUsed(other), []);
   done();
 });
 

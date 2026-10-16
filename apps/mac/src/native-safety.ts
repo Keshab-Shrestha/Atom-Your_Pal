@@ -148,6 +148,10 @@ export function nativeGate(scope: NativeScope): NativeGate {
       return deny(error instanceof Error ? error.message : String(error));
     }
     release();
+    // The agent's skills are preloaded into its context when it starts (the SDK's `skills` field), so it never has to call the Skill tool, and a use was
+    // recorded only at that call: none was, a bad rating asked for no edit, and the self-improving loop never ran (found by the live test, 2026-10-16).
+    // Every skill the agent was given counts as used by its task.
+    for (const skill of member.skills) team.helpers.recordSkillUse(job.id, skill);
     if (tainted.has("main")) tainted.set(`job:${job.id}`, tainted.get("main")!); // a task made after web text starts tainted, not clean
     team.board.opened(id, job.id, String(input.description ?? ""));
     // Phase N3: the Board shows the model at once (the pin or Laya's choice); the recorder puts the exact one when it runs.
