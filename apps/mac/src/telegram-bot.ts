@@ -17,7 +17,7 @@ const NEEDS_SHOWN = 10;
 const TASKS_SHOWN = 20;
 /** Store changes come in bursts: Needs you is looked at once they settle. */
 const SETTLE_MS = 1_000;
-const COMMAND = /^\/[A-Za-z_]+(?:@\w+)?(?:\s|$)/;
+const COMMAND = /^\/[A-Za-z_]+(?:@\w+)?(?=$|[\s.!?,:;])/;
 /** One ATOM turn that has not answered after this long is given up on, so the next message is not stuck behind it (2026-10-16). */
 export const TURN_TIMEOUT_MS = 10 * 60_000;
 /** A Needs you push that failed (the network was down) is tried again after this long, up to PUSH_TRIES times. */
@@ -337,7 +337,8 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     const fresh = now.filter((n) => n.push && !known.has(n.key) && !sending.has(n.key) && (notBefore.get(n.key) ?? 0) <= Date.now());
     const live = new Set(now.map((n) => n.key));
     // What was sent or is not pushed stays known; what is gone from the list is forgotten; what is new waits for its send.
-    known = new Set(now.filter((n) => known.has(n.key) || sending.has(n.key) || !fresh.includes(n) ).map((n) => n.key));
+    // An item held back only by its retry time is neither sent nor known: it is not added here (it used to be, so a failed push was never retried).
+    known = new Set(now.filter((n) => known.has(n.key) || sending.has(n.key) || !n.push).map((n) => n.key));
     for (const key of failedTries.keys()) if (!live.has(key)) (failedTries.delete(key), notBefore.delete(key));
     if (!push) {
       for (const item of fresh) known.add(item.key); // push is off: do not pile them up for when it is turned on

@@ -428,3 +428,29 @@ test("the prompt answers a topic itself and delegates only when named, when sour
   assert.match(NATIVE_TEAM_PROMPT, /with the Agent tool only when/);
   assert.ok(!NATIVE_TEAM_PROMPT.includes("delegate tool"), "the team prompt names the Agent tool");
 });
+
+// 2026-10-16 (code check): the phone and the window both write a chat. A live session was sent only the next question, so it never learned what the
+// other side wrote. `resume` now gives it those messages with the next turn, found by content, so it also works when the saved chat is at its cap.
+test("resume of the same chat gives the live session what another surface wrote since its last turn", async () => {
+  const { sdk, queries } = fakeSdk((t) => `re ${t.split("\n")[0]}`);
+  const core = make(sdk);
+  await core.handle({ text: "one", source: "text" });
+  await core.handle({ text: "two", source: "text" });
+  // Another Core wrote two more messages into the saved chat.
+  const saved: Message[] = [
+    { role: "user", content: "one" }, { role: "assistant", content: "re one" },
+    { role: "user", content: "two" }, { role: "assistant", content: "re two" },
+    { role: "user", content: "from the phone" }, { role: "assistant", content: "phone answer" },
+  ];
+  core.resume!("chat-1", saved);
+  await core.handle({ text: "three", source: "text" });
+  assert.equal(queries.length, 1, "the same live session");
+  const last = queries[0]!.sent.at(-1)!.message.content as string;
+  assert.match(last, /Meanwhile, this chat went on elsewhere/);
+  assert.match(last, /User: from the phone\nATOM: phone answer/);
+  assert.match(last, /The user now says:\nthree/);
+  // Nothing new: no repeat, and no note.
+  core.resume!("chat-1", [...saved, { role: "user", content: "three" }, { role: "assistant", content: "re three" }]);
+  await core.handle({ text: "four", source: "text" });
+  assert.ok(!(queries[0]!.sent.at(-1)!.message.content as string).includes("Meanwhile"));
+});

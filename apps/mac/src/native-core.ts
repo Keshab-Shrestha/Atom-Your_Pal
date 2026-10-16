@@ -360,7 +360,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       let body = opened && !resume && turns.length ? promptFrom([...turns, { role: "user", content: asked }]) : asked;
       if (!opened && entry.missed?.length) {
         const heard = entry.missed.map((m) => `${m.role === "user" ? "User" : "ATOM"}: ${m.content.trim()}`).join("\n");
-        body = `Meanwhile, this chat went on with another model:\n${heard}\n\nThe user now says:\n${asked}`;
+        body = `Meanwhile, this chat went on elsewhere (another model, the phone or the window):\n${heard}\n\nThe user now says:\n${asked}`;
         entry.missed = undefined;
       }
       const opening = opened ? (await quiet(() => deps.opening?.(chat, text)))?.trim() : undefined;
@@ -499,9 +499,20 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
 
     resume(id, saved) {
       if (busy) throw new CoreError("Still answering the previous request");
-      if (id !== sessionId) leave();
+      const same = id === sessionId;
+      if (!same) leave();
       sessionId = id;
       const pairs = saved.filter((m) => m.role === "user" || m.role === "assistant");
+      // A shared chat (the phone and the window both write it): another Core added messages to the saved chat since this one's last turn. Its live
+      // session never saw them (it is sent only the next question), so they go with the next turn, found by content, not by count (a saved chat is
+      // cut to 40 messages, so a count can stay the same while the messages moved on). Code check, 2026-10-16.
+      const entry = same ? live.get(id) : undefined;
+      const last = turns[turns.length - 1];
+      if (entry && !entry.handle.closed && last) {
+        let at = -1;
+        for (let i = pairs.length - 1; i >= 0; i--) if (pairs[i]!.role === last.role && pairs[i]!.content === last.content) { at = i; break; }
+        if (at >= 0 && at < pairs.length - 1) entry.missed = [...(entry.missed ?? []), ...pairs.slice(at + 1)];
+      }
       const start = Math.max(0, pairs.length - maxHistory * 2);
       turns = pairs.slice(pairs[start]?.role === "assistant" ? start + 1 : start);
     },

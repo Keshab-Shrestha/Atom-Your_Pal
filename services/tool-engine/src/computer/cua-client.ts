@@ -121,6 +121,8 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
         if (!started) reject(e);
         failAll(e.message); // also clears the pending initialize request's timer, which would otherwise hold the process open
       });
+      // A write to a child that died but has not said so yet is an EPIPE 'error' on its stdin; without a listener it ends ATOM (code check, 2026-10-16).
+      proc.stdin.on("error", () => {});
       proc.on("exit", () => {
         // The exit of a process that a newer one has replaced (the idle timer stopped it, a new call started another) changes nothing: it used to
         // clear `ready` and reject the newer process's pending request, and the next call then spawned a third process.

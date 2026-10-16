@@ -104,6 +104,9 @@ export const APP_JS = `(function () {
 
   function signOut(message) {
     token = ""; save("");
+    chat = { id: newId(), msgs: [] }; sending = false; open = {};
+    try { localStorage.removeItem(CHAT_KEY); } catch (e) { /* private mode */ }
+    $("log").replaceChildren(); $("needs").replaceChildren(); $("tasks").replaceChildren();
     clearInterval(timer);
     $("app").hidden = true; $("out").hidden = true; $("login").hidden = false;
     $("token").value = "";
@@ -226,11 +229,12 @@ export const APP_JS = `(function () {
     var box = $("sayText"); var text = box.value.trim(); if (!text || sending) return;
     sending = true; box.value = "";
     var button = e.target.querySelector("button"); button.disabled = true;
-    chat.msgs.push({ who: "me", text: text }); chat.msgs.push({ who: "wait", text: "ATOM is thinking…" }); drawChat();
+    chat.msgs.push({ who: "me", text: text }); saveChat(); // kept at once: a reload during a long turn still shows what was sent
+    chat.msgs.push({ who: "wait", text: "ATOM is thinking…" }); drawChat();
     api("/v1/chat", "POST", { text: text, chatId: chat.id }).then(function (d) {
       chat.msgs.pop(); chat.msgs.push({ who: "atom", text: d.answer || "(no answer)" });
     }).catch(function (err) {
-      chat.msgs.pop(); if (err.message !== "401") chat.msgs.push({ who: "bad", text: err.message });
+      chat.msgs.pop(); if (err.message !== "401") { chat.msgs.push({ who: "bad", text: err.message }); box.value = text; }
     }).then(function () { sending = false; button.disabled = false; saveChat(); drawChat(); });
   });
   chat = loadChat();

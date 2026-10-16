@@ -429,3 +429,28 @@ test("messages that arrived while ATOM was closed are not run; the user is told 
   assert.equal(out.filter((m) => /was closed/.test(m)).length, 1);
   assert.ok(out.some((m) => /2 messages arrived/.test(m)));
 });
+
+// 2026-10-16 (code check): an item whose push failed was added to `known` by a store change during the retry wait, and was then never tried again.
+test("a failed push is still tried again after a store change during the wait", async () => {
+  const asks: any[] = [];
+  let sends = 0;
+  const store = fakeStore();
+  let notify: ((change: unknown) => void) | undefined;
+  (store as any).onChange = (l: (change: unknown) => void) => ((notify = l), () => {});
+  await run({
+    updates: [],
+    store,
+    asks,
+    tune: { retryDelaysMs: [1], pushRetryMs: 300 },
+    sendStatus: () => (sends++ < 2 ? 500 : 200), // the first round (a try and its quick retry) fails; later sends work
+    wait: 10,
+    after: async (_bot, h) => {
+      asks.push(ask("n9"));
+      h.listeners.forEach((l: any) => l(asks[0]));
+      for (let i = 0; i < 300 && sends < 2; i++) await tick(10);
+      notify?.({ action: "job" }); // a store change while the retry waits
+      for (let i = 0; i < 300 && sends < 3; i++) await tick(10);
+      assert.ok(sends >= 3, "the item was sent again after the wait");
+    },
+  });
+});

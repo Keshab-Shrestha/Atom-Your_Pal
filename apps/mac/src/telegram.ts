@@ -164,6 +164,7 @@ export function startTelegram(options: TelegramOptions): TelegramClient {
           continue;
         }
         for (const update of updates) {
+          if (stopping.signal.aborted) return; // stop() came while this answer was being handled: serve no more
           offset = update.update_id + 1;
           take(update);
         }

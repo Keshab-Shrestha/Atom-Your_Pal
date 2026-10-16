@@ -60,8 +60,6 @@ export function runIsland(options: IslandOptions): IslandSession {
   options.computer?.attach(send);
   const level = createLevelThrottle((peak) => send({ type: "mic.level", peak }), options.levelIntervalMs);
 
-  /** The shared chat this window last wrote or opened, and how many messages it held then. */
-  let sharedSeen: { id: string; count: number } = { id: "", count: -1 };
   const loop = createVoiceLoop({
     record: options.record,
     stt: options.stt,
@@ -71,16 +69,10 @@ export function runIsland(options: IslandOptions): IslandSession {
         const id = core.sessionId ?? "";
         const writer = chatWriter(id);
         if (writer) throw new Error(readOnlyMessage(writer));
-        // A shared chat (the phone writes it too): read the saved messages again when the phone has added to them since this window's last turn.
-        if (isSharedChat(id) && options.chats && core.resume) {
-          const turns = options.chats.messages(id);
-          if (sharedSeen.id !== id || sharedSeen.count !== turns.length) core.resume(id, turns);
-        }
-        try {
-          return await core.handle(input, signal, hooks);
-        } finally {
-          if (isSharedChat(id) && options.chats) sharedSeen = { id, count: options.chats.messages(id).length };
-        }
+        // A shared chat (the phone writes it too): read the saved messages again before each turn. `resume` hands this Core's live session whatever
+        // the other side added since its last turn, so nothing is lost and no message count is compared.
+        if (isSharedChat(id) && options.chats && core.resume) core.resume(id, options.chats.messages(id));
+        return core.handle(input, signal, hooks);
       },
     },
     tts,
@@ -246,7 +238,6 @@ export function runIsland(options: IslandOptions): IslandSession {
         whenCoreIdle(() => {
           const replay = chats.replay?.(command.id, turns) ?? { turns, trimmed: false }; // ADR-107: a long project chat is replayed capped
           core.resume!(command.id, replay.turns);
-          sharedSeen = { id: command.id, count: turns.length };
           sendOpened(command.id, turns, replay.trimmed);
           sendChats();
         }, "chat.open");
