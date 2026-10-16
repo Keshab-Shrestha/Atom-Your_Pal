@@ -77,7 +77,7 @@ private struct ScheduledCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Image(systemName: entry.kind == .wakeUp ? "alarm" : "repeat").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(theme.text3.color)
+                Image(systemName: "repeat").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(theme.text3.color)
                 Text(entry.helperName).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.idColor(theme.text2))
                 Text(entry.schedule).font(.system(size: 11)).foregroundStyle(theme.text3.color)
                 Spacer(minLength: 0)
@@ -91,7 +91,7 @@ private struct ScheduledCard: View {
                     QuietButton(title: "Edit", symbol: "pencil") { edit(routine, entry.helperId) }
                 }
                 QuietButton(title: entry.paused ? "Resume" : "Pause", symbol: entry.paused ? "play.fill" : "pause.fill") { pause(!entry.paused) }
-                QuietButton(title: entry.kind == .wakeUp ? "Turn off" : "Delete") { delete() }
+                QuietButton(title: "Delete") { delete() }
             }
             .padding(.top, 4)
         }
@@ -104,14 +104,12 @@ private struct ScheduledCard: View {
     private func pause(_ paused: Bool) {
         switch entry.kind {
         case .routine(let id): model.sendHelpers(model.helpers.pauseRoutine(id, paused: paused))
-        case .wakeUp: model.sendHelpers(model.helpers.pauseWakeUp(entry.helperId, paused: paused))
         }
     }
 
     private func delete() {
         switch entry.kind {
         case .routine(let id): model.sendHelpers(model.helpers.deleteAnyRoutine(id))
-        case .wakeUp: model.sendHelpers(model.helpers.setWakeUp(entry.helperId, every: "off"))
         }
     }
 }

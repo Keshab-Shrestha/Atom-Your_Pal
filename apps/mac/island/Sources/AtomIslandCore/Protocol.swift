@@ -99,8 +99,6 @@ public enum IslandCommand: Sendable, Equatable {
     /// ADR-097: Keshab's own schedule from the Scheduled page, new or changed.
     case routineAdd(RoutineDraft)
     case routineUpdate(id: Int, RoutineDraft)
-    case helperWakeUp(helper: String, every: String)
-    case helperWakeUpPause(helper: String, paused: Bool)
     /// Task 3.11: grant a folder to a worker, or take it back.
     case grantAdd(helper: String, path: String)
     /// Task 3.12: the skills chosen for a worker (the whole list).
@@ -221,8 +219,6 @@ public enum IslandCommand: Sendable, Equatable {
         case .routinePause: "routine.pause"
         case .routineAdd: "routine.add"
         case .routineUpdate: "routine.update"
-        case .helperWakeUp: "helper.wakeUp"
-        case .helperWakeUpPause: "helper.wakeUp.pause"
         case .grantAdd: "grant.add"
         case .helperSkills: "helper.skills"
         case .jobRate: "job.rate"
@@ -426,12 +422,6 @@ public enum IslandCommand: Sendable, Equatable {
         case .routineUpdate(let id, let draft):
             fields["id"] = id
             Self.routineFields(draft, into: &fields)
-        case .helperWakeUp(let helper, let every):
-            fields["helper"] = helper
-            fields["every"] = every
-        case .helperWakeUpPause(let helper, let paused):
-            fields["helper"] = helper
-            fields["paused"] = paused
         case .helperPin(let helper, let model):
             fields["helper"] = helper
             fields["model"] = model
@@ -990,10 +980,7 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
                                     skillEdits: Fields.skillEdits(f.values["skillEdits"]),
                                     skillHub: Fields.skillHub(f.values["skillHub"]),
                                     agentProblems: Fields.agentProblems(f.values["agentProblems"]),
-                                    teamTasks: Fields.teamTasks(f.values["teamTasks"]),
                                     managers: f.managers(),
-                                    codexFallback: f.optionalBool("codexFallback") ?? false,
-                                    codexReady: f.optionalBool("codexReady") ?? false,
                                     testCases: Fields.testCases(f.values["testCases"]),
                                     plans: Fields.plans(f.values["plans"])))
     case "thread":
@@ -1191,7 +1178,7 @@ private struct Fields {
                grants: (h["grants"] as? [Any])?.compactMap { $0 as? String } ?? [],
                skills: (h["skills"] as? [Any])?.compactMap { $0 as? String } ?? [],
                proposals: Self.proposals(h["proposals"]), kit: h["kit"] as? String, custom: Self.flag(h["custom"]),
-               wakeUp: Self.wakeUp(h["wakeUp"]), manager: h["manager"] as? String, browser: Self.flag(h["browser"]))
+               manager: h["manager"] as? String, browser: Self.flag(h["browser"]))
         }
     }
 
@@ -1360,22 +1347,6 @@ private struct Fields {
             return HelperRoutine(id: id.intValue, task: task, when: when, lastAt: (r["lastAt"] as? String).flatMap(Self.date),
                                  lastSkipped: flag(r["lastSkipped"]), paused: flag(r["paused"]), nextAt: (r["nextAt"] as? String).flatMap(Self.date),
                                  schedule: routineSchedule(r["schedule"]), notifyTelegram: flag(r["notifyTelegram"]), webhook: flag(r["webhook"]))
-        }
-    }
-
-    /// ADR-094: a worker's wake-ups; absent (off, or an older runtime) or malformed is nil.
-    static func wakeUp(_ value: Any?) -> HelperWakeUp? {
-        guard let w = value as? [String: Any], let every = w["every"] as? String, let when = w["when"] as? String,
-              let nextAt = (w["nextAt"] as? String).flatMap(Self.date) else { return nil }
-        return HelperWakeUp(every: every, when: when, paused: flag(w["paused"]), lastAt: (w["lastAt"] as? String).flatMap(Self.date), nextAt: nextAt)
-    }
-
-    /// ADR-094: the team tasks waiting to be taken; absent (an older runtime) is empty. A malformed entry is left out.
-    static func teamTasks(_ value: Any?) -> [TeamTask] {
-        (value as? [Any] ?? []).compactMap { entry in
-            guard let t = entry as? [String: Any], let id = t["id"] as? NSNumber, CFGetTypeID(id) != CFBooleanGetTypeID(), let task = t["task"] as? String
-            else { return nil }
-            return TeamTask(id: id.intValue, task: task, role: t["role"] as? String, createdAt: (t["createdAt"] as? String).flatMap(Self.date))
         }
     }
 

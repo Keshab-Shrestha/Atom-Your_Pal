@@ -633,7 +633,7 @@ struct HelperWakeTests {
         #expect(IslandCommand.jobUndo(id: 3, path: "a/b.md", force: true).line == #"{"force":true,"id":3,"path":"a/b.md","type":"job.undo"}"# + "\n")
     }
 
-    @Test func activityNamesTheWakeUps() {
+    @Test func activityNamesAskedAgainAndFresh() {
         #expect(TaskActivity(kind: "woken", at: nil).title == "Asked again")
         #expect(TaskActivity(kind: "fresh", at: nil).title == "Set to start fresh")
     }

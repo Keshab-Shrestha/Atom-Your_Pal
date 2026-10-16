@@ -307,8 +307,6 @@ public struct Helper: Sendable, Equatable, Identifiable {
     /// ADR-088: what it may use ("research", "folders", "think"; nil from an older runtime), and whether Keshab added it.
     public var kit: String?
     public var custom: Bool
-    /// ADR-094: its wake-ups; nil when off (the default) or from an older runtime.
-    public var wakeUp: HelperWakeUp?
     /// ADR-095: its Manager's id; nil when it has none (Tinker) or from an older runtime.
     public var manager: String?
     /// The coder, designer and documenter work in folders Keshab grants.
@@ -325,7 +323,7 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public init(id: String, name: String, available: Bool, app: String?, jobs: [HelperJob], pinnedModel: String? = nil,
                 role: String = "", soul: HelperSoul? = nil, soulVersion: Int = 1, soulVersions: [SoulVersion] = [],
                 planFirst: Bool = false, routines: [HelperRoutine] = [], grants: [String] = [], skills: [String] = [], proposals: [SoulProposal] = [], kit: String? = nil, custom: Bool = false,
-                wakeUp: HelperWakeUp? = nil, manager: String? = nil, browser: Bool = false) {
+                manager: String? = nil, browser: Bool = false) {
         self.id = id
         self.name = name
         self.available = available
@@ -344,7 +342,6 @@ public struct Helper: Sendable, Equatable, Identifiable {
         self.proposals = proposals
         self.kit = kit
         self.custom = custom
-        self.wakeUp = wakeUp
         self.manager = manager
     }
 
@@ -617,23 +614,17 @@ public struct HelpersList: Sendable, Equatable {
     public var usage: TokenUsageSummary?
     /// ADR-093: agent folders that could not be loaded; empty when every one loaded.
     public var agentProblems: [AgentProblem]
-    /// ADR-094: the team tasks waiting to be taken, oldest first.
-    public var teamTasks: [TeamTask]
     /// ADR-095: the Managers; empty when there are none (or from an older runtime): then the Board and floor show workers.
     public var managers: [HelperManager]
     /// ADR-098 item 8: every saved test case, newest first.
     public var testCases: [TestCaseItem]
-    /// ADR-098 item 7: "Use Codex when the Claude plan limit is reached" (default off), and whether Codex is found and
-    /// signed in (the switch shows only then). False from an older runtime.
-    public var codexFallback: Bool
-    public var codexReady: Bool
     /// ADR-111: the newest work plans, newest first; empty when there are none (or from an older runtime).
     public var plans: [WorkPlanItem]
 
     public init(helpers: [Helper], apps: [String], allowLarge: Bool = true, models: [HelperModel] = [],
                 paperclip: [PaperclipTask]? = nil, mcp: [McpServerItem] = [], usage: TokenUsageSummary? = nil, skills: [SkillInfo] = [],
-                skillDrafts: [SkillDraftItem] = [], skillEdits: [SkillEditItem] = [], skillHub: HubState = .empty, agentProblems: [AgentProblem] = [], teamTasks: [TeamTask] = [],
-                managers: [HelperManager] = [], codexFallback: Bool = false, codexReady: Bool = false, testCases: [TestCaseItem] = [], plans: [WorkPlanItem] = []) {
+                skillDrafts: [SkillDraftItem] = [], skillEdits: [SkillEditItem] = [], skillHub: HubState = .empty, agentProblems: [AgentProblem] = [],
+                managers: [HelperManager] = [], testCases: [TestCaseItem] = [], plans: [WorkPlanItem] = []) {
         self.plans = plans
         self.testCases = testCases
         self.helpers = helpers
@@ -648,10 +639,7 @@ public struct HelpersList: Sendable, Equatable {
         self.skillEdits = skillEdits
         self.skillHub = skillHub
         self.agentProblems = agentProblems
-        self.teamTasks = teamTasks
         self.managers = managers
-        self.codexFallback = codexFallback
-        self.codexReady = codexReady
     }
 
     /// ADR-095: a Manager's Agents, in the team's order.
@@ -664,11 +652,6 @@ public struct HelpersList: Sendable, Equatable {
         (agents(of: manager).flatMap { h in h.jobs.map { BoardItem(helperId: h.id, helperName: h.name, job: $0) } }
             + manager.jobs.map { BoardItem(helperId: manager.id, helperName: manager.name, job: $0) })
             .sorted { $0.job.id > $1.job.id }
-    }
-
-    /// ADR-094: the roles a team task can be posted for: those of workers that take tasks, sorted, each once.
-    public var teamRoles: [String] {
-        Array(Set(helpers.filter(\.takesTasks).map(\.role).filter { !$0.isEmpty })).sorted()
     }
 
     /// A model's short name ("Sonnet 4.5" for "Claude Sonnet 4.5"); the id itself when it is not in `models`.
@@ -1177,19 +1160,6 @@ public struct HelpersState: Sendable, Equatable {
 
     private func routine(_ id: Int) -> HelperRoutine? {
         list?.helpers.lazy.compactMap { $0.routines.first { $0.id == id } }.first
-    }
-
-    /// ADR-094: a worker's wake-ups: "off", "15m", "1h", "4h" or "1d". Nil when unchanged or the worker takes no tasks.
-    public mutating func setWakeUp(_ helperId: String, every: String) -> IslandCommand? {
-        guard let helper = list?.helpers.first(where: { $0.id == helperId }), helper.takesTasks,
-              HelperWakeUp.choices.contains(where: { $0.every == every }) || every == "off",
-              (helper.wakeUp?.every ?? "off") != every else { return nil }
-        return waiting(.helperWakeUp(helper: helperId, every: every))
-    }
-
-    public mutating func pauseWakeUp(_ helperId: String, paused: Bool) -> IslandCommand? {
-        guard let wake = list?.helpers.first(where: { $0.id == helperId })?.wakeUp, wake.paused != paused else { return nil }
-        return waiting(.helperWakeUpPause(helper: helperId, paused: paused))
     }
 
     /// ADR-090: MCP servers: add (checked by the runtime), remove, test, turn on or off, trust, choose workers.
