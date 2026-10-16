@@ -2883,3 +2883,50 @@ About 400 lines: one page, one route, the `Host` check, the limit, the Settings 
 ### Addendum 1, 2026-10-16: phone chats are shared with the window
 
 Keshab opened a phone chat on the Mac and could only read it (ADR-098 made `api` chats read-only, one writer each). Now the `api` and `api-<chatId>` chats are shared: the window may write them. Each side reads the saved messages again before a turn when the other has added to them (`apiSeen` in `runtime.ts`, `sharedSeen` in `island.ts`). Telegram and routine chats stay read-only. A phone chat is never read aloud on the Mac. Not done: two turns at the same moment in one chat (the later one reads the saved messages again, so it sees the first only after it ends); the Claude session itself is rebuilt from the saved messages after the other side wrote.
+
+## ADR-122 — Agents work in any folder, with a fixed floor of protected places (2026-10-16)
+
+Date: 2026-10-16. Status: **proposed** (Keshab asked on 2026-10-16: "remove folder choosing for agent, let it be like Claude, so it can work on any folder").
+
+### Context
+
+A folders agent (Kame, Puff, Quill, any soul with the `folders` kit) may read and write only in the folders Keshab grants to it (ADR-082). An agent with no grant fails with "outside the folders this task may use". Keshab asked Kame to save a page and it refused. One grant per agent is slow and does not fit an autonomous team.
+
+### Decision
+
+**1. No grant is needed.** A `folders` agent may read and write in any place that the floor below does not protect. The "Folders" section on an agent's page and the per-agent grant list are removed. The default work folder for a new file with no named place is `~/Documents/ATOM` (made on first use).
+
+**2. The floor (in code, not in the model).** Always refused, for read and write, whatever the agent or the task says:
+- Anything outside the home folder, except an external drive under `/Volumes`.
+- `~/Library` (any case), every hidden folder and file in the home folder (`.ssh`, `.aws`, `.config`, `.claude`, ...), and the keychain and cookie paths of `DENY_READ_DIRS`.
+- Secret-like files in any folder (`.env`, `*.pem`, `id_rsa`, tokens and similar names; `isSecretLike`).
+- ATOM's own data: its `data/` and `logs/` folders, `config/island.json` and the database files.
+- Git's own files (`.git`, any case). ATOM commits an agent's work in a repository on the task's own branch (ADR-082), as today.
+- A path that a link (symlink, also a dangling one) leads to one of the places above.
+
+Writes also stay refused for the home folder's top level files (for example `~/.zshrc` is hidden and already covered; `~/Desktop` and `~/Documents` folders themselves are fine, files inside them are fine).
+
+**3. Undo stays.** Before an agent changes or overwrites a file, ATOM keeps a copy (the checkpoint of ADR-082 and `checkpoints.ts`), as today, so a bad change can be undone from the window. The checkpoint now covers every path an agent writes, not only the granted folders. A task that writes more than 200 files stops and asks for an OK on the Mac.
+
+**4. What does not change.**
+- Commands (`Bash`) exist only in a project chat, in the sandbox, with no network (ADR-107). Nothing here gives an agent a shell.
+- Risky steps in other apps (computer control) still ask.
+- The approval rules, the Local API rules (ADR-120) and the phone page (ADR-121) are unchanged. A phone message can start an agent that writes in the home folder, so the token rules matter more now; the phone cannot add or widen any folder because no grant exists any more.
+- Web and file contents are data, never instructions.
+
+### Left out on purpose
+
+- A per-agent "may write here" list as an opt-in lock. Add it back only if Keshab asks for a locked agent.
+- Writes outside the home folder (system folders, other users' folders).
+- A shell for agents outside project chats.
+
+### Risk, in plain words
+
+An agent that is wrong, or that obeys text it found on a web page or in a file, can now change or overwrite any non-protected file in the home folder, not only one folder. The floor, the copies before each change, the 200-file stop and the unchanged ban on commands limit the harm. They do not stop a bad edit of a personal document. Keshab accepts this for autonomy.
+
+### How it will be built (after approval)
+
+- `services/helpers/src/grants.ts`: `pathProblem` allows any path under the home folder (or `/Volumes`) that the floor does not refuse. `checkGrant` and the grant list are removed from the agent flow; the store keeps old grants in the file without using them.
+- `apps/mac/src/native-safety.ts` and `folder-run.ts`: the roots for a folders agent become "home, minus the floor". The worktree rule for git repositories stays.
+- `HelpersPageRows.swift`: the Folders section is removed. The agent's page no longer says "needs a folder".
+- Docs: README, `SECURITY.md` and this ADR. The old per-agent text in `docs/` is updated.
