@@ -426,7 +426,8 @@ test("~ paths, climbing patterns and Grep content outside the task's folder are 
     assert.equal(await inProject("Grep", { pattern: ".", path: join(home, "Documents"), output_mode: "files_with_matches" }), undefined, "names only is fine");
     assert.equal(await inProject("Grep", { pattern: ".", path: proj, output_mode: "content" }), undefined, "lines inside the task's folder are fine");
     const { writeFileSync } = await import("node:fs");
-    for (const [name, text] of [["s1", ["sk_", "live_", "abcdefghijklmnopqrstuvwx"].join("")], ["s2", ["npm_", "abcdefghijklmnopqrstuvwxyz0123456789"].join("")], ["s3", ["glpat", "-abcdefghijklmnopqrstu"].join("")], ["s4", ["eyJhbGciOiJIUzI1NiJ9", "eyJzdWIiOiIxMjM0NTY3ODkwIn0", "abcdefghijklmnop"].join(".")]] as const // built at run time: a key-shaped literal in the source is refused by GitHub push protection) {
+    // The strings are built at run time: a key-shaped literal in the source is refused by GitHub push protection.
+    for (const [name, text] of [["s1", ["sk_", "live_", "abcdefghijklmnopqrstuvwx"].join("")], ["s2", ["npm_", "abcdefghijklmnopqrstuvwxyz0123456789"].join("")], ["s3", ["glpat", "-abcdefghijklmnopqrstu"].join("")], ["s4", ["eyJhbGciOiJIUzI1NiJ9", "eyJzdWIiOiIxMjM0NTY3ODkwIn0", "abcdefghijklmnop"].join(".")]] as const) {
       writeFileSync(join(proj, name), text);
       assert.match((await inProject("Read", { file_path: join(proj, name) })) ?? "", /holds a secret/, name);
     }
