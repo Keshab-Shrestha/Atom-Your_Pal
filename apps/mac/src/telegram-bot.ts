@@ -36,6 +36,8 @@ const HELP = [
 export interface TelegramBotOptions {
   token: string;
   chatId: string;
+  /** ATOM_TELEGRAM_USER_ID: the one person obeyed in the chat. Default: the chat id (a private chat). */
+  userId?: string;
   log: Logger;
   /** One ATOM chat turn in the Telegram chat; resolves to ATOM's answer. */
   ask(text: string): Promise<string>;
@@ -186,6 +188,7 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
   const client: TelegramClient = startTelegram({
     token: options.token,
     chatId: options.chatId,
+    ...(options.userId ? { userId: options.userId } : {}),
     log,
     onInput: (input) => take(input),
     ...(options.skipBacklog !== undefined ? { skipBacklog: options.skipBacklog } : {}),

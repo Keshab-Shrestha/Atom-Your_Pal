@@ -695,6 +695,7 @@ export function createRuntime(
   // the chat "Telegram". The token and the messages are never logged.
   const telegramToken = readEnv(process.env, "ATOM_TELEGRAM_BOT_TOKEN")?.trim();
   const telegramChat = readEnv(process.env, "ATOM_TELEGRAM_CHAT_ID")?.trim();
+  const telegramUser = readEnv(process.env, "ATOM_TELEGRAM_USER_ID")?.trim(); // the one person obeyed in a group; a private chat needs none
   let telegram: TelegramBot | undefined;
   if (telegramToken && telegramChat && readEnv(process.env, "ATOM_VOICE_ONLY") !== "1") {
     const telegramCore = makeCore(true);
@@ -702,6 +703,7 @@ export function createRuntime(
     telegram = startTelegramBot({
       token: telegramToken,
       chatId: telegramChat,
+      ...(telegramUser ? { userId: telegramUser } : {}),
       log,
       ask: async (text) => (await telegramCore.handle({ text, source: "text" })).text,
       ...(helpers ? { helpers } : {}),

@@ -136,12 +136,12 @@ async function run(opts: { updates: unknown[][]; store?: any; asks?: any[]; ask?
   }
   return { sent, asked };
 }
-const text = (id: number, chat: number, t: string) => ({ update_id: id, message: { chat: { id: chat }, text: t } });
+const text = (id: number, chat: number, t: string) => ({ update_id: id, message: { chat: { id: chat }, from: { id: chat }, text: t } });
 const texts = (s: Sent[]) => s.filter((x) => x.method === "sendMessage").map((x) => x.body.text as string);
 
 test("only the allowed chat is served: a stranger's message and button get nothing", async () => {
   const r = await run({
-    updates: [[text(1, 999, "hello"), text(2, 999, "/needs"), { update_id: 3, callback_query: { id: "c", data: "p:1:1", message: { chat: { id: 999 } } } }, text(4, 42, "hi")]],
+    updates: [[text(1, 999, "hello"), text(2, 999, "/needs"), { update_id: 3, callback_query: { id: "c", data: "p:1:1", message: { chat: { id: 999 } }, from: { id: 999 } } }, text(4, 42, "hi")]],
     store: fakeStore(),
   });
   assert.deepEqual(r.asked, ["hi"]);
@@ -162,7 +162,7 @@ test("commands: /help, /needs empty, /report validation, unknown command", async
 
 test("a button press from the allowed chat is answered with the result", async () => {
   const store = fakeStore();
-  const r = await run({ updates: [[{ update_id: 1, callback_query: { id: "c1", data: "p:3:1", message: { chat: { id: 42 } } } }]], store });
+  const r = await run({ updates: [[{ update_id: 1, callback_query: { id: "c1", data: "p:3:1", message: { chat: { id: 42 } }, from: { id: 42 } } }]], store });
   assert.deepEqual(store.calls, ["approvePlan:3"]);
   const a = r.sent.find((s) => s.method === "answerCallbackQuery")!;
   assert.deepEqual(a.body, { callback_query_id: "c1", text: "Plan approved." });
@@ -170,12 +170,12 @@ test("a button press from the allowed chat is answered with the result", async (
 
 test("a store error on a button is reported back, not thrown", async () => {
   const store = fakeStore({ retry: () => { throw new Error("cannot retry"); } });
-  const r = await run({ updates: [[{ update_id: 1, callback_query: { id: "c", data: "r:1", message: { chat: { id: 42 } } } }]], store });
+  const r = await run({ updates: [[{ update_id: 1, callback_query: { id: "c", data: "r:1", message: { chat: { id: 42 } }, from: { id: 42 } } }]], store });
   assert.equal(r.sent.find((s) => s.method === "answerCallbackQuery")!.body.text, "cannot retry");
 });
 
 test("an ATOM failure is sent as a message; non-text input gets a short note", async () => {
-  const r = await run({ updates: [[text(1, 42, "go"), { update_id: 2, message: { chat: { id: 42 } } }]], store: fakeStore(), ask: async () => { throw new Error("down"); }, wait: 120 });
+  const r = await run({ updates: [[text(1, 42, "go"), { update_id: 2, message: { chat: { id: 42 }, from: { id: 42 } } }]], store: fakeStore(), ask: async () => { throw new Error("down"); }, wait: 120 });
   assert.deepEqual(texts(r.sent), ["I read text only.", "ATOM could not answer: down"]);
 });
 

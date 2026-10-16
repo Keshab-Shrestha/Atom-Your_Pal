@@ -23,7 +23,7 @@ function harness(script: (call: Call, n: number) => unknown | Promise<unknown>, 
   return { calls, logs, inputs, client };
 }
 const tick = (ms = 20) => new Promise((r) => setTimeout(r, ms));
-const msg = (update_id: number, chat: number, text: string) => ({ update_id, message: { chat: { id: chat }, text } });
+const msg = (update_id: number, chat: number, text: string) => ({ update_id, message: { chat: { id: chat }, from: { id: chat }, text } });
 
 test("splitMessage: limit, line breaks, empty text", () => {
   assert.deepEqual(splitMessage("hello"), ["hello"]);
@@ -44,8 +44,8 @@ test("polling: offset moves past each update id; other chats are ignored", async
   const h = harness(async (c) => {
     if (c.method !== "getUpdates") return {};
     n++;
-    if (n === 1) return { result: [msg(10, 42, "hi"), msg(11, 999, "intruder"), { update_id: 12, callback_query: { id: "q", data: "a:1:1", message: { chat: { id: 42 } } } }] };
-    if (n === 2) return { result: [{ update_id: 13, callback_query: { id: "q2", data: "x", message: { chat: { id: 7 } } } }] };
+    if (n === 1) return { result: [msg(10, 42, "hi"), msg(11, 999, "intruder"), { update_id: 12, callback_query: { id: "q", data: "a:1:1", message: { chat: { id: 42 } }, from: { id: 42 } } }] };
+    if (n === 2) return { result: [{ update_id: 13, callback_query: { id: "q2", data: "x", message: { chat: { id: 7 } }, from: { id: 7 } } }] };
     await tick(1000);
     return {};
   });
@@ -204,7 +204,7 @@ test("the backlog from while ATOM was closed is skipped and counted, then new me
   const h = harness(async (c) => {
     if (c.method !== "getUpdates") return {};
     n++;
-    if (n === 1) return { result: [msg(10, 42, "/steer 3 delete everything"), msg(11, 999, "other chat"), { update_id: 12, callback_query: { id: "q", data: "a:1:1", message: { chat: { id: 42 } } } }] };
+    if (n === 1) return { result: [msg(10, 42, "/steer 3 delete everything"), msg(11, 999, "other chat"), { update_id: 12, callback_query: { id: "q", data: "a:1:1", message: { chat: { id: 42 } }, from: { id: 42 } } }] };
     if (n === 2) return { result: [] }; // the backlog is read
     if (n === 3) return { result: [msg(13, 42, "fresh")] };
     await tick(1000);
@@ -257,5 +257,36 @@ test("a 401 or a 409 from getUpdates waits five minutes and logs what is wrong o
     h.client.stop();
     assert.ok(h.logs.some((l) => l.includes(event)), `${code}: the hint is logged`);
     assert.ok(h.logs.some((l) => l.includes("telegram.poll_failed") && l.includes("300000")), `${code}: the wait is five minutes`);
+  }
+});
+
+// 2026-10-16: ATOM obeyed anyone in the configured chat, so in a group any member could send commands and press Allow. It checks who sent it too.
+test("only the one person is obeyed: another member of the same chat is ignored, a missing sender too; a group needs userId", async () => {
+  const sender = (update_id: number, chat: number, from: number | undefined, text: string) => ({ update_id, message: { chat: { id: chat }, ...(from === undefined ? {} : { from: { id: from } }), text } });
+  const button = (update_id: number, chat: number, from: number) => ({ update_id, callback_query: { id: `q${update_id}`, from: { id: from }, data: "p:1:1", message: { chat: { id: chat } } } });
+  // A private chat: the chat id is the person's id.
+  let n = 0;
+  const priv = harness(async (c) => {
+    if (c.method !== "getUpdates") return {};
+    if (++n === 1) return { result: [sender(1, 42, 42, "mine"), sender(2, 42, 7, "a group member"), sender(3, 42, undefined, "no sender"), button(4, 42, 7), button(5, 42, 42)] };
+    await tick(1000);
+    return {};
+  });
+  await tick(80);
+  priv.client.stop();
+  assert.deepEqual(priv.inputs, [{ kind: "text", text: "mine" }, { kind: "button", data: "p:1:1", queryId: "q5" }]);
+  assert.ok(priv.logs.some((l) => l.includes("telegram.ignored") && l.includes('"reason":"sender"')), "the log says why, without any text");
+  // A group (a negative chat id): nobody is obeyed without userId, only that person with it.
+  for (const [userId, expected] of [[undefined, []], ["7", [{ kind: "text", text: "from seven" }]]] as const) {
+    let k = 0;
+    const group = harness(async (c) => {
+      if (c.method !== "getUpdates") return {};
+      if (++k === 1) return { result: [sender(1, -100, 7, "from seven"), sender(2, -100, 8, "from eight")] };
+      await tick(1000);
+      return {};
+    }, { chatId: "-100", ...(userId ? { userId } : {}) });
+    await tick(80);
+    group.client.stop();
+    assert.deepEqual(group.inputs, expected, `userId ${userId ?? "unset"}`);
   }
 });

@@ -51,6 +51,12 @@ export interface TelegramOptions {
   token: string;
   /** The one chat ATOM serves. */
   chatId: string;
+  /**
+   * The one person ATOM obeys in that chat (ATOM_TELEGRAM_USER_ID). Default: the chat id, which is the person's own id in a private chat. In a group the
+   * chat id is a negative number that is nobody's, so a group needs this; without it nobody is obeyed there. Before 2026-10-16 any member of a group
+   * could send commands and press Allow.
+   */
+  userId?: string;
   onInput(input: TelegramInput): void;
   log: Logger;
   fetch?: typeof fetch;
@@ -78,8 +84,8 @@ class TelegramError extends Error {
 
 interface RawUpdate {
   update_id: number;
-  message?: { chat: { id: number }; text?: string };
-  callback_query?: { id: string; data?: string; message?: { chat: { id: number } } };
+  message?: { chat: { id: number }; from?: { id: number }; text?: string };
+  callback_query?: { id: string; from?: { id: number }; data?: string; message?: { chat: { id: number } } };
 }
 
 /** Splits text into parts of at most `limit` characters, at a line break when one is near the end. */
@@ -131,9 +137,11 @@ export function startTelegram(options: TelegramOptions): TelegramClient {
 
   function take(update: RawUpdate) {
     const from = update.message?.chat.id ?? update.callback_query?.message?.chat.id;
-    if (from === undefined || String(from) !== chatId) {
+    const sender = update.message?.from?.id ?? update.callback_query?.from?.id;
+    // The chat must be the configured one AND the sender must be the one person: in a group, other members are in the same chat.
+    if (from === undefined || String(from) !== chatId || sender === undefined || String(sender) !== (options.userId ?? chatId)) {
       ignored++;
-      log.info("telegram.ignored", { count: ignored });
+      log.info("telegram.ignored", { count: ignored, ...(from !== undefined && String(from) === chatId ? { reason: "sender" } : {}) });
       return;
     }
     if (update.callback_query) {
@@ -158,7 +166,8 @@ export function startTelegram(options: TelegramOptions): TelegramClient {
           for (const update of updates) {
             offset = update.update_id + 1;
             const from = update.message?.chat.id ?? update.callback_query?.message?.chat.id;
-            if (from !== undefined && String(from) === chatId) skipped++;
+            const sender = update.message?.from?.id ?? update.callback_query?.from?.id;
+            if (from !== undefined && String(from) === chatId && sender !== undefined && String(sender) === (options.userId ?? chatId)) skipped++;
           }
           if (!updates.length) {
             draining = false;

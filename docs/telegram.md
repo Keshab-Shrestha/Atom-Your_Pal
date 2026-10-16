@@ -89,7 +89,8 @@ A message to ATOM that takes more than ten minutes to answer is dropped. ATOM te
 ## Safety
 
 - ATOM serves one chat only: the chat in `ATOM_TELEGRAM_CHAT_ID`. Messages from any other chat are ignored.
-- Use a private chat with your bot. In a group, every member could press **Allow**.
+- ATOM also checks **who sent** each message and each button press. In a private chat with your bot the sender is you, so nothing more is needed. Anyone else in the same chat is ignored.
+- A group is possible only if you add one more line to `.env`: `ATOM_TELEGRAM_USER_ID=<your own user number>`. Then ATOM obeys you alone in that group. Without this line, ATOM obeys nobody in a group. A private chat is still the better choice.
 - Anyone who has the token can control the bot. If the token leaks, send `/revoke` to BotFather. Then put the new token in `.env`.
 - Telegram is not end-to-end encrypted. Your messages, the summaries of questions and the reports pass through Telegram. Do not use Telegram for work that must stay private.
 - A button press can allow a risky action on your Mac. Read the question before you press **Allow**.
