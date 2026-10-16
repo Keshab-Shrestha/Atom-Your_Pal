@@ -15,7 +15,8 @@
     "island:build": "apps/mac/island/build-app.sh",
     "island:open": "apps/mac/island/build-app.sh --open",
     "island:test": "apps/mac/island/test.sh",
-    "island:ui-check": "scripts/ui-check.sh"
+    "island:ui-check": "scripts/ui-check.sh",
+    "test:visual": "LIVE=0 sh scripts/ui-check.sh"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",

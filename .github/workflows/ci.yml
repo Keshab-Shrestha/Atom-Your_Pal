@@ -35,3 +35,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: sh apps/mac/island/test.sh
+
+  # The visual check: the app draws every window with sample data to PNG files with no screen, and each reference shot in tests/ui-golden is compared
+  # by pixel (more than 1% changed pixels fails). The images are kept as an artifact so a failure can be looked at. Not blocking yet: a reference made
+  # on one Mac can differ on the runner (fonts, compiler version). Make it blocking once it has passed for a while.
+  visual:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: sh apps/mac/island/build-app.sh
+      - run: LIVE=0 GALLERY_DIR="$RUNNER_TEMP/gallery" sh scripts/ui-check.sh
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-gallery
+          path: ${{ runner.temp }}/gallery
+          if-no-files-found: ignore
+
