@@ -10,12 +10,16 @@ const RAW_BOLD = /\*\*[^*]+\*\*/;
 
 function run() {
   const p = Application("System Events").processes.byName("ATOM");
-  let window;
-  try { window = p.windows[0]; window.role(); } catch { return "FAIL no ATOM window (open it, or run scripts/ui-check.sh)"; }
+  let count;
+  try { count = p.windows.length; } catch { count = 0; }
+  if (!count) return "FAIL no ATOM window (open it, or run scripts/ui-check.sh)";
 
+  // Read every window: ATOM also shows a small pet window, which is not always first.
   const texts = [];
-  for (const e of window.entireContents()) {
-    try { if (e.role() === "AXStaticText") texts.push(String(e.value() ?? "")); } catch {}
+  for (let i = 0; i < count; i++) {
+    for (const e of p.windows[i].entireContents()) {
+      try { if (e.role() === "AXStaticText") texts.push(String(e.value() ?? "")); } catch {}
+    }
   }
   const missing = HEADER.filter((name) => !texts.includes(name));
   if (missing.length) return `FAIL the window lacks: ${missing.join(", ")}`;
