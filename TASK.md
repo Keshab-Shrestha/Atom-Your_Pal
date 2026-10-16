@@ -1114,7 +1114,7 @@ ADR-091 is done: all six parts built and tested. Next: Keshab tries them on the 
 **Task 3.18 — Secrets manager.** Worker credentials in the macOS Keychain, given to one worker's run by reference; never in souls, tasks or logs.
 **Task 3.19 — Cloud sandboxes.** Runs on a remote sandbox instead of this Mac.
 **Task 3.20 — Team templates.** Export and import a team (workers, souls, skills, routines) with secrets and local paths removed.
-**Task 3.21 — Mobile web app.** The board and approvals from a phone.
+**Task 3.21 — Mobile web app (ADR-121) — built; tested; not yet tried on a phone.** The needs, the tasks, plan approvals, retries, reports and goals from a phone, over Tailscale Serve. How-to: `docs/mobile.md`. Next: Keshab installs Tailscale, follows the how-to and checks it on the phone.
 **Task 3.22 — Codex and Hermes as workers.** A worker runs through the local `codex` or `hermes` command, with the same role, grant and budget checks.
 
 **Later (not planned):** steering a running run, retries, workers driving apps through computer control.

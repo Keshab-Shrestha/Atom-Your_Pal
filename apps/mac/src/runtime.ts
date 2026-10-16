@@ -728,6 +728,7 @@ export function createRuntime(
       : createApiServer({
           log,
           port: readEnv(process.env, "ATOM_API_PORT"),
+          host: readEnv(process.env, "ATOM_API_HOST"),
           ask: async (text, chatId) => {
             const chat = chatId ? `api-${chatId}` : "api";
             apiCore ??= makeCore(true);

@@ -79,7 +79,8 @@ test("parsePort accepts ports and rejects the rest", () => {
 });
 
 test("every route needs the right token", async () => {
-  const { api, port, token } = await boot();
+  let clock = 0; // many wrong tokens in a row would trip the ADR-121 lock; the clock moves on so they are not within one minute
+  const { api, port, token } = await boot({ now: () => (clock += 10_000) });
   try {
     for (const [m, p] of [["GET", "/v1/tasks"], ["GET", "/v1/needs"], ["POST", "/v1/chat"], ["POST", "/v1/hooks/1"], ["GET", "/nothing"]] as const) {
       assert.equal((await call(port, m, p)).status, 401, `${m} ${p} no token`);
@@ -417,6 +418,126 @@ test("a hung API turn is given up on after the limit and the next request is ser
     const second = await call(port, "POST", "/v1/chat", { token, body: '{"text":"two"}' });
     assert.equal(second.status, 200);
     assert.equal(second.json.data.answer, "echo:two");
+  } finally {
+    api.stop();
+  }
+});
+
+// ADR-121: the phone page over Tailscale Serve. The server stays on 127.0.0.1; Tailscale forwards one private name to it.
+import { connect } from "node:net";
+
+function raw(port: number, path: string, headers: Record<string, string | null> = {}) {
+  return new Promise<{ status: number; headers: Record<string, string | string[] | undefined>; text: string }>((resolve, reject) => {
+    const sent: Record<string, string> = {};
+    for (const [k, v] of Object.entries(headers)) if (v !== null) sent[k] = v;
+    const req = request({ host: "127.0.0.1", port, method: "GET", path, headers: sent, setHost: !("host" in headers) }, (res) => {
+      let text = "";
+      res.on("data", (c) => (text += c));
+      res.on("end", () => resolve({ status: res.statusCode ?? 0, headers: res.headers, text }));
+    });
+    req.on("error", reject);
+    req.end();
+  });
+}
+
+test("ADR-121: the page and its two files need no token, and carry the strict headers", async () => {
+  const { api, port } = await boot();
+  try {
+    for (const [path, type] of [["/app", "text/html"], ["/app.js", "text/javascript"], ["/app.css", "text/css"]] as const) {
+      const r = await raw(port, path);
+      assert.equal(r.status, 200, path);
+      assert.match(String(r.headers["content-type"]), new RegExp(type), path);
+      assert.equal(r.headers["cache-control"], "no-store");
+      assert.equal(r.headers["x-frame-options"], "DENY");
+      assert.equal(r.headers["x-content-type-options"], "nosniff");
+      assert.match(String(r.headers["content-security-policy"]), /default-src 'self'.*base-uri 'none'.*form-action 'none'/);
+      assert.ok(r.text.length > 100, path);
+    }
+    assert.equal((await call(port, "GET", "/v1/tasks")).status, 401, "data still needs the token");
+    assert.equal((await raw(port, "/app", {})).status, 200);
+    assert.equal((await raw(port, "/app/../v1/tasks")).status, 401, "no other path is public");
+  } finally {
+    api.stop();
+  }
+});
+
+test("ADR-121: the page holds no script from outside, no eval, no innerHTML, and calls only its own server", async () => {
+  const { api, port } = await boot();
+  try {
+    const html = (await raw(port, "/app")).text;
+    const js = (await raw(port, "/app.js")).text;
+    const css = (await raw(port, "/app.css")).text;
+    assert.ok(!/<script(?![^>]*src="\/app\.js")/.test(html) && !/<script[^>]*>\s*[^<\s]/.test(html), "only /app.js, no inline script");
+    assert.ok(!/https?:\/\//.test(html + js + css), "no address of another site");
+    assert.ok(!/\beval\b|new Function|innerHTML|outerHTML|insertAdjacentHTML|document\.write/.test(js), "task text is shown as text only");
+    assert.ok(!/style="/.test(html), "no inline style (the policy forbids it)");
+    assert.match(html, /name="viewport"/);
+    assert.match(js, /\/v1\/needs/);
+    assert.match(js, /\/v1\/tasks/);
+    assert.match(js, /\/v1\/goals/);
+  } finally {
+    api.stop();
+  }
+});
+
+test("ADR-121: the Host header must be this machine or the one named in ATOM_API_HOST; anything else is 403, with or without a token", async () => {
+  const { api, port, token } = await boot({ host: "Mac-Mini.Tail1234.ts.net" });
+  try {
+    for (const host of [`127.0.0.1:${port}`, `localhost:${port}`, "localhost", "mac-mini.tail1234.ts.net", "MAC-MINI.TAIL1234.TS.NET", `mac-mini.tail1234.ts.net:443`]) {
+      assert.equal((await raw(port, "/app", { host })).status, 200, host);
+    }
+    for (const host of ["evil.example", `evil.example:${port}`, "127.0.0.1.evil.example", "mac-mini.tail1234.ts.net.evil.example", "", "tail1234.ts.net", "[::1]x"]) {
+      assert.equal((await raw(port, "/app", { host })).status, 403, `page with Host "${host}"`);
+      const data = await raw(port, "/v1/tasks", { host, authorization: `Bearer ${token}` });
+      assert.equal(data.status, 403, `data with Host "${host}"`);
+    }
+    // No Host header at all (HTTP/1.0): refused too.
+    const status = await new Promise<string>((resolve) => {
+      const s = connect(port, "127.0.0.1", () => s.write("GET /app HTTP/1.0\r\n\r\n"));
+      let out = "";
+      s.on("data", (c) => (out += c));
+      s.on("close", () => resolve(out.split("\r\n")[0] ?? ""));
+    });
+    assert.match(status, /403/);
+  } finally {
+    api.stop();
+  }
+});
+
+test("ADR-121: without ATOM_API_HOST only the local names are allowed", async () => {
+  const { api, port } = await boot();
+  try {
+    assert.equal((await raw(port, "/app", { host: "mac-mini.tail1234.ts.net" })).status, 403);
+    assert.equal((await raw(port, "/app", { host: `localhost:${port}` })).status, 200);
+  } finally {
+    api.stop();
+  }
+});
+
+test("ADR-121: ten wrong tokens in a minute lock the API for a minute, and it opens again after", async () => {
+  let now = 1_000_000;
+  const { api, port, token } = await boot({ now: () => now });
+  try {
+    for (let i = 0; i < 10; i++) assert.equal((await call(port, "GET", "/v1/tasks", { token: "0".repeat(64) })).status, 401, `try ${i + 1}`);
+    assert.equal((await call(port, "GET", "/v1/tasks", { token })).status, 429, "locked, even for the right token");
+    assert.equal((await raw(port, "/app")).status, 200, "the public page stays reachable");
+    now += 61_000;
+    assert.equal((await call(port, "GET", "/v1/tasks", { token })).status, 200, "open again");
+    for (let i = 0; i < 9; i++) await call(port, "GET", "/v1/tasks", { token: "1".repeat(64) });
+    now += 61_000; // the old failures are outside the minute
+    for (let i = 0; i < 9; i++) await call(port, "GET", "/v1/tasks", { token: "1".repeat(64) });
+    assert.equal((await call(port, "GET", "/v1/tasks", { token })).status, 200, "nine in each minute is not enough to lock");
+  } finally {
+    api.stop();
+  }
+});
+
+test("ADR-121: a phone can send a goal with the token (the same route as any client)", async () => {
+  const { api, port, token } = await boot();
+  try {
+    const r = await call(port, "POST", "/v1/goals", { token, body: JSON.stringify({ goal: "check the weather" }) });
+    assert.equal(r.status, 200);
+    assert.equal(r.json.ok, true);
   } finally {
     api.stop();
   }

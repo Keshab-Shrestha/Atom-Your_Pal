@@ -214,6 +214,7 @@ Every part is described in [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md).
 | [SECURITY.md](SECURITY.md) | What ATOM may and may not do |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | How the parts fit |
 | [docs/telegram.md](docs/telegram.md) | How to set up and use ATOM from Telegram |
+| [docs/mobile.md](docs/mobile.md) | How to use ATOM from a phone with Tailscale |
 | [docs/island-protocol.md](docs/island-protocol.md) | The app and runtime protocol |
 | [docs/VISION.md](docs/VISION.md) | The long-term vision |
 | [CLAUDE.md](CLAUDE.md) | The engineering rules |

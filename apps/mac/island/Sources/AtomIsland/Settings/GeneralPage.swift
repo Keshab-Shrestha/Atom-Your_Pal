@@ -74,6 +74,14 @@ struct GeneralSection: View {
                             Text("Every tool that uses the old token (the MCP server, Hermes, scripts) stops working until you give it the new one.")
                         }
                 }
+                RowDivider()
+                // ADR-121: the phone page. ATOM stays on 127.0.0.1; Tailscale Serve forwards one private name to it.
+                Row(title: "Phone", detail: "Install Tailscale on the Mac and the phone. Run the command once, put your .ts.net name in .env as ATOM_API_HOST, restart ATOM, then open https://<name>/app on the phone. Steps: docs/mobile.md") {
+                    PillButton(title: "Copy command") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString("tailscale serve --bg \(api.port)", forType: .string)
+                    }
+                }
             }
         }
         // ADR-054: computer control. The runtime restarts to apply the switch; the switch shows the runtime's real state.

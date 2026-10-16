@@ -11,6 +11,7 @@ import { dirname, resolve } from "node:path";
 import { HelperError, isFinal, type GoalReport, type HelperStore, type Job, type JobState, type Routine } from "@atom/helpers";
 import type { Logger } from "@atom/shared";
 import { answerNeed, needsYou, type TelegramBotOptions } from "./telegram-bot.ts";
+import { APP_CSS, APP_HTML, APP_JS } from "./api-app-page.ts";
 
 export const DEFAULT_API_PORT = 4790;
 /** Relative to the project folder, like data/helpers.db. */
@@ -60,6 +61,10 @@ export interface ApiServerOptions {
   turnTimeoutMs?: number;
   /** ATOM_API_PORT, or DEFAULT_API_PORT. */
   port?: string | undefined;
+  /** ADR-121: ATOM_API_HOST, the one private name (the Tailscale `.ts.net` name) a request may use besides 127.0.0.1 and localhost. */
+  host?: string | undefined;
+  /** The clock, in ms; tests set it. */
+  now?: () => number;
   tokenFile?: string;
   /** One ATOM chat turn (the same Core setup as the window's) in an API chat; resolves to ATOM's answer. */
   ask(text: string, chatId?: string): Promise<string>;
@@ -122,6 +127,24 @@ interface Route {
   run: Handler;
 }
 
+/** ADR-121: ten wrong tokens inside one minute lock the API for one minute. */
+export const MAX_WRONG_TOKENS = 10;
+export const LOCK_WINDOW_MS = 60_000;
+
+/** The files of the phone page. They hold no data, so they need no token (the Host check and the headers still apply). */
+const PUBLIC_FILES: Readonly<Record<string, { type: string; body: string }>> = {
+  "/app": { type: "text/html; charset=utf-8", body: APP_HTML },
+  "/app.js": { type: "text/javascript; charset=utf-8", body: APP_JS },
+  "/app.css": { type: "text/css; charset=utf-8", body: APP_CSS },
+};
+const PAGE_HEADERS = {
+  "cache-control": "no-store",
+  "x-frame-options": "DENY",
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "no-referrer",
+  "content-security-policy": "default-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+};
+
 const digest = (text: string) => createHash("sha256").update(text).digest();
 
 export function createApiServer(options: ApiServerOptions): ApiServer {
@@ -131,6 +154,20 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
   let port = DEFAULT_API_PORT;
   let tokenDigest: Buffer | undefined;
   let refused = 0;
+  const now = options.now ?? Date.now;
+  let wrongAt: number[] = [];
+  const allowedHosts = new Set(["127.0.0.1", "localhost", ...(options.host?.trim() ? [options.host.trim().toLowerCase()] : [])]);
+  /** The name in the Host header without its port, in lower case; "" when it is missing or not a plain name. */
+  const hostName = (req: IncomingMessage) => {
+    const header = String(req.headers.host ?? "").trim().toLowerCase();
+    const m = /^([a-z0-9.-]+)(?::\d{1,5})?$/.exec(header);
+    return m?.[1] ?? "";
+  };
+  const locked = () => {
+    const from = now() - LOCK_WINDOW_MS;
+    wrongAt = wrongAt.filter((t) => t > from);
+    return wrongAt.length >= MAX_WRONG_TOKENS;
+  };
   // One ATOM turn at a time: the API chat's Core answers one request at a time.
   let turns: Promise<unknown> = Promise.resolve();
   // A turn that has not answered after turnTimeoutMs is given up on (504) so the next one is not stuck behind it. The work itself is not
@@ -411,8 +448,27 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
     const route = url ? routes.find((r) => r.method === req.method && r.match.test(url.pathname)) : undefined;
     let status = 200;
     try {
+      // ADR-121: only this machine's names and the one private name in ATOM_API_HOST. A web page that makes a victim's browser reach
+      // 127.0.0.1 under its own name (DNS rebinding) sends that name as Host, and is refused before anything else happens.
+      if (!allowedHosts.has(hostName(req))) {
+        status = 403;
+        req.resume();
+        return reply(res, status, null, "This address is not allowed. Use 127.0.0.1, or the name in ATOM_API_HOST.");
+      }
+      const file = req.method === "GET" && url ? PUBLIC_FILES[url.pathname] : undefined;
+      if (file) {
+        req.resume();
+        res.writeHead(200, { "content-type": file.type, ...PAGE_HEADERS });
+        return void res.end(file.body);
+      }
+      if (locked()) {
+        status = 429;
+        req.resume();
+        return reply(res, status, null, "Too many wrong tokens. Wait a minute.");
+      }
       if (!authorized(req)) {
         refused++;
+        wrongAt.push(now());
         log.warn("api.unauthorized", { count: refused });
         status = 401;
         req.resume();

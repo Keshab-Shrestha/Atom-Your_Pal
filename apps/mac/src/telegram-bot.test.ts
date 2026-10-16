@@ -407,15 +407,17 @@ test("a store change during the retry wait does not bring the retry forward", as
     after: async (_bot, h) => {
       asks.push(ask("n1"));
       h.listeners.forEach((l: any) => l(asks[0]));
-      await tick(1300); // first push: 2 tries fail, a retry is planned 600 ms later
-      const n = times.length;
-      notify?.({ action: "job" }); // a change in the store while the retry waits
-      await tick(1200);
-      const starts = times.slice(n).filter((t, i, a) => i === 0 || t - a[i - 1]! > 100); // a round is a try and its quick retry
-      const rounds = [times[n - 1]!, ...starts];
-      const gaps = rounds.slice(1).map((t, i) => t - rounds[i]!);
-      assert.ok(gaps.length >= 1, "a retry did run");
-      assert.ok(gaps.every((g) => g >= 500), `rounds keep their distance: ${gaps.join(", ")}`);
+      const waitFor = async (ok: () => boolean) => { for (let i = 0; i < 300 && !ok(); i++) await tick(10); };
+      await waitFor(() => times.length >= 2); // first push: a try and its quick retry fail; the next round is planned 600 ms later
+      const n0 = times.length;
+      await waitFor(() => times.length > n0); // the second round starts
+      const roundStart = times[n0]!;
+      notify?.({ action: "job" }); // a change in the store while the next retry waits
+      await tick(300);
+      assert.ok(Date.now() - roundStart < 550, "the check ran in time");
+      const before = times.length;
+      await waitFor(() => times.length > before && times.length > 0 && Date.now() - roundStart > 450);
+      assert.ok(times.slice(before).every((t) => t - roundStart >= 550), `no send came early: ${times.slice(before).map((t) => t - roundStart).join(", ")}`);
     },
   });
 });

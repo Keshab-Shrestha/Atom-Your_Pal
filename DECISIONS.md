@@ -2821,7 +2821,7 @@ The gap between Claude Code's reported cost and the priced rows was the web sear
 
 ## ADR-121 — A mobile web app over Tailscale (2026-10-16)
 
-Date: 2026-10-16. Status: **proposed** (Keshab chose Tailscale on 2026-10-16; the details below wait for approval).
+Date: 2026-10-16. Status: **accepted** (Keshab approved on 2026-10-16, with goals included).
 
 ### Context
 
@@ -2846,7 +2846,7 @@ ATOM serves one person on one Mac. Many users on many PCs need accounts, a cloud
 - See what waits for Keshab (`GET /v1/needs`) and the tasks (`GET /v1/tasks`).
 - Approve or reject a plan, and retry a failed task (`POST /v1/needs/:key`). The rule of ADR-120 stays: risky-action cards, soul changes and skill cards are answered in the ATOM window or on Telegram, never from the phone.
 - Read one task's report (`GET /v1/tasks/:id`).
-- It does **not** start a goal in the first version. A goal from a phone with a stolen token could spend the plan. Keshab can ask to add it later.
+- Send a goal (`POST /v1/goals`). Keshab asked for it in the first version. A goal can use the plan, so the same token rules apply: the Host check, the limit on wrong tokens, and "Regenerate". Risky steps of that goal still ask on the Mac or on Telegram (ADR-120).
 
 **4. Safety rules in code.**
 - The server checks the `Host` header. It accepts `127.0.0.1`, `localhost` and the one name in `ATOM_API_HOST` (the `.ts.net` name). Any other name gets 403. This stops DNS rebinding from a web page.
@@ -2861,12 +2861,13 @@ ATOM serves one person on one Mac. Many users on many PCs need accounts, a cloud
 
 - **Many users and many PCs.** Needs accounts, a cloud relay, one token per phone and isolation between users. Decide it with the first real second user. Nothing here blocks it: the page and routes stay the same, only the way the phone reaches a PC changes.
 - **Token scopes.** One token, as in ADR-120. Revisit with the relay.
-- **Starting a goal from the phone, push alerts, offline mode, a native iOS app.**
+- **Push alerts, offline mode, a native iOS app.**
 - **Bind to `0.0.0.0` or to the Tailscale interface.** `tailscale serve` is safer: ATOM stays on localhost.
 - **नेपाली text in the page** in the first version.
 
 ### How to test
 
+- As built: `apps/mac/src/api-app-page.ts` holds three files (`/app`, `/app.js`, `/app.css`; separate files because the strict policy forbids inline script and style). `api-server.ts` has the Host check, the 429 lock (`MAX_WRONG_TOKENS`, `LOCK_WINDOW_MS`) and the public files. `ATOM_API_HOST` is read in `runtime.ts`. Settings → General → Local API has a "Phone" row with "Copy command". How-to: `docs/mobile.md`.
 - Unit tests: the `Host` rule (allowed names, a foreign name, a missing header, a name in different case); the 429 limit; `GET /app` needs no token and carries the three headers; every `/v1` route still needs the token; a `/v1/needs` card of kind `a`, `s`, `d`, `e` or `h` is still 403.
 - A test that the page's JavaScript has no `eval`, no inline script from outside, and no request to another site.
 - A manual check on Keshab's phone: open the address, paste the token, see the needs list, approve one plan, sign out. I cannot do this myself (no phone, and Tailscale is not installed on this Mac).
