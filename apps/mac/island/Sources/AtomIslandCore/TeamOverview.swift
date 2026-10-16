@@ -91,7 +91,7 @@ public struct NeedsYouItem: Sendable, Equatable, Identifiable {
                          title: "New skill: \(d.name)", detail: d.description, jobId: d.jobId, skillItemId: d.id)
         }
         let edits = list.skillEdits.filter { $0.state == "pending" }.map { e in
-            NeedsYouItem(id: "skill-edit-\(e.id)", kind: .skillEdit, helperId: "tinker", helperName: names["tinker"] ?? "Tinker",
+            NeedsYouItem(id: "skill-edit-\(e.id)", kind: .skillEdit, helperId: "tinker", helperName: e.jobId == 0 ? "ATOM" : (names["tinker"] ?? "Tinker"), // job 0: ATOM proposed it after a chat
                          title: "Edit to the \(e.skill) skill", detail: e.reason, jobId: e.jobId, skillItemId: e.id)
         }
         let hub = list.skillHub.pending.map { p in

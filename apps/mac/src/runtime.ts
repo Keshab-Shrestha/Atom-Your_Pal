@@ -73,7 +73,7 @@ import { TELEGRAM_CHAT, startTelegramBot, type TelegramBot } from "./telegram-bo
 import { createApiServer, type ApiServer } from "./api-server.ts";
 import { SCHEDULER_TICK_MS, scheduleTick } from "./scheduler.ts";
 import { createBrainWiring, type BrainWiring } from "./brain-wiring.ts";
-import { createProposeSkillTool, createSearchChatsTool } from "./reach-tools.ts";
+import { createImproveSkillTool, createProposeSkillTool, createSearchChatsTool } from "./reach-tools.ts";
 import { nativeSteering, routeWake, routineStarter, taskStarter } from "./native-entry.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { testMcpServer } from "./mcp-servers.ts";
@@ -415,7 +415,16 @@ export function createRuntime(
     // docs/v2-plan.md items 1 and 2: past chats by words; a skill proposed from a finished task. Logs counts and ids only.
     ...(brainWiring ? brainWiring.tools : []),
     ...(memory ? [createSearchChatsTool({ search: (query) => memory.chats.search(query), onSearch: (e) => log.info("chats.search", e) })] : []),
-    ...(helpers ? [createProposeSkillTool({ store: helpers, onProposed: (e) => log.info("skill.proposed", e) })] : []),
+    ...(helpers
+      ? [
+          createProposeSkillTool({
+            store: helpers,
+            latestDone: () => helpers.list().flatMap((h) => (h.id === "tinker" ? [] : h.jobs)).filter((j) => j.state === "done").reduce<number | undefined>((best, j) => (best === undefined || j.id > best ? j.id : best), undefined),
+            onProposed: (e) => log.info("skill.proposed", e),
+          }),
+          createImproveSkillTool({ store: helpers, onProposed: (e) => log.info("skill.edit_proposed", e) }),
+        ]
+      : []),
     // ADR-113: the model reads one of Keshab's skills by name; he can also pick one in the composer (`/name`).
     createUseSkillTool({
       list: () => listSkills(userSkillsDir(), skillsDir, new Set(helpers?.skillHubInstalled().map((i) => i.name) ?? [])),

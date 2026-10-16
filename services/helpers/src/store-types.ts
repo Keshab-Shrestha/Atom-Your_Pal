@@ -351,6 +351,8 @@ export interface HelperStore {
   audit(limit: number): AuditEntry[];
   /** The main agent proposes a skill from a finished task; Keshab approves or rejects it like Tinker's drafts. Throws HelperError. */
   proposeSkill(jobId: number, draft: { name: string; description: string; body: string }): SkillDraft;
+  /** The main agent's edit to one of ATOM's skills, after the user said in a chat that it did not work well (no task: job 0). The user still accepts or rejects it. */
+  proposeSkillEdit(skill: string, edit: { body: string; reason: string }): SkillEdit;
   plan(id: number): PlanView | undefined;
   /** The newest plan of a chat. */
   latestPlan(chatId: string): PlanView | undefined;

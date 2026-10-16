@@ -387,6 +387,25 @@ export function skillStore(deps: SkillStoreDeps) {
       return editOf(id)!;
     },
 
+    /**
+     * 2026-10-16: the main agent proposes an edit to one of ATOM's skills after the user said in a chat that it did not work well. There is no task (job 0:
+     * "from a chat"), so no Tinker run is needed. Keshab still accepts or rejects it, and Undo works as for any edit.
+     */
+    proposeSkillEdit(skill: string, edit: { body: string; reason: string }): SkillEdit {
+      if (!isZeno(skill)) throw new HelperError("Only ATOM's own skills are edited; the skills in ~/.claude/skills never are, and a skill from the hub is not either.");
+      const body = edit.body.trim();
+      const reason = edit.reason.trim();
+      if (!body || body.length > MAX_SKILL_BODY) throw new HelperError(`A skill's steps are at most ${MAX_SKILL_BODY} characters, and not empty.`);
+      if (!reason || reason.length > MAX_SKILL_REASON) throw new HelperError(`An edit needs a reason of at most ${MAX_SKILL_REASON} characters.`);
+      const before = readZeno(skill).body;
+      if (before.trim() === body) throw new HelperError("That is the skill as it is. Change something, or say no edit is needed.");
+      const pending = (t.edits.all() as { skill: string; state: string }[]).some((e) => e.skill === skill && e.state === "pending");
+      if (pending) throw new HelperError(`An edit to "${skill}" already waits for the user's answer.`);
+      const id = Number(t.addEdit.run(skill, 0, before, body, reason, now().toISOString()).lastInsertRowid);
+      emit({ action: "skillEdit", edit: id, job: 0, skill, state: "pending" });
+      return editOf(id)!;
+    },
+
     acceptSkillEdit(id: number) {
       const e = editOf(id);
       if (!e || e.state !== "pending") throw new HelperError("No skill edit waits for an answer there.");

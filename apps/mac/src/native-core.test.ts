@@ -454,3 +454,12 @@ test("resume of the same chat gives the live session what another surface wrote 
   await core.handle({ text: "four", source: "text" });
   assert.ok(!(queries[0]!.sent.at(-1)!.message.content as string).includes("Meanwhile"));
 });
+
+// 2026-10-16: the prompt tells the main agent when to offer a skill and when to improve one.
+test("the main agent's prompts tell it to offer a skill after a good agent task and to improve a skill the user complains about", () => {
+  assert.match(NATIVE_SYSTEM_PROMPT, /call improve_skill with the whole improved steps; the user decides/);
+  assert.match(NATIVE_SYSTEM_PROMPT, /Never change a skill any other way/);
+  assert.match(NATIVE_TEAM_PROMPT, /offer once, in a few words, to save it as a skill, and call propose_skill only if the user says yes/);
+  assert.match(NATIVE_TEAM_PROMPT, /improve_skill/);
+  assert.ok(!NATIVE_SYSTEM_PROMPT.includes("propose_skill"), "without a team there is no task to make a skill from");
+});

@@ -1833,7 +1833,8 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 - Unchanged: a model never adds or changes a skill without Keshab's click; `~/.claude/skills` is never written; hub skills are never edited.
 - Not done: skills used in a plain chat (`/name`, `use_skill`) have no task, so they cannot trigger an edit. Nothing prompts the main agent to call `propose_skill` after a good task. Not tried live: no agent has used an ATOM skill yet.
 - Live test (2026-10-16, passes): `tests/skills-loop.live.test.ts` (`pnpm test:live`, about 5 minutes, uses the plan). Kame uses an ATOM skill, the task is rated "not good", Tinker (a real model call) proposes an edit, accepting changes the skill file, undo restores its name, description and steps. Undo writes the file in ATOM's canonical form (description in quotes).
-- Still not done: skills used in a plain chat have no task and cannot trigger an edit; nothing prompts the main agent to call `propose_skill` after a good task.
+- Chat side (2026-10-16, both gaps closed): (1) a skill used in a plain chat has no task, so Tinker's task-based edit cannot run. The new tool `improve_skill` lets the main agent propose an edit itself when the user says in a chat that one of ATOM's skills did not work well (`proposeSkillEdit`; job 0 = "from a chat"; only ATOM's own skills; one pending edit per skill; the user accepts or rejects it; Undo works; refused after web text). (2) The team prompt now tells the main agent to offer once to save a good agent task as a skill and to call `propose_skill` only if the user says yes; `propose_skill` no longer needs the task number (it takes the task that finished last). The Needs you card says "Skill edit suggested" and names ATOM when the edit came from a chat. Live test: `tests/skills-chat.live.test.ts` (passes).
+- Still not done: a rating button on chat replies (the edit starts from the user's words, not from a rating).
 
 ## UI check (2026-10-15)
 

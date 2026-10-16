@@ -628,6 +628,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     audit: (limit) => audit.recent(limit),
 
     proposeSkill: skills.proposeSkill,
+    proposeSkillEdit: skills.proposeSkillEdit,
 
     addPlan(chatId, plan) {
       const id = workPlans.add(chatId, plan);

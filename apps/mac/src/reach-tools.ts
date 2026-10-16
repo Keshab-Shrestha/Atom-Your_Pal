@@ -40,12 +40,18 @@ export function createSearchChatsTool(options: { search(query: string): ChatHit[
   };
 }
 
-export function createProposeSkillTool(options: { store: Pick<HelperStore, "proposeSkill">; onProposed?(event: { job: number; skill: string }): void }): Tool {
+export function createProposeSkillTool(options: {
+  store: Pick<HelperStore, "proposeSkill">;
+  /** The newest finished task (an agent's, not Tinker's): what `job` defaults to, because the main agent does not see task numbers. */
+  latestDone?(): number | undefined;
+  onProposed?(event: { job: number; skill: string }): void;
+}): Tool {
   return {
     spec: {
       name: "propose_skill",
       description:
-        "After a finished task that went well and teaches a way of working you would reuse, propose a skill. job: the finished task's number. " +
+        "After a finished task that went well and teaches a way of working you would reuse, and only when the user agreed to save it as a skill, propose a skill. " +
+        "job: the finished task's number (leave it out for the task that finished last). " +
         "name: 2 to 41 lower-case letters, digits and dashes. description: one sentence on when to use it. body: the steps in plain Markdown, general " +
         "enough to reuse, with no personal data. The user approves or rejects it; nothing uses it before.",
       inputSchema: {
@@ -56,15 +62,47 @@ export function createProposeSkillTool(options: { store: Pick<HelperStore, "prop
           description: { type: "string", description: "When to use the skill, one sentence" },
           body: { type: "string", description: "The steps, plain Markdown" },
         },
-        required: ["job", "name", "description", "body"],
+        required: ["name", "description", "body"],
       },
     },
     run(input) {
-      const job = Number(input.job);
-      if (!Number.isInteger(job)) throw new Error("job must be a task number.");
+      const job = input.job === undefined ? (options.latestDone?.() ?? NaN) : Number(input.job);
+      if (!Number.isInteger(job)) throw new Error("No finished task to make a skill from. Give job: the task's number.");
       const draft = options.store.proposeSkill(job, { name: String(input.name ?? ""), description: String(input.description ?? ""), body: String(input.body ?? "") });
       options.onProposed?.({ job, skill: draft.name });
       return `Skill "${draft.name}" is proposed. The user approves or rejects it in the ATOM window.`;
     },
   };
 }
+
+/**
+ * 2026-10-16: the user said in a chat that one of ATOM's skills did not work well (a skill used with `/name` has no task, so Tinker's task-based edit cannot
+ * run). The main agent writes the improved steps itself; the user still accepts or rejects them in the ATOM window, and Undo works.
+ */
+export function createImproveSkillTool(options: { store: Pick<HelperStore, "proposeSkillEdit">; onProposed?(event: { skill: string }): void }): Tool {
+  return {
+    spec: {
+      name: "improve_skill",
+      description:
+        "Only when the user says that one of ATOM's own skills did not work well or should change: propose an improved version. skill: the skill's name. " +
+        "reason: one or two sentences on what went wrong and what the change fixes. body: the complete new steps in plain Markdown (not a diff), general enough " +
+        "to reuse, with no personal data. The user accepts or rejects it; nothing changes before that. Never use it on your own idea.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          skill: { type: "string", description: "The skill's name" },
+          reason: { type: "string", description: "What went wrong, and what the change fixes" },
+          body: { type: "string", description: "The complete new steps, plain Markdown" },
+        },
+        required: ["skill", "reason", "body"],
+      },
+    },
+    run(input) {
+      const skill = String(input.skill ?? "").trim();
+      const edit = options.store.proposeSkillEdit(skill, { body: String(input.body ?? ""), reason: String(input.reason ?? "") });
+      options.onProposed?.({ skill });
+      return `An edit to "${skill}" is proposed (#${edit.id}). The user accepts or rejects it in the ATOM window.`;
+    },
+  };
+}
+

@@ -171,3 +171,26 @@ test("skills from ~/.claude/skills are never edited", () => {
   assert.equal(store.skillEditTarget(edit.id), undefined);
   assert.throws(() => store.addSkillEdit(edit.id, { body: "x", reason: "y" }), /Only ATOM's own skills are edited/);
 });
+
+// 2026-10-16: the user says in a chat that one of ATOM's skills did not work well; the main agent proposes the edit itself (no task, job 0).
+test("proposeSkillEdit: a pending edit from a chat (job 0); accepting writes the skill, undo restores it; yours and a second pending edit are refused", () => {
+  const { store, done, userSkill, zenoSkill, skillsDir } = setup();
+  zenoSkill("compare-laptops", "1. Search.\n2. Compare.");
+  userSkill("my-own");
+  const edit = store.proposeSkillEdit("compare-laptops", { body: "1. Search.\n2. Compare at least three.", reason: "It stopped at two." });
+  assert.equal(edit.jobId, 0);
+  assert.equal(edit.state, "pending");
+  assert.equal(store.skillEdits().find((e) => e.id === edit.id)!.state, "pending");
+  assert.throws(() => store.proposeSkillEdit("compare-laptops", { body: "Other.", reason: "x" }), /already waits/);
+  assert.throws(() => store.proposeSkillEdit("my-own", { body: "x", reason: "y" }), /Only ATOM's own skills/);
+  assert.throws(() => store.proposeSkillEdit("nothing-here", { body: "x", reason: "y" }), /Only ATOM's own skills/);
+  store.acceptSkillEdit(edit.id);
+  assert.match(readFileSync(join(skillsDir, "compare-laptops", "SKILL.md"), "utf8"), /Compare at least three/);
+  store.undoSkillEdit(edit.id);
+  assert.match(readFileSync(join(skillsDir, "compare-laptops", "SKILL.md"), "utf8"), /2\. Compare\./);
+  assert.throws(() => store.proposeSkillEdit("compare-laptops", { body: "1. Search.\n2. Compare.", reason: "no change" }), /as it is/);
+  assert.throws(() => store.proposeSkillEdit("compare-laptops", { body: "", reason: "empty" }), /not empty/);
+  assert.throws(() => store.proposeSkillEdit("compare-laptops", { body: "x".repeat(20_000), reason: "long" }), /at most/);
+  void done;
+  store.close();
+});

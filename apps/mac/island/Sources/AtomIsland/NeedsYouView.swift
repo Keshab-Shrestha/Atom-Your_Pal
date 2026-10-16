@@ -73,7 +73,7 @@ struct NeedsYouPane: View {
             }
         case .skillEdit:
             let edit = model.helpers.list?.skillEdits.first { $0.id == item.skillItemId }
-            card(kind: "Tinker suggests a skill edit", who: item.helperName, title: item.title, detail: item.detail,
+            card(kind: "Skill edit suggested", who: item.helperName, title: item.title, detail: item.detail,
                  tests: edit.map { TestRunView(model: model, kind: "skill", id: $0.id, tests: $0.tests, hasCases: hasCases("skill", $0.skill), pending: true) }) {
                 QuietButton(title: "Accept", symbol: "checkmark") { model.sendHelpers(model.helpers.answerSkillEdit(item.skillItemId!, accept: true)) }
                 QuietButton(title: "Reject", symbol: "xmark") { model.sendHelpers(model.helpers.answerSkillEdit(item.skillItemId!, accept: false)) }
