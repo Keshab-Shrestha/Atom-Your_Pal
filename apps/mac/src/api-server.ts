@@ -11,7 +11,7 @@ import { dirname, resolve } from "node:path";
 import { HelperError, isFinal, type GoalReport, type HelperStore, type Job, type JobState, type Routine } from "@atom/helpers";
 import type { Logger } from "@atom/shared";
 import { answerNeed, needsYou, type TelegramBotOptions } from "./telegram-bot.ts";
-import { APP_CSS, APP_HTML, APP_JS } from "./api-app-page.ts";
+import { APP_CSS, APP_HTML, APP_ICON_PNG, APP_JS, APP_MANIFEST } from "./api-app-page.ts";
 
 export const DEFAULT_API_PORT = 4790;
 /** Relative to the project folder, like data/helpers.db. */
@@ -132,10 +132,12 @@ export const MAX_WRONG_TOKENS = 10;
 export const LOCK_WINDOW_MS = 60_000;
 
 /** The files of the phone page. They hold no data, so they need no token (the Host check and the headers still apply). */
-const PUBLIC_FILES: Readonly<Record<string, { type: string; body: string }>> = {
+const PUBLIC_FILES: Readonly<Record<string, { type: string; body: string | Buffer }>> = {
   "/app": { type: "text/html; charset=utf-8", body: APP_HTML },
   "/app.js": { type: "text/javascript; charset=utf-8", body: APP_JS },
   "/app.css": { type: "text/css; charset=utf-8", body: APP_CSS },
+  "/app.webmanifest": { type: "application/manifest+json; charset=utf-8", body: APP_MANIFEST },
+  "/app-icon.png": { type: "image/png", body: APP_ICON_PNG },
 };
 const PAGE_HEADERS = {
   "cache-control": "no-store",

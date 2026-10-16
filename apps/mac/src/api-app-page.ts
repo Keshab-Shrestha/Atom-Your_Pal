@@ -9,6 +9,14 @@ export const APP_HTML = `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>ATOM</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ATOM">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#5b50e6">
+<link rel="manifest" href="/app.webmanifest">
+<link rel="apple-touch-icon" href="/app-icon.png">
+<link rel="icon" href="/app-icon.png">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
@@ -21,12 +29,20 @@ export const APP_HTML = `<!doctype html>
     <button type="submit">Connect</button>
   </form>
   <div id="app" hidden>
+    <nav id="tabs"><button type="button" data-tab="chat" class="on">Chat</button><button type="button" data-tab="work">Work</button></nav>
+    <div id="chatTab">
+      <div id="log"></div>
+      <form id="say"><textarea id="sayText" rows="2" maxlength="4000" placeholder="Message ATOM"></textarea><button type="submit">Send</button></form>
+      <button id="newChat" type="button" class="link">New chat</button>
+    </div>
+    <div id="workTab" hidden>
     <section><h2>Needs you</h2><div id="needs"></div></section>
     <section>
       <h2>New goal</h2>
       <form id="goal"><textarea id="goalText" rows="3" maxlength="2000" placeholder="What should ATOM do?"></textarea><button type="submit">Send</button></form>
     </section>
     <section><h2>Tasks</h2><div id="tasks"></div></section>
+    </div>
   </div>
 </main>
 <script src="/app.js"></script>
@@ -58,6 +74,17 @@ label{display:block;color:var(--mute);font-size:14px}
 #note{min-height:1.4em;color:var(--mute);margin:4px 0}
 #note.bad{color:var(--bad)}
 .report{white-space:pre-wrap;word-break:break-word;font-size:15px;border-top:1px solid var(--line);padding-top:8px;margin:0}
+nav{display:flex;gap:8px;margin:8px 0}
+nav button{flex:1}
+nav button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+#log{display:flex;flex-direction:column;gap:8px;min-height:40vh;padding:8px 0}
+.msg{max-width:85%;padding:10px 12px;border-radius:16px;white-space:pre-wrap;word-break:break-word;border:1px solid var(--line);background:var(--card)}
+.msg.me{align-self:flex-end;background:var(--accent);border-color:var(--accent);color:#fff}
+.msg.wait{color:var(--mute)}
+.msg.bad{color:var(--bad)}
+#say{position:sticky;bottom:0;background:var(--bg);padding:8px 0;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+#say textarea{margin:0;resize:none}
+button.link{background:none;border:none;color:var(--mute);min-height:36px;padding:0;text-decoration:underline}
 [hidden]{display:none!important}
 `;
 
@@ -146,6 +173,30 @@ export const APP_JS = `(function () {
     Promise.all([api("/v1/needs"), api("/v1/tasks")]).then(function (r) { renderNeeds(r[0].needs); renderTasks(r[1].tasks); }).catch(fail);
   }
 
+  // Chat: the conversation lives in ATOM under this chat id; the page keeps the text of it in this browser so a reload shows it again.
+  var CHAT_KEY = "atom.chat";
+  var CHAT_MAX = 60;
+  var chat = { id: "", msgs: [] };
+  var sending = false;
+
+  function newId() { var a = new Uint8Array(6); crypto.getRandomValues(a); var s = "m"; for (var i = 0; i < a.length; i++) s += (a[i] % 36).toString(36); return s; }
+  function loadChat() {
+    try { var c = JSON.parse(localStorage.getItem(CHAT_KEY) || "null"); if (c && typeof c.id === "string" && Array.isArray(c.msgs)) return c; } catch (e) { /* none saved */ }
+    return { id: newId(), msgs: [] };
+  }
+  function saveChat() { try { localStorage.setItem(CHAT_KEY, JSON.stringify({ id: chat.id, msgs: chat.msgs.slice(-CHAT_MAX) })); } catch (e) { /* private mode */ } }
+  function drawChat() {
+    var log = $("log"); log.replaceChildren();
+    if (!chat.msgs.length) log.appendChild(el("p", "Say something to ATOM.", "mute"));
+    chat.msgs.forEach(function (m) { log.appendChild(el("div", m.text, "msg " + m.who)); });
+    window.scrollTo(0, document.body.scrollHeight);
+  }
+  function tab(name) {
+    $("chatTab").hidden = name !== "chat"; $("workTab").hidden = name !== "work";
+    document.querySelectorAll("#tabs button").forEach(function (b) { b.className = b.getAttribute("data-tab") === name ? "on" : ""; });
+    if (name === "work") refresh(); else drawChat();
+  }
+
   function show() {
     $("login").hidden = true; $("app").hidden = false; $("out").hidden = false;
     refresh();
@@ -168,7 +219,36 @@ export const APP_JS = `(function () {
     api("/v1/goals", "POST", { goal: text }).then(function (d) { box.value = ""; note(d.answer || "Sent."); refresh(); }).catch(fail).then(function () { button.disabled = false; });
   });
 
+  document.querySelectorAll("#tabs button").forEach(function (b) { b.addEventListener("click", function () { tab(b.getAttribute("data-tab")); }); });
+  $("newChat").addEventListener("click", function () { if (sending) return; chat = { id: newId(), msgs: [] }; saveChat(); drawChat(); });
+  $("say").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var box = $("sayText"); var text = box.value.trim(); if (!text || sending) return;
+    sending = true; box.value = "";
+    var button = e.target.querySelector("button"); button.disabled = true;
+    chat.msgs.push({ who: "me", text: text }); chat.msgs.push({ who: "wait", text: "ATOM is thinking…" }); drawChat();
+    api("/v1/chat", "POST", { text: text, chatId: chat.id }).then(function (d) {
+      chat.msgs.pop(); chat.msgs.push({ who: "atom", text: d.answer || "(no answer)" });
+    }).catch(function (err) {
+      chat.msgs.pop(); if (err.message !== "401") chat.msgs.push({ who: "bad", text: err.message });
+    }).then(function () { sending = false; button.disabled = false; saveChat(); drawChat(); });
+  });
+  chat = loadChat();
   token = load();
-  if (token) show(); else { $("login").hidden = false; }
+  if (token) { show(); drawChat(); } else { $("login").hidden = false; }
 })();
 `;
+
+export const APP_MANIFEST = JSON.stringify({
+  name: "ATOM",
+  short_name: "ATOM",
+  start_url: "/app",
+  scope: "/",
+  display: "standalone",
+  background_color: "#f6f6f8",
+  theme_color: "#5b50e6",
+  icons: [{ src: "/app-icon.png", sizes: "180x180", type: "image/png" }],
+});
+
+/** A 180 x 180 PNG: a white A on indigo. The home-screen icon on an iPhone. */
+export const APP_ICON_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAACZklEQVR42u3bMVbDUAxE0SyRnv2zDbMB0hjb0WiuzyspvqRbhtf314/0Zy8rEByCQ3AIDsEhOASH4BAcgkOCQ3AIDsEhOASH4BAcgkNwSHAIDsEhOASH4BAcgkNwCA4JDsEhOASH4Liu4+oPDjjgIIMPOOCA47yME38PBxxwwAFHD45zl+YDDjiKcfznxnzAAQcccMBx7XX5gAOOMhxX3bXcBxxwwAEHHJdftNkHHHDU4LjjlrU+4IADDjjKcdx3xU4fcMBRgOPu+xX6gAMOOOCoxfHM5dp8wAHHahxP3qzKBxxwwAFHIY7nr9XjAw44luL41J1KfMABBxxwVOH47IUafMABxzocE26z3gcccMABRwmOOVfZ7QMOOBbhmHaPxT7ggAMOONbjmHmJrT7ggGMFjsk3WOkDDjjggGMxjvnb3+cDDjjCcaTsfZkPOOCAwztX4sja+CYfcMARiyNx12t8wOHNcHjzMhy5W97hAw4vD8RxNH1wwAEHHHCQsd4HHHBE4ThaPzjggAMOOMhY7AMOOEJwHL5JPuCAAw44onEs+3XugungMN14HLtlhM4IhxnhMGMojgYZiZPCYdLBOHpkxM0Lh3nhgCMOR5uMrKnhMPVIHJ0ygmaHw+xwwBGEo1lGygbggGMYDjIi9gAHHHDAEYGDjJRtwAHHGBxkBO0EDjjggGM4DjKyNgMHHANwkBG3HzjggAOOsTjISNwSHHB8FAcZobuCA47B/9SkscEhOASH4BAcgkNwCA7BITgEhwSH4BAcgkNwCA7BITgEh+CQ4BAcgkNwCA7BITgEh+AQHBIcet8vKJOTmQainOYAAAAASUVORK5CYII=", "base64");
