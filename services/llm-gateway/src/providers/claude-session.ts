@@ -203,7 +203,11 @@ export function sessionOptions(sdk: SessionSdk, o: ChatSessionOptions, controlle
     agent: MAIN_AGENT,
     // ToolSearch must be listed: without it Claude Code cannot defer the ATOM tools and sends every schema.
     agents: { ...(o.agents ?? {}), [MAIN_AGENT]: { description: "ATOM, the user's assistant.", prompt: o.systemPrompt, tools: [...o.tools, TOOL_SEARCH, ...atomNames] } },
-    tools: [...o.tools, TOOL_SEARCH],
+    // The session's tool set is also the ceiling for every sub-agent: a tool that is not here can never reach an agent, whatever its definition lists.
+    // It held only the main thread's tools, so a folders agent (Kame, Puff) never had Write, Edit, Read, Glob or Grep in a normal chat and said "no
+    // file-writing tool" (2026-10-16). The sub-agents' built-in tools are added; the main thread still gets only its own list (the `atom` agent's
+    // `tools` above, and the gate's hook refuses anything else).
+    tools: [...new Set([...o.tools, ...Object.values(o.agents ?? {}).flatMap((a) => (Array.isArray((a as { tools?: unknown }).tools) ? ((a as { tools: string[] }).tools) : [])).filter((t) => !t.startsWith("mcp__")), TOOL_SEARCH])],
     ...(specs.length
       ? { mcpServers: { [TOOL_SERVER]: sdk.createSdkMcpServer({ name: TOOL_SERVER, version: "1.0.0", tools: sdkToolsFor(sdk, specs, o.atomTools!, toolSignal) }) } }
       : {}),

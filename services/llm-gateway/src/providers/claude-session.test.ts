@@ -302,3 +302,16 @@ test("a usage callback that throws does not end the turn or close the session", 
   s.close();
 });
 
+// 2026-10-16: the session's `tools` is the ceiling for sub-agents. Kame had Write in its definition but not in the session, so it could not save a file.
+test("the session's tools include the built-in tools of the sub-agents, and the main agent keeps its own list", async () => {
+  const { sdk, queries } = fakeSdk();
+  const s = await openChatSession(options(sdk, { agents: { kame: { description: "Kame", tools: ["Read", "Glob", "Grep", "Write", "Edit", "mcp__github"] }, sid: { description: "Sid", tools: ["WebSearch", "WebFetch"] } } }));
+  await s.send("hi");
+  const o = queries[0]!.options;
+  for (const tool of ["Read", "Glob", "Grep", "Write", "Edit", "WebSearch", "WebFetch", "ToolSearch"]) assert.ok(o.tools.includes(tool), tool);
+  assert.ok(!o.tools.includes("mcp__github"), "MCP servers are not session tools");
+  assert.equal(new Set(o.tools).size, o.tools.length, "no repeats");
+  assert.ok(!o.agents.atom.tools.includes("Write"), "the main thread still cannot write");
+  s.close();
+});
+
