@@ -334,3 +334,13 @@ Older steps are in TASK.md.
 - Entries above about budgets, Managers, wake-ups and hand-offs are history: ADR-110 (N4 and N5) removed them.
 - New: the Local API answers plans and retries only (ADR-120); Telegram sends are retried and have a how-to (`docs/telegram.md`); web searches are priced in the usage rows; WebFetch refuses local and private addresses.
 
+## 2026-10-16 (later): what was built after the review
+
+- **Phone page over Tailscale (ADR-121).** The Local API serves `/app` (chat, needs, tasks, goals, plan approvals) to Keshab's own tailnet; Host check, wrong-token lock, strict headers. How-to: `docs/mobile.md`. Phone chats are shared with the window.
+- **Agents work in any folder (ADR-122, ADR-123).** One floor and three tiers for every agent: new files are free, changes to an existing file ask, delete and system-changing commands are refused; secrets, hidden folders, `~/Library` and important documents are never opened. After web text a session is tainted (self-change tools and long fetch addresses refused). Browser uploads ask each time.
+- **Skills.** The self-improving loop works (skills an agent was given count as used when its task starts); `improve_skill` lets a chat propose an edit; the team prompt offers a skill after a good task.
+- **Telegram.** Sender check (one person), backlog skipped on start, outbox retries, long messages resume, 401 and 409 wait five minutes. How-to: `docs/telegram.md`.
+- **Tests and CI.** Smoke tests start a real runtime (`pnpm test`, `pnpm test:live`); the visual check (`pnpm test:visual`, `pnpm window:shot`); GitHub CI runs typecheck, TypeScript, Swift and visual (blocking) on every push.
+- **Cleanup.** Dead Manager, wake-up and team-task code removed from the Swift app; `store.ts`, `Helpers.swift`, `Protocol.swift` and `IslandController.swift` split into cohesive files.
+- Open items are listed in TASK.md ("Fourth review pass").
+
