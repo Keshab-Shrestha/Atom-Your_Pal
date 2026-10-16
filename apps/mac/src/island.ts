@@ -72,7 +72,14 @@ export function runIsland(options: IslandOptions): IslandSession {
         // A shared chat (the phone writes it too): read the saved messages again before each turn. `resume` hands this Core's live session whatever
         // the other side added since its last turn, so nothing is lost and no message count is compared.
         if (isSharedChat(id) && options.chats && core.resume) core.resume(id, options.chats.messages(id));
-        return core.handle(input, signal, hooks);
+        // One turn at a time in a chat, across the window and the phone: the second one is refused at once with a clear line.
+        const busy = options.chatTurns?.begin(id, "window");
+        if (busy) throw new Error(busy);
+        try {
+          return await core.handle(input, signal, hooks);
+        } finally {
+          options.chatTurns?.end(id, "window");
+        }
       },
     },
     tts,

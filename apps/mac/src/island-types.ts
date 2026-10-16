@@ -1,5 +1,6 @@
 // The shapes the island session depends on (moved from island.ts): the owner of each area implements its interface.
 
+import type { ChatTurns } from "./chat-turns.ts";
 import type { HubCommands } from "./hub-commands.ts";
 import type { Readable } from "node:stream";
 import type { Logger } from "@atom/shared";
@@ -47,6 +48,8 @@ export interface IslandOptions {
   };
   /** ADR-091: chat sessions. Absent when memory is off. */
   chats?: IslandChats;
+  /** Who is answering in which chat: a second turn in a chat that is answering is refused (the window and the phone share a chat). */
+  chatTurns?: ChatTurns;
   /** ADR-113: files attached to a typed message. Absent: a message with files is refused. */
   attachments?: { add(chatId: string, paths: readonly string[]): { ok: true; text: string } | { error: string } };
   /** ADR-107: projects. Absent when memory is off: `project.*` and `chat.new` with a project are refused. */

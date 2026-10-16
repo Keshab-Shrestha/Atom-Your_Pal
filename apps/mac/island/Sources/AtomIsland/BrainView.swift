@@ -434,6 +434,8 @@ private struct HUDBrackets: Shape {
 private struct BrainSidePanel: View {
     let model: IslandModel
     let creating: State<Bool>
+    /// Create was pressed and the runtime has not answered yet: the editor closes when a note arrives, and stays (with its text) when an error does.
+    private let submitted = State(initialValue: false)
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -442,9 +444,15 @@ private struct BrainSidePanel: View {
             VStack(alignment: .leading, spacing: 14) {
                 if let problem = state.error { ProblemLine(text: problem) }
                 if creating.wrappedValue {
-                    NoteEditor(model: model, note: nil, creating: creating).id("new")
+                    NoteEditor(model: model, note: nil, creating: creating, submitted: submitted).id("new")
+                        // The runtime answered with a note while the new-note editor was open: the note was made, so the editor closes. An error does not
+                        // close it (the text stays, the problem shows above).
+                        .onChange(of: state.note?.id) { _, _ in
+                            if submitted.wrappedValue { creating.wrappedValue = false; submitted.wrappedValue = false }
+                        }
+                        .onChange(of: state.error) { _, error in if error != nil { submitted.wrappedValue = false } }
                 } else if let note = state.note {
-                    NoteEditor(model: model, note: note, creating: creating).id("\(note.id)-\(note.updatedAt?.timeIntervalSince1970 ?? 0)-\(note.title)")
+                    NoteEditor(model: model, note: note, creating: creating, submitted: submitted).id("note-\(note.id)") // stable per note: an id with the date and title recreated the editor whenever the runtime pushed a change, and wiped what was being typed
                     BrainLinksSection(model: model, title: "Links to", links: note.links)
                     BrainLinksSection(model: model, title: "Linked from", links: note.backlinks)
                 } else if let hits = state.hits, !state.query.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -521,15 +529,17 @@ private struct NoteEditor: View {
     let model: IslandModel
     let note: BrainNoteData?
     let creating: State<Bool>
+    let submitted: State<Bool>
     private let title: State<String>
     private let text: State<String>
     private let confirming = State(initialValue: false)
     @Environment(\.theme) private var theme
 
-    init(model: IslandModel, note: BrainNoteData?, creating: State<Bool>) {
+    init(model: IslandModel, note: BrainNoteData?, creating: State<Bool>, submitted: State<Bool>) {
         self.model = model
         self.note = note
         self.creating = creating
+        self.submitted = submitted
         self.title = State(initialValue: note?.title ?? "")
         self.text = State(initialValue: note?.body ?? "")
     }
@@ -567,8 +577,10 @@ private struct NoteEditor: View {
                 Text("Link notes with [[Title]]. Tag with #tag.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                 HStack(spacing: 8) {
                     SaveButton(title: note == nil ? "Create" : "Save", enabled: changed) {
+                        if note == nil { submitted.wrappedValue = true }
                         model.saveBrainNote(id: note?.id, title: title.wrappedValue, body: text.wrappedValue)
-                        creating.wrappedValue = false
+                        // A new note's editor stays open until the runtime answers with the note (the side panel closes it then). The runtime may refuse the
+                        // note; closing at once threw away the title and the text with the error (code check, 2026-10-16).
                     }
                     if note == nil {
                         PillButton(title: "Cancel") { creating.wrappedValue = false }
@@ -599,5 +611,9 @@ private struct NoteEditor: View {
                 }
             }
         }
+        .tracksEdits(model, "brain-note", changed) // leaving the page with unsaved text asks first
+        // The runtime changed this note (ATOM edited it, or it was saved): take the new text only where nothing was typed.
+        .onChange(of: note?.body) { old, new in if text.wrappedValue == (old ?? "") { text.wrappedValue = new ?? "" } }
+        .onChange(of: note?.title) { old, new in if title.wrappedValue == (old ?? "") { title.wrappedValue = new ?? "" } }
     }
 }

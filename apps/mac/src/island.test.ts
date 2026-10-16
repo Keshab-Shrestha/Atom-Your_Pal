@@ -50,6 +50,7 @@ function islandHarness(
     onPlanUsage: IslandOptions["onPlanUsage"];
     info: IslandOptions["info"];
     api: IslandOptions["api"];
+    chatTurns: IslandOptions["chatTurns"];
   }> = {},
 ) {
   const input = new PassThrough();
@@ -108,6 +109,7 @@ function islandHarness(
     ...(over.capabilities ? { capabilities: over.capabilities } : {}),
     ...(over.onPlanUsage ? { onPlanUsage: over.onPlanUsage } : {}),
     ...(over.api ? { api: over.api } : {}),
+    ...(over.chatTurns ? { chatTurns: over.chatTurns } : {}),
     micName: async () => "macOS default: Test Mic",
     describe: (error) => (error instanceof Error ? error.message : String(error)),
     errorDetails: (error) => ((error as { kind?: string }).kind ? { kind: (error as { kind: string }).kind, retryable: true } : {}),
@@ -1935,4 +1937,37 @@ test("a goal line whose after-callback throws does not end the app, and the next
   } finally {
     process.off("unhandledRejection", onRejection);
   }
+});
+
+// 2026-10-16: a turn in a chat that the phone is answering in is refused at once (the window and the phone share the chat).
+test("a window turn in a chat where the phone is answering is refused with a clear line, and runs when the phone is done", async () => {
+  const { createChatTurns } = await import("./chat-turns.ts");
+  const chatTurns = createChatTurns();
+  let session = "api-x";
+  const handled: string[] = [];
+  const h = islandHarness({
+    chatTurns,
+    core: {
+      handle: async (input) => (handled.push(input.text), { text: "x" }),
+      reset: () => {},
+      resume: (id) => void (session = id),
+      get sessionId() {
+        return session;
+      },
+    },
+    chats: { list: () => [], messages: () => [{ role: "user" as const, content: "hi" }], remove: () => true, onChange: () => () => {} },
+  });
+  await tick(5);
+  await h.send({ type: "chat.open", id: "api-x" });
+  assert.equal(chatTurns.begin("api-x", "api"), undefined); // the phone is answering
+  h.clear();
+  await h.send({ type: "text.send", text: "from the window" });
+  await tick(10);
+  assert.deepEqual(handled, [], "the window's turn did not run");
+  assert.match((h.events().find((e) => e.type === "error") as { message: string }).message, /phone or the Local API is answering in this chat/);
+  chatTurns.end("api-x", "api");
+  h.clear();
+  await h.send({ type: "text.send", text: "again" });
+  await tick(10);
+  assert.deepEqual(handled, ["again"]);
 });

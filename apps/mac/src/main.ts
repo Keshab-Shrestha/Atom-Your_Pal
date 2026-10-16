@@ -135,6 +135,7 @@ function start(config: Config) {
     skillFiles: runtime.islandSkillFiles,
     slashCommands: runtime.islandSlashCommands,
     ...(runtime.islandChats ? { chats: runtime.islandChats } : {}),
+    chatTurns: runtime.chatTurns,
     ...(runtime.islandProjects ? { projects: runtime.islandProjects } : {}),
     ...(runtime.islandAttachments ? { attachments: runtime.islandAttachments } : {}),
     ...(runtime.islandGit ? { git: runtime.islandGit } : {}),

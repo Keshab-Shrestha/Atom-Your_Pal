@@ -1,6 +1,7 @@
 // The parts of the Mac runtime shared by both interfaces (terminal and island):
 // Microphone → Whisper → ATOM Core → LLM Gateway → provider → Kokoro → speaker.
 
+import { ChatBusyError, createChatTurns, type ChatTurns } from "./chat-turns.ts";
 import { dirname, join, resolve } from "node:path";
 import type { Core } from "@atom/core";
 import { createComputerBridge, type ComputerBridge } from "./computer-bridge.ts";
@@ -121,6 +122,8 @@ export interface Runtime {
   islandSlashCommands: NonNullable<IslandOptions["slashCommands"]>;
   /** ADR-091: Keshab's chat sessions as the ATOM window sees them. Undefined when memory is off. */
   islandChats?: IslandChats;
+  /** Who is answering in which chat (the window and the Local API share chats). */
+  chatTurns: ChatTurns;
   /** ADR-107: projects as the ATOM window sees them. Undefined when memory is off. */
   islandProjects?: IslandProjects;
   /** ADR-113: files attached to a typed message. Undefined in tests. */
@@ -249,8 +252,10 @@ export function createRuntime(
       else unsavedChatSessions.set(id, session);
     },
   };
+  const chatTurns = createChatTurns(); // who is answering in which chat (window or phone); a deleted chat is not saved back
   const saveChat = (sessionId: string, turns: readonly Message[]) => {
     if (!memory) return;
+    if (chatTurns.wasDeleted(sessionId)) return; // the chat was deleted while this turn ran: it stays deleted
     try {
       memory.chats.save(sessionId, projects ? projects.fullTurns(sessionId, turns) : turns); // ADR-107: a project chat keeps all its turns
       projects?.saved(sessionId);
@@ -268,6 +273,7 @@ export function createRuntime(
     list: () => (projects?.chatSummaries() ?? memory.chats.list()).map((c) => ({ id: c.id, title: c.id === TELEGRAM_CHAT ? "Telegram" : c.title, updatedAt: c.updatedAt.toISOString(), messages: c.messages, ...(c.projectId ? { projectId: c.projectId } : {}) })),
     messages: (id) => memory.chats.messages(id),
     remove: (id) => {
+      chatTurns.markDeleted(id); // a turn running in it must not save it back
       episodes?.discard(id); // ADR-108: no note for a deleted chat
       attachments?.remove(id); // ADR-113: and none of its files
       return memory.chats.remove(id);
@@ -745,12 +751,18 @@ export function createRuntime(
           ask: async (text, chatId) => {
             const chat = chatId ? `api-${chatId}` : "api";
             apiCore ??= makeCore(true);
-            // The window may have written this chat too: read the saved messages before every turn. `resume` gives the live session what it missed.
-            // Without a chat store there is nothing to read, and an empty list would wipe the Core's own history.
-            if (memory) apiCore.resume(chat, memory.chats.messages(chat));
-            else if (apiChat !== chat) apiCore.resume(chat, []);
-            apiChat = chat;
-            return (await apiCore.handle({ text, source: "text" })).text;
+            const busy = chatTurns.begin(chat, "api");
+            if (busy) throw new ChatBusyError(busy);
+            try {
+              // The window may have written this chat too: read the saved messages before every turn. `resume` gives the live session what it missed.
+              // Without a chat store there is nothing to read, and an empty list would wipe the Core's own history.
+              if (memory) apiCore.resume(chat, memory.chats.messages(chat));
+              else if (apiChat !== chat) apiCore.resume(chat, []);
+              apiChat = chat;
+              return (await apiCore.handle({ text, source: "text" })).text;
+            } finally {
+              chatTurns.end(chat, "api");
+            }
           },
           ...(helpers ? { helpers } : {}),
           approvals: computer,
@@ -769,6 +781,7 @@ export function createRuntime(
   return {
     config,
     log,
+    chatTurns,
     core,
     settings,
     stt,

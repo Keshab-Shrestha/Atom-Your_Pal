@@ -394,6 +394,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
     try {
       return await options.ask(said, chatId);
     } catch (error) {
+      if (error instanceof Error && error.name === "ChatBusy") throw new ApiError(409, error.message); // the window is answering in this chat
       throw new ApiError(502, `ATOM could not answer: ${describe(error)}`);
     }
   }

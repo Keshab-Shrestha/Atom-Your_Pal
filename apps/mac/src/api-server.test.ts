@@ -555,3 +555,16 @@ test("requests with no Authorization header do not count towards the wrong-token
     api.stop();
   }
 });
+
+// 2026-10-16: a chat that the window is answering in answers the phone with a 409 and a clear line, not a 502.
+test("a busy chat is a 409 with the line from the guard", async () => {
+  const { ChatBusyError } = await import("./chat-turns.ts");
+  const { api, port, token } = await boot({ ask: async () => { throw new ChatBusyError("The ATOM window is answering in this chat. Try again in a moment."); } });
+  try {
+    const r = await call(port, "POST", "/v1/chat", { token, body: JSON.stringify({ text: "hi", chatId: "x" }) });
+    assert.equal(r.status, 409);
+    assert.match(r.json.error, /The ATOM window is answering in this chat/);
+  } finally {
+    api.stop();
+  }
+});
