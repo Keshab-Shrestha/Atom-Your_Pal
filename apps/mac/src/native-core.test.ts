@@ -228,7 +228,9 @@ test("N2: with a team the main thread gets the Agent tool, the team prompt and t
   const core = make(sdk, { team: { helpers: store, approve: async () => false, worktrees: "/tmp/atom-n2-worktrees" } });
   await core.handle({ text: "Sid, find cheap flights", source: "voice" });
   const o = queries[0]!.options;
-  assert.deepEqual(o.tools, ["WebSearch", "WebFetch", "Agent", "ToolSearch"]);
+  // The session's tool set is the ceiling for sub-agents, so it also holds their file tools (Kame, Puff); the main agent's own list stays small.
+  assert.deepEqual([...o.tools].sort(), ["Agent", "Edit", "Glob", "Grep", "Read", "ToolSearch", "WebFetch", "WebSearch", "Write"].sort());
+  assert.deepEqual(o.agents.atom.tools.filter((t: string) => !t.startsWith("mcp__")), ["WebSearch", "WebFetch", "Agent", "ToolSearch"], "the main thread cannot write");
   assert.equal(o.systemPrompt, NATIVE_TEAM_PROMPT);
   assert.ok(!NATIVE_TEAM_PROMPT.includes("delegate tool"));
   assert.equal(o.agents.sid.description, "Sid: researcher");
@@ -357,7 +359,8 @@ test("a chat with attached files gets Read, Glob and Grep confined to its folder
   });
   await core.handle({ text: "read the file", source: "text" });
   const o = queries[0]!.options;
-  assert.deepEqual(o.tools, ["Read", "Glob", "Grep", "WebSearch", "WebFetch", "Agent", "ToolSearch"]);
+  assert.deepEqual([...o.tools].sort(), ["Agent", "Edit", "Glob", "Grep", "Read", "ToolSearch", "WebFetch", "WebSearch", "Write"].sort());
+  assert.deepEqual(o.agents.atom.tools.filter((t: string) => !t.startsWith("mcp__")), ["Read", "Glob", "Grep", "WebSearch", "WebFetch", "Agent", "ToolSearch"], "no Write, Edit or Bash for the main thread");
   assert.equal(o.cwd, "/tmp/atom-attached");
   assert.match(String(o.systemPrompt), /Files were attached\./);
   assert.equal(o.sandbox, undefined, "attached files are not a project: no sandbox, no Bash");
