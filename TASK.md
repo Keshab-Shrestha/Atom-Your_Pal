@@ -1883,3 +1883,9 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 - Checked live (2026-10-17, Void): ⌥⌘H hides the sidebar and saves it; a relaunch keeps it hidden; ⌘F shows it and puts the cursor in the search field; View → Hide/Show Sidebar flips its name and works.
 - Not checked live: the button by mouse (its label is unreadable to Accessibility); hiding during an answer; a narrow window; the Lantern and Daylight themes.
 - Next in upgrades.md: item 2, the diff engine (B1).
+
+## ADR-129: the diff engine and the edit review (2026-10-17)
+
+- Done: `TextDiff.swift`, `EditReview.swift`, `EditRequest.swift` in `AtomIslandCore`; `TextDiffTests`, `EditReviewTests`, `EditRequestTests`.
+- Not run: the Swift tests (no Swift in the cloud session). Run `pnpm island:test` on the Mac first.
+- Next in upgrades.md: item 3, the shared editor `AtomTextView` (B2), the biggest piece.

@@ -3060,3 +3060,14 @@ The rules are in `AtomIslandCore/MessageQueue.swift` (`MessageQueueTests`); `Isl
 The words for the button and menu are in `AtomIslandCore/WindowChrome.swift`; the setting has tests in `SidebarVisibilityTests`. The gallery has a new frame, `23-sidebar-hidden`.
 
 **Left out.** Drag-resize, an icon rail and hover-peek (as in upgrades.md). The menu-bar panel does not change.
+
+## ADR-129 — The diff engine and the edit review (B1 of upgrades.md) (2026-10-17)
+
+Status: Accepted (Keshab's plan in `upgrades.md`). Pure logic, written and tested in `AtomIslandCore`; the Swift was not compiled in the cloud session. No view uses it yet.
+
+- `TextDiff.hunks(old:new:)`: lines first (Myers' algorithm), then, inside a changed block, words (ICU word breaks, so Japanese splits; spaces and single other characters stay whole). Changes with only spaces between them become one. Offsets are UTF-16, the units of `NSRange`, so a text view uses them as they are. A hunk never splits a character.
+- Limits: above 5,000 lines only lines are compared; a pair that needs more than 2,000 edits is one change; a changed block above 20,000 words is one change. A 100,000-character text with a few edits is diffed in well under a second.
+- `EditReview`: accept or deny one change, all changes, or undo the last step. Accepting applies at once: the owner takes `result` after every decision (no Save step; this is the reading of "No notes for accept" in `upgrades.md` and is still open for Keshab to confirm). An unanswered change is not applied. A change is answered once.
+- `EditRequest`: the text, an optional selection and the instruction (500 characters, 100,000 for the text). A caret means the whole text; a selection never cuts a character. `before` and `after` carry up to 400 characters of context. `review(answer:)` merges the answer into the whole text, so changes show in place.
+- The algorithm was first run as a small script against 3,000 random pairs (minimal edit count, accept all equals the new text, deny all equals the old); the Swift is a port of it.
+- Left for B2: drawing the changes, the caret and the typing animation; B3: the runtime command `text.edit`.
