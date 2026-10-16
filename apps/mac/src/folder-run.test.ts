@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openHelperStore } from "@atom/helpers";
-import { PROJECT_FILE_BYTES, askForFolder, checkpointBefore, denyRead, folderCheck, projectReadCheck } from "./folder-run.ts";
+import { MAX_OUTSIDE_WRITES, PROJECT_FILE_BYTES, askForFolder, checkpointBefore, denyRead, folderCheck, newFolderMemory, projectReadCheck } from "./folder-run.ts";
 
 // Task 3.11: every tool call of a run in folders, checked in code; risky commands ask on Pal's card.
 
@@ -22,14 +22,14 @@ test("paths outside are refused, risky commands ask, refused ones never ask; the
       onCheck: (e) => logged.push(e),
     });
     assert.equal(await check("Edit", { file_path: join(root, "a.ts") }), undefined);
-    assert.match((await check("Read", { file_path: "/etc/passwd" }))!, /outside the folders/);
+    assert.match((await check("Read", { file_path: "/etc/passwd" }))!, /outside your home folder/);
     assert.match((await check("Write", { file_path: join(root, ".git") }))!, /ATOM commits the work/);
     assert.match((await check("Bash", { command: "git push" }))!, /never done/);
-    assert.equal(await check("Bash", { command: "rm -rf build" }), undefined, "asked, and allowed");
+    assert.match((await check("Bash", { command: "rm -rf build" }))!, /Deleting is never done/);
     answer = false;
     assert.match((await check("Bash", { command: "npm install x" }))!, /did not allow/);
-    assert.deepEqual(asked, ["Kame wants to run: rm -rf build", "Kame wants to run: npm install x"]);
-    assert.deepEqual(logged.map((e) => (e as { verdict: string }).verdict), ["allowed", "refused", "refused", "refused", "asked", "allowed", "asked", "declined"]);
+    assert.deepEqual(asked, ["Kame wants to run: npm install x"]);
+    assert.deepEqual(logged.map((e) => (e as { verdict: string }).verdict), ["allowed", "refused", "refused", "refused", "refused", "asked", "declined"]);
     assert.ok(!JSON.stringify(logged).includes("passwd") && !JSON.stringify(logged).includes("npm"), "no paths or commands in the log");
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -94,7 +94,7 @@ test("before runs only for file-changing tools whose paths passed; a throw does 
     assert.equal(await check("Read", { file_path: join(root, "a.ts") }), undefined);
     assert.equal(await check("Grep", { pattern: "x", path: root }), undefined);
     assert.equal(await check("Bash", { command: "ls" }), undefined);
-    assert.match((await check("Write", { file_path: "/etc/passwd" }))!, /outside the folders/);
+    assert.match((await check("Write", { file_path: "/etc/passwd" }))!, /outside your home folder/);
     assert.match((await check("Write", { file_path: join(root, ".git", "x") }))!, /ATOM commits the work/);
     assert.deepEqual(seen, [
       ["Write", [join(root, "a.ts")]],
@@ -309,5 +309,56 @@ test("a folders agent never opens .env files, keys, the API token or ATOM's data
     assert.equal(await check("Write", { file_path: join(root, "data", "notes.md") }), undefined, "other files in data/ are fine");
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// ADR-122, ADR-123: no per-agent folders. A new file is free anywhere the floor allows; a file that exists asks once; the 200-file stop; searches never take the whole home.
+test("tiers: a new file is free, an existing one asks once per task, the whole-home search and the floor are refused", async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-tier-")));
+  try {
+    mkdirSync(join(home, "Documents"), { recursive: true });
+    writeFileSync(join(home, "Documents", "old.txt"), "old");
+    const asked: string[] = [];
+    let answer = true;
+    const memory = newFolderMemory();
+    const check = folderCheck({ roots: [], home, cwd: join(home, "Documents"), name: "Puff", memory, approve: async (r) => (asked.push(r.summary), answer) });
+    assert.equal(await check("Write", { file_path: join(home, "Documents", "new.txt") }), undefined, "new file: no card");
+    assert.equal(asked.length, 0);
+    assert.equal(await check("Edit", { file_path: join(home, "Documents", "old.txt") }), undefined, "existing: asked and allowed");
+    assert.equal(asked.length, 1);
+    assert.match(asked[0]!, /Puff wants to change the file ~\/Documents\/old\.txt/);
+    assert.equal(await check("Edit", { file_path: join(home, "Documents", "old.txt") }), undefined, "the same file again: not asked again");
+    assert.equal(asked.length, 1);
+    writeFileSync(join(home, "Documents", "other.txt"), "x");
+    answer = false;
+    assert.match((await check("Write", { file_path: join(home, "Documents", "other.txt") }))!, /did not allow/);
+    assert.match((await check("Grep", { pattern: "x", path: home }))!, /not the whole home/);
+    assert.match((await check("Glob", { pattern: "*.txt" }) ?? "x") || "x", /./);
+    for (const bad of [".ssh/id_x", "Library/Mail/x", ".env", "Documents/.hidden/x", "Documents/tax-return.pdf"]) assert.ok(await check("Read", { file_path: join(home, bad) }), bad);
+    // inside the task's own folder (a project, a worktree) an existing file is free: git or the checkpoints undo it
+    const proj = join(home, "Developer", "app");
+    mkdirSync(proj, { recursive: true });
+    writeFileSync(join(proj, "a.ts"), "x");
+    const inProject = folderCheck({ roots: [proj], home, cwd: proj, name: "Kame", approve: async () => false });
+    assert.equal(await inProject("Edit", { file_path: join(proj, "a.ts") }), undefined);
+    assert.ok(await inProject("Edit", { file_path: join(proj, ".git", "config") }), "git's own files never");
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("tiers: more than 200 files outside the task's folder asks once more", async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-tier-")));
+  try {
+    mkdirSync(join(home, "out"), { recursive: true });
+    const asked: string[] = [];
+    const check = folderCheck({ roots: [], home, cwd: home, name: "Kame", memory: newFolderMemory(), approve: async (r) => (asked.push(r.summary), true) });
+    for (let i = 0; i < MAX_OUTSIDE_WRITES; i++) assert.equal(await check("Write", { file_path: join(home, "out", `f${i}.txt`) }), undefined);
+    assert.equal(asked.length, 0);
+    assert.equal(await check("Write", { file_path: join(home, "out", "one-more.txt") }), undefined);
+    assert.equal(asked.length, 1);
+    assert.match(asked[0]!, /more than 200 files/);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
   }
 });

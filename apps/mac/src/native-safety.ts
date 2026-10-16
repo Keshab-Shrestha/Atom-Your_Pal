@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
+import { homedir } from "node:os";
 import type { ProjectFiles } from "@atom/contracts";
 import type { HelperStore, HelperView } from "@atom/helpers";
 import { TOOL_SERVER, MAX_PROJECT_FILE_CALLS } from "@atom/llm-gateway";
 import { BROWSER_SERVER, browserCheck } from "./browser.ts";
-import { checkpointBefore, folderCheck } from "./folder-run.ts";
+import { checkpointBefore, folderCheck, newFolderMemory, type FolderMemory } from "./folder-run.ts";
 import { mcpCheck } from "./mcp-servers.ts";
 import { webFetchProblem } from "./web-guard.ts";
 import { grantedServers, kitTools, nativeMembers } from "./native-agents.ts";
@@ -54,6 +55,8 @@ export interface TeamScope {
   /** A project chat: its folder. Bash exists only here; a folders agent works in a worktree of it. */
   project?: { cwd: string };
   log?(event: string, fields: Record<string, unknown>): void;
+  /** ADR-122: the home folder the file floor is measured from. Default: the real one; tests set it. */
+  home?: string;
 }
 
 export interface NativeScope {
@@ -85,6 +88,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
   const agentCalls = new Map<string, Promise<Verdict>>();
   const team = scope.team;
   const work = new Map<number, Workdir>();
+  const memories = new Map<number, FolderMemory>(); // ADR-122: per task, so a card is asked once per file
   const planApproved = new Set<string>(); // agent ids whose ExitPlanMode Keshab approved on the card
   const pendingTrees: number[] = []; // jobs whose Agent call asked for a worktree, oldest first
   const browsers = new Map<number, { policy: ReturnType<typeof browserCheck>; release?: () => void; stop: AbortController }>();
@@ -215,17 +219,21 @@ export function nativeGate(scope: NativeScope): NativeGate {
     if (!FILE_TOOLS.includes(name)) return { allow: true, input }; // WebSearch, WebFetch, ToolSearch
     if (name === "Bash" && input.dangerouslyDisableSandbox) return say("refused"), deny("Commands always run in the sandbox.");
     const tree = job !== undefined ? work.get(job) : undefined;
-    const roots = [...member.grants, ...(tree ? [tree.dir] : team.project ? [team.project.cwd] : [])];
-    if (!roots.length) return say("refused"), deny(`${member.name} has no folder to work in. Say in the report that Keshab must grant one on ${member.name}'s page.`);
+    // ADR-122: no per-agent folders. The task's own folder (a project, a worktree) is free to write; everywhere else follows the floor and the tiers.
+    const roots = tree ? [tree.dir] : team.project ? [team.project.cwd] : [];
+    let memory = job !== undefined ? memories.get(job) : undefined;
+    if (job !== undefined && !memory) memories.set(job, (memory = newFolderMemory()));
     const check = folderCheck({
       roots,
-      cwd: tree?.dir ?? cwd ?? roots[0]!,
+      ...(memory ? { memory } : {}),
+      home: team.home ?? homedir(),
+      cwd: tree?.dir ?? cwd ?? roots[0] ?? team.home ?? homedir(),
       name: member.name,
       approve: team.approve,
       onCheck: (e) => say(e.verdict),
       ...(job !== undefined
         ? {
-            before: checkpointBefore({ roots, ...(tree?.tree ? { tree: tree.tree } : {}), keep: (r, p) => team.helpers.checkpoint(job, r, p) }),
+            before: checkpointBefore({ roots: [...roots, team.home ?? homedir()], ...(tree?.tree ? { tree: tree.tree } : {}), keep: (r, p) => team.helpers.checkpoint(job, r, p) }),
             onBeforeError: () => log("agent.checkpoint_failed", { job, tool: name }),
           }
         : {}),
@@ -336,6 +344,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
       }
       const tree = work.get(job);
       work.delete(job);
+      memories.delete(job);
       if (tree?.tree) {
         try {
           const committed = await commitWork(tree.dir, `ATOM task ${job}`, tree.repo ? { tree: tree.tree, repo: tree.repo } : undefined);

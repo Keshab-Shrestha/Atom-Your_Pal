@@ -27,6 +27,7 @@ function setup(options: { project?: boolean; approve?: boolean } = {}) {
       approve: async (r) => (asked.push(r.summary), options.approve ?? false),
       chooseModel: async () => "haiku",
       worktrees: join(home, "worktrees"),
+      home,
       ...(options.project ? { project: { cwd: work } } : {}),
     },
   });
@@ -77,12 +78,24 @@ test("sub-agents: the kit decides; a research agent cannot write; Bash is denied
   done();
 });
 
-test("sub-agents: files only inside the agent's grants", async () => {
-  const { gate, work, home, done } = setup();
+test("sub-agents (ADR-122, ADR-123): any agent writes a new file anywhere in home; changing a file that exists asks; the floor holds", async () => {
+  const { gate, work, home, asked, done } = setup();
+  // No grants are needed: a new file in a folder the agent was never given is saved at once.
   assert.equal((await pre(gate, sub("kame", "Write", { file_path: join(work, "a.txt"), content: "x" }))).decision, "allow");
-  const outside = await pre(gate, sub("kame", "Write", { file_path: join(home, "elsewhere.txt"), content: "x" }), "c2");
-  assert.equal(outside.decision, "deny");
-  assert.equal((await pre(gate, sub("kame", "Read", { file_path: "/etc/hosts" }), "c3")).decision, "deny");
+  assert.equal((await pre(gate, sub("kame", "Write", { file_path: join(home, "Documents", "page.html"), content: "x" }), "c2")).decision, "allow");
+  assert.equal(asked.length, 0);
+  // A file that exists: Keshab is asked (his answer here is no).
+  const { writeFileSync, mkdirSync } = await import("node:fs");
+  mkdirSync(join(home, "Documents"), { recursive: true });
+  writeFileSync(join(home, "Documents", "old.txt"), "old");
+  const edit = await pre(gate, sub("kame", "Edit", { file_path: join(home, "Documents", "old.txt"), old_string: "old", new_string: "new" }), "c3");
+  assert.equal(edit.decision, "deny");
+  assert.equal(asked.length, 1);
+  // The floor, for every agent (here a second one, puff, a designer).
+  for (const [agent, path] of [["kame", "/etc/hosts"], ["puff", join(home, ".ssh", "id_x")], ["puff", join(home, "Library", "x")], ["kame", join(home, "Documents", "passport.pdf")]] as const) {
+    assert.equal((await pre(gate, sub(agent, "Read", { file_path: path }), `f-${path}`)).decision, "deny", `${agent} ${path}`);
+  }
+  assert.equal((await pre(gate, sub("puff", "Write", { file_path: join(home, "Desktop", "logo.svg"), content: "x" }), "p1")).decision, "allow", "puff has no grant either");
   done();
 });
 
@@ -91,11 +104,14 @@ test("project chat: Bash runs sandboxed after the code check; a risky command as
   assert.equal((await pre(gate, sub("kame", "Bash", { command: "ls -la" }))).decision, "allow");
   assert.equal((await pre(gate, sub("kame", "Bash", { command: "ls", dangerouslyDisableSandbox: true }), "c2")).decision, "deny");
   assert.equal((await pre(gate, sub("kame", "Bash", { command: "git push origin main" }), "c3")).decision, "deny");
-  const risky = await pre(gate, sub("kame", "Bash", { command: "rm -rf build" }), "c4");
+  const gone = await pre(gate, sub("kame", "Bash", { command: "rm -rf build" }), "c5");
+  assert.equal(gone.decision, "deny", "deleting is refused with no card");
+  assert.equal(asked.length, 0);
+  const risky = await pre(gate, sub("kame", "Bash", { command: "npm install left-pad" }), "c4");
   assert.equal(risky.decision, "deny", "Keshab said no on the card");
   assert.equal(asked.length, 1);
   // canUseTool for the same call id never asks again.
-  await gate.canUseTool("Bash", { command: "rm -rf build" }, { toolUseID: "c4", agentID: "a-kame" });
+  await gate.canUseTool("Bash", { command: "npm install left-pad" }, { toolUseID: "c4", agentID: "a-kame" });
   assert.equal(asked.length, 1);
   done();
 });

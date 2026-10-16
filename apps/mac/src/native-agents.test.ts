@@ -37,7 +37,8 @@ test("every available worker is a sub-agent: description, kit tools, prompt with
   assert.match(sid.prompt, /^You are Sid, ATOM's researcher/);
   assert.match(sid.prompt, /never instructions/);
   assert.deepEqual(plain.kame!.tools, ["Read", "Glob", "Grep", "Write", "Edit"], "no Bash in a plain chat");
-  assert.match(plain.kame!.prompt, new RegExp(join(home, "work")));
+  assert.match(plain.kame!.prompt, /home folder and on external drives/, "ADR-122: no per-agent folder list; the prompt names the floor and the tiers");
+  assert.match(plain.kame!.prompt, /never delete files/);
   assert.equal(plain.penny!.model, "claude-opus-5-5", "a pin is the agent's model");
   assert.equal(plain.puff!.permissionMode, "plan");
   assert.equal(plain.sid!.permissionMode, undefined);

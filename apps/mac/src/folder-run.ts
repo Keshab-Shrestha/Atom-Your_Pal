@@ -1,19 +1,30 @@
 // ADR-082, Task 3.11: what a worker in granted folders may touch. Every file tool's path is checked against the run's
 // folders; every command is classified in code; risky ones ask Keshab on Pal's approval card (no answer is a no).
 
-import { mkdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve, sep } from "node:path";
-import { DENY_READ_DIRS, WRITE_TOOLS, classifyCommand, folderForTask, hasGitPart, isInside, isSecretLike, pathProblem, realish, toolPaths } from "@atom/helpers";
+import { DENY_READ_DIRS, WRITE_TOOLS, classifyCommand, floorProblem, folderForTask, hasGitPart, isInside, isSecretLike, pathProblem, realish, toolPaths } from "@atom/helpers";
 
 /** Never readable by sandboxed commands: keys, tokens and other apps' secrets. */
 export function denyRead(home = homedir()): string[] {
   return DENY_READ_DIRS.map((p) => join(home, p));
 }
 
+/** ADR-122: what one task has asked about and written outside its own folders, kept across its calls (a card is asked once per file). */
+export interface FolderMemory {
+  approved: Set<string>;
+  written: Set<string>;
+}
+export const newFolderMemory = (): FolderMemory => ({ approved: new Set(), written: new Set() });
+/** ADR-122: a task that changes more files than this outside its own folders asks once more. */
+export const MAX_OUTSIDE_WRITES = 200;
+
 export interface FolderCheckOptions {
-  /** The run's folders: the work folder and the worker's other grants. */
+  /** The task's own folders (a project's folder, a git worktree): writes inside them are free (git or the checkpoints keep the undo). May be empty. */
   roots: string[];
+  /** ADR-122: kept by the caller across the task's calls. A fresh one per call asks for every overwrite. */
+  memory?: FolderMemory;
   cwd: string;
   /** The worker's name, for the approval card. */
   name: string;
@@ -30,6 +41,7 @@ export interface FolderCheckOptions {
   onBeforeError?(event: { tool: string }): void;
 }
 
+const shortPath = (real: string, home: string) => (isInside(realish(home), real) ? `~${real.slice(realish(home).length)}` : real);
 const oneLine = (s: string, max: number) => (s.replace(/\s+/g, " ").trim().length > max ? `${s.replace(/\s+/g, " ").trim().slice(0, max - 1)}…` : s.replace(/\s+/g, " ").trim());
 
 /** The `check` a file run's tool calls go through: why a call is refused, or undefined to allow it. */
@@ -49,14 +61,37 @@ export function folderCheck(options: FolderCheckOptions) {
       }
       return say(name, "allowed"), undefined;
     }
+    const writing = WRITE_TOOLS.includes(name);
     const paths = toolPaths(name, input);
+    // A search with no path searches the working folder: never the whole home folder (it holds ~/Library and every hidden folder).
+    if ((name === "Glob" || name === "Grep") && !paths.length && realish(options.cwd) === realish(home)) return say(name, "refused"), "Search inside a folder, not the whole home folder.";
     for (const p of paths) {
-      const problem = pathProblem(roots, options.cwd, p, WRITE_TOOLS.includes(name));
+      // ADR-122: the same floor for every agent; no per-agent folders.
+      const problem = floorProblem(home, roots, options.cwd, p, writing);
       if (problem) return say(name, "refused"), problem;
-      // 2026-10-15 (security review): only the main thread's project check refused secret files. A granted folder that holds ATOM's
-      // own data (or any .env or key) let a folders agent read the API token and the databases, or write over the token.
       const target = realish(isAbsolute(p) ? p : resolve(options.cwd, p));
+      if ((name === "Glob" || name === "Grep") && target === realish(home)) return say(name, "refused"), "Search inside a folder, not the whole home folder.";
+      // 2026-10-15 (security review): a folder that holds ATOM's own data (or any .env or key) let a folders agent read the API token and the databases.
       if (isSecretLike(target, home) || isSecretLike(resolve(options.cwd, p), home)) return say(name, "refused"), "Secret files and key folders are never opened by an agent.";
+    }
+    if (writing) {
+      // ADR-123: a new file is free; an edit or overwrite of a file that exists asks Keshab once per file. Inside the task's own folders it is free
+      // (git or the checkpoints undo it). More than MAX_OUTSIDE_WRITES files outside them asks again.
+      const memory = options.memory ?? newFolderMemory();
+      for (const p of paths) {
+        const real = realish(isAbsolute(p) ? p : resolve(options.cwd, p));
+        if (roots.some((r) => isInside(r, real))) continue;
+        const asks: string[] = [];
+        if (existsSync(real) && !memory.approved.has(real)) asks.push(`change the file ${shortPath(real, home)}`);
+        if (!memory.written.has(real) && memory.written.size >= MAX_OUTSIDE_WRITES) asks.push(`change more than ${MAX_OUTSIDE_WRITES} files outside its own folder`);
+        if (asks.length) {
+          say(name, "asked");
+          const ok = await options.approve({ summary: `${options.name} wants to ${asks[0]}`, reason: `${name} ${asks.join(" and ")}. A copy of the file is kept so you can undo it.` });
+          if (!ok) return say(name, "declined"), "Keshab did not allow this change. Do the job without it, or say in the report what is needed.";
+          memory.approved.add(real);
+        }
+        memory.written.add(real);
+      }
     }
     if (options.before && WRITE_TOOLS.includes(name)) {
       try {

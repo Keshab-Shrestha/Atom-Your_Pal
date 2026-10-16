@@ -58,7 +58,7 @@ const SECRET_FILE_PATH = /(^|[\s/="'])\.env(\.[\w.-]+)?(?=$|[\s"'])|data\/api-to
 export const touchesSecretFile = (text: string) => SECRET_FILE_PATH.test(text);
 
 /** ATOM's own databases (2026-10-15): they hold MCP secrets and every chat, so no agent opens them, whatever folder it was granted. */
-const OWN_DATABASE_FILE = /(^|\/)data\/(helpers|memory)\.db(-wal|-shm)?$/;
+const OWN_DATABASE_FILE = /(^|\/)(data\/(helpers|memory)\.db(-wal|-shm)?|config\/island\.json|logs\/atom\.log)$/;
 
 /** A path whose content is never copied: .env files, the API token, keys, and anything in a folder commands cannot read. */
 export function isSecretLike(path: string, home: string): boolean {

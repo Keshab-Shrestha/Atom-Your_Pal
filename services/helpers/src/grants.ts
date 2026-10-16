@@ -1,5 +1,5 @@
 import { lstatSync, readlinkSync, realpathSync, statSync } from "node:fs";
-import { dirname, isAbsolute, join, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { HelperError } from "./jobs.ts";
 
 // ADR-082, Task 3.11: folder grants and the checks every file tool and command passes, in code. A soul, a task or a
@@ -110,6 +110,33 @@ export function pathProblem(roots: readonly string[], cwd: string, p: string, wr
   return undefined;
 }
 
+/**
+ * ADR-122: the fixed floor. Why a file tool's path is refused for EVERY agent, whatever folder it was given, or undefined when it may be used.
+ * There are no per-agent folders any more: a path is allowed when it is inside the home folder (or an external drive) and not in a protected
+ * place. Protected: outside home; ~/Library (any case); any hidden folder or file under home; git's own files (writing); names of important
+ * personal documents (best effort). `roots` are the task's own folders (a project, a worktree): inside them the hidden-folder and the
+ * name checks do not apply, because the project is where the work is, but the secret and git checks (made by the caller) still do.
+ */
+export function floorProblem(home: string, roots: readonly string[], cwd: string, p: string, writing = false): string | undefined {
+  const real = realish(isAbsolute(p) ? p : resolve(cwd, p));
+  const homeReal = realish(home);
+  const inRoot = roots.some((root) => isInside(root, real));
+  const volumes = isInside("/Volumes", real);
+  if (!inRoot && !volumes && !isInside(homeReal, real)) return `${p} is outside your home folder.`;
+  if (writing && hasGitPart(real)) return "Git's own files are not changed by hand: ATOM commits the work.";
+  if (inRoot) return undefined;
+  const base = volumes ? "/Volumes" : homeReal;
+  const parts = relative(base, real).split(sep).filter(Boolean);
+  if (!volumes && parts[0]?.toLowerCase() === "library") return "~/Library holds apps' data and is never opened by an agent.";
+  if (parts.some((part) => part.startsWith("."))) return "Hidden folders and files hold keys and settings and are never opened by an agent.";
+  if (parts.some(isImportantName)) return "This looks like an important personal document (identity, bank, tax, medical or similar) and is never opened by an agent.";
+  return undefined;
+}
+
+/** ADR-123: names of important personal documents. A net, not a guarantee: it can miss a file and can refuse an innocent one. */
+const IMPORTANT_NAME = /(^|[^a-z])(passport|visa|citizenship|national[ _-]?id|id[ _-]?card|birth[ _-]?certificate|bank|tax|insurance|medical|ssn|payslip|salary)([^a-z]|$)/i;
+export const isImportantName = (name: string): boolean => IMPORTANT_NAME.test(name);
+
 /** File tools that change files. */
 export const WRITE_TOOLS: readonly string[] = ["Write", "Edit", "MultiEdit", "NotebookEdit"];
 
@@ -146,15 +173,24 @@ const REFUSED: [RegExp, string][] = [
   [/\bsecurity\s+(?:find|dump|export)|\bdefaults\s+write\b|\blaunchctl\b|\bosascript\b/, "System settings, keychains and other apps are out of reach."],
   [/\bcurl\b|\bwget\b|\bssh\b|\bscp\b|\brsync\b.*:|\bnc\b/, "Commands have no network."],
 ];
-const ASKED: [RegExp, string][] = [
-  [/\brm\s+(?:-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)\b/, "deletes folders"],
-  [/\b(?:npm|pnpm|yarn|bun)\s+(?:i|install|add)\b|\bpip3?\s+install\b|\bbrew\s+install\b|\bcargo\s+install\b|\bgem\s+install\b/, "installs software"],
-  [new RegExp(`${GIT}(?:clean|branch\\s+(?:-[dD]|--delete))\\b`), "deletes files or branches"],
+// ADR-123: delete and anything that harms the OS is never run. Deleting is refused outright (Keshab, 2026-10-16); an agent has no delete tool, and
+// this closes the shell.
+const DELETE_AND_HARM: [RegExp, string][] = [
+  [/(?:^|[;&|(\n]\s*|\b(?:env|xargs|command|exec|nohup|time|sudo)\s+)(?:rm|rmdir|unlink|trash|shred|srm)\b|\bfind\b[^\n;|&]*(?:-delete\b|-exec\s+(?:rm|rmdir|unlink)\b)/, "Deleting is never done by an agent: Keshab deletes in Finder."],
+  [new RegExp(`${GIT}(?:clean|rm)\\b|${GIT}branch\\s+(?:-[dD]|--delete)\\b`), "Deleting files or branches is never done by an agent."],
+  [/(?:^|[;&|(\n]\s*|\b(?:env|xargs|command|exec|nohup|time)\s+)(?:dd|mkfs\S*|diskutil|hdiutil|fdisk|newfs\S*|chown|chgrp|kill|killall|pkill|shutdown|reboot|halt|pmset|networksetup|scutil|csrutil|spctl|tccutil|nvram|systemsetup|dscl|fdesetup)\b/, "That command changes the system and is never run by an agent."],
+  [/\bchmod\s+(?:-[a-zA-Z]*R[a-zA-Z]*|--recursive)\b/, "Changing permissions of whole folders is never done by an agent."],
+  [/>>?\s*\/(?:System|Library|usr|etc|bin|sbin|private|Applications|var)\b|\btee\s+(?:-a\s+)?\/(?:System|Library|usr|etc|bin|sbin|private|Applications|var)\b/, "System folders are never written by an agent."],
+  [/:\s*\(\s*\)\s*\{[^}]*:\s*\|\s*:/, "A fork bomb."],
 ];
+const ASKED: [RegExp, string][] = [
+  [/\b(?:npm|pnpm|yarn|bun)\s+(?:i|install|add)\b|\bpip3?\s+install\b|\bbrew\s+install\b|\bcargo\s+install\b|\bgem\s+install\b/, "installs software"],
+]; 
 
 /** A sandboxed command's fate, in code: some are never run, some ask Keshab first, the rest run. */
 export function classifyCommand(command: string): CommandVerdict {
   for (const [re, reason] of REFUSED) if (re.test(command)) return { verdict: "refuse", reason };
+  for (const [re, reason] of DELETE_AND_HARM) if (re.test(command)) return { verdict: "refuse", reason };
   for (const [re, reason] of ASKED) if (re.test(command)) return { verdict: "ask", reason };
   return { verdict: "allow" };
 }

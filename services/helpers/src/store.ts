@@ -661,7 +661,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       const job = mustGet(jobId);
       if (job.state === "running") throw new HelperError("The task is still running. Undo after it ends.");
       const grants = (grantsOf.all(job.helper) as unknown as { path: string }[]).map((g) => g.path);
-      const results = checkpoints.undo(jobId, grants, options);
+      // ADR-122: agents write anywhere under home, so the undo may restore anywhere under home too (the old grants stay for older tasks).
+      const results = checkpoints.undo(jobId, [...grants, homedir()], options);
       const count = results.filter((r) => r.result === "restored").length;
       if (results.length) emit({ action: "checkpoint", helper: job.helper, job: jobId, change: "undone", count });
       return results;
