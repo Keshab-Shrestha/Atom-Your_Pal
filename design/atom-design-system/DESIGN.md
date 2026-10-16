@@ -55,6 +55,7 @@ Rules:
 - Make hierarchy with three things together: size, weight, and colour level. A size alone is not hierarchy.
 - Use two weights in a view: regular and semibold. Do not climb a ladder of weights.
 - Use tabular (monospaced) figures for numbers that line up, such as token counts.
+- The scale is in tokens.css as `--text-caption` to `--text-number`. Settings → Design system shows every token and component in Void and Daylight (ADR-124).
 
 ## 4. Spacing & Layout
 

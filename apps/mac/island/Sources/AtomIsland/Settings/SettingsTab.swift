@@ -72,6 +72,7 @@ struct SettingsTab: View {
         switch page {
         case .examples: return model.capabilities.map { $0.count == 1 ? "1 tool" : "\($0.count) tools" } ?? ""
         case .appearance: return s.theme.title
+        case .design: return "Showcase and tokens"
         case .model: return model.modelInfo?.currentModelName ?? "—"
         case .shortcuts: return s.shortcut(for: .talk)?.display ?? "Off"
         case .dictation: return s.dictationMode.title
@@ -87,6 +88,7 @@ struct SettingsTab: View {
         switch page {
         case .examples: ExamplesSection(model: model)
         case .appearance: AppearanceSection(model: model)
+        case .design: DesignSection(model: model)
         case .model: ModelSection(model: model)
         case .shortcuts: ShortcutSection(model: model)
         case .dictation: DictationSection(model: model)

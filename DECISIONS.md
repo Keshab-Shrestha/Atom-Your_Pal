@@ -2983,3 +2983,18 @@ More cards when an agent reads the web and then writes a file in the same turn (
 - `scanUntrusted()` for the banner in `web-guard.ts`.
 - The approval card text in `native-approvals` (host name only).
 - Docs: `SECURITY.md`, README, and a short `docs/untrusted-text.md` for Keshab.
+
+## ADR-124 — A Design system page shows ATOM's components and tokens (2026-10-16)
+
+**Context.** ATOM's look lives in three places: `design/atom-design-system/` (DESIGN.md, tokens.css), the Swift themes (`ThemePalette`) and the shared views (`SharedRows.swift`, `StateViews.swift`). A test held tokens.css to the Swift colours, but nothing showed the components in each theme or the states DESIGN.md section 9 asks for, so a change was judged one screen at a time. Reviewed for ideas: OpenDesign's Showcase/Tokens split and component fixtures, and Impeccable's critique, harden and polish passes.
+
+**Decision.**
+1. Settings gets a page, **Design system**, after Appearance. Two views, **Showcase** and **Tokens**, and a theme choice, **Void** or **Daylight** (the two flat themes tokens.css describes; the glass themes are not in it). The page's own controls follow the app's theme; the preview below them is drawn in the theme it names, so the choice never changes the app's look. The preview opens on the theme in use, or on Void.
+2. **Showcase** draws the real shared views, not copies: the type scale, buttons (prominent, plain, with a symbol, disabled, icon), switch, segmented control, pop-up menu, status words with dots, and the states (empty, loading, slow with "Ask again", long text).
+3. **Tokens** lists every token of tokens.css by group (surfaces, text, accent, status, radius, spacing, type, depth and focus, motion), with a small sample, the value, the Swift name it comes from, and, for text and status colours, the contrast on the window. Clicking a row copies `var(--name)`.
+4. The list is one catalog in `AtomIslandCore` (`DesignCatalog`), built from the Swift palette. `DesignCatalogTests` holds it equal to tokens.css in both directions (no token missing on either side), checks that colours come from the palette and that every text and status colour reads at 4.5:1 or more.
+5. tokens.css gains the type scale (`--text-caption` 11 to `--text-number` 26), which DESIGN.md section 3 already named.
+
+**Left out.** Editing tokens on the page; the glass themes; the Dashboard, chat and Brain surfaces (they need sample data and are in the gallery already).
+
+**Cost.** One more Settings page and four gallery shots (`22-design-*`). A token added to tokens.css fails the test until the catalog has it, which is the point.

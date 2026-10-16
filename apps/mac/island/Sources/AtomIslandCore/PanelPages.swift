@@ -11,6 +11,8 @@ public enum PanelTab: Sendable {
 public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
     case examples = "What can I ask?"
     case appearance = "Appearance"
+    /// ADR-124: ATOM's components and tokens in Void and Daylight.
+    case design = "Design system"
     case model = "AI model"
     case shortcuts = "Shortcuts"
     case dictation = "Dictation"
@@ -24,6 +26,7 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .examples: "magnifyingglass"
         case .appearance: "paintpalette"
+        case .design: "square.grid.2x2"
         case .model: "sparkles"
         case .shortcuts: "command"
         case .dictation: "mic"
@@ -39,7 +42,7 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
 public enum SettingsHome {
     public static let groups: [[SettingsPage]] = [
         [.examples, .shortcuts, .dictation],
-        [.appearance, .pal, .sounds, .general], // Memory moved into the Second brain page (2026-10-15)
+        [.appearance, .design, .pal, .sounds, .general], // Memory moved into the Second brain page (2026-10-15)
     ]
     /// The page the now card's "Change model" opens.
     public static let changeModel = SettingsPage.model

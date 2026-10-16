@@ -183,5 +183,29 @@ extension IslandGallery {
         .themed(palette)
         save(page, name: name, to: directory)
     }
+
+    /// ADR-124: Settings → Design system, Showcase and Tokens, each in Void and Daylight.
+    static func writeDesignPage(to directory: URL) {
+        for (mode, preview, name) in [(DesignShowcaseMode.showcase, DesignPreviewTheme.void, "22-design-showcase"),
+                                      (.showcase, .daylight, "22-design-showcase-daylight"),
+                                      (.tokens, .void, "22-design-tokens"),
+                                      (.tokens, .daylight, "22-design-tokens-daylight")] {
+            let suite = "atom.gallery.design.\(name).\(ProcessInfo.processInfo.processIdentifier)"
+            let defaults = UserDefaults(suiteName: suite)!
+            defer { defaults.removePersistentDomain(forName: suite) }
+            let palette = AppTheme.void.palette
+            let m = IslandModel(settings: IslandSettings(defaults: defaults))
+            m.settings.theme = .void
+            let page = VStack(alignment: .leading, spacing: Spacing.wells) {
+                DesignSection(model: m, mode: mode, preview: preview)
+            }
+            .environment(\.islandSnapshot, true)
+            .frame(width: 560)
+            .padding(24)
+            .background(palette.surfaceSolid.color)
+            .themed(palette)
+            save(page, name: name, to: directory)
+        }
+    }
 }
 

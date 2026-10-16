@@ -343,4 +343,4 @@ Older steps are in TASK.md.
 - **Tests and CI.** Smoke tests start a real runtime (`pnpm test`, `pnpm test:live`); the visual check (`pnpm test:visual`, `pnpm window:shot`); GitHub CI runs typecheck, TypeScript, Swift and visual (blocking) on every push.
 - **Cleanup.** Dead Manager, wake-up and team-task code removed from the Swift app; `store.ts`, `Helpers.swift`, `Protocol.swift` and `IslandController.swift` split into cohesive files.
 - Open items are listed in TASK.md ("Fourth review pass").
-
+- **Design system page (ADR-124).** Settings → Design system shows the shared components (Showcase) and every token with value, Swift name and contrast (Tokens), in Void or Daylight. A test holds the page's catalog equal to tokens.css.

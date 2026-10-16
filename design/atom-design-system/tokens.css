@@ -70,6 +70,14 @@
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
 
+  /* Type scale: one size per role (DESIGN.md section 3). Hierarchy is size, weight and colour level together */
+  --text-caption: 11px;
+  --text-secondary: 12px;
+  --text-body: 13px;
+  --text-row: 15px;
+  --text-title: 18px;
+  --text-number: 26px;
+
   /* Spacing on a 4 px grid */
   --space-1: 4px;
   --space-2: 8px;

@@ -1850,3 +1850,12 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 - `MarkdownReply` draws wide tables and code flat in snapshots (`SideScroll`), as `Scrollable` does.
 - Wide tables (2026-10-15): a table that fits the chat width is drawn as a grid. A wider one is drawn as a card for each row, with one "Header: value" line per column (`ViewThatFits` in `MarkdownReply.swift`). Nothing hides off the side, because scroll bars stay hidden until used. The live check found raw `**` in a card label; the label now goes through the same inline Markdown as the cells.
 
+## Design system page (2026-10-16, ADR-124)
+
+- Done: Settings → Design system, with Showcase and Tokens, previewing Void or Daylight without changing the app's theme. Files: `AtomIslandCore/DesignCatalog.swift`, `AtomIsland/Settings/DesignPage.swift`, `SettingsPage.design`. tokens.css has the type scale. Tests: `DesignCatalogTests.swift` (catalog equals tokens.css both ways, colours from the palette, contrast). Gallery: `22-design-showcase*.png`, `22-design-tokens*.png`.
+- Found by the page (not changed, for Keshab to decide):
+  - Daylight `--fg-2` and `--fg-3` are the same colour (`#6B6B78`), so caption and secondary text do not differ.
+  - Icon buttons (22 pt) are shorter than pill buttons (26 pt) in one row.
+  - `ChoiceRow` puts its detail under the control, not under the title, so a Menu row is taller than a Switch row.
+  - Void's off switch has little contrast on black.
+- Next: the type scale in the app (11, 12, 13, 15, 18, 26), then the polish items above, checked on this page.
