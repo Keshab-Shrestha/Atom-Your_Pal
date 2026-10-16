@@ -1880,5 +1880,6 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 ## Upgrades, item 1: hide and show the sidebar (2026-10-17, ADR-128)
 
 - Done: `sidebarHidden` setting; button in the sidebar header and, while hidden, at the top bar's left; ⌥⌘H and View → Hide/Show Sidebar; the pane fills the window; ⌘F shows the sidebar first. Tests: `SidebarVisibilityTests` (4). Swift tests: 696 pass. `island:ui-check` gallery and golden shots pass (changes under 0.6 %). New gallery frame `23-sidebar-hidden`, checked by eye.
-- Not checked live: the button, ⌥⌘H and the menu in the running window; a relaunch keeping the choice; ⌘F while hidden; hiding during an answer; a narrow window; the Lantern and Daylight themes. Try each once.
+- Checked live (2026-10-17, Void): ⌥⌘H hides the sidebar and saves it; a relaunch keeps it hidden; ⌘F shows it and puts the cursor in the search field; View → Hide/Show Sidebar flips its name and works.
+- Not checked live: the button by mouse (its label is unreadable to Accessibility); hiding during an answer; a narrow window; the Lantern and Daylight themes.
 - Next in upgrades.md: item 2, the diff engine (B1).
