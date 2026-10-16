@@ -1,6 +1,6 @@
 import type { Tool } from "../engine.ts";
 import type { CuaTransport } from "./cua-client.ts";
-import { appBlock, isSearchField, keyApproval, labelApproval, secretField, typeApproval } from "./policy.ts";
+import { appBlock, deleteDenial, deleteKeyDenial, isSearchField, keyApproval, labelApproval, secretField, typeApproval } from "./policy.ts";
 
 export interface ApprovalRequest {
   /** What ATOM is about to do, in words for the user: "Click \"Send\" in Mail". */
@@ -273,6 +273,8 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
       case "click": {
         const t = need();
         const el = pick(t, input.element);
+        const deleting = deleteDenial(el.label, el.role);
+        if (deleting) throw new Refused(deleting);
         const why = labelApproval(el.label, el.role);
         if (why) await ask(`Click ${why} in ${t.app}`, "it may send, buy, delete or change something", signal);
         const r = await cua.call("click", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, delivery_mode: "background" }, signal);
@@ -297,6 +299,8 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const t = need();
         const keys = Array.isArray(input.keys) ? input.keys.map(String) : [];
         if (!keys.length) throw new Refused('"keys" is required, e.g. ["tab"] or ["cmd","c"].');
+        const deleting = deleteKeyDenial(keys);
+        if (deleting) throw new Refused(deleting);
         const why = keyApproval(keys, t.justTyped);
         if (why) await ask(`Press ${keys.join("+")} in ${t.app}`, `it uses ${why}`, signal);
         const key = keys[keys.length - 1];

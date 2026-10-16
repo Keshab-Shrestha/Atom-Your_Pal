@@ -93,6 +93,25 @@ export function labelApproval(label: string | undefined, role: string | undefine
   return risky ? `"${text.length > 40 ? `${text.slice(0, 40)}…` : text}"` : undefined;
 }
 
+/**
+ * ADR-123: ATOM never deletes. A control whose label names a delete (Move to Trash, Empty Trash, Delete, Erase, Uninstall) is refused outright, not
+ * asked, so a web page or a confused model cannot get a "yes" for it. Returns the refusal text, or undefined. Only an action role counts, like a button;
+ * a text area's label is the document itself.
+ */
+const DELETE_LABEL = /\b(?:move to (?:the )?trash|empty (?:the )?trash|delete|erase|uninstall|permanently remove|secure empty trash)\b/i;
+export function deleteDenial(label: string | undefined, role: string | undefined): string | undefined {
+  if (role && CONTENT_ROLES.has(role)) return undefined;
+  const text = normalizeLabel(label ?? "");
+  return text && DELETE_LABEL.test(text) ? `ATOM never deletes. "${text.length > 40 ? `${text.slice(0, 40)}…` : text}" is refused. Ask the user to do it in Finder.` : undefined;
+}
+
+/** ADR-123: the keys that delete files in Finder (Command+Delete moves to the Trash, with Shift it empties it, with Option it deletes at once). */
+export function deleteKeyDenial(keys: string[]): string | undefined {
+  const lower = keys.map(canonicalKey);
+  const key = lower[lower.length - 1] ?? "";
+  return DELETE_KEYS.has(key) && lower.includes("cmd") ? "ATOM never deletes files. Ask the user to do it in Finder." : undefined;
+}
+
 /** Other names for the same key, so "command", "alt" or "kp_enter" cannot get past a rule written for "cmd", "option" or "enter". */
 const KEY_ALIASES: Readonly<Record<string, string>> = {
   command: "cmd", "⌘": "cmd", super: "cmd", meta: "cmd", opt: "option", alt: "option", esc: "escape",

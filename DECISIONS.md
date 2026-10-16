@@ -2886,7 +2886,7 @@ Keshab opened a phone chat on the Mac and could only read it (ADR-098 made `api`
 
 ## ADR-122 — Agents work in any folder, with a fixed floor of protected places (2026-10-16)
 
-Date: 2026-10-16. Status: **proposed** (Keshab asked on 2026-10-16: "remove folder choosing for agent, let it be like Claude, so it can work on any folder").
+Date: 2026-10-16. Status: **accepted** and built (2026-10-16, with ADR-123 phase A). Keshab added: it must work for all agents, and a new file has no `~/Documents/ATOM` limit.
 
 ### Context
 
@@ -2933,7 +2933,7 @@ An agent that is wrong, or that obeys text it found on a web page or in a file, 
 
 ## ADR-123 — Only the user gives commands: web and file text is data, and acting on it needs the user (2026-10-16)
 
-Date: 2026-10-16. Status: **proposed** (Keshab asked on 2026-10-16: "make a guardrail to deny command from webpages, only accept commands from user").
+Date: 2026-10-16. Status: **accepted** (Keshab, 2026-10-16). Phase A built: the three tiers, the floor, delete and OS-harm denial, for every agent. Phase B not built: the taint gate (steps 2 and 3 "tainted" rows) and the secret-shape scan of read results. A new file is free anywhere the floor allows (Keshab removed the `~/Documents/ATOM` limit).
 
 ### Context
 

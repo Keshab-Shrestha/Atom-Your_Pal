@@ -446,7 +446,7 @@ private struct HelperPane: View {
                     SkillsPicker(model: model, helper: helper, skills: model.helpers.list?.skills ?? [])
                     PlanFirstRow(model: model, helper: helper)
                     if helper.takesTasks, helper.kit != "think" { BrowserRow(model: model, helper: helper) } // ADR-098
-                    if helper.worksInFolders { FoldersSection(model: model, helper: helper) }
+                    if helper.worksInFolders { FilesNote(helper: helper) }
                     VStack(alignment: .leading, spacing: 8) {
                         TaskField(model: model, helper: helper)
                         HStack(spacing: 8) {

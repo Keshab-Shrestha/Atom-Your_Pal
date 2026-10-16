@@ -48,7 +48,7 @@ ATOM is not a chatbot. The language model is one part of it. Permissions, memory
 
 **Agents, ATOM and sub-agents**
 - Each agent has a role and a `soul.md` file. You can edit, rename and version it.
-- A kit decides the tools of an agent in code: research (the web), folders (files in folders you grant), or think (no tools).
+- A kit decides the tools of an agent in code: research (the web), folders (files anywhere in your home folder, under the rules below), or think (no tools).
 - ATOM splits a goal, hands the parts to the right agents, and reports in one line.
 - Each agent runs as a sub-agent inside the chat that handed it the task.
 - Tasks wait for each other. Plans wait for your OK. Routines run on a schedule.
@@ -85,7 +85,7 @@ ATOM is not a chatbot. The language model is one part of it. Permissions, memory
 - Paperclip: ATOM can hand tasks to your own Paperclip. It is off until you set `ATOM_PAPERCLIP_URL`.
 
 **Safety**
-- Grants: an agent works only in the folders you grant. Never your home folder, `~/Library` or hidden folders.
+- Files (ADR-122, ADR-123): every agent works in your home folder and on external drives, with one fixed floor. It never opens `~/Library`, hidden folders, secrets, ATOM's own data, git's own files, or identity, bank, tax and medical documents. A new file is saved at once. Changing a file that exists asks you once per file. Deleting and commands that harm the system are refused. A copy of each changed file is kept for undo.
 - Approvals: deleting, installing, untrusted MCP tools and computer control wait for your OK.
 - Masking: secrets in the activity timeline show as `[hidden]`.
 - Undo: ATOM keeps the files a run changes. You can undo them.

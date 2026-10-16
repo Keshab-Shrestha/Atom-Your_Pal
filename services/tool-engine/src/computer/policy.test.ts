@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { appBlock, isSearchField, keyApproval, labelApproval, normalizeLabel, secretField, typeApproval } from "./policy.ts";
+import { appBlock, deleteDenial, deleteKeyDenial, isSearchField, keyApproval, labelApproval, normalizeLabel, secretField, typeApproval } from "./policy.ts";
 
 test("never controls terminals, password managers, system settings, or agents", () => {
   const blocked: Array<[string, string]> = [
@@ -181,5 +181,17 @@ test("more secret field names are refused for typing: plural passwords, API and 
     assert.ok(secretField({ role: "AXTextField", label }), label);
   }
   assert.equal(secretField({ role: "AXTextField", label: "Search" }), undefined);
+});
+
+// ADR-123: ATOM never deletes, on the screen as in the shell.
+test("delete controls and keys are refused, not asked; ordinary controls and keys are not touched", () => {
+  for (const label of ["Move to Trash", "Empty Trash…", "Delete", "Delete Account", "Erase Disk", "Uninstall", "Ｄｅｌｅｔｅ", "Delete_all", "Secure Empty Trash"]) {
+    assert.match(deleteDenial(label, "AXButton") ?? "", /never deletes/, label);
+    assert.match(deleteDenial(label, "AXMenuItem") ?? "", /never deletes/, label);
+  }
+  for (const label of ["Send", "Save", "Done", "Remove filter", "Deliver", "Undelete".replace("Undelete", "Restore"), ""]) assert.equal(deleteDenial(label, "AXButton"), undefined, label);
+  assert.equal(deleteDenial("Delete everything in this note", "AXTextArea"), undefined, "a text area's label is the document");
+  for (const keys of [["cmd", "delete"], ["command", "backspace"], ["cmd", "shift", "delete"], ["cmd", "option", "backspace"]]) assert.match(deleteKeyDenial(keys) ?? "", /never deletes/, keys.join("+"));
+  for (const keys of [["delete"], ["backspace"], ["cmd", "c"], ["enter"]]) assert.equal(deleteKeyDenial(keys), undefined, keys.join("+"));
 });
 
