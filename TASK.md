@@ -1691,6 +1691,14 @@ Four more read-only reviewers (runtime and API, services, Swift logic, tests and
 - **Telegram backlog (done after the pass).** Messages and button presses that arrived while ATOM was closed are skipped on start and counted; ATOM sends one notice with the count (`skipBacklog`, `onBacklog`).
 - **Open from this pass.** A multi-part Telegram message whose later part fails is resent whole (part 1 twice). Replies, agent reports and routine results sent to Telegram are not retried at the bot level. A 409 or 401 from Telegram is only logged. A reported `Cyrillic` look-alike in a label ("Рay") still passes (needs a confusables table). Text inserter: Accessibility calls run on the main thread without a timeout; Command-V uses a QWERTY key code (Dvorak). `HelpersState` clears its wait on any `helpers` push. An unlabeled AXGroup or AXLink click asks nothing. The `computer` tool's shared target could be switched by parallel calls (not confirmed that calls run in parallel).
 
+### Smoke tests and CI (2026-10-16)
+
+- Why: the bug that no folders agent could use Write, Edit or Read in a normal chat passed about 970 unit tests, because they use fakes of the Claude session. Nothing started the real runtime.
+- `tests/smoke-harness.ts` starts a real runtime in island mode in a temp folder (clean environment, no user data or token). `tests/smoke.test.ts` (in `pnpm test`, about 25 seconds, no model): the runtime starts, the Local API and the phone page answer with their headers, a bad token and a foreign Host are refused, `//` is a 400, a protocol command is answered.
+- `tests/smoke.live.test.ts` (`pnpm test:live`, about one minute): a chat answer, the phone chat shown and opened in the window, an agent saves a file with no folder granted, an edit asks and is approved over the island protocol, a delete is refused. Checked by a mutation: with the old session-tools bug put back, it fails at the file save with the sentence Keshab saw ("no tool that can write files in this session").
+- `.github/workflows/ci.yml`: typecheck, `pnpm test` and the Swift tests on every push and pull request (macOS runner). Not run before it was pushed: the first run on GitHub shows if the runner needs changes.
+- Next: add a visual check to the live smoke test; add a second live test for Telegram-free approval flows if needed.
+
 ### Fourth review pass (2026-10-16): the whole app, one area at a time
 
 Eight independent read-only reviewers (new security code, new runtime code, helpers and memory, tool-engine and gateway with the rest of the runtime, Swift core, Swift controllers and views). Every finding was checked against the code before a fix. Fixed, with a test where the logic could be tested:

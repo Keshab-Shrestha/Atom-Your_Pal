@@ -1,98 +1,45 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { enableApi, startRuntime } from "./smoke-harness.ts";
 
-/** Every runtime these tests start uses its own data folder and log, never the real data/ and logs/. */
-function tempData(): Record<string, string> {
-  const dir = mkdtempSync(join(tmpdir(), "atom-smoke-"));
-  return { ATOM_HELPERS_FILE: join(dir, "helpers.db"), ATOM_MEMORY_FILE: join(dir, "memory.db"), ATOM_LOG_FILE: join(dir, "atom.log") };
-}
+// Smoke test, no model: a real runtime starts in a temp folder, answers over the island protocol, serves the Local API and the phone page with its
+// headers, and refuses what it must. It catches what mocks hide: wiring, startup, the HTTP layer. It runs with `pnpm test` (a few seconds).
+// The model-using flows are in smoke.live.test.ts.
 
-function startZeno(env: Record<string, string>, args: string[] = [], input?: string) {
-  return spawnSync(process.execPath, ["apps/mac/src/main.ts", ...args], {
-    encoding: "utf8",
-    // A model saved in the island (config/island.json) overrides the env, so point at a file that
-    // does not exist: these tests check the env configuration, not whatever the user last picked.
-    env: { ...process.env, ATOM_ISLAND_SETTINGS: "tests/no-saved-choice.json", ...tempData(), ...env },
-    input,
-    timeout: 30_000,
-  });
-}
+test("a real runtime starts, serves the Local API and the phone page, and refuses a bad token and a foreign host", { timeout: 120_000 }, async () => {
+  const runtime = await startRuntime();
+  try {
+    const ready = runtime.events.find((e) => e.type === "ready")!;
+    assert.equal(ready.provider, "claude-plan");
+    await enableApi(runtime);
 
-/** Parses island-mode stdout, failing the test if any line is not a protocol event. */
-function events(stdout: string) {
-  return stdout
-    .split("\n")
-    .filter((line) => line !== "")
-    .map((line) => {
-      const event = JSON.parse(line) as { type: string; [key: string]: unknown };
-      assert.equal(typeof event.type, "string", line);
-      return event;
-    });
-}
+    // The phone page and its files need no token and carry the strict headers.
+    for (const [path, type] of [["/app", "text/html"], ["/app.js", "text/javascript"], ["/app.css", "text/css"], ["/app.webmanifest", "application/manifest+json"], ["/app-icon.png", "image/png"]] as const) {
+      const page = await runtime.api("GET", path, { token: null });
+      assert.equal(page.status, 200, path);
+      assert.ok(String(page.headers["content-type"]).includes(type), `${path}: ${page.headers["content-type"]}`);
+      assert.match(String(page.headers["content-security-policy"]), /default-src 'self'/, path);
+    }
+    assert.match((await runtime.api("GET", "/app", { token: null })).text, /<title>ATOM<\/title>/);
 
-test("ATOM starts with valid configuration", () => {
-  const result = startZeno({ ATOM_LLM_PROVIDER: "claude-plan" });
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /ATOM: started/);
-});
+    // Data needs the token; a foreign Host is refused first.
+    assert.equal((await runtime.api("GET", "/v1/tasks", { token: null })).status, 401);
+    assert.equal((await runtime.api("GET", "/v1/tasks", { token: "0".repeat(64) })).status, 401);
+    const tasks = await runtime.api("GET", "/v1/tasks");
+    assert.equal(tasks.status, 200);
+    assert.deepEqual(tasks.json.data.tasks, []);
+    const needs = await runtime.api("GET", "/v1/needs");
+    assert.equal(needs.status, 200);
+    assert.deepEqual(needs.json.data.needs, []);
+    assert.equal((await runtime.api("GET", "/app", { token: null, host: "evil.example" })).status, 403);
+    assert.equal((await runtime.api("GET", "/v1/tasks", { host: "evil.example" })).status, 403);
+    assert.equal((await runtime.api("GET", "//")).status, 400, "an address the URL parser rejects is a 400, not a crash");
+    assert.equal((await runtime.api("GET", "/v1/tasks")).status, 200, "and the runtime is still up");
 
-test("ATOM exits with a clear error when configuration is invalid", () => {
-  const result = startZeno({ ATOM_LLM_PROVIDER: "openai" });
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /Invalid configuration:/);
-  assert.match(result.stderr, /ATOM_LLM_PROVIDER must be one of claude-plan/);
-});
-
-test("island mode: invalid configuration is a config error event and exit code 78", () => {
-  const result = startZeno({ ATOM_LLM_PROVIDER: "openai" }, ["--island"]);
-  assert.equal(result.status, 78);
-  const [event, ...rest] = events(result.stdout);
-  assert.equal(event.type, "error");
-  assert.equal(event.stage, "config");
-  assert.match(String(event.message), /ATOM_LLM_PROVIDER must be one of claude-plan/);
-  assert.deepEqual(rest, []);
-});
-
-test("island mode: stdout carries only events; closing stdin exits cleanly", () => {
-  // Bad command then end of input: the runtime reports the bad line, then leaves because the island went away.
-  const result = startZeno({ ATOM_LLM_PROVIDER: "claude-plan" }, ["--island"], "not json\n");
-  assert.equal(result.status, 0, result.stderr);
-  const all = events(result.stdout); // throws if anything else reached stdout
-  assert.deepEqual(all[0], { type: "error", stage: "protocol", message: "Command is not valid JSON." });
-  assert.match(result.stderr, /island mode/); // human-readable startup line goes to stderr
-});
-
-test("island mode: SIGTERM exits cleanly", async () => {
-  const child = spawn(process.execPath, ["apps/mac/src/main.ts", "--island"], {
-    env: { ...process.env, ATOM_LLM_PROVIDER: "claude", ANTHROPIC_API_KEY: "test-key", ...tempData() },
-    stdio: ["pipe", "pipe", "pipe"],
-  });
-  // Wait for the startup line, which is printed once SIGTERM is handled. Earlier stderr lines (such as a
-  // warning about a saved model choice) can come first and must not count as "started".
-  let seen = "";
-  await new Promise<void>((resolve) =>
-    child.stderr.on("data", (chunk) => {
-      seen += chunk;
-      if (seen.includes("island mode")) resolve();
-    }),
-  );
-  child.kill("SIGTERM");
-  const code = await new Promise((resolve) => child.on("exit", resolve));
-  assert.equal(code, 0);
-});
-
-test("a second runtime on the same data folder is refused before any store opens (no recovery)", () => {
-  const data = tempData();
-  writeFileSync(join(data.ATOM_HELPERS_FILE!, "..", ".atom.lock"), JSON.stringify({ pid: process.pid })); // this process is alive
-  const terminal = startZeno({ ATOM_LLM_PROVIDER: "claude-plan", ...data });
-  assert.equal(terminal.status, 1);
-  assert.match(terminal.stderr, new RegExp(`ATOM already runs on this data folder \\(pid ${process.pid}\\)\\.`));
-  const island = startZeno({ ATOM_LLM_PROVIDER: "claude-plan", ...data }, ["--island"]);
-  assert.equal(island.status, 78); // the island does not restart on 78
-  assert.equal(existsSync(data.ATOM_HELPERS_FILE!), false, "the helpers store was opened");
-  assert.equal(existsSync(data.ATOM_MEMORY_FILE!), false, "the memory store was opened");
+    // The runtime answers a protocol command: the chats list comes back.
+    runtime.send({ type: "chats.list" });
+    await runtime.waitFor((e) => e.type === "chats", 10_000, "the chats list");
+  } finally {
+    await runtime.stop();
+  }
 });

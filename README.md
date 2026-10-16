@@ -158,9 +158,12 @@ After a rebuild under a new bundle id (`dev.atom.island`), grant them again.
 
 ```sh
 pnpm typecheck
-node --test "**/*.test.ts"
-pnpm island:test
+pnpm test          # all TypeScript tests, including a smoke test that starts a real runtime (about 30 seconds)
+pnpm island:test   # the Swift tests
+pnpm test:live     # the live smoke test: a real Claude session and a real agent (about one minute, uses a little of your plan)
 ```
+
+The smoke tests (`tests/smoke.test.ts`, `tests/smoke.live.test.ts`, helper `tests/smoke-harness.ts`) start `node apps/mac/src/main.ts --island` in a temp folder with a clean environment. They never touch your `data/`, `.env` or token. The live test saves, edits and tries to delete one file in a temp folder under `~/Documents`, and removes it. GitHub runs typecheck, `pnpm test` and the Swift tests on every push (`.github/workflows/ci.yml`); the live test does not run there.
 
 ## Use ATOM from other tools
 
