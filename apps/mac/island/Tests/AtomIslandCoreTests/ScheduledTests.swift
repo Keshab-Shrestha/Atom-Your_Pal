@@ -47,21 +47,6 @@ struct ScheduledTests {
         #expect(IslandCommand.helperWakeUpPause(helper: "sid", paused: false).line == #"{"helper":"sid","paused":false,"type":"helper.wakeUp.pause"}"# + "\n")
     }
 
-    @Test func theTaskFieldPostsToTheTeam() throws {
-        var state = HelpersState()
-        state.apply(try decodeEvent(Self.line))
-        state.selectHelper("sid")
-        state.setPostTo("astronaut")
-        #expect(state.postTo == nil, "a role no worker has is ignored")
-        state.setPostTo("coder")
-        #expect(state.addJob("  Fix the build ") == .teamAdd(task: "Fix the build", role: "coder"))
-        state.setPostTo("")
-        #expect(state.addJob("Anything") == .teamAdd(task: "Anything", role: nil))
-        state.selectHelper("penny")
-        #expect(state.postTo == nil, "another worker: back to that worker")
-        #expect(state.addJob("Rates") == .jobAdd(helper: "penny", task: "Rates", blockedBy: []))
-    }
-
     @Test func wakeUpsRoutinesAndTeamTasksFromTheWindow() throws {
         var state = HelpersState()
         state.apply(try decodeEvent(Self.line))

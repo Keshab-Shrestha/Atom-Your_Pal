@@ -776,8 +776,6 @@ public struct HelpersState: Sendable, Equatable {
     public private(set) var showsBoard = false
     /// What the next task added in the window will wait for.
     public private(set) var draftBlockers: [Int] = []
-    /// ADR-094: where the next task goes: nil to the chosen worker, "" to the team (anyone), or a role on the team.
-    public private(set) var postTo: String?
     /// Why the runtime refused the window's last command, until the next `helpers` event.
     public private(set) var problem: String?
     /// A command from the window is waiting for its answer: a `settings` error now belongs to the window.
@@ -885,15 +883,7 @@ public struct HelpersState: Sendable, Equatable {
         closeReport()
         isSoulOpen = false
         draftBlockers = []
-        postTo = nil
         problem = nil
-    }
-
-    /// ADR-094: the next task goes to the chosen worker (nil), the team ("") or a role on the team. A role no worker
-    /// has is ignored.
-    public mutating func setPostTo(_ target: String?) {
-        guard let target, !target.isEmpty else { postTo = target; return }
-        if list?.teamRoles.contains(target) == true { postTo = target }
     }
 
     /// ADR-088: the "New agent" form is open.
@@ -1338,8 +1328,6 @@ public struct HelpersState: Sendable, Equatable {
     public mutating func addJob(_ task: String) -> IslandCommand? {
         let clean = task.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let helper = selectedHelper, helper.available, !clean.isEmpty, clean.count <= Self.maxTaskLength else { return nil }
-        // ADR-094: posted to the team, it waits for a worker that wakes up (no blockers: it runs as that worker's task).
-        if let role = postTo { return waiting(.teamAdd(task: clean, role: role.isEmpty ? nil : role)) }
         defer { draftBlockers = [] }
         return waiting(.jobAdd(helper: helper.id, task: clean, blockedBy: draftBlockers))
     }
@@ -1384,7 +1372,6 @@ public struct HelpersState: Sendable, Equatable {
         if let id = location.helperId, id != selectedHelperId, list?.helpers.contains(where: { $0.id == id }) == true {
             selectedHelperId = id
             draftBlockers = []
-            postTo = nil
         }
         selectedManagerId = location.managerId.flatMap { id in list?.managers.contains { $0.id == id } == true ? id : nil }
         showsBoard = location.showsBoard
