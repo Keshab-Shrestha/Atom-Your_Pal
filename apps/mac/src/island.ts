@@ -2,7 +2,7 @@
 // stdin and receives JSON-line events on stdout. Specification: docs/island-protocol.md.
 
 import type { HubCommands } from "./hub-commands.ts";
-import { chatWriter, readOnlyMessage } from "./chat-owner.ts";
+import { chatWriter, isSharedChat, readOnlyMessage } from "./chat-owner.ts";
 import { createInterface } from "node:readline";
 import type { Message } from "@atom/contracts";
 import { PROTOCOL_VERSION, createLevelThrottle, encodeEvent, parseCommand, planUsageEvent, type IslandCommand, type IslandEvent, type SearchHitItem } from "./island-protocol.ts";
@@ -60,14 +60,27 @@ export function runIsland(options: IslandOptions): IslandSession {
   options.computer?.attach(send);
   const level = createLevelThrottle((peak) => send({ type: "mic.level", peak }), options.levelIntervalMs);
 
+  /** The shared chat this window last wrote or opened, and how many messages it held then. */
+  let sharedSeen: { id: string; count: number } = { id: "", count: -1 };
   const loop = createVoiceLoop({
     record: options.record,
     stt: options.stt,
     // ADR-098: a chat that Telegram or the local API writes is read-only here; its one writer keeps its history right.
     core: {
-      handle: (input, signal, hooks) => {
-        const writer = chatWriter(core.sessionId ?? "");
-        return writer ? Promise.reject(new Error(readOnlyMessage(writer))) : core.handle(input, signal, hooks);
+      handle: async (input, signal, hooks) => {
+        const id = core.sessionId ?? "";
+        const writer = chatWriter(id);
+        if (writer) throw new Error(readOnlyMessage(writer));
+        // A shared chat (the phone writes it too): read the saved messages again when the phone has added to them since this window's last turn.
+        if (isSharedChat(id) && options.chats && core.resume) {
+          const turns = options.chats.messages(id);
+          if (sharedSeen.id !== id || sharedSeen.count !== turns.length) core.resume(id, turns);
+        }
+        try {
+          return await core.handle(input, signal, hooks);
+        } finally {
+          if (isSharedChat(id) && options.chats) sharedSeen = { id, count: options.chats.messages(id).length };
+        }
       },
     },
     tts,
@@ -233,6 +246,7 @@ export function runIsland(options: IslandOptions): IslandSession {
         whenCoreIdle(() => {
           const replay = chats.replay?.(command.id, turns) ?? { turns, trimmed: false }; // ADR-107: a long project chat is replayed capped
           core.resume!(command.id, replay.turns);
+          sharedSeen = { id: command.id, count: turns.length };
           sendOpened(command.id, turns, replay.trimmed);
           sendChats();
         }, "chat.open");

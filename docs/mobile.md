@@ -31,6 +31,7 @@ The page keeps the token on that phone. Press **Sign out** on the page to remove
 
 ## What you can do
 
+- **Chat on both:** a phone chat also shows in the ATOM window under Chats. Open it there and keep writing. Each side reads the saved messages again when the other has added to them. A Telegram chat stays read-only on the Mac.
 - **Chat:** talk to ATOM and read its answers, back and forth. ATOM keeps the conversation. The page keeps the text on your phone, so a reload shows it again. **New chat** starts a new conversation. The answer shows when ATOM has finished; it does not appear word by word.
 - **Needs you:** the cards that wait for your answer. A plan has **Approve** and **Reject**. A failed task has **Retry**.
 - **Cards the phone cannot answer:** a click, a command, a new agent, a change to an agent and a skill. The page says "Answer this one on the Mac or on Telegram". This rule protects you (ADR-120).

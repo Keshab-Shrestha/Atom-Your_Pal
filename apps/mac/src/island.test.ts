@@ -1003,7 +1003,7 @@ test("chats: listed with the current one; opened, ATOM continues it; deleting th
   assert.deepEqual(h.events()[1], { type: "chats", chats: [], current: "chat-reset" });
 });
 
-test("chats written by Telegram or the local API are read-only: flagged, and a window turn in one is refused (ADR-098)", async () => {
+test("chats written by Telegram are read-only: flagged, and a window turn in one is refused; API (phone) chats are shared and the window may write them", async () => {
   const saved = new Map([["telegram", 2], ["api", 2], ["api-ci", 2], ["chat-a", 2]]);
   let session = "chat-new";
   const handled: string[] = [];
@@ -1027,7 +1027,7 @@ test("chats written by Telegram or the local API are read-only: flagged, and a w
   h.clear();
   await h.send({ type: "chats.list" });
   const chats = (h.events()[0] as { chats: { id: string; readOnly?: boolean }[] }).chats;
-  assert.deepEqual(chats.map((c) => [c.id, c.readOnly]), [["telegram", true], ["api", true], ["api-ci", true], ["chat-a", undefined]]);
+  assert.deepEqual(chats.map((c) => [c.id, c.readOnly]), [["telegram", true], ["api", undefined], ["api-ci", undefined], ["chat-a", undefined]]);
   await h.send({ type: "chat.open", id: "telegram" });
   h.clear();
   await h.send({ type: "text.send", text: "write here" });
@@ -1039,11 +1039,11 @@ test("chats written by Telegram or the local API are read-only: flagged, and a w
   h.clear();
   await h.send({ type: "text.send", text: "again" });
   await tick(10);
-  assert.match((h.events().find((e) => e.type === "error") as { message: string }).message, /written from the local API/);
+  assert.deepEqual(handled, ["again"], "a phone chat takes a turn from the window");
   await h.send({ type: "chat.open", id: "chat-a" });
   await h.send({ type: "text.send", text: "fine" });
   await tick(10);
-  assert.deepEqual(handled, ["fine"]);
+  assert.deepEqual(handled, ["again", "fine"]);
 });
 
 test("git: branches listed; a push runs and the list comes back; a refused push says why (ADR-091)", async () => {
@@ -1768,7 +1768,7 @@ test("chat.rename: renames a chat the window writes; Telegram and API chats refu
   assert.deepEqual(renamed, ["chat-a:Trip to Tokyo"]);
   assert.deepEqual(h.types(), ["chats"]);
   assert.equal((h.events()[0] as { chats: { id: string; title: string }[] }).chats.find((c) => c.id === "chat-a")!.title, "Trip to Tokyo");
-  for (const [id, who] of [["telegram", "Telegram"], ["api", "the local API"], ["api-ci", "the local API"]] as const) {
+  for (const [id, who] of [["telegram", "Telegram"]] as const) {
     h.clear();
     await h.send({ type: "chat.rename", id, title: "Mine" });
     assert.deepEqual(h.events(), [{ type: "error", stage: "settings", message: `This chat is written from ${who}. Open it to read it only.` }], id);

@@ -722,6 +722,8 @@ export function createRuntime(
   // listens only after Settings' "Local API" switch is on.
   let apiCore: Core | undefined;
   let apiChat = "";
+  /** How many messages the API's chat held after its last turn: if the window wrote to it since, the saved messages are read again. */
+  let apiSeen = -1;
   const api: ApiServer | undefined =
     readEnv(process.env, "ATOM_VOICE_ONLY") === "1"
       ? undefined
@@ -732,11 +734,16 @@ export function createRuntime(
           ask: async (text, chatId) => {
             const chat = chatId ? `api-${chatId}` : "api";
             apiCore ??= makeCore(true);
-            if (apiChat !== chat) {
-              apiCore.resume(chat, memory?.chats.messages(chat) ?? []);
+            const saved = memory?.chats.messages(chat) ?? [];
+            if (apiChat !== chat || apiSeen !== saved.length) {
+              apiCore.resume(chat, saved);
               apiChat = chat;
             }
-            return (await apiCore.handle({ text, source: "text" })).text;
+            try {
+              return (await apiCore.handle({ text, source: "text" })).text;
+            } finally {
+              apiSeen = memory?.chats.messages(chat).length ?? -1;
+            }
           },
           ...(helpers ? { helpers } : {}),
           approvals: computer,

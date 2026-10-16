@@ -2879,3 +2879,7 @@ Tailscale is **not installed** on this Mac (`tailscale` is not found). Keshab in
 ### Cost and risk
 
 About 400 lines: one page, one route, the `Host` check, the limit, the Settings line, tests. The risk is the token on a phone: a lost phone holds a token that can approve plans and retry tasks until Keshab clicks Regenerate. The Tailscale layer also needs the attacker to be in the tailnet, so a stolen token alone does not work from outside.
+
+### Addendum 1, 2026-10-16: phone chats are shared with the window
+
+Keshab opened a phone chat on the Mac and could only read it (ADR-098 made `api` chats read-only, one writer each). Now the `api` and `api-<chatId>` chats are shared: the window may write them. Each side reads the saved messages again before a turn when the other has added to them (`apiSeen` in `runtime.ts`, `sharedSeen` in `island.ts`). Telegram and routine chats stay read-only. A phone chat is never read aloud on the Mac. Not done: two turns at the same moment in one chat (the later one reads the saved messages again, so it sees the first only after it ends); the Claude session itself is rebuilt from the saved messages after the other side wrote.

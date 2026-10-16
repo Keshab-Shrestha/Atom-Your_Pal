@@ -2,7 +2,7 @@ import type { Core } from "@atom/core";
 import type { Message } from "@atom/contracts";
 import { HelperError, MAX_COMMENT_CHARS, type Routine } from "@atom/helpers";
 import type { LogFields } from "@atom/shared";
-import { chatWriter } from "./chat-owner.ts";
+import { chatWriter, isSharedChat } from "./chat-owner.ts";
 import { TELEGRAM_CHAT } from "./telegram-bot.ts";
 
 /**
@@ -33,7 +33,7 @@ export function routeWake(chatId: string, text: string, to: WakeTargets): void {
     if (to.routine(Number(routine[1]))?.notifyTelegram) to.telegram?.(text, true);
     return;
   }
-  if (chatId === to.voiceChat() && !chatWriter(chatId)) to.speak(text);
+  if (chatId === to.voiceChat() && !chatWriter(chatId) && !isSharedChat(chatId)) to.speak(text); // a phone chat is never read aloud on the Mac
 }
 
 export interface RoutineTurnDeps {
