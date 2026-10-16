@@ -1864,4 +1864,9 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 
 - Done: Shift+Return for a new line (grows to 8 lines), ⌘V attaches copied files and pasted images (JPEG over 10 MB), ↑ in an empty box brings back the last message (↓ back), each chat keeps its unsent words and files. Tests: `ComposerInputTests` (17). Checked in the running app: ↑/↓, Shift+Return, Return still sends, image/file/text paste, draft kept across a chat switch and a Settings visit.
 - Not checked live: Return while composing Japanese (marked text) — try it once.
-- Next (part 2, one ADR each): "@" mentions (files, helpers, notes); queue a message while ATOM answers; context strip above the box; edit the last message.
+- Next (part 2, one ADR each): queue a message while ATOM answers; context strip above the box; edit the last message.
+
+## Chat box, part 2a: "@" (2026-10-17, ADR-126)
+
+- Done: "@" menu of helpers, Second brain pages and "A file…"; "@Sid" anywhere hands the message to Sid; a page goes as "<title>.md". Tests: `MentionMenuTests` (7), runtime `text.send with notes` and "@Sid" routing. Checked in the running app: menu with the real team, Tab writes "@Sid ", Return attaches "Chat note 2026-10-16 (3)", Escape keeps the words.
+- Not checked live (it would send a real turn): a message with a page attached reaching the model, and "@Sid" handing over — both covered by runtime tests. Try one once.

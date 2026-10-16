@@ -12,12 +12,25 @@ public struct DraftFile: Sendable, Equatable, Identifiable {
     public init(path: String) { self.path = path }
 }
 
+/// A Second brain note to send with a message, as "<title>.md" (ADR-126).
+public struct DraftNote: Sendable, Equatable, Identifiable {
+    public var id: Int
+    public var title: String
+
+    public init(id: Int, title: String) {
+        self.id = id
+        self.title = title
+    }
+}
+
 public struct ComposerDraft: Sendable, Equatable {
     /// The most files one message takes (the runtime's limit).
     public static let maxFiles = 5
     /// The most characters one message takes (the runtime's limit).
     public static let maxCharacters = 4000
     public private(set) var files: [DraftFile] = []
+    /// Notes go as files, so they count toward `maxFiles` (ADR-126).
+    public private(set) var notes: [DraftNote] = []
     /// Why the last file was not added ("5 files at most").
     public private(set) var notice: String?
 
@@ -27,7 +40,7 @@ public struct ComposerDraft: Sendable, Equatable {
     public mutating func add(_ paths: [String]) {
         notice = nil
         for path in paths where path.hasPrefix("/") && !files.contains(where: { $0.path == path }) {
-            if files.count >= Self.maxFiles {
+            if files.count + notes.count >= Self.maxFiles {
                 notice = "A message takes \(Self.maxFiles) files at most."
                 return
             }
@@ -40,8 +53,28 @@ public struct ComposerDraft: Sendable, Equatable {
         notice = nil
     }
 
+    /// Adds a Second brain note once; past the limit it is dropped with a notice.
+    public mutating func add(note: DraftNote) {
+        notice = nil
+        guard !notes.contains(where: { $0.id == note.id }) else { return }
+        guard files.count + notes.count < Self.maxFiles else {
+            notice = "A message takes \(Self.maxFiles) files at most."
+            return
+        }
+        notes.append(note)
+    }
+
+    public mutating func remove(note id: Int) {
+        notes.removeAll { $0.id == id }
+        notice = nil
+    }
+
+    /// No files and no notes.
+    public var isEmpty: Bool { files.isEmpty && notes.isEmpty }
+
     public mutating func clear() {
         files = []
+        notes = []
         notice = nil
     }
 
@@ -58,8 +91,8 @@ public struct ComposerDraft: Sendable, Equatable {
     /// The command for these words and files; nil when there is nothing to send.
     public func command(text: String) -> IslandCommand? {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard clean.count <= Self.maxCharacters, !clean.isEmpty || !files.isEmpty else { return nil }
-        return files.isEmpty ? .textSend(clean) : .textSendFiles(text: clean, files: files.map(\.path))
+        guard clean.count <= Self.maxCharacters, !clean.isEmpty || !isEmpty else { return nil }
+        return isEmpty ? .textSend(clean) : .textSendFiles(text: clean, files: files.map(\.path), notes: notes.map(\.id))
     }
 
     /// The words with a skill's name in front: "/summarise " (an existing one is replaced, not doubled).

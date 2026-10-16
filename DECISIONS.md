@@ -3014,3 +3014,17 @@ The rules are in `AtomIslandCore/ComposerInput.swift` (`MessageRecall`, `ChatDra
 **Left out (next, each with its own decision).** "@" mentions for files, helpers and notes; typing while ATOM answers (queue the next message); a context strip above the box; editing the last message and asking again. Drafts are not saved across quits.
 
 **Cost.** One key monitor per visible composer; a temp folder of pasted images, pruned daily.
+
+## ADR-126 — "@" in the chat box: a helper, a Second brain page, or a file (2026-10-17)
+
+**Context.** A message could go to a helper only when it began "Sid, …", and a Second brain page could not go with a message at all. Typing "@" is how chat apps name someone or attach something.
+
+**Decision.**
+1. **The menu.** "@" at the start of the box or after a space opens a menu above it, like "/" (ADR-117): ready helpers (not the improver), then Second brain pages, then "A file…", up to 8 rows. The word after "@" narrows it: a helper's name starting with it; a page with a word starting with it, those starting with it first, then newest. "k@example" is not a mention, and a space ends one. ↑ ↓ move, Return or Tab picks, Escape closes it and keeps the words (it stays closed while that word is typed on). SwiftUI's text field does not tell where the caret is, so the menu reads the "@word" at the end of the box, where typing happens.
+2. **A helper.** Picking one writes "@Sid ". The runtime hands a message that names a helper as "@Sid" anywhere (outside a word or email address) to that helper, with the same fixed line as "Sid, …" (ADR-081). An "@" that names no one changes nothing.
+3. **A page.** Picking one attaches it as a chip; `text.send` carries `notes: [id]`. The runtime writes each as "<title>.md" (a slash in the title becomes "-") in a temp folder, attaches it with the files (ADR-113: copied into the chat, 5 files and notes at most), then removes the temp copy. A page deleted meanwhile is refused with a notice and nothing is sent. Every kind can go except remembered facts, which stay out of messages (ADR-058), and ghosts, which have no words. On this Mac the Second brain has conversation notes, names and a project, but no written notes yet, so a notes-only menu would have been empty.
+4. **A file.** "A file…" opens the file chooser, as the paperclip does.
+
+The rules are in `AtomIslandCore/MentionMenu.swift` and `ComposerDraft` (`DraftNote`), with tests in `MentionMenuTests`; the runtime parts are `noteFile` in `island.ts`, `text.send` checks in `island-commands.ts` and `MENTIONED` in `native-core.ts`.
+
+**Left out.** Mentions placed mid-text with the caret elsewhere; files from the project folder in the menu (the file chooser covers them); several helpers in one message (the first one named takes it).

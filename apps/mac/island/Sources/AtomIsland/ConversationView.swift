@@ -9,7 +9,8 @@ import AtomIslandCore
 /// Type to ATOM: Return sends, the reply is spoken and shown like a voice turn. Empty, the button is the lit
 /// microphone that names the hold shortcut; with words, it sends them. ADR-125: Shift+Return starts a new line (the box
 /// grows to 8 lines, then scrolls), ⌘V attaches a copied file or image, ↑ in an empty box brings back the last message,
-/// and each chat keeps its own unsent words and files.
+/// and each chat keeps its own unsent words and files. ADR-126: "@" lists helpers (the message goes to the one chosen),
+/// Second brain notes (sent with it as files) and "A file…".
 struct Composer: View {
     let model: IslandModel
     private let draft: State<String>
@@ -21,6 +22,8 @@ struct Composer: View {
     private let recall = State(initialValue: MessageRecall(sent: []))
     /// ADR-125: ⌘V attaches files and images.
     private let paste = State(initialValue: ComposerPaste())
+    /// ADR-126: the box as it was when Escape closed the "@" menu; it stays closed while that "@word" is typed on.
+    private let mentionClosed = State<String?>(initialValue: nil)
     @FocusState private var focused: Bool
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
@@ -42,11 +45,12 @@ struct Composer: View {
             // ADR-117: typing "/" lists ATOM's commands, Keshab's skills and his Claude commands above the field.
             if !slashItems.isEmpty && readOnly == nil {
                 SlashPicker(items: slashItems, selected: min(pick.wrappedValue, slashItems.count - 1), choose: choose)
+            } else if !mentionItems.isEmpty && readOnly == nil {
+                MentionPicker(items: mentionItems, selected: min(pick.wrappedValue, mentionItems.count - 1), choose: choose)
             }
-            if !attached.wrappedValue.files.isEmpty || attached.wrappedValue.notice != nil {
-                AttachedFilesRow(files: attached.wrappedValue.files, notice: attached.wrappedValue.notice) { path in
-                    attached.wrappedValue.remove(path)
-                }
+            if !attached.wrappedValue.isEmpty || attached.wrappedValue.notice != nil {
+                AttachedFilesRow(files: attached.wrappedValue.files, notes: attached.wrappedValue.notes, notice: attached.wrappedValue.notice,
+                                 remove: { attached.wrappedValue.remove($0) }, removeNote: { attached.wrappedValue.remove(note: $0) })
             }
             // Two columns: the field and the tools on the left, the voice button alone at the right edge, centred on
             // both rows. The model menu used to sit under the button and fight it for the corner (2026-10-15).
@@ -70,10 +74,10 @@ struct Composer: View {
                             .focused($focused)
                             .onSubmit(send)
                             .onKeyPress(.return, phases: .down) { press in newLine(press) }
-                            .onKeyPress(.upArrow) { moveSlash(-1) == .handled ? .handled : recallMessage(older: true) }
-                            .onKeyPress(.downArrow) { moveSlash(1) == .handled ? .handled : recallMessage(older: false) }
-                            .onKeyPress(.tab) { pickSlash() }
-                            .onKeyPress(.escape) { closeSlash() }
+                            .onKeyPress(.upArrow) { movePick(-1) == .handled ? .handled : recallMessage(older: true) }
+                            .onKeyPress(.downArrow) { movePick(1) == .handled ? .handled : recallMessage(older: false) }
+                            .onKeyPress(.tab) { pickRow() }
+                            .onKeyPress(.escape) { closeMenu() }
                             .accessibilityLabel("Message to ATOM")
                     }
                     if readOnly == nil && !snapshot {
@@ -98,7 +102,11 @@ struct Composer: View {
                 }
             }
         }
-        .onChange(of: draft.wrappedValue) { _, _ in pick.wrappedValue = 0 }
+        .onChange(of: draft.wrappedValue) { _, now in
+            pick.wrappedValue = 0
+            if let closed = mentionClosed.wrappedValue, !now.hasPrefix(closed) || MentionMenu.query(in: now) == nil { mentionClosed.wrappedValue = nil }
+            if MentionMenu.query(in: now) != nil { model.loadNotesForMentions() }
+        }
         // ADR-125: each chat keeps its unsent words and files; they come back when it opens again.
         .onChange(of: model.chats?.current) { old, new in switchDraft(from: old, to: new) }
         .onChange(of: focused) { _, now in paste.wrappedValue.focused = now }
@@ -133,8 +141,8 @@ struct Composer: View {
         model.settings.shortcut(for: .talk).map { "Ask ATOM, or hold \($0.display) to talk" } ?? "Ask ATOM…"
     }
 
-    /// Nothing to send: no words and no files.
-    private var empty: Bool { draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && attached.wrappedValue.files.isEmpty }
+    /// Nothing to send: no words, files or notes.
+    private var empty: Bool { draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && attached.wrappedValue.isEmpty }
 
     /// ATOM is working out or saying an answer.
     private var answering: Bool {
@@ -161,23 +169,48 @@ struct Composer: View {
         if action != .help { model.runSlash(action) }
     }
 
-    private func moveSlash(_ step: Int) -> KeyPress.Result {
-        let count = slashItems.count
+    // MARK: the "@" menu (ADR-126)
+
+    private var mentionItems: [MentionItem] {
+        guard slashItems.isEmpty, mentionClosed.wrappedValue == nil, let query = MentionMenu.query(in: draft.wrappedValue) else { return [] }
+        return MentionMenu.items(query: query, helpers: model.helpers.list?.helpers ?? [], notes: model.brain.graph?.nodes ?? [])
+    }
+
+    /// A helper's name goes in the words; a note is attached; "A file…" opens the file chooser.
+    private func choose(_ item: MentionItem) {
+        draft.wrappedValue = MentionMenu.completing(item, in: draft.wrappedValue)
+        pick.wrappedValue = 0
+        switch item.kind {
+        case .helper: break
+        case .note: if let id = item.noteId { attached.wrappedValue.add(note: DraftNote(id: id, title: item.name)) }
+        case .file: attached.wrappedValue.add(AttachButton.chooseFiles())
+        }
+    }
+
+    /// The rows of whichever menu is open: "/" or "@".
+    private var openRows: Int { slashItems.isEmpty ? mentionItems.count : slashItems.count }
+
+    private func movePick(_ step: Int) -> KeyPress.Result {
+        let count = openRows
         guard count > 0 else { return .ignored }
         pick.wrappedValue = (min(pick.wrappedValue, count - 1) + step + count) % count
         return .handled
     }
 
-    private func pickSlash() -> KeyPress.Result {
-        let items = slashItems
-        guard !items.isEmpty else { return .ignored }
-        choose(items[min(pick.wrappedValue, items.count - 1)])
-        return .handled
+    /// Return or Tab with a menu open picks the highlighted row.
+    private func pickRow() -> KeyPress.Result {
+        let slash = slashItems
+        if !slash.isEmpty { choose(slash[min(pick.wrappedValue, slash.count - 1)]); return .handled }
+        let mentions = mentionItems
+        if !mentions.isEmpty { choose(mentions[min(pick.wrappedValue, mentions.count - 1)]); return .handled }
+        return .ignored
     }
 
-    private func closeSlash() -> KeyPress.Result {
-        guard !slashItems.isEmpty else { return .ignored }
-        draft.wrappedValue = ""
+    /// Escape: the "/" menu clears its command; the "@" menu just closes, keeping the words.
+    private func closeMenu() -> KeyPress.Result {
+        if !slashItems.isEmpty { draft.wrappedValue = ""; return .handled }
+        guard !mentionItems.isEmpty else { return .ignored }
+        mentionClosed.wrappedValue = draft.wrappedValue
         return .handled
     }
 
@@ -212,8 +245,7 @@ struct Composer: View {
 
     private func send() {
         // The picker is open: Return picks the highlighted row (a full "/new" runs ATOM's command; "/review" gets a space).
-        let items = slashItems
-        if !items.isEmpty { choose(items[min(pick.wrappedValue, items.count - 1)]); return }
+        if pickRow() == .handled { return }
         if let built = SlashMenu.builtIn(in: draft.wrappedValue) { run(built.action); return }
         guard !empty else { return }
         if let why = ComposerDraft.refusal(forText: draft.wrappedValue) {
@@ -241,13 +273,16 @@ private struct AttachButton: View {
         .accessibilityLabel("Attach files")
     }
 
-    private func choose() {
+    private func choose() { add(Self.chooseFiles()) }
+
+    /// The file chooser; the chosen paths, or none.
+    static func chooseFiles() -> [String] {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
         panel.prompt = "Attach"
-        if panel.runModal() == .OK { add(panel.urls.map(\.path)) }
+        return panel.runModal() == .OK ? panel.urls.map(\.path) : []
     }
 }
 
@@ -289,33 +324,39 @@ private struct SkillsMenu: View {
 /// The files waiting to go with the message, each with a button to take it off.
 private struct AttachedFilesRow: View {
     let files: [DraftFile]
+    var notes: [DraftNote] = []
     let notice: String?
     let remove: (String) -> Void
+    var removeNote: (Int) -> Void = { _ in }
     @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            if !files.isEmpty {
+            if !files.isEmpty || !notes.isEmpty {
                 HStack(spacing: 6) {
-                    ForEach(files) { file in
-                        HStack(spacing: 4) {
-                            Image(systemName: "doc").font(.system(size: 10))
-                            Text(file.name).font(.system(size: 11.5)).lineLimit(1).truncationMode(.middle).frame(maxWidth: 160)
-                            Button { remove(file.path) } label: {
-                                Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).frame(width: 14, height: 14).contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Remove \(file.name)")
-                        }
-                        .foregroundStyle(theme.text2.color)
-                        .padding(.horizontal, 8).frame(height: 24)
-                        .background(Capsule().fill(theme.fill2.color))
-                    }
+                    ForEach(files) { file in chip(file.name, symbol: "doc") { remove(file.path) } }
+                    // ADR-126: a Second brain note, sent as "<title>.md".
+                    ForEach(notes) { note in chip(note.title, symbol: "brain") { removeNote(note.id) } }
                 }
             }
             if let notice { Text(notice).font(.system(size: 11)).foregroundStyle(theme.problem.color) }
         }
         .padding(.top, 2)
+    }
+
+    private func chip(_ name: String, symbol: String, remove: @escaping () -> Void) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: symbol).font(.system(size: 10))
+            Text(name).font(.system(size: 11.5)).lineLimit(1).truncationMode(.middle).frame(maxWidth: 160)
+            Button(action: remove) {
+                Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).frame(width: 14, height: 14).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove \(name)")
+        }
+        .foregroundStyle(theme.text2.color)
+        .padding(.horizontal, 8).frame(height: 24)
+        .background(Capsule().fill(theme.fill2.color))
     }
 }
 

@@ -188,6 +188,8 @@ export const needsComposed = (text: string) => text.includes("@") || /^\s*\//.te
 
 /** "Sid, find …": Keshab speaks to one agent by name. */
 const ADDRESSED = /^\s*([\p{L}][\p{L}' -]{0,19}?)\s*,\s*\S/u;
+/** ADR-126: "@Sid" anywhere in the message, not inside a word or an email address. */
+const MENTIONED = /(?<![\p{L}\p{N}._%+-])@([\p{L}][\p{L}\p{N}_-]{0,19})/gu;
 
 export function createNativeCore(deps: NativeCoreDeps): NativeCore {
   const { newId = randomUUID, now = () => new Date(), maxHistory = 20 } = deps;
@@ -313,13 +315,21 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     return saved && last?.role === "assistant" && answerTail(last.content) === saved.tail ? saved.id : undefined;
   }
 
-  /** "Sid, …" (ADR-081 in native form): a fixed line asks the main agent to hand the request to Sid as it is. */
+  /** "Sid, …" (ADR-081 in native form) or "@Sid" (ADR-126): a fixed line asks the main agent to hand the request to Sid as it is. */
   function addressed(text: string): string | undefined {
-    const name = deps.team && ADDRESSED.exec(text)?.[1]?.trim().toLowerCase();
-    if (!name) return undefined;
+    if (!deps.team) return undefined;
+    const names = [ADDRESSED.exec(text)?.[1], ...[...text.matchAll(MENTIONED)].map((m) => m[1])]
+      .filter((n): n is string => !!n)
+      .map((n) => n.trim().toLowerCase());
+    if (!names.length) return undefined;
     const member = (() => {
       try {
-        return nativeMembers(deps.team!.helpers.list()).find((m) => m.name.toLowerCase() === name);
+        const members = nativeMembers(deps.team!.helpers.list());
+        for (const name of names) {
+          const found = members.find((m) => m.name.toLowerCase() === name);
+          if (found) return found;
+        }
+        return undefined;
       } catch {
         return undefined;
       }

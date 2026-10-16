@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { PassThrough } from "node:stream";
 import type { Core } from "@atom/core";
 import { createSwitchableModel, type SwitchableModel } from "@atom/llm-gateway";
@@ -33,6 +33,7 @@ function islandHarness(
     chats: IslandOptions["chats"];
     projects: IslandOptions["projects"];
     attachments: IslandOptions["attachments"];
+    brain: IslandOptions["brain"];
     git: IslandOptions["git"];
     clipMs: number;
     warmUp: () => Promise<void>;
@@ -99,6 +100,7 @@ function islandHarness(
     ...(over.chats ? { chats: over.chats } : {}),
     ...(over.projects ? { projects: over.projects } : {}),
     ...(over.attachments ? { attachments: over.attachments } : {}),
+    ...(over.brain ? { brain: over.brain } : {}),
     ...(over.git ? { git: over.git } : {}),
     ...(over.helpers ? { helpers: over.helpers } : {}),
     ...(over.skillFiles ? { skillFiles: over.skillFiles } : {}),
@@ -1398,6 +1400,38 @@ test("text.send with files: the files are attached first and named in the reques
   const plain = islandHarness();
   await plain.send({ type: "text.send", text: "x", files: ["/a.txt"] });
   assert.match(String((plain.events().find((e) => e.type === "error") as { message?: string } | undefined)?.message), /Attaching files is off/);
+});
+
+test("text.send with notes: each Second brain note goes as a <title>.md file with the files; a gone note says so (ADR-126)", async () => {
+  const added: string[][] = [];
+  const bodies: string[] = [];
+  const h = islandHarness({
+    attachments: {
+      add: (_chat, paths) => {
+        added.push([...paths]);
+        for (const p of paths) if (p.endsWith(".md")) bodies.push(readFileSync(p, "utf8"));
+        return { ok: true as const, text: paths.map((p) => `[Attached: ${basename(p)}]`).join("\n") };
+      },
+    },
+    brain: { note: (id: number) => (id === 7 ? { id: 7, title: "Trip / plans", body: "Kyoto first." } : undefined), onChange: () => () => {} } as unknown as IslandOptions["brain"],
+  });
+  await h.send({ type: "text.send", text: "use my note", files: ["/Users/k/a.txt"], notes: [7] });
+  await new Promise((r) => setTimeout(r, 10));
+  assert.equal(added.length, 1);
+  assert.equal(added[0]![0], "/Users/k/a.txt");
+  assert.equal(basename(added[0]![1]!), "Trip - plans.md", "a slash in a title cannot make a folder");
+  assert.equal(bodies[0], "# Trip / plans\n\nKyoto first.\n");
+  assert.ok(h.events().some((e) => e.type === "transcript" && e.text === "use my note\n\n[Attached: a.txt]\n[Attached: Trip - plans.md]"));
+  h.clear();
+  await h.send({ type: "text.send", text: "", notes: [9] });
+  assert.deepEqual(h.types(), ["error"]);
+  assert.match(String((h.events()[0] as { message?: string }).message), /note is gone/);
+  h.clear();
+  await h.send({ type: "text.send", text: "x", notes: [1, 2, 3], files: ["/a", "/b", "/c"] });
+  assert.match(String((h.events()[0] as { message?: string }).message), /5 files and notes/);
+  h.clear();
+  await h.send({ type: "text.send", text: "x", notes: ["7"] as never });
+  assert.match(String((h.events()[0] as { message?: string }).message), /"notes" is a list of note numbers/);
 });
 
 test("context.window reads the named app and answers context.ready", async () => {

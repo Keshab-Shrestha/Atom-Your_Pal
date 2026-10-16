@@ -235,6 +235,8 @@ final class IslandModel {
 
     /// The second brain's page opened: ask for the graph. From then on the runtime also sends its changes.
     func openBrain() { send(brain.open()) }
+    /// ADR-126: "@" in the chat box lists notes; the graph is asked for once, then kept up to date.
+    func loadNotesForMentions() { if !brain.opened { openBrain() } }
     func selectBrainNote(_ id: Int?) {
         guard let command = brain.select(id) else { return }
         brainCommandPending = true

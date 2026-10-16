@@ -345,3 +345,4 @@ Older steps are in TASK.md.
 - Open items are listed in TASK.md ("Fourth review pass").
 - **Design system page (ADR-124).** Settings → Design system shows the shared components (Showcase) and every token with value, Swift name and contrast (Tokens), in Void or Daylight. A test holds the page's catalog equal to tokens.css.
 - **Chat box (ADR-125).** Shift+Return for new lines (up to 8, then scrolls), ⌘V attaches copied files and screenshots, ↑ brings back the last message, and every chat keeps its own unsent draft.
+- **"@" in the chat box (ADR-126).** Type "@" to hand a message to a helper ("@Sid"), send a Second brain page with it, or pick a file.

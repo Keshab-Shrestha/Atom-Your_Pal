@@ -4,6 +4,9 @@
 import type { HubCommands } from "./hub-commands.ts";
 import { chatWriter, isSharedChat, readOnlyMessage } from "./chat-owner.ts";
 import { createInterface } from "node:readline";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import type { Message } from "@atom/contracts";
 import { PROTOCOL_VERSION, createLevelThrottle, encodeEvent, parseCommand, planUsageEvent, type IslandCommand, type IslandEvent, type SearchHitItem } from "./island-protocol.ts";
 import { spokenDuration } from "@atom/tool-engine";
@@ -151,9 +154,18 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "text.send": {
         options.computer?.cancelAll();
         let text = command.text;
-        if (command.files?.length) {
+        // ADR-126: a Second brain note goes as a file, "<title>.md", so it is read like any attached file.
+        const notes: string[] = [];
+        for (const id of command.notes ?? []) {
+          const note = options.brain?.note(id);
+          if (!note) return send({ type: "error", stage: "settings", message: "That note is gone from the Second brain, so nothing was sent." });
+          notes.push(noteFile(note.title, note.body));
+        }
+        const paths = [...(command.files ?? []), ...notes];
+        if (paths.length) {
           // ADR-113: the files are copied and checked first; a refusal says why and sends nothing.
-          const added = options.attachments?.add(core.sessionId ?? "", command.files) ?? { error: "Attaching files is off." };
+          const added = options.attachments?.add(core.sessionId ?? "", paths) ?? { error: "Attaching files is off." };
+          for (const file of notes) rmSync(dirname(file), { recursive: true, force: true }); // copied into the chat, or refused
           if ("error" in added) return send({ type: "error", stage: "settings", message: added.error });
           text = `${text.trim() || "Please look at the attached file."}\n\n${added.text}`;
         }
@@ -904,4 +916,15 @@ export function runIsland(options: IslandOptions): IslandSession {
     });
 
   return { loop, quit };
+}
+
+/**
+ * ADR-126: a Second brain note written as "<title>.md" in a folder of its own under the temp folder, ready to attach.
+ * A slash, backslash or colon in the title becomes "-", so a title cannot make a folder; a leading dot is dropped.
+ */
+export function noteFile(title: string, body: string): string {
+  const name = title.replace(/[\/\\:]+/g, "-").replace(/[\u0000-\u001f]/g, " ").replace(/^[.\s]+/, "").trim().slice(0, 80) || "Note";
+  const file = join(mkdtempSync(join(tmpdir(), "atom-note-")), `${name}.md`);
+  writeFileSync(file, `# ${title}\n\n${body.trimEnd()}\n`);
+  return file;
 }

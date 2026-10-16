@@ -49,3 +49,44 @@ struct SlashPicker: View {
         }
     }
 }
+
+/// The "@" menu above the message box (ADR-126): helpers, Second brain notes and "A file…". Same keys as the "/" picker,
+/// except that Escape keeps the words.
+struct MentionPicker: View {
+    let items: [MentionItem]
+    let selected: Int
+    let choose: (MentionItem) -> Void
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(Array(items.prefix(MentionMenu.limit).enumerated()), id: \.element.id) { index, item in
+                Button { choose(item) } label: { row(item, selected: index == selected) }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(item.name), \(item.detail)")
+                    .accessibilityAddTraits(index == selected ? [.isButton, .isSelected] : .isButton)
+            }
+        }
+        .padding(4)
+        .background(RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous).fill(theme.surfaceSolid.color))
+        .overlay(RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous)
+            .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Mentions")
+    }
+
+    private func row(_ item: MentionItem, selected: Bool) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            Image(systemName: item.symbol).font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text2.color).frame(width: 16)
+            Text(item.kind == .helper ? "@" + item.name : item.name).font(.system(size: 12, weight: .medium))
+                .foregroundStyle(item.kind == .helper ? theme.idColor(theme.text) : theme.text.color).lineLimit(1)
+            Spacer(minLength: 8)
+            Text(item.detail.uppercased()).font(.system(size: 9, weight: .medium, design: .monospaced)).tracking(0.6)
+                .foregroundStyle(theme.text3.color).lineLimit(1)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 5)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).fill(selected ? theme.fill3.color : Color.clear))
+        .contentShape(Rectangle())
+    }
+}

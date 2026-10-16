@@ -184,6 +184,32 @@ extension IslandGallery {
         save(page, name: name, to: directory)
     }
 
+    /// ADR-126: the "@" menu: "@" alone (helpers, newest notes, a file) and "@tr" (notes with a word starting "tr").
+    static func writeMentionPicker(to directory: URL, theme: AppTheme = .void, name: String = "21-mention-picker") {
+        let suite = "atom.gallery.mention.\(ProcessInfo.processInfo.processIdentifier)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let palette = theme.palette
+        let m = IslandModel(settings: IslandSettings(defaults: defaults))
+        m.settings.theme = theme
+        let helpers = #"{"type":"helpers","apps":[],"teamTasks":[],"managers":[],"allowLarge":false,"models":[],"helpers":[{"id":"sid","name":"Sid","available":true,"role":"researcher","jobs":[]},{"id":"mira","name":"Mira","available":true,"role":"coder","jobs":[]},{"id":"penny","name":"Penny","available":true,"role":"financial adviser","jobs":[]}]}"#
+        if let event = try? decodeEvent(helpers) { m.apply(event) }
+        let day = 86_400.0, now = Date()
+        m.brain.setGraph(BrainGraphData(nodes: [
+            BrainNode(id: 1, title: "Kyoto trip", updatedAt: now - day), BrainNode(id: 2, title: "Trip budget", updatedAt: now - 3 * day),
+            BrainNode(id: 3, title: "Home office", updatedAt: now - 2 * day), BrainNode(id: 4, title: "Travel insurance", updatedAt: now - 9 * day),
+        ], edges: [], tags: []))
+        let page = VStack(spacing: 16) {
+            Composer(model: m, initialDraft: "Ask @").frame(width: 560)
+            Composer(model: m, initialDraft: "Plan days around @tr").frame(width: 560)
+        }
+        .environment(\.islandSnapshot, true)
+        .padding(24)
+        .background(palette.surfaceSolid.color)
+        .themed(palette)
+        save(page, name: name, to: directory)
+    }
+
     /// ADR-124: Settings → Design system, Showcase and Tokens, each in Void and Daylight.
     static func writeDesignPage(to directory: URL) {
         for (mode, preview, name) in [(DesignShowcaseMode.showcase, DesignPreviewTheme.void, "22-design-showcase"),

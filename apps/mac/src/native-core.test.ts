@@ -241,6 +241,11 @@ test("N2: with a team the main thread gets the Agent tool, the team prompt and t
   assert.match(String(queries[0]!.sent[0]!.message.content), /delegate this request to Sid as it is, with the Agent tool \(subagent_type "sid"\)/);
   await core.handle({ text: "Well, what time is it", source: "voice" });
   assert.doesNotMatch(String(queries[0]!.sent[1]!.message.content), /delegate this request/);
+  // ADR-126: "@Sid" anywhere in a typed message hands it over too; an @ that names no one does not.
+  await core.handle({ text: "can you ask @sid to find cheap flights", source: "text" });
+  assert.match(String(queries[0]!.sent[2]!.message.content), /delegate this request to Sid as it is/);
+  await core.handle({ text: "mail me at k@example.com and ask @nobody", source: "text" });
+  assert.doesNotMatch(String(queries[0]!.sent[3]!.message.content), /delegate this request/);
   store.close();
 });
 
