@@ -95,6 +95,8 @@ struct GeneralSection: View {
         PermissionsCard(model: model)
             .onAppear { model.permissions.startPolling() }
             .onDisappear { model.permissions.stopPolling() }
+            // The window is closed and opened again without the page disappearing and appearing: start again when it comes back.
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in model.permissions.startPolling() }
         Card(footer: settings.petEnabled ? nil : "Turn on ATOM to see the tour.") {
             Row(title: "Replay the tour", detail: "ATOM shows where to talk and where your settings live") {
                 PillButton(title: "Replay") { model.replayTour() }

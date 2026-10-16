@@ -44,6 +44,8 @@ final class TextInserter {
 
         await waitForModifiersUp()
         await bringToFront(target)
+        // Esc while the text was being prepared cancels the task: nothing is typed or pasted after that (the loops above ended early on a cancel).
+        if Task.isCancelled { return .copied(reason: "Cancelled") }
 
         let element = focusedElement(of: target.app)
         if let element, isPassword(element) {
@@ -62,7 +64,7 @@ final class TextInserter {
         let mask: CGEventFlags = [.maskCommand, .maskAlternate, .maskControl, .maskShift]
         let deadline = ProcessInfo.processInfo.systemUptime + limit
         while !CGEventSource.flagsState(.combinedSessionState).intersection(mask).isEmpty,
-              ProcessInfo.processInfo.systemUptime < deadline {
+              ProcessInfo.processInfo.systemUptime < deadline, !Task.isCancelled {
             try? await Task.sleep(for: .milliseconds(15))
         }
     }
@@ -74,7 +76,7 @@ final class TextInserter {
         app.activate()
         let deadline = ProcessInfo.processInfo.systemUptime + 0.5
         while NSWorkspace.shared.frontmostApplication?.processIdentifier != app.processIdentifier,
-              ProcessInfo.processInfo.systemUptime < deadline {
+              ProcessInfo.processInfo.systemUptime < deadline, !Task.isCancelled {
             try? await Task.sleep(for: .milliseconds(20))
         }
     }
@@ -119,6 +121,10 @@ final class TextInserter {
     private func paste(_ text: String) {
         let board = NSPasteboard.general
         let saved = Self.snapshot(board)
+        // 2026-10-16 (code check): a secret copied with "Copy token" is marked concealed. Writing it back here made a new clipboard change, so the 60 s
+        // timer and the clear at quit (both compare the change count) no longer recognised it, and the token stayed on the clipboard for good. A
+        // concealed clipboard is cleared instead of restored.
+        let heldSecret = saved.contains { $0[SecretClipboard.concealed] != nil }
         place(text, on: board)
         let ours = board.changeCount
 
@@ -126,7 +132,8 @@ final class TextInserter {
 
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(500))
-            if board.changeCount == ours { Self.restore(saved, to: board) }
+            guard board.changeCount == ours else { return }
+            if heldSecret { board.clearContents() } else { Self.restore(saved, to: board) }
         }
     }
 

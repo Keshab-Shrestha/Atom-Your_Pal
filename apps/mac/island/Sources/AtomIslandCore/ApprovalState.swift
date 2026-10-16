@@ -11,8 +11,10 @@ public struct ApprovalState: Sendable, Equatable {
             pending = request // the runtime sends one at a time; a newer one replaces an older
         case .approvalClosed(let id):
             if pending?.id == id { pending = nil }
-        case .state(.idle), .conversationReset, .error:
+        case .state(.idle), .conversationReset:
             pending = nil // the turn is over
+        case .error(let error) where error.endsTurn:
+            pending = nil
         default:
             break
         }

@@ -384,17 +384,15 @@ struct ConversationTab: View {
             .padding(.bottom, theme.cornerGap)
     }
 
+    /// One column for both states, with the composer after the if/else: in two branches it was a different view each time, so its half-typed draft and
+    /// attached files were thrown away whenever the conversation flipped between empty and not (a voice turn arriving, a new chat; code check, 2026-10-16).
     @ViewBuilder private var content: some View {
-        if model.conversation.isEmpty {
-            VStack(spacing: 0) {
+        VStack(spacing: 0) {
+            if model.conversation.isEmpty {
                 EmptyConversation(model: model)
                     .padding(.horizontal, Spacing.panel)
                     .frame(maxHeight: .infinity)
-                composer
-            }
-            .frame(maxWidth: .infinity)
-        } else {
-            VStack(spacing: 0) {
+            } else {
                 if let note = model.trimmedNotice { TrimmedNote(text: note) } // ADR-107
                 else if let note = model.cacheExpiredNotice { TrimmedNote(text: note) } // token cost, job 4
                 ScrollViewReader { proxy in
@@ -413,9 +411,10 @@ struct ConversationTab: View {
                         withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(turns.last?.id, anchor: .bottom) }
                     }
                 }
-                composer
             }
+            composer
         }
+        .frame(maxWidth: .infinity)
     }
 }
 

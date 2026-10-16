@@ -48,7 +48,7 @@ public struct WorkStripState: Sendable, Equatable {
             finish(.done, now: now)
         case .state(.listening), .conversationReset:
             clear() // a new request: the old work is over and out of the way at once
-        case .error:
+        case .error(let error) where error.endsTurn:
             finish(.failed, now: now)
         default:
             break

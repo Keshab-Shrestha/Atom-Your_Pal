@@ -849,6 +849,7 @@ public struct HelpersState: Sendable, Equatable {
             isWaiting = false
         case .gitDiff(let diff):
             gitDiff = diff
+            isWaiting = false // the diff was the answer to the command that set isWaiting; only helpers, git, thread and error cleared it before
         case .thread(let newThread) where newThread.id == openJobId:
             thread = newThread
             // Opening a task set `isWaiting`, and only `helpers`, `git` and `error` cleared it: until one of them came, the next Settings error was
@@ -1392,6 +1393,9 @@ public struct HelpersState: Sendable, Equatable {
 
     /// The runtime stopped or restarted: nothing it was asked will be answered, so nothing is waited for.
     public mutating func runtimeStopped() {
+        // A command that was waiting for an answer is lost with the runtime. Saying so keeps a form (a schedule, a task) open with its text instead of
+        // closing it as if it had been saved (code check, 2026-10-16).
+        if isWaiting && problem == nil { problem = "ATOM was not running, so that was not done. Try again." }
         isWaiting = false
     }
 

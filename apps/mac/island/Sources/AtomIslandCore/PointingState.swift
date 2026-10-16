@@ -12,7 +12,9 @@ public struct PointingState: Sendable, Equatable {
         switch event {
         case .computerPoint(let point):
             target = point
-        case .state(.listening), .conversationReset, .error:
+        case .state(.listening), .conversationReset:
+            target = nil
+        case .error(let error) where error.endsTurn:
             target = nil
         default:
             break

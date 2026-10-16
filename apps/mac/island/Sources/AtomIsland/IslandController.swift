@@ -455,6 +455,9 @@ final class IslandController {
             talking = false
             if talkingLocally { dictation.talkEnded() } else { model.send(.talkSend) }
         case .holdCancelled(.talk):
+            // Like holdEnded: a Talk that never began (a dictation was active) or was cancelled already has nothing to cancel. Without this guard a spoiled
+            // hold sent a cancel that stopped an unrelated ATOM turn.
+            guard talking else { return }
             talking = false
             if talkingLocally { dictation.talkCancelled() } else { model.send(.talkCancel) }
         case .pressed(.toggleIsland):

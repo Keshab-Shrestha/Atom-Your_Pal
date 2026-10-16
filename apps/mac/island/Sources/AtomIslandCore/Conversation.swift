@@ -55,7 +55,7 @@ public struct Conversation: Sendable, Equatable {
                 $0.outcome = .answered
                 $0.timings = timings
             }
-        case .error(let error):
+        case .error(let error) where error.endsTurn:
             updateCurrent { $0.outcome = .failed(error.message) }
         case .notice(_, let message):
             updateCurrent { $0.outcome = .notice(message) }

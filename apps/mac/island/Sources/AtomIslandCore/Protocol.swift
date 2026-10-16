@@ -577,7 +577,7 @@ public struct ModelInfo: Sendable, Equatable {
 
     /// ADR-097: a model id typed as "Custom model…": 1 to 100 letters, digits, ".", "_", ":" or "-" (as the runtime checks).
     public static func isValidModelId(_ id: String) -> Bool {
-        id.count <= 100 && id.range(of: "^[A-Za-z0-9._:-]+$", options: .regularExpression) != nil
+        id.count <= 100 && id.range(of: "^[A-Za-z0-9._:-]+\\z", options: .regularExpression) != nil // \z: "$" also matches before a trailing newline
     }
 
     /// ADR-097: a model's name from its provider's list, else the id itself.
@@ -774,6 +774,11 @@ public struct RuntimeError: Sendable, Equatable {
     /// Plain language, free of credentials.
     public var message: String
     public var kind: String?
+
+    /// Whether this error ends the turn that is running. A `settings` error (a model switch, a note, a skill save refused) and a `protocol` error answer
+    /// another command and say nothing about the turn: they used to mark a running turn failed, drop its approval card, clear the pointing target and
+    /// turn the work strip red (code check, 2026-10-16).
+    public var endsTurn: Bool { stage != "settings" && stage != "protocol" }
 }
 
 /// Events the runtime sends to the island.

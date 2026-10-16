@@ -36,18 +36,22 @@ public enum SpokenPunctuation {
         var result = text
         result = result.replacingOccurrences(of: #"[ \t]+([,.;:?!])"#, with: "$1", options: .regularExpression)
         result = result.replacingOccurrences(of: #"[ \t]*\n[ \t]*"#, with: "\n", options: .regularExpression)
-        result = result.replacingOccurrences(of: #"([,.;:?!])(?=[^\s\n,.;:?!"')\]])"#, with: "$1 ", options: .regularExpression)
-        // Capitalise after sentence marks and line breaks.
+        // No rule adds a space after a mark: the transcript is already spaced, and such a rule broke "3.5", "1,000", "example.com", "a@b.com" and "U.S."
+        // (code check, 2026-10-16).
+        // Capitalise after a sentence mark that ends a word (followed by a space or the end) and after a line break.
+        let characters = Array(result)
         var out = ""
         var capitalise = false
-        for character in result {
+        for (index, character) in characters.enumerated() {
             if capitalise, character.isLetter {
                 out.append(contentsOf: character.uppercased())
                 capitalise = false
             } else {
                 out.append(character)
                 if !character.isWhitespace || character == "\n" {
-                    capitalise = ".?!\n".contains(character)
+                    let next = index + 1 < characters.count ? characters[index + 1] : nil
+                    let endsSentence = ".?!".contains(character) && (next == nil || next!.isWhitespace)
+                    capitalise = endsSentence || character == "\n"
                 }
             }
         }

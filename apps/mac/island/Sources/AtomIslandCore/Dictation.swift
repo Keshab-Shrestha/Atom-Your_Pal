@@ -104,7 +104,7 @@ public struct DictationVocabulary: Sendable, Equatable {
     public static func parse(_ text: String) -> DictationVocabulary {
         var entries: [Entry] = []
         var problems: [String] = []
-        for (index, raw) in text.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
+        for (index, raw) in text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).enumerated() { // "\r\n" is one Character: split(separator: "\n") never split it
             var line = String(raw)
             if let hash = line.firstIndex(of: "#") { line = String(line[..<hash]) }
             line = line.trimmingCharacters(in: .whitespaces)

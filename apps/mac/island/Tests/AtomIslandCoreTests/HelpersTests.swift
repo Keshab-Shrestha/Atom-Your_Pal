@@ -147,6 +147,19 @@ struct HelpersStateTests {
         #expect(!state.isWaiting)
     }
 
+    // 2026-10-16 (code check): a form closed as if saved when the runtime stopped under its Save.
+    @Test func aStoppedRuntimeLeavesAReasonSoAFormStaysOpen() throws {
+        var state = HelpersState()
+        state.apply(try list())
+        _ = state.openThread(1)
+        state.runtimeStopped()
+        #expect(state.problem?.contains("not running") == true)
+        var idle = HelpersState()
+        idle.apply(try list())
+        idle.runtimeStopped()
+        #expect(idle.problem == nil, "nothing was waiting, so nothing was lost")
+    }
+
     @Test func appPickerSendsHelperSet() throws {
         var state = try loaded()
         #expect(state.setApp("Brave Browser") == nil) // already set

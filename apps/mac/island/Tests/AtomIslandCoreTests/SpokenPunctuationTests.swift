@@ -34,4 +34,13 @@ struct SpokenPunctuationTests {
     @Test func plainTextIsUntouched() {
         #expect(english("Nothing special here.") == "Nothing special here.")
     }
+
+    // 2026-10-16 (code check): tidy added a space after any mark that was followed by a non-space, which broke numbers, addresses and abbreviations.
+    @Test func numbersAddressesAndAbbreviationsAreLeftAlone() {
+        for text in ["version 3.5 is out", "it costs 1,000 rupees", "open example.com now", "mail a@b.com today", "from the U.S.A", "at 10:30 sharp"] {
+            #expect(english(text) == text, "\(text)")
+        }
+        #expect(english("hello comma open example.com question mark") == "hello, open example.com?")
+        #expect(english("one period") == "one.")
+    }
 }
