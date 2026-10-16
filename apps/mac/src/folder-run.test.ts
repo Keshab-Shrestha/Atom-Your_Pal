@@ -407,3 +407,30 @@ test("the edit card says what will change", async () => {
     rmSync(home, { recursive: true, force: true });
   }
 });
+
+// 2026-10-16 (security review): ~ paths, climbing patterns, Grep lines outside the task's folder, more secret shapes.
+test("~ paths, climbing patterns and Grep content outside the task's folder are refused", async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-sec2-")));
+  try {
+    const proj = join(home, "Developer", "app");
+    mkdirSync(proj, { recursive: true });
+    mkdirSync(join(home, "Documents"), { recursive: true });
+    const inProject = folderCheck({ roots: [proj], home, cwd: proj, name: "Kame", approve: async () => true });
+    for (const bad of ["~/.zshrc", "~/.ssh/authorized_keys", "$HOME/.ssh/x"]) {
+      assert.ok(await inProject("Write", { file_path: bad }), `Write ${bad}`);
+      assert.ok(await inProject("Read", { file_path: bad }), `Read ${bad}`);
+    }
+    for (const pattern of ["../.ssh/*", "../../h/.ssh/**", "/x/D*/../.ssh/*", "~/.ssh/*", "$HOME/*"]) assert.match((await inProject("Glob", { pattern })) ?? "", /not used/, pattern);
+    assert.match((await inProject("Grep", { pattern: "x", glob: "../*" })) ?? "", /not used/);
+    assert.match((await inProject("Grep", { pattern: ".", path: join(home, "Documents"), output_mode: "content" })) ?? "", /files_with_matches/, "lines outside the task's folder");
+    assert.equal(await inProject("Grep", { pattern: ".", path: join(home, "Documents"), output_mode: "files_with_matches" }), undefined, "names only is fine");
+    assert.equal(await inProject("Grep", { pattern: ".", path: proj, output_mode: "content" }), undefined, "lines inside the task's folder are fine");
+    const { writeFileSync } = await import("node:fs");
+    for (const [name, text] of [["s1", ["sk_", "live_", "abcdefghijklmnopqrstuvwx"].join("")], ["s2", ["npm_", "abcdefghijklmnopqrstuvwxyz0123456789"].join("")], ["s3", ["glpat", "-abcdefghijklmnopqrstu"].join("")], ["s4", ["eyJhbGciOiJIUzI1NiJ9", "eyJzdWIiOiIxMjM0NTY3ODkwIn0", "abcdefghijklmnop"].join(".")]] as const // built at run time: a key-shaped literal in the source is refused by GitHub push protection) {
+      writeFileSync(join(proj, name), text);
+      assert.match((await inProject("Read", { file_path: join(proj, name) })) ?? "", /holds a secret/, name);
+    }
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});

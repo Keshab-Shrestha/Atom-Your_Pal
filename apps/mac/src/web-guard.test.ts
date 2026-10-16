@@ -55,3 +55,9 @@ test("after web text was read, an address may carry only a little data and a sho
   assert.match(webFetchProblem(`https://ok.test/${"a".repeat(400)}`, tainted) ?? "", /too much data/);
   assert.equal(webFetchProblem(`https://ok.test/a?${"x".repeat(100)}`), undefined, "not tainted: the normal allowance");
 });
+
+test("a very long host name is refused after web text was read", () => {
+  const host = `${"a".repeat(40)}.${"b".repeat(30)}.example.com`;
+  assert.match(webFetchProblem(`https://${host}/page`, { tainted: true }) ?? "", /too much data/);
+  assert.equal(webFetchProblem(`https://${host}/page`), undefined);
+});

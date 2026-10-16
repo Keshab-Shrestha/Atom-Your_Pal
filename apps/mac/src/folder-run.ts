@@ -4,7 +4,7 @@
 import { existsSync, mkdirSync, openSync, readSync, closeSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve, sep } from "node:path";
-import { DENY_READ_DIRS, WRITE_TOOLS, classifyCommand, floorProblem, folderForTask, hasGitPart, isInside, isSecretLike, pathProblem, realish, toolPaths } from "@atom/helpers";
+import { DENY_READ_DIRS, WRITE_TOOLS, classifyCommand, expandHome, floorProblem, folderForTask, hasGitPart, isInside, isSecretLike, pathProblem, realish, toolPaths } from "@atom/helpers";
 
 /** Never readable by sandboxed commands: keys, tokens and other apps' secrets. */
 export function denyRead(home = homedir()): string[] {
@@ -51,6 +51,11 @@ export const SECRET_SHAPES: readonly RegExp[] = [
   /\bgh[pousr]_[A-Za-z0-9]{30,}/,
   /\bgithub_pat_[A-Za-z0-9_]{40,}/,
   /\bAKIA[0-9A-Z]{16}\b/,
+  /\bsk_(?:live|test)_[A-Za-z0-9]{20,}/,
+  /\bnpm_[A-Za-z0-9]{30,}/,
+  /\bglpat-[A-Za-z0-9_-]{20,}/,
+  /\bya29\.[A-Za-z0-9_-]{30,}/,
+  /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/, // a JSON web token
   /\bxox[baprs]-[A-Za-z0-9-]{10,}/,
   /\bAIza[0-9A-Za-z_-]{30,}/,
   /\b\d{8,10}:[A-Za-z0-9_-]{35}\b/, // a Telegram bot token
@@ -107,7 +112,20 @@ export function folderCheck(options: FolderCheckOptions) {
       return say(name, "allowed"), undefined;
     }
     const writing = WRITE_TOOLS.includes(name);
-    const paths = toolPaths(name, input);
+    // "~/x" is the home folder's x, as a shell reads it: expanded here, before every check, so it cannot pass as a path inside the task's folder.
+    const paths = toolPaths(name, input).map((p) => expandHome(p, home));
+    // A pattern may climb out of the folder or name a variable: never checked, so never used.
+    for (const key of ["pattern", "glob"]) {
+      const value = input[key];
+      if (typeof value === "string" && (name === "Glob" || name === "Grep") && (value.split(/[\\/]/).includes("..") || value.startsWith("~") || /[$`]/.test(value))) {
+        return say(name, "refused"), "A pattern with .., ~ or $ in it is not used. Search inside a folder with a plain pattern.";
+      }
+    }
+    // Outside the task's own folders a Grep shows file names only: its lines would show the text of any file that is not hidden (an identity or bank
+    // document, a file with keys) without the checks that Read makes.
+    if (name === "Grep" && input.output_mode === "content" && !roots.some((r) => paths.some((p) => isInside(r, realish(isAbsolute(p) ? p : resolve(options.cwd, p)))))) {
+      return say(name, "refused"), "Outside the task's own folder, Grep lists the matching files only (output_mode files_with_matches). Read the files you need.";
+    }
     // A search with no path searches the working folder: never the whole home folder (it holds ~/Library and every hidden folder).
     if ((name === "Glob" || name === "Grep") && !paths.length && realish(options.cwd) === realish(home)) return say(name, "refused"), "Search inside a folder, not the whole home folder.";
     for (const p of paths) {

@@ -433,7 +433,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
 
   function reply(res: ServerResponse, status: number, data: unknown, error: string | null) {
     if (res.headersSent || res.destroyed) return;
-    res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+    res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });
     res.end(JSON.stringify({ ok: error === null, data: error === null ? data : null, error }));
   }
 
@@ -470,7 +470,9 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
       }
       if (!authorized(req)) {
         refused++;
-        wrongAt.push(now());
+        // Only a request that carries an Authorization header is a guess at the token. A page in the user's browser can send a plain GET to
+        // 127.0.0.1 but cannot set that header without a preflight (which is refused), so such a page cannot lock the owner out.
+        if (req.headers.authorization !== undefined) wrongAt.push(now());
         log.warn("api.unauthorized", { count: refused });
         status = 401;
         req.resume();

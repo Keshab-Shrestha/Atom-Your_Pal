@@ -338,6 +338,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const secret = secretField(el);
         if (secret) throw new Refused(`ATOM never types into ${secret}. Ask the user to type it themselves.`);
         if (typeof input.text !== "string" || !input.text) throw new Refused('"text" is required: the value to set.');
+        // A value of a setting ("Delete files after: 30 days") is not a delete: it asks, like a click on a risky control, and is never refused outright.
         const why = labelApproval(el.label, el.role);
         if (why) await ask(`Change ${why} in ${t.app}`, "it may send, buy, delete or change something", signal);
         const r = await cua.call("set_value", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, value: input.text }, signal);

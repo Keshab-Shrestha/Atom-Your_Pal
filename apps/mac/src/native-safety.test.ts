@@ -263,3 +263,25 @@ test("taint: a sub-agent that read the web may fetch only short addresses; anoth
   void store;
   done();
 });
+
+// 2026-10-16 (security review): taint must travel with the work. A research agent's report reaches the main thread; a task made after web text starts tainted.
+test("taint: an agent that read the web taints the main thread when it ends; a task made while tainted starts tainted", async () => {
+  const { gate, store, board, done } = setup();
+  const tool = (t: string) => ({ tool_name: `mcp__atom__${t}`, tool_input: {} });
+  await pre(gate, { tool_name: "Agent", tool_input: { prompt: "x", description: "a", subagent_type: "sid" } }, "u1");
+  board.onEvent({ type: "system", subtype: "task_started", task_id: "ag-1", tool_use_id: "u1" });
+  const sid = store.list().find((h) => h.id === "sid")!.jobs[0]!.id;
+  await post(gate, { agent_id: "ag-1", agent_type: "sid", tool_name: "WebFetch", tool_input: { url: "https://evil.example/p" } });
+  assert.equal((await pre(gate, tool("create_agent"), "m1")).decision, "allow", "the main thread has read nothing itself yet");
+  await gate.agentEnded(sid);
+  assert.equal((await pre(gate, tool("create_agent"), "m2")).decision, "deny", "the report came from a page: refused");
+  assert.equal((await pre(gate, tool("computer"), "m3")).decision, "deny");
+  // A task made while the main thread is tainted starts tainted: its long WebFetch address is refused at once.
+  await pre(gate, { tool_name: "Agent", tool_input: { prompt: "y", description: "b", subagent_type: "sid" } }, "u2");
+  board.onEvent({ type: "system", subtype: "task_started", task_id: "ag-2", tool_use_id: "u2" });
+  const long = `https://ok.example/a?${"q=1&".repeat(40)}`;
+  assert.equal((await pre(gate, { agent_id: "ag-2", agent_type: "sid", tool_name: "WebFetch", tool_input: { url: long } }, "f9")).decision, "deny");
+  gate.newAnswer(undefined);
+  assert.equal((await pre(gate, tool("create_agent"), "m4")).decision, "allow", "the user spoke");
+  done();
+});

@@ -60,10 +60,12 @@ export const touchesSecretFile = (text: string) => SECRET_FILE_PATH.test(text);
 /** ATOM's own databases (2026-10-15): they hold MCP secrets and every chat, so no agent opens them, whatever folder it was granted. */
 const OWN_DATABASE_FILE = /(^|\/)(data\/(helpers|memory)\.db(-wal|-shm)?|config\/island\.json|logs\/atom\.log)$/;
 
+const SECRET_FILE_NAMES = new Set([".npmrc", ".netrc", ".git-credentials", ".pypirc", ".dockercfg"]);
+
 /** A path whose content is never copied: .env files, the API token, keys, and anything in a folder commands cannot read. */
 export function isSecretLike(path: string, home: string): boolean {
-  const name = basename(path);
-  if (name.startsWith(".env") || /\.pem$/i.test(name) || name.startsWith("id_rsa") || touchesSecretFile(path) || OWN_DATABASE_FILE.test(path)) return true;
+  const name = basename(path).toLowerCase(); // macOS ignores case: ".ENV" is ".env"
+  if (SECRET_FILE_NAMES.has(name) || /(^|\/)\.(?:aws|ssh|gnupg)(\/|$)/i.test(path) || name.startsWith(".env") || /\.pem$/i.test(name) || name.startsWith("id_rsa") || touchesSecretFile(path) || OWN_DATABASE_FILE.test(path)) return true;
   return DENY_READ_DIRS.some((d) => isInside(join(realish(home), d), path) || isInside(join(home, d), path));
 }
 

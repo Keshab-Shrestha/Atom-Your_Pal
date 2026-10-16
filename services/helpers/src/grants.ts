@@ -8,7 +8,14 @@ import { HelperError } from "./jobs.ts";
 export const MAX_GRANTS = 8;
 
 /** Folders inside the home folder that hold keys, tokens and other apps' secrets (never readable by commands, never checkpointed). */
-export const DENY_READ_DIRS = [".ssh", ".aws", ".gnupg", ".config", ".netrc", ".npmrc", ".docker", ".kube", ".azure", ".claude", ".codex", ".hermes", "Library/Keychains", "Library/Cookies"];
+export const DENY_READ_DIRS = [
+  ".ssh", ".aws", ".gnupg", ".config", ".netrc", ".npmrc", ".docker", ".kube", ".azure", ".claude", ".codex", ".hermes", "Library/Keychains", "Library/Cookies",
+  // 2026-10-16 (code check): shell history and credentials, and the stores of mail, messages and browsers (a command in a project chat could cat them).
+  ".zsh_history", ".bash_history", ".zsh_sessions", ".git-credentials", ".python_history", ".node_repl_history", ".viminfo", ".lesshst", ".pypirc",
+  "Library/Mail", "Library/Messages", "Library/Safari", "Library/Calendars", "Library/Group Containers", "Library/Containers",
+  "Library/Application Support/Google", "Library/Application Support/Firefox", "Library/Application Support/BraveSoftware", "Library/Application Support/Arc",
+  "Library/Application Support/Microsoft Edge", "Library/Application Support/AddressBook",
+];
 
 /** The most links followed when a path ends in links that point at files not made yet. */
 const MAX_LINK_HOPS = 32;
@@ -117,7 +124,11 @@ export function pathProblem(roots: readonly string[], cwd: string, p: string, wr
  * personal documents (best effort). `roots` are the task's own folders (a project, a worktree): inside them the hidden-folder and the
  * name checks do not apply, because the project is where the work is, but the secret and git checks (made by the caller) still do.
  */
-export function floorProblem(home: string, roots: readonly string[], cwd: string, p: string, writing = false): string | undefined {
+export function floorProblem(home: string, roots: readonly string[], cwd: string, rawPath: string, writing = false): string | undefined {
+  // A shell would turn "~/.zshrc" into the home folder's file; here resolve() made it "<cwd>/~/.zshrc", inside the task's folder (code check,
+  // 2026-10-16). "~" is expanded the way a shell does, and a variable or command substitution in a path is refused: it cannot be checked.
+  if (/[$`]/.test(rawPath)) return "A path with $ or a backtick in it cannot be checked, so it is not used. Write the whole path.";
+  const p = expandHome(rawPath, home);
   const real = realish(isAbsolute(p) ? p : resolve(cwd, p));
   const homeReal = realish(home);
   const inRoot = roots.some((root) => isInside(root, real));
@@ -131,6 +142,11 @@ export function floorProblem(home: string, roots: readonly string[], cwd: string
   if (parts.some((part) => part.startsWith("."))) return "Hidden folders and files hold keys and settings and are never opened by an agent.";
   if (parts.some(isImportantName)) return "This looks like an important personal document (identity, bank, tax, medical or similar) and is never opened by an agent.";
   return undefined;
+}
+
+/** "~" and "~/x" as a shell reads them (another user's "~name" is left alone, and is then refused as a path outside home). */
+export function expandHome(p: string, home: string): string {
+  return p === "~" ? home : p.startsWith("~/") ? join(home, p.slice(2)) : p;
 }
 
 /** ADR-123: names of important personal documents. A net, not a guarantee: it can miss a file and can refuse an innocent one. */
@@ -176,6 +192,14 @@ const REFUSED: [RegExp, string][] = [
 // ADR-123: delete and anything that harms the OS is never run. Deleting is refused outright (Keshab, 2026-10-16); an agent has no delete tool, and
 // this closes the shell.
 const DELETE_AND_HARM: [RegExp, string][] = [
+  // 2026-10-16 (security review): a regex list cannot be complete, so the common ways round it are closed too: the command anywhere as a word (not only
+  // after a separator), a backslash or full path before it, inline code in a shell or an interpreter, and the delete calls of the usual languages.
+  // The real limits are the sandbox (writes only in the project folder, no network) and the copies kept for undo.
+  [/(?<![\w.\-])\\?(?:\/(?:usr\/)?(?:local\/)?bin\/)?(?:rm|rmdir|unlink|trash|shred|srm)(?=\s|$|;|&|\|)/, "Deleting is never done by an agent: Keshab deletes in Finder."],
+  [/(?<![\w.\-])(?:sh|bash|zsh|dash|ksh|fish)\s+(?:-[a-zA-Z]*c\b|--command)|(?<![\w.\-])eval\s|(?<![\w.\-])(?:node|nodejs|deno|bun)\s+(?:-e\b|--eval\b|-p\b|--print\b)|(?<![\w.\-])python[0-9.]*\s+-[a-zA-Z]*c\b|(?<![\w.\-])(?:perl|ruby|php)\s+-[a-zA-Z]*[er]\b/, "Run a script file, not inline code: inline code cannot be checked."],
+  [/\b(?:rmSync|unlinkSync|rmdirSync|fs\.rm|fs\.unlink|fs\.rmdir|rmtree|os\.remove|os\.unlink|os\.rmdir|shutil\.rmtree|FileUtils\.rm|File\.delete|Files\.delete|unlink\s*\()/, "Deleting is never done by an agent: Keshab deletes in Finder."],
+  [/\bmv\b[^\n;|&]*\/dev\/null|(?<![\w.\-])truncate\s/, "Emptying files is never done by an agent."],
+  [new RegExp(`${GIT}(?:stash\\s+(?:clear|drop)|worktree\\s+(?:remove|prune)|gc\\s+--prune|reflog\\s+expire|prune\\b|replace\\b)`), "That git command throws work away and is never run by an agent."],
   [/(?:^|[;&|(\n]\s*|\b(?:env|xargs|command|exec|nohup|time|sudo)\s+)(?:rm|rmdir|unlink|trash|shred|srm)\b|\bfind\b[^\n;|&]*(?:-delete\b|-exec\s+(?:rm|rmdir|unlink)\b)/, "Deleting is never done by an agent: Keshab deletes in Finder."],
   [new RegExp(`${GIT}(?:clean|rm)\\b|${GIT}branch\\s+(?:-[dD]|--delete)\\b`), "Deleting files or branches is never done by an agent."],
   [/(?:^|[;&|(\n]\s*|\b(?:env|xargs|command|exec|nohup|time)\s+)(?:dd|mkfs\S*|diskutil|hdiutil|fdisk|newfs\S*|chown|chgrp|kill|killall|pkill|shutdown|reboot|halt|pmset|networksetup|scutil|csrutil|spctl|tccutil|nvram|systemsetup|dscl|fdesetup)\b/, "That command changes the system and is never run by an agent."],

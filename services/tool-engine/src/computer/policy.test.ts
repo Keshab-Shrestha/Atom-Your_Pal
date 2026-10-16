@@ -195,3 +195,8 @@ test("delete controls and keys are refused, not asked; ordinary controls and key
   for (const keys of [["delete"], ["backspace"], ["cmd", "c"], ["enter"]]) assert.equal(deleteKeyDenial(keys), undefined, keys.join("+"));
 });
 
+test("delete keys in other spellings, and more delete labels, are refused", () => {
+  for (const keys of [["cmd", "⌫"], ["cmd+delete"], ["command+backspace"], ["cmd", "forward_delete"], ["cmd", "del"]]) assert.match(deleteKeyDenial(keys) ?? "", /never deletes/, keys.join(" "));
+  for (const label of ["Move to Bin", "Empty Bin…", "Deleting…", "Clear All", "Wipe"]) assert.match(deleteDenial(label, "AXButton") ?? "", /never deletes/, label);
+  assert.equal(deleteKeyDenial(["delete"]), undefined);
+});

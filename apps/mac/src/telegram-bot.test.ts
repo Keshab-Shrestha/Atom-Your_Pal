@@ -301,20 +301,22 @@ test("needs text: a test line for a soul proposal and a skill edit, nothing with
 test("push: a Needs you item whose send failed is tried again later and then arrives, once", async () => {
   const asks: any[] = [];
   let down = true;
+  let attempts = 0;
+  const waitFor = async (ok: () => boolean) => { for (let i = 0; i < 500 && !ok(); i++) await tick(10); };
   const r = await run({
     updates: [],
     store: fakeStore(),
     asks,
     tune: { retryDelaysMs: [1, 1, 1], pushRetryMs: 60 },
-    sendStatus: () => (down ? 500 : 200),
+    sendStatus: () => (attempts++, down ? 500 : 200),
     wait: 10,
     after: async (_bot, h) => {
       asks.push(ask("n1"));
       h.listeners.forEach((l: any) => l(asks[0]));
-      await tick(1300); // the push runs and every try fails
+      await waitFor(() => attempts >= 4); // the first round (a try and its three quick retries) failed; five rounds are left
       assert.equal(texts(h.sent).length, 0, "nothing got through while the network was down");
       down = false;
-      await tick(400); // the retry
+      await waitFor(() => texts(h.sent).length === 1); // the next round
       assert.equal(texts(h.sent).length, 1, "it arrived after the network came back");
       assert.match(texts(h.sent)[0]!, /ATOM asks: sum n1/);
       await tick(400);
@@ -410,14 +412,14 @@ test("a store change during the retry wait does not bring the retry forward", as
       const waitFor = async (ok: () => boolean) => { for (let i = 0; i < 300 && !ok(); i++) await tick(10); };
       await waitFor(() => times.length >= 2); // first push: a try and its quick retry fail; the next round is planned 600 ms later
       const n0 = times.length;
-      await waitFor(() => times.length > n0); // the second round starts
+      await waitFor(() => times.length >= n0 + 2); // the second round: a try and its quick retry
       const roundStart = times[n0]!;
-      notify?.({ action: "job" }); // a change in the store while the next retry waits
-      await tick(300);
-      assert.ok(Date.now() - roundStart < 550, "the check ran in time");
       const before = times.length;
-      await waitFor(() => times.length > before && times.length > 0 && Date.now() - roundStart > 450);
-      assert.ok(times.slice(before).every((t) => t - roundStart >= 550), `no send came early: ${times.slice(before).map((t) => t - roundStart).join(", ")}`);
+      notify?.({ action: "job" }); // a change in the store while the third round waits
+      await tick(300);
+      assert.equal(times.length, before, "the store change did not bring the next round forward");
+      await waitFor(() => times.length > before); // the third round arrives on its own timer
+      assert.ok(times[before]! - roundStart >= 550, `the next round came at its time, not early: ${times[before]! - roundStart} ms`);
     },
   });
 });

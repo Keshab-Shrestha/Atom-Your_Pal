@@ -542,3 +542,16 @@ test("ADR-121: a phone can send a goal with the token (the same route as any cli
     api.stop();
   }
 });
+
+// 2026-10-16 (security review): a plain request with no Authorization header (a web page can send one) is not a guess and does not lock the owner out.
+test("requests with no Authorization header do not count towards the wrong-token lock", async () => {
+  const { api, port, token } = await boot();
+  try {
+    for (let i = 0; i < 30; i++) assert.equal((await call(port, "GET", "/v1/tasks")).status, 401);
+    assert.equal((await call(port, "GET", "/v1/tasks", { token })).status, 200, "the owner is not locked out");
+    for (let i = 0; i < 10; i++) await call(port, "GET", "/v1/tasks", { token: "0".repeat(64) });
+    assert.equal((await call(port, "GET", "/v1/tasks", { token })).status, 429, "ten real guesses still lock");
+  } finally {
+    api.stop();
+  }
+});
