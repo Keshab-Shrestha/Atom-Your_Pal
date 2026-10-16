@@ -104,9 +104,7 @@ public struct NeedsYouItem: Sendable, Equatable, Identifiable {
                                               title: "\(p.fieldTitle): \(p.text)", detail: p.reason, jobId: nil, proposalId: p.id))
             }
         }
-        // ADR-095: a plan Manager's own runs wait on Keshab as a worker's tasks do (held, or failed).
-        let owners = list.helpers.map { (id: $0.id, name: $0.name, jobs: $0.jobs) } + list.managers.map { (id: $0.id, name: $0.name, jobs: $0.jobs) }
-        for h in owners {
+        for h in list.helpers {
             for j in h.jobs.sorted(by: { $0.id > $1.id }) {
                 if j.awaitsApproval {
                     plans.append(NeedsYouItem(id: "plan-\(j.id)", kind: .plan, helperId: h.id, helperName: h.name, title: j.shortTitle,
@@ -123,7 +121,7 @@ public struct NeedsYouItem: Sendable, Equatable, Identifiable {
     }
 }
 
-/// ADR-090: the Issues page: tasks that failed or were stopped by a limit, newest first. ADR-095: a Manager's runs too.
+/// ADR-090: the Issues page: tasks that failed or were stopped by a limit, newest first. 
 public enum TeamIssues {
     public static func all(in list: HelpersList) -> [BoardItem] {
         list.everyTask
@@ -151,8 +149,6 @@ public struct OfficePlan: Sendable, Equatable {
         public var taskId: Int?
         /// Amber (needs you) or red (failed) next to it.
         public var flag: Flag?
-        /// ADR-095: a Manager's desk (a click opens its page), not a worker's.
-        public var manager = false
     }
 
     public enum Flag: Sendable, Equatable { case needsYou, failed }
@@ -189,18 +185,6 @@ public struct OfficePlan: Sendable, Equatable {
     }
 
     public init(list: HelpersList, now: Date = Date()) {
-        // ADR-095: with Managers, the floor shows one desk per Manager (its Agents' work), never each worker.
-        if !list.managers.isEmpty {
-            let statuses = TeamRoster.managers(in: list)
-            let units = statuses.enumerated().map { index, s in
-                Unit(seat: Self.seat(s, index: index), working: s.atWork > 0, startedAt: s.startedAt, lastActive: s.lastActive)
-            }
-            (seats, moreAtWork, moreIdle) = Self.arrange(units)
-            let waiting = Set(NeedsYouItem.all(in: list).filter { $0.kind != .failed }.map(\.helperId))
-            needsYou = (list.helpers.map(\.id) + list.managers.map(\.id)).filter { waiting.contains($0) }.count
-            envelopes = []
-            return
-        }
         let team = list.helpers.filter { $0.available || !$0.jobs.isEmpty }
         let everyone = team.enumerated().map { index, h in Self.seat(h, index: index, now: now) }
         (seats, moreAtWork, moreIdle) = Self.arrange(team.enumerated().map { index, h in
@@ -252,24 +236,6 @@ public struct OfficePlan: Sendable, Equatable {
             return seat
         }
         return (seats, atWork.count - deskOf.count, idle.count - shown.count)
-    }
-
-    /// ADR-095: a Manager's desk: working (with "N at work") while any of its Agents works; a "!" when one needs Keshab
-    /// (red when its own newest run failed).
-    private static func seat(_ s: TeamRoster.ManagerStatus, index: Int) -> Seat {
-        var seat = Seat(helperId: s.manager.id, name: s.manager.name, desk: index % seatLimit, spot: .lounge(0), animation: "idle", bubble: nil, taskId: nil, flag: nil, manager: true)
-        if s.atWork > 0 {
-            seat.animation = "working"
-            seat.bubble = "\(s.atWork) at work"
-        } else if s.failed {
-            seat.animation = "sad"
-            seat.bubble = "Run failed"
-        } else if s.needsYou {
-            seat.animation = "curious"
-            seat.bubble = "Needs you"
-        }
-        if s.needsYou { seat.flag = s.failed ? .failed : .needsYou }
-        return seat
     }
 
     /// One worker's animation, bubble, task and flag; its spot is chosen by `init`.

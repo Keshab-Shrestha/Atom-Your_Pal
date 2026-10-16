@@ -980,7 +980,6 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
                                     skillEdits: Fields.skillEdits(f.values["skillEdits"]),
                                     skillHub: Fields.skillHub(f.values["skillHub"]),
                                     agentProblems: Fields.agentProblems(f.values["agentProblems"]),
-                                    managers: f.managers(),
                                     testCases: Fields.testCases(f.values["testCases"]),
                                     plans: Fields.plans(f.values["plans"])))
     case "thread":
@@ -1178,23 +1177,7 @@ private struct Fields {
                grants: (h["grants"] as? [Any])?.compactMap { $0 as? String } ?? [],
                skills: (h["skills"] as? [Any])?.compactMap { $0 as? String } ?? [],
                proposals: Self.proposals(h["proposals"]), kit: h["kit"] as? String, custom: Self.flag(h["custom"]),
-               manager: h["manager"] as? String, browser: Self.flag(h["browser"]))
-        }
-    }
-
-    /// ADR-095: the Managers; absent (none, or an older runtime) is empty. A malformed Manager is left out; its jobs
-    /// read as the helpers' do (a malformed job is left out).
-    func managers() -> [HelperManager] {
-        (values["managers"] as? [Any] ?? []).compactMap { entry in
-            guard let m = entry as? [String: Any], let id = m["id"] as? String, let name = m["name"] as? String else { return nil }
-            var soul: HelperSoul?
-            if let s = m["soul"] as? [String: Any], let n = s["name"] as? String, let p = s["personality"] as? String {
-                soul = HelperSoul(name: n, personality: p, howItWorks: s["howItWorks"] as? String ?? "", rules: s["rules"] as? String ?? "", lessons: s["lessons"] as? String ?? "")
-            }
-            return HelperManager(id: id, name: name, mode: m["mode"] as? String == "plan" ? "plan" : "group", soul: soul,
-                                 soulVersion: (m["soulVersion"] as? NSNumber)?.intValue ?? 1,
-                                 agents: (m["agents"] as? [Any])?.compactMap { $0 as? String } ?? [],
-                                 jobs: (m["jobs"] as? [Any] ?? []).compactMap(job))
+               browser: Self.flag(h["browser"]))
         }
     }
 

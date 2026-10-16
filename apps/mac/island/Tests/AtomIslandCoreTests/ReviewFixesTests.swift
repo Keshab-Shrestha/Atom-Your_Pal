@@ -48,4 +48,10 @@ struct ReviewFixesTests {
         #expect(!ModelInfo.isValidModelId("gpt-4\n"))
         #expect(!ModelInfo.isValidModelId("gpt 4"))
     }
+
+    @Test func aRuntimeThatStillSendsManagersIsIgnoredNotRejected() throws {
+        let older = #"{"type":"helpers","apps":[],"managers":[{"id":"research","name":"Research","mode":"plan","agents":["sid"],"jobs":[]}],"helpers":[{"id":"sid","name":"Sid","available":true,"app":null,"manager":"research","jobs":[]}]}"#
+        guard case .helpers(let list) = try decodeEvent(older) else { Issue.record("not helpers"); return }
+        #expect(list.helpers.map(\.id) == ["sid"])
+    }
 }

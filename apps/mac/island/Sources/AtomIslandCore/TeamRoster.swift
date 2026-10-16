@@ -42,56 +42,9 @@ public enum TeamRoster {
 
     public static func isWorking(_ h: Helper) -> Bool { h.jobs.contains { $0.state == .running } }
 
-    // MARK: ADR-095: Managers
-
-    /// A Manager as its Board chip and floor desk show it: its Agents, how many tasks run (its Agents' and its own runs),
-    /// and whether one of them needs Keshab (a plan to approve, a proposal, a held task; not an Agent's failure), or its
-    /// own newest run failed.
-    public struct ManagerStatus: Sendable, Equatable, Identifiable {
-        public var manager: HelperManager
-        public var agents: [Helper]
-        public var atWork: Int
-        public var needsYou: Bool
-        /// Its own newest run failed (also counted in `needsYou`).
-        public var failed: Bool = false
-        public var id: String { manager.id }
-        /// The chip's second line: "2 at work", or its mode when nobody works.
-        public var line: String { atWork > 0 ? "\(atWork) at work" : "\(agents.count) agent\(agents.count == 1 ? "" : "s") · \(manager.modeTitle)" }
-        public var startedAt: Date {
-            let running = (agents.flatMap(\.jobs) + manager.jobs).filter { $0.state == .running }
-            guard !running.contains(where: { $0.createdAt == nil }) else { return .distantPast }
-            return running.compactMap(\.createdAt).min() ?? .distantPast
-        }
-        public var lastActive: Date? { (agents.flatMap(\.jobs) + manager.jobs).compactMap { $0.endedAt ?? $0.createdAt }.max() }
-    }
-
-    /// Every Manager, in the runtime's order (by folder name), with its status. Empty when there are none.
-    public static func managers(in list: HelpersList) -> [ManagerStatus] {
-        let waiting = Set(NeedsYouItem.all(in: list).filter { $0.kind != .failed }.map(\.helperId))
-        return list.managers.map { m in
-            let agents = list.agents(of: m)
-            let running = agents.flatMap(\.jobs).filter { $0.state == .running }.count + m.jobs.filter { $0.state == .running }.count
-            let held = m.jobs.contains { $0.held != nil }
-            let failed = m.jobs.max { $0.id < $1.id }?.state == .failed
-            return ManagerStatus(manager: m, agents: agents, atWork: running, needsYou: held || failed || agents.contains { waiting.contains($0.id) }, failed: failed)
-        }
-    }
-
-    /// The Board's Manager chips: every Manager (there are at most twelve, as many as `chipLimit`).
-    public static func managerChips(in list: HelpersList) -> [ManagerStatus] {
-        Array(managers(in: list).prefix(chipLimit))
-    }
-
-    /// "All agents" grouped by Manager (by name, A to Z), Agents under none last as "No manager". Without Managers, one
-    /// untitled group. Groups with nobody in `found` are left out.
+    /// "All agents" as one untitled group (they were grouped by Manager until ADR-110 removed Managers). Empty when nobody is in `found`.
     public static func grouped(_ found: [Helper], in list: HelpersList) -> [(title: String, helpers: [Helper])] {
-        guard !list.managers.isEmpty else { return found.isEmpty ? [] : [("", found)] }
-        let ids = Set(list.managers.map(\.id))
-        let byName = list.managers.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-        var groups = byName.map { m in (title: m.name, helpers: found.filter { $0.manager == m.id }) }.filter { !$0.helpers.isEmpty }
-        let loose = found.filter { !ids.contains($0.manager ?? "") }
-        if !loose.isEmpty { groups.append((title: "No manager", helpers: loose)) }
-        return groups
+        found.isEmpty ? [] : [("", found)]
     }
 
     /// When its longest-running task started (the distant past when unknown, so it counts as longest at work).

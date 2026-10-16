@@ -36,41 +36,36 @@ public enum BoardView: String, CaseIterable, Sendable {
 public struct WindowLocation: Equatable, Sendable {
     public var page: WindowPage
     public var helperId: String?
-    public var managerId: String?
     public var showsBoard = false
     public var boardView = BoardView.floor
     public var jobId: Int?
     public var soulOpen = false
     public var creatingAgent = false
-    public var creatingManager = false
     public var allAgents = false
 
-    public init(page: WindowPage, helperId: String? = nil, managerId: String? = nil, showsBoard: Bool = false, boardView: BoardView = .floor, jobId: Int? = nil,
-                soulOpen: Bool = false, creatingAgent: Bool = false, creatingManager: Bool = false, allAgents: Bool = false) {
+    public init(page: WindowPage, helperId: String? = nil, showsBoard: Bool = false, boardView: BoardView = .floor, jobId: Int? = nil,
+                soulOpen: Bool = false, creatingAgent: Bool = false, allAgents: Bool = false) {
         self.page = page
         guard page == .agents else { return }
         self.helperId = helperId
-        self.managerId = managerId
         self.showsBoard = showsBoard
         self.boardView = showsBoard ? boardView : .floor
         self.jobId = jobId
         self.soulOpen = soulOpen
         self.creatingAgent = creatingAgent
-        self.creatingManager = creatingManager
         self.allAgents = allAgents
     }
 
     public init(page: WindowPage, helpers: HelpersState, allAgents: Bool, boardView: BoardView = .floor) {
-        self.init(page: page, helperId: helpers.selectedHelperId, managerId: helpers.selectedManagerId, showsBoard: helpers.showsBoard, boardView: boardView,
+        self.init(page: page, helperId: helpers.selectedHelperId, showsBoard: helpers.showsBoard, boardView: boardView,
                   jobId: helpers.openJobId, soulOpen: helpers.isSoulOpen, creatingAgent: helpers.isCreatingAgent,
-                  creatingManager: helpers.isCreatingManager, allAgents: allAgents)
+                  allAgents: allAgents)
     }
 
-    /// What this step shows still exists: the task, the Manager or the agent on screen (in the window's order).
+    /// What this step shows still exists: the task or the agent on screen (in the window's order).
     public func isValid(in list: HelpersList?) -> Bool {
-        guard page == .agents, !creatingAgent, !creatingManager else { return true }
+        guard page == .agents, !creatingAgent else { return true }
         if let jobId { return list?.item(jobId) != nil }
-        if let managerId { return list?.managers.contains { $0.id == managerId } == true }
         if showsBoard { return true }
         guard let helperId else { return true }
         return list?.helpers.contains { $0.id == helperId } == true
