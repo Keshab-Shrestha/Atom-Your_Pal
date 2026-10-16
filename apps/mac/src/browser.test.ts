@@ -1,6 +1,6 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, symlinkSync } from "node:fs";
+import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRequire } from "node:module";
@@ -10,17 +10,24 @@ import { BROWSER_SERVER, acquireBrowser, browserCheck, browserServer } from "./b
 
 const root = mkdtempSync(join(tmpdir(), "atom-browser-"));
 after(() => rmSync(root, { recursive: true, force: true }));
-const grant = join(root, "grant");
-mkdirSync(grant);
-writeFileSync(join(grant, "ok.txt"), "x");
-writeFileSync(join(root, "secret.txt"), "x");
-symlinkSync(join(root, "secret.txt"), join(grant, "link.txt"));
+// ADR-122: the test's "home" is `root`. Files are uploaded from anywhere in it that the file rules allow, and Keshab is asked for each upload.
+const home = realpathSync(root);
+const docs = join(root, "Documents");
+mkdirSync(docs);
+mkdirSync(join(root, ".ssh"));
+mkdirSync(join(root, "Library"));
+writeFileSync(join(docs, "ok.txt"), "x");
+writeFileSync(join(docs, "passport-scan.txt"), "x");
+writeFileSync(join(docs, "keys.txt"), "-----BEGIN OPENSSH PRIVATE KEY-----\nabc");
+writeFileSync(join(root, ".ssh", "id_x"), "x");
+writeFileSync(join(root, "Library", "x.txt"), "x");
+symlinkSync(join(root, ".ssh", "id_x"), join(docs, "link.txt"));
 
 const T = (t: string) => `mcp__${BROWSER_SERVER}__browser_${t}`;
-function policy(answer: (s: string) => boolean = () => true) {
+function policy(answer: (s: string) => boolean = () => true, tainted = false) {
   const asked: string[] = [];
   const events: any[] = [];
-  const p = browserCheck({ name: "Scout", grants: [grant], approve: async (r) => (asked.push(r.summary), answer(r.summary)), onCheck: (e) => events.push(e) });
+  const p = browserCheck({ name: "Scout", home, tainted: () => tainted, approve: async (r) => (asked.push(r.summary), answer(r.summary)), onCheck: (e) => events.push(e) });
   return { ...p, asked, events };
 }
 const page = (url: string, extra = "") => `- Page URL: ${url}\n${extra}`;
@@ -80,15 +87,29 @@ test("an output filename is refused (nothing saved outside data/)", async () => 
   assert.ok("deny" in (await p.check(T("take_screenshot"), { filename: "/tmp/x.png" })));
 });
 
-test("uploads only from granted folders, symlinks out of the grant included", async () => {
+test("uploads (ADR-122): any file the file rules allow, a card for each, never after web text; the floor and secrets are refused", async () => {
   const p = policy();
   await p.check(T("navigate"), { url: "https://a.test" });
   p.seen(page("https://a.test"));
-  assert.ok("step" in (await p.check(T("file_upload"), { paths: [join(grant, "ok.txt")] })));
-  for (const paths of [[join(root, "secret.txt")], [join(grant, "..", "secret.txt")], [join(grant, "link.txt")], [join(grant, "ok.txt"), "/etc/passwd"], [5]]) {
+  assert.ok("step" in (await p.check(T("file_upload"), { paths: [join(docs, "ok.txt")] })));
+  assert.equal(p.asked.filter((s) => /upload ok\.txt/.test(s)).length, 1, "asked once for this upload");
+  assert.ok("step" in (await p.check(T("file_upload"), { paths: [join(docs, "ok.txt")] })));
+  assert.equal(p.asked.filter((s) => /upload ok\.txt/.test(s)).length, 2, "and again for the next one: no memory");
+  for (const paths of [[join(root, ".ssh", "id_x")], [join(root, "Library", "x.txt")], [join(docs, "passport-scan.txt")], [join(docs, "keys.txt")], [join(docs, "link.txt")], [join(docs, "ok.txt"), "/etc/passwd"], [docs], [join(docs, "nothing.txt")], ["relative.txt"], [5], []]) {
     assert.ok("deny" in (await p.check(T("file_upload"), { paths })), JSON.stringify(paths));
   }
   assert.ok("deny" in (await p.check(T("drop"), { paths: ["/etc/passwd"] })));
+  // Keshab says no on the card: the upload is refused with a clear reason.
+  const refusing = policy((s) => !/upload/.test(s));
+  await refusing.check(T("navigate"), { url: "https://a.test" });
+  refusing.seen(page("https://a.test"));
+  const declined = await refusing.check(T("file_upload"), { paths: [join(docs, "ok.txt")] });
+  assert.ok("deny" in declined && /did not allow this upload/.test(declined.deny));
+  const web = policy(() => true, true);
+  await web.check(T("navigate"), { url: "https://a.test" });
+  web.seen(page("https://a.test"));
+  const afterWeb = await web.check(T("file_upload"), { paths: [join(docs, "ok.txt")] });
+  assert.ok("deny" in afterWeb && /web text/.test(afterWeb.deny), "no upload after web text");
 });
 
 test("a page action before the first navigate is refused (fail closed)", async () => {

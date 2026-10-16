@@ -200,7 +200,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
 
     if (name.startsWith(`mcp__${BROWSER_SERVER}__`)) {
       if (member.kit === "think" || !member.browser) return say("refused"), deny(`${member.name} has no browser.`);
-      return browserCall(member, job, name, input);
+      return browserCall(member, job, name, input, agentId);
     }
     if (name.startsWith("mcp__")) {
       const servers = member.kit === "think" ? [] : grantedServers(team.helpers.mcpServers(), member.id);
@@ -266,11 +266,11 @@ export function nativeGate(scope: NativeScope): NativeGate {
   };
 
   /** ADR-098 item 4: the browser, one task per worker at a time, each site on Keshab's card. */
-  const browserCall = async (member: HelperView, job: number | undefined, name: string, input: Record<string, unknown>): Promise<Verdict> => {
+  const browserCall = async (member: HelperView, job: number | undefined, name: string, input: Record<string, unknown>, agentId: string): Promise<Verdict> => {
     if (job === undefined) return deny("The browser is for an agent's task only.");
     let state = browsers.get(job);
     if (!state) {
-      state = { policy: browserCheck({ name: member.name, helper: member.id, grants: member.grants, approve: team!.approve }), stop: new AbortController() };
+      state = { policy: browserCheck({ name: member.name, helper: member.id, home: team!.home ?? homedir(), tainted: () => isTainted(agentId), approve: team!.approve }), stop: new AbortController() };
       browsers.set(job, state);
       state.release = await state.policy.acquire(state.stop.signal, () => {});
     }
