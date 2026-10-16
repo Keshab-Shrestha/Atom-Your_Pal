@@ -7,7 +7,7 @@ import { KITS, MAX_AGENTS, RESERVED_AGENT_IDS, agentId, cleanRole, loadAgents, r
 
 /** Task 3.12: most skills a worker may have. */
 export const MAX_SKILLS = 10;
-import { anchorFor, checkSchedule, isDue, routineTable } from "./routines.ts";
+import { routineTable } from "./routines.ts";
 import { SOUL_FIELDS, proposalTable } from "./feedback.ts";
 import { skillStore } from "./skill-drafts.ts";
 import { skillHubStore } from "./skill-hub.ts";
@@ -19,6 +19,15 @@ import { auditTable } from "./audit.ts";
 import { checkpointTable } from "./checkpoints.ts";
 import { searchTable } from "./search.ts";
 import { MAX_TEST_CASES, TEST_CASES_RUN, skillInstructions, testCaseTable, type TestKind } from "./test-cases.ts";
+import { routineMethods } from "./store-routines.ts";
+import { soulMethods } from "./store-souls.ts";
+import { noteMethods } from "./store-notes.ts";
+import { mcpMethods } from "./store-mcp.ts";
+import { testCaseMethods } from "./store-testcases.ts";
+import { planMethods } from "./store-plans.ts";
+import { checkpointMethods } from "./store-checkpoints.ts";
+import { MAX_COMMENT_CHARS, type Member, type StoreContext } from "./store-context.ts";
+export { MAX_COMMENT_CHARS };
 import { createSchema, sameSoul, toJobRow, toSoul, webSources, type JobRow, type ReportRow, type SoulRow } from "./store-schema.ts";
 import {
   BUILT_IN_KITS,
@@ -42,7 +51,6 @@ import {
 
 export const MAX_TASK_CHARS = 1000;
 export const MAX_GOAL_CHARS = 1000;
-export const MAX_COMMENT_CHARS = 2000;
 export const JOBS_PER_HELPER = 20;
 export const CLOSED_WHILE_RUNNING = "ATOM was closed while this job ran";
 /** Soul versions listed per worker (all are kept). */
@@ -84,15 +92,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   // Version 1 of every soul is the roster's default, so it can be restored like any other.
   for (const h of HELPERS) if (!latestSoul.get(h.id)) putSoul(h.id, 1, h.soul, opened);
 
-  /** One worker of the team: built in (ADR-082) or an agent from `agentsDir` (ADR-088). `manager`: the old ADR-095 field of its file, kept as written (ADR-110 N5: nothing reads it). */
-  interface Member {
-    id: HelperId;
-    available: boolean;
-    role: string;
-    kit: Kit;
-    custom: boolean;
-    manager?: string;
-  }
   const builtIns: Member[] = HELPERS.map((h) => ({ id: h.id, available: h.available as boolean, role: h.role, kit: BUILT_IN_KITS[h.role] ?? "think", custom: false }));
   let rosterProblems: AgentProblem[] = [];
 
@@ -420,7 +419,26 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const planView = (stored: StoredPlan): PlanView =>
     viewOfPlan(stored, workPlans.jobs(stored.id), (job) => get(job)?.state, (agent) => (roster().some((m) => m.id === agent) ? current(agent).name : agent));
 
+  // What the method groups in store-routines.ts and store-mcp.ts need from this closure.
+  const reportOf: HelperStore["report"] = (id) => {
+      const row = reportById.get(id) as ReportRow | undefined;
+      if (!row) return undefined;
+      return { jobId: row.job_id, title: row.title, summary: row.summary, body: row.body, sources: JSON.parse(row.sources) as Source[] };
+  };
+  const ctx: StoreContext = {
+    now, emit, routines, mcp, roster, availableHelper, cleanTask, get, mustGet, mustHelper, current, report: reportOf, tests, skills, proposals, tinkerOf,
+    workPlans, planView, toolCalls, checkpoints, grantsOf, newSoulVersion, writeBack, soulRow, putRating, jobById, askTinker,
+    transaction, insertComment, log, wake, finder, tokens, goalRow, goalTasks, toJob,
+  };
+
   return {
+    ...routineMethods(ctx),
+    ...mcpMethods(ctx),
+    ...soulMethods(ctx),
+    ...noteMethods(ctx),
+    ...testCaseMethods(ctx),
+    ...planMethods(ctx),
+    ...checkpointMethods(ctx),
     list() {
       return roster().map((h) => ({
         id: h.id,
@@ -459,39 +477,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if (model) putPin.run(known.id, model);
       else dropPin.run(known.id);
       emit({ action: "pin", helper: known.id });
-    },
-
-    soul(helper) {
-      const id = roster().find((m) => m.id === helper)?.id;
-      if (!id) throw new HelperError(`There is no helper called "${helper.slice(0, 40)}".`);
-      return toSoul(current(id));
-    },
-
-    saveSoul(helper, input) {
-      const known = mustHelper(helper);
-      const others = roster().filter((h) => h.id !== known.id).map((h) => current(h.id).name);
-      const soul = cleanSoul(input, others);
-      if (!sameSoul(soul, toSoul(current(known.id)))) newSoulVersion(known.id, soul);
-      writeBack(known);
-    },
-
-    restoreSoul(helper, version) {
-      const known = mustHelper(helper);
-      const row = soulRow.get(known.id, version) as SoulRow | undefined;
-      if (!row) throw new HelperError(`${current(known.id).name} has no version ${version}.`);
-      if (row.version === current(known.id).version) return;
-      // The old name may have been taken by another worker since.
-      const others = roster().filter((h) => h.id !== known.id).map((h) => current(h.id).name);
-      newSoulVersion(known.id, cleanSoul(toSoul(row), others));
-      writeBack(known);
-    },
-
-    pauseRoutine(id, paused) {
-      const routine = routines.get(id);
-      if (!routine) throw new HelperError("There is no such routine.");
-      if (routine.paused === paused) return;
-      routines.pause(id, paused, now());
-      emit({ action: "routine", helper: routine.helper, routine: id, outcome: paused ? "paused" : "resumed" });
     },
 
     addGrant(helper, path) {
@@ -542,79 +527,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       return rosterProblems;
     },
 
-    rate(id, good, raw) {
-      const job = mustGet(id);
-      if (job.state !== "done" && job.state !== "failed") throw new HelperError("Only a finished task can be rated.");
-      if (job.helper === "tinker") throw new HelperError("Tinker's reviews are answered by accepting or rejecting its proposal.");
-      const comment = raw?.trim() || null;
-      if (comment && comment.length > MAX_COMMENT_CHARS) throw new HelperError(`The comment is too long (limit ${MAX_COMMENT_CHARS}).`);
-      putRating.run(good ? "good" : "bad", comment, id);
-      emit({ action: "rating", helper: job.helper, job: id, good });
-      // ADR-094: good work may become a skill (Tinker drafts it once per task; Keshab approves it).
-      if (good) {
-        if (job.state === "done") skills.askDraft(job);
-        return;
-      }
-      // One review per task: Tinker's task waits in the queue like any other. ADR-094: and one edit
-      // for each of ATOM's skills the task used.
-      askTinker(id, `Review task ${id} (${current(job.helper).name})`, null);
-      skills.askEdits(job);
-    },
-
-    reviewTarget(tinkerTaskId) {
-      const reviewed = get(mustGet(tinkerTaskId).reviews ?? -1);
-      if (!reviewed) return undefined;
-      const row = jobById.get(reviewed.id) as unknown as JobRow & { rating_comment: string | null };
-      const report = this.report(reviewed.id);
-      return {
-        worker: current(reviewed.helper).name,
-        role: mustHelper(reviewed.helper).role,
-        task: reviewed.task,
-        soul: toSoul(current(reviewed.helper)),
-        ...(row.rating_comment ? { comment: row.rating_comment } : {}),
-        ...(reviewed.error ? { error: reviewed.error } : {}),
-        ...(report ? { report: { title: report.title, summary: report.summary, body: report.body } } : {}),
-      };
-    },
-
-    addProposal(tinkerTaskId, proposal) {
-      const reviewed = get(mustGet(tinkerTaskId).reviews ?? -1);
-      if (!reviewed) throw new HelperError("The reviewed task is gone.");
-      if (!SOUL_FIELDS.includes(proposal.field)) throw new HelperError("A proposal changes personality, howItWorks, rules or lessons.");
-      // The changed soul must still be a valid soul (limits, no empty personality): checked now, and again on accept.
-      cleanSoul({ ...toSoul(current(reviewed.helper)), [proposal.field]: proposal.text }, []);
-      const id = proposals.add(reviewed.helper, proposal.field, proposal.text.trim(), proposal.reason.trim(), reviewed.id, now());
-      emit({ action: "proposal", helper: reviewed.helper, proposal: id, state: "pending" });
-      return proposals.get(id)!;
-    },
-
-    acceptProposal(id) {
-      const p = proposals.get(id);
-      if (!p || p.state !== "pending") throw new HelperError("No proposal waits for an answer there.");
-      const before = current(p.helper).version;
-      this.saveSoul(p.helper, { ...toSoul(current(p.helper)), [p.field]: p.text });
-      proposals.set(id, "accepted", before);
-      emit({ action: "proposal", helper: p.helper, proposal: id, state: "accepted" });
-    },
-
-    rejectProposal(id) {
-      const p = proposals.get(id);
-      if (!p || p.state !== "pending") throw new HelperError("No proposal waits for an answer there.");
-      proposals.set(id, "rejected");
-      emit({ action: "proposal", helper: p.helper, proposal: id, state: "rejected" });
-    },
-
-    undoProposal(id) {
-      const p = proposals.get(id);
-      if (!p || p.state !== "accepted" || p.previousVersion === undefined) throw new HelperError("Only an accepted proposal can be undone.");
-      this.restoreSoul(p.helper, p.previousVersion);
-      proposals.set(id, "undone");
-      emit({ action: "proposal", helper: p.helper, proposal: id, state: "undone" });
-    },
-
-    makeSkill(id) {
-      skills.makeSkill(id);
-    },
     skillDraftTarget: skills.skillDraftTarget,
     skillEditTarget: skills.skillEditTarget,
     addSkillDraft: skills.addSkillDraft,
@@ -630,66 +542,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     proposeSkill: skills.proposeSkill,
     proposeSkillEdit: skills.proposeSkillEdit,
 
-    addPlan(chatId, plan) {
-      const id = workPlans.add(chatId, plan);
-      emit({ action: "plan_work", plan: id });
-      return this.plan(id)!;
-    },
-
-    plan(id) {
-      const stored = workPlans.get(id);
-      return stored && planView(stored);
-    },
-
-    latestPlan(chatId) {
-      const stored = workPlans.latestOf(chatId);
-      return stored && planView(stored);
-    },
-
-    plans(limit) {
-      return workPlans.newest(Math.max(1, Math.min(limit, 50))).map(planView);
-    },
-
-    linkPlanJob(planId, n, job) {
-      const stored = workPlans.get(planId);
-      if (!stored?.portions.some((p) => p.n === n)) throw new HelperError("There is no such portion.");
-      if (!get(job)) throw new HelperError(`There is no task ${job}.`);
-      if (!workPlans.link(planId, n, job)) throw new HelperError(`Portion ${n} has started already.`);
-      emit({ action: "plan_work", plan: planId, portion: n });
-    },
-
-    recordToolCall(jobId, event) {
-      const job = get(jobId);
-      // Start and end are both announced, so the last call of a run does not stay "started".
-      if (job && toolCalls.record(jobId, event)) emit({ action: "toolCall", helper: job.helper, job: jobId });
-    },
-    toolCalls: (jobId) => toolCalls.of(jobId),
-    checkpoint(jobId, roots, path) {
-      const job = get(jobId);
-      if (job && checkpoints.capture(jobId, roots, path)) emit({ action: "checkpoint", helper: job.helper, job: jobId, change: "kept" });
-    },
-    finishCheckpoints(jobId) {
-      const job = get(jobId);
-      if (!job || !checkpoints.has(jobId)) return;
-      checkpoints.finish(jobId);
-      emit({ action: "checkpoint", helper: job.helper, job: jobId, change: "finished" });
-    },
-    checkpoints: (jobId) => checkpoints.view(jobId),
-    undoCheckpoints(jobId, options) {
-      const job = mustGet(jobId);
-      if (job.state === "running") throw new HelperError("The task is still running. Undo after it ends.");
-      const grants = (grantsOf.all(job.helper) as unknown as { path: string }[]).map((g) => g.path);
-      // ADR-122: agents write anywhere under home, so the undo may restore anywhere under home too (the old grants stay for older tasks).
-      const results = checkpoints.undo(jobId, [...grants, homedir()], options);
-      const count = results.filter((r) => r.result === "restored").length;
-      if (results.length) emit({ action: "checkpoint", helper: job.helper, job: jobId, change: "undone", count });
-      return results;
-    },
-    bashRan(jobId) {
-      const job = get(jobId);
-      if (!job || !toolCalls.of(jobId).some((c) => c.tool === "Bash")) return false;
-      return checkpoints.has(jobId) || (grantsOf.all(job.helper) as unknown[]).length > 0;
-    },
     skillsUsed: skills.skillsUsed,
     skillDrafts: skills.skillDrafts,
     previewSkillHub: hub.previewSkillHub,
@@ -701,81 +553,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     skillHubPending: hub.skillHubPending,
     skillHubInstalled: hub.skillHubInstalled,
     skillEdits: skills.skillEdits,
-
-    saveTestCase(jobId, kind, raw) {
-      const job = mustGet(jobId);
-      const target = raw.trim();
-      if (job.helper === "tinker") throw new HelperError("Only an agent's own task can be a test case.");
-      if (job.state !== "done") throw new HelperError("Only a done task can be a test case.");
-      const report = this.report(jobId);
-      if (!report) throw new HelperError("That task has no report to compare with.");
-      if (kind === "soul" && target !== job.helper) throw new HelperError("A task is a test case for the agent that did it.");
-      if (kind === "skill" && (!skills.skillsUsed(jobId).includes(target) || !skills.isZenoSkill(target))) {
-        throw new HelperError("A task is a test case only for a ATOM-made skill its run used.");
-      }
-      const saved = tests.of(kind, target);
-      const name = kind === "soul" ? current(target).name : `the ${target} skill`;
-      if (saved.some((c) => c.jobId === jobId)) throw new HelperError(`This task is already a test case for ${name}.`);
-      if (saved.length >= MAX_TEST_CASES) throw new HelperError(`${name} has ${MAX_TEST_CASES} test cases, the most it keeps. Delete one first.`);
-      const id = tests.add(kind, target, jobId, job.task, `${report.title}\n${report.summary}\n\n${report.body}`);
-      emit({ action: "testCase", kind, target, testCase: id, change: "saved" });
-      return tests.get(id)!;
-    },
-
-    deleteTestCase(id) {
-      const c = tests.get(id);
-      if (!c) throw new HelperError("There is no such test case.");
-      tests.remove(id);
-      emit({ action: "testCase", kind: c.kind, target: c.target, testCase: id, change: "deleted" });
-    },
-
-    testCases: () => tests.all(),
-
-    testInputs(kind, id) {
-      if (kind === "soul") {
-        const p = proposals.get(id);
-        if (!p || p.state !== "pending") throw new HelperError("No proposal waits for an answer there.");
-        const role = mustHelper(p.helper).role;
-        const soul = toSoul(current(p.helper));
-        return {
-          kind,
-          id,
-          target: p.helper,
-          oldInstructions: instructionsFor(soul, role),
-          newInstructions: instructionsFor({ ...soul, [p.field]: p.text }, role),
-          cases: tests.of("soul", p.helper).slice(0, TEST_CASES_RUN),
-        };
-      }
-      const e = skills.skillEdit(id);
-      if (!e || e.state !== "pending") throw new HelperError("No skill edit waits for an answer there.");
-      return {
-        kind,
-        id,
-        target: e.skill,
-        oldInstructions: skillInstructions(e.oldBody),
-        newInstructions: skillInstructions(e.newBody),
-        cases: tests.of("skill", e.skill).slice(0, TEST_CASES_RUN),
-      };
-    },
-
-    startTestRun(kind, id, cases) {
-      tests.start(kind, id, cases);
-      emit({ action: "testRun", kind, item: id, state: "started" });
-    },
-
-    finishTestCase(kind, id, testCase, outcome) {
-      tests.finish(kind, id, testCase, outcome);
-      emit({ action: "testRun", kind, item: id, case: testCase.id, state: outcome.state });
-    },
-
-    testResults: (kind: TestKind, id: number) => tests.results(kind, id),
-
-    tinkerTaskOf(kind, id) {
-      const p = kind === "soul" ? proposals.get(id) : undefined;
-      const e = kind === "skill" ? skills.skillEdit(id) : undefined;
-      const row = p ? tinkerOf.get(p.jobId, "", "") : e ? tinkerOf.get(e.jobId, "edit", e.skill) : undefined;
-      return (row as { id: number } | undefined)?.id;
-    },
 
     setSkills(helper, chosen) {
       const known = mustHelper(helper);
@@ -795,63 +572,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       if (Number(dropGrant.run(known.id, path).changes) === 0) return false;
       emit({ action: "grant", helper: known.id, granted: false });
       return true;
-    },
-
-    addRoutine(helper, raw, schedule, startAt, notifyTelegram, webhook) {
-      const known = availableHelper(helper);
-      const id = routines.add(known.id, cleanTask(raw), schedule, anchorFor(schedule, startAt, now()));
-      if (notifyTelegram) routines.notify(id, true);
-      if (webhook) routines.webhook(id, true);
-      emit({ action: "routine", helper: known.id, routine: id, outcome: "added" });
-      return routines.get(id)!;
-    },
-
-    updateRoutine(id, helper, raw, schedule, startAt, notifyTelegram, webhook) {
-      const routine = routines.get(id);
-      if (!routine) throw new HelperError("There is no such routine.");
-      const known = availableHelper(helper);
-      const at = now();
-      // The hourly anchor moves only when the schedule or its start changes; the text alone keeps the times.
-      const same = JSON.stringify(routine.schedule) === JSON.stringify(checkSchedule(schedule)) && !startAt;
-      routines.update(id, known.id, cleanTask(raw), schedule, same ? routine.createdAt : anchorFor(schedule, startAt, at), at);
-      if (notifyTelegram !== undefined) routines.notify(id, notifyTelegram);
-      if (webhook !== undefined) routines.webhook(id, webhook);
-      emit({ action: "routine", helper: known.id, routine: id, outcome: "changed" });
-      return routines.get(id)!;
-    },
-
-    startRoutine(id, start) {
-      const routine = routines.get(id);
-      if (!routine) throw new HelperError("There is no such routine.");
-      if (!start(routine)) throw new HelperError("Its last run has not ended.");
-      routines.markNative(id, now(), false);
-      emit({ action: "routine", helper: routine.helper, routine: id, outcome: "made" });
-    },
-
-    removeRoutine(id) {
-      const routine = routines.get(id);
-      if (!routine || !routines.remove(id)) return false;
-      emit({ action: "routine", helper: routine.helper, routine: id, outcome: "removed" });
-      return true;
-    },
-
-    runRoutines(start) {
-      const at = now();
-      const made: number[] = [];
-      const skipped: number[] = [];
-      for (const r of routines.list()) {
-        if (r.paused || !isDue(r, at)) continue;
-        let started = false;
-        try {
-          started = start(r);
-        } catch {
-          // the start failed: skipped this time
-        }
-        routines.markNative(r.id, at, !started);
-        (started ? made : skipped).push(r.id);
-        emit({ action: "routine", helper: r.helper, routine: r.id, outcome: started ? "made" : "skipped" });
-      }
-      return { made, skipped };
     },
 
     setPlanFirst(helper, on) {
@@ -930,22 +650,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       setNativeTask.run(sdkTaskId, id);
     },
 
-    goal(id) {
-      const row = goalRow.get(id) as { id: number; text: string; created_at: string; ended_at: string | null; report: string | null; source: string | null; project_id: string | null; chat_posted_at: string | null } | undefined;
-      if (!row) return undefined;
-      return {
-        id: row.id,
-        text: row.text,
-        createdAt: new Date(row.created_at),
-        ...(row.ended_at ? { endedAt: new Date(row.ended_at) } : {}),
-        tasks: (goalTasks.all(id) as unknown as JobRow[]).map(toJob),
-        ...(row.report ? { report: JSON.parse(row.report) as GoalReport } : {}),
-        ...(row.source ? { source: row.source } : {}),
-        ...(row.project_id ? { projectId: row.project_id } : {}),
-        ...(row.chat_posted_at ? { chatPostedAt: new Date(row.chat_posted_at) } : {}),
-      };
-    },
-
     setBlockers(id, raw) {
       const job = mustGet(id);
       if (job.state !== "queued") throw new HelperError("Only a task that has not started can change what it waits for.");
@@ -963,75 +667,12 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       emit({ action: "blockers", helper: job.helper, job: id });
     },
 
-    addComment(id, raw, delivery) {
-      const job = mustGet(id);
-      const text = raw.trim();
-      if (!text) throw new HelperError("The note is empty.");
-      if (text.length > MAX_COMMENT_CHARS) throw new HelperError(`The note is too long (${text.length} characters, limit ${MAX_COMMENT_CHARS}).`);
-      transaction(() => {
-        insertComment.run(id, text, now().toISOString(), delivery ?? null);
-        log(id, "commented");
-      });
-      emit({ action: "comment", helper: job.helper, job: id });
-      if (delivery !== "live") wake(job); // the run took a "live" message: nothing more to do
-    },
-
-    addUsage(entry) {
-      const result = tokens.add(entry);
-      emit({ action: "usage" });
-      return result;
-    },
     usage: () => tokens.summary(),
     recordedUsage: (chatId, model) => tokens.recorded(chatId, model),
-
-    addLabel(id, raw) {
-      const job = mustGet(id);
-      const label = finder.add(id, raw);
-      emit({ action: "label", helper: job.helper, job: id });
-      return label;
-    },
-
-    removeLabel(id, label) {
-      const job = mustGet(id);
-      if (finder.remove(id, label)) emit({ action: "label", helper: job.helper, job: id });
-    },
 
     labels: () => finder.inUse(),
     search: (query) => finder.search(query),
 
-    mcpServers: () => mcp.list(),
-
-    addMcpServer(input) {
-      const id = mcp.add(input);
-      emit({ action: "mcp", server: id, change: "added" });
-      return mcp.get(id)!;
-    },
-
-    removeMcpServer(id) {
-      if (!mcp.remove(id)) return false;
-      emit({ action: "mcp", server: id, change: "removed" });
-      return true;
-    },
-
-    setMcpServer(id, change) {
-      const server = mcp.get(id);
-      if (!server) throw new HelperError("There is no such server.");
-      const team = roster().map((m) => m.id);
-      const workers = change.workers ? [...new Set(change.workers)] : server.workers;
-      const unknown = workers.find((w) => !team.includes(w));
-      if (unknown !== undefined) throw new HelperError(`There is no worker called "${unknown.slice(0, 40)}".`);
-      const enabled = change.enabled ?? server.enabled;
-      if (enabled && !server.enabled && (!server.testedAt || server.problem)) throw new HelperError("Test the server first: it turns on once a test lists its tools.");
-      mcp.flags(id, enabled, change.trusted ?? server.trusted, workers);
-      emit({ action: "mcp", server: id, change: "set" });
-    },
-
-    recordMcpTest(id, outcome) {
-      if (!mcp.get(id)) return;
-      if ("tools" in outcome) mcp.tested(id, outcome.tools.slice(0, 200), now(), null);
-      else mcp.tested(id, [], now(), outcome.problem.slice(0, 300));
-      emit({ action: "mcp", server: id, change: "tested" });
-    },
 
     retry(id) {
       const job = mustGet(id);
@@ -1114,11 +755,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       return true;
     },
 
-    report(id) {
-      const row = reportById.get(id) as ReportRow | undefined;
-      if (!row) return undefined;
-      return { jobId: row.job_id, title: row.title, summary: row.summary, body: row.body, sources: JSON.parse(row.sources) as Source[] };
-    },
+    report: reportOf,
 
     start(id) {
       const job = mustGet(id);
