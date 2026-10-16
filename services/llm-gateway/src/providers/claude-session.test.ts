@@ -315,3 +315,14 @@ test("the session's tools include the built-in tools of the sub-agents, and the 
   s.close();
 });
 
+// 2026-10-16 (code check): a session that ended after a tool ran said "unavailable", which made the caller send the whole request again.
+test("a session that closes mid-turn after a tool ran is not 'unavailable' (so it is not retried)", async () => {
+  const { sdk, queries } = fakeSdk(() => null);
+  const s = await openChatSession(options(sdk));
+  const sending = s.send("do it").then(() => "answered", (e: { kind?: string }) => e.kind);
+  await new Promise((r) => setTimeout(r, 20));
+  queries[0]!.inject({ type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "mcp__atom__reminder_add", input: {} }] } });
+  await new Promise((r) => setTimeout(r, 20));
+  s.close();
+  assert.equal(await sending, "unknown");
+});

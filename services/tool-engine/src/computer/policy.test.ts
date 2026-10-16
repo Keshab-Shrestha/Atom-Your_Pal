@@ -200,3 +200,13 @@ test("delete keys in other spellings, and more delete labels, are refused", () =
   for (const label of ["Move to Bin", "Empty Bin…", "Deleting…", "Clear All", "Wipe"]) assert.match(deleteDenial(label, "AXButton") ?? "", /never deletes/, label);
   assert.equal(deleteKeyDenial(["delete"]), undefined);
 });
+
+// 2026-10-16 (code check): a chord sent as one string, or with the key first, had no card.
+test("key chords are read the same in any spelling and order", () => {
+  for (const keys of [["cmd+q"], ["cmd", "q"], ["q", "cmd"], ["COMMAND+Q"]]) assert.equal(keyApproval(keys, false), "Quit", keys.join(" "));
+  for (const keys of [["cmd+return"], ["return", "cmd"], ["cmd", "enter"]]) assert.match(keyApproval(keys, false) ?? "", /send or confirm/, keys.join(" "));
+  for (const keys of [["cmd+space"], ["space", "cmd"]]) assert.equal(keyApproval(keys, false), "Spotlight", keys.join(" "));
+  assert.equal(keyApproval(["tab"], false), undefined);
+  assert.equal(keyApproval(["cmd", "c"], false), undefined);
+  assert.match(deleteKeyDenial(["delete", "cmd"]) ?? "", /never deletes/);
+});

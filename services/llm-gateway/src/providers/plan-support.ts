@@ -300,11 +300,15 @@ export function planGuard(message: Record<string, any>, onUsage?: (usage: PlanUs
   const info = message.rate_limit_info ?? {};
   if (onUsage) {
     const windows = info.unifiedWindows ?? {};
-    onUsage({
-      ...(typeof windows.five_hour?.utilization === "number" ? { fiveHour: windows.five_hour.utilization } : {}),
-      ...(typeof windows.seven_day?.utilization === "number" ? { sevenDay: windows.seven_day.utilization } : {}),
-      ...(typeof info.isUsingOverage === "boolean" ? { overage: info.isUsingOverage } : {}),
-    });
+    try {
+      onUsage({
+        ...(typeof windows.five_hour?.utilization === "number" ? { fiveHour: windows.five_hour.utilization } : {}),
+        ...(typeof windows.seven_day?.utilization === "number" ? { sevenDay: windows.seven_day.utilization } : {}),
+        ...(typeof info.isUsingOverage === "boolean" ? { overage: info.isUsingOverage } : {}),
+      });
+    } catch {
+      // The owner's bookkeeping never ends a turn (it used to close the chat session). The plan checks below still run.
+    }
   }
   if (info.isUsingOverage === true) {
     throw new ProviderError("rate_limit", "Your Claude plan is used up and Claude would charge extra usage, so ATOM stopped. Switch model or wait for the plan to reset.");

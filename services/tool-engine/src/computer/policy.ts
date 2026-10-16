@@ -107,8 +107,7 @@ export function deleteDenial(label: string | undefined, role: string | undefined
 
 /** ADR-123: the keys that delete files in Finder (Command+Delete moves to the Trash, with Shift it empties it, with Option it deletes at once). */
 export function deleteKeyDenial(keys: string[]): string | undefined {
-  // "cmd+delete" written as one string is the same chord as ["cmd", "delete"].
-  const lower = keys.flatMap((k) => (k.length > 1 && k.includes("+") ? k.split("+") : [k])).map(canonicalKey);
+  const lower = chord(keys); // "cmd+delete" as one string, or ["delete", "cmd"], is the same chord as ["cmd", "delete"]
   const key = lower[lower.length - 1] ?? "";
   return DELETE_KEYS.has(key) && lower.includes("cmd") ? "ATOM never deletes files. Ask the user to do it in Finder." : undefined;
 }
@@ -147,8 +146,23 @@ const SENDING_KEYS = new Set(["return", "enter", "space", " ", "spacebar"]); // 
  * Why a key press needs approval, or undefined. Return can send or confirm, so it asks, except straight after
  * typing into a field with no modifier (a search or address box). Delete, Quit, Spotlight and force-quit always ask.
  */
+const MODIFIER_KEYS = new Set(["cmd", "ctrl", "control", "option", "shift", "fn"]);
+
+/**
+ * A key chord as one list: "cmd+return" written as one string is split, names are canonical, and the key is the last name that is not a modifier,
+ * wherever it stands (["return", "cmd"] is Command+Return). The rules below used to read only the last element of the array as the key, so a chord
+ * sent as one string or in another order had no card (code check, 2026-10-16).
+ */
+function chord(keys: string[]): string[] {
+  const names = keys.flatMap((k) => (k.length > 1 && k.includes("+") ? k.split("+") : [k])).map(canonicalKey);
+  const key = [...names].reverse().find((k) => !MODIFIER_KEYS.has(k));
+  if (key === undefined) return names;
+  const at = names.lastIndexOf(key);
+  return [...names.slice(0, at), ...names.slice(at + 1), key];
+}
+
 export function keyApproval(keys: string[], justTyped: boolean): string | undefined {
-  const lower = keys.map(canonicalKey);
+  const lower = chord(keys);
   const key = lower[lower.length - 1] ?? "";
   const mods = lower.slice(0, -1).filter((k) => k !== "shift");
   const hasMod = mods.length > 0;

@@ -370,7 +370,7 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
     } catch {
       // already ended
     }
-    if (turn) end(turn, { error: turn.cancelled ? new ProviderError("cancelled", "Request cancelled") : new ProviderError("unavailable", "Claude Code ended the session.") });
+    if (turn) end(turn, { error: turn.cancelled ? new ProviderError("cancelled", "Request cancelled") : new ProviderError(turn.acted ? "unknown" : "unavailable", "Claude Code ended the session.") }); // after a tool ran, "unavailable" made the caller send the whole request again and run the tool twice
     log("session.close", { reason });
     try {
       o.onClose?.(reason);

@@ -138,6 +138,7 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
         } catch {
           return; // not a protocol line
         }
+        if (!message || typeof message !== "object") return; // a JSON line that is not an object ("null", "1") is not a reply either
         const p = pending.get(message.id);
         if (!p) return;
         pending.delete(message.id);

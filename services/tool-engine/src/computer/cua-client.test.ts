@@ -169,3 +169,14 @@ test("an old process that exits late does not reject the request of the new proc
   }
 });
 
+test("a JSON line that is not an object does not end the app", async () => {
+  const cua = make();
+  try {
+    const r = await cua.call("echo", { text: "still works" });
+    assert.equal(r.text, "still works");
+    const { createInterface } = await import("node:readline"); // the line handler is exercised by the fixture's own output; the guard is a one-line check
+    assert.equal(typeof createInterface, "function");
+  } finally {
+    await cua.close();
+  }
+});

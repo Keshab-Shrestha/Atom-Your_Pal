@@ -180,7 +180,8 @@ export type CommandVerdict = { verdict: "allow" } | { verdict: "ask"; reason: st
 
 // git's own options may stand between "git" and the subcommand ("git -C . push", "git -c k=v push", "git --git-dir=x push"): the rules below read
 // through them (code check, 2026-10-16). A newline, `env`, `xargs` and `command` can stand in front of sudo.
-const GIT = String.raw`\bgit(?:\s+(?:-[cC]\s+\S+|--[\w-]+(?:=\S+)?|-[a-zA-Z]))*\s+`;
+// The one-letter option must not also match -c or -C (which take a value): with both, a run of "-c" tokens has exponentially many parses (ReDoS, 2026-10-16).
+const GIT = String.raw`\bgit(?:\s+(?:-[cC]\s+\S+|--[\w-]+(?:=\S+)?|-[abd-zABD-Z]))*\s+`;
 const REFUSED: [RegExp, string][] = [
   [new RegExp(`${GIT}push\\b`), "Pushing is never done: the work stays on its branch on this Mac."],
   [new RegExp(`${GIT}remote\\s+(?:add|set-url|rename|remove|rm)\\b`), "Changing the repository's remotes is not allowed."],
@@ -212,7 +213,11 @@ const ASKED: [RegExp, string][] = [
 ]; 
 
 /** A sandboxed command's fate, in code: some are never run, some ask Keshab first, the rest run. */
+/** A command longer than this is refused unread: the checks below are regular expressions and the text comes from a model. */
+export const MAX_COMMAND_CHARS = 8_000;
+
 export function classifyCommand(command: string): CommandVerdict {
+  if (command.length > MAX_COMMAND_CHARS) return { verdict: "refuse", reason: `The command is longer than ${MAX_COMMAND_CHARS} characters. Put it in a script file.` };
   for (const [re, reason] of REFUSED) if (re.test(command)) return { verdict: "refuse", reason };
   for (const [re, reason] of DELETE_AND_HARM) if (re.test(command)) return { verdict: "refuse", reason };
   for (const [re, reason] of ASKED) if (re.test(command)) return { verdict: "ask", reason };

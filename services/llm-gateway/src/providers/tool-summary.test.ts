@@ -120,3 +120,16 @@ test("the result of a browser typing call is hidden (Playwright echoes the typed
   assert.equal(events[1]!.result, "(text hidden)");
   assert.equal(events[3]!.result, "- Page URL: https://a.test");
 });
+
+// 2026-10-16 (code check): the URL-userinfo pattern was quadratic on a long dotted run.
+test("redact is fast on long dotted and plus-joined runs, and still masks a URL login", () => {
+  for (const text of ["a.".repeat(40_000), "a+".repeat(40_000), "a-b.".repeat(20_000), "x".repeat(80_000)]) {
+    const t = Date.now();
+    redact(text);
+    assert.ok(Date.now() - t < 400, `${text.slice(0, 6)}… took ${Date.now() - t} ms`);
+  }
+  assert.equal(redact("see https://user:pass@example.com/x ok"), "see https://example.com/x ok");
+  const t = Date.now();
+  summarizeToolResult("a.".repeat(500_000));
+  assert.ok(Date.now() - t < 400, "a huge answer is cut before it is read");
+});

@@ -27,7 +27,7 @@ export interface ToolCallEvent {
 
 const SECRET_PATTERNS: [RegExp, string][] = [
   [/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)/g, HIDDEN],
-  [/(\b[a-z][a-z0-9+.-]*:\/\/)[^\s/@]+@/gi, "$1"], // URL userinfo
+  [/((?<![a-z0-9+.-])[a-z][a-z0-9+.-]*:\/\/)[^\s/@]+@/gi, "$1"], // URL userinfo; starts only at the start of a word run (a \b here was retried at every dot of a long dotted run: quadratic)
   [/\bsk-[A-Za-z0-9_-]{16,}/g, HIDDEN],
   [/(\s(?:-u|--user)[\s=]+)\S+/g, `$1${HIDDEN}`], // curl -u user:pass
   [/\bBearer\s+\S+/gi, `Bearer ${HIDDEN}`],
@@ -99,7 +99,9 @@ export function summarizeToolInput(tool: string, rawInput: unknown): { text: str
 }
 
 /** A tool's answer, masked and cut. */
-export const summarizeToolResult = (text: string) => cutText(redact(text), TOOL_RESULT_CHARS);
+export const summarizeToolResult = (text: string) => cutText(redact(text.slice(0, REDACT_LIMIT)), TOOL_RESULT_CHARS);
+/** Only this much of a tool answer is looked at: the rest is cut anyway, and a huge text would block the event loop. */
+const REDACT_LIMIT = 200_000;
 
 /**
  * Turns the tool_use and tool_result blocks of a run's messages into summarized events for `emit`. A throw from `emit`
