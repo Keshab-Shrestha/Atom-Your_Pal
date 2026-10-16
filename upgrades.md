@@ -1,6 +1,6 @@
 # ATOM upgrades: sidebar, Cursor-style editing everywhere, and six new features
 
-> **Status (2026-10-17): plan only, nothing built yet.** Each item gets its own ADR (numbered when built; ADR-128 onwards), a TASK.md entry and a commit. Keep this file current as items land. v3 (2026-10-17) adds the six new features (Part C) and one roadmap for everything. Part A and Part B are the v2 plan with Keshab's answers.
+> **Status (2026-10-17): item 1 (sidebar, ADR-128) is built and tested, not yet tried live. Everything else is plan only.** Each item gets its own ADR (numbered when built; ADR-128 onwards), a TASK.md entry and a commit. Keep this file current as items land. v3 (2026-10-17) adds the six new features (Part C) and one roadmap for everything. Part A and Part B are the v2 plan with Keshab's answers.
 
 **Repo:** `~/Developer/atom` (ATOM). Check `git status` for other agents' uncommitted work before editing.
 

@@ -7,6 +7,8 @@ import AtomIslandCore
 struct WindowTopBar<Trailing: View>: View {
     let title: String
     let symbol: String
+    /// ADR-128: set while the sidebar is hidden: the button that shows it again sits at the bar's left end.
+    var showSidebar: (() -> Void)? = nil
     /// ADR-096: Back, when there is a step to go back to (else no arrow).
     var back: (() -> Void)? = nil
     @ViewBuilder let trailing: () -> Trailing
@@ -15,6 +17,7 @@ struct WindowTopBar<Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            if let showSidebar { SidebarToggleButton(hidden: true, action: showSidebar) }
             if let back {
                 Button(action: back) {
                     Image(systemName: "chevron.left").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.text2.color)
@@ -114,5 +117,22 @@ struct ChatModelMenu: View {
                 Text("Type the model id for \(info.providers.first { $0.id == (ownProvider ?? info.provider) }?.name ?? "the provider"). Use up to 100 letters, digits, \".\", \"_\", \":\" or \"-\".")
             }
         }
+    }
+}
+
+/// ADR-128: the sidebar button: in the sidebar's header while it is shown, in the top bar's left end while it is hidden.
+struct SidebarToggleButton: View {
+    let hidden: Bool
+    let action: () -> Void
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "sidebar.left").font(.system(size: 13, weight: .regular)).foregroundStyle(theme.text2.color)
+                .frame(width: 24, height: 24).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(WindowChrome.sidebarToggleHelp(hidden: hidden))
+        .accessibilityLabel(WindowChrome.sidebarToggleTitle(hidden: hidden))
     }
 }

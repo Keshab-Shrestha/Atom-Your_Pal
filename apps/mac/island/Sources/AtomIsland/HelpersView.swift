@@ -16,9 +16,15 @@ struct HelpersView: View {
 
     var body: some View {
         let palette = model.settings.theme.palette
+        let sidebarHidden = model.settings.sidebarHidden
         HStack(spacing: 0) {
-            HelperSidebar(model: model).frame(width: 224)
-            Rectangle().fill(palette.separator.color).frame(width: palette.isFlat ? 1 : 0.5)
+            if !sidebarHidden {
+                HStack(spacing: 0) {
+                    HelperSidebar(model: model).frame(width: 224)
+                    Rectangle().fill(palette.separator.color).frame(width: palette.isFlat ? 1 : 0.5)
+                }
+                .transition(.move(edge: .leading))
+            }
             VStack(spacing: 0) {
             // ADR-091: a top bar over every page, with the page's name; it moves the window.
             let page = Self.page(model)
@@ -28,7 +34,7 @@ struct HelpersView: View {
             // A Settings page (Model, Voice...) goes back to the Settings list with this arrow, the one in the top bar.
             let settingsBack: (() -> Void)? = model.windowPage == .settings && model.settingsPage != nil
                 ? { withAnimation(Motion.settle(reduceMotion)) { model.settingsPage = nil } } : nil
-            WindowTopBar(title: page.title, symbol: page.symbol, back: settingsBack ?? (model.history.canGoBack && !ownBack ? { model.goBack() } : nil)) {
+            WindowTopBar(title: page.title, symbol: page.symbol, showSidebar: sidebarHidden ? { model.toggleSidebar() } : nil, back: settingsBack ?? (model.history.canGoBack && !ownBack ? { model.goBack() } : nil)) {
                 if model.windowPage == .chat {
                     // 2026-10-15: New chat, Sounds and Delete are not here. New chat is the icon beside "Chats" in the
                     // sidebar, Delete is on a chat's row there, and the sounds are in Settings → Sounds.
@@ -76,6 +82,7 @@ struct HelpersView: View {
             }
         }
         .background(Rectangle().fill(palette.surfaceFill(solid: true)).ignoresSafeArea())
+        .animation(Motion.settle(reduceMotion), value: sidebarHidden)
         .ignoresSafeArea(edges: .top)
         // ADR-096: every change of page or of what is open is a step Back returns to.
         .onChange(of: model.location, initial: true) { model.recordLocation() }
@@ -303,6 +310,7 @@ private struct WindowHeader: View {
                 Text(model.status.title).font(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1)
             }
             Spacer(minLength: 0)
+            SidebarToggleButton(hidden: false) { model.toggleSidebar() }
         }
         .padding(.horizontal, 6)
         .padding(.bottom, 8)

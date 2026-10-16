@@ -82,6 +82,7 @@ enum IslandGallery {
         writeModelPage(to: directory)
         writeSlashPicker(to: directory)
         writeMentionPicker(to: directory)
+        writeSidebarHidden(to: directory)
         writeDesignPage(to: directory)
         writeBrain(to: directory, theme: .daylight, name: "17-brain-daylight")
         writeBrain(to: directory, theme: .lantern, name: "17-brain-lantern")

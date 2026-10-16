@@ -1876,3 +1876,9 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 - Done: Return during an answer waits in a "Next" row (Edit, Send now) and goes when the answer ends; ⌘Return sends now; Stop, an error or leaving the chat puts it back in the box. Runtime: `text.send` over an answer waits for the Core, and `withPointing` passes `busy` through (it never did, so `chat.open` did not wait either). Tests: `MessageQueueTests` (7), runtime "text.send over a running answer", pointing `busy`.
 - Checked in the running app (a test chat "Write the numbers one to forty…"): a queued "Reply with exactly: SECOND" went after the full cat story; Stop put "THIRD" back in the box unsent; ⌘Return stopped the heron story and "NOW" was answered.
 - Not checked live: leaving the chat with a message waiting (covered by tests).
+
+## Upgrades, item 1: hide and show the sidebar (2026-10-17, ADR-128)
+
+- Done: `sidebarHidden` setting; button in the sidebar header and, while hidden, at the top bar's left; ⌥⌘H and View → Hide/Show Sidebar; the pane fills the window; ⌘F shows the sidebar first. Tests: `SidebarVisibilityTests` (4). Swift tests: 696 pass. `island:ui-check` gallery and golden shots pass (changes under 0.6 %). New gallery frame `23-sidebar-hidden`, checked by eye.
+- Not checked live: the button, ⌥⌘H and the menu in the running window; a relaunch keeping the choice; ⌘F while hidden; hiding during an answer; a narrow window; the Lantern and Daylight themes. Try each once.
+- Next in upgrades.md: item 2, the diff engine (B1).

@@ -44,6 +44,11 @@ struct SidebarSearchField: View {
             if !Task.isCancelled { model.runSearch() }
         }
         .onChange(of: model.searchFocusTick) { focus.wrappedValue = true }
+        .onAppear {
+            guard model.searchFocusPending else { return }
+            model.searchFocusPending = false
+            DispatchQueue.main.async { focus.wrappedValue = true }
+        }
     }
 }
 

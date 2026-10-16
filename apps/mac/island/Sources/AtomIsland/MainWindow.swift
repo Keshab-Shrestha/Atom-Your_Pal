@@ -6,7 +6,7 @@ import AtomIslandCore
 /// real Mac window with a sidebar. While it is open ATOM has a Dock icon and a menu bar (so ⌘W, ⌘C and ⌘V work in
 /// it); closing it puts the app back the way it was (a background app).
 @MainActor
-final class MainWindowController: NSObject, NSWindowDelegate {
+final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidation {
     private let model: IslandModel
     private var window: NSWindow?
     private var previousPolicy = NSApplication.ActivationPolicy.accessory
@@ -55,7 +55,16 @@ final class MainWindowController: NSObject, NSWindowDelegate {
     }
 
     /// ADR-098: Edit → Find (⌘F) focuses the sidebar's search.
-    @objc private func find(_ sender: Any?) { model.searchFocusTick += 1 }
+    @objc private func find(_ sender: Any?) { model.focusSearch() }
+
+    /// ADR-128: View → Hide Sidebar / Show Sidebar (⌥⌘H).
+    @objc private func toggleSidebar(_ sender: Any?) { model.toggleSidebar() }
+
+    /// The View item names what it does now: "Hide Sidebar" or "Show Sidebar".
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if item.action == #selector(toggleSidebar(_:)) { item.title = WindowChrome.sidebarToggleTitle(hidden: model.settings.sidebarHidden) }
+        return true
+    }
 
     /// Go → Back (⌘[).
     @objc private func goBack(_ sender: Any?) { model.goBack() }
@@ -120,6 +129,9 @@ final class MainWindowController: NSObject, NSWindowDelegate {
             item("Paste", #selector(NSText.paste(_:)), "v"), item("Select All", #selector(NSText.selectAll(_:)), "a"), .separator(),
             find,
         ])
+        let sidebar = item(WindowChrome.sidebarToggleTitle(hidden: model.settings.sidebarHidden), #selector(toggleSidebar(_:)), "h", [.command, .option])
+        sidebar.target = self
+        add("View", [sidebar])
         let back = item("Back", #selector(goBack(_:)), "[")
         back.target = self
         add("Go", [back])

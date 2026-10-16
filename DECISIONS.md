@@ -3042,3 +3042,21 @@ The rules are in `AtomIslandCore/MentionMenu.swift` and `ComposerDraft` (`DraftN
 The rules are in `AtomIslandCore/MessageQueue.swift` (`MessageQueueTests`); `IslandModel` keeps the queue and settles it from runtime events; the row is `QueuedRow` in `ConversationView.swift`. Runtime: `text.send` in `island.ts`, `busy` in `pointing.ts`, with tests in both.
 
 **Left out.** Several waiting messages in a list (they join into one); a waiting message surviving a quit; voice turns joining the queue (speaking still interrupts, ADR-036).
+
+---
+
+## ADR-128 — Hide and show the window's left panel (2026-10-17)
+
+**Context.** The ATOM window has a 224-point sidebar. Keshab wants to hide it to give the main pane the whole window (upgrades.md, Part A).
+
+**Decision.**
+1. **One setting.** `IslandSettings.sidebarHidden` (key `atom.window.sidebarHidden`, default shown) keeps the choice across launches.
+2. **Three ways to change it.** The sidebar button (`sidebar.left`) at the right end of the sidebar header, ⌥⌘H, and the View menu item. The menu item reads "Hide Sidebar" or "Show Sidebar". ⌥⌘H does not clash with anything in ATOM's menu, and the system's own key (⌥⌘S) stays free.
+3. **A hidden sidebar never traps the user.** While it is hidden, the same button moves to the left end of the top bar. The menu item and ⌥⌘H work too.
+4. **The main pane fills the window.** The panel slides out in 0.2 s (`Motion.settle`; no motion with Reduce Motion). Chat and Settings keep their reading width and stay centred.
+5. **⌘F shows the sidebar first.** The search field focuses itself when it appears (`searchFocusPending`).
+6. **No extra inset for the traffic lights.** The top bar already sits below them (`topBarGap`), so the plan's `topBarLeadingInset` is not built.
+
+The words for the button and menu are in `AtomIslandCore/WindowChrome.swift`; the setting has tests in `SidebarVisibilityTests`. The gallery has a new frame, `23-sidebar-hidden`.
+
+**Left out.** Drag-resize, an icon rail and hover-peek (as in upgrades.md). The menu-bar panel does not change.

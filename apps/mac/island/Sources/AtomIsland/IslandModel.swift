@@ -81,6 +81,21 @@ final class IslandModel {
     var searchText = ""
     var searchResults: SearchResults?
     var searchFocusTick = 0
+    /// ADR-128: ⌘F with the sidebar hidden shows it first; the field focuses itself when it appears.
+    var searchFocusPending = false
+
+    /// ADR-128: hide or show the window's left panel (⌥⌘H, the View menu, the button).
+    func toggleSidebar() { settings.sidebarHidden.toggle() }
+
+    /// ⌘F: focus the sidebar's search, showing the sidebar first when it is hidden.
+    func focusSearch() {
+        if settings.sidebarHidden {
+            searchFocusPending = true
+            settings.sidebarHidden = false
+        } else {
+            searchFocusTick += 1
+        }
+    }
     /// ADR-094: the Board's "All agents" list is open (from its chip or a "+N" sign on the floor).
     var showsAllAgents = false
     /// The Settings page open inside the Settings tab; nil shows the list of pages (ADR-057).

@@ -347,3 +347,4 @@ Older steps are in TASK.md.
 - **Chat box (ADR-125).** Shift+Return for new lines (up to 8, then scrolls), ⌘V attaches copied files and screenshots, ↑ brings back the last message, and every chat keeps its own unsent draft.
 - **"@" in the chat box (ADR-126).** Type "@" to hand a message to a helper ("@Sid"), send a Second brain page with it, or pick a file.
 - **Typing while ATOM answers (ADR-127).** Return makes the message wait for the answer ("Next", with Edit and Send now); ⌘Return sends at once.
+- **Hide the sidebar (ADR-128).** ⌥⌘H, the View menu or the button hides the window's left panel; the choice is kept. Built and tested; not yet tried in the running window.

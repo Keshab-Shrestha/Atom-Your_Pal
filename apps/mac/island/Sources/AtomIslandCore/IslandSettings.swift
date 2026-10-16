@@ -34,6 +34,7 @@ public final class IslandSettings {
     static let bubbleOpacityKey = "atom.bubble.opacity"
     static let themeKey = "atom.look.theme"
     static let sidebarKey = "atom.window.sidebar"
+    static let sidebarHiddenKey = "atom.window.sidebarHidden"
     /// Set once the ADR-084 move to Lantern has run, so a later choice of Quiet Native sticks.
     static let lanternMoveKey = "atom.look.lanternDefault"
     /// Set once the ADR-086 move to Void has run, so a later choice of Lantern sticks.
@@ -92,6 +93,8 @@ public final class IslandSettings {
 
     /// Where the window sidebar's pages sit (2026-10-15): Keshab drags them. Default is `SidebarLayout.standard`.
     public var sidebar: SidebarLayout { didSet { defaults.set(sidebar.storage, forKey: Self.sidebarKey) } }
+    /// ADR-128: the window's left panel is hidden (⌥⌘H). Default shown.
+    public var sidebarHidden: Bool { didSet { defaults.set(sidebarHidden, forKey: Self.sidebarHiddenKey) } }
 
     /// How big Pal is. Default medium (the original size).
     public var palSize: PalSize { didSet { store(palSize.rawValue, Self.palSizeKey) } }
@@ -211,6 +214,7 @@ public final class IslandSettings {
         Self.moveToVoidOnce(defaults)
         theme = Self.choice(defaults, Self.themeKey, .void)
         sidebar = SidebarLayout(storage: defaults.string(forKey: Self.sidebarKey))
+        sidebarHidden = defaults.bool(forKey: Self.sidebarHiddenKey)
         dictationMode = (defaults.string(forKey: Self.dictationModeKey)).flatMap(DictationMode.init(rawValue:)) ?? .automatic
         livePreview = defaults.object(forKey: Self.livePreviewKey) as? Bool ?? true
         removeFillers = defaults.object(forKey: Self.removeFillersKey) as? Bool ?? true
