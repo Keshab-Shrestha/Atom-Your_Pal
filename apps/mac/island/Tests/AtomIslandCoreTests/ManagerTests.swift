@@ -46,39 +46,15 @@ struct ManagerTests {
         #expect(older.managers.isEmpty, "an older runtime: no Managers")
     }
 
-    @Test func commandsCarryTheirFields() throws {
-        func fields(_ c: IslandCommand) throws -> [String: Any] {
-            try JSONSerialization.jsonObject(with: Data(c.line.utf8)) as? [String: Any] ?? [:]
-        }
-        #expect(try fields(.managerCreate(name: "Travel", mode: "plan")) as NSDictionary == ["type": "manager.create", "name": "Travel", "mode": "plan"])
-        #expect(try fields(.managerRename(id: "travel", name: "Trips")) as NSDictionary == ["type": "manager.rename", "id": "travel", "name": "Trips"])
-        #expect(try fields(.managerMode(id: "travel", mode: "group")) as NSDictionary == ["type": "manager.mode", "id": "travel", "mode": "group"])
-        #expect(try fields(.managerDelete(id: "travel")) as NSDictionary == ["type": "manager.delete", "id": "travel"])
-        #expect(try fields(.agentManager(helper: "sid", manager: "research")) as NSDictionary == ["type": "agent.manager", "helper": "sid", "manager": "research"])
-    }
-
-    @Test func theWindowOpensAManagerAndSendsItsChanges() throws {
+    @Test func theWindowOpensAManagerAndItsPageClosesWithIt() throws {
         var state = HelpersState()
         state.apply(try decodeEvent(Self.line))
         state.selectManager("research")
         #expect(state.selectedManager?.name == "Research")
-        #expect(state.setManagerMode(plansAndReviews: true) == nil, "unchanged")
-        #expect(state.setManagerMode(plansAndReviews: false) == .managerMode(id: "research", mode: "group"))
-        #expect(state.renameManager(" Research ") == nil)
-        #expect(state.renameManager("Finding") == .managerRename(id: "research", name: "Finding"))
-        #expect(state.deleteManager() == nil && state.problem?.contains("still has Agents") == true)
         state.selectHelper("sid")
         #expect(state.selectedManager == nil, "an Agent's page replaces it")
-        #expect(state.moveAgent(to: "research") == nil, "already there")
-        #expect(state.moveAgent(to: "coding") == .agentManager(helper: "sid", manager: "coding"))
-        #expect(state.moveAgent(to: "nope") == nil)
-        state.openNewManager()
-        #expect(state.createManager(name: "  ", plansAndReviews: true) == nil && state.problem != nil)
-        #expect(state.createManager(name: "Travel", plansAndReviews: true) == .managerCreate(name: "Travel", mode: "plan"))
-        let added = Self.line.replacingOccurrences(of: #"{"id":"x"},"#, with: #"{"id":"travel","name":"Travel","agents":[],"jobs":[]},"#)
-        state.apply(try decodeEvent(added))
-        #expect(state.selectedManager?.id == "travel" && !state.isCreatingManager, "the new Manager is chosen")
-        state.apply(try decodeEvent(Self.line))
+        state.selectManager("research")
+        state.apply(try decodeEvent(Self.line.replacingOccurrences(of: #"{"id":"research""#, with: #"{"id":"gone""#)))
         #expect(state.selectedManager == nil, "a removed Manager's page closes")
     }
 

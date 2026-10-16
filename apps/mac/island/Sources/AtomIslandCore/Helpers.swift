@@ -1192,12 +1192,6 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.helperWakeUpPause(helper: helperId, paused: paused))
     }
 
-    /// ADR-094: takes a waiting team task back.
-    public mutating func deleteTeamTask(_ id: Int) -> IslandCommand? {
-        guard list?.teamTasks.contains(where: { $0.id == id }) == true else { return nil }
-        return waiting(.teamDelete(id: id))
-    }
-
     /// ADR-090: MCP servers: add (checked by the runtime), remove, test, turn on or off, trust, choose workers.
     public mutating func addMcp(_ draft: McpServerDraft) -> IslandCommand? {
         let name = draft.name.trimmingCharacters(in: .whitespaces)
@@ -1264,59 +1258,6 @@ public struct HelpersState: Sendable, Equatable {
         isSoulOpen = false
         closeReport()
         problem = nil
-    }
-
-    public mutating func openNewManager() {
-        selectedManagerId = nil
-        isCreatingAgent = false
-        showsBoard = false
-        isSoulOpen = false
-        closeReport()
-        isCreatingManager = true
-        problem = nil
-    }
-
-    public mutating func closeNewManager() {
-        isCreatingManager = false
-        problem = nil
-    }
-
-    /// Nil with `problem` set for an empty name; the runtime checks the rest (letters, taken names).
-    public mutating func createManager(name: String, plansAndReviews: Bool) -> IslandCommand? {
-        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !clean.isEmpty else { problem = "A new manager needs a name."; return nil }
-        return waiting(.managerCreate(name: clean, mode: plansAndReviews ? "plan" : "group"))
-    }
-
-    public mutating func setManagerMode(plansAndReviews: Bool) -> IslandCommand? {
-        guard let manager = selectedManager, manager.plansAndReviews != plansAndReviews else { return nil }
-        return waiting(.managerMode(id: manager.id, mode: plansAndReviews ? "plan" : "group"))
-    }
-
-    public mutating func renameManager(_ name: String) -> IslandCommand? {
-        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let manager = selectedManager, !clean.isEmpty, clean != manager.name else { return nil }
-        return waiting(.managerRename(id: manager.id, name: clean))
-    }
-
-    /// Nil, with why, while it has Agents (the runtime refuses it too).
-    public mutating func deleteManager() -> IslandCommand? {
-        guard let manager = selectedManager else { return nil }
-        guard manager.agents.isEmpty else { problem = "\(manager.name) still has Agents: move them to another manager first."; return nil }
-        return waiting(.managerDelete(id: manager.id))
-    }
-
-    /// Moves the chosen Agent under a Manager. Nil when it is there already, or for Tinker.
-    public mutating func moveAgent(to managerId: String) -> IslandCommand? {
-        guard let helper = selectedHelper, helper.takesTasks, helper.manager != managerId,
-              list?.managers.contains(where: { $0.id == managerId }) == true else { return nil }
-        return waiting(.agentManager(helper: helper.id, manager: managerId))
-    }
-
-    /// ADR-098 item 7: "Use Codex when the Claude plan limit is reached". Nil unless Codex is ready, or when unchanged.
-    public mutating func setCodexFallback(_ on: Bool) -> IslandCommand? {
-        guard let list, list.codexReady, list.codexFallback != on else { return nil }
-        return waiting(.helpersCodexFallback(on))
     }
 
     /// "Allow the large model for helpers". Nil without models (the switch means nothing then) or when unchanged.

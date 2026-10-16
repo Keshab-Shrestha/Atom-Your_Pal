@@ -99,8 +99,6 @@ public enum IslandCommand: Sendable, Equatable {
     /// ADR-097: Keshab's own schedule from the Scheduled page, new or changed.
     case routineAdd(RoutineDraft)
     case routineUpdate(id: Int, RoutineDraft)
-    case teamAdd(task: String, role: String?)
-    case teamDelete(id: Int)
     case helperWakeUp(helper: String, every: String)
     case helperWakeUpPause(helper: String, paused: Bool)
     /// Task 3.11: grant a folder to a worker, or take it back.
@@ -142,20 +140,11 @@ public enum IslandCommand: Sendable, Equatable {
     /// ADR-088: add an agent (its soul.md), or remove one Keshab added.
     case agentCreate(name: String, role: String, kit: String, soul: HelperSoul)
     case agentRemove(id: String)
-    /// ADR-095: Managers: add one (mode "plan" or "group"), rename it, switch its mode, remove it (refused while it has
-    /// Agents); put an Agent under a Manager.
-    case managerCreate(name: String, mode: String)
-    case managerRename(id: String, name: String)
-    case managerMode(id: String, mode: String)
-    case managerDelete(id: String)
-    case agentManager(helper: String, manager: String)
     case grantRemove(helper: String, path: String)
     case jobDelete(id: Int)
     /// ADR-083: pin a helper to a model (`""` lets Laya choose again); allow or forbid the large model for jobs.
     case helperPin(helper: String, model: String)
     case helpersSettings(allowLarge: Bool)
-    /// ADR-098 item 7: "Use Codex when the Claude plan limit is reached" (default off).
-    case helpersCodexFallback(Bool)
     /// Task 3.3: save a worker's edited soul as a new version; make an older version current again.
     case soulSet(helper: String, soul: HelperSoul)
     case soulRestore(helper: String, version: Int)
@@ -232,8 +221,6 @@ public enum IslandCommand: Sendable, Equatable {
         case .routinePause: "routine.pause"
         case .routineAdd: "routine.add"
         case .routineUpdate: "routine.update"
-        case .teamAdd: "team.add"
-        case .teamDelete: "team.delete"
         case .helperWakeUp: "helper.wakeUp"
         case .helperWakeUpPause: "helper.wakeUp.pause"
         case .grantAdd: "grant.add"
@@ -265,15 +252,10 @@ public enum IslandCommand: Sendable, Equatable {
         case .mcpTest: "mcp.test"
         case .agentCreate: "agent.create"
         case .agentRemove: "agent.remove"
-        case .managerCreate: "manager.create"
-        case .managerRename: "manager.rename"
-        case .managerMode: "manager.mode"
-        case .managerDelete: "manager.delete"
-        case .agentManager: "agent.manager"
         case .grantRemove: "grant.remove"
         case .jobDelete: "job.delete"
         case .helperPin: "helper.pin"
-        case .helpersSettings, .helpersCodexFallback: "helpers.settings"
+        case .helpersSettings: "helpers.settings"
         case .soulSet: "soul.set"
         case .soulRestore: "soul.restore"
         case .projectAdd: "project.add"
@@ -396,20 +378,8 @@ public enum IslandCommand: Sendable, Equatable {
             if let enabled { fields["enabled"] = enabled }
             if let trusted { fields["trusted"] = trusted }
             if let workers { fields["workers"] = workers }
-        case .agentRemove(let id), .managerDelete(let id):
+        case .agentRemove(let id):
             fields["id"] = id
-        case .managerCreate(let name, let mode):
-            fields["name"] = name
-            fields["mode"] = mode
-        case .managerRename(let id, let name):
-            fields["id"] = id
-            fields["name"] = name
-        case .managerMode(let id, let mode):
-            fields["id"] = id
-            fields["mode"] = mode
-        case .agentManager(let helper, let manager):
-            fields["helper"] = helper
-            fields["manager"] = manager
         case .proposalAccept(let id), .proposalReject(let id), .proposalUndo(let id), .jobOpen(let id), .jobRetry(let id), .mcpRemove(let id), .mcpTest(let id),
              .skillMake(let id), .skillApprove(let id), .skillReject(let id), .skillEditAccept(let id), .skillEditReject(let id), .skillEditUndo(let id),
              .skillHubApprove(let id), .skillHubReject(let id):
@@ -442,7 +412,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .helperPlanFirst(let helper, let on), .helperBrowser(let helper, let on):
             fields["helper"] = helper
             fields["on"] = on // a real JSON boolean
-        case .jobStop(let id), .jobInterrupt(let id), .jobFresh(let id), .planApprove(let id), .planReject(let id), .routineDelete(let id), .jobDelete(let id), .threadGet(let id), .teamDelete(let id):
+        case .jobStop(let id), .jobInterrupt(let id), .jobFresh(let id), .planApprove(let id), .planReject(let id), .routineDelete(let id), .jobDelete(let id), .threadGet(let id):
             fields["id"] = id // a JSON number
         case .jobUndo(let id, let path, let force):
             fields["id"] = id
@@ -456,9 +426,6 @@ public enum IslandCommand: Sendable, Equatable {
         case .routineUpdate(let id, let draft):
             fields["id"] = id
             Self.routineFields(draft, into: &fields)
-        case .teamAdd(let task, let role):
-            fields["task"] = task
-            if let role, !role.isEmpty { fields["role"] = role }
         case .helperWakeUp(let helper, let every):
             fields["helper"] = helper
             fields["every"] = every
@@ -470,8 +437,6 @@ public enum IslandCommand: Sendable, Equatable {
             fields["model"] = model
         case .helpersSettings(let allowLarge):
             fields["allowLarge"] = allowLarge // a real JSON boolean
-        case .helpersCodexFallback(let on):
-            fields["codexFallback"] = on // a real JSON boolean
         case .soulSet(let helper, let soul):
             fields["helper"] = helper
             fields["soul"] = ["name": soul.name, "personality": soul.personality, "howItWorks": soul.howItWorks,

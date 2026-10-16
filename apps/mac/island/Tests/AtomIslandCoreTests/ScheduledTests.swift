@@ -39,9 +39,6 @@ struct ScheduledTests {
     }
 
     @Test func encodesTheCommands() {
-        #expect(IslandCommand.teamAdd(task: "x", role: nil).line == #"{"task":"x","type":"team.add"}"# + "\n")
-        #expect(IslandCommand.teamAdd(task: "x", role: "coder").line == #"{"role":"coder","task":"x","type":"team.add"}"# + "\n")
-        #expect(IslandCommand.teamDelete(id: 3).line == #"{"id":3,"type":"team.delete"}"# + "\n")
         #expect(IslandCommand.routinePause(id: 2, paused: true).line == #"{"id":2,"paused":true,"type":"routine.pause"}"# + "\n")
         #expect(IslandCommand.helperWakeUp(helper: "sid", every: "4h").line == #"{"every":"4h","helper":"sid","type":"helper.wakeUp"}"# + "\n")
         #expect(IslandCommand.helperWakeUpPause(helper: "sid", paused: false).line == #"{"helper":"sid","paused":false,"type":"helper.wakeUp.pause"}"# + "\n")
@@ -61,8 +58,6 @@ struct ScheduledTests {
         #expect(state.pauseRoutine(2, paused: false) == .routinePause(id: 2, paused: false))
         #expect(state.deleteAnyRoutine(1) == .routineDelete(id: 1))
         #expect(state.deleteAnyRoutine(9) == nil)
-        #expect(state.deleteTeamTask(4) == .teamDelete(id: 4))
-        #expect(state.deleteTeamTask(5) == nil)
     }
 
     @Test func thePageSortsByNextTimePausedLast() throws {
