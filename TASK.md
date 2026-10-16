@@ -1690,6 +1690,27 @@ Four more read-only reviewers (runtime and API, services, Swift logic, tests and
 - **Tests and docs.** New tests for `scrubbedEnv` and `planGuard`, the real `/interrupt` refusal, and the date test that could fail across midnight. README, SECURITY.md, `docs/telegram.md`, `docs/island-protocol.md` and STATUS.md no longer promise budgets, Managers, wake-ups, hand-offs, `/interrupt`, or a missing web-search fee.
 - **Telegram backlog (done after the pass).** Messages and button presses that arrived while ATOM was closed are skipped on start and counted; ATOM sends one notice with the count (`skipBacklog`, `onBacklog`).
 - **Open from this pass.** A multi-part Telegram message whose later part fails is resent whole (part 1 twice). Replies, agent reports and routine results sent to Telegram are not retried at the bot level. A 409 or 401 from Telegram is only logged. A reported `Cyrillic` look-alike in a label ("Рay") still passes (needs a confusables table). Text inserter: Accessibility calls run on the main thread without a timeout; Command-V uses a QWERTY key code (Dvorak). `HelpersState` clears its wait on any `helpers` push. An unlabeled AXGroup or AXLink click asks nothing. The `computer` tool's shared target could be switched by parallel calls (not confirmed that calls run in parallel).
+
+### Fourth review pass (2026-10-16): the whole app, one area at a time
+
+Eight independent read-only reviewers (new security code, new runtime code, helpers and memory, tool-engine and gateway with the rest of the runtime, Swift core, Swift controllers and views). Every finding was checked against the code before a fix. Fixed, with a test where the logic could be tested:
+
+- **Mine, found by the review.** A regex of mine (`git` options) was exponential and could freeze the app on hostile text; the secret-masking regex was quadratic on long dotted text; a helper script emptied `grants.test.ts` and the suite still passed (a guard test now fails on an empty test file); a fake key in a test was blocked by GitHub push protection (built at run time now).
+- **Shared phone and window chats.** A live session never learned what the other side wrote. `resume` now hands it the missed messages, found by content.
+- **Telegram.** A failed push was lost after a store change (this also caused a flaky test); commands with trailing punctuation; no update served after stop.
+- **Security.** `~` and `$` in paths; climbing patterns; Grep lines outside the task folder; more secret shapes; case-insensitive secret names; taint travels with agent reports and into new tasks; the wrong-token lock counts only real guesses (a web page could lock the owner out); key chords in any spelling; more command and delete rules; a closed session after a tool ran is not retried (a reminder could be made twice).
+- **Data.** Removing a project and keeping its chats could delete chats; plain chats could vanish from the window list; a removed agent's grants, skills, souls, routines and MCP access passed to a new agent of the same name; a removed task left its plan portion stuck; the skill editor could cut a long skill for good; attachments could overwrite each other on the case-insensitive disk; phone numbers were refused as card numbers (Luhn now); undo copies of failed and stopped tasks are swept after 14 days.
+- **Crashes and guards.** `null` from Cua; the speech worker's closed channel; timer listeners; the task queue; Paperclip polling and its file; the usage callback.
+- **Swift.** Dictated numbers and addresses were split ("3.5" became "3. 5"); a paste put the API token back on the clipboard for good; Esc now stops a dictation insert; an error for another command ended the running turn; a form closed as saved when the runtime stopped under Save; the composer lost its draft when the conversation flipped between empty and not; permission polling ran after the window closed; `mic_starting` notice; CRLF vocabulary; model id with a trailing newline; a spoiled Talk hold cancelled an unrelated turn.
+- **Open (not fixed).**
+  - A decision for Keshab: browser uploads need a granted folder, and the window no longer grants folders (ADR-122). Decide how uploads work (ask each time, from anywhere under the floor?).
+  - Two turns at the same moment in one shared chat can overwrite each other; a chat deleted during a turn can be saved again.
+  - The supervisor's blocking write to the runtime's pipe can hang quit if the runtime stops reading; events arriving during the quit wait can re-show windows.
+  - The notes auto-link is quadratic (slow at several thousand notes); chat search shows one chat if it has 400 matching messages; legacy queued tasks are not cascaded after a restart.
+  - Brain note editor: a refused new note loses its text; the editor resets when the runtime updates the open note.
+  - The ATOM-asks notification is not removed when answered; a hot key whose chord was taken is not retried; Pal's window can keep taking clicks after the screens slept.
+  - Dead Swift protocol surface from ADR-110 (`manager*`, `team*`, `helperWakeUp*`, `helpersCodexFallback`) is still defined; remove it when Keshab says so.
+  - A few other low items are in the reviewers' reports (unbounded small maps, FTS rebuild after a crash, formatter allocation).
 ## Regenerate the Local API token (2026-10-15)
 
 Keshab pasted the token in chat three times and found no way to replace it ("i dont see regenerate option").

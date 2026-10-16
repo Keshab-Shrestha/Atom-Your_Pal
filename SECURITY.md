@@ -496,7 +496,7 @@ ATOM runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 - The first visit to each site (origin) in a run asks Keshab on ATOM's card. A link or a redirect to a new site asks before the next action on that site.
 - The first typing or submit on each site in a run asks Keshab. Typing, filling a form, a key that can type or submit, accepting a dialog, an upload and a click on a submit-like button (for example "Sign in", "Buy", "Send") count.
 - Keshab's answer applies to that site for the rest of the run. A new run asks again. No answer is a no.
-- An upload must come from the worker's granted folders. ATOM refuses all other uploads.
+- A browser upload must come from the worker's granted folders. Since ADR-122 the window no longer grants folders, so a new agent's browser uploads are refused until Keshab decides how uploads work (an open question).
 - Downloads and screenshots go to `data/browser-files/<id>`. ATOM refuses a tool call that names a file to save.
 - ATOM refuses the tools that run code in the page or in Playwright, and the network and storage tools.
 - The log records the task id, the tool name, the site's origin and the answer. It never records typed text or full addresses.
