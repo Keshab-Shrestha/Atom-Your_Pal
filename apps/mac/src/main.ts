@@ -140,6 +140,7 @@ function start(config: Config) {
     ...(runtime.everything ? { everything: runtime.everything } : {}),
     ...(runtime.islandSuggestions ? { suggestions: runtime.islandSuggestions } : {}),
     ...(runtime.islandBrief ? { dailyBrief: runtime.islandBrief } : {}),
+    ...(runtime.islandTextEdit ? { textEdit: runtime.islandTextEdit } : {}),
     ...(runtime.islandAttachments ? { attachments: runtime.islandAttachments } : {}),
     ...(runtime.islandGit ? { git: runtime.islandGit } : {}),
     ...(runtime.islandHelpers ? { helpers: runtime.islandHelpers } : {}),

@@ -37,6 +37,8 @@ public enum IslandEvent: Sendable, Equatable {
     case suggestions(SuggestionsList)
     /// Daily brief: the settings, the newest briefs and whether one is being made (after `brief.get`, and after each change).
     case brief(BriefList)
+    /// Ask ATOM: the answer to a `text.edit`, by its id.
+    case textEditResult(id: String, answer: EditAnswer)
     /// The second brain: the notes and their links (after `brain.get`, and after each change from then on); one note; search hits.
     case brain(BrainGraphData)
     case brainNote(BrainNoteData)
@@ -98,6 +100,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .memory: "memory"
         case .suggestions: "suggestions"
         case .brief: "brief"
+        case .textEditResult: "text.edit.result"
         case .brain: "brain"
         case .brainNote: "brain.note"
         case .brainHits: "brain.hits"
@@ -216,6 +219,11 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .suggestions(SuggestionsList(enabled: f.optionalBool("enabled") ?? false, items: Fields.suggestions(f.values["items"])))
     case "brief":
         return .brief(Fields.briefList(f.values))
+    case "text.edit.result":
+        let id = try f.string("id")
+        if let message = f.optionalString("error") { return .textEditResult(id: id, answer: .failed(message)) }
+        guard let answer = f.values["answer"] as? String else { throw ProtocolError.missingField(event: type, field: "answer") }
+        return .textEditResult(id: id, answer: .answer(answer, changed: f.optionalBool("changed") ?? true))
     case "brain":
         return .brain(Fields.brainGraph(f.values))
     case "brain.note":

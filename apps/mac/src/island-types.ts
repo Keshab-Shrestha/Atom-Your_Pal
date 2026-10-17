@@ -52,6 +52,8 @@ export interface IslandOptions {
   chats?: IslandChats;
   /** Who is answering in which chat: a second turn in a chat that is answering is refused (the window and the phone share a chat). */
   chatTurns?: ChatTurns;
+  /** Ask ATOM (upgrades.md B3). Absent: `text.edit` answers with an error. */
+  textEdit?: IslandTextEdit;
   /** Daily brief (upgrades.md C3). Absent when memory is off: `brief.*` answer with the defaults. */
   dailyBrief?: IslandDailyBrief;
   /** Remembering by itself (upgrades.md C2). Absent when memory is off: `suggestions.*` answer with none. */
@@ -134,6 +136,11 @@ export interface IslandSuggestions {
   accept(id: number, text?: string): void;
   deny(id: number): boolean;
   onChange(listener: () => void): () => void;
+}
+
+/** Ask ATOM (upgrades.md B3): rewrites text as asked. Rejects with words for the user; an abort rejects too. */
+export interface IslandTextEdit {
+  edit(req: { text: string; selection?: [number, number]; instruction: string }, signal: AbortSignal): Promise<{ answer: string; changed: boolean }>;
 }
 
 /** Daily brief (upgrades.md C3). */

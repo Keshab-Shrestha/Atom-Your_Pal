@@ -22,6 +22,9 @@ public enum IslandCommand: Sendable, Equatable {
     case suggestionsDeny(id: Int)
     case suggestionsSet(enabled: Bool)
     /// Daily brief (upgrades.md C3): the settings and briefs (and their changes from then on), make one now, change settings.
+    /// Ask ATOM (upgrades.md B3): rewrite some text as asked. `id` ties the answer to the request; cancel stops it.
+    case textEdit(id: String, request: EditRequest)
+    case textEditCancel(id: String)
     case briefGet
     case briefRun
     case briefSet(change: BriefSettingsChange)
@@ -180,6 +183,8 @@ public enum IslandCommand: Sendable, Equatable {
         case .suggestionsAccept: "suggestions.accept"
         case .suggestionsDeny: "suggestions.deny"
         case .suggestionsSet: "suggestions.set"
+        case .textEdit: "text.edit"
+        case .textEditCancel: "text.edit.cancel"
         case .briefGet: "brief.get"
         case .briefRun: "brief.run"
         case .briefSet: "brief.set"
@@ -303,6 +308,13 @@ public enum IslandCommand: Sendable, Equatable {
             fields["enabled"] = enabled // a real JSON boolean
         case .briefSet(let change):
             fields["change"] = change.fields
+        case .textEdit(let id, let request):
+            fields["id"] = id
+            fields["text"] = request.text
+            fields["instruction"] = request.instruction
+            if let selection = request.selection { fields["selection"] = [selection.lowerBound, selection.upperBound] }
+        case .textEditCancel(let id):
+            fields["id"] = id
         default:
             break
         }

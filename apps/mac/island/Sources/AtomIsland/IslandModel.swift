@@ -31,6 +31,8 @@ final class IslandModel {
     var suggestions = SuggestionsState()
     /// Daily brief (upgrades.md C3): the settings and the newest briefs.
     var dailyBrief = DailyBriefState()
+    /// Ask ATOM (upgrades.md B3): the answers to edit requests, by request id. A view that asked takes its answer with `takeEditAnswer`.
+    var editAnswers: [String: EditAnswer] = [:]
     @ObservationIgnored private var briefPending = false
     @ObservationIgnored private var suggestionPending = false
     /// The second brain: the notes, their links and the open note. Empty until the page first asks the runtime.
@@ -312,6 +314,17 @@ final class IslandModel {
     /// The chat shows the "Remember?" rows: ask for the suggestions once; the runtime then sends its changes.
     /// The window shows the brief: ask once; the runtime then sends its changes.
     func loadBrief() { if let command = dailyBrief.open() { send(command) } }
+    /// Ask ATOM: sends an edit request; the answer arrives in `editAnswers[id]`.
+    func askAtom(id: String, request: EditRequest) {
+        editAnswers[id] = nil
+        send(.textEdit(id: id, request: request))
+    }
+    func cancelAskAtom(id: String) {
+        editAnswers[id] = nil
+        send(.textEditCancel(id: id))
+    }
+    func takeEditAnswer(_ id: String) -> EditAnswer? { editAnswers.removeValue(forKey: id) }
+
     /// "Brief me": makes one now.
     func briefMe() {
         guard let command = dailyBrief.runNow() else { return }
@@ -554,6 +567,8 @@ final class IslandModel {
             skillError = error.message
         case .memory(let list):
             memory = list
+        case .textEditResult(let id, let answer):
+            editAnswers[id] = answer
         case .brief(let list):
             briefPending = false
             dailyBrief.apply(list)

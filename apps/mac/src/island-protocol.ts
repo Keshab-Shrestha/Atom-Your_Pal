@@ -56,6 +56,8 @@ export type IslandEvent =
   /** Remembering by itself: whether suggestions are made, and the ones that wait (at most 3). Sent after `suggestions.get` and after each change. */
   | { type: "suggestions"; enabled: boolean; items: SuggestionItem[] }
   /** Daily brief: the settings, the newest briefs (newest first, at most 14) and whether one is being made. Sent after `brief.get` and after each change. */
+  /** Ask ATOM: the answer to `text.edit`. `answer` replaces the selection (or the whole text); `changed` is false when it is the same. Or `error`, in words for the user. Never logged. */
+  | { type: "text.edit.result"; id: string; answer?: string; changed?: boolean; error?: string }
   | { type: "brief"; settings: BriefSettingsItem; history: BriefItem[]; running: boolean }
   | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[]; chats?: MemoryChatItem[] }
   /** ADR-091: Keshab's chats, newest first, and the one ATOM is in now (voice goes to it). */

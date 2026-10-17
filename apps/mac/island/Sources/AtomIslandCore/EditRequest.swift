@@ -12,6 +12,19 @@ public enum EditRequestError: Error, Equatable {
     case selectionOutOfRange
 }
 
+extension EditRequestError {
+    /// What to tell the user.
+    public var words: String {
+        switch self {
+        case .emptyInstruction: "Say what to do with the text."
+        case .instructionTooLong: "The instruction is too long (500 characters at most)."
+        case .textTooLong: "The text is too long for ATOM to change (100,000 characters at most)."
+        case .emptyText: "There is no text to change."
+        case .selectionOutOfRange: "The selection is outside the text."
+        }
+    }
+}
+
 public struct EditRequest: Sendable, Equatable {
     public static let maxText = 100_000
     public static let maxInstruction = 500
@@ -97,4 +110,11 @@ public struct EditRequest: Sendable, Equatable {
         let upper = marks.first { $0 >= range.upperBound } ?? text.utf16.count
         return lower..<upper
     }
+}
+
+/// ATOM's answer to an edit request: the new text for the target (the selection, or the whole text), or why it could not be made.
+public enum EditAnswer: Sendable, Equatable {
+    /// `changed` is false when the answer is the target as it was.
+    case answer(String, changed: Bool)
+    case failed(String)
 }

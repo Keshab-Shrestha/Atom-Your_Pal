@@ -599,6 +599,7 @@ private struct NoteEditor: View {
                     .frame(minHeight: 180)
                     .background(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).fill(theme.fill1.color))
                     .overlay(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).strokeBorder(theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
+                AskAtomPanel(model: model, text: text) // upgrades.md B3: change the text by asking
                 Text("Link notes with [[Title]]. Tag with #tag.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                 HStack(spacing: 8) {
                     SaveButton(title: note == nil ? "Create" : "Save", enabled: changed) {

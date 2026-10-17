@@ -27,7 +27,7 @@ import {
   type ScreenShot,
   type TimerInfo,
 } from "@atom/tool-engine";
-import { createGateway, createProviderAdapter, createSwitchableModel, listPlanModels, runBrief, runChatDigest, type ChatSession, type ChatSessions, type PlanUsage } from "@atom/llm-gateway";
+import { createGateway, createProviderAdapter, createSwitchableModel, listPlanModels, runBrief, runChatDigest, runEdit, type ChatSession, type ChatSessions, type PlanUsage } from "@atom/llm-gateway";
 import { createNoteModel, createNotes } from "./notes.ts";
 import { createChatUsageRecorder, createOverheadRecorder } from "./usage-report.ts";
 import { makePrivate, ownFolders } from "./private-files.ts";
@@ -67,6 +67,7 @@ import { createKeptChats } from "./kept-chats.ts";
 import { createAttachments } from "./attachments.ts";
 import { searchEverything } from "./everything-search.ts";
 import { BRIEF_INSTRUCTIONS, createBriefRunner } from "./brief.ts";
+import { EDIT_INSTRUCTIONS, createTextEditor } from "./text-edit.ts";
 import type { BriefChange } from "./island-commands.ts";
 import { MAX_PROJECT_MESSAGES, createProjects } from "./projects-wiring.ts";
 import { createIslandGit, withPaperclip } from "./island-wiring.ts";
@@ -134,6 +135,8 @@ export interface Runtime {
   everything?: IslandOptions["everything"];
   /** Remembering by itself (upgrades.md C2). Undefined when memory is off. */
   islandSuggestions?: IslandOptions["suggestions"];
+  /** Ask ATOM (upgrades.md B3). Undefined when the Claude plan is not in use. */
+  islandTextEdit?: IslandOptions["textEdit"];
   /** Daily brief (upgrades.md C3). Undefined when memory is off. */
   islandBrief?: IslandOptions["dailyBrief"];
   /** ADR-113: files attached to a typed message. Undefined in tests. */
@@ -920,6 +923,17 @@ export function createRuntime(
           (group) => log.warn("search.group_failed", { group }),
         ),
     },
+    // Ask ATOM (upgrades.md B3): the small model of the Claude plan, no tools, no memory. Counts as background use.
+    islandTextEdit: createTextEditor({
+      log: { info: (event, fields) => log.info(event, fields as LogFields) },
+      write: async (task, signal) => {
+        const small = modelForTier(planModels(), "small");
+        if (!small) throw new Error("Ask ATOM needs the Claude plan.");
+        const { text, tokens } = await runEdit({ claudePath: keys[CLAUDE_PLAN] ?? "", model: small, task, instructions: EDIT_INSTRUCTIONS, signal, onUsage: reportUsage });
+        if (tokens) recordChatUsage(tokens, small, { background: true });
+        return text;
+      },
+    }),
     ...(briefStore
       ? {
           islandBrief: {

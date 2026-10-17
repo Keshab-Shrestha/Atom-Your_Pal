@@ -66,6 +66,9 @@ export type IslandCommand =
   | { type: "suggestions.deny"; id: number }
   | { type: "suggestions.set"; enabled: boolean }
   /** Daily brief (upgrades.md C3): the settings and briefs (and their changes from then on), make one now, change settings (only the given fields). */
+  /** Ask ATOM (upgrades.md B3): rewrite some text as asked. `id` ties the answer (`text.edit.result`) to the request; a new request with the same `id`, or `text.edit.cancel`, stops the old one. */
+  | { type: "text.edit"; id: string; text: string; selection?: [number, number]; instruction: string }
+  | { type: "text.edit.cancel"; id: string }
   | { type: "brief.get" }
   | { type: "brief.run" }
   | { type: "brief.set"; change: BriefChange }
@@ -187,6 +190,8 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "suggestions.accept",
   "suggestions.deny",
   "suggestions.set",
+  "text.edit",
+  "text.edit.cancel",
   "brief.get",
   "brief.run",
   "brief.set",
@@ -578,6 +583,17 @@ export function parseCommand(line: string): ParsedLine {
     if (type === "suggestions.deny") return { command: { type, id } };
     if (text !== undefined && (typeof text !== "string" || text.length > 600)) return { error: 'suggestions.accept: "text" is a string of at most 600 characters.' };
     return { command: { type, id, ...(typeof text === "string" ? { text } : {}) } };
+  }
+  if (type === "text.edit" || type === "text.edit.cancel") {
+    const { id, text, selection, instruction } = value as { id?: unknown; text?: unknown; selection?: unknown; instruction?: unknown };
+    if (typeof id !== "string" || !/^[\w-]{1,64}$/.test(id)) return { error: `${type} needs an "id" of 1 to 64 letters, digits, "_" or "-".` };
+    if (type === "text.edit.cancel") return { command: { type, id } };
+    if (typeof text !== "string") return { error: 'text.edit needs a "text" string.' };
+    if (typeof instruction !== "string") return { error: 'text.edit needs an "instruction" string.' };
+    if (selection !== undefined && (!Array.isArray(selection) || selection.length !== 2 || !selection.every((n) => typeof n === "number" && Number.isInteger(n) && n >= 0))) {
+      return { error: 'text.edit: "selection" is [start, end], two whole numbers.' };
+    }
+    return { command: { type, id, text, instruction, ...(selection ? { selection: selection as [number, number] } : {}) } };
   }
   if (type === "brief.set") {
     const { change } = value as { change?: unknown };

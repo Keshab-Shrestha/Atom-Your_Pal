@@ -374,6 +374,30 @@ export function runIsland(options: IslandOptions): IslandSession {
         memoryWatched = true; // from now on, changes ATOM makes by itself are sent too
         sendMemory();
         return;
+      case "text.edit": {
+        const editor = options.textEdit;
+        if (!editor) return send({ type: "text.edit.result", id: command.id, error: "Ask ATOM needs the Claude plan, which is not in use." });
+        edits.get(command.id)?.abort(); // a new request with the same id replaces the old one
+        const controller = new AbortController();
+        edits.set(command.id, controller);
+        const { id } = command;
+        void editor
+          .edit({ text: command.text, instruction: command.instruction, ...(command.selection ? { selection: command.selection } : {}) }, controller.signal)
+          .then((result) => {
+            if (!controller.signal.aborted) send({ type: "text.edit.result", id, answer: result.answer, changed: result.changed });
+          })
+          .catch((error) => {
+            if (!controller.signal.aborted) send({ type: "text.edit.result", id, error: describe(error) });
+          })
+          .finally(() => {
+            if (edits.get(id) === controller) edits.delete(id);
+          });
+        return;
+      }
+      case "text.edit.cancel":
+        edits.get(command.id)?.abort();
+        edits.delete(command.id);
+        return;
       case "brief.get":
         briefWatched = true; // from now on, a new brief and changed settings are sent too
         sendBrief();
@@ -781,6 +805,7 @@ export function runIsland(options: IslandOptions): IslandSession {
   }
   let memoryWatched = false;
   let brainWatched = false;
+  const edits = new Map<string, AbortController>(); // Ask ATOM: requests that run, by id
   let suggestionsWatched = false;
   let briefWatched = false;
   function sendBrief() {
@@ -944,6 +969,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     quitting = true;
     stopMemoryUpdates?.();
     stopSuggestionUpdates?.();
+    for (const controller of edits.values()) controller.abort();
     stopBriefUpdates?.();
     stopBrainUpdates?.();
     stopChatUpdates?.();
