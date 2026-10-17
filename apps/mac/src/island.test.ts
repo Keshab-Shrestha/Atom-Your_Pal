@@ -33,6 +33,7 @@ function islandHarness(
     chats: IslandOptions["chats"];
     projects: IslandOptions["projects"];
     attachments: IslandOptions["attachments"];
+    everything: IslandOptions["everything"];
     brain: IslandOptions["brain"];
     git: IslandOptions["git"];
     clipMs: number;
@@ -100,6 +101,7 @@ function islandHarness(
     ...(over.chats ? { chats: over.chats } : {}),
     ...(over.projects ? { projects: over.projects } : {}),
     ...(over.attachments ? { attachments: over.attachments } : {}),
+    ...(over.everything ? { everything: over.everything } : {}),
     ...(over.brain ? { brain: over.brain } : {}),
     ...(over.git ? { git: over.git } : {}),
     ...(over.helpers ? { helpers: over.helpers } : {}),
@@ -1432,6 +1434,27 @@ test("text.send with notes: each Second brain note goes as a <title>.md file wit
   h.clear();
   await h.send({ type: "text.send", text: "x", notes: ["7"] as never });
   assert.match(String((h.events()[0] as { message?: string }).message), /"notes" is a list of note numbers/);
+});
+
+test("search also answers from everything else ATOM keeps, and the old groups stay (upgrades.md C1)", async () => {
+  const asked: string[] = [];
+  const h = islandHarness({
+    chats: { list: () => [], messages: () => [], remove: () => true, search: () => [{ id: "c1", title: "Mesh chat", snippet: "…", at: "2026-10-01T00:00:00Z" }], onChange: () => () => {} },
+    everything: {
+      search: (q) => (asked.push(q), { pages: [{ id: "4", title: "Mesh plan", snippet: "buy" }], facts: [], notes: [], projects: [], agents: [], skills: [{ id: "mesh-compare", title: "mesh-compare", snippet: "Compare" }], routines: [] }),
+    },
+  });
+  await tick(2);
+  h.clear();
+  await h.send({ type: "search", query: "mesh" }, { type: "search", query: "  " });
+  const [full, blank] = h.events() as Extract<IslandEvent, { type: "search.results" }>[];
+  assert.deepEqual(full!.chats.map((c) => c.id), ["c1"]);
+  assert.deepEqual([full!.pages?.[0]?.title, full!.skills?.[0]?.id], ["Mesh plan", "mesh-compare"]);
+  assert.deepEqual([blank!.chats, blank!.pages], [[], undefined], "empty words ask no one");
+  assert.deepEqual(asked, ["mesh"]);
+  const failing = islandHarness({ everything: { search: () => { throw new Error("db closed"); } } });
+  await failing.send({ type: "search", query: "x" });
+  assert.match(String((failing.events().find((e) => e.type === "error") as { message?: string }).message), /search did not work/);
 });
 
 test("context.window reads the named app and answers context.ready", async () => {

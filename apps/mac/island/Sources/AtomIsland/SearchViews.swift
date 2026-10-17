@@ -19,12 +19,12 @@ struct SidebarSearchField: View {
             if snapshot {
                 Text("Search").font(.system(size: 12.5)).foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                TextField("Search", text: Binding(get: { model.searchText }, set: { model.searchText = String($0.prefix(TaskLabels.maxQuery)) }))
+                TextField("Search everything", text: Binding(get: { model.searchText }, set: { model.searchText = String($0.prefix(TaskLabels.maxQuery)) }))
                     .textFieldStyle(.plain).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
                     .focused(focus.projectedValue)
                     .onSubmit { model.runSearch() }
                     .onExitCommand { model.clearSearch() }
-                    .accessibilityLabel("Search chats, tasks and reports")
+                    .accessibilityLabel("Search everything")
             }
             if !model.searchText.isEmpty {
                 Button { model.clearSearch() } label: {
@@ -37,7 +37,7 @@ struct SidebarSearchField: View {
         .padding(.horizontal, 10)
         .frame(height: 28)
         .background(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous).fill(theme.fill2.color))
-        .help("Search chats, tasks and reports (⌘F)")
+        .help("Search chats, tasks, reports, notes, projects, agents and skills (⌘F)")
         // A short pause after the last key, then one search.
         .task(id: model.searchText) {
             try? await Task.sleep(for: .milliseconds(250))
@@ -68,8 +68,24 @@ struct SidebarSearchResults: View {
                     model.windowPage = .chat
                 }
             }
-            group("Tasks", results.tasks, open: openTask)
-            group("Reports", results.reports, open: openTask)
+            group("Tasks", results.tasks, open: openTask, openable: taskOpenable)
+            group("Reports", results.reports, open: openTask, openable: taskOpenable)
+            // Search everything (upgrades.md C1): the other places ATOM keeps things.
+            ForEach(SearchKind.allCases, id: \.self) { kind in
+                group(kind.title, results.hits(kind)) { hit in open(kind, hit) }
+            }
+            let pages = results.settingsPages()
+            if !pages.isEmpty {
+                Text("Settings").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color).padding(.horizontal, 10).padding(.top, 8)
+                ForEach(pages) { page in
+                    Button { model.navigate { model.openSettings(page) } } label: {
+                        Text(page.rawValue).font(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 10).padding(.vertical, 5).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Settings, \(page.rawValue)")
+                }
+            }
         } else {
             HStack(spacing: 6) {
                 ProgressView().controlSize(.small)
@@ -88,16 +104,41 @@ struct SidebarSearchResults: View {
         }
     }
 
+    private func taskOpenable(_ hit: SearchHit) -> Bool { hit.taskId.flatMap { model.helpers.list?.item($0) } != nil }
+
+    /// A hit of another kind opens the place that holds it.
+    private func open(_ kind: SearchKind, _ hit: SearchHit) {
+        model.navigate {
+            switch kind {
+            case .pages:
+                model.windowPage = .brain
+                model.selectBrainNote(Int(hit.id))
+            case .facts, .notes:
+                model.windowPage = .brain // Memory is part of the Second brain page
+            case .projects:
+                model.newChat(inProject: hit.id)
+                model.windowPage = .chat
+            case .agents:
+                model.windowPage = .agents
+                model.helpers.selectHelper(hit.id)
+            case .skills:
+                model.windowPage = .plugins
+            case .routines:
+                model.windowPage = .scheduled
+            }
+        }
+    }
+
     @ViewBuilder
-    private func group(_ title: String, _ hits: [SearchHit], open: @escaping (SearchHit) -> Void) -> some View {
+    private func group(_ title: String, _ hits: [SearchHit], open: @escaping (SearchHit) -> Void, openable: @escaping (SearchHit) -> Bool = { _ in true }) -> some View {
         if !hits.isEmpty {
             Text(title).font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color).padding(.horizontal, 10).padding(.top, 8)
             ForEach(hits) { hit in
-                let openable = title == "Chats" || hit.taskId.flatMap { model.helpers.list?.item($0) } != nil
+                let canOpen = openable(hit)
                 Button { open(hit) } label: { row(hit) }
                     .buttonStyle(.plain)
-                    .opacity(openable ? 1 : 0.5)
-                    .help(openable ? "" : "This task is older than the Board shows.")
+                    .opacity(canOpen ? 1 : 0.5)
+                    .help(canOpen ? "" : "This task is older than the Board shows.")
                     .accessibilityLabel("\(hit.title). \(hit.snippet)")
             }
         }

@@ -331,6 +331,9 @@ The `info` event carries `tools`: each AI tool ATOM looked for on this Mac, `{"i
   - In `chats`, `id` is the chat id (a string). Open the chat with `chat.open`.
   - In `tasks` and `reports`, `id` is the task id (a number). Open the task with `thread.get`.
   - A task snippet from a note starts with `Note:`. A task snippet from a label starts with `Label:`.
+  - Search everything (upgrades.md C1): the event can also have the groups `pages` (Second brain notes; `id` is the note id), `facts`, `notes` (conversation notes), `projects` (`id` is the project id), `agents` (`id` is the helper id), `skills` (`id` is the skill name) and `routines` (`id` is the routine id). Each has at most 8 results, ranked: a title that starts with the words first, then a title with a word that starts with them, then a title that has them, then a body that has them; a newer result wins a tie. Case and character width are ignored. The `at` of these results is optional. A runtime that does not know them sends none.
+  - The runtime searches only on this Mac and sends nothing to a model. Remembered facts and conversation notes go only to the window.
+  - The window searches Settings page names itself.
 - `{"type":"job.label.add","id":5,"label":"…"}`: adds a label to a task.
   - A label has 1 to 24 characters: letters a to z, digits, dashes and spaces. The runtime changes capital letters to small letters.
   - A task has at most 6 labels.

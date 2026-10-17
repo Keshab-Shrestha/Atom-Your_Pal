@@ -258,7 +258,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .thread(try f.thread())
     case "search.results":
         return .searchResults(SearchResults(query: f.optionalString("query") ?? "", chats: Fields.searchHits(f.values["chats"]),
-                                            tasks: Fields.searchHits(f.values["tasks"]), reports: Fields.searchHits(f.values["reports"])))
+                                            tasks: Fields.searchHits(f.values["tasks"]), reports: Fields.searchHits(f.values["reports"]),
+                                            groups: Dictionary(uniqueKeysWithValues: SearchKind.allCases.map { ($0, Fields.searchHits(f.values[$0.rawValue])) })))
     case "error":
         return .error(RuntimeError(
             stage: try f.string("stage"),

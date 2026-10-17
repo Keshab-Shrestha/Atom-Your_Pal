@@ -137,6 +137,7 @@ function start(config: Config) {
     ...(runtime.islandChats ? { chats: runtime.islandChats } : {}),
     chatTurns: runtime.chatTurns,
     ...(runtime.islandProjects ? { projects: runtime.islandProjects } : {}),
+    ...(runtime.everything ? { everything: runtime.everything } : {}),
     ...(runtime.islandAttachments ? { attachments: runtime.islandAttachments } : {}),
     ...(runtime.islandGit ? { git: runtime.islandGit } : {}),
     ...(runtime.islandHelpers ? { helpers: runtime.islandHelpers } : {}),

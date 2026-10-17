@@ -121,6 +121,25 @@ export interface SearchResultsEvent {
   chats: SearchHitItem<string>[];
   tasks: SearchHitItem<number>[];
   reports: SearchHitItem<number>[];
+  /**
+   * Search everything (upgrades.md C1): more groups, each absent from an older runtime. `id` is a Second brain note id (pages),
+   * a project id, a helper id (agents), a skill name, a routine id; facts and notes are Memory entries (the window opens
+   * Settings → Memory). `at` is ISO 8601 when the item has a date.
+   */
+  pages?: EverythingHitItem[];
+  facts?: EverythingHitItem[];
+  notes?: EverythingHitItem[];
+  projects?: EverythingHitItem[];
+  agents?: EverythingHitItem[];
+  skills?: EverythingHitItem[];
+  routines?: EverythingHitItem[];
+}
+
+export interface EverythingHitItem {
+  id: string;
+  title: string;
+  snippet: string;
+  at?: string;
 }
 
 /** A task's thread (ADR-087, Task 3.4). Never logged. */

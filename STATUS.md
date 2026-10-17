@@ -349,3 +349,4 @@ Older steps are in TASK.md.
 - **Typing while ATOM answers (ADR-127).** Return makes the message wait for the answer ("Next", with Edit and Send now); ⌘Return sends at once.
 - **Hide the sidebar (ADR-128).** ⌥⌘H, the View menu or the button hides the window's left panel; the choice is kept. Built and tested; not yet tried in the running window.
 - **Edit review logic (ADR-129).** The code that compares two texts and lets you accept or deny each change is written and tested; nothing in the window uses it yet. The Swift is not compiled.
+- **Search everything (ADR-130).** The sidebar search also finds Second brain pages, remembered facts, conversation notes, projects, agents, skills, routines and Settings pages. Nothing goes to a model. The Swift is not compiled; not tried in the app.

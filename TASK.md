@@ -1889,3 +1889,10 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 - Done: `TextDiff.swift`, `EditReview.swift`, `EditRequest.swift` in `AtomIslandCore`; `TextDiffTests`, `EditReviewTests`, `EditRequestTests`.
 - Not run: the Swift tests (no Swift in the cloud session). Run `pnpm island:test` on the Mac first.
 - Next in upgrades.md: item 3, the shared editor `AtomTextView` (B2), the biggest piece.
+
+## ADR-130: search everything (2026-10-17)
+
+- Done: `search-rank.ts`, `everything-search.ts`, the `search.results` groups, the wiring in `runtime.ts` and `island.ts`; Swift `SearchKind`, the decoder, the grouped results in `SearchViews.swift`, `SearchEverythingTests.swift`.
+- Tests: `everything-search.test.ts` and a new island test run here (the whole TypeScript suite passes); the Swift tests were not compiled.
+- Not checked live: a search for a name that is a chat, a note and a fact; ↑ ↓ Return in the result list (not built: results open by click).
+- Next in upgrades.md: item 8, remembering by itself (C2), or item 9, the daily brief (C3).

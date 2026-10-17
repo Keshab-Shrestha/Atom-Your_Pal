@@ -2,6 +2,7 @@
 // stdin and receives JSON-line events on stdout. Specification: docs/island-protocol.md.
 
 import type { HubCommands } from "./hub-commands.ts";
+import { countHits, type EverythingResults } from "./everything-search.ts";
 import { chatWriter, isSharedChat, readOnlyMessage } from "./chat-owner.ts";
 import { createInterface } from "node:readline";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -711,18 +712,20 @@ export function runIsland(options: IslandOptions): IslandSession {
     else openThread = undefined;
   });
 
-  /** ADR-098: one search over chats, tasks and reports. Logs the counts only, never the query. */
+  /** ADR-098: one search over chats, tasks and reports; upgrades.md C1: and over everything else ATOM keeps. Logs the counts only, never the query. */
   function search(query: string) {
     const empty = { tasks: [], reports: [] };
     let found: { chats: SearchHitItem<string>[]; tasks: SearchHitItem<number>[]; reports: SearchHitItem<number>[] };
+    let more: EverythingResults | undefined;
     try {
       found = query.trim() ? { chats: options.chats?.search?.(query) ?? [], ...(options.helpers?.search?.(query) ?? empty) } : { chats: [], ...empty };
+      more = query.trim() ? options.everything?.search(query) : undefined;
     } catch (error) {
       options.log?.warn("search.failed", { error: error instanceof Error ? error.name : typeof error });
       return send({ type: "error", stage: "settings", message: "The search did not work. Try other words." });
     }
-    options.log?.info("search", { chats: found.chats.length, tasks: found.tasks.length, reports: found.reports.length });
-    send({ type: "search.results", query, ...found });
+    options.log?.info("search", { chats: found.chats.length, tasks: found.tasks.length, reports: found.reports.length, other: more ? countHits(more) : 0 });
+    send({ type: "search.results", query, ...found, ...(more ?? {}) });
   }
 
   function sendMemory() {

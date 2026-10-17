@@ -3071,3 +3071,14 @@ Status: Accepted (Keshab's plan in `upgrades.md`). Pure logic, written and teste
 - `EditRequest`: the text, an optional selection and the instruction (500 characters, 100,000 for the text). A caret means the whole text; a selection never cuts a character. `before` and `after` carry up to 400 characters of context. `review(answer:)` merges the answer into the whole text, so changes show in place.
 - The algorithm was first run as a small script against 3,000 random pairs (minimal edit count, accept all equals the new text, deny all equals the old); the Swift is a port of it.
 - Left for B2: drawing the changes, the caret and the typing animation; B3: the runtime command `text.edit`.
+
+## ADR-130 — Search everything (C1 of upgrades.md) (2026-10-17)
+
+Status: Accepted (Keshab's plan in `upgrades.md`). The TypeScript is tested; the Swift is not compiled. (The shared editor, ADR-130 to 131 in the plan, was skipped at Keshab's request, so this ADR takes the number 130.)
+
+- The window's one search now looks in chats, tasks and reports as before, and also in Second brain pages, remembered facts, conversation notes, projects, agents, skills and routines. Settings page names are searched in the window.
+- `search-rank.ts` (pure): a title that starts with the words comes first, then a word of the title, then the title anywhere, then the body; a newer item wins a tie; 8 for each kind. Case and width are ignored (NFKC). Japanese has no spaces, so a match anywhere counts as a word start.
+- `everything-search.ts` composes the sources. A source that fails is left out and logged by name; the others still answer. Written Second brain pages and names are searched by the brain's own search; its mirrored facts, notes, chats and projects are not repeated in that group.
+- Nothing goes to a model. Facts and notes are sent only to the window that asked (ADR-058). The log has counts only, never the words.
+- A hit opens the place that holds it: a Second brain page, the Memory section of the Second brain, a new chat in a project, an agent's page, Plugins, Scheduled, or a Settings page.
+- Left out: calendar events and reminders (they are on the Mac, not in ATOM), and search by meaning (embeddings).

@@ -174,7 +174,7 @@ test("floorProblem: home and drives are open; Library, hidden places, git, outsi
     const proj = join(home, "Developer", "app");
     assert.equal(floorProblem(home, [proj], proj, join(proj, "src", "tax", "rules.ts"), true), undefined);
     assert.match(floorProblem(home, [proj], proj, join(proj, ".git", "config"), true) ?? "", /Git's own files/);
-    assert.equal(floorProblem(home, ["/Volumes/Disk"], home, "/Volumes/Disk/a.txt", true), undefined);
+    if (existsSync("/Volumes")) assert.equal(floorProblem(home, ["/Volumes/Disk"], home, "/Volumes/Disk/a.txt", true), undefined); // macOS only
   } finally {
     rmSync(home, { recursive: true, force: true });
   }

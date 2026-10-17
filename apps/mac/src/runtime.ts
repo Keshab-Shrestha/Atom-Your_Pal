@@ -65,6 +65,7 @@ import { runTestCases } from "./test-runs.ts";
 import { createEmbedder } from "./embedder.ts";
 import { createKeptChats } from "./kept-chats.ts";
 import { createAttachments } from "./attachments.ts";
+import { searchEverything } from "./everything-search.ts";
 import { MAX_PROJECT_MESSAGES, createProjects } from "./projects-wiring.ts";
 import { createIslandGit, withPaperclip } from "./island-wiring.ts";
 import { nowLine, createEchoCore, describe, errorFields, findCalendarHelper, openHelpers, openMemory, warmOnOpen } from "./runtime-support.ts";
@@ -127,6 +128,8 @@ export interface Runtime {
   chatTurns: ChatTurns;
   /** ADR-107: projects as the ATOM window sees them. Undefined when memory is off. */
   islandProjects?: IslandProjects;
+  /** Search everything (upgrades.md C1). */
+  everything?: IslandOptions["everything"];
   /** ADR-113: files attached to a typed message. Undefined in tests. */
   islandAttachments?: IslandOptions["attachments"];
   /** The helpers as the ATOM window sees them. Undefined when the store could not open. */
@@ -775,6 +778,8 @@ export function createRuntime(
     tick();
     setInterval(tick, SCHEDULER_TICK_MS).unref();
   }
+  // The helpers as the window lists them, for the search (agents, routines, skills).
+  const searchHelpers = helpers ? islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name)))) : undefined;
   return {
     config,
     log,
@@ -795,6 +800,20 @@ export function createRuntime(
           },
         }
       : {}),
+    // Search everything (upgrades.md C1): local sources only; nothing goes to a model. Logs counts, never the words.
+    everything: {
+      search: (query: string) =>
+        searchEverything(
+          {
+            ...(brainWiring ? { brain: (q: string) => brainWiring.island.search(q) } : {}),
+            ...(islandMemory ? { facts: () => islandMemory.list(), episodes: () => islandMemory.episodes() } : {}),
+            ...(projects ? { projects: () => projects.island.list() } : {}),
+            ...(searchHelpers ? { agents: () => searchHelpers.list(), skills: () => searchHelpers.skills() } : {}),
+          },
+          query,
+          (group) => log.warn("search.group_failed", { group }),
+        ),
+    },
     ...(memory ? { islandMemory, islandChats, islandProjects: projects!.island, ...(brainWiring ? { islandBrain: brainWiring.island } : {}) } : {}),
     ...(islandGit ? { islandGit } : {}),
     islandSlashCommands: { list: () => listCommands(userCommandsDir()) },

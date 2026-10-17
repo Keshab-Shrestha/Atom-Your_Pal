@@ -6,6 +6,7 @@ import type { Readable } from "node:stream";
 import type { Logger } from "@atom/shared";
 import type { Message } from "@atom/contracts";
 import { type EpisodeItem, type HelperItem, type ModelItem, type MemoryItem, type MemoryChatItem, type SoulItem, type ThreadEvent, type SearchHitItem, type PaperclipItem, type PlanItem, type BrainNodeItem, type BrainEdgeItem, type BrainNoteItem, type BrainHitItem, type McpItem, type SkillDraftItem, type SkillEditItem, type TestCaseItem, type UsageItem, type ChatItem, type ProjectItem, type GitBranchItem, type RoutineInput } from "./island-protocol.ts";
+import type { EverythingResults } from "./everything-search.ts";
 import type { ComputerBridge } from "./computer-bridge.ts";
 import type { WindowPointer } from "./screen-context.ts";
 import type { ModelSettings } from "./model-settings.ts";
@@ -50,6 +51,8 @@ export interface IslandOptions {
   chats?: IslandChats;
   /** Who is answering in which chat: a second turn in a chat that is answering is refused (the window and the phone share a chat). */
   chatTurns?: ChatTurns;
+  /** Search everything (upgrades.md C1): Second brain pages, facts, notes, projects, agents, skills, routines. Absent: only chats, tasks and reports. */
+  everything?: { search(query: string): EverythingResults };
   /** ADR-113: files attached to a typed message. Absent: a message with files is refused. */
   attachments?: { add(chatId: string, paths: readonly string[]): { ok: true; text: string } | { error: string } };
   /** ADR-107: projects. Absent when memory is off: `project.*` and `chat.new` with a project are refused. */
