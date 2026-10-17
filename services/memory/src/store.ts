@@ -7,6 +7,7 @@ import { openChats, type ChatStore } from "./chats.ts";
 import { openChatIndex, type ChatIndex } from "./chat-index.ts";
 import { openProjects, type ProjectStore } from "./projects.ts";
 import { openSuggestions, type Suggestions } from "./suggestions.ts";
+import { openBriefs, type Briefs } from "./briefs.ts";
 
 // ADR-058: facts the user asks ATOM to keep, in one local SQLite file. Each memory has an owner, a scope,
 // provenance and a lifecycle (SECURITY.md §17). Forgetting deletes the row.
@@ -81,6 +82,8 @@ export interface MemoryStore {
   readonly brain: Brain;
   /** Remembering by itself (upgrades.md C2): facts the notes noticed, waiting for the user's Accept. */
   readonly suggestions: Suggestions;
+  /** Daily brief (upgrades.md C3): the briefs and their settings. */
+  readonly briefs: Briefs;
   /** ADR-097: the chats Keshab keeps in memory, at three depths, with hybrid search. */
   readonly chatIndex: ChatIndex;
   /** ADR-107: projects (a named folder and its chats). */
@@ -221,9 +224,11 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
   const brain = openBrain(db, now);
 
   let suggestionStore: Suggestions | undefined;
+  const briefs = openBriefs(db, now);
   return {
     chats,
     brain,
+    briefs,
     get suggestions() {
       return (suggestionStore ??= openSuggestions(db, this, now));
     },

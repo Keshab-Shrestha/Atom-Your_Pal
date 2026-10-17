@@ -58,6 +58,31 @@ export interface SuggestionItem {
   createdAt: string;
 }
 
+/** Daily brief (upgrades.md C3): one brief. Travels only over the private pipe; never logged. */
+export interface BriefItem {
+  id: number;
+  /** The local day it is for, YYYY-MM-DD. */
+  day: string;
+  /** ISO 8601. */
+  createdAt: string;
+  lines: string[];
+  source: "model" | "template";
+}
+
+/** Daily brief settings. `minute` is minutes after local midnight. */
+export interface BriefSettingsItem {
+  enabled: boolean;
+  minute: number;
+  events: boolean;
+  reminders: boolean;
+  weather: boolean;
+  tasks: boolean;
+  needsYou: boolean;
+  notify: boolean;
+  telegram: boolean;
+  spoken: boolean;
+}
+
 /** One conversation summary (ADR-059). Travels only over the private pipe; never logged. */
 export interface EpisodeItem {
   id: number;

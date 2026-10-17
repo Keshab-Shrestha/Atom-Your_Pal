@@ -35,6 +35,8 @@ public enum IslandEvent: Sendable, Equatable {
     case memory(MemoryList)
     /// Remembering by itself (upgrades.md C2): whether suggestions are made, and the ones that wait (after `suggestions.get`, and after each change).
     case suggestions(SuggestionsList)
+    /// Daily brief: the settings, the newest briefs and whether one is being made (after `brief.get`, and after each change).
+    case brief(BriefList)
     /// The second brain: the notes and their links (after `brain.get`, and after each change from then on); one note; search hits.
     case brain(BrainGraphData)
     case brainNote(BrainNoteData)
@@ -95,6 +97,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .info: "info"
         case .memory: "memory"
         case .suggestions: "suggestions"
+        case .brief: "brief"
         case .brain: "brain"
         case .brainNote: "brain.note"
         case .brainHits: "brain.hits"
@@ -211,6 +214,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .memory(MemoryList(enabled: try f.bool("enabled"), count: try f.int("count"), memories: try f.memories(), episodes: try f.episodes(), chats: try f.memoryChats()))
     case "suggestions":
         return .suggestions(SuggestionsList(enabled: f.optionalBool("enabled") ?? false, items: Fields.suggestions(f.values["items"])))
+    case "brief":
+        return .brief(Fields.briefList(f.values))
     case "brain":
         return .brain(Fields.brainGraph(f.values))
     case "brain.note":
@@ -831,6 +836,30 @@ private struct Fields {
             guard let m = entry as? [String: Any], let role = m["role"] as? String, let text = m["text"] as? String else { return nil }
             return ChatLine(fromUser: role == "user", text: text)
         }
+    }
+
+    /// The daily brief's settings and history; absent fields read as the defaults, a malformed brief is left out.
+    static func briefList(_ values: [String: Any]) -> BriefList {
+        var settings = BriefSettings()
+        if let s = values["settings"] as? [String: Any] {
+            settings.enabled = flag(s["enabled"])
+            settings.minute = wholeNumber(s["minute"]).map { min(1439, max(0, $0)) } ?? settings.minute
+            settings.events = (s["events"] == nil) ? true : flag(s["events"])
+            settings.reminders = (s["reminders"] == nil) ? true : flag(s["reminders"])
+            settings.weather = (s["weather"] == nil) ? true : flag(s["weather"])
+            settings.tasks = (s["tasks"] == nil) ? true : flag(s["tasks"])
+            settings.needsYou = (s["needsYou"] == nil) ? true : flag(s["needsYou"])
+            settings.notify = (s["notify"] == nil) ? true : flag(s["notify"])
+            settings.telegram = flag(s["telegram"])
+            settings.spoken = flag(s["spoken"])
+        }
+        let history: [BriefEntry] = (values["history"] as? [Any] ?? []).compactMap { entry in
+            guard let b = entry as? [String: Any], let id = wholeNumber(b["id"]), let day = b["day"] as? String else { return nil }
+            let lines = (b["lines"] as? [Any] ?? []).compactMap { $0 as? String }
+            guard !lines.isEmpty else { return nil }
+            return BriefEntry(id: id, day: day, createdAt: (b["createdAt"] as? String).flatMap(Self.date), lines: lines, isPlain: (b["source"] as? String) == "template")
+        }
+        return BriefList(settings: settings, history: history, running: flag(values["running"]))
     }
 
     /// Remembering by itself: the facts that wait; a malformed one is left out.

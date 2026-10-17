@@ -27,7 +27,7 @@ import {
   type ScreenShot,
   type TimerInfo,
 } from "@atom/tool-engine";
-import { createGateway, createProviderAdapter, createSwitchableModel, listPlanModels, runChatDigest, type ChatSession, type ChatSessions, type PlanUsage } from "@atom/llm-gateway";
+import { createGateway, createProviderAdapter, createSwitchableModel, listPlanModels, runBrief, runChatDigest, type ChatSession, type ChatSessions, type PlanUsage } from "@atom/llm-gateway";
 import { createNoteModel, createNotes } from "./notes.ts";
 import { createChatUsageRecorder, createOverheadRecorder } from "./usage-report.ts";
 import { makePrivate, ownFolders } from "./private-files.ts";
@@ -66,6 +66,8 @@ import { createEmbedder } from "./embedder.ts";
 import { createKeptChats } from "./kept-chats.ts";
 import { createAttachments } from "./attachments.ts";
 import { searchEverything } from "./everything-search.ts";
+import { BRIEF_INSTRUCTIONS, createBriefRunner } from "./brief.ts";
+import type { BriefChange } from "./island-commands.ts";
 import { MAX_PROJECT_MESSAGES, createProjects } from "./projects-wiring.ts";
 import { createIslandGit, withPaperclip } from "./island-wiring.ts";
 import { nowLine, createEchoCore, describe, errorFields, findCalendarHelper, openHelpers, openMemory, warmOnOpen } from "./runtime-support.ts";
@@ -132,6 +134,8 @@ export interface Runtime {
   everything?: IslandOptions["everything"];
   /** Remembering by itself (upgrades.md C2). Undefined when memory is off. */
   islandSuggestions?: IslandOptions["suggestions"];
+  /** Daily brief (upgrades.md C3). Undefined when memory is off. */
+  islandBrief?: IslandOptions["dailyBrief"];
   /** ADR-113: files attached to a typed message. Undefined in tests. */
   islandAttachments?: IslandOptions["attachments"];
   /** The helpers as the ATOM window sees them. Undefined when the store could not open. */
@@ -356,6 +360,8 @@ export function createRuntime(
   const paperclipChanged = () => {
     for (const listener of paperclipListeners) listener();
   };
+  /** Daily brief: set below, once the runner exists; the "brief me" tool reaches it through this. */
+  let briefNow: (() => Promise<{ lines: string[] }>) | undefined;
   const timerListeners = new Set<(timer: TimerInfo) => void>();
   const timers = createTimers({
     onFire: (timer) => {
@@ -443,6 +449,19 @@ export function createRuntime(
             onProposed: (e) => log.info("skill.proposed", e),
           }),
           createImproveSkillTool({ store: helpers, onProposed: (e) => log.info("skill.edit_proposed", e) }),
+        ]
+      : []),
+    // Daily brief: "brief me" by voice or text makes one now and returns its lines for the model to say.
+    ...(memory
+      ? [
+          {
+            spec: { name: "brief_me", description: "Make the user's daily brief now (weather, today's events, reminders, finished tasks, what waits for them) and return its lines. Use it when the user asks for their brief or morning update.", inputSchema: { type: "object" as const, properties: {} } },
+            capability: { title: "Daily brief", examples: ["Brief me", "What does my day look like?"] },
+            run: async () => {
+              if (!briefNow) throw new Error("The daily brief is not ready.");
+              return (await briefNow()).lines.join("\n");
+            },
+          },
         ]
       : []),
     // ADR-113: the model reads one of Keshab's skills by name; he can also pick one in the composer (`/name`).
@@ -787,6 +806,84 @@ export function createRuntime(
     tick();
     setInterval(tick, SCHEDULER_TICK_MS).unref();
   }
+  // Daily brief (upgrades.md C3): the day gathered by code, written by one model run without tools, saved, and delivered as
+  // the settings say. Off until the user turns it on. Logs counts only, never the lines.
+  const briefStore = memory?.briefs;
+  const briefListeners = new Set<() => void>();
+  let briefRunning = false;
+  const briefCalendar = calendarHelper ? createCalendarTools({ run: calendarRunner(calendarHelper) }) : [];
+  const toolText = async (tools: readonly { spec: { name: string }; run(input: Record<string, unknown>): unknown }[], name: string, input: Record<string, unknown> = {}) => {
+    const tool = tools.find((t) => t.spec.name === name);
+    return tool ? String(await tool.run(input)) : "";
+  };
+  const dailyBrief =
+    briefStore &&
+    createBriefRunner({
+      briefs: briefStore,
+      log: { info: (event, fields) => log.info(event, fields as LogFields), warn: (event, fields) => log.warn(event, fields as LogFields) },
+      sources: {
+        ...(briefCalendar.length
+          ? {
+              events: () => {
+                const from = new Date();
+                from.setHours(0, 0, 0, 0);
+                const to = new Date(from);
+                to.setDate(to.getDate() + 1);
+                return toolText(briefCalendar, "calendar_events", { from: from.toISOString(), to: to.toISOString() });
+              },
+              reminders: () => toolText(briefCalendar, "reminders_list"),
+            }
+          : {}),
+        ...(weather ? { weather: () => Promise.resolve(weather.run({ days: 1 })).then(String) } : {}),
+        ...(helpers
+          ? {
+              tasks: (since: string) =>
+                helpers
+                  .list()
+                  .flatMap((h) => h.jobs.filter((j) => j.state === "done" && j.endedAt && j.endedAt.toISOString() > since).map((j) => `${h.name}: ${j.title ?? "a task"}`)),
+              needsYou: () => {
+                const lines: string[] = [];
+                const awaiting = helpers.list().flatMap((h) => h.jobs).filter((j) => j.planStatus === "awaiting").length;
+                const proposals = helpers.list().flatMap((h) => h.proposals).filter((p) => p.state === "pending").length;
+                const drafts = helpers.skillDrafts().filter((d) => d.state === "pending").length;
+                if (awaiting) lines.push(`${awaiting} plan${awaiting === 1 ? "" : "s"} to approve`);
+                if (proposals) lines.push(`${proposals} suggested change${proposals === 1 ? "" : "s"} to an agent`);
+                if (drafts) lines.push(`${drafts} skill draft${drafts === 1 ? "" : "s"} to review`);
+                return lines;
+              },
+            }
+          : {}),
+        timers: () => timers.list().map((t) => `${t.label || "Timer"}, ${Math.max(1, Math.round((t.endsAt.getTime() - Date.now()) / 60_000))} min left`),
+      },
+      write: async (task, signal) => {
+        const small = modelForTier(planModels(), "small");
+        if (!small) throw new Error("The brief needs the Claude plan.");
+        const { lines, tokens } = await runBrief({ claudePath: keys[CLAUDE_PLAN] ?? "", model: small, task, instructions: BRIEF_INSTRUCTIONS, signal, onUsage: reportUsage });
+        if (tokens) recordChatUsage(tokens, small, { background: true });
+        return lines;
+      },
+      deliver: (brief, settings) => {
+        if (settings.telegram) telegram?.send(brief.lines.join("\n"), true);
+        if (settings.spoken) for (const line of brief.lines) for (const listener of goalLineListeners) listener(line);
+      },
+    });
+  if (dailyBrief && briefStore) {
+    briefStore.onChange(() => briefListeners.forEach((listener) => listener()));
+    setInterval(() => void dailyBrief.tick(), SCHEDULER_TICK_MS).unref();
+  }
+  /** "Brief me" now (the window's button, or the voice tool): one run at a time. */
+  const runBriefNow = async () => {
+    if (!dailyBrief) throw new Error("The daily brief needs memory.");
+    briefRunning = true;
+    briefListeners.forEach((listener) => listener());
+    try {
+      return await dailyBrief.run("manual");
+    } finally {
+      briefRunning = false;
+      briefListeners.forEach((listener) => listener());
+    }
+  };
+  briefNow = dailyBrief ? runBriefNow : undefined;
   // The helpers as the window lists them, for the search (agents, routines, skills).
   const searchHelpers = helpers ? islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name)))) : undefined;
   return {
@@ -823,6 +920,20 @@ export function createRuntime(
           (group) => log.warn("search.group_failed", { group }),
         ),
     },
+    ...(briefStore
+      ? {
+          islandBrief: {
+            state: () => ({
+              settings: briefStore.settings(),
+              history: briefStore.history().map((b) => ({ id: b.id, day: b.day, createdAt: b.createdAt.toISOString(), lines: b.lines, source: b.source })),
+              running: briefRunning,
+            }),
+            run: () => void runBriefNow().catch((error) => log.warn("brief.failed", { ...errorFields(error) })),
+            update: (change: BriefChange) => void briefStore.update(change),
+            onChange: (listener: () => void) => (briefListeners.add(listener), () => briefListeners.delete(listener)),
+          },
+        }
+      : {}),
     ...(memory
       ? {
           islandSuggestions: {

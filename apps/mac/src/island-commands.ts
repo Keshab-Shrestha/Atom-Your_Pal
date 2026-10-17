@@ -5,6 +5,10 @@ import { BRANCH_COMMAND_PATTERN, BRANCH_SHAPE } from "./branch-prefix.ts";
 
 /** Longest command line accepted, in characters. The biggest is a soul edit (`soul.set`); anything bigger is a bug or abuse. */
 export const MAX_COMMAND_LENGTH = 16_384;
+/** The brief settings a `brief.set` may change. */
+export const BRIEF_FLAGS = ["enabled", "events", "reminders", "weather", "tasks", "needsYou", "notify", "telegram", "spoken"] as const;
+export type BriefChange = Partial<Record<(typeof BRIEF_FLAGS)[number], boolean>> & { minute?: number };
+
 /** ADR-098: the longest search query, in characters. */
 export const MAX_SEARCH_QUERY = 200;
 /** ADR-098 item 3: longest message to a running task (as a note). */
@@ -61,6 +65,10 @@ export type IslandCommand =
   | { type: "suggestions.accept"; id: number; text?: string }
   | { type: "suggestions.deny"; id: number }
   | { type: "suggestions.set"; enabled: boolean }
+  /** Daily brief (upgrades.md C3): the settings and briefs (and their changes from then on), make one now, change settings (only the given fields). */
+  | { type: "brief.get" }
+  | { type: "brief.run" }
+  | { type: "brief.set"; change: BriefChange }
   | { type: "text.send"; text: string; files?: string[]; notes?: number[] }
   | { type: "episode.forget"; id: number }
   | { type: "episode.clear" }
@@ -179,6 +187,9 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "suggestions.accept",
   "suggestions.deny",
   "suggestions.set",
+  "brief.get",
+  "brief.run",
+  "brief.set",
   "text.send",
   "episode.forget",
   "episode.clear",
@@ -567,6 +578,22 @@ export function parseCommand(line: string): ParsedLine {
     if (type === "suggestions.deny") return { command: { type, id } };
     if (text !== undefined && (typeof text !== "string" || text.length > 600)) return { error: 'suggestions.accept: "text" is a string of at most 600 characters.' };
     return { command: { type, id, ...(typeof text === "string" ? { text } : {}) } };
+  }
+  if (type === "brief.set") {
+    const { change } = value as { change?: unknown };
+    if (!change || typeof change !== "object" || Array.isArray(change)) return { error: 'brief.set needs a "change" object.' };
+    const c = change as Record<string, unknown>;
+    const out: BriefChange = {};
+    for (const key of BRIEF_FLAGS) {
+      if (c[key] === undefined) continue;
+      if (typeof c[key] !== "boolean") return { error: `brief.set: "${key}" is true or false.` };
+      out[key] = c[key] as boolean;
+    }
+    if (c.minute !== undefined) {
+      if (typeof c.minute !== "number" || !Number.isInteger(c.minute) || c.minute < 0 || c.minute > 1439) return { error: 'brief.set: "minute" is a whole number from 0 to 1439.' };
+      out.minute = c.minute;
+    }
+    return { command: { type, change: out } };
   }
   if (type === "suggestions.set") {
     const { enabled } = value as { enabled?: unknown };

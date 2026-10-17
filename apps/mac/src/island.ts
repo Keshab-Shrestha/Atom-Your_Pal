@@ -15,6 +15,9 @@ import { createVoiceLoop, type LoopNotice, type VoiceLoop } from "./voice-loop.t
 import type { IslandHelpers, IslandOptions, IslandProjects, ProjectResult } from "./island-types.ts";
 export type * from "./island-types.ts";
 
+/** What the window shows when the daily brief is off because memory is off. */
+const DEFAULT_BRIEF = { enabled: false, minute: 480, events: true, reminders: true, weather: true, tasks: true, needsYou: true, notify: true, telegram: false, spoken: false };
+
 const HELPERS_OFF = "Helpers are off: their file could not be opened.";
 
 export interface IslandSession {
@@ -370,6 +373,24 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "memory.list":
         memoryWatched = true; // from now on, changes ATOM makes by itself are sent too
         sendMemory();
+        return;
+      case "brief.get":
+        briefWatched = true; // from now on, a new brief and changed settings are sent too
+        sendBrief();
+        return;
+      case "brief.run":
+        if (!options.dailyBrief) return send({ type: "error", stage: "settings", message: "The daily brief needs memory, which is off." });
+        options.dailyBrief.run();
+        options.log?.info("brief.requested", {});
+        return;
+      case "brief.set":
+        try {
+          options.dailyBrief?.update(command.change);
+          options.log?.info("brief.settings", { fields: Object.keys(command.change).length });
+        } catch (error) {
+          send({ type: "error", stage: "settings", message: describe(error) });
+        }
+        sendBrief();
         return;
       case "suggestions.get":
         suggestionsWatched = true; // from now on, new and answered suggestions are sent too
@@ -761,6 +782,14 @@ export function runIsland(options: IslandOptions): IslandSession {
   let memoryWatched = false;
   let brainWatched = false;
   let suggestionsWatched = false;
+  let briefWatched = false;
+  function sendBrief() {
+    const state = options.dailyBrief?.state();
+    send({ type: "brief", settings: state?.settings ?? DEFAULT_BRIEF, history: state?.history ?? [], running: state?.running ?? false });
+  }
+  const stopBriefUpdates = options.dailyBrief?.onChange(() => {
+    if (briefWatched) sendBrief();
+  });
   function sendSuggestions() {
     const s = options.suggestions;
     send({ type: "suggestions", enabled: s?.enabled() ?? false, items: s?.list() ?? [] });
@@ -915,6 +944,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     quitting = true;
     stopMemoryUpdates?.();
     stopSuggestionUpdates?.();
+    stopBriefUpdates?.();
     stopBrainUpdates?.();
     stopChatUpdates?.();
     stopPosted?.();

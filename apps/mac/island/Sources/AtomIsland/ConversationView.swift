@@ -598,6 +598,7 @@ private struct EmptyConversation: View {
                 .foregroundStyle(theme.text2.color)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+            BriefCard(model: model).padding(.top, 6).frame(maxWidth: 520) // upgrades.md C3: today's brief, when there is one
             EmptyConversationExamples(model: model).padding(.top, 6)
         }
     }

@@ -1,6 +1,6 @@
 # ATOM upgrades: sidebar, Cursor-style editing everywhere, and six new features
 
-> **Status (2026-10-17): item 1 (sidebar, ADR-128) is built and checked live. Item 2 (diff engine, ADR-129) is written with tests but not compiled. The shared editor (items 3 to 6 and 10) is skipped at Keshab's request. Item 7 (search everything, ADR-130) and item 8 (remembering by itself, ADR-131, no tests) are built; the Swift is not compiled. Everything else is plan only.** Each item gets its own ADR (numbered when built; ADR-128 onwards), a TASK.md entry and a commit. Keep this file current as items land. v3 (2026-10-17) adds the six new features (Part C) and one roadmap for everything. Part A and Part B are the v2 plan with Keshab's answers.
+> **Status (2026-10-17): item 1 (sidebar, ADR-128) is built and checked live. Item 2 (diff engine, ADR-129) is written with tests but not compiled. The shared editor (items 3 to 6 and 10) is skipped at Keshab's request. Item 7 (search everything, ADR-130) item 8 (remembering by itself, ADR-131, no tests) and item 9 (daily brief, ADR-132, no tests) are built; the Swift is not compiled. Everything else is plan only.** Each item gets its own ADR (numbered when built; ADR-128 onwards), a TASK.md entry and a commit. Keep this file current as items land. v3 (2026-10-17) adds the six new features (Part C) and one roadmap for everything. Part A and Part B are the v2 plan with Keshab's answers.
 
 **Repo:** `~/Developer/atom` (ATOM). Check `git status` for other agents' uncommitted work before editing.
 

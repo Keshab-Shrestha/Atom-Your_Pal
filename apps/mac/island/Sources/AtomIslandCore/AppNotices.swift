@@ -5,7 +5,7 @@ import Foundation
 public struct AppNotice: Sendable, Equatable {
     public enum Kind: String, Sendable, CaseIterable {
         // ADR-110 N4: budgets are gone; `planUse` keeps the old stored key so a switch Keshab turned off stays off.
-        case needsYou, done, failed, planUse = "budget"
+        case needsYou, done, failed, planUse = "budget", brief
 
         public var title: String {
             switch self {
@@ -13,6 +13,7 @@ public struct AppNotice: Sendable, Equatable {
             case .done: "A task is done"
             case .failed: "A task failed"
             case .planUse: "Plan use"
+            case .brief: "Daily brief"
             }
         }
     }

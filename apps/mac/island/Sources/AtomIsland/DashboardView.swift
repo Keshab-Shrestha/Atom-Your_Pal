@@ -22,6 +22,9 @@ struct DashboardPane: View {
                     Spacer(minLength: 12)
                     updated
                 }
+                // Daily brief (upgrades.md C3): the newest brief, and a short list of the earlier ones.
+                BriefCard(model: model, onlyRecent: false)
+                BriefHistory(model: model)
                 if let usage {
                     // One lead number (today's input + output, with how it compares to a usual day), three smaller ones for
                     // the week, and the cache counts smallest. Equal cards say nothing is more important than anything else.

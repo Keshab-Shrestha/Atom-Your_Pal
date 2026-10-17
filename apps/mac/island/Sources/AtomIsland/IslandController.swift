@@ -277,6 +277,8 @@ final class IslandController {
         switch event {
         case .helpers, .planUsage: notifier.update(model.helpers.list, plan: model.planUsage)
         case .approvalRequest(let request): notifier.approval(request)
+        case .brief:
+            if let entry = model.dailyBrief.takeFresh(), model.dailyBrief.settings.notify { notifier.brief(entry) }
         default: break
         }
         switch event {

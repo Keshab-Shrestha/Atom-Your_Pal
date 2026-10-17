@@ -1903,3 +1903,10 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 - Tests: none written or run, at Keshab's request. `pnpm typecheck` passes. The Swift is not compiled.
 - Not checked live: a chat that mentions a lasting fact and one that mentions a password; Accept, Edit, Not this; the switch; a restart with a suggestion waiting.
 - Next in upgrades.md: item 9, the daily brief (C3).
+
+## ADR-132: the daily brief (2026-10-17)
+
+- Done: `brief-due.ts`, `brief-gather.ts`, `brief.ts`, the `brief` mode in `claude-plan-job.ts`, `briefs.ts` (memory service), the `brief.*` commands and event, the `brief_me` tool, the runtime wiring; Swift `DailyBrief.swift`, `BriefViews.swift`, the notification kind, the card in a new chat and on the Dashboard, the settings card in General.
+- Tests: none written or run, at Keshab's request. `pnpm typecheck` passes. The Swift is not compiled.
+- Not checked live: "Brief me" with a real calendar and weather; the scheduled run the next morning; the macOS notification; Telegram; speech.
+- Next in upgrades.md: item 11 (image generation) waits for a provider. Item 12 (cloud sandboxes) waits for a spike. Items 3 to 6 and 10 need the shared editor, which Keshab skipped.

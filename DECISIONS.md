@@ -3096,3 +3096,17 @@ Before: a fact was kept only when the user asked (ADR-058), or when ATOM offered
 - The note runs when a chat has been quiet for 10 minutes (or is left), so a suggestion appears then, not right after the reply.
 - Commands `suggestions.get`, `suggestions.accept`, `suggestions.deny`, `suggestions.set`; event `suggestions`. The log has counts and ids only, never the fact.
 - Not changed: the reply-time offer in `MEMORY_GUIDANCE` (ADR-059). It can now double a suggestion; remove it if that annoys.
+
+## ADR-132 — The daily brief (C3 of upgrades.md) (2026-10-17)
+
+Status: Accepted (Keshab's plan in `upgrades.md`; no tests for this item, at his request). Typechecked. No test was written or run. The Swift is not compiled.
+
+- Once a day, at the set time, ATOM makes a brief: 4 to 6 short lines about the user's day. The default time is 08:00 in the Mac's time zone. The brief is **off until the user turns it on**, because it costs one short model run a day.
+- Code gathers the facts (`brief-gather.ts`): weather, today's events, open reminders, tasks finished since the last brief, what waits for the user (plans, suggested agent changes, skill drafts) and running timers. A part that fails or is off is left out. Remembered facts are never gathered (ADR-058).
+- One model run without tools writes the lines (`runBrief`, the small model of the Claude plan). The job text holds only the gathered data. If the model is not available, or there is nothing to say, ATOM saves a plain version of the same data. A brief never fails because of the model.
+- `brief-due.ts` (pure): one brief a day, at or after the set time. If the Mac slept through the time, the brief is made at the first tick after it wakes.
+- Delivery: a card at the top of a new chat (for a brief less than a day old), the newest brief and a short history on the Dashboard, a macOS notification with the first line only (its own switch in Settings → General → Notifications), a Telegram message if the user turns it on, and speech only if the user turns it on (default off).
+- "Brief me": a button on the card and in Settings, and the `brief_me` tool for voice and text. One brief is made at a time.
+- Settings are in Settings → General (a "Daily brief" card), not in a new Settings page.
+- Briefs and settings live in the memory file (`briefs.ts`). The history keeps 14 days. The log has counts, never the lines.
+- Left out: a chosen order of parts, more than one brief a day, and the live check with a real calendar.

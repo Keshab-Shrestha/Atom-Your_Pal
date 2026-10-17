@@ -605,3 +605,9 @@ ATOM runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 - The conversation note run (the Claude plan, no tools) may name lasting facts about the user. They are stored as suggestions only. A suggestion is not a memory, is never used in a reply, never leaves the Mac, and is deleted when answered or after 14 days.
 - Accepting uses the `remember` checks: the secret filter (passwords, PINs, card numbers, API tokens), the 300-character limit and the memory limit. The fact never saves by itself.
 - A refused suggestion is remembered as a hash of its text, not as text.
+
+## Daily brief (ADR-132)
+
+- The brief reads Calendar, Reminders, weather (only the place name leaves the Mac, as for the weather tool), the titles of finished tasks and short phrases about what waits for the user. It reads no chat, no remembered fact and no file.
+- One model run on the Claude plan, without tools, gets only that list as data. A brief that goes to Telegram or is spoken is off until the user turns it on. The macOS notification shows the first line only.
+- Briefs stay in the memory file on this Mac for 14 days. The log has counts and the source ("model" or "template"), never the lines.

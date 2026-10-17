@@ -31,6 +31,7 @@ struct GeneralSection: View {
             }
         }
         .onAppear { login.refresh(); model.loadSuggestions() }
+        BriefSettingsCard(model: model) // upgrades.md C3
         // Remembering by itself (upgrades.md C2): nothing is kept without a press of Remember.
         Card("Memory", footer: "After a chat, ATOM may notice a lasting fact about you, such as \"prefers window seats\". It shows it above the chat box. It keeps the fact only when you press Remember, and never asks again for one you refuse.") {
             Row(title: "Suggest things to remember", detail: "Quiet rows above the chat box. Never spoken") {
@@ -136,6 +137,7 @@ extension GeneralSection {
         case .done: "A worker finished, with its report's title"
         case .failed: "A task failed, and why"
         case .planUse: "The Claude plan passing 80% of its five hours, or used up"
+        case .brief: "Your daily brief is ready"
         }
     }
 }

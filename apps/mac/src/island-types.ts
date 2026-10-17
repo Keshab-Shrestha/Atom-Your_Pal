@@ -5,7 +5,8 @@ import type { HubCommands } from "./hub-commands.ts";
 import type { Readable } from "node:stream";
 import type { Logger } from "@atom/shared";
 import type { Message } from "@atom/contracts";
-import { type EpisodeItem, type HelperItem, type ModelItem, type MemoryItem, type SuggestionItem, type MemoryChatItem, type SoulItem, type ThreadEvent, type SearchHitItem, type PaperclipItem, type PlanItem, type BrainNodeItem, type BrainEdgeItem, type BrainNoteItem, type BrainHitItem, type McpItem, type SkillDraftItem, type SkillEditItem, type TestCaseItem, type UsageItem, type ChatItem, type ProjectItem, type GitBranchItem, type RoutineInput } from "./island-protocol.ts";
+import { type EpisodeItem, type HelperItem, type ModelItem, type MemoryItem, type SuggestionItem, type BriefItem, type BriefSettingsItem, type MemoryChatItem, type SoulItem, type ThreadEvent, type SearchHitItem, type PaperclipItem, type PlanItem, type BrainNodeItem, type BrainEdgeItem, type BrainNoteItem, type BrainHitItem, type McpItem, type SkillDraftItem, type SkillEditItem, type TestCaseItem, type UsageItem, type ChatItem, type ProjectItem, type GitBranchItem, type RoutineInput } from "./island-protocol.ts";
+import type { BriefChange } from "./island-commands.ts";
 import type { EverythingResults } from "./everything-search.ts";
 import type { ComputerBridge } from "./computer-bridge.ts";
 import type { WindowPointer } from "./screen-context.ts";
@@ -51,6 +52,8 @@ export interface IslandOptions {
   chats?: IslandChats;
   /** Who is answering in which chat: a second turn in a chat that is answering is refused (the window and the phone share a chat). */
   chatTurns?: ChatTurns;
+  /** Daily brief (upgrades.md C3). Absent when memory is off: `brief.*` answer with the defaults. */
+  dailyBrief?: IslandDailyBrief;
   /** Remembering by itself (upgrades.md C2). Absent when memory is off: `suggestions.*` answer with none. */
   suggestions?: IslandSuggestions;
   /** Search everything (upgrades.md C1): Second brain pages, facts, notes, projects, agents, skills, routines. Absent: only chats, tasks and reports. */
@@ -130,6 +133,16 @@ export interface IslandSuggestions {
   /** Keeps the fact (with the user's edit, if any). Throws, with words for the user, when it cannot be kept. */
   accept(id: number, text?: string): void;
   deny(id: number): boolean;
+  onChange(listener: () => void): () => void;
+}
+
+/** Daily brief (upgrades.md C3). */
+export interface IslandDailyBrief {
+  state(): { settings: BriefSettingsItem; history: BriefItem[]; running: boolean };
+  /** Starts a brief now (the answer comes as a `brief` event). */
+  run(): void;
+  /** Changes the given settings. Throws, with words for the user, for a value that is not allowed. */
+  update(change: BriefChange): void;
   onChange(listener: () => void): () => void;
 }
 

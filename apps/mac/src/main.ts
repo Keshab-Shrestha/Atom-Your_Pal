@@ -139,6 +139,7 @@ function start(config: Config) {
     ...(runtime.islandProjects ? { projects: runtime.islandProjects } : {}),
     ...(runtime.everything ? { everything: runtime.everything } : {}),
     ...(runtime.islandSuggestions ? { suggestions: runtime.islandSuggestions } : {}),
+    ...(runtime.islandBrief ? { dailyBrief: runtime.islandBrief } : {}),
     ...(runtime.islandAttachments ? { attachments: runtime.islandAttachments } : {}),
     ...(runtime.islandGit ? { git: runtime.islandGit } : {}),
     ...(runtime.islandHelpers ? { helpers: runtime.islandHelpers } : {}),

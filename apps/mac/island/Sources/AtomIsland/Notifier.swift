@@ -32,6 +32,12 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         post(AppNotice(kind: .needsYou, title: "ATOM asks for your OK", body: NoticeWatcher.short(request.summary), key: "approval-\(request.id)"))
     }
 
+    /// A new daily brief: its first line only, never the whole brief.
+    func brief(_ entry: BriefEntry) {
+        guard settings.notifies(.brief) else { return }
+        post(AppNotice(kind: .brief, title: "Your daily brief", body: NoticeWatcher.short(entry.lines.first ?? "It is ready."), key: "brief-\(entry.id)"))
+    }
+
     private func post(_ notice: AppNotice) {
         guard let center else { return }
         let content = UNMutableNotificationContent()

@@ -6,7 +6,7 @@ import type { LoopState } from "./voice-loop.ts";
 
 export const PROTOCOL_VERSION = 1;
 
-import type { SuggestionItem, ProjectItem, ThreadEvent, SearchResultsEvent, ErrorStage, PlanUsageEvent, NoticeKind, InfoEvent, MemoryItem, EpisodeItem, MemoryChatItem, ChatItem, GitBranchItem, HelperItem, ModelItem, SkillHubItem, SkillDraftItem, SkillEditItem, TestCaseItem, McpItem, UsageItem, PaperclipItem, PlanItem, BrainNodeItem, BrainEdgeItem, BrainNoteItem, BrainHitItem } from "./island-items.ts";
+import type { BriefItem, BriefSettingsItem, SuggestionItem, ProjectItem, ThreadEvent, SearchResultsEvent, ErrorStage, PlanUsageEvent, NoticeKind, InfoEvent, MemoryItem, EpisodeItem, MemoryChatItem, ChatItem, GitBranchItem, HelperItem, ModelItem, SkillHubItem, SkillDraftItem, SkillEditItem, TestCaseItem, McpItem, UsageItem, PaperclipItem, PlanItem, BrainNodeItem, BrainEdgeItem, BrainNoteItem, BrainHitItem } from "./island-items.ts";
 export * from "./island-items.ts";
 export * from "./island-commands.ts";
 
@@ -55,6 +55,8 @@ export type IslandEvent =
   | { type: "skill.file"; name: string; source: "yours" | "zeno"; text: string }
   /** Remembering by itself: whether suggestions are made, and the ones that wait (at most 3). Sent after `suggestions.get` and after each change. */
   | { type: "suggestions"; enabled: boolean; items: SuggestionItem[] }
+  /** Daily brief: the settings, the newest briefs (newest first, at most 14) and whether one is being made. Sent after `brief.get` and after each change. */
+  | { type: "brief"; settings: BriefSettingsItem; history: BriefItem[]; running: boolean }
   | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[]; chats?: MemoryChatItem[] }
   /** ADR-091: Keshab's chats, newest first, and the one ATOM is in now (voice goes to it). */
   /** ADR-097: `currentProvider` / `currentModel`: the current chat's own model; absent when it uses the default. */

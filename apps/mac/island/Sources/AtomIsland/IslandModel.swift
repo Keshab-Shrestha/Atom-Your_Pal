@@ -29,6 +29,9 @@ final class IslandModel {
     var memory: MemoryList?
     /// Remembering by itself (upgrades.md C2): facts waiting for Accept.
     var suggestions = SuggestionsState()
+    /// Daily brief (upgrades.md C3): the settings and the newest briefs.
+    var dailyBrief = DailyBriefState()
+    @ObservationIgnored private var briefPending = false
     @ObservationIgnored private var suggestionPending = false
     /// The second brain: the notes, their links and the open note. Empty until the page first asks the runtime.
     var brain = BrainState()
@@ -307,6 +310,19 @@ final class IslandModel {
     func loadMemory() { send(.memoryList) }
 
     /// The chat shows the "Remember?" rows: ask for the suggestions once; the runtime then sends its changes.
+    /// The window shows the brief: ask once; the runtime then sends its changes.
+    func loadBrief() { if let command = dailyBrief.open() { send(command) } }
+    /// "Brief me": makes one now.
+    func briefMe() {
+        guard let command = dailyBrief.runNow() else { return }
+        briefPending = true
+        send(command)
+    }
+    func setBrief(_ change: BriefSettingsChange) {
+        briefPending = true
+        send(dailyBrief.set(change))
+    }
+
     func loadSuggestions() { if let command = suggestions.open() { send(command) } }
     func acceptSuggestion(_ id: Int) { suggestionCommand(suggestions.accept(id)) }
     func denySuggestion(_ id: Int) { suggestionCommand(suggestions.deny(id)) }
@@ -538,6 +554,9 @@ final class IslandModel {
             skillError = error.message
         case .memory(let list):
             memory = list
+        case .brief(let list):
+            briefPending = false
+            dailyBrief.apply(list)
         case .suggestions(let list):
             suggestionPending = false
             suggestions.apply(list)
@@ -554,6 +573,7 @@ final class IslandModel {
             send(.apiSet(on: settings.localApi)) // ADR-098 item 5
             if memory != nil { send(.memoryList) } // a restarted runtime: ask again so updates keep coming
             if suggestions.asked { send(.suggestionsGet) }
+            if dailyBrief.asked { send(.briefGet) }
             if brain.opened { send(.brainGet) }
             send(.helpersList) // Task 3.15: busy workers show on the island too, so the list is always kept
             sendSpeech() // ADR-091
@@ -576,6 +596,9 @@ final class IslandModel {
             brain.setNote(note)
         case .brainHits(let query, let hits):
             brain.setHits(query: query, hits)
+        case .error(let error) where error.stage == "settings" && briefPending:
+            briefPending = false
+            dailyBrief.fail(error.message)
         case .error(let error) where error.stage == "settings" && suggestionPending:
             suggestionPending = false
             suggestions.fail(error.message)

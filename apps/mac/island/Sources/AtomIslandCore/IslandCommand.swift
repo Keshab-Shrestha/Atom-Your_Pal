@@ -21,6 +21,10 @@ public enum IslandCommand: Sendable, Equatable {
     case suggestionsAccept(id: Int, text: String?)
     case suggestionsDeny(id: Int)
     case suggestionsSet(enabled: Bool)
+    /// Daily brief (upgrades.md C3): the settings and briefs (and their changes from then on), make one now, change settings.
+    case briefGet
+    case briefRun
+    case briefSet(change: BriefSettingsChange)
     /// The second brain: the graph (and its changes from then on), one note, a save (`id` nil: a new note; else a change or rename),
     /// a delete, a search.
     case brainGet
@@ -176,6 +180,9 @@ public enum IslandCommand: Sendable, Equatable {
         case .suggestionsAccept: "suggestions.accept"
         case .suggestionsDeny: "suggestions.deny"
         case .suggestionsSet: "suggestions.set"
+        case .briefGet: "brief.get"
+        case .briefRun: "brief.run"
+        case .briefSet: "brief.set"
         case .brainGet: "brain.get"
         case .brainNote: "brain.note"
         case .brainSave: "brain.save"
@@ -294,6 +301,8 @@ public enum IslandCommand: Sendable, Equatable {
             fields["id"] = id
         case .suggestionsSet(let enabled):
             fields["enabled"] = enabled // a real JSON boolean
+        case .briefSet(let change):
+            fields["change"] = change.fields
         default:
             break
         }
