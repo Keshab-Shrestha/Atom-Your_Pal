@@ -350,3 +350,4 @@ Older steps are in TASK.md.
 - **Hide the sidebar (ADR-128).** ⌥⌘H, the View menu or the button hides the window's left panel; the choice is kept. Built and tested; not yet tried in the running window.
 - **Edit review logic (ADR-129).** The code that compares two texts and lets you accept or deny each change is written and tested; nothing in the window uses it yet. The Swift is not compiled.
 - **Search everything (ADR-130).** The sidebar search also finds Second brain pages, remembered facts, conversation notes, projects, agents, skills, routines and Settings pages. Nothing goes to a model. The Swift is not compiled; not tried in the app.
+- **Remembering by itself (ADR-131).** After a chat, ATOM may show a quiet "Remember?" row above the chat box with a fact it noticed. It keeps the fact only when you press Remember. A switch in Settings → General turns it off. No tests; the Swift is not compiled; not tried in the app.

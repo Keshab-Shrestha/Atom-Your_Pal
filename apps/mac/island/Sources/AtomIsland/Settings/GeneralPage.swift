@@ -30,7 +30,13 @@ struct GeneralSection: View {
                 ThemedSwitch(isOn: settings.followUpEnabled, set: { settings.followUpEnabled = $0 }, label: "Answer without keys")
             }
         }
-        .onAppear { login.refresh() }
+        .onAppear { login.refresh(); model.loadSuggestions() }
+        // Remembering by itself (upgrades.md C2): nothing is kept without a press of Remember.
+        Card("Memory", footer: "After a chat, ATOM may notice a lasting fact about you, such as \"prefers window seats\". It shows it above the chat box. It keeps the fact only when you press Remember, and never asks again for one you refuse.") {
+            Row(title: "Suggest things to remember", detail: "Quiet rows above the chat box. Never spoken") {
+                ThemedSwitch(isOn: model.suggestions.enabled, set: { model.setSuggestionsEnabled($0) }, label: "Suggest things to remember")
+            }
+        }
         // ADR-091: which macOS notifications ATOM posts.
         Card("Notifications", footer: "Shown by macOS. Titles and short reasons only, never a report's text. Allow ATOM in System Settings → Notifications if none appear.") {
             ForEach(Array(AppNotice.Kind.allCases.enumerated()), id: \.element) { index, kind in

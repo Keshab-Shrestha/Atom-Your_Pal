@@ -15,6 +15,12 @@ public enum IslandCommand: Sendable, Equatable {
     /// Memory (ADR-058): ask for the list (and its changes from then on), forget one, or forget everything.
     case memoryList, memoryClear
     case memoryForget(id: Int)
+    /// Remembering by itself (upgrades.md C2): the suggestions (and their changes from then on), accept one (with the user's own
+    /// words if he edited it), deny one, and the switch.
+    case suggestionsGet
+    case suggestionsAccept(id: Int, text: String?)
+    case suggestionsDeny(id: Int)
+    case suggestionsSet(enabled: Bool)
     /// The second brain: the graph (and its changes from then on), one note, a save (`id` nil: a new note; else a change or rename),
     /// a delete, a search.
     case brainGet
@@ -166,6 +172,10 @@ public enum IslandCommand: Sendable, Equatable {
         case .memoryList: "memory.list"
         case .memoryClear: "memory.clear"
         case .memoryForget: "memory.forget"
+        case .suggestionsGet: "suggestions.get"
+        case .suggestionsAccept: "suggestions.accept"
+        case .suggestionsDeny: "suggestions.deny"
+        case .suggestionsSet: "suggestions.set"
         case .brainGet: "brain.get"
         case .brainNote: "brain.note"
         case .brainSave: "brain.save"
@@ -275,6 +285,17 @@ public enum IslandCommand: Sendable, Equatable {
         }
         if case .episodeForget(let id) = self {
             fields["id"] = id
+        }
+        switch self {
+        case .suggestionsAccept(let id, let text):
+            fields["id"] = id
+            if let text { fields["text"] = text }
+        case .suggestionsDeny(let id):
+            fields["id"] = id
+        case .suggestionsSet(let enabled):
+            fields["enabled"] = enabled // a real JSON boolean
+        default:
+            break
         }
         switch self {
         case .brainNote(let id), .brainDelete(let id):

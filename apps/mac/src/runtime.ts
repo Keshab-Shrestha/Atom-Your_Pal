@@ -130,6 +130,8 @@ export interface Runtime {
   islandProjects?: IslandProjects;
   /** Search everything (upgrades.md C1). */
   everything?: IslandOptions["everything"];
+  /** Remembering by itself (upgrades.md C2). Undefined when memory is off. */
+  islandSuggestions?: IslandOptions["suggestions"];
   /** ADR-113: files attached to a typed message. Undefined in tests. */
   islandAttachments?: IslandOptions["attachments"];
   /** The helpers as the ATOM window sees them. Undefined when the store could not open. */
@@ -492,6 +494,13 @@ export function createRuntime(
     smallModel: () => modelForTier(planModels(), "small"),
     onUsage: reportUsage,
     onTokens: (tokens, model, meta) => recordChatUsage(tokens, model, meta),
+    // Remembering by itself (upgrades.md C2): the same run may notice lasting facts; they wait for Accept. Logs the count only.
+    ...(memory
+      ? {
+          wantsFacts: () => memory.suggestions.enabled(),
+          onFacts: (chatId: string, facts: string[]) => log.info("suggestion.added", { count: memory.suggestions.suggest(facts, chatId).length }),
+        }
+      : {}),
   });
   const episodes = createNotes({ memory, model: noteModel, env: process.env, log, changed: () => memoryListeners.forEach((listener) => listener()) });
   // ADR-071: plain commands run in code, before any model. ATOM_SHORTCUTS=0 turns these off. Logs the name only.
@@ -814,6 +823,22 @@ export function createRuntime(
           (group) => log.warn("search.group_failed", { group }),
         ),
     },
+    ...(memory
+      ? {
+          islandSuggestions: {
+            list: () => memory.suggestions.pending().map((x) => ({ id: x.id, text: x.text, createdAt: x.createdAt.toISOString() })),
+            enabled: () => memory.suggestions.enabled(),
+            setEnabled: (on: boolean) => memory.suggestions.setEnabled(on),
+            accept: (id: number, text?: string) => {
+              const kept = memory.suggestions.accept(id, text);
+              log.info("memory.change", { action: "remember", id: kept.id, count: memory.count(), by: "suggestion" });
+              for (const listener of memoryListeners) listener(); // Memory page and the Second brain follow
+            },
+            deny: (id: number) => memory.suggestions.deny(id),
+            onChange: (listener: () => void) => memory.suggestions.onChange(listener),
+          },
+        }
+      : {}),
     ...(memory ? { islandMemory, islandChats, islandProjects: projects!.island, ...(brainWiring ? { islandBrain: brainWiring.island } : {}) } : {}),
     ...(islandGit ? { islandGit } : {}),
     islandSlashCommands: { list: () => listCommands(userCommandsDir()) },

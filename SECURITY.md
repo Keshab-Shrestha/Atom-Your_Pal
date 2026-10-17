@@ -599,3 +599,9 @@ ATOM runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 - A file is read once into the copy; the original is not touched. Deleting a chat deletes its copies.
 - Codex and the Gemini CLI receive small attached text files inline, as part of the transcript.
 - A skill chosen with `/name`, the Skills menu or `use_skill` adds its steps to one message as context. A skill cannot add tools or permissions: the gate and the user's approvals decide, as always.
+
+## Suggested facts (ADR-131)
+
+- The conversation note run (the Claude plan, no tools) may name lasting facts about the user. They are stored as suggestions only. A suggestion is not a memory, is never used in a reply, never leaves the Mac, and is deleted when answered or after 14 days.
+- Accepting uses the `remember` checks: the secret filter (passwords, PINs, card numbers, API tokens), the 300-character limit and the memory limit. The fact never saves by itself.
+- A refused suggestion is remembered as a hash of its text, not as text.

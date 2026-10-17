@@ -50,6 +50,14 @@ export interface MemoryItem {
   source: "voice" | "text";
 }
 
+/** Remembering by itself (upgrades.md C2): a fact the notes noticed, waiting for the user's Accept. Travels only over the private pipe; never logged. */
+export interface SuggestionItem {
+  id: number;
+  text: string;
+  /** ISO 8601. */
+  createdAt: string;
+}
+
 /** One conversation summary (ADR-059). Travels only over the private pipe; never logged. */
 export interface EpisodeItem {
   id: number;

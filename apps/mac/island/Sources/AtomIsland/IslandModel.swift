@@ -27,6 +27,9 @@ final class IslandModel {
     var refreshingModels = false
     /// What ATOM keeps (ADR-058). Nil until the Memory page first asks the runtime.
     var memory: MemoryList?
+    /// Remembering by itself (upgrades.md C2): facts waiting for Accept.
+    var suggestions = SuggestionsState()
+    @ObservationIgnored private var suggestionPending = false
     /// The second brain: the notes, their links and the open note. Empty until the page first asks the runtime.
     var brain = BrainState()
     @ObservationIgnored private var brainCommandPending = false
@@ -303,6 +306,18 @@ final class IslandModel {
     /// The Memory page opened: ask for the list. From then on the runtime also sends its changes.
     func loadMemory() { send(.memoryList) }
 
+    /// The chat shows the "Remember?" rows: ask for the suggestions once; the runtime then sends its changes.
+    func loadSuggestions() { if let command = suggestions.open() { send(command) } }
+    func acceptSuggestion(_ id: Int) { suggestionCommand(suggestions.accept(id)) }
+    func denySuggestion(_ id: Int) { suggestionCommand(suggestions.deny(id)) }
+    func acceptSuggestionEdit() { suggestionCommand(suggestions.acceptEdit()) }
+    func setSuggestionsEnabled(_ on: Bool) { send(suggestions.setEnabled(on)) }
+    private func suggestionCommand(_ command: IslandCommand?) {
+        guard let command else { return }
+        suggestionPending = true
+        send(command)
+    }
+
     /// The second brain's page opened: ask for the graph. From then on the runtime also sends its changes.
     func openBrain() { send(brain.open()) }
     /// ADR-126: "@" in the chat box lists notes; the graph is asked for once, then kept up to date.
@@ -523,6 +538,9 @@ final class IslandModel {
             skillError = error.message
         case .memory(let list):
             memory = list
+        case .suggestions(let list):
+            suggestionPending = false
+            suggestions.apply(list)
         case .capabilities(let items):
             capabilities = items
         case .planUsage(let usage):
@@ -535,6 +553,7 @@ final class IslandModel {
             send(.telegramSet(push: settings.telegramPush))
             send(.apiSet(on: settings.localApi)) // ADR-098 item 5
             if memory != nil { send(.memoryList) } // a restarted runtime: ask again so updates keep coming
+            if suggestions.asked { send(.suggestionsGet) }
             if brain.opened { send(.brainGet) }
             send(.helpersList) // Task 3.15: busy workers show on the island too, so the list is always kept
             sendSpeech() // ADR-091
@@ -557,6 +576,9 @@ final class IslandModel {
             brain.setNote(note)
         case .brainHits(let query, let hits):
             brain.setHits(query: query, hits)
+        case .error(let error) where error.stage == "settings" && suggestionPending:
+            suggestionPending = false
+            suggestions.fail(error.message)
         case .error(let error) where error.stage == "settings" && brainCommandPending:
             brainCommandPending = false
             brain.fail(error.message)

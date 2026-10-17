@@ -531,10 +531,13 @@ struct ConversationTab: View {
     }
 
     private var composer: some View {
-        Composer(model: model)
-            .padding(.horizontal, theme.cornerGap)
-            .padding(.top, 8)
-            .padding(.bottom, theme.cornerGap)
+        VStack(spacing: 8) {
+            RememberRows(model: model) // upgrades.md C2: facts the notes noticed, kept only on Remember
+            Composer(model: model)
+        }
+        .padding(.horizontal, theme.cornerGap)
+        .padding(.top, 8)
+        .padding(.bottom, theme.cornerGap)
     }
 
     /// One column for both states, with the composer after the if/else: in two branches it was a different view each time, so its half-typed draft and

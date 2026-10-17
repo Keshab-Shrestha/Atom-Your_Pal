@@ -1896,3 +1896,10 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 - Tests: `everything-search.test.ts` and a new island test run here (the whole TypeScript suite passes); the Swift tests were not compiled.
 - Not checked live: a search for a name that is a chat, a note and a fact; ↑ ↓ Return in the result list (not built: results open by click).
 - Next in upgrades.md: item 8, remembering by itself (C2), or item 9, the daily brief (C3).
+
+## ADR-131: remembering by itself (2026-10-17)
+
+- Done: `suggestions.ts` (memory service), the facts in the note run (`claude-plan-job.ts`, `notes.ts`), the `suggestions.*` commands and event, the runtime wiring; Swift `Suggestions.swift`, `RememberRows.swift`, the switch in Settings → General.
+- Tests: none written or run, at Keshab's request. `pnpm typecheck` passes. The Swift is not compiled.
+- Not checked live: a chat that mentions a lasting fact and one that mentions a password; Accept, Edit, Not this; the switch; a restart with a suggestion waiting.
+- Next in upgrades.md: item 9, the daily brief (C3).

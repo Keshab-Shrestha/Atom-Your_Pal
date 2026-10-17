@@ -56,6 +56,11 @@ export type IslandCommand =
   | { type: "git.diff"; repo: string; branch: string }
   | { type: "memory.forget"; id: number }
   | { type: "memory.clear" }
+  /** Remembering by itself (upgrades.md C2): the suggestions (and their changes from then on), accept one (with the user's edited words, if any), deny one, the switch. */
+  | { type: "suggestions.get" }
+  | { type: "suggestions.accept"; id: number; text?: string }
+  | { type: "suggestions.deny"; id: number }
+  | { type: "suggestions.set"; enabled: boolean }
   | { type: "text.send"; text: string; files?: string[]; notes?: number[] }
   | { type: "episode.forget"; id: number }
   | { type: "episode.clear" }
@@ -170,6 +175,10 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "git.diff",
   "memory.forget",
   "memory.clear",
+  "suggestions.get",
+  "suggestions.accept",
+  "suggestions.deny",
+  "suggestions.set",
   "text.send",
   "episode.forget",
   "episode.clear",
@@ -551,6 +560,18 @@ export function parseCommand(line: string): ParsedLine {
     if (type === "skill.get") return { command: { type, name } };
     if (typeof text !== "string" || text.length > 100_000) return { error: 'skill.save needs "text", a string.' };
     return { command: { type, name, text } };
+  }
+  if (type === "suggestions.accept" || type === "suggestions.deny") {
+    const { id, text } = value as { id?: unknown; text?: unknown };
+    if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
+    if (type === "suggestions.deny") return { command: { type, id } };
+    if (text !== undefined && (typeof text !== "string" || text.length > 600)) return { error: 'suggestions.accept: "text" is a string of at most 600 characters.' };
+    return { command: { type, id, ...(typeof text === "string" ? { text } : {}) } };
+  }
+  if (type === "suggestions.set") {
+    const { enabled } = value as { enabled?: unknown };
+    if (typeof enabled !== "boolean") return { error: 'suggestions.set needs "enabled" to be true or false.' };
+    return { command: { type, enabled } };
   }
   if (type === "brain.search") {
     const { query } = value as { query?: unknown };

@@ -40,6 +40,12 @@ export function createNoteModel(options: {
   smallModel: () => string | undefined;
   onUsage?: (usage: PlanUsage) => void;
   onTokens?: (tokens: TokenUsage, model: string, meta?: TokenMeta) => void;
+  /**
+   * Remembering by itself (upgrades.md C2): when set and `wantsFacts()` is true, the same run also returns up to 3
+   * candidate facts, handed here with the chat's id. The facts are never part of the note.
+   */
+  onFacts?: (chatId: string, facts: string[]) => void;
+  wantsFacts?: () => boolean;
   /** For tests: the Agent SDK. */
   sdk?: ClaudeSdk;
 }): LanguageModel {
@@ -47,7 +53,8 @@ export function createNoteModel(options: {
     async complete(request, signal) {
       const model = options.smallModel();
       if (!model) throw new Error("Conversation notes need the Claude plan.");
-      const { note, tokens } = await runNote({
+      const facts = Boolean(options.onFacts) && (options.wantsFacts?.() ?? true);
+      const { note, facts: found, tokens } = await runNote({
         claudePath: options.claudePath(),
         model,
         task: request.messages.map((m) => m.content).join("\n\n"),
@@ -55,7 +62,9 @@ export function createNoteModel(options: {
         signal: signal ?? AbortSignal.timeout(120_000),
         ...(options.onUsage ? { onUsage: options.onUsage } : {}),
         ...(options.sdk ? { sdk: options.sdk } : {}),
+        ...(facts ? { facts: true } : {}),
       });
+      if (facts && found.length) options.onFacts?.(request.context.sessionId, found);
       if (tokens) options.onTokens?.(tokens, model, { chatId: request.context.sessionId, background: true });
       return { text: note };
     },

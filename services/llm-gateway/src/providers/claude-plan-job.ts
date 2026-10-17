@@ -61,7 +61,13 @@ const ChatDigestSchema = z
 export type ChatDigestOutput = z.infer<typeof ChatDigestSchema>;
 
 /** ADR-059, ADR-108: the private note about one conversation: a short text, or exactly NOTHING. */
-const NoteSchema = z.object({ note: z.string().trim().min(1).max(1200) }).strict();
+const NoteSchema = z
+  .object({
+    note: z.string().trim().min(1).max(1200),
+    /** Remembering by itself: lasting facts about the user the conversation showed. Only asked for when the caller wants them. */
+    facts: z.array(z.string().trim().min(1).max(300)).max(3).optional(),
+  })
+  .strict();
 
 /** ADR-098 item 8: a test case's dry-run answer (no tools), and the judge's verdict on the old and the new answer. */
 const TestAnswerSchema = z.object({ answer: z.string().trim().min(1).max(4000) }).strict();
@@ -84,6 +90,8 @@ export interface NoToolOptions {
   maxTurns?: number;
   sdk?: ClaudeSdk;
   env?: Record<string, string | undefined>;
+  /** Note mode only: also ask for lasting facts to suggest (upgrades.md C2). */
+  facts?: boolean;
 }
 
 // Claude Code refuses the "$schema" draft marker zod adds.
@@ -154,6 +162,10 @@ This run writes one private note about a conversation. Do not use any tool. The 
 Return the note in the required structured format:
 - note: the note as the instructions describe it, or exactly NOTHING when the conversation holds nothing worth noting.`;
 
+/** Added to the note contract when the caller wants facts to suggest (upgrades.md C2). */
+const NOTE_FACTS_CONTRACT = `
+- facts: at most 3 lasting facts about the user that the conversation showed, or an empty list. A fact is one short sentence in the third person that stays true (family, home, work, diet, routines, preferences, how they like things done, important dates). Leave out one-off details, things only about this task, anything the user said not to keep, and any password, PIN, card number or other secret. Do not repeat what the conversation says is already remembered.`;
+
 type Mode = "review" | "skill" | "skillEdit" | "chatDigest" | "note" | "testAnswer" | "testJudge";
 
 /** Every mode: its contract and output schema. */
@@ -203,11 +215,11 @@ export async function runChatDigest(options: NoToolOptions): Promise<{ digest: C
 }
 
 /** ADR-059, ADR-108: the private note about one conversation. No tools. */
-export async function runNote(options: NoToolOptions): Promise<{ note: string } & Extras> {
+export async function runNote(options: NoToolOptions): Promise<{ note: string; facts: string[] } & Extras> {
   const out = await runStructured(options, "note");
   const parsed = NoteSchema.safeParse(out.structured);
   if (!parsed.success) throw new ProviderError("bad_request", "The conversation note came back in the wrong shape.");
-  return { note: parsed.data.note, ...extras(out) };
+  return { note: parsed.data.note, facts: options.facts ? (parsed.data.facts ?? []) : [], ...extras(out) };
 }
 
 /** ADR-098 item 8: a test case's dry run: no tools, the answer back. */
@@ -228,7 +240,8 @@ export async function runTestJudge(options: NoToolOptions): Promise<{ verdict: T
 
 async function runStructured(options: NoToolOptions, mode: Mode) {
   const { claudePath, model, task, instructions, signal, onUsage } = options;
-  const { contract, schema } = MODES[mode];
+  const { schema } = MODES[mode];
+  const contract = mode === "note" && options.facts ? MODES.note.contract + NOTE_FACTS_CONTRACT : MODES[mode].contract;
   const maxTurns = options.maxTurns ?? NO_TOOL_MAX_TURNS;
   if (signal.aborted) throw new ProviderError("cancelled", "Run cancelled");
   if (!claudePath) throw new ProviderError("auth", "Claude Code was not found. Install it, then run `claude auth login` in a terminal.");

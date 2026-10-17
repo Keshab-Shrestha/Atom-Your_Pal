@@ -3082,3 +3082,17 @@ Status: Accepted (Keshab's plan in `upgrades.md`). The TypeScript is tested; the
 - Nothing goes to a model. Facts and notes are sent only to the window that asked (ADR-058). The log has counts only, never the words.
 - A hit opens the place that holds it: a Second brain page, the Memory section of the Second brain, a new chat in a project, an agent's page, Plugins, Scheduled, or a Settings page.
 - Left out: calendar events and reminders (they are on the Mac, not in ATOM), and search by meaning (embeddings).
+
+## ADR-131 — Remembering by itself (C2 of upgrades.md) (2026-10-17)
+
+Status: Accepted (Keshab's plan in `upgrades.md`; "no tests" for this item, at his request). Typechecked; no test was written or run, and the Swift is not compiled.
+
+Before: a fact was kept only when the user asked (ADR-058), or when ATOM offered to in its reply (ADR-059), which is easy to miss and costs a spoken sentence.
+
+- The background conversation note (ADR-108) now also returns up to 3 candidate facts in the same run. There is no extra request and no tool. The note prompt tells the model to leave out one-off details, anything the user said not to keep, and any secret. When suggestions are off, the facts are not even asked for.
+- A candidate becomes a **suggestion**, never a fact (`services/memory/src/suggestions.ts`). It is dropped if it is empty, over 300 characters, looks like a secret (the `remember` tool's filter), is already a memory (case, width and trailing full stop ignored), is already waiting, or was refused before (a hash of the text is kept, not the text). At most 3 wait; the rest are dropped. A suggestion expires after 14 days.
+- Accept goes through the same path as `remember` (`store.add`), so every rule and limit of ADR-058 applies. The user may edit the words first. A refused fact stays waiting, so it can be edited. Not this keeps the hash only.
+- The window shows quiet "Remember?" rows above the chat box with Remember, Edit and Not this. Nothing is spoken and no notification is posted. Settings → General has a switch "Suggest things to remember" (default on). `ATOM_EPISODES=0` turns the notes, and so the suggestions, off.
+- The note runs when a chat has been quiet for 10 minutes (or is left), so a suggestion appears then, not right after the reply.
+- Commands `suggestions.get`, `suggestions.accept`, `suggestions.deny`, `suggestions.set`; event `suggestions`. The log has counts and ids only, never the fact.
+- Not changed: the reply-time offer in `MEMORY_GUIDANCE` (ADR-059). It can now double a suggestion; remove it if that annoys.

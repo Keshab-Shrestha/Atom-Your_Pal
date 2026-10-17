@@ -33,6 +33,8 @@ public enum IslandEvent: Sendable, Equatable {
     case info(ModelInfo)
     /// What ATOM keeps (ADR-058): after `memory.list`, and after every change from then on.
     case memory(MemoryList)
+    /// Remembering by itself (upgrades.md C2): whether suggestions are made, and the ones that wait (after `suggestions.get`, and after each change).
+    case suggestions(SuggestionsList)
     /// The second brain: the notes and their links (after `brain.get`, and after each change from then on); one note; search hits.
     case brain(BrainGraphData)
     case brainNote(BrainNoteData)
@@ -92,6 +94,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .approvalClosed: "approval.closed"
         case .info: "info"
         case .memory: "memory"
+        case .suggestions: "suggestions"
         case .brain: "brain"
         case .brainNote: "brain.note"
         case .brainHits: "brain.hits"
@@ -206,6 +209,8 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .contextReady(app: try f.string("app"), ok: try f.bool("ok"), message: f.optionalString("message"))
     case "memory":
         return .memory(MemoryList(enabled: try f.bool("enabled"), count: try f.int("count"), memories: try f.memories(), episodes: try f.episodes(), chats: try f.memoryChats()))
+    case "suggestions":
+        return .suggestions(SuggestionsList(enabled: f.optionalBool("enabled") ?? false, items: Fields.suggestions(f.values["items"])))
     case "brain":
         return .brain(Fields.brainGraph(f.values))
     case "brain.note":
@@ -825,6 +830,14 @@ private struct Fields {
         (value as? [Any] ?? []).compactMap { entry in
             guard let m = entry as? [String: Any], let role = m["role"] as? String, let text = m["text"] as? String else { return nil }
             return ChatLine(fromUser: role == "user", text: text)
+        }
+    }
+
+    /// Remembering by itself: the facts that wait; a malformed one is left out.
+    static func suggestions(_ value: Any?) -> [FactSuggestion] {
+        (value as? [Any] ?? []).compactMap { entry in
+            guard let s = entry as? [String: Any], let id = wholeNumber(s["id"]), let text = s["text"] as? String else { return nil }
+            return FactSuggestion(id: id, text: text, createdAt: (s["createdAt"] as? String).flatMap(Self.date))
         }
     }
 

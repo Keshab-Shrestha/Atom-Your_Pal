@@ -371,6 +371,28 @@ export function runIsland(options: IslandOptions): IslandSession {
         memoryWatched = true; // from now on, changes ATOM makes by itself are sent too
         sendMemory();
         return;
+      case "suggestions.get":
+        suggestionsWatched = true; // from now on, new and answered suggestions are sent too
+        sendSuggestions();
+        return;
+      case "suggestions.accept":
+        try {
+          options.suggestions?.accept(command.id, command.text);
+          options.log?.info("suggestion.accepted", { id: command.id, edited: command.text !== undefined });
+        } catch (error) {
+          send({ type: "error", stage: "settings", message: describe(error) }); // e.g. it looks like a secret; the suggestion stays to be edited
+        }
+        sendSuggestions();
+        return;
+      case "suggestions.deny":
+        if (options.suggestions?.deny(command.id)) options.log?.info("suggestion.denied", { id: command.id });
+        sendSuggestions();
+        return;
+      case "suggestions.set":
+        options.suggestions?.setEnabled(command.enabled);
+        options.log?.info("suggestion.switch", { enabled: command.enabled });
+        sendSuggestions();
+        return;
       case "memory.forget":
         if (options.memory?.forget(command.id)) options.log?.info("memory.change", { action: "forget", id: command.id, by: "settings" });
         sendMemory();
@@ -738,6 +760,14 @@ export function runIsland(options: IslandOptions): IslandSession {
   }
   let memoryWatched = false;
   let brainWatched = false;
+  let suggestionsWatched = false;
+  function sendSuggestions() {
+    const s = options.suggestions;
+    send({ type: "suggestions", enabled: s?.enabled() ?? false, items: s?.list() ?? [] });
+  }
+  const stopSuggestionUpdates = options.suggestions?.onChange(() => {
+    if (suggestionsWatched) sendSuggestions();
+  });
   function sendBrain() {
     if (!options.brain) return;
     send({ type: "brain", ...options.brain.graph() });
@@ -884,6 +914,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     if (quitting) return;
     quitting = true;
     stopMemoryUpdates?.();
+    stopSuggestionUpdates?.();
     stopBrainUpdates?.();
     stopChatUpdates?.();
     stopPosted?.();

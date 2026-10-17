@@ -6,3 +6,4 @@ export * from "./chat-index.ts";
 export * from "./chat-search.ts";
 export * from "./projects.ts";
 export * from "./brain.ts";
+export * from "./suggestions.ts";
