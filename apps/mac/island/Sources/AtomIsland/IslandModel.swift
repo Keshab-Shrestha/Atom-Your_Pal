@@ -89,6 +89,8 @@ final class IslandModel {
     var searchText = ""
     var searchResults: SearchResults?
     var searchFocusTick = 0
+    /// The row the arrow keys chose in the search results (upgrades.md C1).
+    var searchCursor = SearchCursor()
     /// ADR-128: ⌘F with the sidebar hidden shows it first; the field focuses itself when it appears.
     var searchFocusPending = false
 
@@ -425,6 +427,17 @@ final class IslandModel {
     func clearSearch() {
         searchText = ""
         searchResults = nil
+        searchCursor.reset()
+    }
+
+    /// ↓ or ↑ in the search field: choose the next or the previous row.
+    func moveSearchCursor(_ delta: Int) {
+        searchCursor.move(delta, count: searchResults?.entries.count ?? 0)
+    }
+
+    /// Return in the search field: open the chosen row; with none chosen, search now.
+    func submitSearch() {
+        if let entry = searchCursor.entry(in: searchResults?.entries ?? []) { openSearchEntry(entry) } else { runSearch() }
     }
 
     /// ADR-106: the current turn was typed. A typed turn never opens the microphone afterwards.
@@ -556,6 +569,7 @@ final class IslandModel {
             apiStatus = status
         case .searchResults(let results) where results.query == searchQuery:
             searchResults = results // an answer to older words is dropped
+            searchCursor.reset()
         case .commands(let list):
             claudeCommands = list
         case .skillFile(let file):

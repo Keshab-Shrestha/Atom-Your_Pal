@@ -3110,3 +3110,30 @@ Status: Accepted (Keshab's plan in `upgrades.md`; no tests for this item, at his
 - Settings are in Settings → General (a "Daily brief" card), not in a new Settings page.
 - Briefs and settings live in the memory file (`briefs.ts`). The history keeps 14 days. The log has counts, never the lines.
 - Left out: a chosen order of parts, more than one brief a day, and the live check with a real calendar.
+
+## ADR-133 — Review view, Tinker diff and Ask ATOM (B1, B3 and B4 of upgrades.md, without the shared editor) (2026-10-17)
+
+Status: Accepted (Keshab, 2026-10-17: "items 1 to 5 first"). No tests were written, at his request. Typechecked. The Swift is not compiled.
+
+The shared editor (B2) is skipped. This ADR gives the parts of B1, B3 and B4 that do not need it.
+
+- **Review view.** `EditReviewView` shows a proposed edit as a list of changes. Each change is shown in its place: the words that go in red with a line through them, the words that come in green, and 40 characters of text around. A check accepts it and a cross denies it. Accept all (⌘↩), Deny all and Undo are in the header. Each decision gives the owner the whole text to keep (ADR-129). `EditReview.context(for:)` builds the text around a change.
+- **Tinker's suggestions as a diff.** A waiting suggestion for a soul field is shown as the change it makes to the field's current text (`InlineDiff`, `InlineDiffText`). Accept, Reject and Undo stay as they were. An accepted suggestion shows its text, because the field already has it.
+- **Ask ATOM.** The command `text.edit` takes an id, a text of up to 100,000 characters, an optional selection (UTF-16 offsets) and an instruction of up to 500 characters. One model run on the Claude plan (the small model, no tools, no memory, no chat) returns the new text of the target. With a selection, 400 characters on each side go along as context, marked as not to be changed. A Markdown fence round the reply is removed. The answer is `text.edit.result` with `answer` (the replacement for the selection or the whole text) and `changed`, or `error`. A new request with the same id, or `text.edit.cancel`, stops the old one. Use is counted as background use. The log has sizes, never the text.
+- **First place to use it.** A panel under the text of a Second brain note: the user types what to do, the changes show in the review view, and each accepted change goes into the note's text. The Save button still saves the note. The whole text is the target, because the plain text box cannot report a selection.
+- Left out: ⌘K inside any text box and a selection (they need the shared editor).
+
+## ADR-134 — Quick actions on a selection (C4 of upgrades.md) (2026-10-17)
+
+Status: Accepted (Keshab, 2026-10-17). No tests were written, at his request. Typechecked. The Swift is not compiled.
+
+- The shortcut **⌃⌥K** ("Quick actions", changeable in Settings → Shortcuts) reads the text selected in the app in front and opens a small panel near the pointer. Nothing is read before the shortcut is pressed.
+- Order of reading (`SelectionCapture`): a password field is refused; the selection through Accessibility; if the app gives none, ⌘C is pressed and the clipboard is put back as it was (every type; a concealed clipboard is cleared, not restored); else the text on the clipboard, shown as "From the clipboard". A text over 20,000 characters is cut, with a notice.
+- Actions: Summarize, Translate (English to Japanese, or Japanese to English), Fix spelling and grammar, Make shorter, Make friendlier, Make more formal, Explain, Draft a reply, and Ask… with the user's own words. Each instruction is fixed text in code (`QuickAction`).
+- The text goes to the model through `text.edit` only for the action the user picks (ADR-133): no tools, no memory, no history.
+- Actions that change text show the review view, and "Replace in <app>" puts the accepted text in place of the selection through `TextInserter`, which brings the app to the front and refuses password fields. If that is not possible, the text goes to the clipboard and the panel says so. Clipboard text cannot be replaced, so those actions give a result to copy. Summarize, Explain, Draft a reply and Ask… give a result to read, with Copy.
+- Left out: "Open in chat" on a result, the choice of shortcut by a first-run question, and the live check in TextEdit, Notes, Safari and a password field.
+
+## ADR-130 update — the search keyboard (2026-10-17)
+
+↑ and ↓ in the search field choose a row (`SearchCursor`); Return opens it, or searches when no row is chosen. A click and Return use the same code (`openSearchEntry`). The chosen row is shaded and scrolled into view. The cursor does not wrap.

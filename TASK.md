@@ -1910,3 +1910,10 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 - Tests: none written or run, at Keshab's request. `pnpm typecheck` passes. The Swift is not compiled.
 - Not checked live: "Brief me" with a real calendar and weather; the scheduled run the next morning; the macOS notification; Telegram; speech.
 - Next in upgrades.md: item 11 (image generation) waits for a provider. Item 12 (cloud sandboxes) waits for a spike. Items 3 to 6 and 10 need the shared editor, which Keshab skipped.
+
+## ADR-133, ADR-134 and the search keyboard (2026-10-17)
+
+- Done: `EditReviewView`, `InlineDiff`, Tinker's diff, `text.edit` (`text-edit.ts`, `runEdit`, `AskAtomPanel` in the Second brain note editor), quick actions (`QuickActions.swift`, `QuickActionController.swift`, the ⌃⌥K shortcut, the `TextInserter` reading helpers), the search keyboard (`SearchCursor`, `SearchOpening.swift`).
+- Tests: none, at Keshab's request. `pnpm typecheck` passes. The Swift is not compiled.
+- Not checked live: every item above. Check first: ⌃⌥K in TextEdit (selection, then Replace), in Safari (⌘C path) and in a password field (refused); Ask ATOM in a note; Tinker's diff; ↑ ↓ Return in the search.
+- Left in upgrades.md: the shared editor (B2) and what needs it (⌘K in any text box, the chat box move), image generation (a provider is needed) and cloud sandboxes (a spike is needed).

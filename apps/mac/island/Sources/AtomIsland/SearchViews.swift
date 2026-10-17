@@ -22,7 +22,9 @@ struct SidebarSearchField: View {
                 TextField("Search everything", text: Binding(get: { model.searchText }, set: { model.searchText = String($0.prefix(TaskLabels.maxQuery)) }))
                     .textFieldStyle(.plain).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
                     .focused(focus.projectedValue)
-                    .onSubmit { model.runSearch() }
+                    .onSubmit { model.submitSearch() }
+                    .onKeyPress(.downArrow) { model.moveSearchCursor(1); return .handled }
+                    .onKeyPress(.upArrow) { model.moveSearchCursor(-1); return .handled }
                     .onExitCommand { model.clearSearch() }
                     .accessibilityLabel("Search everything")
             }
@@ -52,38 +54,37 @@ struct SidebarSearchField: View {
     }
 }
 
-/// The results in place of the sidebar's pages while there are words: Chats, Tasks, Reports, each with a snippet and a date.
+/// The results in place of the sidebar's pages while there are words: a heading for each place, each row with a snippet and a date.
+/// ↑ ↓ in the search field choose a row and Return opens it; a click opens it too.
 struct SidebarSearchResults: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
 
     var body: some View {
         if let results = model.searchResults {
-            if results.isEmpty {
-                Text("Nothing found.").font(.system(size: 11.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 10).padding(.vertical, 4)
-            }
-            group("Chats", results.chats) { hit in
-                model.navigate {
-                    if hit.id != model.chats?.current { model.send(.chatOpen(id: hit.id)) }
-                    model.windowPage = .chat
-                }
-            }
-            group("Tasks", results.tasks, open: openTask, openable: taskOpenable)
-            group("Reports", results.reports, open: openTask, openable: taskOpenable)
-            // Search everything (upgrades.md C1): the other places ATOM keeps things.
-            ForEach(SearchKind.allCases, id: \.self) { kind in
-                group(kind.title, results.hits(kind)) { hit in open(kind, hit) }
-            }
-            let pages = results.settingsPages()
-            if !pages.isEmpty {
-                Text("Settings").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color).padding(.horizontal, 10).padding(.top, 8)
-                ForEach(pages) { page in
-                    Button { model.navigate { model.openSettings(page) } } label: {
-                        Text(page.rawValue).font(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 10).padding(.vertical, 5).contentShape(Rectangle())
+            let sections = results.sections
+            let chosen = model.searchCursor.entry(in: results.entries)?.id
+            ScrollViewReader { proxy in
+                VStack(alignment: .leading, spacing: 0) {
+                    if sections.isEmpty {
+                        Text("Nothing found.").font(.system(size: 11.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 10).padding(.vertical, 4)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Settings, \(page.rawValue)")
+                    ForEach(sections) { section in
+                        Text(section.title).font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color).padding(.horizontal, 10).padding(.top, 8)
+                        ForEach(section.entries) { entry in
+                            let canOpen = model.canOpenSearchEntry(entry)
+                            Button { model.openSearchEntry(entry) } label: { row(entry, chosen: entry.id == chosen) }
+                                .buttonStyle(.plain)
+                                .opacity(canOpen ? 1 : 0.5)
+                                .help(canOpen ? "" : "This task is older than the Board shows.")
+                                .accessibilityLabel(label(entry))
+                                .accessibilityAddTraits(entry.id == chosen ? .isSelected : [])
+                                .id(entry.id)
+                        }
+                    }
+                }
+                .onChange(of: chosen) { _, id in
+                    if let id { proxy.scrollTo(id) }
                 }
             }
         } else {
@@ -95,67 +96,29 @@ struct SidebarSearchResults: View {
         }
     }
 
-    /// A task or report opens its task's thread; one older than the Board shows cannot open.
-    private func openTask(_ hit: SearchHit) {
-        guard let id = hit.taskId, model.helpers.list?.item(id) != nil else { return }
-        model.navigate {
-            model.windowPage = .agents
-            model.sendHelpers(model.helpers.openThread(id))
-        }
+    private func label(_ entry: SearchEntry) -> String {
+        if let page = entry.page { return "Settings, \(page.rawValue)" }
+        guard let hit = entry.hit else { return "" }
+        return "\(hit.title). \(hit.snippet)"
     }
 
-    private func taskOpenable(_ hit: SearchHit) -> Bool { hit.taskId.flatMap { model.helpers.list?.item($0) } != nil }
-
-    /// A hit of another kind opens the place that holds it.
-    private func open(_ kind: SearchKind, _ hit: SearchHit) {
-        model.navigate {
-            switch kind {
-            case .pages:
-                model.windowPage = .brain
-                model.selectBrainNote(Int(hit.id))
-            case .facts, .notes:
-                model.windowPage = .brain // Memory is part of the Second brain page
-            case .projects:
-                model.newChat(inProject: hit.id)
-                model.windowPage = .chat
-            case .agents:
-                model.windowPage = .agents
-                model.helpers.selectHelper(hit.id)
-            case .skills:
-                model.windowPage = .plugins
-            case .routines:
-                model.windowPage = .scheduled
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func group(_ title: String, _ hits: [SearchHit], open: @escaping (SearchHit) -> Void, openable: @escaping (SearchHit) -> Bool = { _ in true }) -> some View {
-        if !hits.isEmpty {
-            Text(title).font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color).padding(.horizontal, 10).padding(.top, 8)
-            ForEach(hits) { hit in
-                let canOpen = openable(hit)
-                Button { open(hit) } label: { row(hit) }
-                    .buttonStyle(.plain)
-                    .opacity(canOpen ? 1 : 0.5)
-                    .help(canOpen ? "" : "This task is older than the Board shows.")
-                    .accessibilityLabel("\(hit.title). \(hit.snippet)")
-            }
-        }
-    }
-
-    private func row(_ hit: SearchHit) -> some View {
+    private func row(_ entry: SearchEntry, chosen: Bool) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(hit.title).font(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(1)
-            if !hit.snippet.isEmpty, hit.snippet != hit.title {
-                Text(hit.snippet).font(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(2)
-            }
-            if let at = hit.at {
-                Text(at, format: .relative(presentation: .named)).font(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1)
+            if let page = entry.page {
+                Text(page.rawValue).font(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(1)
+            } else if let hit = entry.hit {
+                Text(hit.title).font(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(1)
+                if !hit.snippet.isEmpty, hit.snippet != hit.title {
+                    Text(hit.snippet).font(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(2)
+                }
+                if let at = hit.at {
+                    Text(at, format: .relative(presentation: .named)).font(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 10).padding(.vertical, 5)
+        .background(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).fill(chosen ? theme.fill2.color : Color.clear))
         .contentShape(Rectangle())
     }
 }

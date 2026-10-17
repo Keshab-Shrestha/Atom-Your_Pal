@@ -611,3 +611,9 @@ ATOM runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 - The brief reads Calendar, Reminders, weather (only the place name leaves the Mac, as for the weather tool), the titles of finished tasks and short phrases about what waits for the user. It reads no chat, no remembered fact and no file.
 - One model run on the Claude plan, without tools, gets only that list as data. A brief that goes to Telegram or is spoken is off until the user turns it on. The macOS notification shows the first line only.
 - Briefs stay in the memory file on this Mac for 14 days. The log has counts and the source ("model" or "template"), never the lines.
+
+## Ask ATOM and quick actions (ADR-133, ADR-134)
+
+- Text goes to the model only when the user asks for an edit or picks a quick action. It goes with the instruction and, for a selection, up to 400 characters on each side. No tools, no memory and no chat go with it, and a Markdown fence in the reply is removed. The log has sizes, never text.
+- The quick-action shortcut reads the selection only when it is pressed. It never reads a password field. It presses ⌘C only when Accessibility gives no selection, waits until the shortcut's own keys are up, and puts the old clipboard back (a concealed clipboard is cleared instead).
+- Replacing the selection uses the dictation path (`TextInserter`): Accessibility is needed, password fields are refused, and the old clipboard is restored after a paste.
