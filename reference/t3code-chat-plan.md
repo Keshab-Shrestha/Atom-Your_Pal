@@ -79,9 +79,21 @@ Table copy rules to copy from T3 Code: escape `|` as `\|`, turn a line break in 
 3. B1, B2, B4 (all small).
 4. Run the S1 spike only when a Mac build is at hand.
 
-## Decisions needed
+## Status
 
-1. "Copy table" default: Markdown as text plus HTML (recommended), or tab-separated text (what T3 mobile does)?
-2. The key for "Copy last reply": Cmd+Shift+C, or another key?
-3. May C4 change the `MarkdownBlock.code` case to carry the language? The call sites in `MarkdownReply.swift` and `MarkdownHTML.swift` change with it.
-4. Is a Mac build at hand for the S1 spike and for checking `.contextMenu` with `.textSelection`?
+Date: 2026-10-17. Status: **deferred**. Keshab said: "no need to upgrade now, but include in reference."
+No chat code changed. This file is the saved plan for later.
+
+## Decisions (defaults, to confirm when work starts)
+
+1. "Copy table" default: Markdown as text plus HTML. The other choice is tab-separated text (what T3 mobile does).
+   Default: Markdown plus HTML. Notes and Pages then paste a real table.
+2. The key for "Copy last reply". Default: Cmd+Shift+C.
+3. May C4 change the `MarkdownBlock.code` case to carry the language? Default: yes.
+   The call sites in `MarkdownReply.swift` and `MarkdownHTML.swift` change with it.
+4. Is a Mac build at hand for the S1 spike and for checking `.contextMenu` with `.textSelection`? Not yet. Skip S1 until one is.
+
+## How to start later
+
+1. Say "start the chat plan". Work begins with C1 and C3 and the defaults above.
+2. Follow CLAUDE.md: one item at a time, an ADR, a TASK entry.
