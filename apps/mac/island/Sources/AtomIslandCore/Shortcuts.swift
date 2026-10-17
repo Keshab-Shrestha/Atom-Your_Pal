@@ -107,7 +107,7 @@ enum KeyCodes {
 
 /// What a shortcut does.
 public enum ShortcutAction: String, Sendable, CaseIterable, Identifiable, Codable {
-    case talk, dictate, toggleIsland, cancel
+    case talk, dictate, toggleIsland, cancel, quickAction
 
     public var id: String { rawValue }
 
@@ -117,6 +117,7 @@ public enum ShortcutAction: String, Sendable, CaseIterable, Identifiable, Codabl
         case .dictate: "Dictate"
         case .toggleIsland: "Show or hide the island"
         case .cancel: "Cancel"
+        case .quickAction: "Quick actions"
         }
     }
 
@@ -126,6 +127,7 @@ public enum ShortcutAction: String, Sendable, CaseIterable, Identifiable, Codabl
         case .dictate: "Hold to speak, or tap to start and stop"
         case .toggleIsland: "Press to open or close"
         case .cancel: "Press while ATOM listens or speaks"
+        case .quickAction: "Press with text selected in any app"
         }
     }
 
@@ -138,6 +140,7 @@ public enum ShortcutAction: String, Sendable, CaseIterable, Identifiable, Codabl
         case .dictate: KeyCombo(modifiers: [.command, .option], rightSideOnly: true)
         case .toggleIsland: KeyCombo(modifiers: [.control, .option], keyCode: KeyCodes.z, keyName: "Z")
         case .cancel: KeyCombo(modifiers: [], keyCode: KeyCodes.escape, keyName: "Esc")
+        case .quickAction: KeyCombo(modifiers: [.control, .option], keyCode: 40, keyName: "K")
         }
     }
 }

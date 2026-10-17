@@ -60,7 +60,7 @@ final class TextInserter {
     // MARK: - Waiting for the user's hands
 
     /// Waits until ⌘ ⌥ ⌃ ⇧ are physically up, at most `limit` seconds, so a held modifier cannot change the paste.
-    private func waitForModifiersUp(limit: Double = 0.8) async {
+    func waitForModifiersUp(limit: Double = 0.8) async {
         let mask: CGEventFlags = [.maskCommand, .maskAlternate, .maskControl, .maskShift]
         let deadline = ProcessInfo.processInfo.systemUptime + limit
         while !CGEventSource.flagsState(.combinedSessionState).intersection(mask).isEmpty,
@@ -147,6 +147,52 @@ final class TextInserter {
         if transient {
             board.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.TransientType"))
             board.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+        }
+    }
+
+    // MARK: - Reading the selection (quick actions)
+
+    /// The selected text of the focused element in `app`, through Accessibility; nil when there is none or the app does not say.
+    func selectedText(of app: NSRunningApplication?) -> String? {
+        guard canType, let element = focusedElement(of: app) else { return nil }
+        return string(kAXSelectedTextAttribute, of: element)
+    }
+
+    /// The focused element of `app` is a password field.
+    func focusIsSecure(of app: NSRunningApplication?) -> Bool {
+        guard let element = focusedElement(of: app) else { return false }
+        return isPassword(element)
+    }
+
+    /// Presses ⌘C in the app in front, waits a moment for the clipboard to change, reads the text, and puts the old clipboard back
+    /// (every type). Nil when the clipboard did not change, which means nothing was selected. Keys ⌃⌥ still held would change the
+    /// shortcut, so it waits for them first.
+    func copySelection() async -> String? {
+        guard canType else { return nil }
+        await waitForModifiersUp()
+        let board = NSPasteboard.general
+        let saved = Self.snapshot(board)
+        let heldSecret = saved.contains { $0[SecretClipboard.concealed] != nil }
+        let before = board.changeCount
+        pressCommandC()
+        var waited = 0
+        while board.changeCount == before, waited < 20, !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(20))
+            waited += 1
+        }
+        guard board.changeCount != before else { return nil }
+        let text = board.string(forType: .string)
+        if heldSecret { board.clearContents() } else { Self.restore(saved, to: board) }
+        return text
+    }
+
+    private func pressCommandC() {
+        let source = CGEventSource(stateID: .hidSystemState)
+        let cKey: CGKeyCode = 8
+        for down in [true, false] {
+            let event = CGEvent(keyboardEventSource: source, virtualKey: cKey, keyDown: down)
+            event?.flags = .maskCommand
+            event?.post(tap: .cghidEventTap)
         }
     }
 

@@ -51,6 +51,8 @@ extension IslandController {
             if talkingLocally { dictation.talkCancelled() } else { model.send(.talkCancel) }
         case .pressed(.toggleIsland):
             toggleWindow()
+        case .pressed(.quickAction):
+            quickActions.begin()
         case .pressed(.cancel):
             talking = false
             if dictation.isActive { dictation.cancel() } else { stopWork() }

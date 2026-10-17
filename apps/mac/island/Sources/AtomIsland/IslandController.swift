@@ -26,6 +26,8 @@ final class IslandController {
     let helpersWindow: MainWindowController
     /// ADR-091: ATOM's macOS notifications.
     let notifier: Notifier
+    /// Quick actions (upgrades.md C4): the shortcut reads the selection and offers what to do with it.
+    let quickActions: QuickActionController
     /// Talk was started by its shortcut and not yet sent or cancelled.
     var talking = false
     /// This Talk is going through the app's own microphone and Parakeet (ADR-063), not the runtime's.
@@ -86,6 +88,7 @@ final class IslandController {
         strip = WorkStripController(model: model)
         helpersWindow = MainWindowController(model: model)
         notifier = Notifier(settings: settings)
+        quickActions = QuickActionController(model: model)
         shortcuts = ShortcutEngine(settings: settings, recorder: model.recorder, log: log)
         pet = PetController(settings: settings, trace: trace)
         dictation = DictationController(vocabularyURL: IslandController.vocabularyURL)
