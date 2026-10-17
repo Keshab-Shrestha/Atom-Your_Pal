@@ -22,10 +22,13 @@ and the right panel (files, open in, changes, devices) to be studied.
 | `t3code-settings-and-keybindings.md` | Every settings section, the Providers section, key bindings, how settings are stored |
 | `t3code-git-and-source-control.md` | Git, worktrees, checkpoints, pull requests, source control hosts |
 | `t3code-right-panel-devices-and-shell.md` | Right panel (Files, Changes, Devices, Open in), connections, desktop and mobile shell |
-| `t3code-ideas-for-atom.md` | One ranked list of ideas for ATOM, made from the four topic files |
+| `t3code-chat-timeline-and-messages.md` | How the chat thread is drawn: Markdown, code, tables, copy, work log, scroll |
+| `t3code-composer-and-controls.md` | The chat box: editor, mentions, controls, queue, attachments, keys |
+| `t3code-chat-plan.md` | A phased plan for ATOM's chat, made from the two chat files |
+| `t3code-ideas-for-atom.md` | One ranked list of ideas for ATOM, made from the first four topic files |
 
 ## How to use these files
 
-1. Read `t3code-ideas-for-atom.md` first. It is the short list.
+1. Read `t3code-ideas-for-atom.md` (all areas) or `t3code-chat-plan.md` (the chat only) first. They are the short lists.
 2. Each idea points to the topic file and the T3 Code path that shows how T3 Code does it.
 3. To build an idea: follow CLAUDE.md (one capability at a time, an ADR, a TASK entry).
