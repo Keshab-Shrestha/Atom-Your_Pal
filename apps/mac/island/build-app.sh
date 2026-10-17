@@ -38,6 +38,20 @@ if [ -n "$(find "$here/Sources" "$here/Package.swift" -newer "$binary" 2>/dev/nu
   exit 1
 fi
 
+# Quit a running ATOM first. Without this, `open` only brings the old process forward, and its files are about to go.
+# The build above worked, so a failed build never closes the app that runs. It asks the app to quit, waits up to
+# five seconds (an unsaved edit can ask first), then ends it.
+if pgrep -x ATOM >/dev/null 2>&1; then
+  echo "Quitting the running ATOM…"
+  osascript -e 'tell application id "dev.atom.island" to quit' >/dev/null 2>&1 || true
+  waited=0
+  while pgrep -x ATOM >/dev/null 2>&1 && [ "$waited" -lt 20 ]; do
+    sleep 0.25
+    waited=$((waited + 1))
+  done
+  if pgrep -x ATOM >/dev/null 2>&1; then pkill -x ATOM >/dev/null 2>&1 || true; sleep 0.5; fi
+fi
+
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$binary" "$app/Contents/MacOS/ATOM"
