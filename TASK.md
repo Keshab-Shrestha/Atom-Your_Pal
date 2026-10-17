@@ -1946,3 +1946,15 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 - Live result: the signed-in Codex Core/router test changed a temporary fictional Cedar file through Kame and recalled Wednesday on the next turn. The later rewrite initially inferred denial from the native sandbox; clarified the host-tool instructions. The following run reached the third turn, then the account usage limit blocked it. This is **not** a passing end-to-end workflow. The real approval-card click, Codex note edit/review/save and physical quick-action replacement remain unverified.
 - Stabilized the bridge's existing timer-reset test with a controlled clock after wall-clock sleeps flaked under build/test load; production timing is unchanged.
 - Remaining verification: rerun the opt-in Codex workflow when capacity is available, then finish the three UI workflows. See `docs/everyday-workflows.md`. No commit or push made; unrelated `graphify-out/` preserved. No new lint/coverage gate is configured.
+
+
+## Saved roadmap and second T3 Code source review (2026-10-17)
+
+- Keshab asked to save the combined current/proposed upgrade plan and inspect `pingdotgg/t3code` again before further work.
+- Saved `docs/upgrade-roadmap.md`, linked from the root README and reference index. It retains the original twelve items, the built continuity/Codex changes, pending live checks, new proposals and earlier deferrals.
+- Cloned a fresh source snapshot outside ATOM and pinned it to `f96aebeb4bbdaf2b3d05177bd115dad4b8b41a8b`. Compared it with the prior `2fbd4318fc5b610c3e7fcfcbd5bbd80b73521d8f` snapshot: 202 files changed, mainly web/browser tests and performance work; no change under docs, server or provider-core.
+- Traced history selection/retrieval/delivery, provider switching, runtime requests, limit recovery, draft/queue state, copy/scroll controls, provider capability/account checks, file-restore safety, event writes, history paging, settings/connections and Git defaults. Inspected related tests without executing them. The source audit does not claim a live T3 run.
+- Saved pinned evidence, feature inventory, eleven corrections and revised candidate priorities in `reference/t3code-second-review-2026-10-17.md`. Corrected false/incomplete subscription-only, secret-file-mode, desktop-settings and unconditional provider-lock claims. Marked old ATOM comparisons as historical and recorded that exact-file/chat permission is already built.
+- Recommended next after current acceptance checks: bounded provider context plus paged own-chat retrieval; clear durable work/approval/limit recovery; draft and attachment recovery; then reading/copying and the existing workspace/settings proposals. Existing kept-chat retrieval is acknowledged. No product, billing or permission behavior changed.
+- Verified local Markdown targets, pinned source references, named test paths and Git whitespace/diff scope. Application tests were not repeated for documentation-only edits. The unrelated `graphify-out/` directory remains untouched.
+- Next implementation capability remains a user choice; this review does not start the deferred chat plan or any other feature.

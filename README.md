@@ -194,7 +194,7 @@ ATOM runtime (Node.js, TypeScript)
   └── Policy in code: folder checks, approvals, the sandbox
 ```
 
-More: [ARCHITECTURE.md](ARCHITECTURE.md).
+More: [ARCHITECTURE.md](ARCHITECTURE.md). Current and proposed upgrades: [combined roadmap](docs/upgrade-roadmap.md).
 
 ## Project layout
 

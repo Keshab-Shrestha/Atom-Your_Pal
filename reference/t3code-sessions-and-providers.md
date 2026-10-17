@@ -1,5 +1,7 @@
 # T3 Code: sessions and the provider layer
 
+> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ATOM status. Detailed observations below retain the earlier snapshot unless updated explicitly.
+
 Source: github.com/pingdotgg/t3code (MIT licence). Read on 2026-10-17 from a shallow clone at commit `2fbd4318`.
 Scope: sessions (threads), models, the provider layer, approvals, resume, fork, history, attachments, composer.
 Paths are relative to the T3 Code repository unless they name an ATOM folder.
@@ -110,8 +112,8 @@ The order comes from file names, docs and types. The author did not trace `RunEx
 - The Claude adapter returns `apply_on_next_turn` for every model change (verified).
 - `decideProviderSessionTransition` is a pure function (`ProviderSessionTransitionPolicy.ts`). It returns `reuse`, `switch_model_in_session`, `restart_and_resume`, `create_with_handoff` or `reject`.
 - An unavailable target is rejected. No current session, or a different driver or continuation group, means create with handoff.
-- A handoff is a budgeted text selection, not an agent summary. The default cap is 16,000 tokens (`DEFAULT_HANDOFF_TOKEN_CAP`). It leaves out reasoning, tool state and attachments (`docs/user/portable-handoffs.md`).
-- After the first run, the model picker locks the thread to its "continuation group" (`ProviderModelPicker.tsx`: `lockedContinuationGroupKey`).
+- A handoff is a budgeted text selection, not an agent summary. The default cap is 16,000 tokens (`DEFAULT_HANDOFF_TOKEN_CAP`). It leaves out reasoning, native tool state and attachments (`docs/user/portable-handoffs.md`). Omitted history remains in the archive and is recoverable through `t3_thread_read`, with timeline and long-item pagination. Delivery state is persisted to avoid duplicate injection. See the second review for source paths.
+- The picker can lock to a continuation group on capability paths without provider handoff. It is not an unconditional first-turn lock: `ChatView.tsx` clears the picker lock when `threadSupportsProviderHandoff` is true. The second review traced this branch in both source revisions.
 
 ### 1.8 Approvals and questions
 
@@ -265,10 +267,10 @@ Where the secret goes (verified):
 
 - `settingsSecrets.ts` finds secret fields (`secretSettingsFields`) and sensitive env rows.
 - `moveInlineSettingsSecrets` in `serverSettings.ts` writes each secret to the secret store and leaves a redacted mark in `settings.json`.
-- The store is `ServerSecretStore` (`auth/ServerSecretStore.ts`): one file per secret at `<stateDir>/secrets/<name>.bin`. The folder has mode 0700. The file mode is unverified.
+- The store is `ServerSecretStore` (`auth/ServerSecretStore.ts`): one file per secret at `<stateDir>/secrets/<name>.bin`. The folder has mode 0700. The second source review verified explicit mode 0600 on secret files in `ServerSecretStore.ts`; this does not establish encryption at rest.
 - `redactServerSettingsForClient` sends an empty value and a "redacted" flag to clients. `SECRET_REDACTED` is six bullet characters.
 - The server does not use the macOS Keychain for these secrets.
-- Not found: a spend cap or a "this key is billed" label. T3 Code does not need one: its main providers bill a subscription.
+- The second review confirms that the Claude probe labels API-key auth as "Claude API Key". It did not verify an enforced spending cap. API-key and proxy configurations can bill separately; ATOM keeps its own plan-only rule.
 
 ### 2.7 Health checks and sign-in status
 

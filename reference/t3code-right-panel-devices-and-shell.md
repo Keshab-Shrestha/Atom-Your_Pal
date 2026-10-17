@@ -1,5 +1,7 @@
 # T3 Code: right panel, devices, connections and shell
 
+> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ATOM status. Detailed observations below retain the earlier snapshot unless updated explicitly.
+
 Source: https://github.com/pingdotgg/t3code (MIT licence), shallow clone at commit `2fbd4318` (2026-10-17).
 All paths below are relative to that clone unless a path starts with `apps/mac` or names an ATOM file.
 A claim marked "unverified" was not confirmed in the code. "Not found" means the search gave no result.

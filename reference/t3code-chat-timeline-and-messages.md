@@ -1,5 +1,7 @@
 # T3 Code: chat timeline and message rendering
 
+> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ATOM status. Detailed observations below retain the earlier snapshot unless updated explicitly.
+
 Source: github.com/pingdotgg/t3code (MIT licence). Read on 2026-10-17 from the shallow clone at commit `2fbd4318`.
 Also read: the mobile package `react-native-enriched-markdown` (MIT, Software Mansion; T3 fork), unpacked from `apps/mobile/deps/*.tgz` into a scratch folder.
 A claim marked "unverified" was not checked in code or by a test. Nobody ran T3 Code or ATOM for this file.

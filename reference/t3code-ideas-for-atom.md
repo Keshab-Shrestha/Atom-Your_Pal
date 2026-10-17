@@ -1,5 +1,7 @@
 # T3 Code: ideas for ATOM
 
+> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ATOM status. Detailed observations below retain the earlier snapshot unless updated explicitly.
+
 This is the short list. It comes from the four topic files in this folder.
 Each idea says where the detail is: `S` = sessions and providers, `G` = git and source control, `T` = settings and key bindings, `P` = right panel, devices and shell.
 The numbers in brackets are the idea numbers in that file.
@@ -81,7 +83,7 @@ Size: S is under one day, M is a few days, L is a week or more. Every idea needs
 | 38 | Private checkpoint refs for tasks with several runs | `G` [10] | Not needed while one task makes one commit |
 | 39 | Hand-off prompts "Resolve conflicts" and "Fix review findings" | `G` [11] | After idea 31 |
 | 40 | History paging for long chats | `S` 12 | Measure the largest `chat.opened` event first |
-| 41 | "Allow for this chat" on approvals | `S` 12 | Widens permissions. Needs an ADR |
+| 41 | "Allow for this chat" on approvals | `S` 12 | Built for one exact file/chat in ADR-136; restart/revoke and policy tests pass, full live verification remains |
 | 42 | Steer a running turn | `S` 12 | ADR-127 chose stop and send |
 
 ## Not recommended now

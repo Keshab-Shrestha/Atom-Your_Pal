@@ -1,5 +1,7 @@
 # Chat plan: what to copy from T3 Code
 
+> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ATOM status. Detailed observations below retain the earlier snapshot unless updated explicitly.
+
 This plan joins two files: `t3code-chat-timeline-and-messages.md` (how T3 Code draws and copies messages) and `t3code-composer-and-controls.md` (the chat box).
 It answers one complaint: ATOM's chat feels like plain text, and a table is hard to copy.
 

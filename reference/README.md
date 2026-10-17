@@ -3,6 +3,8 @@
 This folder holds research on other projects. The goal is ideas and improvements for ATOM.
 Nothing here is code that ATOM runs. Do not copy source from these projects without checking the licence.
 
+Current combined plan: [ATOM upgrade roadmap](../docs/upgrade-roadmap.md). It includes built work, remaining verification and deferred proposals.
+
 Write the files here in ASD-STE100 English, as the rest of the repository does.
 
 ## T3 Code
@@ -10,6 +12,7 @@ Write the files here in ASD-STE100 English, as the rest of the repository does.
 Source: https://github.com/pingdotgg/t3code (MIT licence, T3 Tools Inc.).
 Read from a shallow clone at commit `2fbd4318` (2026-10-17).
 To read the source again, run: `git clone --depth 1 https://github.com/pingdotgg/t3code`.
+Fresh second review: commit `f96aebeb4bbdaf2b3d05177bd115dad4b8b41a8b`, 2026-10-17. See [second review](t3code-second-review-2026-10-17.md) for corrections, source links and revised priorities.
 The clone is not kept in this repository.
 
 Why: Keshab likes T3 Code and asked for its sessions, git source control, settings (providers, keybindings, connections, general),
@@ -17,6 +20,7 @@ and the right panel (files, open in, changes, devices) to be studied.
 
 | File | Topic |
 | --- | --- |
+| `t3code-second-review-2026-10-17.md` | Fresh source audit: confirmed features, corrections, gaps and revised priorities |
 | `t3code-overview.md` | What T3 Code is, its parts, and a table that compares it with ATOM |
 | `t3code-sessions-and-providers.md` | Sessions (threads), the provider layer, model choice, handoffs between providers |
 | `t3code-settings-and-keybindings.md` | Every settings section, the Providers section, key bindings, how settings are stored |
@@ -29,6 +33,6 @@ and the right panel (files, open in, changes, devices) to be studied.
 
 ## How to use these files
 
-1. Read `t3code-ideas-for-atom.md` (all areas) or `t3code-chat-plan.md` (the chat only) first. They are the short lists.
+1. Read the combined roadmap and second review first for current status. Use `t3code-ideas-for-atom.md` and `t3code-chat-plan.md` for the original proposals and detail.
 2. Each idea points to the topic file and the T3 Code path that shows how T3 Code does it.
 3. To build an idea: follow CLAUDE.md (one capability at a time, an ADR, a TASK entry).

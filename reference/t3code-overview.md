@@ -1,13 +1,14 @@
 # T3 Code: overview
 
+> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ATOM status. Detailed observations below retain the earlier snapshot unless updated explicitly.
+
 Source: github.com/pingdotgg/t3code (MIT licence). Read on 2026-10-17 from a shallow clone at commit `2fbd4318` (2026-10-17).
-This file is a map. The detail is in the four topic files listed in `README.md`.
+This file is a map. The detail is in the topic files listed in `README.md`; later corrections are in the second review.
 
 ## What T3 Code is
 
 T3 Code calls itself an "agent harness control surface". It lets one person control coding agents that run on their own machine.
-It does not sell a model. It uses the user's own subscriptions through each provider's command line tool.
-This is the same money idea as ATOM: the user pays the provider, the app only controls it.
+It controls provider tools on the host. It supports subscription sign-ins and API-key/custom-endpoint configurations. ATOM currently keeps a narrower plan-only policy; the two products do not have the same billing rules.
 
 - Providers named in the README: Claude Code, Codex, Cursor, Grok Build, OpenCode, Google Antigravity.
   The repository also has packages for Pi, Muse and a generic ACP provider.
@@ -83,9 +84,9 @@ ATOM is Swift plus Node. T3 Code is almost all TypeScript. The ideas move across
 | --- | --- | --- |
 | Main use | Coding agents in projects | Voice and chat assistant with a team of agents, notch UI |
 | Platform | Web, desktop, mobile | macOS only |
-| Providers | 6 or more, equal in rank | Claude plan first; Codex and Gemini CLI as plain chat |
-| Session store | Event log in SQLite on the server | One Claude Code session per chat, chats in the memory file |
-| Remote use | Core feature | Local API on 127.0.0.1 and a Telegram bot |
+| Providers | 6 or more, equal in rank | Claude and Codex with checked tools/file agents; Gemini CLI text-only (ADR-137) |
+| Session store | Event log in SQLite on the server | Claude/Codex live sessions, full chat archives and separate memory stores |
+| Remote use | Core feature | Local API/phone page and Telegram; no T3-style environment manager |
 | Voice | Dictation into the composer (iOS) | Voice is the main way to talk |
 
 ## What this research does not cover

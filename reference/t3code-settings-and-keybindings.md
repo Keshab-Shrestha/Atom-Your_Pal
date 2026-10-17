@@ -1,5 +1,7 @@
 # T3 Code: settings screens and key bindings
 
+> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ATOM status. Detailed observations below retain the earlier snapshot unless updated explicitly.
+
 Research date: 2026-10-17. Source: shallow clone of `pingdotgg/t3code` (MIT licence), commit `2fbd4318`. The clone is read only.
 Paths are relative to the clone root unless they start with `/home/user/Atom-Your_Pal`. "Unverified" or "not checked" marks a claim I did not confirm in code.
 
@@ -88,7 +90,7 @@ Storage words used below:
 | Control | Type | What it does | Stored |
 | --- | --- | --- | --- |
 | Environment icon | Picker | Icon of this machine. | Server |
-| Local environment, Network access, Tailscale HTTPS, WSL backend | Switches, select (desktop) | Backend on or off; listen on the LAN (app restarts); serve over tailnet; WSL. | Desktop settings (file not found) |
+| Local environment, Network access, Tailscale HTTPS, WSL backend | Switches, select (desktop) | Backend on or off; listen on the LAN (app restarts); serve over tailnet; WSL. | `DesktopAppSettings.ts`, at `DesktopEnvironment.desktopSettingsPath` (`desktop-settings.json`) |
 | Pairing link | Button, QR, endpoint select | One-time link for a new device. Copy works only while the page stays open. | Not checked (server auth code) |
 | Authorized clients | List, Revoke, "Revoke others" | End access of a device. | Not checked |
 | T3 Connect | Sign-in, switch | Reach this machine without port forwarding. | Not checked |
@@ -445,7 +447,7 @@ Layout rules: one idea per page; row names stay the same; search covers every ro
 ## 8. Not found or not checked
 
 - No "auto select provider" control in T3 Code (section 2.4).
-- Where the desktop stores Local environment and Network access: not found.
+- Resolved by the second review: `apps/desktop/src/settings/DesktopAppSettings.ts` stores these in `DesktopEnvironment.desktopSettingsPath`, built as `stateDir/desktop-settings.json`.
 - Format of Scheduled Tasks on the server: not checked.
 - SnapShots platform limits: not checked.
 - Encryption of secrets at rest: none found in `ServerSecretStore.ts`. Not traced further.

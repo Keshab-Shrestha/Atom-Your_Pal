@@ -1,5 +1,7 @@
 # T3 Code: the composer and the controls around it
 
+> Review update (2026-10-17): [second source review](t3code-second-review-2026-10-17.md) records corrections and pinned evidence. Use the [combined roadmap](../docs/upgrade-roadmap.md) for current ATOM status. Detailed observations below retain the earlier snapshot unless updated explicitly.
+
 Source: github.com/pingdotgg/t3code (MIT licence). Read on 2026-10-17 from a shallow clone at commit `2fbd4318`.
 Nobody ran T3 Code. All facts come from reading files. A claim that I did not check in code is marked "unverified".
 Size: S is under one day, M is a few days, L is a week or more. Every idea needs its own ADR and task (CLAUDE.md section 3).
