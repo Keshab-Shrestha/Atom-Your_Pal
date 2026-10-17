@@ -24,7 +24,7 @@ export type IslandCommand =
   | { type: "model.refresh" }
   /** ADR-097: a chat's own model ("" for the chat in use; provider and model "" for the default again). */
   | { type: "chat.model"; id: string; provider: string; model: string }
-  | { type: "approval.answer"; id: string; approved: boolean }
+  | { type: "approval.answer"; id: string; approved: boolean; rememberFile?: boolean }
   | { type: "memory.list" }
   /** The second brain: the graph (and, from then on, again after each change), one note, a save (new, or a rename with `id`), a delete, a search. */
   | { type: "brain.get" }
@@ -294,10 +294,11 @@ export function parseCommand(line: string): ParsedLine {
     return { command: { type, id, provider, model } };
   }
   if (type === "approval.answer") {
-    const { id, approved } = value as { id?: unknown; approved?: unknown };
+    const { id, approved, rememberFile } = value as { id?: unknown; approved?: unknown; rememberFile?: unknown };
     if (typeof id !== "string" || id === "") return { error: 'approval.answer needs an "id" string.' };
     if (typeof approved !== "boolean") return { error: 'approval.answer needs "approved" to be true or false.' };
-    return { command: { type, id, approved } };
+    if (rememberFile !== undefined && typeof rememberFile !== "boolean") return { error: 'approval.answer: "rememberFile" must be true or false.' };
+    return { command: { type, id, approved, ...(rememberFile === undefined ? {} : { rememberFile }) } };
   }
   if (type === "text.send") {
     const { text, files, notes } = value as { text?: unknown; files?: unknown; notes?: unknown };

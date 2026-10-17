@@ -8,3 +8,4 @@ export * from "./projects.ts";
 export * from "./brain.ts";
 export * from "./suggestions.ts";
 export * from "./briefs.ts";
+export * from "./file-permissions.ts";

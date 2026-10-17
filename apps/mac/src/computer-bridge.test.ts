@@ -13,16 +13,17 @@ function setup(over: { timeoutMs?: number } = {}) {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // 2026-10-15: the island's strip ended only when its voice loop went idle; an API turn left it up until the user closed it.
-test("a quiet moment after the last step tells the island the work is over; a new step moves the end later", async () => {
+test("a quiet moment after the last step tells the island the work is over; a new step moves the end later", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   const events: IslandEvent[] = [];
   const bridge = createComputerBridge({ endAfterMs: 40 });
   bridge.attach((e) => events.push(e));
   bridge.step({ action: "look", app: "TextEdit" });
-  await sleep(25);
+  t.mock.timers.tick(25);
   bridge.step({ action: "type", app: "TextEdit" });
-  await sleep(25);
+  t.mock.timers.tick(25);
   assert.deepEqual(events.map((e) => e.type), ["computer.step", "computer.step"], "not yet: the second step moved the end");
-  await sleep(40);
+  t.mock.timers.tick(40);
   assert.deepEqual(events.map((e) => e.type), ["computer.step", "computer.step", "computer.end"]);
 });
 
@@ -41,6 +42,23 @@ test("the end waits for an approval and comes after it is answered", async () =>
 });
 
 const req = { summary: 'Click "Send" in Mail', reason: "it may send" };
+
+test("remembering file access needs the explicit file-only choice; ordinary Allow stays one time", async () => {
+  const { bridge, events } = setup();
+  const once = bridge.approveFile(req);
+  assert.equal(events[0]?.type === "approval.request" && events[0].rememberFile, true);
+  bridge.answer("a1", true);
+  assert.equal(await once, "once");
+  const chat = bridge.approveFile(req);
+  bridge.answer("a2", true, true);
+  assert.equal(await chat, "chat");
+  const ordinary = bridge.approve(req);
+  bridge.answer("a3", true, true);
+  assert.equal(await ordinary, true, "a forged remember flag does not make an ordinary request a file grant");
+  const declined = bridge.approveFile(req);
+  bridge.answer("a4", false, true);
+  assert.equal(await declined, false);
+});
 
 test("a request goes to the island and resolves with the user's answer", async () => {
   const { bridge, events } = setup();

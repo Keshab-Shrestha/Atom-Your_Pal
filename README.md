@@ -190,7 +190,7 @@ ATOM runtime (Node.js, TypeScript)
   ├── Speech: Whisper (hearing), Kokoro (voice), Parakeet (dictation)
   ├── ATOM Core: requests, chats, tools, memory
   ├── Helpers: agents, souls, tasks, routines, grants (SQLite)
-  ├── LLM Gateway: Claude Code, or Codex and Gemini CLI for chat
+  ├── LLM Gateway: Claude Code, Codex with checked host tools, Gemini CLI for text
   └── Policy in code: folder checks, approvals, the sandbox
 ```
 

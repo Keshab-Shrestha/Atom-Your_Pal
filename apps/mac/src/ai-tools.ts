@@ -79,7 +79,7 @@ export async function scanAiTools(deps: ScanDeps = defaultScanDeps()): Promise<A
     { id: "claude-code", name: "Claude Code", found: Boolean(claude), ...with_(claudeIn), provider: CLAUDE_PLAN,
       note: claude ? signedNote(claudeIn, "run `claude auth login`") : "Not found: install Claude Code to use your Claude plan" },
     { id: "codex", name: "Codex", found: Boolean(codex), ...with_(codexIn), provider: CODEX,
-      note: codex ? `${signedNote(codexIn, "run `codex login`")} (chat only)` : "Not found: Codex comes with the ChatGPT app or its editor extension" },
+      note: codex ? `${signedNote(codexIn, "run `codex login`")} (chat, ATOM tools and checked file agents)` : "Not found: Codex comes with the ChatGPT app or its editor extension" },
     { id: "gemini-cli", name: "Gemini CLI", found: Boolean(gemini), ...with_(geminiIn), provider: GEMINI_CLI,
       note: gemini ? `${signedNote(geminiIn, "run `gemini` and sign in with Google")} (chat only)` : "Not found: install it with `brew install gemini-cli`" },
     { id: "ollama", name: "Ollama", found: Boolean(ollama), note: ollama ? "Found: local models are not used by ATOM" : "Not found" },

@@ -4,12 +4,16 @@
 import { randomUUID } from "node:crypto";
 import type { IslandEvent } from "./island-protocol.ts";
 
+export type FileApproval = false | "once" | "chat";
+type ApprovalInput = { summary: string; reason: string; timeoutMs?: number; reasonMax?: number; rememberFile?: boolean };
+
 export interface ComputerBridge {
   /** Where events go. Until the island is attached, every approval is a refusal and steps are dropped. */
   attach(send: (event: IslandEvent) => void): void;
   /** Passed to the computer tool as `approve`. Resolves true only if the user answers yes. */
   /** `timeoutMs` overrides the default wait for this one request. */
   approve(request: { summary: string; reason: string; timeoutMs?: number; reasonMax?: number }, signal?: AbortSignal): Promise<boolean>;
+  approveFile(request: { summary: string; reason: string }, signal?: AbortSignal): Promise<FileApproval>;
   /** Passed to the computer tool as `onPoint`. False if there is no island to show it. */
   point(target: { x: number; y: number; w: number; h: number; label: string }): boolean;
   /** Task 2.x: the island opens its Settings page. False if there is no island. */
@@ -19,7 +23,7 @@ export interface ComputerBridge {
   /** Passed to the computer tool as `onStep`. */
   step(step: { action: string; app?: string }): void;
   /** The island's `approval.answer`. An unknown or finished id does nothing. */
-  answer(id: string, approved: boolean): void;
+  answer(id: string, approved: boolean, rememberFile?: boolean): void;
   /** Declines everything waiting (the turn ended or was cancelled). */
   cancelAll(): void;
   /** ADR-098: the requests waiting for an answer, oldest first (for Telegram's /needs). */
@@ -33,6 +37,7 @@ export interface ApprovalAsk {
   id: string;
   summary: string;
   reason: string;
+  rememberFile?: true;
 }
 
 export interface ComputerBridgeOptions {
@@ -73,7 +78,7 @@ export const COMPUTER_END_MS = 6000;
 export function createComputerBridge(options: ComputerBridgeOptions = {}): ComputerBridge {
   const { timeoutMs = 60_000, endAfterMs = COMPUTER_END_MS, newId = randomUUID } = options;
   let sendEvent: ((event: IslandEvent) => void) | undefined;
-  const waiting = new Map<string, (approved: boolean) => void>();
+  const waiting = new Map<string, (approved: FileApproval) => void>();
   const asks = new Map<string, ApprovalAsk>();
   const askListeners = new Set<(ask: ApprovalAsk) => void>();
 
@@ -88,24 +93,21 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
     endTimer.unref?.();
   }
 
-  function settle(id: string, approved: boolean) {
+  function settle(id: string, approved: boolean, rememberFile = false) {
     const done = waiting.get(id);
     if (!done) return;
     waiting.delete(id);
+    const canRemember = asks.get(id)?.rememberFile === true;
     asks.delete(id);
-    done(approved);
+    done(approved ? (rememberFile && canRemember ? "chat" : "once") : false);
     sendEvent?.({ type: "approval.closed", id });
     scheduleEnd();
   }
 
-  return {
-    attach(send) {
-      sendEvent = send;
-    },
-    approve(request, signal) {
+  function ask(request: ApprovalInput, signal?: AbortSignal): Promise<FileApproval> {
       if (!sendEvent || signal?.aborted) return Promise.resolve(false);
       const id = newId();
-      return new Promise<boolean>((resolve) => {
+      return new Promise<FileApproval>((resolve) => {
         const timer = setTimeout(() => settle(id, false), request.timeoutMs ?? timeoutMs);
         const onAbort = () => settle(id, false);
         waiting.set(id, (approved) => {
@@ -114,12 +116,17 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
           resolve(approved);
         });
         signal?.addEventListener("abort", onAbort, { once: true });
-        const ask = { id, summary: oneLine(request.summary, 140), reason: oneLine(request.reason, Math.min(Math.max(request.reasonMax ?? 140, 140), MAX_REASON_CHARS)) };
+        const ask: ApprovalAsk = { id, summary: oneLine(request.summary, 140), reason: oneLine(request.reason, Math.min(Math.max(request.reasonMax ?? 140, 140), MAX_REASON_CHARS)), ...(request.rememberFile ? { rememberFile: true } : {}) };
         asks.set(id, ask);
         sendEvent!({ type: "approval.request", ...ask });
         for (const listener of askListeners) listener(ask);
       });
-    },
+  }
+
+  return {
+    attach(send) { sendEvent = send; },
+    approve: async (request, signal) => Boolean(await ask(request, signal)),
+    approveFile: (request, signal) => ask({ ...request, reasonMax: MAX_REASON_CHARS, rememberFile: true }, signal),
     point(target) {
       if (!sendEvent) return false;
       const whole = (n: number) => Math.round(n);
@@ -139,7 +146,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
       sendEvent?.({ type: "computer.step", text: stepText(step) });
       scheduleEnd();
     },
-    answer: (id, approved) => settle(id, approved),
+    answer: (id, approved, rememberFile) => settle(id, approved, rememberFile),
     cancelAll() {
       for (const id of [...waiting.keys()]) settle(id, false);
     },

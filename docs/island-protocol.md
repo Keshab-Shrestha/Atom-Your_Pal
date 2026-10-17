@@ -59,7 +59,7 @@ The island (`RestartPolicy`, `RuntimeSupervisor` in `apps/mac/island/`) waits 1,
 | `{"type":"talk.cancel"}` | Abandon the current turn (recording, request or speech) and return to idle. Nothing is sent. Ignored when idle |
 | `{"type":"conversation.reset"}` | Cancel any turn and forget the conversation. Answered with a `conversation.reset` event. Same as `chat.new` without a project (ADR-107) |
 | `{"type":"model.set","provider":"gemini","model":"gemini-3.6-flash"}` | Switch the AI model for the next request (ADR-040). Takes effect at once, without restarting; a request already in flight finishes with the old model. The conversation is kept. Saved to `config/island.json` and used at the next start. Answered with an `info` event, or an `error` with stage `settings` (unknown provider, no API key for it, a model id that is not in the list and is not a valid custom id) and nothing changes. The runtime keeps running |
-| `{"type":"approval.answer","id":"a1","approved":true}` | The user's answer to an `approval.request` (ADR-054). `approved` must be a boolean. An unknown or already-closed `id` is ignored. Any other command that ends the turn (`talk.cancel`, `talk.start`, `conversation.reset`) counts as "no" |
+| `{"type":"approval.answer","id":"a1","approved":true}` | The user's answer to an `approval.request` (ADR-054). `approved` must be a boolean. Optional `rememberFile` must be a boolean and takes effect only for an approved, file-specific request that offered it (ADR-136). An ordinary approval cannot become a file grant. An unknown or already-closed `id` is ignored. Any other command that ends the turn (`talk.cancel`, `talk.start`, `conversation.reset`) counts as "no" |
 | `{"type":"brain.get"}` | Send the second brain's graph as a `brain` event. From then on a `brain` event also follows every change (a note saved, memory mirrored). |
 | `{"type":"brain.note","id":N}` | Send one note as a `brain.note` event (its text, links and backlinks). An unknown id gets an `error` with stage `settings`. |
 | `{"type":"brain.save","id"?:N,"title":"…","body":"…"}` | Save a note: new without `id`; with `id`, a change or a rename. Answered with `brain.note` and `brain`, or an `error` with stage `settings` (a title another note has, a body over 20000 characters). |
@@ -149,7 +149,7 @@ Holding Ctrl+Option maps to `talk.start` on press and `talk.send` on release. Pr
 | `computer.point` | `x`, `y`, `w`, `h` (numbers), `label` | ATOM shows the user a place on screen (ADR-054, Task 0.6.4): ATOM flies to the element and the bubble says `label` (e.g. "the settings button"). The numbers are Cua's own: points, origin at the top-left of the main display, y down, across all displays. Sent only while a turn is running. `w` and `h` must be above 0 and every number finite, or the island reports a bad event. A place on no display is not flown to. ATOM stays about 7 s after arriving, then goes back; a new turn, a reset or an error also ends it. Contains the label only, never screen content |
 | `settings.open` | — | Open the panel on its Settings page, as if the user had opened it (ADR-071: "open settings"). Already open there: nothing changes |
 | `media.key` | `key` | Press the Mac's system media key once, down then up (ADR-071: "pause the video"). `key` is `"playpause"`; any other value is a bad event. It reaches whatever macOS has as Now Playing (YouTube in a browser, Spotify, Music) and is a toggle. Posting needs Accessibility; without it the island shows a notice instead and nothing is pressed |
-| `approval.request` | `id`, `summary`, `reason` | ATOM will not do this until the user says yes: `summary` is the action ("Click \"Send\" in Mail"), `reason` is why it asks. One request at a time. The island must show it with Allow and Decline and answer with `approval.answer`. The runtime declines by itself after 60 s |
+| `approval.request` | `id`, `summary`, `reason` | ATOM will not do this until the user says yes: `summary` is the action ("Click \"Send\" in Mail"), `reason` is why it asks. One request at a time. The island shows Allow and Decline and answers with `approval.answer`. Optional `rememberFile: true` offers Allow for task and Allow for chat; only the latter answers with `rememberFile: true`. It permits one exact file in this chat across tasks/restarts, revocable with “Forget file permissions for this chat”. The runtime declines by itself after 60 s |
 | `approval.closed` | `id` | That request is no longer waiting (answered, declined, timed out, or the turn was cancelled). The island removes the prompt |
 | `timer` | `id`, `label`, `message` | A timer ended (ADR-061). The runtime has already chimed and spoken `message`; the island shows it. |
 | `worker.line` | `line` | A line from the team (Task 3.15): a goal done, or a plan waiting for Keshab's OK. Sent when ATOM is idle, just before it says the line; the island shows it and ATOM flies to the menu-bar icon with it. |
@@ -269,10 +269,10 @@ Events.
 - Each item of `chats.chats` may have `projectId`. Project chats stay in the list. Group them by `projectId`. The list holds the newest plain chats and the newest chats of each project.
 - `chats` also has `currentProjectId` when the chat in use belongs to a project. This includes a new project chat that is not saved yet.
 - `conversation.reset` has `projectId` when it follows `chat.new` with a project.
-- `chat.opened` has `projectId` for a project chat. It has `trimmed: true` when the runtime gave the model only the newest 20 turns of a long chat. `messages` always holds every turn. Show a quiet notice, for example "Older turns are summarised".
+- `chat.opened` has `projectId` for a project chat. ADR-135: the full saved transcript is replayed. `trimmed` is retained for protocol compatibility but is no longer set to true; `messages` holds every saved turn. Provider context limits do not truncate the archive.
 - The runtime also sends `chat.opened` again for the open chat when a goal posts its result into it (ADR-109). `messages` then ends with an assistant turn that has no user turn before it. Replace the shown turns. Show that turn as an answer without a question.
 - The chat's model: the chat's own model wins, then the project's model, then the global model. `currentProvider` and `currentModel` show the one in use.
-- A project chat on a model that is not a Claude plan model gets an `error` (stage `model`): "Projects need the Claude plan".
+- Project chats support Claude and Codex with host-checked file tools (ADR-137). Text-only providers return a model-stage error asking the user to choose Claude or Codex.
 
 ### Git (ADR-091)
 
@@ -292,7 +292,7 @@ The `info` event carries `tools`: each AI tool ATOM looked for on this Mac, `{"i
   - The model in use is always in the list.
 - `{"type":"model.refresh"}`: the runtime asks the Claude plan for its models again. The answer is `info`.
 - `model.set` also accepts a custom model id. A custom model id has 1 to 100 characters: letters, digits, `.`, `_`, `:` or `-`.
-- The runtime gives the model to Codex and the Gemini CLI with `--model`. The runtime does not give a model for the program's own model.
+- Codex receives the selected model through app-server `thread/start`; the Gemini CLI uses `--model`. The program's own model leaves the model field/flag unset. Codex workers currently use the chat's Codex model (ADR-137).
 - `{"type":"chat.model","id":"…","provider":"codex","model":"gpt-5.5"}`: sets the model of one chat.
   - `id` is the chat id. Use `""` for the chat in use.
   - Use `""` for `provider` and `model` to use the default model again.

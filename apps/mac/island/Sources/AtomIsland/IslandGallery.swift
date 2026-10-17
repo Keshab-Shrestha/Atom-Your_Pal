@@ -213,9 +213,14 @@ enum IslandGallery {
         dashing.windowPage = .dashboard
         dashing.planUsage = PlanUsage(fiveHour: 0.62, sevenDay: 0.31)
         // Token cost, job 4: input + output first, the cache counts apart, and the newest calls with their split.
+        // Keep weekday labels stable across runs and time zones, like the rest of this sample data.
+        var dashboardCalendar = Calendar(identifier: .gregorian)
+        dashboardCalendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let dashboardDay = dashboardCalendar.date(from: DateComponents(year: 2026, month: 10, day: 15, hour: 12))!
         let day = { (back: Int, io: (Int, Int), write: Int, read: Int) -> String in
-            let d = Calendar.current.date(byAdding: .day, value: -back, to: Date())!
-            let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+            let d = dashboardCalendar.date(byAdding: .day, value: -back, to: dashboardDay)!
+            let f = DateFormatter(); f.calendar = dashboardCalendar; f.locale = Locale(identifier: "en_US_POSIX")
+            f.timeZone = dashboardCalendar.timeZone; f.dateFormat = "yyyy-MM-dd"
             return #"{"day":"\#(f.string(from: d))","input":\#(io.0),"output":\#(io.1),"cacheRead":\#(read),"cacheWrite":\#(write),"dollars":0.4,"runs":6}"#
         }
         let days = (0..<7).reversed().map { day($0, (2400 + $0 * 310, 900 + $0 * 120), 38_000 + $0 * 2_000, 190_000 + $0 * 9_000) }.joined(separator: ",")
@@ -420,6 +425,7 @@ enum IslandGallery {
         let step = #"{"type":"computer.step","text":"Typing in TextEdit"}"#
         let ask = #"{"type":"approval.request","id":"a1","summary":"Click \"Send\" in Mail","reason":"it may send, buy, delete or change something"}"#
         let askLong = #"{"type":"approval.request","id":"a2","summary":"Click \"Delete this project and all of the files inside it permanently\" in Finder","reason":"it may send, buy, delete or change something"}"#
+        let askFile = #"{"type":"approval.request","id":"a3","summary":"Kame wants to change the file ~/Documents/Cedar/announcement.txt","reason":"a copy of the file is kept so you can undo it","rememberFile":true}"#
         let idle = #"{"type":"state","state":"idle"}"#
         let pointing = VStack(alignment: .leading, spacing: 4) {
             Text("Pointing: only a label beside ATOM").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
@@ -444,6 +450,7 @@ enum IslandGallery {
         .padding(24)
         .background(LinearGradient(colors: [Color(red: 0.17, green: 0.21, blue: 0.31), Color(red: 0.26, green: 0.31, blue: 0.45)], startPoint: .top, endPoint: .bottom))
         save(sheet, name: name, to: directory)
+        save(strip("Permission for one file", [thinking, askFile]).padding(24).background(theme.palette.surface.color), name: "\(name)-file-permission", to: directory)
     }
 
     /// Pal's speech bubble in the states that get one (IslandStatus.needsBubble): dictating with live words and

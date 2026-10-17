@@ -3137,3 +3137,33 @@ Status: Accepted (Keshab, 2026-10-17). No tests were written, at his request. Ty
 ## ADR-130 update — the search keyboard (2026-10-17)
 
 ↑ and ↓ in the search field choose a row (`SearchCursor`); Return opens it, or searches when no row is chosen. A click and Return use the same code (`openSearchEntry`). The chosen row is shaded and scrolled into view. The cursor does not wrap.
+
+## ADR-135 — Keep the full conversation archive (2026-10-17)
+
+Status: Implemented following Keshab's report of lost continuity and approval to fix it.
+
+The Core previously cut history to 20 exchanges before saving; project recovery also replayed only 20 messages. The stored transcript therefore lost information needed after a restart or provider switch. The Core now archives and replays all user/assistant messages, including worker wake-up replies. Project persistence no longer caps an individual transcript at 2,000 messages. Existing chat-count retention is unchanged.
+
+The archive is the source of conversation history. A live Claude or Codex session may maintain and compact its own context, but that must not delete archived messages. Reopening or changing provider seeds from the saved transcript. This change adds no retrieval strategy for transcripts beyond a provider's context window; such a request can still fail explicitly. Previously discarded messages cannot be restored from this archive. A real-store regression verifies 25 exchanges, reopening, a provider change and preservation of the initial fact.
+
+## ADR-136 — An explicit file permission for this chat (2026-10-17)
+
+Status: Implemented; store, policy, cancellation and Swift protocol tests pass. Live clicking of the new card remains to be checked.
+
+An existing file outside a task's own folder offers **Allow for task**, **Allow for chat** and **Decline**. Task permission retains the existing task-local semantics. Chat permission is a parameterized SQLite row keyed by chat id and the exact canonical file path, shared by workers in that chat and retained across restarts. It grants no directory or other-chat access. File-floor, secret, plan-first and bulk-write checks still run. Old approvals are not migrated into continuing grants.
+
+Only a pending file-specific card can return the continuing choice. Adding `rememberFile` to an ordinary approval answer cannot expand its authority. Cancellation, expiry and a missing answer refuse access. The protected path is checked before approval; cancelled Codex approvals cannot later write or create a grant. **Show file permissions for this chat** lists grants; **Forget file permissions for this chat** revokes them and clears live task caches. Chat removal/pruning also revokes them. There is no per-file revoke UI yet.
+
+## ADR-137 — Codex host tools and provider-aware editing (2026-10-17)
+
+Status: Implemented and locally tested; live Codex first edit and context recall passed. The final repeat edit is blocked by the signed-in account's usage limit, so the full workflow is not marked passed.
+
+The gateway owns Codex's stdio JSON-RPC app-server transport. Each chat keeps an ephemeral live thread, sends only new turns while its archive prefix matches, and rehydrates from the full archive after an external transcript change, idle closure or restart. ATOM uses the signed-in CLI, strips API keys and inherited parent Codex task identity, and never reads login contents. It adds no dependency. The installed CLI protocol was inspected alongside the official [app-server documentation](https://developers.openai.com/codex/app-server).
+
+Codex registers only ATOM host tools. Its named permission profile denies native filesystem access except minimal runtime/scratch reads, disables native network access and disables shell, browser, native agents and other native execution features. The returned profile must match. Personal MCP settings merge even with an empty map: ATOM enumerates inherited servers, disables them in this thread, then verifies no active imported tools before a model turn. Unsupported profiles or unsafe imported servers fail closed. The user's global configuration is not rewritten. Native execution/permission approval requests are declined.
+
+The host router reuses ATOM's native gate, plan book and Board recorder. Main chats use ATOM tools and checked project reads; folders workers get bounded Read/Glob/Grep/Write/Edit and approved planning. Searches returning content also pass Read checks. Workers run synchronously and return their actual reports; Stop aborts their process and pending file approval. Edits use the same canonical path that was checked, existing undo checkpoints and project task worktrees. Usage is attributed to the chat or job. Native sandbox read-only status must not be misrepresented as denial by ATOM's separately checked host write tool.
+
+This route does not yet implement worker shell/web/browser/external MCP, assigned Claude skill plugins, worker model pins or nested workers. Workers use the current chat's Codex model, and unloaded skills are not recorded as used. It does not promise all Claude capabilities.
+
+`text.edit` follows the active chat's provider (otherwise the default). Claude keeps its small-model route. Codex uses a separate locked-down app-server session with no registered host tools. Editing receives only target/instruction/context around a selection, no conversation memory; errors do not switch providers. The existing background conversation-note route still uses Claude. UI acceptance of a Codex note edit and physical quick-action replacement remain unverified. See `docs/everyday-workflows.md` for the complete evidence and the opt-in live regression.

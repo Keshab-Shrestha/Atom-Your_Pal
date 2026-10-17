@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import type { Message, ProjectFiles, ToolRunner } from "@atom/contracts";
 import { answerTail, MAX_PROJECT_FILE_CALLS, type ChatSession, type SessionSdk } from "@atom/llm-gateway";
 import { openHelperStore } from "@atom/helpers";
+import { openMemoryStore } from "@atom/memory";
 import { CONTEXT_LABEL, createNativeCore, NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, TYPED_NOTE, type NativeCoreDeps } from "./native-core.ts";
 import { nativeGate } from "./native-safety.ts";
 
@@ -319,6 +320,61 @@ const other = (reply: (text: string) => string = (t) => `other: ${t}`) => {
   return { requests, model: { complete: async (r: import("@atom/contracts").ModelRequest) => (requests.push(r), { text: reply(r.messages.at(-1)!.content) }) } };
 };
 
+test("the full chat survives more than twenty exchanges, persistence, reopening and a provider change", async () => {
+  const memory = openMemoryStore({ path: ":memory:" });
+  const o = other(() => "acknowledged");
+  const { sdk, queries } = fakeSdk();
+  const core = make(sdk, {
+    modelFor: () => undefined,
+    otherModel: () => o.model,
+    onExchange: (id, turns) => memory.chats.save(id, turns),
+  });
+  try {
+    for (let i = 0; i < 25; i++) await core.handle({ source: "text", text: i ? `Follow-up ${i}` : "Cedar launches on Wednesday." });
+    assert.equal(core.history().length, 50);
+    assert.equal(memory.chats.messages("chat-1").length, 50);
+    assert.match(o.requests.at(-1)!.messages[0]!.content, /Cedar launches on Wednesday/);
+    // A new Core is the process-restart path, using the actual persisted transcript.
+    const reopened = make(sdk, { onExchange: (id, turns) => memory.chats.save(id, turns) });
+    reopened.resume!("chat-1", memory.chats.messages("chat-1"));
+    await reopened.handle({ source: "text", text: "What launch day did we agree on?" });
+    assert.match(queries.at(-1)!.sent[0]!.message.content, /Cedar launches on Wednesday/);
+    assert.equal(memory.chats.messages("chat-1").length, 52);
+  } finally {
+    memory.close();
+  }
+});
+
+test("file grants are supplied as context and can be inspected or revoked without a model call", async () => {
+  const memory = openMemoryStore({ path: ":memory:" });
+  const helpers = openHelperStore({ path: ":memory:" });
+  const { sdk, queries } = fakeSdk();
+  const o = other();
+  let revoked = "";
+  const core = make(sdk, {
+    modelFor: () => undefined, toolModel: () => o.model,
+    team: { helpers, approve: async () => false, filePermissions: memory.filePermissions, worktrees: "/tmp/atom-permissions-wt" },
+    revokeToolPermissions: (chat) => { revoked = chat; },
+  });
+  try {
+    memory.filePermissions.forChat("chat-1").grant("/Users/test/Documents/cedar.txt");
+    memory.filePermissions.forChat("another-chat").grant("/Users/test/Documents/cedar.txt");
+    assert.match((await core.handle({ source: "text", text: "Show file permissions for this chat" })).text, /cedar.txt/);
+    assert.equal(o.requests.length, 0);
+    await core.handle({ source: "text", text: "Continue the same edit" });
+    assert.match(o.requests[0]!.systemExtra!, /cedar.txt/);
+    assert.match((await core.handle({ source: "text", text: "Forget file permissions for this chat" })).text, /Removed 1/);
+    assert.equal(o.requests.length, 1);
+    assert.equal(revoked, "chat-1");
+    assert.deepEqual(memory.filePermissions.forChat("chat-1").list(), []);
+    assert.equal(memory.filePermissions.forChat("another-chat").list().length, 1);
+    await core.handle({ source: "text", text: "What access do you have now?" });
+    assert.doesNotMatch(o.requests.at(-1)!.systemExtra ?? "", /explicitly allowed edits/);
+    assert.match(o.requests.at(-1)!.systemExtra!, /no continuing file permissions/);
+    assert.equal(queries.length, 0);
+  } finally { helpers.close(); memory.close(); }
+});
+
 test("a chat that moves to another provider keeps its context, and moving back hands the Claude session the exchange it missed", async () => {
   const { sdk, queries } = fakeSdk((t) => `claude: ${t.split("\n")[0]}`);
   const o = other();
@@ -345,7 +401,7 @@ test("a project chat refuses another provider with words; an empty reply is an e
   const files: ProjectFiles = { cwd: "/tmp/p", check: async () => undefined };
   const o = other();
   const core = make(sdk, { modelFor: () => undefined, otherModel: () => o.model, project: () => ({ note: "A project.", files }) });
-  await assert.rejects(core.handle({ text: "hi", source: "text" }), /Projects need a Claude model/);
+  await assert.rejects(core.handle({ text: "hi", source: "text" }), /no project file tools/);
   assert.equal(o.requests.length, 0);
   const empty = make(sdk, { modelFor: () => undefined, otherModel: () => ({ complete: async () => ({ text: "  " }) }) });
   await assert.rejects(empty.handle({ text: "hi", source: "text" }), /gave no reply/);

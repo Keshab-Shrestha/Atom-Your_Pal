@@ -27,11 +27,13 @@ import {
   type ScreenShot,
   type TimerInfo,
 } from "@atom/tool-engine";
-import { createGateway, createProviderAdapter, createSwitchableModel, listPlanModels, runBrief, runChatDigest, runEdit, type ChatSession, type ChatSessions, type PlanUsage } from "@atom/llm-gateway";
+import { createGateway, createProviderAdapter, createSwitchableModel, createCodexSessionAdapter, listPlanModels, runBrief, runChatDigest, runEdit, type ChatSession, type ChatSessions, type PlanUsage } from "@atom/llm-gateway";
+import { createCodexToolRouter } from "./codex-tools.ts";
 import { createNoteModel, createNotes } from "./notes.ts";
 import { createChatUsageRecorder, createOverheadRecorder } from "./usage-report.ts";
 import { makePrivate, ownFolders } from "./private-files.ts";
 import { createNativeCore, type NativeCore } from "./native-core.ts";
+import { randomUUID } from "node:crypto";
 import { createTinkerRun } from "./tinker.ts";
 import { startTinkerRunner, TINKER_TIME_LIMIT_MS, type TinkerRunner } from "./tinker-runner.ts";
 import { agentModel, createAgentTool } from "./native-agents.ts";
@@ -67,9 +69,9 @@ import { createKeptChats } from "./kept-chats.ts";
 import { createAttachments } from "./attachments.ts";
 import { searchEverything } from "./everything-search.ts";
 import { BRIEF_INSTRUCTIONS, createBriefRunner } from "./brief.ts";
-import { EDIT_INSTRUCTIONS, createTextEditor } from "./text-edit.ts";
+import { EDIT_INSTRUCTIONS, createTextEditor, providerTextWriter } from "./text-edit.ts";
 import type { BriefChange } from "./island-commands.ts";
-import { MAX_PROJECT_MESSAGES, createProjects } from "./projects-wiring.ts";
+import { createProjects } from "./projects-wiring.ts";
 import { createIslandGit, withPaperclip } from "./island-wiring.ts";
 import { nowLine, createEchoCore, describe, errorFields, findCalendarHelper, openHelpers, openMemory, warmOnOpen } from "./runtime-support.ts";
 
@@ -557,6 +559,8 @@ export function createRuntime(
   const nativeTeam = helpers && {
     helpers,
     approve: (request: { summary: string; reason: string }) => computer.approve(request),
+    approveFile: (request: { summary: string; reason: string }, signal?: AbortSignal) => computer.approveFile(request, signal),
+    ...(memory ? { filePermissions: memory.filePermissions } : {}),
     // `decisions` and `planModels` are made further down: read only when an Agent call runs.
     chooseModel: async (task: string, member: HelperView) =>
       (await agentModel({ member, task, engine: decisions, allowLarge: helpers.allowLarge(), models: planModels() })).model,
@@ -574,7 +578,7 @@ export function createRuntime(
         const stored = memory.chats.messages(chatId);
         if (!stored.length) return;
         const all: Message[] = [...stored, { role: "assistant", content: text }];
-        memory.chats.save(chatId, memory.chats.project(chatId) ? all.slice(-MAX_PROJECT_MESSAGES) : all);
+        memory.chats.save(chatId, all);
       }
       for (const listener of postedListeners) listener(chatId);
       for (const listener of chatListeners) listener();
@@ -599,7 +603,11 @@ export function createRuntime(
     return checked && !("error" in checked) ? checked.choice : settings.current();
   };
   const otherModels = new Map<string, ReturnType<typeof createModel>>();
+  const codexModels = new Set<ReturnType<typeof createGateway>>();
+  const codexRouters = new Set<ReturnType<typeof createCodexToolRouter>>();
   const makeCore = (composed = false): Core => {
+    const models = new Map<string, ReturnType<typeof createGateway>>();
+    const routers = new Map<string, ReturnType<typeof createCodexToolRouter>>();
     const native = createNativeCore({
             claudePath: keys[CLAUDE_PLAN] ?? "",
             tools: toolEngine,
@@ -608,7 +616,30 @@ export function createRuntime(
               const choice = chatChoice(chatId, source);
               return choice.provider === CLAUDE_PLAN ? choice.model : undefined;
             },
-            // Codex and the Gemini CLI answer a chat as plain text over the shared transcript (no tools, no team).
+            toolModel: (chatId: string, source: InputSource) => {
+              const choice = chatChoice(chatId, source);
+              const program = keys.codex;
+              if (choice.provider !== "codex" || !program) return undefined;
+              let gateway = models.get(choice.model);
+              if (!gateway) {
+                const onUsage = (u: { input: number; output: number; cacheRead: number; cacheWrite: number }, request: import("@atom/contracts").ModelRequest, actualModel: string) => {
+                  const match = /^job:(\d+)$/.exec(request.context.requestId);
+                  if (match && helpers) {
+                    const job = Number(match[1]);
+                    const row = helpers.get(job);
+                    if (row) { helpers.setModel(job, actualModel, "The model Codex ran this agent on."); helpers.addUsage({ source: "job", helper: row.helper, job, model: actualModel, chatId: request.context.sessionId, ...u }); }
+                  } else recordChatUsage(u, actualModel, { chatId: request.context.sessionId });
+                };
+                const router = createCodexToolRouter({ program, model: choice.model, tools: toolEngine, ...(nativeTeam ? { team: nativeTeam } : {}), onUsage });
+                routers.set(choice.model, router); codexRouters.add(router);
+                gateway = createGateway({ provider: createCodexSessionAdapter({ program, model: choice.model, runner: (request) => router.forRequest(request), onUsage }), timeoutMs: Math.max(config.llm.timeoutMs, PLAN_TIMEOUT_MS), maxRetries: 0 });
+                models.set(choice.model, gateway); codexModels.add(gateway);
+              }
+              return gateway;
+            },
+            stopToolJob: (job) => [...routers.values()].some((router) => router.stopJob(job)),
+            revokeToolPermissions: (chat) => { for (const router of routers.values()) router.revoke(chat); },
+            // Text-only provider adapters share the saved transcript. Codex normally uses toolModel above.
             otherModel: (chatId: string, source: InputSource) => {
               const choice = chatChoice(chatId, source);
               const apiKey = keys[choice.provider];
@@ -923,16 +954,29 @@ export function createRuntime(
           (group) => log.warn("search.group_failed", { group }),
         ),
     },
-    // Ask ATOM (upgrades.md B3): the small model of the Claude plan, no tools, no memory. Counts as background use.
+    // Text editing follows the active chat's provider; no tools, memory or history, and no provider fallback.
     islandTextEdit: createTextEditor({
       log: { info: (event, fields) => log.info(event, fields as LogFields) },
-      write: async (task, signal) => {
-        const small = modelForTier(planModels(), "small");
-        if (!small) throw new Error("Ask ATOM needs the Claude plan.");
-        const { text, tokens } = await runEdit({ claudePath: keys[CLAUDE_PLAN] ?? "", model: small, task, instructions: EDIT_INSTRUCTIONS, signal, onUsage: reportUsage });
-        if (tokens) recordChatUsage(tokens, small, { background: true });
-        return text;
-      },
+      write: providerTextWriter({
+        choice: () => chatChoice(core.sessionId, "text"),
+        context: () => ({ requestId: randomUUID(), sessionId: core.sessionId, source: "text", receivedAt: new Date(), background: true }),
+        other: (choice) => {
+          const key = keys[choice.provider as keyof typeof keys];
+          if (!key) throw new Error("The selected model is not signed in. Choose a model in this chat.");
+          if (choice.provider === "codex") return createGateway({
+            provider: createCodexSessionAdapter({ program: key, model: choice.model, runner: () => ({ specs: () => [], run: async (call) => ({ callId: call.id, content: "Text editing has no tools.", isError: true }) }), onUsage: (usage, _request, model) => recordChatUsage(usage, model, { background: true }) }),
+            timeoutMs: config.llm.timeoutMs, maxRetries: 0,
+          });
+          return createModel(choice as LlmChoice, key);
+        },
+        claude: async (task, signal) => {
+          const small = modelForTier(planModels(), "small");
+          if (!small) throw new Error("Ask ATOM needs the Claude plan.");
+          const { text, tokens } = await runEdit({ claudePath: keys[CLAUDE_PLAN] ?? "", model: small, task, instructions: EDIT_INSTRUCTIONS, signal, onUsage: reportUsage });
+          if (tokens) recordChatUsage(tokens, small, { background: true });
+          return text;
+        },
+      }),
     }),
     ...(briefStore
       ? {
@@ -1016,6 +1060,9 @@ export function createRuntime(
     ...(api ? { api } : {}),
     flushNotes: () => episodes?.flush() ?? Promise.resolve(),
     close: () => {
+      for (const router of codexRouters) router.close();
+      for (const gateway of codexModels) gateway.close?.();
+      for (const gateway of otherModels.values()) gateway.close?.();
       telegram?.stop();
       api?.stop();
       tinker?.close();

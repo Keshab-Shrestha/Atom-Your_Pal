@@ -4,7 +4,49 @@ import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openHelperStore } from "@atom/helpers";
+import { openMemoryStore } from "@atom/memory";
 import { MAX_OUTSIDE_WRITES, PROJECT_FILE_BYTES, holdsSecret, askForFolder, checkpointBefore, denyRead, folderCheck, newFolderMemory, projectReadCheck } from "./folder-run.ts";
+
+test("explicit chat approval survives a new task; other files, other chats, revocation and the floor still ask or refuse", async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-grant-")));
+  const memory = openMemoryStore({ path: ":memory:" });
+  const file = join(home, "page.html");
+  const other = join(home, "other.html");
+  const permissions = memory.filePermissions.forChat("one");
+  let asks = 0;
+  const check = (chat = "one") => folderCheck({ roots: [], home, cwd: home, name: "Kame", memory: newFolderMemory(), permissions: memory.filePermissions.forChat(chat), approve: async () => false, approveFile: async () => { asks++; return "chat"; } });
+  try {
+    writeFileSync(file, "old"); writeFileSync(other, "other");
+    assert.equal(await check()("Edit", { file_path: file }), undefined);
+    assert.equal(asks, 1);
+    assert.equal(await check()("Edit", { file_path: file }), undefined, "a separate task reuses the explicit grant");
+    assert.equal(asks, 1);
+    await check()("Edit", { file_path: other });
+    assert.equal(asks, 2, "one file is not a folder grant");
+    await check("two")("Edit", { file_path: file });
+    assert.equal(asks, 3, "another chat needs its own approval");
+    permissions.revokeAll();
+    await check()("Edit", { file_path: file });
+    assert.equal(asks, 4, "revocation affects the next edit");
+    const secret = join(home, ".ssh", "id_test");
+    permissions.grant(secret);
+    assert.ok(await check()("Read", { file_path: secret }), "an explicit grant cannot bypass the floor");
+  } finally { memory.close(); rmSync(home, { recursive: true, force: true }); }
+});
+
+test("allowing one edit does not grant a later task access", async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-grant-once-")));
+  const memory = openMemoryStore({ path: ":memory:" });
+  const file = join(home, "page.html");
+  let asks = 0;
+  const check = () => folderCheck({ roots: [], home, cwd: home, name: "Kame", memory: newFolderMemory(), permissions: memory.filePermissions.forChat("one"), approve: async () => false, approveFile: async () => { asks++; return "once"; } });
+  try {
+    writeFileSync(file, "old");
+    await check()("Edit", { file_path: file }); await check()("Edit", { file_path: file });
+    assert.equal(asks, 2);
+    assert.deepEqual(memory.filePermissions.forChat("one").list(), []);
+  } finally { memory.close(); rmSync(home, { recursive: true, force: true }); }
+});
 
 // Task 3.11: every tool call of a run in folders, checked in code; risky commands ask on Pal's card.
 

@@ -47,7 +47,7 @@ export function promptText(request: ModelRequest): string {
 
 /** What a failed run means, in words for Keshab. Never the program's full output. */
 /** ADR-107: a project chat needs file tools, which only Claude Code runs under ATOM's checks. */
-export const PROJECTS_NEED_CLAUDE = "Projects need the Claude plan: this model cannot read the project's files. Pick a Claude model for this chat.";
+export const PROJECTS_NEED_CLAUDE = "This text-only adapter cannot read project files. Pick Claude or Codex in ATOM's chat to use its checked file tools.";
 
 export function failure(tool: string, signIn: string, error: unknown, signal: AbortSignal): ProviderError {
   if (signal.aborted) return new ProviderError("cancelled", `${tool} was stopped.`);

@@ -11,10 +11,6 @@ import type { ProjectItem } from "./island-items.ts";
 // rules, the project's Agent and the chat's read access. Names, folders and files are never logged: ids, tool names and
 // verdicts only.
 
-/** When a saved session cannot be resumed, a project chat is replayed with only this many newest turns. */
-export const PROJECT_REPLAY_TURNS = 20;
-/** Most turns kept for one project chat. */
-export const MAX_PROJECT_MESSAGES = 2000;
 /** Chats listed for each project (the plain list keeps its own limit). */
 const LISTED_PER_PROJECT = 50;
 const LISTED_PLAIN = 50;
@@ -46,7 +42,7 @@ export interface Projects {
   /** Called after a chat is saved: a new chat joins its project. */
   saved(chatId: string): void;
   replay(chatId: string, turns: Message[]): { turns: Message[]; trimmed: boolean };
-  /** Context for a trimmed chat: its conversation note, when there is one. */
+  /** Context for a project chat: its conversation note, when there is one. */
   digest(chatId: string): string | undefined;
   /** A chat's own title (any chat: plain or in a project). */
   renameChat(chatId: string, title: string): ProjectResult;
@@ -78,7 +74,6 @@ export function createProjects(options: ProjectsOptions): Projects {
   const store = memory.projects;
   /** A new chat's project, until its first save puts it in the chat's row. */
   const pending = new Map<string, string>();
-  const trimmed = new Set<string>();
 
   const say = (error: unknown): ProjectResult => {
     if (error instanceof HelperError || error instanceof ProjectError) return { error: error.message };
@@ -233,7 +228,7 @@ export function createProjects(options: ProjectsOptions): Projects {
       const same = (a: Message, b: Message) => a.role === b.role && a.content === b.content;
       const matches = before.length > 0 && turns.length >= 2 && stored.length >= before.length && before.every((m, i) => same(m, stored[stored.length - before.length + i]!));
       if (!matches) return [...turns];
-      const full = [...stored, ...turns.slice(-2)].slice(-MAX_PROJECT_MESSAGES);
+      const full = [...stored, ...turns.slice(-2)];
       return full[0]?.role === "assistant" ? full.slice(1) : full;
     },
 
@@ -243,14 +238,11 @@ export function createProjects(options: ProjectsOptions): Projects {
     },
 
     replay(chatId, turns) {
-      if (!projectOf(chatId) || turns.length <= PROJECT_REPLAY_TURNS) return { turns, trimmed: false };
-      const newest = turns.slice(-PROJECT_REPLAY_TURNS);
-      trimmed.add(chatId);
-      return { turns: newest[0]?.role === "assistant" ? newest.slice(1) : newest, trimmed: true };
+      return { turns, trimmed: false };
     },
 
     digest(chatId) {
-      if (!trimmed.has(chatId)) return undefined;
+      if (!projectOf(chatId)) return undefined;
       const note = memory.episodes(50).find((e) => e.sessionId === chatId);
       return note ? `Earlier in this chat (a summary): ${note.summary}` : undefined;
     },

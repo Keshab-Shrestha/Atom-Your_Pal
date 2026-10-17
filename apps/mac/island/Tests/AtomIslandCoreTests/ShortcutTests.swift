@@ -47,13 +47,14 @@ struct ShortcutTests {
     }
 
     @Test func actionsDescribeThemselves() {
-        #expect(ShortcutAction.allCases.map(\.title) == ["Talk to ATOM", "Dictate", "Show or hide the island", "Cancel"])
+        #expect(ShortcutAction.allCases.map(\.title) == ["Talk to ATOM", "Dictate", "Show or hide the island", "Cancel", "Quick actions"])
         #expect(ShortcutAction.talk.detail == "Hold, speak, let go to send")
         #expect(ShortcutAction.allCases.filter(\.isHold) == [.talk, .dictate])
         #expect(ShortcutAction.talk.defaultCombo == controlOption)
         #expect(ShortcutAction.dictate.defaultCombo.display == "Right ⌥⌘") // macOS order: ⌥ before ⌘
         #expect(ShortcutAction.toggleIsland.defaultCombo.display == "⌃⌥Z")
         #expect(ShortcutAction.cancel.defaultCombo.display == "Esc")
+        #expect(ShortcutAction.quickAction.defaultCombo.display == "⌃⌥K")
     }
 
     @Test func theDefaultsAreValidTogether() {
@@ -185,7 +186,7 @@ final class IslandSettingsTests {
 
         #expect(settings.setShortcut(nil, for: .dictate) == nil)
         #expect(settings.shortcut(for: .dictate) == nil)
-        #expect(settings.shortcuts[.dictate] == nil && settings.shortcuts.count == 3)
+        #expect(settings.shortcuts[.dictate] == nil && settings.shortcuts.count == ShortcutAction.allCases.count - 1)
 
         settings.resetShortcut(for: .dictate)
         #expect(settings.shortcut(for: .dictate) == ShortcutAction.dictate.defaultCombo)

@@ -1,5 +1,7 @@
 # ATOM Architecture
 
+Current continuity/provider changes (2026-10-17, ADR-135–137): the Core preserves each chat's full saved transcript across restarts and provider changes. Explicit file permissions live in the memory store by chat and canonical path; the model cannot create them. Codex app-server transport lives in the LLM Gateway, while the Mac host router reuses the policy gate, Board, approvals and checkpoints for checked tools and file agents. Native Codex execution and imported MCP tools are disabled and verified before a model turn. Text editing follows the active chat provider through the gateway, without chat context or provider fallback. Codex workers currently have a smaller tool set than Claude workers. See `docs/everyday-workflows.md` for supported scope and remaining live checks.
+
 ---
 
 ## 1. Architectural Vision

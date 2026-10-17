@@ -2,7 +2,22 @@
 
 Renamed ZENO -> ATOM on 2026-10-13; entries below keep the name they were written under.
 
-Last updated: 2026-10-16
+Last updated: 2026-10-17
+
+## Current verification baseline (2026-10-17)
+
+- `pnpm typecheck` passes. `pnpm test`: 1,033 passed, zero failed, seven model-dependent tests skipped; this includes the real-runtime Local API/phone smoke test.
+- `pnpm island:test`: all 731 tests in 133 suites pass, including the diff, edit-review, edit-request and search logic. Two old shortcut expectations were corrected for the fifth action, Quick actions.
+- `pnpm island:build` builds the release app and Calendar helper and signs ATOM with the local identity. The recent Swift features now compile; earlier "not compiled" entries below are historical. The build reported two existing Swift warnings in `IslandSettings.choice` and the dropped-command callback in `main.swift`.
+- `pnpm test:visual`: 69 gallery images render and all 12 golden comparisons pass. The eight new images show file-permission cards across themes; dark/light layouts were inspected. Only the model-settings reference was updated after inspecting the intentional Codex capability-copy change. The earlier Dashboard and fixed-date gallery fixes remain.
+- The earlier baseline `pnpm island:ui-check` passed startup/window rendering. The current release build passes; its offscreen gallery is verified. A live window/approval-card check of this latest build is still outstanding.
+- No lint script or coverage gate is configured. Coverage was not measured in this pass. The seven opt-in live model tests and the recent features' complete UI workflows remain outstanding.
+
+Implemented ADR-135–137 after the continuity investigation: full archived chat/project history, explicit continuing permission for one file in one chat with inspection/revocation, Codex host tools and real file-agent tasks, and text editing routed to the active chat's provider without fallback. Store/policy/protocol, actual local file operations over scripted Codex RPC, cancellation and provider-routing regressions pass. A new command test also confirms grants can be inspected/revoked without a model call.
+
+Real signed-in Codex completed the first delegated fixture edit and recalled Cedar/Wednesday on the next turn. Earlier follow-up attempts confused native read-only status with ATOM host-tool access; the tool descriptions and worker instructions now clarify that boundary. The next run reached the third turn but the Codex account usage limit blocked it. Therefore **the repeat-edit workflow is not marked passed**, and Codex note editing and physical quick-action capture/replacement still need live UI checks. Codex workers currently lack shell/web/browser/external MCP, assigned Claude skill plugins, worker model pins and nested workers. Full transcript replay still has provider context-window limits; it adds no long-history retrieval fallback and cannot recover previously discarded turns. Evidence and rerun command: `docs/everyday-workflows.md`.
+
+---
 
 Phase 1 (Memory) has started at Keshab's request, with Phase 0.5's hands-on checks deferred, not dropped. Task 1.1 (ADR-058): ZENO keeps facts the user asks it to remember in a local SQLite file, uses them in every request, and forgets them on request; Settings → Memory lists and deletes them. Checked live in text on the Claude plan, across a restart. Task 1.2 (ADR-059): ZENO notes each conversation in two sentences in the background so a new one can pick up the thread, and offers to remember facts mentioned in passing. Task 1.3 (ADR-060): Calendar and Reminders through an EventKit helper inside ZENO.app; read the schedule, list reminders, add one. Task 1.4 (ADR-061): timers, spoken and shown when they end. Task 1.5 (ADR-062): weather. Task 1.6: answers 4–6 s instead of up to 19 s (thinking off, weather cached), and typing to ZENO in the Conversation tab. Next: Keshab allows Calendar and Reminders when macOS asks, and tries all of it by voice.
 

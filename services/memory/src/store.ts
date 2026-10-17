@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { InputSource } from "@atom/contracts";
 import { openChats, type ChatStore } from "./chats.ts";
+import { openFilePermissions, type FilePermissions } from "./file-permissions.ts";
 import { openChatIndex, type ChatIndex } from "./chat-index.ts";
 import { openProjects, type ProjectStore } from "./projects.ts";
 import { openSuggestions, type Suggestions } from "./suggestions.ts";
@@ -78,6 +79,7 @@ export interface MemoryStore {
   clearEpisodes(): number;
   /** ADR-091: Keshab's chat sessions. */
   readonly chats: ChatStore;
+  readonly filePermissions: FilePermissions;
   /** The second brain: notes that link to each other (brain.ts). */
   readonly brain: Brain;
   /** Remembering by itself (upgrades.md C2): facts the notes noticed, waiting for the user's Accept. */
@@ -218,7 +220,8 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
 
   const count = () => Number((counter.get(owner) as { n: number }).n);
 
-  const chats = openChats(db, now);
+  const filePermissions = openFilePermissions(db);
+  const chats = openChats(db, now, (id) => { filePermissions.forChat(id).revokeAll(); });
   const chatIndex = openChatIndex(db, now);
   const projects = openProjects(db, now);
   const brain = openBrain(db, now);
@@ -227,6 +230,7 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
   const briefs = openBriefs(db, now);
   return {
     chats,
+    filePermissions,
     brain,
     briefs,
     get suggestions() {

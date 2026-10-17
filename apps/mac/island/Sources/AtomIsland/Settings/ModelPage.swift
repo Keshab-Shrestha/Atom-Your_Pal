@@ -77,7 +77,7 @@ struct ModelSection: View {
             if let list = model.helpers.list { AllowLargeCard(model: model, list: list) }
             if info.provider == "claude-plan" { PlanMetersCard(usage: model.planUsage) }
             // ADR-093: the AI tools on this Mac, found or not, and what ATOM does with them.
-            Card("Found on this Mac", footer: "Claude does ATOM's work: tools, agents and project files. Codex and the Gemini CLI can answer a chat as plain text, with the same conversation, and a chat can move between them. Local models (Ollama, LM Studio) are not used.") {
+            Card("Found on this Mac", footer: "Claude and Codex can use ATOM's tools and file agents. Codex workers use checked file tools; shell, web, browser and external MCP tools are not available to them yet. Gemini CLI is text-only. Chats keep their conversation when the model changes. Local models are not used.") {
                 if info.tools.isEmpty {
                     Row(title: "Looking for AI tools…") { ProgressView().controlSize(.small) }
                 }
@@ -129,8 +129,8 @@ struct ModelSection: View {
         guard let provider else { return nil }
         switch provider.id {
         case "claude-plan": return "Runs on your Claude plan, no API key needed."
-        case "codex": return "Found on this Mac. It cannot run ATOM's chats: ATOM answers on the Claude plan."
-        case "gemini-cli": return "Found on this Mac. It cannot run ATOM's chats: ATOM answers on the Claude plan."
+        case "codex": return "Uses your signed-in ChatGPT plan. Supports ATOM tools, checked file agents and text editing."
+        case "gemini-cli": return "Uses your Google sign-in for text-only chat and text editing."
         default: return nil
         }
     }

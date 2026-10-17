@@ -71,7 +71,7 @@ export function chatTitle(turns: readonly Message[]): string {
   return line.length > CHAT_TITLE_LENGTH ? `${line.slice(0, CHAT_TITLE_LENGTH - 1).trimEnd()}…` : line;
 }
 
-export function openChats(db: DatabaseSync, now: () => Date): ChatStore {
+export function openChats(db: DatabaseSync, now: () => Date, onRemove?: (id: string) => void): ChatStore {
   db.exec(`
     CREATE TABLE IF NOT EXISTS chats (
       id TEXT PRIMARY KEY,
@@ -124,6 +124,7 @@ export function openChats(db: DatabaseSync, now: () => Date): ChatStore {
   const prune = (project: string | undefined) => {
     const rows = (project ? oldIn.all(project, MAX_PROJECT_CHATS) : old.all(MAX_CHATS)) as { id: string }[];
     for (const row of rows) {
+      onRemove?.(row.id);
       clear.run(row.id);
       drop.run(row.id);
     }
@@ -178,6 +179,7 @@ export function openChats(db: DatabaseSync, now: () => Date): ChatStore {
     },
 
     remove(id) {
+      onRemove?.(id);
       clear.run(id);
       return Number(drop.run(id).changes) > 0;
     },

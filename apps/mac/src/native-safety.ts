@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import type { ProjectFiles } from "@atom/contracts";
 import type { HelperStore, HelperView } from "@atom/helpers";
+import type { FilePermissionScope } from "@atom/memory";
+import type { FileApproval } from "./computer-bridge.ts";
 import { TOOL_SERVER, MAX_PROJECT_FILE_CALLS } from "@atom/llm-gateway";
 import { BROWSER_SERVER, browserCheck } from "./browser.ts";
 import { checkpointBefore, folderCheck, newFolderMemory, type FolderMemory } from "./folder-run.ts";
@@ -56,6 +58,10 @@ export interface TeamScope {
   /** ADR-111: the chat's work plan; an Agent call with description "P<n>" is a portion of it. */
   plans?: PlanBook;
   approve(request: { summary: string; reason: string }): Promise<boolean>;
+  approveFile?(request: { summary: string; reason: string }): Promise<FileApproval>;
+  permissions?: FilePermissionScope;
+  /** False for providers that do not preload the worker's assigned skills. */
+  preloadedSkills?: boolean;
   /** Laya's model alias for this Agent call; undefined keeps the definition's model. */
   chooseModel?(task: string, member: HelperView): Promise<string | undefined>;
   /** Where task worktrees go (ATOM's worktrees folder). */
@@ -79,10 +85,11 @@ export interface NativeScope {
 type Verdict = { allow: true; input: Record<string, unknown> } | { allow: false; message: string };
 
 export interface NativeGate {
-  canUseTool: (name: string, input: Record<string, unknown>, extra?: { toolUseID?: string; agentID?: string }) => Promise<Record<string, unknown>>;
+  canUseTool: (name: string, input: Record<string, unknown>, extra?: { toolUseID?: string; agentID?: string }) => Promise<{ behavior: "allow"; updatedInput: Record<string, unknown> } | { behavior: "deny"; message: string }>;
   hooks: Record<string, unknown>;
   /** A new answer starts: the file-read count starts again, with the project's read access as it is now. */
   newAnswer(files?: ProjectFiles): void;
+  revokeFilePermissions(): void;
   /** A sub-agent's job ended: its worktree is committed (task branch, never pushed), its browser freed. */
   agentEnded(job: number): Promise<void>;
 }
@@ -151,7 +158,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
     // The agent's skills are preloaded into its context when it starts (the SDK's `skills` field), so it never has to call the Skill tool, and a use was
     // recorded only at that call: none was, a bad rating asked for no edit, and the self-improving loop never ran (found by the live test, 2026-10-16).
     // Every skill the agent was given counts as used by its task.
-    for (const skill of member.skills) team.helpers.recordSkillUse(job.id, skill);
+    if (team.preloadedSkills !== false) for (const skill of member.skills) team.helpers.recordSkillUse(job.id, skill);
     if (tainted.has("main")) tainted.set(`job:${job.id}`, tainted.get("main")!); // a task made after web text starts tainted, not clean
     team.board.opened(id, job.id, String(input.description ?? ""));
     // Phase N3: the Board shows the model at once (the pin or Laya's choice); the recorder puts the exact one when it runs.
@@ -257,6 +264,8 @@ export function nativeGate(scope: NativeScope): NativeGate {
       cwd: tree?.dir ?? cwd ?? roots[0] ?? team.home ?? homedir(),
       name: member.name,
       approve: team.approve,
+      ...(team.approveFile ? { approveFile: team.approveFile } : {}),
+      ...(team.permissions ? { permissions: team.permissions } : {}),
       onCheck: (e) => say(e.verdict),
       ...(job !== undefined
         ? {
@@ -374,6 +383,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
       return v.allow ? { behavior: "allow", updatedInput: v.input } : { behavior: "deny", message: v.message };
     },
     hooks,
+    revokeFilePermissions() { memories.clear(); },
     newAnswer(next) {
       tainted.delete("main"); // the user spoke: his message is the command, and the page text no longer counts against it
       files = next;

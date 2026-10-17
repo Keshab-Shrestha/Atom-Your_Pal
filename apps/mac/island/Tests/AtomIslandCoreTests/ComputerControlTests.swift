@@ -135,6 +135,14 @@ struct ComputerControlStateTests {
         #expect(state.answer(approved: true) == nil) // nothing left to answer: no second answer goes out
     }
 
+    @Test func continuingFileAccessRequiresItsOwnChoiceAndAFileRequest() {
+        var state = ApprovalState()
+        state.apply(.approvalRequest(ApprovalRequest(id: "file", summary: "Edit page", reason: "Existing file", rememberFile: true)))
+        #expect(state.answer(approved: true, rememberFile: true) == .approvalAnswer(id: "file", approved: true, rememberFile: true))
+        state.apply(.approvalRequest(request))
+        #expect(state.answer(approved: true, rememberFile: true) == .approvalAnswer(id: request.id, approved: true))
+    }
+
     @Test func petBrainReactsToTheNewKinds() {
         var brain = PetBrain(width: 800, now: 0)
         brain.update(status: .acting, at: 1)

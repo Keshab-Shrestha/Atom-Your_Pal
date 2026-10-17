@@ -4,6 +4,8 @@
 import { existsSync, mkdirSync, openSync, readSync, closeSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve, sep } from "node:path";
+import type { FilePermissionScope } from "@atom/memory";
+import type { FileApproval } from "./computer-bridge.ts";
 import { DENY_READ_DIRS, WRITE_TOOLS, classifyCommand, expandHome, floorProblem, folderForTask, hasGitPart, isInside, isSecretLike, pathProblem, realish, toolPaths } from "@atom/helpers";
 
 /** Never readable by sandboxed commands: keys, tokens and other apps' secrets. */
@@ -29,6 +31,8 @@ export interface FolderCheckOptions {
   /** The worker's name, for the approval card. */
   name: string;
   approve(request: { summary: string; reason: string }): Promise<boolean>;
+  approveFile?(request: { summary: string; reason: string }): Promise<FileApproval>;
+  permissions?: FilePermissionScope;
   /** Keshab's home folder, for the secret-folder check. Default: the real home. */
   home?: string;
   /** For the log: the tool and the verdict, never paths or command text. */
@@ -146,13 +150,17 @@ export function folderCheck(options: FolderCheckOptions) {
         const real = realish(isAbsolute(p) ? p : resolve(options.cwd, p));
         if (roots.some((r) => isInside(r, real))) continue;
         const asks: string[] = [];
-        if (existsSync(real) && !memory.approved.has(real)) asks.push(`change the file ${shortPath(real, home)}`);
+        if (existsSync(real) && !memory.approved.has(real) && !options.permissions?.has(real)) asks.push(`change the file ${shortPath(real, home)}`);
         if (!memory.written.has(real) && memory.written.size >= MAX_OUTSIDE_WRITES) asks.push(`change more than ${MAX_OUTSIDE_WRITES} files outside its own folder`);
         if (asks.length) {
           say(name, "asked");
-          const ok = await options.approve({ summary: `${options.name} wants to ${asks[0]}`, reason: `${name} ${asks.join(" and ")}. ${preview(name, input)} A copy of the file is kept so you can undo it.`.replace(/\s+/g, " ") });
+          const request = { summary: `${options.name} wants to ${asks[0]}`, reason: `${name} ${asks.join(" and ")}. ${preview(name, input)} A copy of the file is kept so you can undo it.`.replace(/\s+/g, " ") };
+          // A continuing grant applies to this exact canonical file only. The floor and secret checks already ran.
+          const canRemember = asks.length === 1 && memory.written.size < MAX_OUTSIDE_WRITES && options.permissions && options.approveFile;
+          const ok = canRemember ? await options.approveFile!(request) : await options.approve(request);
           if (!ok) return say(name, "declined"), "Keshab did not allow this change. Do the job without it, or say in the report what is needed.";
-          memory.approved.add(real);
+          if (ok === "chat") options.permissions!.grant(real);
+          if (ok !== "chat") memory.approved.add(real);
         }
         memory.written.add(real);
       }

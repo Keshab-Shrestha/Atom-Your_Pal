@@ -11,7 +11,7 @@ public enum IslandCommand: Sendable, Equatable {
     /// ADR-097: a chat's own model (`id` "" for the chat in use; provider and model "" for the default again).
     case chatModel(id: String, provider: String, model: String)
     /// The user's answer to an `approval.request` (ADR-054).
-    case approvalAnswer(id: String, approved: Bool)
+    case approvalAnswer(id: String, approved: Bool, rememberFile: Bool = false)
     /// Memory (ADR-058): ask for the list (and its changes from then on), forget one, or forget everything.
     case memoryList, memoryClear
     case memoryForget(id: Int)
@@ -288,9 +288,10 @@ public enum IslandCommand: Sendable, Equatable {
             fields["provider"] = provider
             fields["model"] = model
         }
-        if case .approvalAnswer(let id, let approved) = self {
+        if case .approvalAnswer(let id, let approved, let rememberFile) = self {
             fields["id"] = id
             fields["approved"] = approved // a real JSON boolean: the runtime refuses the strings "true" and "yes"
+            if rememberFile { fields["rememberFile"] = true }
         }
         if case .memoryForget(let id) = self {
             fields["id"] = id // a JSON number: the runtime refuses "2"

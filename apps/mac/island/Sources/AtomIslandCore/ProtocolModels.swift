@@ -228,11 +228,13 @@ public struct ApprovalRequest: Sendable, Equatable {
     public var summary: String
     /// Why it asks.
     public var reason: String
+    public var rememberFile: Bool
 
-    public init(id: String, summary: String, reason: String) {
+    public init(id: String, summary: String, reason: String, rememberFile: Bool = false) {
         self.id = id
         self.summary = summary
         self.reason = reason
+        self.rememberFile = rememberFile
     }
 }
 

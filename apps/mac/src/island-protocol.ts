@@ -37,7 +37,7 @@ export type IslandEvent =
   | { type: "computer.point"; x: number; y: number; w: number; h: number; label: string }
   | { type: "settings.open" }
   | { type: "media.key"; key: "playpause" }
-  | { type: "approval.request"; id: string; summary: string; reason: string }
+  | { type: "approval.request"; id: string; summary: string; reason: string; rememberFile?: true }
   | { type: "approval.closed"; id: string }
   | InfoEvent
   | { type: "timer"; id: number; label: string; message: string }

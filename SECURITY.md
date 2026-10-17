@@ -597,7 +597,7 @@ ATOM runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 
 - An attached file is checked, then copied into `data/attachments/<chat>`. Secret and key files (`.env`, `.ssh`, keys) are refused. Claude reads only that folder: the gate confines Read, Glob and Grep to it, the same as a project chat, and gives no Bash. Attached file text is data, never instructions.
 - A file is read once into the copy; the original is not touched. Deleting a chat deletes its copies.
-- Codex and the Gemini CLI receive small attached text files inline, as part of the transcript.
+- Codex receives checked attachment-copy read tools (ADR-137); the Gemini CLI receives small attached text files inline, as part of the transcript.
 - A skill chosen with `/name`, the Skills menu or `use_skill` adds its steps to one message as context. A skill cannot add tools or permissions: the gate and the user's approvals decide, as always.
 
 ## Suggested facts (ADR-131)
@@ -617,3 +617,16 @@ ATOM runs on Keshab's own Claude plan only, through the signed-in `claude` progr
 - Text goes to the model only when the user asks for an edit or picks a quick action. It goes with the instruction and, for a selection, up to 400 characters on each side. No tools, no memory and no chat go with it, and a Markdown fence in the reply is removed. The log has sizes, never text.
 - The quick-action shortcut reads the selection only when it is pressed. It never reads a password field. It presses ⌘C only when Accessibility gives no selection, waits until the shortcut's own keys are up, and puts the old clipboard back (a concealed clipboard is cleared instead).
 - Replacing the selection uses the dictation path (`TextInserter`): Accessibility is needed, password fields are refused, and the old clipboard is restored after a paste.
+
+## Chat file permissions and Codex host tools (ADR-136, ADR-137)
+
+These rules supersede the older statements above that Codex has no file agents, project reads or undo copies. Gemini remains text-only.
+
+- **Allow for task** retains task-local file approval. **Allow for chat** stores one canonical file path plus chat id in the memory database using parameterized SQL. It applies across workers and restarts in that chat only, never to a whole folder. Protected paths, secret checks, plan approval and bulk-write checks still run. Earlier approvals are not upgraded. Ordinary computer approvals cannot create file grants, even with a forged `rememberFile` answer flag.
+- A cancelled/expired approval grants nothing. Codex cancellation is passed to the approval bridge and checked again before a grant or file operation. **Forget file permissions for this chat** clears grants and live task caches; **Show file permissions for this chat** lists them. Deleting/pruning the chat removes its grants.
+- Codex app-server threads expose only registered ATOM host tools. The host uses the native gate for agent kits, plans, file approvals, protected paths, checkpoint copies and project worktrees. Text files are at most 1 MB; Glob is bounded and skips symlinks/hidden folders; content-returning Grep also passes Read checks, including secret-content scanning for workers. Each host operation gets a fresh policy-decision id, so reused RPC ids from a different Codex process cannot reuse an earlier approval verdict.
+- Native Codex shell, browser, web, plugins, agents and other execution features are disabled. A named profile denies native filesystem access except minimal runtime/scratch reads and disables native network access. Its returned id must match before use. Native execution/permission approval requests are declined. Imported personal MCP servers/plugins are disabled per thread and the resulting inventory is verified before any model turn; an unverifiable profile or active imported tool refuses the session. Global Codex configuration is not modified. No login contents are read, provider API keys are removed and parent Codex task identity is removed from the child environment.
+- Codex text editing uses a separate session under the same lockdown, with no registered host tools. It follows the active chat provider, receives only the edit request and cannot fall back to another subscription. Background conversation summaries retain the existing Claude route.
+- Full transcripts now remain in the local archive (ADR-135), and may be sent to the selected provider on recovery or switching models. Provider context limits still apply; there is no silent archive truncation or new long-history retrieval system. Existing chat-count retention remains.
+
+The live first edit and recall succeeded, but a subsequent rewrite is still unverified after its prompt fix because the signed-in Codex account reached its usage limit. Scripted RPC, actual local file writes, grant persistence, refusal and cancellation tests cover the deterministic boundaries. See `docs/everyday-workflows.md`.

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openHelperStore } from "@atom/helpers";
 import { openMemoryStore } from "@atom/memory";
-import { PROJECT_REPLAY_TURNS, createProjects } from "./projects-wiring.ts";
+import { createProjects } from "./projects-wiring.ts";
 
 // ADR-107: projects in the runtime: folders checked like grants, the project's Agent, the chat's note and read access.
 
@@ -292,7 +292,7 @@ test("model: the chat's own model wins, then the project's, then none (the globa
   }
 });
 
-test("a long project chat keeps its whole history on save, replays only the newest turns, and says trimmed", () => {
+test("a long project chat keeps and replays its whole history", () => {
   const t = setup();
   try {
     t.projects.island.add("Haat", join(t.home, "Developer", "haat"));
@@ -309,9 +309,9 @@ test("a long project chat keeps its whole history on save, replays only the newe
     t.memory.chats.save("c1", merged);
     full = t.memory.chats.messages("c1");
     const replay = t.projects.replay("c1", full);
-    assert.equal(replay.turns.length, PROJECT_REPLAY_TURNS);
+    assert.equal(replay.turns.length, full.length);
     assert.equal(replay.turns[0]!.role, "user");
-    assert.equal(replay.trimmed, true);
+    assert.equal(replay.trimmed, false);
     assert.deepEqual(replay.turns.at(-1), full.at(-1));
     assert.deepEqual(t.projects.replay("c1", full.slice(-6)), { turns: full.slice(-6), trimmed: false });
     assert.deepEqual(t.projects.replay("plain", full), { turns: full, trimmed: false }, "plain chats are replayed as before");
@@ -323,16 +323,16 @@ test("a long project chat keeps its whole history on save, replays only the newe
   }
 });
 
-test("the digest of a trimmed chat comes from its conversation note, only for that chat", () => {
+test("a project's digest comes from its conversation note, only for that chat", () => {
   const t = setup();
   try {
     t.projects.island.add("Haat", join(t.home, "Developer", "haat"));
     t.projects.island.assign("c1", t.first().id);
     t.memory.chats.save("c1", Array.from({ length: 30 }, (_, i) => turn(i)).flat());
     t.projects.saved("c1");
-    assert.equal(t.projects.digest("c1"), undefined, "not trimmed yet");
+    assert.equal(t.projects.digest("c1"), undefined, "no note yet");
     t.projects.replay("c1", t.memory.chats.messages("c1"));
-    assert.equal(t.projects.digest("c1"), undefined, "trimmed but no note yet: just the newest turns");
+    assert.equal(t.projects.digest("c1"), undefined, "replay does not invent a note");
     t.memory.saveEpisode("c1", "We moved the login to a new module.", 30);
     assert.match(t.projects.digest("c1")!, /Earlier in this chat \(a summary\): We moved the login to a new module\./);
     assert.equal(t.projects.digest("c2"), undefined);

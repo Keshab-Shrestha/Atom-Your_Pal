@@ -1,3 +1,5 @@
+import type { LanguageModel, RequestContext } from "@atom/contracts";
+
 /**
  * Ask ATOM (upgrades.md B3): the user selects some text, or none, and says what to do to it ("make it shorter"). One model run
  * without tools rewrites the target and the window shows the change for the user to accept or deny. The text goes to the model
@@ -71,6 +73,24 @@ export interface TextEditResult {
 
 export interface TextEditor {
   edit(req: TextEditRequest, signal: AbortSignal): Promise<TextEditResult>;
+}
+
+/** Text-only editing follows the active chat's choice, with no fallback to another subscription. */
+export function providerTextWriter(options: {
+  choice(): { provider: string; model: string };
+  claude(task: string, signal: AbortSignal): Promise<string>;
+  other(choice: { provider: string; model: string }): LanguageModel;
+  context(): RequestContext;
+}) {
+  return async (task: string, signal: AbortSignal): Promise<string> => {
+    const choice = options.choice();
+    if (choice.provider === "claude-plan") return options.claude(task, signal);
+    const model = options.other(choice);
+    try {
+      const reply = await model.complete({ system: EDIT_INSTRUCTIONS, messages: [{ role: "user", content: task }], context: options.context() }, signal);
+      return reply.text;
+    } finally { model.close?.(); }
+  };
 }
 
 export function createTextEditor(options: {

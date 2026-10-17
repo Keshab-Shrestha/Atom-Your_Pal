@@ -79,7 +79,7 @@ test("Codex and the Gemini CLI refuse a project chat, before any process starts"
   for (const adapter of [createCodexAdapter({ program: "/x/codex", model: "codex-default", run }), createGeminiCliAdapter({ program: "/x/gemini", model: "gemini-default", run })]) {
     await assert.rejects(adapter.complete({ ...request(), files }, live()), (e: any) => e.kind === "bad_request" && e.message === PROJECTS_NEED_CLAUDE);
   }
-  assert.match(PROJECTS_NEED_CLAUDE, /Projects need the Claude plan/);
+  assert.match(PROJECTS_NEED_CLAUDE, /text-only adapter cannot read project files/);
 });
 
 // 2026-10-16 (code check): the error's message holds the command line, which includes the prompt: a chat about "quota" read as a limit.

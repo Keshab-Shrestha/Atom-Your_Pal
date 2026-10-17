@@ -1917,3 +1917,32 @@ Keshab's list after trying the first batch. One capability at a time; each is it
 - Tests: none, at Keshab's request. `pnpm typecheck` passes. The Swift is not compiled.
 - Not checked live: every item above. Check first: ⌃⌥K in TextEdit (selection, then Replace), in Safari (⌘C path) and in a password field (refused); Ask ATOM in a note; Tinker's diff; ↑ ↓ Return in the search.
 - Left in upgrades.md: the shared editor (B2) and what needs it (⌘K in any text box, the chat box move), image generation (a provider is needed) and cloud sandboxes (a spike is needed).
+
+## Clean verification baseline (2026-10-17)
+
+- Fixed two stale Swift assertions after Quick actions added a fifth shortcut: the action titles/default key and the shortcut count after clearing Dictate.
+- Fixed Dashboard layout when no daily brief exists: omit empty brief sections and load the brief on the Dashboard itself. The gallery's chart uses fixed sample dates instead of the current day, so weekday labels stay stable.
+- Verified: `pnpm typecheck`; `pnpm test` (1,018 passed, zero failed, six live tests skipped, including a passing real-runtime smoke test); `pnpm island:test` (730 tests, 133 suites, all passed); release build of ATOM and Calendar helper, locally signed; `pnpm test:visual` (61 gallery images, all 12 original golden comparisons below 1%). Dashboard title/layout inspected in the rendered image. No reference images replaced.
+- Earlier ADR-129 through ADR-134 entries saying Swift was not compiled are superseded by this baseline. The existing diff/edit/search tests now pass. This does not add feature tests for the items whose tests were previously skipped at Keshab's request.
+- `pnpm island:ui-check` passes its gallery, golden and running-window checks. The rebuilt app is open; its header is present and Accessibility reports no raw Markdown. This verifies startup/window rendering only.
+- Remaining limits: no lint script or coverage gate is configured, coverage was not measured, the model-dependent live suite was not run, and the recent feature workflows have not been checked end to end. The release build reported existing warnings in `IslandSettings.choice` (region isolation) and `main.swift`'s dropped-command callback (mixed capture ownership).
+- Next: live checks of chat/delegation, note editing/review and quick actions, then memory suggestions, daily brief and search.
+
+## Everyday workflow check with Codex (2026-10-17)
+
+- Tried the app through its real UI, selected Codex for a new fictional Cedar chat, and completed five turns. Context persisted through follow-ups and leaving/reopening the chat. Kame did not run: ATOM's Codex route has no agents or file tools.
+- Saved a fictional Second brain note. Did not execute its AI rewrite: Ask ATOM and quick actions call Claude directly, regardless of the chat's model choice. The TextEdit quick-action shortcut did not trigger through synthetic input, so its capture/replace remains unverified.
+- Reproduced history loss in a no-model diagnostic: after 22 exchanges, the first fact is absent from the next request and the 40-message `onExchange` persistence payload. The store replaces saved messages with that payload. Code inspection also found that file approvals are discarded at the end of each agent task, rather than kept for the chat.
+- Evidence, caveats and next capability: `docs/everyday-workflows.md`. No runtime fixes were made in this diagnostic pass; the three complete workflows have not passed under Codex. Next: preserve the full chat archive and continuity, then explicit continuing file permissions and provider-aware tools/editing.
+
+
+## Continuity and Codex tools (2026-10-17, ADR-135–137)
+
+- Implemented full transcript persistence and replay, including projects and worker wake-up replies. A real-store regression retains the initial fact after 25 exchanges, reopening and a provider change. This cannot recover old discarded messages; provider context windows still apply.
+- Added an explicit **Allow for chat** file choice alongside **Allow for task**. Grants are exact canonical file + chat, persist across restarts, never bypass protected-file checks and are removed with the chat. Deterministic chat commands inspect/revoke them. Tested restart persistence, other-chat/other-file isolation, refusal, cancellation and revocation.
+- Added a signed-in Codex app-server adapter in the gateway and checked Mac host router. Delegation creates real Board jobs, returns reports, supports Stop, uses existing checkpoints/worktrees and records usage. Native execution and imported MCP are disabled and checked before a model turn. No dependencies or login reads added. Codex worker shell/web/browser/external MCP, assigned Claude skill plugins, model pins and nested workers remain unsupported; workers use the chat's Codex model.
+- Ask ATOM/quick actions now follow the active chat provider, without provider fallback or conversation context. Codex uses a separate session with no host tools under the same native-tool lockdown. Claude's existing small-model edit path remains. Background chat summaries still use Claude.
+- Verified: typecheck; TypeScript suite (1,033 passed, zero failures, seven opt-in live tests skipped); Swift suite (731 tests/133 suites); locally signed release build; 69 gallery images and all 12 golden comparisons. Inspected new file-permission cards in dark/light themes; updated only the model-settings golden for intentional capability text.
+- Live result: the signed-in Codex Core/router test changed a temporary fictional Cedar file through Kame and recalled Wednesday on the next turn. The later rewrite initially inferred denial from the native sandbox; clarified the host-tool instructions. The following run reached the third turn, then the account usage limit blocked it. This is **not** a passing end-to-end workflow. The real approval-card click, Codex note edit/review/save and physical quick-action replacement remain unverified.
+- Stabilized the bridge's existing timer-reset test with a controlled clock after wall-clock sleeps flaked under build/test load; production timing is unchanged.
+- Remaining verification: rerun the opt-in Codex workflow when capacity is available, then finish the three UI workflows. See `docs/everyday-workflows.md`. No commit or push made; unrelated `graphify-out/` preserved. No new lint/coverage gate is configured.
