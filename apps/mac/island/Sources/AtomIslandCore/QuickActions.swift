@@ -125,6 +125,7 @@ public enum SelectionCapture {
 
     /// 1) a password field: refused. 2) the selection through Accessibility. 3) else ⌘C and the clipboard, restored after.
     /// 4) else the clipboard as it was. Nothing is read before this runs.
+    @MainActor
     public static func capture(using reader: SelectionReader) async -> CaptureResult {
         if await reader.focusIsSecure() {
             return .refused("A password field is focused. ATOM does not read it.")
