@@ -443,7 +443,7 @@ private struct HelperPane: View {
                     if helper.custom { RemoveAgentButton(model: model, helper: helper) }
                 }
                 if helper.proposals.contains(where: { $0.state == "pending" || $0.state == "accepted" }) {
-                    ProposalsSection(model: model, proposals: helper.proposals)
+                    ProposalsSection(model: model, proposals: helper.proposals, soul: helper.soul)
                 }
                 TestCasesList(model: model, kind: "soul", target: helper.id) // ADR-098 item 8
                 if helper.available {

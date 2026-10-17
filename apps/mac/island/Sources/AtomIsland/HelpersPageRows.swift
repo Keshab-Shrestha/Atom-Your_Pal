@@ -134,6 +134,8 @@ struct SkillsPicker: View {
 struct ProposalsSection: View {
     let model: IslandModel
     let proposals: [SoulProposal]
+    /// The soul as it is now: a waiting proposal is shown as the change it makes to it (upgrades.md B4).
+    var soul: HelperSoul? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -141,8 +143,13 @@ struct ProposalsSection: View {
             Text("Tinker suggests").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
             ForEach(proposals.filter { $0.state == "pending" || $0.state == "accepted" }) { p in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("\(p.fieldTitle): \(p.text)").font(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if p.state == "pending", let pieces = p.segments(against: soul), pieces.contains(where: { $0.kind != .same }) {
+                        Text(p.fieldTitle).font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                        InlineDiffText(pieces: pieces)
+                    } else {
+                        Text("\(p.fieldTitle): \(p.text)").font(.system(size: 12.5, weight: .medium)).foregroundStyle(theme.text.color)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     Text(p.reason).font(.system(size: 11.5)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
                     // ADR-098 item 8: how the change does on this agent's test cases.
                     TestRunView(model: model, kind: "soul", id: p.id, tests: p.tests,
@@ -264,5 +271,25 @@ struct RemoveAgentButton: View {
             } message: {
                 Text("Its soul.md moves to data/agents-removed/ and is not deleted. Its tasks stay in the history; any not finished are stopped.")
             }
+    }
+}
+
+/// A text with the words that go in red under a line and the words that come in green (upgrades.md B4). Reading only.
+struct InlineDiffText: View {
+    let pieces: [DiffSegment]
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        pieces.reduce(Text("")) { text, piece in
+            switch piece.kind {
+            case .same: return text + Text(piece.text).foregroundColor(theme.text.color)
+            case .removed: return text + Text(piece.text).foregroundColor(theme.problem.color).strikethrough()
+            case .added: return text + Text(piece.text).foregroundColor(theme.success.color)
+            }
+        }
+        .font(.system(size: 12.5))
+        .fixedSize(horizontal: false, vertical: true)
+        .textSelection(.enabled)
+        .accessibilityLabel(pieces.compactMap { p in p.kind == .same ? p.text : p.kind == .removed ? "removed \(p.text)" : "added \(p.text)" }.joined(separator: " "))
     }
 }

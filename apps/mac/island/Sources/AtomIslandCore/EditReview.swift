@@ -4,6 +4,14 @@ import Foundation
 // window draws it. Accepting applies at once (no separate Save): the owner takes `result` after every decision, and
 // `undo()` takes the last decision back.
 
+/// One change in its place: the words before it, what goes, what comes, and the words after it.
+public struct HunkContext: Sendable, Equatable {
+    public var before: String
+    public var removed: String
+    public var added: String
+    public var after: String
+}
+
 public enum EditDecision: Sendable, Equatable {
     case accepted, denied
 }
@@ -83,6 +91,20 @@ public struct EditReview: Sendable, Equatable {
         guard !waiting.isEmpty else { return nil }
         guard let id else { return waiting.last }
         return waiting.last { $0.id < id } ?? waiting.last
+    }
+
+    /// A change with a little of the text around it, on one line, for a list of changes.
+    public func context(for hunk: DiffHunk, characters: Int = 40) -> HunkContext {
+        let u = Array(original.utf16)
+        let from = EditRequest.snapDown(max(0, hunk.oldRange.lowerBound - characters), in: original)
+        let to = EditRequest.snapUp(min(u.count, hunk.oldRange.upperBound + characters), in: original)
+        let flat = { (units: ArraySlice<UInt16>) in String(decoding: units, as: UTF16.self).replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ") }
+        return HunkContext(
+            before: (from > 0 ? "…" : "") + flat(u[from..<hunk.oldRange.lowerBound]),
+            removed: flat(ArraySlice(Array(hunk.oldText.utf16))),
+            added: flat(ArraySlice(Array(hunk.newText.utf16))),
+            after: flat(u[hunk.oldRange.upperBound..<to]) + (to < u.count ? "…" : "")
+        )
     }
 
     private mutating func decide(_ id: Int, _ decision: EditDecision) -> String {
