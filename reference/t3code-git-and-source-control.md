@@ -69,7 +69,7 @@ How to read this file:
 - Actions (`PullRequestAction`): merge, ready, draft, close, reopen, delete-branch, update-branch, enable and disable auto-merge, revert, approve-workflows. Merge methods: merge, squash, rebase.
 - Review: comments, review threads, line comments as a draft review, verdicts (comment, approve, request-changes), reviewers, labels, reactions, "viewed" marks per file.
 - Stacks (GitHub): merge stack and rebase stack.
-- Issue linking: not found for issues. PR linking exists: a thread links many PRs (`link_pull_request`, `linkedThreads.ts`).
+- Issue linking (host issues, "closes #n"): not found. PR linking to threads exists: a thread links many PRs (`link_pull_request`, `linkedThreads.ts`).
 - Agents can watch a PR (`watch_pull_request`). The server checks every 2 minutes and wakes the agent on a failed check, passed required checks, new remarks or a conflict. Verified in `docs/user/source-control.md`.
 - Hand-offs to an agent: "Fix findings" and "Resolve conflicts" (`buildResolveConflictsPrompt` in `PullRequestDetailPanel.tsx`).
 - Option "Remove agent credits when merging" (`removeAgentCreditsOnMerge`, off by default).
@@ -86,8 +86,8 @@ How to read this file:
 
 ### 1.7 Diff views
 
-- Scope menu: "Changes" (branch against base), "Uncommitted", "Latest turn", "Turn N". Verified in `DiffPanel.tsx`.
-- "Changes" uses the merge base of the branch and the chosen base ref. The user can pick another base ref.
+- Scope menu: "Changes" (merge base against the working tree), "Uncommitted", "Latest turn", "Turn N". Verified in `DiffPanel.tsx`.
+- "Changes" compares the merge base (branch and chosen base ref) with the working tree, so uncommitted work shows too. This is from the code; I did not run it. The user can pick another base ref.
 - "Uncommitted" is `HEAD` against the working tree. Staged and unstaged changes are not separate. Untracked files join through `git add --intent-to-add` in a temporary index. Verified in `getReviewDiffPreview`.
 - Whole thread diff: `getFullThreadDiff` in `CheckpointDiffQuery.ts`. Per file: `reviewGetDiffFileContents` (old and new contents).
 - Layout: stacked or split. Line wrap toggle. Hide whitespace toggle (`--ignore-all-space`). File tree. Collapse all. Refresh. Verified.
@@ -135,7 +135,7 @@ Verified files: `apps/server/src/ws.ts`, `apps/server/src/git/GitWorkflowService
 - All git and `gh` calls go through `VcsProcess.run` (`apps/server/src/vcs/VcsProcess.ts`) and `executeGit` in `GitVcsDriverCore.ts`.
 - Arguments are an array. No shell runs. Verified: `ChildProcess.make(executable, args, { cwd, env })`.
 - Limits: default timeout 30,000 ms (`DEFAULT_TIMEOUT_MS`), default output 1,000,000 bytes, 8 processes at once, 4 for `gh`. Worktree add: 300,000 ms. Push and commit set their own limits.
-- Environment: `GIT_OPTIONAL_LOCKS=0` on every call, so status polling does not take `index.lock`.
+- Environment: `executeGit` sets `GIT_OPTIONAL_LOCKS=0`, so status polling does not take `index.lock`.
 - Background fetch uses `STATUS_UPSTREAM_REFRESH_ENV`: `GIT_TERMINAL_PROMPT=0`, `GIT_ASKPASS=""`, `SSH_ASKPASS=""`, `SSH_ASKPASS_REQUIRE=never`, `GCM_INTERACTIVE=never`.
 - `explicitBareRepositoryEnv` sets `safe.bareRepository=explicit` through `GIT_CONFIG_COUNT`. A folder that looks like a bare repository cannot run its config. Its comment explains the attack.
 - `refuseOptionLikeRefName` rejects a ref that starts with `-`. Commands put `--` before refs and paths. Paths use `:(top,literal)<path>` or `--literal-pathspecs`.
@@ -189,7 +189,7 @@ Verified files: `apps/server/src/ws.ts`, `apps/server/src/git/GitWorkflowService
 - Commit dialog: title "Commit changes". File list with check boxes, "+/-" counts, an edit-files mode, message field with placeholder "Leave empty to auto-generate". Buttons: Cancel, "Commit on new branch", Commit.
 - Default-branch dialog: states the action and offers to continue or to "Check out feature branch & continue".
 - Progress: a status line with the stage ("Generating commit message...", "Pushing to origin...", "Creating pull request..."), elapsed time and the last hook output line.
-- Result toast: stays 10 seconds on success (`GIT_ACTION_SUCCESS_VISIBLE_MS`). It has one button: "View PR" style link, or a next action such as "Create PR".
+- Result toast: stays 10 seconds on success (`GIT_ACTION_SUCCESS_VISIBLE_MS`). It has one button. The server sets the kind: `open_pr` opens the URL, `run_action` runs a next step, `none` shows no button.
 - Diff panel (`DiffPanel.tsx`): scope menu, base ref combobox with a local/remote switch per ref, line stats, refresh, collapse all, stacked/split toggle, wrap toggle, whitespace toggle, file tree. Uses the `@pierre/diffs` library (verified in imports).
 - Truncation: the server marks a diff `truncated` and appends a marker. The preview limit is 120,000 bytes (`REVIEW_DIFF_PATCH_MAX_OUTPUT_BYTES`); one file up to 1 MiB.
 - Pull request page (`components/pullRequest/`): list rows with state, checks and conflict glyphs; a detail panel with a primary button that changes with the state (merge, mark ready, enable auto-merge); a checks popover that groups checks; "Resolve conflicts" button when `mergeability` is `conflicting`.
@@ -291,7 +291,7 @@ Rules that apply to every idea: push only on the user's confirmed click, never b
 **1. "Open pull request" button after a push (size S)**
 
 - What: a button on the branch card that opens the host's "compare" page in the browser.
-- Why: ATOM stops at the push. The user must find the page by hand. T3 Code makes the PR from its own API; ATOM needs no token for this.
+- Why: ATOM stops at the push. The user must find the page by hand. T3 Code makes the PR through the host API or the host program; ATOM needs no token for this.
 - Fit: the click only opens an address. No push, no credential, no API. Build the address in code from `cleanRemote(origin)` and a branch that matches `BRANCH_PATTERN`. Allow `https` only. Build it for known hosts only (GitHub, GitLab).
 - First step: add `hostOf(remote)` in `ATOM:apps/mac/src/git-branches.ts` with a test. Return `{ kind, compareUrl }` in the `git` event. Port: `detectSourceControlProviderFromGitRemoteUrl` (`packages/shared/src/git.ts`).
 
