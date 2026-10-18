@@ -424,3 +424,10 @@ Question-card answer intents persist locally before chat.question.answer; the ho
 
 
 ADR-164 (2026-10-18): native helper job entries may include optional `advisory: true` for tool-free review children. It defaults false when absent. Existing `parentId` and thread `handOffs` identify the display relationship; durable host advisory scope remains authoritative after parent deletion/unlinking. Native Board details label supplied-context-only advice, retain Stop, hide independent Retry/Interrupt/Start fresh and offer a listed parent link. Older clients may show generic rerun controls; the host refuses scoped independent Retry/Interrupt. No new command or approval is introduced by this flag.
+
+
+### ADR-167: native file-review approval
+
+The existing private approval.request event optionally carries fileReview: an exact object with path (absolute, <=300 UTF-16 units), before and after (<=32 KiB UTF-8 and <=1,000 newline-delimited lines combined) and a per-request UUID token. Invalid native review payloads refuse decoding; contents are literal text. The optional reviewToken on approval.answer must match the pending richer request in the host; generic/older answers cannot approve it. Native detailed controls also match request id/token and wait for diff preparation. These requests never offer continuing file permission. Non-review approvals retain their existing payload/semantics. Protocol version remains one with optional fields.
+
+WorkStrip opens Board → Needs you instead of offering generic Allow. Telegram/API needs summaries omit fileReview bodies/token and permit Decline only. A native review decline/timeout never triggers legacy approval fallback. Legacy host integrations without approveFileEdit retain the separate small-card behavior. This is a staleness/compatibility guard, not proof of user attention. [Exact native-review scope](codex-native-file-review.md).

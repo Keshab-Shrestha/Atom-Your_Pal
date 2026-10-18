@@ -22,16 +22,21 @@ struct NeedsYouPane: View {
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
                 if let request = model.approval.pending {
-                    let detail = request.rememberFile
-                        ? request.reason + "\n\nThis file only. Chat access lasts across tasks and restarts until you revoke it."
-                        : request.reason
-                    card(kind: "ATOM asks", who: "", title: request.summary, detail: detail) {
-                        QuietButton(title: request.rememberFile ? "Allow for task" : "Allow", symbol: "checkmark") { model.answerApproval(true) }
-                        if request.rememberFile {
-                            QuietButton(title: "Allow for chat", symbol: "checkmark.bubble") { model.answerApproval(true, rememberFile: true) }
-                                .help("Allow future edits to this file in this chat. Say ‘Forget file permissions for this chat’ to revoke.")
+                    if let review = request.fileReview {
+                        FileEditReviewCard(model: model, request: request, review: review)
+                            .id(request.id)
+                    } else {
+                        let detail = request.rememberFile
+                            ? request.reason + "\n\nThis file only. Chat access lasts across tasks and restarts until you revoke it."
+                            : request.reason
+                        card(kind: "ATOM asks", who: "", title: request.summary, detail: detail) {
+                            QuietButton(title: request.rememberFile ? "Allow for task" : "Allow", symbol: "checkmark") { model.answerApproval(true) }
+                            if request.rememberFile {
+                                QuietButton(title: "Allow for chat", symbol: "checkmark.bubble") { model.answerApproval(true, rememberFile: true) }
+                                    .help("Allow future edits to this file in this chat. Say ‘Forget file permissions for this chat’ to revoke.")
+                            }
+                            QuietButton(title: "Decline", symbol: "xmark") { model.answerApproval(false) }
                         }
-                        QuietButton(title: "Decline", symbol: "xmark") { model.answerApproval(false) }
                     }
                 }
                 if model.helpers.list == nil && model.approval.pending == nil {

@@ -206,7 +206,7 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         guard w > 0, h > 0 else { throw ProtocolError.invalidValue(event: "computer.point", field: w > 0 ? "h" : "w") }
         return .computerPoint(PointTarget(x: try f.double("x"), y: try f.double("y"), w: w, h: h, label: try f.string("label")))
     case "approval.request":
-        return .approvalRequest(ApprovalRequest(id: try f.string("id"), summary: try f.string("summary"), reason: try f.string("reason"), rememberFile: f.optionalBool("rememberFile") ?? false))
+        return .approvalRequest(ApprovalRequest(id: try f.string("id"), summary: try f.string("summary"), reason: try f.string("reason"), rememberFile: f.optionalBool("rememberFile") ?? false, fileReview: try f.fileReview()))
     case "approval.closed":
         return .approvalClosed(id: try f.string("id"))
     case "info":
@@ -312,6 +312,19 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
 private struct Fields {
     let event: String
     let values: [String: Any]
+
+    func fileReview() throws -> FileEditReview? {
+        guard let raw = values["fileReview"] else { return nil }
+        guard let value = raw as? [String: Any], Set(value.keys) == Set(["path", "before", "after", "token"]),
+              let path = value["path"] as? String, path.hasPrefix("/"), path.utf16.count <= 300,
+              !path.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) || CharacterSet.newlines.contains($0) }),
+              let before = value["before"] as? String, let after = value["after"] as? String, before != after,
+              before.utf8.count + after.utf8.count <= 32 * 1024,
+              before.components(separatedBy: "\n").count + after.components(separatedBy: "\n").count <= 1_000,
+              let token = value["token"] as? String, UUID(uuidString: token) != nil
+        else { throw ProtocolError.invalidValue(event: event, field: "fileReview") }
+        return FileEditReview(path: path, before: before, after: after, token: token)
+    }
 
     func string(_ key: String) throws -> String {
         guard let value = values[key] else { throw ProtocolError.missingField(event: event, field: key) }

@@ -112,7 +112,7 @@ struct WorkStripView: View {
         let shape = RoundedRectangle(cornerRadius: asking ? askingRadius : Self.cornerRadius, style: .continuous)
         ZStack(alignment: .topLeading) {
             if let request = model.approval.pending {
-                AskingView(request: request) { approved, remember in model.answerApproval(approved, rememberFile: remember) }
+                AskingView(request: request, onReview: { model.openFileReview() }) { approved, remember in model.answerApproval(approved, rememberFile: remember) }
                     .transition(.opacity)
             } else {
                 StepRow(model: model).transition(.opacity)
@@ -188,6 +188,7 @@ private struct StepRow: View {
 /// The approval part of the strip (ADR-054, ADR-056).
 private struct AskingView: View {
     let request: ApprovalRequest
+    let onReview: () -> Void
     let onAnswer: (Bool, Bool) -> Void
     @Environment(\.theme) private var theme
 
@@ -207,12 +208,12 @@ private struct AskingView: View {
                         .foregroundStyle(theme.text.color)
                         .lineLimit(2)
                     if !request.reason.isEmpty {
-                        Text("Because \(request.reason)")
+                        Text(request.fileReview != nil ? request.reason : "Because \(request.reason)")
                             .font(.system(size: 12))
                             .foregroundStyle(theme.text2.color)
                             .lineLimit(1)
                     }
-                    if request.rememberFile {
+                    if request.rememberFile && request.fileReview == nil {
                         Text("This file only. Chat access lasts until you revoke it.")
                             .font(.system(size: 11))
                             .foregroundStyle(theme.text2.color)
@@ -239,16 +240,16 @@ private struct AskingView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Decline")
-                if request.rememberFile {
+                if request.rememberFile && request.fileReview == nil {
                     Button("Allow for chat") { onAnswer(true, true) }
                         .buttonStyle(.plain)
                         .foregroundStyle(theme.attention.color)
                         .help("Allow future edits to this file in this chat, including after a restart. Say ‘Forget file permissions for this chat’ to revoke.")
                         .accessibilityLabel("Allow this file for this chat")
                 }
-                Button { onAnswer(true, false) } label: {
+                Button { if request.fileReview != nil { onReview() } else { onAnswer(true, false) } } label: {
                     // Void: a ghost button with an amber hairline and label (ADR-086); elsewhere the one fill.
-                    Text(request.rememberFile ? "Allow for task" : "Allow").font(.system(size: 12.5, weight: .semibold))
+                    Text(request.fileReview != nil ? "Review changes…" : request.rememberFile ? "Allow for task" : "Allow").font(.system(size: 12.5, weight: .semibold))
                         .foregroundStyle(theme.isGhost ? theme.attention.color : theme.onAttention.color)
                         .padding(.horizontal, 24)
                         .frame(minWidth: 104, minHeight: 32)
@@ -257,7 +258,7 @@ private struct AskingView: View {
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(request.rememberFile ? "Allow for this task" : "Allow")
+                .accessibilityLabel(request.fileReview != nil ? "Review file changes in ATOM" : request.rememberFile ? "Allow for this task" : "Allow")
             }
             .padding(theme.cornerGap)
         }

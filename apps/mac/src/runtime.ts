@@ -586,6 +586,7 @@ export function createRuntime(
     helpers,
     approve: (request: { summary: string; reason: string; reasonMax?: number }, signal?: AbortSignal) => computer.approve(request, signal),
     approveFile: (request: { summary: string; reason: string }, signal?: AbortSignal) => computer.approveFile(request, signal),
+    approveFileEdit: (request: import("./computer-bridge.ts").FileEditReview & { summary: string }, signal?: AbortSignal) => computer.approveFileEdit(request, signal),
     ...(memory ? { filePermissions: memory.filePermissions } : {}),
     // `decisions` and `planModels` are made further down: read only when an Agent call runs.
     chooseModel: async (task: string, member: HelperView) =>

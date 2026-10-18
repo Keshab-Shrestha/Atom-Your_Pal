@@ -225,6 +225,13 @@ public struct TurnTimings: Sendable, Equatable {
 
 /// Something ATOM will not do until the user says yes (ADR-054). Wording comes from the runtime and carries
 /// the app and the action, never typed text or screen content.
+public struct FileEditReview: Sendable, Equatable {
+    public let path: String
+    public let before: String
+    public let after: String
+    public let token: String
+}
+
 public struct ApprovalRequest: Sendable, Equatable {
     public var id: String
     /// What ATOM is about to do, e.g. `Click "Send" in Mail`.
@@ -232,12 +239,14 @@ public struct ApprovalRequest: Sendable, Equatable {
     /// Why it asks.
     public var reason: String
     public var rememberFile: Bool
+    public var fileReview: FileEditReview?
 
-    public init(id: String, summary: String, reason: String, rememberFile: Bool = false) {
+    public init(id: String, summary: String, reason: String, rememberFile: Bool = false, fileReview: FileEditReview? = nil) {
         self.id = id
         self.summary = summary
         self.reason = reason
         self.rememberFile = rememberFile
+        self.fileReview = fileReview
     }
 }
 

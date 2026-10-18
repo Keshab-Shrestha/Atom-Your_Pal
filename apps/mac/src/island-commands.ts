@@ -30,7 +30,7 @@ export type IslandCommand =
   | { type: "model.refresh" }
   /** ADR-097: a chat's own model ("" for the chat in use; provider and model "" for the default again). */
   | { type: "chat.model"; id: string; provider: string; model: string }
-  | { type: "approval.answer"; id: string; approved: boolean; rememberFile?: boolean }
+  | { type: "approval.answer"; id: string; approved: boolean; rememberFile?: boolean; reviewToken?: string }
   | { type: "memory.list" }
   /** The second brain: the graph (and, from then on, again after each change), one note, a save (new, or a rename with `id`), a delete, a search. */
   | { type: "brain.get" }
@@ -306,11 +306,12 @@ export function parseCommand(line: string): ParsedLine {
     return { command: { type, id, provider, model } };
   }
   if (type === "approval.answer") {
-    const { id, approved, rememberFile } = value as { id?: unknown; approved?: unknown; rememberFile?: unknown };
+    const { id, approved, rememberFile, reviewToken } = value as { id?: unknown; approved?: unknown; rememberFile?: unknown; reviewToken?: unknown };
     if (typeof id !== "string" || id === "") return { error: 'approval.answer needs an "id" string.' };
     if (typeof approved !== "boolean") return { error: 'approval.answer needs "approved" to be true or false.' };
     if (rememberFile !== undefined && typeof rememberFile !== "boolean") return { error: 'approval.answer: "rememberFile" must be true or false.' };
-    return { command: { type, id, approved, ...(rememberFile === undefined ? {} : { rememberFile }) } };
+    if (reviewToken !== undefined && (typeof reviewToken !== "string" || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(reviewToken))) return { error: 'approval.answer: invalid file review token.' };
+    return { command: { type, id, approved, ...(rememberFile === undefined ? {} : { rememberFile }), ...(reviewToken === undefined ? {} : { reviewToken }) } };
   }
   if (type === "text.send") {
     const delivery = value as Record<string, unknown>;

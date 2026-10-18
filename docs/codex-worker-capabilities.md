@@ -20,6 +20,8 @@ ADR-165 adds discard-only shell previews on explicitly selected input copies. Na
 
 ADR-166 adds separately approved short preview-input edits with host source receipts, full-text review, fresh source conflict checks and required checkpoint copies. No automatic shell-diff import or larger/multi-file review. [Reviewed-edit scope and verification limits](codex-preview-edits.md).
 
+ADR-167 expands capable hosts to a bounded native diff with complete Before/After text and request-token approval. Generic/old-client/Telegram Allow cannot approve richer reviews; source/undo/hold checks remain. [Native-review scope](codex-native-file-review.md).
+
 ## Assigned instructions
 
 `atom_Skill` accepts an exact assigned name, without a plugin prefix or path. The router checks the worker's task-start assignment and current assignment before reading; the native gate checks the active worker/task and current assignment again before returning instructions. An assignment added during a task is available on its next task. Removing one refuses later loads; already-returned text cannot be recalled from a provider context.
@@ -44,4 +46,4 @@ Still unsupported as native Codex worker capabilities: general shell/scripts/bui
 
 `pnpm typecheck` passes; static source/diff review completed. No tests added/run, model calls, migrations, app launch or live cancellation/permission/skill/Board acceptance, by the user's continuing no-tests request. No Swift source changed in this batch, so no additional Swift build was needed. The installed app is unchanged. Work remains local/uncommitted on `main`; historical test/live results do not validate ADR-158.
 
-Next Codex work after ADR-166: provide a larger native before/after review surface while preserving fresh source checks and required checkpoints. Tool-enabled child grant intersections/recursion remain unsupported. General shell/write/undo/lifetime and isolated search designs remain open. Live acceptance remains outstanding for these batches and recent chat/reliability changes.
+Next Codex work after ADR-167: design generated-file proposal capture using sandboxed content transport, complete review and required undo. Tool-enabled child grant intersections/recursion remain unsupported. General shell/write/undo/lifetime and isolated search designs remain open. Live acceptance remains outstanding for these batches and recent chat/reliability changes.

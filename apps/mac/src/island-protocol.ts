@@ -6,6 +6,7 @@ import type { ChatWork } from "./chat-work.ts";
 import type { ForegroundReceipt, ForegroundResponse } from "./foreground-recovery.ts";
 import type { Capability } from "@atom/tool-engine";
 import type { LoopState } from "./voice-loop.ts";
+import type { ApprovalAsk } from "./computer-bridge.ts";
 
 export const PROTOCOL_VERSION = 1;
 
@@ -43,7 +44,7 @@ export type IslandEvent =
   | { type: "computer.point"; x: number; y: number; w: number; h: number; label: string }
   | { type: "settings.open" }
   | { type: "media.key"; key: "playpause" }
-  | { type: "approval.request"; id: string; summary: string; reason: string; rememberFile?: true }
+  | ({ type: "approval.request" } & ApprovalAsk)
   | { type: "approval.closed"; id: string }
   | InfoEvent
   | { type: "timer"; id: number; label: string; message: string }

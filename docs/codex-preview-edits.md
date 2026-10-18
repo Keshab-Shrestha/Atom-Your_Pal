@@ -33,3 +33,6 @@ Board observations keep the existing bounded target summary, name, timing and ge
 TypeScript checking and static source/security/diff review pass. No tests added/run, runtime migration, checkpoint/apply/Undo execution, sandbox/adapter/provider calls, app launch or live acceptance. No Swift changes/build in ADR-166; ADR-164's release build passed separately. The installed app is unchanged. ADR-160–166 remain local/uncommitted/unpushed on main after 2fe2250; unrelated graphify-out is preserved and known CI failures stay deferred.
 
 Larger native diff reviews, generated-file capture, additions/deletions, multi-file apply and general real-project shell writes/undo remain open. The next independent scope is a larger native before/after review surface, preserving fresh source checks and required checkpoints. Hosted search, tool-enabled/recursive children and omitted browser operations remain separate.
+
+
+Subsequent update (ADR-167): capable hosts replace the tiny quoted card with complete native Changes/Before/After review, up to 32 KiB / 1,000 combined lines. Native/host per-request tokens refuse generic and old-client Allow; Telegram/API summaries provide Decline only. Source/undo/target-hold semantics are unchanged and native refusal does not fall back. [Native-review behavior and verification limits](codex-native-file-review.md).

@@ -26,9 +26,10 @@ public struct ApprovalState: Sendable, Equatable {
     }
 
     /// Takes the pending request and returns the command that answers it, or nil if nothing is waiting.
-    public mutating func answer(approved: Bool, rememberFile: Bool = false) -> IslandCommand? {
+    public mutating func answer(approved: Bool, rememberFile: Bool = false, reviewToken: String? = nil) -> IslandCommand? {
         guard let request = pending else { return nil }
+        if approved, let review = request.fileReview, review.token != reviewToken { return nil }
         pending = nil
-        return .approvalAnswer(id: request.id, approved: approved, rememberFile: approved && request.rememberFile && rememberFile)
+        return .approvalAnswer(id: request.id, approved: approved, rememberFile: approved && request.fileReview == nil && request.rememberFile && rememberFile, reviewToken: approved ? reviewToken : nil)
     }
 }

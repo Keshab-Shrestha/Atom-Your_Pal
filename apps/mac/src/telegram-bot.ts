@@ -92,7 +92,7 @@ const yesNo = (yes: string, no: string, data: string): Button[][] => [[{ text: y
 
 /** Everything waiting, in the window's order: questions, plans, proposals, skill drafts and edits, held tasks, failures. */
 export function needsYou(store: HelperStore | undefined, asks: readonly ApprovalAsk[]): Need[] {
-  const questions: Need[] = asks.map((a) => ({ key: `ask-${a.id}`, push: true, text: `ATOM asks: ${a.summary}\n${a.reason}`, buttons: yesNo("Allow", "Decline", `a:${a.id}`) }));
+  const questions: Need[] = asks.map((a) => ({ key: `ask-${a.id}`, push: true, text: `ATOM asks: ${a.summary}\n${a.reason}`, buttons: a.fileReview ? [[{ text: "Decline", data: `a:${a.id}:0` }]] : yesNo("Allow", "Decline", `a:${a.id}`) }));
   if (!store) return questions;
   const team = store.list();
   const owners = team.map((h) => ({ name: h.name, jobs: h.jobs }));

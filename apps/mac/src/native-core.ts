@@ -19,7 +19,7 @@ import {
 import { join } from "node:path";
 import type { HelperStore, HelperView } from "@atom/helpers";
 import type { FilePermissions } from "@atom/memory";
-import type { FileApproval } from "./computer-bridge.ts";
+import type { FileApproval, FileEditReview } from "./computer-bridge.ts";
 import { denyRead } from "./folder-run.ts";
 import { BUILT_IN_AGENTS, agentDefinitions, nativeMembers } from "./native-agents.ts";
 import { boardRecorder, type BoardRecorder, type BoardStore } from "./native-board.ts";
@@ -113,6 +113,7 @@ export interface NativeTeamDeps {
   helpers: TeamScope["helpers"] & BoardStore & Pick<HelperStore, "mcpServers"> & Partial<Pick<HelperStore, "guardPreviewEdit">> & PlanStore;
   approve(request: { summary: string; reason: string; reasonMax?: number }, signal?: AbortSignal): Promise<boolean>;
   approveFile?(request: { summary: string; reason: string }, signal?: AbortSignal): Promise<FileApproval>;
+  approveFileEdit?(request: FileEditReview & { summary: string }, signal?: AbortSignal): Promise<boolean>;
   filePermissions?: FilePermissions;
   /** Laya's model alias for an Agent call (undefined: the agent's own model). */
   chooseModel?(task: string, member: HelperView): Promise<string | undefined>;

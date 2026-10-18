@@ -463,6 +463,22 @@ final class IslandModel {
         send(command)
     }
 
+    func openFileReview() {
+        navigate {
+            self.windowPage = .agents
+            self.helpers.selectBoard()
+            self.boardView = .needsYou
+            self.setExpanded(true)
+        }
+    }
+
+    /// Captured request/token, so an old rendered button cannot answer a newer approval.
+    func answerFileReview(id: String, token: String, approved: Bool) {
+        guard approval.pending?.id == id, approval.pending?.fileReview?.token == token,
+              let command = approval.answer(approved: approved, reviewToken: token) else { return }
+        send(command)
+    }
+
     /// Opens Settings → What can I ask? (the link under the empty conversation).
     func showExamples() {
         openSettings(.examples)

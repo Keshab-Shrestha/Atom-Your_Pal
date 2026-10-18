@@ -3,6 +3,7 @@ import { constants, closeSync, fchmodSync, fsyncSync, fstatSync, lstatSync, open
 import { dirname, join, relative } from "node:path";
 import { isInside } from "@atom/helpers";
 import { SECRET_SHAPES } from "./folder-run.ts";
+import { validFileReview, type FileEditReview } from "./computer-bridge.ts";
 
 const hash = (body: string | Buffer) => createHash("sha256").update(body).digest("hex");
 const secret = (text: string) => SECRET_SHAPES.some((p) => p.test(text));
@@ -35,6 +36,7 @@ export async function reviewPreviewEdit(options: {
   read(signal: AbortSignal): Promise<boolean>;
   write(content: string, signal: AbortSignal): Promise<boolean>;
   approve(reason: string, signal: AbortSignal): Promise<boolean>;
+  approveReview?(review: FileEditReview, signal: AbortSignal): Promise<boolean>;
   checkpoint(before: string, expectedBefore: string, expectedAfter: string): boolean;
 }): Promise<{ text: string; isError: boolean }> {
   if (typeof options.content !== "string" || Buffer.byteLength(options.content) > 256 * 1024 || Buffer.from(options.content).toString("utf8") !== options.content || hidden(options.content) || secret(options.content)) return { text: "Provide bounded UTF-8 replacement text without secret-shaped data or hidden controls.", isError: true };
@@ -53,16 +55,18 @@ export async function reviewPreviewEdit(options: {
       // Full JSON text must fit: never authorize a clipped change. No whitespace ambiguity in quoted text.
       const quoted = (text: string) => JSON.stringify(text).replace(/\s/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
       const reason = `One file edit; undo copy required. File: ${quoted(relative(options.root, options.path))}. Before: ${quoted(before.text)}. After: ${quoted(content)}`;
-      if (reason.length > 600) return undefined;
+      const review = { path: options.path, before: before.text, after: content };
+      if (options.approveReview ? !validFileReview(review) : reason.length > 600) return undefined;
       if (!await options.write(content, signal) || !allowed() || signal.aborted) return undefined;
-      if (!await options.approve(reason, signal) || !allowed() || signal.aborted) return undefined;
+      const approved = options.approveReview ? await options.approveReview(review, signal) : await options.approve(reason, signal);
+      if (!approved || !allowed() || signal.aborted) return undefined;
       return before;
     };
     const before = await Promise.race([
       prepare(),
       new Promise<undefined>((resolve) => { aborted = () => resolve(undefined); signal.addEventListener("abort", aborted, { once: true }); if (signal.aborted) aborted(); }),
     ]);
-    if (!before || !allowed() || signal.aborted) return { text: "Preview edit was refused, stale, unchanged, stopped, or too large for a complete 600-character before/after review. No replacement ran. Do not automatically retry or use Write/Edit to bypass a declined or uncertain review; await fresh user direction.", isError: true };
+    if (!before || !allowed() || signal.aborted) return { text: "Preview edit was refused, stale, unchanged, stopped, or too large for a complete native before/after review (32 KiB / 1,000 combined lines; legacy hosts: 600-character card). No replacement ran. Do not automatically retry or use Write/Edit to bypass a declined or uncertain review; await fresh user direction.", isError: true };
     const now = currentFile(options.root, options.path);
     if (now.sha !== options.expected || now.dev !== before.dev || now.ino !== before.ino || now.mode !== before.mode) return { text: "The source changed during review. No replacement ran; request a fresh preview.", isError: true };
     if (!options.checkpoint(now.text, options.expected, hash(content))) return { text: "A verified undo copy could not be secured. The preview edit was refused; no replacement ran.", isError: true };

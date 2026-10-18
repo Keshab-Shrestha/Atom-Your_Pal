@@ -5,7 +5,16 @@ import { randomUUID } from "node:crypto";
 import type { IslandEvent } from "./island-protocol.ts";
 
 export type FileApproval = false | "once" | "chat";
-type ApprovalInput = { summary: string; reason: string; timeoutMs?: number; reasonMax?: number; rememberFile?: boolean };
+export type FileEditReview = { path: string; before: string; after: string };
+export const FILE_REVIEW_BYTES = 32 * 1024;
+export const FILE_REVIEW_LINES = 1_000;
+export function validFileReview(review: FileEditReview): boolean {
+  return typeof review.path === "string" && review.path.startsWith("/") && review.path.length <= 300 && !/[\u0000-\u001f\u007f\p{Cf}\u2028\u2029]/u.test(review.path)
+    && typeof review.before === "string" && typeof review.after === "string" && review.before !== review.after
+    && Buffer.byteLength(review.before) + Buffer.byteLength(review.after) <= FILE_REVIEW_BYTES
+    && review.before.split("\n").length + review.after.split("\n").length <= FILE_REVIEW_LINES;
+}
+type ApprovalInput = { summary: string; reason: string; timeoutMs?: number; reasonMax?: number; rememberFile?: boolean; fileReview?: FileEditReview };
 
 export interface ComputerBridge {
   /** Where events go. Until the island is attached, every approval is a refusal and steps are dropped. */
@@ -14,6 +23,8 @@ export interface ComputerBridge {
   /** `timeoutMs` overrides the default wait for this one request. */
   approve(request: { summary: string; reason: string; timeoutMs?: number; reasonMax?: number }, signal?: AbortSignal): Promise<boolean>;
   approveFile(request: { summary: string; reason: string }, signal?: AbortSignal): Promise<FileApproval>;
+  /** Full local review. Approval requires a token returned only by the detailed native review surface. */
+  approveFileEdit(request: FileEditReview & { summary: string }, signal?: AbortSignal): Promise<boolean>;
   /** Passed to the computer tool as `onPoint`. False if there is no island to show it. */
   point(target: { x: number; y: number; w: number; h: number; label: string }): boolean;
   /** Task 2.x: the island opens its Settings page. False if there is no island. */
@@ -23,7 +34,7 @@ export interface ComputerBridge {
   /** Passed to the computer tool as `onStep`. */
   step(step: { action: string; app?: string }): void;
   /** The island's `approval.answer`. An unknown or finished id does nothing. */
-  answer(id: string, approved: boolean, rememberFile?: boolean): void;
+  answer(id: string, approved: boolean, rememberFile?: boolean, reviewToken?: string): void;
   /** Declines everything waiting (the turn ended or was cancelled). */
   cancelAll(): void;
   /** ADR-098: the requests waiting for an answer, oldest first (for Telegram's /needs). */
@@ -38,6 +49,7 @@ export interface ApprovalAsk {
   summary: string;
   reason: string;
   rememberFile?: true;
+  fileReview?: FileEditReview & { token: string };
 }
 
 export interface ComputerBridgeOptions {
@@ -93,11 +105,13 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
     endTimer.unref?.();
   }
 
-  function settle(id: string, approved: boolean, rememberFile = false) {
+  function settle(id: string, approved: boolean, rememberFile = false, reviewToken?: string) {
     const done = waiting.get(id);
     if (!done) return;
     waiting.delete(id);
-    const canRemember = asks.get(id)?.rememberFile === true;
+    const request = asks.get(id);
+    const canRemember = request?.rememberFile === true;
+    if (request?.fileReview && reviewToken !== request.fileReview.token) approved = false;
     asks.delete(id);
     done(approved ? (rememberFile && canRemember ? "chat" : "once") : false);
     sendEvent?.({ type: "approval.closed", id });
@@ -116,7 +130,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
           resolve(approved);
         });
         signal?.addEventListener("abort", onAbort, { once: true });
-        const ask: ApprovalAsk = { id, summary: oneLine(request.summary, 140), reason: oneLine(request.reason, Math.min(Math.max(request.reasonMax ?? 140, 140), MAX_REASON_CHARS)), ...(request.rememberFile ? { rememberFile: true } : {}) };
+        const ask: ApprovalAsk = { id, summary: oneLine(request.summary, 140), reason: oneLine(request.reason, Math.min(Math.max(request.reasonMax ?? 140, 140), MAX_REASON_CHARS)), ...(request.rememberFile ? { rememberFile: true } : {}), ...(request.fileReview ? { fileReview: { ...request.fileReview, token: randomUUID() } } : {}) };
         asks.set(id, ask);
         sendEvent!({ type: "approval.request", ...ask });
         for (const listener of askListeners) listener(ask);
@@ -127,6 +141,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
     attach(send) { sendEvent = send; },
     approve: async (request, signal) => Boolean(await ask(request, signal)),
     approveFile: (request, signal) => ask({ ...request, reasonMax: MAX_REASON_CHARS, rememberFile: true }, signal),
+    approveFileEdit: async (request, signal) => validFileReview(request) && Boolean(await ask({ summary: request.summary, reason: "Review the full file change in ATOM on your Mac. An undo copy is required before applying.", timeoutMs: 120_000, fileReview: { path: request.path, before: request.before, after: request.after } }, signal)),
     point(target) {
       if (!sendEvent) return false;
       const whole = (n: number) => Math.round(n);

@@ -1,8 +1,20 @@
 # ZENO Task Plan
 
+Publication checkpoint (2026-10-18, ADR-167): Keshab requested pushing the native file-review batch and restarting ATOM. This publishes the reviewed implementation on main; batch-local/uncommitted and installed-app notes below describe implementation-time state. TypeScript/diff checks and Swift release compilation passed. Rebuild/restart follows this push; tests and known CI repairs remain skipped. No apply/Undo/live acceptance is claimed. Unrelated graphify-out stays local.
+
 Publication checkpoint (2026-10-18, ADR-160–166): Keshab requested pushing the accumulated worker-model, inspection, MCP, browser, advisory-child, disposable-preview and reviewed-edit upgrades on main before continuing. Per-batch local/uncommitted notes below describe their implementation-time state. TypeScript/diff checks pass; earlier Swift release compilation is recorded in the relevant batches. No new tests, migrations, adapter/provider/apply/Undo execution, app launch or installation. Known CI repairs remain deferred; unrelated graphify-out stays local.
 
-## Current batch: reviewed preview-input edits (2026-10-18, ADR-166)
+## Current batch: larger native file review (2026-10-18, ADR-167)
+
+Keshab requested push and continuation. Published accumulated ADR-160–166 as a3e4363 on origin/main, verified remote; graphify-out excluded. Continue one review capability with tests and known CI repairs skipped.
+
+- Native before/after review for an existing preview input: 32 KiB / 1,000 combined lines, complete absolute target and full literal source tabs plus existing computed diff. Oversized reviews refuse, not truncate. Work-strip Review changes opens Board → Needs you; Apply waits for diff preparation/current request.
+- Optional private approval fileReview payload and matching reviewToken answer. Fresh request/token binding in native state/model and host bridge refuses generic/old-client/Telegram Allow. Telegram/API needs summaries omit bodies/token and offer Decline only; no automatic fallback after native review refusal. Hosts lacking the optional capability keep the existing bounded small card.
+- Existing source receipt/Read/Write/plan/Stop/required checkpoint/target hold and guarded Undo semantics remain authoritative. No generated-file import, new/deleted files, multi-file apply or new database migration.
+- TypeScript checking, static source/security/diff review and Swift release compilation pass (48.16 seconds; /tmp/atom-file-review-release-final.log). No tests added/run, app/gallery/live UI/accessibility checks, migration, checkpoint/apply/Undo or adapter/provider execution. Installed app unchanged; ADR-167 local/uncommitted/unpushed on main after a3e4363. CI repairs deferred; graphify-out preserved.
+- Stop after this scope. Next independent scope: generated-file proposal capture design with sandboxed content transport, fresh source checks and required undo. [Behavior and limits](docs/codex-native-file-review.md).
+
+## Previous batch: reviewed preview-input edits (2026-10-18, ADR-166)
 
 Keshab continued review/apply work with tests and known CI repairs skipped. Deliver one existing short-file text proposal using host-owned source receipts, complete fresh review and required undo; no automatic shell-diff import.
 
