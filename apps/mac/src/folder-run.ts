@@ -33,6 +33,8 @@ export interface FolderCheckOptions {
   approve(request: { summary: string; reason: string }): Promise<boolean>;
   approveFile?(request: { summary: string; reason: string }): Promise<FileApproval>;
   permissions?: FilePermissionScope;
+  /** Rechecked after awaiting approval, before a continuing grant or checkpoint is written. */
+  cancelled?(): boolean;
   /** Keshab's home folder, for the secret-folder check. Default: the real home. */
   home?: string;
   /** For the log: the tool and the verdict, never paths or command text. */
@@ -104,6 +106,8 @@ export function folderCheck(options: FolderCheckOptions) {
   const home = options.home ?? homedir();
   const say = (tool: string, verdict: "allowed" | "refused" | "asked" | "declined") => options.onCheck?.({ tool, verdict });
   return async (name: string, input: Record<string, unknown>): Promise<string | undefined> => {
+    const stopped = "The task was stopped. No further file operation or permission is allowed.";
+    if (options.cancelled?.()) return stopped;
     if (name === "Bash") {
       const command = typeof input.command === "string" ? input.command : "";
       const verdict = classifyCommand(command);
@@ -111,6 +115,7 @@ export function folderCheck(options: FolderCheckOptions) {
       if (verdict.verdict === "ask") {
         say(name, "asked");
         const ok = await options.approve({ summary: `${options.name} wants to run: ${oneLine(command, 120)}`, reason: `This command ${verdict.reason}.` });
+        if (options.cancelled?.()) return stopped;
         if (!ok) return say(name, "declined"), "Keshab did not allow this command. Do the job without it, or say in the report what is needed.";
       }
       return say(name, "allowed"), undefined;
@@ -158,6 +163,7 @@ export function folderCheck(options: FolderCheckOptions) {
           // A continuing grant applies to this exact canonical file only. The floor and secret checks already ran.
           const canRemember = asks.length === 1 && memory.written.size < MAX_OUTSIDE_WRITES && options.permissions && options.approveFile;
           const ok = canRemember ? await options.approveFile!(request) : await options.approve(request);
+          if (options.cancelled?.()) return stopped;
           if (!ok) return say(name, "declined"), "Keshab did not allow this change. Do the job without it, or say in the report what is needed.";
           if (ok === "chat") options.permissions!.grant(real);
           if (ok !== "chat") memory.approved.add(real);
@@ -165,6 +171,7 @@ export function folderCheck(options: FolderCheckOptions) {
         memory.written.add(real);
       }
     }
+    if (options.cancelled?.()) return stopped;
     if (options.before && WRITE_TOOLS.includes(name)) {
       try {
         options.before(name, paths.map((p) => (isAbsolute(p) ? p : resolve(options.cwd, p))));

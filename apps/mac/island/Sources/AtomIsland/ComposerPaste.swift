@@ -3,7 +3,7 @@ import SwiftUI
 import AtomIslandCore
 
 // ADR-125: ⌘V in the chat box attaches a copied file or a pasted image (a screenshot copied with ⌃⇧⌘4). Text pastes
-// as before. SwiftUI's TextField gives no hook for paste, so a local key monitor sees ⌘V first, and acts only when
+// uses ADR-149/150 cleanup and long-text attachment handling. A local key monitor sees ⌘V first, and acts only when
 // this composer's field has focus in the window the key went to (the panel and the main window each have a composer).
 
 /// Watches ⌘V for one composer.
@@ -16,15 +16,19 @@ final class ComposerPaste {
     private var monitor: Any?
 
     /// Starts watching; `attach` gets the paths to add. Calling it again replaces nothing.
-    func start(attach: @escaping ([String]) -> Void) {
+    func start(attach: @escaping ([String]) -> Void, text: @escaping (String, NSTextView) -> Bool) {
         guard monitor == nil else { return }
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, self.focused, let window = self.window, event.window === window,
                   event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
                   event.charactersIgnoringModifiers == "v" else { return event }
-            guard let paths = Self.attachable(from: .general) else { return event } // text: the field pastes it
-            attach(paths)
-            return nil
+            guard let editor = window.firstResponder as? NSTextView, !editor.hasMarkedText() else { return event }
+            if let paths = Self.attachable(from: .general) {
+                attach(paths)
+                return nil
+            }
+            if let words = NSPasteboard.general.string(forType: .string), text(words, editor) { return nil }
+            return event
         }
     }
 

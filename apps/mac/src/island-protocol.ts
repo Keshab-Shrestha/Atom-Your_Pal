@@ -1,6 +1,9 @@
 // The messages between ATOM Island (Swift) and this runtime: JSON lines over stdin / stdout.
 // The specification is docs/island-protocol.md; keep the two in step.
 
+import type { ChatControlResponse } from "./chat-controls.ts";
+import type { ChatWork } from "./chat-work.ts";
+import type { ForegroundReceipt, ForegroundResponse } from "./foreground-recovery.ts";
 import type { Capability } from "@atom/tool-engine";
 import type { LoopState } from "./voice-loop.ts";
 
@@ -12,6 +15,9 @@ export * from "./island-commands.ts";
 
 
 export type IslandEvent =
+  | ForegroundReceipt | ForegroundResponse
+  | ChatWork
+  | ChatControlResponse
   | { type: "ready"; protocol: number; provider: string; model: string; microphone: string; voice: boolean; telegram?: boolean; computer?: boolean }
   | { type: "state"; state: LoopState }
   /** ADR-098 item 5: the local API's state after `api.set`. `tokenFile` is a path: the island reads it only for "Copy token". */
@@ -69,7 +75,7 @@ export type IslandEvent =
   | { type: "git.diff"; repo: string; branch: string; text: string; truncated: boolean }
   /** ADR-091: a chat was opened: its turns, to show. */
   /** ADR-107: `projectId` for a project chat; `trimmed: true` when the Core got only the newest turns of a long project chat (the window shows all). */
-  | { type: "chat.opened"; id: string; messages: { role: "user" | "assistant"; text: string }[]; projectId?: string; trimmed?: true }
+  | { type: "chat.opened"; id: string; messages: { role: "user" | "assistant"; text: string; seq?: number }[]; projectId?: string; trimmed?: true }
   | {
       type: "helpers";
       helpers: HelperItem[];
@@ -111,13 +117,15 @@ export function encodeEvent(event: IslandEvent): string {
 const MAX_USAGE = 2;
 
 /**
- * The `plan.usage` event from what the Claude plan provider reported (ADR-076). Only these three fields are read;
- * a share that is not a finite number in 0..2, or an overage that is not true/false, is dropped. Undefined if nothing is left.
+ * Last reported Claude plan information (ADR-076/155). Invalid fractions, booleans and reset timestamps
+ * are dropped. Undefined if nothing valid remains; a reset time does not schedule a retry.
  */
-export function planUsageEvent(usage: { fiveHour?: unknown; sevenDay?: unknown; overage?: unknown }): PlanUsageEvent | undefined {
+export function planUsageEvent(usage: { fiveHour?: unknown; sevenDay?: unknown; overage?: unknown; resetAt?: unknown; limited?: unknown }): PlanUsageEvent | undefined {
   const share = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= MAX_USAGE;
   const event: PlanUsageEvent = {
     type: "plan.usage",
+    ...(typeof usage.resetAt === "number" && Number.isFinite(usage.resetAt) && usage.resetAt > 0 && usage.resetAt < 4_102_444_800 ? { resetAt: usage.resetAt } : {}),
+    ...(typeof usage.limited === "boolean" ? { limited: usage.limited } : {}),
     ...(share(usage.fiveHour) ? { fiveHour: usage.fiveHour } : {}),
     ...(share(usage.sevenDay) ? { sevenDay: usage.sevenDay } : {}),
     ...(typeof usage.overage === "boolean" ? { overage: usage.overage } : {}),

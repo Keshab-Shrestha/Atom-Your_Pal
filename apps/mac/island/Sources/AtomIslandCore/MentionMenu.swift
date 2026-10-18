@@ -2,7 +2,7 @@ import Foundation
 
 /// One row of the "@" menu (ADR-126).
 public struct MentionItem: Sendable, Equatable, Identifiable {
-    public enum Kind: Int, Sendable { case helper = 0, note, file }
+    public enum Kind: Int, Sendable { case helper = 0, note, file, projectFile }
 
     public var kind: Kind
     public var name: String
@@ -12,16 +12,18 @@ public struct MentionItem: Sendable, Equatable, Identifiable {
     public var symbol: String
     public var helperId: String?
     public var noteId: Int?
+    public var relativePath: String?
 
-    public var id: String { "\(kind.rawValue)-\(helperId ?? noteId.map(String.init) ?? name)" }
+    public var id: String { "\(kind.rawValue)-\(relativePath ?? helperId ?? noteId.map(String.init) ?? name)" }
 
-    public init(kind: Kind, name: String, detail: String, symbol: String = "", helperId: String? = nil, noteId: Int? = nil) {
+    public init(kind: Kind, name: String, detail: String, symbol: String = "", helperId: String? = nil, noteId: Int? = nil, relativePath: String? = nil) {
         self.kind = kind
         self.name = name
         self.detail = detail
         self.symbol = symbol
         self.helperId = helperId
         self.noteId = noteId
+        self.relativePath = relativePath
     }
 }
 
@@ -40,7 +42,7 @@ public enum MentionMenu {
         guard let at = draft.lastIndex(of: "@") else { return nil }
         if at > draft.startIndex, !draft[draft.index(before: at)].isWhitespace { return nil }
         let word = draft[draft.index(after: at)...]
-        guard word.count <= 30, word.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }) else { return nil }
+        guard word.count <= 120, word.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" || $0 == "." || $0 == "/" }) else { return nil }
         return String(word)
     }
 

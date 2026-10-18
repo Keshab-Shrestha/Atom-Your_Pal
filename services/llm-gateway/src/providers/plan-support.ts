@@ -34,6 +34,8 @@ export interface WarmQueryLike {
 
 /** How much of the plan is used, as fractions (0.66 = 66%). For the log: shows plan use, never a key. */
 export interface PlanUsage {
+  resetAt?: number;
+  limited?: boolean;
   fiveHour?: number;
   sevenDay?: number;
   /** True if Claude is charging extra usage beyond the plan (this adapter stops before that happens). */
@@ -302,6 +304,8 @@ export function planGuard(message: Record<string, any>, onUsage?: (usage: PlanUs
     const windows = info.unifiedWindows ?? {};
     try {
       onUsage({
+        ...(typeof info.resetsAt === "number" && Number.isFinite(info.resetsAt) && info.resetsAt > 0 && info.resetsAt < 4_102_444_800 ? { resetAt: info.resetsAt } : {}),
+        ...(["allowed", "allowed_warning", "rejected"].includes(info.status) ? { limited: info.status === "rejected" } : {}),
         ...(typeof windows.five_hour?.utilization === "number" ? { fiveHour: windows.five_hour.utilization } : {}),
         ...(typeof windows.seven_day?.utilization === "number" ? { sevenDay: windows.seven_day.utilization } : {}),
         ...(typeof info.isUsingOverage === "boolean" ? { overage: info.isUsingOverage } : {}),

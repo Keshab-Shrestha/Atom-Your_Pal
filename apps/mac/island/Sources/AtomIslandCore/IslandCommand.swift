@@ -48,6 +48,11 @@ public enum IslandCommand: Sendable, Equatable {
     /// A typed request with attached files (ADR-113): full paths; the runtime copies and checks them. At most 5.
     /// ADR-126: `notes` are Second brain note ids; the runtime sends each as "<title>.md".
     case textSendFiles(text: String, files: [String], notes: [Int] = [])
+    case textSendAttempt(text: String, files: [String], notes: [Int], chat: String, request: String)
+    case foregroundList(request: String, pending: [String], pendingAnswers: [QuestionAnswerReceipt])
+    case foregroundRead(request: String, id: String, offset: Int)
+    case foregroundDismiss(request: String, id: String)
+    case foregroundAck(id: String)
     /// The user dropped Pal on a window to ask about it (ADR-074): its app, never the window's title.
     case contextWindow(bundleId: String, name: String)
     /// Helpers (ADR-081): ask for the list (and its changes from then on), give a helper its app (`""` for none),
@@ -65,6 +70,9 @@ public enum IslandCommand: Sendable, Equatable {
     case toolsScan
     /// ADR-091: Keshab's chats: list them, continue one, delete one.
     case chatsList
+    case chatControl(ChatControlRequest)
+    case chatQuestionAnswer(chat: String, turn: String, id: String, text: String?)
+    case chatWorkWatch
     case chatOpen(id: String)
     case chatDelete(id: String)
     /// ADR-097: keep a chat in memory (summary, sections and exact lines), or remove it from memory.
@@ -198,7 +206,11 @@ public enum IslandCommand: Sendable, Equatable {
         case .skillSave: "skill.save"
         case .episodeForget: "episode.forget"
         case .episodeClear: "episode.clear"
-        case .textSend, .textSendFiles: "text.send"
+        case .textSend, .textSendFiles, .textSendAttempt: "text.send"
+        case .foregroundList: "foreground.list"
+        case .foregroundRead: "foreground.read"
+        case .foregroundDismiss: "foreground.dismiss"
+        case .foregroundAck: "foreground.ack"
         case .contextWindow: "context.window"
         case .helpersList: "helpers.list"
         case .speechSet: "speech.set"
@@ -207,6 +219,9 @@ public enum IslandCommand: Sendable, Equatable {
         case .apiRegenerate: "api.regenerate"
         case .toolsScan: "tools.scan"
         case .chatsList: "chats.list"
+        case .chatControl: "chat.control"
+        case .chatQuestionAnswer: "chat.question.answer"
+        case .chatWorkWatch: "chat.work.watch"
         case .chatOpen: "chat.open"
         case .chatDelete: "chat.delete"
         case .memoryKeepChat: "memory.keepChat"
@@ -284,6 +299,22 @@ public enum IslandCommand: Sendable, Equatable {
     /// One JSON line, ending with a newline. Values are escaped by JSONSerialization.
     public var line: String {
         var fields: [String: Any] = ["type": type]
+        switch self {
+        case .textSendAttempt(let text, let files, let notes, let chat, let request):
+            fields["text"] = text; fields["files"] = files; fields["notes"] = notes; fields["chat"] = chat; fields["request"] = request
+        case .foregroundList(let request, let pending, let answers):
+            fields["request"] = request; fields["pending"] = pending
+            fields["pendingAnswers"] = answers.map { ["id": $0.id, "digest": $0.digest] }
+        case .foregroundRead(let request, let id, let offset): fields["request"] = request; fields["id"] = id; fields["offset"] = offset
+        case .foregroundDismiss(let request, let id): fields["request"] = request; fields["id"] = id
+        case .foregroundAck(let id): fields["id"] = id
+        default: break
+        }
+        if case .chatControl(let request) = self { fields.merge(request.fields) { _, new in new } }
+        if case .chatQuestionAnswer(let chat, let turn, let id, let text) = self {
+            fields["chat"] = chat; fields["turn"] = turn; fields["id"] = id
+            if let text { fields["text"] = text }
+        }
         if case .modelSet(let provider, let model) = self {
             fields["provider"] = provider
             fields["model"] = model

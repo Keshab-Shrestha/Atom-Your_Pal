@@ -22,8 +22,15 @@ struct NeedsYouPane: View {
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
                 if let request = model.approval.pending {
-                    card(kind: "ATOM asks", who: "", title: request.summary, detail: request.reason) {
-                        QuietButton(title: "Allow", symbol: "checkmark") { model.answerApproval(true) }
+                    let detail = request.rememberFile
+                        ? request.reason + "\n\nThis file only. Chat access lasts across tasks and restarts until you revoke it."
+                        : request.reason
+                    card(kind: "ATOM asks", who: "", title: request.summary, detail: detail) {
+                        QuietButton(title: request.rememberFile ? "Allow for task" : "Allow", symbol: "checkmark") { model.answerApproval(true) }
+                        if request.rememberFile {
+                            QuietButton(title: "Allow for chat", symbol: "checkmark.bubble") { model.answerApproval(true, rememberFile: true) }
+                                .help("Allow future edits to this file in this chat. Say ‘Forget file permissions for this chat’ to revoke.")
+                        }
                         QuietButton(title: "Decline", symbol: "xmark") { model.answerApproval(false) }
                     }
                 }
@@ -37,7 +44,7 @@ struct NeedsYouPane: View {
                 ForEach(items) { item in row(item) }
                 if !failed.isEmpty {
                     Text("Failed · \(failed.count)").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color).padding(.top, items.isEmpty ? 0 : 6)
-                    Text("A failure that a second try may fix is retried once by itself. The rest wait for you.")
+                    Text("Open a task to review what happened before trying it again. Interrupted work may already have changed files.")
                         .font(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
                     ForEach(failed) { item in FailedTaskCard(model: model, item: item) }
                 }
@@ -140,10 +147,12 @@ struct FailedTaskCard: View {
                 if let ended = item.job.endedAt { Text(ended, style: .relative).font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color) }
             }
             Text(item.job.shortTitle).font(.system(size: 13, weight: .medium)).foregroundStyle(theme.text.color).lineLimit(2)
+            if item.job.recoveryNeeded { Text("Interrupted · outcome unconfirmed").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color) }
             if let error = item.job.error { ProblemLine(text: error, dot: false) }
+            if item.job.recoveryNeeded, let step = item.job.step { Text("Last recorded step: \(step)").font(.system(size: 11.5)).foregroundStyle(theme.text2.color) }
             HStack(spacing: 8) {
-                QuietButton(title: "Retry", symbol: "arrow.clockwise") { model.sendHelpers(model.helpers.retry(item.id)) }
-                QuietButton(title: "Open") { model.navigate { model.windowPage = .agents; model.sendHelpers(model.helpers.openThread(item.id)) } }
+                if !item.job.recoveryNeeded { QuietButton(title: "Retry", symbol: "arrow.clockwise") { model.sendHelpers(model.helpers.retry(item.id)) } }
+                QuietButton(title: item.job.recoveryNeeded ? "Review attempt" : "Open") { model.navigate { model.windowPage = .agents; model.sendHelpers(model.helpers.openThread(item.id)) } }
             }
             .padding(.top, 4)
         }

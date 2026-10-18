@@ -7,6 +7,9 @@ export type InputSource = "voice" | "text";
 export interface ZenoInput {
   text: string;
   source: InputSource;
+  /** Host delivery identity, never a permission or a provider-side exactly-once guarantee. */
+  deliveryId?: string;
+  deliveryChat?: string;
 }
 
 /** A tool the model may ask ATOM to run. `inputSchema` is JSON Schema for an object. */
@@ -83,6 +86,12 @@ export interface ModelRequest {
   context: RequestContext;
   /** Tools the model may call. Providers that cannot call tools ignore this and just answer. */
   tools?: ToolSpec[];
+  /** Host-only, read-only own-chat archive tools. Never serialize into provider input or pass to workers. */
+  historyTools?: ToolRunner;
+  /** Host-only foreground interaction tools, separate from read-only history. Never serialize or pass to workers. */
+  interactionTools?: ToolRunner;
+  /** Host-only web admission for this request. An absent value grants no host web access. */
+  web?: boolean;
   /**
    * Receives the reply's text as it is written, for speaking early (ADR-065). Providers that cannot stream ignore it.
    * Text written before a tool call ("Let me check.") is included; turns are separated by a newline.

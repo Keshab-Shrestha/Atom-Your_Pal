@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import { checkGrant, HelperError, type HelperStore } from "@atom/helpers";
 import type { Message, ProjectFiles } from "@atom/contracts";
-import { MAX_PROJECT_CHATS, ProjectError, type ChatSummary, type MemoryStore, type Project } from "@atom/memory";
+import { ProjectError, type ChatSummary, type MemoryStore, type Project } from "@atom/memory";
 import type { Logger } from "@atom/shared";
 import { projectReadCheck } from "./folder-run.ts";
 import type { IslandProjects, ProjectResult } from "./island.ts";
@@ -159,7 +159,7 @@ export function createProjects(options: ProjectsOptions): Projects {
     // The files are never touched, and the project's Agent (with its folder grant) stays: remove it on its own page.
     remove(id, deleteChats) {
       try {
-        const chatIds = deleteChats ? memory.chats.list({ projectId: id, limit: MAX_PROJECT_CHATS }).map((chat) => chat.id) : [];
+        const chatIds = deleteChats ? [...new Set([...memory.chats.idsInProject(id), ...memory.foreground.list().filter((r) => projectOf(r.chat) === id).map((r) => r.chat)])] : [];
         const removed = store.remove(id, { deleteChats });
         if (removed && chatIds.length) options.onChatsDeleted?.(chatIds);
         return removed ? { ok: true } : { error: NO_PROJECT };
@@ -257,8 +257,8 @@ export function createProjects(options: ProjectsOptions): Projects {
 
     chatSummaries() {
       const byId = new Map<string, ChatSummary>();
-      for (const c of memory.chats.list({ projectId: null, limit: LISTED_PLAIN })) byId.set(c.id, c); // plain chats only: 60 newer project chats used to fill the window and hide them
-      for (const p of store.list()) for (const c of memory.chats.list({ projectId: p.id, limit: LISTED_PER_PROJECT })) byId.set(c.id, c);
+      for (const c of memory.chats.list({ projectId: null, limit: LISTED_PLAIN, archived: false })) byId.set(c.id, c); // plain chats only: 60 newer project chats used to fill the window and hide them
+      for (const p of store.list()) for (const c of memory.chats.list({ projectId: p.id, limit: LISTED_PER_PROJECT, archived: false })) byId.set(c.id, c);
       return [...byId.values()].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
     },
   };

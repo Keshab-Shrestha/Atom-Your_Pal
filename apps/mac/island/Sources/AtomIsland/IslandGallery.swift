@@ -291,6 +291,14 @@ enum IslandGallery {
         paged.settingsPage = .model
         save(window("Settings page: Back is the top bar's arrow", paged), name: name + "-settings-page", to: directory)
         save(window("Board: the Needs you tab (it was a sidebar page)", inboxing), name: name + "-board-needs-you", to: directory)
+        inboxing.apply(.approvalRequest(ApprovalRequest(id: "file-permission", summary: "Kame wants to change the file ~/Documents/Cedar/announcement.txt", reason: "A copy of the file is kept so you can undo it.", rememberFile: true)))
+        save(window("Board: permission for one file in this chat", inboxing), name: name + "-board-file-permission", to: directory)
+        let recovered = model(theme)
+        recovered.windowPage = .agents
+        recovered.boardView = .needsYou
+        if let event = try? decodeEvent(#"{"type":"helpers","apps":[],"helpers":[{"id":"kame","name":"Kame","available":true,"jobs":[{"id":91,"task":"Finish the fictional Cedar announcement","state":"failed","createdAt":"2026-10-18T01:00:00Z","recoveryNeeded":true,"step":"Saved the draft; report not confirmed","error":"ATOM closed before this attempt's outcome was confirmed. Files may already have changed. Review the last step, tool history and file changes before trying again."}]}]}"#) { recovered.apply(event) }
+        recovered.helpers.selectBoard()
+        save(window("Board: interrupted attempt waits for review", recovered), name: name + "-board-interrupted", to: directory)
         // ADR-094: the floor with fifty agents: twelve seated, ten in the lounge, "+2 at work" and "+26 more".
         save(OfficeFloor(model: crowded).environment(\.islandSnapshot, true).environment(\.theme, theme.palette).frame(width: 660)
             .padding(16).background(Color.black), name: name + "-floor-crowd", to: directory)

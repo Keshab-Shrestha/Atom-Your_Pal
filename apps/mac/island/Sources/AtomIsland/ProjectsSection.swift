@@ -366,7 +366,11 @@ struct SidebarChatRow: View {
                 if renaming, !snapshot {
                     RenameField(text: $draft, label: "Chat title") { finish(commit: true) } onCancel: { finish(commit: false) }
                 } else {
-                    Text(chat.title).font(.system(size: 12.5, weight: current ? .semibold : .regular)).foregroundStyle(theme.text.color).lineLimit(1)
+                    HStack(spacing: 5) {
+                        if chat.pinned { Image(systemName: "pin.fill").font(.system(size: 10)).accessibilityLabel("Pinned") }
+                        if chat.archived { Image(systemName: "archivebox").font(.system(size: 10)).accessibilityLabel("Archived") }
+                        Text(chat.title).font(.system(size: 12.5, weight: current ? .semibold : .regular)).foregroundStyle(theme.text.color).lineLimit(1)
+                    }
                 }
                 // 2026-10-15: the time is not a second line any more (one line is a shorter row); it is the tip and VoiceOver's.
             }
@@ -380,6 +384,13 @@ struct SidebarChatRow: View {
         .help(Self.updatedText(chat))
         .accessibilityLabel(Self.updatedText(chat).isEmpty ? chat.title : "\(chat.title), \(Self.updatedText(chat))")
         .contextMenu {
+            Button(chat.pinned ? "Unpin" : "Pin") { model.setChatFlags(chat, pinned: !chat.pinned) }
+                .disabled(model.chatControls.mutation != nil)
+            if chat.canArchive {
+                Button(chat.archived ? "Unarchive" : "Archive") { model.setChatFlags(chat, archived: !chat.archived) }
+                    .disabled(!model.chatBranchAvailable)
+            }
+            Divider()
             if !chat.readOnly { Button("Rename") { draft = chat.title; renaming = true } }
             Button("Delete chat…", role: .destructive) { confirming = true }
         }

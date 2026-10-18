@@ -19,6 +19,12 @@ import { islandHelpers } from "./island-helpers.ts";
 import { createHubCommands } from "./hub-commands.ts";
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
+function taskActivityFixture() {
+  let active = false;
+  const listeners = new Set<() => void>();
+  return { busy: () => active, onChange: (listener: () => void) => { listeners.add(listener); return () => void listeners.delete(listener); },
+    set(value: boolean) { active = value; for (const listener of listeners) listener(); }, listeners };
+}
 const clip = (durationMs = 1500): AudioClip => ({ pcm: Buffer.alloc(4), sampleRate: 16_000, durationMs });
 
 /**
@@ -41,6 +47,7 @@ function islandHarness(
     silenceWarnMs: number;
     settings: IslandOptions["settings"];
     computer: IslandOptions["computer"];
+    taskActivity: IslandOptions["taskActivity"];
     memory: IslandOptions["memory"];
     helpers: IslandOptions["helpers"];
     skillFiles: IslandOptions["skillFiles"];
@@ -97,6 +104,7 @@ function islandHarness(
     info: over.info ?? { provider: "fake", model: "fake-1", microphone: ":default" },
     settings: over.settings,
     computer: over.computer,
+    taskActivity: over.taskActivity,
     ...(over.memory ? { memory: over.memory } : {}),
     ...(over.chats ? { chats: over.chats } : {}),
     ...(over.projects ? { projects: over.projects } : {}),
@@ -148,6 +156,72 @@ function islandHarness(
     counts: () => ({ resets, quits, closed }),
   };
 }
+
+test("a completed background task returns to idle after the last approval closes, and unsubscribes at quit", async () => {
+  const activity = taskActivityFixture(); const bridge = createComputerBridge();
+  const h = islandHarness({ taskActivity: activity, computer: bridge }); await tick(2); h.clear();
+  activity.set(true); assert.equal(h.types().at(-1), "state:thinking");
+  const first = bridge.approveFile({ summary: "Cedar", reason: "Fictional file" });
+  const second = bridge.approveFile({ summary: "Other", reason: "Another fictional file" });
+  const [a, b] = bridge.pending();
+  activity.set(false); h.clear();
+  bridge.answer(a!.id, false); await first; await tick();
+  assert.ok(!h.types().includes("state:idle"), "another pending card keeps its asking status");
+  assert.equal((h.events().at(-1) as { id?: string }).id, b!.id, "the remaining live card is restored with its original id");
+  bridge.answer(b!.id, false); await second; await tick();
+  assert.equal(h.types().at(-1), "state:idle");
+  await h.send({ type: "quit" }); assert.equal(activity.listeners.size, 0);
+});
+
+test("a background turn ending cannot clear the status of a worker that still runs", async () => {
+  const store = openHelperStore({ path: ":memory:" }); const activity = taskActivityFixture();
+  const helpers = islandHelpers(store, async () => []);
+  const h = islandHarness({ helpers, taskActivity: activity }); await tick(2); h.clear();
+  try {
+    const job = store.addNativeJob("sid", "Fictional research", { chatId: "task" });
+    activity.set(true); activity.set(false);
+    assert.ok(!h.types().includes("state:idle"));
+    store.finish(job.id, { title: "Cedar", summary: "Finished", body: "Done", sources: [] });
+    assert.equal(h.types().at(-1), "state:idle");
+  } finally { await h.send({ type: "quit" }); store.close(); }
+});
+
+test("a foreground reply ending cannot replace another task's pending approval with Thinking or Ready", async () => {
+  const activity = taskActivityFixture(); const bridge = createComputerBridge();
+  let release!: () => void; const pending = new Promise<void>((r) => { release = r; });
+  const h = islandHarness({ taskActivity: activity, computer: bridge,
+    core: { async handle() { await pending; return { requestId: "r", text: "Cedar" }; } } as never });
+  await tick(2); await h.send({ type: "talk.start" }, { type: "talk.send" });
+  const answer = bridge.approveFile({ summary: "Other task", reason: "Fictional file" });
+  const id = bridge.pending()[0]!.id; h.clear();
+  release(); await tick(5);
+  const states = h.events().filter((e) => e.type === "state");
+  assert.ok(!states.some((e) => e.state === "idle" || e.state === "thinking"));
+  assert.equal((h.events().at(-1) as { id?: string }).id, id, "the same pending request returns after foreground speech");
+  bridge.answer(id, false); await answer; await tick(); assert.equal(h.types().at(-1), "state:idle");
+  await h.send({ type: "quit" });
+});
+
+test("background completion never replaces foreground listening, answering or speech", async () => {
+  const activity = taskActivityFixture();
+  let answer!: () => void; const answerGate = new Promise<void>((r) => { answer = r; });
+  let speak!: () => void; const speechGate = new Promise<void>((r) => { speak = r; });
+  let speaking!: () => void; const speechStarted = new Promise<void>((r) => { speaking = r; });
+  const h = islandHarness({ taskActivity: activity,
+    core: { async handle() { await answerGate; return { requestId: "r", text: "Cedar" }; } } as never,
+    tts: { warmUp: async () => {}, close() {}, async speak(_text, _signal, hooks) { hooks?.onStart?.(); speaking(); await speechGate; } } });
+  await tick(2); await h.send({ type: "talk.start" }); h.clear();
+  activity.set(true); activity.set(false);
+  assert.ok(!h.types().some((t) => t.startsWith("state:")), "listening remains in charge");
+  await h.send({ type: "talk.send" }); h.clear();
+  activity.set(true); activity.set(false);
+  assert.ok(!h.types().some((t) => t.startsWith("state:")), "the foreground model still answers");
+  answer(); await speechStarted; h.clear();
+  activity.set(true); activity.set(false);
+  assert.ok(!h.types().some((t) => t.startsWith("state:")), "speech remains in charge");
+  speak(); await tick(5); assert.equal(h.types().at(-1), "state:idle");
+  await h.send({ type: "quit" });
+});
 
 test("api.regenerate asks the API for a new token and answers with an api event; with no API it says so", async () => {
   let made = 0;

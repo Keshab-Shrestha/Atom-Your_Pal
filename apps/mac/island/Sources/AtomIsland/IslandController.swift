@@ -83,7 +83,7 @@ final class IslandController {
     init(settings: IslandSettings, log: @escaping (String, [String: Any]) -> Void, trace: @escaping (String) -> Void = { _ in }) {
         self.trace = trace
         self.log = log
-        model = IslandModel(settings: settings)
+        model = IslandModel(settings: settings, inputURL: ChatInputStore.defaultURL)
         bubble = BubbleController(model: model)
         strip = WorkStripController(model: model)
         helpersWindow = MainWindowController(model: model)

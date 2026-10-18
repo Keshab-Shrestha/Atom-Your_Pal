@@ -1,10 +1,11 @@
+import type { ZenoInput } from "@atom/contracts";
 import { peakLevel, type AudioClip, type AudioError, type Recording } from "./audio.ts";
 import type { SpeechToText } from "./stt.ts";
 import type { SpeakHooks, TextToSpeech } from "./tts.ts";
 
 /** The parts of ATOM Core the voice loop uses. */
 export interface CoreLike {
-  handle(input: { text: string; source: "voice" | "text" }, signal?: AbortSignal, hooks?: { onText?: (delta: string) => void }): Promise<{ text: string; requestId?: string }>;
+  handle(input: ZenoInput, signal?: AbortSignal, hooks?: { onText?: (delta: string) => void }): Promise<{ text: string; requestId?: string }>;
 }
 
 export type LoopState = "idle" | "listening" | "transcribing" | "thinking" | "speaking";
@@ -71,7 +72,7 @@ export interface VoiceLoop {
    */
   press(): void;
   /** A typed request: answered and spoken like a voice turn, without the microphone. */
-  ask(text: string): void;
+  ask(text: string, delivery?: Pick<ZenoInput, "deliveryId" | "deliveryChat">): void;
   /** Abandons the current turn (recording, request or speech) and returns to idle. */
   cancel(): void;
 }
@@ -197,6 +198,7 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
     signal: AbortSignal,
     heard: { speechMs: number; transcription: number },
     onStage: (stage: LoopStage) => void,
+    delivery?: Pick<ZenoInput, "deliveryId" | "deliveryChat">,
   ) {
     setState("thinking");
     const started = now();
@@ -228,7 +230,7 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
     try {
       let answer;
       try {
-        answer = await core.handle({ text, source }, signal, { onText: (delta) => queue.push(delta) });
+        answer = await core.handle({ text, source, ...delivery }, signal, { onText: (delta) => queue.push(delta) });
       } catch (error) {
         queue.end();
         await speaking.catch(() => {});
@@ -249,14 +251,14 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
     }
   }
 
-  async function typed(text: string) {
+  async function typed(text: string, delivery?: Pick<ZenoInput, "deliveryId" | "deliveryChat">) {
     const controller = new AbortController();
     turn = controller;
     const { signal } = controller;
     let stage: LoopStage = "model";
     try {
       events.onTranscript?.(text);
-      await reply(text, "text", signal, { speechMs: 0, transcription: 0 }, (s) => (stage = s));
+      await reply(text, "text", signal, { speechMs: 0, transcription: 0 }, (s) => (stage = s), delivery);
     } catch (error) {
       if (!signal.aborted) events.onError?.(stage, error);
     } finally {
@@ -271,11 +273,11 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
     get state() {
       return state;
     },
-    ask(text: string) {
+    ask(text: string, delivery?: Pick<ZenoInput, "deliveryId" | "deliveryChat">) {
       const clean = text.trim();
       if (!clean) return;
       abandonTurn(); // typing over ATOM, like talking over it, starts a new turn
-      void typed(clean);
+      void typed(clean, delivery);
     },
     press() {
       if (state === "listening" && recording) {

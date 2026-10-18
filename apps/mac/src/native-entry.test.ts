@@ -45,6 +45,18 @@ test("an API chat is not spoken; a routine's later reply goes to Telegram only w
 const routine = (over: Partial<Routine> = {}): Routine =>
   ({ id: 3, helper: "sid", task: "summarise networking news", schedule: { kind: "daily", minute: 480 }, createdAt: new Date(0), lastSkipped: false, paused: false, notifyTelegram: true, webhook: false, ...over }) as Routine;
 
+test("task activity covers the whole queue, including failure and a removed retry", async () => {
+  const activity: boolean[] = [];
+  let release!: () => void; const first = new Promise<void>((r) => { release = r; });
+  let calls = 0;
+  const start = taskStarter({ core: { resume() {}, async handle() { calls++; await first; throw new Error("Unavailable"); } } as never,
+    name: () => "Kame", log: { info() {}, warn() {} }, activity: (busy) => activity.push(busy), retryPending: () => false });
+  start("kame", "Cedar"); start("kame", "Removed retry", { id: 2, retryOf: 1 });
+  assert.deepEqual(activity, [true]);
+  release(); await new Promise((r) => setImmediate(r));
+  assert.equal(calls, 1); assert.deepEqual(activity, [true, false]);
+});
+
 function starter(opts: { busy?: Set<string>; reply?: string; fail?: boolean } = {}) {
   const turns: { chat: string; text: string }[] = [];
   const pushed: [string, boolean][] = [];

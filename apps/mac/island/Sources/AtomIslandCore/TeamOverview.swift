@@ -111,7 +111,7 @@ public struct NeedsYouItem: Sendable, Equatable, Identifiable {
                                               detail: j.planSummary ?? "A plan waits for your OK.", jobId: j.id))
                 } else if let reason = j.held {
                     held.append(NeedsYouItem(id: "held-\(j.id)", kind: .held, helperId: h.id, helperName: h.name, title: j.shortTitle, detail: reason, jobId: j.id))
-                } else if j.state == .failed {
+                } else if j.state == .failed && j.retriedAs == nil {
                     failed.append(NeedsYouItem(id: "failed-\(j.id)", kind: .failed, helperId: h.id, helperName: h.name, title: j.shortTitle,
                                                detail: j.error ?? "It failed.", jobId: j.id))
                 }
@@ -125,7 +125,7 @@ public struct NeedsYouItem: Sendable, Equatable, Identifiable {
 public enum TeamIssues {
     public static func all(in list: HelpersList) -> [BoardItem] {
         list.everyTask
-            .filter { $0.job.state == .failed }
+            .filter { $0.job.state == .failed && $0.job.retriedAs == nil }
             .sorted { $0.id > $1.id }
     }
 }

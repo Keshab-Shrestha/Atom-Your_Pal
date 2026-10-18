@@ -2,6 +2,8 @@
 // stdin and receives JSON-line events on stdout. Specification: docs/island-protocol.md.
 
 import type { HubCommands } from "./hub-commands.ts";
+import { randomUUID } from "node:crypto";
+import { foregroundReceipt, foregroundResponse } from "./foreground-recovery.ts";
 import { countHits, type EverythingResults } from "./everything-search.ts";
 import { chatWriter, isSharedChat, readOnlyMessage } from "./chat-owner.ts";
 import { createInterface } from "node:readline";
@@ -60,12 +62,23 @@ export function runIsland(options: IslandOptions): IslandSession {
   const errorDetails = options.errorDetails ?? (() => ({}));
   const wrap = options.wrapEvents ?? ((events) => events);
   let quitting = false;
+  let shownState: string | undefined = "idle";
 
   const send = (event: IslandEvent) => {
+    if (event.type === "state") shownState = event.state;
+    if (event.type === "approval.request") shownState = `asking:${event.id}`;
+    if (event.type === "approval.closed" && shownState?.startsWith("asking:")) shownState = undefined;
     if (!quitting || event.type === "error") options.write(encodeEvent(event));
   };
-  options.computer?.attach(send);
+  const pendingApprovals = new Map<string, Extract<IslandEvent, { type: "approval.request" }>>();
+  options.computer?.attach((event) => {
+    if (event.type === "approval.request") pendingApprovals.set(event.id, event);
+    if (event.type === "approval.closed") pendingApprovals.delete(event.id);
+    send(event);
+    if (event.type === "approval.closed" || event.type === "computer.end") queueMicrotask(refreshTaskState);
+  });
   const level = createLevelThrottle((peak) => send({ type: "mic.level", peak }), options.levelIntervalMs);
+  const stopChatWork = options.chatWork?.attach(send);
 
   const loop = createVoiceLoop({
     record: options.record,
@@ -74,16 +87,48 @@ export function runIsland(options: IslandOptions): IslandSession {
     core: {
       handle: async (input, signal, hooks) => {
         const id = core.sessionId ?? "";
+        const refuse = (message: string): never => {
+          if (input.deliveryId && options.foreground) {
+            try { options.foreground.finish(input.deliveryId, "failed"); const receipt = foregroundReceipt(options.foreground, input.deliveryId); if (receipt) send(receipt); } catch { /* Retain the durable record as uncertain. */ }
+          }
+          throw new Error(message);
+        };
+        if (input.deliveryChat && input.deliveryChat !== id) {
+          refuse("The source chat changed before dispatch. Review the saved request in Recovery.");
+        }
+        if (options.chats?.metadataOf?.(id)?.archived) refuse("This chat is archived. Unarchive it before sending.");
         const writer = chatWriter(id);
-        if (writer) throw new Error(readOnlyMessage(writer));
+        if (writer) refuse(readOnlyMessage(writer));
         // A shared chat (the phone writes it too): read the saved messages again before each turn. `resume` hands this Core's live session whatever
         // the other side added since its last turn, so nothing is lost and no message count is compared.
         if (isSharedChat(id) && options.chats && core.resume) core.resume(id, options.chats.messages(id));
         // One turn at a time in a chat, across the window and the phone: the second one is refused at once with a clear line.
         const busy = options.chatTurns?.begin(id, "window");
-        if (busy) throw new Error(busy);
+        if (busy) refuse(busy);
+        const deliveryId = input.deliveryId ?? randomUUID();
+        let finishWork: ReturnType<NonNullable<IslandOptions["chatWork"]>["begin"]> | undefined;
+        const receipt = () => { if (options.foreground) { const event = foregroundReceipt(options.foreground, deliveryId); if (event) send(event); } };
         try {
-          return await core.handle(input, signal, hooks);
+          if (options.foreground) {
+            if (!input.deliveryId) options.foreground.prepare({ id: deliveryId, chat: id, text: input.text, files: [], notes: [], source: input.source, ...options.foreground.profile(id, input.source) });
+            if (!options.foreground.start(deliveryId, id)) throw new Error("This attempt has already been dispatched. Review Recovery instead of resending it.");
+            receipt();
+          }
+          finishWork = options.chatWork?.begin(id, signal, deliveryId);
+          const result = await core.handle({ ...input, deliveryId }, signal, hooks);
+          try { options.foreground?.finish(deliveryId, "completed", result.text); receipt(); }
+          catch {
+            try { options.foreground?.finish(deliveryId, "failed"); receipt(); } catch { /* Preserve the existing uncertain record. */ }
+            send({ type: "error", stage: "settings", message: "The reply could not be confirmed in recovery storage. Keep or copy it before closing ATOM; review Recovery and saved history before retrying." });
+          }
+          finishWork?.("completed");
+          try { if (!input.deliveryId) options.foreground?.dismiss(deliveryId, true); }
+          catch { /* An acknowledgement failure must not discard the completed reply; retain recovery content. */ }
+          return result;
+        } catch (error) {
+          try { options.foreground?.finish(deliveryId, signal?.aborted ? "stopped" : "failed"); receipt(); } catch { /* The durable prepared/running record remains uncertain. */ }
+          finishWork?.(signal?.aborted ? "stopped" : "failed");
+          throw error;
         } finally {
           options.chatTurns?.end(id, "window");
         }
@@ -95,7 +140,8 @@ export function runIsland(options: IslandOptions): IslandSession {
     events: wrap({
       onState: (state) => {
         if (state === "listening") level.reset();
-        send({ type: "state", state });
+        if (state === "idle" && restoreApproval()) return;
+        send({ type: "state", state: state === "idle" && backgroundBusy() ? "thinking" : state });
       },
       onMicReady: () => send({ type: "mic.ready" }),
       onLevel: (peak) => level.push(peak),
@@ -114,6 +160,25 @@ export function runIsland(options: IslandOptions): IslandSession {
       onError: (stage, error) => send({ type: "error", stage, message: describe(error), ...errorDetails(error) }),
     }),
   });
+
+  function backgroundBusy() {
+    try { return Boolean(options.taskActivity?.busy() || options.helpers?.list().some((helper) => helper.jobs.some((job) => job.state === "running"))); }
+    catch { options.log?.warn("tasks.state_failed", {}); return true; }
+  }
+  function refreshTaskState() {
+    // A background completion never replaces recording, transcription, a foreground answer, speech or another card.
+    if (quitting || loop.state !== "idle" || restoreApproval()) return;
+    const state = backgroundBusy() ? "thinking" : "idle";
+    if (shownState !== state) send({ type: "state", state });
+  }
+  function restoreApproval() {
+    const request = [...pendingApprovals.values()].at(-1);
+    if (!request) return false;
+    // Re-present the same live id after foreground work or another card ends. This creates no new approval.
+    if (shownState !== `asking:${request.id}`) send(request);
+    return true;
+  }
+  const stopTaskActivity = options.taskActivity?.onChange(refreshTaskState);
 
   /** How long a command waits for the Core to finish an aborted request, and how often it looks. */
   const IDLE_WAIT_MS = 2000;
@@ -143,6 +208,19 @@ export function runIsland(options: IslandOptions): IslandSession {
 
   function handle(command: IslandCommand) {
     switch (command.type) {
+      case "foreground.list": case "foreground.read": case "foreground.dismiss":
+        if (options.foreground) send(foregroundResponse(options.foreground, command));
+        else send({ type: "foreground.recovery", request: command.request, ok: false, error: "Recovery storage is unavailable. Local unsent input remains held." });
+        return;
+      case "foreground.ack":
+        try { options.foreground?.dismiss(command.id, true); } catch { /* Retain the record for later review. */ }
+        return;
+      case "chat.work.watch":
+        options.chatWork?.enableCards();
+        return;
+      case "chat.question.answer":
+        options.chatWork?.answer(command.chat, command.turn, command.id, command.text);
+        return;
       case "talk.start":
         options.computer?.cancelAll(); // a new request ends whatever was waiting for an answer
         // While listening this is a repeat (e.g. a key event delivered twice): keep the current recording.
@@ -156,32 +234,54 @@ export function runIsland(options: IslandOptions): IslandSession {
         loop.cancel();
         return;
       case "text.send": {
-        options.computer?.cancelAll();
-        let text = command.text;
-        // ADR-126: a Second brain note goes as a file, "<title>.md", so it is read like any attached file.
+        const sourceChat = core.sessionId ?? "";
+        if (chatWriter(sourceChat)) return send({ type: "error", stage: "settings", message: "This chat is read-only in the window. Your input remains held." });
+        if (options.chats?.metadataOf?.(core.sessionId ?? "")?.archived) return send({ type: "error", stage: "settings", message: "This chat is archived. Unarchive it before sending." });
+        if (command.request) {
+          if (!options.foreground || command.chat !== sourceChat) return send({ type: "error", stage: "settings", message: "Recovery storage or the source chat is unavailable. Your input remains held; refresh Recovery before retrying." });
+          try {
+            const fresh = options.foreground.prepare({ id: command.request, chat: sourceChat, text: command.text, files: command.files ?? [], notes: command.notes ?? [], source: "text", ...options.foreground.profile(sourceChat, "text") });
+            const receipt = foregroundReceipt(options.foreground, command.request); if (receipt) send(receipt);
+            if (!fresh) return;
+          } catch { return send({ type: "error", stage: "settings", message: "The request could not be saved or its delivery id conflicts. No new model request was sent. Review Recovery or free storage, then retry explicitly." }); }
+        }
+        const fail = (message: string) => {
+          if (command.request && options.foreground) { try { options.foreground.finish(command.request, "failed"); } catch { /* Remains prepared for review. */ } }
+          if (command.request && options.foreground) { const receipt = foregroundReceipt(options.foreground, command.request); if (receipt) send(receipt); }
+          send({ type: "error", stage: "settings", message });
+        };
         const notes: string[] = [];
-        for (const id of command.notes ?? []) {
-          const note = options.brain?.note(id);
-          if (!note) return send({ type: "error", stage: "settings", message: "That note is gone from the Second brain, so nothing was sent." });
-          notes.push(noteFile(note.title, note.body));
-        }
-        const paths = [...(command.files ?? []), ...notes];
-        if (paths.length) {
-          // ADR-113: the files are copied and checked first; a refusal says why and sends nothing.
-          const added = options.attachments?.add(core.sessionId ?? "", paths) ?? { error: "Attaching files is off." };
-          for (const file of notes) rmSync(dirname(file), { recursive: true, force: true }); // copied into the chat, or refused
-          if ("error" in added) return send({ type: "error", stage: "settings", message: added.error });
-          text = `${text.trim() || "Please look at the attached file."}\n\n${added.text}`;
-        }
-        // Typing over an answer stops it. The Core needs a moment to unwind the aborted request; a turn started before
-        // that was refused as "answering in this chat" (ADR-127, found live). Wait for it, as chat.open does.
-        if (core.busy) {
-          loop.cancel();
-          const words = text;
-          whenCoreIdle(() => loop.ask(words), "text.send");
+        try {
+          options.computer?.cancelAll();
+          let text = command.text;
+          // ADR-126: a Second brain note goes as a file, "<title>.md", so it is read like any attached file.
+          for (const id of command.notes ?? []) {
+            const note = options.brain?.note(id);
+            if (!note) return fail("That note is gone from the Second brain, so nothing was sent. Review Recovery before retrying.");
+            notes.push(noteFile(note.title, note.body));
+          }
+          const paths = [...(command.files ?? []), ...notes];
+          if (paths.length) {
+            // ADR-113: the files are copied and checked first; a refusal says why and sends nothing.
+            const added = options.attachments?.add(core.sessionId ?? "", paths) ?? { error: "Attaching files is off." };
+            if ("error" in added) return fail(added.error);
+            text = `${text.trim() || "Please look at the attached file."}\n\n${added.text}`;
+          }
+          // Typing over an answer stops it. The Core needs a moment to unwind the aborted request; a turn started before
+          // that was refused as "answering in this chat" (ADR-127, found live). Wait for it, as chat.open does.
+          if (core.busy) {
+            loop.cancel();
+            const words = text;
+            whenCoreIdle(() => loop.ask(words, { deliveryId: command.request, deliveryChat: command.chat }), "text.send");
+            return;
+          }
+          loop.ask(text, { deliveryId: command.request, deliveryChat: command.chat });
           return;
+        } catch {
+          fail("The request could not be prepared. Review the saved request in Recovery before trying again.");
+        } finally {
+          for (const file of notes) { try { rmSync(dirname(file), { recursive: true, force: true }); } catch { /* The copied attachment is independent of its temporary source. */ } }
         }
-        loop.ask(text);
         return;
       }
       case "approval.answer":
@@ -196,6 +296,30 @@ export function runIsland(options: IslandOptions): IslandSession {
           if ("error" in result) return send({ type: "error", stage: "settings", message: result.error });
         }
         return newChat(command.projectId);
+      }
+      case "chat.control": {
+        const fail = (error: string) => send({ type: "chat.control", id: command.id, request: command.request, action: command.action, ok: false, error });
+        const chats = options.chats;
+        if (!chats?.control) return fail("Saved chat controls are unavailable.");
+        if ((command.action === "fork" || command.archived !== undefined)
+            && (core.busy || loop.state !== "idle" || options.chatTurns?.busy?.(command.id))) return fail("Finish or stop the active turn before changing this chat.");
+        if (command.action === "flags" && command.archived !== undefined && (chatWriter(command.id) || isSharedChat(command.id))) return fail("Chats shared with Telegram, routines or the API cannot be archived here.");
+        try {
+          const result = chats.control(command);
+          if (result.ok && result.branch) {
+            if (!core.resume) {
+              sendChats();
+              return fail("This runtime cannot open a fork. The saved fork remains in the chat list.");
+            }
+            options.screen?.clear();
+            const turns = chats.messages(result.branch.id);
+            core.resume(result.branch.id, chats.replay?.(result.branch.id, turns).turns ?? turns);
+            sendOpened(result.branch.id, turns, false);
+          }
+          if (result.ok && (command.action === "flags" || result.branch)) sendChats();
+          send(result);
+        } catch { fail("The chat change could not be confirmed. Refresh the chat list before retrying."); }
+        return;
       }
       case "chat.rename": {
         const writer = chatWriter(command.id);
@@ -257,7 +381,7 @@ export function runIsland(options: IslandOptions): IslandSession {
         const chats = options.chats;
         if (!chats || !core.resume) return;
         const turns = chats.messages(command.id);
-        if (!turns.length) {
+        if (!turns.length && !chats.metadataOf?.(command.id)) {
           sendChats();
           return;
         }
@@ -773,6 +897,7 @@ export function runIsland(options: IslandOptions): IslandSession {
   let openThread: number | undefined;
   const stopHelperUpdates = options.helpers?.onChange(() => {
     if (helpersWatched) sendHelpers();
+    if (options.taskActivity) refreshTaskState();
     if (openThread === undefined) return;
     const thread = options.helpers?.thread(openThread);
     if (thread) send({ type: "thread", ...thread });
@@ -864,7 +989,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     send({
       type: "chat.opened",
       id,
-      messages: turns.map((m) => ({ role: m.role as "user" | "assistant", text: m.content })),
+      messages: turns.map((m, i) => ({ role: m.role as "user" | "assistant", text: m.content, seq: i + 1 })),
       ...(projectId ? { projectId } : {}),
       ...(trimmed ? { trimmed: true as const } : {}),
     });
@@ -973,8 +1098,10 @@ export function runIsland(options: IslandOptions): IslandSession {
     stopBriefUpdates?.();
     stopBrainUpdates?.();
     stopChatUpdates?.();
+    stopChatWork?.();
     stopPosted?.();
     stopHelperUpdates?.();
+    stopTaskActivity?.();
     stopPlanUsage?.();
     stopTimers?.();
     stopGoalLines?.();

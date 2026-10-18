@@ -172,7 +172,7 @@ public enum BoardColumn: String, Sendable, Equatable, CaseIterable {
 
     /// Failed tasks need you, and held tasks (a plan to approve, an interrupted run); stopped ones are done with.
     public static func of(_ job: HelperJob) -> BoardColumn {
-        job.held != nil ? .needsYou : of(job.state)
+        job.retriedAs != nil ? .done : job.held != nil ? .needsYou : of(job.state)
     }
 
     public static func of(_ state: JobState) -> BoardColumn {
@@ -887,7 +887,7 @@ public struct HelpersState: Sendable, Equatable {
 
     /// ADR-090: tries a failed or stopped task again.
     public mutating func retry(_ id: Int) -> IslandCommand? {
-        guard let state = list?.item(id)?.job.state, state == .failed || state == .stopped else { return nil }
+        guard let job = list?.item(id)?.job, job.retriedAs == nil, job.state == .failed || job.state == .stopped else { return nil }
         return waiting(.jobRetry(id: id))
     }
 

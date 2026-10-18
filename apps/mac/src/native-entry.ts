@@ -1,6 +1,6 @@
 import type { Core } from "@atom/core";
 import type { Message } from "@atom/contracts";
-import { HelperError, MAX_COMMENT_CHARS, type Routine } from "@atom/helpers";
+import { HelperError, MAX_COMMENT_CHARS, type Routine, type HelperStore } from "@atom/helpers";
 import type { LogFields } from "@atom/shared";
 import { chatWriter, isSharedChat } from "./chat-owner.ts";
 import { TELEGRAM_CHAT } from "./telegram-bot.ts";
@@ -112,6 +112,36 @@ export function nativeSteering(cores: () => Iterable<{ steer(job: number, text: 
 /** A task given from the ATOM window's worker page or its Retry button: a chat of its own, "task-<n>". */
 export const taskChat = (n: number) => `task-${n}`;
 
+/** Only persisted host-created retry chats inherit the original task's provider/project/read context. */
+export function retrySourceChat(store: Pick<HelperStore, "get">, chat: string): string | undefined {
+  const match = /^task-retry-(\d+)$/.exec(chat);
+  if (!match) return undefined;
+  let job = store.get(Number(match[1]));
+  if (job?.chatId !== chat || job.retryOf === undefined) return undefined;
+  const seen = new Set<number>();
+  while (job?.retryOf !== undefined) {
+    if (seen.has(job.id) || seen.size >= 1000) return undefined;
+    seen.add(job.id); job = store.get(job.retryOf);
+  }
+  return job?.chatId;
+}
+
+/** All entry points share the same persisted retry claim; transport re-delivery cannot dispatch it twice. */
+export function nativeRetryStarter(deps: {
+  store: Pick<HelperStore, "queueNativeRetry" | "failQueuedRetry">;
+  start(helper: string, task: string, attempt: { id: number; retryOf: number }): void;
+}): (id: number) => void {
+  return (id) => {
+    const { job, created } = deps.store.queueNativeRetry(id);
+    if (!created) return;
+    try { deps.start(job.helper, job.task, { id: job.id, retryOf: job.retryOf! }); }
+    catch (error) {
+      deps.store.failQueuedRetry(job.id, reasonOf(error));
+      throw error;
+    }
+  };
+}
+
 export interface TaskTurnDeps {
   /** A native Core of its own, client_composed (makeCore(true)). */
   core: Pick<Core, "handle" | "resume">;
@@ -120,6 +150,11 @@ export interface TaskTurnDeps {
   log: { info(event: string, fields: LogFields): void; warn(event: string, fields: LogFields): void };
   /** A line for Keshab when a task's turn could not run (it used to fail with only a log line and no reason). */
   failed?(line: string): void;
+  retrySettled?(job: number, reason?: string): void;
+  /** A removed/cancelled intent must not start when its queued turn reaches the front. */
+  retryPending?(job: number): boolean;
+  /** True while any window task turn is queued/running; false once the queue drains. */
+  activity?(active: boolean): void;
   /** The chat ids need a number that never repeats: the clock by default. */
   now?(): number;
 }
@@ -128,28 +163,42 @@ export interface TaskTurnDeps {
  * ADR-110 N5: a task from the window is a main-agent turn that hands it to the worker (the legacy runner is gone). Turns go
  * one at a time. Throws HelperError for an unknown worker or an empty task, so the window shows words.
  */
-export function taskStarter(deps: TaskTurnDeps): (helper: string, task: string) => void {
+export function taskStarter(deps: TaskTurnDeps): (helper: string, task: string, attempt?: { id: number; retryOf: number }) => void {
   let queue: Promise<void> = Promise.resolve();
   let last = 0;
-  return (helper, raw) => {
+  let pending = 0;
+  const notify = () => {
+    try { deps.activity?.(pending > 0); }
+    catch { deps.log.warn("task.activity_failed", {}); }
+  };
+  return (helper, raw, attempt) => {
     const task = raw.trim();
     if (!task) throw new HelperError("The task is empty.");
     const name = deps.name(helper);
     if (!name) throw new HelperError(`There is no worker called "${helper.slice(0, 40)}".`);
-    const chat = taskChat((last = Math.max((deps.now ?? Date.now)(), last + 1)));
+    const chat = attempt ? `task-retry-${attempt.id}` : taskChat((last = Math.max((deps.now ?? Date.now)(), last + 1)));
+    if (++pending === 1) notify();
     queue = queue.then(async () => {
+      let reason: string | undefined;
       try {
+        if (attempt && deps.retryPending && !deps.retryPending(attempt.id)) return;
         deps.core.resume(chat, []);
         await deps.core.handle({ text: `${name}, ${task}`, source: "text" });
         deps.log.info("task.turn", { helper, ok: true });
       } catch (error) {
-        const reason = reasonOf(error);
+        reason = reasonOf(error);
         deps.log.warn("task.turn", { helper, ok: false, message: reason });
         try {
           deps.failed?.(`${name}'s task did not run: ${reason}`);
         } catch {
           // A throwing notice must not leave the queue rejected: every later task would be skipped.
         }
+      } finally {
+        if (attempt) {
+          try { deps.retrySettled?.(attempt.id, reason); }
+          catch { deps.log.warn("task.retry_settle_failed", { job: attempt.id }); }
+        }
+        if (--pending === 0) notify();
       }
     });
   };

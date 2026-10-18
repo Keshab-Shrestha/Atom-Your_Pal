@@ -1,89 +1,108 @@
 import Foundation
 
-/// A message typed while ATOM answers, waiting for the answer to end (ADR-127).
-public struct QueuedMessage: Sendable, Equatable {
+/// One unsent message, with identity preserved while queued and across restart (ADR-142).
+public struct QueuedMessage: Sendable, Equatable, Codable, Identifiable {
+    public let id: String
     public var text: String
     public var files: ComposerDraft
-    /// The chat it was typed in ("" for a new chat before its first answer).
     public var chat: String?
 
-    public init(text: String, files: ComposerDraft, chat: String?) {
+    public init(text: String, files: ComposerDraft, chat: String?, id: String = UUID().uuidString) {
+        self.id = id
         self.text = text
         self.files = files
         self.chat = chat
     }
+
+    private enum CodingKeys: String, CodingKey { case id, text, files, chat }
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        // ADR-141's single waiting message had no id; migration gives it one without sending it.
+        id = try values.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
+        text = try values.decode(String.self, forKey: .text)
+        files = try values.decode(ComposerDraft.self, forKey: .files)
+        chat = try values.decodeIfPresent(String.self, forKey: .chat)
+    }
 }
 
-/// ADR-127: typing while ATOM answers no longer cuts the answer off. The message waits here and goes when the turn
-/// ends; a stopped or failed turn, or leaving the chat, puts it back in the box instead.
-///
-/// A turn runs while the runtime is transcribing, thinking or speaking (using the Mac and waiting for an OK happen
-/// inside thinking). Listening is not counted: then the microphone is Keshab's, and a typed message goes at once, as
-/// before.
+/// A bounded FIFO. Only a newly completed active turn can advance it; duplicate idle events cannot drain it.
+/// Restored messages are held separately in ChatInput and never populate this live queue.
 public struct MessageQueue: Sendable, Equatable {
+    public static let limit = 20
     public enum Outcome: Sendable, Equatable {
         case none
-        /// Send it now: the answer it waited for is done.
         case send(QueuedMessage)
-        /// Not sent: back into the box of its chat.
-        case backToBox(QueuedMessage)
+        case backToBox([QueuedMessage])
     }
 
-    public private(set) var next: QueuedMessage?
-    public private(set) var running = false
+    public private(set) var messages: [QueuedMessage] = []
+    public var next: QueuedMessage? { messages.first }
+    public var running: Bool { active || awaitingStart }
+    public private(set) var awaitingStart = false
+    private var active = false
     private var stop = false
     private var failure = false
-
     public init() {}
 
-    /// The runtime's loop changed state. At idle the waiting message goes, unless the turn was stopped or failed, or
-    /// `chat` (the open chat now) is another one.
     public mutating func turn(_ state: LoopState, chat: String? = nil) -> Outcome {
-        running = state == .transcribing || state == .thinking || state == .speaking
+        let ended = active
+        active = state == .transcribing || state == .thinking || state == .speaking
+        if active { awaitingStart = false }
         guard state == .idle else { return .none }
-        let back = stop || failure
+        let elsewhere = messages.contains { chat != nil && $0.chat != chat && $0.chat != "" }
+        if stop || failure || elsewhere {
+            stop = false
+            failure = false
+            let held = takeAll()
+            return held.isEmpty ? .none : .backToBox(held)
+        }
+        guard ended, !awaitingStart, let message = take() else { return .none }
+        didDispatch()
+        return .send(message)
+    }
+
+    /// Each submission keeps its own attachment limit and text. A full queue never consumes the incoming draft.
+    @discardableResult public mutating func add(text: String, files: ComposerDraft, chat: String?) -> QueuedMessage? {
+        guard messages.count < Self.limit, messages.allSatisfy({ $0.chat == chat }) else { return nil }
+        let message = QueuedMessage(text: text, files: files, chat: chat)
+        messages.append(message)
+        return message
+    }
+
+    /// Wait for the submitted turn to begin before accepting its completion. This also covers Send next now.
+    public mutating func didDispatch() {
+        active = false
+        awaitingStart = true
         stop = false
         failure = false
-        guard let message = next else { return .none }
-        next = nil
-        let elsewhere = chat != nil && message.chat != chat && message.chat != ""
-        return back || elsewhere ? .backToBox(message) : .send(message)
     }
-
-    /// Adds to the waiting message: words after a blank line, files once each (5 at most, as one message).
-    public mutating func add(text: String, files: ComposerDraft, chat: String?) {
-        guard var message = next else {
-            next = QueuedMessage(text: text, files: files, chat: chat)
-            return
-        }
-        let words = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !words.isEmpty { message.text = message.text.isEmpty ? words : message.text + "\n\n" + words }
-        message.files.add(files.files.map(\.path))
-        for note in files.notes { message.files.add(note: note) }
-        next = message
-    }
-
-    /// Keshab pressed Stop.
-    public mutating func stopped() { if running { stop = true } }
-    /// The turn ended in an error.
+    public mutating func stopped() { if running || !messages.isEmpty { stop = true } }
     public mutating func failed() { if running { failure = true } }
 
-    /// Takes the waiting message out (Edit, or Send now).
-    public mutating func take() -> QueuedMessage? {
-        defer { next = nil }
-        return next
+    public mutating func take(id: String? = nil) -> QueuedMessage? {
+        let index = id.flatMap { wanted in messages.firstIndex { $0.id == wanted } }
+        if id != nil {
+            guard let index else { return nil }
+            return messages.remove(at: index)
+        }
+        return messages.isEmpty ? nil : messages.removeFirst()
     }
 
-    /// A command about to be sent. Opening another chat, starting a new one or deleting this one cancels the answer;
-    /// the waiting message is handed back to go into this chat's box, before the chat changes.
-    public mutating func sending(_ command: IslandCommand) -> QueuedMessage? {
-        guard let message = next else { return nil }
+    /// The persisted copies remain held for review; they are never automatically requeued.
+    @discardableResult public mutating func takeAll() -> [QueuedMessage] {
+        let held = messages
+        messages = []
+        awaitingStart = false
+        return held
+    }
+
+    @discardableResult public mutating func sending(_ command: IslandCommand) -> [QueuedMessage] {
         switch command {
         case .chatOpen, .chatNew, .conversationReset: break
-        case .chatDelete(let id) where id == message.chat: break
-        default: return nil
+        case .chatDelete(let id) where messages.contains(where: { $0.chat == id }): break
+        default: return []
         }
-        next = nil
-        return message
+        active = false
+        return takeAll()
     }
 }

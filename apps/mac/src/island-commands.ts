@@ -1,5 +1,7 @@
 // The commands from the island, their allowlist and the parser (moved from island-protocol.ts; docs/island-protocol.md is the specification).
 
+import { parseChatControl, type ChatControlRequest } from "./chat-controls.ts";
+import { parseForeground, type ForegroundCommand } from "./foreground-recovery.ts";
 import type { RoutineInput, SoulItem } from "./island-items.ts";
 import { BRANCH_COMMAND_PATTERN, BRANCH_SHAPE } from "./branch-prefix.ts";
 
@@ -15,6 +17,10 @@ export const MAX_SEARCH_QUERY = 200;
 export const MAX_STEER_CHARS = 2000;
 
 export type IslandCommand =
+  | ForegroundCommand
+  | { type: "chat.work.watch" }
+  | { type: "chat.question.answer"; chat: string; turn: string; id: string; text?: string }
+  | ChatControlRequest
   | { type: "talk.start" }
   | { type: "talk.send" }
   | { type: "talk.cancel" }
@@ -72,7 +78,7 @@ export type IslandCommand =
   | { type: "brief.get" }
   | { type: "brief.run" }
   | { type: "brief.set"; change: BriefChange }
-  | { type: "text.send"; text: string; files?: string[]; notes?: number[] }
+  | { type: "text.send"; text: string; files?: string[]; notes?: number[]; request?: string; chat?: string }
   | { type: "episode.forget"; id: number }
   | { type: "episode.clear" }
   | { type: "context.window"; bundleId: string; name: string }
@@ -169,6 +175,10 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "skill.get",
   "skill.save",
   "chats.list",
+  "chat.control",
+  "chat.question.answer",
+  "chat.work.watch",
+  "foreground.list", "foreground.read", "foreground.dismiss", "foreground.ack",
   "chat.new",
   "chat.rename",
   "project.add",
@@ -301,6 +311,9 @@ export function parseCommand(line: string): ParsedLine {
     return { command: { type, id, approved, ...(rememberFile === undefined ? {} : { rememberFile }) } };
   }
   if (type === "text.send") {
+    const delivery = value as Record<string, unknown>;
+    if ((delivery.request !== undefined || delivery.chat !== undefined) && (typeof delivery.request !== "string" || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(delivery.request)
+        || typeof delivery.chat !== "string" || !/^[\w-]{1,100}$/.test(delivery.chat))) return { error: "Identified text.send needs a delivery UUID and its source chat." };
     const { text, files, notes } = value as { text?: unknown; files?: unknown; notes?: unknown };
     // Files may go with the words (ADR-113): up to 5 full paths; the words may then be empty.
     if (files !== undefined && (!Array.isArray(files) || files.length > 5 || files.some((f) => typeof f !== "string" || f === "" || f.length > 1000))) {
@@ -315,7 +328,7 @@ export function parseCommand(line: string): ParsedLine {
     if (attached.length + picked.length > 5) return { error: "text.send: a message takes 5 files and notes at most." };
     if (typeof text !== "string" || (!text.trim() && !attached.length && !picked.length)) return { error: 'text.send needs a non-empty "text".' };
     if (text.length > 4000) return { error: "text.send: the text is longer than 4000 characters." };
-    return { command: { type, text, ...(attached.length ? { files: attached } : {}), ...(picked.length ? { notes: picked } : {}) } };
+    return { command: { type, text, ...(attached.length ? { files: attached } : {}), ...(picked.length ? { notes: picked } : {}), ...(delivery.request ? { request: delivery.request as string, chat: delivery.chat as string } : {}) } };
   }
   if (type === "context.window") {
     const { bundleId, name } = value as { bundleId?: unknown; name?: unknown };
@@ -508,6 +521,16 @@ export function parseCommand(line: string): ParsedLine {
       return { error: `${type} needs a "repo" (a full path) and a "branch" (${BRANCH_SHAPE}).` };
     }
     return { command: { type, repo, branch } };
+  }
+  if (type === "chat.control") return parseChatControl(value as Record<string, unknown>);
+  if (type.startsWith("foreground.")) return parseForeground(value as Record<string, unknown>);
+  if (type === "chat.work.watch") return Object.keys(value).length === 1 ? { command: { type } } : { error: "chat.work.watch accepts no fields." };
+  if (type === "chat.question.answer") {
+    const v = value as Record<string, unknown>;
+    const uuid = (key: string) => typeof v[key] === "string" && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(String(v[key]));
+    if (Object.keys(v).some((key) => !["type", "chat", "turn", "id", "text"].includes(key)) || typeof v.chat !== "string" || !/^[\w-]{1,100}$/.test(v.chat)
+        || !uuid("turn") || !uuid("id") || (v.text !== undefined && (typeof v.text !== "string" || !v.text.trim() || v.text.length > 2000))) return { error: "A question answer needs its current chat/turn/card ids and at most 2,000 text characters; omit text to skip." };
+    return { command: v as unknown as Extract<IslandCommand, { type: "chat.question.answer" }> };
   }
   const projects = projectCommand(type, value as Record<string, unknown>);
   if (projects) return projects;

@@ -52,7 +52,7 @@ import {
 export const MAX_TASK_CHARS = 1000;
 export const MAX_GOAL_CHARS = 1000;
 export const JOBS_PER_HELPER = 20;
-export const CLOSED_WHILE_RUNNING = "ATOM was closed while this job ran";
+export const CLOSED_WHILE_RUNNING = "ATOM closed before this attempt's outcome was confirmed. Files may already have changed. Review the last step, tool history and file changes before trying again.";
 /** Soul versions listed per worker (all are kept). */
 export const SOUL_VERSIONS_LISTED = 10;
 
@@ -68,10 +68,14 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   createSchema(db);
   const opened = now();
   // A job cannot outlive the process that ran it.
-  db.prepare("UPDATE jobs SET state = 'failed', step = NULL, error = ?, ended_at = ?, wake_pending = 0 WHERE state = 'running'").run(
-    CLOSED_WHILE_RUNNING,
-    opened.toISOString(),
-  );
+  db.exec("BEGIN");
+  try {
+    db.exec("UPDATE jobs SET retry_next = (SELECT child.id FROM jobs child WHERE child.retry_of = jobs.id) WHERE retry_next IS NULL AND EXISTS (SELECT 1 FROM jobs child WHERE child.retry_of = jobs.id)");
+    db.prepare("UPDATE jobs SET recovery_needed = 1, error = ? WHERE state = 'failed' AND error = 'ATOM was closed while this job ran' AND recovery_needed IS NULL").run(CLOSED_WHILE_RUNNING);
+    db.prepare("INSERT INTO job_events(job_id, kind, at) SELECT id, 'interrupted', ? FROM jobs WHERE state = 'running' OR (state = 'queued' AND retry_of IS NOT NULL)").run(opened.toISOString());
+    db.prepare("UPDATE jobs SET state = 'failed', recovery_needed = 1, error = ?, ended_at = ?, wake_pending = 0 WHERE state = 'running' OR (state = 'queued' AND retry_of IS NOT NULL)").run(CLOSED_WHILE_RUNNING, opened.toISOString());
+    db.exec("COMMIT");
+  } catch (error) { db.exec("ROLLBACK"); db.close(); throw error; }
 
   const appOf = db.prepare("SELECT app FROM helper_apps WHERE helper = ?");
   const putApp = db.prepare("INSERT INTO helper_apps (helper, app) VALUES (?, ?) ON CONFLICT (helper) DO UPDATE SET app = excluded.app");
@@ -184,6 +188,10 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const childrenOf = db.prepare("SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.parent_id = ? ORDER BY j.id");
   const dropBlocker = db.prepare("DELETE FROM job_blockers WHERE job_id = ? AND blocker_id = ?");
   const jobById = db.prepare("SELECT j.*, r.title, r.summary FROM jobs j LEFT JOIN reports r ON r.job_id = j.id WHERE j.id = ?");
+  const retryOf = db.prepare("SELECT id FROM jobs WHERE retry_of = ?");
+  const retryInChat = db.prepare("SELECT id FROM jobs WHERE chat_id = ? AND retry_of IS NOT NULL");
+  const linkRetry = db.prepare("UPDATE jobs SET retry_of = ?, chat_id = ? WHERE id = ?");
+  const rememberRetry = db.prepare("UPDATE jobs SET retry_next = ? WHERE id = ?");
   const insertJob = db.prepare(
     "INSERT INTO jobs (helper, task, state, created_at, goal, parent_id, goal_id, plan_first) VALUES (?, ?, 'queued', ?, ?, ?, ?, ?)",
   );
@@ -237,9 +245,11 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
   const toJob = (row: JobRow): Job => {
     const blockers = blockersOf.all(row.id) as { id: number; state: string }[];
+    const next = row.retry_next != null ? { id: row.retry_next } : retryOf.get(row.id) as { id: number } | undefined;
     const goalEnded = row.goal_id != null && Boolean((goalEndedAt.get(row.goal_id) as { ended_at: string | null } | undefined)?.ended_at);
     return {
       ...toJobRow(row),
+      ...(next ? { retriedAs: next.id } : {}),
       ...(goalEnded ? { goalEnded } : {}),
       blockedBy: blockers.map((b) => b.id),
       waitingFor: blockers.filter((b) => b.state !== "done").map((b) => b.id),
@@ -330,9 +340,9 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     log(job.id, to, ended);
     emit({ action: "job", helper: job.helper, job: job.id, state: to, ...(ended ? { ms: ended.getTime() - job.createdAt.getTime() } : {}) });
     // Asked again while it ran: one more run, instead of failing what waits for it.
-    if (pending) return wake(get(job.id)!);
+    if (pending && !job.chatId && !options.retryNative) return wake(get(job.id)!);
     // ADR-090: a failure a second try may fix is retried once by itself, before anything waiting for it fails.
-    if (to === "failed" && isRetryable(fields.error) && (get(job.id)?.autoRetries ?? 0) < MAX_AUTO_RETRIES) {
+    if (to === "failed" && !job.chatId && !options.retryNative && isRetryable(fields.error) && (get(job.id)?.autoRetries ?? 0) < MAX_AUTO_RETRIES) {
       bumpRetries.run(job.id);
       log(job.id, "retried");
       return wake(get(job.id)!);
@@ -355,6 +365,8 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
   /** Task 3.6: an ended task runs again (its goal opens again); a running one runs once more when it ends. */
   function wake(job: Job) {
+    // Native attempts never reuse an old run through legacy comments/auto-wake. Explicit retries get a new identity.
+    if (job.chatId || options.retryNative) return;
     if (job.state === "running") {
       setPending.run(1, job.id);
       return;
@@ -633,6 +645,16 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
     addNativeJob(helper, raw, links) {
       const known = availableHelper(helper);
+      const reserved = retryInChat.get(links.chatId) as { id: number } | undefined;
+      if (!reserved && /^task-retry-\d+$/.test(links.chatId)) throw new HelperError("That retry attempt no longer exists. Start a new task instead.");
+      if (reserved) {
+        const attempt = mustGet(reserved.id);
+        if (attempt.helper !== helper) throw new HelperError("This retry is reserved for its original worker.");
+        if (attempt.state !== "queued" || Number(claim.run(attempt.id).changes) !== 1) throw new HelperError("This retry attempt was already dispatched. Review its task instead of starting it again.");
+        log(attempt.id, "running");
+        emit({ action: "job", helper, job: attempt.id, state: "running" });
+        return mustGet(attempt.id);
+      }
       const trimmed = raw.trim();
       const task = cleanTask(trimmed.length > MAX_TASK_CHARS ? `${trimmed.slice(0, MAX_TASK_CHARS - 1)}…` : trimmed);
       let id = 0;
@@ -644,6 +666,42 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       });
       emit({ action: "job", helper: known.id, job: id, state: "running" });
       return mustGet(id);
+    },
+
+    queueNativeRetry(id) {
+      let attempt = 0, created = false;
+      transaction(() => {
+        const old = mustGet(id);
+        if (old.retriedAs !== undefined) {
+          if (!get(old.retriedAs)) throw new HelperError(`Retry attempt #${old.retriedAs} was removed. Start a new task instead of replaying this retry request.`);
+          attempt = old.retriedAs; return;
+        }
+        if (old.state !== "failed" && old.state !== "stopped") throw new HelperError("Only a failed or stopped task can be tried again.");
+        availableHelper(old.helper);
+        attempt = insertTask(old.helper, old.task, [], { goal: null, parentId: null, goalId: null, planFirst: false });
+        linkRetry.run(id, `task-retry-${attempt}`, attempt);
+        rememberRetry.run(attempt, id);
+        log(id, "retried"); created = true;
+      });
+      if (created) emit({ action: "job", helper: mustGet(attempt).helper, job: attempt, state: "queued" });
+      return { job: mustGet(attempt), created };
+    },
+
+    failQueuedRetry(id, reason) {
+      const job = get(id);
+      if (job?.retryOf !== undefined && job.state === "queued") transition(job, "failed", { error: reason });
+    },
+
+    recoverNativeJob(id) {
+      const job = get(id);
+      if (!job?.chatId || job.state !== "running") return;
+      const ended = now().toISOString();
+      let changed = false;
+      transaction(() => {
+        changed = Number(db.prepare("UPDATE jobs SET state = 'failed', recovery_needed = 1, error = ?, ended_at = ?, wake_pending = 0 WHERE id = ? AND state = 'running'").run("The worker's session ended before its outcome was confirmed. Files may already have changed. Review this attempt before retrying.", ended, id).changes) === 1;
+        if (changed) log(id, "interrupted");
+      });
+      if (changed) emit({ action: "job", helper: job.helper, job: id, state: "failed" });
     },
 
     linkNativeTask(id, sdkTaskId) {
@@ -675,7 +733,9 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
 
     retry(id) {
+      if (options.retryNative) return options.retryNative(id);
       const job = mustGet(id);
+      if (job.chatId) throw new HelperError("Native tasks need the runtime's explicit retry dispatcher.");
       if (job.state !== "failed" && job.state !== "stopped") throw new HelperError("Only a failed or stopped task can be tried again.");
       log(id, "retried");
       wake(job);
@@ -683,6 +743,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
     startFresh(id) {
       const job = mustGet(id);
+      if (job.chatId) throw new HelperError("Native tasks start a new attempt through Retry; their original attempt is kept.");
       if (job.state === "running") throw new HelperError("Wait for the run to end, or stop it, before starting fresh.");
       putSession.run(null, id);
       log(id, "fresh");

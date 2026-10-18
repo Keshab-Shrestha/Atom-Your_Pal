@@ -118,6 +118,9 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     public var summary: String?
     /// Why the job failed.
     public var error: String?
+    public var recoveryNeeded: Bool
+    public var retryOf: Int?
+    public var retriedAs: Int?
     /// The model id the job runs on, once chosen, and why in plain words ("Laya: moderate", "Pinned") (ADR-083).
     public var model: String?
     public var modelReason: String?
@@ -160,7 +163,7 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
                 comments: Int = 0, goal: String? = nil, parentId: Int? = nil, goalId: Int? = nil, goalEnded: Bool = false,
                 resumable: Bool = false, held: String? = nil, interrupted: Bool = false, planFirst: Bool = false, planStatus: String? = nil,
                 planSummary: String? = nil, rating: String? = nil, reviews: Int? = nil, autoRetries: Int = 0,
-                subAgents: [HelperSubAgent] = [], labels: [String] = []) {
+                subAgents: [HelperSubAgent] = [], labels: [String] = [], recoveryNeeded: Bool = false, retryOf: Int? = nil, retriedAs: Int? = nil) {
         self.id = id
         self.task = task
         self.state = state
@@ -171,6 +174,9 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
         self.title = title
         self.summary = summary
         self.error = error
+        self.recoveryNeeded = recoveryNeeded
+        self.retryOf = retryOf
+        self.retriedAs = retriedAs
         self.model = model
         self.modelReason = modelReason
         self.blockedBy = blockedBy
@@ -205,7 +211,7 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     }
 
     /// The state badge's word: a done job that hit a limit says so.
-    public var badge: String { state == .done && partial ? "Partial" : state.title }
+    public var badge: String { retriedAs != nil ? "Retried" : recoveryNeeded ? "Interrupted" : state == .done && partial ? "Partial" : state.title }
 
     /// How far a running job is, from its step's "n of m" ("Reading 3 of 8 pages" is 3/8), for the ATOM window's
     /// line of light (ADR-084). Nil when the job is not running or its step has no count it can trust.

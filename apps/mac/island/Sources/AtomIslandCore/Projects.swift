@@ -51,12 +51,12 @@ extension ChatList {
     /// The chats that are in no project (and in none the runtime no longer lists), newest first.
     public var plainChats: [ChatInfo] {
         let known = Set((projects ?? []).map(\.id))
-        return chats.filter { $0.projectId.map(known.contains) != true }
+        return chats.filter { !$0.archived && $0.projectId.map(known.contains) != true }.sorted { $0.pinned != $1.pinned ? $0.pinned : ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast) }
     }
 
     /// A project's chats, newest first (the runtime sends them newest first; this keeps that order).
     public func chats(in projectId: String) -> [ChatInfo] {
-        chats.filter { $0.projectId == projectId }
+        chats.filter { $0.projectId == projectId && !$0.archived }.sorted { $0.pinned != $1.pinned ? $0.pinned : ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast) }
     }
 
     /// The projects shown in the list: the open ones; archived ones only when asked.

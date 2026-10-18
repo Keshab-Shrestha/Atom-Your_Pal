@@ -4,7 +4,7 @@ import Foundation
 // no views. The runtime checks every file again (type, size, secrets); this only keeps the list tidy.
 
 /// A file chosen for the next message.
-public struct DraftFile: Sendable, Equatable, Identifiable {
+public struct DraftFile: Sendable, Equatable, Identifiable, Codable {
     public var path: String
     public var id: String { path }
     public var name: String { (path as NSString).lastPathComponent }
@@ -13,7 +13,7 @@ public struct DraftFile: Sendable, Equatable, Identifiable {
 }
 
 /// A Second brain note to send with a message, as "<title>.md" (ADR-126).
-public struct DraftNote: Sendable, Equatable, Identifiable {
+public struct DraftNote: Sendable, Equatable, Identifiable, Codable {
     public var id: Int
     public var title: String
 
@@ -23,7 +23,7 @@ public struct DraftNote: Sendable, Equatable, Identifiable {
     }
 }
 
-public struct ComposerDraft: Sendable, Equatable {
+public struct ComposerDraft: Sendable, Equatable, Codable {
     /// The most files one message takes (the runtime's limit).
     public static let maxFiles = 5
     /// The most characters one message takes (the runtime's limit).
@@ -35,6 +35,28 @@ public struct ComposerDraft: Sendable, Equatable {
     public private(set) var notice: String?
 
     public init() {}
+
+    private enum CodingKeys: String, CodingKey { case files, notes }
+
+    /// Saved paths and note ids are input references, never permissions. Reject malformed snapshots without truncation.
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let savedFiles = try values.decode([DraftFile].self, forKey: .files)
+        let savedNotes = try values.decode([DraftNote].self, forKey: .notes)
+        files = savedFiles
+        notes = savedNotes
+        guard validSavedReferences else {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid saved attachments"))
+        }
+    }
+
+    var validSavedReferences: Bool {
+        files.count + notes.count <= Self.maxFiles
+            && Set(files.map(\.path)).count == files.count
+            && Set(notes.map(\.id)).count == notes.count
+            && files.allSatisfy { $0.path.hasPrefix("/") && $0.path.utf8.count <= 4096 && !$0.path.contains("\0") }
+            && notes.allSatisfy { $0.id > 0 && $0.title.utf8.count <= 4096 }
+    }
 
     /// Adds files by full path. Duplicates and non-file URLs are skipped; past the limit the rest are dropped with a notice.
     public mutating func add(_ paths: [String]) {

@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 import AtomIslandCore
 
@@ -17,6 +18,9 @@ final class IslandModel {
     var work = WorkStripState()
     var meter = LevelMeter(bars: 14)
     var conversation = Conversation()
+    var chatControls = ChatControlsState()
+    var recovery = ForegroundRecoveryState()
+    var dispatchedInputIDs = Set<String>()
     /// The model in use and the choices, from the runtime's `info` event.
     var modelInfo: ModelInfo?
     /// A model switch sent to the runtime and not yet confirmed (model id).
@@ -71,8 +75,78 @@ final class IslandModel {
     /// Settings home has already cascaded in (ADR-084): once per launch, now that the drop-down panel that reset it on
     /// each opening is gone (ADR-093).
     @ObservationIgnored var settingsCascaded = false
-    /// ADR-125: unsent words and files of the chats not open now (in memory only).
-    @ObservationIgnored var chatDrafts = ChatDrafts()
+    /// ADR-141: the panel and window share one composer per chat, persisted on every edit.
+    private(set) var input = ChatInput()
+    var inputNotice: String?
+    @ObservationIgnored private var inputStore: ChatInputStore?
+    @ObservationIgnored private var inputRuntimeReady = false
+    private var inputChat: String { chats?.current ?? "" }
+    var composerText: String {
+        get { input.entry(for: inputChat).text }
+        set { var entry = input.entry(for: inputChat); entry.text = newValue; input.set(entry, for: inputChat); saveInput() }
+    }
+    var composerFiles: ComposerDraft {
+        get { input.entry(for: inputChat).files }
+        set { var entry = input.entry(for: inputChat); entry.files = newValue; input.set(entry, for: inputChat); saveInput() }
+    }
+    var heldInputs: [QueuedMessage] {
+        let live = Set(queue.messages.map(\.id)).union(dispatchedInputIDs)
+        return input.entry(for: inputChat).waiting.filter { !live.contains($0.id) }
+    }
+    var otherInputChats: [String] { input.entries.keys.filter { $0 != inputChat }.sorted() }
+    var composerEmpty: Bool { composerText.isEmpty && composerFiles.isEmpty }
+    var composerFocusTick = 0
+
+    /// Other paste routes still receive a visible review step before composer submission.
+    @discardableResult
+    func cleanComposerForReview() -> Bool {
+        guard chats?.currentReadOnlyNotice == nil else { return false }
+        let result = HiddenCharacters.strip(composerText)
+        guard result.removed > 0 else { return false }
+        composerText = result.text
+        composerFiles.refuse("Removed \(result.removed) hidden controls. Review the message, then send again.")
+        return true
+    }
+
+    /// Reads the current turn at invocation, so an old chat's control cannot quote into a new chat.
+    func quoteReply(_ id: Int) {
+        guard chats?.currentReadOnlyNotice == nil,
+              let turn = conversation.turns.first(where: { $0.id == id }), !turn.isStreaming,
+              let reply = turn.reply else { return }
+        guard let text = ComposerQuote.appending(reply, to: composerText) else {
+            composerFiles.refuse("The quote will not fit. Shorten the draft or copy a smaller excerpt.")
+            return
+        }
+        composerText = text
+        composerFocusTick += 1
+    }
+
+    @discardableResult
+    func saveInput() -> Bool {
+        guard let inputStore else { return false }
+        do { try inputStore.save(input); inputNotice = nil; return true }
+        catch { inputNotice = "Input could not be saved. Keep ATOM open and free disk space. Nothing new will be sent without a saved local copy."; return false }
+    }
+
+    /// Existing chats open in their own context. Orphaned/new-chat input moves only on this explicit click into an empty box.
+    func openSavedInput(_ id: String) {
+        if chats?.chats.contains(where: { $0.id == id }) == true { send(.chatOpen(id: id)); return }
+        guard chats?.currentReadOnlyNotice == nil, composerEmpty, queue.next == nil, heldInputs.isEmpty else { return }
+        input.move(from: id, to: inputChat)
+        saveInput()
+    }
+
+    func savedInputTitle(_ id: String) -> String {
+        if let chat = chats?.chats.first(where: { $0.id == id }) { return chat.title }
+        let entry = input.entry(for: id)
+        let text = entry.text.isEmpty ? entry.waiting.first?.text ?? "" : entry.text
+        return "Unfinished chat: " + (text.isEmpty ? "Attachments" : String(text.prefix(45)))
+    }
+
+    func canOpenSavedInput(_ id: String) -> Bool {
+        chats?.chats.contains(where: { $0.id == id }) == true
+            || (chats?.currentReadOnlyNotice == nil && composerEmpty && queue.next == nil && heldInputs.isEmpty)
+    }
     /// The card's content at full size (ADR-084). False for the moment it opens, so it can grow in from the menu-bar
     /// icon, and while it closes. Set by the controller, inside the open and close animations.
     var presented = true
@@ -93,6 +167,36 @@ final class IslandModel {
     var searchCursor = SearchCursor()
     /// ADR-128: ⌘F with the sidebar hidden shows it first; the field focuses itself when it appears.
     var searchFocusPending = false
+
+    /// ADR-152: transient literal search of loaded turns, separate from global/sidebar search.
+    var chatFindShown = false
+    var chatFindQuery = ""
+    var chatFindSelection = 0
+    var chatFindFocusTick = 0
+    var chatFindScrollTick = 0
+
+    func openChatFind() {
+        chatFindShown = true
+        chatFindFocusTick += 1
+        chatFindScrollTick += 1
+    }
+
+    func setChatFindQuery(_ query: String) {
+        chatFindQuery = query
+        chatFindSelection = 0
+        chatFindScrollTick += 1
+    }
+
+    func moveChatFind(_ direction: Int) {
+        let count = ChatFind.search(conversation.turns, query: chatFindQuery).matches.count
+        guard count > 0 else { return }
+        chatFindSelection = (min(chatFindSelection, count - 1) + direction + count) % count
+        chatFindScrollTick += 1
+    }
+
+    private func resetChatFind() {
+        chatFindShown = false; chatFindQuery = ""; chatFindSelection = 0
+    }
 
     /// ADR-128: hide or show the window's left panel (⌥⌘H, the View menu, the button).
     func toggleSidebar() { settings.sidebarHidden.toggle() }
@@ -134,56 +238,135 @@ final class IslandModel {
 
     /// Sends a command to the runtime. ADR-127: a stop, or leaving the chat, settles a waiting message first.
     func send(_ command: IslandCommand) {
-        if command == .talkCancel { queue.stopped() }
-        if let back = queue.sending(command) { returned = back }
+        if command == .talkCancel {
+            queue.stopped()
+            queue.takeAll() // Stop holds every unsent entry immediately, without waiting for a later idle
+        }
+        queue.sending(command) // pending copies remain in their own chat for review
+        if case .chatDelete(let id) = command {
+            input.remove(id); saveInput()
+            recovery.record = nil; recovery.reading = nil
+            recovery.attempts.removeAll { $0.chat == id }
+        }
         transport(command)
+        if case .chatDelete = command { refreshForegroundRecovery() }
     }
 
     // MARK: ADR-127: a message typed while ATOM answers
 
     /// The message waiting for the answer to end, and whether a turn is running.
     private(set) var queue = MessageQueue()
-    /// A waiting message that was not sent (stopped, failed, chat left, or Edit): the composer puts it back in the box.
-    private(set) var returned: QueuedMessage?
-
-    /// The words and files wait for the answer; a second message joins the first.
+    /// Gallery fixtures and ordinary submissions use the same bounded FIFO.
     func queueMessage(_ text: String, draft: ComposerDraft) {
-        queue.add(text: text, files: draft, chat: chats?.current)
+        var entry = input.entry(for: inputChat)
+        guard entry.waiting.count < MessageQueue.limit,
+              let message = queue.add(text: text, files: draft, chat: inputChat) else { return }
+        entry.waiting.append(message)
+        input.set(entry, for: inputChat)
+        saveInput()
     }
 
-    /// The composer takes a returned message (once: the panel and the window each have a composer).
-    func takeReturned() -> QueuedMessage? {
-        defer { returned = nil }
-        return returned
+    /// Return appends one message while busy; Command-Return appends then sends the oldest live entry now.
+    /// An empty Command-Return can send the existing head without adding anything.
+    func submitComposer(now: Bool) {
+        guard chatControls.mutation == nil else { composerFiles.refuse("Wait for the chat change to be confirmed before sending."); return }
+        guard inputRuntimeReady else {
+            composerFiles.refuse("ATOM is starting or restarting. Your message stays here; send it when Ready.")
+            return
+        }
+        guard chats?.currentReadOnlyNotice == nil else { return }
+        if cleanComposerForReview() { return }
+        let text = composerText
+        let files = composerFiles
+        if let why = inputRefusal(text, files: files) { composerFiles.refuse(why); return }
+        guard files.command(text: text) != nil else {
+            if now { sendQueuedNow() }
+            return
+        }
+        var entry = input.entry(for: inputChat)
+        if queue.running || !queue.messages.isEmpty {
+            guard entry.waiting.count < MessageQueue.limit,
+                  let message = queue.add(text: text, files: files, chat: inputChat) else {
+                composerFiles.refuse("A chat holds \(MessageQueue.limit) unsent messages. Send, edit or remove one before queuing more.")
+                return
+            }
+            entry.waiting.append(message)
+            entry.text = ""
+            entry.files.clear()
+            input.set(entry, for: inputChat)
+            saveInput()
+            if now { sendQueuedNow() }
+        } else {
+            guard entry.waiting.count < MessageQueue.limit else { composerFiles.refuse("Review held input before sending more."); return }
+            let message = QueuedMessage(text: text, files: files, chat: inputChat)
+            entry.waiting.append(message)
+            entry.text = ""
+            entry.files.clear()
+            input.set(entry, for: inputChat)
+            guard saveInput() else { return }
+            if ask(text, draft: files, deliveryID: message.id) { queue.didDispatch() }
+        }
     }
 
-    /// Send now: like typing over ATOM before ADR-127, the answer stops and this message goes.
+    private func inputRefusal(_ text: String, files: ComposerDraft) -> String? {
+        if let why = ComposerDraft.refusal(forText: text) { return why }
+        if files.files.contains(where: { !FileManager.default.fileExists(atPath: $0.path) }) {
+            return "An attached file is missing. Remove it or attach it again before sending."
+        }
+        return nil
+    }
+
     func sendQueuedNow() {
-        guard let message = queue.take() else { return }
+        guard inputRuntimeReady, !queue.awaitingStart, let message = queue.take() else { return }
         sendQueued(message)
     }
 
-    /// Edit: the waiting message goes back into the box.
-    func editQueued() { returned = queue.take() }
+    /// Editing one entry never merges it with a draft or consumes another queue item.
+    func editWaitingInput(_ id: String) {
+        guard !recovery.syncPending, composerEmpty, chats?.currentReadOnlyNotice == nil else { return }
+        var entry = input.entry(for: inputChat)
+        guard let message = entry.waiting.first(where: { $0.id == id }) else { return }
+        _ = queue.take(id: id)
+        entry.text = message.text
+        entry.files = message.files
+        entry.waiting.removeAll { $0.id == id }
+        input.set(entry, for: inputChat)
+        saveInput()
+    }
+
+    func discardWaitingInput(_ id: String) {
+        _ = queue.take(id: id)
+        var entry = input.entry(for: inputChat)
+        entry.waiting.removeAll { $0.id == id }
+        input.set(entry, for: inputChat)
+        saveInput()
+    }
 
     private func sendQueued(_ message: QueuedMessage) {
-        // Joined messages can pass the length limit: then the box gets it back, and says why when sent.
-        guard ComposerDraft.refusal(forText: message.text) == nil else { return returned = message }
-        ask(message.text, draft: message.files)
+        guard inputRuntimeReady, message.chat == inputChat, chats?.currentReadOnlyNotice == nil else {
+            queue.takeAll()
+            return // all persisted entries remain held in their source chat
+        }
+        if let why = inputRefusal(message.text, files: message.files) {
+            queue.takeAll()
+            composerFiles.refuse(why)
+            return
+        }
+        if ask(message.text, draft: message.files, deliveryID: message.id) { queue.didDispatch() }
     }
 
     private func settleQueue(_ event: IslandEvent) {
         switch event {
         case .state(let state):
             switch queue.turn(state, chat: chats?.current) {
-            case .none: break
+            case .none, .backToBox: break // persisted entries are held automatically when absent from the live queue
             case .send(let message): sendQueued(message)
-            case .backToBox(let message): returned = message
             }
-        case .error(let error) where error.stage != "settings":
+        case .error(let error) where error.stage != "settings" || queue.awaitingStart:
+            dispatchedInputIDs = []
             queue.failed()
-        default:
-            break
+            queue.takeAll() // includes refused attachments before a turn starts; no later idle may send the tail
+        default: break
         }
     }
     /// A command was not sent because the runtime is not running: tell the user, and stop any "waiting" that expected its answer.
@@ -217,6 +400,11 @@ final class IslandModel {
     /// The runtime stopped or restarted: what the window was waiting for will not be answered (code review, 2026-10-16). Nothing reset
     /// these before, so a Save or a model switch could stay "waiting" for good.
     func runtimeStopped() {
+        dispatchedInputIDs = []
+        recovery.syncPending = false
+        conversation.interruptWork()
+        inputRuntimeReady = false
+        queue = MessageQueue() // all unsent copies remain held in the snapshot
         helpers.runtimeStopped()
         skillCommandPending = false
         brainCommandPending = false
@@ -239,9 +427,14 @@ final class IslandModel {
     /// Opens the ATOM window (ADR-081). Set by the controller.
     @ObservationIgnored var openHelpers: () -> Void = {}
 
-    init(settings: IslandSettings) {
+    init(settings: IslandSettings, inputURL: URL? = nil) {
         self.settings = settings
         recorder = ShortcutRecorder(settings: settings)
+        if let inputURL {
+            let store = ChatInputStore(url: inputURL)
+            do { input = try store.load(); inputStore = store }
+            catch { inputNotice = "Saved input could not be opened. The file is unchanged; new drafts will not be saved this launch. See Library/Application Support/ATOM/ChatInput/input.json." }
+        }
     }
 
     func chooseModel(provider: String, model: String) {
@@ -291,6 +484,24 @@ final class IslandModel {
     /// Stops the answer ATOM is working on or saying (the same as Esc while it speaks).
     func stopReply() { send(.talkCancel) }
 
+    @discardableResult
+    func answerChatQuestion(work: ChatWorkSnapshot, question: ChatWorkSnapshot.Question, text: String?) -> Bool {
+        guard chats?.current == work.chat,
+              let current = conversation.turns.last?.work, current.turn == work.turn, current.state == "working",
+              current.questions.contains(where: { $0.id == question.id && $0.state == "pending" }),
+              text.map({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.utf16.count <= 2000 }) ?? true else { return false }
+        if let text {
+            var entry = input.entry(for: work.chat)
+            entry.questionAnswers.removeAll { $0.id == question.id }
+            guard entry.questionAnswers.count < 20 else { recovery.notice = "Review saved question answers in Recovery before sending more."; return false }
+            entry.questionAnswers.append(PendingQuestionAnswer(id: question.id, turn: work.turn, chat: work.chat, question: question.prompt, answer: text.trimmingCharacters(in: .whitespacesAndNewlines)))
+            input.set(entry, for: work.chat)
+            guard saveInput() else { recovery.notice = "The answer could not be saved locally and was not sent. Free storage and try again."; return false }
+        }
+        send(.chatQuestionAnswer(chat: work.chat, turn: work.turn, id: question.id, text: text))
+        return true
+    }
+
     /// ADR-107: a new chat inside a project.
     func newChat(inProject id: String) { send(.chatNew(projectId: id)) }
 
@@ -299,6 +510,10 @@ final class IslandModel {
         projectError = nil
         projectCommandPending = true
         send(command)
+        if case .projectRemove = command {
+            recovery.record = nil; recovery.reading = nil
+            refreshForegroundRecovery()
+        }
     }
 
     /// ADR-107: the quiet line over a chat the model saw only in part.
@@ -444,12 +659,23 @@ final class IslandModel {
     var typedTurn = false
 
     /// A typed request from the Conversation tab. Ignored when empty or too long for the runtime.
-    func ask(_ text: String, draft: ComposerDraft = ComposerDraft(), spoken: Bool = false) {
+    @discardableResult
+    func ask(_ text: String, draft: ComposerDraft = ComposerDraft(), spoken: Bool = false, deliveryID: String? = nil) -> Bool {
         // A spoken question (the local Talk path) is not a typed turn: ATOM may listen for an answer to its follow-up (ADR-067). It used to be
         // marked as typed, so follow-up listening never began for a voice question (code check, 2026-10-16).
         typedTurn = !spoken
-        guard let command = draft.command(text: text) else { return }
-        send(command)
+        guard inputRuntimeReady, chats?.currentReadOnlyNotice == nil, draft.command(text: text) != nil else { return false }
+        let id = deliveryID ?? UUID().uuidString
+        var entry = input.entry(for: inputChat)
+        if !entry.waiting.contains(where: { $0.id == id }) {
+            guard entry.waiting.count < MessageQueue.limit else { recovery.notice = "Review held input before sending more."; return false }
+            entry.waiting.append(QueuedMessage(text: text, files: draft, chat: inputChat, id: id))
+            input.set(entry, for: inputChat)
+        }
+        guard saveInput() else { recovery.notice = "The request was not sent because its local copy could not be saved."; return false }
+        dispatchedInputIDs.insert(id)
+        send(.textSendAttempt(text: text.trimmingCharacters(in: .whitespacesAndNewlines), files: draft.files.map(\.path), notes: draft.notes.map(\.id), chat: inputChat, request: id))
+        return true
     }
 
     // MARK: ADR-096: Back, and leaving unsaved edits
@@ -556,14 +782,40 @@ final class IslandModel {
         approval.apply(event)
         pointing.apply(event)
         switch event {
+        case .foregroundReceipt(let receipt):
+            confirmForegroundInput(ids: [receipt.id], answers: [])
+            if receipt.archived && receipt.state == "completed" {
+                send(.foregroundAck(id: receipt.id)); refreshForegroundRecovery()
+            }
+            else if !["prepared", "running"].contains(receipt.state) { refreshForegroundRecovery() }
+        case .foregroundRecovery(let response):
+            acceptForegroundRecovery(response)
+        case .chatWork(let work):
+            let accepted = work.questions.filter { q in q.state == "answered" && unconfirmedAnswers.contains(where: { $0.id == q.id && $0.answer == q.answer }) }.map(\.id)
+            confirmForegroundInput(ids: [], answers: accepted)
+        case .chatControl(let response):
+            acceptChatControl(response)
         case .chats(let list):
+            if chats?.current != list.current { resetChatControlReading() }
+            if list.currentReadOnlyNotice != nil { queue.takeAll() }
+            if chats?.current != list.current { resetChatFind() }
+            if chats?.current != list.current { queue.takeAll() }
+            if (chats == nil || chats?.current == ""), !list.current.isEmpty {
+                input.move(from: "", to: list.current)
+            }
             chats = list
+            inputRuntimeReady = true
+            saveInput()
             projectCommandPending = false
             projectError = nil
             syncChatModelName()
         case .chatOpened(let id, _, _, let trimmed):
+            resetChatControlReading()
+            resetChatFind()
             trimmedChatId = trimmed ? id : nil
         case .conversationReset:
+            resetChatControlReading()
+            resetChatFind()
             trimmedChatId = nil
         case .api(let status):
             apiStatus = status
@@ -594,6 +846,13 @@ final class IslandModel {
         case .planUsage(let usage):
             planUsage = (planUsage ?? PlanUsage()).merging(usage)
         case .ready(let ready):
+            resetChatControlReading()
+            if chatControls.mutation != nil {
+                chatControls.waitingExpired = true
+                chatControls.notice = "ATOM restarted before the chat change was confirmed. Check its result before trying again."
+            }
+            queue = MessageQueue() // a restarted runtime never resumes the persisted queue
+            inputRuntimeReady = false // wait for the restarted runtime's current chat before submitting drafts
             telegramConnected = ready.telegram // ADR-098
             computerOn = ready.computer // ADR-054
             computerRestarting = false
@@ -607,7 +866,9 @@ final class IslandModel {
             send(.helpersList) // Task 3.15: busy workers show on the island too, so the list is always kept
             sendSpeech() // ADR-091
             // A restarted runtime, or a window opened before the runtime was ready (its first ask was dropped): ask again.
-            if ChatList.shouldAskAfterReady(listKnown: chats != nil, windowOpen: helpersWindowOpen) { send(.chatsList) }
+            send(.chatsList) // ADR-141: input must bind to the runtime's confirmed chat, including after restart
+            send(.chatWorkWatch) // ADR-156: only a UI that can render cards opts into waiting for an answer
+            refreshForegroundRecovery()
             if helpersWindowOpen { send(.commandsList) } // the "/" picker (ADR-117)
         case .info(let info):
             modelInfo = info
@@ -644,5 +905,25 @@ final class IslandModel {
         default:
             break
         }
+    }
+}
+
+extension IslandModel {
+    func confirmForegroundInput(ids: [String], answers: [String]) {
+        guard !ids.isEmpty || !answers.isEmpty else { return }
+        let known = Set(ids.map { $0.lowercased() }), knownAnswers = Set(answers.map { $0.lowercased() })
+        dispatchedInputIDs = dispatchedInputIDs.filter { !known.contains($0.lowercased()) }
+        for chat in Array(input.entries.keys) {
+            var entry = input.entry(for: chat)
+            entry.waiting.removeAll { known.contains($0.id.lowercased()) }
+            entry.questionAnswers.removeAll { knownAnswers.contains($0.id.lowercased()) }
+            input.set(entry, for: chat)
+        }
+        saveInput()
+    }
+    func dismissLocalAnswer(_ answer: PendingQuestionAnswer) {
+        var entry = input.entry(for: answer.chat)
+        entry.questionAnswers.removeAll { $0.id == answer.id }
+        input.set(entry, for: answer.chat); saveInput()
     }
 }

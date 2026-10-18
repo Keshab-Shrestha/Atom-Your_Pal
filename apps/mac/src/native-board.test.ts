@@ -7,6 +7,27 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const run = (hooks: Record<string, unknown>, event: string, input: Record<string, unknown>) =>
   (hooks[event] as { hooks: ((i: unknown) => Promise<unknown>)[] }[])[0]!.hooks[0]!(input);
 
+test("a lost session preserves the last step for review and late reports cannot replace the interrupted outcome", async () => {
+  const store = openHelperStore({ path: ":memory:" });
+  const ended: number[] = [];
+  const board = boardRecorder(store, "cedar", { onEnd: (id) => void ended.push(id) });
+  const job = store.addNativeJob("kame", "Finish the fictional draft", { chatId: "cedar" });
+  board.opened("u1", job.id, "Draft");
+  board.onEvent({ type: "system", subtype: "task_started", task_id: "a1", tool_use_id: "u1" });
+  store.step(job.id, "Saved the draft; report not confirmed");
+  board.interrupted();
+  board.interrupted();
+  await run(board.hooks, "SubagentStop", { agent_id: "a1", agent_type: "kame", last_assistant_message: "Done" });
+  await sleep(5);
+  assert.equal(store.get(job.id)!.state, "failed");
+  assert.equal(store.get(job.id)!.recoveryNeeded, true);
+  assert.equal(store.get(job.id)!.step, "Saved the draft; report not confirmed");
+  assert.equal(store.report(job.id), undefined);
+  assert.deepEqual(board.running(), []);
+  assert.deepEqual(ended, [job.id]);
+  store.close();
+});
+
 test("a sub-agent's stream becomes Board rows: the job runs, steps, tool calls (redacted), usage, then the plain-text report", async () => {
   const store = openHelperStore({ path: ":memory:" });
   const ended: number[] = [];

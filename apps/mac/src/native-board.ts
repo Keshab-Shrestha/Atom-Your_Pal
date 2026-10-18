@@ -9,7 +9,7 @@ import { redact, tokensOf, toolCallRecorder } from "@atom/llm-gateway";
  * description; the sources are the web addresses in the text. Logs ids and states only, never text.
  */
 
-export type BoardStore = Pick<HelperStore, "get" | "step" | "finish" | "fail" | "stop" | "recordToolCall" | "addUsage" | "linkNativeTask" | "list" | "setModel">;
+export type BoardStore = Pick<HelperStore, "get" | "step" | "finish" | "fail" | "stop" | "recordToolCall" | "addUsage" | "linkNativeTask" | "list" | "setModel" | "recoverNativeJob">;
 
 export interface BoardRecorder {
   /** The gate made a job for this Agent call (its tool_use_id). */
@@ -24,6 +24,8 @@ export interface BoardRecorder {
   taskOf(job: number): string | undefined;
   /** Jobs of this chat that still run. */
   running(): number[];
+  /** The provider session was lost: its unfinished jobs need review, with cleanup only once. */
+  interrupted(): void;
 }
 
 export const TITLE_CHARS = 80;
@@ -98,7 +100,7 @@ export function boardRecorder(
     return t;
   };
 
-  const end = (job: number, outcome: { report?: string; failed?: string; stopped?: boolean }) => {
+  const end = (job: number, outcome: { report?: string; failed?: string; stopped?: boolean; interrupted?: boolean }) => {
     if (ended.has(job)) return;
     ended.add(job);
     const row = helpers.get(job);
@@ -109,11 +111,12 @@ export function boardRecorder(
     taskOfJob.delete(job);
     if (row?.state === "running") {
       safe(() => {
-        if (outcome.stopped) helpers.stop(job);
+        if (outcome.interrupted) helpers.recoverNativeJob(job);
+        else if (outcome.stopped) helpers.stop(job);
         else if (outcome.failed !== undefined) helpers.fail(job, redact(outcome.failed) || "The agent stopped with an error.");
         else helpers.finish(job, reportFrom(redact(outcome.report ?? ""), description, roleOf(job)));
       }, { job });
-      log("agent.end", { job, state: outcome.stopped ? "stopped" : outcome.failed !== undefined ? "failed" : "done" });
+      log("agent.end", { job, state: outcome.stopped ? "stopped" : outcome.interrupted || outcome.failed !== undefined ? "failed" : "done" });
     } else {
       // 2026-10-15: the row was changed first (Keshab pressed Stop) or deleted. The row stays as it is, but the cleanup below
       // (browser lock, checkpoints, the worktree commit) must still run: it used to be skipped.
@@ -243,5 +246,6 @@ export function boardRecorder(
     jobOfAgent,
     taskOf: (job) => taskOfJob.get(job),
     running: () => [...byCall.values()].map((c) => c.job).filter((j) => !ended.has(j)),
+    interrupted: () => { for (const call of byCall.values()) end(call.job, { interrupted: true }); },
   };
 }

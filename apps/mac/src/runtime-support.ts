@@ -31,9 +31,9 @@ export function openMemory(path: string, log: Logger): MemoryStore | undefined {
  * Opens the helper store (ADR-081), or returns undefined if the file cannot be opened (ATOM still runs; the
  * island is told there are no helpers). Every change is logged by ids, state and timing only, never task or report text.
  */
-export function openHelpers(path: string, log: Logger, agentsDir?: string, skillsDir?: string, checkpointsDir?: string): HelperStore | undefined {
+export function openHelpers(path: string, log: Logger, agentsDir?: string, skillsDir?: string, checkpointsDir?: string, retryNative?: (id: number) => void): HelperStore | undefined {
   try {
-    const store = openHelperStore({ path, ...(agentsDir ? { agentsDir } : {}), ...(skillsDir ? { skillsDir } : {}), ...(checkpointsDir ? { checkpointsDir } : {}) });
+    const store = openHelperStore({ path, ...(agentsDir ? { agentsDir } : {}), ...(skillsDir ? { skillsDir } : {}), ...(checkpointsDir ? { checkpointsDir } : {}), ...(retryNative ? { retryNative } : {}) });
     store.onChange((change) => log.info("helpers.change", change));
     log.info("helpers.open");
     // ADR-093: a broken data/agents/<id>/soul.md would otherwise just drop that agent; the Board shows these too.

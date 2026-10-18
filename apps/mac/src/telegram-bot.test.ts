@@ -21,6 +21,7 @@ function fakeStore(over: Record<string, unknown> = {}) {
     skillHubPending: () => [],
     onChange: () => () => {},
     report: () => undefined,
+    get: () => undefined,
     approvePlan: rec("approvePlan"), rejectPlan: rec("rejectPlan"), acceptProposal: rec("acceptProposal"), rejectProposal: rec("rejectProposal"),
     approveSkillDraft: rec("approveSkillDraft"), rejectSkillDraft: rec("rejectSkillDraft"), acceptSkillEdit: rec("acceptSkillEdit"), rejectSkillEdit: rec("rejectSkillEdit"),
     approveSkillHub: rec("approveSkillHub"), rejectSkillHub: rec("rejectSkillHub"),
@@ -89,6 +90,18 @@ test("answerNeed: each code calls the matching store method", () => {
   assert.equal(said("zzz:1:1"), "That button is out of date.");
   assert.equal(said(""), "That button is out of date.");
   assert.equal(answerNeed("p:1:1", undefined, approvals), "The team is not available.");
+});
+
+test("recovery needs review on the Mac, stale remote retry buttons are inert, and old attempts do not keep asking", () => {
+  const old = mkJob({ id: 1, state: "failed", retriedAs: 2 });
+  const recovered = mkJob({ id: 2, state: "failed", recoveryNeeded: true, error: "Outcome unconfirmed" });
+  const store = fakeStore({ list: () => [{ name: "Kame", jobs: [old, recovered], proposals: [] }], get: () => recovered });
+  const needs = needsYou(store, []);
+  assert.deepEqual(needs.map((n) => n.key), ["failed-2"]);
+  assert.match(needs[0]!.text, /Review this attempt/);
+  assert.deepEqual(needs[0]!.buttons, []);
+  assert.match(answerNeed("r:2", store, { pending: () => [], answer() {} }), /Review the interrupted/);
+  assert.deepEqual(store.calls, []);
 });
 
 test("an unexpected yes value is a No, never an approval", () => {

@@ -104,8 +104,10 @@ export function needsYou(store: HelperStore | undefined, asks: readonly Approval
         plans.push({ key: `plan-${job.id}`, push: true, text: `${owner.name}'s plan for #${job.id} ${titleOf(job)}:\n${job.planSummary ?? "A plan waits for your OK."}`, buttons: yesNo("Approve", "Reject", `p:${job.id}`) });
         continue;
       }
-      if (job.state === "failed") {
-        failures.push({ key: `failed-${job.id}`, push: false, text: `${owner.name}'s task #${job.id} ${titleOf(job)} failed: ${job.error ?? "It ended with a problem."}`, buttons: [[{ text: "Retry", data: `r:${job.id}` }]] });
+      if (job.state === "failed" && job.retriedAs === undefined) {
+        failures.push({ key: `failed-${job.id}`, push: false,
+          text: `${owner.name}'s task #${job.id} ${titleOf(job)} ${job.recoveryNeeded ? "was interrupted; its outcome is unconfirmed" : "failed"}: ${job.error ?? "It ended with a problem."}${job.recoveryNeeded ? " Review this attempt in ATOM on your Mac before retrying." : ""}`,
+          buttons: job.recoveryNeeded ? [] : [[{ text: "Retry", data: `r:${job.id}` }]] });
       }
     }
   }
@@ -171,8 +173,9 @@ export function answerNeed(data: string, store: HelperStore | undefined, approva
     return ok ? "Skill installed." : "Skill rejected.";
   }
   if (kind === "r") {
+    if (store.get(n)?.recoveryNeeded) return "Review the interrupted attempt in ATOM on your Mac before retrying.";
     store.retry(n);
-    return "Started again.";
+    return "Retry requested.";
   }
   return "That button is out of date.";
 }

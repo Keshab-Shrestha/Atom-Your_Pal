@@ -8,6 +8,7 @@ import { openMemoryStore } from "@atom/memory";
 import type { ModelRequest } from "@atom/contracts";
 import { fakeCodex } from "../../../tests/codex-harness.ts";
 import { createCodexToolRouter } from "./codex-tools.ts";
+import { chatHistoryTools } from "./chat-history.ts";
 
 const request = (id = "chat"): ModelRequest => ({ system: "ATOM", messages: [{ role: "user", content: "rewrite the file" }], context: { sessionId: id, requestId: "r", source: "text", receivedAt: new Date() } });
 
@@ -20,7 +21,8 @@ test("a real host file edit uses the approval gate, writes a Board report, and r
   let target = path;
   helpers.setSkills("kame", ["unloaded-skill"]);
   let runs = 0, approvals = 0;
-  const fake = fakeCodex(async ({ call }) => {
+  const fake = fakeCodex(async ({ call, start }) => {
+    assert.ok(!start.dynamicTools.some((s: { name: string }) => /chat_history/.test(s.name)), "workers must not inherit the main chat's archive tools");
     const out = await call("atom_Write", { file_path: target, content: `draft ${++runs}` });
     assert.equal(out.success, true);
     return "Saved the revised page.";
@@ -28,7 +30,8 @@ test("a real host file edit uses the approval gate, writes a Board report, and r
   const router = createCodexToolRouter({ program: "fake", model: "codex-default", home, tools: { specs: () => [], run: async (c) => ({ callId: c.id, content: "ok" }) }, session: { transport: fake.factory }, team: { helpers, worktrees: join(home, "worktrees"), filePermissions: memory.filePermissions, approve: async () => false, approveFile: async () => { approvals++; return "chat"; } } });
   try {
     for (let i = 0; i < 2; i++) {
-      const runner = router.forRequest(request());
+      const runner = router.forRequest({ ...request(), historyTools: chatHistoryTools(() => [{ role: "user", content: "Main chat only" }]) });
+      assert.ok(runner.specs().some((s) => s.name === "atom_read_chat_history"));
       const out = await runner.run({ id: `delegate-${i}`, name: "atom_delegate", input: { subagent_type: "kame", description: "Rewrite", prompt: "Rewrite the page" } });
       assert.equal(out.isError, undefined, out.content);
       assert.match(out.content, /Saved the revised page/);

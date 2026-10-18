@@ -294,7 +294,7 @@ struct ThreadPane: View {
         case .queued where item.job.interrupted: "Tell \(item.helperName) what to do next" // ADR-098 item 3
         case .queued: "Add a note for \(item.helperName)"
         case .running: "Tell \(item.helperName)…" // ADR-098 item 3: it reads the message at its next step
-        default: "Ask \(item.helperName) again"
+        default: "Add a note for \(item.helperName)"
         }
     }
 
@@ -309,6 +309,15 @@ struct ThreadPane: View {
                 Text(item.helperName).font(theme.idFont(.system(size: 12), size: 11)).foregroundStyle(theme.idColor(theme.text2))
                 Text("#\(job.id)").font(theme.idFont(.system(size: 12), size: 11)).foregroundStyle(theme.text3.color)
                 Spacer(minLength: 0)
+                if let next = job.retriedAs {
+                    if model.helpers.list?.item(next) != nil {
+                        QuietButton(title: "Open retry #\(next)") { model.sendHelpers(model.helpers.openThread(next)) }
+                    } else {
+                        Text("Retry #\(next) is no longer listed").font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+                    }
+                } else if job.state == .failed || job.state == .stopped {
+                    QuietButton(title: job.recoveryNeeded ? "Retry after review" : "Retry", symbol: "arrow.clockwise") { model.sendHelpers(model.helpers.retry(job.id)) }
+                }
                 if job.resumable && job.state != .running { QuietButton(title: "Start fresh") { model.sendHelpers(model.helpers.startFresh()) } }
                 // ADR-098 item 3: stops the current step; the task then waits for Keshab's message.
                 if job.state == .running { QuietButton(title: "Interrupt") { model.sendHelpers(model.helpers.interruptJob(job.id)) } }
@@ -316,6 +325,8 @@ struct ThreadPane: View {
             }
             if let goal = job.goal, goal != job.task { Text("Goal: \(goal)").font(.system(size: 12)).foregroundStyle(theme.text2.color) }
             if job.state == .failed, let error = job.error { ProblemLine(text: error) }
+            if job.recoveryNeeded, let step = job.step { Text("Last recorded step: \(step)").font(.system(size: 12)).foregroundStyle(theme.text2.color) }
+            if let previous = job.retryOf { Text("New attempt of task #\(previous)").font(.system(size: 12)).foregroundStyle(theme.text2.color) }
             if let held = job.held { HeldLine(reason: held) }
         }
     }

@@ -153,11 +153,14 @@ public struct CapabilityItem: Sendable, Equatable {
 /// How much of the Claude plan is used (ADR-076), from the `plan.usage` event. Fractions: 0.42 is 42%.
 /// Every field is optional: an event may report one window only.
 public struct PlanUsage: Sendable, Equatable {
+    public var resetAt: Double?
+    public var limited: Bool?
     public var fiveHour: Double?
     public var sevenDay: Double?
     public var overage: Bool?
 
-    public init(fiveHour: Double? = nil, sevenDay: Double? = nil, overage: Bool? = nil) {
+    public init(fiveHour: Double? = nil, sevenDay: Double? = nil, overage: Bool? = nil, resetAt: Double? = nil, limited: Bool? = nil) {
+        self.resetAt = resetAt; self.limited = limited
         self.fiveHour = fiveHour
         self.sevenDay = sevenDay
         self.overage = overage
@@ -171,7 +174,7 @@ public struct PlanUsage: Sendable, Equatable {
 
     /// A newer report: its fields replace these, fields it does not carry are kept.
     public func merging(_ newer: PlanUsage) -> PlanUsage {
-        PlanUsage(fiveHour: newer.fiveHour ?? fiveHour, sevenDay: newer.sevenDay ?? sevenDay, overage: newer.overage ?? overage)
+        PlanUsage(fiveHour: newer.fiveHour ?? fiveHour, sevenDay: newer.sevenDay ?? sevenDay, overage: newer.overage ?? overage, resetAt: newer.resetAt ?? resetAt, limited: newer.limited ?? limited)
     }
 
     public enum Level: Sendable, Equatable { case normal, attention, problem }

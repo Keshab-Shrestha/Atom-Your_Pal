@@ -11,6 +11,40 @@ import { createCodexToolRouter } from "../apps/mac/src/codex-tools.ts";
 import { createNativeCore } from "../apps/mac/src/native-core.ts";
 import type { ToolCall } from "../packages/contracts/src/index.ts";
 
+test("live Codex: recover an omitted fact from this chat's archive after reopening", { skip: process.env.ATOM_LIVE_CODEX_TESTS !== "1" && "set ATOM_LIVE_CODEX_TESTS=1 to run the signed-in Codex workflow", timeout: 180_000 }, async () => {
+  const program = findProgram("codex", "ATOM_CODEX_PATH");
+  assert.ok(program, "Codex must be installed and signed in");
+  const memory = openMemoryStore({ path: ":memory:" });
+  const archive: import("../packages/contracts/src/index.ts").Message[] = [
+    { role: "user", content: "Our fictional Cedar Ridge launch is Friday at 09:40. Please keep that decision." },
+    { role: "assistant", content: "Agreed." },
+    ...Array.from({ length: 80 }, (_, i): import("../packages/contracts/src/index.ts").Message => ({ role: i % 2 ? "assistant" : "user", content: `Fictional unrelated planning exchange ${i}. ` + "Sample filler. ".repeat(100) })),
+  ];
+  memory.chats.save("live-history", archive);
+  const tools = { specs: () => [], run: async (c: ToolCall) => ({ callId: c.id, content: "unavailable", isError: true }) };
+  const router = createCodexToolRouter({ program, model: "codex-default", tools });
+  let recovered = false;
+  const model = createGateway({ provider: createCodexSessionAdapter({ program, model: "codex-default", runner(request) {
+    assert.doesNotMatch(JSON.stringify(request.messages), /Friday|09:40/);
+    assert.match(request.systemExtra ?? "", /earlier saved messages.*omitted/);
+    const checked = router.forRequest(request);
+    return { specs: () => checked.specs(), async run(call, signal) {
+      const reply = await checked.run(call, signal);
+      if (/^atom_(?:search|read)_chat_history$/.test(call.name) && /Friday at 09:40/.test(reply.content)) recovered = true;
+      return reply;
+    } };
+  } }), timeoutMs: 120_000, maxRetries: 0 });
+  const core = createNativeCore({ claudePath: "", tools, modelFor: () => undefined, toolModel: () => model, onExchange: (id, messages) => memory.chats.save(id, messages) });
+  try {
+    core.resume("live-history", memory.chats.messages("live-history"));
+    const reply = await core.handle({ source: "text", text: "What launch day and time did we agree on for Cedar Ridge? Please check what we said before instead of guessing." });
+    assert.equal(recovered, true, "a checked history tool must supply the omitted decision");
+    assert.match(reply.text, /Friday/i); assert.match(reply.text, /09:40|9:40/);
+    assert.deepEqual(memory.chats.messages("live-history").slice(0, archive.length), archive);
+    assert.equal(memory.chats.messages("live-history").length, archive.length + 2);
+  } finally { model.close?.(); router.close(); memory.close(); }
+});
+
 test("live Codex: delegate a checked edit, retain chat context and reuse an explicit file grant in a later task", { skip: process.env.ATOM_LIVE_CODEX_TESTS !== "1" && "set ATOM_LIVE_CODEX_TESTS=1 to run the signed-in Codex workflow", timeout: 300_000 }, async () => {
   const program = findProgram("codex", "ATOM_CODEX_PATH");
   assert.ok(program, "Codex must be installed and signed in");

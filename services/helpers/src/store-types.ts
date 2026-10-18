@@ -42,6 +42,11 @@ export interface Job {
   /** Ended at a limit with what it had. */
   partial: boolean;
   error?: string;
+  /** The process ended before its outcome was confirmed. Existing file changes may remain. */
+  recoveryNeeded?: boolean;
+  /** Durable retry linkage. A source task has at most one next attempt. */
+  retryOf?: number;
+  retriedAs?: number;
   createdAt: Date;
   endedAt?: Date;
   /** From the report, when there is one. */
@@ -468,6 +473,12 @@ export interface HelperStore {
    * legacy runner never picks it up. A long prompt is cut to MAX_TASK_CHARS.
    */
   addNativeJob(helper: string, task: string, links: { chatId: string; sdkTaskId?: string }): Job;
+  /** Persist one retry intent before dispatch; repeated requests return the same attempt without dispatching again. */
+  queueNativeRetry(id: number): { job: Job; created: boolean };
+  /** A retry's main turn ended without starting its worker. Never changes a running/completed attempt. */
+  failQueuedRetry(id: number, reason: string): void;
+  /** Lost the worker's provider session: retain its last step and require review, never replay it. */
+  recoverNativeJob(id: number): void;
   /** ADR-110 (N2): Claude Code's task id of a native job, once the task has started. */
   linkNativeTask(id: number, sdkTaskId: string): void;
   get(id: number): Job | undefined;
@@ -527,4 +538,6 @@ export interface HelperStoreOptions {
   /** B3.4: where the copies of files a run changed are kept (`<dir>/<task>/<n>`). Without it, nothing is kept. */
   checkpointsDir?: string;
   now?: () => Date;
+  /** The native runtime owns retry dispatch; legacy stores omit this. */
+  retryNative?(id: number): void;
 }

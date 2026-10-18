@@ -7,7 +7,7 @@ extension MarkdownBlocks {
         parse(text).map(html(of:)).joined()
     }
 
-    private static func html(of block: MarkdownBlock) -> String {
+    public static func html(of block: MarkdownBlock) -> String {
         switch block {
         case .paragraph(let s):
             return "<p>\(inline(s).replacingOccurrences(of: "\n", with: "<br>"))</p>"
@@ -15,13 +15,28 @@ extension MarkdownBlocks {
             return "<h\(level)>\(inline(s))</h\(level)>"
         case .list(let items, let number):
             let tag = number == nil ? "ul" : "ol"
-            let start = number.map { $0 > 1 ? " start=\"\($0)\"" : "" } ?? ""
-            return "<\(tag)\(start)>" + items.map { "<li>\(inline($0))</li>" }.joined() + "</\(tag)>"
-        case .code(let s):
+            let start = number.map { $0 != 1 ? " start=\"\($0)\"" : "" } ?? ""
+            return "<\(tag)\(start)>" + items.map { item in
+                let task = item.checked.map { $0 ? "☑ " : "☐ " } ?? ""
+                let children = item.children.map(html(of:)).joined()
+                return "<li>\(task)\(inline(item.text).replacingOccurrences(of: "\n", with: "<br>"))\(children)</li>"
+            }.joined() + "</\(tag)>"
+        case .quote(let children):
+            return "<blockquote>" + children.map(html(of:)).joined() + "</blockquote>"
+        case .rule:
+            return "<hr>"
+        case .code(let s, _):
             return "<pre><code>\(escape(s))</code></pre>"
-        case .table(let header, let rows):
-            let head = "<tr>" + header.map { "<th>\(inline($0))</th>" }.joined() + "</tr>"
-            let body = rows.map { "<tr>" + $0.map { "<td>\(inline($0))</td>" }.joined() + "</tr>" }.joined()
+        case .table(let header, let rows, let alignment):
+            func cell(_ text: String, tag: String, index: Int) -> String {
+                let align = index < alignment.count ? alignment[index] : .none
+                let style = align == .none ? "" : " style=\"text-align:\(align.rawValue)\""
+                return "<\(tag)\(style)>\(inline(text.replacingOccurrences(of: "\\|", with: "|")))</\(tag)>"
+            }
+            let head = "<tr>" + header.enumerated().map { cell($0.element, tag: "th", index: $0.offset) }.joined() + "</tr>"
+            let body = rows.map { row in
+                "<tr>" + row.enumerated().map { cell($0.element, tag: "td", index: $0.offset) }.joined() + "</tr>"
+            }.joined()
             return "<table border=\"1\" cellspacing=\"0\" cellpadding=\"4\">\(head)\(body)</table>"
         }
     }

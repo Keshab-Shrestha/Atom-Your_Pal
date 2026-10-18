@@ -105,6 +105,9 @@ export interface JobItem {
   title?: string;
   summary?: string;
   error?: string;
+  recoveryNeeded?: boolean;
+  retryOf?: number;
+  retriedAs?: number;
   /** The model it runs on, once chosen (ADR-083). */
   model?: string;
   /** Why that model, in plain words ("Laya: trivial", "Pinned", …). */
@@ -233,6 +236,9 @@ export interface MemoryChatItem {
 }
 
 export interface ChatItem {
+  pinned?: true;
+  archived?: true;
+  flagsVersion?: number;
   id: string;
   title: string;
   updatedAt: string;
@@ -516,6 +522,8 @@ export interface ReportEvent {
 
 /** Claude plan usage (ADR-076): the share of each window used, 0.42 = 42%. Each field only when the SDK sent a sane one. */
 export interface PlanUsageEvent {
+  resetAt?: number;
+  limited?: boolean;
   type: "plan.usage";
   fiveHour?: number;
   sevenDay?: number;

@@ -12,7 +12,7 @@ struct MarkdownBlocksTests {
         let text = "Here it is.\n\n| Name | Age |\n|:--|--:|\n| Ann | 30 |\n| Bob |\n"
         #expect(MarkdownBlocks.parse(text) == [
             .paragraph("Here it is."),
-            .table(header: ["Name", "Age"], rows: [["Ann", "30"], ["Bob", ""]]),
+            .table(header: ["Name", "Age"], rows: [["Ann", "30"], ["Bob", ""]], alignment: [.left, .right]),
         ])
         #expect(MarkdownBlocks.isRich(text))
     }
@@ -25,9 +25,9 @@ struct MarkdownBlocksTests {
         let text = "# Plan\n- one\n- two\n1. first\n2. second\n```swift\nlet x = 1\n```"
         #expect(MarkdownBlocks.parse(text) == [
             .heading(level: 1, text: "Plan"),
-            .list(items: ["one", "two"], number: nil),
-            .list(items: ["first", "second"], number: 1),
-            .code("let x = 1"),
+            .list(items: [.init(text: "one"), .init(text: "two")], number: nil),
+            .list(items: [.init(text: "first"), .init(text: "second")], number: 1),
+            .code("let x = 1", language: "swift"),
         ])
     }
 

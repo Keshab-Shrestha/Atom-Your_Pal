@@ -1,5 +1,8 @@
 // The shapes the island session depends on (moved from island.ts): the owner of each area implements its interface.
 
+import type { ChatControlRequest, ChatControlResponse } from "./chat-controls.ts";
+import type { ChatWorkBridge } from "./chat-work.ts";
+import type { ForegroundStore } from "@atom/memory";
 import type { ChatTurns } from "./chat-turns.ts";
 import type { HubCommands } from "./hub-commands.ts";
 import type { Readable } from "node:stream";
@@ -37,6 +40,10 @@ export interface IslandOptions {
   settings?: Pick<ModelSettings, "info" | "setModel" | "scanTools" | "refreshModels">;
   /** Computer control (ADR-054): shows what ATOM is doing and asks before risky actions. Absent when it is off. */
   computer?: Pick<ComputerBridge, "attach" | "answer" | "cancelAll">;
+  /** Window task/retry turns have their own Core, outside the foreground voice/text loop. */
+  taskActivity?: { busy(): boolean; onChange(listener: () => void): () => void };
+  chatWork?: ChatWorkBridge;
+  foreground?: ForegroundStore & { profile(chat: string, source: "voice" | "text"): { provider: string; model: string } };
   /** What ATOM keeps (ADR-058), for Settings. Absent when memory is off: `memory.*` answers `enabled: false`. */
   memory?: IslandMemory;
   /** The second brain (Memory → Graph). */
@@ -162,6 +169,8 @@ export interface IslandGit {
 
 /** ADR-091: Keshab's chat sessions with ATOM (kept on this Mac). */
 export interface IslandChats {
+  control?(command: ChatControlRequest): ChatControlResponse;
+  metadataOf?(id: string): { pinned: boolean; archived: boolean; version: number } | undefined;
   list(): ChatItem[];
   messages(id: string): Message[];
   remove(id: string): boolean;

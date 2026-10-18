@@ -5,6 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import type { InputSource } from "@atom/contracts";
 import { openChats, type ChatStore } from "./chats.ts";
 import { openFilePermissions, type FilePermissions } from "./file-permissions.ts";
+import { openForeground, type ForegroundStore } from "./foreground.ts";
 import { openChatIndex, type ChatIndex } from "./chat-index.ts";
 import { openProjects, type ProjectStore } from "./projects.ts";
 import { openSuggestions, type Suggestions } from "./suggestions.ts";
@@ -79,6 +80,7 @@ export interface MemoryStore {
   clearEpisodes(): number;
   /** ADR-091: Keshab's chat sessions. */
   readonly chats: ChatStore;
+  readonly foreground: ForegroundStore;
   readonly filePermissions: FilePermissions;
   /** The second brain: notes that link to each other (brain.ts). */
   readonly brain: Brain;
@@ -221,7 +223,8 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
   const count = () => Number((counter.get(owner) as { n: number }).n);
 
   const filePermissions = openFilePermissions(db);
-  const chats = openChats(db, now, (id) => { filePermissions.forChat(id).revokeAll(); });
+  const foreground = openForeground(db, now);
+  const chats = openChats(db, now, (id) => { filePermissions.forChat(id).revokeAll(); foreground.forgetChat(id); });
   const chatIndex = openChatIndex(db, now);
   const projects = openProjects(db, now);
   const brain = openBrain(db, now);
@@ -230,6 +233,7 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
   const briefs = openBriefs(db, now);
   return {
     chats,
+    foreground,
     filePermissions,
     brain,
     briefs,

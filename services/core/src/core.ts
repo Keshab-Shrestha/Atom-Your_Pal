@@ -25,7 +25,7 @@ export interface Core {
   history(): readonly Message[];
   /** Forgets the conversation and starts a new session. */
   reset(): void;
-  /** ADR-091: continues a saved session: its id and its turns (the newest kept within the history's bound). */
+  /** Continues a saved session with its full archive. Provider replay is bounded separately. */
   resume(sessionId: string, turns: readonly Message[]): void;
   /** Lets the model start up ahead of the next request (ADR-064). Safe to call any time. */
   prepare(): void;

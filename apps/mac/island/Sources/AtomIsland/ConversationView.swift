@@ -11,12 +11,18 @@ import AtomIslandCore
 /// grows to 8 lines, then scrolls), ⌘V attaches a copied file or image, ↑ in an empty box brings back the last message,
 /// and each chat keeps its own unsent words and files. ADR-126: "@" lists helpers (the message goes to the one chosen),
 /// Second brain notes (sent with it as files) and "A file…". ADR-127: while ATOM answers, Return makes the message wait
-/// for the answer (a "Next" row shows it); ⌘Return sends at once, stopping the answer.
+/// for the answer. ADR-142: messages stay separate; ⌘Return sends the oldest queued message now.
 struct Composer: View {
     let model: IslandModel
-    private let draft: State<String>
+    private let galleryDraft: State<String>
+    private var draft: Binding<String> {
+        snapshot ? galleryDraft.projectedValue : Binding(get: { model.composerText }, set: { model.composerText = $0 })
+    }
+    private var attached: Binding<ComposerDraft> {
+        snapshot ? galleryAttached.projectedValue : Binding(get: { model.composerFiles }, set: { model.composerFiles = $0 })
+    }
     /// ADR-113: files waiting to go with the next message.
-    private let attached = State(initialValue: ComposerDraft())
+    private let galleryAttached = State(initialValue: ComposerDraft())
     /// ADR-117: the row of the "/" picker that Return or Tab picks.
     private let pick = State(initialValue: 0)
     /// ADR-125: ↑ and ↓ through the messages sent in this chat.
@@ -25,6 +31,9 @@ struct Composer: View {
     private let paste = State(initialValue: ComposerPaste())
     /// ADR-126: the box as it was when Escape closed the "@" menu; it stays closed while that "@word" is typed on.
     private let mentionClosed = State<String?>(initialValue: nil)
+    private let projectMatches = State<[ProjectFileNavigation.Entry]>(initialValue: [])
+    private let projectSearchNotice = State<String?>(initialValue: nil)
+    private let projectMatchesKey = State<[String]>(initialValue: [])
     @FocusState private var focused: Bool
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
@@ -33,7 +42,7 @@ struct Composer: View {
     /// `initialDraft` is for the gallery: the box starts with these words (the "/" picker shows for "/re").
     init(model: IslandModel, initialDraft: String = "") {
         self.model = model
-        self.draft = State(initialValue: initialDraft)
+        self.galleryDraft = State(initialValue: initialDraft)
     }
 
     private var composerShape: RoundedRectangle {
@@ -49,12 +58,15 @@ struct Composer: View {
             } else if !mentionItems.isEmpty && readOnly == nil {
                 MentionPicker(items: mentionItems, selected: min(pick.wrappedValue, mentionItems.count - 1), choose: choose)
             }
-            if let next = model.queue.next, readOnly == nil {
-                QueuedRow(message: next, edit: model.editQueued, sendNow: model.sendQueuedNow)
+            if let message = projectSearchNotice.wrappedValue, mentionClosed.wrappedValue == nil, MentionMenu.query(in: draft.wrappedValue) != nil, readOnly == nil {
+                Text(message).font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             }
+            if readOnly == nil { queueControls }
+            if !snapshot { recoveryControls }
             if !attached.wrappedValue.isEmpty || attached.wrappedValue.notice != nil {
                 AttachedFilesRow(files: attached.wrappedValue.files, notes: attached.wrappedValue.notes, notice: attached.wrappedValue.notice,
                                  remove: { attached.wrappedValue.remove($0) }, removeNote: { attached.wrappedValue.remove(note: $0) })
+                    .id(model.chats?.current ?? "")
             }
             // Two columns: the field and the tools on the left, the voice button alone at the right edge, centred on
             // both rows. The model menu used to sit under the button and fight it for the corner (2026-10-15).
@@ -101,9 +113,13 @@ struct Composer: View {
                         // ATOM is thinking or speaking and nothing is typed: the button stops the answer.
                         StopReplyButton { model.stopReply() }
                     } else {
-                        ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, action: send)
+                        ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, queueing: model.queue.running, action: send)
                     }
                 }
+            }
+            if !snapshot, readOnly == nil {
+                Text(model.queue.awaitingStart ? "Sending… · Return: queue another message" : model.queue.running ? "Return: queue message · ⌘Return: send next now" : "Return: send · Shift Return: new line")
+                    .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             }
         }
         .onChange(of: draft.wrappedValue) { _, now in
@@ -111,21 +127,19 @@ struct Composer: View {
             if let closed = mentionClosed.wrappedValue, !now.hasPrefix(closed) || MentionMenu.query(in: now) == nil { mentionClosed.wrappedValue = nil }
             if MentionMenu.query(in: now) != nil { model.loadNotesForMentions() }
         }
-        // ADR-125: each chat keeps its unsent words and files; they come back when it opens again.
-        .onChange(of: model.chats?.current) { old, new in switchDraft(from: old, to: new) }
-        .onChange(of: model.returned) { _, _ in takeReturned() }
+        .onChange(of: model.chats?.current) { _, _ in recall.wrappedValue = MessageRecall(sent: []) }
+        .task(id: projectMentionKey) { await searchProjectMentions() }
         .onChange(of: focused) { _, now in paste.wrappedValue.focused = now }
+        .onChange(of: model.composerFocusTick) { _, _ in
+            if paste.wrappedValue.window === NSApp.keyWindow { focused = true }
+        }
         .onAppear {
             guard !snapshot else { return }
-            if draft.wrappedValue.isEmpty { switchDraft(from: nil, to: model.chats?.current) }
-            takeReturned()
-            paste.wrappedValue.start { attached.wrappedValue.add($0) }
+            paste.wrappedValue.start(attach: { attached.wrappedValue.add($0) }, text: pasteText)
         }
         .onDisappear {
             guard !snapshot else { return }
             paste.wrappedValue.stop()
-            // The composer is rebuilt when setup cards come and go: the words wait in the chat's draft.
-            switchDraft(from: model.chats?.current, to: nil)
         }
         .background(WindowProbe { paste.wrappedValue.window = $0 })
         .padding(.leading, 18)
@@ -139,6 +153,60 @@ struct Composer: View {
             guard !paths.isEmpty else { return false }
             attached.wrappedValue.add(paths)
             return true
+        }
+    }
+
+    @ViewBuilder private var queueControls: some View {
+        if !model.queue.messages.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Queued (\(model.queue.messages.count))").font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text2.color)
+                ScrollView(.vertical, showsIndicators: true) {
+                    VStack(spacing: 4) {
+                        ForEach(Array(model.queue.messages.enumerated()), id: \.element.id) { index, message in
+                            QueuedRow(message: message, position: index + 1, canEdit: model.composerEmpty, canSend: !model.queue.awaitingStart,
+                                      edit: { model.editWaitingInput(message.id) }, remove: { model.discardWaitingInput(message.id) },
+                                      sendNow: index == 0 ? { model.sendQueuedNow() } : nil)
+                        }
+                    }
+                }
+                .frame(height: CGFloat(min(3, model.queue.messages.count)) * 35)
+            }
+        }
+    }
+
+    @ViewBuilder private var recoveryControls: some View {
+        let readOnly = model.chats?.currentReadOnlyNotice
+        if !model.heldInputs.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Held messages (\(model.heldInputs.count)) · review before sending")
+                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text2.color)
+                Text("Some input may have reached ATOM. Refresh Recovery and check saved history before retrying.")
+                    .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                ScrollView(.vertical, showsIndicators: true) {
+                    VStack(spacing: 4) {
+                        ForEach(Array(model.heldInputs.enumerated()), id: \.element.id) { index, message in
+                            QueuedRow(message: message, position: index + 1, held: true,
+                                      canEdit: model.composerEmpty && readOnly == nil && !model.recovery.syncPending,
+                                      edit: { model.editWaitingInput(message.id) }, remove: { model.discardWaitingInput(message.id) })
+                        }
+                    }
+                }
+                .frame(height: CGFloat(min(3, model.heldInputs.count)) * 35)
+            }
+        }
+        if !model.otherInputChats.isEmpty {
+            Menu("Saved input in other chats (\(model.otherInputChats.count))") {
+                ForEach(model.otherInputChats, id: \.self) { id in
+                    Button(model.savedInputTitle(id)) { model.openSavedInput(id) }
+                        .disabled(!model.canOpenSavedInput(id))
+                }
+            }
+            .menuStyle(.borderlessButton).fixedSize()
+            .font(.system(size: 11)).foregroundStyle(theme.text2.color)
+            .help("Open a saved chat, or recover an unfinished chat into an empty message box. Recovered text is never sent automatically.")
+        }
+        if let notice = model.inputNotice {
+            Text(notice).font(.system(size: 11)).foregroundStyle(theme.problem.color)
         }
     }
 
@@ -179,17 +247,63 @@ struct Composer: View {
 
     private var mentionItems: [MentionItem] {
         guard slashItems.isEmpty, mentionClosed.wrappedValue == nil, let query = MentionMenu.query(in: draft.wrappedValue) else { return [] }
-        return MentionMenu.items(query: query, helpers: model.helpers.list?.helpers ?? [], notes: model.brain.graph?.nodes ?? [])
+        let ordinary = MentionMenu.items(query: query, helpers: model.helpers.list?.helpers ?? [], notes: model.brain.graph?.nodes ?? [])
+        let paths = projectMatchesKey.wrappedValue == projectMentionKey ? projectMatches.wrappedValue : []
+        let files = paths.map { MentionItem(kind: .projectFile, name: $0.relative, detail: "Project file", symbol: "doc", relativePath: $0.relative) }
+        let picker = ordinary.filter { $0.kind == .file }
+        return Array((files + ordinary.filter { $0.kind != .file }).prefix(MentionMenu.limit - picker.count)) + picker
+    }
+
+    private var projectMentionKey: [String] {
+        [model.chats?.current ?? "", model.chats?.currentProjectId ?? "", model.chats?.currentProject?.folderPath ?? "",
+         String(model.chats?.currentProject?.missing ?? true), String(model.chats?.currentProject?.archived ?? true),
+         MentionMenu.query(in: draft.wrappedValue) ?? "\0", mentionClosed.wrappedValue ?? "",
+         String(model.chats?.currentReadOnlyNotice != nil)]
+    }
+
+    private func searchProjectMentions() async {
+        projectMatches.wrappedValue = []; projectSearchNotice.wrappedValue = nil
+        projectMatchesKey.wrappedValue = []
+        let key = projectMentionKey
+        guard !snapshot, model.chats?.currentReadOnlyNotice == nil, mentionClosed.wrappedValue == nil,
+              let project = model.chats?.currentProject, let query = MentionMenu.query(in: draft.wrappedValue) else { return }
+        try? await Task.sleep(for: .milliseconds(180))
+        guard !Task.isCancelled else { return }
+        let worker = Task.detached(priority: .utility) { ProjectFileNavigation.search(project: project, query: query) }
+        let result = await withTaskCancellationHandler(operation: { await worker.value }, onCancel: { worker.cancel() })
+        guard !Task.isCancelled, key == projectMentionKey else { return }
+        projectMatches.wrappedValue = result.files
+        projectMatchesKey.wrappedValue = key
+        pick.wrappedValue = 0
+        projectSearchNotice.wrappedValue = result.unavailable ? "Project files are unavailable. Reopen the project folder."
+            : result.limited ? "Showing a limited file search; type a more specific path."
+            : result.files.isEmpty ? "No matching project files." : nil
     }
 
     /// A helper's name goes in the words; a note is attached; "A file…" opens the file chooser.
     private func choose(_ item: MentionItem) {
+        if item.kind == .projectFile {
+            guard let path = item.relativePath,
+                  let file = ProjectFileNavigation.resolve(path, project: model.chats?.currentProject),
+                  projectMatchesKey.wrappedValue == projectMentionKey,
+                  projectMatches.wrappedValue.contains(file) else {
+                attached.wrappedValue.refuse("That project file is no longer available. Search again."); return
+            }
+            let completed = MentionMenu.completing(item, in: draft.wrappedValue) + "`" + file.relative + "` "
+            guard completed.count <= ComposerDraft.maxCharacters else {
+                attached.wrappedValue.refuse("The file reference will not fit. Shorten the draft first."); return
+            }
+            draft.wrappedValue = completed
+            pick.wrappedValue = 0
+            return
+        }
         draft.wrappedValue = MentionMenu.completing(item, in: draft.wrappedValue)
         pick.wrappedValue = 0
         switch item.kind {
         case .helper: break
         case .note: if let id = item.noteId { attached.wrappedValue.add(note: DraftNote(id: id, title: item.name)) }
         case .file: attached.wrappedValue.add(AttachButton.chooseFiles())
+        case .projectFile: break
         }
     }
 
@@ -225,7 +339,7 @@ struct Composer: View {
     /// Shift+Return starts a new line where the caret is. Plain Return sends (`onSubmit`); while Japanese or other
     /// input is being composed, Return is the input method's.
     private func newLine(_ press: KeyPress) -> KeyPress.Result {
-        // ADR-127: ⌘Return sends now, even while ATOM answers (the answer stops).
+        // ADR-142: ⌘Return appends this draft, then sends the oldest live entry now; an empty box sends the existing head.
         if press.modifiers.contains(.command), !FieldEditor.composing { send(now: true); return .handled }
         guard press.modifiers.contains(.shift), !FieldEditor.composing, let editor = FieldEditor.current else { return .ignored }
         editor.insertNewlineIgnoringFieldEditor(nil)
@@ -242,43 +356,61 @@ struct Composer: View {
         return .handled
     }
 
-    /// Keeps the words and files of the chat being left and puts those of the chat being opened in the box.
-    private func switchDraft(from old: String?, to new: String?) {
-        let next = model.chatDrafts.switching(from: old, to: new, text: draft.wrappedValue, files: attached.wrappedValue)
-        guard new != nil else { return }
-        draft.wrappedValue = next.text
-        attached.wrappedValue = next.files
-        recall.wrappedValue = MessageRecall(sent: [])
-    }
-
-    /// ADR-127: a waiting message that was not sent comes back in front of what is in the box.
-    private func takeReturned() {
-        guard !snapshot, let back = model.takeReturned() else { return }
-        let typed = draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        draft.wrappedValue = typed.isEmpty ? back.text : back.text + "\n\n" + typed
-        attached.wrappedValue.add(back.files.files.map(\.path))
-        for note in back.files.notes { attached.wrappedValue.add(note: note) }
-    }
-
     private func send() { send(now: false) }
 
     private func send(now: Bool) {
+        if !snapshot, model.cleanComposerForReview() { return }
         // The picker is open: Return picks the highlighted row (a full "/new" runs ATOM's command; "/review" gets a space).
         if pickRow() == .handled { return }
         if let built = SlashMenu.builtIn(in: draft.wrappedValue) { run(built.action); return }
-        guard !empty else { return }
+        if empty {
+            if now, !snapshot { model.sendQueuedNow() }
+            return
+        }
         if let why = ComposerDraft.refusal(forText: draft.wrappedValue) {
             attached.wrappedValue.refuse(why) // the text stays, and the notice says why
             return
         }
-        if model.queue.running {
-            model.queueMessage(draft.wrappedValue, draft: attached.wrappedValue) // goes when the answer ends…
-            if now { model.sendQueuedNow() } // …or now, joined to one already waiting so the two go as one
-        } else {
-            model.ask(draft.wrappedValue, draft: attached.wrappedValue)
+        guard !snapshot else { return }
+        model.submitComposer(now: now)
+    }
+
+    /// Native insertion preserves the current selection and ordinary text Undo. IME composition is left alone.
+    private func pasteText(_ text: String, editor: NSTextView) -> Bool {
+        guard !snapshot, model.chats?.currentReadOnlyNotice == nil else { return false }
+        let clean = HiddenCharacters.strip(text)
+        if clean.text.isEmpty, clean.removed > 0 {
+            attached.wrappedValue.refuse("Removed \(clean.removed) hidden controls; there was no visible text to paste.")
+            return true
         }
-        draft.wrappedValue = ""
-        attached.wrappedValue.clear()
+        let range = editor.selectedRange()
+        let source = editor.string as NSString
+        guard range.location != NSNotFound, NSMaxRange(range) <= source.length else { return false }
+        let combined = source.replacingCharacters(in: range, with: clean.text)
+        if clean.text.count >= ComposerDraft.maxCharacters || combined.count > ComposerDraft.maxCharacters {
+            guard model.chats?.currentProjectId == nil else {
+                attached.wrappedValue.refuse("Project chats read files in their project folder. Save this long paste there, or paste it in a chat outside the project. The clipboard is unchanged.")
+                return true
+            }
+            guard attached.wrappedValue.files.count + attached.wrappedValue.notes.count < ComposerDraft.maxFiles else {
+                attached.wrappedValue.refuse("The long paste needs an attachment slot. Remove one file and paste again; the clipboard is unchanged.")
+                return true
+            }
+            do {
+                let path = try PastedTextFile.save(clean.text)
+                attached.wrappedValue.add([path])
+                attached.wrappedValue.refuse("Long paste attached as a text file.\(clean.removed > 0 ? " Removed \(clean.removed) hidden controls." : "") Review it before sending.")
+            } catch PastedTextFile.Failure.tooLarge {
+                attached.wrappedValue.refuse("The paste exceeds the 10 MB attachment limit. Use a smaller text file; the clipboard and draft are unchanged.")
+            } catch {
+                attached.wrappedValue.refuse("Could not save the paste as an attachment. Check disk space and ATOM's storage permissions; the clipboard and draft are unchanged.")
+            }
+            return true
+        }
+        guard clean.removed > 0 else { return false }
+        if !clean.text.isEmpty { editor.insertText(clean.text, replacementRange: range) }
+        attached.wrappedValue.refuse("Removed \(clean.removed) hidden controls from the paste.")
+        return true
     }
 }
 
@@ -345,75 +477,41 @@ private struct SkillsMenu: View {
     }
 }
 
-/// The files waiting to go with the message, each with a button to take it off.
-private struct AttachedFilesRow: View {
-    let files: [DraftFile]
-    var notes: [DraftNote] = []
-    let notice: String?
-    let remove: (String) -> Void
-    var removeNote: (Int) -> Void = { _ in }
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if !files.isEmpty || !notes.isEmpty {
-                HStack(spacing: 6) {
-                    ForEach(files) { file in chip(file.name, symbol: "doc") { remove(file.path) } }
-                    // ADR-126: a Second brain note, sent as "<title>.md".
-                    ForEach(notes) { note in chip(note.title, symbol: "brain") { removeNote(note.id) } }
-                }
-            }
-            if let notice { Text(notice).font(.system(size: 11)).foregroundStyle(theme.problem.color) }
-        }
-        .padding(.top, 2)
-    }
-
-    private func chip(_ name: String, symbol: String, remove: @escaping () -> Void) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: symbol).font(.system(size: 10))
-            Text(name).font(.system(size: 11.5)).lineLimit(1).truncationMode(.middle).frame(maxWidth: 160)
-            Button(action: remove) {
-                Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).frame(width: 14, height: 14).contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Remove \(name)")
-        }
-        .foregroundStyle(theme.text2.color)
-        .padding(.horizontal, 8).frame(height: 24)
-        .background(Capsule().fill(theme.fill2.color))
-    }
-}
-
-/// ADR-127: the message waiting for ATOM's answer to end. Edit puts it back in the box; Send now stops the answer.
+/// One FIFO or held entry. Actions address its stable id; only the live head offers Send next now.
 private struct QueuedRow: View {
     let message: QueuedMessage
+    var position = 1
+    var held = false
+    var canEdit = true
+    var canSend = true
     let edit: () -> Void
-    let sendNow: () -> Void
+    let remove: () -> Void
+    var sendNow: (() -> Void)? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "arrow.turn.down.right").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(theme.text3.color)
-            Text("Next").font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text2.color)
+            Text(held ? "\(position)" : position == 1 ? "Next" : "\(position)")
+                .font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.text2.color)
             Text(summary).font(.system(size: 12)).foregroundStyle(theme.text.color).lineLimit(1).truncationMode(.tail)
             Spacer(minLength: 8)
-            Button("Edit", action: edit).buttonStyle(.plain).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
-                .help("Put it back in the box")
-            Button("Send now", action: sendNow).buttonStyle(.plain).font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text.color)
-                .help("Stop the answer and send this (⌘Return)")
+            Button("Edit", action: edit).disabled(!canEdit).help("Move this message to an empty composer; submitting it again adds it at the end")
+            Button(held ? "Discard" : "Remove", action: remove).help("Remove only this unsent message")
+            if let sendNow {
+                Button("Send next now", action: sendNow).disabled(!canSend).help("Stop the current answer and send this message; the remaining entries keep their order")
+            }
         }
-        .padding(.horizontal, 10).frame(height: 28)
+        .buttonStyle(.plain).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+        .padding(.horizontal, 10).frame(height: 30)
         .background(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).fill(theme.fill2.color))
-        .padding(.top, 3).padding(.trailing, 4)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Next message, sent when ATOM finishes: \(summary)")
+        .accessibilityLabel("\(held ? "Unsent" : "Queued") message \(position): \(summary)")
     }
 
-    /// The first line, and how many files go with it.
     private var summary: String {
         let line = message.text.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
         let count = message.files.files.count + message.files.notes.count
-        let files = count == 0 ? "" : count == 1 ? "1 file" : "\(count) files"
+        let files = count == 0 ? "" : count == 1 ? "1 attachment" : "\(count) attachments"
         return [line, files].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 }
@@ -450,6 +548,7 @@ private struct ComposerButton: View {
     let empty: Bool
     let listening: Bool
     let hint: String?
+    var queueing = false
     let action: () -> Void
     @Environment(\.theme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -463,7 +562,7 @@ private struct ComposerButton: View {
     private var ghost: some View {
         let tint: Color? = listening ? theme.live.color : nil
         return Button(action: action) {
-            Image(systemName: empty ? "mic" : "arrow.up")
+            Image(systemName: empty ? "mic" : queueing ? "arrow.turn.down.right" : "arrow.up")
                 .font(.system(size: empty ? 12.5 : 11.5, weight: empty ? .regular : .semibold))
                 .foregroundStyle(tint ?? (empty ? theme.text2.color : theme.text.color))
                 .frame(width: 30, height: 30)
@@ -475,15 +574,15 @@ private struct ComposerButton: View {
         .accessibilityRemoveTraits(empty ? .isButton : [])
         .animation(Motion.plain, value: empty)
         .animation(Motion.plain, value: listening)
-        .accessibilityLabel(empty ? (hint ?? "Microphone") : "Send")
-        .help(empty ? (hint ?? "Set a Talk shortcut in Settings") : "Send (Return)")
+        .accessibilityLabel(empty ? (hint ?? "Microphone") : queueing ? "Queue message" : "Send")
+        .help(empty ? (hint ?? "Set a Talk shortcut in Settings") : queueing ? "Queue this message (Return)" : "Send (Return)")
     }
 
     private var filled: some View {
         let light = theme.glow.a > 0 ? theme.glow.with(alpha: 1).color : theme.accent.color
         let lit = !empty || listening || hint != nil
         return Button(action: action) {
-            Image(systemName: empty ? "mic.fill" : "arrow.up")
+            Image(systemName: empty ? "mic.fill" : queueing ? "arrow.turn.down.right" : "arrow.up")
                 .font(.system(size: empty ? 12 : 11.5, weight: .bold))
                 .foregroundStyle(lit ? theme.onAccent.color : theme.text3.color)
                 .frame(width: 30, height: 30)
@@ -496,8 +595,8 @@ private struct ComposerButton: View {
         .accessibilityRemoveTraits(empty ? .isButton : [])
         .animation(Motion.snap(reduceMotion), value: empty)
         .animation(Motion.glow(reduceMotion), value: listening)
-        .accessibilityLabel(empty ? (hint ?? "Microphone") : "Send")
-        .help(empty ? (hint ?? "Set a Talk shortcut in Settings") : "Send (Return)")
+        .accessibilityLabel(empty ? (hint ?? "Microphone") : queueing ? "Queue message" : "Send")
+        .help(empty ? (hint ?? "Set a Talk shortcut in Settings") : queueing ? "Queue this message (Return)" : "Send (Return)")
     }
 }
 
@@ -506,20 +605,19 @@ struct ConversationTab: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        // ADR-075: setup and error cards come first. They scroll, and push the empty-state picture out, so the
-        // composer always stays in the panel.
-        if SetupCards.isShown(model) {
-            VStack(spacing: 0) {
-                Scrollable { SetupCards(model: model).padding(.bottom, 10) }
-                    .frame(maxHeight: model.conversation.isEmpty ? .infinity : 210)
-                if model.conversation.isEmpty {
-                    composer
-                } else {
-                    content
+        let results = model.chatFindShown ? ChatFind.search(model.conversation.turns, query: model.chatFindQuery) : ChatFind.Results()
+        VStack(spacing: 0) {
+            ConversationControls(model: model)
+            if model.chatFindShown { ChatFindBar(model: model, results: results) }
+            if SetupCards.isShown(model) {
+                VStack(spacing: 0) {
+                    Scrollable { SetupCards(model: model).padding(.bottom, 10) }
+                        .frame(maxHeight: model.conversation.isEmpty ? .infinity : 210)
+                    if model.conversation.isEmpty { composer } else { content(results: results) }
                 }
+            } else {
+                content(results: results)
             }
-        } else {
-            content
         }
     }
 
@@ -527,11 +625,35 @@ struct ConversationTab: View {
     private func retry(for turn: Conversation.Turn) -> (() -> Void)? {
         guard case .failed = turn.outcome, !turn.transcript.isEmpty else { return nil }
         let words = turn.transcript
-        return { model.ask(words) }
+        let chat = model.chats?.current
+        return {
+            guard model.chats?.current == chat, model.conversation.turns.contains(where: { $0.id == turn.id }) else { return }
+            guard model.chats?.currentReadOnlyNotice == nil, model.composerEmpty else {
+                model.chatControls.notice = "Keep or clear the existing draft before preparing a retry."
+                return
+            }
+            model.composerText = words
+            model.composerFocusTick += 1
+            model.chatControls.notice = "Retry draft restored. Review it before sending; earlier file or network effects may already exist."
+        }
+    }
+
+    private func savedAction(_ turn: Conversation.Turn, kind: String) -> (() -> Void)? {
+        guard let seq = turn.sourceSeq, !turn.transcript.isEmpty, model.chatBranchAvailable,
+              model.chatControls.snapshot?.revision != nil else { return nil }
+        let chat = model.chats?.current
+        return {
+            guard model.chats?.current == chat, model.conversation.turns.contains(where: { $0.id == turn.id }) else { return }
+            model.forkSavedChat(kind: kind, through: seq)
+        }
     }
 
     private var composer: some View {
         VStack(spacing: 8) {
+            if let work = model.conversation.turns.last?.work, work.state == "working", work.chat == model.chats?.current,
+               let question = work.questions.first(where: { $0.state == "pending" }) {
+                ChatQuestionCard(model: model, work: work, question: question).id(question.id)
+            }
             RememberRows(model: model) // upgrades.md C2: facts the notes noticed, kept only on Remember
             Composer(model: model)
         }
@@ -542,7 +664,8 @@ struct ConversationTab: View {
 
     /// One column for both states, with the composer after the if/else: in two branches it was a different view each time, so its half-typed draft and
     /// attached files were thrown away whenever the conversation flipped between empty and not (a voice turn arriving, a new chat; code check, 2026-10-16).
-    @ViewBuilder private var content: some View {
+    @ViewBuilder private func content(results: ChatFind.Results) -> some View {
+        let match = model.chatFindShown ? results.selected(model.chatFindSelection) : nil
         VStack(spacing: 0) {
             if model.conversation.isEmpty {
                 EmptyConversation(model: model)
@@ -552,19 +675,27 @@ struct ConversationTab: View {
                 if let note = model.trimmedNotice { TrimmedNote(text: note) } // ADR-107
                 else if let note = model.cacheExpiredNotice { TrimmedNote(text: note) } // token cost, job 4
                 ScrollViewReader { proxy in
-                    Scrollable {
+                    ChatScrollView(turnIDs: model.conversation.turns.map(\.id), suspendFollowing: model.chatFindShown) {
                         LazyVStack(alignment: .leading, spacing: Spacing.turn) {
                             ForEach(model.conversation.turns) { turn in
-                                TurnView(turn: turn, latest: model.conversation.isLatest(turn), retry: retry(for: turn)).id(turn.id)
+                                TurnView(turn: turn, latest: model.conversation.isLatest(turn), retry: retry(for: turn),
+                                         quote: model.chats?.currentReadOnlyNotice == nil ? { model.quoteReply(turn.id) } : nil,
+                                         editSaved: savedAction(turn, kind: "edit"), retrySaved: savedAction(turn, kind: "retry"),
+                                         project: model.chats?.currentProject, findMatch: match?.turnID == turn.id ? match : nil).id(turn.id)
                             }
                         }
                         .padding(.horizontal, Spacing.conversation)
                         .padding(.vertical, 20)
                     }
-                    .softEdges()
-                    .onAppear { proxy.scrollTo(model.conversation.turns.last?.id, anchor: .bottom) }
-                    .onChange(of: model.conversation.turns) { _, turns in
-                        withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(turns.last?.id, anchor: .bottom) }
+                    .id(model.chats?.current ?? "")
+                    .onChange(of: model.chatFindScrollTick) { _, _ in
+                        guard let match else { return }
+                        let request = model.chatFindScrollTick
+                        DispatchQueue.main.async {
+                            guard model.chatFindShown, model.chatFindScrollTick == request,
+                                  model.conversation.turns.contains(where: { $0.id == match.turnID }) else { return }
+                            proxy.scrollTo(match.turnID, anchor: .center)
+                        }
                     }
                 }
             }
@@ -617,27 +748,72 @@ struct TurnView: View {
     var latest = true
     /// Asks the same words again; only given for a turn that failed.
     var retry: (() -> Void)? = nil
+    var quote: (() -> Void)? = nil
+    var editSaved: (() -> Void)? = nil
+    var retrySaved: (() -> Void)? = nil
+    var project: ProjectInfo? = nil
+    var findMatch: ChatFind.Match? = nil
+    private let pathNotice = State<String?>(initialValue: nil)
+    @Environment(\.islandSnapshot) private var snapshot
     /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
     private let hovering = State(initialValue: false)
+    /// A view preference only: never substitute the excerpt for the real transcript.
+    private let messageExpanded = State(initialValue: false)
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let preview = UserMessagePreview.collapsed(turn.transcript)
+        let collapsed = preview != nil && !messageExpanded.wrappedValue && findMatch?.user != true
+        let copyTitle = preview == nil ? "Copy message" : "Copy full message"
+        let toggleTitle = collapsed ? "Show full message" : "Show less"
         VStack(alignment: .leading, spacing: 12) {
             if !turn.transcript.isEmpty { // an answer ATOM posted by itself has no question (ADR-109)
-            HStack {
-                Spacer(minLength: 48)
-                Text(turn.transcript)
-                    .font(.system(size: 12.5))
-                    .foregroundStyle(theme.text2.color)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).fill(theme.fill1.color))
-                    .overlay(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
-                        .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color.opacity(0.5), lineWidth: theme.isFlat ? 1 : 0.5))
-                    .textSelection(.enabled)
-            }
+                HStack {
+                    Spacer(minLength: 48)
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text(collapsed ? (preview ?? turn.transcript) : turn.transcript)
+                            .lineLimit(collapsed ? UserMessagePreview.lineLimit : nil)
+                            .truncationMode(.tail)
+                            .accessibilityHint(collapsed ? "Message preview. Choose Show full message to read the rest." : "")
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(theme.text2.color)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).fill(theme.fill1.color))
+                            .overlay(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
+                                .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color.opacity(0.5), lineWidth: theme.isFlat ? 1 : 0.5))
+                            .textSelection(.enabled)
+                        HStack(spacing: 12) {
+                            if preview != nil {
+                                Button(toggleTitle) { messageExpanded.wrappedValue.toggle() }
+                                    .buttonStyle(.borderless)
+                                    .font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+                                    .accessibilityValue(collapsed ? "Collapsed" : "Expanded")
+                                    .help(collapsed ? "Show the complete message" : "Return to a short preview")
+                            }
+                            ChatCopyControl(title: copyTitle) { MarkdownCopy.Content(text: turn.transcript) }
+                            if let editSaved, let retrySaved {
+                                Menu("Earlier message") {
+                                    Button("Edit in new chat", action: editSaved)
+                                    Button("Retry in new chat", action: retrySaved)
+                                }
+                                .menuStyle(.borderlessButton).font(.system(size: 11.5))
+                                .help("Create a new chat before this saved message; the original history and file effects remain")
+                            }
+                        }
+                    }
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("You said")
+                .accessibilityActions {
+                    Button(copyTitle) { _ = ChatClipboard.write(MarkdownCopy.Content(text: turn.transcript)) }
+                    if preview != nil {
+                        Button(toggleTitle) { messageExpanded.wrappedValue.toggle() }
+                    }
+                }
             }
             VStack(alignment: .leading, spacing: 6) {
+                if let work = turn.work { ChatWorkView(work: work) }
                 switch turn.outcome {
                 case .inProgress where turn.reply == nil:
                     ThinkingDots().padding(.vertical, 4)
@@ -646,43 +822,70 @@ struct TurnView: View {
                 case .failed(let message):
                     if let reply = turn.reply { ReplyText(text: reply, latest: latest, streaming: false) }
                     outcomeLine(message, symbol: "exclamationmark.triangle.fill", color: theme.problem.color)
-                    if let retry { QuietButton(title: "Try again", symbol: "arrow.clockwise", action: retry) }
+                    if let retry { QuietButton(title: "Review retry", symbol: "arrow.clockwise", action: retry) }
                 default:
                     if let reply = turn.reply { ReplyText(text: reply, latest: latest, streaming: turn.isStreaming) }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            // Copy sits in the corner of a finished reply and shows while the pointer is over the turn.
-            .overlay(alignment: .topTrailing) {
-                if let reply = turn.reply, !turn.isStreaming, hovering.wrappedValue {
-                    IconButton(symbol: "doc.on.doc", label: "Copy the reply") { Self.copy(reply) }
-                        .transition(.opacity)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("ATOM said")
+            .accessibilityActions {
+                if let reply = turn.reply, !turn.isStreaming {
+                    if let quote, !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Button("Reply to this", action: quote)
+                    }
+                    ForEach(MarkdownCopy.ReplyFormat.allCases, id: \.self) { format in
+                        Button("Copy reply as \(format.title)") { _ = ChatClipboard.write(MarkdownCopy.reply(reply, format: format)) }
+                    }
                 }
             }
-            // Timings stay out of the way: shown in the gap under the reply only while the pointer is over the turn,
-            // so they take no room between turns.
-            .overlay(alignment: .bottomLeading) {
-                if let timings = turn.timings {
-                    Text(NowFacts.summary(timings))
-                        .font(theme.idFont(.system(size: 10, design: .rounded), size: 10))
-                        .foregroundStyle(theme.text3.color)
-                        .fixedSize()
-                        .offset(y: 16)
-                        .opacity(hovering.wrappedValue ? 1 : 0)
-                        .accessibilityHidden(!hovering.wrappedValue)
+            if let reply = turn.reply, !turn.isStreaming {
+                ProjectFileLinks(text: reply, project: project)
+                HStack {
+                    ChatCopyControl(title: "Copy reply", choices: MarkdownCopy.ReplyFormat.allCases.map { format in
+                        ChatCopyControl.Choice(title: format.title) { MarkdownCopy.reply(reply, format: format) }
+                    }, helpText: "Copy as Markdown; open the menu for plain text or rich text")
+                    if let quote, !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Button("Reply to this", action: quote)
+                            .buttonStyle(.borderless)
+                            .font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+                            .help("Append a short quote to your draft without sending")
+                    }
+                    Spacer(minLength: 0)
+                    if let timings = turn.timings {
+                        Text(NowFacts.summary(timings))
+                            .font(theme.idFont(.system(size: 10, design: .rounded), size: 10))
+                            .foregroundStyle(theme.text3.color)
+                            .opacity(hovering.wrappedValue ? 1 : 0)
+                            .accessibilityHidden(!hovering.wrappedValue)
+                    }
                 }
+            }
+            if let notice = pathNotice.wrappedValue {
+                Text(notice).font(.system(size: 11)).foregroundStyle(theme.problem.color)
             }
         }
+        .overlay {
+            if findMatch != nil {
+                RoundedRectangle(cornerRadius: theme.radiusCard).stroke(theme.accent.color, lineWidth: 1).padding(-4)
+                    .allowsHitTesting(false).accessibilityHidden(true)
+            }
+        }
+        .environment(\.openURL, OpenURLAction { url in
+            guard url.isFileURL || url.scheme == nil else { return .systemAction }
+            guard !snapshot else { return .discarded }
+            let candidate = url.isFileURL ? url.absoluteString : url.path
+            if let file = ProjectFileNavigation.resolve(candidate, project: project),
+               ProjectFileNavigation.reveal(file, project: project) {
+                pathNotice.wrappedValue = nil
+            } else { pathNotice.wrappedValue = "That file is unavailable or outside the active project." }
+            return .handled
+        })
         .contentShape(Rectangle())
         .onHover { hovering.wrappedValue = $0 }
+        .onChange(of: turn.transcript) { _, _ in messageExpanded.wrappedValue = false }
         .animation(.easeOut(duration: 0.15), value: hovering.wrappedValue)
-    }
-
-    private static func copy(_ text: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-        // A reply with a table, list or code also goes as HTML, so Notes, Pages and Mail paste the real thing.
-        if MarkdownBlocks.isRich(text) { NSPasteboard.general.setString(MarkdownBlocks.html(text), forType: .html) }
     }
 
     @ViewBuilder private func outcomeLine(_ text: String, symbol: String, color: Color) -> some View {
@@ -714,7 +917,7 @@ private struct ReplyText: View {
 
     var body: some View {
         if MarkdownBlocks.isRich(text) {
-            MarkdownReply(text: text, latest: latest)
+            MarkdownReply(text: text, latest: latest, copyEnabled: !streaming)
         } else {
             plain
         }

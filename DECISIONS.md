@@ -3148,15 +3148,15 @@ The archive is the source of conversation history. A live Claude or Codex sessio
 
 ## ADR-136 — An explicit file permission for this chat (2026-10-17)
 
-Status: Implemented; store, policy, cancellation and Swift protocol tests pass. Live clicking of the new card remains to be checked.
+Status: Implemented; store, policy, cancellation and Swift protocol tests pass. The real Board card’s Allow for chat choice saved the fictional Cedar file; later tasks, a real app restart, inspect, revoke and subsequent Decline all passed (2026-10-17). Evidence is in `docs/everyday-workflows.md`.
 
 An existing file outside a task's own folder offers **Allow for task**, **Allow for chat** and **Decline**. Task permission retains the existing task-local semantics. Chat permission is a parameterized SQLite row keyed by chat id and the exact canonical file path, shared by workers in that chat and retained across restarts. It grants no directory or other-chat access. File-floor, secret, plan-first and bulk-write checks still run. Old approvals are not migrated into continuing grants.
 
-Only a pending file-specific card can return the continuing choice. Adding `rememberFile` to an ordinary approval answer cannot expand its authority. Cancellation, expiry and a missing answer refuse access. The protected path is checked before approval; cancelled Codex approvals cannot later write or create a grant. **Show file permissions for this chat** lists grants; **Forget file permissions for this chat** revokes them and clears live task caches. Chat removal/pruning also revokes them. There is no per-file revoke UI yet.
+Both the work strip and Board → Needs you expose the same task/chat/decline choices. The Board card originally omitted the continuing choice; a live check found and corrected that omission. Only a pending file-specific card can return the continuing choice. Adding `rememberFile` to an ordinary approval answer cannot expand its authority. Cancellation, expiry and a missing answer refuse access. The protected path is checked before approval; cancelled Codex approvals cannot later write or create a grant. **Show file permissions for this chat** lists grants; **Forget file permissions for this chat** revokes them and clears live task caches. Chat removal/pruning also revokes them. There is no per-file revoke UI yet.
 
 ## ADR-137 — Codex host tools and provider-aware editing (2026-10-17)
 
-Status: Implemented and locally tested; live Codex first edit and context recall passed. The final repeat edit is blocked by the signed-in account's usage limit, so the full workflow is not marked passed.
+Status: Implemented and locally tested. The signed-in Core/router regression now passes both file edits, project/day recall, one explicit grant and two completed jobs (2026-10-17). Actual UI acceptance is tracked separately in `docs/everyday-workflows.md`.
 
 The gateway owns Codex's stdio JSON-RPC app-server transport. Each chat keeps an ephemeral live thread, sends only new turns while its archive prefix matches, and rehydrates from the full archive after an external transcript change, idle closure or restart. ATOM uses the signed-in CLI, strips API keys and inherited parent Codex task identity, and never reads login contents. It adds no dependency. The installed CLI protocol was inspected alongside the official [app-server documentation](https://developers.openai.com/codex/app-server).
 
@@ -3166,4 +3166,248 @@ The host router reuses ATOM's native gate, plan book and Board recorder. Main ch
 
 This route does not yet implement worker shell/web/browser/external MCP, assigned Claude skill plugins, worker model pins or nested workers. Workers use the current chat's Codex model, and unloaded skills are not recorded as used. It does not promise all Claude capabilities.
 
-`text.edit` follows the active chat's provider (otherwise the default). Claude keeps its small-model route. Codex uses a separate locked-down app-server session with no registered host tools. Editing receives only target/instruction/context around a selection, no conversation memory; errors do not switch providers. The existing background conversation-note route still uses Claude. UI acceptance of a Codex note edit and physical quick-action replacement remain unverified. See `docs/everyday-workflows.md` for the complete evidence and the opt-in live regression.
+`text.edit` follows the active chat's provider (otherwise the default). Claude keeps its small-model route. Codex uses a separate locked-down app-server session with no registered host tools. Editing receives only target/instruction/context around a selection, no conversation memory; errors do not switch providers. The existing background conversation-note route still uses Claude. A real Codex note edit/review/save/reopen passed. The physical quick-action shortcut, exact TextEdit selection, Codex grammar diff review and replacement into the actual TextEdit document passed. The additional live password-field refusal passed using an isolated native `NSSecureTextField` containing fictional text; the panel showed the refusal and no action buttons. This verifies that native field case, not every custom password control. See `docs/everyday-workflows.md` for the complete evidence and the opt-in live regression.
+
+
+## ADR-138 — Bounded replay and own-chat history retrieval (2026-10-18)
+
+Status: Implemented. Typecheck and the TypeScript suite pass; a real signed-in Codex regression recovers an archived decision absent from its initial replay. Claude's recovery path is checked with the scripted SDK, not a live Claude account.
+
+The full archive remains the source of record. Model replay is a separate recent window, conservatively bounded to 48,000 UTF-8 bytes including the new question/per-message overhead and at most 120 archived messages. Crossing the budget advances to about half a window; Codex retains that start while it grows so ordinary follow-ups can reuse the live prefix. An oversized current question fails explicitly before provider delivery, preserving saved history. This is not a tokenizer or a guarantee on total provider context: system/memory/skill/tool costs and provider-native context still apply.
+
+Claude's fresh replay and large shared-chat catch-up use the bound; native live/resumed sessions retain SDK compaction and background-task behavior. Codex uses its existing prefix invalidation/reopen path when the selected window changes. No archive truncation or model-generated summary is added.
+
+The main assistant gets read-only literal search and paged original-message tools bound by the host to its own chat, without a chat-id argument. Position IDs survive append/reopen/provider changes; long messages have continuation offsets. Responses are bounded, cancelled reads stop before loading history, and malformed/other-chat arguments are refused. Older sessions use only their own persisted archive after a chat switch; removed archives return no messages. Workers and isolated text edits get no archive tools. Retrieved text cannot grant permissions or replace policy. Gemini remains tool-free and receives an explicit omission notice rather than pretend recovery.
+
+No schema/dependency change, cross-chat search change, fallback provider, Compact button, context meter or chat UI paging is included. Evidence, API, scope and limits: [long-chat recovery](docs/long-chat-history.md). This supersedes ADR-135's initial no-retrieval limitation.
+
+## ADR-139 — Preserve interrupted outcomes and persist explicit retry identities (2026-10-18)
+
+Status: Implemented; automated/store/router/Swift and signed-build/gallery checks pass. A real signed-in Codex two-file interruption → review → explicit retry → separate approval → report passed after fixing first-turn model-choice persistence. This is fixture acceptance, not a general exactly-once effect guarantee.
+
+Running tasks and queued retry intents left at startup become failed attempts with `recoveryNeeded`, an explicit unknown-outcome explanation and the last recorded step. Nothing is replayed automatically. Lost Claude SDK sessions apply the same treatment to host-dispatched workers and suppress automatic fresh-session fallback, even if the tool-use stream event had not arrived. Late reports cannot overwrite interrupted outcomes; cleanup runs once.
+
+The store persists a new queued attempt, unique `retry_of` link and parent `retry_next` in one transaction before native dispatch. Repeated source requests return the same attempt. The parent link survives child removal, removed queued turns are skipped, and reserved retry chats refuse missing/wrong-worker/second claims. Native failure/comment wake paths no longer requeue old attempts through the legacy runner. UI, API and Telegram share this dispatcher. Pre-worker failures become visible failed attempts. Original attempts remain in history, linked and excluded from duplicate attention counts.
+
+The retry uses the saved task brief and its source chat's current provider/project/read context through host-validated ancestry. It is a fresh worker attempt. Permissions, pending approvals, SDK execution position and worktree state are not copied. All current authorization and plan gates apply. The host tells the worker to inspect current files/results and ask if context is insufficient. Board offers review before retry; remote unknown-outcome buttons direct review on the Mac.
+
+Migration adds three nullable integer columns and a partial unique index, preserving task/report content. Old-schema and private production-backup reconciliation/integrity checks pass; rollback retains additive data. No dependency or provider fallback is added. This does not implement an exactly-once effect journal, durable main-chat turn delivery or provider-limit/reset scheduling. [Behavior, migration, evidence and remaining work](docs/task-recovery.md).
+
+Live follow-up (2026-10-18): an explicit provider choice for a new chat must survive before its first completed exchange. The original in-memory map lost that choice at a backend interruption, causing a retry to use the global default. `pending_chat_models` now durably holds that host-validated choice without creating transcript messages; first save promotes it atomically, reset/removal clears it. Private memory-backup migration and reopen/reset/remove tests pass. The actual-app retest kept Codex, skipped the already-complete file unchanged and saved only the remaining file. Existing Codex tool-timeline and stopped-native-approval limitations are recorded in `docs/task-recovery.md`.
+
+## ADR-140 — Bind approvals and window status to task lifetime (2026-10-18)
+
+Status: Implemented; targeted policy/Core/island and full TypeScript checks pass. The real native Stop and signed-in Codex retry-completion fixtures pass.
+
+The host gate owns a cancellation controller for each linked task, and approval adapters receive its signal. Stop reaches the gate even before the SDK reports a task id. Stopped/ended task state is checked again before returning cached decisions. File policy rechecks cancellation after approval and before writing a continuing grant/checkpoint, so Stop cannot be bypassed by a delayed answer or an adapter that ignores cancellation. Cancellation is per task; other pending approvals remain valid. SDK stop and normal cleanup still run. Operations accepted before Stop are not automatically undone.
+
+Window task/retry turns publish activity through queue drain, including failure/skipped retries. The island combines task activity, worker rows, foreground loop state and live approval ids to send the existing Thinking/idle states. A completion cannot clear listening, transcription, a foreground answer, speech or another pending approval. An existing approval may be re-presented with its same id after foreground work/another card ends; no new authorization is created. State subscribers stop at quit.
+
+No schema, dependency, new Swift view or wire shape is added. Native Claude task #28 was stopped at its real file card: the card closed, the file stayed unchanged, no grant was created and Ready appeared. Its explicit Codex retry #29 used a fresh task-only approval, saved the fixture/report and returned Ready without restart. This resolves the two task-state limitations observed in ADR-139. Codex tool-call timeline and durable input/turn recovery remain separate. [Implementation scope and evidence](docs/task-state-lifecycle.md).
+
+
+## ADR-141 — Persist native drafts and hold restored queues for review (2026-10-18)
+
+Status: Implemented; release compilation and static review only. Tests, gallery and live acceptance intentionally skipped at Keshab's request. The installed app was not replaced.
+
+The panel and window previously kept separate local composer state, and the per-chat stash and waiting message existed only in memory. `IslandModel` now owns a shared composer per chat and persists text, file paths, note ids and a waiting message on edits. A versioned JSON snapshot lives in Application Support/ATOM/ChatInput. No database or wire change is needed because this input has not reached the runtime.
+
+A restored or runtime-interrupted queue is held for review, never repopulated into the live auto-draining queue. Edit moves it into an empty composer; Discard removes it. Leaving a chat routes its waiting text back to that chat's held input. Other saved chats can reopen their input; unfinished/orphaned input can move into an empty writable chat by an explicit click. That move carries no provider choice, project authority or file grants. A native chat-delete command removes its local input as well.
+
+Snapshots are owner-only, written atomically with private temporary files, bounded to 8 MiB/100 chats/128 KiB per text and validated attachment references. There is no silent eviction/truncation. Invalid loads preserve the file and disable persistence for that launch; save failures keep memory and the last snapshot with a visible notice. Ordinary attachments are references, not retained copies; missing files block send until removed/reattached. The runtime still validates content and policy on submission.
+
+Existing live follow-ups still join one waiting message; attachment overflow now retains the incoming draft. Sends while the runtime starts/restarts retain the draft. This does not implement distinct queue entries, permanent clipboard-image bytes, acknowledged main-chat delivery, exactly-once effects or automatic recovery of a turn already handed to transport. There is a crash gap between local removal and runtime acceptance. A failed local removal can leave an older snapshot for manual review. No restored message is automatically resent. [Behavior, bounds and verification status](docs/chat-input-recovery.md).
+
+
+## ADR-142 — Keep queued messages separate and name send behavior (2026-10-18)
+
+Status: Implemented; release compilation/static review only. Tests, gallery and live/manual acceptance skipped at Keshab's request. Existing queue expectations updated for the changed API but not compiled or run. Installed app unchanged.
+
+The former single waiting message merged every follow-up's words and attachments. Native `MessageQueue` now keeps a FIFO of stable-id entries, with up to 20 combined live/held messages per chat and independent attachment limits. Entry-specific Edit moves one message into an empty composer; submitting it again joins the tail. Remove/Discard affects only that id. Full queues retain the incoming draft and explain how to free a slot.
+
+While busy, Return/click queues one message. Command–Return appends a nonempty draft and sends the oldest live entry now, stopping the current answer through the existing runtime text-send path. With an empty composer it sends the existing head. Queue icons, accessible names, a visible keyboard hint and a head-only Send next now action make this distinction explicit. A pending handoff blocks a second immediate send until an active turn begins; repeated idle events cannot consume the tail. This is a coarse native state barrier, not an acknowledged turn-id protocol.
+
+Stop, relevant errors, leaving the chat and runtime/app restarts hold all remaining entries for review. Only newly submitted messages populate the live queue; stored input cannot refill it. Version-2 JSON stores an ordered waiting array and accepts version-1 snapshots by wrapping the old message and assigning an id. Saves use the existing owner-only atomic store. Unsupported/corrupt snapshots remain preserved; there is no live user-data migration in this development pass. Older version-1 code refuses version 2 rather than overwrite it.
+
+No backend schema/wire/dependency or host permission change. This adds no reordering, automatic recovery of effects, permanent attachment bytes, delivery acknowledgement or exactly-once guarantee. The transport crash gap documented in ADR-141 remains. [Current behavior and verification scope](docs/chat-input-recovery.md).
+
+
+## ADR-143 — Copy one code block/table with persistent accessible controls (2026-10-18)
+
+Status: Implemented; release compilation/static review only. Tests, gallery and live clipboard/keyboard/VoiceOver checks skipped at Keshab's request. One existing table-parser expectation updated for alignment metadata, not compiled/run. Installed app unchanged.
+
+The saved chat plan C1/C3 starts with code/table copying. SwiftUI's per-cell text selection makes a table hard to copy, and the previous whole-reply button existed only on hover. Each code block now offers Copy code; each table offers a primary Markdown+HTML action and TSV/CSV alternatives. Finished reply Copy remains in a footer. The native controls stay in the layout, expose stable accessible labels/feedback, and have named accessibility actions on labelled reply/block groups. The user's bubble group is You said; replies are ATOM said. Block copy is disabled while a reply streams, with a tooltip explaining when it becomes available. A settled failed reply may still be copied.
+
+`MarkdownCopy` owns pure formatting in AtomIslandCore. Table blocks retain alignment metadata, and parsing does not split escaped pipes. Markdown export escapes pipes, normalizes cell line breaks, pads to header width and preserves alignment markers. TSV/CSV use plain inline cell text and quote delimiters, quotes and line breaks. Default table copy also publishes escaped rich HTML; TSV publishes the native tabular-text flavor. Copy code omits fences/language and uses the parsed displayed body. Whole-reply copy retains its existing original Markdown plus rich-HTML behavior.
+
+The app prepares all representations in one pasteboard item, then replaces the clipboard on explicit invocation. Checked write results show Copied/checkmark or Copy failed briefly; accessibility announces only that generic outcome. Copy does not consult the provider, log content or read previous clipboard data. Existing rich HTML remains a small deterministic renderer, not full GitHub-flavored Markdown. There is no new WebView or selection bridge.
+
+This does not implement separate whole-reply copy formats, user-bubble Copy, Copy last reply, language labels, richer block parsing, cross-paragraph drag selection, collapse or scroll-following. C2 is next; reading comfort remains in the roadmap. No backend/schema/wire/dependency/permission change. [Behavior, formats and verification scope](docs/chat-copying.md).
+
+
+## ADR-144 — Explicit reply copy formats, user-message Copy and a local shortcut (2026-10-18)
+
+Status: Implemented; release compilation/static review only. Tests, gallery and live clipboard/keyboard/VoiceOver acceptance remain skipped at Keshab's request. Installed app unchanged. This completes item 1 / C2; no next capability started.
+
+Reply Copy offers Markdown, plain text and rich text. Primary click and Copy Last Reply default to original Markdown as plain text, without HTML. Plain text uses parsed blocks and Foundation inline formatting removal, preserving code literally and providing readable list/table structure. Rich text adds the existing escaped HTML renderer to that plain fallback. This supersedes ADR-143's whole-reply default of publishing Markdown and HTML together; table copy still defaults to Markdown+HTML.
+
+Every nonempty user transcript has a persistent Copy message button and accessibility action, copying exactly its text with no formatting conversion. The shared control now accepts explicit named content choices, keeping feedback and checked single-item writes for both tables and replies.
+
+Edit → Copy Last Reply (Command–Shift–C) is a normal native main-window menu command. Menu validation and the action guard require the active visible main window on Chat, no attached sheet and no shortcut recording. Selection happens at invocation from the current visible conversation: newest nonempty finished reply, skipping the streaming reply; settled partial failure text may be copied. No saved-archive lookup or captured old-chat payload is used. Outside that scope the command is disabled; ordinary Command–C still follows the responder chain.
+
+No global hotkey, new dependency, backend/schema/wire or permission change. Rich copying is the existing supported HTML subset, not full Markdown/RTF fidelity. Cross-paragraph selection, richer Markdown, long-message collapse and scroll-following remain separate. [Formats, shortcut and verification limits](docs/chat-copying.md).
+
+
+## ADR-145 — Render richer Markdown through the native block tree (2026-10-18)
+
+Status: Implemented; release compilation/static review only. Tests, gallery and live rendering/copy/accessibility checks skipped at Keshab's request. Existing parser list/code expectations adjusted for metadata, not compiled/run. Installed app unchanged. C4 only; C5/R1 remain separate.
+
+The native renderer previously flattened quotes, task/nested lists and fence language metadata. `MarkdownBlock` now represents quote children, horizontal rules, structured list items with task state/child blocks, and optional code language. The parser accepts explicit quote markers, repeated -/*/_ rules, ordered/unordered list nesting based on content indentation, checkbox prefixes and backtick/tilde fences of at least three characters. Closing fences must match marker and minimum opening length with no trailing info; unfinished fences retain arrived code. Labels use the first bounded safe ASCII info token. This does not add syntax highlighting or execution.
+
+Quotes/lists recurse through the same parser up to 16 levels. At that limit remaining syntax becomes a visible paragraph rather than being discarded. Native recursive node views use the same typography/theme and keep existing code/table copy controls and accessibility actions. Quote groups are labelled, rules have separator labels, and tasks expose completed/incomplete state as static indicators. Numbered task items retain their ordinal.
+
+Plain/rich reply copy follows the expanded block tree. HTML emits escaped text with static quote/rule/list tags and checkbox glyphs rather than interactive inputs. Plain text retains child indentation, task markers and a readable separator; quote text is unprefixed. Code copy still contains only its parsed body, and Markdown reply copy remains the exact original text.
+
+This remains a bounded subset, not full CommonMark/GFM: no setext headings, reference links, lazy unmarked quote continuation, general indented-code blocks, raw HTML or complete mixed-block list grammar. Source is not changed in history. No backend/schema/wire/provider/permission/dependency change. Long-message collapse and scroll-following are not included. [Current behavior and verification limits](docs/chat-markdown.md).
+
+
+## ADR-146 — Collapse long user messages without changing transcript data (2026-10-18)
+
+Status: Implemented; release compilation/static review only. Tests, gallery, app launch and live copy/keyboard/VoiceOver checks skipped at Keshab's request. No tests added/run. Installed app unchanged. C5 only.
+
+User messages beyond 600 Unicode extended grapheme clusters or eight logical lines start collapsed. Core `UserMessagePreview` walks only the bounded prefix, retaining original character/line-ending boundaries and adding an ellipsis when text remains. The native collapsed Text has an eight-visual-line limit. Shorter messages remain fully displayed; thresholds are logical lines/characters rather than measuring every width-dependent wrapped line.
+
+Show full message expands only that turn; Show less restores its preview. Native controls expose expanded/collapsed value and named accessibility actions. State is view-local, initialized collapsed and reset if the turn transcript changes; reopening/replaying a chat can reset it. No preference is persisted. Assistant replies retain their existing full display.
+
+Long-message Copy is labelled Copy full message and always reads `turn.transcript`, as does its accessibility action. Retry, archival history and model input are unchanged. Selecting preview text can copy an excerpt; use Copy full message for the complete original. No content summarization, backend/schema/wire/provider/permission/dependency changes. Conditional scrolling (R1) remains a separate capability. [Details](docs/chat-message-collapse.md).
+
+
+## ADR-147 — Follow the transcript only while the reader is at its end (2026-10-18)
+
+Status: Implemented; release compilation/static review only. Tests, gallery, app launch and live scrolling/keyboard/VoiceOver checks skipped at Keshab's request. No tests added/run. Installed app unchanged. R1 only.
+
+ConversationTab previously called scrollTo on every conversation update, pulling readers away from older messages. ChatScrollView now owns a transient follow latch through a local NSViewRepresentable probe into the existing native transcript scroll view. It starts following, pauses on movement away, and resumes within two points of the bottom or through an explicit Scroll to end button below the viewport. Content/viewport size changes request following only while the latch permits it. Programmatic scrolls are guarded; weak deferred callbacks and observer teardown avoid acting on a removed chat. No event/keyboard monitor or new dependency is installed.
+
+The native document endpoint includes padding and updates as content/composer size changes. Existing SwiftUI message content, selection/copy controls and lazy stack remain. Chat identity changes and disjoint replayed turn ids reset following; normal appends and overlapping 50-turn trimming do not. The snapshot path remains flat and installs no scroll observer. Other scrollable pages are unchanged.
+
+This does not persist chat positions, anchor evicted visible turns, page archives, count unread messages or guarantee stable positions through arbitrary layout changes above the viewport. Mouse/trackpad, keyboard, accessibility, resizing and lazy-layout behavior still need live acceptance. No backend/schema/wire/provider/permission/storage change. [Behavior and verification limits](docs/chat-scrolling.md).
+
+
+## ADR-148 — Preview composer attachments with thumbnails and Quick Look (2026-10-18)
+
+Status: Implemented; release compilation/static review only. Tests, gallery, app launch and live preview/keyboard/VoiceOver acceptance skipped at Keshab's request. No tests added/run. Installed app unchanged. B3 only.
+
+File attachment chips previously showed names only, including pasted screenshots. AttachedFilesRow now lives in ChatAttachments.swift and displays asynchronous QuickLookThumbnailing images at 32 points, falling back to the file icon. A labelled Preview button over the image/name opens the selected local URL with SwiftUI's Quick Look binding. Remove remains independent. A horizontal scroll view keeps the existing maximum five combined file/note attachments reachable; notes retain remove-only chips because they are host-resolved ids.
+
+Regular/readable checks reject missing or special files before requesting previews and report a visible notice on explicit preview failure. Requests cancel on chip removal/reuse; generation ids discard late results and UI changes run on the main queue. Removing the previewed file clears selection. Disappearance dismisses preview; chat identity rebuilds the row. Gallery rendering uses static symbols without attachment reads. System preview errors/unsupported formats remain Quick Look's responsibility, and thumbnail failure retains an icon.
+
+Preview is local display, not a provider upload, edit grant or send approval. Existing host validation is unchanged. Quick Look can use system caches/extensions; ATOM adds no copied attachment bytes or thumbnail store. Same-path file changes are not watched, queued/held entries must be edited into the composer for preview, and transcript attachments are not added. No backend/schema/wire/provider/permission/dependency change. Permanent pasted-image retention, hidden-character paste handling and long-paste attachments remain separate. [Behavior, API sources and verification limits](docs/chat-attachment-previews.md).
+
+
+## ADR-149 — Clean selected hidden controls in pasted composer text (2026-10-18)
+
+Status: Implemented as part of Keshab's explicitly requested three-item batch. Release compilation/static review only; no tests added/run, no live clipboard/Undo/IME/accessibility checks. Installed app unchanged.
+
+Core HiddenCharacters strips a documented subset of invisible/bidi controls and counts removed scalars, preserving joiners/non-joiners, variation selectors and tagged flag emoji clusters. The existing focused-window Command–V monitor delegates text handling to Composer; changed short text uses native NSTextView insertion at the current selection. Unchanged short pastes use normal paste. Marked IME text is left to the system, and a cleanup count is shown without changing the clipboard. No new monitor or editor replacement is introduced.
+
+Other paste routes retain native insertion. Before a composer send/local slash command, any remaining controls are removed with a review notice and that send stops; submitComposer also applies the guard. Existing queued input, voice, arbitrary file contents and saved history are not rewritten. This is display cleanup, not a permission or prompt-injection defense. [Exact ranges and limits](docs/chat-paste-and-quoting.md).
+
+
+## ADR-150 — Turn long Command–V text into a durable attachment (2026-10-18)
+
+Status: Implemented in the user-requested batch. Release compilation/static review only; tests, gallery and live storage/paste/Undo/IME acceptance skipped. No tests added/run. Installed app unchanged.
+
+A cleaned paste of at least 4,000 characters, or one that would overflow the selected editor text, becomes a nonempty UTF-8 .txt attachment up to 10 MiB. Existing text/selection and clipboard are retained. Conversion checks the combined attachment count and existing project-chat restriction before writing; capacity/storage/size/project failures show a notice. It never auto-sends and does not intercept Edit/context-menu or modified paste shortcuts.
+
+PastedTextFile stores bytes under Application Support/ATOM/PastedText with a private owner-checked directory fd (0700), unique exclusive/no-follow file creation (0600), synchronization and partial-file cleanup on failure. Only a successful path enters the existing saved draft. Files persist with no automatic deletion, including when references are removed; aggregate quota/cleanup UI and permanent screenshot retention are separate. Host attachment validation and provider inline budgets are unchanged. No runtime/wire/schema/dependency/provider/permission change. [Storage and behavior](docs/chat-paste-and-quoting.md).
+
+
+## ADR-151 — Quote a finished reply into the draft (2026-10-18)
+
+Status: Implemented in the user-requested batch. Release compilation/static review only; tests, gallery and live quoting/focus/keyboard/VoiceOver checks skipped. No tests added/run. Installed app unchanged.
+
+Reply to this is a persistent button and named accessibility action on finished replies. Invocation resolves the turn id in the current conversation, refuses read-only/streaming/stale sources, then uses pure ComposerQuote to append a Markdown quote of the first 600 characters/eight logical lines, with ellipsis when needed. Existing draft contents, attachments and waiting messages are preserved. The action requests composer focus and never sends or copies permissions.
+
+Quotes normalize line endings and remove the selected hidden controls only in their new text. The 4,000-character combined limit refuses overflow without truncating the user's draft. This is the saved small reply-excerpt scope, not arbitrary selection quoting, citation chips, retry or fork. No runtime/schema/wire/provider/permission/dependency change. [Behavior and acceptance limits](docs/chat-paste-and-quoting.md).
+
+
+## ADR-152 — Find within the current loaded chat (2026-10-18)
+
+Status: Implemented in Keshab's requested three-feature batch. Release compilation/static review only. Tests, gallery, app launch and live keyboard/scroll/VoiceOver checks skipped by request; no tests added/run. Installed app unchanged.
+
+Command–F in the main Chat window opens a transient Find bar; Shift–Command–F retains sidebar/global search. Other pages retain existing global Find. Core ChatFind searches loaded original user/reply text literally, case-insensitively and non-overlapping, with a 128-character query limit and 500-match cap. Controls show a matching snippet/count and wrap Previous/Next (Return/Shift–Return). The selected turn is outlined, user text temporarily expands when needed, and guarded deferred ScrollViewReader navigation jumps to it. Exact span highlighting inside rendered Markdown is not added.
+
+ChatScrollView suspends automatic native following during Find; closing preserves the reading latch. Probe attachment republishes follow state so a pre-existing Find state cannot hide the end control indefinitely. Replay/chat switch/reset clears search. No archive lookup, model call, persisted query, new global key monitor or runtime/wire/schema change. Live focus, scroll and streaming/trimming behavior remains unverified. [Details](docs/chat-find-and-project-files.md).
+
+
+## ADR-153 — Reveal checked project-file references from replies (2026-10-18)
+
+Status: Implemented in the requested batch. Release compilation/static review only; no tests added/run. Live Finder/security/accessibility checks, gallery and app launch skipped. Installed app unchanged.
+
+Finished project replies gain up to eight file chips from bounded code/Markdown/simple bare-path candidates. Native ProjectFileNavigation checks the current runtime-supplied project root and regular-file metadata, canonical containment, traversal/symlink rejection and conservative hidden/control/key-file exclusions. Local file/relative Markdown links use the same reveal path. A click rechecks the current target before selecting it in Finder; no editor or execution is launched. Invalid/missing targets show a notice.
+
+Candidate parsing is limited, root/filter policy is stricter than host tools in places, and filesystem identities are not pinned against concurrent replacement. Background resolution cancels/discards stale results; snapshots skip metadata work. No file content reads, persistent index, model request, lasting permission or host policy change. [Exact scope and verification limits](docs/chat-find-and-project-files.md).
+
+
+## ADR-154 — Search project-file names in the @ picker (2026-10-18)
+
+Status: Implemented in the requested batch. Release compilation/static review only; no tests added/run. Gallery, app launch and live picker/keyboard/Finder/security checks skipped. Installed app unchanged.
+
+Writable project chats now add file-name/relative-path results to the existing trailing-@ picker. Tokens accept path punctuation and up to 120 characters. A debounced cancellable metadata worker uses the same conservative project resolver as ADR-153, bounded to 5,000 visited entries, 200 candidates and six displayed file rows; a 300 ms budget is checked between filesystem operations. Common dependency/build folders, hidden files, packages and symlinks are skipped. Results are naturally sorted, limits/unavailable states are visible, and stale query/chat/project/read-only results cannot be selected. The existing file-picker row is reserved within the eight-row menu.
+
+Selection revalidates the result and replaces the trailing mention with a backticked relative path in the unsent draft. It does not copy/read/attach the file, submit work or grant model access. Draft overflow retains the mention. Host project/secret/provider/tool policy remains authoritative. No Gitignore parser, shell/Git/Spotlight process, persistent index, runtime/wire/schema/provider/permission/dependency change. Completes the final primary C/B/R implementation item within this documented scope; broader roadmap and live acceptance remain separate. [Details](docs/chat-find-and-project-files.md).
+
+
+## ADR-155 — Saved conversation controls without automatic replay (2026-10-18)
+
+Status: Implemented as Keshab's requested whole-area batch. TypeScript checking and Swift release compilation pass. Tests, gallery, migration execution, app launch and live acceptance skipped by request; no tests added/run. Installed app unchanged.
+
+Edit/retry earlier saved messages creates a fresh private chat containing the preceding saved prefix and restores an unsent prompt. Full/prefix forks copy text, project and own model choice, excluding SDK sessions, exact-file source-chat grants, attachments, jobs and approvals. The source and prior file/network effects remain. Strict native requests carry archive revisions and UUIDs; transactional child/request records deduplicate creation, with deletion tombstones. History uses eight-message/8 KiB pages and surrogate-safe text cursors, separately from the live transcript.
+
+Pin/archive flags persist with versions; Undo is conditional and transient. Archived chats remain readable but refuse native text/voice turns. Shared Telegram/routine/API chats cannot be archived here. Pins, archives and living fork ancestors are protected from normal pruning, so total saved history may exceed old counts. Project deletion enumerates every associated chat for cleanup.
+
+Use a clearly labeled fresh replay byte estimate, not a fabricated token/context meter. Pass through Claude's existing reported reset/limit metadata and offer an unsent later-retry fork. The current gateway exposes no supported manual Compact operation; it remains unavailable. Exact context telemetry, Codex/Gemini resets, durable scheduling, generic exactly-once effects and future editor/workspace work are separate. [Behavior, protocol and limits](docs/conversation-controls.md).
+
+
+## ADR-156 — Foreground work observations and clarification cards (2026-10-18)
+
+Status: Implemented in the continued whole-area batch. TypeScript checking and Swift release compilation pass. Tests, gallery, app launch and live provider/UI/security acceptance skipped by request. No tests added/run; installed app unchanged.
+
+Bracket the primary foreground Core with monotonic elapsed time and a bounded, folded observation log. Observe main Claude SDK tool blocks during send and checked Codex foreground host calls, excluding worker internals/composed surfaces. Keep names, status and timing only; missing results are unknown. Snapshots are transient, chat/turn-bound and interrupted on runtime loss; no new durable journal or exactly-once-effect claim.
+
+Expose main-only ask_user with one bounded question, optional suggestions, free answer and Skip. A separate strict private command matches chat/turn/card identity; one pending/four per turn and expiry/abort prevent indefinite stale cards. Answers are clarification data, never approval or authority. On successful exchanges append labeled question/answer JSON to saved user text so provider switching and restart replay retain the answer. Failed/cancelled exchanges keep the existing no-save limitation; durable failed-answer delivery remains a reliability task.
+
+Access is a read-only last-inspected host configuration/grant-count summary. It adds no permission switch or proof of provider/macOS capabilities. A host-only interactionTools runner is separate from read-only history tools; a capable native UI explicitly opts into cards. No new schema/dependency/provider endpoint, worker privilege or public endpoint. Arbitrary-selection quoting, shared editor, prompt links and broader reliability/workspace work remain separate. [Behavior and limits](docs/chat-work-visibility.md).
+
+
+## ADR-157 — Retain uncertain foreground delivery for explicit review (2026-10-18)
+
+Status: Implemented as the continued reliability batch. TypeScript checking and Swift release compilation pass. Tests, runtime migration, gallery, app launch and live provider/crash/storage/security checks skipped by request; no tests added/run. Installed app unchanged.
+
+Keep identified typed input and question intents locally until durable host receipts. Claim typed delivery in SQLite before preparation/model calls, bind UUID reuse to the source/payload signature, persist answers before giving them to a model, and turn prepared/running records into Interrupted on startup. Propagate delivery metadata through the foreground Core only. Normal exchange persistence atomically marks completion with an archive sequence/hash pointer; unarchived completed replies have a bounded fallback copy. Answer receipt hashes protect newer local edits from old acknowledgements.
+
+Expose read-only recovery inspection with bounded reply parts, explicit current-draft restoration, separate source navigation and confirmed payload dismissal. No recovered request, approval or answer is replayed automatically. Keep receipt ids/signatures after dismissal/deletion; unreviewed records protect source chats from retention pruning. User-visible storage failures retain uncertainty and block new durable admission, with no invented delivery success. Use existing private SQLite/ChatInput stores; v3 loads old local input snapshots.
+
+This does not provide generic exactly-once effects, partial stream recovery, automatic provider retry, distributed ownership or a worker telemetry journal. Composed surfaces retain their existing delivery behavior. [Scope, storage and verification limits](docs/foreground-recovery.md).
+
+
+## ADR-158 — Codex worker assigned instructions and Board activity (2026-10-18)
+
+Status: Implemented in the continued Codex parity batch. TypeScript checking passes; static review only. No tests added/run, provider calls, app launch, migrations or live acceptance by request. No Swift changes/build; installed app unchanged.
+
+Expose assigned SKILL.md text as a Codex host tool rather than loading Claude plugins. Check exact task-start/current assignment and active worker policy, cap each instruction return at 8,000 characters and all returns at 24,000 per task, and recheck the budget after awaited policy for parallel calls. Record use immediately before successful return. Missing/empty/unreadable, denied, over-budget and cancelled loads do not count. Host-managed skill accounting does not change Claude's preload/call behavior. Skills cannot grant tools, approval or access; scripts/supporting files remain unavailable.
+
+Observe worker host calls through the existing Board timeline store/UI. Use fresh host UUIDs, timing and fixed success/error outcomes, retaining only bounded/redacted file-target summaries. Exclude result bodies, skills, edit payloads, plans and Grep patterns. Caught failures return generic errors; telemetry failures remain non-fatal. Existing retention/deletion/restart interruption applies; this is not an external-effect journal.
+
+Use a Codex-specific worker contract alongside existing identity instructions, replacing Claude kit prompts that described unavailable shell/web tools. Main delegation describes actual capabilities; workers still use the chat's Codex model and saved Claude pins do not apply. Shell/web/browser/external MCP, provider-specific worker pins and nested workers remain open. No provider fallback, native privilege, new schema or dependency. [Behavior and verification limits](docs/codex-worker-capabilities.md).
+
+
+## ADR-159 — Checked public-page reading for Codex research workers (2026-10-18)
+
+Status: Implemented in the continued Codex capability sequence. TypeScript checking and static source/security/diff review pass. No tests added/run, adapter network calls, provider calls, app launch or live acceptance by request. No Swift changes/build; installed app unchanged.
+
+Claude's WebSearch/WebFetch are SDK tools, not reusable host adapters. Add direct known-URL public-page reading first, without a new search vendor or provider fallback. Host-only request admission and current global/project/source-chat configuration expose WebFetch only to active research workers. Recheck current worker availability, kit, task and configuration before connections, on incoming data and before returning text. Two attempts per task reserve before awaiting.
+
+Restrict transport to HTTPS port 443 and checked public IPv4 destinations. Validate all resolved IPv4 results and pin the chosen address into a fresh connection while retaining hostname/TLS verification. Redirects get URL, native policy and DNS checks, with stricter tainted-data bounds. A 15-second attempt deadline, two redirects, 16 KiB headers, 512 KiB body and 12,000 returned text characters bound the operation. Read only supported uncompressed UTF-8/ASCII HTML/plain-text/Markdown. No cookies, credentials, request body, browser profile, scripts, subresources or file downloads; simple text extraction may omit malformed markup. No automatic retries/address fallback.
+
+Share the native web-read taint helper with SDK post-tool hooks; successful page/redirect data taints the worker, then its report taints the main answer. Existing Board observation keeps generic outcomes without page URLs/bodies. The new host capability does not enable native Codex web/network, plugins, shell or browser features, add a schema/cache/dependency, or change Claude's tools. URL/data limits do not prove sensitive data cannot appear in an address. Search, shell, browser, external MCP, worker model pins and nested workers remain open. [Behavior and verification limits](docs/codex-public-pages.md).

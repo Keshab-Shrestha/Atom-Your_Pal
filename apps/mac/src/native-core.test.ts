@@ -6,6 +6,7 @@ import { openHelperStore } from "@atom/helpers";
 import { openMemoryStore } from "@atom/memory";
 import { CONTEXT_LABEL, createNativeCore, NATIVE_SYSTEM_PROMPT, NATIVE_TEAM_PROMPT, TYPED_NOTE, type NativeCoreDeps } from "./native-core.ts";
 import { nativeGate } from "./native-safety.ts";
+import { createComputerBridge } from "./computer-bridge.ts";
 
 // ---- a fake SDK: each query is one scripted Claude Code process that answers every pushed message
 
@@ -47,6 +48,72 @@ const sessions = () => {
 const make = (sdk: SessionSdk, over: Partial<NativeCoreDeps> = {}) =>
   createNativeCore({ claudePath: "/bin/claude", tools: runner, modelFor: () => "claude-sonnet-5-5", sdk, web: true, env: { PATH: "/bin" }, newId: () => "chat-1", ...over });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+test("Stop cancels an SDK worker's plan card before a task_started id arrives", async () => {
+  const store = openHelperStore({ path: ":memory:" }); store.setPlanFirst("kame", true);
+  const bridge = createComputerBridge(); bridge.attach(() => {});
+  let asked!: () => void; const waiting = new Promise<void>((r) => { asked = r; });
+  bridge.onAsk(() => asked());
+  let decision = "";
+  const sdk: SessionSdk = { ...fakeSdk().sdk, query: ({ prompt, options }) => {
+    const o = options as any;
+    async function* run() {
+      yield { type: "system", subtype: "init", apiKeySource: "none", session_id: "plan-stop" };
+      for await (const _ of prompt) {
+        await o.canUseTool("Agent", { subagent_type: "kame", description: "Cedar", prompt: "Plan Cedar" }, { toolUseID: "u" });
+        const reply = await o.hooks.PreToolUse[0].hooks[0]({ agent_id: "a", agent_type: "kame", tool_name: "ExitPlanMode", tool_input: { plan: "Edit fictional Cedar" } }, "plan");
+        decision = reply.hookSpecificOutput.permissionDecision;
+        yield { type: "result", subtype: "success", is_error: false, result: "Stopped before plan approval.", session_id: "plan-stop", usage: {} };
+      }
+    }
+    return Object.assign(run(), { close() {} });
+  } };
+  const core = make(sdk, { team: { helpers: store, approve: bridge.approve, worktrees: "/tmp/atom-stop-plan" } });
+  try {
+    const turn = core.handle({ text: "Kame, plan Cedar", source: "text" }); await waiting;
+    const job = store.list().flatMap((h) => h.jobs)[0]!; const id = bridge.pending()[0]!.id;
+    assert.equal(job.sdkTaskId, undefined);
+    store.stop(job.id);
+    assert.equal(await core.stopJob(job.id), true);
+    assert.deepEqual(bridge.pending(), []);
+    bridge.answer(id, true);
+    await turn; assert.equal(decision, "deny"); assert.equal(store.get(job.id)!.state, "stopped");
+  } finally { bridge.cancelAll(); store.close(); }
+});
+
+test("a lost SDK connection after host dispatch requires review instead of automatic fresh-session replay", async () => {
+  const store = openHelperStore({ path: ":memory:" });
+  let queries = 0;
+  const sdk: SessionSdk = {
+    ...fakeSdk().sdk,
+    query: ({ prompt, options }) => {
+      queries++;
+      async function* run() {
+        yield { type: "system", subtype: "init", apiKeySource: "none", session_id: "saved" };
+        for await (const _message of prompt) {
+          // The host accepted the worker, but the connection dies before a tool_use event reaches the SDK stream.
+          const decision = await (options as any).canUseTool("Agent", { subagent_type: "sid", description: "Research", prompt: "Research fictional Cedar" }, { toolUseID: "u1" });
+          assert.equal(decision.behavior, "allow");
+          store.step(store.list().flatMap((h) => h.jobs)[0]!.id, "Waiting for the worker result");
+          throw new Error("connection lost");
+        }
+      }
+      return Object.assign(run(), { close: () => {} });
+    },
+  };
+  const saved = sessions();
+  saved.map.set("chat-1", { id: "saved", model: "claude-sonnet-5-5", tail: answerTail("previous") });
+  const core = make(sdk, { chatSessions: saved.store, team: { helpers: store, approve: async () => false, worktrees: "/tmp/atom-recovery-session" } });
+  core.resume("chat-1", [{ role: "user", content: "earlier" }, { role: "assistant", content: "previous" }]);
+  await assert.rejects(core.handle({ text: "Sid, research Cedar", source: "text" }), /connection lost/);
+  assert.equal(queries, 1, "a host-dispatched worker prevents automatic replay even without a tool_use stream event");
+  const job = store.list().flatMap((h) => h.jobs)[0]!;
+  assert.equal(job.state, "failed");
+  assert.equal(job.recoveryNeeded, true);
+  assert.equal(job.step, "Waiting for the worker result");
+  await sleep(5);
+  store.close();
+});
 
 test("a plain chat: three turns in one session; the context goes last and labelled; the opening context only once", async () => {
   const { sdk, queries } = fakeSdk((t) => `re ${t.split("\n")[0]}`);
@@ -514,6 +581,25 @@ test("resume of the same chat gives the live session what another surface wrote 
   core.resume!("chat-1", [...saved, { role: "user", content: "three" }, { role: "assistant", content: "re three" }]);
   await core.handle({ text: "four", source: "text" });
   assert.ok(!(queries[0]!.sent.at(-1)!.message.content as string).includes("Meanwhile"));
+});
+
+test("a large shared-chat catch-up is bounded without deleting saved messages or restarting a live Claude session", async () => {
+  const { sdk, queries } = fakeSdk(() => "acknowledged");
+  const core = make(sdk, { replayBytes: 1000 });
+  await core.handle({ text: "one", source: "text" });
+  const saved: Message[] = [...core.history(), { role: "user", content: "ORIGINAL-OMITTED-FACT" }, ...Array.from({ length: 100 }, (_, i): Message => ({ role: i % 2 ? "assistant" : "user", content: `From the phone ${i}: ` + "x".repeat(200) }))];
+  core.resume("chat-1", saved);
+  await core.handle({ text: "Continue.", source: "text" });
+  const sent = String(queries[0]!.sent.at(-1)!.message.content);
+  assert.equal(queries.length, 1);
+  assert.doesNotMatch(sent, /ORIGINAL-OMITTED-FACT/);
+  assert.match(sent, /earlier saved messages.*omitted/);
+  assert.ok(Buffer.byteLength(sent) < 1500);
+  assert.deepEqual(core.history().slice(0, saved.length), saved);
+  const complete = structuredClone(core.history());
+  await assert.rejects(core.handle({ text: "z".repeat(1100), source: "text" }), /Shorten it or attach/);
+  assert.deepEqual(core.history(), complete);
+  assert.equal(queries[0]!.sent.length, 2, "the oversized question is never sent to Claude");
 });
 
 // 2026-10-16: the prompt tells the main agent when to offer a skill and when to improve one.

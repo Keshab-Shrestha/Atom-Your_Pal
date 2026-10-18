@@ -1,3 +1,5 @@
+import { runChatControl } from "./chat-controls.ts";
+import { createChatWork, type ChatWorkBridge } from "./chat-work.ts";
 // The parts of the Mac runtime shared by both interfaces (terminal and island):
 // Microphone → Whisper → ATOM Core → LLM Gateway → provider → Kokoro → speaker.
 
@@ -82,7 +84,7 @@ import { createApiServer, type ApiServer } from "./api-server.ts";
 import { SCHEDULER_TICK_MS, scheduleTick } from "./scheduler.ts";
 import { createBrainWiring, type BrainWiring } from "./brain-wiring.ts";
 import { createImproveSkillTool, createProposeSkillTool, createSearchChatsTool } from "./reach-tools.ts";
-import { nativeSteering, routeWake, routineStarter, taskStarter } from "./native-entry.ts";
+import { nativeSteering, nativeRetryStarter, retrySourceChat, routeWake, routineStarter, taskStarter } from "./native-entry.ts";
 import { defaultOpenDeps, openInApp } from "./open-in-app.ts";
 import { testMcpServer } from "./mcp-servers.ts";
 import { scanAiTools } from "./ai-tools.ts";
@@ -145,6 +147,9 @@ export interface Runtime {
   islandAttachments?: IslandOptions["attachments"];
   /** The helpers as the ATOM window sees them. Undefined when the store could not open. */
   islandHelpers?: IslandHelpers;
+  taskActivity: NonNullable<IslandOptions["taskActivity"]>;
+  chatWork: ChatWorkBridge;
+  foreground?: IslandOptions["foreground"];
   /** ADR-091: ATOM's task branches, and Keshab's push. Undefined when the helpers store could not open. */
   islandGit?: IslandGit;
   /** Pal dropped on a window (ADR-074): that app's read, held for the next request only. */
@@ -194,6 +199,13 @@ export function createRuntime(
   });
   const computer = createComputerBridge();
   const memory = openMemory(options.memoryPath ?? readEnv(process.env, "ATOM_MEMORY_FILE") ?? "data/memory.db", log);
+  let foregroundReady = Boolean(memory);
+  try { memory?.foreground.recover(); }
+  catch { foregroundReady = false; log.error("foreground.unavailable", {}); }
+  const chatWork = createChatWork({ persistAnswer: (turn, card, question, answer) => {
+    if (!memory || !foregroundReady) throw new Error("Recovery storage is unavailable.");
+    memory.foreground.answer(turn, card, question, answer);
+  } });
   // The request a memory tool is running for, for provenance. Set by the Core's context hook, which runs first.
   let current: { source: InputSource; requestId?: string } = { source: "voice" };
   const memoryListeners = new Set<() => void>();
@@ -255,8 +267,6 @@ export function createRuntime(
   const chatListeners = new Set<() => void>();
   // ADR-109: a goal's result was posted into a chat; the window refreshes that chat if it is open.
   const postedListeners = new Set<(chatId: string) => void>();
-  // ADR-097: a model chosen for a chat that is not saved yet; it goes into the chat's row at its first save.
-  const unsavedChatModels = new Map<string, LlmChoice>();
   // ADR-098 item 9: each chat's Claude Code session. A chat's first answer comes before its first save, so its session
   // waits here until then.
   const unsavedChatSessions = new Map<string, ChatSession>();
@@ -268,14 +278,12 @@ export function createRuntime(
     },
   };
   const chatTurns = createChatTurns(); // who is answering in which chat (window or phone); a deleted chat is not saved back
-  const saveChat = (sessionId: string, turns: readonly Message[]) => {
+  const saveChat = (sessionId: string, turns: readonly Message[], completion?: { requestId: string; reply: string }) => {
     if (!memory) return;
     if (chatTurns.wasDeleted(sessionId)) return; // the chat was deleted while this turn ran: it stays deleted
     try {
-      memory.chats.save(sessionId, projects ? projects.fullTurns(sessionId, turns) : turns); // ADR-107: a project chat keeps all its turns
+      memory.chats.save(sessionId, projects ? projects.fullTurns(sessionId, turns) : turns, completion); // archive and foreground completion commit together
       projects?.saved(sessionId);
-      const own = unsavedChatModels.get(sessionId);
-      if (own && memory.chats.setModel(sessionId, own)) unsavedChatModels.delete(sessionId);
       const session = unsavedChatSessions.get(sessionId);
       if (session && memory.chats.setSession(sessionId, session)) unsavedChatSessions.delete(sessionId);
     } catch (error) {
@@ -285,7 +293,24 @@ export function createRuntime(
     for (const listener of chatListeners) listener();
   };
   const islandChats: IslandChats | undefined = memory && {
-    list: () => (projects?.chatSummaries() ?? memory.chats.list()).map((c) => ({ id: c.id, title: c.id === TELEGRAM_CHAT ? "Telegram" : c.title, updatedAt: c.updatedAt.toISOString(), messages: c.messages, ...(c.projectId ? { projectId: c.projectId } : {}) })),
+    list: () => [...new Map([...(projects?.chatSummaries() ?? memory.chats.list()), ...memory.chats.list({ pinned: true, limit: 500 }), ...memory.chats.list({ archived: true, limit: 500 })].map((c) => [c.id, c])).values()]
+      .map((c) => ({ id: c.id, title: c.id === TELEGRAM_CHAT ? "Telegram" : c.title, updatedAt: c.updatedAt.toISOString(), messages: c.messages, ...(c.projectId ? { projectId: c.projectId } : {}), ...(c.pinned ? { pinned: true as const } : {}), ...(c.archived ? { archived: true as const } : {}), ...(c.flagsVersion ? { flagsVersion: c.flagsVersion } : {}) })),
+    metadataOf: (id) => memory.chats.metadata(id),
+    control: (command) => {
+      const result = runChatControl(memory.chats, command, (id) => {
+        const checked = projects?.island.startChat(id);
+        return checked && "ok" in checked ? {} : { error: checked && "error" in checked ? checked.error : "Projects are unavailable." };
+      });
+      if (result.ok && result.info) {
+        const choice = chatChoice(command.id, "text");
+        const projectId = projects?.projectOf(command.id);
+        const project = projectId ? projects?.island.list().find((p) => p.id === projectId) : undefined;
+        result.info.access = { provider: choice.provider, hostTools: choice.provider === CLAUDE_PLAN || choice.provider === "codex",
+          project: Boolean(projectId), fileGrants: memory.filePermissions.forChat(command.id).list().length,
+          computer: computerOn, web: readEnv(process.env, "ATOM_WEB") !== "0" && (!project || project.web) };
+      }
+      return result;
+    },
     messages: (id) => memory.chats.messages(id),
     remove: (id) => {
       chatTurns.markDeleted(id); // a turn running in it must not save it back
@@ -293,7 +318,7 @@ export function createRuntime(
       attachments?.remove(id); // ADR-113: and none of its files
       return memory.chats.remove(id);
     },
-    modelOf: (id) => memory.chats.model(id) ?? unsavedChatModels.get(id) ?? projects?.modelOf(id), // ADR-107: the chat's own, else its project's
+    modelOf: (id) => memory.chats.model(id) ?? projects?.modelOf(id), // ADR-107: the chat's own, else its project's
     rename: (id, title) => projects?.renameChat(id, title) ?? { error: "Projects are off." },
     projectOf: (id) => projects?.projectOf(id),
     replay: (id, turns) => projects?.replay(id, turns) ?? { turns, trimmed: false },
@@ -306,10 +331,7 @@ export function createRuntime(
         if ("error" in checked) return checked;
         own = checked.choice;
       }
-      if (!memory.chats.setModel(id, own)) {
-        if (own) unsavedChatModels.set(id, own);
-        else unsavedChatModels.delete(id);
-      }
+      memory.chats.setModel(id, own); // persisted before the first answer too: interruption must not change providers
       log.info("chat.model", { provider: own?.provider ?? "default", model: own?.model ?? "default" });
       return { ok: true };
     },
@@ -330,7 +352,11 @@ export function createRuntime(
   const checkpointsDir = helpersPath === ":memory:" ? undefined : join(dirname(resolve(helpersPath)), "checkpoints"); // B3.4
   // ADR-113: files attached to a chat are copied here (data/attachments/<chat>); none in tests.
   const attachments = helpersPath === ":memory:" ? undefined : createAttachments({ dir: join(dirname(resolve(helpersPath)), "attachments"), log: { info: (event, fields) => log.info(event, fields as LogFields) } });
-  const helpers = openHelpers(helpersPath, log, helpersPath === ":memory:" ? undefined : agentsDir, skillsDir, checkpointsDir);
+  let retryTask: ((id: number) => void) | undefined;
+  const helpers = openHelpers(helpersPath, log, helpersPath === ":memory:" ? undefined : agentsDir, skillsDir, checkpointsDir, (id) => {
+    if (!retryTask) throw new Error("Task retries are not ready yet.");
+    retryTask(id);
+  });
   // 2026-10-15: the databases hold MCP secrets and every chat; keep them (and the log) owner-only. Files always; a folder only when it is
   // ATOM's own data or logs folder (private-files.ts), and never ":memory:", which is not a path.
   {
@@ -347,7 +373,7 @@ export function createRuntime(
         ...(helpers ? { helpers } : {}),
         log,
         checkModel: (provider, model) => settings.check(provider, model),
-        onChatsDeleted: (chatIds) => chatIds.forEach((chatId) => chatTurns.markDeleted(chatId)),
+        onChatsDeleted: (chatIds) => chatIds.forEach((chatId) => { chatTurns.markDeleted(chatId); memory.foreground.forgetChat(chatId); }),
       })
     : undefined;
   // ADR-091: ATOM's task branches in the repositories Keshab granted; pushing one is his alone, asked from the window.
@@ -558,7 +584,7 @@ export function createRuntime(
   // Phase N2: the sub-agents of each native chat session; their Board rows, safety, worktrees and skills.
   const nativeTeam = helpers && {
     helpers,
-    approve: (request: { summary: string; reason: string }) => computer.approve(request),
+    approve: (request: { summary: string; reason: string }, signal?: AbortSignal) => computer.approve(request, signal),
     approveFile: (request: { summary: string; reason: string }, signal?: AbortSignal) => computer.approveFile(request, signal),
     ...(memory ? { filePermissions: memory.filePermissions } : {}),
     // `decisions` and `planModels` are made further down: read only when an Agent call runs.
@@ -566,6 +592,7 @@ export function createRuntime(
       (await agentModel({ member, task, engine: decisions, allowLarge: helpers.allowLarge(), models: planModels() })).model,
     worktrees,
     browser: (helper: string) => browserServer(dirname(worktrees), helper),
+    readAssignedSkill: (name: string) => readSkill(name, userSkillsDir(), skillsDir),
     skills: (chatId: string) => {
       const names = [...new Set(helpers.list().flatMap((h) => h.skills))];
       if (!names.length) return undefined;
@@ -593,12 +620,13 @@ export function createRuntime(
   };
   // Phase N2: a native job stopped anywhere (the window, Telegram) stops its sub-agent in the session that runs it.
   helpers?.onChange((change) => {
-    if (change.action !== "job" || change.state !== "stopped" || !helpers.get(change.job)?.sdkTaskId) return;
+    if (change.action !== "job" || change.state !== "stopped") return;
     for (const native of nativeCores) void native.stopJob(change.job).catch(() => log.warn("agent.stop_failed", { job: change.job }));
   });
   /** The provider and model of a chat: its own choice (a text chat), else the one in Settings. */
+  const taskContextChat = (chatId: string) => helpers ? retrySourceChat(helpers, chatId) ?? chatId : chatId;
   const chatChoice = (chatId: string, source: InputSource) => {
-    const own = source === "text" ? islandChats?.modelOf?.(chatId) : undefined;
+    const own = source === "text" ? islandChats?.modelOf?.(chatId) ?? islandChats?.modelOf?.(taskContextChat(chatId)) : undefined;
     const checked = own && settings.check(own.provider, own.model);
     return checked && !("error" in checked) ? checked.choice : settings.current();
   };
@@ -611,6 +639,7 @@ export function createRuntime(
     const native = createNativeCore({
             claudePath: keys[CLAUDE_PLAN] ?? "",
             tools: toolEngine,
+            ...(!composed ? { windowTools: chatWork.tools, onSdkEvent: chatWork.sdk, clarifications: chatWork.clarifications } : {}),
             ...(nativeTeam ? { team: nativeTeam } : {}),
             modelFor: (chatId: string, source: InputSource) => {
               const choice = chatChoice(chatId, source);
@@ -630,7 +659,14 @@ export function createRuntime(
                     if (row) { helpers.setModel(job, actualModel, "The model Codex ran this agent on."); helpers.addUsage({ source: "job", helper: row.helper, job, model: actualModel, chatId: request.context.sessionId, ...u }); }
                   } else recordChatUsage(u, actualModel, { chatId: request.context.sessionId });
                 };
-                const router = createCodexToolRouter({ program, model: choice.model, tools: toolEngine, ...(nativeTeam ? { team: nativeTeam } : {}), onUsage });
+                const router = createCodexToolRouter({ program, model: choice.model, tools: toolEngine,
+                  webAllowed: (chat) => {
+                    if (chatTurns.wasDeleted(chat) || chatTurns.wasDeleted(taskContextChat(chat))) return false;
+                    if (readEnv(process.env, "ATOM_WEB") === "0") return false;
+                    const projectId = projects?.projectOf(taskContextChat(chat));
+                    return !projectId || memory?.projects.get(projectId)?.web === true;
+                  },
+                  ...(!composed ? { observe: chatWork.observe } : {}), ...(nativeTeam ? { team: nativeTeam } : {}), onUsage });
                 routers.set(choice.model, router); codexRouters.add(router);
                 gateway = createGateway({ provider: createCodexSessionAdapter({ program, model: choice.model, runner: (request) => router.forRequest(request), onUsage }), timeoutMs: Math.max(config.llm.timeoutMs, PLAN_TIMEOUT_MS), maxRetries: 0 });
                 models.set(choice.model, gateway); codexModels.add(gateway);
@@ -656,20 +692,21 @@ export function createRuntime(
               [
                 memory ? MEMORY_GUIDANCE : undefined,
                 await keptChats?.context(text).catch((error: unknown) => void log.warn("memory.kept_search_failed", { message: describe(error) })),
-                memory && episodes ? episodeContext(memory, chatId) : undefined,
-                projects?.digest(chatId),
+                memory && episodes ? episodeContext(memory, taskContextChat(chatId)) : undefined,
+                projects?.digest(taskContextChat(chatId)),
               ].filter(Boolean).join("\n\n"),
-            ...(projects ? { project: (chatId: string) => projects.turn(chatId) } : {}),
-            ...(attachments ? { attachments } : {}),
+            ...(projects ? { project: (chatId: string) => projects.turn(taskContextChat(chatId)) } : {}),
+            ...(attachments ? { attachments: { turn: (chatId: string) => attachments.turn(taskContextChat(chatId)), expand: (chatId: string, text: string) => attachments.expand(taskContextChat(chatId), text) } } : {}),
             // A skill of the name first, then one of Keshab's Claude commands (ADR-117): both are "/name words".
             skills: { use: (text: string) => useSkill(text, userSkillsDir(), skillsDir) ?? useCommand(text, userCommandsDir()) },
             // Phase N2: no worker shortcut: "Sid, …" is a main-agent turn that hands the request to Sid.
             ...(toolShortcuts ? { shortcuts: toolShortcuts } : {}),
-            onExchange: (sessionId: string, turns: readonly Message[]) => {
-              saveChat(sessionId, turns);
+            onExchange: (sessionId: string, turns: readonly Message[], completion?: { requestId: string; reply: string }) => {
+              saveChat(sessionId, turns, !composed ? completion : undefined);
               episodes?.update(sessionId, turns);
             },
             onLeave: (sessionId: string) => void episodes?.flush(sessionId),
+            ...(memory ? { archived: (chatId: string) => memory.chats.messages(chatId) } : {}),
             ...(chatSessions ? { chatSessions } : {}),
             clientComposed: composed,
             screenReplies: !composed,
@@ -807,10 +844,17 @@ export function createRuntime(
         })
       : undefined;
   // ADR-110 N5: a task from a worker's page, or its Retry button, is a main-agent turn in a chat of its own ("task-<n>").
+  let taskActive = false;
+  const taskActivityListeners = new Set<() => void>();
+  const taskActivity = {
+    busy: () => taskActive,
+    onChange: (listener: () => void) => { taskActivityListeners.add(listener); return () => void taskActivityListeners.delete(listener); },
+  };
   const startTask =
     helpers
-      ? taskStarter({ core: makeCore(true), name: (helper) => helpers.list().find((h) => h.id === helper && h.available)?.name, failed: (line) => goalLineListeners.forEach((listener) => listener(line)), log })
+      ? taskStarter({ core: makeCore(true), name: (helper) => helpers.list().find((h) => h.id === helper && h.available)?.name, failed: (line) => goalLineListeners.forEach((listener) => listener(line)), activity: (active) => { taskActive = active; for (const listener of taskActivityListeners) listener(); }, retryPending: (id) => { const job = helpers.get(id); return job?.state === "queued" && job.retryOf !== undefined; }, retrySettled: (id, reason) => helpers.failQueuedRetry(id, reason ?? "The retry turn ended without starting its worker. Review this attempt before trying again."), log })
       : undefined;
+  retryTask = helpers && startTask ? nativeRetryStarter({ store: helpers, start: startTask }) : undefined;
   // ADR-098 item 5: the local API. Its turns go to a singleton Core, saved as the chat "api" (or "api-<chatId>"). It
   // listens only after Settings' "Local API" switch is on.
   const apiAsk = createApiTurnRunner({
@@ -1020,11 +1064,6 @@ export function createRuntime(
               if (!startTask) throw new Error("Tasks need the helpers file.");
               startTask(helper, task);
             },
-            retry: (id: number) => {
-              const old = helpers.get(id);
-              if (!old || !startTask) throw new Error("That task is gone.");
-              startTask(old.helper, old.task);
-            },
             openReport,
             // ADR-110 N5: a note to a task is a message to the main agent of its chat.
             ...(steering ? { steer: steering.steer, interrupt: steering.interrupt } : {}),
@@ -1056,6 +1095,9 @@ export function createRuntime(
     },
     /** ADR-054: computer control is on in this run (ATOM_COMPUTER=1). Reported to the island, whose switch shows it. */
     computerOn,
+    taskActivity,
+    chatWork,
+    ...(memory && foregroundReady ? { foreground: { ...memory.foreground, profile: (chat: string, source: InputSource) => chatChoice(chat, source) } } : {}),
     ...(telegram ? { telegram } : {}),
     ...(api ? { api } : {}),
     flushNotes: () => episodes?.flush() ?? Promise.resolve(),

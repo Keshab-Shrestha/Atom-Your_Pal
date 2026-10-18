@@ -65,6 +65,10 @@ public enum IslandEvent: Sendable, Equatable {
     case helpers(HelpersList)
     /// ADR-091: Keshab's chats and the one ATOM is in; a chat opened, with its turns.
     case chats(ChatList)
+    case chatControl(ChatControlResponse)
+    case chatWork(ChatWorkSnapshot)
+    case foregroundReceipt(ForegroundReceipt)
+    case foregroundRecovery(ForegroundRecoveryResponse)
     case chatOpened(id: String, lines: [ChatLine], projectId: String? = nil, trimmed: Bool = false)
     /// ADR-091: ATOM's task branches; one branch's changes as a patch.
     case git([GitBranch])
@@ -118,6 +122,10 @@ public enum IslandEvent: Sendable, Equatable {
         case .git: "git"
         case .gitDiff: "git.diff"
         case .chatOpened: "chat.opened"
+        case .chatControl: "chat.control"
+        case .chatWork: "chat.work"
+        case .foregroundReceipt: "foreground.receipt"
+        case .foregroundRecovery: "foreground.recovery"
         case .thread: "thread"
         case .searchResults: "search.results"
         case .api: "api"
@@ -238,7 +246,9 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
     case "capabilities":
         return .capabilities(try f.capabilities())
     case "plan.usage":
-        return .planUsage(PlanUsage(fiveHour: f.usageFraction("fiveHour"), sevenDay: f.usageFraction("sevenDay"), overage: f.optionalBool("overage")))
+        return .planUsage(PlanUsage(fiveHour: f.usageFraction("fiveHour"), sevenDay: f.usageFraction("sevenDay"), overage: f.optionalBool("overage"),
+                                    resetAt: (f.values["resetAt"] as? NSNumber).map(\.doubleValue).flatMap { $0.isFinite && $0 > 0 && $0 < 4_102_444_800 ? $0 : nil },
+                                    limited: f.optionalBool("limited")))
     case "settings.open":
         return .settingsOpen
     case "media.key":
@@ -253,6 +263,16 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
                                currentProvider: f.optionalString("currentProvider"), currentModel: f.optionalString("currentModel"),
                                currentProjectId: f.optionalString("currentProjectId"),
                                projects: f.values["projects"] == nil ? nil : Fields.projects(f.values["projects"])))
+    case "chat.control":
+        return .chatControl(try JSONDecoder().decode(ChatControlResponse.self, from: JSONSerialization.data(withJSONObject: f.values)))
+    case "chat.work":
+        let work = try JSONDecoder().decode(ChatWorkSnapshot.self, from: JSONSerialization.data(withJSONObject: f.values))
+        guard work.valid else { throw ProtocolError.invalidValue(event: "chat.work", field: "payload") }
+        return .chatWork(work)
+    case "foreground.receipt":
+        return .foregroundReceipt(try JSONDecoder().decode(ForegroundReceipt.self, from: JSONSerialization.data(withJSONObject: f.values)))
+    case "foreground.recovery":
+        return .foregroundRecovery(try JSONDecoder().decode(ForegroundRecoveryResponse.self, from: JSONSerialization.data(withJSONObject: f.values)))
     case "chat.opened":
         return .chatOpened(id: try f.string("id"), lines: Fields.chatLines(f.values["messages"]),
                            projectId: f.optionalString("projectId"), trimmed: f.values["trimmed"] as? Bool ?? false)
@@ -492,7 +512,8 @@ private struct Fields {
                          planFirst: Self.flag(j["planFirst"]), planStatus: j["planStatus"] as? String, planSummary: j["planSummary"] as? String,
                          rating: j["rating"] as? String, reviews: (j["reviews"] as? NSNumber)?.intValue,
                          autoRetries: (j["autoRetries"] as? NSNumber)?.intValue ?? 0, subAgents: Self.subAgents(j["subAgents"]),
-                         labels: (j["labels"] as? [Any] ?? []).compactMap { $0 as? String })
+                         labels: (j["labels"] as? [Any] ?? []).compactMap { $0 as? String }, recoveryNeeded: Self.flag(j["recoveryNeeded"]),
+                         retryOf: (j["retryOf"] as? NSNumber)?.intValue, retriedAs: (j["retriedAs"] as? NSNumber)?.intValue)
     }
 
     /// ADR-098: search results of one kind; a malformed one is left out. Chat ids are strings, task ids numbers.
@@ -824,7 +845,9 @@ private struct Fields {
         (value as? [Any] ?? []).compactMap { entry in
             guard let m = entry as? [String: Any], let id = m["id"] as? String, let title = m["title"] as? String else { return nil }
             return ChatInfo(id: id, title: title, updatedAt: (m["updatedAt"] as? String).flatMap(date), messages: (m["messages"] as? NSNumber)?.intValue ?? 0,
-                            readOnly: m["readOnly"] as? Bool ?? false, projectId: m["projectId"] as? String)
+                            readOnly: m["readOnly"] as? Bool ?? false, projectId: m["projectId"] as? String,
+                            pinned: m["pinned"] as? Bool ?? false, archived: m["archived"] as? Bool ?? false,
+                            flagsVersion: (m["flagsVersion"] as? NSNumber)?.intValue ?? 0)
         }
     }
 
@@ -842,7 +865,7 @@ private struct Fields {
     static func chatLines(_ value: Any?) -> [ChatLine] {
         (value as? [Any] ?? []).compactMap { entry in
             guard let m = entry as? [String: Any], let role = m["role"] as? String, let text = m["text"] as? String else { return nil }
-            return ChatLine(fromUser: role == "user", text: text)
+            return ChatLine(fromUser: role == "user", text: text, seq: (m["seq"] as? NSNumber)?.intValue)
         }
     }
 

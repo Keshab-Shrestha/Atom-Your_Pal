@@ -6,42 +6,122 @@ import AtomIslandCore
 struct MarkdownReply: View {
     let text: String
     let latest: Bool
+    var copyEnabled = true
     @Environment(\.theme) private var theme
 
     var body: some View {
         let blocks = MarkdownBlocks.parse(text)
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in view(for: block) }
+            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in MarkdownBlockView(block: block, latest: latest, copyEnabled: copyEnabled) }
         }
         .font(.system(size: 13.5))
         .foregroundStyle(latest ? theme.text.color : theme.text2.color)
         .textSelection(.enabled)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+}
 
-    @ViewBuilder
-    private func view(for block: MarkdownBlock) -> some View {
+/// A separate node view keeps recursive quotes/lists finite in SwiftUI's view type.
+private struct MarkdownBlockView: View {
+    let block: MarkdownBlock
+    let latest: Bool
+    let copyEnabled: Bool
+    @Environment(\.theme) private var theme
+
+    @ViewBuilder var body: some View {
         switch block {
         case .paragraph(let s):
             inline(s).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
         case .heading(let level, let s):
             inline(s).font(.system(size: level <= 1 ? 16 : level == 2 ? 15 : 14, weight: .semibold))
         case .list(let items, let number):
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 5) {
                 ForEach(Array(items.enumerated()), id: \.offset) { index, item in
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(number.map { "\($0 + index)." } ?? "•").foregroundStyle(theme.text3.color)
-                        inline(item).fixedSize(horizontal: false, vertical: true)
+                    HStack(alignment: .top, spacing: 7) {
+                        HStack(spacing: 4) {
+                            if let number { Text("\(number + index).").foregroundStyle(theme.text3.color) }
+                            if let checked = item.checked {
+                                Image(systemName: checked ? "checkmark.square" : "square")
+                                    .foregroundStyle(theme.text3.color)
+                                    .accessibilityLabel(checked ? "Completed task" : "Incomplete task")
+                                    .padding(.top, 2)
+                            } else if number == nil {
+                                Text("•").foregroundStyle(theme.text3.color)
+                            }
+                        }
+                        VStack(alignment: .leading, spacing: 5) {
+                            if !item.text.isEmpty { inline(item.text).fixedSize(horizontal: false, vertical: true) }
+                            if !item.children.isEmpty { children(item.children) }
+                        }
+                    }
+                    .accessibilityElement(children: .contain)
+                }
+            }
+        case .quote(let blocks):
+            children(blocks)
+                .padding(.leading, 12).padding(.vertical, 3)
+                .overlay(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 1.5).fill(theme.text3.color.opacity(0.5)).frame(width: 3)
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Block quote")
+        case .rule:
+            Rectangle().fill(theme.separator.color).frame(height: 1).padding(.vertical, 5)
+                .accessibilityLabel("Section separator")
+        case .code(let s, let language):
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text(language ?? "Code").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                    Spacer()
+                    ChatCopyControl(title: "Copy code") { MarkdownCopy.code(s) }
+                        .disabled(!copyEnabled)
+                        .help(copyEnabled ? "Copy only this code block, without its fences" : "Copy is available when this reply finishes")
+                }
+                .padding(.horizontal, 10).padding(.top, 4)
+                SideScroll {
+                    Text(s).font(.system(size: 12, design: .monospaced)).padding(10)
+                }
+            }
+            .background(RoundedRectangle(cornerRadius: 8).fill(theme.text.color.opacity(0.06)))
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(language.map { "\($0) code block" } ?? "Code block")
+            .accessibilityActions {
+                if copyEnabled { Button("Copy code") { _ = ChatClipboard.write(MarkdownCopy.code(s)) } }
+            }
+        case .table(let header, let rows, let alignment):
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Table").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+                    Spacer()
+                    ChatCopyControl(title: "Copy table", choices: MarkdownCopy.Format.allCases.map { format in
+                        ChatCopyControl.Choice(title: format.title) {
+                            MarkdownCopy.table(header: header, rows: rows, alignment: alignment, format: format)
+                        }
+                    })
+                    .disabled(!copyEnabled)
+                    .help(copyEnabled ? "Copy this table as Markdown and HTML; open the menu for TSV or CSV" : "Copy is available when this reply finishes")
+                }
+                table(header: header, rows: rows)
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Table")
+            .accessibilityActions {
+                if copyEnabled {
+                    ForEach(MarkdownCopy.Format.allCases, id: \.self) { format in
+                        Button("Copy table: \(format.title)") {
+                            _ = ChatClipboard.write(MarkdownCopy.table(header: header, rows: rows, alignment: alignment, format: format))
+                        }
                     }
                 }
             }
-        case .code(let s):
-            SideScroll {
-                Text(s).font(.system(size: 12, design: .monospaced)).padding(10)
+        }
+    }
+
+    private func children(_ blocks: [MarkdownBlock]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(Array(blocks.enumerated()), id: \.offset) { _, child in
+                AnyView(MarkdownBlockView(block: child, latest: latest, copyEnabled: copyEnabled))
             }
-            .background(RoundedRectangle(cornerRadius: 8).fill(theme.text.color.opacity(0.06)))
-        case .table(let header, let rows):
-            table(header: header, rows: rows)
         }
     }
 

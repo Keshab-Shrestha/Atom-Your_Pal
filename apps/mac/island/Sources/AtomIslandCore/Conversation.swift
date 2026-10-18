@@ -4,6 +4,9 @@ import Foundation
 public struct Conversation: Sendable, Equatable {
     public struct Turn: Sendable, Equatable, Identifiable {
         public let id: Int
+        public var sourceSeq: Int?
+        public var replySeq: Int?
+        public var work: ChatWorkSnapshot?
         /// What the user said.
         public var transcript: String
         /// ATOM's reply, once it arrives.
@@ -12,8 +15,10 @@ public struct Conversation: Sendable, Equatable {
         /// Set when the reply finished playing.
         public var timings: TurnTimings?
 
-        public init(id: Int, transcript: String, reply: String? = nil, outcome: Outcome = .inProgress, timings: TurnTimings? = nil) {
+        public init(id: Int, transcript: String, reply: String? = nil, outcome: Outcome = .inProgress, timings: TurnTimings? = nil, sourceSeq: Int? = nil, replySeq: Int? = nil) {
             self.id = id
+            self.sourceSeq = sourceSeq
+            self.replySeq = replySeq
             self.transcript = transcript
             self.reply = reply
             self.outcome = outcome
@@ -35,6 +40,7 @@ public struct Conversation: Sendable, Equatable {
     public let limit: Int
     /// Never reused, even after a reset, so views never confuse an old turn with a new one.
     private var nextId = 1
+    private var activeChat: String?
 
     public init(limit: Int = 50) {
         self.limit = max(1, limit)
@@ -42,8 +48,28 @@ public struct Conversation: Sendable, Equatable {
 
     public var isEmpty: Bool { turns.isEmpty }
 
+    /// ADR-144: Copy last reply uses only the current visible conversation, skipping an unfinished response.
+    public var lastFinishedReply: String? {
+        turns.reversed().first { turn in
+            guard !turn.isStreaming, let reply = turn.reply else { return false }
+            return !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }?.reply
+    }
+
     public mutating func apply(_ event: IslandEvent) {
         switch event {
+        case .chatWork(let work):
+            guard activeChat == nil || activeChat == work.chat else { return }
+            if let i = turns.firstIndex(where: { $0.work?.turn == work.turn }) {
+                turns[i].work = work
+            } else if work.state == "working", let i = turns.indices.last, turns[i].work == nil, case .inProgress = turns[i].outcome {
+                turns[i].work = work
+                activeChat = work.chat
+            }
+        case .chats(let list):
+            activeChat = list.current
+        case .ready:
+            interruptWork()
         case .transcript(let text):
             turns.append(Turn(id: nextId, transcript: text))
             nextId += 1
@@ -64,11 +90,17 @@ public struct Conversation: Sendable, Equatable {
             updateCurrent { $0.outcome = $0.reply == nil ? .failed("Stopped") : .answered }
         case .conversationReset:
             turns.removeAll()
-        case .chatOpened(_, let lines, _, _):
+            activeChat = nil
+        case .chatOpened(let chat, let lines, _, _):
+            activeChat = chat
             replay(lines)
         default:
             break
         }
+    }
+
+    public mutating func interruptWork() {
+        for i in turns.indices { turns[i].work?.interrupt() }
     }
 
     /// ADR-091: shows a saved chat: each thing Keshab said with the answer that followed it.
@@ -76,13 +108,14 @@ public struct Conversation: Sendable, Equatable {
         turns.removeAll()
         for line in lines {
             if line.fromUser {
-                turns.append(Turn(id: nextId, transcript: line.text, outcome: .answered))
+                turns.append(Turn(id: nextId, transcript: line.text, outcome: .answered, sourceSeq: line.seq))
                 nextId += 1
             } else if let last = turns.indices.last, turns[last].reply == nil {
                 turns[last].reply = line.text
+                turns[last].replySeq = line.seq
             } else {
                 // ADR-109: an answer ATOM posted by itself (a worker's result): no question of Keshab's before it.
-                turns.append(Turn(id: nextId, transcript: "", reply: line.text, outcome: .answered))
+                turns.append(Turn(id: nextId, transcript: "", reply: line.text, outcome: .answered, sourceSeq: line.seq, replySeq: line.seq))
                 nextId += 1
             }
         }
@@ -115,20 +148,28 @@ public struct ChatInfo: Sendable, Equatable, Identifiable {
     public var messages: Int
     /// ADR-098: another surface writes this chat (Telegram, the local API); the window reads it only.
     public var readOnly: Bool
+    public var pinned: Bool
+    public var archived: Bool
+    public var flagsVersion: Int
     /// ADR-107: the project this chat belongs to; nil for a plain chat.
     public var projectId: String?
 
-    public init(id: String, title: String, updatedAt: Date? = nil, messages: Int = 0, readOnly: Bool = false, projectId: String? = nil) {
+    public init(id: String, title: String, updatedAt: Date? = nil, messages: Int = 0, readOnly: Bool = false, projectId: String? = nil, pinned: Bool = false, archived: Bool = false, flagsVersion: Int = 0) {
         self.projectId = projectId
         self.id = id
         self.title = title
         self.updatedAt = updatedAt
         self.messages = messages
         self.readOnly = readOnly
+        self.pinned = pinned; self.archived = archived; self.flagsVersion = flagsVersion
     }
+
+    /// Shared writers keep writing independently, so native organization cannot archive their chats.
+    public var canArchive: Bool { !readOnly && id != "api" && !id.hasPrefix("api-") }
 
     /// The one line shown in place of the composer for a read-only chat; nil for a chat the window writes.
     public var readOnlyNotice: String? {
+        if archived { return "Archived chat. Unarchive it to continue; the saved history is unchanged." }
         guard readOnly else { return nil }
         return "Written from \(id == "telegram" ? "Telegram" : "the local API"). You can read it here."
     }
@@ -179,9 +220,11 @@ public struct ChatList: Sendable, Equatable {
 public struct ChatLine: Sendable, Equatable {
     public var fromUser: Bool
     public var text: String
+    public var seq: Int?
 
-    public init(fromUser: Bool, text: String) {
+    public init(fromUser: Bool, text: String, seq: Int? = nil) {
         self.fromUser = fromUser
         self.text = text
+        self.seq = seq
     }
 }

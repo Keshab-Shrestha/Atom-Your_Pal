@@ -54,14 +54,42 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
         return false
     }
 
-    /// ADR-098: Edit → Find (⌘F) focuses the sidebar's search.
-    @objc private func find(_ sender: Any?) { model.focusSearch() }
+    private var canFind: Bool {
+        guard let window else { return false }
+        return NSApp.keyWindow === window && window.attachedSheet == nil && !model.recorder.isRecording
+    }
+
+    /// ADR-152: ⌘F searches this chat; ⇧⌘F retains global/sidebar search.
+    @objc private func find(_ sender: Any?) {
+        guard canFind else { return }
+        if model.windowPage == .chat { model.openChatFind() } else { model.focusSearch() }
+    }
+    @objc private func searchAll(_ sender: Any?) { if canFind { model.focusSearch() } }
+
+    /// ADR-144: an ordinary window menu shortcut, never a global shortcut or a clipboard read.
+    private var copyLastReplyText: String? {
+        guard let window, window.isVisible, NSApp.isActive, NSApp.keyWindow === window,
+              window.attachedSheet == nil, model.helpersWindowOpen, model.windowPage == .chat,
+              !model.recorder.isRecording else { return nil }
+        return model.conversation.lastFinishedReply
+    }
+
+    @objc private func copyLastReply(_ sender: Any?) {
+        guard let reply = copyLastReplyText else { return }
+        _ = ChatClipboard.write(MarkdownCopy.reply(reply))
+    }
 
     /// ADR-128: View → Hide Sidebar / Show Sidebar (⌥⌘H).
     @objc private func toggleSidebar(_ sender: Any?) { model.toggleSidebar() }
 
     /// The View item names what it does now: "Hide Sidebar" or "Show Sidebar".
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if item.action == #selector(find(_:)) {
+            item.title = model.windowPage == .chat ? "Find in Chat" : "Search All"
+            return canFind
+        }
+        if item.action == #selector(searchAll(_:)) { return canFind }
+        if item.action == #selector(copyLastReply(_:)) { return copyLastReplyText != nil }
         if item.action == #selector(toggleSidebar(_:)) { item.title = WindowChrome.sidebarToggleTitle(hidden: model.settings.sidebarHidden) }
         return true
     }
@@ -123,11 +151,15 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
         add("ATOM", [item("Quit ATOM", #selector(NSApplication.terminate(_:)), "q")])
         let find = item("Find", #selector(find(_:)), "f")
         find.target = self
+        let searchAll = item("Search All", #selector(searchAll(_:)), "f", [.command, .shift])
+        searchAll.target = self
+        let copyReply = item("Copy Last Reply", #selector(copyLastReply(_:)), "c", [.command, .shift])
+        copyReply.target = self
         add("Edit", [
             item("Undo", Selector(("undo:")), "z"), item("Redo", Selector(("redo:")), "z", [.command, .shift]), .separator(),
             item("Cut", #selector(NSText.cut(_:)), "x"), item("Copy", #selector(NSText.copy(_:)), "c"),
             item("Paste", #selector(NSText.paste(_:)), "v"), item("Select All", #selector(NSText.selectAll(_:)), "a"), .separator(),
-            find,
+            copyReply, find, searchAll,
         ])
         let sidebar = item(WindowChrome.sidebarToggleTitle(hidden: model.settings.sidebarHidden), #selector(toggleSidebar(_:)), "h", [.command, .option])
         sidebar.target = self

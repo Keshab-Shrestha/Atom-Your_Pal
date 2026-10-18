@@ -945,6 +945,8 @@ private struct NameTitle: View {
 /// their project (see ProjectsSection), not here.
 private struct ChatsList: View {
     let model: IslandModel
+    @State private var showArchived = false
+    @State private var showAll = false
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -968,15 +970,29 @@ private struct ChatsList: View {
         }
         .padding(.horizontal, 10).padding(.top, 8)
         if let list, !list.plainChats.isEmpty {
-            ForEach(list.plainChats.prefix(40)) { chat in
+            ForEach(showAll ? list.plainChats : Array(list.plainChats.prefix(40))) { chat in
                 SidebarChatRow(model: model, chat: chat, current: chat.id == list.current)
+            }
+            if !showAll && list.plainChats.count > 40 {
+                Button("Show all loaded chats") { showAll = true }.font(.system(size: 11)).buttonStyle(.borderless)
             }
         } else {
             if list == nil {
                 LoadingStateView(text: "Loading chats…", retry: { model.send(.chatsList) }).padding(.horizontal, 10)
             } else {
-                Text("No chats yet. Talk or type to ATOM.").font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+                Text("No active plain chats. Talk or type to ATOM.").font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
                     .padding(.horizontal, 10).padding(.vertical, 4)
+            }
+        }
+        ChatControlFeedback(model: model).padding(.horizontal, 10).padding(.vertical, 4)
+        if let list {
+            let archived = list.chats.filter(\.archived).sorted { ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast) }
+            if !archived.isEmpty {
+                DisclosureGroup("Archived chats (\(archived.count))", isExpanded: $showArchived) {
+                    ForEach(archived) { chat in
+                        SidebarChatRow(model: model, chat: chat, current: chat.id == list.current)
+                    }
+                }.font(.system(size: 11.5)).foregroundStyle(theme.text2.color).padding(.horizontal, 10)
             }
         }
     }

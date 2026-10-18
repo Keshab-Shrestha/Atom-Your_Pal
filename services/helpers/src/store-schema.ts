@@ -135,6 +135,9 @@ export function createSchema(db: DatabaseSync) {
   if (!columns.has("interrupted")) db.exec("ALTER TABLE jobs ADD COLUMN interrupted INTEGER");
   // ADR-110 (N2): a native sub-agent's job: its chat and Claude Code's task id (both empty for legacy jobs).
   for (const column of ["chat_id", "sdk_task_id"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} TEXT`);
+  // ADR-139: additive recovery/retry identity. Older rows remain valid; no task content is rewritten.
+  for (const column of ["recovery_needed", "retry_of", "retry_next"]) if (!columns.has(column)) db.exec(`ALTER TABLE jobs ADD COLUMN ${column} INTEGER`);
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS jobs_retry_of ON jobs(retry_of) WHERE retry_of IS NOT NULL");
   const noteColumns = new Set((db.prepare("PRAGMA table_info(job_comments)").all() as { name: string }[]).map((c) => c.name));
   if (!noteColumns.has("delivery")) db.exec("ALTER TABLE job_comments ADD COLUMN delivery TEXT");
 }
@@ -173,6 +176,9 @@ export interface JobRow {
   auto_retries: number | null;
   chat_id?: string | null;
   sdk_task_id?: string | null;
+  recovery_needed?: number | null;
+  retry_of?: number | null;
+  retry_next?: number | null;
 }
 
 export interface SoulRow {
@@ -207,7 +213,9 @@ export const toJobRow = (row: JobRow): Omit<Job, "blockedBy" | "waitingFor" | "c
   helper: row.helper as HelperId,
   task: row.task,
   state: row.state as JobState,
-  ...(row.step && row.state === "running" ? { step: row.step } : {}),
+  ...(row.step && (row.state === "running" || row.recovery_needed === 1) ? { step: row.step } : {}),
+  ...(row.recovery_needed === 1 ? { recoveryNeeded: true } : {}),
+  ...(row.retry_of != null ? { retryOf: row.retry_of } : {}),
   partial: row.partial === 1,
   ...(row.error ? { error: row.error } : {}),
   createdAt: new Date(row.created_at),

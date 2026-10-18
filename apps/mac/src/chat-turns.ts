@@ -16,6 +16,7 @@ export class ChatBusyError extends Error {
 }
 
 export interface ChatTurns {
+  busy?(chat: string): boolean;
   /** Starts a turn in `chat`. Returns a line for the user when another turn is running there (and starts nothing), else undefined. */
   begin(chat: string, who: TurnSurface): string | undefined;
   /** Ends the turn `begin` started. */
@@ -30,6 +31,7 @@ export function createChatTurns(): ChatTurns {
   const running = new Map<string, TurnSurface>();
   const deleted = new Set<string>();
   return {
+    busy: (chat) => running.has(chat),
     begin(chat, who) {
       const other = running.get(chat);
       if (other) return `${WORDS[other][0]!.toUpperCase()}${WORDS[other].slice(1)} is answering in this chat. Try again in a moment.`;
