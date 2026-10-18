@@ -584,7 +584,7 @@ export function createRuntime(
   // Phase N2: the sub-agents of each native chat session; their Board rows, safety, worktrees and skills.
   const nativeTeam = helpers && {
     helpers,
-    approve: (request: { summary: string; reason: string }, signal?: AbortSignal) => computer.approve(request, signal),
+    approve: (request: { summary: string; reason: string; reasonMax?: number }, signal?: AbortSignal) => computer.approve(request, signal),
     approveFile: (request: { summary: string; reason: string }, signal?: AbortSignal) => computer.approveFile(request, signal),
     ...(memory ? { filePermissions: memory.filePermissions } : {}),
     // `decisions` and `planModels` are made further down: read only when an Agent call runs.
@@ -660,6 +660,14 @@ export function createRuntime(
                   } else recordChatUsage(u, actualModel, { chatId: request.context.sessionId });
                 };
                 const router = createCodexToolRouter({ program, model: choice.model, tools: toolEngine,
+                  workerModelAllowed: (model) => codexWorkerModels().some((m) => m.id === model),
+                  projectCommandsAllowed: (chat, root) => {
+                    const source = taskContextChat(chat);
+                    if (chatTurns.wasDeleted(chat) || chatTurns.wasDeleted(source)) return false;
+                    const id = projects?.projectOf(source);
+                    if (!id || memory?.projects.get(id)?.archived !== false) return false;
+                    return projects?.turn(source)?.files?.cwd === root;
+                  },
                   webAllowed: (chat) => {
                     if (chatTurns.wasDeleted(chat) || chatTurns.wasDeleted(taskContextChat(chat))) return false;
                     if (readEnv(process.env, "ATOM_WEB") === "0") return false;
@@ -763,6 +771,10 @@ export function createRuntime(
   /** The Claude plan's models for worker jobs, by tier; empty on any other provider. */
   const planModels = () =>
     settings.current().provider === CLAUDE_PLAN ? tieredModels(settings.info().providers.find((p) => p.id === CLAUDE_PLAN)?.models ?? []) : [];
+  const codexWorkerModels = () => {
+    const provider = settings.info().providers.find((p) => p.id === "codex");
+    return provider?.available ? provider.models : [];
+  };
   /** Runs a soul proposal's or skill edit's test cases on Sonnet at most; the cost counts on the Tinker task that made it. */
   const runTests = async (kind: TestKind, id: number, signal: AbortSignal, tinkerJob = helpers?.tinkerTaskOf(kind, id)) => {
     if (!helpers) throw new Error("Test cases need the helpers file.");
@@ -963,7 +975,7 @@ export function createRuntime(
   };
   briefNow = dailyBrief ? runBriefNow : undefined;
   // The helpers as the window lists them, for the search (agents, routines, skills).
-  const searchHelpers = helpers ? islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name)))) : undefined;
+  const searchHelpers = helpers ? islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name))), undefined, codexWorkerModels) : undefined;
   return {
     config,
     log,
@@ -1057,7 +1069,7 @@ export function createRuntime(
     islandSlashCommands: { list: () => listCommands(userCommandsDir()) },
     islandSkillFiles: { read: (name) => readSkillFile(name, userSkillsDir(), skillsDir), write: (name, text) => writeSkillFile(name, text, userSkillsDir(), skillsDir) },
     ...(helpers ? { islandHelpers: warmOnOpen(withPaperclip(paperclip, paperclipListeners, {
-            ...islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name)))),
+            ...islandHelpers(helpers, installedApps, planModels, () => listSkills(userSkillsDir(), skillsDir, new Set(helpers.skillHubInstalled().map((i) => i.name))), undefined, codexWorkerModels),
             hub: createHubCommands({ store: helpers, log }), // B3.5
             // ADR-110 N5: no legacy runner starts a queued task, so the page's task field and Retry hand it to the main agent.
             addJob: (helper: string, task: string) => {

@@ -92,6 +92,8 @@ export interface ModelRequest {
   interactionTools?: ToolRunner;
   /** Host-only web admission for this request. An absent value grants no host web access. */
   web?: boolean;
+  /** Host-only: files belong to a project, rather than attachment copies. Absent means false. */
+  project?: boolean;
   /**
    * Receives the reply's text as it is written, for speaking early (ADR-065). Providers that cannot stream ignore it.
    * Text written before a tool call ("Let me check.") is included; turns are separated by a newline.

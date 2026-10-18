@@ -451,6 +451,7 @@ private struct HelperPane: View {
                         AppPicker(model: model, helper: helper)
                         ModelPicker(model: model, helper: helper, models: model.helpers.list?.models ?? [])
                     }
+                    CodexWorkerModelPicker(model: model, helper: helper)
                     SkillsPicker(model: model, helper: helper, skills: model.helpers.list?.skills ?? [])
                     PlanFirstRow(model: model, helper: helper)
                     if helper.takesTasks, helper.kit != "think" { BrowserRow(model: model, helper: helper) } // ADR-098
@@ -570,12 +571,56 @@ private struct ModelPicker: View {
                 }
             }
         } label: {
-            PillMenuLabel(label: "Model", value: value, dimmed: models.isEmpty, identifier: helper.pinnedModel != nil && !models.isEmpty)
+            PillMenuLabel(label: "Claude", value: value, dimmed: models.isEmpty, identifier: helper.pinnedModel != nil && !models.isEmpty)
         }
         .menuStyle(.button).buttonStyle(.plain).fixedSize()
         .disabled(models.isEmpty)
-        .help("The model \(helper.name)'s jobs run on")
-        .accessibilityLabel("\(helper.name)'s model")
+        .help("The model used when \(helper.name)'s task runs on Claude")
+        .accessibilityLabel("\(helper.name)'s Claude model")
+    }
+}
+
+/// A Codex setting independent of the Claude pin and the foreground chat's provider/model.
+private struct CodexWorkerModelPicker: View {
+    let model: IslandModel
+    let helper: Helper
+
+    private var offered: [ModelOption] {
+        guard let provider = model.modelInfo?.providers.first(where: { $0.id == "codex" }), provider.available else { return [] }
+        return provider.models
+    }
+
+    var body: some View {
+        let models = offered
+        let pin = helper.codexPinnedModel
+        let value = pin.map { id in models.first(where: { $0.id == id })?.name ?? id } ?? (models.isEmpty ? "Codex unavailable" : "Use chat's model")
+        Menu {
+            Button {
+                model.sendHelpers(model.helpers.pinCodexModel(nil, for: helper.id, offered: models))
+            } label: {
+                if pin == nil { Label("Use chat's Codex model", systemImage: "checkmark") }
+                else { Text("Use chat's Codex model") }
+            }
+            .disabled(pin == nil)
+            if pin != nil && !models.contains(where: { $0.id == pin }) {
+                Text("Saved model unavailable. Clear this pin or choose another model.")
+            }
+            Divider()
+            ForEach(models) { option in
+                Button {
+                    model.sendHelpers(model.helpers.pinCodexModel(option.id, for: helper.id, offered: models))
+                } label: {
+                    if option.id == pin { Label(option.name, systemImage: "checkmark") }
+                    else { Text(option.name) }
+                }
+            }
+        } label: {
+            PillMenuLabel(label: "Codex", value: value, dimmed: models.isEmpty, identifier: pin != nil)
+        }
+        .menuStyle(.button).buttonStyle(.plain).fixedSize()
+        .disabled(models.isEmpty && pin == nil)
+        .help("Applies to new Codex tasks for \(helper.name). It does not switch a chat's provider or change running tasks.")
+        .accessibilityLabel("\(helper.name)'s Codex model")
     }
 }
 

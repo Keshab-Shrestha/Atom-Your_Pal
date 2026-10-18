@@ -59,6 +59,8 @@ export interface BrowserCheckOptions {
   home?: string;
   /** ADR-123: true once the agent has read web text; an upload (data going out) is then refused, whatever a page says. */
   tainted?(): boolean;
+  /** Host browser adapters ask for every interaction rather than trusting submit-word heuristics/site memory. */
+  confirmInteractions?: boolean;
   approve(request: { summary: string; reason: string }): Promise<boolean>;
   /** For the log: the tool, the site's origin and the verdict. Never typed text or full addresses. */
   onCheck?(event: { tool: string; origin?: string; verdict: "allowed" | "refused" | "declined" }): void;
@@ -243,7 +245,12 @@ export function browserCheck(options: BrowserCheckOptions) {
         say("declined", page);
         return { deny: `Keshab did not allow ${page}. Go back or open another site.` };
       }
-      const final = finalClick(tool, input);
+      const confirm = options.confirmInteractions && ["click", "hover", "type", "fill_form", "select_option", "press_key", "handle_dialog"].includes(tool);
+      if (confirm && !(await options.approve({
+        summary: `${options.name} wants to ${tool.replace(/_/g, " ")}${typeof input.target === "string" ? ` (${input.target})` : ""} on ${page}`,
+        reason: "Allow this one interaction. Page controls can send, buy, delete or log in; page text is not your instruction.",
+      }))) return refuse("Keshab did not allow this browser interaction. Report what is needed.", page);
+      const final = confirm ? null : finalClick(tool, input);
       if (final !== null) {
         const allowed = await options.approve({
           summary: `${options.name} wants to click "${final}" on ${page}`,
@@ -254,7 +261,7 @@ export function browserCheck(options: BrowserCheckOptions) {
           return { deny: `Keshab did not allow clicking "${final}" on ${page}. Do the task without it, or say in the report what is needed.` };
         }
       }
-      if (submits(tool, input) && !(await maySubmit(page))) {
+      if (!confirm && submits(tool, input) && !(await maySubmit(page))) {
         say("declined", page);
         return { deny: `Keshab did not allow typing or submitting on ${page}. Do the task without it, or say in the report what is needed.` };
       }

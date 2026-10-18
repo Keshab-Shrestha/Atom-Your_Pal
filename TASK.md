@@ -1,8 +1,80 @@
 # ZENO Task Plan
 
+Publication checkpoint (2026-10-18, ADR-160–166): Keshab requested pushing the accumulated worker-model, inspection, MCP, browser, advisory-child, disposable-preview and reviewed-edit upgrades on main before continuing. Per-batch local/uncommitted notes below describe their implementation-time state. TypeScript/diff checks pass; earlier Swift release compilation is recorded in the relevant batches. No new tests, migrations, adapter/provider/apply/Undo execution, app launch or installation. Known CI repairs remain deferred; unrelated graphify-out stays local.
+
+## Current batch: reviewed preview-input edits (2026-10-18, ADR-166)
+
+Keshab continued review/apply work with tests and known CI repairs skipped. Deliver one existing short-file text proposal using host-owned source receipts, complete fresh review and required undo; no automatic shell-diff import.
+
+- Successful cleaned-up previews retain task-local canonical root/input hashes and issue source receipts. ReviewPreviewEdit accepts exact receipt/path/content, two serial attempts and consumes an eligible input before awaited review, even on refusal. Receipts never attest generated output and vanish at task end/restart.
+- Current Read/Write/plan policy plus a full 600-character before/after card; oversized/unchanged/hidden-control/secret-shaped proposals refuse. Recheck hash, identity, permissions and current ownership/admission after approval. No creations, deletions or multi-file apply. Pending/refused/uncertain reviews hold the target against this worker's host Write/Edit and repeat review until task end; owned signals abort before receipt cleanup.
+- Host-only required checkpoint verifies/fsyncs the exact original copy, including worktrees, or refuses. Additive checkpoints.guarded pins expected replacement hashes before write; completion/startup cannot adopt later edits. Existing Board Undo uses bounded hashes for guarded rows and retains normal conflict/explicit Force semantics. Staging/fsync/rechecks/atomic rename; no external-editor CAS, filesystem/SQLite transaction or complete metadata/power-loss guarantee.
+- TypeScript checking and static source/security/diff review pass. No tests added/run, migration, apply/checkpoint/Undo execution, adapter/provider/app/live checks. No Swift changes/build; installed app unchanged. ADR-160–166 remain local/uncommitted/unpushed on main after 2fe2250; graphify-out preserved, CI failures deferred.
+- Stop after this scope. Next independent scope: larger native before/after review, preserving required undo and fresh source checks. General shell writes/undo, generated-file import and multi-file apply remain open. [Behavior and limits](docs/codex-preview-edits.md).
+
+## Previous batch: disposable Codex shell previews (2026-10-18, ADR-165)
+
+Keshab continued the shell boundary work with tests and CI repairs skipped. Existing checkpoints cover named file edits on a best-effort basis, not arbitrary script effects. Keep this capability discard-only.
+
+- Project folders workers get two serial ProjectShellPreview attempts on selected checked UTF-8 input copies, alongside fixed read-only inspection. Native Read/Bash/plan policy plus a fresh card; refuse requests whose full command/file list cannot fit the existing approval reason.
+- Independent baseline/work directories outside the real project; descriptor-bounded copies and input hashes. Explicit sandbox profile denies the real task root and networking, allows baseline reads/copy writes/minimal runtime, uses isolated environment and managed requirements, and refuses unsupported setup. Diff runs inside the sandbox; host monitors metadata only.
+- Execution/output/CPU/file-size limits, best-effort work/scratch metadata budgets, current-access polling, process-group Stop and bounded pipe/temporary cleanup. No hard aggregate resource quota or complete descendant/process proof. Results are untrusted simulation data, never actual project build/test evidence, automatic apply or shell undo.
+- TypeScript checking and static source/security/diff review pass. No tests added/run, adapter/sandbox/CLI/provider execution, migrations, app/live checks. No Swift changes/build; ADR-164 release compilation passed separately. Installed app unchanged; ADR-160–165 remain local/uncommitted/unpushed on main after 2fe2250; graphify-out preserved and CI failures deferred.
+- Stop after this scope. Next independent scope: preview review/apply design with source-hash conflict checks and a fail-closed undo boundary. General real-project shell writes, hosted search, tool-enabled/recursive children and omitted browser operations remain separate. [Behavior and limits](docs/codex-shell-previews.md).
+
+## Previous batch: bounded Codex advisory children (2026-10-18, ADR-164)
+
+Keshab continued after browser support. Implement one generation of supplied-context-only advisory children; tests and known CI repairs remain skipped.
+
+- Root workers get ConsultWorker for another available worker, exact bounded fields, two attempts per parent and one child at a time. Plan-first parent approval applies. Children have no tools, files, browser, MCP, assigned skills/history or further workers; no grant/approval inheritance. Current target Codex pin or parent model, validated without fallback; separate Board/usage/report records with parent links.
+- Host-only native admission plus transactional parent/chat/depth/child-count checks. Additive native_scope persists advisory restriction independently of parent unlinking. Native/queued Retry and legacy Interrupt refuse children across restart; no independent wake/replay. Parent Stop/removal stops owned children; direct child Stop leaves its parent running. Parent completion awaits cancellation/cleanup of outstanding child sessions. Failed/stopped consultations cannot be replayed automatically in the same parent.
+- Existing Board UI gains optional advisory metadata, supplied-context label, parent navigation and guards hiding Retry/Interrupt/Start fresh while retaining Stop. Existing external taint is retained; reports are unverified advice with bounded/redacted content, never approval or claims of external verification.
+- TypeScript checking, Swift release compilation and static source/security/diff review pass. No tests added/run, migration execution, provider/model calls, gallery/app/live checks. Installed app unchanged; ADR-160–164 remain local/uncommitted on main after 2fe2250; graphify-out preserved and known CI failures deferred.
+- Stop after this scope. Tool-enabled/recursive children remain open. Next independent scope: define general Codex shell's project write/undo/lifetime boundary; hosted search still needs an isolated supported route. [Behavior and limits](docs/codex-advisory-workers.md).
+
+## Previous batch: Codex worker browser (2026-10-18, ADR-163)
+
+Keshab continued after external MCP. Implement one bounded browser capability using the existing worker browser/site grants and native profile lane. Tests and known CI repairs remain skipped.
+
+- Non-think workers with the browser grant get a fixed Browser host tool: navigate, snapshot, click, hover, type, fill_form, select_option, limited press_key and bounded wait_for. Exact returned/current snapshot refs only; no selectors, page code, uploads, screenshots, tabs, dialogs or model-owned configuration.
+- Native plan-first/site policy plus fresh interaction cards; existing password/unknown-field cards retained. Shared browserSeen updates page/ref state and taint for SDK/host results. Refresh the page before actions, recheck URL/targets after approval, approve redirect/current origins before returning snapshot text. Existing profile lane is acquired before server startup and released after connection cleanup/task end; late cancelled acquisition releases immediately.
+- Twenty attempts, one browser operation at a time, bounded arguments/text/waits; host-only stdio with fixed flags, current worker/task/grant/configuration checks including idle revocation, Stop/close without retry. Unknown dispatched outcomes stay unknown. Third-party page/network behavior and browser descendants are not fully contained/reconciled.
+- TypeScript checking and static source/security/diff review pass. No tests added/run, browser/server startup, adapter/network/provider calls, migration, gallery/app/live checks. No Swift changes/build in this batch. Installed app unchanged; ADR-160–163 local/uncommitted on main after 2fe2250; graphify-out preserved and CI failures deliberately deferred.
+- Stop after this scope. Next independent capability: nested-worker design with bounded ownership/grant inheritance/depth/Stop. General shell/scripts/builds/tests, built-in hosted search and omitted browser operations remain open. [Behavior and limits](docs/codex-browser.md).
+
+## Previous batch: Codex worker external MCP (2026-10-18, ADR-162)
+
+Keshab continued after model pins and read-only inspection. Implement one independent capability: checked discovery/invocation of already configured MCP servers under existing worker grants. Tests and the known CI repairs remain skipped.
+
+- Non-think workers alone get MCPList/MCPCall for task-start tested/enabled/assigned servers. Host-owned SDK connections reuse stdio/HTTP/SSE configuration without exposing credentials or changing native Codex MCP. Discovery intersects saved tested tools with bounded live schemas; calls require an exact returned name and unchanged definition.
+- Current task/worker/grant/configuration checks, including idle-session revocation, native plan/trust/one-call cards, bounded redacted argument previews and external-result taint. Later calls after external content need fresh approval even for Trusted servers. No auto retry; an interrupted dispatched call retains an unknown external outcome.
+- Three discoveries/six calls, one MCP operation at a time, bounded pages/tools/JSON arguments/returned metadata/text and execution/approval waits. Stop closes owned connections; no rollback or generic descendant-process guarantee. Third-party servers retain their own configured privileges outside the command sandbox; no server is added/enabled.
+- TypeScript checking and static source/security/diff review pass. No tests added/run, server startup, adapter/network/provider calls, migration or app/live acceptance. No Swift changes/build in this batch. Installed app unchanged; ADR-160–162 local/uncommitted on main after 2fe2250. graphify-out preserved; known CI failures remain deferred.
+- Stop after this scope. Next independent capability: browser adapter design under existing worker/browser/site grants. General shell/scripts/builds/tests, built-in hosted search and nested workers remain separate. [Behavior and limits](docs/codex-external-mcp.md).
+
 Publication checkpoint (2026-10-18): Keshab requested committing and pushing the accumulated upgrades through ADR-159 on `main` before continuing. Batch entries retain their historical implementation-time Git/verification notes. No additional tests or app installation are part of this checkpoint. Unrelated `graphify-out/` stays local.
 
-## Current batch: Codex known-URL page reading (2026-10-18, ADR-159)
+## Previous batch: read-only Codex project command inspection (2026-10-18, ADR-161)
+
+Keshab continued after the completed model-pin batch. Tests and the known CI repairs remain skipped. Reuse the native command/plan/read gates, with an explicit Codex sandbox boundary for a limited inspection capability; general shell remains open.
+
+- Active project folders workers alone get ProjectCommand: fixed pwd/ls/cat/wc/head/tail/grep executables, restricted flags, canonical contained regular-file operands and existing native Read/Glob/secret policy. Plain/attachment-only chats and other kits have no command admission. Model arguments never become shell source.
+- Six attempts per task, one at a time; eight operands/20 arguments/8,000 argument characters; files <=1 MiB, head/tail <=500 lines, grep pattern <=300 characters. Command lifetime is limited to 30 wall seconds/20 CPU seconds and 32 KiB combined output. Stop kills its process group and withholds output.
+- Explicit managed-aware Codex sandbox profile: task folder read-only, default-deny other filesystem except platform/scratch access, no network, isolated HOME/CODEX_HOME/environment and scratch config; help capability checks and no fallback. No scripts, builds, test execution, project writes, recursive/watch/background commands, schema or native model shell enablement.
+- TypeScript checking and static source/security/diff review pass. No tests added/run, adapter/provider calls, migrations, gallery/app/live checks. No further Swift change/build in this batch; ADR-160 release compilation passed. Installed app unchanged; ADR-160/161 local/uncommitted on main after 2fe2250; graphify-out preserved. Known CI failures remain unresolved by user direction.
+- Stop after this scope. Next independent capability: external MCP adapters under existing worker grants. General shell/scripts/builds/tests, search, browser and nested workers remain open. [Behavior and limits](docs/codex-project-inspection.md).
+
+## Previous batch: separate Codex worker model pins (2026-10-18, ADR-160)
+
+Keshab explicitly chose continued upgrades over repairing the failed GitHub run. Tests remain skipped. Hosted search uses a separate permission boundary and its structured-results route is experimental; keep search open and deliver the independent worker-model capability first.
+
+- Separate Codex picker/persisted pin per worker. Existing Claude pins remain separate; no active chat/project/global provider or running task is changed. Clear a saved pin even when its model/provider is unavailable.
+- Use existing offered Codex models and repeat validation in the host at save/task admission. A missing model refuses admission without starting a job/session or falling back. New tasks/retries capture the current pin, otherwise the chat's Codex model; Board/usage retain requested/actual model reporting.
+- Additive helper_codex_models storage and strict private helper.codex.pin command; optional helper field preserves old payload decoding. Custom-agent removal clears its Codex pin. Existing kit/grant/plan/web/skill/Stop policy stays authoritative.
+- TypeScript checking, Swift release compilation and static diff review pass. No tests added/run, migration, provider requests, gallery/app/live acceptance. Installed app unchanged; local/uncommitted on main after 2fe2250. graphify-out remains untouched.
+- Existing CI failures remain explicitly unresolved at the user's direction. Stop after this scope. Search, shell, browser, external MCP and nested workers remain; next independent capability is project shell access under a checked host adapter, with search design still open. [Behavior and limits](docs/codex-worker-models.md).
+
+## Previous batch: Codex known-URL page reading (2026-10-18, ADR-159)
 
 Keshab continued the remaining Codex work with tests still skipped. Implement public-page reading first; the existing web search/fetch tools belong to Claude's SDK and there is no reusable host search backend.
 

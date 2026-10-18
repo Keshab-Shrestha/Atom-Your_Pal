@@ -119,6 +119,8 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
     /// Why the job failed.
     public var error: String?
     public var recoveryNeeded: Bool
+    /// This child reviews supplied context only, with no tools or independent rerun.
+    public var advisory: Bool
     public var retryOf: Int?
     public var retriedAs: Int?
     /// The model id the job runs on, once chosen, and why in plain words ("Laya: moderate", "Pinned") (ADR-083).
@@ -163,7 +165,7 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
                 comments: Int = 0, goal: String? = nil, parentId: Int? = nil, goalId: Int? = nil, goalEnded: Bool = false,
                 resumable: Bool = false, held: String? = nil, interrupted: Bool = false, planFirst: Bool = false, planStatus: String? = nil,
                 planSummary: String? = nil, rating: String? = nil, reviews: Int? = nil, autoRetries: Int = 0,
-                subAgents: [HelperSubAgent] = [], labels: [String] = [], recoveryNeeded: Bool = false, retryOf: Int? = nil, retriedAs: Int? = nil) {
+                subAgents: [HelperSubAgent] = [], labels: [String] = [], recoveryNeeded: Bool = false, retryOf: Int? = nil, retriedAs: Int? = nil, advisory: Bool = false) {
         self.id = id
         self.task = task
         self.state = state
@@ -175,6 +177,7 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
         self.summary = summary
         self.error = error
         self.recoveryNeeded = recoveryNeeded
+        self.advisory = advisory
         self.retryOf = retryOf
         self.retriedAs = retriedAs
         self.model = model

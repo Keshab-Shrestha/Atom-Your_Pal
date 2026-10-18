@@ -73,7 +73,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     db.exec("UPDATE jobs SET retry_next = (SELECT child.id FROM jobs child WHERE child.retry_of = jobs.id) WHERE retry_next IS NULL AND EXISTS (SELECT 1 FROM jobs child WHERE child.retry_of = jobs.id)");
     db.prepare("UPDATE jobs SET recovery_needed = 1, error = ? WHERE state = 'failed' AND error = 'ATOM was closed while this job ran' AND recovery_needed IS NULL").run(CLOSED_WHILE_RUNNING);
     db.prepare("INSERT INTO job_events(job_id, kind, at) SELECT id, 'interrupted', ? FROM jobs WHERE state = 'running' OR (state = 'queued' AND retry_of IS NOT NULL)").run(opened.toISOString());
-    db.prepare("UPDATE jobs SET state = 'failed', recovery_needed = 1, error = ?, ended_at = ?, wake_pending = 0 WHERE state = 'running' OR (state = 'queued' AND retry_of IS NOT NULL)").run(CLOSED_WHILE_RUNNING, opened.toISOString());
+    db.prepare("UPDATE jobs SET state = 'failed', recovery_needed = 1, error = CASE WHEN native_scope = 'advisory' THEN 'ATOM closed before this advisory report completed. Request another review from its parent; this child cannot be retried on its own.' ELSE ? END, ended_at = ?, wake_pending = 0 WHERE state = 'running' OR (state = 'queued' AND retry_of IS NOT NULL)").run(CLOSED_WHILE_RUNNING, opened.toISOString());
     db.exec("COMMIT");
   } catch (error) { db.exec("ROLLBACK"); db.close(); throw error; }
 
@@ -83,6 +83,9 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   const pinOf = db.prepare("SELECT model FROM helper_models WHERE helper = ?");
   const putPin = db.prepare("INSERT INTO helper_models (helper, model) VALUES (?, ?) ON CONFLICT (helper) DO UPDATE SET model = excluded.model");
   const dropPin = db.prepare("DELETE FROM helper_models WHERE helper = ?");
+  const codexPinOf = db.prepare("SELECT model FROM helper_codex_models WHERE helper = ?");
+  const putCodexPin = db.prepare("INSERT INTO helper_codex_models (helper, model) VALUES (?, ?) ON CONFLICT (helper) DO UPDATE SET model = excluded.model");
+  const dropCodexPin = db.prepare("DELETE FROM helper_codex_models WHERE helper = ?");
   const settingOf = db.prepare("SELECT value FROM helper_settings WHERE key = ?");
   const putSetting = db.prepare("INSERT INTO helper_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value");
   const soulRow = db.prepare("SELECT * FROM souls WHERE helper = ? AND version = ?");
@@ -452,29 +455,33 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
     ...planMethods(ctx),
     ...checkpointMethods(ctx),
     list() {
-      return roster().map((h) => ({
-        id: h.id,
-        name: current(h.id).name,
-        available: h.available,
-        role: h.role,
-        kit: h.kit,
-        custom: h.custom,
-        soul: toSoul(current(h.id)),
-        soulVersion: current(h.id).version,
-        soulVersions: (soulVersions.all(h.id, SOUL_VERSIONS_LISTED) as { version: number; created_at: string }[]).map((v) => ({
-          version: v.version,
-          createdAt: new Date(v.created_at),
-        })),
-        app: (appOf.get(h.id) as { app: string } | undefined)?.app ?? null,
-        pinnedModel: (pinOf.get(h.id) as { model: string } | undefined)?.model ?? null,
-        planFirst: planFirstOf(h.id),
-        browser: browserOf(h.id),
-        routines: routines.list().filter((r) => r.helper === h.id),
-        grants: (grantsOf.all(h.id) as { path: string }[]).map((g) => g.path),
-        skills: (skillsOf.all(h.id) as { skill: string }[]).map((s) => s.skill),
-        proposals: proposals.list(h.id),
-        jobs: (newestJobs.all(h.id, JOBS_PER_HELPER) as unknown as JobRow[]).map(toJob),
-      }));
+      return roster().map((h) => {
+        const codexModel = (codexPinOf.get(h.id) as { model: string } | undefined)?.model;
+        return {
+          id: h.id,
+          name: current(h.id).name,
+          available: h.available,
+          role: h.role,
+          kit: h.kit,
+          custom: h.custom,
+          soul: toSoul(current(h.id)),
+          soulVersion: current(h.id).version,
+          soulVersions: (soulVersions.all(h.id, SOUL_VERSIONS_LISTED) as { version: number; created_at: string }[]).map((v) => ({
+            version: v.version,
+            createdAt: new Date(v.created_at),
+          })),
+          app: (appOf.get(h.id) as { app: string } | undefined)?.app ?? null,
+          pinnedModel: (pinOf.get(h.id) as { model: string } | undefined)?.model ?? null,
+          ...(codexModel ? { codexPinnedModel: codexModel } : {}),
+          planFirst: planFirstOf(h.id),
+          browser: browserOf(h.id),
+          routines: routines.list().filter((r) => r.helper === h.id),
+          grants: (grantsOf.all(h.id) as { path: string }[]).map((g) => g.path),
+          skills: (skillsOf.all(h.id) as { skill: string }[]).map((s) => s.skill),
+          proposals: proposals.list(h.id),
+          jobs: (newestJobs.all(h.id, JOBS_PER_HELPER) as unknown as JobRow[]).map(toJob),
+        };
+      });
     },
 
     setApp(helper, app) {
@@ -488,6 +495,14 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       const known = mustHelper(helper);
       if (model) putPin.run(known.id, model);
       else dropPin.run(known.id);
+      emit({ action: "pin", helper: known.id });
+    },
+
+    pinCodex(helper, model) {
+      const known = mustHelper(helper);
+      if (model && !/^[A-Za-z0-9._:-]{1,100}$/.test(model)) throw new HelperError("That is not a valid Codex model id.");
+      if (model) putCodexPin.run(known.id, model);
+      else dropCodexPin.run(known.id);
       emit({ action: "pin", helper: known.id });
     },
 
@@ -527,6 +542,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         clearSkills.run(id);
         dropApp.run(id);
         dropPin.run(id);
+        dropCodexPin.run(id);
         dropSouls.run(id);
         dropRoutines.run(id);
       });
@@ -645,6 +661,26 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
     addNativeJob(helper, raw, links) {
       const known = availableHelper(helper);
+      if (links.advisoryParentId !== undefined) {
+        const task = cleanTask(raw);
+        let id = 0;
+        transaction(() => {
+          const parent = mustGet(links.advisoryParentId!);
+          if (parent.state !== "running" || !parent.chatId || parent.chatId !== links.chatId || parent.nativeScope || parent.parentId !== undefined) throw new HelperError("An advisory child requires an active root native task in this chat.");
+          availableHelper(parent.helper);
+          if (parent.helper === helper) throw new HelperError("An advisory child must be another worker.");
+          const children = childrenOf.all(parent.id) as unknown as JobRow[];
+          if (children.filter((c) => c.native_scope === "advisory").length >= 2) throw new HelperError("This parent already used its two advisory children.");
+          if (children.some((c) => c.state === "running")) throw new HelperError("Wait for this parent's existing child to end.");
+          id = insertTask(known.id, task, [], { goal: null, parentId: parent.id, goalId: null, planFirst: false });
+          db.prepare("UPDATE jobs SET native_scope = 'advisory' WHERE id = ?").run(id);
+          setNativeLinks.run(links.chatId, links.sdkTaskId ?? null, id);
+          claim.run(id);
+          log(id, "running");
+        });
+        emit({ action: "job", helper: known.id, job: id, state: "running" });
+        return mustGet(id);
+      }
       const reserved = retryInChat.get(links.chatId) as { id: number } | undefined;
       if (!reserved && /^task-retry-\d+$/.test(links.chatId)) throw new HelperError("That retry attempt no longer exists. Start a new task instead.");
       if (reserved) {
@@ -672,6 +708,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       let attempt = 0, created = false;
       transaction(() => {
         const old = mustGet(id);
+        if (old.nativeScope === "advisory") throw new HelperError("Advisory children cannot retry independently. Ask their parent for a new bounded review.");
         if (old.retriedAs !== undefined) {
           if (!get(old.retriedAs)) throw new HelperError(`Retry attempt #${old.retriedAs} was removed. Start a new task instead of replaying this retry request.`);
           attempt = old.retriedAs; return;
@@ -698,7 +735,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       const ended = now().toISOString();
       let changed = false;
       transaction(() => {
-        changed = Number(db.prepare("UPDATE jobs SET state = 'failed', recovery_needed = 1, error = ?, ended_at = ?, wake_pending = 0 WHERE id = ? AND state = 'running'").run("The worker's session ended before its outcome was confirmed. Files may already have changed. Review this attempt before retrying.", ended, id).changes) === 1;
+        changed = Number(db.prepare("UPDATE jobs SET state = 'failed', recovery_needed = 1, error = ?, ended_at = ?, wake_pending = 0 WHERE id = ? AND state = 'running'").run(job.nativeScope === "advisory" ? "The advisory session ended before its report completed. Request a new bounded review from its parent; do not retry this child independently." : "The worker's session ended before its outcome was confirmed. Files may already have changed. Review this attempt before retrying.", ended, id).changes) === 1;
         if (changed) log(id, "interrupted");
       });
       if (changed) emit({ action: "job", helper: job.helper, job: id, state: "failed" });
@@ -733,6 +770,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
 
     retry(id) {
+      if (mustGet(id).nativeScope === "advisory") throw new HelperError("Advisory children cannot retry independently. Ask their parent for a new bounded review.");
       if (options.retryNative) return options.retryNative(id);
       const job = mustGet(id);
       if (job.chatId) throw new HelperError("Native tasks need the runtime's explicit retry dispatcher.");
@@ -760,6 +798,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
 
     interrupt(id) {
       const job = mustGet(id);
+      if (job.nativeScope === "advisory") throw new HelperError("Stop this advisory child instead; it cannot enter the legacy run queue.");
       if (Number(putInterrupted.run(id).changes) === 0) throw new HelperError(`A ${job.state} job cannot be interrupted.`);
       log(id, "interrupted");
       emit({ action: "job", helper: job.helper, job: id, state: "queued" });
@@ -794,6 +833,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       const job = get(id);
       if (!job || isFinal(job.state)) return false;
       transition(job, "stopped");
+      for (const child of childrenOf.all(id) as unknown as JobRow[]) if (child.native_scope === "advisory" && !isFinal(child.state as JobState)) transition(toJob(child), "stopped");
       return true;
     },
 
@@ -801,6 +841,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       const job = get(id);
       if (!job) return false;
       if (!isFinal(job.state)) transition(job, "stopped"); // so a runner listening for "stopped" ends it
+      for (const child of childrenOf.all(id) as unknown as JobRow[]) if (child.native_scope === "advisory" && !isFinal(child.state as JobState)) transition(toJob(child), "stopped");
       transaction(() => {
         deleteReport.run(id);
         deleteJob.run(id);

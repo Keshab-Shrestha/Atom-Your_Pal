@@ -110,8 +110,8 @@ const WEB_TOOLS = ["WebSearch", "WebFetch"];
 
 /** Phase N2: the chat's sub-agents, their Board rows and their safety. */
 export interface NativeTeamDeps {
-  helpers: TeamScope["helpers"] & BoardStore & Pick<HelperStore, "mcpServers"> & PlanStore;
-  approve(request: { summary: string; reason: string }, signal?: AbortSignal): Promise<boolean>;
+  helpers: TeamScope["helpers"] & BoardStore & Pick<HelperStore, "mcpServers"> & Partial<Pick<HelperStore, "guardPreviewEdit">> & PlanStore;
+  approve(request: { summary: string; reason: string; reasonMax?: number }, signal?: AbortSignal): Promise<boolean>;
   approveFile?(request: { summary: string; reason: string }, signal?: AbortSignal): Promise<FileApproval>;
   filePermissions?: FilePermissions;
   /** Laya's model alias for an Agent call (undefined: the agent's own model). */
@@ -497,6 +497,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
         messages: [...selected.messages, { role: "user" as const, content: asked }],
         ...(hasTools ? { historyTools: historyTools(chat) } : {}),
         ...(hasTools ? { web: Boolean(deps.web) && (!files || files.web === true) } : {}),
+        ...(hasTools && project?.files ? { project: true } : {}),
         ...(hasTools && deps.windowTools ? { interactionTools: deps.windowTools(chat, { specs: () => [], run: async (call) => ({ callId: call.id, content: "Unknown foreground interaction.", isError: true }) }) } : {}),
         context,
         ...(hasTools && files ? { files } : {}),

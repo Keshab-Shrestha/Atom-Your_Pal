@@ -106,6 +106,8 @@ export interface JobItem {
   summary?: string;
   error?: string;
   recoveryNeeded?: boolean;
+  /** Bounded advisory child: supplied context only, no independent Retry or Interrupt. */
+  advisory?: boolean;
   retryOf?: number;
   retriedAs?: number;
   /** The model it runs on, once chosen (ADR-083). */
@@ -484,6 +486,8 @@ export interface HelperItem {
   app: string | null;
   /** The pinned model id (ADR-083), or null to let Laya choose. */
   pinnedModel: string | null;
+  /** Separate Codex worker model; absence inherits its chat's model. */
+  codexPinnedModel?: string;
   /** Task 3.8: its new tasks plan first. */
   planFirst: boolean;
   /** ADR-098: its runs get the browser (default false). */

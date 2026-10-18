@@ -75,6 +75,7 @@ const toJobItem = (job: Job): JobItem => ({
   ...(job.summary !== undefined ? { summary: job.summary } : {}),
   ...(job.error ? { error: job.error } : {}),
   ...(job.recoveryNeeded ? { recoveryNeeded: true } : {}),
+  ...(job.nativeScope === "advisory" ? { advisory: true } : {}),
   ...(job.retryOf !== undefined ? { retryOf: job.retryOf } : {}),
   ...(job.retriedAs !== undefined ? { retriedAs: job.retriedAs } : {}),
   ...(job.model ? { model: job.model } : {}),
@@ -109,6 +110,8 @@ export function islandHelpers(
   skills: () => { name: string; description: string; source?: "yours" | "zeno" | "hub" }[] = () => [],
   /** ADR-094: the clock for routines' next times (tests pass their own). */
   now: () => Date = () => new Date(),
+  /** Offered Codex models only, independent of the current global/chat provider. */
+  codexModels: () => { id: string; name: string }[] = () => [],
 ): IslandHelpers {
   return {
     list: () =>
@@ -273,6 +276,10 @@ export function islandHelpers(
     pin: (helper, model) => {
       if (model && !models().some((m) => m.id === model)) throw new HelperError("That model is not offered for helper jobs.");
       store.pin(helper, model);
+    },
+    pinCodex: (helper, model) => {
+      if (model && !codexModels().some((m) => m.id === model)) throw new HelperError("That model is not currently offered for Codex workers. Choose an offered model or clear the pin.");
+      store.pinCodex(helper, model);
     },
     saveSoul: (helper, soul) => store.saveSoul(helper, soul),
     restoreSoul: (helper, version) => store.restoreSoul(helper, version),

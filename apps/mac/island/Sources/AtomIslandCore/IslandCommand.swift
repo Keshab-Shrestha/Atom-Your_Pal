@@ -157,6 +157,7 @@ public enum IslandCommand: Sendable, Equatable {
     case jobDelete(id: Int)
     /// ADR-083: pin a helper to a model (`""` lets Laya choose again); allow or forbid the large model for jobs.
     case helperPin(helper: String, model: String)
+    case helperCodexPin(helper: String, model: String)
     case helpersSettings(allowLarge: Bool)
     /// Task 3.3: save a worker's edited soul as a new version; make an older version current again.
     case soulSet(helper: String, soul: HelperSoul)
@@ -282,6 +283,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .grantRemove: "grant.remove"
         case .jobDelete: "job.delete"
         case .helperPin: "helper.pin"
+        case .helperCodexPin: "helper.codex.pin"
         case .helpersSettings: "helpers.settings"
         case .soulSet: "soul.set"
         case .soulRestore: "soul.restore"
@@ -491,7 +493,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .routineUpdate(let id, let draft):
             fields["id"] = id
             Self.routineFields(draft, into: &fields)
-        case .helperPin(let helper, let model):
+        case .helperPin(let helper, let model), .helperCodexPin(let helper, let model):
             fields["helper"] = helper
             fields["model"] = model
         case .helpersSettings(let allowLarge):

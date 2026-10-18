@@ -61,6 +61,8 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public var jobs: [HelperJob]
     /// The model id this helper is pinned to, skipping Laya; nil when Laya chooses (ADR-083).
     public var pinnedModel: String?
+    /// Separate Codex pin. Nil uses the task's chat model; it never selects a provider.
+    public var codexPinnedModel: String?
     /// "researcher", "coder", … (fixed in the runtime's code).
     public var role: String
     /// Nil from a runtime older than Task 3.3.
@@ -96,13 +98,14 @@ public struct Helper: Sendable, Equatable, Identifiable {
     public init(id: String, name: String, available: Bool, app: String?, jobs: [HelperJob], pinnedModel: String? = nil,
                 role: String = "", soul: HelperSoul? = nil, soulVersion: Int = 1, soulVersions: [SoulVersion] = [],
                 planFirst: Bool = false, routines: [HelperRoutine] = [], grants: [String] = [], skills: [String] = [], proposals: [SoulProposal] = [], kit: String? = nil, custom: Bool = false,
-                browser: Bool = false) {
+                browser: Bool = false, codexPinnedModel: String? = nil) {
         self.id = id
         self.name = name
         self.available = available
         self.app = app
         self.jobs = jobs
         self.pinnedModel = pinnedModel
+        self.codexPinnedModel = codexPinnedModel
         self.role = role
         self.soul = soul
         self.soulVersion = soulVersion
@@ -648,7 +651,7 @@ public struct HelpersState: Sendable, Equatable {
 
     /// ADR-098 item 3: stops a running task's current step; it then waits for Keshab's message.
     public mutating func interruptJob(_ id: Int) -> IslandCommand? {
-        guard list?.item(id)?.job.state == .running else { return nil }
+        guard let job = list?.item(id)?.job, !job.advisory, job.state == .running else { return nil }
         return waiting(.jobInterrupt(id: id))
     }
 
@@ -722,6 +725,13 @@ public struct HelpersState: Sendable, Equatable {
               helper.pinnedModel != modelId else { return nil }
         if let modelId, !models.contains(where: { $0.id == modelId }) { return nil }
         return waiting(.helperPin(helper: helper.id, model: modelId ?? ""))
+    }
+
+    /// Clearing a saved pin stays possible when Codex/the model is unavailable.
+    public mutating func pinCodexModel(_ modelId: String?, for helperId: String, offered: [ModelOption]) -> IslandCommand? {
+        guard let helper = selectedHelper, helper.id == helperId, helper.available, helper.codexPinnedModel != modelId else { return nil }
+        if let modelId, !offered.contains(where: { $0.id == modelId }) { return nil }
+        return waiting(.helperCodexPin(helper: helper.id, model: modelId ?? ""))
     }
 
     /// Task 3.14: the app the open task's report opens in, when it has a report and its worker has an app.
@@ -887,7 +897,7 @@ public struct HelpersState: Sendable, Equatable {
 
     /// ADR-090: tries a failed or stopped task again.
     public mutating func retry(_ id: Int) -> IslandCommand? {
-        guard let job = list?.item(id)?.job, job.retriedAs == nil, job.state == .failed || job.state == .stopped else { return nil }
+        guard let job = list?.item(id)?.job, !job.advisory, job.retriedAs == nil, job.state == .failed || job.state == .stopped else { return nil }
         return waiting(.jobRetry(id: id))
     }
 
@@ -947,7 +957,7 @@ public struct HelpersState: Sendable, Equatable {
 
     /// Task 3.6: the open task forgets its session; nil while it runs or when it has none.
     public mutating func startFresh() -> IslandCommand? {
-        guard let job = openJob, job.resumable, job.state != .running else { return nil }
+        guard let job = openJob, !job.advisory, job.resumable, job.state != .running else { return nil }
         return waiting(.jobFresh(id: job.id))
     }
 

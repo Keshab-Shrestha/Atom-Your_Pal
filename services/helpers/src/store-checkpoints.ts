@@ -5,7 +5,7 @@ import { HelperError } from "./jobs.ts";
 import type { StoreContext } from "./store-context.ts";
 import type { HelperStore } from "./store-types.ts";
 
-export function checkpointMethods(ctx: StoreContext): Pick<HelperStore, "recordToolCall" | "toolCalls" | "checkpoint" | "finishCheckpoints" | "checkpoints" | "undoCheckpoints" | "bashRan"> {
+export function checkpointMethods(ctx: StoreContext): Pick<HelperStore, "recordToolCall" | "toolCalls" | "checkpoint" | "guardPreviewEdit" | "finishCheckpoints" | "checkpoints" | "undoCheckpoints" | "bashRan"> {
   const { emit, get, mustGet, toolCalls, checkpoints, grantsOf } = ctx;
   return {
     recordToolCall(jobId, event) {
@@ -19,6 +19,14 @@ export function checkpointMethods(ctx: StoreContext): Pick<HelperStore, "recordT
     checkpoint(jobId, roots, path) {
       const job = get(jobId);
       if (job && checkpoints.capture(jobId, roots, path)) emit({ action: "checkpoint", helper: job.helper, job: jobId, change: "kept" });
+    },
+
+    guardPreviewEdit(jobId, roots, path, before, expectedBefore, expectedAfter) {
+      const job = get(jobId);
+      if (!job || job.state !== "running" || job.nativeScope === "advisory") return false;
+      const kept = checkpoints.guardEdit(jobId, roots, path, before, expectedBefore, expectedAfter);
+      if (kept) emit({ action: "checkpoint", helper: job.helper, job: jobId, change: "kept" });
+      return kept;
     },
 
     finishCheckpoints(jobId) {

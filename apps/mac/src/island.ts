@@ -773,6 +773,12 @@ export function runIsland(options: IslandOptions): IslandSession {
       case "helper.pin":
         changeHelpers(command.type, (helpers) => helpers.pin(command.helper, command.model));
         return;
+      case "helper.codex.pin":
+        changeHelpers(command.type, (helpers) => {
+          if (!helpers.pinCodex) throw new Error("Codex worker model pins are unavailable in this runtime.");
+          helpers.pinCodex(command.helper, command.model);
+        });
+        return;
       case "helpers.settings":
         changeHelpers(command.type, (helpers) => {
           if (command.allowLarge !== undefined) helpers.setAllowLarge(command.allowLarge);

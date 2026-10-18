@@ -29,6 +29,9 @@ Successful page responses and redirects mark the worker as having read untrusted
 
 `pnpm typecheck` and `git diff --check` pass. Static review covered default-deny admission, current config/kit/task checks, attempt reservation, redirect/DNS/socket binding, cancellation, response bounds, extraction and taint propagation. Tests, live network/model/app/security acceptance and migrations were not run by request. No Swift source changed or build was needed. Installed app unchanged; local/uncommitted on `main`. Historical checks do not validate ADR-159.
 
-Remaining Codex gaps: web search, shell commands, browser, external MCP, provider-specific worker model pins and nested workers. Next scoped work: a supported search adapter; until then the model must report that it can read supplied/known URLs but cannot search.
+After ADR-160, separate Codex worker model pins are implemented ([scope](codex-worker-models.md)). Remaining gaps: web search, shell commands, browser, external MCP and nested workers. Search still needs a supported isolated route; until then the model must report that it can read supplied/known URLs but cannot search.
 
 Implementation references: [Node HTTPS](https://nodejs.org/api/https.html), [HTTP request options](https://nodejs.org/api/http.html#httprequestoptions-callback), [DNS lookup](https://nodejs.org/api/dns.html#dnspromiseslookuphostname-options). These references are API documentation, not evidence that this implementation passed live acceptance.
+
+
+Subsequent update (ADR-162): checked external MCP discovery/calls are implemented for tested, enabled server assignments on non-think Codex workers. [Current MCP behavior and verification limits](codex-external-mcp.md). Earlier remaining-work statements describe their original batch; the next independent adapter is browser access.

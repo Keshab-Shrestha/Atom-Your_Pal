@@ -1,0 +1,38 @@
+# Codex worker external MCP
+
+Implemented 2026-10-18, ADR-162. This supplies checked external tools to Codex workers; it does not complete provider parity. Tests and live acceptance remain skipped by request.
+
+## Discovery and calls
+
+Non-think workers get `atom_MCPList` and `atom_MCPCall` only when a server is enabled, successfully tested and assigned to them in Plugins at task start. Existing command/stdio, Streamable HTTP and SSE configuration is reused through the already-installed MCP SDK. Server commands, environment, URLs and headers stay in the host, outside Codex's native MCP configuration and provider context. The tool description contains only assigned server names. Reserved names and names containing `__` are excluded to avoid ambiguous native routing; rename such a server before use.
+
+MCPList takes one exact server name and returns live tool names, descriptions and JSON input schemas. Only tools in the server's most recent saved test and the returned bounded catalog can be called. Required asynchronous-task tools are excluded. Discovery allows three attempts per task, three pages per attempt, 100 tools and 32 KiB returned metadata; individual definitions over 8,000 bytes or containing secret-shaped values are omitted. Descriptions are limited to 1,000 characters. A bounded catalog may omit tools; it never silently authorizes omitted ones.
+
+MCPCall takes an exact discovered server/tool and `arguments_json`, a JSON object string of at most 8,000 bytes without secret-shaped values. This preserves nested arguments without widening ATOM's common dynamic-tool schema. The server validates its input schema; ATOM's generic adapter does not establish that the arguments represent a safe or user-authorized action. Before dispatch the host refreshes the catalog on the same connection and compares the exposed definition. A missing/changed definition requires rediscovery. There are six call attempts per task and one MCP operation at a time, including discovery and approval waits. No automatic retry or fallback occurs.
+
+Task-start server configuration is compared against the current tested assignment before operations, every 200 ms while waiting, and before dispatch/return. Worker availability, non-think kit and running task are also checked. Configuration, trust, assignment, retest or server changes invalidate that task's snapshot; start a new task after reviewing Plugins. Adding a server during a task becomes available on the next task. Previously returned text cannot be recalled from provider context.
+
+## Policy and lifetime
+
+Each call uses the existing native MCP grant/trust/approval gate with a fresh policy id. Plan-first workers must first receive ExitPlanMode approval. Untrusted servers ask on the existing card; Trusted servers can skip the first card when the worker has not read external content. Cards identify the server/tool and use the existing 600-character reason capacity to show a bounded redacted argument preview (300 characters, explicitly marked when clipped) plus the host explanation. Approval is for one call. User intent still governs messages, publication, deletion and other external effects; tool metadata and annotations cannot authorize them.
+
+An external call marks the worker as having read untrusted external data before dispatch, including failed/unknown results. Later external calls require a fresh card even for Trusted servers; existing web taint does too. Taint propagates with the worker report into the existing foreground restrictions on persistent/outbound ATOM actions until the next user message. Discovery metadata is untrusted task data but does not itself set this result taint. Server annotations never bypass host checks.
+
+Discovery/catalog refresh has a 15-second total wait, approval up to 600 seconds, and invocation a 30-second total wait without progress-based extension. Stop, timeout or changed access aborts requests and closes the connection; task completion also closes all owned sessions. SDK stdio cleanup escalates termination of its direct child. Cleanup wait is bounded; this is not a generic descendant-process supervisor. HTTP/SSE cancellation is cooperative at the remote end. No rollback, exactly-once delivery, destination reconciliation or guarantee of stopping an already-dispatched action is provided. Failures after dispatch explicitly retain an unknown external outcome and require destination inspection before an explicit retry.
+
+Only text, embedded-resource text and structured JSON result data are returned, capped at 32 KiB plus a short host envelope. Secret-shaped results are withheld; other text is redacted. Images/audio/binary/resource links are omitted, never fetched, and an empty supported result is reported honestly. The return limit applies after SDK receipt/parsing; it is not a transport-level or server-memory limit. Secret detection is heuristic. Board observation stores generic MCPList/MCPCall timing/outcomes, not arguments, schemas, credentials or result bodies.
+
+MCP connections use the user's configured destinations and server credentials; local servers run with the configured process/user permissions, outside ProjectCommand's sandbox. This adapter does not inherit the public-page reader's public-IP/no-credential restrictions or turn off assigned integrations when the separate page-reading setting is disabled. Enabling/testing/assigning a server is an explicit existing Plugins capability grant. It can expose broad filesystem/network/external effects; host path checks do not govern a third-party server's internals. No new server is added or enabled by this change.
+
+Resources/prompts enumeration, sampling, roots, elicitation, OAuth setup, asynchronous MCP tasks, MCP apps, browser grants and nested delegation are outside this scope. No client capability/handler enables those features. Native Codex shell, networking, MCP config and provider fallback remain unchanged. No dependency, schema, runtime migration or Swift/UI change is needed.
+
+## Verification and next step
+
+`pnpm typecheck` and `git diff --check` pass; static source/policy/lifetime review completed. No tests added/run, MCP server startup, adapter/network/model/provider calls, runtime migration, app build/launch/install or live acceptance. No Swift changes in this batch, so no new Swift build. Installed app unchanged; local/uncommitted on `main` with ADR-160/161 after pushed commit 2fe2250. Known CI failures remain deliberately deferred. Typechecking does not prove live connection, cancellation, credential safety or remote behavior.
+
+Next independent capability: browser adapter design under existing worker/browser/site grants. General shell/scripts/builds/tests, built-in hosted search and nested workers remain separate gaps. A user-assigned MCP server may itself provide such actions; that does not implement ATOM's corresponding native capability.
+
+Protocol reference: [MCP tools](https://modelcontextprotocol.io/specification/2025-11-25/server/tools) and [cooperative cancellation](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/cancellation). Installed SDK types/source were checked for request deadlines, signals, result parsing and transport cleanup; no package update was made.
+
+
+Subsequent update (ADR-163): bounded browser navigation/text snapshots/form interactions are implemented under the separate existing browser/site grants. [Current browser scope and verification limits](codex-browser.md). The next independent capability is bounded nested-worker design; the earlier next-step statement describes ADR-162's original checkpoint.

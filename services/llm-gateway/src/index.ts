@@ -4,6 +4,7 @@ export * from "./providers/claude-plan-job.ts";
 export * from "./providers/claude-session.ts";
 export * from "./providers/cli-tools.ts";
 export * from "./providers/codex-session.ts";
+export * from "./providers/codex-command.ts";
 export * from "./providers/index.ts";
 export * from "./switchable.ts";
 export { redact, toolCallRecorder } from "./providers/tool-summary.ts";

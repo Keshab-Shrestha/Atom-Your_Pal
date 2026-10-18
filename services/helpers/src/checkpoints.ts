@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { chmodSync, closeSync, copyFileSync, existsSync, lstatSync, mkdirSync, openSync, readSync, readdirSync, renameSync, rmSync, statSync, unlinkSync } from "node:fs";
+import { constants, chmodSync, closeSync, copyFileSync, existsSync, fsyncSync, fstatSync, lstatSync, mkdirSync, openSync, readSync, readdirSync, realpathSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { DENY_READ_DIRS, hasGitPart, isInside, pathProblem, realish } from "./grants.ts";
@@ -7,7 +7,8 @@ import { DENY_READ_DIRS, hasGitPart, isInside, pathProblem, realish } from "./gr
 /**
  * B3.4, ADR-101: checkpoint and undo of a run's file edits. Before the first edit of a file in a run, ATOM copies the
  * file (or notes that it is new). Keshab can then undo one file or the whole run. Files in a git worktree are not
- * copied (git covers them); edits made by Bash are not tracked. The copies live in `<dir>/<job>/<n>` (flat numbered
+ * copied by the ordinary hook (git covers them); ADR-166's explicit reviewed edits require copies there too.
+ * Edits made by Bash are not tracked. The copies live in `<dir>/<job>/<n>` (flat numbered
  * files, never named after the original path), are never sent to a model, and their content is never logged.
  */
 
@@ -48,6 +49,7 @@ export const CHECKPOINTS_SCHEMA = `
     sha_before TEXT,
     sha_after TEXT,
     snap TEXT,
+    guarded INTEGER NOT NULL DEFAULT 0,
     UNIQUE (job_id, path)
   );
 `;
@@ -82,7 +84,7 @@ export function sha256File(path: string): string {
   return hash.digest("hex");
 }
 
-type Row = { id: number; job_id: number; path: string; rel: string; kind: CheckpointKind; state: "ready" | "undone" | "skipped"; reason: string | null; size: number | null; sha_before: string | null; sha_after: string | null; snap: string | null };
+type Row = { id: number; job_id: number; path: string; rel: string; kind: CheckpointKind; state: "ready" | "undone" | "skipped"; reason: string | null; size: number | null; sha_before: string | null; sha_after: string | null; snap: string | null; guarded: number };
 
 const isMissing = (error: unknown) => (error as NodeJS.ErrnoException | undefined)?.code === "ENOENT";
 const lstatOrUndefined = (path: string) => {
@@ -95,8 +97,27 @@ const lstatOrUndefined = (path: string) => {
 };
 const hashOrNull = (path: string) => (lstatOrUndefined(path)?.isFile() ? sha256File(path) : null);
 
+/** Guarded preview rows never follow links or hash an arbitrarily grown replacement. */
+function guardedHash(path: string): string | undefined {
+  try {
+    if (realpathSync(path) !== path) return undefined;
+    const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+    try {
+      const info = fstatSync(fd);
+      if (!info.isFile() || info.nlink !== 1 || info.size > 256 * 1024) return undefined;
+      const body = Buffer.alloc(info.size + 1);
+      let used = 0;
+      while (used < body.length) { const n = readSync(fd, body, used, body.length - used, used); if (!n) break; used += n; }
+      const after = fstatSync(fd), now = lstatSync(path);
+      if (used !== info.size || after.size !== info.size || after.mtimeMs !== info.mtimeMs || after.ctimeMs !== info.ctimeMs || now.dev !== info.dev || now.ino !== info.ino || now.nlink !== 1 || realpathSync(path) !== path) return undefined;
+      return createHash("sha256").update(body.subarray(0, used)).digest("hex");
+    } finally { closeSync(fd); }
+  } catch { return undefined; }
+}
+
 export function checkpointTable(db: DatabaseSync, dir: string | undefined, home: string) {
   db.exec(CHECKPOINTS_SCHEMA);
+  if (!(db.prepare("PRAGMA table_info(checkpoints)").all() as { name: string }[]).some((c) => c.name === "guarded")) db.exec("ALTER TABLE checkpoints ADD COLUMN guarded INTEGER NOT NULL DEFAULT 0");
   const byPath = db.prepare("SELECT * FROM checkpoints WHERE job_id = ? AND path = ?");
   const byJob = db.prepare("SELECT * FROM checkpoints WHERE job_id = ? ORDER BY id");
   const usage = db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(size), 0) AS bytes FROM checkpoints WHERE job_id = ? AND state = 'ready' AND kind = 'modified'");
@@ -119,7 +140,7 @@ export function checkpointTable(db: DatabaseSync, dir: string | undefined, home:
   /** Hashes the file of every ready row of this task that has no "after" yet (a crash left them). */
   function finishRows(rows: Row[], onlyMissing: boolean) {
     for (const row of rows) {
-      if (row.state !== "ready" || (onlyMissing && row.sha_after !== null)) continue;
+      if (row.state !== "ready" || row.guarded || (onlyMissing && row.sha_after !== null)) continue;
       const sha = hashOrNull(row.path);
       // The run changed nothing in this file: there is nothing to undo.
       if (row.kind === "modified" && sha === row.sha_before) forget(row);
@@ -139,6 +160,61 @@ export function checkpointTable(db: DatabaseSync, dir: string | undefined, home:
   };
 
   return {
+    /** ADR-166: refuse the edit unless the exact original has a verified persisted undo copy. */
+    guardEdit(jobId: number, roots: readonly string[], path: string, before: string, expectedBefore: string, expectedAfter: string): boolean {
+      if (!dir || resolve(dir) !== dir || !/^[a-f0-9]{64}$/.test(expectedBefore) || !/^[a-f0-9]{64}$/.test(expectedAfter) || Buffer.byteLength(before) > 256 * 1024 || createHash("sha256").update(before).digest("hex") !== expectedBefore) return false;
+      try {
+        if (realish(path) !== path || !roots.some((r) => isInside(realish(r), path)) || hasGitPart(path) || isSecretLike(path, home)) return false;
+        const current = lstatSync(path);
+        if (!current.isFile() || current.nlink !== 1) return false;
+        let row = byPath.get(jobId, path) as Row | undefined;
+        if (row?.state === "undone") { forget(row); row = undefined; }
+        if (!row) {
+          if ((count.get(jobId) as { n: number }).n >= CHECKPOINT_JOB_FILES || (usage.get(jobId) as { bytes: number }).bytes + Buffer.byteLength(before) > CHECKPOINT_JOB_BYTES) return false;
+          mkdirSync(dir, { recursive: true, mode: 0o700 });
+          mkdirSync(jobDir(jobId), { recursive: true, mode: 0o700 });
+          if (realpathSync(dir) !== resolve(dir) || realpathSync(jobDir(jobId)) !== resolve(jobDir(jobId))) return false;
+          chmodSync(dir, 0o700); chmodSync(jobDir(jobId), 0o700);
+          const root = roots.find((r) => isInside(realish(r), path))!;
+          const id = Number(insert.run(jobId, path, relative(realish(root), path), "modified", "ready", null, Buffer.byteLength(before)).lastInsertRowid);
+          const copy = join(jobDir(jobId), String(id));
+          try {
+            writeFileSync(copy, before, { encoding: "utf8", mode: 0o600, flag: "wx" });
+            const fd = openSync(copy, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+            try { fsyncSync(fd); } finally { closeSync(fd); }
+            fill.run(expectedBefore, String(id), id);
+          } catch { mark.run("skipped", "required undo copy failed", id); return false; }
+          row = byPath.get(jobId, path) as Row;
+        }
+        // A prior edit in this job must not silently become this preview's undo baseline.
+        if (row.state !== "ready" || row.kind !== "modified" || row.sha_before !== expectedBefore || row.guarded || !row.snap || !/^\d+$/.test(row.snap)) return false;
+        const copy = snapPath(row);
+        if (realpathSync(copy) !== resolve(copy)) return false;
+        const fd = openSync(copy, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+        try {
+          const info = fstatSync(fd);
+          if (!info.isFile() || info.nlink !== 1 || info.size !== Buffer.byteLength(before)) return false;
+          const body = Buffer.alloc(info.size + 1);
+          let used = 0;
+          while (used < body.length) { const n = readSync(fd, body, used, body.length - used, used); if (!n) break; used += n; }
+          if (used !== info.size || createHash("sha256").update(body.subarray(0, used)).digest("hex") !== expectedBefore) return false;
+          fsyncSync(fd);
+        } finally { closeSync(fd); }
+        for (const directory of [dir, jobDir(jobId)]) {
+          if (realpathSync(directory) !== resolve(directory)) return false;
+          const fd = openSync(directory, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+          try {
+            const info = fstatSync(fd);
+            if (!info.isDirectory() || info.uid !== process.getuid?.() || (info.mode & 0o077) !== 0) return false;
+            fsyncSync(fd);
+          } finally { closeSync(fd); }
+        }
+        // Arm expected output BEFORE replacing the file. Recovery never adopts an unrelated later file as ours.
+        db.prepare("UPDATE checkpoints SET guarded = 1, sha_after = ? WHERE id = ?").run(expectedAfter, row.id);
+        return true;
+      } catch { return false; }
+    },
+
     /**
      * Before the first edit of a file in a task: keeps the original (or notes the file is new). Returns the new row's
      * state, or undefined when this task already has one for the file. Never throws for a file it cannot keep: that is a
@@ -197,7 +273,7 @@ export function checkpointTable(db: DatabaseSync, dir: string | undefined, home:
         .slice(0, CHECKPOINTS_LISTED)
         .map((row) => {
           // ponytail: hashes up to 100 files per thread build; cache by size and mtime if this shows up in a profile
-          const moved = row.state === "ready" && row.sha_after !== null && hashOrNull(row.path) !== row.sha_after;
+          const moved = row.state === "ready" && row.sha_after !== null && (row.guarded ? guardedHash(row.path) : hashOrNull(row.path)) !== row.sha_after;
           return { path: row.rel, kind: row.kind, state: moved ? "changed" : row.state, ...(row.reason ? { reason: row.reason } : {}) };
         });
     },
@@ -219,7 +295,7 @@ export function checkpointTable(db: DatabaseSync, dir: string | undefined, home:
         if (pathProblem(grantRoots, "/", row.path, true)) return out("refused", "grant revoked");
         const current = lstatOrUndefined(row.path);
         if (current && !current.isFile()) return out("refused", "not a regular file");
-        const now = current ? sha256File(row.path) : null;
+        const now = current ? row.guarded ? guardedHash(row.path) : sha256File(row.path) : null;
         if (!current) {
           if (row.kind === "created") return mark.run("undone", null, row.id), after.run(null, row.id), out("missing", "already gone");
           if (!options.force) return out("missing", "the file is gone");
@@ -255,7 +331,7 @@ export function checkpointTable(db: DatabaseSync, dir: string | undefined, home:
   /** Copies the snapshot beside the file, then renames it over the file (atomic), keeping the file's mode. */
   function restore(row: Row, mode: number | undefined) {
     const snap = snapPath(row);
-    if (!existsSync(snap) || sha256File(snap) !== row.sha_before) throw new Error("snapshot damaged");
+    if (!existsSync(snap) || (row.guarded ? guardedHash(snap) : sha256File(snap)) !== row.sha_before) throw new Error("snapshot damaged");
     const temp = join(dirname(row.path), `.atom-undo-${process.pid}-${row.id}`);
     try {
       copyFileSync(snap, temp);

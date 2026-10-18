@@ -308,6 +308,8 @@ export interface IslandHelpers {
   thread(id: number): Omit<ThreadEvent, "type"> | undefined;
   /** Pins a helper to an offered model ("" unpins). Throws, with words for the user, for an unknown helper or model. */
   pin(helper: string, model: string): void;
+  /** Separate Codex pin. Optional for older bridges; "" clears even when Codex is unavailable. */
+  pinCodex?(helper: string, model: string): void;
   /** Saves an edited soul as a new version (Task 3.3). Throws, with words for the user, for an unknown helper or a bad soul. */
   saveSoul(helper: string, soul: SoulItem): void;
   /** Makes an older soul version current again, as a new version. Throws, with words for the user, for an unknown one. */

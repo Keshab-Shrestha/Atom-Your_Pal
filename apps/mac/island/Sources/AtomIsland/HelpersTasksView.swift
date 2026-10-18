@@ -315,13 +315,21 @@ struct ThreadPane: View {
                     } else {
                         Text("Retry #\(next) is no longer listed").font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
                     }
-                } else if job.state == .failed || job.state == .stopped {
+                } else if !job.advisory && (job.state == .failed || job.state == .stopped) {
                     QuietButton(title: job.recoveryNeeded ? "Retry after review" : "Retry", symbol: "arrow.clockwise") { model.sendHelpers(model.helpers.retry(job.id)) }
                 }
-                if job.resumable && job.state != .running { QuietButton(title: "Start fresh") { model.sendHelpers(model.helpers.startFresh()) } }
+                if !job.advisory && job.resumable && job.state != .running { QuietButton(title: "Start fresh") { model.sendHelpers(model.helpers.startFresh()) } }
                 // ADR-098 item 3: stops the current step; the task then waits for Keshab's message.
-                if job.state == .running { QuietButton(title: "Interrupt") { model.sendHelpers(model.helpers.interruptJob(job.id)) } }
+                if !job.advisory && job.state == .running { QuietButton(title: "Interrupt") { model.sendHelpers(model.helpers.interruptJob(job.id)) } }
                 if job.state.isActive { QuietButton(title: "Stop") { model.sendHelpers(model.helpers.stopJob(job.id)) } }
+            }
+            if job.advisory {
+                Text("Advisory review · supplied context only").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                if let parent = job.parentId, model.helpers.list?.item(parent) != nil {
+                    QuietButton(title: "Open parent #\(parent)") { model.sendHelpers(model.helpers.openThread(parent)) }
+                } else {
+                    Text("Ask for a new review in the parent chat.").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                }
             }
             if let goal = job.goal, goal != job.task { Text("Goal: \(goal)").font(.system(size: 12)).foregroundStyle(theme.text2.color) }
             if job.state == .failed, let error = job.error { ProblemLine(text: error) }

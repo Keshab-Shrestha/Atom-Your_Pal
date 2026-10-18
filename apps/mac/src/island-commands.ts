@@ -151,6 +151,7 @@ export type IslandCommand =
   | { type: "job.fresh"; id: number }
   | { type: "job.delete"; id: number }
   | { type: "helper.pin"; helper: string; model: string }
+  | { type: "helper.codex.pin"; helper: string; model: string }
   | { type: "helpers.settings"; allowLarge?: boolean }
   | { type: "soul.set"; helper: string; soul: SoulItem }
   | { type: "soul.restore"; helper: string; version: number }
@@ -259,6 +260,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "job.fresh",
   "job.delete",
   "helper.pin",
+  "helper.codex.pin",
   "helpers.settings",
   "soul.set",
   "soul.restore",
@@ -489,6 +491,13 @@ export function parseCommand(line: string): ParsedLine {
     const { helper, model } = value as { helper?: unknown; model?: unknown };
     if (typeof helper !== "string" || helper === "") return { error: 'helper.pin needs a "helper" string.' };
     if (typeof model !== "string") return { error: 'helper.pin needs a "model" string ("" to let Laya choose).' };
+    return { command: { type, helper, model } };
+  }
+  if (type === "helper.codex.pin") {
+    if (Object.keys(value).some((key) => !["type", "helper", "model"].includes(key))) return { error: "helper.codex.pin contains unsupported fields." };
+    const { helper, model } = value as { helper?: unknown; model?: unknown };
+    if (typeof helper !== "string" || !/^[a-z][a-z0-9-]{0,39}$/.test(helper)) return { error: "helper.codex.pin needs a valid helper id." };
+    if (typeof model !== "string" || (model !== "" && !/^[A-Za-z0-9._:-]{1,100}$/.test(model))) return { error: "helper.codex.pin needs a model id or an empty string to inherit the chat's model." };
     return { command: { type, helper, model } };
   }
   if (type === "helpers.settings") {

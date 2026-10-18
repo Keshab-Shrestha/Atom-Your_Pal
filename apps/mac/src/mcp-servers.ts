@@ -48,6 +48,10 @@ export interface McpCheckOptions {
   servers: McpServer[];
   worker: string;
   approve(request: { summary: string; reason: string }): Promise<boolean>;
+  /** Host adapters may require a fresh card after reading untrusted external content. */
+  forceApproval?: boolean;
+  /** Host-owned explanation/argument preview, never a server-supplied instruction. */
+  reason?: string;
   /** For the log: the server and the verdict, never the input. */
   onCheck?(event: { server: string; verdict: "trusted" | "allowed" | "declined" }): void;
 }
@@ -60,10 +64,10 @@ export function mcpCheck(options: McpCheckOptions) {
     const toolName = parts.length > 2 ? parts.slice(2).join("__") : tool; // a tool named "do__thing" shows as "do__thing" on the card, not "do"
     const server = options.servers.find((s) => s.name === name);
     if (!server) return "That server is not one of this worker's.";
-    if (server.trusted) return options.onCheck?.({ server: name, verdict: "trusted" }), undefined;
+    if (server.trusted && !options.forceApproval) return options.onCheck?.({ server: name, verdict: "trusted" }), undefined;
     const ok = await options.approve({
       summary: `${options.worker} wants to use ${toolName} from ${name}`,
-      reason: "Allow this one call. Mark the server Trusted in Plugins to stop asking.",
+      reason: options.reason ?? "Allow this one call. Mark the server Trusted in Plugins to stop asking.",
     });
     options.onCheck?.({ server: name, verdict: ok ? "allowed" : "declined" });
     return ok ? undefined : "Keshab did not allow this tool call. Carry on without it, or say in the report what is needed.";

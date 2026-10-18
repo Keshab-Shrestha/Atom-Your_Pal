@@ -83,6 +83,8 @@ export interface Job {
   /** ADR-110 (N2): a native sub-agent's job: the chat whose session runs it, and Claude Code's task id. */
   chatId?: string;
   sdkTaskId?: string;
+  /** Host-only advisory children have no tools and cannot be rerun through generic retry paths. */
+  nativeScope?: "advisory";
   parentId?: number;
   /** The tasks it waits for, and those of them not done yet (it starts when this is empty). */
   blockedBy: number[];
@@ -186,6 +188,8 @@ export interface HelperView {
   app: string | null;
   /** The model Keshab pinned this helper to (ADR-083), or null to let the Decision Engine choose. */
   pinnedModel: string | null;
+  /** A separate Codex pin; absent inherits the chat's Codex model. Never a provider choice. */
+  codexPinnedModel?: string;
   /** Task 3.8: its new tasks plan first. */
   planFirst: boolean;
   /** ADR-098: its runs get the browser (Playwright, ATOM's own profile). Default false. */
@@ -269,6 +273,8 @@ export interface HelperStore {
   setApp(helper: string, app: string): void;
   /** Pins a helper to a model; "" unpins. Throws HelperError for an unknown helper. The caller checks the model is offered. */
   pin(helper: string, model: string): void;
+  /** Pins only Codex tasks; "" clears. Caller verifies the model is offered by Codex. */
+  pinCodex(helper: string, model: string): void;
   /** A worker's current soul. Throws HelperError for an unknown helper. */
   soul(helper: string): Soul;
   /** Saves an edited soul as a new version (nothing when unchanged). Throws HelperError for an unknown helper or a bad soul. */
@@ -374,6 +380,8 @@ export interface HelperStore {
    * file is new. `roots` are the run's folders. Never throws for a file it cannot keep (that is a "skipped" file).
    */
   checkpoint(jobId: number, roots: readonly string[], path: string): void;
+  /** ADR-166: verified required undo baseline and pinned expected result; false means do not write. */
+  guardPreviewEdit(jobId: number, roots: readonly string[], path: string, before: string, expectedBefore: string, expectedAfter: string): boolean;
   /** B3.4: at the run's end: notes how each kept file was left; a file the run did not change drops out. */
   finishCheckpoints(jobId: number): void;
 /** B3.4: the task's kept files (at most 100), oldest first. */
@@ -471,8 +479,9 @@ export interface HelperStore {
   /**
    * ADR-110 (N2): a Board row for a native sub-agent that Claude Code already runs: made running at once, so the
    * legacy runner never picks it up. A long prompt is cut to MAX_TASK_CHARS.
+   * ADR-164: advisoryParentId instead admits a bounded, tool-free child with exact task length and durable scope.
    */
-  addNativeJob(helper: string, task: string, links: { chatId: string; sdkTaskId?: string }): Job;
+  addNativeJob(helper: string, task: string, links: { chatId: string; sdkTaskId?: string; advisoryParentId?: number }): Job;
   /** Persist one retry intent before dispatch; repeated requests return the same attempt without dispatching again. */
   queueNativeRetry(id: number): { job: Job; created: boolean };
   /** A retry's main turn ended without starting its worker. Never changes a running/completed attempt. */

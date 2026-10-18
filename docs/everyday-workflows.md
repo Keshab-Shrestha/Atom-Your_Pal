@@ -11,7 +11,9 @@ All three everyday workflows now pass in the real UI on fictional test data: cha
 - Codex chats now use a persistent signed-in app-server session with ATOM's checked host tools. Delegation creates a real Board task, runs the worker, returns its report and supports Stop. File agents use ATOM's policy, approvals and undo checkpoints; project workers use task worktrees. Native Codex execution and imported MCP tools cannot bypass that policy.
 - Ask ATOM and quick-action editing follow the active chat's provider. With no active chat override they follow the default choice. They send only the edit request, with no chat history or memory; there is no fallback to Claude. Codex edits use a separate session with no registered host tools and native tools disabled. Claude retains its existing small-model editing route.
 
-Codex workers have checked text-file tools for the folders kit. ADR-158 adds bounded explicit loading of assigned SKILL.md instructions for every kit and host-call activity in the existing Board timeline; only successful instruction returns count as use. ADR-159 adds checked known-URL public HTTPS page reading for research workers when web access is enabled. These additions are typechecked/static-reviewed only, with tests/live checks skipped. Search, shell, browser, external MCP, skill plugin/script/supporting-file execution, worker model pins and nested workers remain unsupported. Workers use the chat's Codex model. Background conversation summaries still use the existing Claude route. This is not complete provider parity. [Worker scope](codex-worker-capabilities.md), [Page-reading limits](codex-public-pages.md).
+Codex workers have checked text-file tools for the folders kit. ADR-158 adds bounded assigned SKILL.md instructions and Board host-call activity; ADR-159 adds known-URL public HTTPS reading for research workers when web access is enabled. ADR-160 adds separate Codex worker model pins, otherwise inheriting the chat's model; unavailable pins refuse without fallback. These additions are compiled/typechecked within their documented scope only; tests/live checks skipped. Search, shell, browser, external MCP, skill plugin/script/supporting-file execution and nested workers remain unsupported. Background conversation summaries retain the existing Claude route. This is not complete provider parity. [Worker scope](codex-worker-capabilities.md), [Pages](codex-public-pages.md), [Model pins](codex-worker-models.md).
+
+ADR-161 additionally implements read-only project command inspection for folders workers with fixed utilities/flags, native policy and a separate sandbox. It does not enable general shell/scripts/builds/tests. Typecheck/static review only; tests, new adapter execution and live acceptance remain skipped. Existing CI failures are deferred at user direction. [Inspection scope](codex-project-inspection.md).
 
 ## Verification results
 
@@ -40,3 +42,12 @@ Five real Codex turns in the app retained short Cedar context through reopening,
 A no-model diagnostic sent 22 exchanges. The next request had 41 messages and no first fact; the persistence callback received only 40 messages and no first fact. The store replaced its saved messages with that truncated payload. Task-local file approval caches were also deleted when a worker ended. These were ATOM integration problems; they did not prove that Codex itself could not remember or edit files.
 
 Architecture and scope: ADR-135 through ADR-137 in [DECISIONS.md](../DECISIONS.md). Current check totals are in [STATUS.md](../STATUS.md).
+
+
+Codex capability update (2026-10-18, ADR-162): checked external MCP discovery/calls now reuse tested/enabled worker assignments, plan/trust/one-call approval and bounded task-owned connections. This has only typecheck/static review; no tests, server startup or live workflow evidence. [Scope and limits](codex-external-mcp.md).
+
+
+Codex capability update (2026-10-18, ADR-163): browser-granted non-think workers now have bounded navigation/text snapshots/form interactions using ATOM's existing per-worker profile, native site/plan policy and fresh interaction cards. Typecheck/static review only; no tests, browser/server startup or new live workflow evidence. [Scope and limits](codex-browser.md).
+
+
+Codex capability update (2026-10-18, ADR-164): bounded tool-free advisory children now return supplied-context reviews through linked Board tasks, with parent-owned Stop and durable independent-retry refusal. This is not a new live workflow pass. Typecheck/Swift release/static review only; tests, migration and provider/live checks skipped. [Scope and limits](codex-advisory-workers.md).

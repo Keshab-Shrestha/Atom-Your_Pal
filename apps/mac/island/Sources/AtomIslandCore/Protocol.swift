@@ -463,9 +463,13 @@ private struct Fields {
                   let jobs = h["jobs"] as? [Any]
             else { throw invalid }
             // `app` and `pinnedModel` are text or null (absent is read as null).
-            let app = h["app"], pinned = h["pinnedModel"]
+            let app = h["app"], pinned = h["pinnedModel"], codexPinned = h["codexPinnedModel"]
             guard app == nil || app is NSNull || app is String, pinned == nil || pinned is NSNull || pinned is String
             else { throw invalid }
+            if let codexPinned, !(codexPinned is NSNull) {
+                guard let id = codexPinned as? String, !id.isEmpty, id.count <= 100,
+                      id.range(of: "^[A-Za-z0-9._:-]+$", options: .regularExpression) != nil else { throw invalid }
+            }
             // Task 3.3: role, soul and versions; absent from older runtimes, malformed when present makes it invalid.
             var soul: HelperSoul?
             if let raw = h["soul"] {
@@ -488,7 +492,7 @@ private struct Fields {
                grants: (h["grants"] as? [Any])?.compactMap { $0 as? String } ?? [],
                skills: (h["skills"] as? [Any])?.compactMap { $0 as? String } ?? [],
                proposals: Self.proposals(h["proposals"]), kit: h["kit"] as? String, custom: Self.flag(h["custom"]),
-               browser: Self.flag(h["browser"]))
+               browser: Self.flag(h["browser"]), codexPinnedModel: codexPinned as? String)
         }
     }
 
@@ -513,7 +517,7 @@ private struct Fields {
                          rating: j["rating"] as? String, reviews: (j["reviews"] as? NSNumber)?.intValue,
                          autoRetries: (j["autoRetries"] as? NSNumber)?.intValue ?? 0, subAgents: Self.subAgents(j["subAgents"]),
                          labels: (j["labels"] as? [Any] ?? []).compactMap { $0 as? String }, recoveryNeeded: Self.flag(j["recoveryNeeded"]),
-                         retryOf: (j["retryOf"] as? NSNumber)?.intValue, retriedAs: (j["retriedAs"] as? NSNumber)?.intValue)
+                         retryOf: (j["retryOf"] as? NSNumber)?.intValue, retriedAs: (j["retriedAs"] as? NSNumber)?.intValue, advisory: Self.flag(j["advisory"]))
     }
 
     /// ADR-098: search results of one kind; a malformed one is left out. Chat ids are strings, task ids numbers.
