@@ -161,7 +161,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
       sendEvent?.({ type: "computer.step", text: stepText(step) });
       scheduleEnd();
     },
-    answer: (id, approved, rememberFile) => settle(id, approved, rememberFile),
+    answer: (id, approved, rememberFile, reviewToken) => settle(id, approved, rememberFile, reviewToken),
     cancelAll() {
       for (const id of [...waiting.keys()]) settle(id, false);
     },

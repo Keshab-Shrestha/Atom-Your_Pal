@@ -339,6 +339,30 @@ test("push: a Needs you item whose send failed is tried again later and then arr
   assert.equal(texts(r.sent).length, 1);
 });
 
+test("a push retry that wakes before its wall-clock deadline stays scheduled", async (t) => {
+  let now = Date.now(), attempts = 0, down = true;
+  t.mock.method(Date, "now", () => now);
+  const asks: any[] = [];
+  await run({
+    updates: [], asks, store: fakeStore(), wait: 10,
+    tune: { retryDelaysMs: [1], pushRetryMs: 60 },
+    sendStatus: () => (attempts++, down ? 500 : 200),
+    after: async (_bot, h) => {
+      asks.push(ask("early")); h.listeners.forEach((l: any) => l(asks[0]));
+      for (let i = 0; i < 300 && attempts < 2; i++) await tick(10);
+      assert.equal(attempts, 2);
+      down = false;
+      await tick(150); // retry timer runs, but the wall clock has not reached notBefore
+      assert.equal(texts(h.sent).length, 0);
+      now += 1000;
+      for (let i = 0; i < 300 && texts(h.sent).length === 0; i++) await tick(10);
+      assert.equal(texts(h.sent).length, 1);
+      await tick(150);
+      assert.equal(texts(h.sent).length, 1);
+    },
+  });
+});
+
 test("a hung answer does not block the next message: the turn is given up on after the limit", async () => {
   let n = 0;
   const r = await run({

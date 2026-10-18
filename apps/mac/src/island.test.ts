@@ -1075,7 +1075,7 @@ test("chats: listed with the current one; opened, ATOM continues it; deleting th
   h.clear();
   await h.send({ type: "chat.open", id: "chat-a" });
   assert.deepEqual(resumed, ["chat-a:2"]);
-  assert.deepEqual(h.events()[0], { type: "chat.opened", id: "chat-a", messages: [{ role: "user", text: "Plan my trip" }, { role: "assistant", text: "Where to?" }] });
+  assert.deepEqual(h.events()[0], { type: "chat.opened", id: "chat-a", messages: [{ role: "user", text: "Plan my trip", seq: 1 }, { role: "assistant", text: "Where to?", seq: 2 }] });
   assert.equal((h.events()[1] as { current: string }).current, "chat-a");
   h.clear();
   await h.send({ type: "chat.delete", id: "chat-a" });
@@ -1114,7 +1114,7 @@ test("chats written by Telegram are read-only: flagged, and a window turn in one
   await tick(10);
   assert.deepEqual(handled, []);
   const error = h.events().find((e) => e.type === "error") as { message: string };
-  assert.equal(error.message, "This chat is written from Telegram. Open it to read it only.");
+  assert.equal(error.message, "This chat is read-only in the window. Your input remains held.");
   await h.send({ type: "chat.open", id: "api-ci" });
   h.clear();
   await h.send({ type: "text.send", text: "again" });
@@ -1943,7 +1943,7 @@ test("a result posted into the open chat re-sends chat.opened; a chat that is no
   assert.deepEqual(h.events()[0], {
     type: "chat.opened",
     id: "chat-a",
-    messages: [{ role: "user", text: "check" }, { role: "assistant", text: "on it" }, { role: "assistant", text: "Kame finished: storage" }],
+    messages: [{ role: "user", text: "check", seq: 1 }, { role: "assistant", text: "on it", seq: 2 }, { role: "assistant", text: "Kame finished: storage", seq: 3 }],
   });
   assert.deepEqual(resumed, [], "the runtime already gave the Core the turn");
 });

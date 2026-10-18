@@ -373,7 +373,8 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
     timer = undefined;
     if (stopped) return;
     const now = needsYou(store, approvals.pending());
-    const fresh = now.filter((n) => n.push && !known.has(n.key) && !sending.has(n.key) && (notBefore.get(n.key) ?? 0) <= Date.now());
+    const checkedAt = Date.now();
+    const fresh = now.filter((n) => n.push && !known.has(n.key) && !sending.has(n.key) && (notBefore.get(n.key) ?? 0) <= checkedAt);
     const live = new Set(now.map((n) => n.key));
     // What was sent or is not pushed stays known; what is gone from the list is forgotten; what is new waits for its send.
     // An item held back only by its retry time is neither sent nor known: it is not added here (it used to be, so a failed push was never retried).
@@ -383,7 +384,17 @@ export function startTelegramBot(options: TelegramBotOptions): TelegramBot {
       for (const item of fresh) known.add(item.key); // push is off: do not pile them up for when it is turned on
       return;
     }
-    if (!fresh.length) return;
+    if (!fresh.length) {
+      // A timer can wake before the wall-clock deadline (rounding or a clock adjustment).
+      // Keep the pending retry armed instead of silently losing the notification.
+      const deadlines = now.filter((n) => n.push && !known.has(n.key) && !sending.has(n.key))
+        .map((n) => notBefore.get(n.key)).filter((at): at is number => at !== undefined && at > checkedAt);
+      if (deadlines.length && !retryTimer) {
+        retryTimer = setTimeout(() => { retryTimer = undefined; check(); }, Math.max(1, Math.min(...deadlines) - Date.now()));
+        retryTimer.unref();
+      }
+      return;
+    }
     log.info("telegram.push", { kind: "needs", count: fresh.length });
     for (const item of fresh) sending.add(item.key);
     later("push", (async () => {

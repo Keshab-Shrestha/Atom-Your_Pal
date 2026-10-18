@@ -38,15 +38,19 @@ struct ConversationControls: View {
                     .disabled(!model.chatBranchAvailable || (model.chatControls.snapshot?.info?.messages ?? 0) == 0)
                     .help("Create a new chat from saved messages; no files, permissions or running work are copied")
                 if let chat = model.savedChat {
-                    Menu {
-                        Button(chat.pinned ? "Unpin" : "Pin") { model.setChatFlags(chat, pinned: !chat.pinned) }
-                        if chat.canArchive {
-                            Button(chat.archived ? "Unarchive" : "Archive") { model.setChatFlags(chat, archived: !chat.archived) }
-                                .disabled(!model.chatBranchAvailable)
-                        }
-                    } label: { Image(systemName: "ellipsis.circle") }
-                    .disabled(model.chatControls.mutation != nil)
-                    .accessibilityLabel("Chat organization")
+                    if snapshot {
+                        Image(systemName: "ellipsis.circle")
+                    } else {
+                        Menu {
+                            Button(chat.pinned ? "Unpin" : "Pin") { model.setChatFlags(chat, pinned: !chat.pinned) }
+                            if chat.canArchive {
+                                Button(chat.archived ? "Unarchive" : "Archive") { model.setChatFlags(chat, archived: !chat.archived) }
+                                    .disabled(!model.chatBranchAvailable)
+                            }
+                        } label: { Image(systemName: "ellipsis.circle") }
+                        .disabled(model.chatControls.mutation != nil)
+                        .accessibilityLabel("Chat organization")
+                    }
                 }
                 Spacer(minLength: 0)
                 Button {
@@ -56,7 +60,7 @@ struct ConversationControls: View {
                 }
                 .popover(isPresented: $details) { contextDetails.padding(16).frame(width: 340) }
             }
-            .font(.system(size: 11.5)).buttonStyle(.borderless).foregroundStyle(theme.text2.color)
+            .font(.system(size: 11.5)).buttonStyle(SnapshotBorderlessButtonStyle()).foregroundStyle(theme.text2.color)
             ChatControlFeedback(model: model)
             HStack(spacing: 14) {
                 ChatAccessDetails(model: model)

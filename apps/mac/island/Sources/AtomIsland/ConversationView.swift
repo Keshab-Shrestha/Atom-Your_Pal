@@ -141,19 +141,16 @@ struct Composer: View {
             guard !snapshot else { return }
             paste.wrappedValue.stop()
         }
-        .background(WindowProbe { paste.wrappedValue.window = $0 })
+        .background {
+            if !snapshot { WindowProbe { paste.wrappedValue.window = $0 } }
+        }
         .padding(.leading, 18)
         .padding(.trailing, 5)
         .padding(.vertical, 5)
         .background(composerShape.fill(theme.fill1.color))
         .overlay(composerShape.strokeBorder(theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
         // Dropping files on the composer attaches them.
-        .dropDestination(for: URL.self) { urls, _ in
-            let paths = urls.filter(\.isFileURL).map(\.path)
-            guard !paths.isEmpty else { return false }
-            attached.wrappedValue.add(paths)
-            return true
-        }
+        .modifier(ComposerDropTarget(files: attached))
     }
 
     @ViewBuilder private var queueControls: some View {
@@ -411,6 +408,23 @@ struct Composer: View {
         if !clean.text.isEmpty { editor.insertText(clean.text, replacementRange: range) }
         attached.wrappedValue.refuse("Removed \(clean.removed) hidden controls from the paste.")
         return true
+    }
+}
+
+/// Native drop destinations cannot be rendered by ImageRenderer.
+private struct ComposerDropTarget: ViewModifier {
+    @Binding var files: ComposerDraft
+    @Environment(\.islandSnapshot) private var snapshot
+    func body(content: Content) -> some View {
+        if snapshot { content }
+        else {
+            content.dropDestination(for: URL.self) { urls, _ in
+                let paths = urls.filter(\.isFileURL).map(\.path)
+                guard !paths.isEmpty else { return false }
+                files.add(paths)
+                return true
+            }
+        }
     }
 }
 

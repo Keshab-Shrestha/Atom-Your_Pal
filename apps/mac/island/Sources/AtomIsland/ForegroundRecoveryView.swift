@@ -8,7 +8,7 @@ struct ForegroundRecoveryButton: View {
         Button(count > 0 ? "Recovery (\(count))" : "Recovery") {
             model.recovery.shown = true; model.refreshForegroundRecovery()
         }
-        .buttonStyle(.borderless).font(.system(size: 11.5))
+        .buttonStyle(SnapshotBorderlessButtonStyle()).font(.system(size: 11.5))
         .help("Review unfinished requests, saved answers and uncertain outcomes; never resends automatically")
         .sheet(isPresented: Binding(get: { model.recovery.shown }, set: { model.recovery.shown = $0 })) {
             ForegroundRecoveryView(model: model)

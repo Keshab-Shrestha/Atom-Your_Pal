@@ -1,5 +1,14 @@
 # ZENO Project Status
 
+## Current baseline repair — 2026-10-18 (ADR-168)
+
+Keshab selected step 1: establish a dependable release baseline, then continue upgrades one at a time. Focused verification and CI repair are authorized for this step; earlier skipped-test/deferred-CI entries below are historical.
+
+Fixed native file-review answers dropping their review token, updated three stale event/error assertions, and replaced the chat-find method reference that crashed Swift 6.3.3 CI compilation with an explicit closure. A repeated suite exposed an early-waking Telegram retry losing its pending notification; it now keeps the retry armed. Gallery fixtures flatten chat rows correctly and replace unsupported native controls with their labels; five changed reference images were visually reviewed before replacement. The 1% visual threshold and all three blocking CI jobs remain enabled.
+
+Local verification: TypeScript checking; 1,071 TypeScript tests passed / 8 normal opt-in skips; 736 Swift tests passed; release compilation; two signed-in Codex checks passed for own-chat archive retrieval after reopening and later checked edits reusing an explicit file grant. New real-filesystem/SQLite/native-approval checks exercise complete review, Apply, Undo after storage reopen, conflict preservation, missing undo storage, Stop/late approval, stale tokens and review bounds. These integration checks are not a claim of clicking the rich review card in the live app. The rebuilt signed app reached Ready, reopened the fictional Juniper chat and recalled Friday/riverstone. A real Stop returned Ready and recorded Stopped; Recovery restored only an unsent draft, then the fixture draft was cleared. Remote CI remains a separate release gate for the published revision. No new upgrade capability or broad acceptance of ADR-141–167 is claimed. Unrelated `graphify-out/` remains untouched. [Baseline evidence and limits](docs/release-baseline.md).
+
+
 Renamed ZENO -> ATOM on 2026-10-13; entries below keep the name they were written under.
 
 Last updated: 2026-10-18

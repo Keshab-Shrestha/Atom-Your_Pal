@@ -1,5 +1,14 @@
 import SwiftUI
 
+/// ImageRenderer cannot draw AppKit's borderless buttons. Keep their labels and layout in fixtures.
+struct SnapshotBorderlessButtonStyle: PrimitiveButtonStyle {
+    @Environment(\.islandSnapshot) private var snapshot
+    @ViewBuilder func makeBody(configuration: Configuration) -> some View {
+        if snapshot { configuration.label }
+        else { BorderlessButtonStyle().makeBody(configuration: configuration) }
+    }
+}
+
 // Scrolling and snapshot helpers shared by the window's pages, the compact card and the gallery. They lived beside the
 // drop-down panel's view until ADR-093 removed it.
 
@@ -23,7 +32,8 @@ struct Scrollable<Content: View>: View {
             // Natural height, pinned to the top; anything taller is cut off at the bottom like an unscrolled
             // list. GeometryReader takes only the space offered, so tall content cannot push the header out.
             GeometryReader { proxy in
-                content.fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 0) { content }
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(width: proxy.size.width, alignment: .top)
             }
             .clipped()

@@ -100,7 +100,7 @@ struct ChatAccessDetails: View {
     @Environment(\.theme) private var theme
     var body: some View {
         Button { shown = true; model.inspectSavedChat() } label: { Label("Access", systemImage: "lock.shield") }
-            .buttonStyle(.borderless).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
+            .buttonStyle(SnapshotBorderlessButtonStyle()).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
             .popover(isPresented: $shown) {
                 VStack(alignment: .leading, spacing: 9) {
                     Text("Chat access").font(.headline)

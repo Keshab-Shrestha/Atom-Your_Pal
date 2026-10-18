@@ -11,7 +11,7 @@ struct ChatFindBar: View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(theme.text3.color)
-                TextField("Find in loaded messages", text: Binding(get: { model.chatFindQuery }, set: model.setChatFindQuery))
+                TextField("Find in loaded messages", text: Binding(get: { model.chatFindQuery }, set: { model.setChatFindQuery($0) }))
                     .textFieldStyle(.plain).focused($focused)
                     .onSubmit { if !FieldEditor.composing { model.moveChatFind(1) } }
                     .onKeyPress(.escape) {

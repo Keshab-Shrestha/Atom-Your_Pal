@@ -46,10 +46,13 @@ struct ChatCopyControl: View {
     private let notice = State<String?>(initialValue: nil)
     private let receipt = State(initialValue: 0)
     @Environment(\.theme) private var theme
+    @Environment(\.islandSnapshot) private var snapshot
 
     var body: some View {
         Group {
-            if choices.count > 1 {
+            if snapshot {
+                label
+            } else if choices.count > 1 {
                 Menu {
                     ForEach(choices) { choice in
                         Button(choice.title) { copy(choice) }
