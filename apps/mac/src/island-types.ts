@@ -169,6 +169,8 @@ export interface IslandGit {
 
 /** ADR-091: Keshab's chat sessions with ATOM (kept on this Mac). */
 export interface IslandChats {
+  lastOpened?(): string | undefined;
+  rememberOpened?(id: string | undefined): void;
   control?(command: ChatControlRequest): ChatControlResponse;
   metadataOf?(id: string): { pinned: boolean; archived: boolean; version: number } | undefined;
   list(): ChatItem[];

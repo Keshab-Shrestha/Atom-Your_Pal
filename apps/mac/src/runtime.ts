@@ -293,6 +293,8 @@ export function createRuntime(
     for (const listener of chatListeners) listener();
   };
   const islandChats: IslandChats | undefined = memory && {
+    lastOpened: () => memory.chats.lastOpened(),
+    rememberOpened: (id) => memory.chats.rememberOpened(id),
     list: () => [...new Map([...(projects?.chatSummaries() ?? memory.chats.list()), ...memory.chats.list({ pinned: true, limit: 500 }), ...memory.chats.list({ archived: true, limit: 500 })].map((c) => [c.id, c])).values()]
       .map((c) => ({ id: c.id, title: c.id === TELEGRAM_CHAT ? "Telegram" : c.title, updatedAt: c.updatedAt.toISOString(), messages: c.messages, ...(c.projectId ? { projectId: c.projectId } : {}), ...(c.pinned ? { pinned: true as const } : {}), ...(c.archived ? { archived: true as const } : {}), ...(c.flagsVersion ? { flagsVersion: c.flagsVersion } : {}) })),
     metadataOf: (id) => memory.chats.metadata(id),

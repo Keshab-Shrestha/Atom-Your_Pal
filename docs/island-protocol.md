@@ -434,3 +434,6 @@ WorkStrip opens Board → Needs you instead of offering generic Allow. Telegram/
 
 
 ADR-169: chat.control additionally accepts action `brief` with exact `id`, request UUID, `text` (at most 4,000 UTF-8 bytes, no hidden controls) and current `version`. Requires current idle writable chat; no other action fields accepted. Success returns optional `brief: { text, version }`; inspect now includes that field too. Native editor stays unavailable with older runtimes that omit it. A repeated acknowledgement succeeds only for an identical immediately resulting version, otherwise reports conflict. This channel creates no file permission.
+
+
+ADR-170: runtimes supporting persisted window selection emit the current chat.opened and chats snapshots after ready while idle. This includes an empty fresh-start snapshot when no saved selection can be reopened. Reopening occurs before commands can run; early manual navigation during voice warm-up takes precedence in the later display snapshot. Existing event shapes and explicit send/recovery requirements are unchanged.

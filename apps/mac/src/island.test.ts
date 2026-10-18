@@ -6,6 +6,8 @@ import { homedir, tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { PassThrough } from "node:stream";
 import type { Core } from "@atom/core";
+import { openMemoryStore } from "@atom/memory";
+import { createNativeCore } from "./native-core.ts";
 import { createSwitchableModel, type SwitchableModel } from "@atom/llm-gateway";
 import type { AudioClip, AudioError, Recording } from "./audio.ts";
 import type { IslandEvent } from "./island-protocol.ts";
@@ -2164,4 +2166,117 @@ test("chat brief saves require the current idle writable chat before touching st
     current = "cedar"; await h.send(command); assert.equal(writes, 1);
     assert.ok(h.events().some((e) => e.type === "chat.control" && e.ok));
   } finally { await h.send({ type: "quit" }); }
+});
+
+
+test("the window reopens its chosen saved chat after a real database reopen, without sending work", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "atom-reopen-chat-")), path = join(dir, "memory.db");
+  let memory = openMemoryStore({ path });
+  const listeners = new Set<() => void>();
+  let calls = 0, number = 0;
+  const archive = [{ role: "user" as const, content: "Fictional project Juniper, launch Monday" }, { role: "assistant" as const, content: "Keep the outline" }];
+  const core = () => createNativeCore({ claudePath: "", newId: () => `new-${number++}`, tools: { specs: () => [], run: async (c) => ({ callId: c.id, content: "No tools" }) },
+    modelFor: () => undefined, otherModel: () => ({ complete: async (request) => {
+      calls++; assert.match(JSON.stringify(request.messages), /Juniper/);
+      if (calls === 1) assert.match(request.systemExtra!, /mosslight/);
+      else assert.doesNotMatch(request.systemExtra!, /mosslight/);
+      return { text: "Monday, mosslight" };
+    } }), chatBrief: (id) => memory.chats.brief(id),
+    onExchange: (id, turns) => { memory.chats.save(id, turns); for (const listener of listeners) listener(); },
+  });
+  const chats = (): NonNullable<IslandOptions["chats"]> => ({
+    lastOpened: () => memory.chats.lastOpened(), rememberOpened: (id) => memory.chats.rememberOpened(id), metadataOf: (id) => memory.chats.metadata(id),
+    list: () => memory.chats.list().map((c) => ({ ...c, updatedAt: c.updatedAt.toISOString() })), messages: (id) => memory.chats.messages(id),
+    remove: (id) => memory.chats.remove(id), modelOf: (id) => memory.chats.model(id),
+    onChange: (listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
+  });
+  let h: ReturnType<typeof islandHarness> | undefined;
+  try {
+    memory.chats.save("juniper", archive); memory.chats.save("other", archive);
+    memory.chats.setBrief("juniper", "Code word mosslight", 0);
+    memory.filePermissions.forChat("juniper").grant("/fictional/launch.txt");
+    memory.chats.setModel("juniper", { provider: "codex", model: "codex-default" });
+    h = islandHarness({ core: core(), chats: chats() }); await tick(5);
+    await h.send({ type: "chat.open", id: "juniper" });
+    assert.equal(memory.chats.lastOpened(), "juniper");
+    // A background exchange in a newer chat never changes the window selection.
+    memory.chats.save("other", [...archive, { role: "assistant", content: "Background result" }]);
+    for (const listener of listeners) listener();
+    assert.equal(memory.chats.lastOpened(), "juniper");
+    h.session.quit(); h = undefined; memory.close(); memory = openMemoryStore({ path });
+    const reopened = core(); h = islandHarness({ core: reopened, chats: chats() }); await tick(5);
+    assert.equal(reopened.sessionId, "juniper"); assert.deepEqual(reopened.history(), archive);
+    assert.equal(calls, 0); assert.deepEqual(h.spoken, []);
+    const opened = h.events().find((e) => e.type === "chat.opened");
+    assert.ok(opened && opened.type === "chat.opened" && opened.id === "juniper" && opened.messages.length === 2);
+    const list = h.events().find((e) => e.type === "chats");
+    assert.ok(list && list.type === "chats" && list.current === "juniper" && list.currentProvider === "codex");
+    assert.deepEqual(memory.filePermissions.forChat("juniper").list(), ["/fictional/launch.txt"]);
+    await h.send({ type: "text.send", text: "Continue the fictional project" }); await tick(20);
+    assert.equal(calls, 1); assert.equal(memory.chats.messages("juniper").length, 4);
+    await h.send({ type: "chat.new" }); assert.equal(memory.chats.lastOpened(), undefined);
+    h.session.quit(); h = undefined; memory.close(); memory = openMemoryStore({ path });
+    const fresh = core(); h = islandHarness({ core: fresh, chats: chats() }); await tick(5);
+    assert.notEqual(fresh.sessionId, "juniper"); assert.deepEqual(fresh.history(), []); assert.equal(calls, 1);
+    await h.send({ type: "text.send", text: "A new fictional Juniper conversation" }); await tick(20);
+    assert.equal(calls, 2); assert.equal(memory.chats.lastOpened(), fresh.sessionId, "the first saved exchange selects the new chat without a sidebar click");
+  } finally { h?.session.quit(); memory.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("unavailable, archived and other-surface chats are never automatically reopened", async () => {
+  for (const scenario of ["deleted", "archived", "telegram", "api-phone", "routine-1", "project-gone"]) {
+    let remembered: string | undefined = scenario, resumed = 0;
+    const h = islandHarness({
+      core: { sessionId: "fresh", reset() {}, resume() { resumed++; }, handle: async () => { throw new Error("No startup requests"); } },
+      chats: { lastOpened: () => remembered, rememberOpened: (id) => { remembered = id; }, metadataOf: (id) => id !== scenario || scenario === "deleted" ? undefined : { pinned: false, archived: scenario === "archived", version: 0 },
+        projectOf: () => scenario === "project-gone" ? "p-gone" : undefined, list: () => [], messages: () => [], remove: () => false, onChange: () => () => {} },
+    });
+    try { await tick(5); assert.equal(resumed, 0, scenario); assert.equal(remembered, undefined, scenario); assert.ok(h.events().some((e) => e.type === "ready")); }
+    finally { h.session.quit(); }
+  }
+});
+
+test("an explicit new chat during voice warm-up takes precedence over restored history", async () => {
+  let current = "fresh", remembered: string | undefined = "juniper", warm!: () => void;
+  const h = islandHarness({
+    warmUp: () => new Promise<void>((resolve) => { warm = resolve; }),
+    core: { get sessionId() { return current; }, reset() { current = "new-choice"; }, resume(id) { current = id; }, handle: async () => { throw new Error("No requests"); } },
+    chats: { lastOpened: () => remembered, rememberOpened: (id) => { remembered = id; }, metadataOf: (id) => id === "juniper" ? { pinned: false, archived: false, version: 0 } : undefined,
+      list: () => [], messages: () => [{ role: "user", content: "Fictional Juniper" }], remove: () => false, onChange: () => () => {} },
+  });
+  try {
+    assert.equal(current, "juniper"); await h.send({ type: "chat.new" }); assert.equal(remembered, undefined);
+    warm(); await tick(5);
+    assert.equal(current, "new-choice"); assert.equal(h.events().some((e) => e.type === "chat.opened" && e.id === "juniper"), false);
+  } finally { h.session.quit(); }
+});
+
+test("reopening uses the project's checked replay and does not dispatch a provider or cancel work", async () => {
+  let current = "fresh", checked = 0, resumed: readonly unknown[] = [];
+  const h = islandHarness({
+    core: { get sessionId() { return current; }, reset() {}, resume(id, turns) { current = id; resumed = turns; }, handle: async () => { throw new Error("No work"); } },
+    projects: { startChat: (id: string) => { assert.equal(id, "p-juniper"); checked++; return { ok: true }; }, list: () => [] } as unknown as IslandOptions["projects"],
+    chats: { lastOpened: () => "juniper", rememberOpened() {}, metadataOf: () => ({ pinned: false, archived: false, version: 0 }), projectOf: () => "p-juniper",
+      replay: (_id, turns) => ({ turns: turns.slice(-1), trimmed: true }), list: () => [], messages: () => [{ role: "user", content: "old" }, { role: "assistant", content: "recent" }], remove: () => false, onChange: () => () => {} },
+  });
+  try {
+    await tick(5); assert.equal(checked, 1); assert.deepEqual(resumed, [{ role: "assistant", content: "recent" }]);
+    const opened = h.events().find((e) => e.type === "chat.opened");
+    assert.ok(opened && opened.type === "chat.opened" && opened.trimmed && opened.messages.length === 2);
+    assert.equal(h.session.loop.state, "idle"); assert.deepEqual(h.spoken, []);
+  } finally { h.session.quit(); }
+});
+
+test("a selection-storage failure is nonfatal and never exposes raw storage details", async () => {
+  const details = "fictional private sqlite details";
+  const h = islandHarness({
+    core: { sessionId: "fresh", reset() {}, resume() { throw new Error("Must not resume"); }, handle: async () => { throw new Error("Must not dispatch"); } },
+    chats: { lastOpened: () => { throw new Error(details); }, rememberOpened() {}, list: () => [], messages: () => [], remove: () => false, onChange: () => () => {} },
+  });
+  try {
+    await tick(5);
+    assert.ok(h.events().some((e) => e.type === "ready"));
+    const errors = h.events().filter((e) => e.type === "error");
+    assert.ok(errors.length); assert.doesNotMatch(JSON.stringify(errors), new RegExp(details));
+  } finally { h.session.quit(); }
 });

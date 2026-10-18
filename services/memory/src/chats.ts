@@ -28,6 +28,9 @@ export interface ChatSummary {
 }
 
 export interface ChatStore {
+  /** Only the local window's confirmed saved selection; never the newest background chat. */
+  lastOpened(): string | undefined;
+  rememberOpened(id: string | undefined): void;
   brief(id: string): { text: string; version: number } | undefined;
   setBrief(id: string, text: string, version: number): boolean;
   metadata(id: string): { pinned: boolean; archived: boolean; version: number } | undefined;
@@ -131,6 +134,11 @@ export function openChats(db: DatabaseSync, now: () => Date, onRemove?: (id: str
   if (!columns.includes("brief")) db.exec("ALTER TABLE chats ADD COLUMN brief TEXT NOT NULL DEFAULT ''");
   if (!columns.includes("brief_version")) db.exec("ALTER TABLE chats ADD COLUMN brief_version INTEGER NOT NULL DEFAULT 0");
   const readBrief = db.prepare("SELECT brief AS text, brief_version AS version FROM chats WHERE id = ?");
+  db.exec("CREATE TABLE IF NOT EXISTS chat_navigation (slot TEXT PRIMARY KEY CHECK (slot = 'window'), chat_id TEXT NOT NULL)");
+  const readOpened = db.prepare("SELECT chat_id FROM chat_navigation WHERE slot = 'window'");
+  const writeOpened = db.prepare("INSERT INTO chat_navigation(slot, chat_id) VALUES ('window', ?) ON CONFLICT(slot) DO UPDATE SET chat_id = excluded.chat_id");
+  const clearOpened = db.prepare("DELETE FROM chat_navigation WHERE slot = 'window'");
+  const dropOpened = db.prepare("DELETE FROM chat_navigation WHERE chat_id = ?");
   const writeBrief = db.prepare("UPDATE chats SET brief = ?, brief_version = brief_version + 1 WHERE id = ? AND brief_version = ?");
   db.exec("CREATE TABLE IF NOT EXISTS chat_branches (id TEXT PRIMARY KEY, source_id TEXT NOT NULL, message_count INTEGER NOT NULL, kind TEXT NOT NULL, revision TEXT NOT NULL)");
   const metadata = db.prepare("SELECT pinned, archived, flags_version FROM chats WHERE id = ?");
@@ -161,6 +169,7 @@ export function openChats(db: DatabaseSync, now: () => Date, onRemove?: (id: str
     const rows = (project ? oldIn.all(project, MAX_PROJECT_CHATS) : old.all(MAX_CHATS)) as { id: string }[];
     for (const row of rows) {
       onRemove?.(row.id);
+      dropOpened.run(row.id);
       clear.run(row.id);
       dropPendingModel.run(row.id);
       drop.run(row.id);
@@ -168,6 +177,16 @@ export function openChats(db: DatabaseSync, now: () => Date, onRemove?: (id: str
   };
 
   return {
+    lastOpened() {
+      const row = readOpened.get() as { chat_id: string } | undefined;
+      return row?.chat_id;
+    },
+    rememberOpened(id) {
+      if (id === undefined) { clearOpened.run(); return; }
+      const chat = metadata.get(id) as { archived: number } | undefined;
+      if (!chat || chat.archived) throw new ProjectError("Only an available saved chat can be remembered for reopening.");
+      writeOpened.run(id);
+    },
     brief(id) {
       const row = readBrief.get(id) as { text: string; version: number } | undefined;
       if (!row) return undefined;
@@ -282,6 +301,7 @@ export function openChats(db: DatabaseSync, now: () => Date, onRemove?: (id: str
 
     remove(id) {
       onRemove?.(id);
+      dropOpened.run(id);
       clear.run(id);
       dropPendingModel.run(id);
       return Number(drop.run(id).changes) > 0;

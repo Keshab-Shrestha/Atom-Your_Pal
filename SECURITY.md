@@ -685,3 +685,6 @@ The three fictional everyday workflows, restart/revoke checks and native passwor
 
 
 ADR-169: Chat brief text is bounded, validated user background data in the existing local chat database. Mutations require the current idle writable chat and a matching version; old acknowledgement retries cannot overwrite newer data. Briefs never create file grants, tools or global facts and are not copied into forks. Existing policy/approvals remain authoritative. No raw brief text is logged. Text goes to the selected provider with future chat requests; clearing stops new inclusion but does not erase earlier provider-session context. [Limits](docs/chat-brief.md).
+
+
+ADR-170: automatic chat reopening loads only an available saved writable local chat; archived, deleted, other-surface/shared and unavailable-project targets fall back to fresh. The saved selection is an identifier, not a file grant or instruction. Project/tool checks and existing exact-file permissions remain authoritative. No provider request, approval answer, queued send or interrupted-work retry is dispatched by restoring navigation. Navigation error logs omit raw storage details and chat content. [Limits](docs/chat-reopening.md).

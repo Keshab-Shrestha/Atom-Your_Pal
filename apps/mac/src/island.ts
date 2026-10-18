@@ -70,6 +70,47 @@ export function runIsland(options: IslandOptions): IslandSession {
     if (event.type === "approval.closed" && shownState?.startsWith("asking:")) shownState = undefined;
     if (!quitting || event.type === "error") options.write(encodeEvent(event));
   };
+  // Restore synchronously, before command listeners or the voice loop can accept user work.
+  // Loading history is not a request: no model, approval, retry or queued input is dispatched.
+  let reopened: { id: string; trimmed: boolean } | undefined;
+  let remembered: string | undefined | null = null;
+  try {
+    const chats = options.chats;
+    const id = chats?.lastOpened?.();
+    if (id && core.resume && !core.busy) {
+      const metadata = chats?.metadataOf?.(id);
+      const project = chats?.projectOf?.(id);
+      const available = project ? options.projects?.startChat(project) : { ok: true as const };
+      if (metadata && !metadata.archived && !chatWriter(id) && !isSharedChat(id)
+          && available && "ok" in available) {
+        const turns = chats!.messages(id);
+        const replay = chats!.replay?.(id, turns) ?? { turns, trimmed: false };
+        core.resume(id, replay.turns);
+        reopened = { id, trimmed: replay.trimmed };
+        remembered = id;
+      } else {
+        chats?.rememberOpened?.(undefined);
+        remembered = undefined;
+      }
+    }
+  } catch {
+    options.log?.warn("chat.reopen_failed", {}); // no chat text, identifier or path
+    send({ type: "error", stage: "settings", message: "The previous chat could not be reopened. Select it from Chats to continue." });
+  }
+  function rememberCurrentChat() {
+    const chats = options.chats;
+    if (!chats?.rememberOpened) return;
+    try {
+      const current = core.sessionId;
+      const metadata = current ? chats.metadataOf?.(current) : undefined;
+      const selected = current && metadata && !metadata.archived && !chatWriter(current) && !isSharedChat(current) ? current : undefined;
+      if (remembered === selected) return;
+      chats.rememberOpened(selected); remembered = selected;
+    } catch {
+      options.log?.warn("chat.selection_save_failed", {});
+      send({ type: "error", stage: "settings", message: "ATOM could not save the open-chat choice. Your saved conversations are still available in Chats." });
+    }
+  }
   const pendingApprovals = new Map<string, Extract<IslandEvent, { type: "approval.request" }>>();
   options.computer?.attach((event) => {
     if (event.type === "approval.request") pendingApprovals.set(event.id, event);
@@ -965,6 +1006,7 @@ export function runIsland(options: IslandOptions): IslandSession {
   // ADR-091: the chats, sent once asked for and again after each saved exchange.
   let chatsWatched = false;
   function sendChats() {
+    rememberCurrentChat();
     const current = core.sessionId ?? "";
     const own = current ? options.chats?.modelOf?.(current) : undefined; // ADR-097
     const currentProjectId = current ? options.chats?.projectOf?.(current) : undefined; // ADR-107
@@ -982,16 +1024,19 @@ export function runIsland(options: IslandOptions): IslandSession {
     options.computer?.cancelAll();
     loop.cancel();
     core.reset();
+    rememberCurrentChat(); // explicit New chat must not resurrect the previously selected conversation
     options.screen?.clear();
     if (projectId && core.sessionId) options.projects?.assign(core.sessionId, projectId);
     send({ type: "conversation.reset", ...(projectId ? { projectId } : {}) });
     if (chatsWatched) sendChats(); // ADR-091: a new chat is now the current one
   }
   const stopChatUpdates = options.chats?.onChange(() => {
+    rememberCurrentChat();
     if (chatsWatched) sendChats();
   });
   /** ADR-091: shows a saved chat's turns in the window. */
   function sendOpened(id: string, turns: readonly Message[], trimmed: boolean) {
+    rememberCurrentChat();
     const projectId = options.chats?.projectOf?.(id);
     send({
       type: "chat.opened",
@@ -1140,6 +1185,18 @@ export function runIsland(options: IslandOptions): IslandSession {
       const model = options.settings?.info();
       const llm = model ? { provider: model.provider, model: model.model } : {};
       send({ type: "ready", protocol: PROTOCOL_VERSION, ...options.info, ...llm, voice });
+      // A command received during voice warm-up takes precedence. Never reopen it a second time.
+      if (options.chats?.lastOpened && core.sessionId && !core.busy && loop.state === "idle") {
+        try {
+          const id = core.sessionId;
+          const turns = options.chats.metadataOf?.(id) ? options.chats.messages(id) : [];
+          sendOpened(id, turns, reopened?.id === id && reopened.trimmed);
+          sendChats();
+        } catch {
+          options.log?.warn("chat.reopen_display_failed", {});
+          send({ type: "error", stage: "settings", message: "Saved chat history could not be displayed. Choose the chat again to reload it." });
+        }
+      }
       sendInfo();
       // ADR-093: find the AI tools on this Mac, then send the choices again with them.
       void options.settings?.scanTools?.().then(sendInfo, (error: unknown) => options.log?.warn("tools.scan_failed", { message: describe(error) }));

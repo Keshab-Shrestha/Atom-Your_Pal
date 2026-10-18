@@ -1,5 +1,7 @@
 # ATOM combined upgrade roadmap
 
+Current continuity outcome (2026-10-19, ADR-170): the app reopens the last selected saved writable chat, preserving its associated history/brief/model/grants and unsent draft without dispatching work. Explicit New chat stays fresh. Real Codex restart/draft/recall and New chat checks passed; missing/archived/shared targets use a safe fresh fallback. [Scope/evidence](chat-reopening.md). Broader workspace and automatic decision extraction remain separate.
+
 Current phase (2026-10-18): release baseline 93b7c1b has all three GitHub CI jobs green. Step 2 adds a per-chat **Chat brief** (ADR-169) for explicit user-kept decisions outside bounded replay, with versioned saves and live Codex restart/edit/clear evidence. It does not create permissions, global facts or an automatic summary. [Scope/evidence](chat-brief.md). Older compiled-only and deferred-CI statements below describe their original batches; use the current STATUS and release-baseline evidence for the present verification state. Workspace work remains a separate next phase.
 
 Saved: 2026-10-17, at Keshab's request. Base: `main` after the merge of `next` (`9c414ce`).

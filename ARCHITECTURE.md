@@ -664,3 +664,6 @@ The task system determines what is built now.
 
 
 ADR-169: each saved chat has an optional bounded user-maintained brief and independent version on its existing SQLite row. The existing private chat.control channel inspects/version-checks it; NativeCore reads the exact chat’s latest brief on every provider request, separately from transcript replay. Forks start empty. This data neither authorizes tools nor creates global memory. [Scope](docs/chat-brief.md).
+
+
+ADR-170: the local memory database keeps one window chat-selection identifier in chat_navigation. Only the island host records/reopens it, before input listeners, through existing Core.resume and project replay. Startup publishes the current history after Ready using existing events; early manual navigation wins. Selection is separate from background chat recency and never submits input or resumes work. [Scope](docs/chat-reopening.md).

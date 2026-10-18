@@ -1,5 +1,16 @@
 # ZENO Task Plan
 
+## Current continuity upgrade — 2026-10-19 (ADR-170)
+
+Keshab continued one capability at a time. The window now remembers its current saved writable chat and reopens it when the app/runtime starts. This addresses the confirmed startup behavior that previously began in a fresh chat despite a saved conversation being open at quit. Restoration happens synchronously before input listeners/voice work are available; Ready is followed by the existing chat-opened/chat-list snapshots. A choice made during voice warm-up wins; startup never reopens a chat again after input has begun.
+
+Only a local chat identifier is added to the existing SQLite database. Selection follows the window, not the newest background exchange. Explicit New chat clears it until the first exchange is saved. Missing, pruned, archived, other-surface/shared chats and unavailable/archived projects fall back to a fresh chat without choosing an unrelated conversation. Briefs, transcripts, model/project associations, file grants and held input retain their existing scopes. Reopening does not submit drafts, call a provider, approve requests or retry work.
+
+Verification: typecheck; 1,083 TypeScript tests passed / eight normal opt-in skips; 738 Swift tests passed; signed app rebuild; 75 gallery fixtures and all 12 comparisons passed with unchanged references. Added real SQLite/Core/wire checks for persistence, first-save selection, recency isolation, fresh-start intent, project replay, unavailable targets, warm-up user actions, retention/deletion and nonfatal storage errors. In the real app, the fictional Juniper chat and an unsent draft returned automatically after quit/relaunch, with Ready and no send. After a deliberate request, Codex recalled Juniper / Tuesday / copperfern. A separate New chat → quit/relaunch remained fresh. The fixture draft was consumed only after being explicitly replaced with that test request; the app is left Ready in the saved Juniper fixture. [Scope/evidence](docs/chat-reopening.md).
+
+No native view, new protocol command, permission scope, automatic retry or broader workspace capability was added. Stop after this continuity outcome; unrelated `graphify-out/` is untouched.
+
+
 ## Current continuity upgrade — 2026-10-18 (ADR-169)
 
 After the green baseline (93b7c1b; all three GitHub CI jobs passed), Keshab continued step 2: make the chat feel like the same assistant. Delivered one bounded outcome: a visible, editable **Chat brief** for saved writable chats. User-kept project details, decisions and next steps accompany every request outside the bounded transcript replay, across restarts and provider changes. No automatic summary, extra background model call, global fact or file grant is created. Other chats/forks start empty; explicit clearing stops future inclusion, while prior provider-session context may retain old versions.
