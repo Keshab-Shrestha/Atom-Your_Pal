@@ -301,8 +301,9 @@ export function runIsland(options: IslandOptions): IslandSession {
         const fail = (error: string) => send({ type: "chat.control", id: command.id, request: command.request, action: command.action, ok: false, error });
         const chats = options.chats;
         if (!chats?.control) return fail("Saved chat controls are unavailable.");
-        if ((command.action === "fork" || command.archived !== undefined)
+        if ((command.action === "fork" || command.action === "brief" || command.archived !== undefined)
             && (core.busy || loop.state !== "idle" || options.chatTurns?.busy?.(command.id))) return fail("Finish or stop the active turn before changing this chat.");
+        if (command.action === "brief" && (command.id !== core.sessionId || chatWriter(command.id) || isSharedChat(command.id))) return fail("Open this writable chat before editing its brief.");
         if (command.action === "flags" && command.archived !== undefined && (chatWriter(command.id) || isSharedChat(command.id))) return fail("Chats shared with Telegram, routines or the API cannot be archived here.");
         try {
           const result = chats.control(command);

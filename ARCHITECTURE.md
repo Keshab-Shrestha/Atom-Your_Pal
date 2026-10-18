@@ -661,3 +661,6 @@ Do not implement an architectural component until the current capability require
 The architecture describes where ATOM is going.
 
 The task system determines what is built now.
+
+
+ADR-169: each saved chat has an optional bounded user-maintained brief and independent version on its existing SQLite row. The existing private chat.control channel inspects/version-checks it; NativeCore reads the exact chat’s latest brief on every provider request, separately from transcript replay. Forks start empty. This data neither authorizes tools nor creates global memory. [Scope](docs/chat-brief.md).

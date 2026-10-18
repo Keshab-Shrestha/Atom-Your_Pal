@@ -5,6 +5,12 @@ import type { Message } from "@atom/contracts";
 import { chatSearch, type ChatSearchHit } from "./chat-search.ts";
 import { PLAIN_CHAT_LIMIT, ProjectError } from "./projects.ts";
 
+export const CHAT_BRIEF_BYTES = 4000;
+export function validChatBrief(text: unknown): text is string {
+  return typeof text === "string" && Buffer.byteLength(text, "utf8") <= CHAT_BRIEF_BYTES
+    && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\ud800-\udfff]/u.test(text);
+}
+
 // ADR-091: Keshab's chat sessions with ATOM, kept on this Mac (in the memory file) so he can go back to one. A chat is
 // ATOM Core's session: its id, a title from its first words and its turns. Never logged; the newest 200 are kept.
 
@@ -22,6 +28,8 @@ export interface ChatSummary {
 }
 
 export interface ChatStore {
+  brief(id: string): { text: string; version: number } | undefined;
+  setBrief(id: string, text: string, version: number): boolean;
   metadata(id: string): { pinned: boolean; archived: boolean; version: number } | undefined;
   setFlags(id: string, change: { pinned?: boolean; archived?: boolean }, version: number): boolean;
   forkRecord(id: string): { source: string; count: number; kind: string; revision: string } | undefined;
@@ -120,6 +128,10 @@ export function openChats(db: DatabaseSync, now: () => Date, onRemove?: (id: str
   for (const [column, declaration] of [["pinned", "INTEGER NOT NULL DEFAULT 0"], ["archived", "INTEGER NOT NULL DEFAULT 0"], ["flags_version", "INTEGER NOT NULL DEFAULT 0"]]) {
     if (!columns.includes(column!)) db.exec(`ALTER TABLE chats ADD COLUMN ${column} ${declaration}`);
   }
+  if (!columns.includes("brief")) db.exec("ALTER TABLE chats ADD COLUMN brief TEXT NOT NULL DEFAULT ''");
+  if (!columns.includes("brief_version")) db.exec("ALTER TABLE chats ADD COLUMN brief_version INTEGER NOT NULL DEFAULT 0");
+  const readBrief = db.prepare("SELECT brief AS text, brief_version AS version FROM chats WHERE id = ?");
+  const writeBrief = db.prepare("UPDATE chats SET brief = ?, brief_version = brief_version + 1 WHERE id = ? AND brief_version = ?");
   db.exec("CREATE TABLE IF NOT EXISTS chat_branches (id TEXT PRIMARY KEY, source_id TEXT NOT NULL, message_count INTEGER NOT NULL, kind TEXT NOT NULL, revision TEXT NOT NULL)");
   const metadata = db.prepare("SELECT pinned, archived, flags_version FROM chats WHERE id = ?");
   const branchRecord = db.prepare("SELECT source_id, message_count, kind, revision FROM chat_branches WHERE id = ?");
@@ -156,6 +168,19 @@ export function openChats(db: DatabaseSync, now: () => Date, onRemove?: (id: str
   };
 
   return {
+    brief(id) {
+      const row = readBrief.get(id) as { text: string; version: number } | undefined;
+      if (!row) return undefined;
+      if (!validChatBrief(row.text) || !Number.isSafeInteger(row.version) || row.version < 0 || row.version > 2_000_000_000) throw new ProjectError("The saved chat brief is invalid. Restore its data before continuing.");
+      return { text: row.text, version: row.version };
+    },
+    setBrief(id, text, version) {
+      if (!validChatBrief(text) || !Number.isSafeInteger(version) || version < 0 || version >= 2_000_000_000) throw new ProjectError("Use at most 4,000 UTF-8 bytes without hidden control characters and the current brief version.");
+      if (Number(writeBrief.run(text, id, version).changes)) return true;
+      const current = readBrief.get(id) as { text: string; version: number } | undefined;
+      // A lost acknowledgement may be checked again; never overwrite a newer edit.
+      return current?.version === version + 1 && current.text === text;
+    },
     idsInProject(projectId) {
       return (db.prepare("SELECT id FROM chats WHERE project_id = ?").all(projectId) as { id: string }[]).map((row) => row.id);
     },

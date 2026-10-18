@@ -2145,3 +2145,23 @@ test("text.send over a running answer stops it, waits for the Core to finish it,
   const refused = h.events().find((e) => e.type === "error" && /answering in this chat/.test((e as { message: string }).message));
   assert.equal(refused, undefined, "the new message is not refused");
 });
+
+test("chat brief saves require the current idle writable chat before touching storage", async () => {
+  let current = "cedar", busy = false, writes = 0;
+  const h = islandHarness({
+    core: { get sessionId() { return current; }, get busy() { return busy; }, handle: async () => ({ text: "ok", requestId: "r" }), reset() {} },
+    chats: { list: () => [], messages: () => [], remove: () => false, onChange: () => () => {},
+      control: (c) => { writes++; return { ...c, ok: true, brief: { text: c.text!, version: 1 } }; } },
+  });
+  const command = { type: "chat.control", action: "brief", id: "cedar", request: "a5122207-a70e-45f9-8060-a9b40d912e98", version: 0, text: "Fictional launch Friday" };
+  try {
+    await h.send({ ...command, id: "other" }); assert.equal(writes, 0);
+    busy = true; await h.send(command); assert.equal(writes, 0);
+    busy = false;
+    for (const chat of ["telegram", "routine-1", "api-phone"]) {
+      current = chat; await h.send({ ...command, id: chat }); assert.equal(writes, 0);
+    }
+    current = "cedar"; await h.send(command); assert.equal(writes, 1);
+    assert.ok(h.events().some((e) => e.type === "chat.control" && e.ok));
+  } finally { await h.send({ type: "quit" }); }
+});

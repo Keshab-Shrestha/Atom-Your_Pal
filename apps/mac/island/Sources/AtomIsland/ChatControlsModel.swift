@@ -9,6 +9,7 @@ struct ChatControlsState {
         let version: Int
     }
     var snapshot: ChatControlResponse?
+    var briefReceipt: ChatControlResponse?
     var inspecting: ChatControlRequest?
     var mutation: ChatControlRequest?
     var undoRequest: String?
@@ -35,7 +36,7 @@ extension IslandModel {
     }
 
     func resetChatControlReading() {
-        chatControls.snapshot = nil; chatControls.inspecting = nil
+        chatControls.snapshot = nil; chatControls.inspecting = nil; chatControls.briefReceipt = nil
         chatControls.historyShown = false; chatControls.history = nil; chatControls.reading = nil
         chatControls.previous = []; chatControls.cursor = ChatHistoryCursor()
     }
@@ -43,6 +44,15 @@ extension IslandModel {
     func setChatFlags(_ chat: ChatInfo, pinned: Bool? = nil, archived: Bool? = nil) {
         guard chatControls.mutation == nil else { return }
         startChatMutation(ChatControlRequest(action: .flags, id: chat.id, pinned: pinned, archived: archived, version: chat.flagsVersion))
+    }
+
+    func saveChatBrief(chat: String, text: String, version: Int) -> String? {
+        guard chat == chats?.current, savedChat != nil, chatBranchAvailable,
+              chats?.currentReadOnlyNotice == nil, ChatBrief.valid(text) else { return nil }
+        let request = ChatControlRequest(action: .brief, id: chat, version: version, text: text)
+        chatControls.briefReceipt = nil
+        startChatMutation(request)
+        return request.request
     }
 
     func undoChatFlags() {
@@ -122,8 +132,9 @@ extension IslandModel {
             chatControls.reading = nil
             chatControls.history = response.ok ? response : nil
             if !response.ok { chatControls.notice = response.error }
-        case .flags, .fork:
+        case .flags, .fork, .brief:
             guard let request = chatControls.mutation, request.request == response.request, request.id == response.id else { return }
+            if request.action == .brief { chatControls.briefReceipt = response }
             let undoing = chatControls.undoRequest == response.request
             chatControls.mutation = nil; chatControls.waitingExpired = false; chatControls.undoRequest = nil
             guard response.ok else {
@@ -131,6 +142,9 @@ extension IslandModel {
                 chatControls.notice = response.error ?? "The chat change was not confirmed. Refresh before trying again."
                 send(.chatsList)
                 return
+            }
+            if request.action == .brief {
+                chatControls.notice = "Brief saved for this chat. It will accompany the next request; file permissions are unchanged."
             }
             if let flags = response.metadata {
                 chatControls.undo = undoing ? nil : ChatControlsState.Undo(id: response.id, pinned: flags.previousPinned,

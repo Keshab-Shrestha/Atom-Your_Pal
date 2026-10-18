@@ -29,11 +29,23 @@ struct ConversationControls: View {
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
     @State private var details = false
+    private struct BriefSheet: Identifiable {
+        let id: String
+        let brief: ChatBrief
+    }
+    @State private var editingBrief: BriefSheet?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 10) {
                 Button("Saved history", action: model.openSavedHistory).disabled(model.savedChat == nil)
+                Button("Chat brief") {
+                    if let chat = model.savedChat, let snapshot = model.chatControls.snapshot, snapshot.id == chat.id, let brief = snapshot.brief {
+                        editingBrief = BriefSheet(id: chat.id, brief: brief)
+                    }
+                }
+                    .disabled(model.chatControls.snapshot?.brief == nil || !model.chatBranchAvailable || model.chats?.currentReadOnlyNotice != nil)
+                    .help("Keep project details and decisions available throughout this chat")
                 Button("Fork saved chat") { model.forkSavedChat() }
                     .disabled(!model.chatBranchAvailable || (model.chatControls.snapshot?.info?.messages ?? 0) == 0)
                     .help("Create a new chat from saved messages; no files, permissions or running work are copied")
@@ -70,6 +82,9 @@ struct ConversationControls: View {
         .padding(.horizontal, Spacing.conversation).padding(.vertical, 7)
         .task(id: [model.chats?.current ?? "", model.savedChat?.updatedAt?.description ?? "", String(model.savedChat?.messages ?? 0)]) {
             if !snapshot { model.inspectSavedChat() }
+        }
+        .sheet(item: $editingBrief) { sheet in
+            ChatBriefEditor(model: model, chat: sheet.id, initial: sheet.brief)
         }
         .sheet(isPresented: Binding(get: { model.chatControls.historyShown }, set: {
             model.chatControls.historyShown = $0

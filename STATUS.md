@@ -1,5 +1,16 @@
 # ZENO Project Status
 
+## Current continuity upgrade — 2026-10-18 (ADR-169)
+
+After the green baseline (93b7c1b; all three GitHub CI jobs passed), Keshab continued step 2: make the chat feel like the same assistant. Delivered one bounded outcome: a visible, editable **Chat brief** for saved writable chats. User-kept project details, decisions and next steps accompany every request outside the bounded transcript replay, across restarts and provider changes. No automatic summary, extra background model call, global fact or file grant is created. Other chats/forks start empty; explicit clearing stops future inclusion, while prior provider-session context may retain old versions.
+
+Briefs are limited to 4,000 UTF-8 bytes, validated in storage/protocol/native UI, versioned to refuse stale overwrites and checked for the current idle writable chat. Lost acknowledgements can be checked without overwriting newer edits. A draft survives save failure/timeout and snapshot refresh; reload explicitly replaces it. Additive SQLite migration preserves old archives and existing grants. Briefs follow the chat's existing deletion/retention policy.
+
+Verification: TypeScript checking; 1,076 TypeScript tests passed, eight opt-in skips; 738 Swift tests passed; signed release build; 75 gallery fixtures and 12 comparisons passed. Reviewed the two updated chat-reference images. Real app: saved fictional Juniper/Monday/mosslight, quit/reopened, observed the brief and received Monday/mosslight/outline from Codex without repeating those values; edited to Tuesday/copperfern and the next response used the new values. Clearing/saving/reopening remained empty. The fictional brief was left empty, app Ready. Scripted checks cover provider changes, live SDK updates, replay rollover, migration/reopen, isolation/fork/delete, bounds, stale saves and unchanged grants; the host wire test refuses background/read-only/noncurrent writes. Live cross-provider switching and very long chats remain separate acceptance cases. [Scope and evidence](docs/chat-brief.md).
+
+Stop after this continuity capability; the workspace and broader upgrades remain separate. Unrelated `graphify-out/` remains untouched.
+
+
 ## Current baseline repair — 2026-10-18 (ADR-168)
 
 Keshab selected step 1: establish a dependable release baseline, then continue upgrades one at a time. Focused verification and CI repair are authorized for this step; earlier skipped-test/deferred-CI entries below are historical.

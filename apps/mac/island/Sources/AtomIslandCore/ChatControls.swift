@@ -1,7 +1,7 @@
 import Foundation
 
 public struct ChatControlRequest: Codable, Sendable, Equatable {
-    public enum Action: String, Codable, Sendable { case inspect, page, flags, fork }
+    public enum Action: String, Codable, Sendable { case inspect, page, flags, fork, brief }
     public var action: Action
     public var id: String
     public var request: String
@@ -13,13 +13,14 @@ public struct ChatControlRequest: Codable, Sendable, Equatable {
     public var pinned: Bool?
     public var archived: Bool?
     public var version: Int?
+    public var text: String?
 
     public init(action: Action, id: String, request: String = UUID().uuidString, revision: String? = nil,
                 message: Int? = nil, offset: Int? = nil, through: Int? = nil, kind: String? = nil,
-                pinned: Bool? = nil, archived: Bool? = nil, version: Int? = nil) {
+                pinned: Bool? = nil, archived: Bool? = nil, version: Int? = nil, text: String? = nil) {
         self.action = action; self.id = id; self.request = request; self.revision = revision
         self.message = message; self.offset = offset; self.through = through; self.kind = kind
-        self.pinned = pinned; self.archived = archived; self.version = version
+        self.pinned = pinned; self.archived = archived; self.version = version; self.text = text
     }
 
     public var fields: [String: Any] {
@@ -84,6 +85,7 @@ public struct ChatControlResponse: Codable, Sendable, Equatable {
     public let ok: Bool
     public let error: String?
     public let revision: String?
+    public let brief: ChatBrief?
     public let info: Info?
     public let page: Page?
     public let branch: Branch?

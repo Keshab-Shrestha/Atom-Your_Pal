@@ -1,5 +1,7 @@
 # ATOM combined upgrade roadmap
 
+Current phase (2026-10-18): release baseline 93b7c1b has all three GitHub CI jobs green. Step 2 adds a per-chat **Chat brief** (ADR-169) for explicit user-kept decisions outside bounded replay, with versioned saves and live Codex restart/edit/clear evidence. It does not create permissions, global facts or an automatic summary. [Scope/evidence](chat-brief.md). Older compiled-only and deferred-CI statements below describe their original batches; use the current STATUS and release-baseline evidence for the present verification state. Workspace work remains a separate next phase.
+
 Saved: 2026-10-17, at Keshab's request. Base: `main` after the merge of `next` (`9c414ce`).
 
 This joins the original upgrades, the continuity work and the T3 Code research. It is a planning index. A proposal is not an instruction to build it. Work stays one capability at a time. The fresh T3 Code review may correct the research and add candidates; it must not mark them built or silently approve deferred work.

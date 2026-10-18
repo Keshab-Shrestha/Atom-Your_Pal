@@ -715,7 +715,7 @@ export function createRuntime(
               episodes?.update(sessionId, turns);
             },
             onLeave: (sessionId: string) => void episodes?.flush(sessionId),
-            ...(memory ? { archived: (chatId: string) => memory.chats.messages(chatId) } : {}),
+            ...(memory ? { archived: (chatId: string) => memory.chats.messages(chatId), chatBrief: (chatId: string) => memory.chats.brief(chatId) } : {}),
             ...(chatSessions ? { chatSessions } : {}),
             clientComposed: composed,
             screenReplies: !composed,
