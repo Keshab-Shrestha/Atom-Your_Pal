@@ -681,7 +681,7 @@ export function createRuntime(
                   },
                   ...(!composed ? { observe: chatWork.observe } : {}), ...(nativeTeam ? { team: nativeTeam } : {}), onUsage });
                 routers.set(choice.model, router); codexRouters.add(router);
-                gateway = createGateway({ provider: createCodexSessionAdapter({ program, model: choice.model, runner: (request) => router.forRequest(request), onUsage }), timeoutMs: Math.max(config.llm.timeoutMs, PLAN_TIMEOUT_MS), maxRetries: 0 });
+                gateway = createGateway({ provider: createCodexSessionAdapter({ program, model: choice.model, runner: (request) => router.forRequest(request), onUsage, onDiagnostic: (data, request) => log.info("codex.turn", { requestId: request.context.requestId, ...data, setup: JSON.stringify(data.setup), context: JSON.stringify(data.context), usage: data.usage ? JSON.stringify(data.usage) : undefined }) }), timeoutMs: Math.max(config.llm.timeoutMs, PLAN_TIMEOUT_MS), maxRetries: 0 });
                 models.set(choice.model, gateway); codexModels.add(gateway);
               }
               return gateway;

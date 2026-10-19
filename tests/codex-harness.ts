@@ -9,7 +9,7 @@ export interface FakeCodexTurn {
 }
 
 /** A real JSON-RPC exchange shape, without a signed-in model or user files. */
-export function fakeCodex(script: (turn: FakeCodexTurn) => Promise<string> | string, options: { profile?: string; servers?: string[] } = {}) {
+export function fakeCodex(script: (turn: FakeCodexTurn) => Promise<string> | string, options: { profile?: string; servers?: string[]; config?: unknown; skills?: unknown } = {}) {
   const wires: { sent: Message[]; closed: boolean; emit(message: Message): void }[] = [];
   const factory = (): CodexTransport => {
     let emit: (message: Message) => void = () => {};
@@ -26,6 +26,8 @@ export function fakeCodex(script: (turn: FakeCodexTurn) => Promise<string> | str
         wire.sent.push(message);
         if (!message.method) { responses.get(String(message.id))?.(message.result ?? message.error); responses.delete(String(message.id)); return; }
         if (message.method === "initialize") reply(message.id, {});
+        if (message.method === "config/read") reply(message.id, { config: options.config === undefined ? { mcp_servers: {}, plugins: {} } : options.config });
+        if (message.method === "skills/list") reply(message.id, options.skills === undefined ? { data: [{ cwd: message.params.cwds[0], skills: [], errors: [] }] } : options.skills);
         if (message.method === "mcpServerStatus/list") reply(message.id, { data: (options.servers ?? []).map((name) => ({ name })), nextCursor: null });
         if (message.method === "thread/start") {
           start = message.params;

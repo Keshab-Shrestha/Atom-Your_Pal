@@ -1,0 +1,2536 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-19",
+  "timezone": "Asia/Tokyo",
+  "base_revision": "26ee5b8b867ae521287f9ec089d11fc805294c1f",
+  "budget": {
+    "maximum_variants": 2,
+    "maximum_successful_live_responses": 12,
+    "actual_successful_live_responses": 12
+  },
+  "method": "Actual signed ATOM desktop composer and runtime logs, sequential GPT-6 Luna / Low turns. Baseline and first candidate each have one fresh chat after an app restart; final candidate has three fresh chats, including one after restart and two while the app is running. No independent UI paint measurement.",
+  "timing_definitions": {
+    "setup": "Adapter entry through verified session readiness. Stages use performance.now().",
+    "first_text": "Core dispatch through first nonempty model text delivered to the stream. Nonstreaming fallback is marked at Core completion. This is not native window paint time.",
+    "completion": "Existing Core modelMs, including local Core work, not speech playback.",
+    "caveat": "Single pre-change instrumented sample and small post-change sample. Remote/network and process warming vary; no p95 or universal speedup claim."
+  },
+  "changes": [
+    "Replace pre-thread MCP connection inventory with effective config/read, disable inherited entries by name, retain final active-thread verification.",
+    "Disable discovered standalone Codex skills through thread-only overrides. Keep ATOM tools, skills, base instructions and history/permissions intact.",
+    "Record stage timings, first text, restart reasons, sizes and raw per-request/cumulative usage. Full tool definition changes now trigger replay rather than silently retaining stale schemas."
+  ],
+  "context_breakdown": {
+    "standing_instructions_bytes": 1678,
+    "first_turn_extra_context_bytes": 2139,
+    "first_turn_history_json_bytes": 127,
+    "first_turn_serialized_user_input_bytes": 2344,
+    "tool_spec_json_bytes": 22101,
+    "tool_count": 37,
+    "largest_tool_spec": {
+      "name": "atom_delegate",
+      "bytes": 4408
+    },
+    "inherited_standalone_codex_skills": 64,
+    "discovered_skill_metadata_json_bytes": 41448,
+    "explanation": "Sizes measure raw ATOM payload components, not model-token counts; tool-spec bytes exclude provider framing. Skill metadata is discovery JSON, not the exact rendered catalog. The approximately 5.1K-token ablation difference is attributable mainly to the inherited catalog; changing time/context may contribute a few tokens. Remaining 11.6K provider tokens include provider framing/context and are not fully attributable locally."
+  },
+  "cache_findings": {
+    "raw_counts_reconcile_with_db": true,
+    "observed_winner_reused_turns": 4,
+    "observed_winner_zero_cache_turns": 0,
+    "original_miss_root_cause": "Not established: the earlier benchmark did not retain raw per-request counts or session restart metadata.",
+    "boundary": "A reused session does not guarantee a provider cache hit. No evidence in this run of an accounting subtraction error or unexpected session reset on the four final follow-ups.",
+    "source": "https://developers.openai.com/api/docs/guides/prompt-caching"
+  },
+  "verification": {
+    "command": "pnpm typecheck; node --test services/llm-gateway/src/providers/codex-session.test.ts apps/mac/src/codex-tools.test.ts apps/mac/src/native-core.test.ts apps/mac/src/voice-loop.test.ts",
+    "targeted_checks_passed": 55,
+    "scope": "Protocol/bootstrap refusal, no global config writes, native permission refusals, real temporary-file host edits with explicit grant reuse and cross-chat refusal, cancellation, full history/prefix replay, first-text timing and cache accounting. Fake provider protocol and actual host filesystem/store checks; no new live file-edit grant was created.",
+    "live_quality": "Two word-position answers were wrong (benchmark ready instead of Cedar benchmark). Both failures are retained. Direct quotation checks in all three final chats and saved notebook facts after reopening passed; saved pre-change messages compare byte-for-byte. This is not a generalized model quality proof.",
+    "original_chat_restored": true
+  },
+  "summary": {
+    "baseline": {
+      "setup_ms": 4182.215,
+      "core_first_text_ms": 8194,
+      "core_complete_ms": 8385,
+      "input_tokens": 16737
+    },
+    "winner": {
+      "fresh_samples": 3,
+      "setup_median_ms": 1315.2488749999902,
+      "setup_range_ms": [
+        234.809957999998,
+        1944.1976670000022
+      ],
+      "core_first_text_median_ms": 5343,
+      "core_first_text_range_ms": [
+        4428,
+        6727
+      ],
+      "core_complete_median_ms": 5476,
+      "input_tokens_median": 11594,
+      "reused_samples": 4,
+      "reused_cached_tokens": [
+        11392,
+        11520,
+        11392,
+        11392
+      ],
+      "reused_core_first_text_ms": [
+        1043,
+        1208,
+        1446,
+        2130
+      ]
+    },
+    "exact_response_checks": {
+      "passed": 10,
+      "total": 12,
+      "failures": [
+        "B45BE764-34F9-4C35-9550-F394B0A3C82C",
+        "BD64AC9C-3BF9-4319-B027-9EF6FA213122"
+      ]
+    },
+    "saved_history_unchanged": true
+  },
+  "records": [
+    {
+      "variant": "baseline",
+      "kind": "fresh-chat",
+      "model": "gpt-6-luna",
+      "effort": "low",
+      "chat_id": "3d08f574-c180-47ec-9330-d4bd958789bd",
+      "prompt": "Do not use tools or browse. Reply with exactly this text and nothing else: Cedar benchmark ready.",
+      "response": "Cedar benchmark ready.",
+      "expected_response": "Cedar benchmark ready.",
+      "exact_response_pass": true,
+      "host_created_at": "2026-10-19T12:11:50.166Z",
+      "host_completed_at": "2026-10-19T12:11:58.617Z",
+      "core_first_text_ms": 8194,
+      "core_complete_ms": 8385,
+      "time": "2026-10-19T12:11:58.539Z",
+      "level": "info",
+      "event": "codex.turn",
+      "requestId": "3D9D349E-D95D-4DCB-A7A5-AF57F41061FE",
+      "session": "new",
+      "restart": "missing",
+      "setup": {
+        "transport": 2.2296669999996084,
+        "initialize": 662.8104170000006,
+        "inventory": 2461.3445829999982,
+        "thread": 1037.056875000002,
+        "policy": 5.5832919999993464
+      },
+      "readyMs": 4182.215,
+      "totalMs": 8345.786042,
+      "completed": true,
+      "context": {
+        "systemBytes": 1678,
+        "extraBytes": 2139,
+        "historyBytes": 127,
+        "turnInputBytes": 2344,
+        "toolBytes": 22101,
+        "tools": [
+          {
+            "name": "atom_current_time",
+            "bytes": 296
+          },
+          {
+            "name": "atom_open_app",
+            "bytes": 351
+          },
+          {
+            "name": "atom_open_url",
+            "bytes": 557
+          },
+          {
+            "name": "atom_media",
+            "bytes": 320
+          },
+          {
+            "name": "atom_volume",
+            "bytes": 404
+          },
+          {
+            "name": "atom_open_atom_settings",
+            "bytes": 183
+          },
+          {
+            "name": "atom_play_pause",
+            "bytes": 323
+          },
+          {
+            "name": "atom_note_add",
+            "bytes": 410
+          },
+          {
+            "name": "atom_front_window",
+            "bytes": 400
+          },
+          {
+            "name": "atom_timer_set",
+            "bytes": 555
+          },
+          {
+            "name": "atom_timer_list",
+            "bytes": 139
+          },
+          {
+            "name": "atom_timer_cancel",
+            "bytes": 276
+          },
+          {
+            "name": "atom_weather",
+            "bytes": 509
+          },
+          {
+            "name": "atom_calendar_events",
+            "bytes": 548
+          },
+          {
+            "name": "atom_reminders_list",
+            "bytes": 183
+          },
+          {
+            "name": "atom_reminder_add",
+            "bytes": 521
+          },
+          {
+            "name": "atom_remember",
+            "bytes": 637
+          },
+          {
+            "name": "atom_recall",
+            "bytes": 394
+          },
+          {
+            "name": "atom_forget",
+            "bytes": 404
+          },
+          {
+            "name": "atom_computer",
+            "bytes": 1743
+          },
+          {
+            "name": "atom_look_at_screen",
+            "bytes": 304
+          },
+          {
+            "name": "atom_schedule",
+            "bytes": 971
+          },
+          {
+            "name": "atom_brain_note",
+            "bytes": 606
+          },
+          {
+            "name": "atom_brain_open",
+            "bytes": 280
+          },
+          {
+            "name": "atom_brain_search",
+            "bytes": 256
+          },
+          {
+            "name": "atom_search_chats",
+            "bytes": 335
+          },
+          {
+            "name": "atom_propose_skill",
+            "bytes": 901
+          },
+          {
+            "name": "atom_improve_skill",
+            "bytes": 774
+          },
+          {
+            "name": "atom_brief_me",
+            "bytes": 277
+          },
+          {
+            "name": "atom_use_skill",
+            "bytes": 392
+          },
+          {
+            "name": "atom_create_agent",
+            "bytes": 724
+          },
+          {
+            "name": "atom_plan_work",
+            "bytes": 707
+          },
+          {
+            "name": "atom_plan_status",
+            "bytes": 183
+          },
+          {
+            "name": "atom_search_chat_history",
+            "bytes": 548
+          },
+          {
+            "name": "atom_read_chat_history",
+            "bytes": 558
+          },
+          {
+            "name": "atom_ask_user",
+            "bytes": 686
+          },
+          {
+            "name": "atom_delegate",
+            "bytes": 4408
+          }
+        ]
+      },
+      "firstTextMs": 8170.442707999999,
+      "usage": {
+        "total": {
+          "inputTokens": 16737,
+          "cachedInputTokens": 0,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 9,
+          "reasoningOutputTokens": 0
+        },
+        "last": {
+          "inputTokens": 16737,
+          "cachedInputTokens": 0,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 9,
+          "reasoningOutputTokens": 0
+        }
+      }
+    },
+    {
+      "variant": "baseline",
+      "kind": "follow-up",
+      "model": "gpt-6-luna",
+      "effort": "low",
+      "chat_id": "3d08f574-c180-47ec-9330-d4bd958789bd",
+      "prompt": "Do not use tools or browse. What was the exact two-word phrase immediately before the word ready in my previous request? Reply with only that phrase.",
+      "response": "Cedar benchmark",
+      "expected_response": "Cedar benchmark",
+      "exact_response_pass": true,
+      "host_created_at": "2026-10-19T12:12:32.447Z",
+      "host_completed_at": "2026-10-19T12:12:34.357Z",
+      "core_first_text_ms": 1685,
+      "core_complete_ms": 1866,
+      "time": "2026-10-19T12:12:34.301Z",
+      "level": "info",
+      "event": "codex.turn",
+      "requestId": "F5DD6A67-5AC6-4A91-80C2-35E591CB9E4C",
+      "session": "reused",
+      "restart": "none",
+      "setup": {},
+      "readyMs": 7.678459000002476,
+      "totalMs": 1849.4503750000003,
+      "completed": true,
+      "context": {
+        "systemBytes": 1678,
+        "extraBytes": 486,
+        "historyBytes": 361,
+        "turnInputBytes": 684,
+        "toolBytes": 22101,
+        "tools": [
+          {
+            "name": "atom_current_time",
+            "bytes": 296
+          },
+          {
+            "name": "atom_open_app",
+            "bytes": 351
+          },
+          {
+            "name": "atom_open_url",
+            "bytes": 557
+          },
+          {
+            "name": "atom_media",
+            "bytes": 320
+          },
+          {
+            "name": "atom_volume",
+            "bytes": 404
+          },
+          {
+            "name": "atom_open_atom_settings",
+            "bytes": 183
+          },
+          {
+            "name": "atom_play_pause",
+            "bytes": 323
+          },
+          {
+            "name": "atom_note_add",
+            "bytes": 410
+          },
+          {
+            "name": "atom_front_window",
+            "bytes": 400
+          },
+          {
+            "name": "atom_timer_set",
+            "bytes": 555
+          },
+          {
+            "name": "atom_timer_list",
+            "bytes": 139
+          },
+          {
+            "name": "atom_timer_cancel",
+            "bytes": 276
+          },
+          {
+            "name": "atom_weather",
+            "bytes": 509
+          },
+          {
+            "name": "atom_calendar_events",
+            "bytes": 548
+          },
+          {
+            "name": "atom_reminders_list",
+            "bytes": 183
+          },
+          {
+            "name": "atom_reminder_add",
+            "bytes": 521
+          },
+          {
+            "name": "atom_remember",
+            "bytes": 637
+          },
+          {
+            "name": "atom_recall",
+            "bytes": 394
+          },
+          {
+            "name": "atom_forget",
+            "bytes": 404
+          },
+          {
+            "name": "atom_computer",
+            "bytes": 1743
+          },
+          {
+            "name": "atom_look_at_screen",
+            "bytes": 304
+          },
+          {
+            "name": "atom_schedule",
+            "bytes": 971
+          },
+          {
+            "name": "atom_brain_note",
+            "bytes": 606
+          },
+          {
+            "name": "atom_brain_open",
+            "bytes": 280
+          },
+          {
+            "name": "atom_brain_search",
+            "bytes": 256
+          },
+          {
+            "name": "atom_search_chats",
+            "bytes": 335
+          },
+          {
+            "name": "atom_propose_skill",
+            "bytes": 901
+          },
+          {
+            "name": "atom_improve_skill",
+            "bytes": 774
+          },
+          {
+            "name": "atom_brief_me",
+            "bytes": 277
+          },
+          {
+            "name": "atom_use_skill",
+            "bytes": 392
+          },
+          {
+            "name": "atom_create_agent",
+            "bytes": 724
+          },
+          {
+            "name": "atom_plan_work",
+            "bytes": 707
+          },
+          {
+            "name": "atom_plan_status",
+            "bytes": 183
+          },
+          {
+            "name": "atom_search_chat_history",
+            "bytes": 548
+          },
+          {
+            "name": "atom_read_chat_history",
+            "bytes": 558
+          },
+          {
+            "name": "atom_ask_user",
+            "bytes": 686
+          },
+          {
+            "name": "atom_delegate",
+            "bytes": 4408
+          }
+        ]
+      },
+      "firstTextMs": 1682.1586670000033,
+      "usage": {
+        "total": {
+          "inputTokens": 33637,
+          "cachedInputTokens": 16512,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 16,
+          "reasoningOutputTokens": 0
+        },
+        "last": {
+          "inputTokens": 16900,
+          "cachedInputTokens": 16512,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 7,
+          "reasoningOutputTokens": 0
+        }
+      }
+    },
+    {
+      "variant": "config-read",
+      "kind": "fresh-chat",
+      "model": "gpt-6-luna",
+      "effort": "low",
+      "chat_id": "951d75f6-3efd-4472-94fc-465621a147bb",
+      "prompt": "Do not use tools or browse. Reply with exactly this text and nothing else: Cedar benchmark ready.",
+      "response": "Cedar benchmark ready.",
+      "expected_response": "Cedar benchmark ready.",
+      "exact_response_pass": true,
+      "host_created_at": "2026-10-19T12:13:54.810Z",
+      "host_completed_at": "2026-10-19T12:14:00.359Z",
+      "core_first_text_ms": 5384,
+      "core_complete_ms": 5507,
+      "time": "2026-10-19T12:14:00.293Z",
+      "level": "info",
+      "event": "codex.turn",
+      "requestId": "B1FF79FF-9BB0-483B-B05F-DAA8B4669F03",
+      "session": "new",
+      "restart": "missing",
+      "setup": {
+        "transport": 2.410874999999578,
+        "initialize": 509.91462500000125,
+        "inventory": 18.872792000000118,
+        "thread": 1258.9407919999976,
+        "policy": 11.151207999999315
+      },
+      "readyMs": 1812.617416000001,
+      "totalMs": 5469.239708000001,
+      "completed": true,
+      "context": {
+        "systemBytes": 1678,
+        "extraBytes": 2139,
+        "historyBytes": 127,
+        "turnInputBytes": 2344,
+        "toolBytes": 22101,
+        "tools": [
+          {
+            "name": "atom_current_time",
+            "bytes": 296
+          },
+          {
+            "name": "atom_open_app",
+            "bytes": 351
+          },
+          {
+            "name": "atom_open_url",
+            "bytes": 557
+          },
+          {
+            "name": "atom_media",
+            "bytes": 320
+          },
+          {
+            "name": "atom_volume",
+            "bytes": 404
+          },
+          {
+            "name": "atom_open_atom_settings",
+            "bytes": 183
+          },
+          {
+            "name": "atom_play_pause",
+            "bytes": 323
+          },
+          {
+            "name": "atom_note_add",
+            "bytes": 410
+          },
+          {
+            "name": "atom_front_window",
+            "bytes": 400
+          },
+          {
+            "name": "atom_timer_set",
+            "bytes": 555
+          },
+          {
+            "name": "atom_timer_list",
+            "bytes": 139
+          },
+          {
+            "name": "atom_timer_cancel",
+            "bytes": 276
+          },
+          {
+            "name": "atom_weather",
+            "bytes": 509
+          },
+          {
+            "name": "atom_calendar_events",
+            "bytes": 548
+          },
+          {
+            "name": "atom_reminders_list",
+            "bytes": 183
+          },
+          {
+            "name": "atom_reminder_add",
+            "bytes": 521
+          },
+          {
+            "name": "atom_remember",
+            "bytes": 637
+          },
+          {
+            "name": "atom_recall",
+            "bytes": 394
+          },
+          {
+            "name": "atom_forget",
+            "bytes": 404
+          },
+          {
+            "name": "atom_computer",
+            "bytes": 1743
+          },
+          {
+            "name": "atom_look_at_screen",
+            "bytes": 304
+          },
+          {
+            "name": "atom_schedule",
+            "bytes": 971
+          },
+          {
+            "name": "atom_brain_note",
+            "bytes": 606
+          },
+          {
+            "name": "atom_brain_open",
+            "bytes": 280
+          },
+          {
+            "name": "atom_brain_search",
+            "bytes": 256
+          },
+          {
+            "name": "atom_search_chats",
+            "bytes": 335
+          },
+          {
+            "name": "atom_propose_skill",
+            "bytes": 901
+          },
+          {
+            "name": "atom_improve_skill",
+            "bytes": 774
+          },
+          {
+            "name": "atom_brief_me",
+            "bytes": 277
+          },
+          {
+            "name": "atom_use_skill",
+            "bytes": 392
+          },
+          {
+            "name": "atom_create_agent",
+            "bytes": 724
+          },
+          {
+            "name": "atom_plan_work",
+            "bytes": 707
+          },
+          {
+            "name": "atom_plan_status",
+            "bytes": 183
+          },
+          {
+            "name": "atom_search_chat_history",
+            "bytes": 548
+          },
+          {
+            "name": "atom_read_chat_history",
+            "bytes": 558
+          },
+          {
+            "name": "atom_ask_user",
+            "bytes": 686
+          },
+          {
+            "name": "atom_delegate",
+            "bytes": 4408
+          }
+        ]
+      },
+      "firstTextMs": 5368.089208000001,
+      "usage": {
+        "total": {
+          "inputTokens": 16738,
+          "cachedInputTokens": 0,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 9,
+          "reasoningOutputTokens": 0
+        },
+        "last": {
+          "inputTokens": 16738,
+          "cachedInputTokens": 0,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 9,
+          "reasoningOutputTokens": 0
+        }
+      }
+    },
+    {
+      "variant": "config-read",
+      "kind": "follow-up",
+      "model": "gpt-6-luna",
+      "effort": "low",
+      "chat_id": "951d75f6-3efd-4472-94fc-465621a147bb",
+      "prompt": "Do not use tools or browse. What was the exact two-word phrase immediately before the word ready in my previous request? Reply with only that phrase.",
+      "response": "benchmark ready",
+      "expected_response": "Cedar benchmark",
+      "exact_response_pass": false,
+      "host_created_at": "2026-10-19T12:14:40.598Z",
+      "host_completed_at": "2026-10-19T12:14:42.153Z",
+      "core_first_text_ms": 1341,
+      "core_complete_ms": 1520,
+      "time": "2026-10-19T12:14:42.110Z",
+      "level": "info",
+      "event": "codex.turn",
+      "requestId": "B45BE764-34F9-4C35-9550-F394B0A3C82C",
+      "session": "reused",
+      "restart": "none",
+      "setup": {},
+      "readyMs": 15.158624999996391,
+      "totalMs": 1496.8778329999986,
+      "completed": true,
+      "context": {
+        "systemBytes": 1678,
+        "extraBytes": 486,
+        "historyBytes": 361,
+        "turnInputBytes": 684,
+        "toolBytes": 22101,
+        "tools": [
+          {
+            "name": "atom_current_time",
+            "bytes": 296
+          },
+          {
+            "name": "atom_open_app",
+            "bytes": 351
+          },
+          {
+            "name": "atom_open_url",
+            "bytes": 557
+          },
+          {
+            "name": "atom_media",
+            "bytes": 320
+          },
+          {
+            "name": "atom_volume",
+            "bytes": 404
+          },
+          {
+            "name": "atom_open_atom_settings",
+            "bytes": 183
+          },
+          {
+            "name": "atom_play_pause",
+            "bytes": 323
+          },
+          {
+            "name": "atom_note_add",
+            "bytes": 410
+          },
+          {
+            "name": "atom_front_window",
+            "bytes": 400
+          },
+          {
+            "name": "atom_timer_set",
+            "bytes": 555
+          },
+          {
+            "name": "atom_timer_list",
+            "bytes": 139
+          },
+          {
+            "name": "atom_timer_cancel",
+            "bytes": 276
+          },
+          {
+            "name": "atom_weather",
+            "bytes": 509
+          },
+          {
+            "name": "atom_calendar_events",
+            "bytes": 548
+          },
+          {
+            "name": "atom_reminders_list",
+            "bytes": 183
+          },
+          {
+            "name": "atom_reminder_add",
+            "bytes": 521
+          },
+          {
+            "name": "atom_remember",
+            "bytes": 637
+          },
+          {
+            "name": "atom_recall",
+            "bytes": 394
+          },
+          {
+            "name": "atom_forget",
+            "bytes": 404
+          },
+          {
+            "name": "atom_computer",
+            "bytes": 1743
+          },
+          {
+            "name": "atom_look_at_screen",
+            "bytes": 304
+          },
+          {
+            "name": "atom_schedule",
+            "bytes": 971
+          },
+          {
+            "name": "atom_brain_note",
+            "bytes": 606
+          },
+          {
+            "name": "atom_brain_open",
+            "bytes": 280
+          },
+          {
+            "name": "atom_brain_search",
+            "bytes": 256
+          },
+          {
+            "name": "atom_search_chats",
+            "bytes": 335
+          },
+          {
+            "name": "atom_propose_skill",
+            "bytes": 901
+          },
+          {
+            "name": "atom_improve_skill",
+            "bytes": 774
+          },
+          {
+            "name": "atom_brief_me",
+            "bytes": 277
+          },
+          {
+            "name": "atom_use_skill",
+            "bytes": 392
+          },
+          {
+            "name": "atom_create_agent",
+            "bytes": 724
+          },
+          {
+            "name": "atom_plan_work",
+            "bytes": 707
+          },
+          {
+            "name": "atom_plan_status",
+            "bytes": 183
+          },
+          {
+            "name": "atom_search_chat_history",
+            "bytes": 548
+          },
+          {
+            "name": "atom_read_chat_history",
+            "bytes": 558
+          },
+          {
+            "name": "atom_ask_user",
+            "bytes": 686
+          },
+          {
+            "name": "atom_delegate",
+            "bytes": 4408
+          }
+        ]
+      },
+      "firstTextMs": 1327.721458,
+      "usage": {
+        "total": {
+          "inputTokens": 33639,
+          "cachedInputTokens": 16512,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 15,
+          "reasoningOutputTokens": 0
+        },
+        "last": {
+          "inputTokens": 16901,
+          "cachedInputTokens": 16512,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 6,
+          "reasoningOutputTokens": 0
+        }
+      }
+    },
+    {
+      "variant": "config-read-and-skill-isolation",
+      "kind": "fresh-chat",
+      "model": "gpt-6-luna",
+      "effort": "low",
+      "chat_id": "34cbcf47-c326-4273-aecf-9071da8e5ee6",
+      "prompt": "Do not use tools or browse. Reply with exactly this text and nothing else: Cedar benchmark ready.",
+      "response": "Cedar benchmark ready.",
+      "expected_response": "Cedar benchmark ready.",
+      "exact_response_pass": true,
+      "host_created_at": "2026-10-19T12:16:44.280Z",
+      "host_completed_at": "2026-10-19T12:16:49.798Z",
+      "core_first_text_ms": 5343,
+      "core_complete_ms": 5476,
+      "time": "2026-10-19T12:16:49.741Z",
+      "level": "info",
+      "event": "codex.turn",
+      "requestId": "15BC50EF-F71B-461F-951F-91AFE0EAF1F8",
+      "session": "new",
+      "restart": "missing",
+      "setup": {
+        "transport": 2.2098750000004657,
+        "initialize": 497.5070419999993,
+        "inventory": 42.438500000000204,
+        "skills": 64.71370899999965,
+        "thread": 1308.9475000000002,
+        "policy": 15.683084000000235
+      },
+      "readyMs": 1944.1976670000022,
+      "totalMs": 5432.220792000002,
+      "completed": true,
+      "context": {
+        "systemBytes": 1678,
+        "extraBytes": 2139,
+        "historyBytes": 127,
+        "turnInputBytes": 2344,
+        "toolBytes": 22101,
+        "tools": [
+          {
+            "name": "atom_current_time",
+            "bytes": 296
+          },
+          {
+            "name": "atom_open_app",
+            "bytes": 351
+          },
+          {
+            "name": "atom_open_url",
+            "bytes": 557
+          },
+          {
+            "name": "atom_media",
+            "bytes": 320
+          },
+          {
+            "name": "atom_volume",
+            "bytes": 404
+          },
+          {
+            "name": "atom_open_atom_settings",
+            "bytes": 183
+          },
+          {
+            "name": "atom_play_pause",
+            "bytes": 323
+          },
+          {
+            "name": "atom_note_add",
+            "bytes": 410
+          },
+          {
+            "name": "atom_front_window",
+            "bytes": 400
+          },
+          {
+            "name": "atom_timer_set",
+            "bytes": 555
+          },
+          {
+            "name": "atom_timer_list",
+            "bytes": 139
+          },
+          {
+            "name": "atom_timer_cancel",
+            "bytes": 276
+          },
+          {
+            "name": "atom_weather",
+            "bytes": 509
+          },
+          {
+            "name": "atom_calendar_events",
+            "bytes": 548
+          },
+          {
+            "name": "atom_reminders_list",
+            "bytes": 183
+          },
+          {
+            "name": "atom_reminder_add",
+            "bytes": 521
+          },
+          {
+            "name": "atom_remember",
+            "bytes": 637
+          },
+          {
+            "name": "atom_recall",
+            "bytes": 394
+          },
+          {
+            "name": "atom_forget",
+            "bytes": 404
+          },
+          {
+            "name": "atom_computer",
+            "bytes": 1743
+          },
+          {
+            "name": "atom_look_at_screen",
+            "bytes": 304
+          },
+          {
+            "name": "atom_schedule",
+            "bytes": 971
+          },
+          {
+            "name": "atom_brain_note",
+            "bytes": 606
+          },
+          {
+            "name": "atom_brain_open",
+            "bytes": 280
+          },
+          {
+            "name": "atom_brain_search",
+            "bytes": 256
+          },
+          {
+            "name": "atom_search_chats",
+            "bytes": 335
+          },
+          {
+            "name": "atom_propose_skill",
+            "bytes": 901
+          },
+          {
+            "name": "atom_improve_skill",
+            "bytes": 774
+          },
+          {
+            "name": "atom_brief_me",
+            "bytes": 277
+          },
+          {
+            "name": "atom_use_skill",
+            "bytes": 392
+          },
+          {
+            "name": "atom_create_agent",
+            "bytes": 724
+          },
+          {
+            "name": "atom_plan_work",
+            "bytes": 707
+          },
+          {
+            "name": "atom_plan_status",
+            "bytes": 183
+          },
+          {
+            "name": "atom_search_chat_history",
+            "bytes": 548
+          },
+          {
+            "name": "atom_read_chat_history",
+            "bytes": 558
+          },
+          {
+            "name": "atom_ask_user",
+            "bytes": 686
+          },
+          {
+            "name": "atom_delegate",
+            "bytes": 4408
+          }
+        ],
+        "inheritedSkillsDisabled": 64
+      },
+      "firstTextMs": 5317.590083000001,
+      "usage": {
+        "total": {
+          "inputTokens": 11594,
+          "cachedInputTokens": 0,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 9,
+          "reasoningOutputTokens": 0
+        },
+        "last": {
+          "inputTokens": 11594,
+          "cachedInputTokens": 0,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 9,
+          "reasoningOutputTokens": 0
+        }
+      }
+    },
+    {
+      "variant": "config-read-and-skill-isolation",
+      "kind": "follow-up",
+      "model": "gpt-6-luna",
+      "effort": "low",
+      "chat_id": "34cbcf47-c326-4273-aecf-9071da8e5ee6",
+      "prompt": "Do not use tools or browse. What was the exact two-word phrase immediately before the word ready in my previous request? Reply with only that phrase.",
+      "response": "benchmark ready",
+      "expected_response": "Cedar benchmark",
+      "exact_response_pass": false,
+      "host_created_at": "2026-10-19T12:17:21.103Z",
+      "host_completed_at": "2026-10-19T12:17:22.300Z",
+      "core_first_text_ms": 1043,
+      "core_complete_ms": 1164,
+      "time": "2026-10-19T12:17:22.250Z",
+      "level": "info",
+      "event": "codex.turn",
+      "requestId": "BD64AC9C-3BF9-4319-B027-9EF6FA213122",
+      "session": "reused",
+      "restart": "none",
+      "setup": {},
+      "readyMs": 4.8197090000030585,
+      "totalMs": 1143.6987920000029,
+      "completed": true,
+      "context": {
+        "systemBytes": 1678,
+        "extraBytes": 486,
+        "historyBytes": 361,
+        "turnInputBytes": 684,
+        "toolBytes": 22101,
+        "tools": [
+          {
+            "name": "atom_current_time",
+            "bytes": 296
+          },
+          {
+            "name": "atom_open_app",
+            "bytes": 351
+          },
+          {
+            "name": "atom_open_url",
+            "bytes": 557
+          },
+          {
+            "name": "atom_media",
+            "bytes": 320
+          },
+          {
+            "name": "atom_volume",
+            "bytes": 404
+          },
+          {
+            "name": "atom_open_atom_settings",
+            "bytes": 183
+          },
+          {
+            "name": "atom_play_pause",
+            "bytes": 323
+          },
+          {
+            "name": "atom_note_add",
+            "bytes": 410
+          },
+          {
+            "name": "atom_front_window",
+            "bytes": 400
+          },
+          {
+            "name": "atom_timer_set",
+            "bytes": 555
+          },
+          {
+            "name": "atom_timer_list",
+            "bytes": 139
+          },
+          {
+            "name": "atom_timer_cancel",
+            "bytes": 276
+          },
+          {
+            "name": "atom_weather",
+            "bytes": 509
+          },
+          {
+            "name": "atom_calendar_events",
+            "bytes": 548
+          },
+          {
+            "name": "atom_reminders_list",
+            "bytes": 183
+          },
+          {
+            "name": "atom_reminder_add",
+            "bytes": 521
+          },
+          {
+            "name": "atom_remember",
+            "bytes": 637
+          },
+          {
+            "name": "atom_recall",
+            "bytes": 394
+          },
+          {
+            "name": "atom_forget",
+            "bytes": 404
+          },
+          {
+            "name": "atom_computer",
+            "bytes": 1743
+          },
+          {
+            "name": "atom_look_at_screen",
+            "bytes": 304
+          },
+          {
+            "name": "atom_schedule",
+            "bytes": 971
+          },
+          {
+            "name": "atom_brain_note",
+            "bytes": 606
+          },
+          {
+            "name": "atom_brain_open",
+            "bytes": 280
+          },
+          {
+            "name": "atom_brain_search",
+            "bytes": 256
+          },
+          {
+            "name": "atom_search_chats",
+            "bytes": 335
+          },
+          {
+            "name": "atom_propose_skill",
+            "bytes": 901
+          },
+          {
+            "name": "atom_improve_skill",
+            "bytes": 774
+          },
+          {
+            "name": "atom_brief_me",
+            "bytes": 277
+          },
+          {
+            "name": "atom_use_skill",
+            "bytes": 392
+          },
+          {
+            "name": "atom_create_agent",
+            "bytes": 724
+          },
+          {
+            "name": "atom_plan_work",
+            "bytes": 707
+          },
+          {
+            "name": "atom_plan_status",
+            "bytes": 183
+          },
+          {
+            "name": "atom_search_chat_history",
+            "bytes": 548
+          },
+          {
+            "name": "atom_read_chat_history",
+            "bytes": 558
+          },
+          {
+            "name": "atom_ask_user",
+            "bytes": 686
+          },
+          {
+            "name": "atom_delegate",
+            "bytes": 4408
+          }
+        ],
+        "inheritedSkillsDisabled": 64
+      },
+      "firstTextMs": 1039.2951250000042,
+      "usage": {
+        "total": {
+          "inputTokens": 23351,
+          "cachedInputTokens": 11392,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 15,
+          "reasoningOutputTokens": 0
+        },
+        "last": {
+          "inputTokens": 11757,
+          "cachedInputTokens": 11392,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 6,
+          "reasoningOutputTokens": 0
+        }
+      }
+    },
+    {
+      "variant": "config-read-and-skill-isolation",
+      "kind": "follow-up",
+      "model": "gpt-6-luna",
+      "effort": "low",
+      "chat_id": "34cbcf47-c326-4273-aecf-9071da8e5ee6",
+      "prompt": "Do not use tools or browse. Quote your very first reply in this chat verbatim. Return only that reply.",
+      "response": "Cedar benchmark ready.",
+      "expected_response": "Cedar benchmark ready.",
+      "exact_response_pass": true,
+      "host_created_at": "2026-10-19T12:18:00.295Z",
+      "host_completed_at": "2026-10-19T12:18:01.690Z",
+      "core_first_text_ms": 1208,
+      "core_complete_ms": 1349,
+      "time": "2026-10-19T12:18:01.630Z",
+      "level": "info",
+      "event": "codex.turn",
+      "requestId": "E3FBD40C-415D-4DF5-BC34-EC0CDB166C66",
+      "session": "reused",
+      "restart": "none",
+      "setup": {},
+      "readyMs": 6.209415999997873,
+      "totalMs": 1332.357415999999,
+      "completed": true,
+      "context": {
+        "systemBytes": 1678,
+        "extraBytes": 486,
+        "historyBytes": 541,
+        "turnInputBytes": 637,
+        "toolBytes": 22101,
+        "tools": [
+          {
+            "name": "atom_current_time",
+            "bytes": 296
+          },
+          {
+            "name": "atom_open_app",
+            "bytes": 351
+          },
+          {
+            "name": "atom_open_url",
+            "bytes": 557
+          },
+          {
+            "name": "atom_media",
+            "bytes": 320
+          },
+          {
+            "name": "atom_volume",
+            "bytes": 404
+          },
+          {
+            "name": "atom_open_atom_settings",
+            "bytes": 183
+          },
+          {
+            "name": "atom_play_pause",
+            "bytes": 323
+          },
+          {
+            "name": "atom_note_add",
+            "bytes": 410
+          },
+          {
+            "name": "atom_front_window",
+            "bytes": 400
+          },
+          {
+            "name": "atom_timer_set",
+            "bytes": 555
+          },
+          {
+            "name": "atom_timer_list",
+            "bytes": 139
+          },
+          {
+            "name": "atom_timer_cancel",
+            "bytes": 276
+          },
+          {
+            "name": "atom_weather",
+            "bytes": 509
+          },
+          {
+            "name": "atom_calendar_events",
+            "bytes": 548
+          },
+          {
+            "name": "atom_reminders_list",
+            "bytes": 183
+          },
+          {
+            "name": "atom_reminder_add",
+            "bytes": 521
+          },
+          {
+            "name": "atom_remember",
+            "bytes": 637
+          },
+          {
+            "name": "atom_recall",
+            "bytes": 394
+          },
+          {
+            "name": "atom_forget",
+            "bytes": 404
+          },
+          {
+            "name": "atom_computer",
+            "bytes": 1743
+          },
+          {
+            "name": "atom_look_at_screen",
+            "bytes": 304
+          },
+          {
+            "name": "atom_schedule",
+            "bytes": 971
+          },
+          {
+            "name": "atom_brain_note",
+            "bytes": 606
+          },
+          {
+            "name": "atom_brain_open",
+            "bytes": 280
+          },
+          {
+            "name": "atom_brain_search",
+            "bytes": 256
+          },
+          {
+            "name": "atom_search_chats",
+            "bytes": 335
+          },
+          {
+            "name": "atom_propose_skill",
+            "bytes": 901
+          },
+          {
+            "name": "atom_improve_skill",
+            "bytes": 774
+          },
+          {
+            "name": "atom_brief_me",
+            "bytes": 277
+          },
+          {
+            "name": "atom_use_skill",
+            "bytes": 392
+          },
+          {
+            "name": "atom_create_agent",
+            "bytes": 724
+          },
+          {
+            "name": "atom_plan_work",
+            "bytes": 707
+          },
+          {
+            "name": "atom_plan_status",
+            "bytes": 183
+          },
+          {
+            "name": "atom_search_chat_history",
+            "bytes": 548
+          },
+          {
+            "name": "atom_read_chat_history",
+            "bytes": 558
+          },
+          {
+            "name": "atom_ask_user",
+            "bytes": 686
+          },
+          {
+            "name": "atom_delegate",
+            "bytes": 4408
+          }
+        ],
+        "inheritedSkillsDisabled": 64
+      },
+      "firstTextMs": 1205.5641249999899,
+      "usage": {
+        "total": {
+          "inputTokens": 35261,
+          "cachedInputTokens": 22912,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 24,
+          "reasoningOutputTokens": 0
+        },
+        "last": {
+          "inputTokens": 11910,
+          "cachedInputTokens": 11520,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 9,
+          "reasoningOutputTokens": 0
+        }
+      }
+    },
+    {
+      "variant": "config-read-and-skill-isolation",
+      "kind": "fresh-chat",
+      "model": "gpt-6-luna",
+      "effort": "low",
+      "chat_id": "c6fbba9e-a92d-4f94-a077-2a6a1bb57bea",
+      "prompt": "Do not use tools or browse. Reply with exactly this text and nothing else: Cedar benchmark ready.",
+      "response": "Cedar benchmark ready.",
+      "expected_response": "Cedar benchmark ready.",
+      "exact_response_pass": true,
+      "host_created_at": "2026-10-19T12:18:46.879Z",
+      "host_completed_at": "2026-10-19T12:18:51.467Z",
+      "core_first_text_ms": 4428,
+      "core_complete_ms": 4551,
+      "time": "2026-10-19T12:18:51.416Z",
+      "level": "info",
+      "event": "codex.turn",
+      "requestId": "E822C79C-0676-4D62-82C3-ED4458BB36D6",
+      "session": "new",
+      "restart": "missing",
+      "setup": {
+        "transport": 3.5,
+        "initialize": 144.77825000000303,
+        "inventory": 4.723874999996042,
+        "skills": 36.51654199999757,
+        "thread": 38.635791000007885,
+        "policy": 2.4195419999887235
+      },
+      "readyMs": 234.809957999998,
+      "totalMs": 4535.258124999993,
+      "completed": true,
+      "context": {
+        "systemBytes": 1678,
+        "extraBytes": 2139,
+        "historyBytes": 127,
+        "turnInputBytes": 2344,
+        "toolBytes": 22101,
+        "tools": [
+          {
+            "name": "atom_current_time",
+            "bytes": 296
+          },
+          {
+            "name": "atom_open_app",
+            "bytes": 351
+          },
+          {
+            "name": "atom_open_url",
+            "bytes": 557
+          },
+          {
+            "name": "atom_media",
+            "bytes": 320
+          },
+          {
+            "name": "atom_volume",
+            "bytes": 404
+          },
+          {
+            "name": "atom_open_atom_settings",
+            "bytes": 183
+          },
+          {
+            "name": "atom_play_pause",
+            "bytes": 323
+          },
+          {
+            "name": "atom_note_add",
+            "bytes": 410
+          },
+          {
+            "name": "atom_front_window",
+            "bytes": 400
+          },
+          {
+            "name": "atom_timer_set",
+            "bytes": 555
+          },
+          {
+            "name": "atom_timer_list",
+            "bytes": 139
+          },
+          {
+            "name": "atom_timer_cancel",
+            "bytes": 276
+          },
+          {
+            "name": "atom_weather",
+            "bytes": 509
+          },
+          {
+            "name": "atom_calendar_events",
+            "bytes": 548
+          },
+          {
+            "name": "atom_reminders_list",
+            "bytes": 183
+          },
+          {
+            "name": "atom_reminder_add",
+            "bytes": 521
+          },
+          {
+            "name": "atom_remember",
+            "bytes": 637
+          },
+          {
+            "name": "atom_recall",
+            "bytes": 394
+          },
+          {
+            "name": "atom_forget",
+            "bytes": 404
+          },
+          {
+            "name": "atom_computer",
+            "bytes": 1743
+          },
+          {
+            "name": "atom_look_at_screen",
+            "bytes": 304
+          },
+          {
+            "name": "atom_schedule",
+            "bytes": 971
+          },
+          {
+            "name": "atom_brain_note",
+            "bytes": 606
+          },
+          {
+            "name": "atom_brain_open",
+            "bytes": 280
+          },
+          {
+            "name": "atom_brain_search",
+            "bytes": 256
+          },
+          {
+            "name": "atom_search_chats",
+            "bytes": 335
+          },
+          {
+            "name": "atom_propose_skill",
+            "bytes": 901
+          },
+          {
+            "name": "atom_improve_skill",
+            "bytes": 774
+          },
+          {
+            "name": "atom_brief_me",
+            "bytes": 277
+          },
+          {
+            "name": "atom_use_skill",
+            "bytes": 392
+          },
+          {
+            "name": "atom_create_agent",
+            "bytes": 724
+          },
+          {
+            "name": "atom_plan_work",
+            "bytes": 707
+          },
+          {
+            "name": "atom_plan_status",
+            "bytes": 183
+          },
+          {
+            "name": "atom_search_chat_history",
+            "bytes": 548
+          },
+          {
+            "name": "atom_read_chat_history",
+            "bytes": 558
+          },
+          {
+            "name": "atom_ask_user",
+            "bytes": 686
+          },
+          {
+            "name": "atom_delegate",
+            "bytes": 4408
+          }
+        ],
+        "inheritedSkillsDisabled": 64
+      },
+      "firstTextMs": 4426.008750000008,
+      "usage": {
+        "total": {
+          "inputTokens": 11594,
+          "cachedInputTokens": 0,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 9,
+          "reasoningOutputTokens": 0
+        },
+        "last": {
+          "inputTokens": 11594,
+          "cachedInputTokens": 0,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 9,
+          "reasoningOutputTokens": 0
+        }
+      }
+    },
+    {
+      "variant": "config-read-and-skill-isolation",
+      "kind": "follow-up",
+      "model": "gpt-6-luna",
+      "effort": "low",
+      "chat_id": "c6fbba9e-a92d-4f94-a077-2a6a1bb57bea",
+      "prompt": "Do not use tools or browse. Quote your very first reply in this chat verbatim. Return only that reply.",
+      "response": "Cedar benchmark ready.",
+      "expected_response": "Cedar benchmark ready.",
+      "exact_response_pass": true,
+      "host_created_at": "2026-10-19T12:19:20.160Z",
+      "host_completed_at": "2026-10-19T12:19:21.920Z",
+      "core_first_text_ms": 1446,
+      "core_complete_ms": 1709,
+      "time": "2026-10-19T12:19:21.854Z",
+      "level": "info",
+      "event": "codex.turn",
+      "requestId": "5C949CB9-A014-4BFB-9B17-1886A6F123EC",
+      "session": "reused",
+      "restart": "none",
+      "setup": {},
+      "readyMs": 8.460665999999037,
+      "totalMs": 1690.1279159999976,
+      "completed": true,
+      "context": {
+        "systemBytes": 1678,
+        "extraBytes": 486,
+        "historyBytes": 314,
+        "turnInputBytes": 637,
+        "toolBytes": 22101,
+        "tools": [
+          {
+            "name": "atom_current_time",
+            "bytes": 296
+          },
+          {
+            "name": "atom_open_app",
+            "bytes": 351
+          },
+          {
+            "name": "atom_open_url",
+            "bytes": 557
+          },
+          {
+            "name": "atom_media",
+            "bytes": 320
+          },
+          {
+            "name": "atom_volume",
+            "bytes": 404
+          },
+          {
+            "name": "atom_open_atom_settings",
+            "bytes": 183
+          },
+          {
+            "name": "atom_play_pause",
+            "bytes": 323
+          },
+          {
+            "name": "atom_note_add",
+            "bytes": 410
+          },
+          {
+            "name": "atom_front_window",
+            "bytes": 400
+          },
+          {
+            "name": "atom_timer_set",
+            "bytes": 555
+          },
+          {
+            "name": "atom_timer_list",
+            "bytes": 139
+          },
+          {
+            "name": "atom_timer_cancel",
+            "bytes": 276
+          },
+          {
+            "name": "atom_weather",
+            "bytes": 509
+          },
+          {
+            "name": "atom_calendar_events",
+            "bytes": 548
+          },
+          {
+            "name": "atom_reminders_list",
+            "bytes": 183
+          },
+          {
+            "name": "atom_reminder_add",
+            "bytes": 521
+          },
+          {
+            "name": "atom_remember",
+            "bytes": 637
+          },
+          {
+            "name": "atom_recall",
+            "bytes": 394
+          },
+          {
+            "name": "atom_forget",
+            "bytes": 404
+          },
+          {
+            "name": "atom_computer",
+            "bytes": 1743
+          },
+          {
+            "name": "atom_look_at_screen",
+            "bytes": 304
+          },
+          {
+            "name": "atom_schedule",
+            "bytes": 971
+          },
+          {
+            "name": "atom_brain_note",
+            "bytes": 606
+          },
+          {
+            "name": "atom_brain_open",
+            "bytes": 280
+          },
+          {
+            "name": "atom_brain_search",
+            "bytes": 256
+          },
+          {
+            "name": "atom_search_chats",
+            "bytes": 335
+          },
+          {
+            "name": "atom_propose_skill",
+            "bytes": 901
+          },
+          {
+            "name": "atom_improve_skill",
+            "bytes": 774
+          },
+          {
+            "name": "atom_brief_me",
+            "bytes": 277
+          },
+          {
+            "name": "atom_use_skill",
+            "bytes": 392
+          },
+          {
+            "name": "atom_create_agent",
+            "bytes": 724
+          },
+          {
+            "name": "atom_plan_work",
+            "bytes": 707
+          },
+          {
+            "name": "atom_plan_status",
+            "bytes": 183
+          },
+          {
+            "name": "atom_search_chat_history",
+            "bytes": 548
+          },
+          {
+            "name": "atom_read_chat_history",
+            "bytes": 558
+          },
+          {
+            "name": "atom_ask_user",
+            "bytes": 686
+          },
+          {
+            "name": "atom_delegate",
+            "bytes": 4408
+          }
+        ],
+        "inheritedSkillsDisabled": 64
+      },
+      "firstTextMs": 1442.577541000006,
+      "usage": {
+        "total": {
+          "inputTokens": 23344,
+          "cachedInputTokens": 11392,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 18,
+          "reasoningOutputTokens": 0
+        },
+        "last": {
+          "inputTokens": 11750,
+          "cachedInputTokens": 11392,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 9,
+          "reasoningOutputTokens": 0
+        }
+      }
+    },
+    {
+      "variant": "config-read-and-skill-isolation",
+      "kind": "fresh-chat",
+      "model": "gpt-6-luna",
+      "effort": "low",
+      "chat_id": "ed7b3684-04d0-4987-9a54-9db9c0362a69",
+      "prompt": "Do not use tools or browse. Reply with exactly this text and nothing else: Cedar benchmark ready.",
+      "response": "Cedar benchmark ready.",
+      "expected_response": "Cedar benchmark ready.",
+      "exact_response_pass": true,
+      "host_created_at": "2026-10-19T12:20:02.106Z",
+      "host_completed_at": "2026-10-19T12:20:09.196Z",
+      "core_first_text_ms": 6727,
+      "core_complete_ms": 7028,
+      "time": "2026-10-19T12:20:09.121Z",
+      "level": "info",
+      "event": "codex.turn",
+      "requestId": "8CB74C0E-C0BC-4510-A58B-CAB21F062D0D",
+      "session": "new",
+      "restart": "missing",
+      "setup": {
+        "transport": 1.5342079999973066,
+        "initialize": 44.467582999990555,
+        "inventory": 4.792458000010811,
+        "skills": 20.427499999990687,
+        "thread": 1236.5834170000162,
+        "policy": 3.259874999988824
+      },
+      "readyMs": 1315.2488749999902,
+      "totalMs": 7012.4862079999875,
+      "completed": true,
+      "context": {
+        "systemBytes": 1678,
+        "extraBytes": 2139,
+        "historyBytes": 127,
+        "turnInputBytes": 2344,
+        "toolBytes": 22101,
+        "tools": [
+          {
+            "name": "atom_current_time",
+            "bytes": 296
+          },
+          {
+            "name": "atom_open_app",
+            "bytes": 351
+          },
+          {
+            "name": "atom_open_url",
+            "bytes": 557
+          },
+          {
+            "name": "atom_media",
+            "bytes": 320
+          },
+          {
+            "name": "atom_volume",
+            "bytes": 404
+          },
+          {
+            "name": "atom_open_atom_settings",
+            "bytes": 183
+          },
+          {
+            "name": "atom_play_pause",
+            "bytes": 323
+          },
+          {
+            "name": "atom_note_add",
+            "bytes": 410
+          },
+          {
+            "name": "atom_front_window",
+            "bytes": 400
+          },
+          {
+            "name": "atom_timer_set",
+            "bytes": 555
+          },
+          {
+            "name": "atom_timer_list",
+            "bytes": 139
+          },
+          {
+            "name": "atom_timer_cancel",
+            "bytes": 276
+          },
+          {
+            "name": "atom_weather",
+            "bytes": 509
+          },
+          {
+            "name": "atom_calendar_events",
+            "bytes": 548
+          },
+          {
+            "name": "atom_reminders_list",
+            "bytes": 183
+          },
+          {
+            "name": "atom_reminder_add",
+            "bytes": 521
+          },
+          {
+            "name": "atom_remember",
+            "bytes": 637
+          },
+          {
+            "name": "atom_recall",
+            "bytes": 394
+          },
+          {
+            "name": "atom_forget",
+            "bytes": 404
+          },
+          {
+            "name": "atom_computer",
+            "bytes": 1743
+          },
+          {
+            "name": "atom_look_at_screen",
+            "bytes": 304
+          },
+          {
+            "name": "atom_schedule",
+            "bytes": 971
+          },
+          {
+            "name": "atom_brain_note",
+            "bytes": 606
+          },
+          {
+            "name": "atom_brain_open",
+            "bytes": 280
+          },
+          {
+            "name": "atom_brain_search",
+            "bytes": 256
+          },
+          {
+            "name": "atom_search_chats",
+            "bytes": 335
+          },
+          {
+            "name": "atom_propose_skill",
+            "bytes": 901
+          },
+          {
+            "name": "atom_improve_skill",
+            "bytes": 774
+          },
+          {
+            "name": "atom_brief_me",
+            "bytes": 277
+          },
+          {
+            "name": "atom_use_skill",
+            "bytes": 392
+          },
+          {
+            "name": "atom_create_agent",
+            "bytes": 724
+          },
+          {
+            "name": "atom_plan_work",
+            "bytes": 707
+          },
+          {
+            "name": "atom_plan_status",
+            "bytes": 183
+          },
+          {
+            "name": "atom_search_chat_history",
+            "bytes": 548
+          },
+          {
+            "name": "atom_read_chat_history",
+            "bytes": 558
+          },
+          {
+            "name": "atom_ask_user",
+            "bytes": 686
+          },
+          {
+            "name": "atom_delegate",
+            "bytes": 4408
+          }
+        ],
+        "inheritedSkillsDisabled": 64
+      },
+      "firstTextMs": 6725.406499999983,
+      "usage": {
+        "total": {
+          "inputTokens": 11592,
+          "cachedInputTokens": 0,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 9,
+          "reasoningOutputTokens": 0
+        },
+        "last": {
+          "inputTokens": 11592,
+          "cachedInputTokens": 0,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 9,
+          "reasoningOutputTokens": 0
+        }
+      }
+    },
+    {
+      "variant": "config-read-and-skill-isolation",
+      "kind": "follow-up",
+      "model": "gpt-6-luna",
+      "effort": "low",
+      "chat_id": "ed7b3684-04d0-4987-9a54-9db9c0362a69",
+      "prompt": "Do not use tools or browse. Quote your very first reply in this chat verbatim. Return only that reply.",
+      "response": "Cedar benchmark ready.",
+      "expected_response": "Cedar benchmark ready.",
+      "exact_response_pass": true,
+      "host_created_at": "2026-10-19T12:20:43.164Z",
+      "host_completed_at": "2026-10-19T12:20:45.595Z",
+      "core_first_text_ms": 2130,
+      "core_complete_ms": 2384,
+      "time": "2026-10-19T12:20:45.536Z",
+      "level": "info",
+      "event": "codex.turn",
+      "requestId": "0B0C01D0-569E-4D9B-8A4E-648F9A3FB31D",
+      "session": "reused",
+      "restart": "none",
+      "setup": {},
+      "readyMs": 6.368749999994179,
+      "totalMs": 2369.816791999998,
+      "completed": true,
+      "context": {
+        "systemBytes": 1678,
+        "extraBytes": 486,
+        "historyBytes": 314,
+        "turnInputBytes": 637,
+        "toolBytes": 22101,
+        "tools": [
+          {
+            "name": "atom_current_time",
+            "bytes": 296
+          },
+          {
+            "name": "atom_open_app",
+            "bytes": 351
+          },
+          {
+            "name": "atom_open_url",
+            "bytes": 557
+          },
+          {
+            "name": "atom_media",
+            "bytes": 320
+          },
+          {
+            "name": "atom_volume",
+            "bytes": 404
+          },
+          {
+            "name": "atom_open_atom_settings",
+            "bytes": 183
+          },
+          {
+            "name": "atom_play_pause",
+            "bytes": 323
+          },
+          {
+            "name": "atom_note_add",
+            "bytes": 410
+          },
+          {
+            "name": "atom_front_window",
+            "bytes": 400
+          },
+          {
+            "name": "atom_timer_set",
+            "bytes": 555
+          },
+          {
+            "name": "atom_timer_list",
+            "bytes": 139
+          },
+          {
+            "name": "atom_timer_cancel",
+            "bytes": 276
+          },
+          {
+            "name": "atom_weather",
+            "bytes": 509
+          },
+          {
+            "name": "atom_calendar_events",
+            "bytes": 548
+          },
+          {
+            "name": "atom_reminders_list",
+            "bytes": 183
+          },
+          {
+            "name": "atom_reminder_add",
+            "bytes": 521
+          },
+          {
+            "name": "atom_remember",
+            "bytes": 637
+          },
+          {
+            "name": "atom_recall",
+            "bytes": 394
+          },
+          {
+            "name": "atom_forget",
+            "bytes": 404
+          },
+          {
+            "name": "atom_computer",
+            "bytes": 1743
+          },
+          {
+            "name": "atom_look_at_screen",
+            "bytes": 304
+          },
+          {
+            "name": "atom_schedule",
+            "bytes": 971
+          },
+          {
+            "name": "atom_brain_note",
+            "bytes": 606
+          },
+          {
+            "name": "atom_brain_open",
+            "bytes": 280
+          },
+          {
+            "name": "atom_brain_search",
+            "bytes": 256
+          },
+          {
+            "name": "atom_search_chats",
+            "bytes": 335
+          },
+          {
+            "name": "atom_propose_skill",
+            "bytes": 901
+          },
+          {
+            "name": "atom_improve_skill",
+            "bytes": 774
+          },
+          {
+            "name": "atom_brief_me",
+            "bytes": 277
+          },
+          {
+            "name": "atom_use_skill",
+            "bytes": 392
+          },
+          {
+            "name": "atom_create_agent",
+            "bytes": 724
+          },
+          {
+            "name": "atom_plan_work",
+            "bytes": 707
+          },
+          {
+            "name": "atom_plan_status",
+            "bytes": 183
+          },
+          {
+            "name": "atom_search_chat_history",
+            "bytes": 548
+          },
+          {
+            "name": "atom_read_chat_history",
+            "bytes": 558
+          },
+          {
+            "name": "atom_ask_user",
+            "bytes": 686
+          },
+          {
+            "name": "atom_delegate",
+            "bytes": 4408
+          }
+        ],
+        "inheritedSkillsDisabled": 64
+      },
+      "firstTextMs": 2127.0752090000024,
+      "usage": {
+        "total": {
+          "inputTokens": 23340,
+          "cachedInputTokens": 11392,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 18,
+          "reasoningOutputTokens": 0
+        },
+        "last": {
+          "inputTokens": 11748,
+          "cachedInputTokens": 11392,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 9,
+          "reasoningOutputTokens": 0
+        }
+      }
+    },
+    {
+      "variant": "config-read-and-skill-isolation",
+      "kind": "saved-chat-reopen",
+      "model": "gpt-6-luna",
+      "effort": "low",
+      "chat_id": "8ac9fbbb-1201-49c0-ab4d-26cc794fe4cd",
+      "prompt": "Do not use tools or browse. From our saved table, what were the final notebook counts for Cedar and Birch? Reply with exactly two lines: Cedar: <number> and Birch: <number>.",
+      "response": "Cedar: 22\nBirch: 17",
+      "expected_response": "Cedar: 22\nBirch: 17",
+      "exact_response_pass": true,
+      "host_created_at": "2026-10-19T12:21:20.719Z",
+      "host_completed_at": "2026-10-19T12:21:26.218Z",
+      "core_first_text_ms": 5250,
+      "core_complete_ms": 5459,
+      "time": "2026-10-19T12:21:26.171Z",
+      "level": "info",
+      "event": "codex.turn",
+      "requestId": "0E1ED038-9D1A-4DE1-A5F5-FB24EADE0A31",
+      "session": "new",
+      "restart": "missing",
+      "setup": {
+        "transport": 1.4465840000193566,
+        "initialize": 89.15204099996481,
+        "inventory": 3.4193749999976717,
+        "skills": 19.615958000009414,
+        "thread": 39.252125000057276,
+        "policy": 2.502582999994047
+      },
+      "readyMs": 159.85854200000176,
+      "totalMs": 5449.36725000001,
+      "completed": true,
+      "context": {
+        "systemBytes": 1678,
+        "extraBytes": 486,
+        "historyBytes": 753,
+        "turnInputBytes": 1220,
+        "toolBytes": 22101,
+        "tools": [
+          {
+            "name": "atom_current_time",
+            "bytes": 296
+          },
+          {
+            "name": "atom_open_app",
+            "bytes": 351
+          },
+          {
+            "name": "atom_open_url",
+            "bytes": 557
+          },
+          {
+            "name": "atom_media",
+            "bytes": 320
+          },
+          {
+            "name": "atom_volume",
+            "bytes": 404
+          },
+          {
+            "name": "atom_open_atom_settings",
+            "bytes": 183
+          },
+          {
+            "name": "atom_play_pause",
+            "bytes": 323
+          },
+          {
+            "name": "atom_note_add",
+            "bytes": 410
+          },
+          {
+            "name": "atom_front_window",
+            "bytes": 400
+          },
+          {
+            "name": "atom_timer_set",
+            "bytes": 555
+          },
+          {
+            "name": "atom_timer_list",
+            "bytes": 139
+          },
+          {
+            "name": "atom_timer_cancel",
+            "bytes": 276
+          },
+          {
+            "name": "atom_weather",
+            "bytes": 509
+          },
+          {
+            "name": "atom_calendar_events",
+            "bytes": 548
+          },
+          {
+            "name": "atom_reminders_list",
+            "bytes": 183
+          },
+          {
+            "name": "atom_reminder_add",
+            "bytes": 521
+          },
+          {
+            "name": "atom_remember",
+            "bytes": 637
+          },
+          {
+            "name": "atom_recall",
+            "bytes": 394
+          },
+          {
+            "name": "atom_forget",
+            "bytes": 404
+          },
+          {
+            "name": "atom_computer",
+            "bytes": 1743
+          },
+          {
+            "name": "atom_look_at_screen",
+            "bytes": 304
+          },
+          {
+            "name": "atom_schedule",
+            "bytes": 971
+          },
+          {
+            "name": "atom_brain_note",
+            "bytes": 606
+          },
+          {
+            "name": "atom_brain_open",
+            "bytes": 280
+          },
+          {
+            "name": "atom_brain_search",
+            "bytes": 256
+          },
+          {
+            "name": "atom_search_chats",
+            "bytes": 335
+          },
+          {
+            "name": "atom_propose_skill",
+            "bytes": 901
+          },
+          {
+            "name": "atom_improve_skill",
+            "bytes": 774
+          },
+          {
+            "name": "atom_brief_me",
+            "bytes": 277
+          },
+          {
+            "name": "atom_use_skill",
+            "bytes": 392
+          },
+          {
+            "name": "atom_create_agent",
+            "bytes": 724
+          },
+          {
+            "name": "atom_plan_work",
+            "bytes": 707
+          },
+          {
+            "name": "atom_plan_status",
+            "bytes": 183
+          },
+          {
+            "name": "atom_search_chat_history",
+            "bytes": 548
+          },
+          {
+            "name": "atom_read_chat_history",
+            "bytes": 558
+          },
+          {
+            "name": "atom_ask_user",
+            "bytes": 686
+          },
+          {
+            "name": "atom_delegate",
+            "bytes": 4408
+          }
+        ],
+        "inheritedSkillsDisabled": 64
+      },
+      "firstTextMs": 5247.484834000003,
+      "usage": {
+        "total": {
+          "inputTokens": 11351,
+          "cachedInputTokens": 9472,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 15,
+          "reasoningOutputTokens": 0
+        },
+        "last": {
+          "inputTokens": 11351,
+          "cachedInputTokens": 9472,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 15,
+          "reasoningOutputTokens": 0
+        }
+      }
+    }
+  ]
+}

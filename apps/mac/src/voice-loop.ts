@@ -21,6 +21,8 @@ export interface TurnTimings {
   model: number;
   /** From the reply arriving until audio started playing. */
   firstSound?: number;
+  /** From Core dispatch to the first nonempty text chunk (or completed reply for a nonstreaming provider). */
+  firstText?: number;
 }
 
 /**
@@ -207,6 +209,7 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
     const endQueue = () => queue.end();
     signal.addEventListener("abort", endQueue, { once: true });
     let firstSound: number | undefined;
+    let firstText: number | undefined;
     const silent = source === "text" && speakTyped?.() === false;
     const speakStream = silent
       ? async (pieces: AsyncIterable<string>) => {
@@ -230,13 +233,17 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
     try {
       let answer;
       try {
-        answer = await core.handle({ text, source, ...delivery }, signal, { onText: (delta) => queue.push(delta) });
+        answer = await core.handle({ text, source, ...delivery }, signal, { onText: (delta) => {
+          if (delta.length && firstText === undefined) firstText = now() - started;
+          queue.push(delta);
+        } });
       } catch (error) {
         queue.end();
         await speaking.catch(() => {});
         throw error;
       }
       const model = now() - started;
+      if (firstText === undefined && answer.text.length) firstText = model;
       if (signal.aborted) return;
       if (!queue.received) queue.push(answer.text); // a model that cannot stream: speak the whole reply now
       queue.end();
@@ -245,7 +252,7 @@ export function createVoiceLoop(options: VoiceLoopOptions): VoiceLoop {
       onStage("speech");
       await speaking;
       if (signal.aborted) return;
-      events.onTurnComplete?.({ requestId: answer.requestId, ...heard, model, firstSound });
+      events.onTurnComplete?.({ requestId: answer.requestId, ...heard, model, firstSound, firstText });
     } finally {
       signal.removeEventListener("abort", endQueue);
     }

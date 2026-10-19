@@ -1,5 +1,13 @@
 # ZENO Project Status
 
+## Current measured optimization — 2026-10-19
+
+Codex chat startup now inventories effective configuration without connecting inherited MCP servers, then verifies the resulting disabled tool policy. Inherited standalone Codex skill catalogs are excluded per thread; ATOM's 37 tool specs, instructions, history and file-grant policy remain. Setup 4.18 s baseline → 1.32 s final median; first model text 8.19 s → 5.34 s; first-turn input 16,737 → 11,594 tokens. Small sample: one baseline and three final fresh chats, with first text 4.43–6.73 s. Typecheck/55 targeted checks pass; actual signed app restarted and measured. Two live word-position answers were incorrect; direct quotations and a reopened saved chat passed. Cache counters reconcile, but the earlier zero-cache miss has no proven root cause. [Measurement ledger, context breakdown and scope](docs/chat-startup-performance.md).
+
+## Measured chat baseline — 2026-10-19
+
+Six short responses per app, GPT-6 Luna / Low: ATOM 101,156 total input tokens vs Codex desktop 211,842; estimated API-equivalent cost $0.005832 vs $0.006956. Median fresh-chat completion: 6.83 s vs 4.13 s; follow-up: 1.65 s vs 1.47 s. Both passed 6/6 supplied checks. This small installed-configuration snapshot uses natural caching and slightly different host timing boundaries; it does not establish general coding quality, first-visible-text speed or subscription billing. [Report and raw evidence](.ecc/benchmarks/atom-vs-codex-2026-10-19.md). No app source changed.
+
 ## Current interaction upgrade — 2026-10-19 (ADR-178)
 
 Saved all requested T3 interactions and the explicit decision to make Full access a separate upgrade. First delivery is a searchable per-chat provider/model picker with provider filtering, favorites, unavailable states, custom IDs and default inheritance. Favorites persist locally with provider identity and bounded size. Existing host validation and chat/draft/grant state remain authoritative; selection errors are visible at the composer. [Complete requested sequence](docs/t3-interaction-upgrades.md).

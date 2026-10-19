@@ -1,5 +1,13 @@
 # ZENO Task Plan
 
+## Completed optimization — Measured Codex chat startup (2026-10-19)
+
+Added setup stages, first-model-text timing, context sizes, restart reasons and raw usage counters. Effective configuration discovery replaces the slow pre-thread MCP connection inventory; final policy verification remains. Thread-only overrides remove 64 inherited standalone Codex skills while preserving ATOM tools/instructions and global settings. First-turn input fell from about 16.7K to 11.6K tokens. Instrumented baseline first text was 8.19 s; final median across three fresh chats was 5.34 s (4.43–6.73 s). Typecheck and 55 targeted protocol/history/grant/cancellation/timing checks pass. Twelve live responses and two word-position failures are retained; direct recall and old saved-history reopening pass. Original zero-cache cause remains unproven; all four final follow-ups reused the session and reported cached input. [Full evidence and limits](docs/chat-startup-performance.md). Stop after this measured capability.
+
+## Completed measurement — ATOM vs Codex desktop (2026-10-19)
+
+Ran three fresh chats per app, two matching fictional prompts each, using GPT-6 Luna at Low effort. All 12 responses passed the supplied format, recall and arithmetic checks without tools. ATOM used 52.2% fewer total input tokens and 16.2% less estimated Standard API-equivalent cost; Codex completed fresh-chat responses faster. Cache behavior, timing boundaries and the excluded initial quota failure are documented in [the benchmark report](.ecc/benchmarks/atom-vs-codex-2026-10-19.md). No app source change, rebuild or regression suite in this measurement. Suggested next task: instrument fresh-chat setup/first-text timing and investigate cache stability; implementation has not started.
+
 ## Current task — Searchable chat model picker (ADR-178, 2026-10-19)
 
 Keshab requested T3’s functional provider/model/thinking/access controls, right pane, project filter and project source palette. He explicitly chose Full access as a separate upgrade. The complete request, current gaps and delivery order are saved in [interaction upgrades](docs/t3-interaction-upgrades.md). This first capability replaces the provider/model menu with a searchable popover, provider rail, local favorites, actual catalog/availability, custom IDs and default inheritance, using the existing checked per-chat operation. Preserve the prior ADR-177 fix and unrelated `graphify-out/`.

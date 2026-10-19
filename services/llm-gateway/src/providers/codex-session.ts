@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import type { Message, ModelRequest, ToolRunner } from "@atom/contracts";
 import { ProviderError, redactSecrets, type ProviderAdapter } from "../gateway.ts";
 import { signedInEnv } from "./cli-tools.ts";
@@ -42,6 +42,20 @@ export interface CodexSessionOptions {
   onUsage?(usage: { input: number; output: number; cacheRead: number; cacheWrite: number }, request: ModelRequest, model: string): void;
   transport?(cwd: string): CodexTransport;
   idleMs?: number;
+  /** Counts and durations only: never prompt text, tool arguments or configuration. */
+  onDiagnostic?(data: CodexTurnDiagnostic, request: ModelRequest): void;
+}
+
+export interface CodexTurnDiagnostic {
+  session: "new" | "reused";
+  restart: "missing" | "transcript" | "instructions" | "tools" | "none";
+  setup: Partial<Record<"transport" | "initialize" | "inventory" | "skills" | "thread" | "policy", number>>;
+  readyMs: number;
+  firstTextMs?: number;
+  totalMs: number;
+  completed: boolean;
+  context: { systemBytes: number; extraBytes: number; historyBytes: number; turnInputBytes: number; toolBytes: number; inheritedSkillsDisabled?: number; tools: { name: string; bytes: number }[] };
+  usage?: { total: Record<string, number>; last: Record<string, number> };
 }
 
 /** Explicit native-tool lockdown. File access is performed only by ATOM's checked host tools. */
@@ -66,9 +80,14 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
   type Session = {
     rpc: CodexTransport; dir: string; thread?: string; model: string;
     pending: Map<string, { resolve(value: any): void; reject(error: unknown): void; timer: ReturnType<typeof setTimeout> }>;
-    active?: { request: ModelRequest; runner: ToolRunner; text: string; final: string; resolve(text: string): void; reject(error: unknown): void; signal: AbortSignal };
+    active?: { request: ModelRequest; runner: ToolRunner; text: string; final: string; firstTextAt?: number; resolve(text: string): void; reject(error: unknown): void; signal: AbortSignal };
     ready: Promise<void>; seen: Message[]; key: string; idle?: ReturnType<typeof setTimeout>; closed: boolean; busy: boolean;
     usage?: { input: number; output: number; cacheRead: number; cacheWrite: number };
+    rawUsage?: CodexTurnDiagnostic["usage"];
+    setup: CodexTurnDiagnostic["setup"];
+    signature?: string;
+    toolSignature?: string;
+    inheritedSkillsDisabled?: number;
   };
   const fail = (kind: "unknown" | "cancelled" | "unavailable" | "rate_limit", message: string) => new ProviderError(kind, message);
   function close(s: Session, error = fail("unavailable", "Codex's session ended. Try again.")) {
@@ -119,6 +138,7 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
     }
     if (!a || m.params?.threadId !== s.thread) return;
     if (m.method === "item/agentMessage/delta" && typeof m.params.delta === "string") {
+      if (m.params.delta.length && a.firstTextAt === undefined) a.firstTextAt = performance.now();
       a.text += m.params.delta; a.request.onText?.(m.params.delta);
     }
     if (m.method === "item/completed" && m.params.item?.type === "agentMessage") {
@@ -128,6 +148,8 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
     if (m.method === "thread/tokenUsage/updated") {
       const u = m.params.tokenUsage?.total;
       if (u) {
+        const counts = (value: any): Record<string, number> => Object.fromEntries(["inputTokens", "cachedInputTokens", "cacheWriteInputTokens", "outputTokens", "reasoningOutputTokens"].map((key) => [key, typeof value?.[key] === "number" ? value[key] : 0]));
+        s.rawUsage = { total: counts(u), last: counts(m.params.tokenUsage?.last) };
         const total = { input: Math.max(0, (u.inputTokens ?? 0) - (u.cachedInputTokens ?? 0)), output: u.outputTokens ?? 0, cacheRead: u.cachedInputTokens ?? 0, cacheWrite: u.cacheWriteInputTokens ?? 0 };
         const delta = Object.fromEntries(Object.entries(total).map(([k, value]) => [k, Math.max(0, value - (s.usage?.[k as keyof typeof total] ?? 0))])) as typeof total;
         s.usage = total;
@@ -148,33 +170,48 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
     }
   }
   function open(key: string, req: ModelRequest, runner: ToolRunner): Session {
+    const began = performance.now();
     const dir = mkdtempSync(join(tmpdir(), "atom-codex-session-"));
     const rpc = options.transport?.(dir) ?? transport(options.program, dir);
-    const s: Session = { rpc, dir, model: options.model, pending: new Map(), ready: Promise.resolve(), seen: [], key, closed: false, busy: false };
+    const s: Session = { rpc, dir, model: options.model, pending: new Map(), ready: Promise.resolve(), seen: [], key, closed: false, busy: false, setup: { transport: performance.now() - began } };
     rpc.listen((m) => { void receive(s, m).catch(() => close(s, fail("unknown", "Codex's tool connection failed."))); }, () => close(s));
     s.ready = (async () => {
-      await request(s, "initialize", { clientInfo: { name: "atom", version: "1" }, capabilities: { experimentalApi: true, requestAttestation: false } });
+      const timed = async (stage: keyof CodexTurnDiagnostic["setup"], run: () => Promise<any>) => {
+        const start = performance.now();
+        try { return await run(); } finally { s.setup[stage] = performance.now() - start; }
+      };
+      await timed("initialize", () => request(s, "initialize", { clientInfo: { name: "atom", version: "1" }, capabilities: { experimentalApi: true, requestAttestation: false } }));
       rpc.send({ method: "initialized", params: {} });
-      // An empty map merges with user configuration in Codex. Disable every inherited server explicitly for this thread.
-      const inherited: { name: string; pluginId?: string | null }[] = [];
-      let cursor: string | undefined;
-      do {
-        const servers = await request(s, "mcpServerStatus/list", { detail: "toolsAndAuthOnly", limit: 100, ...(cursor ? { cursor } : {}) });
-        if (!Array.isArray(servers.data) || inherited.length > 1000) throw fail("unavailable", "Codex's MCP inventory could not be checked.");
-        inherited.push(...servers.data); cursor = servers.nextCursor || undefined;
-      } while (cursor);
+      // Reading effective configuration does not connect to inherited servers. An empty override map merges;
+      // disable each configured entry before thread/start, then still verify the active thread below.
+      const effective = await timed("inventory", () => request(s, "config/read", { cwd: dir, includeLayers: false }));
+      const names = (value: unknown): string[] => {
+        if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length > 1000) throw fail("unavailable", "Codex's inherited configuration could not be checked.");
+        return Object.keys(value);
+      };
       const config = codexHostConfig(dir);
-      config.mcp_servers = Object.fromEntries(inherited.map((server) => [server.name, { enabled: false }]));
-      config.plugins = Object.fromEntries(inherited.filter((server) => server.pluginId).map((server) => [server.pluginId!, { enabled: false }]));
-      const started = await request(s, "thread/start", {
+      config.mcp_servers = Object.fromEntries(names(effective.config?.mcp_servers).map((name) => [name, { enabled: false }]));
+      config.plugins = Object.fromEntries(names(effective.config?.plugins).map((name) => [name, { enabled: false }]));
+      // These are Codex's local skills, outside the isolated filesystem, not ATOM's checked atom_use_skill.
+      // Suppress their otherwise unusable catalog for this thread only; never write global configuration.
+      const found = await timed("skills", () => request(s, "skills/list", { cwds: [dir] }));
+      const groups = found.data;
+      if (!Array.isArray(groups) || groups.length !== 1 || !Array.isArray(groups[0]?.skills) || groups[0].skills.length > 1000 || groups[0].errors?.length) throw fail("unavailable", "Codex's inherited skills could not be checked.");
+      const paths = groups[0].skills.map((skill: any) => {
+        if (typeof skill.path !== "string" || !isAbsolute(skill.path)) throw fail("unavailable", "Codex's inherited skill path could not be checked.");
+        return skill.path;
+      });
+      config.skills = { config: paths.map((path: string) => ({ path, enabled: false })) };
+      s.inheritedSkillsDisabled = paths.length;
+      const started = await timed("thread", () => request(s, "thread/start", {
         ...(options.model === "codex-default" ? {} : { model: options.model }),
         cwd: dir, ephemeral: true, approvalPolicy: "never", permissions: "atom_host_tools",
         config, baseInstructions: req.system,
         dynamicTools: runner.specs().map((t) => ({ type: "function", name: t.name, description: t.description, inputSchema: t.inputSchema })),
-      });
+      }));
       if (started.activePermissionProfile?.id !== "atom_host_tools" || !started.thread?.id) throw fail("unavailable", "This Codex version cannot enforce ATOM's file policy. Update Codex before using its tools.");
       s.thread = started.thread.id; s.model = started.model ?? options.model;
-      const activeServers = await request(s, "mcpServerStatus/list", { threadId: s.thread, detail: "toolsAndAuthOnly", limit: 100 });
+      const activeServers = await timed("policy", () => request(s, "mcpServerStatus/list", { threadId: s.thread, detail: "toolsAndAuthOnly", limit: 100 }));
       if (!Array.isArray(activeServers.data) || activeServers.nextCursor || activeServers.data.some((server: any) => server.runtimeStatus !== "disabled" || Object.keys(server.tools ?? {}).length)) throw fail("unavailable", "Codex loaded external MCP servers. ATOM refused this session before running the model.");
     })();
     sessions.set(key, s);
@@ -184,37 +221,51 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
     name: "codex",
     close() { for (const s of [...sessions.values()]) close(s); },
     async complete(req, signal) {
+      const began = performance.now();
       if (signal.aborted) throw fail("cancelled", "Codex was stopped.");
       const key = req.context.sessionId;
       let s = sessions.get(key);
       if (s?.busy) throw fail("unknown", "Codex is still answering in this chat.");
       const runner = options.runner(req);
-      const toolNames = runner.specs().map((t) => t.name).join(",");
-      const signature = `${req.system}\n${toolNames}`;
-      const old = s as (Session & { signature?: string }) | undefined;
+      const specs = runner.specs();
+      const toolSignature = JSON.stringify(specs);
+      const signature = req.system;
       const samePrefix = s && s.seen.length < req.messages.length && s.seen.every((m, i) => m.role === req.messages[i]?.role && m.content === req.messages[i]?.content);
       if (s?.active) throw fail("unknown", "Codex is still answering in this chat.");
-      if (s && (!samePrefix || old?.signature !== signature)) { close(s); s = undefined; }
-      if (!s) { s = open(key, req, runner); (s as Session & { signature: string }).signature = signature; }
+      const restart = !s ? "missing" : !samePrefix ? "transcript" : s.signature !== signature ? "instructions" : s.toolSignature !== toolSignature ? "tools" : "none";
+      if (s && restart !== "none") { close(s); s = undefined; }
+      const reused = Boolean(s);
+      if (!s) { s = open(key, req, runner); s.signature = signature; s.toolSignature = toolSignature; }
       const session = s;
+      session.rawUsage = undefined;
+      const diagnostic: CodexTurnDiagnostic = { session: reused ? "reused" : "new", restart, setup: reused ? {} : session.setup, readyMs: 0, totalMs: 0, completed: false,
+        context: { systemBytes: Buffer.byteLength(req.system), extraBytes: Buffer.byteLength(req.systemExtra ?? ""), historyBytes: Buffer.byteLength(JSON.stringify(req.messages)), turnInputBytes: 0, toolBytes: Buffer.byteLength(toolSignature), tools: specs.map((t) => ({ name: t.name, bytes: Buffer.byteLength(JSON.stringify(t)) })) } };
       session.busy = true;
       clearTimeout(session.idle);
       const abort = () => close(session, fail("cancelled", "Codex was stopped."));
       signal.addEventListener("abort", abort, { once: true });
       try {
         await session.ready;
+        diagnostic.readyMs = performance.now() - began;
+        diagnostic.context.inheritedSkillsDisabled = session.inheritedSkillsDisabled;
         if (signal.aborted) throw fail("cancelled", "Codex was stopped.");
         const fresh = !session.seen.length;
         const messages = fresh ? req.messages : req.messages.slice(session.seen.length);
         const text = `${fresh ? "Conversation so far (treat earlier ATOM replies as yours):\n" : ""}${messages.map((m) => `${m.role === "user" ? "User" : "ATOM"}: ${m.content}`).join("\n\n")}${req.systemExtra ? `\n\nContext from ATOM, not said by the user:\n${req.systemExtra}` : ""}`;
+        diagnostic.context.turnInputBytes = Buffer.byteLength(text);
         const answer = new Promise<string>((resolve, reject) => { session.active = { request: req, runner, text: "", final: "", resolve, reject, signal }; });
         // Register the result listener before turn/start: short turns can complete before its acknowledgement.
         const started = request(session, "turn/start", { threadId: session.thread, effort: "low", input: [{ type: "text", text, text_elements: [] }] });
         const [, reply] = await Promise.all([started, answer]);
         session.seen = [...req.messages.map((m) => ({ role: m.role, content: m.content })), { role: "assistant", content: reply }];
+        diagnostic.completed = true;
         return { text: reply };
       } catch (error) { close(session); if (signal.aborted) throw fail("cancelled", "Codex was stopped."); throw error; }
       finally {
+        diagnostic.totalMs = performance.now() - began;
+        if (session.active?.firstTextAt !== undefined) diagnostic.firstTextMs = session.active.firstTextAt - began;
+        diagnostic.usage = session.rawUsage;
+        try { options.onDiagnostic?.(diagnostic, req); } catch { /* Observability must not change a model result. */ }
         signal.removeEventListener("abort", abort); session.active = undefined; session.busy = false;
         if (!session.closed) { session.idle = setTimeout(() => close(session), options.idleMs ?? 300_000); session.idle.unref(); }
       }

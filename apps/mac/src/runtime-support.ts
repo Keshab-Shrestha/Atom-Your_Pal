@@ -84,6 +84,7 @@ export function withLogging(log: Logger, micName: () => Promise<string>, events:
         transcriptionMs: t.transcription,
         modelMs: t.model,
         firstSoundMs: t.firstSound,
+        firstTextMs: t.firstText,
       });
       events.onTurnComplete?.(t);
     },

@@ -296,3 +296,31 @@ test("a typed turn is not spoken when speakTyped says false, and a voice turn st
   assert.deepEqual(done, ["done"]);
   assert.equal(loop.state, "idle");
 });
+
+test("first-text timing ignores empty chunks and includes the completed-reply fallback", async () => {
+  for (const streaming of [true, false]) {
+    let clock = 100;
+    let completed!: () => void;
+    const done = new Promise<void>((resolve) => { completed = resolve; });
+    const loop = createVoiceLoop({
+      now: () => clock,
+      record: () => { throw new Error("no microphone"); },
+      stt: { transcribe: async () => "" },
+      core: { handle: async (_input, _signal, hooks) => {
+        clock = 105; hooks?.onText?.("");
+        clock = 125; if (streaming) hooks?.onText?.("Cedar");
+        clock = 170;
+        return { text: "Cedar" };
+      } },
+      tts: { warmUp: async () => {}, close: () => {}, speak: async () => {} },
+      speakTyped: () => false,
+      events: { onTurnComplete: (timing) => {
+        assert.equal(timing.firstText, streaming ? 25 : 70);
+        assert.equal(timing.model, 70);
+        completed();
+      } },
+    });
+    loop.ask("hello");
+    await done;
+  }
+});
