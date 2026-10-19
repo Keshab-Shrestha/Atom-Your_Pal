@@ -1,5 +1,17 @@
 # ZENO Project Status
 
+## Current interaction upgrade — 2026-10-19 (ADR-178)
+
+Saved all requested T3 interactions and the explicit decision to make Full access a separate upgrade. First delivery is a searchable per-chat provider/model picker with provider filtering, favorites, unavailable states, custom IDs and default inheritance. Favorites persist locally with provider identity and bounded size. Existing host validation and chat/draft/grant state remain authoritative; selection errors are visible at the composer. [Complete requested sequence](docs/t3-interaction-upgrades.md).
+
+751 Swift tests / 138 suites, signed release build, 89 gallery scenes and all 21 visual comparisons pass. Live search/filter/favorites across restart/custom-ID validation/default inheritance/model switching and draft retention passed; final app reopened Ready with original chat/model, empty composer and test favorite removed. Physical arrow/Return acceptance remains unverified because automated key injection dismisses the popover. ADR-177/178 are included together in this verified publication on main at Keshab’s request. Thinking levels, access modes including separate Full access, pane surfaces, project filter/settings and repository source creation/import are requested follow-ups, not delivered controls.
+
+## Current design preview fix — 2026-10-19 (ADR-177)
+
+The reported perpetual Loading models screen is the Design system showcase. Real app status and AI model settings were Ready/available. Examples now carry explicit preview labels and notices, and sample New chat/retry actions are disabled. The loading sample opts out of the real timeout so it stays distinct from the Slow example; real loading screens retain their default behavior.
+
+745 Swift tests / 137 suites, signed build, 87 gallery scenes and all 19 visual comparisons pass. Live preview stayed distinct after 44 seconds, with disabled sample actions and app Ready. Only the reviewed showcase reference changed; app left on State previews with its original theme. Local after published desktop redesign 9d99578; no runtime/provider/policy change.
+
 ## Current desktop redesign — 2026-10-19 (ADR-176)
 
 T3's sidebar/settings/panel patterns now guide the main ATOM window, with one neutral light/dark appearance and compact shell across destinations. New chat sits beside search; projects/chats scroll together; settings has category filtering and direct navigation; workspace uses a matching tab strip. Existing actions, grants and confirmation policies remain intact. [Scope/evidence](docs/desktop-t3-design.md).

@@ -28,6 +28,8 @@ struct EmptyStateView: View {
 struct LoadingStateView: View {
     let text: String
     var retry: (() -> Void)? = nil
+    /// Demonstration views can keep the loading sample stable without starting a timeout.
+    private let automaticallyShowsSlow: Bool
     /// How long before the "taking longer" line appears.
     static let slowAfter: Duration = .seconds(15)
     @State private var slow: Bool
@@ -35,9 +37,10 @@ struct LoadingStateView: View {
     @Environment(\.islandSnapshot) private var snapshot
 
     /// `slow` starts the view in its "taking longer" form: for the gallery.
-    init(text: String, retry: (() -> Void)? = nil, slow: Bool = false) {
+    init(text: String, retry: (() -> Void)? = nil, slow: Bool = false, automaticallyShowsSlow: Bool = true) {
         self.text = text
         self.retry = retry
+        self.automaticallyShowsSlow = automaticallyShowsSlow
         _slow = State(initialValue: slow)
     }
 
@@ -57,7 +60,7 @@ struct LoadingStateView: View {
         .padding(.top, 6)
         .frame(maxWidth: 460, alignment: .leading)
         .task {
-            guard !slow else { return }
+            guard automaticallyShowsSlow, !slow else { return }
             try? await Task.sleep(for: Self.slowAfter)
             if !Task.isCancelled { slow = true }
         }

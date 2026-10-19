@@ -75,6 +75,7 @@ enum IslandGallery {
         writeMenuBar(to: directory)
         writeMenuBar(to: directory, flat: false, name: "15-menu-bar-item-lantern")
         writeChatDesign(to: directory)
+        writeModelPicker(to: directory)
         writeGitWorkspace(to: directory)
         writeWorkspace(to: directory)
         writeProjects(to: directory)

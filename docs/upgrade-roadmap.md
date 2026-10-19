@@ -1,5 +1,7 @@
 # ATOM combined upgrade roadmap
 
+Current requested interaction upgrades (2026-10-19, ADR-178): [complete T3 interaction sequence](t3-interaction-upgrades.md) records the searchable provider/model picker, thinking levels, access modes (Full access explicitly separate), multi-surface right pane, project filtering/settings and project source palette/imports. The first model-picker capability passes 751 Swift tests, signed build, 21 visual comparisons and live selection/draft/favorites checks; the remaining controls require their own real runtime/project support.
+
 Current desktop design request (2026-10-19, ADR-176): broaden T3-inspired styling to all main-window destinations and add contextual settings navigation/filter, consistent chrome, quieter scrolling project/chat lists and workspace tabs. [Scope/evidence](desktop-t3-design.md). Resizable workspace, command palette and richer file navigation remain candidates recorded in the [T3 reference](../reference/t3code-visual-design.md), separate from the existing Git/PR roadmap.
 
 Current visual request (2026-10-19, ADR-175): adapt the actual T3 Code chat layout/style to native ATOM, using pinned source and the installed app. Neutral surfaces, compact chrome, readable messages and a roomy composer replace the older chat styling. Existing functionality and policy stay intact; local verification and scope are in [chat design](chat-t3-design.md). This follows ADR-174 at Keshab’s request; Git commit subjects/PR upgrades remain separate.

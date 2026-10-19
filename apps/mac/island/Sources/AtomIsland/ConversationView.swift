@@ -61,6 +61,14 @@ struct Composer: View {
             if let message = projectSearchNotice.wrappedValue, mentionClosed.wrappedValue == nil, MentionMenu.query(in: draft.wrappedValue) != nil, readOnly == nil {
                 Text(message).font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             }
+            if let error = model.modelError {
+                HStack(alignment: .top, spacing: 8) {
+                    Text(error).font(.system(size: 12)).foregroundStyle(theme.problem.color).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    Button { model.modelError = nil } label: { Image(systemName: "xmark") }
+                        .buttonStyle(.plain).accessibilityLabel("Dismiss settings error")
+                }
+            }
             if readOnly == nil { queueControls }
             if !snapshot { recoveryControls }
             if !attached.wrappedValue.isEmpty || attached.wrappedValue.notice != nil {

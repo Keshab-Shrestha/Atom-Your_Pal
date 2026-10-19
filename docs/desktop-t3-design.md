@@ -20,3 +20,10 @@ Source/attribution: [pinned T3 review](../reference/t3code-visual-design.md). Th
 - Existing fictional Cedar project expands and opens; workspace opens and Files/Changes/Git each select and show their existing data. Returned to Files, closed the panel, restored the original Juniper chat and collapsed Cedar. Final app Ready, empty composer, no work/approval dispatched, original theme retained.
 
 Scope limits: this does not certify every settings value or native shortcut/VoiceOver input combination. Existing backend tests were not rerun because no backend/protocol/policy source changed. No provider request or project-file mutation was used for these checks. `git diff --check` passes. Work is local on main alongside ADR-174/175, uncommitted/unpushed; unrelated `graphify-out/` is untouched.
+
+
+## Design preview clarification (ADR-177)
+
+The Design system showcase is a component demonstration. Its Loading/Slow examples do not inspect model availability. Added explicit notices and example labels, disabled the no-op sample New chat/retry actions, and stopped the Loading example from entering its real 15-second slow state. LoadingStateView retains automatic slow progression by default for actual loading sites. This does not change the runtime or model catalog.
+
+745 Swift tests / 137 suites, signed release build, 87 gallery scenes and all 19 visual comparisons pass. Only the reviewed `22-design-showcase.png` reference changed. Live inspection confirmed the real AI model page had Codex/GPT-6 Luna and the app was Ready. The rebuilt showcase retained exactly one slow-state warning after 44 seconds, confined to the explicit Slow response example, with disabled sample actions. Original Lantern theme retained; app left Ready on State previews without model calls or setting changes. Logs: `/tmp/atom-preview-label-tests.log`, `/tmp/atom-preview-label-build.log`, `/tmp/atom-preview-label-gallery-verified.log`. Local/uncommitted after published 9d99578; `graphify-out/` remains untouched. No architecture, storage or permission boundary changed.

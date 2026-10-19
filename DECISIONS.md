@@ -1,5 +1,17 @@
 # ZENO Architecture Decisions
 
+## ADR-178 — Searchable provider/model picker and recorded interaction scope (2026-10-19)
+
+**Decision:** Adapt the supplied T3 picker to native SwiftUI using the actual ModelInfo catalog, local provider-scoped favorites, keyboard search/filter selection, custom IDs and existing chat.model command. Keep a stable opened-chat identity and dismiss on chat switch; do not optimistically relabel a refused selection. Favorites store only bounded provider/model identities in UserDefaults and do not select a model or confer permissions. Existing checked host operation determines the effective per-chat model; errors are visible beside the input.
+
+**Requested next steps:** Thinking levels require persisted protocol/gateway support (currently disabled thinking in Claude and fixed low effort in Codex). Chat access is currently a summary, not a mode switch. Keshab explicitly chose Full access as its own upgrade. The requested right-pane surfaces, project filter/settings and source palette are recorded with acceptance boundaries in [interaction upgrades](docs/t3-interaction-upgrades.md). This picker does not imply those controls are implemented.
+
+## ADR-177 — Distinguish component previews from live state (2026-10-19)
+
+**Problem:** Design system showcase loading/slow examples used real model-loading wording, with no nearby preview explanation. The loading sample ran the real 15-second slow timer, so both showed a runtime failure message. Screenshot and live reproduction matched this view; the actual AI model settings were available.
+
+**Decision:** Explicit component/state preview notices and example labels, disabled no-op sample actions, and an optional automaticallyShowsSlow parameter on LoadingStateView, default true. Only showcase examples opt out. Actual model loading/timeouts/retry paths remain unchanged. This is presentation-only, with no grant, network, provider, persistence or protocol change.
+
 ## ADR-176 — T3-inspired desktop shell (2026-10-19)
 
 **Decision:** At Keshab's explicit request to replace the broader design, extend ADR-175's neutral hierarchy and compact chrome across the main window. Use one 248pt sidebar, plain selected/hover rows, a search/new-chat utility row, one project/chat scroll region, settings-specific category navigation/filter and a quiet workspace tab strip. Use the existing theme's light/dark choice without a new persistence model. Direct Light/Dark controls select existing Daylight/Void themes; companion theme options remain available with an explicit explanation.

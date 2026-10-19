@@ -35,6 +35,7 @@ public final class IslandSettings {
     static let themeKey = "atom.look.theme"
     static let sidebarKey = "atom.window.sidebar"
     static let sidebarHiddenKey = "atom.window.sidebarHidden"
+    static let favoriteModelsKey = "atom.models.favorites"
     /// Set once the ADR-084 move to Lantern has run, so a later choice of Quiet Native sticks.
     static let lanternMoveKey = "atom.look.lanternDefault"
     /// Set once the ADR-086 move to Void has run, so a later choice of Lantern sticks.
@@ -95,6 +96,18 @@ public final class IslandSettings {
     public var sidebar: SidebarLayout { didSet { defaults.set(sidebar.storage, forKey: Self.sidebarKey) } }
     /// ADR-128: the window's left panel is hidden (⌥⌘H). Default shown.
     public var sidebarHidden: Bool { didSet { defaults.set(sidebarHidden, forKey: Self.sidebarHiddenKey) } }
+
+    /// Local picker bookmarks only. They do not select a provider/model or grant access.
+    public private(set) var favoriteModels: Set<String> {
+        didSet { defaults.set(favoriteModels.sorted(), forKey: Self.favoriteModelsKey) }
+    }
+
+    public func toggleFavoriteModel(provider: String, model: String) {
+        let key = ModelPickerEntry.key(provider: provider, model: model)
+        guard key.count <= 256 else { return }
+        if favoriteModels.contains(key) { favoriteModels.remove(key) }
+        else if favoriteModels.count < 128 { favoriteModels.insert(key) }
+    }
 
     /// How big Pal is. Default medium (the original size).
     public var palSize: PalSize { didSet { store(palSize.rawValue, Self.palSizeKey) } }
@@ -215,6 +228,7 @@ public final class IslandSettings {
         theme = Self.choice(defaults, Self.themeKey, .void)
         sidebar = SidebarLayout(storage: defaults.string(forKey: Self.sidebarKey))
         sidebarHidden = defaults.bool(forKey: Self.sidebarHiddenKey)
+        favoriteModels = Set((defaults.stringArray(forKey: Self.favoriteModelsKey) ?? []).prefix(128).filter { $0.count <= 256 })
         dictationMode = (defaults.string(forKey: Self.dictationModeKey)).flatMap(DictationMode.init(rawValue:)) ?? .automatic
         livePreview = defaults.object(forKey: Self.livePreviewKey) as? Bool ?? true
         removeFillers = defaults.object(forKey: Self.removeFillersKey) as? Bool ?? true

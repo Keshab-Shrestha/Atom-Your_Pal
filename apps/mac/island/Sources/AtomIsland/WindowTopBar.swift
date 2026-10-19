@@ -73,62 +73,6 @@ struct WindowDragArea: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {}
 }
 
-/// ADR-097: the chat's own model. Picking one applies to this chat only; "Default" follows Settings → Model.
-/// Voice and new chats use the default.
-struct ChatModelMenu: View {
-    let model: IslandModel
-    @Environment(\.theme) private var theme
-    @State private var customOpen = false
-    @State private var customId = ""
-
-    var body: some View {
-        if let info = model.modelInfo {
-            let chats = model.chats
-            let ownProvider = chats?.currentProvider
-            let ownModel = chats?.currentModel
-            let value = ownProvider.flatMap { p in ownModel.map { info.modelName(provider: p, model: $0) } } ?? info.currentModelName
-            Menu {
-                Button {
-                    model.chooseChatModel(provider: nil, model: nil)
-                } label: {
-                    let name = "Default (\(info.currentModelName))"
-                    if ownModel == nil { Label(name, systemImage: "checkmark") } else { Text(name) }
-                }
-                ForEach(info.providers.filter(\.available)) { provider in
-                    Section(provider.name) {
-                        ForEach(provider.models) { option in
-                            Button {
-                                model.chooseChatModel(provider: provider.id, model: option.id)
-                            } label: {
-                                if provider.id == ownProvider && option.id == ownModel { Label(option.name, systemImage: "checkmark") } else { Text(option.name) }
-                            }
-                        }
-                    }
-                }
-                Divider()
-                Button("Custom model…") { customOpen = true }
-            } label: {
-                Text(value + "  ⌄").font(.system(size: 12)).foregroundStyle(theme.text2.color)
-            }
-            .menuStyle(.borderlessButton).menuIndicator(.hidden).buttonStyle(.plain).fixedSize()
-            .help("The model for this chat only")
-            .accessibilityLabel("Model for this chat")
-            .accessibilityIdentifier("chat.model")
-            .alert("Custom model for this chat", isPresented: $customOpen) {
-                TextField("model-id", text: $customId)
-                Button("Save") {
-                    let id = customId.trimmingCharacters(in: .whitespaces)
-                    if ModelInfo.isValidModelId(id) { model.chooseChatModel(provider: ownProvider ?? info.provider, model: id) }
-                    customId = ""
-                }
-                Button("Cancel", role: .cancel) { customId = "" }
-            } message: {
-                Text("Type the model id for \(info.providers.first { $0.id == (ownProvider ?? info.provider) }?.name ?? "the provider"). Use up to 100 letters, digits, \".\", \"_\", \":\" or \"-\".")
-            }
-        }
-    }
-}
-
 /// ADR-128: the sidebar button: in the sidebar's header while it is shown, in the top bar's left end while it is hidden.
 struct SidebarToggleButton: View {
     let hidden: Bool

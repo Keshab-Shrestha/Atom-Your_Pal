@@ -1,5 +1,17 @@
 # ZENO Task Plan
 
+## Current task — Searchable chat model picker (ADR-178, 2026-10-19)
+
+Keshab requested T3’s functional provider/model/thinking/access controls, right pane, project filter and project source palette. He explicitly chose Full access as a separate upgrade. The complete request, current gaps and delivery order are saved in [interaction upgrades](docs/t3-interaction-upgrades.md). This first capability replaces the provider/model menu with a searchable popover, provider rail, local favorites, actual catalog/availability, custom IDs and default inheritance, using the existing checked per-chat operation. Preserve the prior ADR-177 fix and unrelated `graphify-out/`.
+
+751 Swift tests / 138 suites, final signed build, 89 gallery scenes and 21 visual comparisons pass. Live search/filter/no-match/favorite persistence/custom validation/default inheritance/model round-trip and draft retention passed. Fixed the observed presentation-state selection bug before delivery. Restored original Juniper chat, Haiku 5.5, empty composer and removed only the test favorite; final app Ready. Automated keyboard injection dismisses the native popover, so physical arrow/Return acceptance remains unverified. Remaining requested capabilities are listed explicitly in the plan; no placeholder effort/access/terminal controls are added. Keshab requested publication on main together with ADR-177 after this verification.
+
+## Current task — Clarify design previews (ADR-177, 2026-10-19)
+
+Keshab reported that the Design system page always said Loading models. Traced the screenshot to showcase examples, not the live model list. Confirmed the running app was Ready and Settings → AI model listed Codex/GPT-6 Luna. The ordinary loading example also started the real 15-second slow timer, making both samples look like failures after waiting.
+
+Add explicit component/state preview notices and example labels; disable no-op New chat/retry sample actions. Give LoadingStateView an opt-out for automatic slow-state progression, used only by showcase examples; real loading sites retain the default timeout/retry behavior. 745 Swift tests / 137 suites, signed release build, 87 gallery scenes and all 19 visual comparisons pass. Updated only the reviewed Design showcase reference. Live screen stayed stable after 44 seconds: only the explicit Slow response example displayed a timeout warning; sample New chat/retry actions were disabled. App left Ready on State previews with the original Lantern theme and no work dispatched. Local fix after published 9d99578; unrelated `graphify-out/` is untouched.
+
 ## Current task — T3-inspired desktop shell (ADR-176, 2026-10-19)
 
 Keshab authorized broader adoption of T3 Code's design, including replacement of the existing styling. Inspected its installed settings and right-panel surfaces and pinned implementation. Extend the neutral shell to every main-window destination, with compact consistent chrome, quieter navigation, scrollable projects/chats, contextual settings categories/filter and a matching workspace tab strip. Keep existing feature operations and policy boundaries. [Scope/evidence](docs/desktop-t3-design.md).

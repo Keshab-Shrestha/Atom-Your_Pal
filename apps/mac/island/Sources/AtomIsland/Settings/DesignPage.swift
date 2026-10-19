@@ -69,6 +69,11 @@ private struct DesignShowcase: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.wells) {
+            Card("Component previews") {
+                Text("Examples of ATOM’s interface. Loading, empty and error states below are demonstrations, not the app’s current status.")
+                    .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                    .fixedSize(horizontal: false, vertical: true).padding(Spacing.well)
+            }
             ShowcaseGroup("Type") {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(DesignCatalog.typeScale, id: \.name) { step in
@@ -130,14 +135,20 @@ private struct DesignShowcase: View {
                 caption("A status is a word with a dot, never colour alone.")
             }
 
-            ShowcaseGroup("States") {
-                stateWell("Empty") {
+            ShowcaseGroup("State previews") {
+                caption("Static examples — nothing is loading here. Sample actions are disabled.")
+                stateWell("Empty example") {
                     EmptyStateView(title: "No chats yet",
                                    detail: "Your conversations with ATOM appear here.",
-                                   action: (title: "New chat", symbol: "plus", run: {}))
+                                   action: (title: "New chat", symbol: "plus", run: {})).disabled(true)
                 }
-                stateWell("Loading") { LoadingStateView(text: "Loading models") }
-                stateWell("Slow") { LoadingStateView(text: "Loading models", retry: {}, slow: true) }
+                stateWell("Loading example") {
+                    LoadingStateView(text: "Loading models — example", automaticallyShowsSlow: false)
+                }
+                stateWell("Slow response example") {
+                    LoadingStateView(text: "Loading models — example", retry: {}, slow: true, automaticallyShowsSlow: false)
+                        .disabled(true)
+                }
                 stateWell("Long text", inset: false) {
                     Row(title: "Read the screen before answering, including windows that belong to other apps and other Spaces",
                         detail: "A long title and a full-sentence detail wrap onto more lines; they are never cut short.") {
