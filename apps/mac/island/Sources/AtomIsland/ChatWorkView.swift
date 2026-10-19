@@ -94,27 +94,22 @@ struct ChatQuestionCard: View {
     }
 }
 
-struct ChatAccessDetails: View {
+struct ChatAccessContent: View {
     let model: IslandModel
-    @State private var shown = false
     @Environment(\.theme) private var theme
     var body: some View {
-        Button { shown = true; model.inspectSavedChat() } label: { Label("Access", systemImage: "lock.shield") }
-            .buttonStyle(SnapshotBorderlessButtonStyle()).font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
-            .popover(isPresented: $shown) {
-                VStack(alignment: .leading, spacing: 9) {
-                    Text("Chat access").font(.headline)
-                    if let access = model.chatControls.snapshot?.info?.access {
-                        Text("Provider: \(access.provider)")
-                        Text(access.hostTools ? "Uses ATOM's checked host tools." : "This provider has no ATOM host tools.")
-                        Text(access.project ? "Associated with a project; project file policy applies." : "No project folder associated with this chat.")
-                        Text("Continuing edit permissions: \(access.fileGrants) exact files in this chat.")
-                        Text("Computer tools configured: \(access.computer ? "on" : "off"). Web search setting: \(access.web ? "on" : "off").")
-                    } else { Text("Saved chat details are unavailable. Save a message or refresh to inspect them.") }
-                    Text("This is the last inspected configuration, not unrestricted access or a permissions switch. Attachments, tool availability, protected files, approval cards and macOS permissions still have their own checks.")
-                    Text("To inspect exact file grants, send ‘Show file permissions for this chat’. To revoke them, send ‘Forget file permissions for this chat’.")
-                    Button("Refresh", action: model.inspectSavedChat)
-                }.font(.system(size: 12)).foregroundStyle(theme.text2.color).padding(16).frame(width: 340)
-            }
+        VStack(alignment: .leading, spacing: 9) {
+            Text("Chat access").font(.headline)
+            if let access = model.chatControls.snapshot?.info?.access {
+                Text("Provider: \(access.provider)")
+                Text(access.hostTools ? "Uses ATOM's checked host tools." : "This provider has no ATOM host tools.")
+                Text(access.project ? "Associated with a project; project file policy applies." : "No project folder associated with this chat.")
+                Text("Continuing edit permissions: \(access.fileGrants) exact files in this chat.")
+                Text("Computer tools configured: \(access.computer ? "on" : "off"). Web search setting: \(access.web ? "on" : "off").")
+            } else { Text("Saved chat details are unavailable. Save a message or refresh to inspect them.") }
+            Text("This is the last inspected configuration, not unrestricted access or a permissions switch. Attachments, tool availability, protected files, approval cards and macOS permissions still have their own checks.")
+            Text("To inspect exact file grants, send ‘Show file permissions for this chat’. To revoke them, send ‘Forget file permissions for this chat’.")
+            Button("Refresh", action: model.inspectSavedChat)
+        }.font(.system(size: 12)).foregroundStyle(theme.text2.color).padding(16).frame(width: 340)
     }
 }

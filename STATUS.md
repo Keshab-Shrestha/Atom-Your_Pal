@@ -1,5 +1,23 @@
 # ZENO Project Status
 
+## Current desktop redesign — 2026-10-19 (ADR-176)
+
+T3's sidebar/settings/panel patterns now guide the main ATOM window, with one neutral light/dark appearance and compact shell across destinations. New chat sits beside search; projects/chats scroll together; settings has category filtering and direct navigation; workspace uses a matching tab strip. Existing actions, grants and confirmation policies remain intact. [Scope/evidence](docs/desktop-t3-design.md).
+
+745 Swift tests / 137 suites, signed release build, 87 gallery scenes and all 19 visual comparisons pass. Live navigation/accessibility, settings filter/select/light appearance/restoration, hidden sidebar/focus and workspace tabs passed. Original chat/sidebar/theme restored; app left Ready with an empty composer. ADR-174–176 form one verified desktop design publication on main at Keshab’s request. Older local/push notes below record the individual implementation batches; `graphify-out/` is untouched.
+
+## Current T3 Code chat design — 2026-10-19 (ADR-175)
+
+Reworked the actual chat presentation using T3 Code source at `1451e7cb` and its installed app as references: neutral surfaces, compact project/title header, wider bounded message column, soft 80% user bubbles, 14pt replies at consistent contrast, hover/focus menus and a larger composer with controls along the bottom. Empty chat centers the heading/input. Existing theme light/dark choice is respected without rewriting preferences; other pages retain their palette. ATOM branding and functional controls remain native; no T3 runtime, access mode or provider integration is imported.
+
+All 745 Swift tests, signed release builds, 83 gallery scenes / 17 visual comparisons and live draft/Japanese/model/menu checks pass. Test drafts were cleared without sending. Final empty-chat and polished composer checks passed; original chat/sidebar restored, app left Ready. [Pinned reference, licensing, scope and final evidence](docs/chat-t3-design.md). Local on main alongside ADR-174; not committed/pushed. Prior workspace/Git commit 818b644 is published with all GitHub checks green. `graphify-out/` remains untouched.
+
+## Current chat layout upgrade — 2026-10-19 (ADR-174)
+
+The completed workspace/Git upgrades were pushed as `818b644` on main; TypeScript, Swift and visual GitHub checks all passed. Keshab then requested fewer permanent controls in chat. Whole-message copy/edit/retry and reply copy/quote/timings now live in compact ellipsis menus, with header utilities grouped into Chat options. The utility strip and per-message action footers are removed. Project reveal and cache/replay diagnostics move into the menu; workspace stays directly accessible as an icon. Recovery has a small attention indicator. Work, approval, error and mutation feedback stay visible.
+
+All 745 Swift tests passed. Final signed build, all 80 gallery scenes / 14 visual comparisons and live menu/sheet/copy/unsent-quote/project-workspace checks passed. Only two reviewed chat references changed. Original chat/sidebar restored; app left Ready with an empty draft. Evidence is in [conversation controls](docs/conversation-controls.md). Existing grants, fork/brief checks, history and explicit-send behavior are unchanged. The layout batch is local, uncommitted/unpushed; `graphify-out/` remains untouched. Next independent upgrade: useful task commit subjects, then PR integration.
+
 ## Current task branch upgrade — 2026-10-19 (ADR-173)
 
 Delivered local task-branch provenance/discovery: exact saved creation commits for new branches; explicit older estimates and unavailable warnings; local behind counts against the recorded creation branch; active checked repository-root project discovery; explicit refresh with stale patch clearing. Reused/legacy branches retain their names and facts. Subfolder projects do not expose parent-repository changes. Discovery does not broaden Push access.

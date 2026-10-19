@@ -2,8 +2,7 @@ import AppKit
 import SwiftUI
 import AtomIslandCore
 
-/// The ATOM window's content (ADR-081), in Lantern (ADR-084): a darker sidebar of helpers as discs; the chosen
-/// helper with its "Opens in" and "Model" pills, a task field and one list of jobs, or the report being read.
+/// ATOM's shared desktop shell (ADR-176), adapted from T3 Code. All pages share navigation and neutral surfaces.
 /// The logic lives in `HelpersState`; these views only draw it.
 struct HelpersView: View {
     let model: IslandModel
@@ -15,12 +14,14 @@ struct HelpersView: View {
     static let topBarGap: CGFloat = 36
 
     var body: some View {
-        let palette = model.settings.theme.palette
+        let chat = model.windowPage == .chat
+        let palette = ChatAppearance.palette(dark: model.settings.theme.palette.isDark)
         let sidebarHidden = model.settings.sidebarHidden
         HStack(spacing: 0) {
             if !sidebarHidden {
                 HStack(spacing: 0) {
-                    HelperSidebar(model: model).frame(width: 224)
+                    HelperSidebar(model: model).frame(width: 248)
+                        .themed(ChatAppearance.palette(dark: palette.isDark, sidebar: true))
                     Rectangle().fill(palette.separator.color).frame(width: palette.isFlat ? 1 : 0.5)
                 }
                 .transition(.move(edge: .leading))
@@ -34,17 +35,18 @@ struct HelpersView: View {
             // A Settings page (Model, Voice...) goes back to the Settings list with this arrow, the one in the top bar.
             let settingsBack: (() -> Void)? = model.windowPage == .settings && model.settingsPage != nil
                 ? { withAnimation(Motion.settle(reduceMotion)) { model.settingsPage = nil } } : nil
-            WindowTopBar(title: page.title, symbol: page.symbol, showSidebar: sidebarHidden ? { model.toggleSidebar() } : nil, back: settingsBack ?? (model.history.canGoBack && !ownBack ? { model.goBack() } : nil)) {
+            WindowTopBar(title: page.title, symbol: page.symbol, compact: true, context: chat ? model.chats?.currentProject?.name : model.windowPage == .settings && model.settingsPage != nil ? "Settings" : nil, showSidebar: sidebarHidden ? { model.toggleSidebar() } : nil, back: settingsBack ?? (model.history.canGoBack && !ownBack ? { model.goBack() } : nil)) {
                 if model.windowPage == .chat {
-                    // 2026-10-15: New chat, Sounds and Delete are not here. New chat is the icon beside "Chats" in the
+                    // 2026-10-15: New chat, Sounds and Delete are not here. New chat is the icon beside search in the
                     // sidebar, Delete is on a chat's row there, and the sounds are in Settings → Sounds.
-                    if let project = model.chats?.currentProject {
-                        ProjectChip(project: project)
+                    if model.chats?.currentProject != nil {
                         Button { model.workspace.shown.toggle() } label: {
-                            Label("Files / Changes", systemImage: "sidebar.right")
+                            Image(systemName: "sidebar.right").frame(width: 24, height: 24)
                         }.buttonStyle(.borderless).font(.system(size: 11))
+                            .accessibilityLabel("Files / Changes")
                             .help(model.workspace.shown ? "Close project workspace" : "Open project files and tracked changes")
                     } // ADR-107
+                    ConversationControls(model: model)
                 }
             }
             Group {
@@ -62,7 +64,7 @@ struct HelpersView: View {
                         HStack(spacing: 0) {
                             if !model.workspace.shown || geometry.size.width >= 780 {
                                 ConversationTab(model: model)
-                                    .frame(maxWidth: 680).frame(maxWidth: .infinity).padding(.top, 8)
+                                    .frame(maxWidth: ChatAppearance.column).frame(maxWidth: .infinity)
                             }
                             if model.workspace.shown {
                                 Rectangle().fill(palette.separator.color).frame(width: 1)
@@ -73,7 +75,7 @@ struct HelpersView: View {
                     }
                 } else if model.windowPage == .settings {
                     SettingsTab(model: model)
-                        .frame(maxWidth: 640)
+                        .frame(maxWidth: 784)
                         .frame(maxWidth: .infinity)
                         .padding(.top, 8)
                 } else if model.helpers.isCreatingAgent {
@@ -108,6 +110,7 @@ struct HelpersView: View {
             Text("What you typed here is not saved.")
         }
         .themed(palette)
+        .environment(\.desktopDesign, true)
     }
 }
 
@@ -122,7 +125,7 @@ extension HelpersView {
         case .scheduled: return ("Scheduled", "clock")
         case .plugins: return ("Plugins", "puzzlepiece.extension")
         case .brain: return ("Second brain", "brain.head.profile")
-        case .settings: return ("Settings", "gearshape")
+        case .settings: return (model.settingsPage?.rawValue ?? "Settings", "gearshape")
         case .agents: break
         }
         if model.helpers.isCreatingAgent { return ("New agent", "person.badge.plus") }
@@ -156,6 +159,7 @@ private struct Waiting: View {
 private struct HelperSidebar: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
+    @Environment(\.desktopDesign) private var desktopDesign
     /// The page being dragged. `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
     private let dragging = State<SidebarItem?>(initialValue: nil)
     @Environment(\.islandSnapshot) private var snapshot
@@ -163,30 +167,42 @@ private struct HelperSidebar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             WindowHeader(model: model)
-            // ADR-098: one search over chats, tasks and reports; its results replace the pages while there are words.
-            SidebarSearchField(model: model).padding(.bottom, 4)
-            if !model.searchQuery.isEmpty {
-                Scrollable { SidebarSearchResults(model: model) }
+            if model.windowPage == .settings {
+                SettingsSidebar(model: model)
             } else {
-                // 2026-10-15: the pages are in two groups Keshab arranges by dragging. Only the Chats list scrolls; the
-                // header, the pages and Projects stay where they are.
-                group(model.settings.sidebar.top, bottom: false)
-                // ADR-107: projects (a folder and its chats) above the plain chats.
-                ProjectsSection(model: model)
-                // ADR-091: Keshab's chats where the team was (the team is on the Board and each worker's page).
-                Scrollable { ChatsList(model: model) }
-                    .frame(maxHeight: .infinity)
+                // ADR-098: one search over chats, tasks and reports; its results replace the pages while there are words.
+                HStack(spacing: 4) {
+                    SidebarSearchField(model: model)
+                    Button {
+                        model.navigate { model.newConversation(); model.windowPage = .chat }
+                    } label: {
+                        Image(systemName: "square.and.pencil").font(.system(size: 13)).foregroundStyle(theme.text2.color)
+                            .frame(width: 28, height: 30).contentShape(Rectangle())
+                    }.buttonStyle(.plain).help("Start a new chat").accessibilityLabel("New chat")
+                }.padding(.bottom, 8)
+                if !model.searchQuery.isEmpty {
+                    Scrollable { SidebarSearchResults(model: model) }
+                } else {
+                    // App destinations retain their drag order; projects and chats share the scrolling region.
+                    group(model.settings.sidebar.top, bottom: false)
+                    // ADR-107: projects (a folder and its chats) above the plain chats.
+                    Scrollable {
+                        ProjectsSection(model: model)
+                        ChatsList(model: model)
+                    }
+                        .frame(maxHeight: .infinity)
+                }
+                if !model.searchQuery.isEmpty { Spacer(minLength: 0) }
+                group(model.settings.sidebar.bottom, bottom: true)
             }
-            if !model.searchQuery.isEmpty { Spacer(minLength: 0) }
-            group(model.settings.sidebar.bottom, bottom: true)
         }
         .padding(.horizontal, 14)
-        .padding(.top, HelpersView.titleBarRoom)
+        .padding(.top, desktopDesign ? 12 : HelpersView.titleBarRoom)
         .padding(.bottom, 18)
         .frame(maxHeight: .infinity, alignment: .top)
         // Darker than the window: the list sits back, the chosen helper comes forward. Void: one black, the hairline
         // between them is enough.
-        .background((theme.isFlat ? Color.clear : theme.isDark ? Color.black.opacity(0.2) : theme.fill1.color).ignoresSafeArea())
+        .background((desktopDesign ? theme.surfaceSolid.color : theme.isFlat ? Color.clear : theme.isDark ? Color.black.opacity(0.2) : theme.fill1.color).ignoresSafeArea())
     }
 
     /// One group of pages. Each row can be dragged onto another row, or onto the strip at the end of the group (the way
@@ -311,23 +327,24 @@ private struct SidebarDrop: DropDelegate {
 private struct WindowHeader: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
+    @Environment(\.desktopDesign) private var desktopDesign
 
     var body: some View {
         HStack(spacing: 10) {
             if let pal = PalLibrary.pal {
                 TimelineView(.animation(minimumInterval: 1.0 / 24)) { context in
                     PalPortrait(character: pal, animation: PalAnimation.name(mood: PetBrain.mood(for: model.status.kind) ?? .resting, reaction: nil),
-                                time: context.date.timeIntervalSinceReferenceDate, size: 44, glow: theme.usesGlow)
+                                time: context.date.timeIntervalSinceReferenceDate, size: desktopDesign ? 26 : 44, glow: theme.usesGlow)
                 }
             }
             VStack(alignment: .leading, spacing: 1) {
-                Text("ATOM").font(.system(size: 14, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                Text("ATOM").font(.system(size: desktopDesign ? 13 : 14, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
                 Text(model.status.title).font(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1)
             }
             Spacer(minLength: 0)
             SidebarToggleButton(hidden: false) { model.toggleSidebar() }
         }
-        .padding(.horizontal, 6)
+        .padding(.leading, desktopDesign ? 68 : 6).padding(.trailing, 6)
         .padding(.bottom, 8)
     }
 }
@@ -339,29 +356,36 @@ struct SidebarRow: View {
     let detail: String?
     let selected: Bool
     @Environment(\.theme) private var theme
+    @Environment(\.desktopDesign) private var desktopDesign
+    @State private var hovering = false
 
     var body: some View {
         HStack(spacing: 11) {
             Image(systemName: symbol).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
                 .frame(width: 26, height: 26)
-                .overlay { if theme.isFlat { Circle().strokeBorder(theme.border.color, lineWidth: 1) } }
+                .overlay { if theme.isFlat && !desktopDesign { Circle().strokeBorder(theme.border.color, lineWidth: 1) } }
             VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color)
-                if let detail { Text(detail).font(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1) }
+                Text(title).font(.system(size: 13, weight: selected ? .medium : .regular)).foregroundStyle(theme.text.color)
+                if let detail, !desktopDesign { Text(detail).font(.system(size: 10.5)).foregroundStyle(theme.text3.color).lineLimit(1) }
             }
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 4)
         .background {
-            if theme.isFlat {
+            if desktopDesign {
+                RoundedRectangle(cornerRadius: 8).fill(selected ? theme.fill2.color : hovering ? theme.fill1.color : .clear)
+            } else if theme.isFlat {
                 RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous).strokeBorder(selected ? theme.border.color : .clear, lineWidth: 1)
             } else {
                 RoundedRectangle(cornerRadius: 12, style: .continuous).fill(selected ? (theme.isDark ? theme.fill2.color : Color.white.opacity(0.85)) : Color.clear)
             }
         }
         .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
+        .onHover { hovering = $0 }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(detail.map { title + ", " + $0 } ?? title)
+        .help(detail.map { title + ", " + $0 } ?? title)
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 }
@@ -1015,18 +1039,6 @@ private struct ChatsList: View {
             Text("Chats").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
-            Button {
-                model.navigate {
-                    model.newConversation()
-                    model.windowPage = .chat
-                }
-            } label: {
-                Label("New chat", systemImage: "square.and.pencil").labelStyle(.iconOnly)
-                    .font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
-            }
-            .buttonStyle(.plain)
-            .help("Start a new chat")
-            .accessibilityLabel("New chat")
         }
         .padding(.horizontal, 10).padding(.top, 8)
         if let list, !list.plainChats.isEmpty {

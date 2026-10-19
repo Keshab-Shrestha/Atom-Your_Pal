@@ -45,19 +45,11 @@ struct SettingsTab: View {
 
     private func pageView(_ page: IslandModel.SettingsPage) -> some View {
         VStack(spacing: 0) {
-            // The way back is the arrow in the window's top bar (HelpersView).
-            HStack(spacing: 6) {
-                Text(page.rawValue).font(.system(size: 13, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
-                Spacer()
-            }
-            .padding(.horizontal, Spacing.panel)
-            .padding(.top, 14)
-            .padding(.bottom, 10)
             Scrollable {
                 VStack(alignment: .leading, spacing: Spacing.wells) { pageContent(page) }
                     .padding(.horizontal, Spacing.panel)
                     .padding(.bottom, Spacing.panel)
-                    .padding(.top, 4)
+                    .padding(.top, 24)
             }
         }
     }

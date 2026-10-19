@@ -18,9 +18,9 @@ Table copy remains Markdown+HTML by default, with TSV/CSV alternatives. Reply de
 
 - **Copy code** copies only the displayed parsed code body, with no Markdown fences or language tag.
 - **Copy table** uses Markdown as plain text plus a rich HTML table in the same clipboard item. Its menu also offers TSV and CSV. Each action copies only that table, including its header.
-- **Copy reply** remains visible below a finished reply; ADR-144 adds the explicit format menu described above. Timing text shares its footer rather than covering Copy.
-- Pointer hover is no longer needed to make these controls exist. Buttons/menus retain native keyboard behavior; reply/code/table groups expose named accessibility actions. Message groups say You said and ATOM said. Actual focus order and VoiceOver behavior remain unverified.
-- Standard copy controls show Copied with a checkmark for about 1.4 seconds, or Copy failed if clipboard preparation/write fails. Accessibility also announces that generic outcome. Custom accessibility actions use the same writer/announcement.
+- **ADR-174:** whole-reply copy formats now live in the compact Reply actions ellipsis and right-click menu. The persistent footer row is removed; timing information is inside the menu. Code and table controls remain adjacent to their content.
+- ADR-175 message/reply menus reveal on pointer hover or keyboard focus, and remain visible with VoiceOver; named message accessibility actions are retained. Code/table controls remain adjacent to their content. Buttons/menus retain native keyboard behavior; reply/code/table groups expose named accessibility actions. Message groups say You said and ATOM said. Actual focus order and VoiceOver behavior remain unverified.
+- Inline code/table copy controls show Copied with a checkmark for about 1.4 seconds, or Copy failed if clipboard preparation/write fails. Accessibility also announces that generic outcome. Custom accessibility actions use the same writer/announcement.
 - Code/table controls are visible but disabled during streaming, with an explanatory tooltip. They become active once the reply settles, including received text from a failed reply.
 
 ## Serialization

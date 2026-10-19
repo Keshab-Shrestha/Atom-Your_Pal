@@ -188,7 +188,7 @@ struct ProjectsSection: View {
             }
         } label: {
             Image(systemName: "plus").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(theme.text2.color)
-                .frame(width: 22, height: 22).background(Circle().fill(theme.fill1.color)).contentShape(Circle())
+                .frame(width: 22, height: 22).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help("New chat in \(project.name)")
@@ -326,9 +326,9 @@ struct SidebarChatRow: View {
 
     var body: some View {
         row
-            // Delete shows on the row under the pointer (and for the open chat), and always asks first.
+            // Delete appears on hover; context/named actions also reach its confirmation.
             .overlay(alignment: .trailing) {
-                if (hovering || current) && !renaming && !snapshot {
+                if hovering && !renaming && !snapshot {
                     Button { confirming = true } label: {
                         Image(systemName: "trash").font(.system(size: 10.5, weight: .medium)).foregroundStyle(theme.text2.color)
                             .frame(width: 22, height: 22).background(Circle().fill(theme.fill2.color)).contentShape(Circle())
@@ -375,9 +375,9 @@ struct SidebarChatRow: View {
                 // 2026-10-15: the time is not a second line any more (one line is a shorter row); it is the tip and VoiceOver's.
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 10).padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous)
-                .strokeBorder(current && model.windowPage == .chat ? (theme.isFlat ? theme.border.color : theme.separator.color) : .clear, lineWidth: 1))
+            .padding(.leading, 10).padding(.trailing, 30).padding(.vertical, 8)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(current && model.windowPage == .chat ? theme.fill2.color : hovering ? theme.fill1.color : .clear))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -395,6 +395,8 @@ struct SidebarChatRow: View {
             Button("Delete chat…", role: .destructive) { confirming = true }
         }
         .accessibilityLabel(current ? "\(chat.title), current chat" : chat.title)
+        .accessibilityAddTraits(current && model.windowPage == .chat ? .isSelected : [])
+        .accessibilityAction(named: "Delete chat") { confirming = true }
     }
 
     private func finish(commit: Bool) {

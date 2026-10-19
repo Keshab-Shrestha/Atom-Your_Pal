@@ -1,5 +1,25 @@
 # ZENO Task Plan
 
+## Current task — T3-inspired desktop shell (ADR-176, 2026-10-19)
+
+Keshab authorized broader adoption of T3 Code's design, including replacement of the existing styling. Inspected its installed settings and right-panel surfaces and pinned implementation. Extend the neutral shell to every main-window destination, with compact consistent chrome, quieter navigation, scrollable projects/chats, contextual settings categories/filter and a matching workspace tab strip. Keep existing feature operations and policy boundaries. [Scope/evidence](docs/desktop-t3-design.md).
+
+745 Swift tests / 137 suites, signed release build, 87 gallery scenes and 19 visual comparisons pass. Live accessible navigation, settings filter/select/appearance, hidden sidebar/focus recovery and workspace tabs pass. Original chat/sidebar/theme restored; app Ready with an empty composer. Keshab requested publication on main with ADR-174/175 after verification; the earlier workspace/Git publication is 818b644. Unrelated `graphify-out/` is untouched. Stop after this coherent visual outcome; resizable panels/command palette and Git/PR upgrades are separate capabilities.
+
+## Current task — T3 Code chat visual design (ADR-175, 2026-10-19)
+
+Keshab explicitly asked to copy the visuals/design from pingdotgg/t3code because ATOM's chat still felt unusual. Inspected a fresh source snapshot `1451e7cb23034d29774338608368a15d8845df36` and the installed T3 Code app's draft/populated conversation. Adapted its neutral light/dark surfaces, compact breadcrumb header, 46rem reading column, natural-width 80% user bubbles, readable uniform replies, hover/focus actions and roomy composer with bottom controls. Empty chat centers the heading and the same composer. ATOM branding, model/skills/files/voice, queues, approvals, recovery and existing input/grant policies remain intact. Upstream MIT notice is retained and included in the signed app.
+
+Verification: 745 Swift tests / 137 suites pass, signed builds pass and the 83-scene gallery / 17 visual comparisons pass. Live draft input, Japanese multiline text, cross-chat draft retention, model menu and hidden message-menu controls passed; test text was not sent and was cleared. Final polished build/gallery passed; live empty chat centers the same composer. The original chat/sidebar were restored with an empty composer and the app left Ready. Evidence is in [chat design](docs/chat-t3-design.md). Changes remain local and uncommitted/unpushed with ADR-174; the last published main commit is 818b644. Unrelated `graphify-out/` is untouched. Stop after this requested visual outcome; remaining Git roadmap items are separate.
+
+## Current task — Compact chat actions (ADR-174, 2026-10-19)
+
+Keshab asked to push the finished workspace/Git upgrades, then reduce chat clutter. Published ADR-171–173 as `818b6441ac8b84eeaf21733c7a35a641e95c4a63` on origin/main; all three GitHub checks passed. Unrelated `graphify-out/` was excluded.
+
+Move Copy/Earlier message/Reply action rows into small focusable message/reply ellipsis menus. Move Saved history, Chat brief, Fork, organization, project details, access, replay/cache diagnostics and Recovery into one Chat options menu in the top bar. Keep a direct workspace icon, a recovery attention indicator and visible work/approval/error/mutation feedback. Reuse all existing operations and gates; add no provider, permission, protocol or storage change.
+
+Verification: all 745 Swift tests / 137 suites, signed release build and all 80 gallery scenes / 14 visual comparisons passed. Only the two reviewed chat references changed. Live history/brief/access/context/recovery presentation, reply formats, exact plain copy, unsent quote and earlier-message menu entries worked. Project details and the direct workspace icon passed live. Test drafts were cleared; original chat/sidebar restored and app left Ready. Evidence is recorded in [conversation controls](docs/conversation-controls.md). This new presentation batch remains local on main; the earlier upgrades are pushed. Stop after this chat outcome; useful Git commit subjects remain the next independent roadmap item.
+
 ## Current task — Saved task branch starts and project discovery (ADR-173, 2026-10-19)
 
 Keshab continued to the next Git capability. New task worktrees now explicitly start at the resolved HEAD commit; the host records that exact commit and its optional creation branch outside worker trees. Reuse never overwrites it. Dashboard review uses the saved commit, shows locally measured behind counts, labels older merge-base estimates, and refuses corrupt/unavailable bases rather than silently showing no changes. Active checked repository-root projects join existing agent grants for discovery. Subfolder projects retain their scoped Git workspace; project discovery alone does not grant Push. Refresh is explicit and clears old patches.

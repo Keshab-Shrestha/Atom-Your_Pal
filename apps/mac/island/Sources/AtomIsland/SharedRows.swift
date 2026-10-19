@@ -74,13 +74,14 @@ struct Row<Trailing: View>: View {
     var detail: String? = nil
     @ViewBuilder let trailing: Trailing
     @Environment(\.theme) private var theme
+    @Environment(\.desktopDesign) private var appDesign
 
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text.color)
+                Text(title).font(.system(size: appDesign ? 13 : 12, weight: .medium)).foregroundStyle(theme.text.color)
                 if let detail, !detail.isEmpty {
-                    Text(detail).font(.system(size: 10.5)).foregroundStyle(theme.text2.color)
+                    Text(detail).font(.system(size: appDesign ? 12 : 10.5)).foregroundStyle(theme.text2.color)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -88,8 +89,8 @@ struct Row<Trailing: View>: View {
             trailing
         }
         .padding(.horizontal, Spacing.well)
-        .padding(.vertical, 9)
-        .frame(minHeight: 40)
+        .padding(.vertical, appDesign ? 14 : 9)
+        .frame(minHeight: appDesign ? 56 : 40)
     }
 }
 

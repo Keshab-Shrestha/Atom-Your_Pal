@@ -10,6 +10,8 @@ struct BoardRow: View {
     let model: IslandModel
     let selected: Bool
     @Environment(\.theme) private var theme
+    @Environment(\.desktopDesign) private var appDesign
+    @State private var hovering = false
 
     var body: some View {
         // The row speaks for the Board and for what waits for Keshab (ADR-116): one count, one short phrase, one badge.
@@ -17,11 +19,12 @@ struct BoardRow: View {
         HStack(spacing: 11) {
             Image(systemName: "square.grid.2x2").font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
                 .frame(width: 26, height: 26)
-                .overlay { if theme.isFlat { Circle().strokeBorder(theme.border.color, lineWidth: 1) } }
+                .overlay { if theme.isFlat && !appDesign { Circle().strokeBorder(theme.border.color, lineWidth: 1) } }
             VStack(alignment: .leading, spacing: 1) {
-                Text("Board").font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
-                Text(attention.rowText)
-                    .font(.system(size: 11)).foregroundStyle(attention.needsYou ? theme.text.color : theme.text3.color)
+                Text("Board").font(.system(size: 13, weight: selected ? .medium : .regular)).foregroundStyle(theme.text.color)
+                if !appDesign {
+                    Text(attention.rowText).font(.system(size: 11)).foregroundStyle(attention.needsYou ? theme.text.color : theme.text3.color)
+                }
             }
             Spacer(minLength: 0)
             if attention.needsYou {
@@ -36,13 +39,16 @@ struct BoardRow: View {
         .padding(.horizontal, 9)
         .padding(.vertical, 4)
         .background {
-            if theme.isFlat {
+            if appDesign {
+                RoundedRectangle(cornerRadius: 8).fill(selected ? theme.fill2.color : hovering ? theme.fill1.color : .clear)
+            } else if theme.isFlat {
                 RoundedRectangle(cornerRadius: theme.radiusControl + 4, style: .continuous).strokeBorder(selected ? theme.border.color : .clear, lineWidth: 1)
             } else {
                 RoundedRectangle(cornerRadius: 12, style: .continuous).fill(selected ? (theme.isDark ? theme.fill2.color : Color.white.opacity(0.85)) : Color.clear)
             }
         }
         .contentShape(Rectangle())
+        .onHover { hovering = $0 }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }

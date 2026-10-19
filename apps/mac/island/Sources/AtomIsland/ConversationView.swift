@@ -46,7 +46,7 @@ struct Composer: View {
     }
 
     private var composerShape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: max(10, theme.radiusSurface - theme.cornerGap), style: .continuous)
+        RoundedRectangle(cornerRadius: 24, style: .continuous)
     }
 
     var body: some View {
@@ -68,24 +68,22 @@ struct Composer: View {
                                  remove: { attached.wrappedValue.remove($0) }, removeNote: { attached.wrappedValue.remove(note: $0) })
                     .id(model.chats?.current ?? "")
             }
-            // Two columns: the field and the tools on the left, the voice button alone at the right edge, centred on
-            // both rows. The model menu used to sit under the button and fight it for the corner (2026-10-15).
-            HStack(alignment: .center, spacing: 8) {
-                VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 14) {
+                Group {
                     if let notice = readOnly {
                         // ADR-098: Telegram or the local API writes this chat. Reading, copying and search still work.
-                        Text(notice).font(.system(size: 12.5)).foregroundStyle(theme.text3.color).lineLimit(2)
+                        Text(notice).font(.system(size: 14)).foregroundStyle(theme.text2.color).lineLimit(2)
                             .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
                             .accessibilityLabel(notice)
                     } else if snapshot {
                         // `ImageRenderer` cannot draw a text field: show the placeholder as it would appear.
-                        Text(placeholder).font(.system(size: 12.5)).foregroundStyle(theme.text3.color).lineLimit(1)
+                        Text(placeholder).font(.system(size: 14)).foregroundStyle(theme.text3.color).lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     } else {
-                        TextField(placeholder, text: draft.projectedValue, axis: .vertical)
+                        TextField(placeholder, text: draft.projectedValue, prompt: Text(placeholder).foregroundColor(theme.text3.color), axis: .vertical)
                             .lineLimit(ComposerLines.range)
                             .textFieldStyle(.plain)
-                            .font(.system(size: 12.5))
+                            .font(.system(size: 14))
                             .foregroundStyle(theme.text.color)
                             .focused($focused)
                             .onSubmit(send)
@@ -96,29 +94,35 @@ struct Composer: View {
                             .onKeyPress(.escape) { closeMenu() }
                             .accessibilityLabel("Message to ATOM")
                     }
-                    if readOnly == nil && !snapshot {
-                        // The things that shape the next message sit with it: files, skills and the chat's model.
-                        HStack(spacing: 8) {
-                            AttachButton { attached.wrappedValue.add($0) }
+                }
+                .frame(minHeight: 60, alignment: .topLeading)
+                if readOnly == nil {
+                    HStack(spacing: 12) {
+                        if snapshot {
+                            Text("Default model").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                            Image(systemName: "chevron.down").font(.system(size: 9)).foregroundStyle(theme.text3.color)
+                        } else {
+                            ChatModelMenu(model: model)
                             SkillsMenu(skills: model.helpers.list?.skills ?? []) { name in
                                 draft.wrappedValue = ComposerDraft.applying(skill: name, to: draft.wrappedValue)
                             }
-                            Spacer(minLength: 4)
-                            ChatModelMenu(model: model) // ADR-097, moved here from the top bar
+                        }
+                        Spacer(minLength: 4)
+                        if snapshot {
+                            Image(systemName: "paperclip").foregroundStyle(theme.text3.color)
+                        } else {
+                            AttachButton { attached.wrappedValue.add($0) }
+                        }
+                        if answering && empty {
+                            StopReplyButton { model.stopReply() }
+                        } else {
+                            ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, queueing: model.queue.running, action: send)
                         }
                     }
                 }
-                if readOnly == nil {
-                    if answering && empty {
-                        // ATOM is thinking or speaking and nothing is typed: the button stops the answer.
-                        StopReplyButton { model.stopReply() }
-                    } else {
-                        ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, queueing: model.queue.running, action: send)
-                    }
-                }
             }
-            if !snapshot, readOnly == nil {
-                Text(model.queue.awaitingStart ? "Sending… · Return: queue another message" : model.queue.running ? "Return: queue message · ⌘Return: send next now" : "Return: send · Shift Return: new line")
+            if !snapshot, readOnly == nil, model.queue.awaitingStart || model.queue.running {
+                Text(model.queue.awaitingStart ? "Sending… · Return: queue another message" : "Return: queue message · ⌘Return: send next now")
                     .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             }
         }
@@ -144,9 +148,8 @@ struct Composer: View {
         .background {
             if !snapshot { WindowProbe { paste.wrappedValue.window = $0 } }
         }
-        .padding(.leading, 18)
-        .padding(.trailing, 5)
-        .padding(.vertical, 5)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
         .background(composerShape.fill(theme.fill1.color))
         .overlay(composerShape.strokeBorder(theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
         // Dropping files on the composer attaches them.
@@ -209,7 +212,7 @@ struct Composer: View {
 
     private var talkHint: String? { model.settings.shortcut(for: .talk).map { "Hold \($0.display) to talk" } }
     private var placeholder: String {
-        model.settings.shortcut(for: .talk).map { "Ask ATOM, or hold \($0.display) to talk" } ?? "Ask ATOM…"
+        "Ask anything, @mention files, or / for skills"
     }
 
     /// Nothing to send: no words, files or notes.
@@ -593,15 +596,13 @@ private struct ComposerButton: View {
     }
 
     private var filled: some View {
-        let light = theme.glow.a > 0 ? theme.glow.with(alpha: 1).color : theme.accent.color
-        let lit = !empty || listening || hint != nil
+        let lit = !empty || listening
         return Button(action: action) {
             Image(systemName: empty ? "mic.fill" : queueing ? "arrow.turn.down.right" : "arrow.up")
                 .font(.system(size: empty ? 12 : 11.5, weight: .bold))
                 .foregroundStyle(lit ? theme.onAccent.color : theme.text3.color)
                 .frame(width: 30, height: 30)
                 .background(Circle().fill(lit ? theme.accentFill : AnyShapeStyle(theme.fill2.color)))
-                .shadow(color: light.opacity(lit ? (listening ? 0.85 : 0.45) : 0), radius: listening ? 9 : 6)
                 .contentTransition(.symbolEffect(.replace))
         }
         .buttonStyle(.plain)
@@ -621,7 +622,9 @@ struct ConversationTab: View {
     var body: some View {
         let results = model.chatFindShown ? ChatFind.search(model.conversation.turns, query: model.chatFindQuery) : ChatFind.Results()
         VStack(spacing: 0) {
-            ConversationControls(model: model)
+            if model.chatControls.notice != nil {
+                ChatControlFeedback(model: model).padding(.horizontal, Spacing.conversation).padding(.vertical, 7)
+            }
             if model.chatFindShown { ChatFindBar(model: model, results: results) }
             if SetupCards.isShown(model) {
                 VStack(spacing: 0) {
@@ -671,9 +674,9 @@ struct ConversationTab: View {
             RememberRows(model: model) // upgrades.md C2: facts the notes noticed, kept only on Remember
             Composer(model: model)
         }
-        .padding(.horizontal, theme.cornerGap)
-        .padding(.top, 8)
-        .padding(.bottom, theme.cornerGap)
+        .padding(.horizontal, Spacing.conversation)
+        .padding(.top, 12)
+        .padding(.bottom, 20)
     }
 
     /// One column for both states, with the composer after the if/else: in two branches it was a different view each time, so its half-typed draft and
@@ -682,12 +685,12 @@ struct ConversationTab: View {
         let match = model.chatFindShown ? results.selected(model.chatFindSelection) : nil
         VStack(spacing: 0) {
             if model.conversation.isEmpty {
+                Spacer(minLength: 0)
                 EmptyConversation(model: model)
                     .padding(.horizontal, Spacing.panel)
-                    .frame(maxHeight: .infinity)
+                    .padding(.bottom, 20)
             } else {
                 if let note = model.trimmedNotice { TrimmedNote(text: note) } // ADR-107
-                else if let note = model.cacheExpiredNotice { TrimmedNote(text: note) } // token cost, job 4
                 ScrollViewReader { proxy in
                     ChatScrollView(turnIDs: model.conversation.turns.map(\.id), suspendFollowing: model.chatFindShown) {
                         LazyVStack(alignment: .leading, spacing: Spacing.turn) {
@@ -714,51 +717,35 @@ struct ConversationTab: View {
                 }
             }
             composer
+            if model.conversation.isEmpty { Spacer(minLength: 0) }
         }
         .frame(maxWidth: .infinity)
     }
 }
 
-/// Before the first turn: Pal in a pool of its own light, what to do, and a few phrases to try.
+/// Before the first turn: a simple heading above the same composer used by an existing conversation.
 private struct EmptyConversation: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let light = theme.glow.with(alpha: 1).color
-        VStack(spacing: 10) {
-            ZStack {
-                Circle()
-                    .fill(RadialGradient(colors: [light.opacity(0.22), light.opacity(0)], center: .center, startRadius: 4, endRadius: 46))
-                    .opacity(theme.glow.a > 0 ? 1 : 0)
-                PalView(mood: .resting, time: 0.3, size: 44)
-            }
-            .frame(width: 92, height: 92)
-            // Void's one display line, in New York (the system serif, ADR-086).
-            Text("Ask ATOM anything")
-                .font(theme.isFlat ? .system(size: 22, weight: .regular, design: .serif) : .system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(theme.isFlat ? Color.white : theme.text.color)
-            Text(talkHint)
-                .font(.system(size: 11.5))
-                .foregroundStyle(theme.text2.color)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+        VStack(spacing: 12) {
+            Text("What can I help you with?")
+                .font(.system(size: 26, weight: .medium))
+                .foregroundStyle(theme.text.color)
+            Text("Ask a question or start something new.")
+                .font(.system(size: 14)).foregroundStyle(theme.text3.color)
             BriefCard(model: model).padding(.top, 6).frame(maxWidth: 520) // upgrades.md C3: today's brief, when there is one
             EmptyConversationExamples(model: model).padding(.top, 6)
         }
     }
 
-    private var talkHint: String {
-        guard let combo = model.settings.shortcut(for: .talk) else {
-            return "Set a Talk shortcut in Settings to start talking."
-        }
-        return "Hold \(combo.display), ask anything, then let go. Or type below."
-    }
+
 }
 
 struct TurnView: View {
     let turn: Conversation.Turn
-    /// The newest turn: full brightness. Older turns recede to secondary text.
+    /// Retained for caller compatibility; all settled messages now share the same readable contrast.
     var latest = true
     /// Asks the same words again; only given for a turn that failed.
     var retry: (() -> Void)? = nil
@@ -767,10 +754,9 @@ struct TurnView: View {
     var retrySaved: (() -> Void)? = nil
     var project: ProjectInfo? = nil
     var findMatch: ChatFind.Match? = nil
+    private let hovering = State(initialValue: false)
     private let pathNotice = State<String?>(initialValue: nil)
     @Environment(\.islandSnapshot) private var snapshot
-    /// `State` without the `@State` macro: Command Line Tools ship no SwiftUI macro plugin.
-    private let hovering = State(initialValue: false)
     /// A view preference only: never substitute the excerpt for the real transcript.
     private let messageExpanded = State(initialValue: false)
     @Environment(\.theme) private var theme
@@ -779,42 +765,25 @@ struct TurnView: View {
         let preview = UserMessagePreview.collapsed(turn.transcript)
         let collapsed = preview != nil && !messageExpanded.wrappedValue && findMatch?.user != true
         let copyTitle = preview == nil ? "Copy message" : "Copy full message"
-        let toggleTitle = collapsed ? "Show full message" : "Show less"
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 24) {
             if !turn.transcript.isEmpty { // an answer ATOM posted by itself has no question (ADR-109)
-                HStack {
-                    Spacer(minLength: 48)
+                ChatUserBubbleLayout {
                     VStack(alignment: .trailing, spacing: 4) {
                         Text(collapsed ? (preview ?? turn.transcript) : turn.transcript)
                             .lineLimit(collapsed ? UserMessagePreview.lineLimit : nil)
                             .truncationMode(.tail)
-                            .accessibilityHint(collapsed ? "Message preview. Choose Show full message to read the rest." : "")
-                            .font(.system(size: 12.5))
-                            .foregroundStyle(theme.text2.color)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
+                            .accessibilityHint(collapsed ? "Message preview. Open Message actions and choose Show full message to read the rest." : "")
+                            .font(.system(size: 14))
+                            .foregroundStyle(theme.text.color)
+                            .lineSpacing(5)
+                            .padding(12)
                             .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).fill(theme.fill1.color))
-                            .overlay(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
-                                .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color.opacity(0.5), lineWidth: theme.isFlat ? 1 : 0.5))
                             .textSelection(.enabled)
-                        HStack(spacing: 12) {
-                            if preview != nil {
-                                Button(toggleTitle) { messageExpanded.wrappedValue.toggle() }
-                                    .buttonStyle(.borderless)
-                                    .font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
-                                    .accessibilityValue(collapsed ? "Collapsed" : "Expanded")
-                                    .help(collapsed ? "Show the complete message" : "Return to a short preview")
+                            .contextMenu { userActions(collapsed: collapsed) }
+                            .overlay(alignment: .topLeading) {
+                                ChatActionsMenu(title: "Message actions", revealed: hovering.wrappedValue) { userActions(collapsed: collapsed) }
+                                    .offset(x: -28)
                             }
-                            ChatCopyControl(title: copyTitle) { MarkdownCopy.Content(text: turn.transcript) }
-                            if let editSaved, let retrySaved {
-                                Menu("Earlier message") {
-                                    Button("Edit in new chat", action: editSaved)
-                                    Button("Retry in new chat", action: retrySaved)
-                                }
-                                .menuStyle(.borderlessButton).font(.system(size: 11.5))
-                                .help("Create a new chat before this saved message; the original history and file effects remain")
-                            }
-                        }
                     }
                 }
                 .accessibilityElement(children: .contain)
@@ -822,7 +791,7 @@ struct TurnView: View {
                 .accessibilityActions {
                     Button(copyTitle) { _ = ChatClipboard.write(MarkdownCopy.Content(text: turn.transcript)) }
                     if preview != nil {
-                        Button(toggleTitle) { messageExpanded.wrappedValue.toggle() }
+                        Button(collapsed ? "Show full message" : "Show less") { messageExpanded.wrappedValue.toggle() }
                     }
                 }
             }
@@ -834,14 +803,22 @@ struct TurnView: View {
                 case .notice(let message):
                     outcomeLine(message, symbol: "hand.raised.fill", color: theme.attention.color)
                 case .failed(let message):
-                    if let reply = turn.reply { ReplyText(text: reply, latest: latest, streaming: false) }
+                    if let reply = turn.reply { ReplyText(text: reply, latest: true, streaming: false) }
                     outcomeLine(message, symbol: "exclamationmark.triangle.fill", color: theme.problem.color)
                     if let retry { QuietButton(title: "Review retry", symbol: "arrow.clockwise", action: retry) }
                 default:
-                    if let reply = turn.reply { ReplyText(text: reply, latest: latest, streaming: turn.isStreaming) }
+                    if let reply = turn.reply { ReplyText(text: reply, latest: true, streaming: turn.isStreaming) }
                 }
             }
+            .padding(.trailing, 28)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .topTrailing) {
+                if let reply = turn.reply, !turn.isStreaming {
+                    ChatActionsMenu(title: "Reply actions", revealed: hovering.wrappedValue) { replyActions(reply) }
+                }
+            }
+            .contentShape(Rectangle())
+            .contextMenu { if let reply = turn.reply, !turn.isStreaming { replyActions(reply) } }
             .accessibilityElement(children: .contain)
             .accessibilityLabel("ATOM said")
             .accessibilityActions {
@@ -856,25 +833,6 @@ struct TurnView: View {
             }
             if let reply = turn.reply, !turn.isStreaming {
                 ProjectFileLinks(text: reply, project: project)
-                HStack {
-                    ChatCopyControl(title: "Copy reply", choices: MarkdownCopy.ReplyFormat.allCases.map { format in
-                        ChatCopyControl.Choice(title: format.title) { MarkdownCopy.reply(reply, format: format) }
-                    }, helpText: "Copy as Markdown; open the menu for plain text or rich text")
-                    if let quote, !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Button("Reply to this", action: quote)
-                            .buttonStyle(.borderless)
-                            .font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
-                            .help("Append a short quote to your draft without sending")
-                    }
-                    Spacer(minLength: 0)
-                    if let timings = turn.timings {
-                        Text(NowFacts.summary(timings))
-                            .font(theme.idFont(.system(size: 10, design: .rounded), size: 10))
-                            .foregroundStyle(theme.text3.color)
-                            .opacity(hovering.wrappedValue ? 1 : 0)
-                            .accessibilityHidden(!hovering.wrappedValue)
-                    }
-                }
             }
             if let notice = pathNotice.wrappedValue {
                 Text(notice).font(.system(size: 11)).foregroundStyle(theme.problem.color)
@@ -899,7 +857,32 @@ struct TurnView: View {
         .contentShape(Rectangle())
         .onHover { hovering.wrappedValue = $0 }
         .onChange(of: turn.transcript) { _, _ in messageExpanded.wrappedValue = false }
-        .animation(.easeOut(duration: 0.15), value: hovering.wrappedValue)
+    }
+
+    @ViewBuilder private func userActions(collapsed: Bool) -> some View {
+        Button(UserMessagePreview.collapsed(turn.transcript) == nil ? "Copy message" : "Copy full message") { _ = ChatClipboard.write(MarkdownCopy.Content(text: turn.transcript)) }
+        if UserMessagePreview.collapsed(turn.transcript) != nil {
+            Button(collapsed ? "Show full message" : "Show less") { messageExpanded.wrappedValue.toggle() }
+        }
+        if let editSaved, let retrySaved {
+            Divider()
+            Button("Edit in new chat", action: editSaved)
+            Button("Retry in new chat", action: retrySaved)
+        }
+    }
+
+    @ViewBuilder private func replyActions(_ reply: String) -> some View {
+        ForEach(MarkdownCopy.ReplyFormat.allCases, id: \.self) { format in
+            Button("Copy as \(format.title)") { _ = ChatClipboard.write(MarkdownCopy.reply(reply, format: format)) }
+        }
+        if let quote, !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            Divider()
+            Button("Reply to this", action: quote)
+        }
+        if let timings = turn.timings {
+            Divider()
+            Text(NowFacts.summary(timings))
+        }
     }
 
     @ViewBuilder private func outcomeLine(_ text: String, symbol: String, color: Color) -> some View {
@@ -950,8 +933,8 @@ private struct ReplyText: View {
                 + (streaming ? caret(theme.isDark ? light : theme.accent.color) : Text("")))
                 .textSelection(.enabled)
         }
-        .font(.system(size: 13.5))
-        .lineSpacing(3)
+        .font(.system(size: 14))
+        .lineSpacing(5)
         .fixedSize(horizontal: false, vertical: true)
         .animation(Motion.glow(reduceMotion), value: latest)
     }

@@ -1,5 +1,11 @@
 # ZENO Architecture Decisions
 
+## ADR-176 — T3-inspired desktop shell (2026-10-19)
+
+**Decision:** At Keshab's explicit request to replace the broader design, extend ADR-175's neutral hierarchy and compact chrome across the main window. Use one 248pt sidebar, plain selected/hover rows, a search/new-chat utility row, one project/chat scroll region, settings-specific category navigation/filter and a quiet workspace tab strip. Use the existing theme's light/dark choice without a new persistence model. Direct Light/Dark controls select existing Daylight/Void themes; companion theme options remain available with an explicit explanation.
+
+**Boundaries:** Preserve existing destinations, drag/reorder, history, draft/model/grant state, explicit-send behavior, settings bindings/reset, attention counts and file/Git/Undo policy. Local category filtering does not invoke global search or models. No inactive T3-only controls, dependencies, provider/runtime imports or migrations. Native SwiftUI adapts the pinned MIT source; notice remains bundled. Floating companion surfaces retain their theme behavior. [Design and evidence](docs/desktop-t3-design.md), [reference](reference/t3code-visual-design.md).
+
 Renamed ZENO -> ATOM on 2026-10-13; entries below keep the name they were written under.
 
 This document records important architectural decisions.
@@ -3563,3 +3569,25 @@ Discover task branches from active checked repository-root projects as well as e
 **Reason:** a moving checkout/default branch is not task provenance, and the newer project permission model must not depend on obsolete per-agent grants to find work. Use small host records without changing the memory database, worker authority or remote state. No automatic fetch or branch cleanup.
 
 **Limits and evidence:** [Task branches](docs/task-branches.md). Better commit subjects and PR links/status remain subsequent independent upgrades.
+
+
+---
+
+## ADR-174 — Keep secondary chat actions in compact contextual menus
+
+**Decision (2026-10-19):** replace per-message Copy/Earlier message/Reply footer rows with focusable ellipsis menus beside each message. Keep the same operations in right-click menus and existing named accessibility actions. Move saved history, brief, fork, organization, project details, access, context estimates and recovery into one Chat options menu in the top bar. Keep a small recovery attention indicator, direct workspace icon, and visible task/approval/error/mutation feedback.
+
+**Reason:** the normal chat should prioritize reading and writing. Secondary actions should remain nearby and discoverable without consuming a row per message or a separate utility strip. Use native menus and stable presentation hosts; preserve existing policy and unsent draft semantics. No provider or persistence change.
+
+**Scope/evidence:** [Conversation controls](docs/conversation-controls.md). This is independent of the remaining Git commit-subject and PR upgrades.
+
+
+---
+
+## ADR-175 — Adapt the actual T3 Code chat visual design to native ATOM
+
+**Decision (2026-10-19):** use T3 Code's pinned message/composer/header/CSS implementation as the visual reference, after inspecting its installed app. Implement a neutral native chat palette, compact chrome, bounded reading column, 80% natural-width user bubbles, uniform readable replies, hover/focus menus and a roomy composer with bottom controls. Center the empty-chat heading and the same composer without changing its bindings or identity.
+
+**Reason:** Keshab explicitly wants T3's chat design; moving ATOM's old controls alone did not deliver the requested feel. Preserve ATOM branding, working features and policy instead of importing another agent runtime or exposing unsupported provider/access controls. No new dependency or persistent theme change. Retain the upstream MIT notice in source and the signed app.
+
+**Evidence and boundaries:** [Chat design](docs/chat-t3-design.md), [pinned reference](reference/t3code-visual-design.md). Backend reliability and the remaining Git upgrades are separate.

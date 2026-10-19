@@ -10,7 +10,25 @@ struct AppearanceSection: View {
         let settings = model.settings
         // Six themes since Void (ADR-086): two rows of three, so every name fits on one line.
         let themes = AppTheme.allCases
-        Card("Theme", footer: settings.theme.detail) {
+        Card("Window appearance", footer: "The desktop uses neutral surfaces throughout. Companion themes below share their light or dark appearance with the window.") {
+            HStack(spacing: 8) {
+                ForEach([AppTheme.daylight, .void]) { option in
+                    Button { settings.theme = option } label: {
+                        HStack {
+                            Image(systemName: option.palette.isDark ? "moon" : "sun.max")
+                            Text(option.palette.isDark ? "Dark" : "Light")
+                            Spacer()
+                            if settings.theme.palette.isDark == option.palette.isDark { Image(systemName: "checkmark") }
+                        }
+                        .font(.system(size: 13)).padding(12)
+                        .background(theme.fill1.color, in: RoundedRectangle(cornerRadius: 8))
+                    }.buttonStyle(.plain)
+                        .accessibilityLabel(option.palette.isDark ? "Dark appearance" : "Light appearance")
+                        .accessibilityAddTraits(settings.theme.palette.isDark == option.palette.isDark ? .isSelected : [])
+                }
+            }.padding(10)
+        }
+        Card("Companion theme", footer: settings.theme.detail) {
             VStack(spacing: 6) {
                 ForEach(Array(stride(from: 0, to: themes.count, by: 3)), id: \.self) { start in
                     HStack(spacing: 4) {

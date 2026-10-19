@@ -54,6 +54,8 @@ fi
 
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+# T3 Code chat design adaptation (MIT): include its notice with the distributed app.
+cp "$root/reference/licenses/t3code-MIT.txt" "$app/Contents/Resources/ThirdParty-T3Code.txt"
 cp "$binary" "$app/Contents/MacOS/ATOM"
 # Calendar and Reminders helper (ADR-060). Inside the app so macOS attributes its permission to ATOM.
 helper="$here/.build/release/AtomCalendar"

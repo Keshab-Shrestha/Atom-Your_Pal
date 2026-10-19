@@ -7,6 +7,8 @@ import AtomIslandCore
 struct WindowTopBar<Trailing: View>: View {
     let title: String
     let symbol: String
+    var compact = false
+    var context: String? = nil
     /// ADR-128: set while the sidebar is hidden: the button that shows it again sits at the bar's left end.
     var showSidebar: (() -> Void)? = nil
     /// ADR-096: Back, when there is a step to go back to (else no arrow).
@@ -27,16 +29,21 @@ struct WindowTopBar<Trailing: View>: View {
                 .help("Back (⌘[)")
                 .accessibilityLabel("Back")
             }
-            Image(systemName: symbol).font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
-            Text(title).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.text.color).lineLimit(1)
+            if !compact { Image(systemName: symbol).font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color) }
+            if compact, let context {
+                Text(context).font(.system(size: 13)).foregroundStyle(theme.text3.color).lineLimit(1)
+                Text("/").foregroundStyle(theme.text3.color)
+            }
+            Text(title).font(.system(size: compact ? 13 : 12.5, weight: compact ? .medium : .semibold)).foregroundStyle(theme.text.color).lineLimit(1)
             Spacer(minLength: 8)
             trailing()
         }
-        .padding(.horizontal, 18)
-        .frame(height: HelpersView.titleBarRoom)
+        .padding(.leading, compact && showSidebar != nil ? 82 : 18)
+        .padding(.trailing, 18)
+        .frame(height: compact ? 44 : HelpersView.titleBarRoom)
         // 2026-10-15: room above the bar, so the back arrow and the page's name sit level with the app name in the
         // sidebar and not up beside the window's buttons. It is part of the bar: it still moves the window.
-        .padding(.top, HelpersView.topBarGap)
+        .padding(.top, compact ? 8 : HelpersView.topBarGap)
         // Snapshots cannot draw an AppKit view; the window can.
         .background { if !snapshot { WindowDragArea() } }
         .overlay(alignment: .bottom) {
@@ -70,6 +77,7 @@ struct WindowDragArea: NSViewRepresentable {
 /// Voice and new chats use the default.
 struct ChatModelMenu: View {
     let model: IslandModel
+    @Environment(\.theme) private var theme
     @State private var customOpen = false
     @State private var customId = ""
 
@@ -78,7 +86,7 @@ struct ChatModelMenu: View {
             let chats = model.chats
             let ownProvider = chats?.currentProvider
             let ownModel = chats?.currentModel
-            let value = ownProvider.flatMap { p in ownModel.map { info.modelName(provider: p, model: $0) } } ?? "Default"
+            let value = ownProvider.flatMap { p in ownModel.map { info.modelName(provider: p, model: $0) } } ?? info.currentModelName
             Menu {
                 Button {
                     model.chooseChatModel(provider: nil, model: nil)
@@ -100,11 +108,12 @@ struct ChatModelMenu: View {
                 Divider()
                 Button("Custom model…") { customOpen = true }
             } label: {
-                PillMenuLabel(label: "Model", value: value, dimmed: ownModel == nil)
+                Text(value + "  ⌄").font(.system(size: 12)).foregroundStyle(theme.text2.color)
             }
-            .menuStyle(.button).buttonStyle(.plain).fixedSize()
+            .menuStyle(.borderlessButton).menuIndicator(.hidden).buttonStyle(.plain).fixedSize()
             .help("The model for this chat only")
             .accessibilityLabel("Model for this chat")
+            .accessibilityIdentifier("chat.model")
             .alert("Custom model for this chat", isPresented: $customOpen) {
                 TextField("model-id", text: $customId)
                 Button("Save") {

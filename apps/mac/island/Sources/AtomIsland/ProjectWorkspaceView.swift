@@ -20,15 +20,21 @@ struct ProjectWorkspaceView: View {
         VStack(alignment: .leading, spacing: 10) {
             header
             if model.workspaceAvailable {
-                if snapshot {
-                    HStack { Text("Files"); Spacer(); Text("Changes"); Spacer(); Text("Git") }.font(.system(size: 12)).padding(6).background(theme.fill2.color)
-                } else { Picker("Project workspace", selection: Binding(get: { model.workspace.tab }, set: { value in
-                    model.workspace.tab = value; selected = nil; filter = ""; model.refreshWorkspace()
-                })) {
-                    Text("Files").tag("files")
-                    Text("Changes").tag("changes")
-                    Text("Git").tag("git")
-                }.pickerStyle(.segmented) }
+                HStack(spacing: 4) {
+                    ForEach(["files", "changes", "git"], id: \.self) { tab in
+                        Button {
+                            model.workspace.tab = tab; selected = nil; filter = ""; model.refreshWorkspace()
+                        } label: {
+                            Text(tab == "git" ? "Git" : tab.capitalized)
+                                .font(.system(size: 12, weight: model.workspace.tab == tab ? .medium : .regular))
+                                .foregroundStyle(model.workspace.tab == tab ? theme.text.color : theme.text3.color)
+                                .padding(.horizontal, 12).padding(.vertical, 7)
+                                .background(model.workspace.tab == tab ? theme.fill2.color : .clear, in: RoundedRectangle(cornerRadius: 6))
+                        }.buttonStyle(.plain).accessibilityLabel("Workspace " + tab)
+                            .accessibilityAddTraits(model.workspace.tab == tab ? .isSelected : [])
+                    }
+                    Spacer(minLength: 0)
+                }
                 if let message = model.workspace.notice {
                     Text(verbatim: message).font(.system(size: 11)).foregroundStyle(theme.text2.color).textSelection(.enabled)
                 }
@@ -55,7 +61,7 @@ struct ProjectWorkspaceView: View {
         .foregroundStyle(theme.text.color)
         .buttonStyle(SnapshotBorderlessButtonStyle())
         .frame(minWidth: 260, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(theme.fill1.color.opacity(0.45))
+        .background(theme.surfaceSolid.color)
         .task(id: scope) {
             guard !snapshot else { return }
             model.workspace.clear(); selected = nil; filter = ""; pieces = nil
@@ -79,7 +85,7 @@ struct ProjectWorkspaceView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Files / Changes").font(.system(size: 13, weight: .semibold))
+                Text("Workspace").font(.system(size: 13, weight: .medium))
                 Text(verbatim: model.chats?.currentProject?.name ?? "Project workspace")
                     .font(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1)
             }

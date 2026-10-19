@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import AtomIslandCore
 
@@ -29,6 +30,7 @@ struct ConversationControls: View {
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
     @State private var details = false
+    @State private var access = false
     private struct BriefSheet: Identifiable {
         let id: String
         let brief: ChatBrief
@@ -36,50 +38,49 @@ struct ConversationControls: View {
     @State private var editingBrief: BriefSheet?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 10) {
-                Button("Saved history", action: model.openSavedHistory).disabled(model.savedChat == nil)
-                Button("Chat brief") {
-                    if let chat = model.savedChat, let snapshot = model.chatControls.snapshot, snapshot.id == chat.id, let brief = snapshot.brief {
-                        editingBrief = BriefSheet(id: chat.id, brief: brief)
-                    }
+        let recoveryCount = model.recovery.attempts.count + model.unconfirmedAnswers.count
+        ChatActionsMenu(title: "Chat options", attention: recoveryCount > 0) {
+            Button("Find in chat", action: model.openChatFind)
+            Divider()
+            Button("Saved history", action: model.openSavedHistory).disabled(model.savedChat == nil)
+            Button("Chat brief") {
+                if let chat = model.savedChat, let snapshot = model.chatControls.snapshot, snapshot.id == chat.id, let brief = snapshot.brief {
+                    editingBrief = BriefSheet(id: chat.id, brief: brief)
                 }
-                    .disabled(model.chatControls.snapshot?.brief == nil || !model.chatBranchAvailable || model.chats?.currentReadOnlyNotice != nil)
-                    .help("Keep project details and decisions available throughout this chat")
-                Button("Fork saved chat") { model.forkSavedChat() }
-                    .disabled(!model.chatBranchAvailable || (model.chatControls.snapshot?.info?.messages ?? 0) == 0)
-                    .help("Create a new chat from saved messages; no files, permissions or running work are copied")
-                if let chat = model.savedChat {
-                    if snapshot {
-                        Image(systemName: "ellipsis.circle")
-                    } else {
-                        Menu {
-                            Button(chat.pinned ? "Unpin" : "Pin") { model.setChatFlags(chat, pinned: !chat.pinned) }
-                            if chat.canArchive {
-                                Button(chat.archived ? "Unarchive" : "Archive") { model.setChatFlags(chat, archived: !chat.archived) }
-                                    .disabled(!model.chatBranchAvailable)
-                            }
-                        } label: { Image(systemName: "ellipsis.circle") }
-                        .disabled(model.chatControls.mutation != nil)
-                        .accessibilityLabel("Chat organization")
-                    }
-                }
-                Spacer(minLength: 0)
-                Button {
-                    details = true
-                } label: {
-                    Text(model.chatControls.snapshot?.info.map { "Replay estimate \(bytes($0.replayBytes))/\(bytes($0.replayBudget))" } ?? "Saved context")
-                }
-                .popover(isPresented: $details) { contextDetails.padding(16).frame(width: 340) }
             }
-            .font(.system(size: 11.5)).buttonStyle(SnapshotBorderlessButtonStyle()).foregroundStyle(theme.text2.color)
-            ChatControlFeedback(model: model)
-            HStack(spacing: 14) {
-                ChatAccessDetails(model: model)
-                ForegroundRecoveryButton(model: model)
+            .disabled(model.chatControls.snapshot?.brief == nil || !model.chatBranchAvailable || model.chats?.currentReadOnlyNotice != nil)
+            Button("Fork saved chat") { model.forkSavedChat() }
+                .disabled(!model.chatBranchAvailable || (model.chatControls.snapshot?.info?.messages ?? 0) == 0)
+            if let chat = model.savedChat {
+                Divider()
+                Button(chat.pinned ? "Unpin chat" : "Pin chat") { model.setChatFlags(chat, pinned: !chat.pinned) }
+                    .disabled(model.chatControls.mutation != nil)
+                if chat.canArchive {
+                    Button(chat.archived ? "Unarchive chat" : "Archive chat") { model.setChatFlags(chat, archived: !chat.archived) }
+                        .disabled(!model.chatBranchAvailable || model.chatControls.mutation != nil)
+                }
+            }
+            if let project = model.chats?.currentProject {
+                Menu("Project") {
+                    Text(project.chipTitle)
+                    Button("Reveal folder in Finder") {
+                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: project.folderPath)])
+                    }.disabled(project.missing)
+                }
+            }
+            Divider()
+            Button("Chat access") { access = true; model.inspectSavedChat() }
+            Button("Saved context details") { details = true }
+            Button(recoveryCount > 0 ? "Recovery (\(recoveryCount))" : "Recovery") {
+                model.recovery.shown = true; model.refreshForegroundRecovery()
             }
         }
-        .padding(.horizontal, Spacing.conversation).padding(.vertical, 7)
+        .accessibilityValue(recoveryCount > 0 ? "\(recoveryCount) recovery items" : "")
+        .popover(isPresented: $details) { contextDetails.padding(16).frame(width: 340) }
+        .popover(isPresented: $access) { ChatAccessContent(model: model) }
+        .sheet(isPresented: Binding(get: { model.recovery.shown }, set: { model.recovery.shown = $0 })) {
+            ForegroundRecoveryView(model: model)
+        }
         .task(id: [model.chats?.current ?? "", model.savedChat?.updatedAt?.description ?? "", String(model.savedChat?.messages ?? 0)]) {
             if !snapshot { model.inspectSavedChat() }
         }
@@ -97,6 +98,7 @@ struct ConversationControls: View {
     private var contextDetails: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Saved conversation replay").font(.headline)
+            if let note = model.cacheExpiredNotice { Text(note) }
             if let info = model.chatControls.snapshot?.info {
                 Text("\(info.messages) saved messages · \(bytes(info.archiveBytes)) archived")
                 ProgressView(value: Double(max(0, info.replayBytes)), total: Double(max(1, info.replayBudget)))
