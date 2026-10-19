@@ -216,6 +216,11 @@ export interface GitBranchItem {
   task: number;
   title?: string;
   base: string;
+  baseSHA?: string;
+  baseSource?: "saved" | "estimated" | "unavailable";
+  baseWarning?: string;
+  pushAllowed?: boolean;
+  behind?: number;
   commits: { sha: string; subject: string; at: string }[];
   files: { path: string; added: number | null; removed: number | null }[];
   remote?: string;

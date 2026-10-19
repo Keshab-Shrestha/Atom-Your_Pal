@@ -1,5 +1,6 @@
 // The commands from the island, their allowlist and the parser (moved from island-protocol.ts; docs/island-protocol.md is the specification).
 
+import type { WorkspaceRequest } from "./project-workspace.ts";
 import { parseChatControl, type ChatControlRequest } from "./chat-controls.ts";
 import { parseForeground, type ForegroundCommand } from "./foreground-recovery.ts";
 import type { RoutineInput, SoulItem } from "./island-items.ts";
@@ -17,6 +18,7 @@ export const MAX_SEARCH_QUERY = 200;
 export const MAX_STEER_CHARS = 2000;
 
 export type IslandCommand =
+  | WorkspaceRequest
   | ForegroundCommand
   | { type: "chat.work.watch" }
   | { type: "chat.question.answer"; chat: string; turn: string; id: string; text?: string }
@@ -269,6 +271,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "job.steer",
   "job.interrupt",
   "job.undo",
+  "workspace",
   "search",
   "job.label.add",
   "job.label.remove",
@@ -293,6 +296,19 @@ export function parseCommand(line: string): ParsedLine {
   const type = (value as { type?: unknown }).type;
   if (typeof type !== "string") return { error: 'Command has no "type".' };
   if (!COMMANDS.has(type as IslandCommand["type"])) return { error: `Unknown command "${type.slice(0, 40)}".` };
+  if (type === "workspace") {
+    const c = value as Record<string, unknown>;
+    if (typeof c.request !== "string" || !/^[a-f0-9-]{36}$/i.test(c.request) || typeof c.chat !== "string" || !/^[\w-]{1,100}$/.test(c.chat)
+        || typeof c.project !== "string" || !/^[\w-]{1,100}$/.test(c.project) || !["list", "read", "changes", "review", "undo", "git", "gitReview"].includes(c.action as string)
+        || typeof c.path !== "string" || c.path.length > 4096 || /[\x00-\x1f\x7f]/u.test(c.path)
+        || (c.job !== undefined && (!Number.isSafeInteger(c.job) || (c.job as number) < 1))
+        || (c.token !== undefined && (typeof c.token !== "string" || !/^[a-f0-9]{64}$/.test(c.token)))
+        || (["review", "undo"].includes(c.action as string) && c.job === undefined)
+        || (c.action === "undo" && c.token === undefined)
+        || (c.section !== undefined && !["staged", "unstaged", "untracked", "conflict"].includes(c.section as string))
+        || (c.action === "gitReview" && c.section === undefined)) return { error: "workspace needs a request UUID, chat, project, valid action and project-relative path; review/undo need a task and undo needs its review token." };
+    return { command: { type, request: c.request, chat: c.chat, project: c.project, action: c.action as WorkspaceRequest["action"], path: c.path, ...(c.job === undefined ? {} : { job: c.job as number }), ...(c.token === undefined ? {} : { token: c.token as string }), ...(c.section === undefined ? {} : { section: c.section as WorkspaceRequest["section"] }) } };
+  }
   if (type === "model.set") {
     const { provider, model } = value as { provider?: unknown; model?: unknown };
     if (typeof provider !== "string") return { error: 'model.set needs a "provider" string.' };

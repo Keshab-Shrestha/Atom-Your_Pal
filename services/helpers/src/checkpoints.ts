@@ -1,3 +1,4 @@
+import { readFilePreview } from "./file-preview.ts";
 import { createHash } from "node:crypto";
 import { constants, chmodSync, closeSync, copyFileSync, existsSync, fsyncSync, fstatSync, lstatSync, mkdirSync, openSync, readSync, readdirSync, realpathSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
@@ -28,6 +29,13 @@ export interface CheckpointItem {
   kind: CheckpointKind;
   state: CheckpointState;
   reason?: string;
+}
+export interface WorkspaceChange {
+  job: number; task: string; jobState: string; path: string; absolute: string;
+  kind: CheckpointKind; state: CheckpointState; reason?: string;
+}
+export interface WorkspaceReview {
+  path: string; absolute: string; before: string; after: string; token?: string; note: string;
 }
 export type UndoOutcome = "restored" | "conflict" | "missing" | "skipped" | "refused";
 export interface UndoResult {
@@ -278,6 +286,37 @@ export function checkpointTable(db: DatabaseSync, dir: string | undefined, home:
         });
     },
 
+    /** Metadata from exact stored paths, independent of the helper list's recent-job limit. */
+    workspace(root: string): { changes: WorkspaceChange[]; limited: boolean } {
+      const rows = db.prepare("SELECT c.*, j.task, j.state AS job_state FROM checkpoints c JOIN jobs j ON j.id = c.job_id WHERE substr(c.path, 1, length(?)) = ? ORDER BY c.job_id DESC, c.id DESC LIMIT 201").all(root + sep, root + sep) as unknown as (Row & { task: string; job_state: string })[];
+      return { changes: rows.slice(0, 200).filter((r) => !isSecretLike(r.path, home) && !hasGitPart(r.path)).map((r) => ({ job: r.job_id, task: r.task, jobState: r.job_state, path: relative(root, r.path), absolute: r.path, kind: r.kind, state: r.state, ...(r.reason ? { reason: r.reason } : {}) })), limited: rows.length > 200 };
+    },
+
+    /** A fresh bounded original/current review. A token is issued only for an unchanged, completed task output. */
+    workspaceReview(jobId: number, root: string, path: string): WorkspaceReview {
+      const row = byPath.get(jobId, path) as Row | undefined;
+      if (!row || !isInside(root, path) || path === root || isSecretLike(path, home) || hasGitPart(path)) throw new Error("That change is not in this project.");
+      if (row.state === "skipped") throw new Error(row.reason ?? "No original copy was kept for this file.");
+      const current = readFilePreview(path);
+      let original = { text: "", hash: createHash("sha256").update("").digest("hex") };
+      if (row.kind === "modified") {
+        if (!dir || !row.snap || !/^\d+$/.test(row.snap)) throw new Error("The original copy is unavailable.");
+        original = readFilePreview(snapPath(row));
+        if (original.hash !== row.sha_before) throw new Error("The original copy could not be verified.");
+      }
+      const ready = row.state === "ready" && current.hash === row.sha_after;
+      const token = ready ? createHash("sha256").update(JSON.stringify([row.id, row.job_id, row.path, original.hash, current.hash])).digest("hex") : undefined;
+      return { path: relative(root, path), absolute: path, before: original.text, after: current.text, ...(token ? { token } : {}), note: row.state === "undone" ? "Already undone." : ready ? "Original copy and current file verified. Undo refuses later edits." : "Changed since this task. Undo is disabled to preserve later edits." };
+    },
+
+    workspaceUndo(jobId: number, root: string, path: string, token: string): UndoResult[] {
+      if (db.prepare("SELECT 1 FROM jobs WHERE state = 'running' LIMIT 1").get()) throw new Error("Finish or stop active tasks before undoing.");
+      const review = this.workspaceReview(jobId, root, path);
+      if (!review.token || review.token !== token) throw new Error("The file changed since review. Refresh before undoing.");
+      const row = byPath.get(jobId, path) as Row;
+      return this.undo(jobId, [root], { checkpointId: row.id });
+    },
+
     /** Whether the task has any row, ready or not. */
     has: (jobId: number) => (byJob.get(jobId) as Row | undefined) !== undefined,
 
@@ -285,9 +324,9 @@ export function checkpointTable(db: DatabaseSync, dir: string | undefined, home:
      * Puts files back. `roots` are the agent's grants NOW: a file outside them is refused. A file changed since the
      * run is a conflict unless `force`. Whole run: only the ready files; a second call finds nothing to do.
      */
-    undo(jobId: number, roots: readonly string[], options: { path?: string; force?: boolean } = {}): UndoResult[] {
+    undo(jobId: number, roots: readonly string[], options: { path?: string; force?: boolean; checkpointId?: number } = {}): UndoResult[] {
       const grantRoots = roots.map((r) => realish(r));
-      const rows = rowsOf(jobId).filter((row) => (options.path === undefined ? row.state === "ready" : row.rel === options.path));
+      const rows = rowsOf(jobId).filter((row) => options.checkpointId !== undefined ? row.id === options.checkpointId : (options.path === undefined ? row.state === "ready" : row.rel === options.path));
       return rows.map((row): UndoResult => {
         const out = (result: UndoOutcome, reason?: string): UndoResult => ({ path: row.rel, result, ...(reason ? { reason } : {}) });
         if (row.state === "undone") return out("skipped", "already undone");

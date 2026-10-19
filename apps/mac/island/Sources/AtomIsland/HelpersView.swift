@@ -38,7 +38,13 @@ struct HelpersView: View {
                 if model.windowPage == .chat {
                     // 2026-10-15: New chat, Sounds and Delete are not here. New chat is the icon beside "Chats" in the
                     // sidebar, Delete is on a chat's row there, and the sounds are in Settings → Sounds.
-                    if let project = model.chats?.currentProject { ProjectChip(project: project) } // ADR-107
+                    if let project = model.chats?.currentProject {
+                        ProjectChip(project: project)
+                        Button { model.workspace.shown.toggle() } label: {
+                            Label("Files / Changes", systemImage: "sidebar.right")
+                        }.buttonStyle(.borderless).font(.system(size: 11))
+                            .help(model.workspace.shown ? "Close project workspace" : "Open project files and tracked changes")
+                    } // ADR-107
                 }
             }
             Group {
@@ -52,10 +58,19 @@ struct HelpersView: View {
                     BrainPane(model: model)
                 } else if model.windowPage == .chat {
                     // ADR-089: the conversation, as in the panel, a readable width in the middle of the window.
-                    ConversationTab(model: model)
-                        .frame(maxWidth: 680)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 8)
+                    GeometryReader { geometry in
+                        HStack(spacing: 0) {
+                            if !model.workspace.shown || geometry.size.width >= 780 {
+                                ConversationTab(model: model)
+                                    .frame(maxWidth: 680).frame(maxWidth: .infinity).padding(.top, 8)
+                            }
+                            if model.workspace.shown {
+                                Rectangle().fill(palette.separator.color).frame(width: 1)
+                                ProjectWorkspaceView(model: model)
+                                    .frame(width: geometry.size.width >= 780 ? 340 : nil)
+                            }
+                        }
+                    }
                 } else if model.windowPage == .settings {
                     SettingsTab(model: model)
                         .frame(maxWidth: 640)

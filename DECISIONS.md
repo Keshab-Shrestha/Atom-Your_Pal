@@ -3526,3 +3526,40 @@ Add brief/brief_version columns with empty defaults. Bound text to 4,000 UTF-8 b
 Keshab continued the continuity phase. The real app always started a new Core session and required manually choosing the saved chat on every launch. Persist one explicit window selection in an additive chat_navigation table in the existing memory database. The island host updates it on confirmed navigation, first save and explicit New chat, independently of background chat recency. Clear dangling selections on deletion/retention and reject unavailable/archived/other-surface targets at startup.
 
 Restore synchronously before input listeners/voice work, using the existing checked project/replay and Core.resume paths. After warm-up, display the current selection through existing events; never repeat the restore and overwrite early user navigation. A fresh-start snapshot clears old displayed history after runtime restart. Keep all model/project/file-grant/brief and recovery scopes; no new authorizing data, provider request, draft submission, approval or task retry. No new protocol command, dependency, native UI source or terminal/shared-core startup behavior. [Tests and live evidence](docs/chat-reopening.md).
+
+---
+
+## ADR-171 — A local Files / Changes workspace for the current project chat
+
+**Decision (2026-10-19):** join existing projects, attachment drafts and task checkpoints through one bounded native workspace. The window can browse/filter a folder, preview plain text, add a checked file reference to its unsent draft, open an editor/Finder, and review/confirm Undo of one retained task checkpoint. A wide window shows the workspace beside chat; a narrow window uses its main pane.
+
+The private host scopes every request to the current writable local chat/project, re-resolves the canonical root and excludes protected/hidden/generated/link paths. Original/current reviews are bounded and hash-verified. Undo requires current completion, a token bound to the exact checkpoint and a separate user confirmation; later edits and active tasks refuse. There is no Force or automatic retry in this workspace. Existing checkpoint storage/retention and policy remain authoritative; no migration or new permission is added.
+
+**Reason:** files and their task provenance should be visible where the project conversation happens. Use the existing original copies instead of duplicating file history or asking the model to describe changes authoritatively.
+
+**Scope:** checkpointed task edits only; current contents can include later edits. Git-worktree/shell writes may not have checkpoints, so the panel explains coverage and links to existing branch review. General Git changes, file editing, generated output capture and multi-file apply remain separate. [Behavior, limits and evidence](docs/project-workspace.md).
+
+---
+
+## ADR-172 — Read the project's real Git working tree before adding Git mutations
+
+**Decision (2026-10-19):** add a Git tab to the current writable project chat's existing workspace. Show local branch/upstream/divergence and staged/unstaged/untracked/conflicted paths, with per-file raw HEAD/index/disk comparisons and a presentation-only whitespace option. Conflicts expose exact base/ours/theirs stages; no resolution or merge prediction is invented.
+
+Use bounded asynchronous fixed-argument Git reads under the existing source-chat/project gate. Strip inherited Git routing, suppress hooks/fsmonitor/optional writes/prompts/submodules, disable configured content filters before status, and read blobs without external diff/textconv. Scope subfolder projects to their own files, recheck root/access and HEAD/index identities, and discard changed-chat results. The existing task-branch diff path also disables external diff/textconv and sanitizes control codes in displayed remotes/errors.
+
+**Reason:** users need accurate working-tree changes alongside project chat, including edits without ATOM checkpoints. Inspect and verify this capability before adding write/remote/cleanup operations. No new dependency, migration, grant or provider request is introduced.
+
+**Remaining:** broader task-branch discovery/saved bases, improved commit subjects, PR integration, Git mutations, conflict prediction and branch cleanup remain separate. [Behavior and evidence](docs/git-workspace.md).
+
+
+---
+
+## ADR-173 — Preserve task branch starting points and discover active project repositories
+
+**Decision (2026-10-19):** explicitly create new task branches at the resolved HEAD commit and save that commit plus its optional creation branch in exclusive host-owned records beside task worktrees. Reuse never rewrites the facts; existing branches are not backfilled. Review saved branches against that exact commit, with locally measured behind counts against the current creation branch. Label legacy merge-base comparisons as estimates; unavailable or corrupt facts refuse comparison.
+
+Discover task branches from active checked repository-root projects as well as existing agent grants. Subfolder project authority stays scoped to its Git workspace. Recheck read access before returning results. Discovery is read-only: confirmed Push retains its existing grant gate. Add explicit Refresh and clear stale patches on refresh.
+
+**Reason:** a moving checkout/default branch is not task provenance, and the newer project permission model must not depend on obsolete per-agent grants to find work. Use small host records without changing the memory database, worker authority or remote state. No automatic fetch or branch cleanup.
+
+**Limits and evidence:** [Task branches](docs/task-branches.md). Better commit subjects and PR links/status remain subsequent independent upgrades.

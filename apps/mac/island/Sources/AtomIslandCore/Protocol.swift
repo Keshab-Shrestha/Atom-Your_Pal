@@ -64,6 +64,7 @@ public enum IslandEvent: Sendable, Equatable {
     /// Every helper and its recent jobs (ADR-081): after every helper command, and on changes once asked.
     case helpers(HelpersList)
     /// ADR-091: Keshab's chats and the one ATOM is in; a chat opened, with its turns.
+    case workspace(WorkspaceResponse)
     case chats(ChatList)
     case chatControl(ChatControlResponse)
     case chatWork(ChatWorkSnapshot)
@@ -118,6 +119,7 @@ public enum IslandEvent: Sendable, Equatable {
         case .settingsOpen: "settings.open"
         case .mediaKey: "media.key"
         case .helpers: "helpers"
+        case .workspace: "workspace"
         case .chats: "chats"
         case .git: "git"
         case .gitDiff: "git.diff"
@@ -258,6 +260,19 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .git(Fields.branches(f.values["branches"]))
     case "git.diff":
         return .gitDiff(GitDiff(repo: try f.string("repo"), branch: try f.string("branch"), text: try f.string("text"), truncated: f.optionalBool("truncated") ?? false))
+    case "workspace":
+        do {
+            let data = try JSONSerialization.data(withJSONObject: f.values)
+            let result = try JSONDecoder().decode(WorkspaceResponse.self, from: data)
+            guard result.path.utf8.count <= 4096, (result.entries?.count ?? 0) <= 300, (result.changes?.count ?? 0) <= 200,
+                  (result.text?.utf8.count ?? 0) <= 32 * 1024, (result.review?.before.utf8.count ?? 0) <= 32 * 1024,
+                  (result.review?.after.utf8.count ?? 0) <= 32 * 1024,
+                  (result.gitStatus?.files.count ?? 0) <= 200,
+                  (result.gitReview?.before.utf8.count ?? 0) <= 32 * 1024,
+                  (result.gitReview?.after.utf8.count ?? 0) <= 32 * 1024,
+                  (result.gitReview?.base?.utf8.count ?? 0) <= 32 * 1024 else { throw ProtocolError.invalidValue(event: "workspace", field: "payload") }
+            return .workspace(result)
+        } catch { throw ProtocolError.invalidValue(event: "workspace", field: "payload") }
     case "chats":
         return .chats(ChatList(chats: Fields.chats(f.values["chats"]), current: f.optionalString("current") ?? "",
                                currentProvider: f.optionalString("currentProvider"), currentModel: f.optionalString("currentModel"),
@@ -853,7 +868,9 @@ private struct Fields {
             }
             return GitBranch(repo: repo, repoName: m["repoName"] as? String ?? repo, branch: branch, task: task.intValue, title: m["title"] as? String,
                              base: m["base"] as? String ?? "", commits: commits, files: files, remote: m["remote"] as? String,
-                             pushed: GitBranch.Pushed(rawValue: m["pushed"] as? String ?? "") ?? .no)
+                             pushed: GitBranch.Pushed(rawValue: m["pushed"] as? String ?? "") ?? .no,
+                             baseSHA: m["baseSHA"] as? String, baseSource: m["baseSource"] as? String, baseWarning: m["baseWarning"] as? String,
+                             behind: (m["behind"] as? NSNumber)?.intValue, pushAllowed: m["pushAllowed"] as? Bool ?? true)
         }
     }
 

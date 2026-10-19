@@ -7,6 +7,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync } from "no
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { taskBranch } from "./branch-prefix.ts";
+import { saveTaskBranchBase } from "./task-branch-base.ts";
 
 const run = promisify(execFile);
 // No repository hooks and no file-system monitor ever run from here (they would run outside the sandbox). A worktree is only used
@@ -73,7 +74,10 @@ export async function prepareWorkdir(folder: string, taskId: number, worktrees: 
   if (!existsSync(tree)) {
     mkdirSync(worktrees, { recursive: true });
     const exists = await hasBranch(repo, branch);
-    await git(repo, "worktree", "add", ...(exists ? [tree, branch] : ["-b", branch, tree]));
+    const sha = exists ? undefined : await git(repo, "rev-parse", "--verify", "HEAD^{commit}");
+    const ref = exists ? "" : await git(repo, "symbolic-ref", "--quiet", "HEAD").catch(() => "");
+    await git(repo, "worktree", "add", ...(exists ? [tree, branch] : ["-b", branch, tree, sha!]));
+    if (sha) saveTaskBranchBase(worktrees, { repo, branch, sha, ...(ref ? { ref } : {}) });
   }
   return { dir: join(tree, inside), branch, repo, tree };
 }

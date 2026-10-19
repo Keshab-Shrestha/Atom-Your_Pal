@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { ProviderKeys } from "@atom/shared";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -40,6 +41,7 @@ function islandHarness(
     tts: TextToSpeech;
     chats: IslandOptions["chats"];
     projects: IslandOptions["projects"];
+    workspace: IslandOptions["workspace"];
     attachments: IslandOptions["attachments"];
     everything: IslandOptions["everything"];
     brain: IslandOptions["brain"];
@@ -110,6 +112,7 @@ function islandHarness(
     ...(over.memory ? { memory: over.memory } : {}),
     ...(over.chats ? { chats: over.chats } : {}),
     ...(over.projects ? { projects: over.projects } : {}),
+    ...(over.workspace ? { workspace: over.workspace } : {}),
     ...(over.attachments ? { attachments: over.attachments } : {}),
     ...(over.everything ? { everything: over.everything } : {}),
     ...(over.brain ? { brain: over.brain } : {}),
@@ -2279,4 +2282,50 @@ test("a selection-storage failure is nonfatal and never exposes raw storage deta
     const errors = h.events().filter((e) => e.type === "error");
     assert.ok(errors.length); assert.doesNotMatch(JSON.stringify(errors), new RegExp(details));
   } finally { h.session.quit(); }
+});
+
+
+test("workspace wire refuses stale/background/shared chats and busy Undo without calling a model or the workspace", async () => {
+  let current = "cedar", busy = false, calls = 0, modelCalls = 0;
+  const h = islandHarness({
+    core: { get sessionId() { return current; }, get busy() { return busy; }, reset() {}, handle: async () => { modelCalls++; return { text: "unused", requestId: "unused" }; } },
+    chats: { list: () => [], messages: () => [], remove: () => false, onChange: () => () => {}, projectOf: () => "p" },
+    workspace: { handle: (command) => { calls++; return { ...command, ok: true, entries: [] }; } },
+  });
+  await tick(5); h.clear();
+  const base = { type: "workspace", request: randomUUID(), chat: "cedar", project: "p", action: "list", path: "" };
+  await h.send({ ...base, chat: "other" }, { ...base, project: "other" });
+  assert.equal(calls, 0);
+  await h.send(base); assert.equal(calls, 1);
+  for (const otherSurface of ["telegram", "routine-1", "api", "api-cedar"]) {
+    current = otherSurface;
+    await h.send({ ...base, chat: current }); assert.equal(calls, 1);
+  }
+  current = "cedar"; busy = true;
+  await h.send({ ...base, action: "undo", job: 1, token: "a".repeat(64) }); assert.equal(calls, 1);
+  assert.equal(modelCalls, 0);
+  assert.ok(h.events().filter((e) => e.type === "workspace" && !e.ok).length >= 4);
+  h.session.quit();
+});
+
+test("Git workspace waits asynchronously and withholds results after the current chat changes", async () => {
+  let current = "cedar", complete: ((value: import("./project-workspace.ts").WorkspaceResponse) => void) | undefined;
+  let requested: import("./project-workspace.ts").WorkspaceRequest | undefined;
+  const h = islandHarness({
+    core: { get sessionId() { return current; }, reset() {}, handle: async () => ({ text: "unused", requestId: "unused" }) },
+    chats: { list: () => [], messages: () => [], remove: () => false, onChange: () => () => {}, projectOf: () => "p" },
+    workspace: {
+      handle: (command) => ({ ...command, ok: true }),
+      git: (command) => { requested = command; return new Promise((resolve) => { complete = resolve; }); },
+    },
+  });
+  await tick(5); h.clear();
+  await h.send({ type: "workspace", request: randomUUID(), chat: "cedar", project: "p", action: "gitReview", path: "note.txt", section: "staged" });
+  assert.ok(requested); assert.equal(h.events().filter((e) => e.type === "workspace").length, 0);
+  current = "juniper";
+  complete!({ ...requested!, ok: true, gitStatus: { branch: "private previous branch", head: "a", files: [], limited: false, filtersDisabled: false } });
+  await tick(5);
+  const response = h.events().find((e) => e.type === "workspace");
+  assert.equal(response?.type, "workspace"); if (response?.type === "workspace") { assert.equal(response.ok, false); assert.equal(response.section, "staged"); assert.equal(response.gitStatus, undefined); }
+  h.session.quit();
 });

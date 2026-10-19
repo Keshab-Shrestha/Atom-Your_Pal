@@ -3,6 +3,7 @@ import Foundation
 
 /// Commands the island sends to the runtime.
 public enum IslandCommand: Sendable, Equatable {
+    case workspace(WorkspaceRequest)
     case talkStart, talkSend, talkCancel, conversationReset, quit
     /// Switch the AI model (ADR-040). Answered with `info`, or an `error` with stage `settings`.
     case modelSet(provider: String, model: String)
@@ -176,6 +177,7 @@ public enum IslandCommand: Sendable, Equatable {
     /// The command's `type` field. Safe for logs: never includes values.
     public var type: String {
         switch self {
+        case .workspace: "workspace"
         case .talkStart: "talk.start"
         case .talkSend: "talk.send"
         case .talkCancel: "talk.cancel"
@@ -302,6 +304,10 @@ public enum IslandCommand: Sendable, Equatable {
     public var line: String {
         var fields: [String: Any] = ["type": type]
         switch self {
+        case .workspace(let request):
+            if let data = try? JSONEncoder().encode(request), let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                fields.merge(object) { _, new in new }
+            }
         case .textSendAttempt(let text, let files, let notes, let chat, let request):
             fields["text"] = text; fields["files"] = files; fields["notes"] = notes; fields["chat"] = chat; fields["request"] = request
         case .foregroundList(let request, let pending, let answers):

@@ -74,6 +74,8 @@ enum IslandGallery {
         writeHelpers(to: directory, theme: .daylight, name: "13-helpers-daylight") // 2026-10-15: the light theme
         writeMenuBar(to: directory)
         writeMenuBar(to: directory, flat: false, name: "15-menu-bar-item-lantern")
+        writeGitWorkspace(to: directory)
+        writeWorkspace(to: directory)
         writeProjects(to: directory)
         writeProjects(to: directory, theme: .lantern, name: "16-projects-lantern")
         writeBrain(to: directory)

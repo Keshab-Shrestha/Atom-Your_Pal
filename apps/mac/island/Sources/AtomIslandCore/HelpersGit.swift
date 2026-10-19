@@ -12,6 +12,11 @@ public struct GitBranch: Sendable, Equatable, Identifiable {
     public var task: Int
     public var title: String?
     public var base: String
+    public var baseSHA: String?
+    public var baseSource: String?
+    public var baseWarning: String?
+    public var pushAllowed: Bool
+    public var behind: Int?
     public var commits: [GitCommit]
     public var files: [GitFile]
     /// `origin`'s address, without credentials; nil when there is none (then it cannot be pushed).
@@ -19,13 +24,18 @@ public struct GitBranch: Sendable, Equatable, Identifiable {
     public var pushed: Pushed
 
     public init(repo: String, repoName: String, branch: String, task: Int, title: String? = nil, base: String = "", commits: [GitCommit] = [],
-                files: [GitFile] = [], remote: String? = nil, pushed: Pushed = .no) {
+                files: [GitFile] = [], remote: String? = nil, pushed: Pushed = .no, baseSHA: String? = nil, baseSource: String? = nil, baseWarning: String? = nil, behind: Int? = nil, pushAllowed: Bool = true) {
         self.repo = repo
         self.repoName = repoName
         self.branch = branch
         self.task = task
         self.title = title
         self.base = base
+        self.baseSHA = baseSHA
+        self.baseSource = baseSource
+        self.baseWarning = baseWarning
+        self.pushAllowed = pushAllowed
+        self.behind = behind
         self.commits = commits
         self.files = files
         self.remote = remote
@@ -33,7 +43,7 @@ public struct GitBranch: Sendable, Equatable, Identifiable {
     }
 
     /// It can be pushed: it has a remote and something the remote does not have.
-    public var canPush: Bool { remote != nil && pushed != .yes && !commits.isEmpty }
+    public var canPush: Bool { pushAllowed && remote != nil && pushed != .yes && !commits.isEmpty && baseSource != "unavailable" }
     public var added: Int { files.compactMap(\.added).reduce(0, +) }
     public var removed: Int { files.compactMap(\.removed).reduce(0, +) }
 }

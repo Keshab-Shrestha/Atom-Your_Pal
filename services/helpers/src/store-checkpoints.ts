@@ -5,9 +5,23 @@ import { HelperError } from "./jobs.ts";
 import type { StoreContext } from "./store-context.ts";
 import type { HelperStore } from "./store-types.ts";
 
-export function checkpointMethods(ctx: StoreContext): Pick<HelperStore, "recordToolCall" | "toolCalls" | "checkpoint" | "guardPreviewEdit" | "finishCheckpoints" | "checkpoints" | "undoCheckpoints" | "bashRan"> {
+export function checkpointMethods(ctx: StoreContext): Pick<HelperStore, "workspaceChanges" | "workspaceReview" | "workspaceUndo" | "recordToolCall" | "toolCalls" | "checkpoint" | "guardPreviewEdit" | "finishCheckpoints" | "checkpoints" | "undoCheckpoints" | "bashRan"> {
   const { emit, get, mustGet, toolCalls, checkpoints, grantsOf } = ctx;
   return {
+    workspaceChanges: (root) => checkpoints.workspace(root),
+    workspaceReview(jobId, root, path) {
+      const job = mustGet(jobId);
+      const review = checkpoints.workspaceReview(jobId, root, path);
+      if (!["done", "failed", "stopped"].includes(job.state)) { delete review.token; review.note = "Finish or stop this task before undoing."; }
+      return review;
+    },
+    workspaceUndo(jobId, root, path, token) {
+      const job = mustGet(jobId);
+      if (!["done", "failed", "stopped"].includes(job.state)) throw new HelperError("Finish or stop this task before undoing.");
+      const result = checkpoints.workspaceUndo(jobId, root, path, token);
+      if (result.length) emit({ action: "checkpoint", helper: job.helper, job: jobId, change: "undone", count: result.filter((r) => r.result === "restored").length });
+      return result;
+    },
     recordToolCall(jobId, event) {
       const job = get(jobId);
       // Start and end are both announced, so the last call of a run does not stay "started".

@@ -1174,6 +1174,21 @@ struct ReadOnlyChatTests {
 
 @Suite("Git branches (ADR-091)")
 struct GitBranchTests {
+    @Test func savedBaseAndUnknownBehindRemainDistinctFromLegacyEstimates() throws {
+        var state = HelpersState()
+        state.apply(try decodeEvent(#"{"type":"git","branches":[{"repo":"/r","branch":"atom/task-42","task":42,"base":"main","baseSHA":"abc12345","baseSource":"saved","behind":3,"pushAllowed":false,"remote":"git@host:r","commits":[{"sha":"def"}]}]}"#))
+        let branch = try #require(state.git?.first)
+        state.apply(.gitDiff(GitDiff(repo: "/r", branch: "atom/task-42", text: "old patch", truncated: false)))
+        #expect(state.gitDiff != nil)
+        #expect(branch.baseSHA == "abc12345" && branch.baseSource == "saved" && branch.behind == 3)
+        #expect(!branch.canPush)
+        state.apply(try decodeEvent(#"{"type":"git","branches":[{"repo":"/r","branch":"zeno/task-4","task":4,"base":"main"}]}"#))
+        #expect(state.gitDiff == nil)
+        #expect(state.git?.first?.baseSource == nil && state.git?.first?.behind == nil)
+        state.apply(try decodeEvent(#"{"type":"git","branches":[{"repo":"/r","branch":"atom/task-42","task":42,"baseSource":"unavailable","baseWarning":"Starting point unavailable"}]}"#))
+        #expect(state.git?.first?.baseWarning == "Starting point unavailable" && state.git?.first?.canPush == false)
+    }
+
     @Test func decodesBranchesAndKnowsWhenOneCanBePushed() throws {
         let event = try decodeEvent(#"{"type":"git","branches":[{"repo":"/r","repoName":"r","branch":"zeno/task-7","task":7,"title":"Notes","base":"origin/main","commits":[{"sha":"abc1234","subject":"ATOM task 7","at":"2026-10-11T00:00:00+09:00"}],"files":[{"path":"a.md","added":2,"removed":1},{"path":"b.png","added":null,"removed":null}],"remote":"git@github.com:k/r.git","pushed":"no"},{"bad":1}]}"#)
         var state = HelpersState()

@@ -547,6 +547,7 @@ public struct HelpersState: Sendable, Equatable {
         case .git(let branches):
             // ADR-091: the branches came (again, after a push): whatever the window asked is done.
             git = branches
+            gitDiff = nil // A refreshed branch may have moved or lost project access.
             isWaiting = false
         case .gitDiff(let diff):
             gitDiff = diff

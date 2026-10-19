@@ -667,3 +667,10 @@ ADR-169: each saved chat has an optional bounded user-maintained brief and indep
 
 
 ADR-170: the local memory database keeps one window chat-selection identifier in chat_navigation. Only the island host records/reopens it, before input listeners, through existing Core.resume and project replay. Startup publishes the current history after Ready using existing events; early manual navigation wins. Selection is separate from background chat recency and never submits input or resumes work. [Scope](docs/chat-reopening.md).
+
+ADR-171: the current local project chat owns a native Files / Changes workspace. One private request/response shape joins deterministic bounded folder/text reads with existing helper checkpoint provenance/review/Undo. Source chat/project/request identities reject stale results; the host resolves the canonical project root on every operation. A review token binds an exact checkpoint and original/current hashes before single-file Undo. No provider, filesystem watcher, migration, parallel history store or new grant is added. [Scope](docs/project-workspace.md).
+
+ADR-172: `workspace.git`/`workspace.gitReview` add bounded asynchronous Git inspection to the same native project pane. Fixed Git reads return grouped status and raw HEAD/index/disk (or conflict-stage) text, with source-chat/project/root revalidation and stale-result rejection. Whitespace normalization is native comparison presentation only. No provider, Git mutation, migration or new permission is introduced. [Scope](docs/git-workspace.md).
+
+
+ADR-173: `prepareWorkdir` resolves the creation commit before adding a new task branch and records it through `task-branch-base.ts` in host-owned metadata beside worktrees. Branch review resolves saved or explicitly estimated bases into immutable object IDs. `Projects.gitFolders` supplies active rechecked roots to Git discovery; repository-wide review requires a repository-root project or existing agent grant. Native cards expose saved/estimated provenance and local behind counts with explicit refresh. Push keeps its separate grant/confirmation boundary. [Details](docs/task-branches.md).

@@ -140,6 +140,7 @@ function start(config: Config) {
     ...(runtime.islandChats ? { chats: runtime.islandChats } : {}),
     chatTurns: runtime.chatTurns,
     ...(runtime.islandProjects ? { projects: runtime.islandProjects } : {}),
+    ...(runtime.islandWorkspace ? { workspace: runtime.islandWorkspace } : {}),
     ...(runtime.everything ? { everything: runtime.everything } : {}),
     ...(runtime.islandSuggestions ? { suggestions: runtime.islandSuggestions } : {}),
     ...(runtime.islandBrief ? { dailyBrief: runtime.islandBrief } : {}),

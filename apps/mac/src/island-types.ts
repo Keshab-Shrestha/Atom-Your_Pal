@@ -71,6 +71,7 @@ export interface IslandOptions {
   attachments?: { add(chatId: string, paths: readonly string[]): { ok: true; text: string } | { error: string } };
   /** ADR-107: projects. Absent when memory is off: `project.*` and `chat.new` with a project are refused. */
   projects?: IslandProjects;
+  workspace?: Pick<ReturnType<typeof import("./project-workspace.ts").createProjectWorkspace>, "handle"> & Partial<Pick<ReturnType<typeof import("./project-workspace.ts").createProjectWorkspace>, "git">>;
   /** ADR-091: ATOM's task branches. */
   git?: IslandGit;
   /** Helpers and their jobs (ADR-081). Absent when their file could not be opened: no helpers are listed. */

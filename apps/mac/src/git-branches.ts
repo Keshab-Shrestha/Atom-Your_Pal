@@ -6,9 +6,11 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { BRANCH_PATTERN, BRANCH_REF_FOLDERS } from "./branch-prefix.ts";
-import { git } from "./worktree.ts";
+import { readTaskBranchBase } from "./task-branch-base.ts";
 
 const run = promisify(execFile);
+const environment = () => ({ ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_"))), GIT_OPTIONAL_LOCKS: "0", GIT_TERMINAL_PROMPT: "0", GIT_ASKPASS: "", SSH_ASKPASS: "", GIT_PAGER: "cat" });
+const git = async (repo: string, ...args: string[]) => (await run("git", ["-C", repo, "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", ...args], { timeout: 30_000, maxBuffer: 20 * 1024 * 1024, env: environment() })).stdout.trim();
 
 export const PUSH_TIMEOUT_MS = 120_000;
 const MAX_COMMITS = 50;
@@ -32,8 +34,13 @@ export interface ZenoBranch {
   repoName: string;
   branch: string;
   task: number;
-  /** What it is compared with: the remote's default branch, else the repository's current one. */
+  /** Creation branch label for a saved base; otherwise an explicitly estimated comparison. */
   base: string;
+  baseSHA?: string;
+  baseSource?: "saved" | "estimated" | "unavailable";
+  baseWarning?: string;
+  /** Commits on the current creation branch not reachable from the task. Local refs only; never fetches. */
+  behind?: number;
   commits: BranchCommit[];
   files: BranchFile[];
   /** `origin`'s address without any user name, password or token. Absent when there is no `origin`. */
@@ -44,7 +51,7 @@ export interface ZenoBranch {
 
 /** A remote's address with any credentials taken out (`https://user:token@host/x` → `https://host/x`). */
 export function cleanRemote(url: string): string {
-  return url.replace(/^([a-z][\w+.-]*:\/\/)[^@/]*@/i, "$1").replace(/([?&](?:token|key|secret|password)=)[^&]*/gi, "$1…");
+  return url.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "").replace(/[\x00-\x1f\x7f\u200b-\u200f\u202a-\u202e\u2060-\u206f]/g, "").replace(/^([a-z][\w+.-]*:\/\/)[^@/]*@/i, "$1").replace(/([?&](?:token|key|secret|password)=)[^&]*/gi, "$1…");
 }
 
 /** The repositories the given folders are in (each once). Folders that are not in one are left out. */
@@ -53,27 +60,46 @@ export async function repositoriesOf(folders: readonly string[]): Promise<string
   return [...new Set(tops.filter((t): t is string => Boolean(t)))];
 }
 
-async function baseOf(repo: string): Promise<string> {
-  const remoteHead = await git(repo, "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD").catch(() => "");
-  if (remoteHead) return remoteHead;
-  return git(repo, "rev-parse", "--abbrev-ref", "HEAD");
+async function comparison(repo: string, branch: string, worktrees?: string) {
+  const saved = readTaskBranchBase(worktrees, repo, branch);
+  let ref = saved?.ref;
+  if (!saved) {
+    ref = await git(repo, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD").catch(() => "");
+    if (!ref) ref = await git(repo, "symbolic-ref", "--quiet", "HEAD").catch(() => "");
+    if (!ref || /^refs\/heads\/(?:atom|zeno)\/task-\d+$/.test(ref)) throw new Error("No saved starting point. Check out the intended base branch to estimate a comparison.");
+  }
+  const candidate = await git(repo, "rev-parse", "--verify", `${saved?.sha ?? ref}^{commit}`);
+  const head = await git(repo, "rev-parse", "--verify", `refs/heads/${branch}^{commit}`);
+  const sha = saved ? candidate : await git(repo, "merge-base", candidate, head);
+  // Resolve moving names once. Subsequent log/diff reads use object IDs, even if HEAD or the base moves.
+  const tip = ref ? await git(repo, "rev-parse", "--verify", `${ref}^{commit}`).catch(() => "") : "";
+  const behind = tip ? Number(await git(repo, "rev-list", "--count", `${head}..${tip}`)) : undefined;
+  return { sha, head, base: ref?.replace(/^refs\/(heads|remotes)\//, "") ?? "detached HEAD", baseSource: saved ? "saved" as const : "estimated" as const, ...(behind !== undefined ? { behind } : {}) };
 }
 
 /** Every `atom/task-<id>` and `zeno/task-<id>` branch in a repository, newest task first. */
-export async function zenoBranches(repo: string): Promise<ZenoBranch[]> {
+export async function zenoBranches(repo: string, worktrees?: string): Promise<ZenoBranch[]> {
   const names = (await git(repo, "for-each-ref", "--format=%(refname:short)", ...BRANCH_REF_FOLDERS)).split("\n").filter((b) => BRANCH_PATTERN.test(b));
   if (!names.length) return [];
-  const base = await baseOf(repo);
   const remote = await git(repo, "remote", "get-url", "origin").catch(() => undefined);
   const repoName = repo.split("/").at(-1) ?? repo;
   const branches = await Promise.all(
     names.map(async (branch): Promise<ZenoBranch> => {
-      const log = await git(repo, "log", `--max-count=${MAX_COMMITS}`, "--format=%h%x09%cI%x09%s", `${base}..${branch}`).catch(() => "");
+      let point: Awaited<ReturnType<typeof comparison>> | undefined;
+      let baseWarning: string | undefined;
+      try { point = await comparison(repo, branch, worktrees); }
+      catch { baseWarning = "Starting point unavailable. No comparison is shown; check the saved base or check out the intended base branch for an older task."; }
+      let log = "", stat = "";
+      if (point) {
+        try {
+          log = await git(repo, "log", `--max-count=${MAX_COMMITS}`, "--format=%h%x09%cI%x09%s", `${point.sha}..${point.head}`);
+          stat = await git(repo, "diff", "--no-ext-diff", "--no-textconv", "--numstat", `${point.sha}..${point.head}`);
+        } catch { baseWarning = "Git could not read this comparison. Refresh to try again."; log = ""; stat = ""; }
+      }
       const commits = log ? log.split("\n").map((line) => {
         const [sha = "", at = "", ...subject] = line.split("\t");
         return { sha, at, subject: subject.join("\t") };
       }) : [];
-      const stat = await git(repo, "diff", "--numstat", `${base}...${branch}`).catch(() => "");
       const files = stat ? stat.split("\n").slice(0, MAX_FILES).map((line) => {
         const [added = "-", removed = "-", ...path] = line.split("\t");
         return { path: path.join("\t"), added: added === "-" ? null : Number(added), removed: removed === "-" ? null : Number(removed) };
@@ -85,7 +111,10 @@ export async function zenoBranches(repo: string): Promise<ZenoBranch[]> {
         repoName,
         branch,
         task: Number(BRANCH_PATTERN.exec(branch)![1]),
-        base,
+        base: point?.base ?? "unavailable",
+        baseSource: baseWarning ? "unavailable" : point?.baseSource ?? "unavailable",
+        ...(point ? { baseSHA: point.sha, ...(point.behind !== undefined ? { behind: point.behind } : {}) } : {}),
+        ...(baseWarning ? { baseWarning } : {}),
         commits,
         files,
         ...(remote ? { remote: cleanRemote(remote) } : {}),
@@ -97,10 +126,10 @@ export async function zenoBranches(repo: string): Promise<ZenoBranch[]> {
 }
 
 /** The branch's changes since its base, as a patch, cut at `limit` characters. */
-export async function branchDiff(repo: string, branch: string, limit = 200_000): Promise<{ text: string; truncated: boolean }> {
+export async function branchDiff(repo: string, branch: string, limit = 200_000, worktrees?: string): Promise<{ text: string; truncated: boolean }> {
   if (!BRANCH_PATTERN.test(branch)) throw new Error("Only ATOM's task branches can be shown.");
-  const base = await baseOf(repo);
-  const { stdout } = await run("git", ["-C", repo, "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "diff", "--no-color", `${base}...${branch}`], { timeout: 30_000, maxBuffer: 20 * 1024 * 1024 });
+  const point = await comparison(repo, branch, worktrees);
+  const { stdout } = await run("git", ["-C", repo, "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "diff", "--no-color", "--no-ext-diff", "--no-textconv", `${point.sha}..${point.head}`], { timeout: 30_000, maxBuffer: 20 * 1024 * 1024, env: environment() });
   return stdout.length > limit ? { text: stdout.slice(0, limit), truncated: true } : { text: stdout, truncated: false };
 }
 
@@ -120,7 +149,7 @@ export async function pushBranch(repo: string, branch: string): Promise<void> {
     await run("git", ["-C", repo, "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "push", "--no-verify", "origin", `refs/heads/${branch}:refs/heads/${branch}`], {
       timeout: PUSH_TIMEOUT_MS,
       // Never wait for a password: a remote that needs one fails with words instead.
-      env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_ASKPASS: "", SSH_ASKPASS: "" },
+      env: environment(),
     });
   } catch (error) {
     const said = String((error as { stderr?: unknown }).stderr ?? "").split("\n").map((l) => l.trim()).filter(Boolean);

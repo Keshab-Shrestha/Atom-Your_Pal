@@ -350,9 +350,14 @@ private struct GitSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Local branches · refresh after tasks finish").font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                Spacer()
+                QuietButton(title: "Refresh", symbol: "arrow.clockwise") { model.sendHelpers(model.helpers.gitCommand(.gitList)) }
+            }
             if let branches = model.helpers.git {
                 if branches.isEmpty {
-                    Text("No branches yet. When Kame, Puff or Quill work in a git repository you granted, each task's branch shows here.")
+                    Text("No task branches yet. Branches from active repository projects and granted repositories appear here. Subfolder projects use their own Git workspace.")
                         .font(.system(size: 12.5)).foregroundStyle(theme.text3.color).padding(.horizontal, 4)
                 }
                 ForEach(branches) { branch in
@@ -390,12 +395,24 @@ private struct GitBranchCard: View {
                     .font(.system(size: 11)).foregroundStyle(theme.text3.color)
             }
             if let title = branch.title { Text("Task \(branch.task): \(title)").font(.system(size: 12.5)).foregroundStyle(theme.text2.color).lineLimit(1) }
-            HStack(spacing: 6) {
-                Text("\(branch.commits.count) commit\(branch.commits.count == 1 ? "" : "s") on \(branch.base) · \(branch.files.count) file\(branch.files.count == 1 ? "" : "s")")
-                Text("+\(branch.added)").foregroundStyle(theme.success.color)
-                Text("−\(branch.removed)").foregroundStyle(theme.problem.color)
+            if branch.baseSource != "unavailable" {
+                HStack(spacing: 6) {
+                    Text("\(branch.commits.count >= 50 ? "50+" : String(branch.commits.count)) commit\(branch.commits.count == 1 ? "" : "s") · \(branch.files.count >= 200 ? "200+" : String(branch.files.count)) file\(branch.files.count == 1 ? "" : "s")")
+                    Text("+\(branch.added)").foregroundStyle(theme.success.color)
+                    Text("−\(branch.removed)").foregroundStyle(theme.problem.color)
+                }
+                .font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color)
             }
-            .font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color)
+            if let warning = branch.baseWarning {
+                Text(warning).font(.system(size: 11)).foregroundStyle(theme.attention.color)
+            } else {
+                Text("\(branch.baseSource == "saved" ? "Saved start" : "Estimated base"): \(branch.base)\(branch.baseSHA.map { " · " + String($0.prefix(8)) } ?? "")")
+                    .font(theme.idFont(.system(size: 11), size: 10.5)).foregroundStyle(theme.text3.color).textSelection(.enabled)
+                if let behind = branch.behind {
+                    Text("\(behind) behind \(branch.base) · local refs")
+                        .font(.system(size: 11)).foregroundStyle(behind > 0 ? theme.attention.color : theme.text3.color)
+                }
+            }
             VStack(alignment: .leading, spacing: 3) {
                 ForEach(Array(branch.commits.prefix(4).enumerated()), id: \.offset) { _, commit in
                     HStack(spacing: 8) {
@@ -425,10 +442,11 @@ private struct GitBranchCard: View {
                 QuietButton(title: diff == nil ? "Show changes" : "Hide changes", symbol: "chevron.left.forwardslash.chevron.right") {
                     if diff == nil { model.sendHelpers(model.helpers.gitCommand(.gitDiff(repo: branch.repo, branch: branch.branch))) } else { model.helpers.gitDiff = nil }
                 }
+                .disabled(branch.baseSource == "unavailable")
                 QuietButton(title: "Push…", symbol: "arrow.up.circle") { push() }
                     .disabled(!branch.canPush)
                     .opacity(branch.canPush ? 1 : 0.5)
-                    .help(branch.remote == nil ? "This repository has no remote named origin." : branch.pushed == .yes ? "Already on the remote." : "Push this branch to origin")
+                    .help(!branch.pushAllowed ? "Push is unavailable for this project’s current access." : branch.remote == nil ? "This repository has no remote named origin." : branch.pushed == .yes ? "Already on the remote." : "Push this branch to origin")
                 Spacer()
                 if let remote = branch.remote { Text(remote).font(theme.idFont(.system(size: 10.5), size: 10)).foregroundStyle(theme.text3.color).lineLimit(1).truncationMode(.middle) }
             }

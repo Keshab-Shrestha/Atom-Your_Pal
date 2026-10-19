@@ -386,6 +386,9 @@ export interface HelperStore {
   finishCheckpoints(jobId: number): void;
 /** B3.4: the task's kept files (at most 100), oldest first. */
   checkpoints(jobId: number): CheckpointItem[];
+  workspaceChanges(root: string): { changes: import("./checkpoints.ts").WorkspaceChange[]; limited: boolean };
+  workspaceReview(jobId: number, root: string, path: string): import("./checkpoints.ts").WorkspaceReview;
+  workspaceUndo(jobId: number, root: string, path: string, token: string): UndoResult[];
   /**
    * B3.4: undoes the run's file edits: one file (`path`, relative) or all. A file changed since the run is a conflict
    * unless `force`; a file outside the agent's grants now is refused. Throws HelperError for an unknown task.

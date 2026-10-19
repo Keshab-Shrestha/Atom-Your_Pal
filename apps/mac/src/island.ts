@@ -370,6 +370,20 @@ export function runIsland(options: IslandOptions): IslandSession {
         if ("error" in result) return send({ type: "error", stage: "settings", message: result.error });
         return sendChats();
       }
+      case "workspace": {
+        const fail = (error: string) => send({ type: "workspace", request: command.request, chat: command.chat, project: command.project, action: command.action, path: command.path, ...(command.section ? { section: command.section } : {}), ok: false, error });
+        if (command.chat !== core.sessionId || options.chats?.projectOf?.(command.chat) !== command.project || chatWriter(command.chat) || isSharedChat(command.chat)) return fail("Open this writable project chat before using its workspace.");
+        if (!options.workspace) return fail("Project workspace is unavailable.");
+        if (command.action === "undo" && (core.busy || loop.state !== "idle" || options.taskActivity?.busy() || options.chatTurns?.busy?.(command.chat))) return fail("Finish or stop active work before undoing a change.");
+        if (command.action === "git" || command.action === "gitReview") {
+          if (!options.workspace.git) return fail("Git workspace is unavailable.");
+          void options.workspace.git(command).then((result) => {
+            if (command.chat !== core.sessionId || options.chats?.projectOf?.(command.chat) !== command.project) return fail("The open project chat changed. Refresh its workspace.");
+            send(result);
+          }, () => fail("Git review failed. Refresh before trying again."));
+        } else send(options.workspace.handle(command));
+        return;
+      }
       case "project.add":
       case "project.rename":
       case "project.remove":

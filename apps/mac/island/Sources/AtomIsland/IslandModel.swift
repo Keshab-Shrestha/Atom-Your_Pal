@@ -18,6 +18,7 @@ final class IslandModel {
     var work = WorkStripState()
     var meter = LevelMeter(bars: 14)
     var conversation = Conversation()
+    var workspace = ProjectWorkspaceState()
     var chatControls = ChatControlsState()
     var recovery = ForegroundRecoveryState()
     var dispatchedInputIDs = Set<String>()
@@ -798,6 +799,8 @@ final class IslandModel {
         approval.apply(event)
         pointing.apply(event)
         switch event {
+        case .workspace(let result):
+            workspace.accept(result, chat: chats?.current, project: chats?.currentProjectId)
         case .foregroundReceipt(let receipt):
             confirmForegroundInput(ids: [receipt.id], answers: [])
             if receipt.archived && receipt.state == "completed" {
@@ -812,6 +815,7 @@ final class IslandModel {
         case .chatControl(let response):
             acceptChatControl(response)
         case .chats(let list):
+            if ProjectWorkspaceState.identity(chats) != ProjectWorkspaceState.identity(list) { workspace.clear() }
             if chats?.current != list.current { resetChatControlReading() }
             if list.currentReadOnlyNotice != nil { queue.takeAll() }
             if chats?.current != list.current { resetChatFind() }
@@ -830,6 +834,7 @@ final class IslandModel {
             resetChatFind()
             trimmedChatId = trimmed ? id : nil
         case .conversationReset:
+            workspace.clear()
             resetChatControlReading()
             resetChatFind()
             trimmedChatId = nil
@@ -862,6 +867,7 @@ final class IslandModel {
         case .planUsage(let usage):
             planUsage = (planUsage ?? PlanUsage()).merging(usage)
         case .ready(let ready):
+            workspace.clear()
             resetChatControlReading()
             if chatControls.mutation != nil {
                 chatControls.waitingExpired = true

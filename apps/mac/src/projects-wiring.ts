@@ -30,6 +30,8 @@ export interface ProjectsOptions {
 
 export interface Projects {
   island: IslandProjects;
+  /** Active, freshly checked project folders for local Git discovery. */
+  gitFolders(): string[];
   projectOf(chatId: string): string | undefined;
   /** The project's model for a chat in a project; the chat's own model is checked before this one. */
   modelOf(chatId: string): { provider: string; model: string } | undefined;
@@ -190,6 +192,7 @@ export function createProjects(options: ProjectsOptions): Projects {
 
   return {
     island,
+    gitFolders: () => store.list().filter((p) => !p.archived).flatMap((p) => { const f = folderOf(p); return f ? [f] : []; }),
     projectOf,
 
     modelOf(chatId) {

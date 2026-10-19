@@ -77,3 +77,17 @@ test("atom/task-N branches are listed beside zeno/task-N ones, newest task first
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("branch review never executes configured diff/textconv drivers and remote errors lose control codes", async () => {
+  const { root, repo } = setup();
+  try {
+    const marker = join(root, "driver-ran");
+    sh(repo, "config", "diff.external", `touch '${marker}'`);
+    sh(repo, "config", "diff.fixture.textconv", `touch '${marker}'`);
+    writeFileSync(join(repo, ".gitattributes"), "notes.md diff=fixture\n");
+    assert.match((await branchDiff(repo, "zeno/task-7")).text, /notes.md/);
+    const branches = await zenoBranches(repo); assert.equal(branches.length, 1);
+    const { existsSync } = await import("node:fs"); assert.equal(existsSync(marker), false);
+    assert.equal(cleanRemote("\u001b[31mhttps://user:token@host/x\n\u001b[0m"), "https://host/x");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

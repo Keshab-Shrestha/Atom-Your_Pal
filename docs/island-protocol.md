@@ -277,7 +277,7 @@ Events.
 
 ### Git (ADR-091)
 
-- `{"type":"git.list"}` → `{"type":"git","branches":[{"repo","repoName","branch":"atom/task-7","task":7,"title","base","commits":[{"sha","subject","at"}],"files":[{"path","added","removed"}],"remote","pushed":"no"|"yes"|"changed"}]}` for the repositories inside granted folders.
+- `{"type":"git.list"}` → `{"type":"git","branches":[{"repo","repoName","branch":"atom/task-7","task":7,"title","base","commits":[{"sha","subject","at"}],"files":[{"path","added","removed"}],"remote","pushed":"no"|"yes"|"changed"}]}` for repositories inside existing granted folders and active repository-root projects. ADR-173 adds optional `baseSHA`, `baseSource` (`saved|estimated|unavailable`), `baseWarning`, `behind` and `pushAllowed`. Missing behind means unknown. Project-only discovery does not authorize Push.
 - `{"type":"git.push","repo":"/full/path","branch":"atom/task-7"}`: sent only after Keshab confirms; pushes that branch to `origin` (never forced), then `git` again; a refusal is an `error` with stage `settings`.
 - `{"type":"git.diff","repo":"…","branch":"…"}` → `{"type":"git.diff","repo","branch","text","truncated"}`.
 
@@ -437,3 +437,15 @@ ADR-169: chat.control additionally accepts action `brief` with exact `id`, reque
 
 
 ADR-170: runtimes supporting persisted window selection emit the current chat.opened and chats snapshots after ready while idle. This includes an empty fresh-start snapshot when no saved selection can be reopened. Reopening occurs before commands can run; early manual navigation during voice warm-up takes precedence in the later display snapshot. Existing event shapes and explicit send/recovery requirements are unchanged.
+
+
+## Project workspace (ADR-171)
+
+The native window sends `{ "type": "workspace", "request": "<UUID>", "chat": "<current-chat>", "project": "<current-project>", "action": "list|read|changes|review|undo", "path": "<relative-path>" }`. Root lists and Changes use an empty path. Review/Undo also carry a positive `job`; Undo carries the 64-hex-character token from its fresh exact-file review. This is a private local-window command, never a provider tool or public API endpoint.
+
+Every response has the same type/request/chat/project/action/path and `ok`. A refusal carries `error`. Success carries canonical `root` plus `entries`/`limited` for listing, complete `text`/`absolute` for a preview, `changes`/`limited`/coverage `notice` for task provenance, or `review` with full `before`/`after` (current disk), `path`/`absolute`, explanatory `note` and optional Undo `token`. Successful Undo returns a notice; the window explicitly reloads Changes. List/read/review do not create grants, send drafts, call a model or approve a write. Native state requires matching current request and chat/project scope; expired responses are discarded, with uncertain Undo requiring an explicit refresh. [Budgets, exclusions and coverage](project-workspace.md).
+
+
+ADR-172 extends `workspace` with `action: "git"` (local status) or `action: "gitReview"` plus `section: "staged|unstaged|untracked|conflict"` and a project-relative path. Responses mirror section and return `gitStatus` (branch/head/upstream/ahead/behind, grouped file metadata, limits/filter flag) or `gitReview` (full before/after, labels, optional conflict base, coverage note). These are asynchronous private local-window reads. Current chat/project/root are rechecked before returning; native state also matches the section. No Git mutation or network operation is dispatched. [Budgets and safety](git-workspace.md).
+
+ADR-173 records exact new task starting points outside worker trees and labels older estimates. Git list refresh clears the displayed old patch. Saved base/behind semantics and access boundaries: [Task branches](task-branches.md).

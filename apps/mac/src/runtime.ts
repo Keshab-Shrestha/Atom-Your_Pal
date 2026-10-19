@@ -73,6 +73,7 @@ import { searchEverything } from "./everything-search.ts";
 import { BRIEF_INSTRUCTIONS, createBriefRunner } from "./brief.ts";
 import { EDIT_INSTRUCTIONS, createTextEditor, providerTextWriter } from "./text-edit.ts";
 import type { BriefChange } from "./island-commands.ts";
+import { createProjectWorkspace } from "./project-workspace.ts";
 import { createProjects } from "./projects-wiring.ts";
 import { createIslandGit, withPaperclip } from "./island-wiring.ts";
 import { nowLine, createEchoCore, describe, errorFields, findCalendarHelper, openHelpers, openMemory, warmOnOpen } from "./runtime-support.ts";
@@ -135,6 +136,7 @@ export interface Runtime {
   chatTurns: ChatTurns;
   /** ADR-107: projects as the ATOM window sees them. Undefined when memory is off. */
   islandProjects?: IslandProjects;
+  islandWorkspace?: IslandOptions["workspace"];
   /** Search everything (upgrades.md C1). */
   everything?: IslandOptions["everything"];
   /** Remembering by itself (upgrades.md C2). Undefined when memory is off. */
@@ -379,9 +381,9 @@ export function createRuntime(
       })
     : undefined;
   // ADR-091: ATOM's task branches in the repositories Keshab granted; pushing one is his alone, asked from the window.
-  const islandGit: IslandGit | undefined = helpers && createIslandGit(helpers);
   // Task 3.11: the tasks' git worktrees live beside the helpers file, never inside a granted repository.
   const worktrees = join(dirname(resolve(helpersPath === ":memory:" ? "data/x" : helpersPath)), "worktrees");
+  const islandGit: IslandGit | undefined = helpers && createIslandGit(helpers, { worktrees, ...(projects ? { projectFolders: () => projects.gitFolders() } : {}) });
   // ADR-087, Task 3.16: Keshab's own Paperclip, only when ATOM_PAPERCLIP_URL names a loopback address. Anything else
   // sends nothing. ATOM never installs or starts it.
   const paperclipApi = paperclipBase(readEnv(process.env, "ATOM_PAPERCLIP_URL"));
@@ -1068,6 +1070,10 @@ export function createRuntime(
         }
       : {}),
     ...(memory ? { islandMemory, islandChats, islandProjects: projects!.island, ...(brainWiring ? { islandBrain: brainWiring.island } : {}) } : {}),
+    ...(projects && memory ? { islandWorkspace: createProjectWorkspace({ helpers, project: (id) => {
+      const p = memory.projects.list().find((p) => p.id === id);
+      return p ? { folder: p.folders[0] ?? "", archived: p.archived } : undefined;
+    } }) } : {}),
     ...(islandGit ? { islandGit } : {}),
     islandSlashCommands: { list: () => listCommands(userCommandsDir()) },
     islandSkillFiles: { read: (name) => readSkillFile(name, userSkillsDir(), skillsDir), write: (name, text) => writeSkillFile(name, text, userSkillsDir(), skillsDir) },

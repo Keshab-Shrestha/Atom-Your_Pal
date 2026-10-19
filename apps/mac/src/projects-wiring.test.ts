@@ -33,6 +33,20 @@ function setup(options: { noHelpers?: boolean; onChatsDeleted?: (chatIds: readon
 }
 const turn = (i: number) => [{ role: "user" as const, content: `u${i}` }, { role: "assistant" as const, content: `a${i}` }];
 
+test("Git discovery uses only active project folders and rechecks missing folders", () => {
+  const t = setup();
+  try {
+    const folder = join(t.home, "Developer", "haat");
+    t.projects.island.add("Haat", folder);
+    assert.deepEqual(t.projects.gitFolders(), [folder]);
+    t.projects.island.archive(t.first().id, true);
+    assert.deepEqual(t.projects.gitFolders(), []);
+    t.projects.island.archive(t.first().id, false);
+    rmSync(folder, { recursive: true });
+    assert.deepEqual(t.projects.gitFolders(), []);
+  } finally { t.done(); }
+});
+
 test("deleting a project's chats reports their ids only after the database removal succeeds", () => {
   const deleted: string[][] = [];
   const t = setup({ onChatsDeleted: (ids) => deleted.push([...ids]) });

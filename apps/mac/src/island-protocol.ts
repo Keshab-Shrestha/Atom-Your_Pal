@@ -15,7 +15,10 @@ export * from "./island-items.ts";
 export * from "./island-commands.ts";
 
 
+import type { WorkspaceResponse } from "./project-workspace.ts";
+
 export type IslandEvent =
+  | WorkspaceResponse
   | ForegroundReceipt | ForegroundResponse
   | ChatWork
   | ChatControlResponse
