@@ -14,14 +14,14 @@ export function validFileReview(review: FileEditReview): boolean {
     && Buffer.byteLength(review.before) + Buffer.byteLength(review.after) <= FILE_REVIEW_BYTES
     && review.before.split("\n").length + review.after.split("\n").length <= FILE_REVIEW_LINES;
 }
-type ApprovalInput = { summary: string; reason: string; timeoutMs?: number; reasonMax?: number; rememberFile?: boolean; fileReview?: FileEditReview };
+type ApprovalInput = { summary: string; reason: string; timeoutMs?: number; reasonMax?: number; rememberFile?: boolean; fileReview?: FileEditReview; accessChange?: true };
 
 export interface ComputerBridge {
   /** Where events go. Until the island is attached, every approval is a refusal and steps are dropped. */
   attach(send: (event: IslandEvent) => void): void;
   /** Passed to the computer tool as `approve`. Resolves true only if the user answers yes. */
   /** `timeoutMs` overrides the default wait for this one request. */
-  approve(request: { summary: string; reason: string; timeoutMs?: number; reasonMax?: number }, signal?: AbortSignal): Promise<boolean>;
+  approve(request: { summary: string; reason: string; timeoutMs?: number; reasonMax?: number; accessChange?: true }, signal?: AbortSignal): Promise<boolean>;
   approveFile(request: { summary: string; reason: string }, signal?: AbortSignal): Promise<FileApproval>;
   /** Full local review. Approval requires a token returned only by the detailed native review surface. */
   approveFileEdit(request: FileEditReview & { summary: string }, signal?: AbortSignal): Promise<boolean>;
@@ -49,6 +49,7 @@ export interface ApprovalAsk {
   summary: string;
   reason: string;
   rememberFile?: true;
+  accessChange?: true;
   fileReview?: FileEditReview & { token: string };
 }
 
@@ -130,7 +131,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
           resolve(approved);
         });
         signal?.addEventListener("abort", onAbort, { once: true });
-        const ask: ApprovalAsk = { id, summary: oneLine(request.summary, 140), reason: oneLine(request.reason, Math.min(Math.max(request.reasonMax ?? 140, 140), MAX_REASON_CHARS)), ...(request.rememberFile ? { rememberFile: true } : {}), ...(request.fileReview ? { fileReview: { ...request.fileReview, token: randomUUID() } } : {}) };
+        const ask: ApprovalAsk = { id, summary: oneLine(request.summary, 140), reason: oneLine(request.reason, Math.min(Math.max(request.reasonMax ?? 140, 140), MAX_REASON_CHARS)), ...(request.accessChange ? { accessChange: true } : {}), ...(request.rememberFile ? { rememberFile: true } : {}), ...(request.fileReview ? { fileReview: { ...request.fileReview, token: randomUUID() } } : {}) };
         asks.set(id, ask);
         sendEvent!({ type: "approval.request", ...ask });
         for (const listener of askListeners) listener(ask);

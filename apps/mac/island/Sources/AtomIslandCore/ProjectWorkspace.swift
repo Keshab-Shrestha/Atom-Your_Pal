@@ -64,20 +64,59 @@ public struct WorkspaceResponse: Sendable, Equatable, Codable {
 /// One foreground request. Old results, chat switches and timed-out replies cannot repopulate another workspace.
 public struct ProjectWorkspaceState: Sendable, Equatable {
     public var shown = false
-    public var tab = "files"
+    public var tab = "home"
     public var folder = ""
     public var pending: WorkspaceRequest?
     public var response: WorkspaceResponse?
     public var notice: String?
+    public var filter = ""
+    public var selectedChange: WorkspaceChange?
+    public var reviewMode = "changes"
+    public var gitMode = "changes"
+    public var ignoreWhitespace = false
+    private struct Place: Sendable, Equatable {
+        var response: WorkspaceResponse?
+        var notice: String?
+        var folder: String
+        var filter: String
+        var selected: WorkspaceChange?
+        var mode: String
+        var gitMode: String
+        var ignoreWhitespace: Bool
+    }
+    private var places: [String: Place] = [:]
     public init() {}
+    /// Switching surfaces cancels only local read tracking. Late responses still fail the exact request check.
+    /// An in-flight Undo must finish or time out before switching to avoid hiding an uncertain mutation.
+    @discardableResult public mutating func select(_ surface: WorkspaceSurface?) -> Bool {
+        guard pending?.action != .undo else { return false }
+        let next = surface?.rawValue ?? "home"
+        guard next != tab else { return true }
+        places[tab] = Place(response: response, notice: notice, folder: folder, filter: filter,
+                            selected: selectedChange, mode: reviewMode, gitMode: gitMode, ignoreWhitespace: ignoreWhitespace)
+        pending = nil; tab = next
+        let place = places.removeValue(forKey: next)
+        response = place?.response; notice = place?.notice; folder = place?.folder ?? ""
+        filter = place?.filter ?? ""; selectedChange = place?.selected
+        reviewMode = place?.mode ?? "changes"; gitMode = place?.gitMode ?? "changes"
+        ignoreWhitespace = place?.ignoreWhitespace ?? false
+        return true
+    }
     /// Presentation metadata (counts, names, models and recency) does not invalidate a local file preview.
     public static func identity(_ chats: ChatList?) -> [String] {
         let project = chats?.currentProject
         return [chats?.current ?? "", project?.id ?? "", project?.folderPath ?? "",
                 String(project?.missing ?? true), String(project?.archived ?? true), chats?.currentReadOnlyNotice ?? ""]
     }
-    public mutating func clear() { folder = ""; pending = nil; response = nil; notice = nil }
-    public mutating func begin(_ request: WorkspaceRequest) { pending = request; response = nil; notice = nil }
+    public mutating func clear() {
+        folder = ""; pending = nil; response = nil; notice = nil; filter = ""; selectedChange = nil
+        reviewMode = "changes"; gitMode = "changes"; ignoreWhitespace = false; places.removeAll()
+    }
+    public mutating func begin(_ request: WorkspaceRequest) {
+        // After a mutation, no other surface may restore a pre-mutation preview/token.
+        if request.action == .undo { places.removeAll() }
+        pending = request; response = nil; notice = nil
+    }
     public mutating func accept(_ result: WorkspaceResponse, chat: String?, project: String?) {
         guard let pending, result.request == pending.request, result.chat == pending.chat,
               result.project == pending.project, result.action == pending.action, result.path == pending.path, result.section == pending.section,

@@ -110,3 +110,8 @@ Foreground reliability progress (2026-10-18): ADR-157 retains accepted input/que
 
 
 2026-10-21 / ADR-180: requested T3 interaction step 3 now implements persisted Saved permissions, Chat only and Ask before changes, with Claude/Codex enforcement and unchanged chat/grant continuity. Full access remains the next separate upgrade. [Details](chat-access.md).
+
+
+2026-10-21 / ADR-181: Full access now follows checked access modes as a separate per-chat opt-in, with routine approval skipping, complete scope confirmation and preserved protected actions/history/grants. [Scope and verification](chat-full-access.md). The multi-surface right pane is the next requested interaction step.
+
+2026-10-21 / ADR-182: the first right-pane capability delivers actual Files/Changes/Git surfaces, retained places, bounded resizing and native keyboard/menu access. Verified Swift, signed build, galleries and live fictional-project workflows. [Scope and limits](workspace-pane.md). Next requested interaction: searchable project filter and project settings; Browser/Terminal/PR/Device integrations remain separate.

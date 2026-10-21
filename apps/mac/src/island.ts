@@ -111,6 +111,7 @@ export function runIsland(options: IslandOptions): IslandSession {
       send({ type: "error", stage: "settings", message: "ATOM could not save the open-chat choice. Your saved conversations are still available in Chats." });
     }
   }
+  let accessActivation: AbortController | undefined;
   const pendingApprovals = new Map<string, Extract<IslandEvent, { type: "approval.request" }>>();
   options.computer?.attach((event) => {
     if (event.type === "approval.request") pendingApprovals.set(event.id, event);
@@ -248,6 +249,7 @@ export function runIsland(options: IslandOptions): IslandSession {
   }
 
   function handle(command: IslandCommand) {
+    if (["chat.access", "chat.open", "chat.new", "chat.delete", "chat.model", "chat.control", "conversation.reset", "talk.start", "talk.send", "talk.cancel", "text.send", "quit"].includes(command.type)) accessActivation?.abort();
     switch (command.type) {
       case "foreground.list": case "foreground.read": case "foreground.dismiss":
         if (options.foreground) send(foregroundResponse(options.foreground, command));
@@ -478,14 +480,28 @@ export function runIsland(options: IslandOptions): IslandSession {
         void (options.settings?.refreshModels?.() ?? Promise.resolve()).then(sendInfo, (error: unknown) => options.log?.warn("models.refresh_failed", { message: describe(error) }));
         return;
       case "chat.access": {
-        if (command.id !== core.sessionId || chatWriter(command.id) || isSharedChat(command.id)
-            || options.chats?.metadataOf?.(command.id)?.archived || core.busy || loop.state !== "idle"
-            || options.chatTurns?.busy?.(command.id) || options.taskActivity?.busy()) {
-          send({ type: "error", stage: "settings", message: "Open this writable chat and finish or stop active work before changing access." }); return;
-        }
-        const result = options.chats?.setAccess?.(command.id, command.mode, command.expected) ?? { error: "This runtime does not support chat access modes." };
-        if ("error" in result) send({ type: "error", stage: "settings", message: result.error });
-        else sendChats();
+        const writableIdle = () => command.id === core.sessionId && !chatWriter(command.id) && !isSharedChat(command.id)
+          && !options.chats?.metadataOf?.(command.id)?.archived && !core.busy && loop.state === "idle"
+          && !options.chatTurns?.busy?.(command.id) && !options.taskActivity?.busy();
+        const fail = (message: string) => send({ type: "error", stage: "settings", message });
+        if (!writableIdle()) { fail("Open this writable chat and finish or stop active work before changing access."); return; }
+        const save = () => {
+          const result = options.chats?.setAccess?.(command.id, command.mode, command.expected) ?? { error: "This runtime does not support chat access modes." };
+          if ("error" in result) fail(result.error); else sendChats();
+        };
+        if (command.mode !== "full") { save(); return; }
+        // No repeat consent when selecting the already-enabled mode; never accept a forged previous mode.
+        if (options.chats?.accessOf?.(command.id) !== command.expected) { fail("Chat access changed. Reopen its selector."); return; }
+        if (command.expected === "full") { sendChats(); return; }
+        const controller = new AbortController(); accessActivation = controller;
+        void (async () => {
+          const allowed = await options.chats?.confirmFullAccess?.(command.id, command.expected, controller.signal);
+          if (controller.signal.aborted || quitting) return;
+          if (!allowed) { fail("Full access was not enabled."); return; }
+          if (!writableIdle() || options.chats?.accessOf?.(command.id) !== command.expected) { fail("The chat or its work changed while confirming Full access. Select it again when idle."); return; }
+          save();
+        })().catch(() => fail("Could not confirm Full access. Its previous mode is unchanged."))
+          .finally(() => { if (accessActivation === controller) accessActivation = undefined; });
         return;
       }
       case "chat.reasoning": {
@@ -1183,6 +1199,7 @@ export function runIsland(options: IslandOptions): IslandSession {
   function quit() {
     if (quitting) return;
     quitting = true;
+    accessActivation?.abort();
     stopMemoryUpdates?.();
     stopSuggestionUpdates?.();
     for (const controller of edits.values()) controller.abort();

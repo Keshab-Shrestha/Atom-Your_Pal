@@ -240,8 +240,10 @@ public struct ApprovalRequest: Sendable, Equatable {
     public var reason: String
     public var rememberFile: Bool
     public var fileReview: FileEditReview?
+    public var accessChange: Bool
 
-    public init(id: String, summary: String, reason: String, rememberFile: Bool = false, fileReview: FileEditReview? = nil) {
+    public init(id: String, summary: String, reason: String, rememberFile: Bool = false, fileReview: FileEditReview? = nil, accessChange: Bool = false) {
+        self.accessChange = accessChange
         self.id = id
         self.summary = summary
         self.reason = reason

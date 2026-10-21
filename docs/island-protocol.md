@@ -461,3 +461,8 @@ The `chats` event adds optional `reasoning: {provider, model, levels: string[], 
 ### Chat access modes (ADR-180)
 
 `{"type":"chat.access","id":"cedar","mode":"chat-only","expected":"checked"}` selects a mode for the current idle writable chat. Exact fields only; modes are `checked`, `chat-only`, `ask-changes`. `expected` binds the previous mode. Active turns/source-chat tasks, shared/archived chats and stale identities refuse with stage settings. The authoritative `chats` event adds optional `access` with the selected mode; older runtimes omit it and the native menu stays hidden. Selection never sends a prompt or edits the composer. Chat control inspection also includes optional `info.access.mode`; host/computer/web flags describe availability in that mode, while fileGrants counts retained grants. See [access contract](chat-access.md).
+
+
+### Full access confirmation (ADR-181)
+
+`chat.access` additionally accepts `mode: "full"`. It never accepts a client `confirmed` flag. A host confirmation is required unless the same chat already has Full access; only after consent and fresh identity/idle/previous-mode checks does the `chats.access` event change. `approval.request` adds optional `accessChange: true` for the expanded complete-scope card; ordinary cards omit it. The native Enable Full access button uses the existing request-bound `approval.answer`. Changed work/navigation/input, cancellation, quit, denial or unavailable confirmation cannot enable the mode. Full access does not propagate into forked chats. [Scope](chat-full-access.md).

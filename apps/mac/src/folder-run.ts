@@ -25,6 +25,8 @@ export const MAX_OUTSIDE_WRITES = 200;
 export interface FolderCheckOptions {
   /** The task's own folders (a project's folder, a git worktree): writes inside them are free (git or the checkpoints keep the undo). May be empty. */
   roots: string[];
+  /** Explicit chat opt-in, rechecked at each call. Skips routine overwrite/command cards, never path/secret/undo checks. */
+  fullAccess?(): boolean;
   /** ADR-122: kept by the caller across the task's calls. A fresh one per call asks for every overwrite. */
   memory?: FolderMemory;
   cwd: string;
@@ -112,7 +114,7 @@ export function folderCheck(options: FolderCheckOptions) {
       const command = typeof input.command === "string" ? input.command : "";
       const verdict = classifyCommand(command);
       if (verdict.verdict === "refuse") return say(name, "refused"), verdict.reason;
-      if (verdict.verdict === "ask") {
+      if (verdict.verdict === "ask" && !options.fullAccess?.()) {
         say(name, "asked");
         const ok = await options.approve({ summary: `${options.name} wants to run: ${oneLine(command, 120)}`, reason: `This command ${verdict.reason}.` });
         if (options.cancelled?.()) return stopped;
@@ -155,7 +157,7 @@ export function folderCheck(options: FolderCheckOptions) {
         const real = realish(isAbsolute(p) ? p : resolve(options.cwd, p));
         if (roots.some((r) => isInside(r, real))) continue;
         const asks: string[] = [];
-        if (existsSync(real) && !memory.approved.has(real) && !options.permissions?.has(real)) asks.push(`change the file ${shortPath(real, home)}`);
+        if (!options.fullAccess?.() && existsSync(real) && !memory.approved.has(real) && !options.permissions?.has(real)) asks.push(`change the file ${shortPath(real, home)}`);
         if (!memory.written.has(real) && memory.written.size >= MAX_OUTSIDE_WRITES) asks.push(`change more than ${MAX_OUTSIDE_WRITES} files outside its own folder`);
         if (asks.length) {
           say(name, "asked");

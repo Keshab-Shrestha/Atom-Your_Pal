@@ -209,3 +209,13 @@ test("a reason is cut at 140 characters unless the caller asks for more, and nev
   assert.deepEqual(lengths, [140, 300, 600]);
   bridge.cancelAll();
 });
+
+test("Full access confirmation preserves its entire scope and marks the expanded native card", async () => {
+  const { FULL_ACCESS_CONFIRMATION } = await import("./chat-access.ts");
+  const { bridge, events } = setup();
+  const pending = bridge.approve({ summary: "Enable Full access for this chat?", reason: FULL_ACCESS_CONFIRMATION, reasonMax: 600, accessChange: true });
+  const ask = events.find((e) => e.type === "approval.request");
+  assert.equal(ask?.type, "approval.request");
+  if (ask?.type === "approval.request") { assert.equal(ask.reason, FULL_ACCESS_CONFIRMATION); assert.equal(ask.accessChange, true); bridge.answer(ask.id, false); }
+  assert.equal(await pending, false);
+});

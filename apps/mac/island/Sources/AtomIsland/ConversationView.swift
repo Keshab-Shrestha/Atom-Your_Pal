@@ -105,28 +105,49 @@ struct Composer: View {
                 }
                 .frame(minHeight: 60, alignment: .topLeading)
                 if readOnly == nil {
-                    HStack(spacing: 12) {
-                        if snapshot {
-                            Text("Default model").font(.system(size: 12)).foregroundStyle(theme.text2.color)
-                            Image(systemName: "chevron.down").font(.system(size: 9)).foregroundStyle(theme.text3.color)
-                        } else {
-                            ChatModelMenu(model: model)
-                            ChatReasoningMenu(model: model)
-                            ChatAccessMenu(model: model)
-                            SkillsMenu(skills: model.helpers.list?.skills ?? []) { name in
-                                draft.wrappedValue = ComposerDraft.applying(skill: name, to: draft.wrappedValue)
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 12) {
+                            if snapshot {
+                                Text("Default model").font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                                Image(systemName: "chevron.down").font(.system(size: 9)).foregroundStyle(theme.text3.color)
+                            } else {
+                                ChatModelMenu(model: model)
+                                ChatReasoningMenu(model: model)
+                                ChatAccessMenu(model: model)
+                                SkillsMenu(skills: model.helpers.list?.skills ?? []) { name in
+                                    draft.wrappedValue = ComposerDraft.applying(skill: name, to: draft.wrappedValue)
+                                }
+                            }
+                            Spacer(minLength: 4)
+                            if snapshot {
+                                Image(systemName: "paperclip").foregroundStyle(theme.text3.color)
+                            } else {
+                                AttachButton { attached.wrappedValue.add($0) }
+                            }
+                            if answering && empty {
+                                StopReplyButton { model.stopReply() }
+                            } else {
+                                ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, queueing: model.queue.running, action: send)
                             }
                         }
-                        Spacer(minLength: 4)
-                        if snapshot {
-                            Image(systemName: "paperclip").foregroundStyle(theme.text3.color)
-                        } else {
-                            AttachButton { attached.wrappedValue.add($0) }
-                        }
-                        if answering && empty {
-                            StopReplyButton { model.stopReply() }
-                        } else {
-                            ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, queueing: model.queue.running, action: send)
+                        if !snapshot {
+                            VStack(spacing: 10) {
+                                HStack(spacing: 10) {
+                                    ChatModelMenu(model: model)
+                                    ChatReasoningMenu(model: model)
+                                    SkillsMenu(skills: model.helpers.list?.skills ?? []) { name in
+                                        draft.wrappedValue = ComposerDraft.applying(skill: name, to: draft.wrappedValue)
+                                    }
+                                    Spacer(minLength: 0)
+                                }
+                                HStack(spacing: 10) {
+                                    ChatAccessMenu(model: model)
+                                    Spacer(minLength: 0)
+                                    AttachButton { attached.wrappedValue.add($0) }
+                                    if answering && empty { StopReplyButton { model.stopReply() } }
+                                    else { ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, queueing: model.queue.running, action: send) }
+                                }
+                            }
                         }
                     }
                 }

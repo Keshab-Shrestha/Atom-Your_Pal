@@ -82,11 +82,28 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
     /// ADR-128: View → Hide Sidebar / Show Sidebar (⌥⌘H).
     @objc private func toggleSidebar(_ sender: Any?) { model.toggleSidebar() }
 
+    @objc private func toggleWorkspace(_ sender: Any?) {
+        guard canFind, model.windowPage == .chat else { return }
+        model.toggleWorkspace()
+    }
+    @objc private func openWorkspaceSurface(_ sender: NSMenuItem) {
+        guard canFind, model.windowPage == .chat, model.workspaceAvailable,
+              WorkspaceSurface.allCases.indices.contains(sender.tag) else { return }
+        model.selectWorkspace(WorkspaceSurface.allCases[sender.tag])
+    }
+
     /// The View item names what it does now: "Hide Sidebar" or "Show Sidebar".
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         if item.action == #selector(find(_:)) {
             item.title = model.windowPage == .chat ? "Find in Chat" : "Search All"
             return canFind
+        }
+        if item.action == #selector(toggleWorkspace(_:)) {
+            item.title = model.workspace.shown ? "Close Workspace" : "Open Workspace"
+            return canFind && model.windowPage == .chat
+        }
+        if item.action == #selector(openWorkspaceSurface(_:)) {
+            return canFind && model.windowPage == .chat && model.workspaceAvailable && model.workspace.pending?.action != .undo
         }
         if item.action == #selector(searchAll(_:)) { return canFind }
         if item.action == #selector(copyLastReply(_:)) { return copyLastReplyText != nil }
@@ -163,7 +180,14 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
         ])
         let sidebar = item(WindowChrome.sidebarToggleTitle(hidden: model.settings.sidebarHidden), #selector(toggleSidebar(_:)), "h", [.command, .option])
         sidebar.target = self
-        add("View", [sidebar])
+        let workspace = item("Open Workspace", #selector(toggleWorkspace(_:)), "r", [.command, .option])
+        workspace.target = self
+        let surfaces = WorkspaceSurface.allCases.enumerated().map { index, surface in
+            let entry = item("Workspace: " + surface.title, #selector(openWorkspaceSurface(_:)), String(index + 1), [.command, .option])
+            entry.tag = index; entry.target = self
+            return entry
+        }
+        add("View", [sidebar, workspace, .separator()] + surfaces)
         let back = item("Back", #selector(goBack(_:)), "[")
         back.target = self
         add("Go", [back])

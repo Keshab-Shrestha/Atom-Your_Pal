@@ -208,7 +208,7 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         guard w > 0, h > 0 else { throw ProtocolError.invalidValue(event: "computer.point", field: w > 0 ? "h" : "w") }
         return .computerPoint(PointTarget(x: try f.double("x"), y: try f.double("y"), w: w, h: h, label: try f.string("label")))
     case "approval.request":
-        return .approvalRequest(ApprovalRequest(id: try f.string("id"), summary: try f.string("summary"), reason: try f.string("reason"), rememberFile: f.optionalBool("rememberFile") ?? false, fileReview: try f.fileReview()))
+        return .approvalRequest(ApprovalRequest(id: try f.string("id"), summary: try f.string("summary"), reason: try f.string("reason"), rememberFile: f.optionalBool("rememberFile") ?? false, fileReview: try f.fileReview(), accessChange: f.optionalBool("accessChange") ?? false))
     case "approval.closed":
         return .approvalClosed(id: try f.string("id"))
     case "info":

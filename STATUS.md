@@ -1,5 +1,18 @@
 # ZENO Project Status
 
+## Current interaction — Resizable workspace surfaces (2026-10-21, ADR-182)
+
+Delivered the next requested T3 interaction: real Files/Changes/Git chooser, a resizable pane beside chat, compact fallback, native View commands and keyboard/accessibility resizing. Retain per-surface previews/filter/source choices in memory across close/reopen/tab switches; scope/runtime changes clear every place. Save only preferred width/surface; existing file/Git/Undo policy remains authoritative. Composer controls wrap for the narrower chat. [Scope, evidence and limits](docs/workspace-pane.md).
+
+763 Swift tests / 142 suites, final signed build, strict signature check and 93 gallery scenes / all 25 comparisons pass. Live listing/literal preview/Git source/Changes/menu/drag/focused-key/width clamping/filter/close-reopen/draft/isolation checks pass on the fictional Cedar project. Compact behavior is rendered/unit coverage; live window resizing did not take effect. Restored default pane preference/chooser, collapsed projects, original movie chat with latest user messages, Haiku 5.5 / Off / Saved permissions / empty composer / closed workspace / Ready. No model or mutation was dispatched by these checks. Prior notebook Full access choice is untouched. Local on main alongside uncommitted ADR-181; no push requested. Preserve graphify-out. Next independent requested step: searchable project filter and project settings. Browser/Terminal/PR/Device surfaces need separate integrations. Stop after this capability.
+
+
+## Current interaction — Full access for one chat (2026-10-21, ADR-181)
+
+Published prior desktop polish/thinking/checked-access work to main as bce4193 at Keshab's request, then implemented the separate Full access upgrade. Explicit host confirmation enables routine approval skipping for one chat; new/forked chats remain checked, old grants/history/drafts survive, and protected tools/actions retain their checks. The full scope has an expanded native confirmation card. [Behavior and limits](docs/chat-full-access.md).
+
+Typecheck, 1,140 TypeScript tests / eight normal opt-in skips and 758 Swift tests / 141 suites pass. Final signed build and strict signature verification pass. All 90 gallery scenes / 22 visual comparisons pass, including the reviewed complete-scope confirmation reference. Live Full access menu, complete-scope Board card and chat/draft isolation pass. The confirmation was accepted in-app during a user interaction, and the fictional notebook chat now has Full access; preserve that confirmed choice. Cleared only the fictional unsent draft and restored the original movie chat (Haiku 5.5 / Off / Saved permissions / empty composer / Ready). No model request or agent action ran. Decline/cancellation and actual file effects are controlled automated checks. Full access itself remains local/uncommitted; unrelated graphify-out is untouched. Next separate requested capability: the multi-surface right pane.
+
 ## Current interaction — Per-chat access modes (2026-10-21, ADR-180)
 
 Implemented Saved permissions, Chat only and Ask before changes beside model/thinking, with persisted chat scope and deterministic Claude/Codex enforcement. Existing history, brief, draft and exact-file grants survive mode changes; strict mode asks even for remembered edits. Stale/busy/shared/archived changes refuse. Gemini refuses restricted turns before launch because its native tools cannot be host-gated. Full access remains the next separate upgrade. [Behavior and evidence](docs/chat-access.md).

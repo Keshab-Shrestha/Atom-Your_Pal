@@ -107,7 +107,7 @@ struct ChatAccessContent: View {
                 Text("Continuing edit permissions: \(access.fileGrants) exact files in this chat.")
                 Text("Computer tools available in this mode: \(access.computer ? "on" : "off"). Web search setting: \(access.web ? "on" : "off").")
             } else { Text("Saved chat details are unavailable. Save a message or refresh to inspect them.") }
-            Text("Change access beside the model selector. Chat only suspends tools and saved file grants. Ask before changes requires a fresh approval for each change-capable call. Saved permissions uses existing grants. Protected files, tool availability and macOS permissions still apply in every mode.")
+            Text("Change access beside the model selector. Chat only suspends tools and saved file grants. Ask before changes requires a fresh approval for each change-capable call. Saved permissions uses existing grants. Full access skips routine file, classified-command, site-opening and granted-plugin prompts for this chat; protected actions still ask or refuse. Protected files, tool availability and macOS permissions still apply in every mode.")
             Text("To inspect exact file grants, send ‘Show file permissions for this chat’. To revoke them, send ‘Forget file permissions for this chat’.")
             Button("Refresh", action: model.inspectSavedChat)
         }.font(.system(size: 12)).foregroundStyle(theme.text2.color).padding(16).frame(width: 340)

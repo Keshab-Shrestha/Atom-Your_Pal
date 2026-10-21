@@ -1,3 +1,4 @@
+import { FULL_ACCESS_CONFIRMATION } from "./chat-access.ts";
 import { runChatControl } from "./chat-controls.ts";
 import { createChatWork, type ChatWorkBridge } from "./chat-work.ts";
 // The parts of the Mac runtime shared by both interfaces (terminal and island):
@@ -328,8 +329,14 @@ export function createRuntime(
     projectOf: (id) => projects?.projectOf(id),
     replay: (id, turns) => projects?.replay(id, turns) ?? { turns, trimmed: false },
     search: (query) => memory.chats.search(query).map((c) => ({ id: c.id, title: c.title, snippet: c.snippet, at: c.updatedAt.toISOString() })),
+    confirmFullAccess: async (id, expected, signal) => {
+      const choice = chatChoice(id, "text");
+      if (![CLAUDE_PLAN, "codex"].includes(choice.provider) || memory.chats.access(id) !== expected || signal.aborted) return false;
+      return computer.approve({ summary: "Enable Full access for this chat?", reason: FULL_ACCESS_CONFIRMATION, reasonMax: 600, accessChange: true, timeoutMs: 120_000 }, signal);
+    },
     accessOf: (id) => memory.chats.access(id),
     setAccess: (id, mode, expected) => {
+      if (mode === "full" && ![CLAUDE_PLAN, "codex"].includes(chatChoice(id, "text").provider)) return { error: "Full access requires Claude or Codex." };
       if (helpers?.list().some((h) => h.jobs.some((j) => j.chatId === id && !isFinal(j.state)))) return { error: "Finish or stop this chat's tasks before changing access." };
       try {
         if (memory.chats.access(id) !== expected) return { error: "Chat access changed. Reopen its selector." };

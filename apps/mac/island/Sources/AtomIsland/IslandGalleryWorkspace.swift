@@ -30,5 +30,12 @@ extension IslandGallery {
             ProjectWorkspaceView(model: files).frame(width: 340)
         }.frame(width: 820, height: 580).environment(\.islandSnapshot, true).themed(AppTheme.daylight.palette)
         save(wide, name: "29-project-workspace-daylight", to: directory)
+        let chooser = model("{" + prefix + #", "action":"list","entries":[]}"#)
+        chooser.workspace.tab = "home"
+        save(ProjectWorkspaceView(model: chooser).frame(width: 420, height: 600).environment(\.islandSnapshot, true).themed(AppTheme.void.palette), name: "35-workspace-chooser", to: directory)
+        files.windowPage = .chat; files.status.apply(.running(pid: 1)); files.settings.theme = .daylight
+        save(HelpersView(model: files).frame(width: 1160, height: 720).environment(\.islandSnapshot, true), name: "35-workspace-split", to: directory)
+        save(HelpersView(model: files).frame(width: 760, height: 640).environment(\.islandSnapshot, true), name: "35-workspace-compact", to: directory)
+
     }
 }

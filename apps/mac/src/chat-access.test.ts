@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ChatAccessMode } from "@atom/contracts";
-import { chatAccessPolicy } from "./chat-access.ts";
+import { chatAccessPolicy, FULL_ACCESS_CONFIRMATION } from "./chat-access.ts";
 import { nativeGate } from "./native-safety.ts";
 import { parseCommand } from "./island-protocol.ts";
 
@@ -57,5 +57,20 @@ test("late Allow cannot survive cancellation or a changed access mode", async ()
 test("access command accepts only named modes, exact fields and a captured previous mode", () => {
   const command = { type: "chat.access", id: "cedar", mode: "chat-only", expected: "checked" };
   assert.deepEqual(parseCommand(JSON.stringify(command)), { command });
-  for (const bad of [{ ...command, mode: "full" }, { ...command, expected: undefined }, { ...command, permissions: "all" }, { ...command, id: "../chat" }]) assert.ok("error" in parseCommand(JSON.stringify(bad)));
+  for (const bad of [{ ...command, mode: "unrestricted" }, { ...command, expected: undefined }, { ...command, permissions: "all" }, { ...command, id: "../chat" }]) assert.ok("error" in parseCommand(JSON.stringify(bad)));
+});
+
+test("Full access skips only extra routine approval, remains live/revocable and binds the confirmation command without extra grants", async () => {
+  assert.ok(FULL_ACCESS_CONFIRMATION.length <= 600, "The entire activation scope must fit the review card");
+  let current: ChatAccessMode = "full", asks = 0;
+  const policy = chatAccessPolicy("full", () => current, async () => { asks++; return false; });
+  assert.equal(policy.fullAccess(), true);
+  assert.equal(await policy.check("Write", { file_path: "/tmp/fictional" }, "write"), undefined);
+  assert.equal(asks, 0);
+  const stopped = new AbortController(); stopped.abort(); assert.equal(policy.fullAccess(stopped.signal), false);
+  current = "checked"; assert.equal(policy.fullAccess(), false);
+  assert.ok(await policy.check("Write", {}, "stale"));
+  const command = { type: "chat.access", id: "cedar", mode: "full", expected: "checked" };
+  assert.deepEqual(parseCommand(JSON.stringify(command)), { command });
+  assert.ok("error" in parseCommand(JSON.stringify({ ...command, confirmed: true })));
 });

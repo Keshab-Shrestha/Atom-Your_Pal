@@ -6,6 +6,7 @@ export type AccessApproval = (request: { summary: string; reason: string }, sign
 export interface ChatAccessPolicy {
   check(name: string, input: Record<string, unknown>, id: string, agent?: string, signal?: AbortSignal): Promise<string | undefined>;
   newAnswer(): void;
+  fullAccess(signal?: AbortSignal): boolean;
 }
 // Closed list owned by ATOM. Unknown tools (including external MCP/browser tools) always ask.
 const READ_ONLY = new Set(["Read", "Glob", "Grep", "WebFetch", "WebSearch", "ToolSearch", "Skill", "ExitPlanMode",
@@ -13,6 +14,8 @@ const READ_ONLY = new Set(["Read", "Glob", "Grep", "WebFetch", "WebSearch", "Too
   "mcp__atom__calendar_events", "mcp__atom__reminders_list", "mcp__atom__timer_list", "mcp__atom__recall",
   "mcp__atom__search_chat_history", "mcp__atom__read_chat_history", "mcp__atom__ask_user"]);
 export const CHAT_ONLY_NOTICE = "Chat only is enabled for this chat. Answer using the conversation and saved brief only. Do not use tools, read new files or screens, browse, run actions or delegate. Saved edit permissions are suspended, not removed.";
+export const FULL_ACCESS_NOTICE = "Full access is enabled for this chat. Routine file overwrite, classified-command, worker-browser site-opening and already-granted plugin approvals are skipped by the host. Protected paths, kits, sandbox, cancellation, macOS permissions and external-content safeguards still apply. Plans, browser submissions/uploads/interactions, computer actions, shell previews and complete file reviews retain their approvals. This mode does not grant new tools, plugins, unrestricted shell or administrator access.";
+export const FULL_ACCESS_CONFIRMATION = "Only this chat. Skip routine file overwrite, classified-command, worker-browser site-opening and already-granted plugin prompts. Plugins can act outside ATOM's file sandbox. Protected files, tool/worker limits, sandboxing, cancellation and macOS permissions still apply. Plans, browser submissions/uploads/interactions, computer actions, shell previews and complete file reviews still ask. External-content safeguards remain. Stays on after restart; new and forked chats use Saved permissions. You can switch back when this chat is idle.";
 export const ASK_CHANGES_NOTICE = "Ask before changes is enabled. ATOM requires a fresh approval for each change-capable tool call, even when a saved file grant exists. Existing safety checks still apply.";
 
 /** Additional per-call restriction; it never replaces a native/file/tool policy decision. */
@@ -21,11 +24,12 @@ export function chatAccessPolicy(mode: ChatAccessMode, current: () => ChatAccess
   const calls = new Map<string, { fingerprint: string; decision: Promise<string | undefined> }>();
   const stale = (signal?: AbortSignal) => signal?.aborted || current() !== mode;
   return {
+    fullAccess(signal) { return mode === "full" && !stale(signal); },
     newAnswer() { for (const key of calls.keys()) if (key.startsWith("main:")) calls.delete(key); },
     async check(name, input, id, agent, signal) {
       if (stale(signal)) return "Stopped or chat access changed. No action is allowed from this request.";
       if (mode === "chat-only") return CHAT_ONLY_NOTICE;
-      if (mode === "checked" || READ_ONLY.has(name)) return undefined;
+      if (mode === "checked" || mode === "full" || READ_ONLY.has(name)) return undefined;
       const key = `${agent ?? "main"}:${id}`;
       const fingerprint = createHash("sha256").update(JSON.stringify([name, input])).digest("hex");
       const previous = calls.get(key);

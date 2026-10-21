@@ -280,7 +280,8 @@ export function nativeGate(scope: NativeScope): NativeGate {
       if (team.hostMcp && member.planFirst && !planApproved.has(agentId)) return say("refused"), deny("Approve this worker's plan with ExitPlanMode before calling an external MCP tool.");
       const servers = member.kit === "think" ? [] : grantedServers(team.helpers.mcpServers(), member.id);
       const preview = team.hostMcp ? redact(JSON.stringify(input)) : "";
-      const problem = await mcpCheck({ servers, worker: member.name, approve: team.hostMcp ? (request) => approve({ ...request, reasonMax: 600 }) : approve, ...(team.hostMcp ? {
+      const problem = await mcpCheck({ servers, worker: member.name, approve: (request) => scope.access?.fullAccess(job !== undefined ? stopFor(job).signal : undefined) && active(job) && !isTainted(agentId) ? Promise.resolve(true) : approve(team.hostMcp ? { ...request, reasonMax: 600 } : request),
+        ...(scope.access?.fullAccess() ? { forceApproval: isTainted(agentId) } : {}), ...(team.hostMcp ? {
         forceApproval: isTainted(agentId),
         reason: `Arguments: ${preview.slice(0, 300)}${preview.length > 300 ? " [preview clipped]" : ""}. ${isTainted(agentId) ? "External content was read: fresh approval is required even for a Trusted server. " : "Allow this one external call. "}The server can have effects outside ATOM's file sandbox.`,
       } : {}) })(name);
@@ -332,6 +333,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
       cwd: tree?.dir ?? cwd ?? roots[0] ?? team.home ?? homedir(),
       name: member.name,
       cancelled: () => !active(job),
+      fullAccess: () => scope.access?.fullAccess(job !== undefined ? stopFor(job).signal : scope.accessSignal?.()) === true && active(job),
       approve,
       ...(team.approveFile ? { approveFile: (request: { summary: string; reason: string }) => taskApproval<FileApproval>(job, (signal) => team.approveFile!(request, signal), false) } : {}),
       ...(team.permissions ? { permissions: team.permissions } : {}),
@@ -352,7 +354,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
     if (job === undefined) return deny("The browser is for an agent's task only.");
     let state = browsers.get(job);
     if (!state) {
-      state = { policy: browserCheck({ name: member.name, helper: member.id, home: team!.home ?? homedir(), tainted: () => isTainted(agentId), confirmInteractions: team!.hostBrowser === true, approve: (request) => taskApproval(job, (signal) => team!.approve(request, signal), false) }), stop: new AbortController() };
+      state = { policy: browserCheck({ name: member.name, helper: member.id, home: team!.home ?? homedir(), tainted: () => isTainted(agentId), confirmInteractions: team!.hostBrowser === true, fullAccess: () => scope.access?.fullAccess(stopFor(job).signal) === true && active(job), approve: (request) => taskApproval(job, (signal) => team!.approve(request, signal), false) }), stop: new AbortController() };
       browsers.set(job, state);
       const release = await state.policy.acquire(state.stop.signal, () => {});
       if (state.stop.signal.aborted || !active(job)) { release(); return cancelled(); }

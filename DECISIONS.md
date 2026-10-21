@@ -3623,3 +3623,25 @@ Discover task branches from active checked repository-root projects as well as e
 Claude/Codex gates refuse all tools in Chat only; Core also excludes automatic file/screen/context/skill reads and action shortcuts. Ask before changes requires a call/argument/worker-bound fresh approval before the existing policy checks, including saved-grant edits and delegation. Unknown tools ask; cancellation and stale mode refuse. Gemini CLI refuses restricted turns because its native tools cannot be checked by these host gates.
 
 **Reason:** a permissions label must constrain real execution while keeping the user's continuing chat and exact-file grants intact. Extra approval never overrides protected paths, kits, plans, undo or macOS permissions. Full access remains a separate requested capability. [Scope, limitations and evidence](docs/chat-access.md).
+
+
+---
+
+## ADR-181 — Confirm Full access separately for each chat
+
+**Decision (2026-10-21):** add explicit Full access to the chat menu for Claude/Codex. A host-owned expanded confirmation must complete before saving; bind chat/previous mode and recheck idle/provider/task state after consent. Navigation, new turns, cancellation and quit abort activation. Persist per chat across restart, but reduce Full access to Saved permissions on an explicit fork. Migrate the old SQLite mode constraint transactionally without changing history, drafts, briefs or grants.
+
+Skip routine ordinary-file overwrite, classified-command, worker site-opening and already-granted plugin cards. Keep protected paths/commands, kits, sandbox, macOS permission, external-content freshness, cancellation, resource budgets and undo. Plans, browser interactions/submissions/uploads, computer actions, new agents, shell previews and full edit reviews retain their separate approvals. Plugins can act outside ATOM's file sandbox; no new plugin grant is made. The model cannot turn the mode on.
+
+**Reason:** Keshab requested a separate Full access upgrade. Its label must describe actual authority and reduce repeated routine prompts without silently elevating existing/new/forked chats. No new native shell or administrator access. [Scope and evidence](docs/chat-full-access.md).
+
+
+---
+
+## ADR-182 — Resize the checked project workspace and retain each surface’s place
+
+**Decision (2026-10-21):** use a native right-pane chooser for the implemented Files, Changes and Git surfaces. Fit a bounded adjustable pane beside chat when the main content is at least 649 pixels wide; cover the chat below that while keeping its editor mounted. Support pointer, focused arrow-key, accessibility adjustment and native View-menu controls. Persist only preferred width and surface name. Preserve per-surface previews and presentation state in memory through close/reopen/tab changes, clearing all places on existing chat/project/root/read-only/runtime invalidation.
+
+Pending reads are invalidated when switching surfaces; exact response matching still rejects late replies. Block surface switching during an in-flight Undo, invalidate other previews when Undo begins, and preserve uncertain timeout reporting. Continue existing literal previews, checked file navigation and read-only Git behavior. No backend/protocol/permission change or additional dependency.
+
+**Reason:** Keshab requested T3’s right pane; the fixed 340-pixel pane previously replaced chat below a 780-pixel threshold and cleared its preview on reopening. Advertise only working local surfaces. Browser/Terminal/PR/Device require separate integrations. [Scope and verification](docs/workspace-pane.md).

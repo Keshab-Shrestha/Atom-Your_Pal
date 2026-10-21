@@ -22,7 +22,25 @@ extension IslandModel {
             self?.workspace.expire(request.request)
         }
     }
+    func toggleWorkspace() { workspace.shown.toggle() }
+    func selectWorkspace(_ surface: WorkspaceSurface?) {
+        guard workspace.select(surface) else { return }
+        settings.workspaceSurface = workspace.tab
+        workspace.shown = true
+        loadWorkspaceIfNeeded()
+    }
+    func loadWorkspaceIfNeeded() {
+        if workspace.shown, workspaceAvailable, workspace.response?.action == .undo {
+            workspace.selectedChange = nil
+            requestWorkspace(.changes)
+            return
+        }
+        guard workspace.shown, workspaceAvailable, WorkspaceSurface(rawValue: workspace.tab) != nil,
+              workspace.pending == nil, workspace.response == nil, workspace.notice == nil else { return }
+        refreshWorkspace()
+    }
     func refreshWorkspace() {
+        guard WorkspaceSurface(rawValue: workspace.tab) != nil else { return }
         if workspace.tab == "git" { requestWorkspace(.git) }
         else if workspace.tab == "changes" { requestWorkspace(.changes) }
         else { requestWorkspace(.list, path: workspace.folder) }

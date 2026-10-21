@@ -1,4 +1,4 @@
-import { CHAT_ONLY_NOTICE, ASK_CHANGES_NOTICE, chatAccessPolicy, type AccessApproval } from "./chat-access.ts";
+import { CHAT_ONLY_NOTICE, ASK_CHANGES_NOTICE, FULL_ACCESS_NOTICE, chatAccessPolicy, type AccessApproval } from "./chat-access.ts";
 import type { ChatAccessMode } from "@atom/contracts";
 import { randomUUID } from "node:crypto";
 import type { Core, HandleHooks } from "@atom/core";
@@ -414,7 +414,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     const skill = chatOnly ? undefined : deps.skills?.use(text);
     const asked = skill?.text ?? text;
     const selected = replay(turns, asked);
-    const extra = [chatOnly ? undefined : (await quiet(() => deps.context?.({ ...input, text }, context)))?.trim(), skill?.block, briefContext(chat), chatOnly ? CHAT_ONLY_NOTICE : permissionContext(chat), access === "ask-changes" ? ASK_CHANGES_NOTICE : undefined].filter(Boolean).join("\n\n");
+    const extra = [chatOnly ? undefined : (await quiet(() => deps.context?.({ ...input, text }, context)))?.trim(), skill?.block, briefContext(chat), chatOnly ? CHAT_ONLY_NOTICE : permissionContext(chat), access === "ask-changes" ? ASK_CHANGES_NOTICE : access === "full" ? FULL_ACCESS_NOTICE : undefined].filter(Boolean).join("\n\n");
     const project = chatOnly ? undefined : await quiet(() => deps.project?.(chat));
     // Attached files give read access to their own folder only: no sandbox, no worktrees, no Bash (those are for a project).
     const attached = project || chatOnly ? undefined : await quiet(() => deps.attachments?.turn(chat));
@@ -509,7 +509,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     const attached = !project && hasTools ? await quiet(() => deps.attachments?.turn(chat)) : undefined;
     const files = project?.files ?? attached?.files;
     const skill = chatOnly ? undefined : deps.skills?.use(text);
-    const extra = [chatOnly ? undefined : (await quiet(() => deps.context?.({ ...input, text }, context)))?.trim(), skill?.block, briefContext(chat), chatOnly ? CHAT_ONLY_NOTICE : permissionContext(chat), access === "ask-changes" ? ASK_CHANGES_NOTICE : undefined].filter(Boolean).join("\n\n");
+    const extra = [chatOnly ? undefined : (await quiet(() => deps.context?.({ ...input, text }, context)))?.trim(), skill?.block, briefContext(chat), chatOnly ? CHAT_ONLY_NOTICE : permissionContext(chat), access === "ask-changes" ? ASK_CHANGES_NOTICE : access === "full" ? FULL_ACCESS_NOTICE : undefined].filter(Boolean).join("\n\n");
     const opening = !chatOnly && turns.length === 0 ? (await quiet(() => deps.opening?.(chat, text)))?.trim() : undefined;
     const archive = turns.map((m) => (!chatOnly && deps.attachments ? { ...m, content: deps.attachments.expand(chat, m.content) } : m));
     const asked = !chatOnly && deps.attachments ? deps.attachments.expand(chat, skill?.text ?? text) : skill?.text ?? text;

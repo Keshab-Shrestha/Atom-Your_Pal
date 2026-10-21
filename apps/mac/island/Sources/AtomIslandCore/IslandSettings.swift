@@ -34,6 +34,8 @@ public final class IslandSettings {
     static let bubbleOpacityKey = "atom.bubble.opacity"
     static let themeKey = "atom.look.theme"
     static let sidebarKey = "atom.window.sidebar"
+    static let workspaceWidthKey = "atom.window.workspaceWidth"
+    static let workspaceSurfaceKey = "atom.window.workspaceSurface"
     static let sidebarHiddenKey = "atom.window.sidebarHidden"
     static let favoriteModelsKey = "atom.models.favorites"
     /// Set once the ADR-084 move to Lantern has run, so a later choice of Quiet Native sticks.
@@ -96,6 +98,10 @@ public final class IslandSettings {
     public var sidebar: SidebarLayout { didSet { defaults.set(sidebar.storage, forKey: Self.sidebarKey) } }
     /// ADR-128: the window's left panel is hidden (⌥⌘H). Default shown.
     public var sidebarHidden: Bool { didSet { defaults.set(sidebarHidden, forKey: Self.sidebarHiddenKey) } }
+
+    /// Presentation only: no paths, previews, grants or Undo tokens are stored here.
+    public var workspaceWidth: Double { didSet { defaults.set(WorkspacePaneLayout.preference(workspaceWidth), forKey: Self.workspaceWidthKey) } }
+    public var workspaceSurface: String { didSet { defaults.set(WorkspaceSurface(rawValue: workspaceSurface)?.rawValue ?? "home", forKey: Self.workspaceSurfaceKey) } }
 
     /// Local picker bookmarks only. They do not select a provider/model or grant access.
     public private(set) var favoriteModels: Set<String> {
@@ -228,6 +234,8 @@ public final class IslandSettings {
         theme = Self.choice(defaults, Self.themeKey, .void)
         sidebar = SidebarLayout(storage: defaults.string(forKey: Self.sidebarKey))
         sidebarHidden = defaults.bool(forKey: Self.sidebarHiddenKey)
+        workspaceWidth = WorkspacePaneLayout.preference(defaults.object(forKey: Self.workspaceWidthKey) as? Double ?? 420)
+        workspaceSurface = defaults.string(forKey: Self.workspaceSurfaceKey).flatMap(WorkspaceSurface.init(rawValue:))?.rawValue ?? "home"
         favoriteModels = Set((defaults.stringArray(forKey: Self.favoriteModelsKey) ?? []).prefix(128).filter { $0.count <= 256 })
         dictationMode = (defaults.string(forKey: Self.dictationModeKey)).flatMap(DictationMode.init(rawValue:)) ?? .automatic
         livePreview = defaults.object(forKey: Self.livePreviewKey) as? Bool ?? true

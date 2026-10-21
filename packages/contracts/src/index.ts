@@ -85,8 +85,8 @@ export interface ReasoningModel {
   defaultReasoning?: string;
 }
 
-export type ChatAccessMode = "checked" | "chat-only" | "ask-changes";
-export const isChatAccessMode = (value: unknown): value is ChatAccessMode => value === "checked" || value === "chat-only" || value === "ask-changes";
+export type ChatAccessMode = "checked" | "chat-only" | "ask-changes" | "full";
+export const isChatAccessMode = (value: unknown): value is ChatAccessMode => value === "checked" || value === "chat-only" || value === "ask-changes" || value === "full";
 
 export interface ModelRequest {
   access?: ChatAccessMode;

@@ -170,6 +170,7 @@ export interface IslandGit {
 
 /** ADR-091: Keshab's chat sessions with ATOM (kept on this Mac). */
 export interface IslandChats {
+  confirmFullAccess?(id: string, expected: import("@atom/contracts").ChatAccessMode, signal: AbortSignal): Promise<boolean>;
   accessOf?(id: string): import("@atom/contracts").ChatAccessMode;
   setAccess?(id: string, mode: import("@atom/contracts").ChatAccessMode, expected: import("@atom/contracts").ChatAccessMode): { ok: true } | { error: string };
   reasoningOf?(id: string): import("./model-settings.ts").ChatReasoning;

@@ -2359,6 +2359,26 @@ test("access commands refuse stale, shared, archived and busy chats before stora
     archived = true; await h.send(command); assert.equal(writes, 0); archived = false;
     for (const chat of ["telegram", "routine-1", "api-phone"]) { current = chat; await h.send({ ...command, id: chat }); assert.equal(writes, 0); }
     current = "cedar"; await h.send(command); assert.equal(writes, 1);
-    await h.send({ ...command, mode: "full" }); assert.equal(writes, 1);
+    await h.send({ ...command, mode: "unrestricted" }); assert.equal(writes, 1);
   } finally { await h.send({ type: "quit" }); }
+});
+
+test("Full access waits for separate human consent and rejects declined, late, switched and newly busy activations", async () => {
+  for (const scenario of ["allow", "decline", "switch", "busy", "stale", "cancel"] as const) {
+    let current = "cedar", busy = false, mode: import("@atom/contracts").ChatAccessMode = "checked", writes = 0;
+    let answer!: (allowed: boolean) => void, signal: AbortSignal | undefined;
+    const h = islandHarness({ core: { get sessionId() { return current; }, get busy() { return busy; }, handle: async () => ({ text: "ok", requestId: "r" }), reset() {} },
+      chats: { list: () => [], messages: () => [], remove: () => false, onChange: () => () => {}, accessOf: () => mode,
+        confirmFullAccess: async (_id, expected, activeSignal) => { assert.equal(expected, "checked"); signal = activeSignal; return new Promise((resolve) => { answer = resolve; }); },
+        setAccess: (_id, selected, expected) => { assert.equal(expected, mode); mode = selected; writes++; return { ok: true }; } } });
+    try {
+      await h.send({ type: "chat.access", id: "cedar", mode: "full", expected: "checked" }); assert.equal(writes, 0); assert.ok(signal);
+      if (scenario === "switch") current = "birch";
+      if (scenario === "busy") busy = true;
+      if (scenario === "stale") mode = "ask-changes";
+      if (scenario === "cancel") { await h.send({ type: "talk.cancel" }); assert.equal(signal!.aborted, true); }
+      answer(scenario !== "decline"); await tick(5);
+      assert.equal(writes, scenario === "allow" ? 1 : 0, scenario);
+    } finally { await h.send({ type: "quit" }); }
+  }
 });

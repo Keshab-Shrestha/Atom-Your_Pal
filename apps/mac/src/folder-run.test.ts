@@ -477,3 +477,27 @@ test("~ paths, climbing patterns and Grep content outside the task's folder are 
     rmSync(home, { recursive: true, force: true });
   }
 });
+
+test("Full access skips overwrite/install cards without creating grants or bypassing floors, resource caps and cancellation", async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-full-files-")));
+  const memory = openMemoryStore({ path: ":memory:" });
+  const path = join(home, "page.txt"); writeFileSync(path, "old");
+  let full = true, stopped = false, asks = 0, checkpoints = 0;
+  const state = newFolderMemory();
+  const check = folderCheck({ roots: [], home, cwd: home, name: "Kame", memory: state, permissions: memory.filePermissions.forChat("chat"),
+    fullAccess: () => full, cancelled: () => stopped, approve: async () => { asks++; return false; }, approveFile: async () => { asks++; return false; }, before: () => { checkpoints++; } });
+  try {
+    assert.equal(await check("Write", { file_path: path, content: "new" }), undefined);
+    assert.equal(await check("Bash", { command: "pnpm install" }), undefined);
+    assert.equal(asks, 0); assert.equal(checkpoints, 1); assert.deepEqual(memory.filePermissions.forChat("chat").list(), []);
+    assert.ok(await check("Write", { file_path: join(home, ".ssh", "id_test"), content: "no" }));
+    assert.ok(await check("Bash", { command: "sudo true" })); assert.ok(await check("Bash", { command: "git push origin main" }));
+    assert.ok(await check("Bash", { command: "rm page.txt" })); assert.equal(asks, 0);
+    state.written = new Set(Array.from({ length: MAX_OUTSIDE_WRITES }, (_, i) => join(home, `other-${i}`)));
+    assert.ok(await check("Write", { file_path: join(home, "another.txt"), content: "new" })); assert.equal(asks, 1);
+    state.written.clear(); full = false;
+    assert.ok(await check("Write", { file_path: path, content: "new" })); assert.equal(asks, 2, "switching back restores existing-file consent");
+    full = true; stopped = true;
+    assert.ok(await check("Write", { file_path: path, content: "new" })); assert.equal(checkpoints, 1);
+  } finally { memory.close(); rmSync(home, { recursive: true, force: true }); }
+});

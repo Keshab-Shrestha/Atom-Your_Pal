@@ -208,10 +208,10 @@ private struct AskingView: View {
                         .foregroundStyle(theme.text.color)
                         .lineLimit(2)
                     if !request.reason.isEmpty {
-                        Text(request.fileReview != nil ? request.reason : "Because \(request.reason)")
+                        Text(request.fileReview != nil || request.accessChange ? request.reason : "Because \(request.reason)")
                             .font(.system(size: 12))
                             .foregroundStyle(theme.text2.color)
-                            .lineLimit(1)
+                            .lineLimit(request.accessChange ? nil : 1)
                     }
                     if request.rememberFile && request.fileReview == nil {
                         Text("This file only. Chat access lasts until you revoke it.")
@@ -249,7 +249,7 @@ private struct AskingView: View {
                 }
                 Button { if request.fileReview != nil { onReview() } else { onAnswer(true, false) } } label: {
                     // Void: a ghost button with an amber hairline and label (ADR-086); elsewhere the one fill.
-                    Text(request.fileReview != nil ? "Review changes…" : request.rememberFile ? "Allow for task" : "Allow").font(.system(size: 12.5, weight: .semibold))
+                    Text(request.accessChange ? "Enable Full access" : request.fileReview != nil ? "Review changes…" : request.rememberFile ? "Allow for task" : "Allow").font(.system(size: 12.5, weight: .semibold))
                         .foregroundStyle(theme.isGhost ? theme.attention.color : theme.onAttention.color)
                         .padding(.horizontal, 24)
                         .frame(minWidth: 104, minHeight: 32)
@@ -258,7 +258,7 @@ private struct AskingView: View {
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(request.fileReview != nil ? "Review file changes in ATOM" : request.rememberFile ? "Allow for this task" : "Allow")
+                .accessibilityLabel(request.accessChange ? "Enable Full access for this chat" : request.fileReview != nil ? "Review file changes in ATOM" : request.rememberFile ? "Allow for this task" : "Allow")
             }
             .padding(theme.cornerGap)
         }
@@ -351,12 +351,12 @@ final class WorkStripController {
     ///   - show: the strip should be up.
     ///   - asking: an approval request is waiting: the strip is taller.
     ///   - clearance: room kept free above the Dock for Pal.
-    func update(show: Bool, asking: Bool, clearance: CGFloat) {
+    func update(show: Bool, asking: Bool, clearance: CGFloat, accessChange: Bool = false) {
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         if show {
             hiding?.cancel()
             hiding = nil
-            let target = Self.frame(asking: asking, clearance: clearance)
+            let target = Self.frame(asking: asking, clearance: clearance, accessChange: accessChange)
             if !visible {
                 visible = true
                 self.asking = asking
@@ -405,9 +405,9 @@ final class WorkStripController {
         panel.orderOut(nil)
     }
 
-    private static func frame(asking: Bool, clearance: CGFloat) -> CGRect {
+    private static func frame(asking: Bool, clearance: CGFloat, accessChange: Bool) -> CGRect {
         let visible = NSScreen.screens.first?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
-        let size = asking ? WorkStripLayout.askingSize : WorkStripLayout.size
+        let size = accessChange ? WorkStripLayout.accessSize : asking ? WorkStripLayout.askingSize : WorkStripLayout.size
         return WorkStripLayout.frame(size: size, visible: visible, clearance: clearance)
             .insetBy(dx: -shadowInset, dy: -shadowInset)
     }

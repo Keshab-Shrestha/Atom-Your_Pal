@@ -68,4 +68,46 @@ struct ProjectWorkspaceTests {
         state.accept(result, chat: "cedar", project: "p"); #expect(state.pending == request)
     }
 
+    @Test func surfacesRetainTheirPlaceButScopeClearRemovesEveryPreview() throws {
+        var state = ProjectWorkspaceState()
+        state.select(.files)
+        let file = WorkspaceRequest(chat: "c", project: "p", action: .read, path: "src/readme.md")
+        state.begin(file); state.accept(try response(file), chat: "c", project: "p")
+        state.folder = "src"; state.filter = "readme"
+        state.shown = false; state.shown = true
+        #expect(state.response?.path == "src/readme.md")
+        state.select(.git)
+        #expect(state.response == nil); #expect(state.filter.isEmpty)
+        let git = WorkspaceRequest(chat: "c", project: "p", action: .gitReview, path: "other.md", section: "unstaged")
+        state.begin(git); state.accept(try response(git), chat: "c", project: "p")
+        state.gitMode = "before"; state.ignoreWhitespace = true
+        state.select(.files)
+        #expect(state.response?.path == "src/readme.md"); #expect(state.folder == "src"); #expect(state.filter == "readme")
+        state.select(.git)
+        #expect(state.response?.path == "other.md"); #expect(state.gitMode == "before"); #expect(state.ignoreWhitespace)
+        state.clear(); state.select(.files)
+        #expect(state.response == nil); #expect(state.folder.isEmpty); #expect(state.filter.isEmpty)
+        state.select(.git)
+        #expect(state.response == nil); #expect(!state.ignoreWhitespace)
+    }
+
+    @Test func surfaceSwitchRejectsLateReadsAndUndoInvalidatesOtherPlaces() throws {
+        var state = ProjectWorkspaceState(); state.select(.files)
+        let read = WorkspaceRequest(chat: "c", project: "p", action: .read, path: "readme.md")
+        state.begin(read); state.select(.git)
+        state.accept(try response(read), chat: "c", project: "p")
+        #expect(state.response == nil); #expect(state.pending == nil)
+        state.select(.files); state.begin(read); state.accept(try response(read), chat: "c", project: "p")
+        state.select(.changes)
+        let undo = WorkspaceRequest(chat: "c", project: "p", action: .undo, path: "readme.md", job: 1, token: "token")
+        state.begin(undo)
+        let switchFiles = state.select(.files), switchHome = state.select(nil)
+        #expect(!switchFiles); #expect(!switchHome); #expect(state.tab == "changes")
+        state.expire(undo.request)
+        state.select(.files)
+        #expect(state.response == nil)
+        state.select(.changes)
+        #expect(state.notice?.contains("may already have finished") == true)
+    }
+
 }

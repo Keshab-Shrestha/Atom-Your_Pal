@@ -431,6 +431,7 @@ final class IslandModel {
     init(settings: IslandSettings, inputURL: URL? = nil) {
         self.settings = settings
         recorder = ShortcutRecorder(settings: settings)
+        workspace.tab = settings.workspaceSurface
         if let inputURL {
             let store = ChatInputStore(url: inputURL)
             do { input = try store.load(); inputStore = store }

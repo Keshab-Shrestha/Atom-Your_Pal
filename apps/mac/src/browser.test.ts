@@ -264,3 +264,15 @@ test("page text with a fake [ref=..] marker cannot replace the real password fie
   assert.ok("step" in (await p.check(T("type"), { target: "e7", text: "hunter2" })));
   assert.equal(pwAsks(p), 1, "e7 is still known as a password field");
 });
+
+test("Full access skips site-opening cards but retains browser interaction, submission and upload approvals", async () => {
+  const asked: string[] = [];
+  const p = browserCheck({ name: "Scout", home, fullAccess: () => true, confirmInteractions: true, approve: async (r) => { asked.push(r.summary); return false; } });
+  assert.ok("step" in await p.check(T("navigate"), { url: "https://a.test" })); assert.equal(asked.length, 0);
+  p.seen(page("https://a.test", "- button [ref=e1] Send\n- link [ref=e2] About"));
+  assert.ok("deny" in await p.check(T("click"), { target: "e1" }));
+  assert.ok("deny" in await p.check(T("type"), { target: "e2", text: "Cedar" }));
+  assert.ok("deny" in await p.check(T("file_upload"), { paths: [join(docs, "ok.txt")] }));
+  assert.equal(asked.length, 3);
+  assert.ok("deny" in await p.check(T("navigate"), { url: "file:///tmp/cedar" }));
+});

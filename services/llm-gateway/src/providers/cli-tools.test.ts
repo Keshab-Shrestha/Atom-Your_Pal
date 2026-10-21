@@ -96,6 +96,6 @@ test("a failure is classified from what the tool printed, not from the command l
 test("Gemini refuses restricted modes before starting a CLI with native tools it cannot host-gate", async () => {
   let runs = 0;
   const adapter = createGeminiCliAdapter({ program: "/x/gemini", model: "gemini-default", run: async () => { runs++; return { stdout: "unexpected", stderr: "" }; } });
-  for (const access of ["chat-only", "ask-changes"] as const) await assert.rejects(adapter.complete({ ...request(), access }, live()), /cannot enforce this chat access mode/);
+  for (const access of ["chat-only", "ask-changes", "full"] as const) await assert.rejects(adapter.complete({ ...request(), access }, live()), /cannot enforce this chat access mode/);
   assert.equal(runs, 0);
 });

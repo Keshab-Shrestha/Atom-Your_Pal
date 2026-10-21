@@ -113,7 +113,7 @@ export function openChats(db: DatabaseSync, now: () => Date, onRemove?: (id: str
     );
     CREATE INDEX IF NOT EXISTS chats_updated ON chats(updated_at);
     CREATE TABLE IF NOT EXISTS chat_access (
-      chat_id TEXT PRIMARY KEY, mode TEXT NOT NULL CHECK(mode IN ('checked', 'chat-only', 'ask-changes'))
+      chat_id TEXT PRIMARY KEY, mode TEXT NOT NULL CHECK(mode IN ('checked', 'chat-only', 'ask-changes', 'full'))
     );
     CREATE TRIGGER IF NOT EXISTS chat_access_deleted AFTER DELETE ON chats BEGIN
       DELETE FROM chat_access WHERE chat_id = old.id;
@@ -131,6 +131,20 @@ export function openChats(db: DatabaseSync, now: () => Date, onRemove?: (id: str
       model TEXT NOT NULL
     );
   `);
+  // Upgrade the earlier checked-mode table atomically, retaining pre-first-reply preferences.
+  const accessSchema = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'chat_access'").get() as { sql: string };
+  if (!accessSchema.sql.includes("'full'")) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec(`DROP TRIGGER IF EXISTS chat_access_deleted;
+        ALTER TABLE chat_access RENAME TO chat_access_previous;
+        CREATE TABLE chat_access (chat_id TEXT PRIMARY KEY, mode TEXT NOT NULL CHECK(mode IN ('checked', 'chat-only', 'ask-changes', 'full')));
+        INSERT INTO chat_access SELECT chat_id, mode FROM chat_access_previous;
+        DROP TABLE chat_access_previous;
+        CREATE TRIGGER chat_access_deleted AFTER DELETE ON chats BEGIN DELETE FROM chat_access WHERE chat_id = old.id; END;
+        COMMIT;`);
+    } catch (error) { db.exec("ROLLBACK"); throw error; }
+  }
   // ADR-097: a chat's own model; NULL uses the default. Added to files made before it.
   const columns = (db.prepare("PRAGMA table_info(chats)").all() as { name: string }[]).map((c) => c.name);
   if (!columns.includes("provider")) db.exec("ALTER TABLE chats ADD COLUMN provider TEXT");
@@ -242,7 +256,7 @@ export function openChats(db: DatabaseSync, now: () => Date, onRemove?: (id: str
       db.exec("BEGIN");
       try {
         db.prepare("INSERT INTO chats (id, title, created_at, updated_at, named, project_id, provider, model) SELECT ?, ?, ?, ?, 1, project_id, provider, model FROM chats WHERE id = ?").run(id, title, at, at, source);
-        db.prepare("INSERT INTO chat_access(chat_id, mode) SELECT ?, mode FROM chat_access WHERE chat_id = ?").run(id, source);
+        db.prepare("INSERT INTO chat_access(chat_id, mode) SELECT ?, CASE WHEN mode = 'full' THEN 'checked' ELSE mode END FROM chat_access WHERE chat_id = ?").run(id, source);
         db.prepare("INSERT INTO chat_reasoning(chat_id, provider, model, effort) SELECT ?, provider, model, effort FROM chat_reasoning WHERE chat_id = ?").run(id, source);
         db.prepare("INSERT INTO chat_messages (chat_id, seq, role, content) SELECT ?, seq, role, content FROM chat_messages WHERE chat_id = ? AND seq < ? ORDER BY seq").run(id, source, count);
         db.prepare("INSERT INTO chat_branches (id, source_id, message_count, kind, revision) VALUES (?, ?, ?, ?, ?)").run(id, source, count, kind, revision);

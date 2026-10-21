@@ -290,3 +290,25 @@ test("taint: an agent that read the web taints the main thread when it ends; a t
   assert.equal((await pre(gate, tool("create_agent"), "m4")).decision, "allow", "the user spoke");
   done();
 });
+
+test("Full access never grants an unknown MCP server, bypasses plan-first or waives external-content freshness", async () => {
+  const { chatAccessPolicy } = await import("./chat-access.ts");
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-full-gate-")));
+  const store = openHelperStore({ path: ":memory:", home });
+  const board = boardRecorder(store, "cedar"); let asks = 0;
+  const server = store.addMcpServer({ name: "fixture", kind: "command", command: "fictional-command" });
+  store.recordMcpTest(server.id, { tools: ["inspect"] }); store.setMcpServer(server.id, { enabled: true, workers: ["sid"] });
+  const gate = nativeGate({ tools: ["Agent"], access: chatAccessPolicy("full", () => "full"), team: {
+    chatId: "cedar", helpers: store, board, worktrees: join(home, "worktrees"), home,
+    approve: async () => { asks++; return false; },
+  } });
+  try {
+    assert.equal((await pre(gate, sub("sid", "mcp__unknown__inspect", {}), "unknown")).decision, "deny");
+    assert.equal((await pre(gate, sub("sid", "mcp__fixture__inspect", {}), "routine")).decision, "allow"); assert.equal(asks, 0);
+    gate.mcpRead("a-sid");
+    assert.equal((await pre(gate, sub("sid", "mcp__fixture__inspect", {}), "tainted")).decision, "deny"); assert.equal(asks, 1);
+    store.setPlanFirst("kame", true);
+    assert.equal((await pre(gate, sub("kame", "Write", { file_path: join(home, "new.txt"), content: "x" }), "unplanned")).decision, "deny");
+    assert.equal((await pre(gate, sub("kame", "ExitPlanMode", { plan: "Cedar changes" }), "plan")).decision, "deny"); assert.equal(asks, 2);
+  } finally { store.close(); rmSync(home, { recursive: true, force: true }); }
+});

@@ -6,8 +6,8 @@ struct ProjectGitView: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
-    @State private var mode = "changes"
-    @State private var ignoreWhitespace = false
+    private var mode: String { get { model.workspace.gitMode } nonmutating set { model.workspace.gitMode = newValue } }
+    private var ignoreWhitespace: Bool { get { model.workspace.ignoreWhitespace } nonmutating set { model.workspace.ignoreWhitespace = newValue } }
     @State private var pieces: [DiffSegment]?
     private var response: WorkspaceResponse? { model.workspace.response }
 
@@ -69,14 +69,14 @@ struct ProjectGitView: View {
             Text(verbatim: review.note).font(.system(size: 10.5)).foregroundStyle(theme.text2.color)
             if snapshot { Text("Changes   Before   After" + (review.base == nil ? "" : "   Base")).font(.system(size: 11)) }
             else {
-                Picker("Git file view", selection: $mode) {
+                Picker("Git file view", selection: Binding(get: { mode }, set: { mode = $0 })) {
                     Text("Changes").tag("changes"); Text("Before").tag("before"); Text("After").tag("after")
                     if review.base != nil { Text("Base").tag("base") }
                 }.pickerStyle(.segmented)
             }
             if mode == "changes" {
                 if snapshot { Text("Ignore whitespace: off").font(.system(size: 11)) }
-                else { Toggle("Ignore whitespace", isOn: $ignoreWhitespace).toggleStyle(.checkbox).font(.system(size: 11)) }
+                else { Toggle("Ignore whitespace", isOn: Binding(get: { ignoreWhitespace }, set: { ignoreWhitespace = $0 })).toggleStyle(.checkbox).font(.system(size: 11)) }
                 Text(ignoreWhitespace ? "Comparison normalizes spaces/indentation. Before/After show exact source." : "Removed text is crossed out; added text is green.")
                     .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                 WorkspaceTextScroll {

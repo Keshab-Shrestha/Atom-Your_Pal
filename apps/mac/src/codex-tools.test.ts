@@ -116,3 +116,31 @@ test("access modes constrain Codex foreground and worker calls without losing co
     assert.equal(hostCalls, 1); assert.equal(approvals, 4);
   } finally { router.close(); helpers.close(); memory.close(); rmSync(home, { recursive: true, force: true }); }
 });
+
+test("Full access performs an actual worker overwrite without creating a continuing grant; switching back restores consent", async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-full-codex-")));
+  const helpers = openHelperStore({ path: ":memory:", home });
+  const memory = openMemoryStore({ path: ":memory:" });
+  const path = join(home, "page.txt"); writeFileSync(path, "old");
+  let mode: import("@atom/contracts").ChatAccessMode = "full", cards = 0;
+  const fake = fakeCodex(async ({ call }) => {
+    assert.equal((await call("atom_Write", { file_path: join(home, ".ssh", "id_test"), content: "refused" })).success, false);
+    const out = await call("atom_Write", { file_path: path, content: "full draft" });
+    assert.equal(out.success, mode === "full"); return out.success ? "saved" : "declined";
+  });
+  const router = createCodexToolRouter({ program: "fake", model: "codex-test", home, accessFor: () => mode,
+    approveAccess: async () => { throw new Error("Full access must not add per-call consent"); },
+    tools: { specs: () => [], run: async (c) => ({ callId: c.id, content: "ok" }) }, session: { transport: fake.factory },
+    team: { helpers, worktrees: join(home, "worktrees"), filePermissions: memory.filePermissions,
+      approve: async () => { cards++; return false; }, approveFile: async () => { cards++; return false; } } });
+  try {
+    const call = { id: "delegate", name: "atom_delegate", input: { subagent_type: "kame", description: "Cedar", prompt: "Rewrite fictional Cedar" } };
+    await router.forRequest({ ...request(), access: mode }).run(call);
+    assert.equal(readFileSync(path, "utf8"), "full draft"); assert.equal(cards, 0);
+    assert.deepEqual(memory.filePermissions.forChat("chat").list(), []);
+    assert.ok(helpers.list().flatMap((h) => h.jobs).every((j) => j.state === "done"));
+    mode = "checked";
+    await router.forRequest({ ...request(), access: mode }).run(call);
+    assert.equal(cards, 1); assert.equal(readFileSync(path, "utf8"), "full draft");
+  } finally { router.close(); helpers.close(); memory.close(); rmSync(home, { recursive: true, force: true }); }
+});

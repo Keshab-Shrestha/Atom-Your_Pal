@@ -61,6 +61,8 @@ export interface BrowserCheckOptions {
   tainted?(): boolean;
   /** Host browser adapters ask for every interaction rather than trusting submit-word heuristics/site memory. */
   confirmInteractions?: boolean;
+  /** Only site-opening consent; uploads, submission/interaction/secret-target cards remain separate. */
+  fullAccess?(): boolean;
   approve(request: { summary: string; reason: string }): Promise<boolean>;
   /** For the log: the tool, the site's origin and the verdict. Never typed text or full addresses. */
   onCheck?(event: { tool: string; origin?: string; verdict: "allowed" | "refused" | "declined" }): void;
@@ -140,7 +142,7 @@ export function browserCheck(options: BrowserCheckOptions) {
     if (!answers.has(key)) answers.set(key, options.approve({ summary, reason }));
     return answers.get(key)!;
   };
-  const mayOpen = (origin: string) =>
+  const mayOpen = (origin: string) => options.fullAccess?.() ? Promise.resolve(true) :
     ask(`open ${origin}`, `${options.name} wants to open ${origin} in its browser`, "Allow for the rest of this task. It uses ATOM's own browser profile, not yours.");
   const maySubmit = (origin: string) =>
     ask(

@@ -4,7 +4,7 @@ Follow-up ADR-172 adds a read-only **Git** tab for actual working-tree changes, 
 
 ADR-171, 2026-10-19. One project workspace outcome, authorized as a whole batch after the continuity upgrades.
 
-Open a project chat and choose **Files / Changes** in its top bar. In a wide window the workspace sits beside the chat; in a narrower window it uses the main pane until closed. Other chats' drafts and permission scopes keep their existing behavior.
+Open **Workspace** from the chat top bar and choose Files, Changes or Git. ADR-182 adds a resizable split, a surface chooser, retained per-surface previews and keyboard controls. In narrow windows it covers chat until closed. [Pane behavior and verification](workspace-pane.md). Other chats’ drafts and permission scopes keep their existing behavior.
 
 ## Files
 

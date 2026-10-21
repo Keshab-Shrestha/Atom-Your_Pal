@@ -102,6 +102,7 @@ public enum WorkStripLayout {
     /// The strip alone, and with an approval request.
     public static let size = CGSize(width: 420, height: 44)
     public static let askingSize = CGSize(width: 420, height: 164)
+    public static let accessSize = CGSize(width: 520, height: 340)
 
     /// - Parameters:
     ///   - visible: the main display's visible frame (without the menu bar and Dock).

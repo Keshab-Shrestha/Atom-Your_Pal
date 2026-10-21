@@ -7,9 +7,9 @@ struct ProjectWorkspaceView: View {
     let model: IslandModel
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
-    @State private var filter = ""
-    @State private var selected: WorkspaceChange?
-    @State private var mode = "changes"
+    private var filter: String { get { model.workspace.filter } nonmutating set { model.workspace.filter = newValue } }
+    private var selected: WorkspaceChange? { get { model.workspace.selectedChange } nonmutating set { model.workspace.selectedChange = newValue } }
+    private var mode: String { get { model.workspace.reviewMode } nonmutating set { model.workspace.reviewMode = newValue } }
     @State private var pieces: [DiffSegment]?
     @State private var confirmingUndo = false
 
@@ -19,22 +19,25 @@ struct ProjectWorkspaceView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             header
-            if model.workspaceAvailable {
-                HStack(spacing: 4) {
-                    ForEach(["files", "changes", "git"], id: \.self) { tab in
-                        Button {
-                            model.workspace.tab = tab; selected = nil; filter = ""; model.refreshWorkspace()
-                        } label: {
-                            Text(tab == "git" ? "Git" : tab.capitalized)
-                                .font(.system(size: 12, weight: model.workspace.tab == tab ? .medium : .regular))
-                                .foregroundStyle(model.workspace.tab == tab ? theme.text.color : theme.text3.color)
-                                .padding(.horizontal, 12).padding(.vertical, 7)
-                                .background(model.workspace.tab == tab ? theme.fill2.color : .clear, in: RoundedRectangle(cornerRadius: 6))
-                        }.buttonStyle(.plain).accessibilityLabel("Workspace " + tab)
-                            .accessibilityAddTraits(model.workspace.tab == tab ? .isSelected : [])
+            if model.workspace.tab == "home" {
+                surfaceChooser
+            } else if model.workspaceAvailable {
+                HStack(spacing: 2) {
+                    Button { model.selectWorkspace(nil) } label: {
+                        Image(systemName: "square.grid.2x2").frame(width: 24, height: 28)
+                    }.buttonStyle(.plain).help("Choose a surface").accessibilityLabel("Choose a workspace surface")
+                    ForEach(WorkspaceSurface.allCases, id: \.self) { surface in
+                        Button { model.selectWorkspace(surface) } label: {
+                            Text(surface.title)
+                                .font(.system(size: 12, weight: model.workspace.tab == surface.rawValue ? .medium : .regular))
+                                .foregroundStyle(model.workspace.tab == surface.rawValue ? theme.text.color : theme.text3.color)
+                                .padding(.horizontal, 10).padding(.vertical, 7)
+                                .background(model.workspace.tab == surface.rawValue ? theme.fill2.color : .clear, in: RoundedRectangle(cornerRadius: 6))
+                        }.buttonStyle(.plain).accessibilityLabel("Workspace " + surface.rawValue)
+                            .accessibilityAddTraits(model.workspace.tab == surface.rawValue ? .isSelected : [])
                     }
                     Spacer(minLength: 0)
-                }
+                }.disabled(model.workspace.pending?.action == .undo)
                 if let message = model.workspace.notice {
                     Text(verbatim: message).font(.system(size: 11)).foregroundStyle(theme.text2.color).textSelection(.enabled)
                 }
@@ -57,15 +60,15 @@ struct ProjectWorkspaceView: View {
                 Spacer()
             }
         }
-        .padding(14)
+        .padding(12)
         .foregroundStyle(theme.text.color)
         .buttonStyle(SnapshotBorderlessButtonStyle())
         .frame(minWidth: 260, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(theme.surfaceSolid.color)
         .task(id: scope) {
             guard !snapshot else { return }
-            model.workspace.clear(); selected = nil; filter = ""; pieces = nil
-            if model.workspaceAvailable { model.refreshWorkspace() }
+            pieces = nil
+            model.loadWorkspaceIfNeeded()
         }
         .alert("Undo this file change?", isPresented: $confirmingUndo) {
             Button("Cancel", role: .cancel) {}
@@ -92,10 +95,38 @@ struct ProjectWorkspaceView: View {
             Spacer(minLength: 4)
             Button { selected = nil; model.refreshWorkspace() } label: { Image(systemName: "arrow.clockwise") }
                 .help("Refresh workspace").accessibilityLabel("Refresh workspace")
-                .disabled(model.workspace.pending != nil || !model.workspaceAvailable)
-            Button { model.workspace.shown = false } label: { Image(systemName: "xmark") }
+                .disabled(model.workspace.pending != nil || !model.workspaceAvailable || model.workspace.tab == "home")
+            Button { model.toggleWorkspace() } label: { Image(systemName: "xmark") }
                 .help("Close workspace").accessibilityLabel("Close workspace")
         }.buttonStyle(SnapshotBorderlessButtonStyle())
+    }
+
+    private var surfaceChooser: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Spacer(minLength: 16)
+            Text("Open a surface").font(.system(size: 14, weight: .medium)).padding(.bottom, 12)
+            ForEach(WorkspaceSurface.allCases, id: \.self) { surface in
+                Button { model.selectWorkspace(surface) } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: surface.symbol).font(.system(size: 15)).frame(width: 22)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(surface.title).font(.system(size: 13, weight: .medium))
+                            Text(surface.detail).font(.system(size: 11)).foregroundStyle(theme.text2.color)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right").font(.system(size: 10)).foregroundStyle(theme.text3.color)
+                    }.padding(10).contentShape(Rectangle())
+                        .background(theme.fill2.color.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+                }.buttonStyle(.plain).disabled(!model.workspaceAvailable)
+                    .accessibilityLabel("Open workspace " + surface.title)
+            }
+            if !model.workspaceAvailable {
+                Text("Open an active project chat to use these surfaces.")
+                    .font(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.top, 8)
+            }
+            Spacer(minLength: 16)
+        }.frame(maxWidth: 380, maxHeight: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity)
     }
 
     private var filesPane: some View {
@@ -110,7 +141,7 @@ struct ProjectWorkspaceView: View {
                     .font(.system(size: 11, design: .monospaced)).lineLimit(2).textSelection(.enabled)
             }
             if snapshot { Text("Filter this folder").font(.system(size: 12)).foregroundStyle(theme.text3.color) }
-            else { TextField("Filter this folder", text: $filter).textFieldStyle(.roundedBorder).accessibilityLabel("Filter project folder") }
+            else { TextField("Filter this folder", text: Binding(get: { filter }, set: { filter = $0 })).textFieldStyle(.roundedBorder).accessibilityLabel("Filter project folder") }
             Text("Hidden, generated, linked and protected paths are excluded.")
                 .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             Scrollable {
@@ -200,7 +231,7 @@ struct ProjectWorkspaceView: View {
             Text(verbatim: review.note).font(.system(size: 11)).foregroundStyle(theme.text2.color)
             if snapshot {
                 HStack { Text("Changes"); Text("Original"); Text("Current") }.font(.system(size: 11)).padding(6).background(theme.fill2.color)
-            } else { Picker("Change view", selection: $mode) {
+            } else { Picker("Change view", selection: Binding(get: { mode }, set: { mode = $0 })) {
                 Text("Changes").tag("changes"); Text("Original").tag("before"); Text("Current").tag("after")
             }.pickerStyle(.segmented) }
             if mode == "changes" {
@@ -219,6 +250,7 @@ struct ProjectWorkspaceView: View {
                 .help(review.token == nil ? review.note : "Review and confirm before restoring the original")
         }
         .task(id: result?.request) {
+            pieces = nil
             let value = await Task.detached(priority: .userInitiated) { InlineDiff.segments(old: review.before, new: review.after) }.value
             if !Task.isCancelled { pieces = value }
         }

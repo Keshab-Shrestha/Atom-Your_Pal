@@ -39,13 +39,12 @@ struct HelpersView: View {
                 if model.windowPage == .chat {
                     // 2026-10-15: New chat, Sounds and Delete are not here. New chat is the icon beside search in the
                     // sidebar, Delete is on a chat's row there, and the sounds are in Settings → Sounds.
-                    if model.chats?.currentProject != nil {
-                        Button { model.workspace.shown.toggle() } label: {
-                            Image(systemName: "sidebar.right").frame(width: 24, height: 24)
-                        }.buttonStyle(.borderless).font(.system(size: 11))
-                            .accessibilityLabel("Files / Changes")
-                            .help(model.workspace.shown ? "Close project workspace" : "Open project files and tracked changes")
-                    } // ADR-107
+                    Button { model.toggleWorkspace() } label: {
+                        Image(systemName: "sidebar.right").frame(width: 24, height: 24)
+                            .foregroundStyle(model.workspace.shown ? palette.text.color : palette.text2.color)
+                    }.buttonStyle(SnapshotBorderlessButtonStyle()).font(.system(size: 11))
+                        .accessibilityLabel(model.workspace.shown ? "Close workspace" : "Open workspace")
+                        .help("Toggle workspace (⌥⌘R)")
                     ConversationControls(model: model)
                 }
             }
@@ -60,19 +59,7 @@ struct HelpersView: View {
                     BrainPane(model: model)
                 } else if model.windowPage == .chat {
                     // ADR-089: the conversation, as in the panel, a readable width in the middle of the window.
-                    GeometryReader { geometry in
-                        HStack(spacing: 0) {
-                            if !model.workspace.shown || geometry.size.width >= 780 {
-                                ConversationTab(model: model)
-                                    .frame(maxWidth: ChatAppearance.column).frame(maxWidth: .infinity)
-                            }
-                            if model.workspace.shown {
-                                Rectangle().fill(palette.separator.color).frame(width: 1)
-                                ProjectWorkspaceView(model: model)
-                                    .frame(width: geometry.size.width >= 780 ? 340 : nil)
-                            }
-                        }
-                    }
+                    ChatWorkspaceLayout(model: model)
                 } else if model.windowPage == .settings {
                     SettingsTab(model: model)
                         .frame(maxWidth: 784)

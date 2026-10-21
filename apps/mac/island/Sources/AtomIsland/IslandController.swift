@@ -366,7 +366,7 @@ final class IslandController {
         if model.approval.pending != nil { pet.poke() } // the question is for the user: Pal comes out of hiding
         let clearance = pet.isShown ? 54 * model.settings.palSize.scale + 10 : 0
         if show != strip.isVisible { trace(show ? "strip show" : "strip hide") }
-        strip.update(show: show, asking: model.approval.pending != nil, clearance: clearance)
+        strip.update(show: show, asking: model.approval.pending != nil, clearance: clearance, accessChange: model.approval.pending?.accessChange == true)
         if show, model.approval.pending != nil { trace("strip asking \(strip.frame.integral)") }
     }
 
