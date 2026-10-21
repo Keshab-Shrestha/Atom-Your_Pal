@@ -1,5 +1,25 @@
 # ZENO Task Plan
 
+## Current capability — Sentient adoption: computer readiness and recovery (2026-10-21, ADR-187)
+
+Keshab authorized adapting Sentient's useful advantages, upgrading existing equivalents and asking only about actual conflicts with a recommendation. Saved the [seven-capability sequence and complete 33-feature mapping](docs/sentient-adoption-plan.md). Remote Gateway models stay primary; general local inference is a future optional fallback/backup. No general model/runtime installation, Sentient source/assets reuse, cloud mirror, automatic sends or permission widening.
+
+Implemented the first capability in the existing computer tool: explicit content-free `status`, startup/probe/call timing, paginated method validation, per-process pending state, active-call-safe idle lifetime, bounded retirement of only ATOM's owned helper, and generation-checked input after approval waits. Failed fresh observations, stale tokens and transport failures discard the old target. No uncertain action is replayed by the transport. A status probe does not certify macOS permissions. [Behavior and evidence](docs/computer-readiness.md).
+
+Typecheck passes; full TypeScript regression passes 1,167 tests with eight normal live opt-in skips. Final focused 173 computer/transport/screenshot/host-policy checks pass after retaining a healthy replacement when rejecting old tokens. Installed Cua protocol-only sample: 141 ms initialization + 4 ms cold probe; 2 ms warm probe. No desktop content read, input injected or model request made. Swift/UI sources and protocol are unchanged, so no native rebuild/gallery run is required for this host-only capability. The running host was not restarted or hot-patched; it loads the checkout sources on next runtime launch. Live chats, drafts, grants, Browser page and pane preference were not touched. Changes are local and uncommitted; unrelated graphify-out remains untouched.
+
+The prior Terminal push f63b00a has green TypeScript/Swift CI, but its visual job failed on 38-workspace-browser-compact.png at 1.308% changed pixels (run 39616156486). This is an outstanding pre-existing visual-baseline investigation, not certified fixed by the host tests; no reference or tolerance was changed here. Next adoption capability: explicitly selected ordinary notes-folder ingestion into Second brain with provenance, edit-aware freshness and removal/correction. Native helper migration, app-owned permission/input health checks and protected personal sources are not delivered by this first probe. Stop after this capability.
+
+
+## Current inquiry — Sentient OS features and ATOM comparison (2026-10-21)
+
+Pushed the completed Terminal capability to main as `f63b00a` at Keshab’s request; verified the remote SHA. Then completed a source/documentation inquiry of Sentient OS at `16e871ad43c19ca8b26ed36daf66baaa44e886e5` (main, 19 October), plus current release 2.5, website and selected issue reports. [Saved 33-feature inventory, overlap matrix, local-model/speed analysis, limitations and candidate priorities](docs/sentient-os-feature-inquiry.md).
+
+Finding: Sentient is further developed in opt-in personal-source ingestion, automatic linked Markdown knowledge, contextual writing-style drafts, read-only proactive preparation and overnight analysis. ATOM has more explicit multi-chat/project/worker controls, checked access, task checkpoints/Undo, Git/workspace surfaces and Telegram task interaction. The bundled 3.66 GB Gemma reader is not the default computer-use model; frontier computer use and Double Tap have distinct providers. Native OpenAI helper integration, low-effort defaults, prewarming, direct draft API and screenshot/context handling are useful architectural candidates, not a measured speed win. No current same-model/hardware/task token/latency comparison was run. Current open failure reports are attributed reports, not reproduced defect rates.
+
+Research only: no Sentient app/model/helper/script was installed or executed, no account/source data was connected, no code/assets were copied and no new ATOM product feature was started. Candidate priorities are not approved implementation work; pause PR/Device expansion pending Keshab’s next choice. Preserve the live Cedar Browser page, pane preference, current chats/drafts/grants and the notebook’s Full access choice. Unrelated graphify-out is untouched. Research notes remain local after the requested Terminal push.
+
+
 ## Current capability — Terminal workspace surface (2026-10-21, ADR-186)
 
 Published the completed Browser capability and acceptance notes to main as `3c25835` before starting this work, at Keshab’s request. All GitHub Swift, TypeScript and visual jobs passed (run 39610971376).

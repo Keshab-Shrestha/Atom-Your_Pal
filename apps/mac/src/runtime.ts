@@ -448,7 +448,7 @@ export function createRuntime(
   // ADR-080: the screenshot the model was given this turn, so the reply's [POINT:…] marker can be checked against it.
   const computerOn = readEnv(process.env, "ATOM_COMPUTER") === "1";
   let lastShot: ScreenShot | undefined;
-  const cua = computerOn ? createCuaTransport() : undefined;
+  const cua = computerOn ? createCuaTransport({ onTiming: (timing) => log.info("computer.transport", { ...timing }) }) : undefined;
   const calendarHelper = findCalendarHelper();
   log.info("calendar.helper", { available: Boolean(calendarHelper) });
   // The tools ATOM can use. Built before the model because "Claude (my plan)" runs the tool loop itself and

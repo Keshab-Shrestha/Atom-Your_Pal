@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
-import { createCuaTransport, cuaEnvironment } from "./cua-client.ts";
+import { createCuaTransport, cuaEnvironment, type CuaTiming } from "./cua-client.ts";
 
 const fixture = fileURLToPath(new URL("./fake-cua.fixture.mjs", import.meta.url));
 const make = (extra: Parameters<typeof createCuaTransport>[0] = {}) =>
@@ -79,16 +79,17 @@ test("if Cua dies mid-call the call fails, and the next call starts it again", a
   }
 });
 
-test("cancelling rejects at once and tells Cua", async () => {
+test("cancelling rejects at once and retires the owned helper before the next call", async () => {
   const cua = make();
   try {
-    await cua.call("echo", { text: "warm up" }); // started, so the cancel below is for a call that is in flight
+    const before = (await cua.call("pid", {})).data.pid;
     const ac = new AbortController();
     const slow = cua.call("slow", {}, ac.signal);
     setTimeout(() => ac.abort(), 30);
     await assert.rejects(slow, /Cancelled/);
     await new Promise((r) => setTimeout(r, 50));
-    assert.equal((await cua.call("cancelled", {})).data.cancelled, 1);
+    assert.notEqual((await cua.call("pid", {})).data.pid, before);
+    assert.throws(() => process.kill(before, 0), /ESRCH/);
   } finally {
     await cua.close();
   }
@@ -120,7 +121,10 @@ test("an already-cancelled call never reaches Cua", async () => {
 test("a call that gets no answer times out", async () => {
   const cua = make({ callTimeoutMs: 80 });
   try {
-    await assert.rejects(cua.call("slow", {}), /did not answer within/);
+    const before = (await cua.call("pid", {})).data.pid;
+    await assert.rejects(cua.call("slow", {}), /did not answer within.*outcome may be unknown/);
+    assert.notEqual((await cua.call("pid", {})).data.pid, before);
+    assert.deepEqual((await cua.call("requests", {})).data.calls, ["pid", "requests"], "the uncertain call was not replayed");
   } finally {
     await cua.close();
   }
@@ -179,4 +183,98 @@ test("a JSON line that is not an object does not end the app", async () => {
   } finally {
     await cua.close();
   }
+});
+
+test("readiness uses only initialize and tools/list, reuses the helper, and records content-free stages", async () => {
+  const timings: CuaTiming[] = [];
+  const cua = make({ onTiming: (timing) => timings.push(timing), env: { ...process.env, CUA_FIXTURE_LIST: "paged", CUA_FIXTURE_INIT_DELAY_MS: "30" } });
+  try {
+    const first = await cua.probe!();
+    const generation = cua.generation;
+    const second = await cua.probe!();
+    assert.equal(first.ready, true);
+    assert.equal(first.reused, false);
+    assert.ok(first.startupMs >= 30);
+    assert.ok(first.probeMs >= 0);
+    assert.equal(second.reused, true);
+    assert.equal(second.startupMs, first.startupMs);
+    assert.equal(cua.generation, generation);
+    const audit = (await cua.call("requests", {})).data;
+    assert.deepEqual(audit.calls, ["requests"], "the probe never calls a desktop tool");
+    assert.deepEqual(audit.methods, ["initialize", "notifications/initialized", "tools/list", "tools/list", "tools/list", "tools/list", "tools/call"]);
+    assert.deepEqual(timings.map((timing) => timing.stage), ["initialize", "probe", "probe", "call"]);
+    assert.ok(timings.every((timing) => timing.ok && Number.isFinite(timing.durationMs)));
+    assert.ok(timings.every((timing) => Object.keys(timing).every((key) => ["stage", "durationMs", "ok", "tool"].includes(key))));
+  } finally { await cua.close(); }
+});
+
+test("readiness reports missing methods and rejects malformed or unbounded capability listings", async () => {
+  for (const mode of ["missing", "invalid", "endless"]) {
+    const cua = make({ env: { ...process.env, CUA_FIXTURE_LIST: mode, CUA_FIXTURE_MISSING_TOOL: "click" } });
+    try {
+      if (mode === "missing") {
+        const status = await cua.probe!();
+        assert.equal(status.ready, false);
+        assert.deepEqual(status.missingTools, ["click"]);
+      } else {
+        await assert.rejects(cua.probe!(), /invalid capability list|listing did not finish/);
+        assert.equal(cua.generation, 0);
+      }
+    } finally { await cua.close(); }
+  }
+});
+
+test("initialization timeout retires the helper and reports a failed startup stage", async () => {
+  const timings: CuaTiming[] = [];
+  const cua = make({ initializeTimeoutMs: 80, onTiming: (timing) => timings.push(timing), env: { ...process.env, CUA_FIXTURE_INIT_DELAY_MS: "hang" } });
+  try {
+    await assert.rejects(cua.probe!(), /did not answer/);
+    assert.equal(cua.generation, 0);
+    assert.deepEqual(timings.map((timing) => [timing.stage, timing.ok]), [["initialize", false]]);
+  } finally { await cua.close(); }
+});
+
+test("idle expiry never interrupts an active call", async () => {
+  const cua = make({ idleMs: 60 });
+  try {
+    const pid = (await cua.call("pid", {})).data.pid;
+    const r = await cua.call("later", { ms: 180 });
+    assert.equal(r.text, "later");
+    assert.equal((await cua.call("pid", {})).data.pid, pid);
+  } finally { await cua.close(); }
+});
+
+test("an old generation cannot send input after restart, including a restart while awaiting approval", async () => {
+  const cua = make();
+  try {
+    await cua.call("pid", {});
+    const old = cua.generation;
+    await cua.close();
+    await assert.rejects(cua.call("echo", { text: "must not send" }, undefined, old), /session changed.*no input was sent/);
+    const audit = (await cua.call("requests", {})).data;
+    assert.deepEqual(audit.calls, ["requests"]);
+    assert.equal(audit.methods.filter((method: string) => method === "initialize").length, 1, "the healthy replacement is retained after refusing old input");
+  } finally { await cua.close(); }
+});
+
+test("recovery bounds a helper that ignores SIGTERM before starting a replacement", async () => {
+  const cua = make({ callTimeoutMs: 80, env: { ...process.env, CUA_FIXTURE_EXIT_DELAY_MS: "10000" } });
+  try {
+    const old = (await cua.call("pid", {})).data.pid;
+    await assert.rejects(cua.call("slow", {}), /did not answer/);
+    const started = Date.now();
+    const replacement = (await cua.call("pid", {})).data.pid;
+    assert.notEqual(replacement, old);
+    assert.throws(() => process.kill(old, 0), /ESRCH/);
+    assert.ok(Date.now() - started < 5000, "does not wait for the helper's ten-second SIGTERM delay");
+  } finally { await cua.close(); }
+});
+
+test("already-cancelled readiness never starts a driver", async () => {
+  const cua = make();
+  const ac = new AbortController(); ac.abort();
+  try {
+    await assert.rejects(cua.probe!(ac.signal), /Cancelled/);
+    assert.equal(cua.generation, 0);
+  } finally { await cua.close(); }
 });

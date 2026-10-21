@@ -45,6 +45,7 @@ interface Element {
 }
 
 interface Target {
+  generation: number | undefined;
   pid: number;
   windowId: number;
   app: string;
@@ -74,7 +75,7 @@ function withoutMenuBar(elements: Element[]): Element[] {
   return kept;
 }
 
-const ACTIONS = ["list_apps", "look", "open", "click", "type", "key", "scroll", "set_value", "point"] as const;
+const ACTIONS = ["status", "list_apps", "look", "open", "click", "type", "key", "scroll", "set_value", "point"] as const;
 
 /** Actions that change something in an app, so `look_after` makes sense for them. */
 const INPUT_ACTIONS = new Set(["click", "type", "key", "scroll", "set_value"]);
@@ -107,6 +108,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
 
   async function apps(signal?: AbortSignal) {
     const r = await cua.call("list_apps", {}, signal);
+    checkResult(r, "Listing apps", "the desktop");
     return (r.data.apps ?? []) as Array<{ name: string; bundle_id?: string; pid?: number; running?: boolean }>;
   }
 
@@ -131,6 +133,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
   }
 
   async function look(appName: string, signal?: AbortSignal): Promise<string> {
+    target = undefined; // a failed fresh observation must not leave the previous window's elements actionable
     const app = await findApp(appName, signal);
     const pid = await pidOf(app, signal);
     if (pid === undefined) throw new Refused(`${app.name} is not running. Use action "open" first.`);
@@ -142,7 +145,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     const state = await cua.call("get_window_state", { pid, window_id: win.window_id }, signal);
     if (state.isError) refuse(state.refusal?.code, app.name, `Could not read ${app.name}: ${state.refusal?.message ?? state.text}`);
     const elements = withoutMenuBar((state.data.elements ?? []) as Element[]);
-    target = { pid, windowId: win.window_id, app: app.name, bundleId: app.bundle_id, elements: new Map(elements.map((e) => [e.element_index, e])), justTyped: false };
+    target = { generation: cua.generation, pid, windowId: win.window_id, app: app.name, bundleId: app.bundle_id, elements: new Map(elements.map((e) => [e.element_index, e])), justTyped: false };
     const shown = elements.slice(0, maxElements).map((e) => {
       const bits = [`[${e.element_index}] ${e.role ?? "?"}`];
       if (e.label) bits.push(`"${e.label.slice(0, 80)}"`);
@@ -171,6 +174,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
   }
 
   function need(): Target {
+    if (target && target.generation !== cua.generation) target = undefined;
     if (!target) throw new Refused("Look at an app first (action \"look\"), then act on its numbered elements.");
     return target;
   }
@@ -218,7 +222,10 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
   }
 
   function checkResult(r: { isError: boolean; text: string; refusal?: { code: string; message: string } }, what: string, app: string) {
-    if (r.refusal?.code === "stale_element_token") throw new Refused("The window changed since the last look. Look again, then retry.");
+    if (r.refusal?.code === "stale_element_token") {
+      target = undefined;
+      throw new Refused("The window changed since the last look. Look again, then retry.");
+    }
     if (r.isError) refuse(r.refusal?.code, app, `${what} failed: ${r.refusal?.message ?? r.text}`);
     lastRefusal = undefined;
   }
@@ -251,6 +258,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
       log({ action, ...(appName ? { app: appName } : {}), ok: true });
       return out;
     } catch (error) {
+      if (!(error instanceof Refused)) target = undefined;
       log({ action, ...(appName ? { app: appName } : {}), ok: false, reason: error instanceof Refused ? error.message.slice(0, 160) : "error" });
       throw error;
     }
@@ -258,6 +266,18 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
 
   async function perform(action: string, input: Record<string, unknown>, signal?: AbortSignal): Promise<string> {
     switch (action) {
+      case "status": {
+        if (!cua.probe) throw new Refused("This computer transport does not support a readiness check.");
+        const status = await cua.probe(signal);
+        if (!status.ready) {
+          target = undefined;
+          throw new Refused(`Computer driver is missing required methods: ${status.missingTools.join(", ")}. Check or update the driver installation; no desktop action was performed.`);
+        }
+        const startup = status.reused
+          ? `Reused the existing helper; no startup for this check (last startup ${status.startupMs} ms).`
+          : `Started the helper in ${status.startupMs} ms.`;
+        return `Computer driver ready. ${startup} Protocol check: ${status.probeMs} ms. No apps, windows or screenshots were read and no input was sent. macOS Accessibility and Screen Recording permissions are not tested by this check. This does not grant access; existing computer policy still applies.`;
+      }
       case "list_apps": {
         const visible = (await apps(signal)).filter((a) => a.running && !appBlock(a.bundle_id, a.name));
         return `Running apps: ${visible.map((a) => a.name).join(", ")}`;
@@ -278,7 +298,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         if (deleting) throw new Refused(deleting);
         const why = labelApproval(el.label, el.role);
         if (why) await ask(`Click ${why} in ${t.app}`, "it may send, buy, delete or change something", signal);
-        const r = await cua.call("click", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, delivery_mode: "background" }, signal);
+        const r = await cua.call("click", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, delivery_mode: "background" }, signal, t.generation);
         checkResult(r, "Click", t.app);
         t.justTyped = false;
         return `Clicked [${el.element_index}]${el.label ? ` "${el.label}"` : ""}.${verdict(r, `click:${el.element_index}`)}`;
@@ -291,7 +311,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         if (typeof input.text !== "string" || !input.text) throw new Refused('"text" is required.');
         const lineBreak = typeApproval(input.text);
         if (lineBreak) await ask(`Type text with a line break into ${t.app}`, `it has ${lineBreak}`, signal);
-        const r = await cua.call("type_text", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, text: input.text, delivery_mode: "background" }, signal);
+        const r = await cua.call("type_text", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, text: input.text, delivery_mode: "background" }, signal, t.generation);
         checkResult(r, "Typing", t.app);
         t.justTyped = isSearchField(el.label, el.role); // Return may follow without a card only in a search or address field
         return `Typed ${input.text.length} characters into [${el.element_index}].${verdict(r, `type:${el.element_index}`)}`;
@@ -306,7 +326,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         if (why) await ask(`Press ${keys.join("+")} in ${t.app}`, `it uses ${why}`, signal);
         const key = keys[keys.length - 1];
         const mods = keys.slice(0, -1);
-        const r = await cua.call(mods.length ? "hotkey" : "press_key", mods.length ? { pid: t.pid, window_id: t.windowId, keys, delivery_mode: "background" } : { pid: t.pid, window_id: t.windowId, key, delivery_mode: "background" }, signal);
+        const r = await cua.call(mods.length ? "hotkey" : "press_key", mods.length ? { pid: t.pid, window_id: t.windowId, keys, delivery_mode: "background" } : { pid: t.pid, window_id: t.windowId, key, delivery_mode: "background" }, signal, t.generation);
         checkResult(r, "Key press", t.app);
         t.justTyped = false;
         return `Pressed ${keys.join("+")}.${verdict(r, `key:${keys.join("+")}`)}`;
@@ -327,7 +347,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const direction = String(input.direction ?? "down");
         if (!["up", "down", "left", "right"].includes(direction)) throw new Refused("direction must be up, down, left or right.");
         const el = input.element === undefined ? undefined : pick(t, input.element);
-        const r = await cua.call("scroll", { pid: t.pid, window_id: t.windowId, direction, amount: 5, by: "line", ...(el ? { element_token: el.element_token } : {}), delivery_mode: "background" }, signal);
+        const r = await cua.call("scroll", { pid: t.pid, window_id: t.windowId, direction, amount: 5, by: "line", ...(el ? { element_token: el.element_token } : {}), delivery_mode: "background" }, signal, t.generation);
         checkResult(r, "Scroll", t.app);
         t.justTyped = false;
         return `Scrolled ${direction}.${verdict(r, `scroll:${direction}:${input.element ?? ""}`)}`;
@@ -342,7 +362,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         // A value of a setting ("Delete files after: 30 days") is not a delete: it asks, like a click on a risky control, and is never refused outright.
         const why = labelApproval(el.label, el.role);
         if (why) await ask(`Change ${why} in ${t.app}`, "it may send, buy, delete or change something", signal);
-        const r = await cua.call("set_value", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, value: input.text }, signal);
+        const r = await cua.call("set_value", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, value: input.text }, signal, t.generation);
         checkResult(r, "Setting the value", t.app);
         t.justTyped = isSearchField(el.label, el.role);
         return `Set [${el.element_index}]${el.label ? ` "${el.label}"` : ""} to ${JSON.stringify(input.text.slice(0, 80))}.${verdict(r, `set_value:${el.element_index}`)}`;
@@ -357,7 +377,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     spec: {
       name: "computer",
       description:
-        "Controls apps on the user's Mac in the background. First `look` at an app to get its numbered elements, then `click`, " +
+        "Controls apps on the user's Mac in the background. Use `status` to check driver readiness/timing without reading desktop content; this does not test macOS permissions. After a driver failure, look again; never automatically repeat an uncertain action. First `look` at an app to get its numbered elements, then `click`, " +
         "`type` or `key` using those numbers; look again after anything that changes the window. Typed text goes in at the cursor, " +
         "not at the end. Use `open` to start an app. " +
         "Use `set_value` to set a slider, stepper or choice to a value in one step (text holds the value), instead of clicking toward it. " +

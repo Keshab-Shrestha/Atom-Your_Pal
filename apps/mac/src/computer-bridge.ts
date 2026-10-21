@@ -70,6 +70,7 @@ const oneLine = (text: string, max: number) => {
 export function stepText(step: { action: string; app?: string }): string {
   const app = step.app ? oneLine(step.app, 40) : undefined;
   switch (step.action) {
+    case "status": return "Checking computer readiness";
     case "list_apps": return "Checking which apps are open";
     case "look": return app ? `Looking at ${app}` : "Looking at the screen";
     case "open": return app ? `Opening ${app}` : "Opening an app";

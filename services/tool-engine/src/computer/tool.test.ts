@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createComputerTool, type ApprovalRequest } from "./tool.ts";
-import type { CuaResult, CuaTransport } from "./cua-client.ts";
+import type { CuaReadiness, CuaResult, CuaTransport } from "./cua-client.ts";
 
 const textEdit = { name: "TextEdit", bundle_id: "com.apple.TextEdit", pid: 11, running: true };
 const terminal = { name: "Terminal", bundle_id: "com.apple.Terminal", pid: 22, running: true };
@@ -25,8 +25,11 @@ const ok = (text: string, data: Record<string, any> = {}): CuaResult => ({ text,
 
 function fakeCua(handlers: Record<string, (args: any) => CuaResult> = {}) {
   const calls: Array<{ name: string; args: any }> = [];
+  let generation = 1;
   const cua: CuaTransport = {
-    async call(name, args) {
+    get generation() { return generation; },
+    async call(name, args, _signal, expectedGeneration) {
+      if (expectedGeneration !== undefined && expectedGeneration !== generation) throw new Error("The computer session changed; no input was sent.");
       calls.push({ name, args });
       if (handlers[name]) return handlers[name](args);
       if (name === "list_apps") return ok("apps", { apps: [textEdit, terminal] });
@@ -36,11 +39,12 @@ function fakeCua(handlers: Record<string, (args: any) => CuaResult> = {}) {
     },
     async close() {},
   };
-  return { cua, calls };
+  return { cua, calls, restart: () => generation++ };
 }
 
-function setup(opts: { point?: (p: { x: number; y: number; w: number; h: number; label: string }) => void; approve?: (r: ApprovalRequest) => boolean | Promise<boolean>; handlers?: Record<string, (a: any) => CuaResult> } = {}) {
-  const { cua, calls } = fakeCua(opts.handlers);
+function setup(opts: { probe?: () => Promise<CuaReadiness>; point?: (p: { x: number; y: number; w: number; h: number; label: string }) => void; approve?: (r: ApprovalRequest) => boolean | Promise<boolean>; handlers?: Record<string, (a: any) => CuaResult> } = {}) {
+  const { cua, calls, restart } = fakeCua(opts.handlers);
+  if (opts.probe) cua.probe = opts.probe;
   const asked: ApprovalRequest[] = [];
   const logs: any[] = [];
   const tool = createComputerTool({
@@ -53,7 +57,7 @@ function setup(opts: { point?: (p: { x: number; y: number; w: number; h: number;
     ...(opts.point ? { onPoint: opts.point } : {}),
   });
   const run = (input: Record<string, unknown>, signal?: AbortSignal) => Promise.resolve(tool.run(input, signal)).then((text) => ({ ok: true as const, text }), (e: Error) => ({ ok: false as const, text: e.message }));
-  return { tool, run, calls, asked, logs };
+  return { tool, run, calls, asked, logs, restart };
 }
 
 const sees = async (s: ReturnType<typeof setup>) => s.run({ action: "look", app: "TextEdit" });
@@ -198,14 +202,15 @@ test("pressing Return asks, except right after typing", async () => {
   assert.equal(s.asked.length, 1);
 });
 
-test("a key press on a blocked app's window is refused", async () => {
+test("a refused observation of a blocked app cannot send a key to the previously observed app", async () => {
   const s = setup();
   await s.run({ action: "look", app: "TextEdit" });
-  // simulate switching the target to a blocked app by looking at it (refused), which must not change the target
+  // A failed change of target must not silently act on the previous window.
   await s.run({ action: "look", app: "Terminal" });
   const r = await s.run({ action: "key", keys: ["tab"] });
-  assert.equal(r.ok, true);
-  assert.equal(s.calls.find((c) => c.name === "press_key")!.args.pid, 11);
+  assert.equal(r.ok, false);
+  assert.match(r.text, /Look at an app first/);
+  assert.equal(s.calls.some((c) => c.name === "press_key"), false);
 });
 
 test("open launches an app in the background; blocked apps are refused", async () => {
@@ -705,4 +710,75 @@ test("look does not show the value of a field named like a secret", async () => 
   assert.ok(!r.text.includes("4111111111111111") && !r.text.includes("sk-secret-value"), "secret values are hidden");
   assert.ok(r.text.includes("Keshab"), "an ordinary field's value still shows");
   assert.ok(r.text.includes("Card number"), "the label still shows");
+});
+
+test("status reports cold/warm protocol readiness without desktop reads or approvals", async () => {
+  let probes = 0;
+  const s = setup({ probe: async () => ({ ready: true, reused: probes++ > 0, startupMs: 123, probeMs: 4, missingTools: [] }) });
+  const first = await s.run({ action: "status" });
+  const second = await s.run({ action: "status" });
+  assert.equal(first.ok, true);
+  assert.match(first.text, /Started the helper in 123 ms.*Protocol check: 4 ms/);
+  assert.match(second.text, /Reused the existing helper; no startup/);
+  assert.match(first.text, /permissions are not tested/);
+  assert.deepEqual(s.calls, []);
+  assert.deepEqual(s.asked, []);
+  assert.match(String(s.tool.spec.description), /status.*readiness/);
+  assert.equal((await s.run({ action: "click", element: 2 })).ok, false, "status is not a window observation");
+});
+
+test("missing-method status is actionable and discards the previous snapshot", async () => {
+  const s = setup({ probe: async () => ({ ready: false, reused: true, startupMs: 5, probeMs: 1, missingTools: ["click"] }) });
+  await sees(s);
+  const r = await s.run({ action: "status" });
+  assert.equal(r.ok, false);
+  assert.match(r.text, /missing required methods: click.*Check or update/);
+  assert.match((await s.run({ action: "click", element: 2 })).text, /Look at an app first/);
+  assert.equal(s.calls.filter((call) => call.name === "click").length, 0);
+});
+
+test("an unsupported readiness probe does not pretend the driver is ready", async () => {
+  const s = setup();
+  const r = await s.run({ action: "status" });
+  assert.equal(r.ok, false);
+  assert.match(r.text, /does not support a readiness check/);
+  assert.deepEqual(s.calls, []);
+});
+
+test("failed fresh observations and failed look_after both discard old elements", async () => {
+  for (const lookAfter of [false, true]) {
+    let reads = 0;
+    const s = setup({ handlers: { get_window_state: () => ++reads === 1 ? ok("state", { elements }) : { ...ok("window disappeared"), isError: true } } });
+    await sees(s);
+    await s.run(lookAfter ? { action: "click", element: 2, look_after: true } : { action: "look", app: "TextEdit" });
+    const clicks = s.calls.filter((call) => call.name === "click").length;
+    assert.match((await s.run({ action: "click", element: 2 })).text, /Look at an app first/);
+    assert.equal(s.calls.filter((call) => call.name === "click").length, clicks);
+  }
+});
+
+test("transport failure invalidates the target and does not replay the uncertain input", async () => {
+  let failing = true;
+  const s = setup({ handlers: { click: () => { if (failing) throw new Error("timeout; outcome unknown"); return ok("done"); } } });
+  await sees(s);
+  assert.equal((await s.run({ action: "click", element: 2 })).ok, false);
+  assert.match((await s.run({ action: "click", element: 2 })).text, /Look at an app first/);
+  assert.equal(s.calls.filter((call) => call.name === "click").length, 1);
+  failing = false;
+  await sees(s);
+  assert.equal((await s.run({ action: "click", element: 2 })).ok, true);
+});
+
+test("helper restart invalidates numbered elements, including while approval is open", async () => {
+  const s = setup();
+  await sees(s); s.restart();
+  assert.match((await s.run({ action: "click", element: 2 })).text, /Look at an app first/);
+  assert.equal(s.calls.some((call) => call.name === "click"), false);
+  const duringApproval = setup({ approve: () => { duringApproval.restart(); return true; } });
+  await sees(duringApproval);
+  const r = await duringApproval.run({ action: "click", element: 3 });
+  assert.equal(r.ok, false);
+  assert.match(r.text, /session changed; no input was sent/);
+  assert.equal(duringApproval.calls.some((call) => call.name === "click"), false);
+  assert.match((await duringApproval.run({ action: "type", element: 1, text: "hello" })).text, /Look at an app first/);
 });

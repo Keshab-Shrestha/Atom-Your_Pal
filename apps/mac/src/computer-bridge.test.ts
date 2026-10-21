@@ -152,6 +152,7 @@ test("steps are sent as plain words, never with typed text", () => {
 });
 
 test("stepText covers every action and tolerates a missing app", () => {
+  assert.equal(stepText({ action: "status" }), "Checking computer readiness");
   assert.equal(stepText({ action: "look", app: "Mail" }), "Looking at Mail");
   assert.equal(stepText({ action: "click", app: "Mail" }), "Clicking in Mail");
   assert.equal(stepText({ action: "key", app: "Mail" }), "Pressing a key in Mail");

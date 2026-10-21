@@ -9,33 +9,49 @@ export interface CuaResult {
   refusal: { code: string; message: string } | undefined;
 }
 
+export interface CuaReadiness {
+  ready: boolean;
+  reused: boolean;
+  startupMs: number;
+  probeMs: number;
+  missingTools: string[];
+}
+
 export interface CuaTransport {
-  call(name: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<CuaResult>;
+  /** Zero when stopped; snapshots belong to one generation only. Optional for alternate transports. */
+  readonly generation?: number;
+  call(name: string, args: Record<string, unknown>, signal?: AbortSignal, expectedGeneration?: number): Promise<CuaResult>;
+  /** Protocol-only check: no app/window/screenshot reads or input. */
+  probe?(signal?: AbortSignal): Promise<CuaReadiness>;
   close(): Promise<void>;
+}
+
+export interface CuaTiming {
+  stage: "initialize" | "probe" | "call";
+  durationMs: number;
+  ok: boolean;
+  /** Method name only, never arguments or output. */
+  tool?: string;
 }
 
 export interface CuaTransportOptions {
   command?: string;
   args?: string[];
   env?: NodeJS.ProcessEnv;
-  /** Longest wait for one call. */
   callTimeoutMs?: number;
-  /** Stop Cua after this long with no calls (it starts again on the next call). */
+  initializeTimeoutMs?: number;
+  /** Stop after this long with no active call. Starts again on the next call. */
   idleMs?: number;
+  onTiming?: (timing: CuaTiming) => void;
 }
 
-/**
- * The environment Cua is started with (ADR-054): standard mode, telemetry off. The caller's own settings for
- * these are overwritten, and the unrestricted-mode and capability-manifest overrides are removed, so nothing
- * that is set around ATOM can widen what Cua may do.
- */
-/** The driver reports a refusal in one of two shapes: a `refusal` object, or `code` + `reason` at the top level (what it really sends). */
 function refusalOf(data: Record<string, any>): { code: string; message: string } | undefined {
   if (data.refusal && typeof data.refusal.code === "string") return { code: data.refusal.code, message: String(data.refusal.message ?? "") };
   if (typeof data.code === "string" && data.effect === "refused") return { code: data.code, message: String(data.reason ?? data.escalation?.reason ?? "") };
   return undefined;
 }
 
+/** Standard mode, telemetry off; inherited settings cannot widen permissions (ADR-054). */
 export function cuaEnvironment(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const env = { ...base };
   delete env.CUA_DRIVER_DANGEROUSLY_BYPASS_APPROVALS;
@@ -47,187 +63,187 @@ export function cuaEnvironment(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return env;
 }
 
-/** Cua's stderr is ignored (it prints update notices), so only stdin and stdout are pipes. */
 type Proc = ChildProcessByStdio<Writable, Readable, null>;
-
-interface Pending {
-  resolve: (r: any) => void;
-  reject: (e: Error) => void;
+interface Pending { resolve: (r: any) => void; reject: (e: Error) => void }
+interface Connection {
+  proc: Proc;
+  generation: number;
+  ready: Promise<void>;
+  startupMs: number;
+  pending: Map<number, Pending>;
+  stopped?: Promise<void>;
 }
 
-/**
- * Talks to `cua-driver mcp` over stdio, one JSON object per line. Starts it on the first call, restarts it after a
- * crash, and stops it when idle or closed. Calls are serialised: Cua drives one desktop, so two at once would collide.
- */
-export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransport {
-  const {
-    command = `${process.env.HOME}/.local/bin/cua-driver`,
-    args = ["mcp"],
-    callTimeoutMs = 30_000,
-    idleMs = 120_000,
-  } = options;
-  const env = cuaEnvironment(options.env ?? process.env);
+const REQUIRED_TOOLS = ["list_apps", "list_windows", "get_window_state", "launch_app", "click", "type_text", "press_key", "hotkey", "scroll", "set_value", "get_screen_size", "get_desktop_state"];
+const elapsed = (start: number) => Math.max(0, Math.round(performance.now() - start));
+class StaleSession extends Error {}
 
-  let child: Proc | undefined;
-  /** The newest process started. An older one that exits late must not clear what belongs to this one (code check, 2026-10-16). */
-  let newest: Proc | undefined;
-  let ready: Promise<Proc> | undefined;
-  let nextId = 0;
-  const pending = new Map<number, Pending>();
+/** Lazy serialized stdio MCP client. Never replays failed actions; only retires its own child. */
+export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransport {
+  const { command = `${process.env.HOME}/.local/bin/cua-driver`, args = ["mcp"], callTimeoutMs = 30_000,
+    initializeTimeoutMs = 15_000, idleMs = 120_000, onTiming } = options;
+  const env = cuaEnvironment(options.env ?? process.env);
+  let active: Connection | undefined;
+  let nextId = 0, generation = 0;
   let idleTimer: NodeJS.Timeout | undefined;
   let queue: Promise<unknown> = Promise.resolve();
+  const stopping = new Set<Promise<void>>();
 
-  function failAll(message: string) {
-    for (const p of pending.values()) p.reject(new Error(message));
-    pending.clear();
+  function send(c: Connection, message: object) { c.proc.stdin.write(`${JSON.stringify(message)}\n`); }
+  function fail(c: Connection, error: Error) {
+    for (const p of c.pending.values()) p.reject(error);
+    c.pending.clear();
   }
 
-  function send(proc: Proc, message: object) {
-    proc.stdin.write(`${JSON.stringify(message)}\n`);
+  /** Bound SIGTERM with SIGKILL of this exact child, never a competing app's helper. */
+  function retire(c: Connection, error: Error): Promise<void> {
+    if (c.stopped) return c.stopped;
+    if (active === c) { active = undefined; clearTimeout(idleTimer); }
+    fail(c, error);
+    c.stopped = new Promise<void>((resolve) => {
+      if (c.proc.exitCode !== null || c.proc.signalCode !== null || c.proc.pid === undefined) { resolve(); return; }
+      const killTimer = setTimeout(() => c.proc.kill("SIGKILL"), 500);
+      killTimer.unref();
+      c.proc.once("close", () => { clearTimeout(killTimer); resolve(); });
+      c.proc.stdin.end();
+      c.proc.kill("SIGTERM");
+    });
+    const stopped = c.stopped;
+    stopping.add(stopped);
+    void stopped.then(() => stopping.delete(stopped));
+    return stopped;
   }
 
-  function request(proc: Proc, method: string, params: object, timeoutMs: number): Promise<any> {
+  function request(c: Connection, method: string, params: object, timeoutMs = callTimeoutMs): Promise<any> {
+    if (c.stopped) return Promise.reject(new Error("Cua Driver closed; look again before continuing."));
     const id = ++nextId;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
-        pending.delete(id);
-        reject(new Error(`Cua Driver did not answer within ${Math.round(timeoutMs / 1000)} s.`));
+        c.pending.delete(id);
+        reject(new Error(`Cua Driver did not answer within ${Math.round(timeoutMs / 1000)} s. The outcome may be unknown; do not repeat an action automatically.`));
       }, timeoutMs);
-      pending.set(id, {
-        resolve: (r) => {
-          clearTimeout(timer);
-          resolve(r);
-        },
-        reject: (e) => {
-          clearTimeout(timer);
-          reject(e);
-        },
+      c.pending.set(id, {
+        resolve: (r) => { clearTimeout(timer); resolve(r); },
+        reject: (e) => { clearTimeout(timer); reject(e); },
       });
-      send(proc, { jsonrpc: "2.0", id, method, params });
+      send(c, { jsonrpc: "2.0", id, method, params });
     });
   }
 
-  function start(): Promise<Proc> {
-    if (ready) return ready;
-    ready = new Promise<Proc>((resolve, reject) => {
-      const proc = spawn(command, args, { env, stdio: ["pipe", "pipe", "ignore"] });
-      newest = proc;
-      let started = false;
-      proc.on("error", (error) => {
-        if (newest !== proc) return; // an older process: its failure is not this one's
-        child = undefined;
-        ready = undefined;
-        const e = new Error(`Could not start Cua Driver (${error.message}). Is it installed?`);
-        if (!started) reject(e);
-        failAll(e.message); // also clears the pending initialize request's timer, which would otherwise hold the process open
-      });
-      // A write to a child that died but has not said so yet is an EPIPE 'error' on its stdin; without a listener it ends ATOM (code check, 2026-10-16).
-      proc.stdin.on("error", () => {});
-      proc.on("exit", () => {
-        // The exit of a process that a newer one has replaced (the idle timer stopped it, a new call started another) changes nothing: it used to
-        // clear `ready` and reject the newer process's pending request, and the next call then spawned a third process.
-        if (newest !== proc) return;
-        if (child === proc) child = undefined;
-        ready = undefined;
-        failAll("Cua Driver stopped unexpectedly.");
-      });
-      createInterface({ input: proc.stdout }).on("line", (line) => {
-        let message: any;
-        try {
-          message = JSON.parse(line);
-        } catch {
-          return; // not a protocol line
-        }
-        if (!message || typeof message !== "object") return; // a JSON line that is not an object ("null", "1") is not a reply either
-        const p = pending.get(message.id);
-        if (!p) return;
-        pending.delete(message.id);
-        message.error ? p.reject(new Error(String(message.error.message ?? "Cua Driver error"))) : p.resolve(message.result);
-      });
-      request(proc, "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "atom", version: "0" } }, 15_000)
-        .then(() => {
-          started = true;
-          child = proc;
-          send(proc, { jsonrpc: "2.0", method: "notifications/initialized" });
-          resolve(proc);
-        })
-        .catch((error) => {
-          proc.kill();
-          ready = undefined;
-          reject(error);
-        });
+  function connection(): Connection {
+    if (active) return active;
+    const started = performance.now();
+    const proc = spawn(command, args, { env, stdio: ["pipe", "pipe", "ignore"] });
+    const c: Connection = { proc, generation: ++generation, ready: Promise.resolve(), startupMs: 0, pending: new Map() };
+    active = c;
+    // Pending replies belong to one connection: a late old exit cannot reject a replacement's calls.
+    proc.on("error", (error) => void retire(c, new Error(`Could not start Cua Driver (${error.message}). Is it installed?`)));
+    proc.stdin.on("error", () => void retire(c, new Error("Cua Driver connection failed. The action outcome may be unknown.")));
+    proc.on("exit", () => void retire(c, new Error("Cua Driver stopped unexpectedly. The action outcome may be unknown; look again before continuing.")));
+    createInterface({ input: proc.stdout }).on("line", (line) => {
+      let message: any;
+      try { message = JSON.parse(line); } catch { return; }
+      if (!message || typeof message !== "object") return;
+      const p = c.pending.get(message.id);
+      if (!p) return;
+      c.pending.delete(message.id);
+      message.error ? p.reject(new Error(String(message.error.message ?? "Cua Driver error"))) : p.resolve(message.result);
     });
-    return ready;
+    c.ready = request(c, "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "atom", version: "0" } }, initializeTimeoutMs)
+      .then(() => { send(c, { jsonrpc: "2.0", method: "notifications/initialized" }); })
+      .then(() => { c.startupMs = elapsed(started); onTiming?.({ stage: "initialize", durationMs: c.startupMs, ok: true }); })
+      .catch((error) => {
+        onTiming?.({ stage: "initialize", durationMs: elapsed(started), ok: false });
+        void retire(c, error);
+        throw error;
+      });
+    return c;
   }
 
-  async function stopNow(): Promise<void> {
-    // Cua may still be starting: wait for it, so a process that is about to appear is stopped too.
-    if (!child && ready) await ready.catch(() => undefined);
-    const proc = child;
-    child = undefined;
-    ready = undefined;
-    if (!proc || proc.exitCode !== null) return;
-    await new Promise<void>((resolve) => {
-      proc.once("exit", () => resolve());
-      proc.stdin.end();
-      proc.kill("SIGTERM");
-    });
-  }
-
-  function touch() {
+  function touch(c: Connection) {
     clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => void stopNow(), idleMs);
+    if (active !== c) return;
+    idleTimer = setTimeout(() => void retire(c, new Error("Cua Driver stopped after being idle.")), idleMs);
     idleTimer.unref();
   }
 
-  async function callOnce(name: string, callArgs: Record<string, unknown>, signal?: AbortSignal): Promise<CuaResult> {
+  async function using<T>(work: (c: Connection, reused: boolean) => Promise<T>, signal?: AbortSignal): Promise<T> {
     if (signal?.aborted) throw new Error("Cancelled before it ran.");
-    // Listen for the cancel from the start, so one that arrives while Cua is still starting is not missed.
-    let proc: Proc | undefined;
-    let requestId: number | undefined;
-    let onAbort: (() => void) | undefined;
-    const cancelled = new Promise<never>((_, reject) => {
-      onAbort = () => {
-        if (proc && requestId !== undefined) {
-          send(proc, { jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId, reason: "ATOM cancelled" } });
-          pending.get(requestId)?.reject(new Error("Cancelled.")); // also clears the call's timeout timer
-          pending.delete(requestId);
-        }
-        reject(new Error("Cancelled."));
-      };
-      signal?.addEventListener("abort", onAbort, { once: true });
-    });
-    cancelled.catch(() => {}); // it is raced below; a cancel after the call ended has no one waiting
-    let work: Promise<any> | undefined;
+    // A replacement must not act while a cancelled or hung owned helper is still stopping.
+    await Promise.all(stopping);
+    if (signal?.aborted) throw new Error("Cancelled before it ran.");
+    clearTimeout(idleTimer); // idle lifetime begins after work, never during an active call
+    const reused = Boolean(active);
+    const c = connection();
+    const abort = () => {
+      for (const requestId of c.pending.keys()) send(c, { jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId, reason: "ATOM cancelled" } });
+      void retire(c, new Error("Cancelled. The action outcome may be unknown; look again before continuing."));
+    };
+    signal?.addEventListener("abort", abort, { once: true });
     try {
-      proc = await Promise.race([start(), cancelled]);
-      touch();
-      requestId = nextId + 1;
-      work = request(proc, "tools/call", { name, arguments: callArgs }, callTimeoutMs);
-      work.catch(() => {}); // a late answer or timeout after cancelling is not an error to report
-      const result = await Promise.race([work, cancelled]);
-      const structured = (result?.structuredContent ?? {}) as Record<string, any>;
-      return {
-        text: (result?.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n"),
-        data: structured,
-        isError: Boolean(result?.isError),
-        refusal: refusalOf(structured),
-      };
+      await c.ready;
+      if (signal?.aborted) throw new Error("Cancelled.");
+      if (c.stopped) throw new Error("Cua Driver closed; look again before continuing.");
+      return await work(c, reused);
+    } catch (error) {
+      // Rejecting an old token is a successful guard, not a reason to discard a healthy warm replacement.
+      if (!(error instanceof StaleSession)) void retire(c, error instanceof Error ? error : new Error("Cua Driver failed."));
+      throw error;
     } finally {
-      if (onAbort) signal?.removeEventListener("abort", onAbort);
-      touch();
+      signal?.removeEventListener("abort", abort);
+      touch(c);
     }
   }
 
+  function enqueue<T>(work: () => Promise<T>): Promise<T> {
+    const run = queue.then(work);
+    queue = run.catch(() => {});
+    return run;
+  }
+
   return {
-    call(name, callArgs, signal) {
-      const run = queue.then(() => callOnce(name, callArgs, signal));
-      queue = run.catch(() => {});
-      return run;
+    get generation() { return active?.generation ?? 0; },
+    call(name, callArgs, signal, expectedGeneration) {
+      return enqueue(() => using(async (c) => {
+        if (expectedGeneration !== undefined && expectedGeneration !== c.generation) throw new StaleSession("The computer session changed. Look at the app again before acting; no input was sent.");
+        const started = performance.now();
+        let ok = false;
+        try {
+          const result = await request(c, "tools/call", { name, arguments: callArgs });
+          const structured = (result?.structuredContent ?? {}) as Record<string, any>;
+          ok = !result?.isError;
+          return {
+            text: (result?.content ?? []).filter((item: any) => item.type === "text").map((item: any) => item.text).join("\n"),
+            data: structured, isError: Boolean(result?.isError), refusal: refusalOf(structured),
+          };
+        } finally { onTiming?.({ stage: "call", tool: name, durationMs: elapsed(started), ok }); }
+      }, signal));
+    },
+    probe(signal) {
+      return enqueue(() => using(async (c, reused) => {
+        const started = performance.now();
+        let ok = false;
+        try {
+          const names = new Set<string>();
+          let cursor: string | undefined;
+          for (let page = 0; page < 20; page++) {
+            const result = await request(c, "tools/list", cursor ? { cursor } : {});
+            if (!Array.isArray(result?.tools)) throw new Error("Cua Driver returned an invalid capability list. Check the driver installation.");
+            for (const tool of result.tools) if (typeof tool?.name === "string") names.add(tool.name);
+            cursor = typeof result.nextCursor === "string" && result.nextCursor ? result.nextCursor : undefined;
+            if (!cursor) break;
+            if (page === 19) throw new Error("Cua Driver capability listing did not finish. Check the driver installation.");
+          }
+          const missingTools = REQUIRED_TOOLS.filter((name) => !names.has(name));
+          ok = missingTools.length === 0;
+          return { ready: ok, reused, startupMs: c.startupMs, probeMs: elapsed(started), missingTools };
+        } finally { onTiming?.({ stage: "probe", durationMs: elapsed(started), ok }); }
+      }, signal));
     },
     async close() {
       clearTimeout(idleTimer);
-      await stopNow();
+      if (active) await retire(active, new Error("Cua Driver closed."));
+      await Promise.all(stopping);
     },
   };
 }
