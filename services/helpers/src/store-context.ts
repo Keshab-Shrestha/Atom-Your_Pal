@@ -19,7 +19,6 @@ import type { JobRow } from "./store-schema.ts";
 import type { testCaseTable } from "./test-cases.ts";
 import type { toolCallTable } from "./tool-calls.ts";
 
-export const MAX_COMMENT_CHARS = 2000;
 
 /** One worker of the team: built in (ADR-082) or an agent from the agents folder (ADR-088). */
 export interface Member {

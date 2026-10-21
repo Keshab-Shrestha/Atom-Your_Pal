@@ -26,8 +26,7 @@ import { mcpMethods } from "./store-mcp.ts";
 import { testCaseMethods } from "./store-testcases.ts";
 import { planMethods } from "./store-plans.ts";
 import { checkpointMethods } from "./store-checkpoints.ts";
-import { MAX_COMMENT_CHARS, type Member, type StoreContext } from "./store-context.ts";
-export { MAX_COMMENT_CHARS };
+import { type Member, type StoreContext } from "./store-context.ts";
 import { createSchema, sameSoul, toJobRow, toSoul, webSources, type JobRow, type ReportRow, type SoulRow } from "./store-schema.ts";
 import {
   BUILT_IN_KITS,
@@ -49,8 +48,6 @@ import {
 // ADR-081: helper apps, jobs and reports in one local SQLite file. Task text, reports and source addresses
 // are the user's own: kept here, never logged (callers log the change events, which carry ids and states only).
 
-export const MAX_TASK_CHARS = 1000;
-export const MAX_GOAL_CHARS = 1000;
 export const JOBS_PER_HELPER = 20;
 export const CLOSED_WHILE_RUNNING = "ATOM closed before this attempt's outcome was confirmed. Files may already have changed. Review the last step, tool history and file changes before trying again.";
 /** Soul versions listed per worker (all are kept). */
@@ -292,7 +289,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
   function cleanTask(raw: string): string {
     const task = raw.trim();
     if (!task) throw new HelperError("The job is empty.");
-    if (task.length > MAX_TASK_CHARS) throw new HelperError(`The job is too long (${task.length} characters, limit ${MAX_TASK_CHARS}).`);
     return task;
   }
 
@@ -649,7 +645,6 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
       const known = availableHelper(helper);
       const task = cleanTask(raw);
       const goal = options.goal?.trim() || null;
-      if (goal && goal.length > MAX_GOAL_CHARS) throw new HelperError(`The goal is too long (${goal.length} characters, limit ${MAX_GOAL_CHARS}).`);
       if (options.parentId !== undefined && !get(options.parentId)) throw new HelperError(`There is no task ${options.parentId}.`);
       // A new task cannot close a circle: everything it waits for already exists.
       const blockers = checkBlockers(options.blockedBy ?? []);
@@ -692,7 +687,7 @@ export function openHelperStore(options: HelperStoreOptions): HelperStore {
         return mustGet(attempt.id);
       }
       const trimmed = raw.trim();
-      const task = cleanTask(trimmed.length > MAX_TASK_CHARS ? `${trimmed.slice(0, MAX_TASK_CHARS - 1)}…` : trimmed);
+      const task = cleanTask(trimmed);
       let id = 0;
       transaction(() => {
         id = insertTask(known.id, task, [], { goal: null, parentId: null, goalId: null, planFirst: false });

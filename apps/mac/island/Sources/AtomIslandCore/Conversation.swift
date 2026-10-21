@@ -187,6 +187,8 @@ public struct ChatList: Sendable, Equatable {
     /// ADR-097: the current chat's own model; nil when it uses the default.
     public var currentProvider: String?
     public var currentModel: String?
+    public var access: ChatAccessMode?
+    public var reasoning: ChatReasoning?
     /// ADR-107: the project the chat in use belongs to (also a new, unsaved project chat).
     public var currentProjectId: String?
     /// ADR-107: nil when the runtime does not know projects (older runtime or Projects off); empty when there are none.
@@ -206,13 +208,15 @@ public struct ChatList: Sendable, Equatable {
     }
 
     public init(chats: [ChatInfo], current: String, currentProvider: String? = nil, currentModel: String? = nil,
-                currentProjectId: String? = nil, projects: [ProjectInfo]? = nil) {
+                currentProjectId: String? = nil, projects: [ProjectInfo]? = nil, reasoning: ChatReasoning? = nil, access: ChatAccessMode? = nil) {
+        self.access = access
         self.currentProjectId = currentProjectId
         self.projects = projects
         self.chats = chats
         self.current = current
         self.currentProvider = currentProvider
         self.currentModel = currentModel
+        self.reasoning = reasoning
     }
 }
 

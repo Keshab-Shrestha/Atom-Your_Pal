@@ -10,7 +10,7 @@ import { CHAT_TITLE_LENGTH, MAX_CHATS, MAX_PROJECT_CHATS, MAX_PROJECTS, cleanCha
 
 const turns = (text: string) => [{ role: "user" as const, content: text }, { role: "assistant" as const, content: "ok" }];
 
-test("a project has a unique name (case-insensitive), one line, 1 to 60 characters", () => {
+test("a project has a unique name (case-insensitive), one nonempty line, without a character cap", () => {
   const { projects } = openMemoryStore({ path: ":memory:" });
   const p = projects.add({ name: "  Haat  ", folder: "/Users/k/Developer/haat" });
   assert.equal(p.name, "Haat");
@@ -20,7 +20,7 @@ test("a project has a unique name (case-insensitive), one line, 1 to 60 characte
   assert.throws(() => projects.add({ name: "HAAT", folder: "/Users/k/x" }), ProjectError);
   assert.throws(() => projects.add({ name: "   ", folder: "/x" }), /name/i);
   assert.throws(() => projects.add({ name: "a\nb", folder: "/x" }), /one line/i);
-  assert.throws(() => projects.add({ name: "x".repeat(61), folder: "/x" }), /60/);
+  assert.equal(projects.add({ name: "x".repeat(180), folder: "/x" }).name.length, 180);
   projects.add({ name: "x".repeat(60), folder: "/x" });
   assert.throws(() => projects.rename(p.id, "x".repeat(60)), ProjectError, "rename keeps names unique");
   assert.equal(projects.rename(p.id, "haat"), true, "the same name in another case is the same project");
@@ -130,7 +130,7 @@ test("a file made before projects is migrated: chats keep their rows and gain a 
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("a chat can be renamed; the name stays when the chat is saved again; a title is one line, 1 to 60 characters", () => {
+test("a chat can be renamed; the name stays when the chat is saved again; a title is one nonempty line, without a character cap", () => {
   const { chats } = openMemoryStore({ path: ":memory:" });
   chats.save("a", turns("first words"));
   assert.equal(chats.list()[0]!.title, "first words");
@@ -140,7 +140,8 @@ test("a chat can be renamed; the name stays when the chat is saved again; a titl
   assert.equal(chats.rename("nope", "x"), false, "a chat that is not saved yet");
   assert.throws(() => chats.rename("a", "   "), ProjectError);
   assert.throws(() => chats.rename("a", "one\ntwo"), /one line/);
-  assert.throws(() => chats.rename("a", "x".repeat(CHAT_TITLE_LENGTH + 1)), /60/);
+  assert.equal(chats.rename("a", "x".repeat(180)), true);
+  assert.equal(chats.list().find((c) => c.id === "a")!.title.length, 180);
   assert.equal(cleanChatTitle(" ok "), "ok");
   chats.save("b", turns("untouched"));
   assert.equal(chats.list().find((c) => c.id === "b")!.title, "untouched", "other chats still take their first words");

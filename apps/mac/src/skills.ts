@@ -90,8 +90,6 @@ export function readSkill(name: string, dir = userSkillsDir(), zenoDir?: string)
   }
 }
 
-/** The most characters of a SKILL.md the editor opens or saves. */
-export const SKILL_FILE_CHARS = 40_000;
 
 export interface SkillFile {
   name: string;
@@ -114,7 +112,7 @@ export function readSkillFile(name: string, dir = userSkillsDir(), zenoDir?: str
   const found = skillFolder(name, dir, zenoDir);
   if (!found) return undefined;
   try {
-    return { name, source: found.source, text: readFileSync(join(found.folder, "SKILL.md"), "utf8").slice(0, SKILL_FILE_CHARS) };
+    return { name, source: found.source, text: readFileSync(join(found.folder, "SKILL.md"), "utf8") };
   } catch {
     return undefined;
   }
@@ -129,12 +127,9 @@ export function writeSkillFile(name: string, text: string, dir = userSkillsDir()
   const found = skillFolder(name, dir, zenoDir);
   if (!found) throw new Error(`There is no skill called "${name}".`);
   if (!text.trim()) throw new Error("A skill cannot be empty.");
-  if (text.length > SKILL_FILE_CHARS) throw new Error(`A skill is at most ${SKILL_FILE_CHARS} characters.`);
   const file = join(found.folder, "SKILL.md");
   const tmp = join(found.folder, "SKILL.md.tmp");
   const before = readFileSync(file, "utf8");
-  // The editor shows at most SKILL_FILE_CHARS: saving from it would cut a longer file for good, and the backup would then hold the cut text.
-  if (before.length > SKILL_FILE_CHARS) throw new Error(`This skill is longer than the editor shows (${SKILL_FILE_CHARS} characters). Edit its SKILL.md in a text editor.`);
   writeFileSync(join(found.folder, "SKILL.md.bak"), before);
   writeFileSync(tmp, text);
   renameSync(tmp, file);

@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Routine } from "@atom/helpers";
-import { MAX_COMMENT_CHARS } from "@atom/helpers";
 import { nativeSteering, routeWake, routineChat, routineStarter, taskStarter, type WakeTargets } from "./native-entry.ts";
 
 // ADR-110 (Phase N3): where a reply the native session gave by itself goes, and routines as main-agent turns. Fakes only.
@@ -150,13 +149,14 @@ test("a failing task turn is logged and the next task still runs", async () => {
   assert.deepEqual([calls, logs], [["ok"], ["warn:task.turn", "info:task.turn"]]);
 });
 
-test("steering: a note goes to the chat that runs the task; an empty or long note, or a task nobody runs, is refused", async () => {
+test("steering: a note goes to the chat that runs the task; an empty note or a task nobody runs, is refused", async () => {
   const taken: string[] = [];
   const steering = nativeSteering(() => [{ steer: () => false }, { steer: (job, text) => (job === 5 ? (taken.push(text), true) : false) }]);
   assert.equal(steering.steer(5, "  use the cheaper kit "), "live");
   assert.deepEqual(taken, ["use the cheaper kit"]);
   assert.throws(() => steering.steer(5, "   "), /message is empty/);
-  assert.throws(() => steering.steer(5, "x".repeat(MAX_COMMENT_CHARS + 1)), /too long/);
+  assert.equal(steering.steer(5, "x".repeat(8000)), "live");
+  assert.equal(taken.at(-1)?.length, 8000);
   assert.throws(() => steering.steer(6, "hi"), /does not run in an open chat/);
   await assert.rejects(steering.interrupt(5), /stop it instead/);
 });

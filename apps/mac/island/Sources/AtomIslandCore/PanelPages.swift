@@ -42,7 +42,7 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Sendable {
 public enum SettingsHome {
     public static let groups: [[SettingsPage]] = [
         [.examples, .shortcuts, .dictation],
-        [.appearance, .design, .pal, .sounds, .general], // Memory moved into the Second brain page (2026-10-15)
+        [.appearance, .pal, .sounds, .general], // Developer-only design previews stay in the gallery.
     ]
     /// The page the now card's "Change model" opens.
     public static let changeModel = SettingsPage.model

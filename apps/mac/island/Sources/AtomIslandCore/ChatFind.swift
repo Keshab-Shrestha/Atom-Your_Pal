@@ -22,7 +22,7 @@ public enum ChatFind {
     }
 
     public static func search(_ turns: [Conversation.Turn], query: String) -> Results {
-        guard !query.isEmpty, query.count <= 128 else { return Results() }
+        guard !query.isEmpty else { return Results() }
         var result = Results()
         for turn in turns {
             for (user, source) in [(true, turn.transcript), (false, turn.reply ?? "")] {

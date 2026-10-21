@@ -77,7 +77,21 @@ export interface ZenoResponse {
 }
 
 /** What the Core asks of a language model. */
+export interface ReasoningModel {
+  id: string;
+  name: string;
+  /** Levels reported by the installed provider, not inferred from model names. */
+  reasoningLevels?: string[];
+  defaultReasoning?: string;
+}
+
+export type ChatAccessMode = "checked" | "chat-only" | "ask-changes";
+export const isChatAccessMode = (value: unknown): value is ChatAccessMode => value === "checked" || value === "chat-only" || value === "ask-changes";
+
 export interface ModelRequest {
+  access?: ChatAccessMode;
+  /** Captured by the host at turn admission; never model-authored or a permission. */
+  reasoning?: string;
   /** The standing instructions: the same from request to request (lets a provider prepare ahead, ADR-064). */
   system: string;
   /** Per-request additions (memory, the time). Providers add them to the instructions or send them with the message. */

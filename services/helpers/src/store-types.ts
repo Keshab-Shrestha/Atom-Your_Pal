@@ -481,7 +481,7 @@ export interface HelperStore {
   addJob(helper: string, task: string, options?: AddJobOptions): Job;
   /**
    * ADR-110 (N2): a Board row for a native sub-agent that Claude Code already runs: made running at once, so the
-   * legacy runner never picks it up. A long prompt is cut to MAX_TASK_CHARS.
+   * legacy runner never picks it up. The complete task text is retained.
    * ADR-164: advisoryParentId instead admits a bounded, tool-free child with exact task length and durable scope.
    */
   addNativeJob(helper: string, task: string, links: { chatId: string; sdkTaskId?: string; advisoryParentId?: number }): Job;

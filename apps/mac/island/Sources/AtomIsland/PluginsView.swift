@@ -124,24 +124,10 @@ struct PluginsPane: View {
     }
 
     private func field(_ label: String, text: Binding<String>, hint: String, lines: Int = 1) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.system(size: 11)).foregroundStyle(theme.text3.color)
-            Group {
-                if snapshot {
-                    Text(text.wrappedValue.isEmpty ? hint : text.wrappedValue).foregroundStyle(text.wrappedValue.isEmpty ? theme.text3.color : theme.text.color)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                } else if lines == 1 {
-                    TextField(hint, text: text).textFieldStyle(.plain).onSubmit(save)
-                } else {
-                    TextEditor(text: text).scrollContentBackground(.hidden).frame(height: CGFloat(lines) * 17)
-                }
-            }
-            .font(theme.idFont(.system(size: 12), size: 11.5))
-            .padding(.horizontal, 10).padding(.vertical, 6)
-            .background(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous)
-                .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: 1))
-        }
+        SoulField(label: label, text: text, lines: lines, submit: { save() }, monospaced: true)
+            .help(Text(hint))
     }
+
 }
 
 /// One server: what it is, its tools, Test, On, Trusted, which workers may use it, Remove.

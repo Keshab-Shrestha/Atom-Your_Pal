@@ -105,14 +105,13 @@ export interface Brain {
   count(): number;
 }
 
-const WIKILINK = /\[\[([^\[\]|#\n]{1,120}?)(?:[|#][^\]\n]*)?\]\]/g;
+const WIKILINK = /\[\[([^\[\]|#\n]+?)(?:[|#][^\]\n]*)?\]\]/g;
 const TAG = /(?:^|[\s(])#([\p{L}\p{N}_][\p{L}\p{N}_/-]{1,39})/gu;
 
-/** A title: one line, 1 to 80 characters, spaces squeezed. Throws BrainError. */
+/** A title: one nonempty line, spaces squeezed. Throws BrainError. */
 export function cleanTitle(raw: string): string {
   const title = typeof raw === "string" ? raw.replace(/\s+/g, " ").trim() : "";
   if (!title) throw new BrainError("A note needs a title.");
-  if ([...title].length > MAX_TITLE_CHARS) throw new BrainError(`A note's title has at most ${MAX_TITLE_CHARS} characters.`);
   return title;
 }
 
@@ -122,7 +121,7 @@ export function linkTitles(body: string): string[] {
   const out: string[] = [];
   for (const m of body.matchAll(WIKILINK)) {
     const title = m[1]!.replace(/\s+/g, " ").trim();
-    if (!title || [...title].length > MAX_TITLE_CHARS || seen.has(title.toLowerCase())) continue;
+    if (!title || seen.has(title.toLowerCase())) continue;
     seen.add(title.toLowerCase());
     out.push(title);
   }
@@ -287,7 +286,6 @@ export function openBrain(db: DatabaseSync, now: () => Date): Brain {
   function save(input: { id?: number; title: string; body: string; kind?: NoteKind; ref?: string }): BrainNote {
     const title = cleanTitle(input.title);
     const body = typeof input.body === "string" ? input.body.replace(/\r\n/g, "\n").trim() : "";
-    if (body.length > MAX_BODY_CHARS) throw new BrainError(`A note has at most ${MAX_BODY_CHARS} characters (this one has ${body.length}). Split it into linked notes.`);
     const kind: NoteKind = input.kind && KINDS.includes(input.kind) ? input.kind : "note";
     return transaction(() => {
       const stamp = now().toISOString();

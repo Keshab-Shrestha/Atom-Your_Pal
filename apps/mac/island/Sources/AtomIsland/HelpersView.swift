@@ -15,13 +15,13 @@ struct HelpersView: View {
 
     var body: some View {
         let chat = model.windowPage == .chat
-        let palette = ChatAppearance.palette(dark: model.settings.theme.palette.isDark)
+        let palette = ChatAppearance.palette(theme: model.settings.theme)
         let sidebarHidden = model.settings.sidebarHidden
         HStack(spacing: 0) {
             if !sidebarHidden {
                 HStack(spacing: 0) {
-                    HelperSidebar(model: model).frame(width: 248)
-                        .themed(ChatAppearance.palette(dark: palette.isDark, sidebar: true))
+                    HelperSidebar(model: model).frame(width: 232)
+                        .themed(ChatAppearance.palette(theme: model.settings.theme, sidebar: true))
                     Rectangle().fill(palette.separator.color).frame(width: palette.isFlat ? 1 : 0.5)
                 }
                 .transition(.move(edge: .leading))
@@ -99,6 +99,7 @@ struct HelpersView: View {
             }
         }
         .background(Rectangle().fill(palette.surfaceFill(solid: true)).ignoresSafeArea())
+        .background(DesktopWindowAppearance(palette: palette))
         .animation(Motion.settle(reduceMotion), value: sidebarHidden)
         .ignoresSafeArea(edges: .top)
         // ADR-096: every change of page or of what is open is a step Back returns to.
@@ -196,9 +197,9 @@ private struct HelperSidebar: View {
                 group(model.settings.sidebar.bottom, bottom: true)
             }
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 8)
         .padding(.top, desktopDesign ? 12 : HelpersView.titleBarRoom)
-        .padding(.bottom, 18)
+        .padding(.bottom, 10)
         .frame(maxHeight: .infinity, alignment: .top)
         // Darker than the window: the list sits back, the chosen helper comes forward. Void: one black, the hairline
         // between them is enough.
@@ -1039,6 +1040,13 @@ private struct ChatsList: View {
             Text("Chats").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
+            Button {
+                model.navigate { model.newConversation(); model.windowPage = .chat }
+            } label: {
+                Image(systemName: "plus").font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(theme.text2.color).frame(width: 24, height: 24).contentShape(Rectangle())
+            }.buttonStyle(.plain).help("New chat")
+                .accessibilityLabel("New chat in Chats").accessibilityIdentifier("chats.new")
         }
         .padding(.horizontal, 10).padding(.top, 8)
         if let list, !list.plainChats.isEmpty {

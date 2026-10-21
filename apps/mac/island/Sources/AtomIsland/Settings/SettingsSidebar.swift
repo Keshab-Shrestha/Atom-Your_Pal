@@ -12,7 +12,7 @@ struct SettingsSidebar: View {
     private let groups: [(String, [IslandModel.SettingsPage])] = [
         ("Preferences", [.general, .appearance, .model, .shortcuts]),
         ("Companion", [.dictation, .sounds, .pal]),
-        ("Explore", [.examples, .design])
+        ("Help", [.examples])
     ]
 
     var body: some View {

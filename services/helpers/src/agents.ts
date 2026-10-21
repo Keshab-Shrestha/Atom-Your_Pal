@@ -7,7 +7,6 @@ import { HelperError, type Soul } from "./jobs.ts";
 /** What an agent may use, fixed in code: the web, granted folders, or nothing. */
 export type Kit = "research" | "folders" | "think";
 export const KITS: readonly Kit[] = ["research", "folders", "think"];
-export const MAX_ROLE_CHARS = 40;
 export const MAX_AGENTS = 20;
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
 const SECTIONS: [keyof Soul, string][] = [
@@ -38,11 +37,10 @@ export interface ManagerFile {
   soul: Soul;
 }
 
-/** A role in Keshab's words, checked: letters, spaces and hyphens, at most 40 characters, not Tinker's. */
+/** A role in Keshab's words, checked: letters, spaces and hyphens, not Tinker's. */
 export function cleanRole(raw: string): string {
   const role = raw.trim().replace(/\s+/g, " ").toLowerCase();
   if (!role) throw new HelperError("The role is empty.");
-  if (role.length > MAX_ROLE_CHARS) throw new HelperError(`The role is too long (limit ${MAX_ROLE_CHARS} characters).`);
   if (!/^\p{L}[\p{L} '-]*$/u.test(role)) throw new HelperError("A role needs letters only (spaces and hyphens are fine).");
   if (role === "improver") throw new HelperError("That role is Tinker's.");
   return role;

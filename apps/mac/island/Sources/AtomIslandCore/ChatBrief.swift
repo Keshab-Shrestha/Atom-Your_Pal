@@ -4,9 +4,8 @@ import Foundation
 public struct ChatBrief: Codable, Sendable, Equatable {
     public let text: String
     public let version: Int
-    public static let maxBytes = 4000
     public static func valid(_ text: String) -> Bool {
-        text.utf8.count <= maxBytes && !text.unicodeScalars.contains {
+        !text.unicodeScalars.contains {
             let n = $0.value
             return (n < 32 && n != 9 && n != 10 && n != 13) || (127...159).contains(n)
                 || (0x200B...0x200F).contains(n) || (0x202A...0x202E).contains(n)

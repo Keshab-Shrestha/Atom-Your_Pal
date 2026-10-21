@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MAX_COMMAND_LENGTH, createLevelThrottle, encodeEvent, parseCommand, planUsageEvent } from "./island-protocol.ts";
+import { createLevelThrottle, encodeEvent, parseCommand, planUsageEvent } from "./island-protocol.ts";
 
 test("parses every command", () => {
   for (const type of ["talk.start", "talk.send", "talk.cancel", "conversation.reset", "quit"]) {
@@ -35,11 +35,9 @@ test("malformed or unknown commands become errors, never exceptions", () => {
   }
 });
 
-test("rejects oversized commands without parsing them", () => {
-  const huge = JSON.stringify({ type: "talk.start", pad: "x".repeat(MAX_COMMAND_LENGTH) });
-  const parsed = parseCommand(huge);
-  assert.ok("error" in parsed);
-  assert.match(parsed.error, /too long/);
+test("preserves long typed prompts beyond the former command and composer caps", () => {
+  const text = "Cedar instructions. ".repeat(4000);
+  assert.deepEqual(parseCommand(JSON.stringify({ type: "text.send", text })), { command: { type: "text.send", text } });
 });
 
 test("unknown command names are shortened in the error", () => {
@@ -288,7 +286,6 @@ test("helper commands with missing or wrong fields are protocol errors", () => {
     [{ type: "skill.edit.undo" }, /whole number/],
     [{ type: "skill.hub.search" }, /"query"/],
     [{ type: "skill.hub.search", query: "  " }, /"query"/],
-    [{ type: "skill.hub.search", query: "x".repeat(61) }, /1 to 60/],
     [{ type: "skill.hub.preview", source: "0", path: "p" }, /"source"/],
     [{ type: "skill.hub.preview", source: -1, path: "p" }, /"source"/],
     [{ type: "skill.hub.preview", source: 0 }, /"path"/],
@@ -356,7 +353,6 @@ test("project commands: bad input is refused with words", () => {
     [{ type: "project.add", name: "x", path: "/a/b/.." }, /no "\.\."/],
     [{ type: "project.add", name: "x", path: `/${"a".repeat(1001)}` }, /full path/],
     [{ type: "project.add", name: 5, path: "/a" }, /"name"/],
-    [{ type: "project.add", name: "x".repeat(201), path: "/a" }, /"name"/],
     [{ type: "project.add", name: "x", path: "/a\u0000b" }, /full path/],
     [{ type: "project.rename", id: "p 1", name: "x" }, /"id"/],
     [{ type: "project.rename", id: "p-1" }, /"name"/],
@@ -371,7 +367,6 @@ test("project commands: bad input is refused with words", () => {
     [{ type: "chat.new", projectId: "a/b" }, /projectId/],
     [{ type: "chat.rename", id: "chat-1" }, /"title"/],
     [{ type: "chat.rename", id: "a b", title: "x" }, /"id"/],
-    [{ type: "chat.rename", id: "chat-1", title: "x".repeat(201) }, /"title"/],
   ];
   for (const [line, expected] of bad) {
     const parsed = parseCommand(JSON.stringify(line));

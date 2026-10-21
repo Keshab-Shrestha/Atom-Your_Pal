@@ -255,7 +255,7 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
         diagnostic.context.turnInputBytes = Buffer.byteLength(text);
         const answer = new Promise<string>((resolve, reject) => { session.active = { request: req, runner, text: "", final: "", resolve, reject, signal }; });
         // Register the result listener before turn/start: short turns can complete before its acknowledgement.
-        const started = request(session, "turn/start", { threadId: session.thread, effort: "low", input: [{ type: "text", text, text_elements: [] }] });
+        const started = request(session, "turn/start", { threadId: session.thread, effort: req.reasoning ?? "low", input: [{ type: "text", text, text_elements: [] }] });
         const [, reply] = await Promise.all([started, answer]);
         session.seen = [...req.messages.map((m) => ({ role: m.role, content: m.content })), { role: "assistant", content: reply }];
         diagnostic.completed = true;
@@ -271,4 +271,46 @@ export function createCodexSessionAdapter(options: CodexSessionOptions): Provide
       }
     },
   };
+}
+
+/** Catalog discovery only: no thread, prompt or inference. Uses the same locked-down app-server transport. */
+export async function listCodexModels(program: string, options: { transport?: (cwd: string) => CodexTransport; timeoutMs?: number } = {}): Promise<import("@atom/contracts").ReasoningModel[]> {
+  const dir = mkdtempSync(join(tmpdir(), "atom-codex-models-"));
+  let rpc: CodexTransport | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const pending = new Map<string, { resolve(v: any): void; reject(e: Error): void }>();
+  let seq = 0;
+  const failure = () => { for (const p of pending.values()) p.reject(new Error("Codex model discovery ended.")); pending.clear(); };
+  try {
+    rpc = (options.transport ?? ((cwd) => transport(program, cwd)))(dir);
+    rpc.listen((m) => {
+      if (m.id !== undefined && !m.method) {
+        const p = pending.get(String(m.id)); pending.delete(String(m.id));
+        if (m.error) p?.reject(new Error("Codex refused model discovery.")); else p?.resolve(m.result);
+      } else if (m.id !== undefined) rpc?.send({ id: m.id, error: { code: -32601, message: "Catalog discovery cannot execute tools." } });
+    }, failure);
+    const call = (method: string, params: unknown) => new Promise<any>((resolve, reject) => {
+      const id = `catalog-${++seq}`; pending.set(id, { resolve, reject }); rpc!.send({ id, method, params });
+    });
+    timer = setTimeout(() => { failure(); rpc?.close(); }, options.timeoutMs ?? 15_000);
+    await call("initialize", { clientInfo: { name: "atom", title: "ATOM", version: "0.5.0" }, capabilities: { experimentalApi: true } });
+    rpc.send({ method: "initialized" });
+    const models: import("@atom/contracts").ReasoningModel[] = [];
+    let cursor: string | undefined;
+    for (let page = 0; page < 10; page++) {
+      const result = await call("model/list", { limit: 100, ...(cursor ? { cursor } : {}) });
+      if (!Array.isArray(result?.data)) throw new Error("Invalid Codex model catalog.");
+      for (const m of result.data) {
+        if (!m || m.hidden || typeof m.model !== "string" || typeof m.displayName !== "string") continue;
+        const levels: string[] = [...new Set<string>((Array.isArray(m.supportedReasoningEfforts) ? m.supportedReasoningEfforts : [])
+          .map((x: any) => x?.reasoningEffort).filter((x: unknown) => typeof x === "string" && /^[a-z][a-z0-9_-]{0,31}$/.test(x)))];
+        models.push({ id: m.model, name: m.displayName, reasoningLevels: levels,
+          defaultReasoning: levels.includes("low") ? "low" : levels.includes(m.defaultReasoningEffort) ? m.defaultReasoningEffort : undefined });
+      }
+      if (!result.nextCursor) return models;
+      if (result.nextCursor === cursor) throw new Error("Repeated Codex model cursor.");
+      cursor = result.nextCursor;
+    }
+    throw new Error("Codex model catalog is too large.");
+  } finally { clearTimeout(timer); failure(); rpc?.close(); rmSync(dir, { recursive: true, force: true }); }
 }

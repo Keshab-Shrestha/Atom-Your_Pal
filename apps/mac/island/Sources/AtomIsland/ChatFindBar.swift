@@ -36,7 +36,7 @@ struct ChatFindBar: View {
                  + Text(match.found).bold().foregroundColor(theme.accent.color) + Text(match.after))
                     .lineLimit(2).foregroundStyle(theme.text2.color)
             } else {
-                Text(model.chatFindQuery.count > 128 ? "Use up to 128 characters." : "Searches the loaded messages only, not archived history.")
+                Text("Searches the loaded messages only, not archived history.")
                     .foregroundStyle(theme.text3.color)
             }
         }

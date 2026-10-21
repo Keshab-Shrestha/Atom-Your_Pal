@@ -137,7 +137,7 @@ export function createChatWork(options: { persistAnswer?(turn: string, card: str
     answer(chat: string, turn: string, id: string, text?: string) {
       const run = active;
       if (!run || run.event.chat !== chat || run.event.turn !== turn || !run.event.questions.some((q) => q.id === id && q.state === "pending")) return;
-      if (text !== undefined && (!text.trim() || text.length > 2000)) return;
+      if (text !== undefined && !text.trim()) return;
       run.finishQuestion?.(text?.trim());
     },
     clarifications(chat: string) {

@@ -274,10 +274,19 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
             return .workspace(result)
         } catch { throw ProtocolError.invalidValue(event: "workspace", field: "payload") }
     case "chats":
+        let access: ChatAccessMode? = try f.values["access"].map {
+            guard let raw = $0 as? String, let value = ChatAccessMode(rawValue: raw) else { throw ProtocolError.invalidValue(event: "chats", field: "access") }
+            return value
+        }
+        let reasoning: ChatReasoning? = try f.values["reasoning"].map {
+            let value = try JSONDecoder().decode(ChatReasoning.self, from: JSONSerialization.data(withJSONObject: $0))
+            guard value.valid else { throw ProtocolError.invalidValue(event: "chats", field: "reasoning") }
+            return value
+        }
         return .chats(ChatList(chats: Fields.chats(f.values["chats"]), current: f.optionalString("current") ?? "",
                                currentProvider: f.optionalString("currentProvider"), currentModel: f.optionalString("currentModel"),
                                currentProjectId: f.optionalString("currentProjectId"),
-                               projects: f.values["projects"] == nil ? nil : Fields.projects(f.values["projects"])))
+                               projects: f.values["projects"] == nil ? nil : Fields.projects(f.values["projects"]), reasoning: reasoning, access: access))
     case "chat.control":
         return .chatControl(try JSONDecoder().decode(ChatControlResponse.self, from: JSONSerialization.data(withJSONObject: f.values)))
     case "chat.work":

@@ -73,7 +73,7 @@ export type IslandEvent =
   /** ADR-091: Keshab's chats, newest first, and the one ATOM is in now (voice goes to it). */
   /** ADR-097: `currentProvider` / `currentModel`: the current chat's own model; absent when it uses the default. */
   /** ADR-107: `projects` (present when projects are on, even when empty) and `currentProjectId` (the current chat's project). */
-  | { type: "chats"; chats: ChatItem[]; current: string; currentProvider?: string; currentModel?: string; projects?: ProjectItem[]; currentProjectId?: string }
+  | { type: "chats"; chats: ChatItem[]; current: string; currentProvider?: string; currentModel?: string; projects?: ProjectItem[]; currentProjectId?: string; reasoning?: import("./model-settings.ts").ChatReasoning; access?: import("@atom/contracts").ChatAccessMode }
   /** ADR-091: ATOM's task branches, like pull requests; a branch's changes as a patch. */
   | { type: "git"; branches: GitBranchItem[] }
   | { type: "git.diff"; repo: string; branch: string; text: string; truncated: boolean }

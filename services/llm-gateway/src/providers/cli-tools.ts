@@ -111,6 +111,7 @@ export function createGeminiCliAdapter(options: CliToolOptions): ProviderAdapter
   return {
     name: "gemini-cli",
     async complete(request, signal) {
+      if (request.access && request.access !== "checked") throw new ProviderError("bad_request", "The Gemini CLI cannot enforce this chat access mode. Choose Claude or Codex, or return to Saved permissions.");
       if (request.files) throw new ProviderError("bad_request", PROJECTS_NEED_CLAUDE);
       const dir = mkdtempSync(join(tmpdir(), "atom-gemini-"));
       try {

@@ -82,3 +82,37 @@ test("protected files are refused and a cancelled approval cannot write afterwar
     assert.equal(helpers.get(job.id)!.state, "stopped");
   } finally { router.close(); helpers.close(); memory.close(); rmSync(home, { recursive: true, force: true }); }
 });
+
+test("access modes constrain Codex foreground and worker calls without losing continuing file grants", async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "atom-codex-access-")));
+  const helpers = openHelperStore({ path: ":memory:", home });
+  const memory = openMemoryStore({ path: ":memory:" });
+  const path = join(home, "page.txt"); writeFileSync(path, "old");
+  memory.filePermissions.forChat("chat").grant(path);
+  let mode: import("@atom/contracts").ChatAccessMode = "ask-changes", writesAllowed = false, approvals = 0, hostCalls = 0;
+  const fake = fakeCodex(async ({ call }) => {
+    const answer = await call("atom_Write", { file_path: path, content: "new" });
+    assert.equal(answer.success, writesAllowed);
+    return answer.success ? "saved" : "declined";
+  });
+  const router = createCodexToolRouter({ program: "fake", model: "codex-test", home,
+    accessFor: () => mode, approveAccess: async (r) => { approvals++; return r.summary.includes("Agent") || writesAllowed; },
+    tools: { specs: () => [{ name: "open_app", description: "Open", inputSchema: { type: "object" } }], run: async (c) => { hostCalls++; return { callId: c.id, content: "opened" }; } },
+    session: { transport: fake.factory }, team: { helpers, worktrees: join(home, "worktrees"), filePermissions: memory.filePermissions,
+      approve: async () => false, approveFile: async () => { throw new Error("Saved grant should satisfy existing file policy"); } } });
+  const delegate = { id: "reused-provider-id", name: "atom_delegate", input: { subagent_type: "kame", description: "Rewrite Cedar", prompt: "Rewrite the file" } };
+  try {
+    let runner = router.forRequest({ ...request(), access: mode });
+    await runner.run(delegate); assert.equal(readFileSync(path, "utf8"), "old"); assert.equal(approvals, 2, "task starts, then edit asks despite continuing grant");
+    writesAllowed = true; await router.forRequest({ ...request(), access: mode }).run(delegate);
+    assert.equal(readFileSync(path, "utf8"), "new"); assert.equal(approvals, 4, "new worker/process ids never reuse approval");
+    assert.equal(memory.filePermissions.forChat("chat").list().length, 1);
+    mode = "chat-only";
+    assert.equal((await runner.run({ id: "stale", name: "atom_open_app", input: {} })).isError, true, "old runners lose authority");
+    runner = router.forRequest({ ...request(), access: mode });
+    assert.deepEqual(runner.specs(), []); assert.equal((await runner.run(delegate)).isError, true); assert.equal(hostCalls, 0);
+    mode = "checked";
+    await router.forRequest({ ...request(), access: mode }).run({ id: "checked", name: "atom_open_app", input: {} });
+    assert.equal(hostCalls, 1); assert.equal(approvals, 4);
+  } finally { router.close(); helpers.close(); memory.close(); rmSync(home, { recursive: true, force: true }); }
+});

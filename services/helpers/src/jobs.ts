@@ -108,8 +108,8 @@ export const HELPERS = [
   },
 ] as const satisfies readonly { id: string; name: string; available: boolean; role: string; soul: Soul }[];
 
-/** Longest text per soul field. */
-export const SOUL_LIMITS: Readonly<Record<keyof Soul, number>> = { name: 20, personality: 600, howItWorks: 1500, rules: 1500, lessons: 2000 };
+/** Editable soul fields; text is preserved without per-field character caps. */
+const SOUL_FIELDS = ["name", "personality", "howItWorks", "rules", "lessons"] as const;
 // ADR-095: ATOM is the manager's name now; "pal" (its old name) stays taken too.
 const RESERVED_NAMES = new Set(["atom", "pal", "zeno"]);
 
@@ -137,16 +137,15 @@ const ROLE_RULES: Readonly<Record<string, string>> = {
 };
 
 /**
- * A soul with its text tidied, checked against the limits. `others` are the other workers' names: names stay unique
+ * A soul with its complete text tidied and validated. `others` are the other workers' names: names stay unique
  * (they are how Keshab addresses a worker by voice). Throws HelperError with words for the user.
  */
 export function cleanSoul(input: Soul, others: readonly string[]): Soul {
   const soul = {} as Soul;
-  for (const key of Object.keys(SOUL_LIMITS) as (keyof Soul)[]) {
+  for (const key of SOUL_FIELDS) {
     const value = input[key];
     if (typeof value !== "string") throw new HelperError(`The soul needs "${key}" as text.`);
     soul[key] = value.trim().replace(/\r\n?/g, "\n");
-    if (soul[key].length > SOUL_LIMITS[key]) throw new HelperError(`The ${label(key)} is too long (${soul[key].length} characters, limit ${SOUL_LIMITS[key]}).`);
   }
   soul.name = soul.name.replace(/\s+/g, " ");
   if (!/^\p{L}[\p{L} '-]*$/u.test(soul.name)) throw new HelperError("A name needs letters only (spaces, hyphens and apostrophes are fine).");

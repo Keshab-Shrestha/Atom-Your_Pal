@@ -32,11 +32,10 @@ test("the same fact twice is kept once", () => {
   assert.equal(store.count(), 1);
 });
 
-test("refuses empty, too long, and more than the limit; never drops old memories silently", () => {
+test("keeps long text, refuses empty and more than the item limit; never drops old memories silently", () => {
   const store = openMemoryStore({ path: ":memory:", maxMemories: 2 });
   assert.throws(() => store.add("   ", voice), MemoryError);
-  assert.throws(() => store.add("x".repeat(MAX_MEMORY_CHARS + 1), voice), /too long/);
-  store.add("one fact", voice);
+  assert.equal(store.add("x".repeat(6000), voice).text.length, 6000);
   store.add("two facts", voice);
   assert.throws(() => store.add("three facts", voice), /full/);
   assert.equal(store.count(), 2);

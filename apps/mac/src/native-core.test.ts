@@ -610,3 +610,113 @@ test("the main agent's prompts tell it to offer a skill after a good agent task 
   assert.match(NATIVE_TEAM_PROMPT, /improve_skill/);
   assert.ok(!NATIVE_SYSTEM_PROMPT.includes("propose_skill"), "without a team there is no task to make a skill from");
 });
+
+test("thinking changes reopen Claude with resume and preserve complete history and the same permission hooks", async () => {
+  const { sdk, queries } = fakeSdk();
+  let reasoning: string | undefined;
+  const core = make(sdk, { reasoningFor: () => reasoning, chatSessions: sessions().store });
+  try {
+    await core.handle({ text: "Fictional Cedar Wednesday", source: "text" });
+    assert.deepEqual(queries[0]!.options.thinking, { type: "disabled" });
+    reasoning = "medium";
+    await core.handle({ text: "Remember the day", source: "text" });
+    assert.equal(queries[1]!.options.resume, "sess-1");
+    assert.deepEqual(queries[1]!.options.thinking, { type: "adaptive" });
+    assert.equal(queries[1]!.options.effort, "medium");
+    assert.equal(queries[1]!.options.permissionMode, "default");
+    assert.ok(queries[1]!.options.canUseTool && queries[1]!.options.hooks.PreToolUse);
+    await core.handle({ text: "Continue", source: "text" });
+    assert.equal(queries.length, 2, "unchanged effort reuses the same session");
+    reasoning = "off";
+    await core.handle({ text: "Continue without extended thinking", source: "text" });
+    assert.deepEqual(queries[2]!.options.thinking, { type: "disabled" });
+    assert.equal(queries[2]!.options.effort, undefined);
+    assert.equal(core.history().length, 8);
+    assert.match(core.history()[0]!.content, /Cedar Wednesday/);
+  } finally { core.reset(); }
+});
+
+test("gateway thinking is captured before asynchronous context loading and cannot change the in-flight turn", async () => {
+  let reasoning = "low", release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const requests: import("@atom/contracts").ModelRequest[] = [];
+  const core = make(fakeSdk().sdk, { modelFor: () => undefined, reasoningFor: () => reasoning,
+    otherModel: () => ({ complete: async (r) => { requests.push(r); return { text: "ok" }; } }), context: async () => { await gate; return "context"; } });
+  try {
+    const first = core.handle({ text: "Cedar", source: "text" });
+    reasoning = "high"; release(); await first;
+    assert.equal(requests[0]!.reasoning, "low");
+    await core.handle({ text: "Continue", source: "text" });
+    assert.equal(requests[1]!.reasoning, "high");
+    assert.match(requests[1]!.messages[0]!.content, /Cedar/);
+  } finally { core.reset(); }
+});
+
+test("Chat only keeps conversation and brief but skips new file/context/skill reads and direct action shortcuts on Claude and Codex", async () => {
+  for (const provider of ["claude", "codex"]) {
+    const { sdk, queries } = fakeSdk();
+    let request: import("@atom/contracts").ModelRequest | undefined;
+    let externalReads = 0;
+    const forbidden = () => { externalReads++; throw new Error("Chat only called an external-context loader"); };
+    const core = make(sdk, {
+      accessFor: () => "chat-only", modelFor: () => provider === "claude" ? "claude-test" : undefined,
+      toolModel: () => provider === "codex" ? { complete: async (req) => { request = req; return { text: "Wednesday", toolCalls: [] }; } } : undefined,
+      context: forbidden, opening: forbidden, project: forbidden, attachments: { turn: forbidden, expand: forbidden },
+      skills: { use: forbidden }, shortcuts: forbidden,
+      chatBrief: () => ({ text: "Cedar brief", version: 1 }),
+    });
+    core.resume("cedar", [{ role: "user", content: "Cedar Wednesday" }, { role: "assistant", content: "Noted" }]);
+    try {
+      await core.handle({ text: "Open TextEdit and read @/tmp/cedar", source: "text" });
+      assert.equal(core.history().length, 4);
+      assert.equal(externalReads, 0);
+      if (provider === "claude") {
+        const o = queries[0]!.options;
+        assert.equal(o.mcpServers, undefined);
+        assert.equal(o.agents.atom.tools.includes("Agent"), false);
+        assert.match(queries[0]!.sent[0]!.message.content, /Cedar brief/);
+        assert.match(queries[0]!.sent[0]!.message.content, /Cedar Wednesday/);
+        assert.equal((await o.canUseTool("ToolSearch", {})).behavior, "deny");
+        const hook = o.hooks.PreToolUse[0].hooks[0];
+        assert.equal((await hook({ tool_name: "mcp__atom__open_app", tool_input: {} }, "bypass")).hookSpecificOutput.permissionDecision, "deny");
+      } else {
+        assert.equal(request!.access, "chat-only");
+        assert.equal(request!.historyTools, undefined); assert.equal(request!.interactionTools, undefined); assert.equal(request!.files, undefined);
+        assert.match(request!.systemExtra!, /Cedar brief/);
+        assert.equal(request!.messages[0]!.content, "Cedar Wednesday");
+      }
+    } finally { core.reset(); }
+  }
+});
+
+test("strict Claude approval uses the current turn's cancellation signal in a reused session", async () => {
+  let calls = 0, finish!: (answer: boolean) => void, asked!: () => void;
+  const waiting = new Promise<void>((resolve) => { asked = resolve; });
+  const verdicts: string[] = [], signals: AbortSignal[] = [];
+  const sdk: SessionSdk = { ...fakeSdk().sdk, query: ({ prompt, options }) => {
+    async function* run() {
+      yield { type: "system", subtype: "init", apiKeySource: "none", session_id: "strict-reused" };
+      for await (const _ of prompt) {
+        const v = await (options as any).canUseTool("mcp__atom__open_app", { app: "TextEdit" }, { toolUseID: "repeated" });
+        verdicts.push(v.behavior);
+        yield { type: "result", subtype: "success", is_error: false, result: "Checked", session_id: "strict-reused", usage: {} };
+      }
+    }
+    return Object.assign(run(), { close() {}, interrupt: async () => {} });
+  } };
+  const core = make(sdk, { accessFor: () => "ask-changes", approveAccess: async (_r, signal) => {
+    signals.push(signal!);
+    if (++calls === 1) return true;
+    asked(); return new Promise((resolve) => { finish = resolve; });
+  } });
+  try {
+    await core.handle({ text: "Open TextEdit", source: "text" });
+    const controller = new AbortController();
+    const next = core.handle({ text: "Open TextEdit again", source: "text" }, controller.signal);
+    const rejected = assert.rejects(next, /cancel/i);
+    await waiting; controller.abort(); finish(true); await rejected;
+    await sleep(5);
+    assert.notEqual(signals[0], signals[1]); assert.equal(signals[1]!.aborted, true);
+    assert.deepEqual(verdicts, ["allow", "deny"]);
+  } finally { core.reset(); }
+});

@@ -18,7 +18,7 @@ struct HubSkillsSection: View {
     }
 
     private var text: Binding<String> {
-        Binding(get: { query.wrappedValue }, set: { query.wrappedValue = String($0.prefix(Self.queryLimit)) })
+        Binding(get: { query.wrappedValue }, set: { query.wrappedValue = $0 })
     }
     private var canSearch: Bool { !query.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 

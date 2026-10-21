@@ -172,7 +172,7 @@ struct HelpersStateTests {
         var state = try loaded()
         #expect(state.addJob("  Research networking \n") == .jobAdd(helper: "sid", task: "Research networking"))
         #expect(state.addJob("   ") == nil)
-        #expect(state.addJob(String(repeating: "a", count: 1001)) == nil)
+        #expect(state.addJob(String(repeating: "a", count: 1001)) != nil)
         #expect(state.addJob(String(repeating: "a", count: 1000)) != nil)
         var empty = HelpersState()
         #expect(empty.addJob("x") == nil) // no helper yet
@@ -393,7 +393,7 @@ struct HelperSoulTests {
         expected.name = "Ace"
         #expect(state.rename("  Ace ") == .soulSet(helper: "sid", soul: expected.trimmed))
         var again = try loaded()
-        #expect(again.rename(String(repeating: "a", count: 21)) == nil && again.problem?.hasPrefix("The name is too long") == true)
+        #expect(again.rename(String(repeating: "a", count: 100)) != nil)
         #expect(IslandCommand.speechSet(reports: false, updates: true, chime: true).line == #"{"chime":true,"reports":false,"type":"speech.set","updates":true}"# + "\n")
     }
 
@@ -412,7 +412,7 @@ struct HelperSoulTests {
         #expect(state.saveSoul(edited) == nil && state.problem == "The personality is empty.")
         edited.personality = "x"
         edited.name = String(repeating: "a", count: 21)
-        #expect(state.saveSoul(edited) == nil && state.problem?.hasPrefix("The name is too long") == true)
+        #expect(state.saveSoul(edited) != nil && state.problem == nil)
     }
 
     @Test func restoreSendsOnlyAnOlderListedVersion() throws {
@@ -510,7 +510,7 @@ struct HelperTaskTests {
         _ = state.openThread(5)
         #expect(state.addComment("  Keep it short ") == .commentAdd(id: 5, text: "Keep it short"))
         #expect(state.addComment("   ") == nil)
-        #expect(state.addComment(String(repeating: "a", count: 2001)) == nil)
+        #expect(state.addComment(String(repeating: "a", count: 2001)) != nil)
     }
 
     @Test func theOpenThreadIsAskedForAgainWhenItsTaskChanges() throws {

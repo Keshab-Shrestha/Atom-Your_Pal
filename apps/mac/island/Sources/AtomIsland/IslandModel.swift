@@ -458,6 +458,20 @@ final class IslandModel {
         send(.chatModel(id: chats?.current ?? "", provider: provider ?? "", model: model ?? ""))
     }
 
+    func chooseChatAccess(chat: String, mode: ChatAccessMode, expected: ChatAccessMode) {
+        guard chats?.current == chat, chats?.access == expected, chats?.currentReadOnlyNotice == nil,
+              !status.isBusy, !queue.running else { return }
+        modelError = nil
+        send(.chatAccess(id: chat, mode: mode, expected: expected))
+    }
+
+    func chooseChatReasoning(chat: String, choice: ChatReasoning, effort: String) {
+        guard chats?.current == chat, chats?.reasoning == choice, chats?.currentReadOnlyNotice == nil,
+              !status.isBusy, !queue.running, effort.isEmpty || choice.levels.contains(effort) else { return }
+        modelError = nil
+        send(.chatReasoning(id: chat, provider: choice.provider, model: choice.model, effort: effort))
+    }
+
     /// The user clicked Allow or Decline on the approval card.
     func answerApproval(_ approved: Bool, rememberFile: Bool = false) {
         guard let command = approval.answer(approved: approved, rememberFile: rememberFile) else { return }
@@ -506,7 +520,7 @@ final class IslandModel {
         guard chats?.current == work.chat,
               let current = conversation.turns.last?.work, current.turn == work.turn, current.state == "working",
               current.questions.contains(where: { $0.id == question.id && $0.state == "pending" }),
-              text.map({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.utf16.count <= 2000 }) ?? true else { return false }
+              text.map({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) ?? true else { return false }
         if let text {
             var entry = input.entry(for: work.chat)
             entry.questionAnswers.removeAll { $0.id == question.id }
@@ -653,8 +667,8 @@ final class IslandModel {
         send(.search(query: query))
     }
 
-    /// The words as sent: trimmed, at most 200 characters.
-    var searchQuery: String { String(searchText.trimmingCharacters(in: .whitespacesAndNewlines).prefix(TaskLabels.maxQuery)) }
+    /// The complete words as sent, with surrounding whitespace removed.
+    var searchQuery: String { searchText.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     func clearSearch() {
         searchText = ""

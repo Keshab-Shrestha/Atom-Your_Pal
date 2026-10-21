@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import AtomIslandCore
 
@@ -6,6 +7,15 @@ import AtomIslandCore
 enum ChatAppearance {
     // T3's 46rem reading column plus 24pt gutters on each side.
     static let column: CGFloat = 784
+
+    /// Keep the desktop layout while honoring every color in the user's chosen theme.
+    static func palette(theme: AppTheme, sidebar: Bool = false) -> ThemePalette {
+        var p = theme.palette
+        if sidebar { p.surfaceSolid = p.fill1.over(p.surfaceSolid) }
+        p.surface = p.surfaceSolid
+        p.surfaceTop = nil
+        return p
+    }
 
     static func palette(dark: Bool, sidebar: Bool = false) -> ThemePalette {
         var p = dark ? ThemePalette.void : .daylight
@@ -30,6 +40,20 @@ enum ChatAppearance {
         p.monoIdentifiers = false; p.identifier = nil
         p.cornerGap = 16
         return p
+    }
+}
+
+/// Also update AppKit controls and window chrome when the theme changes while the window is open.
+struct DesktopWindowAppearance: NSViewRepresentable {
+    let palette: ThemePalette
+    func makeNSView(context: Context) -> NSView { NSView() }
+    func updateNSView(_ view: NSView, context: Context) {
+        DispatchQueue.main.async { [weak view] in
+            guard let window = view?.window else { return }
+            window.appearance = NSAppearance(named: palette.isDark ? .darkAqua : .aqua)
+            window.backgroundColor = palette.surfaceSolid.nsColor
+            window.hasShadow = palette.usesShadows
+        }
     }
 }
 

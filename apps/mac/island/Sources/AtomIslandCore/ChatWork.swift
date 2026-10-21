@@ -40,6 +40,6 @@ public struct ChatWorkSnapshot: Codable, Sendable, Equatable {
         UUID(uuidString: turn) != nil && !chat.isEmpty && chat.count <= 100 && elapsedMs.isFinite && elapsedMs >= 0 && elapsedMs <= 86_400_000
         && ["working", "completed", "failed", "stopped"].contains(state) && calls.count <= 60 && questions.count <= 4 && omitted >= 0
         && calls.allSatisfy { UUID(uuidString: $0.id) != nil && $0.tool.count <= 100 && ["started", "ok", "error", "unknown"].contains($0.state) && ($0.ms.map { $0.isFinite && $0 >= 0 && $0 <= 86_400_000 } ?? true) }
-        && questions.allSatisfy { UUID(uuidString: $0.id) != nil && $0.prompt.utf16.count <= 600 && $0.choices.count <= 4 && $0.choices.allSatisfy { $0.utf16.count <= 100 } && ($0.answer?.utf16.count ?? 0) <= 2000 && ["pending", "answered", "skipped", "expired"].contains($0.state) }
+        && questions.allSatisfy { UUID(uuidString: $0.id) != nil && $0.prompt.utf16.count <= 600 && $0.choices.count <= 4 && $0.choices.allSatisfy { $0.utf16.count <= 100 } && ["pending", "answered", "skipped", "expired"].contains($0.state) }
     }
 }

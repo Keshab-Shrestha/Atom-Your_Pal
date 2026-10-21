@@ -25,7 +25,7 @@ The working directory is the project root, so `.env`, `models/` and `logs/` reso
 - Every message is one JSON object on one line, UTF-8, ending with `\n`.
 - Line breaks inside text are escaped by JSON, so a message never spans lines.
 - stdout carries only protocol events. Anything else the runtime prints goes to stderr.
-- Commands longer than 4 KB are rejected. Events have no fixed limit; replies can be long.
+- Ordinary text commands have no global character cap; individual technical payloads retain their schema/resource bounds. Events have no fixed global limit; individual payloads may be bounded.
 - Unknown fields are ignored on both sides, so fields can be added without a version change.
 - Blank lines are ignored.
 
@@ -78,7 +78,7 @@ The island (`RestartPolicy`, `RuntimeSupervisor` in `apps/mac/island/`) waits 1,
 | `{"type":"suggestions.deny","id":N}` | Drop the fact and never suggest that text again |
 | `{"type":"suggestions.set","enabled":true}` | Turn new suggestions on or off. Those that wait stay until answered |
 | `{"type":"episode.forget","id":4}` | Delete one conversation note (ADR-059). Answered with a `memory` event |
-| `{"type":"text.send","text":"…","files"?:["/full/path",…]}` | A typed request (up to 4000 characters): answered and spoken like a voice turn, with `transcript` (the text), `reply`, `turn.complete` (`speechMs` and `transcriptionMs` 0). Interrupts a turn in progress, like talking does. `files` (ADR-113): up to 5 full paths; the runtime checks each one (a real file, not a secret, text, code, PDF or image, up to 10 MB), copies it into ATOM's folder for the chat, and adds `[Attached: name — path]` to the request. A refused file gets an `error` with stage `settings` and nothing is asked. `text` may then be empty. A project chat refuses files. A text starting `/skill-name` uses that skill for the message (ADR-113) |
+| `{"type":"text.send","text":"…","files"?:["/full/path",…]}` | A typed request (no per-message character cap): answered and spoken like a voice turn, with `transcript` (the text), `reply`, `turn.complete` (`speechMs` and `transcriptionMs` 0). Interrupts a turn in progress, like talking does. `files` (ADR-113): up to 5 full paths; the runtime checks each one (a real file, not a secret, text, code, PDF or image, up to 10 MB), copies it into ATOM's folder for the chat, and adds `[Attached: name — path]` to the request. A refused file gets an `error` with stage `settings` and nothing is asked. `text` may then be empty. A project chat refuses files. A text starting `/skill-name` uses that skill for the message (ADR-113) |
 | `{"type":"episode.clear"}` | Delete every conversation note. Facts are kept. Answered with a `memory` event |
 | `{"type":"memory.keepChat","id":"…"}` | ADR-097: keep a chat in memory. ATOM writes a summary, topic sections with a heading each, and the exact lines, and searches them for every request. The work continues in the background: the chat shows `indexing` in the next `memory` event and `kept` when it is done. An unknown chat gets an `error` with stage `settings` |
 | `{"type":"memory.dropChat","id":"…"}` | ADR-097: remove a kept chat from memory. The chat itself stays in the chat list. Answered with a `memory` event; a chat that is not kept gets an `error` with stage `settings` |
@@ -449,3 +449,15 @@ Every response has the same type/request/chat/project/action/path and `ok`. A re
 ADR-172 extends `workspace` with `action: "git"` (local status) or `action: "gitReview"` plus `section: "staged|unstaged|untracked|conflict"` and a project-relative path. Responses mirror section and return `gitStatus` (branch/head/upstream/ahead/behind, grouped file metadata, limits/filter flag) or `gitReview` (full before/after, labels, optional conflict base, coverage note). These are asynchronous private local-window reads. Current chat/project/root are rechecked before returning; native state also matches the section. No Git mutation or network operation is dispatched. [Budgets and safety](git-workspace.md).
 
 ADR-173 records exact new task starting points outside worker trees and labels older estimates. Git list refresh clears the displayed old patch. Saved base/behind semantics and access boundaries: [Task branches](task-branches.md).
+
+
+## Chat thinking (ADR-179)
+
+`{"type":"chat.reasoning","id":"cedar","provider":"codex","model":"gpt-6-luna","effort":"medium"}` sets the next-turn thinking preference for the current idle writable chat and exact effective model. Empty effort clears that pair’s override. Extra fields, stale model/chat identity, shared/archived/busy chats and unadvertised levels refuse with stage settings. Nothing is sent to a model by this operation.
+
+The `chats` event adds optional `reasoning: {provider, model, levels: string[], default, selected?, effective, note?}`. It is authoritative metadata for the current chat only, refreshed after selection/navigation/catalog changes. Missing metadata means no native selector against an older runtime. See [behavior and limits](chat-thinking.md).
+
+
+### Chat access modes (ADR-180)
+
+`{"type":"chat.access","id":"cedar","mode":"chat-only","expected":"checked"}` selects a mode for the current idle writable chat. Exact fields only; modes are `checked`, `chat-only`, `ask-changes`. `expected` binds the previous mode. Active turns/source-chat tasks, shared/archived chats and stale identities refuse with stage settings. The authoritative `chats` event adds optional `access` with the selected mode; older runtimes omit it and the native menu stays hidden. Selection never sends a prompt or edits the composer. Chat control inspection also includes optional `info.access.mode`; host/computer/web flags describe availability in that mode, while fileGrants counts retained grants. See [access contract](chat-access.md).

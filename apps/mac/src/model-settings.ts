@@ -106,7 +106,11 @@ export function offeredModels(
 
 export type SetModelResult = { ok: true } | { error: string };
 
+export interface ChatReasoning {
+  provider: string; model: string; levels: string[]; default: string; selected?: string; effective: string; note?: string;
+}
 export interface ModelSettings {
+  reasoning?(provider: string, model: string): Omit<ChatReasoning, "selected" | "effective">;
   current(): LlmChoice;
   /** The `info` event's fields: the model in use and the choices. Contains no keys. */
   info(): Omit<InfoEvent, "type">;
@@ -135,7 +139,8 @@ export interface ModelSettingsOptions {
   /** ADR-093: finds the AI tools on this Mac (found, signed in). */
   scan?(): Promise<AiToolItem[]>;
   /** ADR-097: the Claude plan's models, live (Agent SDK `supportedModels()`), given the `claude` program's path. */
-  listPlanModels?(claudePath: string): Promise<{ id: string; name: string }[]>;
+  listPlanModels?(claudePath: string): Promise<import("@atom/contracts").ReasoningModel[]>;
+  listCodexModels?(program: string): Promise<import("@atom/contracts").ReasoningModel[]>;
 }
 
 export function createModelSettings(options: ModelSettingsOptions): ModelSettings {
@@ -143,7 +148,7 @@ export function createModelSettings(options: ModelSettingsOptions): ModelSetting
   let current: LlmChoice = { ...initial };
   let tools: AiToolItem[] = [];
   /** ADR-097: the last live model list per provider; absent means the table in PROVIDERS. */
-  const live: Partial<Record<keyof typeof PROVIDERS, { id: string; name: string }[]>> = {};
+  const live: Partial<Record<keyof typeof PROVIDERS, import("@atom/contracts").ReasoningModel[]>> = {};
   const offered = (id: string) => offeredModels(id, initial, isLlmProvider(id) ? live[id] : undefined, [current]);
 
   function check(provider: string, modelId: string): { choice: LlmChoice } | { error: string } {
@@ -163,6 +168,14 @@ export function createModelSettings(options: ModelSettingsOptions): ModelSetting
 
   return {
     current: () => ({ ...current }),
+    reasoning(provider, model) {
+      const found = isLlmProvider(provider) ? live[provider]?.find((m) => m.id === model) : undefined;
+      const levels = found?.reasoningLevels ?? [];
+      const fallback = provider === "codex" ? "low" : "off";
+      return { provider, model, levels: [...levels], default: found?.defaultReasoning ?? fallback,
+        ...(!levels.length ? { note: provider === "gemini-cli" ? "This provider does not expose thinking controls in ATOM." : "Thinking levels are unavailable for this model. Refresh the model catalog in Settings." }
+          : levels.length === 1 && levels[0] === "off" ? { note: "This model does not expose adjustable thinking in ATOM." } : {}) };
+    },
 
     info() {
       return {
@@ -187,15 +200,17 @@ export function createModelSettings(options: ModelSettingsOptions): ModelSetting
     check,
 
     async refreshModels() {
-      const claudePath = keys["claude-plan"];
-      if (!options.listPlanModels || !claudePath) return;
-      try {
-        const found = await options.listPlanModels(claudePath);
-        if (found.length) live["claude-plan"] = found;
-        log?.info("models.refresh", { provider: "claude-plan", count: found.length });
-      } catch (error) {
-        log?.warn("models.refresh_failed", { provider: "claude-plan", message: error instanceof Error ? error.message : String(error) });
-      }
+      await Promise.all(([ ["claude-plan", options.listPlanModels], ["codex", options.listCodexModels] ] as const).map(async ([provider, list]) => {
+        const program = keys[provider];
+        if (!list || !program) return;
+        try {
+          const found = await list(program);
+          if (found.length) live[provider] = found;
+          log?.info("models.refresh", { provider, count: found.length });
+        } catch {
+          log?.warn("models.refresh_failed", { provider }); // never forward provider configuration or credentials
+        }
+      }));
     },
 
     setModel(provider, modelId) {

@@ -6,8 +6,8 @@ import Testing
     /// Every Settings page opens from home exactly once: AI model from "Change model", the rest from rows.
     @Test func everySettingsPageIsReachableFromHome() {
         let reachable = [SettingsHome.changeModel] + SettingsHome.groups.flatMap { $0 }
-        #expect(Set(reachable) == Set(SettingsPage.allCases))
-        #expect(reachable.count == SettingsPage.allCases.count)
+        #expect(Set(reachable) == Set(SettingsPage.allCases.filter { $0 != .design }))
+        #expect(reachable.count == SettingsPage.allCases.count - 1)
         #expect(SettingsHome.changeModel == .model)
         #expect(!SettingsHome.groups.joined().contains(.model))
         #expect(SettingsHome.groups.allSatisfy { !$0.isEmpty })

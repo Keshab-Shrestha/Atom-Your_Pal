@@ -72,7 +72,7 @@ struct ProjectsTests {
         #expect(ProjectList.label(forPath: NSHomeDirectory() + "/Developer/haat") == "~/Developer/haat")
         #expect(ProjectList.label(forPath: "/Volumes/Work/x") == "/Volumes/Work/x")
         #expect(ProjectList.suggestedName(forFolder: "/Users/me/Developer/haat") == "haat")
-        #expect(ProjectList.isValidName("Haat") && !ProjectList.isValidName("  ") && !ProjectList.isValidName("a\nb") && !ProjectList.isValidName(String(repeating: "x", count: 61)))
+        #expect(ProjectList.isValidName("Haat") && !ProjectList.isValidName("  ") && !ProjectList.isValidName("a\nb") && ProjectList.isValidName(String(repeating: "x", count: 180)))
         #expect(ProjectInfo(id: "p", name: "Haat", chatCount: 3).accessibilityLabel(expanded: false) == "Haat, project, 3 chats, collapsed")
         #expect(ProjectInfo(id: "p", name: "Haat", chatCount: 1).accessibilityLabel(expanded: true) == "Haat, project, 1 chat, expanded")
     }

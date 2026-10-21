@@ -65,7 +65,7 @@ public struct SearchResults: Sendable, Equatable {
     public static func settingsPages(matching query: String) -> [SettingsPage] {
         let words = fold(query)
         guard !words.isEmpty else { return [] }
-        return SettingsPage.allCases.filter { fold($0.rawValue).contains(words) }
+        return SettingsPage.allCases.filter { $0 != .design && fold($0.rawValue).contains(words) }
     }
 
     /// Lower case with compatible forms joined, so "ＡＩ" finds "AI model".
@@ -159,10 +159,7 @@ public struct SearchCursor: Sendable, Equatable {
 }
 
 public enum TaskLabels {
-    /// The longest query the runtime takes.
-    public static let maxQuery = 200
     public static let maxLabels = 6
-    public static let maxLength = 24
 
     /// Every label on the given tasks, sorted, once each: the Board's filter menu.
     public static func inUse(_ jobs: [HelperJob]) -> [String] {

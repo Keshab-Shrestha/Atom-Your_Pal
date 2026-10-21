@@ -64,6 +64,6 @@ test("a rejected proposal changes nothing; a proposal that would break the soul 
   store.rejectProposal(p.id);
   assert.equal(store.list()[0]!.soulVersion, 1);
   assert.throws(() => store.addProposal(tinker.id, { field: "personality", text: "  ", reason: "r" }), /personality is empty/);
-  assert.throws(() => store.addProposal(tinker.id, { field: "lessons", text: "x".repeat(5000), reason: "r" }), /too long/);
+  assert.equal(store.addProposal(tinker.id, { field: "lessons", text: "x".repeat(5000), reason: "r" }).text.length, 5000);
 });
 

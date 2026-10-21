@@ -49,8 +49,8 @@ test("removing a note others link to leaves a ghost; removing one nobody links t
 test("bad notes are refused with words", () => {
   const brain = open();
   assert.throws(() => brain.save({ title: "  ", body: "x" }), (e) => e instanceof BrainError && /needs a title/.test(e.message));
-  assert.throws(() => brain.save({ title: "x".repeat(81), body: "x" }), /at most 80/);
-  assert.throws(() => brain.save({ title: "Big", body: "x".repeat(20_001) }), /Split it into linked notes/);
+  assert.equal(brain.save({ title: "x".repeat(180), body: "x" }).title.length, 180);
+  assert.equal(brain.save({ title: "Big", body: "x".repeat(50_000) }).body.length, 50_000);
 });
 
 test("the graph lists notes and links, with degrees, and drops nothing small", () => {

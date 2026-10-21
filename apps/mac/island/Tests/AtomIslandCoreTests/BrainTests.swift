@@ -122,7 +122,7 @@ struct BrainTests {
         #expect(s.matchedIds == [1])
         #expect(s.search("   ") == nil)
         #expect(s.hits == nil && s.matchedIds == nil)
-        #expect(s.search(String(repeating: "a", count: 500)) == .brainSearch(query: String(repeating: "a", count: 200)))
+        #expect(s.search(String(repeating: "a", count: 500)) == .brainSearch(query: String(repeating: "a", count: 500)))
     }
 
     @Test func filtersHideKindsAndTags() {

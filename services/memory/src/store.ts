@@ -245,9 +245,6 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
     add(raw, provenance) {
       const text = normalizeMemoryText(raw);
       if (!text) throw new MemoryError("There is nothing to remember.");
-      if (text.length > MAX_MEMORY_CHARS) {
-        throw new MemoryError(`That is too long to keep as one memory (${text.length} characters, limit ${MAX_MEMORY_CHARS}). Keep the key fact only.`);
-      }
       const existing = byText.get(owner, text) as Row | undefined;
       if (existing) return toMemory(existing);
       if (count() >= maxMemories) {

@@ -55,15 +55,15 @@ public struct ChatInput: Codable, Sendable, Equatable {
         guard version == 3, entries.count <= 100 else { throw ChatInputStore.Failure.invalid }
         var ids = Set<String>()
         for (chat, entry) in entries {
-            guard chat.utf8.count <= 512, !chat.contains("\0"), entry.text.utf8.count <= 128 * 1024,
+            guard chat.utf8.count <= 512, !chat.contains("\0"),
                   entry.files.validSavedReferences, entry.waiting.count <= MessageQueue.limit, entry.questionAnswers.count <= 20 else { throw ChatInputStore.Failure.invalid }
             for answer in entry.questionAnswers {
                 guard answer.chat == chat, UUID(uuidString: answer.id) != nil, UUID(uuidString: answer.turn) != nil,
-                      answer.question.utf16.count <= 600, answer.answer.utf16.count <= 2000, !answer.answer.isEmpty,
+                      answer.question.utf16.count <= 600, !answer.answer.isEmpty,
                       ids.insert(answer.id).inserted else { throw ChatInputStore.Failure.invalid }
             }
             for message in entry.waiting {
-                guard message.chat == chat, message.files.validSavedReferences, message.text.utf8.count <= 128 * 1024,
+                guard message.chat == chat, message.files.validSavedReferences,
                       UUID(uuidString: message.id) != nil, ids.insert(message.id).inserted else { throw ChatInputStore.Failure.invalid }
             }
         }

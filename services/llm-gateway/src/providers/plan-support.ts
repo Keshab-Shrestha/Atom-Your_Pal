@@ -148,7 +148,7 @@ export const PLAN_MODELS_TIMEOUT_MS = 30_000;
 export async function listPlanModels(
   claudePath: string,
   options: { env?: Record<string, string | undefined>; timeoutMs?: number } = {},
-): Promise<{ id: string; name: string }[]> {
+): Promise<import("@atom/contracts").ReasoningModel[]> {
   const sdk = await import("@anthropic-ai/claude-agent-sdk");
   const controller = new AbortController();
   const stopped = new Promise<never>((_, reject) =>
@@ -174,12 +174,13 @@ export async function listPlanModels(
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? PLAN_MODELS_TIMEOUT_MS);
   try {
     const found = await Promise.race([run.supportedModels(), stopped]);
-    const models: { id: string; name: string }[] = [];
+    const models: import("@atom/contracts").ReasoningModel[] = [];
     for (const m of found) {
       // "default" is an alias for one of the others; an alias row is kept under the model id it resolves to.
       const id = (m.resolvedModel || m.value || "").trim();
       if (!id || m.value === "default" || models.some((x) => x.id === id)) continue;
-      models.push({ id, name: m.displayName?.trim() || id });
+      models.push({ id, name: m.displayName?.trim() || id,
+        reasoningLevels: ["off", ...(m.supportsAdaptiveThinking && m.supportsEffort ? m.supportedEffortLevels ?? [] : [])], defaultReasoning: "off" });
     }
     return models;
   } finally {

@@ -1,7 +1,7 @@
 // Notes on a task and goals for the helper store: comments, labels, token usage entries and a goal with its tasks (split out of store.ts, 2026-10-16).
 
 import { HelperError } from "./jobs.ts";
-import { MAX_COMMENT_CHARS, type StoreContext } from "./store-context.ts";
+import { type StoreContext } from "./store-context.ts";
 import type { JobRow } from "./store-schema.ts";
 import type { GoalReport, HelperStore } from "./store-types.ts";
 
@@ -12,7 +12,6 @@ export function noteMethods(ctx: StoreContext): Pick<HelperStore, "addComment" |
       const job = mustGet(id);
       const text = raw.trim();
       if (!text) throw new HelperError("The note is empty.");
-      if (text.length > MAX_COMMENT_CHARS) throw new HelperError(`The note is too long (${text.length} characters, limit ${MAX_COMMENT_CHARS}).`);
       transaction(() => {
         insertComment.run(id, text, now().toISOString(), delivery ?? null);
         log(id, "commented");

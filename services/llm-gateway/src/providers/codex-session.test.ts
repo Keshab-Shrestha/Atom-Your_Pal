@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ModelRequest, ToolRunner } from "@atom/contracts";
-import { createCodexSessionAdapter, type CodexTurnDiagnostic } from "./codex-session.ts";
+import { createCodexSessionAdapter, listCodexModels, type CodexTurnDiagnostic } from "./codex-session.ts";
 import { fakeCodex } from "../../../../tests/codex-harness.ts";
 
 const request = (messages: ModelRequest["messages"]): ModelRequest => ({ system: "You are ATOM.", messages, context: { requestId: "r", sessionId: "chat", source: "text", receivedAt: new Date() } });
@@ -150,4 +150,45 @@ test("a changed tool schema rehydrates all messages; a telemetry consumer cannot
     assert.equal(fake.wires[0]!.closed, true);
     assert.match(fake.wires[1]!.sent.find((m) => m.method === "turn/start")!.params.input[0].text, /Cedar launches Friday/);
   } finally { adapter.close?.(); }
+});
+
+test("Codex applies effort per turn without restarting or changing the host tool policy", async () => {
+  const fake = fakeCodex(() => "ok");
+  const adapter = createCodexSessionAdapter({ program: "fake", model: "test", runner: () => runner, transport: fake.factory });
+  const messages: ModelRequest["messages"] = [{ role: "user", content: "Cedar" }];
+  try {
+    for (const reasoning of [undefined, "medium", "high"]) {
+      const reply = await adapter.complete({ ...request(messages), reasoning }, new AbortController().signal);
+      messages.push({ role: "assistant", content: reply.text }, { role: "user", content: "Continue" });
+    }
+    assert.equal(fake.wires.length, 1);
+    assert.deepEqual(fake.wires[0]!.sent.filter((m) => m.method === "turn/start").map((m) => m.params.effort), ["low", "medium", "high"]);
+    assert.equal(fake.wires[0]!.sent.find((m) => m.method === "thread/start")!.params.permissions, "atom_host_tools");
+  } finally { adapter.close?.(); }
+});
+
+test("Codex catalog discovery reports actual effort metadata without creating a thread or running tools", async () => {
+  const sent: any[] = []; let closed = false;
+  const models = await listCodexModels("fake", { transport: () => {
+    let emit: (m: any) => void;
+    return { listen(onMessage) { emit = onMessage; }, close() { closed = true; }, send(m) {
+      sent.push(m);
+      if (m.method === "initialize") queueMicrotask(() => emit({ id: m.id, result: {} }));
+      if (m.method === "model/list") queueMicrotask(() => {
+        emit({ id: "tool-request", method: "item/tool/call", params: { tool: "shell" } });
+        emit({ id: m.id, result: { data: [{ model: "gpt-test", displayName: "Test", defaultReasoningEffort: "medium", supportedReasoningEfforts: [{ reasoningEffort: "medium" }, { reasoningEffort: "high" }] },
+          { model: "hidden", displayName: "Hidden", hidden: true }], nextCursor: null } });
+      });
+    } };
+  } });
+  assert.deepEqual(models, [{ id: "gpt-test", name: "Test", reasoningLevels: ["medium", "high"], defaultReasoning: "medium" }]);
+  assert.ok(closed);
+  assert.ok(!sent.some((m) => ["thread/start", "turn/start"].includes(m.method)));
+  assert.equal(sent.find((m) => m.id === "tool-request").error.code, -32601);
+});
+
+test("Codex catalog discovery times out and closes its owned transport", async () => {
+  let closed = false;
+  await assert.rejects(listCodexModels("fake", { timeoutMs: 10, transport: () => ({ listen() {}, send() {}, close() { closed = true; } }) }), /discovery ended/);
+  assert.ok(closed);
 });

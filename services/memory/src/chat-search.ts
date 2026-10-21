@@ -5,8 +5,6 @@ import type { DatabaseSync } from "node:sqlite";
 
 /** Most results per kind. */
 export const SEARCH_LIMIT = 20;
-/** Longest query, in characters. */
-export const MAX_SEARCH_CHARS = 200;
 
 export interface ChatSearchHit {
   id: string;
@@ -20,7 +18,7 @@ export interface ChatSearchHit {
  * must match. Undefined when there are no words.
  */
 export function searchMatch(text: string): string | undefined {
-  const words = text.slice(0, MAX_SEARCH_CHARS).toLowerCase().match(/[\p{L}\p{N}]+/gu);
+  const words = text.toLowerCase().match(/[\p{L}\p{N}]+/gu);
   if (!words?.length) return undefined;
   return [...new Set(words)].slice(0, 12).map((w) => `"${w}"*`).join(" ");
 }

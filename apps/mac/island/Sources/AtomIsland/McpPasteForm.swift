@@ -69,7 +69,7 @@ struct McpPasteForm: View {
                     .foregroundStyle(text.wrappedValue.isEmpty ? theme.text3.color : theme.text.color)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
             } else {
-                TextEditor(text: text.projectedValue).scrollContentBackground(.hidden).frame(height: 150)
+                TextField("", text: text.projectedValue, axis: .vertical).textFieldStyle(.plain).lineLimit(8...18).fixedSize(horizontal: false, vertical: true)
                 if text.wrappedValue.isEmpty {
                     Text(Self.example).foregroundStyle(theme.text3.color).padding(.horizontal, 5).padding(.vertical, 8).allowsHitTesting(false)
                 }

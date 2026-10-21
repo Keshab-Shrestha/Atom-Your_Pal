@@ -7,7 +7,6 @@ import { DatabaseSync } from "node:sqlite";
 import {
   CLOSED_WHILE_RUNNING,
   HelperError,
-  MAX_TASK_CHARS,
   canMove,
   move,
   openHelperStore,
@@ -91,8 +90,7 @@ test("addJob trims, queues, and refuses an unknown or unavailable helper and an 
   assert.throws(() => store.addJob("bob", "x"), /no helper/);
   assert.throws(() => store.addJob("tinker", "x"), /only reviews/);
   assert.throws(() => store.addJob("sid", "   "), /empty/);
-  assert.throws(() => store.addJob("sid", "x".repeat(MAX_TASK_CHARS + 1)), /too long/);
-  store.addJob("sid", "x".repeat(MAX_TASK_CHARS)); // exactly the limit is fine
+  assert.equal(store.addJob("sid", "x".repeat(12000)).task.length, 12000);
   assert.equal(store.list()[0]!.jobs.length, 2);
 });
 
@@ -299,7 +297,7 @@ test("ADR-110 N2: a native job is running at once, keeps its chat and task id, a
   const job = store.addNativeJob("sid", `  ${"x".repeat(1200)}  `, { chatId: "chat-1" });
   assert.equal(job.state, "running");
   assert.equal(job.chatId, "chat-1");
-  assert.equal(job.task.length, 1000, "a long prompt is cut, not refused");
+  assert.equal(job.task.length, 1200, "the full task is retained");
   assert.equal(store.queued().some((j) => j.id === job.id), false);
   store.linkNativeTask(job.id, "task-9");
   assert.equal(store.get(job.id)?.sdkTaskId, "task-9");

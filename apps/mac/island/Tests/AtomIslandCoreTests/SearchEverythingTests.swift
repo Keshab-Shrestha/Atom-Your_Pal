@@ -43,7 +43,15 @@ struct SearchEverythingTests {
         #expect(SearchResults.settingsPages(matching: "ｓｏｕｎｄｓ") == [.sounds], "full-width letters match")
         #expect(SearchResults.settingsPages(matching: "  ").isEmpty)
         #expect(SearchResults.settingsPages(matching: "zzzz").isEmpty)
+        #expect(SearchResults.settingsPages(matching: "design").isEmpty)
         #expect(!SearchResults(query: "appearance").isEmpty, "a settings page is a result")
+    }
+
+    @Test func searchWirePreservesTheWholeQuery() throws {
+        let query = String(repeating: "Cedar日本語", count: 100)
+        let data = Data(IslandCommand.search(query: query).line.utf8)
+        let fields = try #require(JSONSerialization.jsonObject(with: data) as? [String: String])
+        #expect(fields["query"] == query)
     }
 
     @Test func everyGroupHasAHeading() {

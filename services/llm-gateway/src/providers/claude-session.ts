@@ -92,6 +92,7 @@ export interface ChatSessionOptions {
   chatId: string;
   claudePath: string;
   model: string;
+  reasoning?: string;
   /** Byte-stable for the session: who ATOM is and how it works. Dynamic context goes in the user message. */
   systemPrompt: string;
   /** Claude Code's own tools for the main thread (e.g. WebSearch, or Read, Glob, Grep in a project chat). */
@@ -227,7 +228,8 @@ export function sessionOptions(sdk: SessionSdk, o: ChatSessionOptions, controlle
     title: `ATOM chat ${o.chatId}`,
     ...(o.resume ? { resume: o.resume } : {}),
     maxTurns: o.maxTurns ?? DEFAULT_MAX_TURNS,
-    thinking: { type: "disabled" },
+    thinking: o.reasoning && o.reasoning !== "off" ? { type: "adaptive" } : { type: "disabled" },
+    ...(o.reasoning && o.reasoning !== "off" ? { effort: o.reasoning } : {}),
     abortController: controller,
     env: { ...scrubbedEnv(o.env ?? process.env), ...SESSION_ENV },
     includePartialMessages: true,

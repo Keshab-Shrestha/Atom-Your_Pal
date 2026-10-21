@@ -71,7 +71,7 @@ test("kits and roles are checked; folders only for the folders kit; Tinker's rol
   try {
     assert.throws(() => store.createAgent({ ...rumi, kit: "admin" as never }), /research, folders or think/);
     assert.throws(() => store.createAgent({ ...rumi, role: "improver" }), /Tinker's/);
-    assert.throws(() => store.createAgent({ ...rumi, role: "x".repeat(41) }), /too long/);
+    assert.equal(store.createAgent({ ...rumi, name: "Longrole", role: "x".repeat(100) }).role.length, 100);
     assert.throws(() => store.createAgent({ ...rumi, name: "Sid" }), /already called Sid/);
     assert.throws(() => store.createAgent({ ...rumi, personality: " " }), /personality is empty/);
     store.createAgent(rumi);

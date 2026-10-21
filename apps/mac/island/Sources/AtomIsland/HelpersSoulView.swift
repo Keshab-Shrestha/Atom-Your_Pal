@@ -30,16 +30,16 @@ struct SoulPane: View {
                 }
                 VStack(alignment: .leading, spacing: 3) {
                     Text("\(helper.name)'s soul").font(theme.isFlat ? .system(size: 24, weight: .regular, design: .serif) : .system(size: 20, weight: .semibold, design: .rounded))
-                        .foregroundStyle(theme.isFlat ? Color.white : theme.text.color)
+                        .foregroundStyle(theme.text.color)
                     Text("Given to \(helper.name) as instructions for every job. Its tools and limits are set by its role\(helper.roleTitle.isEmpty ? "" : " (\(helper.roleTitle))"), not here.")
                         .font(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
-                SoulField(label: "Name", text: binding(\.name), limit: HelperSoul.limits.name, lines: 1, submit: save)
-                SoulField(label: "Personality", text: binding(\.personality), limit: HelperSoul.limits.personality, lines: 2)
-                SoulField(label: "How it works", text: binding(\.howItWorks), limit: HelperSoul.limits.howItWorks, lines: 3)
-                SoulField(label: "Rules", text: binding(\.rules), limit: HelperSoul.limits.rules, lines: 3)
-                SoulField(label: "Lessons learned", text: binding(\.lessons), limit: HelperSoul.limits.lessons, lines: 3)
+                SoulField(label: "Name", text: binding(\.name), lines: 1, submit: save)
+                SoulField(label: "Personality", text: binding(\.personality), lines: 2)
+                SoulField(label: "How it works", text: binding(\.howItWorks), lines: 3)
+                SoulField(label: "Rules", text: binding(\.rules), lines: 3)
+                SoulField(label: "Lessons learned", text: binding(\.lessons), lines: 3)
             }
             .frame(maxWidth: 560, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -61,42 +61,38 @@ struct SoulPane: View {
     }
 }
 
-/// One soul field: a quiet label with a character count, and the text in a well.
+/// Shared text field: wraps and grows with the draft, with no character counter or clipping.
 struct SoulField: View {
     let label: String
     let text: Binding<String>
-    let limit: Int
     let lines: Int
-    /// Return in a one-line field (ADR-096: it saves).
     var submit: (() -> Void)? = nil
+    var monospaced = false
+    @FocusState private var focused: Bool
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
 
     var body: some View {
-        let count = text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).count
-        let shape = RoundedRectangle(cornerRadius: lines == 1 ? theme.radiusControl + 2 : theme.radiusCard, style: .continuous)
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(label).font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
-                Spacer()
-                Text("\(count) / \(limit)").font(theme.idFont(.system(size: 10.5), size: 10))
-                    .foregroundStyle(count > limit ? theme.problem.color : theme.text3.color)
-            }
+            Text(label).font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text2.color)
             Group {
-                if snapshot { // ImageRenderer cannot draw text fields
-                    Text(text.wrappedValue.isEmpty ? " " : text.wrappedValue).frame(maxWidth: .infinity, alignment: .topLeading)
+                if snapshot {
+                    Text(text.wrappedValue.isEmpty ? " " : text.wrappedValue)
+                        .frame(maxWidth: .infinity, minHeight: CGFloat(lines) * 19, alignment: .topLeading)
                 } else if lines == 1 {
-                    TextField(label, text: text).textFieldStyle(.plain).onSubmit { submit?() }
+                    TextField(label, text: text).textFieldStyle(.plain).focused($focused).onSubmit { submit?() }
                 } else {
-                    TextEditor(text: text).scrollContentBackground(.hidden).frame(minHeight: CGFloat(lines) * 18)
+                    TextField("", text: text, axis: .vertical)
+                        .textFieldStyle(.plain).lineLimit(lines...max(lines, 16))
+                        .fixedSize(horizontal: false, vertical: true).focused($focused)
                 }
             }
-            .font(.system(size: 12.5))
+            .font(.system(size: 13, design: monospaced ? .monospaced : .default))
             .foregroundStyle(theme.text.color)
-            .padding(.horizontal, lines == 1 ? 12 : 8)
-            .padding(.vertical, lines == 1 ? 8 : 7)
-            .background(shape.fill(theme.isFlat ? Color.clear : theme.fill1.color))
-            .overlay(shape.strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(theme.fill1.color, in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(focused ? theme.accent.color : theme.border.color, lineWidth: focused ? 1.5 : 1))
             .accessibilityLabel(label)
         }
     }
@@ -211,13 +207,13 @@ struct NewAgentPane: View {
                 }
                 VStack(alignment: .leading, spacing: 3) {
                     Text("New agent").font(theme.isFlat ? .system(size: 24, weight: .regular, design: .serif) : .system(size: 20, weight: .semibold, design: .rounded))
-                        .foregroundStyle(theme.isFlat ? Color.white : theme.text.color)
+                        .foregroundStyle(theme.text.color)
                     Text("Saved as data/agents/<name>/soul.md, which you can also edit in any editor. What it may use is its kit, set here and checked in code; its soul cannot add tools.")
                         .font(.system(size: 11.5)).foregroundStyle(theme.text3.color).fixedSize(horizontal: false, vertical: true)
                 }
                 if let problem = model.helpers.problem { ProblemLine(text: problem) }
-                SoulField(label: "Name", text: draft.projectedValue.name, limit: HelperSoul.limits.name, lines: 1, submit: create)
-                SoulField(label: "Role (in your words, such as travel planner)", text: role.projectedValue, limit: 40, lines: 1, submit: create)
+                SoulField(label: "Name", text: draft.projectedValue.name, lines: 1, submit: create)
+                SoulField(label: "Role (in your words, such as travel planner)", text: role.projectedValue, lines: 1, submit: create)
                 VStack(alignment: .leading, spacing: 6) {
                     Text("What it may use").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
                     Menu {
@@ -231,9 +227,9 @@ struct NewAgentPane: View {
                     }
                     .menuStyle(.button).buttonStyle(.plain).fixedSize()
                 }
-                SoulField(label: "Personality", text: draft.projectedValue.personality, limit: HelperSoul.limits.personality, lines: 3)
-                SoulField(label: "How it works", text: draft.projectedValue.howItWorks, limit: HelperSoul.limits.howItWorks, lines: 4)
-                SoulField(label: "Rules", text: draft.projectedValue.rules, limit: HelperSoul.limits.rules, lines: 3)
+                SoulField(label: "Personality", text: draft.projectedValue.personality, lines: 3)
+                SoulField(label: "How it works", text: draft.projectedValue.howItWorks, lines: 4)
+                SoulField(label: "Rules", text: draft.projectedValue.rules, lines: 3)
             }
             .frame(maxWidth: 560, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)

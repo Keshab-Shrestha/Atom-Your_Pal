@@ -1,10 +1,31 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createScheduleTool, describeSchedule, isDue, lastDue, openHelperStore, parseRoutine } from "./index.ts";
 
 // ADR-087, Task 3.9: routines. Local times throughout (no Z on the dates).
 
 const at = (s: string) => new Date(s);
+
+test("long schedule instructions survive creation, editing, reopening and task creation without truncation", () => {
+  const home = mkdtempSync(join(tmpdir(), "atom-long-schedule-"));
+  const path = join(home, "helpers.db");
+  let store = openHelperStore({ path, home });
+  try {
+    const task = "Cedar fictional instructions 日本語.\n".repeat(1500).trim();
+    const created = store.addRoutine("sid", task, { kind: "daily", minute: 480 });
+    assert.equal(created.task, task);
+    const changed = task + "\nFinal instruction stays intact.";
+    assert.equal(store.updateRoutine(created.id, "sid", changed, { kind: "weekly", weekday: 2, minute: 600 }).task, changed);
+    store.close();
+    store = openHelperStore({ path, home });
+    const saved = store.list().find((h) => h.id === "sid")!.routines.find((r) => r.id === created.id)!;
+    assert.equal(saved.task, changed);
+    assert.equal(store.addJob("sid", saved.task).task, changed);
+  } finally { store.close(); rmSync(home, { recursive: true, force: true }); }
+});
 
 test("when a schedule last came due", () => {
   const made = at("2026-10-05T12:00:00"); // a Monday

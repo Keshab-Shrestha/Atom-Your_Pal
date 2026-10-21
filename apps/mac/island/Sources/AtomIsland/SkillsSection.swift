@@ -108,17 +108,7 @@ struct SkillsSection: View {
     private func editor(_ skill: SkillInfo) -> some View {
         if let file = openFile {
             let text = Binding<String>(get: { edits.wrappedValue[skill.name] ?? file.text }, set: { edits.wrappedValue[skill.name] = $0 })
-            Group {
-                if snapshot {
-                    Text(text.wrappedValue).frame(maxWidth: .infinity, alignment: .leading)
-                } else {
-                    TextEditor(text: text).scrollContentBackground(.hidden).frame(height: 240)
-                }
-            }
-            .font(.system(size: 11.5, design: .monospaced)).foregroundStyle(theme.text.color)
-            .padding(8)
-            .background(RoundedRectangle(cornerRadius: theme.radiusControl + 2, style: .continuous)
-                .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: 1))
+            SoulField(label: "Skill instructions", text: text, lines: 12, monospaced: true)
             HStack(spacing: 8) {
                 QuietButton(title: "Save", symbol: "checkmark") {
                     model.saveSkill(skill.name, text: text.wrappedValue)

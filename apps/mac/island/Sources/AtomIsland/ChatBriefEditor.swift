@@ -26,12 +26,7 @@ struct ChatBriefEditor: View {
                 Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
             }
             Text("Keep the project, decisions and next step here. Your saved brief accompanies each request in this chat, including after restarting or changing models.")
-            TextEditor(text: $draft)
-                .font(.system(size: 13)).frame(minHeight: 170)
-                .accessibilityLabel("Brief for this chat")
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(theme.separator.color))
-            Text("\(draft.utf8.count) / \(ChatBrief.maxBytes) UTF-8 bytes")
-                .foregroundStyle(ChatBrief.valid(draft) ? theme.text3.color : theme.problem.color)
+            SoulField(label: "Brief for this chat", text: $draft, lines: 8)
             Text("Shared with this chat’s model when you send. It does not grant file access or become global memory. Other chats and forks start without this brief. Clear the text and save to stop including it in future requests. Earlier versions may remain in the model’s session.")
                 .foregroundStyle(theme.text2.color)
             if !current { Text("Return to the original chat before saving. Your draft is still here.").foregroundStyle(theme.attention.color) }

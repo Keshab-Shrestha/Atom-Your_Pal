@@ -100,6 +100,6 @@ public enum ProjectList {
     /// A name the runtime accepts: 1 to 60 characters on one line.
     public static func isValidName(_ name: String) -> Bool {
         let t = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !t.isEmpty && t.count <= 60 && !t.contains(where: \.isNewline)
+        return !t.isEmpty && !t.contains(where: \.isNewline)
     }
 }

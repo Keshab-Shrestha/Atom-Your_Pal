@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { SKILL_FILE_CHARS, listSkills, prepareSkills, readSkillFile, writeSkillFile } from "./skills.ts";
+import { listSkills, prepareSkills, readSkillFile, writeSkillFile } from "./skills.ts";
 
 // Task 3.12: only the skills chosen for a worker are linked into its plugin.
 
@@ -110,7 +110,7 @@ test("the editor reads a whole SKILL.md and saves Keshab's edit with one backup,
   }
 });
 
-test("the editor refuses a name that is not a skill, a path, empty text and a file that is too long", () => {
+test("the editor refuses a name that is not a skill, a path, empty text", () => {
   const dir = skillsDir();
   try {
     assert.equal(readSkillFile("../etc", dir), undefined);
@@ -118,7 +118,6 @@ test("the editor refuses a name that is not a skill, a path, empty text and a fi
     assert.throws(() => writeSkillFile("nope", "x", dir), /no skill called/);
     assert.throws(() => writeSkillFile("../pdf", "x", dir), /no skill called/);
     assert.throws(() => writeSkillFile("pdf", "  \n", dir), /cannot be empty/);
-    assert.throws(() => writeSkillFile("pdf", "x".repeat(SKILL_FILE_CHARS + 1), dir), /at most/);
     assert.match(readFileSync(join(dir, "pdf", "SKILL.md"), "utf8"), /Read and write PDFs/, "a refused save changes nothing");
     assert.equal(existsSync(join(dir, "pdf", "SKILL.md.bak")), false, "and makes no backup");
   } finally {
@@ -126,16 +125,17 @@ test("the editor refuses a name that is not a skill, a path, empty text and a fi
   }
 });
 
-// 2026-10-16 (code check): the editor shows the first SKILL_FILE_CHARS characters; saving from it cut a longer file for good.
-test("a skill longer than the editor shows is not saved from the editor", () => {
+// Regression: a partially displayed source must never overwrite the complete skill.
+test("the editor preserves complete large skills and backs up the entire previous file", () => {
   const dir = skillsDir();
   try {
-    const long = `---\nname: pdf\ndescription: Long.\n---\n\n${"x".repeat(SKILL_FILE_CHARS + 500)}`;
+    const long = `---\nname: pdf\ndescription: Long.\n---\n\n${"x".repeat(80_000)}`;
     writeFileSync(join(dir, "pdf", "SKILL.md"), long);
     const shown = readSkillFile("pdf", dir)!;
-    assert.equal(shown.text.length, SKILL_FILE_CHARS);
-    assert.throws(() => writeSkillFile("pdf", shown.text, dir), /longer than the editor shows/);
-    assert.equal(readFileSync(join(dir, "pdf", "SKILL.md"), "utf8"), long, "the file is untouched");
+    assert.equal(shown.text, long);
+    writeSkillFile("pdf", shown.text + "\nNew steps.", dir);
+    assert.equal(readFileSync(join(dir, "pdf", "SKILL.md"), "utf8"), long + "\nNew steps.");
+    assert.equal(readFileSync(join(dir, "pdf", "SKILL.md.bak"), "utf8"), long);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

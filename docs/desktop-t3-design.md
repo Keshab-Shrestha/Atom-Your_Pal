@@ -1,5 +1,7 @@
 # Desktop design adapted from T3 Code
 
+The 19 October [theme and input polish](desktop-input-polish.md) supersedes the neutral-only palettes, Appearance shortcuts, Design system navigation and spacing described below. The original implementation/verification record follows.
+
 ADR-176, 2026-10-19. Keshab authorized a broader T3-inspired design and replacement of the current appearance. This extends ADR-175's chat design across the main desktop window.
 
 The app uses one neutral light/dark palette, a 248pt sidebar and compact title bar on every destination. Search and New chat share the top utility row. Projects and chats scroll together; the bottom app destinations stay fixed. Navigation uses plain glyphs, quiet selected/hover fills and one-line rows. Board attention counts remain visible, with detailed counts in help and accessibility text. Chat deletion is available through hover, the context menu and a named accessibility action, and still requires confirmation.

@@ -1,6 +1,6 @@
 import type { Core } from "@atom/core";
 import type { Message } from "@atom/contracts";
-import { HelperError, MAX_COMMENT_CHARS, type Routine, type HelperStore } from "@atom/helpers";
+import { HelperError, type Routine, type HelperStore } from "@atom/helpers";
 import type { LogFields } from "@atom/shared";
 import { chatWriter, isSharedChat } from "./chat-owner.ts";
 import { TELEGRAM_CHAT } from "./telegram-bot.ts";
@@ -99,7 +99,6 @@ export function nativeSteering(cores: () => Iterable<{ steer(job: number, text: 
     steer(id, raw) {
       const text = raw.trim();
       if (!text) throw new HelperError("The message is empty.");
-      if (text.length > MAX_COMMENT_CHARS) throw new HelperError(`The message is too long (${text.length} characters, limit ${MAX_COMMENT_CHARS}).`);
       for (const core of cores()) if (core.steer(id, text)) return "live";
       throw new HelperError("That task does not run in an open chat now, so it cannot take a message.");
     },

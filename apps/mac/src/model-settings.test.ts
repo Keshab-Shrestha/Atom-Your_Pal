@@ -201,3 +201,22 @@ test("a tool known to be signed out cannot be chosen; the scan's list comes with
   assert.equal(info.tools?.length, 2);
   assert.ok(!JSON.stringify(info).includes("/x/codex"), "paths are never sent");
 });
+
+test("thinking choices come from live model metadata, unknown models stay unsupported and refresh failure keeps the last catalog", async () => {
+  let fail = false;
+  const settings = createModelSettings({ initial: { provider: "codex", model: "gpt-test" }, keys: { codex: "/fake/codex", "claude-plan": CLAUDE },
+    model: createSwitchableModel({ complete: async () => ({ text: "ok" }) }), createModel: () => ({ complete: async () => ({ text: "ok" }) }), save() {},
+    listCodexModels: async () => { if (fail) throw new Error("unavailable"); return [{ id: "gpt-test", name: "Test", reasoningLevels: ["low", "medium", "high"], defaultReasoning: "low" }]; },
+    listPlanModels: async () => [{ id: "claude-test", name: "Claude", reasoningLevels: ["off", "low", "high"], defaultReasoning: "off" },
+      { id: "claude-older", name: "Older", reasoningLevels: ["off"], defaultReasoning: "off" }] });
+  assert.equal(settings.reasoning!("codex", "gpt-test").levels.length, 0);
+  await settings.refreshModels!();
+  assert.deepEqual(settings.reasoning!("codex", "gpt-test").levels, ["low", "medium", "high"]);
+  assert.deepEqual(settings.reasoning!("claude-plan", "claude-test").levels, ["off", "low", "high"]);
+  assert.equal(settings.reasoning!("claude-plan", "claude-test").default, "off");
+  assert.match(settings.reasoning!("claude-plan", "claude-older").note!, /does not expose adjustable/);
+  assert.equal(settings.reasoning!("codex", "custom-model").levels.length, 0);
+  assert.match(settings.reasoning!("gemini-cli", "gemini").note!, /does not expose/);
+  fail = true; await settings.refreshModels!();
+  assert.deepEqual(settings.reasoning!("codex", "gpt-test").levels, ["low", "medium", "high"]);
+});

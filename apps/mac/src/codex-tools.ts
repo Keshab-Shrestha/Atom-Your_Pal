@@ -1,3 +1,5 @@
+import { chatAccessPolicy, CHAT_ONLY_NOTICE, type AccessApproval, type ChatAccessPolicy } from "./chat-access.ts";
+import type { ChatAccessMode } from "@atom/contracts";
 import { randomUUID } from "node:crypto";
 import { readFile, writeFile, mkdir, readdir, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -38,6 +40,8 @@ const exposed = (spec: ToolSpec): ToolSpec => ({ ...spec, name: `atom_${spec.nam
 const result = (call: ToolCall, content: string, isError = false): ToolResult => ({ callId: call.id, content, ...(isError ? { isError } : {}) });
 
 export interface CodexToolRouterOptions {
+  accessFor?(chat: string): ChatAccessMode;
+  approveAccess?: AccessApproval;
   program: string;
   model: string;
   tools: ToolRunner;
@@ -56,7 +60,7 @@ export interface CodexToolRouterOptions {
 
 /** Codex requests policy-checked host tools; it never receives an unrestricted shell or direct write access. */
 export function createCodexToolRouter(options: CodexToolRouterOptions) {
-  const chats = new Map<string, { gate: NativeGate; board?: ReturnType<typeof boardRecorder>; tools: ToolRunner; cwd?: string }>();
+  const chats = new Map<string, { gate: NativeGate; board?: ReturnType<typeof boardRecorder>; tools: ToolRunner; cwd?: string; access: ChatAccessMode; policy: ChatAccessPolicy }>();
   const running = new Map<number, AbortController>();
   const approvalSignal = new AsyncLocalStorage<AbortSignal | undefined>();
   const webAllowed = (req: ModelRequest): boolean => req.web === true && (!req.files || req.files.web === true) && options.webAllowed?.(req.context.sessionId) === true;
@@ -145,13 +149,23 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
   function state(req: ModelRequest) {
     const chat = req.context.sessionId;
     let entry = chats.get(chat);
-    if (entry && entry.cwd !== req.files?.cwd) { if (entry.board?.running().length) throw new Error("Wait for this chat's agent to finish before changing its project."); chats.delete(chat); entry = undefined; }
+    if (entry && (entry.cwd !== req.files?.cwd || entry.access !== (req.access ?? "checked"))) { if (entry.board?.running().length) throw new Error("Wait for this chat's agent to finish before changing its project or access."); chats.delete(chat); entry = undefined; }
     if (!entry) {
       const team = options.team;
       let gate: NativeGate;
       const board = team && boardRecorder(team.helpers, chat);
       const plans = team && planBook(team.helpers, chat);
+      const access = req.access ?? "checked";
+      const policy = chatAccessPolicy(access, () => options.accessFor?.(chat) ?? "checked", options.approveAccess ? async (request, taskSignal) => {
+        const caller = approvalSignal.getStore();
+        const signal = caller && taskSignal ? AbortSignal.any([caller, taskSignal]) : caller ?? taskSignal;
+        if (signal?.aborted) return false;
+        const allowed = await options.approveAccess!(request, signal);
+        return allowed && !signal?.aborted;
+      } : undefined);
       gate = nativeGate({
+        access: policy,
+        accessSignal: () => approvalSignal.getStore(),
         tools: [...(req.files ? READ_NAMES : []), ...(team ? ["Agent"] : [])],
         ...(req.files ? { files: req.files } : {}),
         ...(team && board ? {
@@ -184,7 +198,7 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
           },
         } : {}),
       });
-      entry = { gate, ...(board ? { board } : {}), tools: plans ? withPlanTools(options.tools, plans) : options.tools, ...(req.files ? { cwd: req.files.cwd } : {}) };
+      entry = { gate, access, policy, ...(board ? { board } : {}), tools: plans ? withPlanTools(options.tools, plans) : options.tools, ...(req.files ? { cwd: req.files.cwd } : {}) };
       chats.set(chat, entry);
     }
     entry.gate.newAnswer(req.files);
@@ -192,6 +206,8 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
   }
 
   async function delegate(req: ModelRequest, entry: ReturnType<typeof state>, call: ToolCall, signal?: AbortSignal): Promise<ToolResult> {
+    // Board lifecycle events and admission must share this host-unique id.
+    call = { ...call, id: randomUUID() };
     const team = options.team;
     if (!team || !entry.board) return result(call, "This chat has no agents.", true);
     if (typeof call.input.prompt !== "string" || typeof call.input.subagent_type !== "string" || typeof call.input.description !== "string") return result(call, "Provide subagent_type, description and prompt.", true);
@@ -199,7 +215,7 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
     if (!member) return result(call, "That agent is not available.", true);
     const workerModel = member.codexPinnedModel ?? options.model;
     if (member.codexPinnedModel && options.workerModelAllowed?.(workerModel) !== true) return result(call, "This worker's pinned Codex model is not currently offered or Codex is unavailable. Choose an offered Codex model or clear its Codex pin; no fallback ran.", true);
-    const verdict = await entry.gate.canUseTool("Agent", call.input, { toolUseID: call.id });
+    const verdict = await approvalSignal.run(signal, () => entry.gate.canUseTool("Agent", call.input, { toolUseID: call.id }));
     if (verdict.behavior !== "allow") return result(call, verdict.message ?? "That agent cannot start.", true);
     const id = `codex-${randomUUID()}`;
     const job = entry.board.jobOfAgent(id, member.id);
@@ -291,7 +307,11 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
         const checkCall = { ...workerCall, name };
         if (name === "MCPList" || name === "MCPCall") return mcp.run(checkCall, activeSignal);
         if (name === "Browser") return browser.run(checkCall, activeSignal);
-        if (name === "ConsultWorker") return advisory.run(checkCall, activeSignal);
+        if (name === "ConsultWorker") {
+          const refusal = await entry.policy.check(name, checkCall.input, randomUUID(), worker.id, activeSignal);
+          if (refusal) return result(checkCall, refusal, true);
+          return advisory.run(checkCall, activeSignal);
+        }
         if (name === "ReviewPreviewEdit") {
           if (!hasPreviewReview || !commandAllowed()) return result(workerCall, "Preview review requires the active project task and required-undo support.", true);
           if (Object.keys(workerCall.input).some((key) => !["preview_id", "file_path", "content"].includes(key))) return result(workerCall, "Provide only preview_id, file_path and content.", true);
@@ -445,6 +465,7 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
     close() { for (const controller of running.values()) controller.abort(); chats.clear(); },
     revoke(chat: string) { chats.get(chat)?.gate.revokeFilePermissions(); },
     forRequest(req: ModelRequest): ToolRunner {
+      if (req.access === "chat-only") return { specs: () => [], run: async (call) => result(call, CHAT_ONLY_NOTICE, true) };
       const entry = state(req);
       const tools = withHistoryTools(withHistoryTools(entry.tools, req.historyTools), req.interactionTools);
       const members = options.team ? nativeMembers(options.team.helpers.list()) : [];
@@ -457,7 +478,8 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
           if (call.name === "atom_delegate") return delegate(req, entry, call, signal);
           const name = call.name.replace(/^atom_/, "");
           if (READ_NAMES.includes(name)) return file(entry.gate, { ...call, name }, undefined, signal);
-          const verdict = await entry.gate.canUseTool(`mcp__atom__${name}`, call.input, { toolUseID: call.id });
+          const verdict = await approvalSignal.run(signal, () => entry.gate.canUseTool(`mcp__atom__${name}`, call.input, { toolUseID: randomUUID() }));
+          if (signal?.aborted) return result(call, "Stopped.", true);
           if (verdict.behavior !== "allow") return result(call, verdict.message ?? "Not allowed.", true);
           return tools.run({ ...call, name }, signal);
         },

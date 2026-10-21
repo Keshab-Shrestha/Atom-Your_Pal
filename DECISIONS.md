@@ -3603,3 +3603,23 @@ Discover task branches from active checked repository-root projects as well as e
 **Reason:** Keshab explicitly wants T3's chat design; moving ATOM's old controls alone did not deliver the requested feel. Preserve ATOM branding, working features and policy instead of importing another agent runtime or exposing unsupported provider/access controls. No new dependency or persistent theme change. Retain the upstream MIT notice in source and the signed app.
 
 **Evidence and boundaries:** [Chat design](docs/chat-t3-design.md), [pinned reference](reference/t3code-visual-design.md). Backend reliability and the remaining Git upgrades are separate.
+
+
+---
+
+## ADR-179 — Persist thinking per chat and use provider-reported capabilities
+
+**Decision (2026-10-19):** expose reasoning beside model selection using installed Claude SDK and Codex catalog metadata. Preserve historical defaults; save explicit choices by chat/provider/model, copy only on explicit fork and remove with chat deletion. Capture at turn admission; never mutate in-flight work. Claude resumes with adjusted adaptive-thinking/effort session options; Codex changes turn effort without resetting its thread. Unsupported/custom providers explain their limitation rather than advertising guessed levels.
+
+**Reason:** the requested control must affect real provider behavior while maintaining the same chat, draft, archive, brief and file-permission continuity. Model capability metadata does not confer authority. No new dependency, access mode or automatic provider fallback. [Contract, migration and verification](docs/chat-thinking.md).
+
+
+---
+
+## ADR-180 — Restrict chat tools with persisted, additive access modes
+
+**Decision (2026-10-21):** add Saved permissions (existing default), Chat only and Ask before changes beside model/thinking. Persist by chat, inherit only through explicit fork, and preserve all transcript/brief/draft/file-grant state. Restrict changes to idle writable chats with no active tasks and bind the expected prior mode. Capture access at admission and recheck at every host call.
+
+Claude/Codex gates refuse all tools in Chat only; Core also excludes automatic file/screen/context/skill reads and action shortcuts. Ask before changes requires a call/argument/worker-bound fresh approval before the existing policy checks, including saved-grant edits and delegation. Unknown tools ask; cancellation and stale mode refuse. Gemini CLI refuses restricted turns because its native tools cannot be checked by these host gates.
+
+**Reason:** a permissions label must constrain real execution while keeping the user's continuing chat and exact-file grants intact. Extra approval never overrides protected paths, kits, plans, undo or macOS permissions. Full access remains a separate requested capability. [Scope, limitations and evidence](docs/chat-access.md).

@@ -477,6 +477,28 @@ export function runIsland(options: IslandOptions): IslandSession {
         // ADR-097: the Claude plan's live model list again; `info` follows either way.
         void (options.settings?.refreshModels?.() ?? Promise.resolve()).then(sendInfo, (error: unknown) => options.log?.warn("models.refresh_failed", { message: describe(error) }));
         return;
+      case "chat.access": {
+        if (command.id !== core.sessionId || chatWriter(command.id) || isSharedChat(command.id)
+            || options.chats?.metadataOf?.(command.id)?.archived || core.busy || loop.state !== "idle"
+            || options.chatTurns?.busy?.(command.id) || options.taskActivity?.busy()) {
+          send({ type: "error", stage: "settings", message: "Open this writable chat and finish or stop active work before changing access." }); return;
+        }
+        const result = options.chats?.setAccess?.(command.id, command.mode, command.expected) ?? { error: "This runtime does not support chat access modes." };
+        if ("error" in result) send({ type: "error", stage: "settings", message: result.error });
+        else sendChats();
+        return;
+      }
+      case "chat.reasoning": {
+        if (command.id !== core.sessionId || chatWriter(command.id) || isSharedChat(command.id)
+            || options.chats?.metadataOf?.(command.id)?.archived
+            || core.busy || loop.state !== "idle" || options.chatTurns?.busy?.(command.id)) {
+          send({ type: "error", stage: "settings", message: "Open this writable chat and finish or stop its active turn before changing thinking." }); return;
+        }
+        const result = options.chats?.setReasoning?.(command.id, command.provider, command.model, command.effort) ?? { error: "This runtime does not support thinking preferences." };
+        if ("error" in result) send({ type: "error", stage: "settings", message: result.error });
+        else sendChats();
+        return;
+      }
       case "chat.model": {
         // ADR-097: this chat's own model, from the chat's top bar. Voice and new chats keep the default.
         const id = command.id || core.sessionId || "";
@@ -1031,6 +1053,8 @@ export function runIsland(options: IslandOptions): IslandSession {
       ...(own ? { currentProvider: own.provider, currentModel: own.model } : {}),
       ...(options.projects ? { projects: options.projects.list() } : {}),
       ...(currentProjectId ? { currentProjectId } : {}),
+      ...(current && options.chats?.accessOf ? { access: options.chats.accessOf(current) } : {}),
+      ...(current && options.chats?.reasoningOf ? { reasoning: options.chats.reasoningOf(current) } : {}),
     });
   }
   /** `conversation.reset` and `chat.new`: forget the conversation; a project chat starts inside its project. */
@@ -1132,6 +1156,7 @@ export function runIsland(options: IslandOptions): IslandSession {
   /** The model in use, then what can be asked of it. */
   function sendInfo() {
     if (options.settings) send({ type: "info", ...options.settings.info() });
+    if (chatsWatched && options.chats?.reasoningOf) sendChats();
     if (options.capabilities) send({ type: "capabilities", items: options.capabilities() });
   }
 

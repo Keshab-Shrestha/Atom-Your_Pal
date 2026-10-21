@@ -238,7 +238,7 @@ public struct BrainState: Sendable, Equatable {
             hits = nil
             return nil
         }
-        return .brainSearch(query: String(clean.prefix(200)))
+        return .brainSearch(query: clean)
     }
 
     /// The nodes the filters let through: shown kinds and the chosen tag. Ghosts follow their kind ("note").

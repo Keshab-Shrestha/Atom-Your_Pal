@@ -491,7 +491,7 @@ private struct ReportSection: View {
             VStack(alignment: .leading, spacing: 5) {
                 // Void: the report's title is the window's one display line, in New York.
                 Text(report.title).font(theme.isFlat ? .system(size: 24, weight: .regular, design: .serif) : .system(size: 19, weight: .semibold, design: .rounded))
-                    .foregroundStyle(theme.isFlat ? Color.white : theme.text.color)
+                    .foregroundStyle(theme.text.color)
                 Text(report.summary).font(.system(size: 13)).foregroundStyle(theme.text2.color)
             }
             ForEach(Array(report.paragraphs.enumerated()), id: \.offset) { _, paragraph in
@@ -557,9 +557,7 @@ private struct NotesSection: View {
                 if snapshot {
                     Text(prompt).font(.system(size: 12.5)).foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading)
                 } else {
-                    TextField(prompt, text: draft.projectedValue)
-                        .textFieldStyle(.plain).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
-                        .onSubmit(add)
+                    SoulField(label: steers ? "Message" : "Note", text: draft.projectedValue, lines: 2)
                         .accessibilityLabel(steers ? "Message" : "Note")
                 }
                 SaveButton(title: steers ? "Send" : "Add", enabled: typed, saved: model.savedField == "note" && model.helpers.problem == nil,

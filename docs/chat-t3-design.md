@@ -1,5 +1,7 @@
 # T3 Code chat design in ATOM
 
+The 19 October [theme and input polish](desktop-input-polish.md) supersedes the neutral-only palettes, Appearance shortcuts, Design system navigation and spacing described below. The original implementation/verification record follows.
+
 ADR-176 extends this chat-specific design across the main desktop shell; see [desktop design](desktop-t3-design.md). The observations below record the original ADR-175 batch.
 
 ADR-175, 2026-10-19. Keshab explicitly requested T3 Code's visuals because ATOM's chat still felt unusual after the compact-menu change. This step adapts the actual T3 chat components and default style tokens to SwiftUI. [Pinned sources, observations and MIT attribution](../reference/t3code-visual-design.md).

@@ -30,7 +30,7 @@ struct ComposerDraftTests {
         d.add(["/a.txt"])
         #expect(d.command(text: "") == .textSendFiles(text: "", files: ["/a.txt"]), "files alone can be sent")
         #expect(d.command(text: "read it") == .textSendFiles(text: "read it", files: ["/a.txt"]))
-        #expect(d.command(text: String(repeating: "a", count: 4001)) == nil)
+        #expect(d.command(text: String(repeating: "a", count: 4001)) == .textSendFiles(text: String(repeating: "a", count: 4001), files: ["/a.txt"]))
     }
 
     @Test func encodesTheFilesOnTheWire() throws {
@@ -47,19 +47,9 @@ struct ComposerDraftTests {
         #expect(ComposerDraft.applying(skill: "summarise", to: "") == "/summarise ")
     }
 
-    /// 2026-10-16 (code review): a message over 4,000 characters was dropped by `ask` and the composer cleared the draft anyway.
-    @Test func aTooLongMessageIsRefusedWithAReasonAndTheDraftIsKept() {
-        let long = String(repeating: "a", count: 4001)
-        let why = ComposerDraft.refusal(forText: long)
-        #expect(why?.contains("4001") == true && why?.contains("4000") == true)
-        #expect(ComposerDraft.refusal(forText: String(repeating: "a", count: 4000)) == nil)
-        #expect(ComposerDraft.refusal(forText: "  short  ") == nil)
-        var d = ComposerDraft()
-        d.refuse(why!)
-        #expect(d.notice == why)
-        #expect(d.command(text: long) == nil, "it is still not sendable")
-        d.clear()
-        #expect(d.notice == nil)
+    @Test func longMessagesRemainSendableAndWhole() {
+        let long = String(repeating: "Cedar 日本語. ", count: 12000)
+        #expect(ComposerDraft.refusal(forText: long) == nil)
+        #expect(ComposerDraft().command(text: long) == .textSend(long.trimmingCharacters(in: .whitespacesAndNewlines)))
     }
 }
-

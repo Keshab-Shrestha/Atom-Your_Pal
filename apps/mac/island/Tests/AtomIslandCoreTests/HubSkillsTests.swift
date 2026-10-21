@@ -49,7 +49,7 @@ struct HubSkillsTests {
 
     @Test func encodesTheSixCommands() throws {
         #expect(IslandCommand.skillHubSearch(query: "pdf").line == #"{"query":"pdf","type":"skill.hub.search"}"# + "\n")
-        #expect(IslandCommand.skillHubSearch(query: String(repeating: "a", count: 90)).line.contains(String(repeating: "a", count: 60) + #"""#))
+        #expect(IslandCommand.skillHubSearch(query: String(repeating: "a", count: 90)).line.contains(String(repeating: "a", count: 90) + #"""#))
         #expect(IslandCommand.skillHubPreview(source: 1, path: "s/p").line == #"{"path":"s/p","source":1,"type":"skill.hub.preview"}"# + "\n")
         #expect(IslandCommand.skillHubApprove(id: 3).line == #"{"id":3,"type":"skill.hub.approve"}"# + "\n")
         #expect(IslandCommand.skillHubReject(id: 3).line == #"{"id":3,"type":"skill.hub.reject"}"# + "\n")

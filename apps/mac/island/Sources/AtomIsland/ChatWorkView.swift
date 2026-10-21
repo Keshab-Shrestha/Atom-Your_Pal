@@ -73,14 +73,13 @@ struct ChatQuestionCard: View {
             ForEach(question.choices, id: \.self) { choice in
                 Button(choice) { submit(choice) }.buttonStyle(.borderless).multilineTextAlignment(.leading)
             }
-            TextField("Your answer", text: $answer, axis: .vertical).lineLimit(1...4).textFieldStyle(.roundedBorder)
+            SoulField(label: "Your answer", text: $answer, lines: 2)
                 .accessibilityLabel("Answer to ATOM's question")
             HStack {
-                Button("Send answer") { submit(answer) }.disabled(answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || answer.utf16.count > 2000)
+                Button("Send answer") { submit(answer) }.disabled(answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 Button("Skip") { submit(nil) }
                 if sent { Text("Waiting for confirmation…").font(.system(size: 11)).foregroundStyle(theme.text3.color) }
             }
-            if answer.utf16.count > 2000 { Text("Shorten the answer to 2,000 characters before sending.").font(.system(size: 11)) }
             Text("Answering gives clarification, not file or system permission. Do not enter passwords or secrets. The message box queues a new message instead.")
                 .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
         }
@@ -101,13 +100,14 @@ struct ChatAccessContent: View {
         VStack(alignment: .leading, spacing: 9) {
             Text("Chat access").font(.headline)
             if let access = model.chatControls.snapshot?.info?.access {
+                Text("Mode: " + (model.chats?.access?.title ?? "Saved permissions"))
                 Text("Provider: \(access.provider)")
-                Text(access.hostTools ? "Uses ATOM's checked host tools." : "This provider has no ATOM host tools.")
+                Text(access.hostTools ? "Uses ATOM's checked host tools." : "ATOM host tools are unavailable in this mode.")
                 Text(access.project ? "Associated with a project; project file policy applies." : "No project folder associated with this chat.")
                 Text("Continuing edit permissions: \(access.fileGrants) exact files in this chat.")
-                Text("Computer tools configured: \(access.computer ? "on" : "off"). Web search setting: \(access.web ? "on" : "off").")
+                Text("Computer tools available in this mode: \(access.computer ? "on" : "off"). Web search setting: \(access.web ? "on" : "off").")
             } else { Text("Saved chat details are unavailable. Save a message or refresh to inspect them.") }
-            Text("This is the last inspected configuration, not unrestricted access or a permissions switch. Attachments, tool availability, protected files, approval cards and macOS permissions still have their own checks.")
+            Text("Change access beside the model selector. Chat only suspends tools and saved file grants. Ask before changes requires a fresh approval for each change-capable call. Saved permissions uses existing grants. Protected files, tool availability and macOS permissions still apply in every mode.")
             Text("To inspect exact file grants, send ‘Show file permissions for this chat’. To revoke them, send ‘Forget file permissions for this chat’.")
             Button("Refresh", action: model.inspectSavedChat)
         }.font(.system(size: 12)).foregroundStyle(theme.text2.color).padding(16).frame(width: 340)

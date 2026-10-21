@@ -7,7 +7,6 @@ import {
   FINANCIAL_NOTICE,
   HELPERS,
   HelperError,
-  SOUL_LIMITS,
   SOUL_VERSIONS_LISTED,
   cleanSoul,
   instructionsFor,
@@ -77,9 +76,7 @@ test("cleanSoul refuses bad names, empty personality, long fields and missing te
     [{ name: "Atom" }, /taken by ATOM/],
     [{ name: "Zeno" }, /taken by ATOM/],
     [{ name: "penny" }, /already called/],
-    [{ name: "x".repeat(SOUL_LIMITS.name + 1) }, /name is too long/],
     [{ personality: "   " }, /personality is empty/],
-    [{ howItWorks: "x".repeat(SOUL_LIMITS.howItWorks + 1) }, /how it works is too long/],
     [{ lessons: 3 as unknown as string }, /"lessons" as text/],
   ] as const) {
     assert.throws(() => ok(soul), (e: unknown) => e instanceof HelperError && why.test(e.message), JSON.stringify(soul));

@@ -28,7 +28,7 @@ export interface ChatControlResponse {
   revision?: string;
   brief?: { text: string; version: number };
   info?: { messages: number; archiveBytes: number; replayBytes: number; replayBudget: number; omitted: number; lastUser?: number;
-    access?: { provider: string; hostTools: boolean; project: boolean; fileGrants: number; computer: boolean; web: boolean } };
+    access?: { mode?: import("@atom/contracts").ChatAccessMode; provider: string; hostTools: boolean; project: boolean; fileGrants: number; computer: boolean; web: boolean } };
   page?: { messages: { seq: number; role: string; offset: number; text: string }[]; nextMessage?: number; nextOffset?: number };
   branch?: { id: string; kind: string; draft: string; created: boolean };
   metadata?: { pinned: boolean; archived: boolean; version: number; previousPinned: boolean; previousArchived: boolean };
@@ -45,7 +45,7 @@ export function parseChatControl(value: Record<string, unknown>): { command: Cha
       || typeof value.id !== "string" || !/^[\w-]{1,100}$/.test(value.id)
       || typeof value.request !== "string" || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value.request)) return { error: "chat.control needs a saved chat, a known action and a request UUID." };
   if (action === "page" && (!integer("message", 1) || !integer("offset", 0) || (value.revision !== undefined && !revision()))) return { error: "Use the history cursor and revision returned by ATOM." };
-  if (action === "brief" && (!validChatBrief(value.text) || !integer("version", 0) || value.version === 2_000_000_000)) return { error: "A chat brief needs the current version and at most 4,000 UTF-8 bytes without hidden controls." };
+  if (action === "brief" && (!validChatBrief(value.text) || !integer("version", 0) || value.version === 2_000_000_000)) return { error: "A chat brief needs the current version and text without hidden controls." };
   if (action === "flags" && (!integer("version", 0) || (value.pinned === undefined && value.archived === undefined)
       || (value.pinned !== undefined && typeof value.pinned !== "boolean") || (value.archived !== undefined && typeof value.archived !== "boolean"))) return { error: "Chat flags need booleans and the current metadata version." };
   if (action === "fork" && (!revision() || !integer("through", value.kind === "fork" ? 0 : 1) || !["fork", "edit", "retry"].includes(String(value.kind)))) return { error: "Fork needs the current archive revision and a saved message number." };
@@ -113,7 +113,6 @@ export function runChatControl(store: ChatStore, command: ChatControlRequest, ch
     const source = messages[command.through! - 1];
     if (command.kind !== "fork" && source?.role !== "user") throw new Error("Choose a saved user message to edit or retry.");
     const draft = command.kind === "fork" ? "" : source!.content;
-    if (Buffer.byteLength(draft, "utf8") > 128 * 1024) throw new Error("That original prompt is too large for a restored draft. Fork before it and attach edited text instead.");
     if (messages.length > 20_000 || messages.slice(0, count).reduce((n, m) => n + Buffer.byteLength(m.content, "utf8"), 0) > 16 * 1024 * 1024) throw new Error("This fork exceeds the 16 MiB/20,000-message copy limit. The source is unchanged.");
     const project = store.project(command.id);
     if (project) { const checked = checkProject(project); if (checked.error) throw new Error(checked.error); }

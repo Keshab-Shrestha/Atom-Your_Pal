@@ -4,7 +4,6 @@ import Foundation
 
 /// A worker's soul (ADR-082, Task 3.3): who it is and how it works, given to it as instructions for every job.
 public struct HelperSoul: Sendable, Equatable {
-    public static let limits = (name: 20, personality: 600, howItWorks: 1500, rules: 1500, lessons: 2000)
 
     public var name: String
     public var personality: String
@@ -31,10 +30,6 @@ public struct HelperSoul: Sendable, Equatable {
         let soul = trimmed
         if soul.name.isEmpty { return "The name is empty." }
         if soul.personality.isEmpty { return "The personality is empty." }
-        let over = [("name", soul.name, Self.limits.name), ("personality", soul.personality, Self.limits.personality),
-                    ("how it works", soul.howItWorks, Self.limits.howItWorks), ("rules", soul.rules, Self.limits.rules),
-                    ("lessons", soul.lessons, Self.limits.lessons)].first { $0.1.count > $0.2 }
-        if let (label, text, limit) = over { return "The \(label) is too long (\(text.count) characters, limit \(limit))." }
         return nil
     }
 }
@@ -469,7 +464,6 @@ public struct HelperReport: Sendable, Equatable {
 /// What the ATOM window shows: the runtime's list, the chosen helper, and the report being read. Actions return
 /// the command to send (or nil when there is nothing to send), so the window's logic is testable without a screen.
 public struct HelpersState: Sendable, Equatable {
-    public static let maxTaskLength = 1000
 
     public private(set) var list: HelpersList?
     /// When the usage numbers last arrived (the Dashboard says "Updated … ago"). Nil until they do.
@@ -635,10 +629,10 @@ public struct HelpersState: Sendable, Equatable {
         else if list?.waitable.contains(where: { $0.id == id }) == true { draftBlockers.append(id) }
     }
 
-    /// Adds Keshab's note to the open task. Nil for an empty or too long note, or no open task.
+    /// Adds Keshab's note to the open task. Nil for an empty note, or no open task.
     public mutating func addComment(_ text: String) -> IslandCommand? {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let id = openJobId, !clean.isEmpty, clean.count <= 2000 else { return nil }
+        guard let id = openJobId, !clean.isEmpty else { return nil }
         return waiting(.commentAdd(id: id, text: clean))
     }
 
@@ -646,7 +640,7 @@ public struct HelpersState: Sendable, Equatable {
     /// too long message, or no open task.
     public mutating func steer(_ text: String) -> IslandCommand? {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let id = openJobId, !clean.isEmpty, clean.count <= 2000 else { return nil }
+        guard let id = openJobId, !clean.isEmpty else { return nil }
         return waiting(.jobSteer(id: id, text: clean))
     }
 
@@ -659,7 +653,7 @@ public struct HelpersState: Sendable, Equatable {
     /// ADR-098: adds a label to the open task (the runtime checks it and refuses with words); removes one.
     public mutating func addLabel(_ text: String) -> IslandCommand? {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let id = openJobId, !clean.isEmpty, clean.count <= TaskLabels.maxLength * 2 else { return nil }
+        guard let id = openJobId, !clean.isEmpty else { return nil }
         return waiting(.jobLabelAdd(id: id, label: clean))
     }
 
@@ -750,7 +744,7 @@ public struct HelpersState: Sendable, Equatable {
     public mutating func rate(good: Bool, comment: String = "") -> IslandCommand? {
         guard let job = openJob, job.isFinished, job.reviews == nil else { return nil }
         let clean = comment.trimmingCharacters(in: .whitespacesAndNewlines)
-        return waiting(.jobRate(id: job.id, good: good, comment: clean.isEmpty ? nil : String(clean.prefix(2000))))
+        return waiting(.jobRate(id: job.id, good: good, comment: clean.isEmpty ? nil : clean))
     }
 
     /// Tinker's proposals for the chosen worker: accept or reject a pending one; undo an accepted one.
@@ -790,7 +784,7 @@ public struct HelpersState: Sendable, Equatable {
     public mutating func hubSearch(_ query: String) -> IslandCommand? {
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
-        return waiting(.skillHubSearch(query: String(text.prefix(60))))
+        return waiting(.skillHubSearch(query: text))
     }
 
     public mutating func hubPreview(_ result: HubSkillResult) -> IslandCommand? {
@@ -942,10 +936,10 @@ public struct HelpersState: Sendable, Equatable {
         return waiting(.helpersSettings(allowLarge: allow))
     }
 
-    /// Nil for an empty or too long task (the runtime would refuse it).
+    /// Nil for an empty task (the runtime would refuse it).
     public mutating func addJob(_ task: String) -> IslandCommand? {
         let clean = task.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let helper = selectedHelper, helper.available, !clean.isEmpty, clean.count <= Self.maxTaskLength else { return nil }
+        guard let helper = selectedHelper, helper.available, !clean.isEmpty else { return nil }
         defer { draftBlockers = [] }
         return waiting(.jobAdd(helper: helper.id, task: clean, blockedBy: draftBlockers))
     }

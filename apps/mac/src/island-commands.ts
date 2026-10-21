@@ -1,25 +1,21 @@
 // The commands from the island, their allowlist and the parser (moved from island-protocol.ts; docs/island-protocol.md is the specification).
 
+import { isChatAccessMode, type ChatAccessMode } from "@atom/contracts";
 import type { WorkspaceRequest } from "./project-workspace.ts";
 import { parseChatControl, type ChatControlRequest } from "./chat-controls.ts";
 import { parseForeground, type ForegroundCommand } from "./foreground-recovery.ts";
 import type { RoutineInput, SoulItem } from "./island-items.ts";
 import { BRANCH_COMMAND_PATTERN, BRANCH_SHAPE } from "./branch-prefix.ts";
 
-/** Longest command line accepted, in characters. The biggest is a soul edit (`soul.set`); anything bigger is a bug or abuse. */
-export const MAX_COMMAND_LENGTH = 16_384;
 /** The brief settings a `brief.set` may change. */
 export const BRIEF_FLAGS = ["enabled", "events", "reminders", "weather", "tasks", "needsYou", "notify", "telegram", "spoken"] as const;
 export type BriefChange = Partial<Record<(typeof BRIEF_FLAGS)[number], boolean>> & { minute?: number };
 
-/** ADR-098: the longest search query, in characters. */
-export const MAX_SEARCH_QUERY = 200;
-/** ADR-098 item 3: longest message to a running task (as a note). */
-export const MAX_STEER_CHARS = 2000;
 
 export type IslandCommand =
   | WorkspaceRequest
   | ForegroundCommand
+  | { type: "chat.access"; id: string; mode: ChatAccessMode; expected: ChatAccessMode }
   | { type: "chat.work.watch" }
   | { type: "chat.question.answer"; chat: string; turn: string; id: string; text?: string }
   | ChatControlRequest
@@ -31,6 +27,7 @@ export type IslandCommand =
   /** ADR-097: ask the providers for their model lists again (answered with `info`). */
   | { type: "model.refresh" }
   /** ADR-097: a chat's own model ("" for the chat in use; provider and model "" for the default again). */
+  | { type: "chat.reasoning"; id: string; provider: string; model: string; effort: string }
   | { type: "chat.model"; id: string; provider: string; model: string }
   | { type: "approval.answer"; id: string; approved: boolean; rememberFile?: boolean; reviewToken?: string }
   | { type: "memory.list" }
@@ -136,7 +133,7 @@ export type IslandCommand =
   | { type: "grant.remove"; helper: string; path: string }
   | { type: "job.block"; id: number; blockedBy: number[] }
   | { type: "comment.add"; id: number; text: string }
-  /** ADR-098 item 3: Keshab's message to a running task (1 to 2000 characters), and an interrupt. */
+  /** ADR-098 item 3: Keshab's nonempty message to a running task, and an interrupt. */
   | { type: "job.steer"; id: number; text: string }
   | { type: "job.interrupt"; id: number }
   /**
@@ -146,7 +143,7 @@ export type IslandCommand =
   | { type: "job.undo"; id: number; path?: string; force?: boolean }
   /** ADR-098: one search over chats, tasks (with notes and labels) and reports; answered with `search.results`. */
   | { type: "search"; query: string }
-  /** ADR-098: a task's labels (1 to 24 characters: a to z, digits, dash, space; at most 6). */
+  /** ADR-098: a task's labels (a to z, digits, dash, space; at most 6). */
   | { type: "job.label.add" | "job.label.remove"; id: number; label: string }
   | { type: "thread.get"; id: number }
   | { type: "job.stop"; id: number }
@@ -166,6 +163,8 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "conversation.reset",
   "model.set",
   "model.refresh",
+  "chat.reasoning",
+  "chat.access",
   "chat.model",
   "approval.answer",
   "memory.list",
@@ -285,7 +284,6 @@ export type ParsedLine = { command: IslandCommand } | { error: string } | { blan
 export function parseCommand(line: string): ParsedLine {
   const trimmed = line.trim();
   if (trimmed === "") return { blank: true };
-  if (trimmed.length > MAX_COMMAND_LENGTH) return { error: `Command too long (${trimmed.length} characters, limit ${MAX_COMMAND_LENGTH}).` };
   let value: unknown;
   try {
     value = JSON.parse(trimmed);
@@ -314,6 +312,20 @@ export function parseCommand(line: string): ParsedLine {
     if (typeof provider !== "string") return { error: 'model.set needs a "provider" string.' };
     if (typeof model !== "string") return { error: 'model.set needs a "model" string.' };
     return { command: { type, provider, model } };
+  }
+  if (type === "chat.access") {
+    const v = value as Record<string, unknown>;
+    if (Object.keys(v).some((k) => !["type", "id", "mode", "expected"].includes(k)) || typeof v.id !== "string" || !/^[\w-]{1,100}$/.test(v.id) || !isChatAccessMode(v.mode) || !isChatAccessMode(v.expected)) return { error: "Invalid chat access preference." };
+    return { command: v as unknown as Extract<IslandCommand, { type: "chat.access" }> };
+  }
+  if (type === "chat.reasoning") {
+    const v = value as Record<string, unknown>;
+    if (Object.keys(v).some((k) => !["type", "id", "provider", "model", "effort"].includes(k))
+        || typeof v.id !== "string" || !/^[\w-]{1,100}$/.test(v.id)
+        || typeof v.provider !== "string" || !/^[\w-]{1,40}$/.test(v.provider)
+        || typeof v.model !== "string" || !/^[\w.:-]{1,100}$/.test(v.model)
+        || typeof v.effort !== "string" || (v.effort !== "" && !/^[a-z][a-z0-9_-]{0,31}$/.test(v.effort))) return { error: "Thinking needs the current chat/model and a supported level (empty for Default)." };
+    return { command: v as unknown as Extract<IslandCommand, { type: "chat.reasoning" }> };
   }
   if (type === "chat.model") {
     const { id, provider, model } = value as { id?: unknown; provider?: unknown; model?: unknown };
@@ -346,7 +358,6 @@ export function parseCommand(line: string): ParsedLine {
     const picked = (notes as number[] | undefined) ?? [];
     if (attached.length + picked.length > 5) return { error: "text.send: a message takes 5 files and notes at most." };
     if (typeof text !== "string" || (!text.trim() && !attached.length && !picked.length)) return { error: 'text.send needs a non-empty "text".' };
-    if (text.length > 4000) return { error: "text.send: the text is longer than 4000 characters." };
     return { command: { type, text, ...(attached.length ? { files: attached } : {}), ...(picked.length ? { notes: picked } : {}), ...(delivery.request ? { request: delivery.request as string, chat: delivery.chat as string } : {}) } };
   }
   if (type === "context.window") {
@@ -481,12 +492,12 @@ export function parseCommand(line: string): ParsedLine {
   if (type === "job.steer") {
     const { id, text } = value as { id?: unknown; text?: unknown };
     if (!isId(id)) return { error: 'job.steer needs an "id" that is a whole number.' };
-    if (typeof text !== "string" || !text.trim() || text.trim().length > MAX_STEER_CHARS) return { error: `job.steer needs a "text" of 1 to ${MAX_STEER_CHARS} characters.` };
+    if (typeof text !== "string" || !text.trim()) return { error: 'job.steer needs non-empty text.' };
     return { command: { type, id, text } };
   }
   if (type === "search") {
     const { query } = value as { query?: unknown };
-    if (typeof query !== "string" || query.length > MAX_SEARCH_QUERY) return { error: `search needs a "query" string of at most ${MAX_SEARCH_QUERY} characters.` };
+    if (typeof query !== "string") return { error: 'search needs a query string.' };
     return { command: { type, query } };
   }
   if (type === "job.undo") {
@@ -500,7 +511,7 @@ export function parseCommand(line: string): ParsedLine {
     // Which labels are allowed is the store's to refuse (stage "settings").
     const { id, label } = value as { id?: unknown; label?: unknown };
     if (!isId(id)) return { error: `${type} needs an "id" that is a whole number.` };
-    if (typeof label !== "string" || label.length > 100) return { error: `${type} needs a "label" string.` };
+    if (typeof label !== "string") return { error: `${type} needs a "label" string.` };
     return { command: { type, id, label } };
   }
   if (type === "helper.pin") {
@@ -555,7 +566,7 @@ export function parseCommand(line: string): ParsedLine {
     const v = value as Record<string, unknown>;
     const uuid = (key: string) => typeof v[key] === "string" && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(String(v[key]));
     if (Object.keys(v).some((key) => !["type", "chat", "turn", "id", "text"].includes(key)) || typeof v.chat !== "string" || !/^[\w-]{1,100}$/.test(v.chat)
-        || !uuid("turn") || !uuid("id") || (v.text !== undefined && (typeof v.text !== "string" || !v.text.trim() || v.text.length > 2000))) return { error: "A question answer needs its current chat/turn/card ids and at most 2,000 text characters; omit text to skip." };
+        || !uuid("turn") || !uuid("id") || (v.text !== undefined && (typeof v.text !== "string" || !v.text.trim()))) return { error: "A question answer needs its current chat/turn/card ids and non-empty text; omit text to skip." };
     return { command: v as unknown as Extract<IslandCommand, { type: "chat.question.answer" }> };
   }
   const projects = projectCommand(type, value as Record<string, unknown>);
@@ -585,7 +596,7 @@ export function parseCommand(line: string): ParsedLine {
   }
   if (type === "skill.hub.search") {
     const { query } = value as { query?: unknown };
-    if (typeof query !== "string" || query.trim() === "" || query.length > 60) return { error: 'skill.hub.search needs a "query" of 1 to 60 characters.' };
+    if (typeof query !== "string" || query.trim() === "") return { error: 'skill.hub.search needs a "query" with at least one character.' };
     return { command: { type, query } };
   }
   if (type === "skill.hub.preview") {
@@ -616,7 +627,6 @@ export function parseCommand(line: string): ParsedLine {
     const { id, title, body } = value as { id?: unknown; title?: unknown; body?: unknown };
     if (id !== undefined && !isId(id)) return { error: 'brain.save needs "id" to be a whole number (or left out for a new note).' };
     if (typeof title !== "string" || typeof body !== "string") return { error: 'brain.save needs "title" and "body" strings.' };
-    if (title.length > 400 || body.length > 100_000) return { error: "brain.save: the note is too long." };
     return { command: { type, ...(id !== undefined ? { id } : {}), title, body } };
   }
   if (type === "skill.get" || type === "skill.save") {
@@ -624,14 +634,14 @@ export function parseCommand(line: string): ParsedLine {
     const { name, text } = value as { name?: unknown; text?: unknown };
     if (typeof name !== "string" || !name || name.length > 64) return { error: `${type} needs a skill "name".` };
     if (type === "skill.get") return { command: { type, name } };
-    if (typeof text !== "string" || text.length > 100_000) return { error: 'skill.save needs "text", a string.' };
+    if (typeof text !== "string") return { error: 'skill.save needs "text", a string.' };
     return { command: { type, name, text } };
   }
   if (type === "suggestions.accept" || type === "suggestions.deny") {
     const { id, text } = value as { id?: unknown; text?: unknown };
     if (typeof id !== "number" || !Number.isInteger(id) || id < 1) return { error: `${type} needs an "id" that is a whole number.` };
     if (type === "suggestions.deny") return { command: { type, id } };
-    if (text !== undefined && (typeof text !== "string" || text.length > 600)) return { error: 'suggestions.accept: "text" is a string of at most 600 characters.' };
+    if (text !== undefined && (typeof text !== "string")) return { error: 'suggestions.accept: "text" is a string.' };
     return { command: { type, id, ...(typeof text === "string" ? { text } : {}) } };
   }
   if (type === "text.edit" || type === "text.edit.cancel") {
@@ -668,7 +678,7 @@ export function parseCommand(line: string): ParsedLine {
   }
   if (type === "brain.search") {
     const { query } = value as { query?: unknown };
-    if (typeof query !== "string" || query.length > 200) return { error: 'brain.search needs a "query" string of at most 200 characters.' };
+    if (typeof query !== "string") return { error: 'brain.search needs a "query" string.' };
     return { command: { type, query } };
   }
   if (type === "memory.forget" || type === "episode.forget" || type === "job.stop" || type === "job.interrupt" || type === "job.fresh" || type === "plan.approve" || type === "plan.reject" || type === "routine.delete" || type === "job.open" || type === "job.retry" || type === "mcp.remove" || type === "mcp.test" || type === "proposal.accept" || type === "proposal.reject" || type === "proposal.undo" || type === "job.delete" || type === "thread.get" || type === "skill.make" || type === "skill.approve" || type === "skill.reject" || type === "skill.edit.accept" || type === "skill.edit.reject" || type === "skill.edit.undo") {
@@ -716,18 +726,18 @@ function projectCommand(type: string, v: Record<string, unknown>): ParsedLine | 
       return { command: { type, projectId: v.projectId } };
     }
     case "chat.rename":
-      if (!idOk || !text("title", 200)) return { error: 'chat.rename needs the chat\'s "id" and a "title" string.' };
+      if (!idOk || typeof v.title !== "string") return { error: 'chat.rename needs the chat\'s "id" and a "title" string.' };
       return { command: { type, id: v.id as string, title: v.title as string } };
     case "project.add": {
       const path = v.path;
-      if (!text("name", 200)) return { error: 'project.add needs a "name" string.' };
+      if (typeof v.name !== "string") return { error: 'project.add needs a "name" string.' };
       if (typeof path !== "string" || !path.startsWith("/") || path.length > MAX_PROJECT_PATH || path.includes("\0") || path.split("/").includes("..")) {
         return { error: 'project.add needs a "path": the folder\'s full path, with no "..".' };
       }
       return { command: { type, name: v.name as string, path } };
     }
     case "project.rename":
-      if (!idOk || !text("name", 200)) return { error: 'project.rename needs the project\'s "id" and a "name" string.' };
+      if (!idOk || typeof v.name !== "string") return { error: 'project.rename needs the project\'s "id" and a "name" string.' };
       return { command: { type, id: v.id as string, name: v.name as string } };
     case "project.remove":
       if (!idOk) return { error: 'project.remove needs the project\'s "id".' };

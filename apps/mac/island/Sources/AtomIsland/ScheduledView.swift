@@ -172,7 +172,7 @@ private struct ScheduleFormCard: View {
                 }
                 .menuStyle(.button).buttonStyle(.plain).fixedSize()
             }
-            SoulField(label: "Task (what to do each time)", text: draft.task, limit: 1000, lines: 3)
+            SoulField(label: "Task (what to do each time)", text: draft.task, lines: 5)
             HStack(spacing: 10) {
                 switch schedule.kind {
                 case .daily:

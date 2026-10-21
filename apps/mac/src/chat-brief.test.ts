@@ -40,10 +40,11 @@ test("brief migration, Unicode persistence, stale-save conflicts and clearing pr
   } finally { memory.close(); rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("brief protocol bounds UTF-8 and rejects hidden controls, malformed versions and unexpected fields", () => {
+test("brief protocol preserves long UTF-8 and rejects hidden controls, malformed versions and unexpected fields", () => {
   const base = { type: "chat.control", action: "brief", id: "cedar", request, version: 0, text: "🌲".repeat(1000) };
   assert.ok("command" in parseChatControl(base));
-  for (const change of [{ text: base.text + "x" }, { text: "x\u001b[31m" }, { text: "left\u202eright" }, { text: "\ud800" }, { version: -1 }, { version: 2_000_000_000 }, { version: 0.5 }, { permission: true }, { text: null }]) {
+  assert.ok("command" in parseChatControl({ ...base, text: base.text.repeat(20) }));
+  for (const change of [{ text: "x\u001b[31m" }, { text: "left\u202eright" }, { text: "\ud800" }, { version: -1 }, { version: 2_000_000_000 }, { version: 0.5 }, { permission: true }, { text: null }]) {
     assert.ok("error" in parseChatControl({ ...base, ...change }));
   }
   assert.ok(validChatBrief("日本語\n\t'quoted'\r\n🌲"));

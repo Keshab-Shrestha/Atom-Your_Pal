@@ -88,7 +88,7 @@ public struct SuggestionsState: Sendable, Equatable {
     public mutating func acceptEdit() -> IslandCommand? {
         guard let id = editingId else { return nil }
         let words = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !words.isEmpty, words.count <= Suggestions.maxFactCharacters else { return nil }
+        guard !words.isEmpty else { return nil }
         stopEditing()
         error = nil
         return .suggestionsAccept(id: id, text: words)

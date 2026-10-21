@@ -1,5 +1,7 @@
 # ATOM combined upgrade roadmap
 
+Thinking selector update (2026-10-21, ADR-179): implemented with actual Claude/Codex model metadata, per-chat/provider/model persistence and next-turn capture. Full TypeScript/Swift/build/visual checks and live Claude/Codex selection, chat/draft isolation and restart persistence pass. Original chat and fixture choices restored without sending prompts. [Current evidence](chat-thinking.md). Access modes, separate Full access and remaining T3 pane/project capabilities are not implemented.
+
 Current requested interaction upgrades (2026-10-19, ADR-178): [complete T3 interaction sequence](t3-interaction-upgrades.md) records the searchable provider/model picker, thinking levels, access modes (Full access explicitly separate), multi-surface right pane, project filtering/settings and project source palette/imports. The first model-picker capability passes 751 Swift tests, signed build, 21 visual comparisons and live selection/draft/favorites checks; the remaining controls require their own real runtime/project support.
 
 Current desktop design request (2026-10-19, ADR-176): broaden T3-inspired styling to all main-window destinations and add contextual settings navigation/filter, consistent chrome, quieter scrolling project/chat lists and workspace tabs. [Scope/evidence](desktop-t3-design.md). Resizable workspace, command palette and richer file navigation remain candidates recorded in the [T3 reference](../reference/t3code-visual-design.md), separate from the existing Git/PR roadmap.
@@ -105,3 +107,6 @@ Conversation-controls progress (2026-10-18): ADR-155 implements the scoped area 
 Reading/work-visibility progress (2026-10-18): ADR-156 implements foreground timing/logs, clarification cards and Access within documented scope. Successful question answers join saved text; failed/cancelled answers remain transient. No durable main-turn journal or arbitrary-selection editor/prompt links. Next proposed area: reliability/durable foreground turn and answer delivery. [Limits](chat-work-visibility.md).
 
 Foreground reliability progress (2026-10-18): ADR-157 retains accepted input/question answers/finished replies for explicit recovery, links successful archive completion transactionally and deduplicates identified host admission. No automatic rerun, generic external-effect reconciliation or partial stream recovery. Tests/live/migration checks skipped; installed app unchanged. Next proposed broader area: Codex capability parity. [Limits](foreground-recovery.md).
+
+
+2026-10-21 / ADR-180: requested T3 interaction step 3 now implements persisted Saved permissions, Chat only and Ask before changes, with Claude/Codex enforcement and unchanged chat/grant continuity. Full access remains the next separate upgrade. [Details](chat-access.md).

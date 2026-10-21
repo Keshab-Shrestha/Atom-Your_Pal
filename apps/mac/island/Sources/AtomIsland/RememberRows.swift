@@ -36,7 +36,7 @@ private struct RememberRow: View {
         HStack(spacing: 8) {
             Image(systemName: "brain.head.profile").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
             if editing {
-                TextField("Fact", text: Binding(get: { model.suggestions.draft }, set: { model.suggestions.draft = String($0.prefix(Suggestions.maxFactCharacters)) }))
+                TextField("Fact", text: Binding(get: { model.suggestions.draft }, set: { model.suggestions.draft = $0 }))
                     .textFieldStyle(.plain).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
                     .onSubmit { model.acceptSuggestionEdit() }
                     .onExitCommand { model.suggestions.stopEditing() }

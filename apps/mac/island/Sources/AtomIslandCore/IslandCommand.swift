@@ -11,6 +11,8 @@ public enum IslandCommand: Sendable, Equatable {
     case modelRefresh
     /// ADR-097: a chat's own model (`id` "" for the chat in use; provider and model "" for the default again).
     case chatModel(id: String, provider: String, model: String)
+    case chatAccess(id: String, mode: ChatAccessMode, expected: ChatAccessMode)
+    case chatReasoning(id: String, provider: String, model: String, effort: String)
     /// The user's answer to an `approval.request` (ADR-054).
     case approvalAnswer(id: String, approved: Bool, rememberFile: Bool = false, reviewToken: String? = nil)
     /// Memory (ADR-058): ask for the list (and its changes from then on), forget one, or forget everything.
@@ -186,6 +188,8 @@ public enum IslandCommand: Sendable, Equatable {
         case .modelSet: "model.set"
         case .modelRefresh: "model.refresh"
         case .chatModel: "chat.model"
+        case .chatAccess: "chat.access"
+        case .chatReasoning: "chat.reasoning"
         case .approvalAnswer: "approval.answer"
         case .memoryList: "memory.list"
         case .memoryClear: "memory.clear"
@@ -403,7 +407,7 @@ public enum IslandCommand: Sendable, Equatable {
             fields["id"] = id
             fields["text"] = text
         case .search(let query):
-            fields["query"] = String(query.prefix(200))
+            fields["query"] = query
         case .jobLabelAdd(let id, let label), .jobLabelRemove(let id, let label):
             fields["id"] = id
             fields["label"] = label
@@ -430,6 +434,15 @@ public enum IslandCommand: Sendable, Equatable {
                 fields["transport"] = d.transport
                 fields["headers"] = Self.lines(d.headers)
             }
+        case .chatAccess(let id, let mode, let expected):
+            fields["id"] = id
+            fields["mode"] = mode.rawValue
+            fields["expected"] = expected.rawValue
+        case .chatReasoning(let id, let provider, let model, let effort):
+            fields["id"] = id
+            fields["provider"] = provider
+            fields["model"] = model
+            fields["effort"] = effort
         case .chatModel(let id, let provider, let model):
             fields["id"] = id
             fields["provider"] = provider
@@ -459,7 +472,7 @@ public enum IslandCommand: Sendable, Equatable {
              .skillHubApprove(let id), .skillHubReject(let id):
             fields["id"] = id
         case .skillHubSearch(let query):
-            fields["query"] = String(query.prefix(60))
+            fields["query"] = query
         case .skillHubPreview(let source, let path):
             fields["source"] = source
             fields["path"] = path

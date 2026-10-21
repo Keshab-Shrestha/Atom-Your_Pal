@@ -592,13 +592,7 @@ private struct NoteEditor: View {
                     .textFieldStyle(.plain)
                     .font(.system(size: 15, weight: .semibold, design: theme.titleDesign))
                     .foregroundStyle(theme.text.color)
-                TextEditor(text: text.projectedValue)
-                    .font(.system(size: 12.5))
-                    .scrollContentBackground(.hidden)
-                    .padding(8)
-                    .frame(minHeight: 180)
-                    .background(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).fill(theme.fill1.color))
-                    .overlay(RoundedRectangle(cornerRadius: theme.radiusControl, style: .continuous).strokeBorder(theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
+                SoulField(label: "Note", text: text.projectedValue, lines: 9)
                 AskAtomPanel(model: model, text: text) // upgrades.md B3: change the text by asking
                 Text("Link notes with [[Title]]. Tag with #tag.").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                 HStack(spacing: 8) {

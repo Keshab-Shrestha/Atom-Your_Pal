@@ -5,11 +5,8 @@ import { HelperError } from "./jobs.ts";
 // notes and reports are in FTS5 tables kept in step with their tables by triggers. Never logged (callers log counts).
 
 export const MAX_LABELS = 6;
-export const MAX_LABEL_CHARS = 24;
 /** Most results per kind. */
 export const SEARCH_LIMIT = 20;
-/** Longest query, in characters. */
-export const MAX_SEARCH_CHARS = 200;
 const LABEL = /^[a-z0-9][a-z0-9 -]*$/;
 
 export interface TaskSearchHit {
@@ -24,14 +21,13 @@ export interface TaskSearchHit {
 export function cleanLabel(raw: string): string {
   const label = raw.trim().toLowerCase().replace(/\s+/g, " ");
   if (!label) throw new HelperError("The label is empty.");
-  if (label.length > MAX_LABEL_CHARS) throw new HelperError(`A label has at most ${MAX_LABEL_CHARS} characters.`);
   if (!LABEL.test(label)) throw new HelperError("A label has only letters a to z, digits, dashes and spaces.");
   return label;
 }
 
 /** Keshab's words as an FTS5 query: each word quoted (no FTS syntax gets through), as a prefix; all must match. */
 export function searchMatch(text: string): string | undefined {
-  const words = text.slice(0, MAX_SEARCH_CHARS).toLowerCase().match(/[\p{L}\p{N}]+/gu);
+  const words = text.toLowerCase().match(/[\p{L}\p{N}]+/gu);
   if (!words?.length) return undefined;
   return [...new Set(words)].slice(0, 12).map((w) => `"${w}"*`).join(" ");
 }
@@ -142,7 +138,7 @@ export function searchTable(db: DatabaseSync) {
     /** Tasks (by task text, labels and notes) and reports, each best first, at most SEARCH_LIMIT of each. */
     search(query: string): { tasks: TaskSearchHit[]; reports: TaskSearchHit[] } {
       const match = searchMatch(query);
-      const words = query.slice(0, MAX_SEARCH_CHARS).trim().toLowerCase().replace(/\s+/g, " ");
+      const words = query.trim().toLowerCase().replace(/\s+/g, " ");
       const tasks = new Map<number, TaskSearchHit>();
       const add = (rows: Row[], snippet?: (r: Row) => string) => {
         for (const r of rows) if (tasks.size < SEARCH_LIMIT && !tasks.has(r.id)) tasks.set(r.id, toHit(r, snippet?.(r)));

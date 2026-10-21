@@ -111,6 +111,8 @@ struct Composer: View {
                             Image(systemName: "chevron.down").font(.system(size: 9)).foregroundStyle(theme.text3.color)
                         } else {
                             ChatModelMenu(model: model)
+                            ChatReasoningMenu(model: model)
+                            ChatAccessMenu(model: model)
                             SkillsMenu(skills: model.helpers.list?.skills ?? []) { name in
                                 draft.wrappedValue = ComposerDraft.applying(skill: name, to: draft.wrappedValue)
                             }
@@ -298,9 +300,6 @@ struct Composer: View {
                 attached.wrappedValue.refuse("That project file is no longer available. Search again."); return
             }
             let completed = MentionMenu.completing(item, in: draft.wrappedValue) + "`" + file.relative + "` "
-            guard completed.count <= ComposerDraft.maxCharacters else {
-                attached.wrappedValue.refuse("The file reference will not fit. Shorten the draft first."); return
-            }
             draft.wrappedValue = completed
             pick.wrappedValue = 0
             return
@@ -394,27 +393,6 @@ struct Composer: View {
         let range = editor.selectedRange()
         let source = editor.string as NSString
         guard range.location != NSNotFound, NSMaxRange(range) <= source.length else { return false }
-        let combined = source.replacingCharacters(in: range, with: clean.text)
-        if clean.text.count >= ComposerDraft.maxCharacters || combined.count > ComposerDraft.maxCharacters {
-            guard model.chats?.currentProjectId == nil else {
-                attached.wrappedValue.refuse("Project chats read files in their project folder. Save this long paste there, or paste it in a chat outside the project. The clipboard is unchanged.")
-                return true
-            }
-            guard attached.wrappedValue.files.count + attached.wrappedValue.notes.count < ComposerDraft.maxFiles else {
-                attached.wrappedValue.refuse("The long paste needs an attachment slot. Remove one file and paste again; the clipboard is unchanged.")
-                return true
-            }
-            do {
-                let path = try PastedTextFile.save(clean.text)
-                attached.wrappedValue.add([path])
-                attached.wrappedValue.refuse("Long paste attached as a text file.\(clean.removed > 0 ? " Removed \(clean.removed) hidden controls." : "") Review it before sending.")
-            } catch PastedTextFile.Failure.tooLarge {
-                attached.wrappedValue.refuse("The paste exceeds the 10 MB attachment limit. Use a smaller text file; the clipboard and draft are unchanged.")
-            } catch {
-                attached.wrappedValue.refuse("Could not save the paste as an attachment. Check disk space and ATOM's storage permissions; the clipboard and draft are unchanged.")
-            }
-            return true
-        }
         guard clean.removed > 0 else { return false }
         if !clean.text.isEmpty { editor.insertText(clean.text, replacementRange: range) }
         attached.wrappedValue.refuse("Removed \(clean.removed) hidden controls from the paste.")
@@ -773,7 +751,7 @@ struct TurnView: View {
         let preview = UserMessagePreview.collapsed(turn.transcript)
         let collapsed = preview != nil && !messageExpanded.wrappedValue && findMatch?.user != true
         let copyTitle = preview == nil ? "Copy message" : "Copy full message"
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 12) {
             if !turn.transcript.isEmpty { // an answer ATOM posted by itself has no question (ADR-109)
                 ChatUserBubbleLayout {
                     VStack(alignment: .trailing, spacing: 4) {

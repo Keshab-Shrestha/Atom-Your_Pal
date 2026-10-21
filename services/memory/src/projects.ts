@@ -58,7 +58,6 @@ export function cleanProjectName(raw: string): string {
   const name = typeof raw === "string" ? raw.trim() : "";
   if (!name) throw new ProjectError("The project needs a name.");
   if (/[\u0000-\u001f\u007f\u2028\u2029]/.test(name)) throw new ProjectError("A project name is one line.");
-  if ([...name].length > MAX_PROJECT_NAME) throw new ProjectError(`A project name has at most ${MAX_PROJECT_NAME} characters.`);
   return name;
 }
 

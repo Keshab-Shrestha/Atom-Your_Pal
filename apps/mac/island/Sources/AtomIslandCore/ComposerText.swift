@@ -37,6 +37,6 @@ public enum ComposerQuote {
             .map { "> " + $0 }.joined(separator: "\n")
         let separator = draft.isEmpty || draft.hasSuffix("\n\n") ? "" : draft.hasSuffix("\n") ? "\n" : "\n\n"
         let result = draft + separator + quote + "\n\n"
-        return result.count <= ComposerDraft.maxCharacters ? result : nil
+        return result
     }
 }

@@ -19,7 +19,7 @@ struct SidebarSearchField: View {
             if snapshot {
                 Text("Search").font(.system(size: 12.5)).foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                TextField("Search everything", text: Binding(get: { model.searchText }, set: { model.searchText = String($0.prefix(TaskLabels.maxQuery)) }))
+                TextField("Search everything", text: Binding(get: { model.searchText }, set: { model.searchText = $0 }))
                     .textFieldStyle(.plain).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
                     .focused(focus.projectedValue)
                     .onSubmit { model.submitSearch() }
@@ -162,7 +162,7 @@ struct TaskLabelsSection: View {
                     if snapshot {
                         Text("Add label").font(.system(size: 12.5)).foregroundStyle(theme.text3.color).frame(maxWidth: .infinity, alignment: .leading)
                     } else {
-                        TextField("Add label", text: Binding(get: { draft.wrappedValue }, set: { draft.wrappedValue = String($0.prefix(TaskLabels.maxLength)) }))
+                        TextField("Add label", text: Binding(get: { draft.wrappedValue }, set: { draft.wrappedValue = $0 }))
                             .textFieldStyle(.plain).font(.system(size: 12.5)).foregroundStyle(theme.text.color)
                             .onSubmit(add)
                             .accessibilityLabel("New label")

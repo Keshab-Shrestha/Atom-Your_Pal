@@ -881,7 +881,7 @@ test("helper.set gives Sid an installed app; an unknown helper or app is refused
   assert.equal((h.events()[0] as HelpersEvent).helpers[0]!.app, null);
 });
 
-test("job.add queues a job for Sid; empty, long, unknown or unavailable is refused with stage settings", async () => {
+test("job.add queues complete tasks for Sid; empty, unknown or unavailable is refused with stage settings", async () => {
   const { h } = helperHarness();
   await tick(5);
   h.clear();
@@ -893,11 +893,10 @@ test("job.add queues a job for Sid; empty, long, unknown or unavailable is refus
   h.clear();
   await h.send(
     { type: "job.add", helper: "sid", task: "   " },
-    { type: "job.add", helper: "sid", task: "x".repeat(1001) },
     { type: "job.add", helper: "tinker", task: "x" },
     { type: "job.add", helper: "bob", task: "x" },
   );
-  assert.deepEqual(h.types(), ["error", "error", "error", "error"]);
+  assert.deepEqual(h.types(), ["error", "error", "error"]);
   for (const e of h.events()) assert.equal((e as { stage: string }).stage, "settings");
 });
 
@@ -2328,4 +2327,38 @@ test("Git workspace waits asynchronously and withholds results after the current
   const response = h.events().find((e) => e.type === "workspace");
   assert.equal(response?.type, "workspace"); if (response?.type === "workspace") { assert.equal(response.ok, false); assert.equal(response.section, "staged"); assert.equal(response.gitStatus, undefined); }
   h.session.quit();
+});
+
+test("thinking commands refuse stale, shared, archived and busy chats before reaching settings", async () => {
+  let current = "cedar", busy = false, archived = false, writes = 0;
+  const h = islandHarness({ core: { get sessionId() { return current; }, get busy() { return busy; }, handle: async () => ({ text: "ok", requestId: "r" }), reset() {} },
+    chats: { list: () => [], messages: () => [], remove: () => false, onChange: () => () => {}, metadataOf: () => ({ pinned: false, archived, version: 0 }),
+      setReasoning: (_id, provider, model, effort) => { writes++; assert.equal(provider, "codex"); assert.equal(model, "gpt-test"); assert.equal(effort, "medium"); return { ok: true }; } } });
+  const command = { type: "chat.reasoning", id: "cedar", provider: "codex", model: "gpt-test", effort: "medium" };
+  try {
+    await h.send({ ...command, id: "other" }); assert.equal(writes, 0);
+    busy = true; await h.send(command); assert.equal(writes, 0); busy = false;
+    archived = true; await h.send(command); assert.equal(writes, 0); archived = false;
+    for (const chat of ["telegram", "routine-1", "api-phone"]) { current = chat; await h.send({ ...command, id: chat }); assert.equal(writes, 0); }
+    current = "cedar"; await h.send(command); assert.equal(writes, 1);
+    await h.send({ ...command, effort: "high", permissions: "all" }); assert.equal(writes, 1, "unknown fields cannot piggyback a grant");
+  } finally { await h.send({ type: "quit" }); }
+});
+
+test("access commands refuse stale, shared, archived and busy chats before storage", async () => {
+  let current = "cedar", busy = false, archived = false, writes = 0, tasks = false;
+  const h = islandHarness({ core: { get sessionId() { return current; }, get busy() { return busy; }, handle: async () => ({ text: "ok", requestId: "r" }), reset() {} },
+    taskActivity: { busy: () => tasks, onChange: () => () => {} },
+    chats: { list: () => [], messages: () => [], remove: () => false, onChange: () => () => {}, metadataOf: () => ({ pinned: false, archived, version: 0 }),
+      accessOf: () => "checked", setAccess: (_id, mode, expected) => { writes++; assert.equal(mode, "chat-only"); assert.equal(expected, "checked"); return { ok: true }; } } });
+  const command = { type: "chat.access", id: "cedar", mode: "chat-only", expected: "checked" };
+  try {
+    await h.send({ ...command, id: "other" }); assert.equal(writes, 0);
+    busy = true; await h.send(command); assert.equal(writes, 0); busy = false;
+    tasks = true; await h.send(command); assert.equal(writes, 0); tasks = false;
+    archived = true; await h.send(command); assert.equal(writes, 0); archived = false;
+    for (const chat of ["telegram", "routine-1", "api-phone"]) { current = chat; await h.send({ ...command, id: chat }); assert.equal(writes, 0); }
+    current = "cedar"; await h.send(command); assert.equal(writes, 1);
+    await h.send({ ...command, mode: "full" }); assert.equal(writes, 1);
+  } finally { await h.send({ type: "quit" }); }
 });

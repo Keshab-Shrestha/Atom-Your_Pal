@@ -75,7 +75,7 @@ export function openForeground(db: DatabaseSync, now: () => Date): ForegroundSto
   };
   return {
     prepare(input) {
-      if (!/^[a-f0-9-]{36}$/i.test(input.id) || !/^[\w-]{1,100}$/.test(input.chat) || Buffer.byteLength(input.text) > 128 * 1024
+      if (!/^[a-f0-9-]{36}$/i.test(input.id) || !/^[\w-]{1,100}$/.test(input.chat)
           || input.files.length + input.notes.length > 5 || input.files.some((p) => !p.startsWith("/") || p.length > 4096)
           || input.notes.some((n) => !Number.isSafeInteger(n) || n < 1)) throw new Error("This request cannot fit the durable recovery record. The model was not called.");
       const signature = createHash("sha256").update(JSON.stringify([input.chat, input.text, input.files, input.notes, input.source])).digest("hex");
@@ -103,7 +103,7 @@ export function openForeground(db: DatabaseSync, now: () => Date): ForegroundSto
     answer(id, card, question, answer) {
       const attempt = row.get(id) as { state: string; dismissed: number } | undefined;
       if (!attempt || attempt.state !== "running" || attempt.dismissed) throw new Error("That attempt is no longer running.");
-      if (!/^[a-f0-9-]{36}$/i.test(card) || question.length > 600 || !answer.trim() || answer.length > 2000) throw new Error("Invalid question answer.");
+      if (!/^[a-f0-9-]{36}$/i.test(card) || question.length > 600 || !answer.trim()) throw new Error("Invalid question answer.");
       const before = db.prepare("SELECT attempt_id, question, answer FROM foreground_answers WHERE id = ?").get(card) as { attempt_id: string; question: string; answer: string } | undefined;
       if (before) {
         if (before.attempt_id.toLowerCase() !== id.toLowerCase() || before.question !== question || before.answer !== answer) throw new Error("This question already has a different answer.");

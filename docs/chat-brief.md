@@ -1,6 +1,6 @@
 # Chat brief
 
-Open a saved writable chat, click **Chat brief** near Saved history, and keep the project, decisions or next step you want ATOM to have on every request. Click **Save for this chat**. A new chat needs a saved exchange before its brief is available. The editor is unavailable while a request is active.
+Open a saved writable chat, open **Chat options → Chat brief**, and keep the project, decisions or next step you want ATOM to have on every request. Click **Save for this chat**. A new chat needs a saved exchange before its brief is available. The editor is unavailable while a request is active.
 
 For example:
 
@@ -22,7 +22,7 @@ Clear the editor and save to stop including its text in future requests. Earlier
 
 ## Save behavior and access
 
-- Limit: 4,000 UTF-8 bytes. Japanese/emoji consume more than one byte. Newlines and tabs are supported; hidden controls are refused.
+- No per-brief character or byte cap. Newlines and tabs are supported; hidden controls are refused. The brief still counts toward the selected provider’s context window. See [the 19 October text-input update](desktop-input-polish.md).
 - Save requires the current idle writable chat. Telegram, routine and shared API chats cannot be edited through this control.
 - A version check refuses an overwrite when another edit has already won. Your draft remains available to copy/reconcile. **Replace draft with saved** explicitly reloads the current stored value.
 - A missing acknowledgement leaves Save unconfirmed. **Check save result** can repeat the same operation; it cannot overwrite a newer version. Saving a newer local draft requires a separate Save.

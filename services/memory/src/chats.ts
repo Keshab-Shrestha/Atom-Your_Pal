@@ -1,13 +1,12 @@
 import type { DatabaseSync } from "node:sqlite";
 import { createHash } from "node:crypto";
 import { openForeground } from "./foreground.ts";
-import type { Message } from "@atom/contracts";
+import { isChatAccessMode, type ChatAccessMode, type Message } from "@atom/contracts";
 import { chatSearch, type ChatSearchHit } from "./chat-search.ts";
 import { PLAIN_CHAT_LIMIT, ProjectError } from "./projects.ts";
 
-export const CHAT_BRIEF_BYTES = 4000;
 export function validChatBrief(text: unknown): text is string {
-  return typeof text === "string" && Buffer.byteLength(text, "utf8") <= CHAT_BRIEF_BYTES
+  return typeof text === "string"
     && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\ud800-\udfff]/u.test(text);
 }
 
@@ -28,6 +27,10 @@ export interface ChatSummary {
 }
 
 export interface ChatStore {
+  access(id: string): ChatAccessMode;
+  setAccess(id: string, mode: ChatAccessMode): void;
+  reasoning(id: string, provider: string, model: string): string | undefined;
+  setReasoning(id: string, provider: string, model: string, effort: string | undefined): void;
   /** Only the local window's confirmed saved selection; never the newest background chat. */
   lastOpened(): string | undefined;
   rememberOpened(id: string | undefined): void;
@@ -76,12 +79,11 @@ export const MAX_CHATS = PLAIN_CHAT_LIMIT;
 export const MAX_PROJECT_CHATS = 500;
 export const CHAT_TITLE_LENGTH = 60;
 
-/** A title Keshab gives a chat: one line, 1 to 60 characters. Throws ProjectError. */
+/** A title Keshab gives a chat: one nonempty line. Throws ProjectError. */
 export function cleanChatTitle(raw: string): string {
   const title = typeof raw === "string" ? raw.trim() : "";
   if (!title) throw new ProjectError("The chat needs a title.");
   if (/[\u0000-\u001f\u007f\u2028\u2029]/.test(title)) throw new ProjectError("A chat title is one line.");
-  if ([...title].length > CHAT_TITLE_LENGTH) throw new ProjectError(`A chat title has at most ${CHAT_TITLE_LENGTH} characters.`);
   return title;
 }
 
@@ -110,6 +112,19 @@ export function openChats(db: DatabaseSync, now: () => Date, onRemove?: (id: str
       PRIMARY KEY (chat_id, seq)
     );
     CREATE INDEX IF NOT EXISTS chats_updated ON chats(updated_at);
+    CREATE TABLE IF NOT EXISTS chat_access (
+      chat_id TEXT PRIMARY KEY, mode TEXT NOT NULL CHECK(mode IN ('checked', 'chat-only', 'ask-changes'))
+    );
+    CREATE TRIGGER IF NOT EXISTS chat_access_deleted AFTER DELETE ON chats BEGIN
+      DELETE FROM chat_access WHERE chat_id = old.id;
+    END;
+    CREATE TABLE IF NOT EXISTS chat_reasoning (
+      chat_id TEXT NOT NULL, provider TEXT NOT NULL, model TEXT NOT NULL, effort TEXT NOT NULL,
+      PRIMARY KEY (chat_id, provider, model)
+    );
+    CREATE TRIGGER IF NOT EXISTS chat_reasoning_deleted AFTER DELETE ON chats BEGIN
+      DELETE FROM chat_reasoning WHERE chat_id = old.id;
+    END;
     CREATE TABLE IF NOT EXISTS pending_chat_models (
       chat_id TEXT PRIMARY KEY,
       provider TEXT NOT NULL,
@@ -194,7 +209,7 @@ export function openChats(db: DatabaseSync, now: () => Date, onRemove?: (id: str
       return { text: row.text, version: row.version };
     },
     setBrief(id, text, version) {
-      if (!validChatBrief(text) || !Number.isSafeInteger(version) || version < 0 || version >= 2_000_000_000) throw new ProjectError("Use at most 4,000 UTF-8 bytes without hidden control characters and the current brief version.");
+      if (!validChatBrief(text) || !Number.isSafeInteger(version) || version < 0 || version >= 2_000_000_000) throw new ProjectError("Use text without hidden control characters and the current brief version.");
       if (Number(writeBrief.run(text, id, version).changes)) return true;
       const current = readBrief.get(id) as { text: string; version: number } | undefined;
       // A lost acknowledgement may be checked again; never overwrite a newer edit.
@@ -227,6 +242,8 @@ export function openChats(db: DatabaseSync, now: () => Date, onRemove?: (id: str
       db.exec("BEGIN");
       try {
         db.prepare("INSERT INTO chats (id, title, created_at, updated_at, named, project_id, provider, model) SELECT ?, ?, ?, ?, 1, project_id, provider, model FROM chats WHERE id = ?").run(id, title, at, at, source);
+        db.prepare("INSERT INTO chat_access(chat_id, mode) SELECT ?, mode FROM chat_access WHERE chat_id = ?").run(id, source);
+        db.prepare("INSERT INTO chat_reasoning(chat_id, provider, model, effort) SELECT ?, provider, model, effort FROM chat_reasoning WHERE chat_id = ?").run(id, source);
         db.prepare("INSERT INTO chat_messages (chat_id, seq, role, content) SELECT ?, seq, role, content FROM chat_messages WHERE chat_id = ? AND seq < ? ORDER BY seq").run(id, source, count);
         db.prepare("INSERT INTO chat_branches (id, source_id, message_count, kind, revision) VALUES (?, ?, ?, ?, ?)").run(id, source, count, kind, revision);
         // Fork creation never prunes another chat; ordinary future saves retain the existing retention policy.
@@ -304,7 +321,29 @@ export function openChats(db: DatabaseSync, now: () => Date, onRemove?: (id: str
       dropOpened.run(id);
       clear.run(id);
       dropPendingModel.run(id);
+      db.prepare("DELETE FROM chat_access WHERE chat_id = ?").run(id);
+      db.prepare("DELETE FROM chat_reasoning WHERE chat_id = ?").run(id);
       return Number(drop.run(id).changes) > 0;
+    },
+
+    access(id) {
+      const row = db.prepare("SELECT mode FROM chat_access WHERE chat_id = ?").get(id) as { mode: unknown } | undefined;
+      if (!row) return "checked";
+      if (!isChatAccessMode(row.mode)) throw new ProjectError("Invalid saved chat access. Choose a valid access mode before continuing.");
+      return row.mode;
+    },
+    setAccess(id, mode) {
+      if (!/^[\w-]{1,100}$/.test(id) || !isChatAccessMode(mode)) throw new ProjectError("Invalid chat access preference.");
+      db.prepare("INSERT INTO chat_access(chat_id, mode) VALUES (?, ?) ON CONFLICT(chat_id) DO UPDATE SET mode = excluded.mode").run(id, mode);
+    },
+    reasoning(id, provider, model) {
+      return (db.prepare("SELECT effort FROM chat_reasoning WHERE chat_id = ? AND provider = ? AND model = ?").get(id, provider, model) as { effort: string } | undefined)?.effort;
+    },
+    setReasoning(id, provider, model, effort) {
+      if (!/^[\w-]{1,100}$/.test(id) || !/^[\w-]{1,40}$/.test(provider) || !/^[\w.:-]{1,100}$/.test(model)
+          || (effort !== undefined && !/^[a-z][a-z0-9_-]{0,31}$/.test(effort))) throw new ProjectError("Invalid thinking preference.");
+      if (effort === undefined) db.prepare("DELETE FROM chat_reasoning WHERE chat_id = ? AND provider = ? AND model = ?").run(id, provider, model);
+      else db.prepare("INSERT INTO chat_reasoning(chat_id, provider, model, effort) VALUES (?, ?, ?, ?) ON CONFLICT(chat_id, provider, model) DO UPDATE SET effort = excluded.effort").run(id, provider, model, effort);
     },
 
     model(id) {

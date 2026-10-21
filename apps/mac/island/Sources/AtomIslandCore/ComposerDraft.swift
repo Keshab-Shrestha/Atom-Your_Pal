@@ -26,8 +26,6 @@ public struct DraftNote: Sendable, Equatable, Identifiable, Codable {
 public struct ComposerDraft: Sendable, Equatable, Codable {
     /// The most files one message takes (the runtime's limit).
     public static let maxFiles = 5
-    /// The most characters one message takes (the runtime's limit).
-    public static let maxCharacters = 4000
     public private(set) var files: [DraftFile] = []
     /// Notes go as files, so they count toward `maxFiles` (ADR-126).
     public private(set) var notes: [DraftNote] = []
@@ -55,7 +53,7 @@ public struct ComposerDraft: Sendable, Equatable, Codable {
             && Set(files.map(\.path)).count == files.count
             && Set(notes.map(\.id)).count == notes.count
             && files.allSatisfy { $0.path.hasPrefix("/") && $0.path.utf8.count <= 4096 && !$0.path.contains("\0") }
-            && notes.allSatisfy { $0.id > 0 && $0.title.utf8.count <= 4096 }
+            && notes.allSatisfy { $0.id > 0 }
     }
 
     /// Adds files by full path. Duplicates and non-file URLs are skipped; past the limit the rest are dropped with a notice.
@@ -100,11 +98,9 @@ public struct ComposerDraft: Sendable, Equatable, Codable {
         notice = nil
     }
 
-    /// Why these words cannot be sent as they are, or nil. The composer keeps the draft and says so, instead of clearing it: a long paste
-    /// used to vanish without a word (code review, 2026-10-16).
+    /// Ordinary text has no per-message character cap; attachment admission remains separate.
     public static func refusal(forText text: String) -> String? {
-        let count = text.trimmingCharacters(in: .whitespacesAndNewlines).count
-        return count > maxCharacters ? "That message is \(count) characters; one message takes \(maxCharacters). Shorten it, or attach it as a file." : nil
+        nil
     }
 
     /// Shows `message` in the composer's notice line (nothing else changes).
@@ -113,7 +109,7 @@ public struct ComposerDraft: Sendable, Equatable, Codable {
     /// The command for these words and files; nil when there is nothing to send.
     public func command(text: String) -> IslandCommand? {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard clean.count <= Self.maxCharacters, !clean.isEmpty || !isEmpty else { return nil }
+        guard !clean.isEmpty || !isEmpty else { return nil }
         return isEmpty ? .textSend(clean) : .textSendFiles(text: clean, files: files.map(\.path), notes: notes.map(\.id))
     }
 

@@ -29,7 +29,7 @@ import {
   type ScreenShot,
   type TimerInfo,
 } from "@atom/tool-engine";
-import { createGateway, createProviderAdapter, createSwitchableModel, createCodexSessionAdapter, listPlanModels, runBrief, runChatDigest, runEdit, type ChatSession, type ChatSessions, type PlanUsage } from "@atom/llm-gateway";
+import { createGateway, createProviderAdapter, createSwitchableModel, createCodexSessionAdapter, listCodexModels, listPlanModels, runBrief, runChatDigest, runEdit, type ChatSession, type ChatSessions, type PlanUsage } from "@atom/llm-gateway";
 import { createCodexToolRouter } from "./codex-tools.ts";
 import { createNoteModel, createNotes } from "./notes.ts";
 import { createChatUsageRecorder, createOverheadRecorder } from "./usage-report.ts";
@@ -309,9 +309,10 @@ export function createRuntime(
         const choice = chatChoice(command.id, "text");
         const projectId = projects?.projectOf(command.id);
         const project = projectId ? projects?.island.list().find((p) => p.id === projectId) : undefined;
-        result.info.access = { provider: choice.provider, hostTools: choice.provider === CLAUDE_PLAN || choice.provider === "codex",
+        const mode = memory.chats.access(command.id);
+        result.info.access = { mode, provider: choice.provider, hostTools: mode !== "chat-only" && (choice.provider === CLAUDE_PLAN || choice.provider === "codex"),
           project: Boolean(projectId), fileGrants: memory.filePermissions.forChat(command.id).list().length,
-          computer: computerOn, web: readEnv(process.env, "ATOM_WEB") !== "0" && (!project || project.web) };
+          computer: mode !== "chat-only" && computerOn, web: mode !== "chat-only" && readEnv(process.env, "ATOM_WEB") !== "0" && (!project || project.web) };
       }
       return result;
     },
@@ -327,6 +328,30 @@ export function createRuntime(
     projectOf: (id) => projects?.projectOf(id),
     replay: (id, turns) => projects?.replay(id, turns) ?? { turns, trimmed: false },
     search: (query) => memory.chats.search(query).map((c) => ({ id: c.id, title: c.title, snippet: c.snippet, at: c.updatedAt.toISOString() })),
+    accessOf: (id) => memory.chats.access(id),
+    setAccess: (id, mode, expected) => {
+      if (helpers?.list().some((h) => h.jobs.some((j) => j.chatId === id && !isFinal(j.state)))) return { error: "Finish or stop this chat's tasks before changing access." };
+      try {
+        if (memory.chats.access(id) !== expected) return { error: "Chat access changed. Reopen its selector." };
+        memory.chats.setAccess(id, mode);
+      } catch { return { error: "Could not save this chat's access preference." }; }
+      return { ok: true };
+    },
+    reasoningOf: (id) => {
+      const choice = chatChoice(id, "text");
+      const capability = settings.reasoning!(choice.provider, choice.model);
+      const selected = memory.chats.reasoning(id, choice.provider, choice.model);
+      return { ...capability, ...(selected ? { selected } : {}), effective: selected ?? capability.default };
+    },
+    setReasoning: (id, provider, model, effort) => {
+      const choice = chatChoice(id, "text");
+      if (choice.provider !== provider || choice.model !== model) return { error: "The chat model changed. Reopen the thinking selector." };
+      const capability = settings.reasoning!(provider, model);
+      if (effort && !capability.levels.includes(effort)) return { error: "That thinking level is unavailable for this model. Refresh its catalog." };
+      try { memory.chats.setReasoning(id, provider, model, effort || undefined); }
+      catch { return { error: "Could not save this chat's thinking preference." }; }
+      return { ok: true };
+    },
     setModel: (id, provider, modelId) => {
       if (!id) return { error: "There is no chat to give a model to." };
       let own: LlmChoice | undefined;
@@ -642,10 +667,21 @@ export function createRuntime(
     const models = new Map<string, ReturnType<typeof createGateway>>();
     const routers = new Map<string, ReturnType<typeof createCodexToolRouter>>();
     const native = createNativeCore({
+            accessFor: (chat) => memory?.chats.access(taskContextChat(chat)) ?? "checked",
+            approveAccess: (request, signal) => computer.approve(request, signal),
             claudePath: keys[CLAUDE_PLAN] ?? "",
             tools: toolEngine,
             ...(!composed ? { windowTools: chatWork.tools, onSdkEvent: chatWork.sdk, clarifications: chatWork.clarifications } : {}),
             ...(nativeTeam ? { team: nativeTeam } : {}),
+            reasoningFor: (chatId: string, source: InputSource) => {
+              if (source !== "text" || composed) return undefined;
+              const choice = chatChoice(chatId, source);
+              const selected = memory?.chats.reasoning(chatId, choice.provider, choice.model);
+              if (selected && !settings.reasoning!(choice.provider, choice.model).levels.includes(selected)) {
+                throw new Error("This chat's thinking level is no longer available. Refresh models or choose Default in its thinking selector.");
+              }
+              return selected ?? (choice.provider === "codex" ? settings.reasoning!(choice.provider, choice.model).default : undefined);
+            },
             modelFor: (chatId: string, source: InputSource) => {
               const choice = chatChoice(chatId, source);
               return choice.provider === CLAUDE_PLAN ? choice.model : undefined;
@@ -665,6 +701,8 @@ export function createRuntime(
                   } else recordChatUsage(u, actualModel, { chatId: request.context.sessionId });
                 };
                 const router = createCodexToolRouter({ program, model: choice.model, tools: toolEngine,
+                  accessFor: (chat) => memory?.chats.access(taskContextChat(chat)) ?? "checked",
+                  approveAccess: (request, signal) => computer.approve(request, signal),
                   workerModelAllowed: (model) => codexWorkerModels().some((m) => m.id === model),
                   projectCommandsAllowed: (chat, root) => {
                     const source = taskContextChat(chat);
@@ -765,6 +803,7 @@ export function createRuntime(
     },
     log,
     scan: () => scanAiTools(), // ADR-093
+    listCodexModels: (program) => listCodexModels(program),
     listPlanModels: (claudePath) => listPlanModels(claudePath), // ADR-097
   });
   // ADR-083: Laya rates each job's difficulty. Its server starts on the first job, stays warm, and stops in close().

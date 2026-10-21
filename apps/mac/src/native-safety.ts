@@ -80,6 +80,8 @@ export interface TeamScope {
 }
 
 export interface NativeScope {
+  access?: import("./chat-access.ts").ChatAccessPolicy;
+  accessSignal?(): AbortSignal | undefined;
   /** Claude Code's own tools of this chat's main thread. */
   tools: readonly string[];
   /** A project chat's read access; undefined: no file reads. */
@@ -377,10 +379,15 @@ export function nativeGate(scope: NativeScope): NativeGate {
     }
     return subCalls.get(id)!.then((verdict) => active(team?.board.jobOfAgent(agentId)) ? verdict : cancelled());
   };
-  const decide = (hook: Record<string, any>, name: string, input: Record<string, unknown>, id: string) =>
-    typeof hook.agent_id === "string" && hook.agent_id
+  const decide = async (hook: Record<string, any>, name: string, input: Record<string, unknown>, id: string) => {
+    const agent = typeof hook.agent_id === "string" && hook.agent_id ? hook.agent_id : undefined;
+    const job = agent ? team?.board.jobOfAgent(agent) : undefined;
+    const refusal = await scope.access?.check(name, input, id, agent, job !== undefined ? stopFor(job).signal : scope.accessSignal?.());
+    if (refusal) return deny(refusal);
+    return typeof hook.agent_id === "string" && hook.agent_id
       ? subOnce(id, name, input, hook.agent_id, typeof hook.agent_type === "string" ? hook.agent_type : undefined, typeof hook.cwd === "string" ? hook.cwd : undefined)
       : mainDecide(name, input, id);
+  };
 
   const hooks: Record<string, unknown> = {
     PreToolUse: [
@@ -460,7 +467,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
     },
     canUseTool: async (name, input, extra) => {
       const id = extra?.toolUseID ?? randomUUID();
-      const v = await (extra?.agentID ? subOnce(id, name, input, extra.agentID, undefined) : mainDecide(name, input, id));
+      const v = await decide({ agent_id: extra?.agentID }, name, input, id);
       return v.allow ? { behavior: "allow", updatedInput: v.input } : { behavior: "deny", message: v.message };
     },
     hooks,
@@ -473,6 +480,7 @@ export function nativeGate(scope: NativeScope): NativeGate {
     },
     revokeFilePermissions() { memories.clear(); },
     newAnswer(next) {
+      scope.access?.newAnswer();
       tainted.delete("main"); // the user spoke: his message is the command, and the page text no longer counts against it
       files = next;
       fileCalls = new Map();

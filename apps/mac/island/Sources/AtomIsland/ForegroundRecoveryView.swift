@@ -59,7 +59,7 @@ struct ForegroundRecoveryView: View {
                             Button("Restore to current empty draft") { model.restoreForegroundDraft(record) }
                                 .disabled(!model.composerEmpty || model.queue.running || ["prepared", "running"].contains(record.state))
                         }.buttonStyle(.borderless)
-                        Text("Restoring uses the current chat's provider, project and permissions. File/note references are checked again on Send; source files or notes may have changed. Shorten prompts over the composer limit before sending.")
+                        Text("Restoring uses the current chat's provider, project and permissions. File/note references are checked again on Send; source files or notes may have changed.")
                             .font(.system(size: 11)).foregroundStyle(theme.text3.color)
                         if !record.reply.isEmpty {
                             Text("Saved reply · text offset \(record.offset)").font(.system(size: 12, weight: .medium))

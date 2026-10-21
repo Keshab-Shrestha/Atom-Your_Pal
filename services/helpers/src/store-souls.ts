@@ -4,7 +4,7 @@
 import { cleanSoul, HelperError } from "./jobs.ts";
 import { SOUL_FIELDS } from "./feedback.ts";
 import { sameSoul, toSoul, type JobRow, type SoulRow } from "./store-schema.ts";
-import { MAX_COMMENT_CHARS, type StoreContext } from "./store-context.ts";
+import { type StoreContext } from "./store-context.ts";
 import type { HelperStore } from "./store-types.ts";
 
 export function soulMethods(ctx: StoreContext): Pick<HelperStore, "soul" | "saveSoul" | "restoreSoul" | "rate" | "reviewTarget" | "addProposal" | "acceptProposal" | "rejectProposal" | "undoProposal" | "makeSkill"> {
@@ -40,7 +40,6 @@ export function soulMethods(ctx: StoreContext): Pick<HelperStore, "soul" | "save
       if (job.state !== "done" && job.state !== "failed") throw new HelperError("Only a finished task can be rated.");
       if (job.helper === "tinker") throw new HelperError("Tinker's reviews are answered by accepting or rejecting its proposal.");
       const comment = raw?.trim() || null;
-      if (comment && comment.length > MAX_COMMENT_CHARS) throw new HelperError(`The comment is too long (limit ${MAX_COMMENT_CHARS}).`);
       putRating.run(good ? "good" : "bad", comment, id);
       emit({ action: "rating", helper: job.helper, job: id, good });
       // ADR-094: good work may become a skill (Tinker drafts it once per task; Keshab approves it).
