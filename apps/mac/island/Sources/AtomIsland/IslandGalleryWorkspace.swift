@@ -41,6 +41,12 @@ extension IslandGallery {
         let plainBrowser = IslandModel(settings: IslandSettings(defaults: defaults))
         plainBrowser.workspace.shown = true; plainBrowser.workspace.tab = "browser"
         save(ProjectWorkspaceView(model: plainBrowser).frame(width: 420, height: 600).environment(\.islandSnapshot, true).themed(AppTheme.daylight.palette), name: "38-workspace-browser-plain", to: directory)
+        let terminal = model("{" + prefix + #", "action":"list","entries":[]}"#, tab: "terminal")
+        save(ProjectWorkspaceView(model: terminal).frame(width: 420, height: 600).environment(\.islandSnapshot, true).themed(AppTheme.void.palette), name: "39-workspace-terminal-dark", to: directory)
+        save(ProjectWorkspaceView(model: terminal).frame(width: 300, height: 600).environment(\.islandSnapshot, true).themed(AppTheme.daylight.palette), name: "39-workspace-terminal-compact", to: directory)
+        let plainTerminal = IslandModel(settings: IslandSettings(defaults: defaults))
+        plainTerminal.workspace.shown = true; plainTerminal.workspace.tab = "terminal"
+        save(ProjectWorkspaceView(model: plainTerminal).frame(width: 300, height: 600).environment(\.islandSnapshot, true).themed(AppTheme.daylight.palette), name: "39-workspace-terminal-unavailable", to: directory)
         files.windowPage = .chat; files.status.apply(.running(pid: 1)); files.settings.theme = .daylight
         save(HelpersView(model: files).frame(width: 1160, height: 720).environment(\.islandSnapshot, true), name: "35-workspace-split", to: directory)
         save(HelpersView(model: files).frame(width: 760, height: 640).environment(\.islandSnapshot, true), name: "35-workspace-compact", to: directory)

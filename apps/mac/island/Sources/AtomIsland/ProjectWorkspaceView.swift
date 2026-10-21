@@ -22,24 +22,11 @@ struct ProjectWorkspaceView: View {
             if model.workspace.tab == "home" {
                 surfaceChooser
             } else if model.workspaceAvailable || model.workspace.tab == "browser" {
-                HStack(spacing: 2) {
-                    Button { model.selectWorkspace(nil) } label: {
-                        Image(systemName: "square.grid.2x2").frame(width: 24, height: 28)
-                    }.buttonStyle(.plain).help("Choose a surface").accessibilityLabel("Choose a workspace surface")
-                    ForEach(WorkspaceSurface.allCases, id: \.self) { surface in
-                        Button { model.selectWorkspace(surface) } label: {
-                            Text(surface.title).fixedSize()
-                                .font(.system(size: 12, weight: model.workspace.tab == surface.rawValue ? .medium : .regular))
-                                .foregroundStyle(model.workspace.tab == surface.rawValue ? theme.text.color : theme.text3.color)
-                                .padding(.horizontal, 8).padding(.vertical, 7)
-                                .background(model.workspace.tab == surface.rawValue ? theme.fill2.color : .clear, in: RoundedRectangle(cornerRadius: 6))
-                        }.buttonStyle(.plain).disabled(!model.workspaceSurfaceAvailable(surface)).accessibilityLabel("Workspace " + surface.rawValue)
-                            .accessibilityAddTraits(model.workspace.tab == surface.rawValue ? .isSelected : [])
-                    }
-                    Spacer(minLength: 0)
-                }.disabled(model.workspace.pending?.action == .undo)
+                surfaceSelector
                 if model.workspace.tab == "browser" {
                     WorkspaceBrowserView(session: model.workspaceBrowser)
+                } else if model.workspace.tab == "terminal" {
+                    WorkspaceTerminalView(model: model)
                 } else {
                 if let message = model.workspace.notice {
                     Text(verbatim: message).font(.system(size: 11)).foregroundStyle(theme.text2.color).textSelection(.enabled)
@@ -99,7 +86,7 @@ struct ProjectWorkspaceView: View {
                     .font(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1)
             }
             Spacer(minLength: 4)
-            if model.workspace.tab != "browser" {
+            if model.workspace.tab != "browser" && model.workspace.tab != "terminal" {
             Button { selected = nil; model.refreshWorkspace() } label: { Image(systemName: "arrow.clockwise") }
                 .help("Refresh workspace").accessibilityLabel("Refresh workspace")
                 .disabled(model.workspace.pending != nil || !model.workspaceAvailable || model.workspace.tab == "home" || model.workspace.tab == "browser")
@@ -107,6 +94,41 @@ struct ProjectWorkspaceView: View {
             Button { model.toggleWorkspace() } label: { Image(systemName: "xmark") }
                 .help("Close workspace").accessibilityLabel("Close workspace")
         }.buttonStyle(SnapshotBorderlessButtonStyle())
+    }
+
+    private var surfaceSelector: some View {
+        HStack(spacing: 2) {
+            Button { model.selectWorkspace(nil) } label: {
+                Image(systemName: "square.grid.2x2").frame(width: 24, height: 28)
+            }.buttonStyle(.plain).help("Choose a surface").accessibilityLabel("Choose a workspace surface")
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 2) {
+                    ForEach(WorkspaceSurface.allCases, id: \.self) { surface in
+                        Button { model.selectWorkspace(surface) } label: {
+                            Text(surface.title).fixedSize()
+                                .font(.system(size: 12, weight: model.workspace.tab == surface.rawValue ? .medium : .regular))
+                                .foregroundStyle(model.workspace.tab == surface.rawValue ? theme.text.color : theme.text3.color)
+                                .padding(.horizontal, 8).padding(.vertical, 7)
+                                .background(model.workspace.tab == surface.rawValue ? theme.fill2.color : .clear, in: RoundedRectangle(cornerRadius: 6))
+                        }.buttonStyle(.plain).disabled(!model.workspaceSurfaceAvailable(surface)).accessibilityLabel("Workspace " + surface.rawValue)
+                            .accessibilityAddTraits(model.workspace.tab == surface.rawValue ? .isSelected : [])
+                    }
+                }.fixedSize(horizontal: true, vertical: false)
+                if snapshot {
+                    Text((WorkspaceSurface(rawValue: model.workspace.tab)?.title ?? "Surface") + " ▾").font(.system(size: 12)).padding(7)
+                } else {
+                    Menu {
+                        ForEach(WorkspaceSurface.allCases, id: \.self) { surface in
+                            Button { model.selectWorkspace(surface) } label: { Label(surface.title, systemImage: surface.symbol) }
+                                .disabled(!model.workspaceSurfaceAvailable(surface))
+                        }
+                    } label: {
+                        Text(WorkspaceSurface(rawValue: model.workspace.tab)?.title ?? "Surface").font(.system(size: 12))
+                    }.menuStyle(.borderlessButton).fixedSize().accessibilityLabel("Workspace surface")
+                }
+            }
+            Spacer(minLength: 0)
+        }.disabled(model.workspace.pending?.action == .undo)
     }
 
     private var surfaceChooser: some View {
@@ -129,7 +151,7 @@ struct ProjectWorkspaceView: View {
                     .accessibilityLabel("Open workspace " + surface.title)
             }
             if !model.workspaceAvailable {
-                Text("Files, Changes and Git need an active project chat. Browser works beside any chat.")
+                Text("Files, Changes, Git and Terminal need an active project chat. Browser works beside any chat.")
                     .font(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.top, 8)
             }
             Spacer(minLength: 16)

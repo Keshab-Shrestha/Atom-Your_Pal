@@ -9,6 +9,6 @@ cd "$(dirname "$0")"
 
 plugins="$(xcode-select -p)/usr/lib/swift/host/plugins/testing"
 if [ -d "$plugins" ]; then
-  exec swift test -Xswiftc -plugin-path -Xswiftc "$plugins" "$@"
+  exec swift test --build-system native -Xswiftc -plugin-path -Xswiftc "$plugins" "$@"
 fi
-exec swift test "$@"
+exec swift test --build-system native "$@"

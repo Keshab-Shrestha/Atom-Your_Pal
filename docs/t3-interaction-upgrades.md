@@ -34,7 +34,7 @@ Full access is implemented separately in ADR-181, with complete host-owned conse
 
 ## 5. Right pane
 
-ADR-182 delivers the initial real Files/Changes/Git surface chooser and resizable split. [Behavior and verification](workspace-pane.md). ADR-185 adds a native user-operated Browser surface. [Scope and verification](workspace-browser.md). Terminal, PR and Device surfaces remain separate integrations.
+ADR-182 delivers the initial real Files/Changes/Git surface chooser and resizable split. [Behavior and verification](workspace-pane.md). ADR-185 adds a native user-operated Browser surface. [Scope and verification](workspace-browser.md). ADR-186 adds an explicit user-operated Terminal with a separate PTY lifecycle. [Scope and verification](workspace-terminal.md). PR and Device surfaces remain separate integrations.
 
 Adopt the screenshot’s surface chooser and pane controls: Browser, Terminal, Files, Diff, pull requests, linked pull requests and Device. Begin with existing Files/Changes/Git review and a resizable pane that stays beside chat at practical desktop widths. Preserve close/reopen/tab state and keyboard access. Browser, terminal, device and PR surfaces need their own real integrations; a surface is advertised as usable only when implemented. Keep file previews literal and existing read/Undo/Git policy checks intact. Do not turn a terminal panel into an implicit bypass of ATOM’s tool policy.
 

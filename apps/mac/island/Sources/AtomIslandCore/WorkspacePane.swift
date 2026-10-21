@@ -1,11 +1,11 @@
 import Foundation
 
-/// File surfaces use the checked host protocol; Browser is a separate user-operated native surface.
+/// File surfaces use the checked host protocol; Browser and Terminal are user-operated native surfaces.
 public enum WorkspaceSurface: String, CaseIterable, Sendable {
-    case files, changes, git, browser
+    case files, changes, git, browser, terminal
     public var title: String { self == .git ? "Git" : rawValue.capitalized }
     public var symbol: String {
-        switch self { case .files: "doc.on.doc"; case .changes: "plus.forwardslash.minus"; case .git: "arrow.triangle.branch"; case .browser: "globe" }
+        switch self { case .files: "doc.on.doc"; case .changes: "plus.forwardslash.minus"; case .git: "arrow.triangle.branch"; case .browser: "globe"; case .terminal: "terminal" }
     }
     public var detail: String {
         switch self {
@@ -13,6 +13,7 @@ public enum WorkspaceSurface: String, CaseIterable, Sendable {
         case .changes: "Review tracked task edits and Undo"
         case .git: "Inspect local status and file diffs"
         case .browser: "Open a web page beside this chat"
+        case .terminal: "Run your own shell in the project folder"
         }
     }
 }

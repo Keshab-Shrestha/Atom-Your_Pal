@@ -28,8 +28,9 @@ fi
 node=$(cd "$(dirname "$node")" && pwd)/$(basename "$node")
 
 echo "Building AtomIsland (release)…"
-(cd "$here" && swift build -c release --product AtomIsland 2>&1 | grep -v "search path '/Library/Developer/CommandLineTools" || true)
-(cd "$here" && swift build -c release --product AtomCalendar 2>&1 | grep -v "search path '/Library/Developer/CommandLineTools" || true)
+# Copy SwiftTerm's optional shader source without requiring the separately installed Metal compiler.
+(cd "$here" && swift build --build-system native -c release --product AtomIsland 2>&1 | grep -v "search path '/Library/Developer/CommandLineTools" || true)
+(cd "$here" && swift build --build-system native -c release --product AtomCalendar 2>&1 | grep -v "search path '/Library/Developer/CommandLineTools" || true)
 binary="$here/.build/release/AtomIsland"
 [ -x "$binary" ] || { echo "Build failed: $binary not found" >&2; exit 1; }
 # Fail if the binary is older than any source file (the build above failed but left an old one).
@@ -56,6 +57,8 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 # T3 Code chat design adaptation (MIT): include its notice with the distributed app.
 cp "$root/reference/licenses/t3code-MIT.txt" "$app/Contents/Resources/ThirdParty-T3Code.txt"
+cp "$root/reference/licenses/SwiftTerm-MIT.txt" "$app/Contents/Resources/ThirdParty-SwiftTerm.txt"
+cp -R "$here/.build/release/SwiftTerm_SwiftTerm.bundle" "$app/Contents/Resources/"
 cp "$binary" "$app/Contents/MacOS/ATOM"
 # Calendar and Reminders helper (ADR-060). Inside the app so macOS attributes its permission to ATOM.
 helper="$here/.build/release/AtomCalendar"

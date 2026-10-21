@@ -32,7 +32,9 @@ struct WorkspacePaneTests {
         initial.workspaceSurface = "git"; initial.workspaceWidth = 512
         let restored = IslandSettings(defaults: defaults)
         #expect(restored.workspaceSurface == "git"); #expect(restored.workspaceWidth == 512)
-        defaults.set("terminal", forKey: IslandSettings.workspaceSurfaceKey)
+        restored.workspaceSurface = "terminal"
+        #expect(IslandSettings(defaults: defaults).workspaceSurface == "terminal")
+        defaults.set("unknown", forKey: IslandSettings.workspaceSurfaceKey)
         defaults.set(-100, forKey: IslandSettings.workspaceWidthKey)
         let invalid = IslandSettings(defaults: defaults)
         #expect(invalid.workspaceSurface == "home"); #expect(invalid.workspaceWidth == 300)

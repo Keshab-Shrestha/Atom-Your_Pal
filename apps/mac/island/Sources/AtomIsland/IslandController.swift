@@ -187,6 +187,7 @@ final class IslandController {
     }
 
     func stop() {
+        model.workspaceTerminal.reset()
         shortcuts.stop()
         dictation.stop()
         pet.stop()
