@@ -2382,3 +2382,45 @@ test("Full access waits for separate human consent and rejects declined, late, s
     } finally { await h.send({ type: "quit" }); }
   }
 });
+
+
+const sourceProjectBasics: Omit<NonNullable<IslandOptions["projects"]>, "create"> = (() => {
+  const unused = (): never => { throw new Error("Unexpected project mutation"); };
+  return { list: () => [], add: unused, rename: unused, remove: unused, archive: unused, setModel: unused, setWeb: unused, startChat: unused, assign: unused };
+})();
+
+test("project source requests are correlated, idempotent and never reset the current chat", async () => {
+  let calls = 0, finish!: () => void;
+  const gate = new Promise<void>(resolve => { finish = resolve; });
+  const request = "11111111-1111-4111-8111-111111111111";
+  const projects = { ...sourceProjectBasics, create: async (input: { request: string }) => {
+    calls++; await gate; return { type: "project.created", request: input.request, ok: true, project: "p-created" };
+  } } satisfies NonNullable<IslandOptions["projects"]>;
+  const h = islandHarness({ projects }); await tick(5); h.clear();
+  try {
+    const command = { type: "project.create", request, source: "new", name: "Cedar", path: "/Users/fictional/Developer/Cedar" };
+    await h.send(command, command);
+    assert.equal(calls, 1); assert.equal(h.events().length, 0);
+    finish(); await tick(5);
+    assert.deepEqual(h.types(), ["chats", "project.created"]);
+    h.clear(); await h.send(command);
+    assert.equal(calls, 1); assert.deepEqual(h.types(), ["project.created"]);
+  } finally { finish(); h.session.quit(); }
+});
+
+test("source cancellation is request-bound and quit aborts remaining work", async () => {
+  let signal: AbortSignal | undefined;
+  const projects = { ...sourceProjectBasics, create: async (input: { request: string }, active: AbortSignal) => {
+    signal = active;
+    await new Promise<void>(resolve => active.addEventListener("abort", () => resolve(), { once: true }));
+    return { type: "project.created", request: input.request, ok: false, error: "Cancelled" };
+  } } satisfies NonNullable<IslandOptions["projects"]>;
+  const h = islandHarness({ projects }); await tick(5); h.clear();
+  const command = { type: "project.create", request: "22222222-2222-4222-8222-222222222222", source: "new", name: "Cedar", path: "/Users/fictional/Developer/Cedar" };
+  await h.send(command, { type: "project.create.cancel", request: "33333333-3333-4333-8333-333333333333" });
+  assert.equal(signal?.aborted, false);
+  await h.send({ type: "project.create.cancel", request: command.request }); await tick(5);
+  assert.equal(signal?.aborted, true); assert.deepEqual(h.types(), ["project.created"]);
+  h.clear(); await h.send({ ...command, request: "44444444-4444-4444-8444-444444444444" });
+  h.session.quit(); await tick(5); assert.equal(signal?.aborted, true); assert.equal(h.events().length, 0);
+});

@@ -166,6 +166,8 @@ public enum IslandCommand: Sendable, Equatable {
     case soulSet(helper: String, soul: HelperSoul)
     case soulRestore(helper: String, version: Int)
     /// ADR-107: Projects. `project.model` with "" and "" clears the project's own model.
+    case projectCreate(ProjectSourceRequest)
+    case projectCreateCancel(request: String)
     case projectAdd(name: String, path: String)
     case projectRename(id: String, name: String)
     case projectRemove(id: String, deleteChats: Bool)
@@ -293,6 +295,8 @@ public enum IslandCommand: Sendable, Equatable {
         case .helpersSettings: "helpers.settings"
         case .soulSet: "soul.set"
         case .soulRestore: "soul.restore"
+        case .projectCreate: "project.create"
+        case .projectCreateCancel: "project.create.cancel"
         case .projectAdd: "project.add"
         case .projectRename: "project.rename"
         case .projectRemove: "project.remove"
@@ -525,6 +529,11 @@ public enum IslandCommand: Sendable, Equatable {
         case .soulRestore(let helper, let version):
             fields["helper"] = helper
             fields["version"] = version // a JSON number
+        case .projectCreate(let value):
+            fields["request"] = value.request; fields["source"] = value.source.rawValue
+            fields["name"] = value.name; fields["path"] = value.path
+            if let remote = value.remote { fields["remote"] = remote }
+        case .projectCreateCancel(let request): fields["request"] = request
         case .projectAdd(let name, let path):
             fields["name"] = name
             fields["path"] = path

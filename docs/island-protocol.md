@@ -466,3 +466,10 @@ The `chats` event adds optional `reasoning: {provider, model, levels: string[], 
 ### Full access confirmation (ADR-181)
 
 `chat.access` additionally accepts `mode: "full"`. It never accepts a client `confirmed` flag. A host confirmation is required unless the same chat already has Full access; only after consent and fresh identity/idle/previous-mode checks does the `chats.access` event change. `approval.request` adds optional `accessChange: true` for the expanded complete-scope card; ordinary cards omit it. The native Enable Full access button uses the existing request-bound `approval.answer`. Changed work/navigation/input, cancellation, quit, denial or unavailable confirmation cannot enable the mode. Full access does not propagate into forked chats. [Scope](chat-full-access.md).
+
+
+## Project sources (ADR-184)
+
+Native sends `{type:"project.create",request:"<UUID>",source:"folder|new|git|github",name:"Cedar",path:"<absolute-reviewed-destination>",remote:"<HTTPS-or-GitHub-shorthand>"}`. Remote is required only for git/github. Cancel uses `{type:"project.create.cancel",request:"<same-UUID>"}`. These commands are private native-pipe operations, never model tools or public API routes.
+
+Host replies `{type:"project.created",request:"<UUID>",ok:true,project:"<registered-id>"}` after the updated chats catalog, or `ok:false,error:"<safe-message>",partial:true?`. One active operation; identical pending request is ignored and completed IDs replay from a 32-entry in-memory cache. Matching cancellation/quit abort Git; late/unmatched responses do not complete another native attempt. Native runtime stop/timeouts show an uncertain outcome. Failed/partial folders are never implicitly registered or recursively removed. [Validation, budgets and supported sources](project-sources.md).

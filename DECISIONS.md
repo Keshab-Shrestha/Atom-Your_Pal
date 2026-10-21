@@ -3645,3 +3645,21 @@ Skip routine ordinary-file overwrite, classified-command, worker site-opening an
 Pending reads are invalidated when switching surfaces; exact response matching still rejects late replies. Block surface switching during an in-flight Undo, invalidate other previews when Undo begins, and preserve uncertain timeout reporting. Continue existing literal previews, checked file navigation and read-only Git behavior. No backend/protocol/permission change or additional dependency.
 
 **Reason:** Keshab requested T3’s right pane; the fixed 340-pixel pane previously replaced chat below a 780-pixel threshold and cleared its preview on reopening. Advertise only working local surfaces. Browser/Terminal/PR/Device require separate integrations. [Scope and verification](docs/workspace-pane.md).
+
+
+---
+
+## ADR-183 — Filter sidebar project lists without changing the continuing chat
+
+**Decision (2026-10-21):** add a searchable All projects / one-project picker beside sidebar search, persist its project ID locally and scope only project/plain/archived sidebar rows. Keep current chat, composer, grants and project association authoritative and untouched. Display when the current chat is outside the scope; global search remains global. Preserve selected archived projects; removed projects fall back to All after an authoritative catalog. An unloaded or older catalog leaves the preference dormant.
+
+Expose per-project settings through picker gears, row context menus and accessibility actions. Resolve the latest project by ID, render actual folder/model/web state, and reuse `project.rename`, `project.model` and `project.web` individually with existing runtime acknowledgments/errors. Unavailable/archived/pending settings are disabled. Existing registration, folder access, model inheritance, chat overrides and policy remain unchanged; no new protocol or dependency.
+
+**Reason:** Keshab requested T3’s project picker/settings alongside the model/access/pane interactions. Organizing a list must not reset the chat or silently broaden permissions. [Behavior and evidence](docs/project-filter.md).
+
+
+## ADR-184: Project sources and one sidebar entry per action (2026-10-21)
+
+Keep Projects as a filter/settings picker near search; remove the permanent project tree and repeated New chat plus controls. One Chats list combines active plain/project chats and respects selected project; one top New chat uses that selection. Relocate existing archive/remove controls into project settings.
+
+A searchable native source sheet reviews checked local-folder registration, exclusive new Git initialization and bounded public HTTPS/GitHub cloning. The private host command owns canonical path/name checks, fixed Git arguments/minimal configuration, operation budgets/cancellation and registration only after success. Failed imports keep explicit partial folders for inspection instead of recursively deleting them. Private authentication and additional provider browsing remain separate. No model tool, automatic chat switch, permission-mode change or history rewrite. [Details and verification](docs/project-sources.md).

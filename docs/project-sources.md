@@ -1,0 +1,30 @@
+# Project sources and simpler navigation
+
+ADR-184, 2026-10-21. The top sidebar row contains Search, Projects, New project and New chat. The permanent Projects block and repeated chat/project plus buttons are removed. All projects shows one pinned/recency-sorted list of active plain and project chats; selecting a project scopes that list. New chat uses the selected project, or starts a plain chat under All projects. Archived project selection disables creation until unarchived. Existing chats, current selection, history, drafts, model/thinking/access choices and grants are retained.
+
+Project settings are reached through the Projects picker gear. Existing archive/unarchive and confirmed remove/keep-or-delete-chat actions move into that sheet, preserving management without restoring project rows.
+
+## Sources
+
+New project opens a searchable source chooser with New project, Local folder, Git URL and GitHub repository. Up/Down/Return and Escape operate the chooser. Each source has an explicit name, checked folder picker and access review before Add/Create. No project is registered by opening or searching the chooser. Success selects the new project filter while leaving the current chat unchanged; use New chat explicitly to enter it.
+
+- Local folder registers an existing checked folder through the existing project/helper grant flow.
+- New project exclusively creates a new destination inside the reviewed parent and initializes Git.
+- Git URL shallow-clones one public HTTPS repository into a fresh destination.
+- GitHub accepts owner/repository or a GitHub HTTPS URL and uses the same clone path.
+
+Private sign-in, SSH, provider browsing, Azure DevOps/Bitbucket account integrations and Git LFS/submodule downloads are not implemented. URLs with credentials, query parameters or fragments refuse. Existing destinations are never overwritten. Failed/cancelled creation may leave a partial directory; the sheet shows the attempted path and requires explicit inspection/retry. No automatic recursive deletion or rollback is attempted. Reopening after a crash requires inspecting the destination; imports are not automatically resumed.
+
+## Host boundary
+
+Only the native private pipe exposes project.create/project.create.cancel. A request UUID correlates completion and cancellation. One operation runs at once; repeated active IDs are ignored and a bounded in-memory cache replays completed receipts. Quit aborts the active operation. Late/unmatched native responses are ignored; runtime stop/timeout shows an uncertain outcome instead of silently registering success.
+
+The host validates the project name/limit and canonical destination before disk/network work, rechecks folder identity during and after it, then registers through the existing checked project/helper flow only on success. Git uses fixed argument arrays without a shell, a minimal environment, disabled global/system configuration, hooks/templates/credential helpers/prompts, disabled redirects, and HTTPS-only transport. No repository scripts are executed. Raw Git output is bounded and never displayed/logged; failures return safe messages.
+
+Creation has a 120-second timeout, 128 KiB output budget and monitored approximately 256 MiB/20,000-entry disk budget, with a final scan before registration. Monitoring is best effort rather than an OS disk quota. Symlink contents are not traversed by the monitor; existing protected-folder/grant checks remain authoritative. No new model tool, provider request, access-mode change or implicit continuing chat permission is introduced.
+
+## Verification
+
+Typecheck and the full TypeScript suite pass: 1,154 passed, eight normal opt-in skips, zero failures (/tmp/atom-project-source-all-tests.log). The full Swift suite passes 772 tests in 144 suites (/tmp/atom-project-source-swift-final.log). Coverage includes real Git initialization, inherited Git configuration isolation, exclusive destinations, protected folders, cancellation/timeouts/late replies, duplicate receipts, resource limits, symlink replacement, scoped sidebar visibility and project registration with retained chat history. A real public HTTPS octocat/Hello-World clone passed in a disposable fake-home fixture (/tmp/atom-project-source-live-clone.log); it registered only through a fixture callback and was removed afterward.
+
+Final signed release build and strict signature verification pass (/tmp/atom-project-source-build-final.log). A separate render passes all 101 scenes / 33 golden comparisons (/tmp/atom-project-source-gallery-verified.log); reviewed three affected existing main-window references, two prior local project references and four new source/navigation scenes. Live final-build checks pass after launching ATOM and the user opening its full window: the permanent Projects block and repeated chat plus controls are absent, all four source forms/search/no-match/back/cancel work, and Return opens the searched Git URL form. Cedar filtering scopes the unified list while current New chat remains unchanged; the top New chat help reflects the project scope, and the picker gear opens relocated project management. Restored All projects and original fresh New chat / Opus 5.5 / Off / Saved permissions / empty search/draft / Ready. No message, project creation, folder grant, archive or delete was dispatched in live UI. Init/clone/registration effects are covered by controlled host fixtures; physical arrow-only navigation and full live import completion remain unverified. The first picker click was interrupted by an external-app-change notice; refreshing state and setting the actual popover search via AX allowed the subsequent row/gear checks to pass. No live project was created and no real folder grant was broadened by the fixture checks. ADR-183/184 are included together in the publication requested after 43ad83d. Unrelated graphify-out is untouched.

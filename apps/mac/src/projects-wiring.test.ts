@@ -405,3 +405,19 @@ test("renameChat: a saved chat gets the title; a bad title or an unsaved chat ge
     t.done();
   }
 });
+
+
+test("source creation registers a real repository through existing grants without touching saved chats", async () => {
+  const t = setup();
+  try {
+    t.memory.chats.save("existing", turn(1));
+    const result = await t.projects.island.create!({ type: "project.create", request: "11111111-1111-4111-8111-111111111111", source: "new", name: "Cedar", path: join(t.home, "Developer", "Cedar") }, new AbortController().signal);
+    assert.equal(result.ok, true);
+    const project = t.memory.projects.list().find(p => p.id === result.project)!;
+    assert.deepEqual(project.folders, [join(t.home, "Developer", "Cedar")]);
+    assert.deepEqual(t.memory.chats.messages("existing").map(m => ({ role: m.role, content: m.content })), turn(1));
+    assert.equal(t.memory.chats.project("existing"), undefined);
+    assert.ok(project.helper); assert.equal(project.web, false);
+    assert.ok(!t.logs.some(line => line.includes("/Developer/") || line.includes("https://")));
+  } finally { t.done(); }
+});

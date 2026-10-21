@@ -97,6 +97,12 @@ struct HelpersView: View {
         } message: {
             Text("What you typed here is not saved.")
         }
+        .sheet(item: Binding(get: { model.projectSettingsProject }, set: { model.projectSettingsProject = $0 })) { requested in
+            ProjectSettingsSheet(model: model, initial: requested).themed(palette)
+        }
+        .sheet(isPresented: Binding(get: { model.showsProjectSources }, set: { model.showsProjectSources = $0 })) {
+            ProjectSourceSheet(model: model).themed(palette)
+        }
         .themed(palette)
         .environment(\.desktopDesign, true)
     }
@@ -161,13 +167,22 @@ private struct HelperSidebar: View {
                 // ADR-098: one search over chats, tasks and reports; its results replace the pages while there are words.
                 HStack(spacing: 4) {
                     SidebarSearchField(model: model)
+                    ProjectFilterButton(model: model)
+                    NewProjectButton(model: model)
                     Button {
-                        model.navigate { model.newConversation(); model.windowPage = .chat }
+                        model.navigate {
+                            if let id = model.sidebarProjectFilter { model.newChat(inProject: id) }
+                            else { model.newConversation() }
+                            model.windowPage = .chat
+                        }
                     } label: {
                         Image(systemName: "square.and.pencil").font(.system(size: 13)).foregroundStyle(theme.text2.color)
                             .frame(width: 28, height: 30).contentShape(Rectangle())
-                    }.buttonStyle(.plain).help("Start a new chat").accessibilityLabel("New chat")
+                    }.buttonStyle(.plain).help(model.sidebarProjectFilter == nil ? "Start a new chat" : "New chat in the selected project")
+                        .accessibilityLabel("New chat")
+                        .disabled(model.chats?.projects?.first(where: { $0.id == model.sidebarProjectFilter })?.archived == true)
                 }.padding(.bottom, 8)
+                ProjectFilterSummary(model: model)
                 if !model.searchQuery.isEmpty {
                     Scrollable { SidebarSearchResults(model: model) }
                 } else {
@@ -175,7 +190,6 @@ private struct HelperSidebar: View {
                     group(model.settings.sidebar.top, bottom: false)
                     // ADR-107: projects (a folder and its chats) above the plain chats.
                     Scrollable {
-                        ProjectsSection(model: model)
                         ChatsList(model: model)
                     }
                         .frame(maxHeight: .infinity)
@@ -1023,37 +1037,25 @@ private struct ChatsList: View {
 
     var body: some View {
         let list = model.chats
-        HStack {
-            Text("Chats").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
-                .accessibilityAddTraits(.isHeader)
-            Spacer()
-            Button {
-                model.navigate { model.newConversation(); model.windowPage = .chat }
-            } label: {
-                Image(systemName: "plus").font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(theme.text2.color).frame(width: 24, height: 24).contentShape(Rectangle())
-            }.buttonStyle(.plain).help("New chat")
-                .accessibilityLabel("New chat in Chats").accessibilityIdentifier("chats.new")
-        }
-        .padding(.horizontal, 10).padding(.top, 8)
-        if let list, !list.plainChats.isEmpty {
-            ForEach(showAll ? list.plainChats : Array(list.plainChats.prefix(40))) { chat in
-                SidebarChatRow(model: model, chat: chat, current: chat.id == list.current)
+        Text("Chats").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text3.color)
+            .accessibilityAddTraits(.isHeader).padding(.horizontal, 10).padding(.top, 8)
+        let active = ProjectSidebarScope.activeChats(list?.chats ?? [], projects: list?.projects ?? [], selected: model.sidebarProjectFilter)
+        if !active.isEmpty {
+            ForEach(showAll ? active : Array(active.prefix(40))) { chat in
+                SidebarChatRow(model: model, chat: chat, current: chat.id == list?.current)
             }
-            if !showAll && list.plainChats.count > 40 {
+            if !showAll && active.count > 40 {
                 Button("Show all loaded chats") { showAll = true }.font(.system(size: 11)).buttonStyle(.borderless)
             }
+        } else if list == nil {
+            LoadingStateView(text: "Loading chats…", retry: { model.send(.chatsList) }).padding(.horizontal, 10)
         } else {
-            if list == nil {
-                LoadingStateView(text: "Loading chats…", retry: { model.send(.chatsList) }).padding(.horizontal, 10)
-            } else {
-                Text("No active plain chats. Talk or type to ATOM.").font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
-                    .padding(.horizontal, 10).padding(.vertical, 4)
-            }
+            Text("No active chats. Start one with New chat above.").font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+                .padding(.horizontal, 10).padding(.vertical, 4)
         }
         ChatControlFeedback(model: model).padding(.horizontal, 10).padding(.vertical, 4)
         if let list {
-            let archived = list.chats.filter(\.archived).sorted { ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast) }
+            let archived = list.chats.filter { $0.archived && ProjectSidebarScope.includes($0, selected: model.sidebarProjectFilter) }.sorted { ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast) }
             if !archived.isEmpty {
                 DisclosureGroup("Archived chats (\(archived.count))", isExpanded: $showArchived) {
                     ForEach(archived) { chat in

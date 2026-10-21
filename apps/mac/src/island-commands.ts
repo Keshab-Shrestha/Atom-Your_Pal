@@ -1,6 +1,7 @@
 // The commands from the island, their allowlist and the parser (moved from island-protocol.ts; docs/island-protocol.md is the specification).
 
 import { isChatAccessMode, type ChatAccessMode } from "@atom/contracts";
+import type { ProjectSourceRequest } from "./project-sources.ts";
 import type { WorkspaceRequest } from "./project-workspace.ts";
 import { parseChatControl, type ChatControlRequest } from "./chat-controls.ts";
 import { parseForeground, type ForegroundCommand } from "./foreground-recovery.ts";
@@ -13,6 +14,8 @@ export type BriefChange = Partial<Record<(typeof BRIEF_FLAGS)[number], boolean>>
 
 
 export type IslandCommand =
+  | ProjectSourceRequest
+  | { type: "project.create.cancel"; request: string }
   | WorkspaceRequest
   | ForegroundCommand
   | { type: "chat.access"; id: string; mode: ChatAccessMode; expected: ChatAccessMode }
@@ -183,7 +186,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "foreground.list", "foreground.read", "foreground.dismiss", "foreground.ack",
   "chat.new",
   "chat.rename",
-  "project.add",
+  "project.add", "project.create", "project.create.cancel",
   "project.rename",
   "project.remove",
   "project.archive",
@@ -728,6 +731,17 @@ function projectCommand(type: string, v: Record<string, unknown>): ParsedLine | 
     case "chat.rename":
       if (!idOk || typeof v.title !== "string") return { error: 'chat.rename needs the chat\'s "id" and a "title" string.' };
       return { command: { type, id: v.id as string, title: v.title as string } };
+    case "project.create": {
+      if (typeof v.request !== "string" || !/^[a-f0-9-]{36}$/i.test(v.request)
+          || !["folder", "new", "git", "github"].includes(v.source as string) || typeof v.name !== "string"
+          || typeof v.path !== "string" || !v.path.startsWith("/") || /[\x00-\x1f\x7f]/.test(v.path)
+          || v.path.split("/").includes("..") || (v.remote !== undefined && typeof v.remote !== "string")) return { error: "Invalid project source request." };
+      return { command: { type, request: v.request, source: v.source as ProjectSourceRequest["source"], name: v.name, path: v.path,
+        ...(typeof v.remote === "string" ? { remote: v.remote } : {}) } };
+    }
+    case "project.create.cancel":
+      return typeof v.request === "string" && /^[a-f0-9-]{36}$/i.test(v.request)
+        ? { command: { type, request: v.request } } : { error: "Invalid project cancellation request." };
     case "project.add": {
       const path = v.path;
       if (typeof v.name !== "string") return { error: 'project.add needs a "name" string.' };

@@ -11,8 +11,8 @@ Saved 2026-10-19 from Keshab’s four screenshots and explicit request. These ar
 | 3 | Access selector with effective checked modes | Built and live checked locally (ADR-180; [evidence](chat-access.md)) |
 | 4 | Full access mode | Built and live checked locally (ADR-181; [evidence](chat-full-access.md)) |
 | 5 | Multi-surface right pane and resizing | Files/Changes/Git delivered and checked locally (ADR-182; [evidence](workspace-pane.md)) |
-| 6 | Searchable project filter and project settings entry | Requested |
-| 7 | New project / folder / repository source palette | Requested |
+| 6 | Searchable project filter and project settings entry | Delivered and checked locally (ADR-183; [evidence](project-filter.md)) |
+| 7 | New project / folder / repository source palette | Delivered locally for checked folders/new repositories/public HTTPS imports (ADR-184; [scope](project-sources.md)) |
 
 Each step needs real model/runtime/project behavior behind its controls. Existing desktop features, chat memory, stored grants and unsent drafts must survive the changes.
 
@@ -40,15 +40,19 @@ Adopt the screenshot’s surface chooser and pane controls: Browser, Terminal, F
 
 ## 6. Project filter and settings
 
+ADR-183 implements this using local list scope and existing project commands. [Behavior and verification](project-filter.md).
+
 Searchable All projects / one-project picker next to sidebar search, with a settings action per project. Filtering should alter the visible chat list without moving, deleting, archiving or switching the current chat. Preserve selection across refresh/restart where appropriate; show empty results clearly. Project settings should expose actual existing name/folder/default-model/web behavior and its scope.
 
 ## 7. Project source palette
+
+ADR-184 implements the four real sources, a simpler unified sidebar and one top New chat. [Scope, verification and public-only limits](project-sources.md). Private authentication and provider browsing remain separate.
 
 A searchable keyboard-operated source chooser with New project, Local folder, Git URL and GitHub repository. Local folder wraps the current checked folder-registration flow. New project creates a reviewed destination and initializes the repository; Git URL/GitHub import needs bounded host-controlled cloning, destination/conflict/error handling and proper credential handling. Azure DevOps and Bitbucket repository browsing are later integration options; setup status must reflect real support. No fake successful import, automatic file grant or unchecked shell interpolation.
 
 ## Evidence and boundaries
 
-Reference: the four user-supplied T3 screenshots (model rail/composer controls, right-pane chooser, project filter and project sources), plus the pinned T3 source documented in [visual reference](../reference/t3code-visual-design.md). Model picker delivery evidence is recorded below. Thinking is implemented separately in ADR-179; step 3 is delivered separately in ADR-180; step 4 is delivered in ADR-181; step 5’s initial local surfaces follow in ADR-182; steps 6–7 and additional integrations remain requested.
+Reference: the four user-supplied T3 screenshots (model rail/composer controls, right-pane chooser, project filter and project sources), plus the pinned T3 source documented in [visual reference](../reference/t3code-visual-design.md). Model picker delivery evidence is recorded below. Thinking is implemented separately in ADR-179; step 3 is delivered separately in ADR-180; step 4 is delivered in ADR-181; step 5’s initial local surfaces follow in ADR-182; step 6 is delivered in ADR-183; step 7 is delivered in ADR-184 for public HTTPS imports; private authentication and additional integrations remain separate.
 
 
 ## Model picker verification

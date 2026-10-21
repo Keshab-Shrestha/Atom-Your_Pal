@@ -79,6 +79,18 @@ extension IslandGallery {
         .padding(24)
         .background(Color(red: 0.36, green: 0.42, blue: 0.52))
         save(sheet, name: name, to: directory)
+        if name == "16-projects" {
+            save(ProjectFilterPicker(model: open, close: {}).environment(\.islandSnapshot, true).themed(AppTheme.void.palette), name: "36-project-filter", to: directory)
+            save(ProjectFilterPicker(model: open, initialQuery: "No matching project", close: {}).environment(\.islandSnapshot, true).themed(AppTheme.daylight.palette), name: "36-project-filter-empty", to: directory)
+            open.modelInfo = ModelInfo(provider: "codex", model: "gpt-6-luna", providers: [ProviderOption(id: "codex", name: "Codex", available: true, models: [ModelOption(id: "gpt-6-luna", name: "GPT-6 Luna")])])
+            if let project = open.chats?.projects?.first {
+                save(ProjectSettingsSheet(model: open, initial: project).environment(\.islandSnapshot, true).themed(AppTheme.daylight.palette), name: "36-project-settings", to: directory)
+            }
+            chatting.settings.projectFilter = "p2"
+            chatting.settings.theme = .daylight
+            save(HelpersView(model: chatting).environment(\.islandSnapshot, true).frame(width: 1080, height: 700), name: "36-project-filter-sidebar", to: directory)
+        }
+
     }
 }
 

@@ -41,16 +41,21 @@ struct ProjectsSection: View {
     }
 
     var body: some View {
-        if let list = model.chats, list.projectsOn {
-            let shown = list.visibleProjects(showArchived: showArchived)
-            header
-            if let error = model.projectError { ProblemLine(text: error).padding(.horizontal, 10).padding(.vertical, 2) }
-            if (list.projects ?? []).isEmpty {
-                emptyState
-            } else {
-                ForEach(shown) { project in projectBlock(project, list: list) }
-                if list.archivedCount > 0 { archivedRow(list.archivedCount) }
+        Group {
+            if let list = model.chats, list.projectsOn {
+                let shown = ProjectSidebarScope.projects(list.projects ?? [], selected: model.sidebarProjectFilter, showArchived: showArchived)
+                header
+                if let error = model.projectError { ProblemLine(text: error).padding(.horizontal, 10).padding(.vertical, 2) }
+                if (list.projects ?? []).isEmpty {
+                    emptyState
+                } else {
+                    ForEach(shown) { project in projectBlock(project, list: list) }
+                    if model.sidebarProjectFilter == nil, list.archivedCount > 0 { archivedRow(list.archivedCount) }
+                }
             }
+        }
+        .onChange(of: model.sidebarProjectFilter, initial: true) {
+            if let id = model.sidebarProjectFilter { expanded.insert(id) }
         }
     }
 
@@ -102,7 +107,7 @@ struct ProjectsSection: View {
     // MARK: one project
 
     @ViewBuilder private func projectBlock(_ project: ProjectInfo, list: ChatList) -> some View {
-        let open = expanded.contains(project.id)
+        let open = expanded.contains(project.id) || (snapshot && model.sidebarProjectFilter == project.id)
         projectRow(project, open: open)
             .confirmationDialog("Remove “\(project.name)”?", isPresented: Binding(get: { removing?.id == project.id }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
                 Button("Remove project") { model.sendProject(.projectRemove(id: project.id, deleteChats: false)) }
@@ -115,6 +120,10 @@ struct ProjectsSection: View {
             let chats = list.chats(in: project.id)
             let more = allChats.contains(project.id)
             VStack(alignment: .leading, spacing: 0) {
+                if chats.isEmpty {
+                    Text("No active chats in this project.").font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                        .padding(.horizontal, 10).padding(.vertical, 6)
+                }
                 ForEach(ProjectList.shown(chats, all: more)) { chat in
                     SidebarChatRow(model: model, chat: chat, current: chat.id == list.current)
                 }
@@ -141,6 +150,9 @@ struct ProjectsSection: View {
             VStack(alignment: .leading, spacing: 1) {
                 if editing { renameField(project) } else {
                     Text(project.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(project.archived ? theme.text3.color : theme.text.color).lineLimit(1)
+                }
+                if project.archived {
+                    Text("Archived").font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
                 }
                 if project.missing {
                     Label("Folder not found", systemImage: "exclamationmark.triangle.fill")
@@ -169,9 +181,11 @@ struct ProjectsSection: View {
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { toggle(project.id) }
         .accessibilityAction(named: "Rename") { beginRename(project) }
+        .accessibilityAction(named: "Project settings") { model.openProjectSettings(project.id) }
     }
 
     @ViewBuilder private func menu(_ project: ProjectInfo) -> some View {
+        Button("Project settings…") { model.openProjectSettings(project.id) }
         Button("Rename") { beginRename(project) }
         Button("Show in Finder") { reveal(project) }
         Toggle("Allow web search", isOn: Binding(get: { project.web }, set: { model.sendProject(.projectWeb(id: project.id, web: $0)) }))

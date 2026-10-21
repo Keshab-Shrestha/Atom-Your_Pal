@@ -77,6 +77,7 @@ enum IslandGallery {
         writeChatDesign(to: directory)
         writeModelPicker(to: directory)
         writeGitWorkspace(to: directory)
+        writeProjectSources(to: directory)
         writeWorkspace(to: directory)
         writeProjects(to: directory)
         writeProjects(to: directory, theme: .lantern, name: "16-projects-lantern")

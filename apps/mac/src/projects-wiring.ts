@@ -1,8 +1,9 @@
 import { homedir } from "node:os";
 import { checkGrant, HelperError, type HelperStore } from "@atom/helpers";
 import type { Message, ProjectFiles } from "@atom/contracts";
-import { ProjectError, type ChatSummary, type MemoryStore, type Project } from "@atom/memory";
+import { cleanProjectName, MAX_PROJECTS, ProjectError, type ChatSummary, type MemoryStore, type Project } from "@atom/memory";
 import type { Logger } from "@atom/shared";
+import { createProjectSource } from "./project-sources.ts";
 import { projectReadCheck } from "./folder-run.ts";
 import type { IslandProjects, ProjectResult } from "./island.ts";
 import type { ProjectItem } from "./island-items.ts";
@@ -122,6 +123,21 @@ export function createProjects(options: ProjectsOptions): Projects {
   }
 
   const island: IslandProjects = {
+    create: (input, signal) => createProjectSource(input, {
+      home, signal,
+      validate(name) {
+        cleanProjectName(name);
+        const projects = store.list();
+        if (projects.some(p => p.name.toLowerCase() === name.toLowerCase())) throw new ProjectError("A project with this name exists.");
+        if (projects.filter(p => !p.archived).length >= MAX_PROJECTS) throw new ProjectError("Archive a project before adding another.");
+      },
+      register(name, path) {
+        const result = island.add(name, path);
+        if ("error" in result) return result;
+        const project = store.list().find(p => p.name === name && p.folders.includes(path));
+        return project ? { project: project.id } : { error: "Project registration was not confirmed. Refresh projects." };
+      },
+    }),
     list: () =>
       store.list().map((p): ProjectItem => {
         const folder = folderOf(p);

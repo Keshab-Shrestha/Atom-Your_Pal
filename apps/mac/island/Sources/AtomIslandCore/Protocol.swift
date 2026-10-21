@@ -10,6 +10,7 @@ public enum LoopState: String, Sendable, Equatable {
 
 /// Events the runtime sends to the island.
 public enum IslandEvent: Sendable, Equatable {
+    case projectCreated(ProjectSourceResponse)
     case ready(ReadyInfo)
     case state(LoopState)
     case micReady
@@ -86,6 +87,7 @@ public enum IslandEvent: Sendable, Equatable {
     /// Event name, for logs and traces. Never includes what was said or replied.
     public var name: String {
         switch self {
+        case .projectCreated: "project.created"
         case .ready: "ready"
         case .state(let s): "state:\(s.rawValue)"
         case .micReady: "mic.ready"
@@ -260,6 +262,13 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .git(Fields.branches(f.values["branches"]))
     case "git.diff":
         return .gitDiff(GitDiff(repo: try f.string("repo"), branch: try f.string("branch"), text: try f.string("text"), truncated: f.optionalBool("truncated") ?? false))
+    case "project.created":
+        let response = try JSONDecoder().decode(ProjectSourceResponse.self, from: JSONSerialization.data(withJSONObject: f.values))
+        guard UUID(uuidString: response.request) != nil, (response.error?.utf8.count ?? 0) <= 2048,
+              !response.ok || response.project.map({ !$0.isEmpty && $0.count <= 200 }) == true else {
+            throw ProtocolError.invalidValue(event: type, field: "project")
+        }
+        return .projectCreated(response)
     case "workspace":
         do {
             let data = try JSONSerialization.data(withJSONObject: f.values)

@@ -14,6 +14,7 @@ import type { Message } from "@atom/contracts";
 import { PROTOCOL_VERSION, createLevelThrottle, encodeEvent, parseCommand, planUsageEvent, type IslandCommand, type IslandEvent, type SearchHitItem } from "./island-protocol.ts";
 import { spokenDuration } from "@atom/tool-engine";
 import { createVoiceLoop, type LoopNotice, type VoiceLoop } from "./voice-loop.ts";
+import type { ProjectSourceResponse } from "./project-sources.ts";
 import type { IslandHelpers, IslandOptions, IslandProjects, ProjectResult } from "./island-types.ts";
 export type * from "./island-types.ts";
 
@@ -40,7 +41,7 @@ export function islandNoticeText(notice: LoopNotice): string {
   }
 }
 
-function runProjectCommand(projects: IslandProjects, command: Extract<IslandCommand, { type: `project.${string}` }>): ProjectResult {
+function runProjectCommand(projects: IslandProjects, command: Exclude<Extract<IslandCommand, { type: `project.${string}` }>, { type: "project.create" | "project.create.cancel" }>): ProjectResult {
   switch (command.type) {
     case "project.add":
       return projects.add(command.name, command.path);
@@ -59,6 +60,8 @@ function runProjectCommand(projects: IslandProjects, command: Extract<IslandComm
 
 export function runIsland(options: IslandOptions): IslandSession {
   const { core, tts, describe } = options;
+  let projectCreation: { request: string; controller: AbortController } | undefined;
+  const projectReceipts = new Map<string, ProjectSourceResponse>();
   const errorDetails = options.errorDetails ?? (() => ({}));
   const wrap = options.wrapEvents ?? ((events) => events);
   let quitting = false;
@@ -386,6 +389,28 @@ export function runIsland(options: IslandOptions): IslandSession {
         } else send(options.workspace.handle(command));
         return;
       }
+      case "project.create": {
+        const previous = projectReceipts.get(command.request);
+        if (previous) { send(previous); return; }
+        if (projectCreation?.request === command.request) return;
+        if (projectCreation || !options.projects?.create) {
+          send({ type: "project.created", request: command.request, ok: false, error: projectCreation ? "Another project is being created." : "Project sources are unavailable." }); return;
+        }
+        const controller = new AbortController(); projectCreation = { request: command.request, controller };
+        void options.projects.create(command, controller.signal).catch((): ProjectSourceResponse => ({ type: "project.created", request: command.request, ok: false, error: "Project creation was not confirmed. Inspect the destination before retrying." })).then(result => {
+          if (projectCreation?.controller !== controller) return;
+          projectCreation = undefined;
+          projectReceipts.set(command.request, result);
+          if (projectReceipts.size > 32) projectReceipts.delete(projectReceipts.keys().next().value!);
+          if (quitting) return;
+          if (result.ok) sendChats();
+          send(result);
+        });
+        return;
+      }
+      case "project.create.cancel":
+        if (projectCreation?.request === command.request) projectCreation.controller.abort();
+        return;
       case "project.add":
       case "project.rename":
       case "project.remove":
@@ -1200,6 +1225,7 @@ export function runIsland(options: IslandOptions): IslandSession {
     if (quitting) return;
     quitting = true;
     accessActivation?.abort();
+    projectCreation?.controller.abort();
     stopMemoryUpdates?.();
     stopSuggestionUpdates?.();
     for (const controller of edits.values()) controller.abort();

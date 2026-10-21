@@ -59,7 +59,16 @@ final class IslandModel {
     var trimmedChatId: String?
     /// ADR-107: why the last project command was refused; shown under "Projects" until the next one.
     var projectError: String?
-    @ObservationIgnored private var projectCommandPending = false
+    private(set) var projectCommandPending = false
+    private(set) var projectCommandTarget: String?
+    var projectSettingsProject: ProjectInfo?
+    var showsProjectSources = false
+    var projectSource = ProjectSourceState()
+    var canCreateProject: Bool { inputRuntimeReady && chats?.projects != nil }
+    var sidebarProjectFilter: String? {
+        guard chats?.projects != nil else { return nil }
+        return settings.projectFilter
+    }
     /// ADR-098: ATOM's Telegram bot is set up in .env (from the runtime's `ready`).
     var telegramConnected = false
     /// ADR-054: computer control is on in the running runtime (from `ready`). The switch in Settings → General shows it.
@@ -372,6 +381,8 @@ final class IslandModel {
     }
     /// A command was not sent because the runtime is not running: tell the user, and stop any "waiting" that expected its answer.
     func droppedCommandError(for command: IslandCommand) -> RuntimeError? {
+        if case .projectCreate(let request) = command { projectSource.expire(request.request); return nil }
+        if case .projectCreateCancel(let id) = command { projectSource.expire(id); return nil }
         guard DroppedCommand.shouldTell(commandType: command.type) else { return nil }
         let waiting = skillCommandPending || brainCommandPending || projectCommandPending || helpers.isWaiting || pendingModel != nil || refreshingModels
         return DroppedCommand.error(waitingInSettings: waiting)
@@ -401,6 +412,7 @@ final class IslandModel {
     /// The runtime stopped or restarted: what the window was waiting for will not be answered (code review, 2026-10-16). Nothing reset
     /// these before, so a Save or a model switch could stay "waiting" for good.
     func runtimeStopped() {
+        projectSource.stopped()
         dispatchedInputIDs = []
         recovery.syncPending = false
         conversation.interruptWork()
@@ -541,6 +553,11 @@ final class IslandModel {
     func sendProject(_ command: IslandCommand) {
         projectError = nil
         projectCommandPending = true
+        switch command {
+        case .projectRename(let id, _), .projectRemove(let id, _), .projectArchive(let id, _),
+             .projectModel(let id, _, _), .projectWeb(let id, _): projectCommandTarget = id
+        default: projectCommandTarget = nil
+        }
         send(command)
         if case .projectRemove = command {
             recovery.record = nil; recovery.reading = nil
@@ -814,6 +831,12 @@ final class IslandModel {
         approval.apply(event)
         pointing.apply(event)
         switch event {
+        case .projectCreated(let response):
+            let matches = projectSource.pending?.request == response.request
+            projectSource.accept(response)
+            if matches, response.ok, let id = response.project, chats?.projects?.contains(where: { $0.id == id }) == true {
+                settings.projectFilter = id
+            }
         case .workspace(let result):
             workspace.accept(result, chat: chats?.current, project: chats?.currentProjectId)
         case .foregroundReceipt(let receipt):
@@ -839,6 +862,7 @@ final class IslandModel {
                 input.move(from: "", to: list.current)
             }
             chats = list
+            settings.projectFilter = ProjectSidebarScope.resolved(settings.projectFilter, projects: list.projects)
             inputRuntimeReady = true
             saveInput()
             projectCommandPending = false
@@ -882,6 +906,7 @@ final class IslandModel {
         case .planUsage(let usage):
             planUsage = (planUsage ?? PlanUsage()).merging(usage)
         case .ready(let ready):
+            projectSource.stopped()
             workspace.clear()
             resetChatControlReading()
             if chatControls.mutation != nil {

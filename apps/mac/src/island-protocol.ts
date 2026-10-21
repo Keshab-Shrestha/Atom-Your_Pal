@@ -1,6 +1,7 @@
 // The messages between ATOM Island (Swift) and this runtime: JSON lines over stdin / stdout.
 // The specification is docs/island-protocol.md; keep the two in step.
 
+import type { ProjectSourceResponse } from "./project-sources.ts";
 import type { ChatControlResponse } from "./chat-controls.ts";
 import type { ChatWork } from "./chat-work.ts";
 import type { ForegroundReceipt, ForegroundResponse } from "./foreground-recovery.ts";
@@ -18,6 +19,7 @@ export * from "./island-commands.ts";
 import type { WorkspaceResponse } from "./project-workspace.ts";
 
 export type IslandEvent =
+  | ProjectSourceResponse
   | WorkspaceResponse
   | ForegroundReceipt | ForegroundResponse
   | ChatWork

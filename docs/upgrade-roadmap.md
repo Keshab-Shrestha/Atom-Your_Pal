@@ -115,3 +115,22 @@ Foreground reliability progress (2026-10-18): ADR-157 retains accepted input/que
 2026-10-21 / ADR-181: Full access now follows checked access modes as a separate per-chat opt-in, with routine approval skipping, complete scope confirmation and preserved protected actions/history/grants. [Scope and verification](chat-full-access.md). The multi-surface right pane is the next requested interaction step.
 
 2026-10-21 / ADR-182: the first right-pane capability delivers actual Files/Changes/Git surfaces, retained places, bounded resizing and native keyboard/menu access. Verified Swift, signed build, galleries and live fictional-project workflows. [Scope and limits](workspace-pane.md). Next requested interaction: searchable project filter and project settings; Browser/Terminal/PR/Device integrations remain separate.
+
+2026-10-21 / ADR-183: published the Full access/workspace baseline as `43ad83d` (all GitHub jobs passed), then implemented the searchable project filter and project settings entry. [Scope and verification](project-filter.md). Project source creation/import remains the next requested interaction; broader pane integrations remain separate.
+
+
+2026-10-21 / ADR-184: completed the next source palette capability and requested sidebar simplification: one Projects picker, one New project and one scoped New chat. Checked folder registration/new Git initialization/public HTTPS imports have real host operations and preserved chat/access continuity. [Scope and verification](project-sources.md). Private repository authentication and additional Browser/Terminal/PR/Device surfaces remain separate; stop after this capability.
+
+
+## Remaining after ADR-184 (2026-10-21)
+
+The seven requested screenshot interactions are implemented within their stated scope. The right pane currently offers Files/Changes/Git; repository imports currently support public HTTPS only. Recommended sequence for further work, with each capability scoped separately:
+
+1. Finish acceptance gaps: full native create/import completion and restart/keyboard navigation, then the existing search, memory suggestions and daily-brief live checks. Init/clone effects already pass controlled host fixtures.
+2. Add the Browser surface to the right pane.
+3. Add a real Terminal surface with explicit session/project/access boundaries.
+4. Add pull-request and linked-pull-request surfaces.
+5. Add the Device surface using real connected-device state.
+6. Add private repository authentication and account-backed repository browsing.
+
+Shared editor, image generation, cloud workers and optional billed-provider/fallback changes remain broader deferred proposals, not part of completing these seven interactions. This list records recommendations, not authorization to begin every item.

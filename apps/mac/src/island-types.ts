@@ -1,5 +1,6 @@
 // The shapes the island session depends on (moved from island.ts): the owner of each area implements its interface.
 
+import type { ProjectSourceRequest, ProjectSourceResponse } from "./project-sources.ts";
 import type { ChatControlRequest, ChatControlResponse } from "./chat-controls.ts";
 import type { ChatWorkBridge } from "./chat-work.ts";
 import type { ForegroundStore } from "@atom/memory";
@@ -205,6 +206,7 @@ export type ProjectResult = { ok: true } | { error: string };
 
 /** ADR-107: projects (a named folder and its chats). Every method checks its input and never throws for a bad one. */
 export interface IslandProjects {
+  create?(input: ProjectSourceRequest, signal: AbortSignal): Promise<ProjectSourceResponse>;
   list(): ProjectItem[];
   add(name: string, path: string): ProjectResult;
   rename(id: string, name: string): ProjectResult;
