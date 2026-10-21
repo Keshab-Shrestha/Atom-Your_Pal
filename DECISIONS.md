@@ -3663,3 +3663,8 @@ Expose per-project settings through picker gears, row context menus and accessib
 Keep Projects as a filter/settings picker near search; remove the permanent project tree and repeated New chat plus controls. One Chats list combines active plain/project chats and respects selected project; one top New chat uses that selection. Relocate existing archive/remove controls into project settings.
 
 A searchable native source sheet reviews checked local-folder registration, exclusive new Git initialization and bounded public HTTPS/GitHub cloning. The private host command owns canonical path/name checks, fixed Git arguments/minimal configuration, operation budgets/cancellation and registration only after success. Failed imports keep explicit partial folders for inspection instead of recursively deleting them. Private authentication and additional provider browsing remain separate. No model tool, automatic chat switch, permission-mode change or history rewrite. [Details and verification](docs/project-sources.md).
+
+
+## ADR-185: A user-operated browser in Workspace (2026-10-21)
+
+Embed a native WebKit Browser surface beside chat instead of pretending the separate agent Chromium process is embeddable. Keep agent policies/profiles unchanged and expose no page-to-host/model bridge. Use new temporary website storage for the current chat; clear it on scope/runtime reset and explicit Reset. Reuse existing pane presentation and retain same-chat page state across surface/visibility changes. Support HTTPS and local HTTP previews, preserve transport/server-trust protections, and initially refuse files, external schemes, downloads, file pickers/drops and website dialogs. [Scope and verification](docs/workspace-browser.md).

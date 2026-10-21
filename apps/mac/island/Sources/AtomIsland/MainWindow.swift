@@ -87,8 +87,8 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
         model.toggleWorkspace()
     }
     @objc private func openWorkspaceSurface(_ sender: NSMenuItem) {
-        guard canFind, model.windowPage == .chat, model.workspaceAvailable,
-              WorkspaceSurface.allCases.indices.contains(sender.tag) else { return }
+        guard canFind, model.windowPage == .chat, WorkspaceSurface.allCases.indices.contains(sender.tag),
+              model.workspaceSurfaceAvailable(WorkspaceSurface.allCases[sender.tag]) else { return }
         model.selectWorkspace(WorkspaceSurface.allCases[sender.tag])
     }
 
@@ -103,7 +103,8 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
             return canFind && model.windowPage == .chat
         }
         if item.action == #selector(openWorkspaceSurface(_:)) {
-            return canFind && model.windowPage == .chat && model.workspaceAvailable && model.workspace.pending?.action != .undo
+            return canFind && model.windowPage == .chat && WorkspaceSurface.allCases.indices.contains(item.tag)
+                && model.workspaceSurfaceAvailable(WorkspaceSurface.allCases[item.tag]) && model.workspace.pending?.action != .undo
         }
         if item.action == #selector(searchAll(_:)) { return canFind }
         if item.action == #selector(copyLastReply(_:)) { return copyLastReplyText != nil }

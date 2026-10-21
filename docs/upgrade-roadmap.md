@@ -126,8 +126,8 @@ Foreground reliability progress (2026-10-18): ADR-157 retains accepted input/que
 
 The seven requested screenshot interactions are implemented within their stated scope. The right pane currently offers Files/Changes/Git; repository imports currently support public HTTPS only. Recommended sequence for further work, with each capability scoped separately:
 
-1. Finish acceptance gaps: full native create/import completion and restart/keyboard navigation, then the existing search, memory suggestions and daily-brief live checks. Init/clone effects already pass controlled host fixtures.
-2. Add the Browser surface to the right pane.
+1. Project source acceptance is complete: native creation/import, real Git results, scoped New chat/README preview, restart with retained chat/draft/filter, physical picker keyboard selection and consented cleanup all passed. Existing search, memory suggestions and daily-brief live checks remain a separate older acceptance backlog.
+2. ADR-185 delivers the native user-operated Browser surface; build, core/visual and scoped live acceptance pass. [Scope](workspace-browser.md).
 3. Add a real Terminal surface with explicit session/project/access boundaries.
 4. Add pull-request and linked-pull-request surfaces.
 5. Add the Device surface using real connected-device state.

@@ -19,6 +19,7 @@ final class IslandModel {
     var meter = LevelMeter(bars: 14)
     var conversation = Conversation()
     var workspace = ProjectWorkspaceState()
+    let workspaceBrowser = WorkspaceBrowserSession()
     var chatControls = ChatControlsState()
     var recovery = ForegroundRecoveryState()
     var dispatchedInputIDs = Set<String>()
@@ -413,6 +414,7 @@ final class IslandModel {
     /// these before, so a Save or a model switch could stay "waiting" for good.
     func runtimeStopped() {
         projectSource.stopped()
+        workspaceBrowser.reset()
         dispatchedInputIDs = []
         recovery.syncPending = false
         conversation.interruptWork()
@@ -853,7 +855,7 @@ final class IslandModel {
         case .chatControl(let response):
             acceptChatControl(response)
         case .chats(let list):
-            if ProjectWorkspaceState.identity(chats) != ProjectWorkspaceState.identity(list) { workspace.clear() }
+            if ProjectWorkspaceState.identity(chats) != ProjectWorkspaceState.identity(list) { workspace.clear(); workspaceBrowser.reset() }
             if chats?.current != list.current { resetChatControlReading() }
             if list.currentReadOnlyNotice != nil { queue.takeAll() }
             if chats?.current != list.current { resetChatFind() }
@@ -869,11 +871,12 @@ final class IslandModel {
             projectError = nil
             syncChatModelName()
         case .chatOpened(let id, _, _, let trimmed):
+            if chats?.current != id { workspaceBrowser.reset() }
             resetChatControlReading()
             resetChatFind()
             trimmedChatId = trimmed ? id : nil
         case .conversationReset:
-            workspace.clear()
+            workspace.clear(); workspaceBrowser.reset()
             resetChatControlReading()
             resetChatFind()
             trimmedChatId = nil
@@ -907,7 +910,7 @@ final class IslandModel {
             planUsage = (planUsage ?? PlanUsage()).merging(usage)
         case .ready(let ready):
             projectSource.stopped()
-            workspace.clear()
+            workspace.clear(); workspaceBrowser.reset()
             resetChatControlReading()
             if chatControls.mutation != nil {
                 chatControls.waitingExpired = true

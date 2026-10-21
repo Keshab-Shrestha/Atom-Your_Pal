@@ -1,17 +1,18 @@
 import Foundation
 
-/// Only surfaces backed by the checked local workspace protocol are offered.
+/// File surfaces use the checked host protocol; Browser is a separate user-operated native surface.
 public enum WorkspaceSurface: String, CaseIterable, Sendable {
-    case files, changes, git
+    case files, changes, git, browser
     public var title: String { self == .git ? "Git" : rawValue.capitalized }
     public var symbol: String {
-        switch self { case .files: "doc.on.doc"; case .changes: "plus.forwardslash.minus"; case .git: "arrow.triangle.branch" }
+        switch self { case .files: "doc.on.doc"; case .changes: "plus.forwardslash.minus"; case .git: "arrow.triangle.branch"; case .browser: "globe" }
     }
     public var detail: String {
         switch self {
         case .files: "Browse and preview project files"
         case .changes: "Review tracked task edits and Undo"
         case .git: "Inspect local status and file diffs"
+        case .browser: "Open a web page beside this chat"
         }
     }
 }

@@ -21,23 +21,26 @@ struct ProjectWorkspaceView: View {
             header
             if model.workspace.tab == "home" {
                 surfaceChooser
-            } else if model.workspaceAvailable {
+            } else if model.workspaceAvailable || model.workspace.tab == "browser" {
                 HStack(spacing: 2) {
                     Button { model.selectWorkspace(nil) } label: {
                         Image(systemName: "square.grid.2x2").frame(width: 24, height: 28)
                     }.buttonStyle(.plain).help("Choose a surface").accessibilityLabel("Choose a workspace surface")
                     ForEach(WorkspaceSurface.allCases, id: \.self) { surface in
                         Button { model.selectWorkspace(surface) } label: {
-                            Text(surface.title)
+                            Text(surface.title).fixedSize()
                                 .font(.system(size: 12, weight: model.workspace.tab == surface.rawValue ? .medium : .regular))
                                 .foregroundStyle(model.workspace.tab == surface.rawValue ? theme.text.color : theme.text3.color)
-                                .padding(.horizontal, 10).padding(.vertical, 7)
+                                .padding(.horizontal, 8).padding(.vertical, 7)
                                 .background(model.workspace.tab == surface.rawValue ? theme.fill2.color : .clear, in: RoundedRectangle(cornerRadius: 6))
-                        }.buttonStyle(.plain).accessibilityLabel("Workspace " + surface.rawValue)
+                        }.buttonStyle(.plain).disabled(!model.workspaceSurfaceAvailable(surface)).accessibilityLabel("Workspace " + surface.rawValue)
                             .accessibilityAddTraits(model.workspace.tab == surface.rawValue ? .isSelected : [])
                     }
                     Spacer(minLength: 0)
                 }.disabled(model.workspace.pending?.action == .undo)
+                if model.workspace.tab == "browser" {
+                    WorkspaceBrowserView(session: model.workspaceBrowser)
+                } else {
                 if let message = model.workspace.notice {
                     Text(verbatim: message).font(.system(size: 11)).foregroundStyle(theme.text2.color).textSelection(.enabled)
                 }
@@ -54,9 +57,12 @@ struct ProjectWorkspaceView: View {
                 } else {
                     changesPane
                 }
+                }
             } else {
                 Text("Open an active project chat to browse its folder and review tracked task edits.")
                     .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                Button("Choose a surface") { model.selectWorkspace(nil) }
+                    .accessibilityLabel("Choose a workspace surface")
                 Spacer()
             }
         }
@@ -89,13 +95,15 @@ struct ProjectWorkspaceView: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Workspace").font(.system(size: 13, weight: .medium))
-                Text(verbatim: model.chats?.currentProject?.name ?? "Project workspace")
+                Text(verbatim: model.chats?.currentProject?.name ?? "This chat")
                     .font(.system(size: 11)).foregroundStyle(theme.text2.color).lineLimit(1)
             }
             Spacer(minLength: 4)
+            if model.workspace.tab != "browser" {
             Button { selected = nil; model.refreshWorkspace() } label: { Image(systemName: "arrow.clockwise") }
                 .help("Refresh workspace").accessibilityLabel("Refresh workspace")
-                .disabled(model.workspace.pending != nil || !model.workspaceAvailable || model.workspace.tab == "home")
+                .disabled(model.workspace.pending != nil || !model.workspaceAvailable || model.workspace.tab == "home" || model.workspace.tab == "browser")
+            }
             Button { model.toggleWorkspace() } label: { Image(systemName: "xmark") }
                 .help("Close workspace").accessibilityLabel("Close workspace")
         }.buttonStyle(SnapshotBorderlessButtonStyle())
@@ -117,11 +125,11 @@ struct ProjectWorkspaceView: View {
                         Image(systemName: "chevron.right").font(.system(size: 10)).foregroundStyle(theme.text3.color)
                     }.padding(10).contentShape(Rectangle())
                         .background(theme.fill2.color.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
-                }.buttonStyle(.plain).disabled(!model.workspaceAvailable)
+                }.buttonStyle(.plain).disabled(!model.workspaceSurfaceAvailable(surface))
                     .accessibilityLabel("Open workspace " + surface.title)
             }
             if !model.workspaceAvailable {
-                Text("Open an active project chat to use these surfaces.")
+                Text("Files, Changes and Git need an active project chat. Browser works beside any chat.")
                     .font(.system(size: 12)).foregroundStyle(theme.text2.color).padding(.top, 8)
             }
             Spacer(minLength: 16)

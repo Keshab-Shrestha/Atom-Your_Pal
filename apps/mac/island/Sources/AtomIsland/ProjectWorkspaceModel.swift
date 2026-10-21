@@ -12,6 +12,7 @@ extension IslandModel {
         return !project.missing && !project.archived && chats?.currentReadOnlyNotice == nil
             && chats?.current != "api" && chats?.current.hasPrefix("api-") != true
     }
+    func workspaceSurfaceAvailable(_ surface: WorkspaceSurface) -> Bool { surface == .browser || workspaceAvailable }
     func requestWorkspace(_ action: WorkspaceRequest.Action, path: String = "", job: Int? = nil, token: String? = nil, section: String? = nil) {
         guard workspaceAvailable, let chat = chats?.current, let project = chats?.currentProjectId else { workspace.clear(); return }
         let request = WorkspaceRequest(chat: chat, project: project, action: action, path: path, job: job, token: token, section: section)
@@ -35,13 +36,14 @@ extension IslandModel {
             requestWorkspace(.changes)
             return
         }
-        guard workspace.shown, workspaceAvailable, WorkspaceSurface(rawValue: workspace.tab) != nil,
+        guard workspace.shown, workspaceAvailable, workspace.tab != "browser", WorkspaceSurface(rawValue: workspace.tab) != nil,
               workspace.pending == nil, workspace.response == nil, workspace.notice == nil else { return }
         refreshWorkspace()
     }
     func refreshWorkspace() {
         guard WorkspaceSurface(rawValue: workspace.tab) != nil else { return }
-        if workspace.tab == "git" { requestWorkspace(.git) }
+        if workspace.tab == "browser" { workspaceBrowser.reload() }
+        else if workspace.tab == "git" { requestWorkspace(.git) }
         else if workspace.tab == "changes" { requestWorkspace(.changes) }
         else { requestWorkspace(.list, path: workspace.folder) }
     }

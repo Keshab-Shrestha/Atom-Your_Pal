@@ -15,7 +15,7 @@ ADR-182, 2026-10-21. The next T3 interaction upgrade adds a native surface choos
 
 Existing folder/path/link/resource checks, literal UTF-8 previews, exact request matching, read-only Git argv, checkpoint review and explicit Undo confirmation remain authoritative. Switching surfaces invalidates pending read tracking so a late reply cannot populate another surface. Switching is disabled during an in-flight Undo. Starting Undo invalidates other cached previews; timeout still reports uncertainty and requires Refresh. Closing during Undo preserves its request tracking; reopening handles the receipt before loading changes.
 
-No new protocol operation, file permission, terminal or agent action is introduced. Browser, Terminal, PR, linked PR and Device surfaces remain separate integrations and are not advertised as usable. See [Files/Changes](project-workspace.md) and [Git](git-workspace.md) for their existing limits.
+No new protocol operation, file permission, terminal or agent action is introduced. ADR-185 adds a separate user-operated Browser surface, available beside plain chats too; it has no worker-browser/model bridge. Terminal, PR, linked PR and Device surfaces remain separate integrations. [Browser scope](workspace-browser.md). See [Files/Changes](project-workspace.md) and [Git](git-workspace.md) for their existing limits.
 
 ## Verification
 

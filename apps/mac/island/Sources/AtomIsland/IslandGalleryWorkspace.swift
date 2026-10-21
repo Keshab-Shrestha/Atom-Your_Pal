@@ -33,6 +33,14 @@ extension IslandGallery {
         let chooser = model("{" + prefix + #", "action":"list","entries":[]}"#)
         chooser.workspace.tab = "home"
         save(ProjectWorkspaceView(model: chooser).frame(width: 420, height: 600).environment(\.islandSnapshot, true).themed(AppTheme.void.palette), name: "35-workspace-chooser", to: directory)
+        let browser = model("{" + prefix + #", "action":"list","entries":[]}"#, tab: "browser")
+        save(ProjectWorkspaceView(model: browser).frame(width: 420, height: 600).environment(\.islandSnapshot, true).themed(AppTheme.void.palette), name: "38-workspace-browser-dark", to: directory)
+        save(ProjectWorkspaceView(model: browser).frame(width: 300, height: 600).environment(\.islandSnapshot, true).themed(AppTheme.daylight.palette), name: "38-workspace-browser-compact", to: directory)
+        browser.workspaceBrowser.address = "file:///tmp/Cedar.html"; browser.workspaceBrowser.navigate()
+        save(ProjectWorkspaceView(model: browser).frame(width: 420, height: 600).environment(\.islandSnapshot, true).themed(AppTheme.void.palette), name: "38-workspace-browser-refusal", to: directory)
+        let plainBrowser = IslandModel(settings: IslandSettings(defaults: defaults))
+        plainBrowser.workspace.shown = true; plainBrowser.workspace.tab = "browser"
+        save(ProjectWorkspaceView(model: plainBrowser).frame(width: 420, height: 600).environment(\.islandSnapshot, true).themed(AppTheme.daylight.palette), name: "38-workspace-browser-plain", to: directory)
         files.windowPage = .chat; files.status.apply(.running(pid: 1)); files.settings.theme = .daylight
         save(HelpersView(model: files).frame(width: 1160, height: 720).environment(\.islandSnapshot, true), name: "35-workspace-split", to: directory)
         save(HelpersView(model: files).frame(width: 760, height: 640).environment(\.islandSnapshot, true), name: "35-workspace-compact", to: directory)

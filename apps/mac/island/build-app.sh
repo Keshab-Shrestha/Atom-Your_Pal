@@ -98,6 +98,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>NSCalendarsUsageDescription</key><string>ATOM reads your calendar only when you ask about your schedule.</string>
   <key>NSRemindersFullAccessUsageDescription</key><string>ATOM reads your reminders when you ask, and adds one when you ask it to.</string>
   <key>NSRemindersUsageDescription</key><string>ATOM reads your reminders when you ask, and adds one when you ask it to.</string>
+  <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>
   <key>NSMicrophoneUsageDescription</key><string>ATOM listens only while you hold its talk or dictate key, to hear you. Speech is transcribed on this Mac and never recorded.</string>
   <key>NSAppleEventsUsageDescription</key><string>ATOM controls Music or Spotify (play, pause, skip) and adds notes to Notes, only when you ask.</string>
   <key>AtomProjectRoot</key><string>$root</string>

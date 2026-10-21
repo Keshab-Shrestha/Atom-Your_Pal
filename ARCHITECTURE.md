@@ -701,3 +701,6 @@ Full access is a host-confirmed per-chat mode, not a global setting or new provi
 
 
 ADR-184: sidebar navigation has one Projects filter/settings entry, one source chooser and one scoped New chat. A unified active chat list replaces the permanent project tree. Project source operations cross the private pipe as correlated create/cancel/created messages; the host validates canonical exclusive destinations, runs bounded fixed-argv Git with isolated configuration, then calls existing checked project registration. Cancellation/quit abort the process group; native state rejects unmatched completions. No provider/model tool route or transcript/access migration. [Contract](docs/project-sources.md).
+
+
+ADR-185: Workspace Browser is a native user-operated WebKit session owned by the current IslandModel chat scope, separate from ProjectWorkspaceState's host file operations and agent Chromium profiles. Its view/session survives same-chat surface close/reopen; identity/runtime reset destroys temporary website storage and rejects old-view callbacks. No protocol/provider tool or model-context integration. [Details](docs/workspace-browser.md).
