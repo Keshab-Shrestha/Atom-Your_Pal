@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Current capability — Computer control 2/4: reliability baseline and two fixes (2026-10-23)
+
+A live, model-free baseline on a fictional TextEdit task found two defects, and both are fixed. `look` no longer reads an off-screen helper window (which made input blame "another Space"). A click on a text field that has no press action now points to `type`. After the fixes, `type` is confirmed 5 of 5. Still open: background menu shortcuts (`cmd+w`) and save-sheet buttons do not work. 102 computer tests pass. See [computer readiness](docs/computer-readiness.md). Next: step 3, speed.
+
 ## Current capability — Computer control 1/4: read-only permission status (2026-10-23)
 
 Keshab asked to improve Computer control in four steps: permissions and setup, reliability, speed, visibility. Step 1 is done. The `computer` tool's `status` action now also reports Accessibility and Screen Recording through the driver's read-only `check_permissions` (`prompt: false`). It names the grant holder and gives grant guidance when a permission is missing; ATOM changes no permission. Two new tests; 94 computer and transport tests pass; typecheck passes. A live read-only check reports both permissions granted for `com.trycua.driver`. Not covered: the native app flow with a revoked permission. See [computer readiness](docs/computer-readiness.md). Next: step 2, reliability baseline.

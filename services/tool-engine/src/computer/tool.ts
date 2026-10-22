@@ -79,6 +79,7 @@ const ACTIONS = ["status", "list_apps", "look", "open", "click", "type", "key", 
 
 /** Actions that change something in an app, so `look_after` makes sense for them. */
 const INPUT_ACTIONS = new Set(["click", "type", "key", "scroll", "set_value"]);
+const TEXT_INPUT_ROLES = new Set(["AXTextArea", "AXTextField", "AXSearchField", "AXComboBox"]);
 
 /** Roles that take typed text, so a value set into one counts as typing. */
 
@@ -137,11 +138,14 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     const app = await findApp(appName, signal);
     const pid = await pidOf(app, signal);
     if (pid === undefined) throw new Refused(`${app.name} is not running. Use action "open" first.`);
-    const all = ((await cua.call("list_windows", { pid }, signal)).data.windows ?? []) as Array<{ window_id: number; title?: string; is_on_screen?: boolean; bounds?: { height?: number } }>;
+    const all = ((await cua.call("list_windows", { pid }, signal)).data.windows ?? []) as Array<{ window_id: number; title?: string; is_on_screen?: boolean; on_current_space?: boolean | null; bounds?: { height?: number } }>;
     // A running app with no document still owns thin menu-bar windows (30 points high, 1 per screen): they are no window to read.
     const wins = all.filter((w) => (w.bounds?.height ?? Number.POSITIVE_INFINITY) > MIN_WINDOW_HEIGHT);
-    const win = wins.find((w) => w.is_on_screen) ?? wins[0];
-    if (!win) throw new Refused(`${app.name} has no window open (no document). Open or create one, or ask the user to, then look again.`);
+    // Off screen, only a window on another Space is worth reading. Helpers belong to no Space (null) and a hidden panel is off screen on
+    // this Space (true): reading one returned an empty window, and input then blamed "another Space" (live baseline 2026-10-23).
+    // Older drivers do not report the field (undefined) and keep the earlier fallback.
+    const win = wins.find((w) => w.is_on_screen) ?? wins.find((w) => w.on_current_space === false || w.on_current_space === undefined);
+    if (!win) throw new Refused(`${app.name} has no window open (no document) that ATOM can see. Open, unhide or create one, or ask the user to, then look again.`);
     const state = await cua.call("get_window_state", { pid, window_id: win.window_id }, signal);
     if (state.isError) refuse(state.refusal?.code, app.name, `Could not read ${app.name}: ${state.refusal?.message ?? state.text}`);
     const elements = withoutMenuBar((state.data.elements ?? []) as Element[]);
@@ -318,6 +322,10 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const why = labelApproval(el.label, el.role);
         if (why) await ask(`Click ${why} in ${t.app}`, "it may send, buy, delete or change something", signal);
         const r = await cua.call("click", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, delivery_mode: "background" }, signal, t.generation);
+        // A text area or field has no press action (AX error -25206), so the click cannot focus it; `type` focuses it by itself.
+        if (r.isError && TEXT_INPUT_ROLES.has(el.role ?? "") && /-25206/.test(r.text)) {
+          throw new Refused(`[${el.element_index}] is a text field and cannot be pressed. To write in it, use action "type" with element ${el.element_index}; that focuses it. Nothing was clicked.`);
+        }
         checkResult(r, "Click", t.app);
         t.justTyped = false;
         return `Clicked [${el.element_index}]${el.label ? ` "${el.label}"` : ""}.${verdict(r, `click:${el.element_index}`)}`;
@@ -396,8 +404,8 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     spec: {
       name: "computer",
       description:
-        "Controls apps on the user's Mac in the background. Use `status` to check driver readiness/timing without reading desktop content; this does not test macOS permissions. After a driver failure, look again; never automatically repeat an uncertain action. First `look` at an app to get its numbered elements, then `click`, " +
-        "`type` or `key` using those numbers; look again after anything that changes the window. Typed text goes in at the cursor, " +
+        "Controls apps on the user's Mac in the background. Use `status` to check driver readiness/timing and, read-only, the driver's Accessibility and Screen Recording permissions without reading desktop content. After a driver failure, look again; never automatically repeat an uncertain action. First `look` at an app to get its numbered elements, then `click`, " +
+        "`type` or `key` using those numbers; look again after anything that changes the window. There is no need to click a field before typing: `type` with its element focuses it. Typed text goes in at the cursor, " +
         "not at the end. Use `open` to start an app. " +
         "Use `set_value` to set a slider, stepper or choice to a value in one step (text holds the value), instead of clicking toward it. " +
         "Add `look_after: true` to a click, type, key, scroll or set_value to get the new screen in the same reply. " +

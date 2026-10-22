@@ -32,3 +32,30 @@ Idle shutdown is scheduled only after active work finishes. Previously its count
 - Installed-driver protocol-only sample: **141 ms** cold helper initialization + **4 ms** probe, followed by **2 ms** warm probe with the same helper. One sample, local machine; no desktop content read, input sent or model request made. This is not a task completion, permission or Sentient-versus-ATOM speed result.
 
 The Swift UI/protocol is unchanged. These TypeScript host sources are read from the checkout on runtime launch; the currently running host is not hot-patched. Restarting ATOM loads the change. Chat databases, archives, drafts, grants and provider configuration are not migrated or rewritten by this capability.
+
+
+## Reliability baseline and fixes (23 October 2026)
+
+Harness: ATOM's real `computer` tool against the live Cua Driver 0.28.2, with no model in the loop. Approvals are granted only for TextEdit. Task: a fictional untitled TextEdit document, five rounds of look → click the text area → type a fixed sentence with `look_after`.
+
+Before the fixes:
+- With no document open, `look` chose an off-screen helper window ("Save Panel Accessory View"). The look reported success with no elements. Every following input failed with "The TextEdit window is on another desktop (Space) or ATOM cannot read it", which was wrong.
+- Clicking the text area failed in every round with `AXUIElementPerformAction(AXPress) returned -25206`. Text views have no press action.
+
+Fixes:
+- `look` now falls back to an off-screen window only if the driver reports it on another Space (`on_current_space: false`). Helper windows (no Space) and hidden panels on this Space are skipped, and the reply says no window is open. Drivers that omit the field keep the earlier fallback.
+- A click that fails with -25206 on a text area, text field, search field or combo box now says the element cannot be pressed and that `type` with that element focuses it. Nothing was clicked. The tool description now says a field needs no click before typing.
+
+After the fixes, five rounds:
+- `look` chose the document window every time.
+- `type`: 5 of 5 confirmed (1.9–2.3 s each, including `look_after`).
+- The guided click refusal: 5 of 5 (about 1.1 s each, 3.1 s on the first).
+- `look`: 0.7–1.0 s. `open`: 1.5 s.
+
+Still open:
+- Background `cmd+w` reported "could not confirm" and did not close the window (2 of 2). Menu shortcuts sent in the background may not reach the app.
+- The "Delete" button of TextEdit's save sheet cannot be pressed: the parent window refuses it (`element_outside_target_window`), and the sheet window exposes no buttons. A foreground `cmd+delete` did not close it either.
+- `look` shows at most 80 characters of a value, so long text cannot be checked from a look.
+- A window on another Space was not tested live.
+
+Tests: three new tool tests; 102 computer, transport and screen tests pass; typecheck passes.

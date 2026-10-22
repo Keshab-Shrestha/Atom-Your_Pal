@@ -727,6 +727,52 @@ test("status reports cold/warm protocol readiness without desktop reads or appro
   assert.equal((await s.run({ action: "click", element: 2 })).ok, false, "status is not a window observation");
 });
 
+test("clicking a text area that has no press action points to type instead of failing blindly", async () => {
+  // Live baseline 2026-10-23: TextEdit's text view refused AXPress with -25206 every round.
+  const s = setup({
+    handlers: {
+      click: () => ({ text: "AX action failed: AXUIElementPerformAction(AXPress) returned -25206", isError: true, refusal: undefined, data: {} }),
+    },
+  });
+  await sees(s);
+  const r = await s.run({ action: "click", element: 1 });
+  assert.equal(r.ok, false);
+  assert.match(r.text, /text field.*use action "type" with element 1/);
+  assert.match(r.text, /Nothing was clicked/);
+  assert.match(String(s.tool.spec.description), /no need to click a field before typing/i);
+});
+
+test("look refuses an app whose only windows are off-screen helpers, instead of reading an empty one", async () => {
+  // Live baseline 2026-10-23: TextEdit with no document kept "Save Panel Accessory View" (no Space) and a hidden Open panel.
+  const s = setup({
+    handlers: {
+      list_windows: () => ({ text: "wins", isError: false, refusal: undefined, data: { windows: [
+        { window_id: 1, app_name: "TextEdit", pid: 11, title: "", bounds: { height: 30 }, is_on_screen: false, on_current_space: null },
+        { window_id: 2, app_name: "TextEdit", pid: 11, title: "Save Panel Accessory View", bounds: { height: 64 }, is_on_screen: false, on_current_space: null },
+        { window_id: 3, app_name: "TextEdit", pid: 11, title: "Open", bounds: { height: 448 }, is_on_screen: false, on_current_space: true },
+      ] } }),
+    },
+  });
+  const r = await sees(s);
+  assert.equal(r.ok, false);
+  assert.match(r.text, /no window open \(no document\)/);
+  assert.equal(s.calls.filter((c) => c.name === "get_window_state").length, 0, "no empty helper window is read");
+});
+
+test("look still targets a real document window on another Space", async () => {
+  const s = setup({
+    handlers: {
+      list_windows: () => ({ text: "wins", isError: false, refusal: undefined, data: { windows: [
+        { window_id: 2, app_name: "TextEdit", pid: 11, title: "Save Panel Accessory View", bounds: { height: 64 }, is_on_screen: false, on_current_space: null },
+        { window_id: 9, app_name: "TextEdit", pid: 11, title: "note.txt", bounds: { height: 600 }, is_on_screen: false, on_current_space: false },
+      ] } }),
+    },
+  });
+  const r = await sees(s);
+  assert.equal(r.ok, true, r.text);
+  assert.match(r.text, /window "note\.txt"/);
+});
+
 test("status reports driver permissions read-only, never prompts, and names whose grants they are", async () => {
   const s = setup({
     probe: async () => ({ ready: true, reused: true, startupMs: 9, probeMs: 2, missingTools: [], permissionCheck: true }),
