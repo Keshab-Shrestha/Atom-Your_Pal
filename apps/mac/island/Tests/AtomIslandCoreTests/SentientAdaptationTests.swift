@@ -71,4 +71,18 @@ struct SentientAdaptationTests {
         #expect(list.history.first?.lines == ["Original brief"])
         #expect(list.history.first?.preparation == nil)
     }
+
+    @Test func aPlainBriefNamesItsRealReason() throws {
+        func entry(_ source: String, _ status: String?) throws -> BriefEntry? {
+            let preparation = status.map { #","preparation":{"status":"\#($0)","cards":[]}"# } ?? ""
+            let line = #"{"type":"brief","settings":{},"history":[{"id":1,"day":"2026-10-22","lines":["Brief"],"source":"\#(source)"\#(preparation)}],"running":false}"#
+            guard case .brief(let list) = try decodeEvent(line) else { return nil }
+            return list.history.first
+        }
+        #expect(try entry("model", nil)?.plainReason == nil)
+        #expect(try entry("template", "empty")?.plainReason == "no usable source excerpts")
+        #expect(try entry("template", "budget")?.plainReason == "today's preparation budget is used")
+        #expect(try entry("template", "failed")?.plainReason == "the model was not available")
+        #expect(try entry("template", nil)?.plainReason == "the model was not available")
+    }
 }

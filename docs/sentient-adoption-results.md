@@ -4,6 +4,68 @@
 
 The automated and isolated-provider portion of the combined gate passes. The first signed native restart/backup acceptance batch below also passes. Remaining native workflows, a same-model performance benchmark and full parity with Sentient's 33 inquiry features are not certified. The initial seven coding groups remain scoped as described in the [plan](sentient-adoption-plan.md).
 
+## Native prepared-work batch — completed with one finding
+
+Keshab chose fictional input only. The brief has no per-calendar or per-list selection, so Events, Reminders, Weather, Finished tasks and What waits are turned off for the test. The only input is two fictional timers, started in one new fictional chat. The baseline is a private `memory.db` backup with no saved brief settings (defaults apply), no briefs and no preparation usage. Drive the running signed app through Accessibility.
+
+- Brief me with every input empty makes no model call: `brief.made` with `source: template`, 0 parts, no preparation admission.
+- Run 1 (one timer): one admission, a model brief, and 0 cards. The design allows zero cards; a single "kettle check" timer gives nothing to prepare.
+- Run 2 (two timers): the second admission, 1 card from 2 sources. The card "Draft agenda and checklist: Cedar team sync" is marked "Draft only", says the timer label is cut off, and says no date, attendees or topics came with the sources. Its source is resolved by the host: `timers:2` with the exact excerpt and capture time.
+- Review and edit shows the title, body and captured excerpt. Copy edited text puts exactly the edited title, a blank line and the edited body on the clipboard as plain text. Restore generated text brings back the generated title and body exactly. Close discards an edit: reopening shows the generated title. The stored card stays equal to the generated text; nothing is saved back.
+- Run 3 at 2 of 2: a template brief with no model call, status `budget`, usage unchanged. The Dashboard says the budget is used, keeps the earlier card and labels it "Showing earlier saved cards; these excerpts have not been refreshed."
+- Restart: no brief runs. Usage, settings, the card and its labels are unchanged.
+- Pause (Prepare work off): "Preparation is paused. Previously saved cards remain available." The card stays.
+- Cleanup: brief settings are back to the default values, the clipboard is restored exactly, and the original chat is selected again.
+
+Remaining differences from the baseline, all expected: the fictional chat (2 turns), its automatic chat summary and mirrored "Chat note 2026-10-22" in Second brain, 4 brief rows (14-day retention), today's preparation count (2) and a saved settings row holding the default values. The two fictional timers end by about 21:33.
+
+Finding: the plain brief says "Plain version: the model was not available" after the empty-input run and after the budget-limited run. In both cases the model was available; the real reasons are "no usable sources" and "budget used". **Fixed the same day:** the footer now reads "no usable source excerpts" or "today's preparation budget is used" from the stored preparation status, and keeps "the model was not available" for real failures. A Swift regression test covers all four cases. An empty brief made with preparation off still shows the model-failure text, because that run records no reason.
+
+Not covered: the scheduled daily brief, cancellation by pause or foreground chat during a running preparation, Telegram and speech exclusion (both are off here), Calendar, Reminders, Weather and Board inputs, and keyboard, IME and VoiceOver use of the editor.
+
+## Native imported-note analysis batch — completed with two findings
+
+Use a new fictional folder `~/Documents/ATOM fixture cedar-analysis-r2` with three notes: two short notes and one 33 KB logbook (three chunks). The baseline is a private `memory.db` backup with no source and empty analysis tables. Drive the running signed app through Accessibility and the native folder chooser. The job model is `claude-plan / claude-opus-5-5 · low`.
+
+- Preview lists exactly the two first files with 0 skipped. Import adds two notes (34 total). The first job analyzes both in two attempts. Each report states note ID, text offsets, source check time, model and preparation time, and separates the note's content from open questions. The content matches the fixture.
+- Copy analysis puts text on the clipboard that equals the stored report byte for byte (810 bytes). Read original note opens the note in the graph with `Imported · current` provenance and its source path.
+- Clear analysis → Cancel keeps both reports.
+- Add the logbook and Refresh: 3 imported. The next job reuses both earlier reports with no attempt and sends the logbook chunks.
+- Restart: quit and relaunch the app. The job state, attempt count and reports are unchanged, and no analysis request is sent.
+- Resume makes exactly one attempt, for the unfinished chunk only. Finished chunks are not sent again. The job reaches `done`.
+- Edit a source file and Refresh: only that note's report is removed. The next job reuses 4 chunks and makes 1 attempt.
+- Budget: with 7 of 7 attempts used, a new job pauses with reason `budget`, sends nothing and offers Resume.
+- Clear analysis → Clear derived analysis removes all reports, the job and the schedule settings (the daily limit returns to 3). Today's count of 7 stays.
+- Remove source and imported copies → 32 notes and 25 links. The source and analysis tables are empty except the usage counter. Source files are untouched apart from the two fixture edits.
+- Cleanup: the original chat is restored. The clipboard is restored exactly. `config/island.json` is unchanged. 47 of 48 non-FTS tables match the pre-test hashes. The difference is `source_analysis_usage` (one row: 7 attempts today), which the design keeps on purpose.
+
+Findings:
+1. One logbook chunk failed its output check once ("The model returned an empty, oversized or invalid report"). Resume then succeeded on the same chunk. The check rejects output over 6,000 raw or 3,500 cleaned bytes, invalid text, or text that looks like a secret. The cause of this failure is not known.
+2. The log line `source.analysis_failed` carries no failure stage or category. [Source analysis](source-analysis-jobs.md) says logs contain fixed failure categories. So finding 1 cannot be diagnosed from the log. **Fixed the same day:** the line now carries `stage` (`reading`, `model`, `output` or `checkpoint`) and still no error or report text. A regression test covers the `output` and `model` stages. The cause of finding 1 stays unknown until it happens again with the new log.
+
+Observation: when a job finishes, the Pause button is replaced in place by Clear analysis… A click at that moment opens the Clear confirmation, which happened once during this run. The confirmation prevented any loss; Cancel kept everything.
+
+Effect on the user: this run used 7 analysis attempts on the Claude plan today. The daily limit is back to 3, so analysis is exhausted until tomorrow if a source is connected again today. The fixture folder stays in Documents, which syncs to iCloud.
+
+Not covered: scheduled daily runs, foreground-chat interruption, runtime stop during a chunk, repeated Resume packets, concurrency races, and keyboard, IME and VoiceOver use of this panel.
+
+## Native local backup Copy/Clear/Forget batch — completed
+
+Use an owned fictional loopback fixture on `127.0.0.1:18431` with model `cedar-fixture-r2`. The fixture logs method, path, message roles, model, tool presence and size only. The baseline is a private `memory.db` backup, the clipboard text and the `config/` folder (no `local-backup.json`). Drive the running signed app through Accessibility.
+
+- Save writes `config/local-backup.json` with mode 0600 and the two fields only. It sends no `/v1` request.
+- Check server sends one `GET /v1/models`. Send sends one `POST /v1/chat/completions` with roles system/user, the exact model ID and no tools. The reply shows the configured model name.
+- Copy on the reply and on the prompt puts the exact turn text on the clipboard, as plain text only.
+- Clear → Cancel keeps both turns. Clear → Clear removes both turns, keeps the configuration and sends no request. The next send carries roles system/user only, so cleared turns do not return.
+- Forget → Cancel keeps the configuration and the turns. Forget → Forget deletes `local-backup.json`, clears the turns and both fields, shows "Not checked" and sends no request.
+- Cleanup: close the panel and return to the original chat (Opus 5.5, Off, Saved permissions, empty composer). Restore the original clipboard text exactly. Stop the fixture. The `config/island.json` hash is unchanged. All 48 non-FTS tables match the pre-test hashes.
+
+Observation, not a defect: Clear also discards the server check. Send stays disabled until Check server runs again. The reason shows only inside the collapsed Server configuration section. Decide whether the panel should say so.
+
+A separate local tool (`PortPilot/0.1`) sends `GET /` to new listening ports every four seconds. These requests do not come from ATOM and are excluded above.
+
+Limits: fixture replies are synthetic. No real local model ran. Keyboard, IME, VoiceOver and compact layout of this panel are not covered here.
+
 ## Saved reply context/examples — completed with approved cleanup
 
 Use one new authored fictional note, `Cedar reply context R8 20261022` (ID 37), and a private baseline before creation. There are no saved writing examples at baseline. Preserve the original/revised fixture text, exact sample and generated reply separately for recovery.

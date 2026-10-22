@@ -219,6 +219,22 @@ test("resumable analysis pins profiles, reuses reports, preserves budget on Clea
   } finally { runner.close(); m.close(); }
 });
 
+test("a failed analysis chunk logs which stage failed and no content", async () => {
+  const profile = { provider: "codex", model: "fixture-only", effort: "low" };
+  for (const [write, stage] of [[async () => "", "output"], [async () => { throw new Error("PRIVATE PROVIDER ERROR"); }, "model"]] as const) {
+    const m = fixture(); const events: [string, Record<string, unknown>][] = [];
+    const runner = createSourceAnalysis({ memory: m, profile: () => profile, idle: () => true, beforeWrite() {}, log: (event, fields) => { events.push([event, fields]); }, write });
+    try {
+      const view = runner.handle({ type: "source.analysis", request: randomUUID(), action: "get" }).view;
+      runner.handle({ type: "source.analysis", request: randomUUID(), action: "start", source: view.source, version: view.record!.version, profile });
+      await until(() => !runner.busy());
+      assert.equal(m.sourceAnalysis!.read()!.job!.state, "failed");
+      assert.deepEqual(events.filter(([event]) => event === "source.analysis_failed"), [["source.analysis_failed", { stage }]]);
+      assert.doesNotMatch(JSON.stringify(events), /PRIVATE|Cedar launches/);
+    } finally { runner.close(); m.close(); }
+  }
+});
+
 test("analysis interruption/restart requires explicit resume and rejects late reports", async () => {
   const profile = { provider: "codex", model: "fixture-only", effort: "low" };
   const m = fixture(); let finish!: (value: string) => void, calls = 0;

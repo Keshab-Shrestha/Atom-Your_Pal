@@ -59,7 +59,7 @@ struct BriefCard: View {
     private func footer(_ entry: BriefEntry) -> String {
         var parts: [String] = []
         if let at = entry.createdAt { parts.append(at.formatted(date: .abbreviated, time: .shortened)) }
-        if entry.isPlain { parts.append("Plain version: the model was not available") }
+        if let reason = entry.plainReason { parts.append("Plain version: \(reason)") }
         return parts.joined(separator: " · ")
     }
 
