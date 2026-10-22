@@ -125,6 +125,28 @@ struct BrainTests {
         #expect(s.search(String(repeating: "a", count: 500)) == .brainSearch(query: String(repeating: "a", count: 500)))
     }
 
+    @Test func aChangedGraphAsksAgainForTheActiveSearch() {
+        var s = state()
+        #expect(s.refreshSearch() == nil, "no words: nothing to ask")
+        _ = s.search("  mesh ")
+        s.setHits(query: "mesh", [BrainHit(id: 1, title: "Mesh")])
+        s.setGraph(BrainGraphData(nodes: [BrainNode(id: 2, title: "Penny")]))
+        #expect(s.refreshSearch() == .brainSearch(query: "mesh"))
+        #expect(s.hits == [BrainHit(id: 1, title: "Mesh")], "kept until the runtime answers, so a rejected delete loses nothing")
+        s.setHits(query: "mesh", [])
+        #expect(s.hits == [] && s.matchedIds == [])
+    }
+
+    @Test func aLateAnswerToAnOlderSearchCannotBringBackAHit() {
+        var s = state()
+        _ = s.search("mesh")
+        _ = s.search("penny")
+        s.setHits(query: "mesh", [BrainHit(id: 1, title: "Mesh")])
+        #expect(s.hits == nil)
+        _ = s.search("   ")
+        #expect(s.refreshSearch() == nil)
+    }
+
     @Test func filtersHideKindsAndTags() {
         var s = state()
         #expect(s.visibleIds == [1, 2, 3, 4])

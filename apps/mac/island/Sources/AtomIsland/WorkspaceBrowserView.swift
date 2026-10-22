@@ -43,7 +43,7 @@ struct WorkspaceBrowserView: View {
             } else {
                 VStack(alignment: .leading, spacing: 10) {
                     Spacer()
-                    Image(systemName: "globe").font(.system(size: 24)).foregroundStyle(theme.text3.color)
+                    Image(systemName: "globe").font(.system(size: 24)).frame(height: 28).foregroundStyle(theme.text3.color)
                     Text("Browse beside your chat").font(.system(size: 14, weight: .medium))
                     Text("Open a web page or a local development server. Page content is not sent to the model automatically.")
                         .font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)
