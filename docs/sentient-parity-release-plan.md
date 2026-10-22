@@ -55,7 +55,7 @@ Already evidenced: signed restart/state retention; notes-folder preview/import/c
 | Remaining batch | Required native outcome |
 | --- | --- |
 | Replies | Codex panel path; imported-source attribution in selected reply context; clipboard/truncation/secure-field refusal; provider failure and late result handling. Preserve Gemini's approved earlier selected-text action. |
-| Continuity | Fictional long chat: inspect derived summary, open exact original references, pause/clear/re-enable, restart and verify originals/grants. Summary claims cannot create authority. |
+| Continuity | **Done 22 October** with a fictional 54 KB chat and two observations ([results](sentient-adoption-results.md)). Covered: derived summary, cited original navigation, pause/clear/re-enable, restart, unchanged originals and access records. Not covered: exact-file grant/revoke (no grant in the fixture), Codex/Gemini, foreground cancellation, delete/fork. |
 | Prepared work | **Done 22 October** with fictional timers only, one wording finding ([results](sentient-adoption-results.md)). Covered: sourced card → edit/Copy/Restore/Close, pause, exhausted budget, older-card labeling, restart, no-input run without a model call. Not covered: Calendar/Reminders/Board inputs, cancellation of a running preparation, scheduled runs. |
 | Source analysis | **Done 22 October** with two findings: a one-off output-check failure and a failure log without stage ([results](sentient-adoption-results.md)). Covered: start, restart, explicit Resume, edit/refresh invalidation, cache reuse, budget exhaustion, source navigation, confirmed Clear/disconnect, no duplicate dispatch. A mid-chunk user Pause was not reached because chunks finished too fast. |
 | Computer readiness | App-owned read/screenshot/input fixture with permission absent/denied/revoked, owned-helper failure/recovery and fresh observation. Never replay an uncertain write. |
@@ -73,6 +73,58 @@ Measure app/window readiness, request admission, dependency/provider setup, firs
 First investigate the roughly 16,700-token first-turn context and the zero-cache follow-up: stable-prefix fingerprints, request envelope/tool ordering, model/effort/session changes, dynamic timestamps, cache expiry/routing and provider reporting. Cache hits cannot be guaranteed merely by keeping a prefix stable. Attribute context size before shortening instructions or tool descriptions.
 
 The small comparison is exploratory. Follow with enough controlled cold/warm trials to report median/range; only report p95 if sample size supports it. Exclude user handoff delays from model latency and record errors. Set numerical latency/context targets from this baseline before optimization. Improve measured setup/prefix costs one at a time; rerun the same workload and history/grant-revoke cases. No speed or cost win without comparable evidence and unchanged required behavior.
+
+**R3 first pass (22 October, existing usage rows only, no new model calls):**
+
+- Source: `data/helpers.db` table `usage` for the two fictional R2 chats, and `session.open` log lines. Model `claude-opus-5-5`, thinking off.
+- Fixed prefix: a cold first turn with no tool use in a fresh chat wrote 12,973 cache tokens, which is the prefix plus a ~2.7k-token message. So the fixed prefix is about 10.3k tokens. The prefix fingerprint (`7084125921fd`, 40 tools) is identical across chats and across an app restart.
+- The "~16,700-token first turn" reproduces as 17,437 tokens. But that turn reused the session of a stopped attempt, so its message appears twice. A clean first turn is about 10.3k plus the message.
+- Zero-cache follow-up: not reproduced. Each follow-up read the whole previous context (17.4k → 31k) and wrote only the new part. After a full restart the next turn read 35,349 and wrote 936. Cache misses come from the 1-hour TTL: a first turn at 13:50 read 0 because the last prefix write was at 11:53.
+- Background jobs (summary, notes) run in isolated sessions and usually start with no cache. A repeated identical summary job did read 9,822 cached tokens.
+- Cost bookkeeping defect: after a resume, `dollars_sdk` for the first turn includes the whole restored session ($0.3406 against $0.0218 priced). The SDK's `total_cost_usd` counts the resumed session, but `costSoFar` starts at 0 in the new process. Displayed dollars use priced tokens, so only the diagnostic column is wrong. **Fixed the same day:** the first result of a resumed process now records no SDK cost share.
+- Not yet attributed: how the ~10.3k prefix splits between system prompt, the 40 tool schemas (ATOM tools can be deferred through ToolSearch) and SDK framing. The system prompt is passed as `systemPrompt` and as the `atom` agent's `prompt`; whether the SDK sends it once or twice is not measured.
+
+`session.open` now also logs `systemBytes` and `atomToolBytes` (sizes only, never content). Claude Code's built-in tool schemas are not counted. Next R3 steps: read those sizes from the next real session to attribute the prefix, then run the controlled ATOM-versus-Codex comparison with the same model, prompts and cold/warm conditions. Live check after a runtime restart (one fictional turn in a resumed chat):
+
+- `session.open` logged `systemBytes` 3,164 (about 0.8k tokens) and `atomToolBytes` 17,721 (about 4.4k tokens at 4 bytes per token). ATOM's own share of the ~10.3k-token prefix is therefore about 5.2k tokens. The remaining ~5k is Claude Code's own instructions, built-in tool schemas and framing, which ATOM cannot see. Byte-to-token ratios are estimates, not tokenizer counts.
+- The resume fix works: the first resumed turn recorded no SDK cost share, and its priced cost was $0.0468.
+- Cross-chat cache: the turn read only 5,354 cached tokens and wrote 5,576. That is although another chat used the identical prefix hash 9 minutes earlier, inside the 1-hour TTL. So only about half of the prefix is shared across chats, and the rest is chat- or session-specific. Which part differs is not visible in ATOM's logs. A request capture would be needed to find it.
+- Optimization candidates, not yet measured: confirm whether ToolSearch actually defers the ~4.4k tokens of ATOM tool schemas, and find the chat-specific part of the prefix. Do not shorten instructions or tools before that attribution.
+
+**R3 benchmark setup, pinning (22 October, two smoke calls, not timed trials):**
+
+- Model: gpt-6-luna chosen by Keshab. Opus 5.5 is ATOM's main chat model, so ATOM must also be set to Codex gpt-6-luna for the same advertised model. ATOM's chat model is per chat.
+- Codex surface: the Codex CLI `codex exec` 0.163.0-alpha.10.2 (the bundled app binary). ATOM's Codex adapter uses the app-server protocol, not `exec`, so the surfaces differ. The Codex desktop app is not installed; the VS Code extension bundles another binary. The plan calls for app-versus-app; this is not that.
+- Hidden context: with the user's config, a `codex exec` turn reported `input_tokens` 21,429 and logged "Exceeded skills context budget" (102 skills omitted). With `--ignore-user-config`, the same turn reported 18,217 input tokens and no error. About 3.2k input tokens came from the user's config.
+- Cache: a fresh ephemeral turn read 11,520 cached input tokens; the uncached part was about 6.7k.
+
+Not yet decided: which surface is the comparison (CLI with clean config, or app-server as ATOM uses), and whether ATOM's Codex adapter also loads the user's skills. Trials are not run. Each side's workload is 3 fresh chats × 2 responses, cold then warm.
+
+**R3 benchmark, exploratory (22 October, 3 fresh chats × 2 turns per side, gpt-6-luna on both sides):**
+
+Set-up, disclosed:
+- Same advertised model, gpt-6-luna. ATOM chat switched per chat to Codex / GPT-6-Luna (chip shows reasoning Low). Codex side: `codex exec` with `--ignore-user-config`, default reasoning effort. Effort is not matched exactly; Codex turns reported 0 reasoning tokens.
+- Surface differs. Codex side is the CLI `exec` from the bundled app binary; ATOM talks to Codex through its app-server adapter with ATOM's instructions and tools. The ChatGPT.app desktop app with its own Codex server is installed here but was not used.
+- Same two prompts on both sides. Turn 1 asks for a one-sentence answer from a short note; turn 2 is a follow-up in the same chat. "Cold" = first turn of a new chat; "warm" = second turn.
+- ATOM timing is send-to-usage-row wall time, with 1–2 s of UI automation overhead on trials 1–2 and none measured for trial 3's first turn. ATOM first-visible-text was not measured and is not reported.
+
+Results (n = 3 per side; medians with ranges):
+
+| Measure | Codex CLI (clean) | ATOM (Codex adapter) |
+| --- | --- | --- |
+| Cold turn, total | 7.0 s (6.1–7.6) | 10.2–11.5 s, n=2 |
+| Warm turn, total | 7.6 s (5.9–8.6) | 5.7 s (3.2–5.9) |
+| Cold turn, first text | 6.0 s (5.2–6.4) | not measured |
+| Cold input tokens | 18,258 (cache read 11,520) | 12,113–12,118 (cache read 0), and 2,258 with cache read 9,856 in trial 2 |
+| Warm input tokens | 36,578–41,807 (cache read 29,568) | 386–391 (cache read 11,904) |
+
+Findings:
+- ATOM's first-turn input is smaller than Codex CLI's (about 12k against 18k). Codex's count includes its own system prompt and tools; ATOM's includes its own. Attribution of each is not measured on the Codex side.
+- Cache behaviour is inconsistent on the ATOM side. Trial 2's first turn read 9,856 cached tokens, while trials 1 and 3 read none, within the same hour and on the same prefix. The cause is not in the logs. Codex's cache counts were stable across all three threads.
+- Warm turns are faster on ATOM (median 5.7 s against 7.6 s for Codex), but ATOM's figure includes its UI overhead and n is 3. Do not read it as a speed win.
+- Monetary cost not computed (no pricing verified); the plan's note on quota and API cost applies.
+
+Still open: ATOM first-text timing, trial 3's cold wall time, the cause of the cache misses, a same-effort rerun, and a Codex app-server comparison to remove the surface difference.
 
 ## R4 — Release candidate gate
 

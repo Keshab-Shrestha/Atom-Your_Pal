@@ -275,9 +275,12 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
   };
 
   const options = sessionOptions(sdk, o, controller, () => turnSignal ?? controller.signal);
-  const toolNames = [...o.tools, ...(o.atomTools?.specs() ?? []).map((s) => s.name)];
+  const specs = o.atomTools?.specs() ?? [];
+  const toolNames = [...o.tools, ...specs.map((s) => s.name)];
   const prefix = prefixHash(o.systemPrompt, toolNames);
-  log("session.open", { sdk: sdkVersion(), prefix, model, resume: Boolean(o.resume), tools: toolNames.length });
+  // Sizes only, never content, to attribute the fixed prefix (R3). Claude Code's own built-in tool schemas are not counted here.
+  log("session.open", { sdk: sdkVersion(), prefix, model, resume: Boolean(o.resume), tools: toolNames.length,
+    systemBytes: Buffer.byteLength(o.systemPrompt), atomToolBytes: Buffer.byteLength(JSON.stringify(specs)) });
   const q = sdk.query({ prompt: input.messages, options });
 
   const end = (t: Turn, outcome: { text: string; sessionId?: string } | { error: unknown }) => {
@@ -319,7 +322,9 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
     // `usage` is this turn's; `total_cost_usd` counts from the process start, so the turn's cost is the difference.
     const tokens = tokensOf(result);
     const total = typeof result.total_cost_usd === "number" ? result.total_cost_usd : undefined;
-    const cost = total !== undefined ? total - costSoFar : undefined;
+    // A resumed process reports the restored session's running total on its first result, so that turn's share is unknown (it was
+    // logged as the whole earlier session, R3 2026-10-22). Its priced dollars still come from the tokens.
+    const cost = total !== undefined && !(o.resume && resultsSeen === 1) ? total - costSoFar : undefined;
     if (total !== undefined) costSoFar = total;
     if (tokens) {
       const { costUsd: _, ...rest } = tokens;
