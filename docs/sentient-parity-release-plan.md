@@ -56,7 +56,7 @@ Already evidenced: signed restart/state retention; notes-folder preview/import/c
 | --- | --- |
 | Replies | Codex panel path; imported-source attribution in selected reply context; clipboard/truncation/secure-field refusal; provider failure and late result handling. Preserve Gemini's approved earlier selected-text action. |
 | Continuity | Fictional long chat: inspect derived summary, open exact original references, pause/clear/re-enable, restart and verify originals/grants. Summary claims cannot create authority. |
-| Prepared work | Fictional selected inputs → sourced card → edit/Copy/Restore/Close; pause, exhausted budget, older-card labeling and restart. No automatic action or delivery. |
+| Prepared work | **Done 22 October** with fictional timers only, one wording finding ([results](sentient-adoption-results.md)). Covered: sourced card → edit/Copy/Restore/Close, pause, exhausted budget, older-card labeling, restart, no-input run without a model call. Not covered: Calendar/Reminders/Board inputs, cancellation of a running preparation, scheduled runs. |
 | Source analysis | **Done 22 October** with two findings: a one-off output-check failure and a failure log without stage ([results](sentient-adoption-results.md)). Covered: start, restart, explicit Resume, edit/refresh invalidation, cache reuse, budget exhaustion, source navigation, confirmed Clear/disconnect, no duplicate dispatch. A mid-chunk user Pause was not reached because chunks finished too fast. |
 | Computer readiness | App-owned read/screenshot/input fixture with permission absent/denied/revoked, owned-helper failure/recovery and fresh observation. Never replay an uncertain write. |
 | Local backup | Native Copy/Clear/Forget paths: **done 22 October** ([results](sentient-adoption-results.md)). Real inference is conditional on an explicitly configured compatible server; fixture success does not verify a real model. No automatic installation or provider switch. |
@@ -145,4 +145,4 @@ Maintain one row per capability with: ATOM commit, referenced Sentient feature I
 
 **R1 confirmed (22 October):** PR #1 run 39763844330 passes all jobs; the Terminal scenes now differ by 0.006% and 0.004% on the hosted runner. Original diagnosis: Run 39759609477 fails only two Terminal scenes (1.877% and 1.378%); the hosted render is deterministic and every text line below the empty-state icon sits 1 device pixel higher than on this Mac (macOS 26 runner, macOS 27 here). The icon's layout box is now fixed in the Terminal and Browser views; local renders still equal the goldens and no scene or tolerance changed. R1 closes only when the `visual` job passes on the pushed revision. See [STATUS.md](../STATUS.md).
 
-**Next step:** push the branch (or open a PR) so hosted CI runs R0 and R1 together. R0 and R1 stay open until the required jobs pass on that revision.
+**R0 and R1 closed (22 October):** PR #1 merged into main as `808f814` with all required jobs green.

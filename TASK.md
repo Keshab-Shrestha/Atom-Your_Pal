@@ -1,5 +1,11 @@
 # ZENO Task Plan
 
+## Current step — PR #1 merged; R2 prepared-work acceptance (2026-10-22, completed with one finding)
+
+PR #1 merged into main as `808f814`. R0 and R1 are closed.
+
+The native prepared-work workflow passes with two fictional timers as the only input. It covers the no-input run with no model call, a zero-card run, a sourced card, Review and edit, Copy, Restore, Close discard, budget exhaustion, older-card labeling, restart and pause. Finding: the plain brief blames an unavailable model when the real reason is empty input or a used budget. The fictional chat, its summary note and 4 brief rows remain by design. Details are in the [results](docs/sentient-adoption-results.md). Documentation only; no code changed.
+
 ## Current capability — R2 imported-note analysis acceptance (2026-10-22, completed with two findings)
 
 The native analysis workflow passes with a fictional three-note folder. It covers start, reports, Copy, original-note navigation, cache reuse, restart, Resume, edit invalidation, budget pause, Clear and Remove source. After cleanup only the usage counter differs from the baseline, by design. Findings: one chunk failed its output check once and then passed on Resume, and the failure log had no stage or category, so the cause is unknown. The log line now carries the failed stage, with a regression test (1,206 TypeScript tests pass). This run used 7 analysis attempts today. Details are in the [results](docs/sentient-adoption-results.md).

@@ -4,6 +4,25 @@
 
 The automated and isolated-provider portion of the combined gate passes. The first signed native restart/backup acceptance batch below also passes. Remaining native workflows, a same-model performance benchmark and full parity with Sentient's 33 inquiry features are not certified. The initial seven coding groups remain scoped as described in the [plan](sentient-adoption-plan.md).
 
+## Native prepared-work batch — completed with one finding
+
+Keshab chose fictional input only. The brief has no per-calendar or per-list selection, so Events, Reminders, Weather, Finished tasks and What waits are turned off for the test. The only input is two fictional timers, started in one new fictional chat. The baseline is a private `memory.db` backup with no saved brief settings (defaults apply), no briefs and no preparation usage. Drive the running signed app through Accessibility.
+
+- Brief me with every input empty makes no model call: `brief.made` with `source: template`, 0 parts, no preparation admission.
+- Run 1 (one timer): one admission, a model brief, and 0 cards. The design allows zero cards; a single "kettle check" timer gives nothing to prepare.
+- Run 2 (two timers): the second admission, 1 card from 2 sources. The card "Draft agenda and checklist: Cedar team sync" is marked "Draft only", says the timer label is cut off, and says no date, attendees or topics came with the sources. Its source is resolved by the host: `timers:2` with the exact excerpt and capture time.
+- Review and edit shows the title, body and captured excerpt. Copy edited text puts exactly the edited title, a blank line and the edited body on the clipboard as plain text. Restore generated text brings back the generated title and body exactly. Close discards an edit: reopening shows the generated title. The stored card stays equal to the generated text; nothing is saved back.
+- Run 3 at 2 of 2: a template brief with no model call, status `budget`, usage unchanged. The Dashboard says the budget is used, keeps the earlier card and labels it "Showing earlier saved cards; these excerpts have not been refreshed."
+- Restart: no brief runs. Usage, settings, the card and its labels are unchanged.
+- Pause (Prepare work off): "Preparation is paused. Previously saved cards remain available." The card stays.
+- Cleanup: brief settings are back to the default values, the clipboard is restored exactly, and the original chat is selected again.
+
+Remaining differences from the baseline, all expected: the fictional chat (2 turns), its automatic chat summary and mirrored "Chat note 2026-10-22" in Second brain, 4 brief rows (14-day retention), today's preparation count (2) and a saved settings row holding the default values. The two fictional timers end by about 21:33.
+
+Finding: the plain brief says "Plain version: the model was not available" after the empty-input run and after the budget-limited run. In both cases the model was available; the real reasons are "no usable sources" and "budget used". The text should name the actual reason.
+
+Not covered: the scheduled daily brief, cancellation by pause or foreground chat during a running preparation, Telegram and speech exclusion (both are off here), Calendar, Reminders, Weather and Board inputs, and keyboard, IME and VoiceOver use of the editor.
+
 ## Native imported-note analysis batch — completed with two findings
 
 Use a new fictional folder `~/Documents/ATOM fixture cedar-analysis-r2` with three notes: two short notes and one 33 KB logbook (three chunks). The baseline is a private `memory.db` backup with no source and empty analysis tables. Drive the running signed app through Accessibility and the native folder chooser. The job model is `claude-plan / claude-opus-5-5 · low`.
