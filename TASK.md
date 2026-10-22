@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Current capability — Computer control 3b: look shows read-only on-screen text (2026-10-23)
+
+`look` now lists unnumbered on-screen text (such as Calculator's display), capped at 20 entries and filtered for secret labels. In a live recheck, the Calculator task answered "12 times 7 equals 84" in 34.5 s, where both earlier runs failed. One new test; 105 pass. Next: step 4, visibility.
+
 ## Current capability — Computer control 3/4: speed baseline and first reduction (2026-10-23)
 
 A model-in-the-loop Calculator task took 51.0 s and then 36.5 s. Most of the change is model behavior (n = 1). Driver clicks cost about 2.5 s each and end "unconfirmed", a driver limit with no option to skip. `look` now reuses the last app's pid and skips `list_apps`, saving about 0.6–0.8 s per repeat look; two new tests, 104 pass. Both runs could not read Calculator's display, because `look` drops unnumbered static text. That fix is next. See [computer readiness](docs/computer-readiness.md).

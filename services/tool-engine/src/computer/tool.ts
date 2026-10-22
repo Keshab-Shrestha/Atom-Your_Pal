@@ -95,6 +95,27 @@ function usableFrame(f: Element["frame"]): { x: number; y: number; w: number; h:
 
 /** A window this high or lower is a menu-bar strip, not something to read (a TextEdit with no document owns several). */
 const MIN_WINDOW_HEIGHT = 40;
+const MAX_SCREEN_TEXTS = 20;
+const MAX_SCREEN_TEXT = 80;
+
+/**
+ * Read-only text the driver lists without a number (a calculator display, a label, a status line). It is never actionable, only shown:
+ * Calculator's result exists only this way, so the model could not read it (speed baseline 2026-10-23). Secret-labelled text is left out.
+ */
+function screenTexts(tree: string): string[] {
+  const out: string[] = [];
+  for (const line of tree.split("\n")) {
+    if (out.length >= MAX_SCREEN_TEXTS) break;
+    const m = line.match(/^\s*- AXStaticText = "((?:[^"\\]|\\.)*)"(?: \(([^)]*)\))?\s*$/);
+    if (!m) continue;
+    const value = m[1]!.trim();
+    const label = m[2]?.trim();
+    if (!value || secretField({ role: "AXStaticText", label: label ?? "" })) continue;
+    const shown = `"${value.slice(0, MAX_SCREEN_TEXT)}"${label ? ` (${label.slice(0, 40)})` : ""}`;
+    if (!out.includes(shown)) out.push(shown);
+  }
+  return out;
+}
 
 /**
  * The one computer-control tool the model sees (ADR-054). It exposes a small set of actions on top of Cua Driver,
@@ -165,7 +186,9 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
       return bits.join(" ");
     });
     const more = elements.length > maxElements ? `\n(${elements.length - maxElements} more elements not shown)` : "";
-    return `${app.name} — window "${win.title ?? ""}"\n${shown.join("\n")}${more}`;
+    const texts = screenTexts(String(state.data.tree_markdown ?? ""));
+    const read = texts.length ? `\nText on screen (read only): ${texts.join("; ")}` : "";
+    return `${app.name} — window "${win.title ?? ""}"\n${shown.join("\n")}${more}${read}`;
   }
 
   /** The new screen, appended to an action's reply so the model needs no extra step. The "just typed" memory survives it. */

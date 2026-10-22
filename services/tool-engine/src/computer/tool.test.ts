@@ -727,6 +727,30 @@ test("status reports cold/warm protocol readiness without desktop reads or appro
   assert.equal((await s.run({ action: "click", element: 2 })).ok, false, "status is not a window observation");
 });
 
+test("look shows unnumbered on-screen text, capped and without secret-labelled text", async () => {
+  // Speed baseline 2026-10-23: Calculator's result lives only as unnumbered static text, so the model could not read "84".
+  const tree = [
+    "- [0] AXWindow \"Calculator\"",
+    "    - AXStaticText = \"12 × 7\" (Last Expression)",
+    "    - AXStaticText = \"84\" (Edit field)",
+    "    - AXStaticText = \"hunter2\" (Password)",
+    "    - [5] AXStaticText \"Numbered\"",
+    ...Array.from({ length: 30 }, (_, n) => `    - AXStaticText = "Row ${n}"`),
+  ].join("\n");
+  const s = setup({
+    handlers: {
+      get_window_state: (a) => ({ text: "state", isError: false, refusal: undefined, data: { pid: a.pid, window_id: a.window_id, app_name: "TextEdit", window_title: "x", snapshot_id: "s1", elements, tree_markdown: tree } }),
+    },
+  });
+  const r = await sees(s);
+  assert.equal(r.ok, true, r.text);
+  const line = r.text.split("\n").find((l) => l.startsWith("Text on screen (read only):")) ?? "";
+  assert.match(line, /"12 × 7" \(Last Expression\); "84" \(Edit field\)/);
+  assert.doesNotMatch(r.text, /hunter2/);
+  assert.doesNotMatch(line, /Numbered/);
+  assert.equal(line.split("; ").length, 20, "at most 20 texts");
+});
+
 test("a second look at the same app skips list_apps while its process still owns windows", async () => {
   // Speed baseline 2026-10-23: list_apps cost 0.55-0.70 s on every look and look_after.
   const s = setup();
