@@ -74,6 +74,18 @@ First investigate the roughly 16,700-token first-turn context and the zero-cache
 
 The small comparison is exploratory. Follow with enough controlled cold/warm trials to report median/range; only report p95 if sample size supports it. Exclude user handoff delays from model latency and record errors. Set numerical latency/context targets from this baseline before optimization. Improve measured setup/prefix costs one at a time; rerun the same workload and history/grant-revoke cases. No speed or cost win without comparable evidence and unchanged required behavior.
 
+**R3 first pass (22 October, existing usage rows only, no new model calls):**
+
+- Source: `data/helpers.db` table `usage` for the two fictional R2 chats, and `session.open` log lines. Model `claude-opus-5-5`, thinking off.
+- Fixed prefix: a cold first turn with no tool use in a fresh chat wrote 12,973 cache tokens, which is the prefix plus a ~2.7k-token message. So the fixed prefix is about 10.3k tokens. The prefix fingerprint (`7084125921fd`, 40 tools) is identical across chats and across an app restart.
+- The "~16,700-token first turn" reproduces as 17,437 tokens. But that turn reused the session of a stopped attempt, so its message appears twice. A clean first turn is about 10.3k plus the message.
+- Zero-cache follow-up: not reproduced. Each follow-up read the whole previous context (17.4k → 31k) and wrote only the new part. After a full restart the next turn read 35,349 and wrote 936. Cache misses come from the 1-hour TTL: a first turn at 13:50 read 0 because the last prefix write was at 11:53.
+- Background jobs (summary, notes) run in isolated sessions and usually start with no cache. A repeated identical summary job did read 9,822 cached tokens.
+- Cost bookkeeping defect: after a resume, `dollars_sdk` for the first turn includes the whole restored session ($0.3406 against $0.0218 priced). The SDK's `total_cost_usd` counts the resumed session, but `costSoFar` starts at 0 in the new process. Displayed dollars use priced tokens, so only the diagnostic column is wrong. **Fixed the same day:** the first result of a resumed process now records no SDK cost share.
+- Not yet attributed: how the ~10.3k prefix splits between system prompt, the 40 tool schemas (ATOM tools can be deferred through ToolSearch) and SDK framing. The system prompt is passed as `systemPrompt` and as the `atom` agent's `prompt`; whether the SDK sends it once or twice is not measured.
+
+`session.open` now also logs `systemBytes` and `atomToolBytes` (sizes only, never content). Claude Code's built-in tool schemas are not counted. Next R3 steps: read those sizes from the next real session to attribute the prefix, then run the controlled ATOM-versus-Codex comparison with the same model, prompts and cold/warm conditions. Neither change has been run in tests or a live session yet.
+
 ## R4 — Release candidate gate
 
 - Audit existing install, launch/reopen/login behavior, provider sign-in/out, credential storage, dependency preparation, permission guidance, export/backup/reset and update mechanisms before adding missing controls. Distinguish local signed personal use from distribution to another Mac.
