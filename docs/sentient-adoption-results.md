@@ -2,6 +2,24 @@
 
 The automated and isolated-provider portion of the combined gate passes. The first signed native restart/backup acceptance batch below also passes. Remaining native workflows, a same-model performance benchmark and full parity with Sentient's 33 inquiry features are not certified. The initial seven coding groups remain scoped as described in the [plan](sentient-adoption-plan.md).
 
+## Native notes-folder batch — completed
+
+Use one new fictional two-note folder and a private consistent database snapshot. The real app starts with no connected folder; 32 pre-existing notes and 25 links are the baseline. No real personal source is selected or sent to a model.
+
+- Native folder chooser → Preview shows the two supported Markdown/text filenames, with two hidden/unsupported entries skipped. Cancel leaves brain notes/links/source tables, chats and grants byte-for-byte unchanged.
+- Import adds exactly two notes. Source status shows the canonical folder, checked time, zero corrections/conflicts/missing/exclusions and two skipped entries. Search finds the imported note; its editor shows original path and `current` provenance. Imported nested text preserves leading whitespace, newlines and Japanese characters exactly.
+- Save a fictional local correction in the native editor. The label changes to `corrected`; the original Markdown file stays byte-for-byte unchanged. Manual refresh preserves the saved correction.
+- Change only the fictional source file, then Refresh. Status shows one conflict; the native editor still contains the saved correction. `Use file version` is disabled while there is an unsaved editor change and enabled when the editor matches its saved copy.
+- Open the explicit replacement confirmation and Cancel. The correction and conflict survive. Preserve an exact additional copy of the fictional correction with the private acceptance snapshot.
+
+Keshab explicitly approved applying Use file version and removing only this test source and its two imported copies. The native replacement matches the current fictional source exactly and returns to `current`. Temporarily move only the fictional nested file outside the folder; Refresh reports one missing copy while preserving its full saved text. Restore that same file and Refresh returns to zero missing copies.
+
+Cleanly quit/relaunch the existing signed app without rebuilding. The connected source, provenance, both copies, links and original chat/access records retain exact pre-restart table hashes. The native Sources panel shows two current copies, daily analysis Off and zero model attempts. Apply the approved Remove source confirmation: the panel becomes disconnected; Second brain returns to **32 notes and 25 links**, and searching the unique fixture title reports no match.
+
+Every observed original non-FTS application table matches its pre-test row hash after cleanup, including notes/links/source metadata and all seven history/access/reasoning/grant/navigation/project tables. Originals and the separate correction backup remain preserved; no fixture folder was deleted. Restore the original chat, empty composer, Opus 5.5/Off/Saved permissions, hidden workspace and empty brain search; close the temporary Finder window. No analysis/model request, schedule change, new permission, real-source selection or real-note edit occurred. This completes this bounded native notes workflow, not the entire race/fault/accessibility checklist.
+
+Hosted [run 39727840071](https://github.com/Keshab-Shrestha/Atom-Your_Pal/actions/runs/39727840071), head `a095a04`, passes TypeScript and Swift but still fails compact Terminal visual comparison (1.877%). Inspect its artifact and diff: the fixed fictional path now matches; the remaining difference is the vertically shifted centered explanatory text. The earlier fixed-path change resolves the home-directory dependency, **not** the entire hosted rendering failure. Dark Terminal differs by 1.378% when compared separately; the CI loop stops at compact. Keep the existing threshold and scenes. This remains a separate unresolved rendering-stability check; do not report hosted CI as passing.
+
 ## Signed native restart and backup batch
 
 Published the adaptation as `4251304` on `origin/main`. Rebuilt the actual repository app bundle using the existing **ATOM Local Signing** identity; `codesign --verify --deep --strict` passes. Preserve a private consistent SQLite/defaults/draft snapshot and the prior bundle before replacement. Native interactions use the app's real controls, not gallery snapshots.
@@ -16,7 +34,7 @@ Published the adaptation as `4251304` on `origin/main`. Rebuilt the actual repos
 
 The new hosted [run 39713011016](https://github.com/Keshab-Shrestha/Atom-Your_Pal/actions/runs/39713011016) passes TypeScript and Swift. Its visual job fails at compact Terminal (2.200%). Inspect the actual artifact and red diff: its path contains the CI home directory, and the centered explanatory text also shifts vertically. Give the gallery project a fixed fictional absolute path matching its response root, and inspect/update only the compact/dark Terminal references. The isolated final gallery renders all 114 scenes and all 43 local comparisons pass at the existing 1% threshold. A new hosted run is still required to establish the result on that runner; local success does not certify it.
 
-Native folder import/correction/conflict, contextual reply editing, summary original-message navigation in a long chat, prepared-card editing/Copy, analysis restart/resume, keyboard/IME/accessibility and a real compatible local inference server remain subsequent acceptance work. The first-text/cache/token comparison remains a separate controlled benchmark. No user notes, account/calendar content, access expansion or new cloud-chat response was needed in this batch. Unrelated `graphify-out/` stays untouched.
+The later notes batch above completes its bounded native import/correction/conflict/restart/cleanup workflow. Contextual reply editing, summary original-message navigation in a long chat, prepared-card editing/Copy, analysis restart/resume, keyboard/IME/accessibility and a real compatible local inference server remain subsequent acceptance work. The first-text/cache/token comparison remains a separate controlled benchmark. No user notes, account/calendar content, access expansion or new cloud-chat response was needed in this batch. Unrelated `graphify-out/` stays untouched.
 
 ## Earlier automated evidence
 
@@ -77,7 +95,7 @@ Gallery work used a temporary app copy and throwaway defaults; it did not replac
 
 ## Remaining release acceptance
 
-- Complete the remaining native interactions with fictional data: folder chooser/confirmation, editable reply/context/examples, summary original-message navigation, preparation Copy/editor, analysis controls/restart and backup configure/Stop/Copy. Verify keyboard/IME/accessibility, narrow windows and secure selection where applicable. Rendered snapshots and Core protocol tests do not cover the actual app controller.
+- Complete the remaining native interactions with fictional data: editable reply/context/examples, summary original-message navigation in a long chat, preparation Copy/editor, analysis controls/restart and backup Copy. The bounded native folder and backup configure/Stop workflows are now recorded above. Verify keyboard/IME/accessibility, narrow windows and secure selection where applicable. Rendered snapshots and Core protocol tests do not cover the actual app controller.
 - The signed native batch verifies the observed restart baseline above. Continue preserving the selected chat/provider/thinking/access/draft, grants, Browser address and pane preference through later fixture workflows; do not infer real grant/revoke behavior from the baseline with zero grants.
 - Exercise a user-configured real compatible local server when available; no model download or different provider is implied. The HTTP fixture proves protocol/host handling, not a particular server/model's inference, cancellation or context size.
 - Run the remaining relevant opt-in device/provider workflows, larger scanner race/fault-injection matrices, timezone/clock/budget edge cases and scheduling under real app lifecycle. The [case checklist](sentient-adoption-validation.md) remains a backlog; this report states what was actually covered.

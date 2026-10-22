@@ -1,8 +1,8 @@
 # Selected notes-folder source
 
-22 October continuation: optional [resumable analysis](source-analysis-jobs.md), ADR-192, uses already imported copies through an explicit model job or opt-in schedule. Folder import/refresh stays deterministic and makes no model call; no background filesystem scan was added. Both capabilities still await the combined acceptance gate.
+22 October continuation: optional [resumable analysis](source-analysis-jobs.md), ADR-192, uses already imported copies through an explicit model job or opt-in schedule. Folder import/refresh stays deterministic and makes no model call; no background filesystem scan was added. Automated fixture validation now passes; the bounded native notes workflow also passes. See the [current evidence and remaining checks](sentient-adoption-results.md).
 
-Implemented in source on 22 October 2026, ADR-188. This is the first personal-source pilot in the [Sentient adoption plan](sentient-adoption-plan.md), extending the existing Second brain. It has compiler checks only; Keshab deferred tests to the end of the adaptation plan.
+Implemented in source on 22 October 2026, ADR-188. This is the first personal-source pilot in the [Sentient adoption plan](sentient-adoption-plan.md), extending the existing Second brain. The original intermediate test deferral ended after all seven coding groups. Combined automated tests pass; native chooser/import/correction/conflict and cancellation have now been exercised with fictional notes. After explicit approval, replacement, missing-file retention/restoration, restart persistence and source cleanup also pass. This is not full release acceptance.
 
 ## User flow
 
@@ -31,10 +31,10 @@ Canonical paths, directory/file identities, no-follow/nonblocking file opens, re
 
 Metadata contains only folder/file identities, paths, hashes, exclusions and scan time. Existing brain notes remain the only content/link/search store. Title collisions never replace unrelated written notes. Native local edits are allowed; agent `brain_note` cannot append to a source-backed note. Imported brain outputs and note attachments carry host-authored provenance/data markers. Claude/Codex checked paths feed marked reads into the existing external-content action guard; note text cannot grant permission, opt into Full access or change a provider. This is not a claim of general prompt-injection immunity.
 
-## Implementation and deferred validation
+## Implementation and validation
 
 New additive SQLite metadata tables are created with the existing memory store. Brain writes use composable savepoints so a multi-note source publication rolls back as one operation. No archive, grant, access-mode or chat schema migration.
 
 `brain.source` is a private native-window command/response with request matching and `get`, `preview`, `cancel`, `connect`, `refresh`, `restore`, `disconnect`. It is not a model tool, external API or worker endpoint. Native runtime-stop, dropped-command, timeout and stale-response paths clear waiting state. Old native clients ignore the additional optional note provenance.
 
-TypeScript typecheck and the Swift release compiler pass. No unit/integration/security/migration/model/live UI/gallery tests were run, no real folder was connected and no app/account/model configuration was changed. The built binary was not copied over the running app or launched. Deferred acceptance is tracked in the [end-of-plan validation list](sentient-adoption-validation.md). This feature is implemented, not certified for release yet.
+TypeScript checking, the ordinary TypeScript/Swift suites, focused fictional source/policy coverage, isolated provider output contracts, release compilation and local gallery comparisons pass in the combined gate. A signed app is running; native tests use only a dedicated fictional folder and preserve all pre-existing notes, chats and permissions. Detailed outcomes and remaining acceptance are recorded in [the results](sentient-adoption-results.md). The broader [end-of-plan checklist](sentient-adoption-validation.md) is not fully certified; hosted Terminal rendering stability also remains unresolved.

@@ -1,5 +1,16 @@
 # ZENO Task Plan
 
+## Current capability — Native notes workflow acceptance (2026-10-22, completed)
+
+Exercised the signed running app with a new fictional two-note folder: native chooser/Preview/Cancel makes no persistent change; Import adds exactly two notes with provenance; search/open works; whitespace/newlines/Japanese text survive. Native Save marks a local correction without changing the source file; Refresh preserves it. Changing the fictional source then refreshing marks a conflict and keeps the local correction. Unsaved editor changes disable Use file version; cancelling its explicit confirmation preserves the saved copy.
+
+Keshab explicitly approved source-version replacement and removal of only the test source/two imported copies. Applied the native confirmation: replacement exactly matches the source and returns to Current. A missing-file Refresh retains its saved copy; restoring the original file returns to zero missing. Clean restart preserves exact source/notes/links/history/access table hashes; native Sources retains two current notes, daily analysis Off and zero attempts. Approved source removal returns Second brain to 32 notes/25 links, no connected folder and no search match for the fixture.
+
+Every observed original non-FTS application table matches its pre-test row hash after cleanup, including all original notes/links/history/access/reasoning/grant/navigation/project/source metadata. Restore the original chat, empty composer, Opus 5.5/Off/Saved permissions, hidden workspace, empty brain search and Finder desktop. Original fixture files and an exact correction backup remain preserved. No model/analysis job, schedule change, real source selection or new file permission. [Evidence](docs/sentient-adoption-results.md).
+
+Hosted run 39727840071 for a095a04 passes TypeScript/Swift but still fails compact Terminal visual comparison at 1.877%. Artifact inspection confirms the fictional path matches; centered body text still shifts vertically. Dark Terminal is 1.378% different independently. The path fix did not resolve all hosted rendering differences. Keep threshold/scenes unchanged and track this separately; do not claim CI is green. Changes in this batch are documentation only; no app rebuild or new automated tests were needed for this native acceptance/cleanup. Graphify-out remains untouched. Next independent capability: native contextual reply editing with fictional context. Long-chat original navigation, prepared cards, analysis restart/resume, broader accessibility/device/local-server checks and the controlled startup/cache/token benchmark remain later acceptance work. Stop after this batch.
+
+
 ## Current capability — Signed restart and native backup acceptance (2026-10-22)
 
 Pushed the adaptation to origin/main as `4251304`, then replaced the repository app bundle with a release build signed by the existing ATOM Local Signing identity; strict signature verification passes. Fixed Launch Services reopen handling so opening the already-running menu-bar app reliably shows the full window and repeated Open does not toggle it closed. Background startup remains unchanged.
