@@ -3,6 +3,8 @@ import AtomIslandCore
 
 struct ChatWorkView: View {
     let work: ChatWorkSnapshot
+    /// The computer step in progress, shown while the work runs (the island's detail line, which the window did not show).
+    var step: String? = nil
     @State private var expanded = false
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
@@ -42,6 +44,7 @@ struct ChatWorkView: View {
                 Image(systemName: expanded ? "chevron.down" : "chevron.right")
                 Text(label).monospacedDigit()
                 Text("· \(work.calls.count) observed calls")
+                if work.state == "working", let step { Text("· \(step)").lineLimit(1).truncationMode(.tail) }
             }.font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
         }.buttonStyle(.borderless).accessibilityValue(expanded ? "Expanded" : "Collapsed")
             .help("Elapsed foreground work time includes model setup, tool calls and waiting for answers; speech playback is separate")

@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Current capability — Computer control 4/4: visible current step (2026-10-23)
+
+While ATOM uses the Mac, the chat's work row now names the current step, for example "Working for 13s · 9 observed calls · Clicking in Calculator". Live captures confirm it. Action and app only, no typed text. One new core test; 791 Swift tests pass; release build passes; goldens unchanged. Computer control steps 1–4 are done. Next: contextual drafting.
+
 ## Current capability — Computer control 3b: look shows read-only on-screen text (2026-10-23)
 
 `look` now lists unnumbered on-screen text (such as Calculator's display), capped at 20 entries and filtered for secret labels. In a live recheck, the Calculator task answered "12 times 7 equals 84" in 34.5 s, where both earlier runs failed. One new test; 105 pass. Next: step 4, visibility.

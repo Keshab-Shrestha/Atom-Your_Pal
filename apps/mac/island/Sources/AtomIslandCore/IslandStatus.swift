@@ -26,6 +26,8 @@ public struct IslandStatus: Sendable, Equatable {
     public private(set) var title = "Starting"
     /// One short line under the title (may be empty).
     public private(set) var detail = "Loading voice"
+    /// The computer step in progress ("Clicking in Calculator"), only while ATOM is using the Mac; nil otherwise.
+    public var currentStep: String? { kind == .acting && !detail.isEmpty ? detail : nil }
     /// The model in use, e.g. "Gemini 3.6 Flash", from the `ready` event.
     public private(set) var modelName = ""
     /// The current chat's own model name (ADR-097), or nil when it uses the default. A typed turn runs on it, so the

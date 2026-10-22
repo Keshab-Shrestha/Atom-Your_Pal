@@ -705,7 +705,8 @@ struct ConversationTab: View {
                                 TurnView(turn: turn, latest: model.conversation.isLatest(turn), retry: retry(for: turn),
                                          quote: model.chats?.currentReadOnlyNotice == nil ? { model.quoteReply(turn.id) } : nil,
                                          editSaved: savedAction(turn, kind: "edit"), retrySaved: savedAction(turn, kind: "retry"),
-                                         project: model.chats?.currentProject, findMatch: match?.turnID == turn.id ? match : nil).id(turn.id)
+                                         project: model.chats?.currentProject, findMatch: match?.turnID == turn.id ? match : nil,
+                                         computerStep: model.conversation.isLatest(turn) ? model.status.currentStep : nil).id(turn.id)
                             }
                         }
                         .padding(.horizontal, Spacing.conversation)
@@ -761,6 +762,8 @@ struct TurnView: View {
     var retrySaved: (() -> Void)? = nil
     var project: ProjectInfo? = nil
     var findMatch: ChatFind.Match? = nil
+    /// The computer step in progress, given only to the latest turn.
+    var computerStep: String? = nil
     private let hovering = State(initialValue: false)
     private let pathNotice = State<String?>(initialValue: nil)
     @Environment(\.islandSnapshot) private var snapshot
@@ -803,7 +806,7 @@ struct TurnView: View {
                 }
             }
             VStack(alignment: .leading, spacing: 6) {
-                if let work = turn.work { ChatWorkView(work: work) }
+                if let work = turn.work { ChatWorkView(work: work, step: computerStep) }
                 switch turn.outcome {
                 case .inProgress where turn.reply == nil:
                     ThinkingDots().padding(.vertical, 4)

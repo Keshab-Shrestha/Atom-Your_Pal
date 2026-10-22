@@ -58,6 +58,18 @@ struct ComputerControlStateTests {
         #expect(!status.needsAttention)
     }
 
+    @Test func theCurrentStepIsOnlyAvailableWhileActing() {
+        // Visibility baseline 2026-10-23: the chat's work row showed no app or step while ATOM used the computer.
+        var status = IslandStatus()
+        #expect(status.currentStep == nil)
+        status.apply(.state(.thinking))
+        #expect(status.currentStep == nil)
+        status.apply(.computerStep("Clicking in Calculator"))
+        #expect(status.currentStep == "Clicking in Calculator")
+        status.apply(.state(.idle))
+        #expect(status.currentStep == nil)
+    }
+
     @Test func aRequestShowsAsNeedingTheUsersOKAndKeepsTheIslandBusy() {
         var status = IslandStatus()
         status.apply(.approvalRequest(request))

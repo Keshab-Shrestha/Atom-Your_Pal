@@ -78,3 +78,14 @@ Where the time goes:
 Reduction: `look` now reuses the app of the last good look (name, bundle ID, pid) while that process still owns windows, and skips `list_apps`. If the process owns no windows, `look` does the full lookup once. Measured live: the repeat `look_after` took 14 ms (`list_windows`) plus 277 ms (window read) without `list_apps`, saving about 0.6–0.8 s per repeat look. Two new tests; 104 computer tests pass.
 
 Correctness finding: both runs failed to report the result ("couldn't read its display"). The display exists in the driver's tree as unnumbered static text (`AXStaticText = "84" (Edit field)`), but `look` lists only numbered elements, so the model never sees it. **Fixed the same day:** `look` now adds a "Text on screen (read only)" line from the driver's `tree_markdown`. It keeps only unnumbered `AXStaticText = "…" (label)` entries, skips text whose label the existing secret-label check matches (password, PIN, token and so on), removes duplicates, and keeps at most 20 entries of 80 characters. The text is shown only and is never actionable. One new test; 105 computer tests pass. Live recheck (run 3, same task): 34.5 s, and the reply was "Calculator shows 12 times 7 equals 84." Runs 1 and 2 could not read the display.
+
+
+## Visibility (23 October 2026)
+
+Baseline: during a Calculator task, screenshots every 3 s showed no current step anywhere. The island showed only the pal and a dot. The window header said "Using you…" (cut off). The chat's work row said only "Working for 6s · 3 observed calls". The island's status already held the step text ("Clicking in Calculator") from the existing `computer.step` events, but no visible view showed it.
+
+Change: `IslandStatus.currentStep` returns that step only while ATOM is using the Mac (`.acting`), and nil otherwise. The latest turn's work row shows it while the work runs: "Working for 13s · 9 observed calls · Clicking in Calculator". The step text stays action and app only. No element labels or typed text are added.
+
+Checks: one new core test; 791 Swift tests pass; the release app builds; no gallery golden changed by more than 1%. A live run, with captures every 2 s, showed "Opening Calculator" and then "Clicking in Calculator" in the row, and the reply was "12 times 7 is 84".
+
+Not changed: the island's collapsed look and the cut-off window header.
