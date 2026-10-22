@@ -10,9 +10,20 @@ public struct BriefEntry: Sendable, Equatable, Identifiable {
     public var day: String
     public var createdAt: Date?
     public var lines: [String]
-    /// "model": written by the model. "template": the plain version, made when the model was not available.
+    /// "model": written by the model. "template": the plain version (no input, a used preparation budget or a model failure).
     public var isPlain: Bool
     public var preparation: PreparedBriefWork?
+
+    /// Why the plain version was made; nil for a brief the model wrote. Only a preparation run records empty input or a used budget,
+    /// so any other plain brief is a model failure. An empty brief made without preparation is still shown as a model failure.
+    public var plainReason: String? {
+        guard isPlain else { return nil }
+        switch preparation?.status {
+        case "empty": return "no usable source excerpts"
+        case "budget": return "today's preparation budget is used"
+        default: return "the model was not available"
+        }
+    }
 
     public init(id: Int, day: String, createdAt: Date? = nil, lines: [String], isPlain: Bool = false, preparation: PreparedBriefWork? = nil) {
         self.id = id

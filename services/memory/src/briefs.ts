@@ -52,7 +52,7 @@ export interface Brief {
   day: string;
   createdAt: Date;
   lines: string[];
-  /** "model": written by the model; "template": the plain version, when the model was not available. */
+  /** "model": written by the model; "template": the plain version (no input, a used preparation budget or a model failure). */
   source: "model" | "template";
   preparation?: BriefPreparation;
 }
