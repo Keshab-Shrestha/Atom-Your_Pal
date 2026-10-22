@@ -19,7 +19,7 @@ Keshab chose fictional input only. The brief has no per-calendar or per-list sel
 
 Remaining differences from the baseline, all expected: the fictional chat (2 turns), its automatic chat summary and mirrored "Chat note 2026-10-22" in Second brain, 4 brief rows (14-day retention), today's preparation count (2) and a saved settings row holding the default values. The two fictional timers end by about 21:33.
 
-Finding: the plain brief says "Plain version: the model was not available" after the empty-input run and after the budget-limited run. In both cases the model was available; the real reasons are "no usable sources" and "budget used". The text should name the actual reason.
+Finding: the plain brief says "Plain version: the model was not available" after the empty-input run and after the budget-limited run. In both cases the model was available; the real reasons are "no usable sources" and "budget used". **Fixed the same day:** the footer now reads "no usable source excerpts" or "today's preparation budget is used" from the stored preparation status, and keeps "the model was not available" for real failures. A Swift regression test covers all four cases. An empty brief made with preparation off still shows the model-failure text, because that run records no reason.
 
 Not covered: the scheduled daily brief, cancellation by pause or foreground chat during a running preparation, Telegram and speech exclusion (both are off here), Calendar, Reminders, Weather and Board inputs, and keyboard, IME and VoiceOver use of the editor.
 
