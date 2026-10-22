@@ -140,7 +140,7 @@ export function createSourceAnalysis(options: {
         };
         try { const record = read(); if (record?.job?.state === "running") store.put({ ...record, job: { ...record.job, state: "failed", reason: "error", message: messages[stage], updatedAt: at() } }); }
         catch { options.log("source.analysis_checkpoint_failed", {}); }
-        options.log("source.analysis_failed", {});
+        options.log("source.analysis_failed", { stage }); // a fixed category only, never the error or report text
       }
     } finally { active = undefined; }
   }
