@@ -2,6 +2,24 @@
 
 The automated and isolated-provider portion of the combined gate passes. The first signed native restart/backup acceptance batch below also passes. Remaining native workflows, a same-model performance benchmark and full parity with Sentient's 33 inquiry features are not certified. The initial seven coding groups remain scoped as described in the [plan](sentient-adoption-plan.md).
 
+## Saved reply context/examples — completed with approved cleanup
+
+Use one new authored fictional note, `Cedar reply context R8 20261022` (ID 37), and a private baseline before creation. There are no saved writing examples at baseline. Preserve the original/revised fixture text, exact sample and generated reply separately for recovery.
+
+- Native Find for the unique date returns exactly the fixture, unchecked. Check it, expand Included context and inspect the exact excerpt. Remove deselects it without deleting the note; re-selection works.
+- Type a fictional writing example and explicitly Save. Preferences contain its exact Unicode text, but the inclusion checkbox stays Off. Save alone does not opt in or make a model call.
+- After selecting the note, revise **only that owned fixture** through the normal memory-store API to simulate a concurrent external edit. Native Generate rejects the stale revision. Reload shows the revised excerpt unchecked and requires explicit review/re-selection. This is a backend fixture edit plus real native guard interaction, not a claim that cross-window note editing was exercised.
+- Re-select the revised note, opt in to the sample, and Generate once. The actual Opus 5.5/Low reply uses the revised Blue Room 75 and 23 notebooks, which are absent from the source question. Diagnostics record `sources: 1` and `style: true`. No model call is needed for lookup, Save or the stale-reference rejection path; one valid generation completes.
+- Close, cleanly quit and restart the same signed app. All eleven observed notes/links/source/history/access/reasoning/grant/navigation/project tables retain exact pre-restart hashes, and the saved example remains exact on disk. Original 32 note rows and original chat/access/project records are unchanged; only the test note/sample were added. Current chat, empty composer, Opus 5.5/Off/Saved permissions and the user's current project/theme remain intact. The fictional TextEdit question is unchanged.
+
+- After Keshab physically reopens the panel, the exact saved sample is visible with inclusion Off. Intent, background, search, context selection and output are empty; Copy is disabled. The selected fictional conversation is unchanged.
+- With explicit action-time approval, click Forget saved examples. The editor clears, inclusion stays Off, the native removal message appears and `atom.reply.writingExamples` is absent from preferences.
+- Review the exact revised fixture title/body, then Delete → Delete for good for only note 37. Counts return to 32 notes/25 links. Clear and re-enter the unique date query: No note matches. Compare all 31 original application tables against the pre-fixture baseline: every count and hash matches. Restore the original chat with empty composer, Opus 5.5/Off/Saved permissions, current project/theme and hidden workspace. Close only the saved fictional TextEdit document and temporary Finder build window. Recovery files remain private and preserved.
+
+Cleanup exposed one **open UI defect**: the selected note's deletion updates graph counts immediately but leaves its active search result visible until the query is cleared and re-entered. The database deletion and refreshed search are correct; immediate search-result invalidation is not certified.
+
+Private evidence is under `/tmp/atom-reply-context-native-j8eifzic`, including baseline/restart/panel/cleanup reports and recovery copies. No app source/build/automated test changed in this batch. No real personal source or writing sample was sent, no foreground chat message was added and no permission expanded. This does not certify imported-note provenance UI, native Codex behavior, secure-field/IME/accessibility or the still-unresolved hosted Terminal visual comparison.
+
 ## Native contextual reply batch — generation/edit/Copy/Cancel completed
 
 Prepare one new fictional Cedar conversation in TextEdit and an updated private database/preferences baseline reflecting the user's current chat/project/theme. Writing examples are initially empty. Automated Control–Option–K inserts a control character, so restore the fictional input and ask Keshab for the physical shortcut. He confirms the selected Cedar capture.
