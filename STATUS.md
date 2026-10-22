@@ -2,7 +2,7 @@
 
 ## Current step — R3 first pass: context and cache from existing usage (2026-10-22)
 
-Existing usage rows show a fixed prefix of about 10.3k tokens. It is identical across chats and restarts. Follow-ups cache correctly, and cache misses come from the 1-hour TTL. The "16,700-token first turn" was a turn that reused a stopped attempt. Found and fixed one bookkeeping defect: after a resume, `dollars_sdk` counted the whole restored session. `session.open` now logs system-prompt and ATOM tool-schema byte sizes to attribute the prefix. Typecheck passes; no tests or live session ran, as requested. Details are in the [plan](docs/sentient-parity-release-plan.md) under R3.
+Existing usage rows show a fixed prefix of about 10.3k tokens. It is identical across chats and restarts. Follow-ups cache correctly, and cache misses come from the 1-hour TTL. The "16,700-token first turn" was a turn that reused a stopped attempt. Found and fixed one bookkeeping defect: after a resume, `dollars_sdk` counted the whole restored session. `session.open` now logs system-prompt and ATOM tool-schema byte sizes to attribute the prefix. Typecheck passes; no local tests ran, as requested. A live turn after restart confirms the fix and logs 3,164 system-prompt bytes and 17,721 ATOM tool-schema bytes: about 5.2k of the ~10.3k-token prefix is ATOM's own. Only about half the prefix is cached across chats. PR #1 and PR #2 are merged; PR #3 carries this work. Details are in the [plan](docs/sentient-parity-release-plan.md) under R3.
 
 ## Current capability — R2 long-chat continuity acceptance (2026-10-22, completed with two observations)
 

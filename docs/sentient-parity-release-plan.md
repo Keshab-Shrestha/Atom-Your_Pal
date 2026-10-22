@@ -84,7 +84,12 @@ The small comparison is exploratory. Follow with enough controlled cold/warm tri
 - Cost bookkeeping defect: after a resume, `dollars_sdk` for the first turn includes the whole restored session ($0.3406 against $0.0218 priced). The SDK's `total_cost_usd` counts the resumed session, but `costSoFar` starts at 0 in the new process. Displayed dollars use priced tokens, so only the diagnostic column is wrong. **Fixed the same day:** the first result of a resumed process now records no SDK cost share.
 - Not yet attributed: how the ~10.3k prefix splits between system prompt, the 40 tool schemas (ATOM tools can be deferred through ToolSearch) and SDK framing. The system prompt is passed as `systemPrompt` and as the `atom` agent's `prompt`; whether the SDK sends it once or twice is not measured.
 
-`session.open` now also logs `systemBytes` and `atomToolBytes` (sizes only, never content). Claude Code's built-in tool schemas are not counted. Next R3 steps: read those sizes from the next real session to attribute the prefix, then run the controlled ATOM-versus-Codex comparison with the same model, prompts and cold/warm conditions. Neither change has been run in tests or a live session yet.
+`session.open` now also logs `systemBytes` and `atomToolBytes` (sizes only, never content). Claude Code's built-in tool schemas are not counted. Next R3 steps: read those sizes from the next real session to attribute the prefix, then run the controlled ATOM-versus-Codex comparison with the same model, prompts and cold/warm conditions. Live check after a runtime restart (one fictional turn in a resumed chat):
+
+- `session.open` logged `systemBytes` 3,164 (about 0.8k tokens) and `atomToolBytes` 17,721 (about 4.4k tokens at 4 bytes per token). ATOM's own share of the ~10.3k-token prefix is therefore about 5.2k tokens. The remaining ~5k is Claude Code's own instructions, built-in tool schemas and framing, which ATOM cannot see. Byte-to-token ratios are estimates, not tokenizer counts.
+- The resume fix works: the first resumed turn recorded no SDK cost share, and its priced cost was $0.0468.
+- Cross-chat cache: the turn read only 5,354 cached tokens and wrote 5,576. That is although another chat used the identical prefix hash 9 minutes earlier, inside the 1-hour TTL. So only about half of the prefix is shared across chats, and the rest is chat- or session-specific. Which part differs is not visible in ATOM's logs. A request capture would be needed to find it.
+- Optimization candidates, not yet measured: confirm whether ToolSearch actually defers the ~4.4k tokens of ATOM tool schemas, and find the chat-specific part of the prefix. Do not shorten instructions or tools before that attribution.
 
 ## R4 — Release candidate gate
 
