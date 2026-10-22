@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Current capability — R2 local backup Copy/Clear/Forget acceptance (2026-10-22, completed)
+
+Native Copy, Clear and Forget pass against an owned loopback fixture, with Cancel checked before each confirmation. Clear and Forget send no request. Forget deletes `config/local-backup.json`. After cleanup the clipboard, `config/island.json` and all 48 non-FTS tables match the baseline. Details, one UX observation and limits are in the [results](docs/sentient-adoption-results.md). Documentation only; no code changed.
+
 ## Current capability — R1 hosted Terminal rendering (2026-10-22, fix prepared, hosted check pending)
 
 Hosted run 39759609477 (main `010ffe1`, image macos-26-arm64) fails only the `visual` job. TypeScript and Swift pass. Compared with all 44 goldens, exactly two scenes exceed 1%: `39-workspace-terminal-compact` (1.877%) and `39-workspace-terminal-dark` (1.378%). Every other scene is under 1%. `ui-check.sh` stops at the first failure, so this was not visible in the log.

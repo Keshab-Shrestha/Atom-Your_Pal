@@ -4,6 +4,23 @@
 
 The automated and isolated-provider portion of the combined gate passes. The first signed native restart/backup acceptance batch below also passes. Remaining native workflows, a same-model performance benchmark and full parity with Sentient's 33 inquiry features are not certified. The initial seven coding groups remain scoped as described in the [plan](sentient-adoption-plan.md).
 
+## Native local backup Copy/Clear/Forget batch — completed
+
+Use an owned fictional loopback fixture on `127.0.0.1:18431` with model `cedar-fixture-r2`. The fixture logs method, path, message roles, model, tool presence and size only. The baseline is a private `memory.db` backup, the clipboard text and the `config/` folder (no `local-backup.json`). Drive the running signed app through Accessibility.
+
+- Save writes `config/local-backup.json` with mode 0600 and the two fields only. It sends no `/v1` request.
+- Check server sends one `GET /v1/models`. Send sends one `POST /v1/chat/completions` with roles system/user, the exact model ID and no tools. The reply shows the configured model name.
+- Copy on the reply and on the prompt puts the exact turn text on the clipboard, as plain text only.
+- Clear → Cancel keeps both turns. Clear → Clear removes both turns, keeps the configuration and sends no request. The next send carries roles system/user only, so cleared turns do not return.
+- Forget → Cancel keeps the configuration and the turns. Forget → Forget deletes `local-backup.json`, clears the turns and both fields, shows "Not checked" and sends no request.
+- Cleanup: close the panel and return to the original chat (Opus 5.5, Off, Saved permissions, empty composer). Restore the original clipboard text exactly. Stop the fixture. The `config/island.json` hash is unchanged. All 48 non-FTS tables match the pre-test hashes.
+
+Observation, not a defect: Clear also discards the server check. Send stays disabled until Check server runs again. The reason shows only inside the collapsed Server configuration section. Decide whether the panel should say so.
+
+A separate local tool (`PortPilot/0.1`) sends `GET /` to new listening ports every four seconds. These requests do not come from ATOM and are excluded above.
+
+Limits: fixture replies are synthetic. No real local model ran. Keyboard, IME, VoiceOver and compact layout of this panel are not covered here.
+
 ## Saved reply context/examples — completed with approved cleanup
 
 Use one new authored fictional note, `Cedar reply context R8 20261022` (ID 37), and a private baseline before creation. There are no saved writing examples at baseline. Preserve the original/revised fixture text, exact sample and generated reply separately for recovery.
