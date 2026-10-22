@@ -1,5 +1,7 @@
 # Sentient adaptation validation — 22 October 2026
 
+**Next work:** the [parity and release plan](sentient-parity-release-plan.md) reconciles the latest completed batches below and sequences the still-open search bug, hosted visual gate, native acceptance, benchmark and broader parity work. Planning is not acceptance evidence.
+
 The automated and isolated-provider portion of the combined gate passes. The first signed native restart/backup acceptance batch below also passes. Remaining native workflows, a same-model performance benchmark and full parity with Sentient's 33 inquiry features are not certified. The initial seven coding groups remain scoped as described in the [plan](sentient-adoption-plan.md).
 
 ## Saved reply context/examples — completed with approved cleanup

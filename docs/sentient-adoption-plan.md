@@ -1,5 +1,7 @@
 # Sentient-inspired ATOM upgrades
 
+**Forward plan, 22 October:** Keshab has requested release readiness and full Sentient parity beyond these initial seven groups. The [parity and release plan](sentient-parity-release-plan.md) now governs next steps, starting with the stale note-search bug and hosted visual failure. The historical implementation notes below remain evidence of the initial scope, not a claim of full parity.
+
 Keshab authorized this direction on 21 October 2026, following the [source inquiry](sentient-os-feature-inquiry.md). Improve existing equivalents before adding another system. Implement one capability at a time, as required by CLAUDE.md. Preserve full chat archives, drafts, per-chat settings and deterministic permission continuity.
 
 Remote models through ATOM's Gateway remain primary. A general local model is an optional fallback/backup, never a required installation or a silent change of provider. Do not repeat an uncertain external action on a backup model.

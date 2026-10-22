@@ -1,5 +1,11 @@
 # ZENO Project Status
 
+## Current plan — Release readiness and Sentient parity (2026-10-22)
+
+Keshab requested a plan covering the discovered note-search defect, release readiness and full Sentient parity. The [execution plan](docs/sentient-parity-release-plan.md) is the current forward sequence: R0 stale search results → R1 hosted Terminal visual failure → R2 remaining native acceptance → R3 controlled latency/context/cache benchmark → R4 release candidate → P1–P6 broader parity. It maps all 33 inquiry features, distinguishes verified equivalents from incomplete scope, and records decisions for protected sources, external writes, wake helpers, hosted memory and architecture differences.
+
+This is a documentation-only planning checkpoint. Main was pushed at `010ffe1`; the search defect is still open and required hosted visual CI is not yet established green. Cloud remains primary and local remains explicit backup; chats/history/drafts/grants remain authoritative. Full parity and release readiness are separate completion gates. Next implementation task: R0 only, with focused regressions and native evidence, then document and stop. No app build, user state or unrelated graphify output changed.
+
 ## Current capability — Saved reply context and writing examples (2026-10-22, completed batch)
 
 Created only the fictional authored note Cedar reply context R8 20261022 (ID 37), with a private original database/preferences snapshot and recoverable copies of the fixture text/example/result. Native Find returns that one dated note unchecked; explicit selection exposes its exact excerpt, and Remove deselects without deleting it. Save a fictional writing example; Save persists its exact Unicode text while inclusion remains Off. No existing saved examples were present or overwritten.
