@@ -92,6 +92,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var terminating = false
 
+    // Launch Services sends a reopen when the user opens the already-running menu-bar app.
+    // Showing its window is idempotent; do not toggle it closed or depend on a synthetic shortcut.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        guard !terminating else { return false }
+        island?.setExpanded(true)
+        return true
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         // A second request (SIGTERM, then Command-Q) must not stop the runtime and reply a second time.
         if terminating { return .terminateLater }

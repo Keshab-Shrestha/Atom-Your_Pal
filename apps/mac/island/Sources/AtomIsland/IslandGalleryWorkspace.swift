@@ -8,7 +8,8 @@ extension IslandGallery {
         defer { defaults.removePersistentDomain(forName: suite) }
         func model(_ response: String, tab: String = "files") -> IslandModel {
             let model = IslandModel(settings: IslandSettings(defaults: defaults))
-            if let event = try? decodeEvent(#"{"type":"chats","current":"cedar","currentProjectId":"p","chats":[{"id":"cedar","title":"Cedar launch","messages":2}],"projects":[{"id":"p","name":"Cedar","folderLabel":"~/Documents/Cedar","missing":false,"archived":false,"chatCount":1,"web":false}]}"#) { model.apply(event) }
+            // Keep the displayed terminal path independent of the local/CI user's home directory.
+            if let event = try? decodeEvent(#"{"type":"chats","current":"cedar","currentProjectId":"p","chats":[{"id":"cedar","title":"Cedar launch","messages":2}],"projects":[{"id":"p","name":"Cedar","folderLabel":"/Users/fictional/Documents/Cedar","missing":false,"archived":false,"chatCount":1,"web":false}]}"#) { model.apply(event) }
             model.workspace.shown = true; model.workspace.tab = tab
             if case .workspace(let value) = try? decodeEvent(response) { model.workspace.response = value; model.workspace.notice = value.notice }
             return model

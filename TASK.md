@@ -1,5 +1,16 @@
 # ZENO Task Plan
 
+## Current capability — Signed restart and native backup acceptance (2026-10-22)
+
+Pushed the adaptation to origin/main as `4251304`, then replaced the repository app bundle with a release build signed by the existing ATOM Local Signing identity; strict signature verification passes. Fixed Launch Services reopen handling so opening the already-running menu-bar app reliably shows the full window and repeated Open does not toggle it closed. Background startup remains unchanged.
+
+Native verification preserves the selected chat/messages, fictional unsent restart draft, Opus 5.5/Off/Saved permissions, Terminal selection/stopped shell, 379-pixel divider and empty Browser address. Restored the originally empty composer and hidden workspace. Exact hashes of all seven observed original history/access/reasoning/grant/navigation/project tables remain unchanged. This real baseline contains no exact-file grant; do not confuse it with automated Full access/grant/revoke fixtures.
+
+The real Local text backup sheet passes Save-without-connect, explicit model-list probe, first answer/follow-up isolation, model/usage presentation, delayed Stop retaining draft/prior answers, and Close/reopen discard with an owned fictional HTTP fixture. Restored unconfigured backup state, stopped the fixture and closed the test Finder window. No local model download, real source read, new foreground cloud response or access expansion. Saved context correctly needs no summary for the current short chat. [Evidence and remaining acceptance](docs/sentient-adoption-results.md).
+
+Hosted CI for `4251304` passes TypeScript/Swift but fails compact Terminal visual comparison. Inspected the artifact/diff; make the gallery's home-dependent project path a fixed fictional absolute path, inspect/update only two Terminal references. Final release compilation passes (49.14 seconds); isolated gallery has 114 scenes and all 43 local comparisons pass at unchanged tolerance. Hosted confirmation of this follow-up remains pending. Native folder import/corrections, reply/prepared-card editors/Copy, long-chat reference navigation, analysis restart/resume, accessibility/IME and real local inference remain to check. The controlled startup/first-text/cache/token benchmark follows native acceptance. Unrelated graphify-out remains untouched. Stop after this batch.
+
+
 ## Current step — Combined adaptation validation (2026-10-22)
 
 Keshab authorized continuing after all seven initial coding groups; their intermediate test deferral has ended for this combined gate. Added fictional SQLite/folder/HTTP and native protocol/policy coverage, ran complete suites, verified actual isolated Claude/Codex output contracts and rendered an isolated ad-hoc-signed app copy. [Detailed evidence and remaining acceptance](docs/sentient-adoption-results.md).

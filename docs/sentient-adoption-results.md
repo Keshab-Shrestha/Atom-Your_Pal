@@ -1,8 +1,24 @@
 # Sentient adaptation validation — 22 October 2026
 
-The automated and isolated-provider portion of the combined gate passes. This is not installation/native interaction acceptance, a same-model performance benchmark, or full parity with Sentient's 33 inquiry features. The initial seven coding groups remain scoped as described in the [plan](sentient-adoption-plan.md).
+The automated and isolated-provider portion of the combined gate passes. The first signed native restart/backup acceptance batch below also passes. Remaining native workflows, a same-model performance benchmark and full parity with Sentient's 33 inquiry features are not certified. The initial seven coding groups remain scoped as described in the [plan](sentient-adoption-plan.md).
 
-## Evidence
+## Signed native restart and backup batch
+
+Published the adaptation as `4251304` on `origin/main`. Rebuilt the actual repository app bundle using the existing **ATOM Local Signing** identity; `codesign --verify --deep --strict` passes. Preserve a private consistent SQLite/defaults/draft snapshot and the prior bundle before replacement. Native interactions use the app's real controls, not gallery snapshots.
+
+- Find and fix a reopen defect: Launch Services opening an already-running menu-bar app now shows the main window idempotently. Verify Finder Open reveals the hidden window and repeated Open keeps it visible. Background cold startup remains background startup; this does not change login behavior.
+- Verify the selected fictional project chat, its two original messages, Opus 5.5, Off thinking and Saved permissions after restart. A fictional unsent draft survives restart; clear only that added text to restore the originally empty composer. Once the provider catalog loads, Off returns normally.
+- Verify Terminal remains selected with a stopped shell, the divider remains 379 pixels, and the Browser address remains empty. Restore the hidden workspace afterward. No shell was started.
+- Compare exact row hashes before and after replacement/native checks: all 229 messages, 55 chats, the chat access/reasoning/navigation rows, zero exact-file grants and two projects are unchanged. This real baseline has no exact-file grant; Full access/grant/revoke coverage remains the separate fictional automated evidence above.
+- Open Saved context details: the short chat reports ready for future long-chat summaries with no summary required. No pause/clear action or model call occurs.
+- Exercise Settings → AI model → Local text backup using an owned fictional loopback HTTP fixture. Save makes **zero requests** and writes mode `0600`; Check server makes one content-free model-list request. The first answer and follow-up render the exact configured model and synthetic usage. Captured request roles are system/user, then system/user/assistant/user; no cloud chat/source/tool/credential data is transmitted.
+- Stop a delayed third request: earlier replies and the unsent message remain; no incomplete turn is committed. Close/reopen starts an empty temporary conversation. Cleanly quit, move the exact fixture configuration into the private rollback snapshot, and restart unconfigured. Stop the owned fixture server. No local model/server software was downloaded or installed. Fixture timing/token numbers are synthetic, not inference or performance evidence.
+
+The new hosted [run 39713011016](https://github.com/Keshab-Shrestha/Atom-Your_Pal/actions/runs/39713011016) passes TypeScript and Swift. Its visual job fails at compact Terminal (2.200%). Inspect the actual artifact and red diff: its path contains the CI home directory, and the centered explanatory text also shifts vertically. Give the gallery project a fixed fictional absolute path matching its response root, and inspect/update only the compact/dark Terminal references. The isolated final gallery renders all 114 scenes and all 43 local comparisons pass at the existing 1% threshold. A new hosted run is still required to establish the result on that runner; local success does not certify it.
+
+Native folder import/correction/conflict, contextual reply editing, summary original-message navigation in a long chat, prepared-card editing/Copy, analysis restart/resume, keyboard/IME/accessibility and a real compatible local inference server remain subsequent acceptance work. The first-text/cache/token comparison remains a separate controlled benchmark. No user notes, account/calendar content, access expansion or new cloud-chat response was needed in this batch. Unrelated `graphify-out/` stays untouched.
+
+## Earlier automated evidence
 
 | Check | Result |
 | --- | --- |
@@ -61,10 +77,10 @@ Gallery work used a temporary app copy and throwaway defaults; it did not replac
 
 ## Remaining release acceptance
 
-- Install/restart the final signed build and exercise native interactions with fictional data: folder chooser/confirmation, editable reply/context/examples, summary original-message navigation, preparation Copy/editor, analysis controls/restart and backup configure/Stop/Copy. Verify keyboard/IME/accessibility, narrow windows and secure selection where applicable. Rendered snapshots and Core protocol tests do not cover the actual app controller.
-- Before replacement, preserve the real selected chat/provider/thinking/access/draft, exact-file grant and revoke state, Browser address and pane preference. Verify them after restart. This pass deliberately leaves that running state untouched rather than claiming to have migrated it.
+- Complete the remaining native interactions with fictional data: folder chooser/confirmation, editable reply/context/examples, summary original-message navigation, preparation Copy/editor, analysis controls/restart and backup configure/Stop/Copy. Verify keyboard/IME/accessibility, narrow windows and secure selection where applicable. Rendered snapshots and Core protocol tests do not cover the actual app controller.
+- The signed native batch verifies the observed restart baseline above. Continue preserving the selected chat/provider/thinking/access/draft, grants, Browser address and pane preference through later fixture workflows; do not infer real grant/revoke behavior from the baseline with zero grants.
 - Exercise a user-configured real compatible local server when available; no model download or different provider is implied. The HTTP fixture proves protocol/host handling, not a particular server/model's inference, cancellation or context size.
 - Run the remaining relevant opt-in device/provider workflows, larger scanner race/fault-injection matrices, timezone/clock/budget edge cases and scheduling under real app lifecycle. The [case checklist](sentient-adoption-validation.md) remains a backlog; this report states what was actually covered.
-- Run the requested controlled foreground startup/first-text/cache/token comparison under the same model/effort/task conditions. The table above is not that benchmark. Push and observe fresh hosted CI only when publishing is requested.
+- Run the requested controlled foreground startup/first-text/cache/token comparison under the same model/effort/task conditions. The table above is not that benchmark. Observe the next hosted run after the native/gallery follow-up is published.
 
 The next independent step is native workflow/restart acceptance, not another feature group or a claim that every checklist case has passed.
