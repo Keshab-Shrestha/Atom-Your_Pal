@@ -1,6 +1,16 @@
 # ZENO Project Status
 
-## Current capability — R0 stale note-search results (2026-10-22, fixed on branch, not committed)
+## Current capability — R1 hosted Terminal rendering (2026-10-22, fix prepared, hosted check pending)
+
+Hosted run 39759609477 (main `010ffe1`, image macos-26-arm64) fails only the `visual` job. TypeScript and Swift pass. Compared with all 44 goldens, exactly two scenes exceed 1%: `39-workspace-terminal-compact` (1.877%) and `39-workspace-terminal-dark` (1.378%). Every other scene is under 1%. `ui-check.sh` stops at the first failure, so this was not visible in the log.
+
+Diagnosis: the render is deterministic. Two local renders are identical (0.000%) and equal the goldens. The hosted numbers are the same on two runs. The cause is the OS, not timing. This Mac runs macOS 27.0.1; the runner runs macOS 26. In the hosted image the icon sits at the same row, and every text line below it is exactly 1 device pixel higher. The line spacing among the text lines is unchanged. So the drift is in the icon's layout box, which is the SF Symbol size. The Browser empty state uses the same icon pattern and sits at 0.93%.
+
+Fix: the Terminal and Browser empty-state icons now have a fixed height (26 and 28 points, the local natural sizes). Local renders of the affected scenes stay equal to the goldens. No golden, scene or tolerance changed. `pnpm island:test` passes 789 tests.
+
+Not verified: the hosted result. No macOS 26 render exists on this Mac. The hypothesis is confirmed only when the `visual` job passes on a pushed revision. If it still fails, measure the hosted render again before changing anything else.
+
+## Current capability — R0 stale note-search results (2026-10-22, committed `e4bd552` on branch, not pushed)
 
 Keshab reported that Delete for good left the removed note in the search results. This is task R0 of the [release plan](docs/sentient-parity-release-plan.md).
 

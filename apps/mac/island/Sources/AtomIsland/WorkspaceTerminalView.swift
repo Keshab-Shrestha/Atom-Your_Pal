@@ -42,7 +42,8 @@ struct WorkspaceTerminalView: View {
             } else {
                 VStack(alignment: .leading, spacing: 12) {
                     Spacer(minLength: 12)
-                    Image(systemName: "terminal").font(.system(size: 24)).foregroundStyle(theme.text3.color)
+                    // Fixed height: the symbol's own box differs between macOS releases and moved the text below it by a pixel on CI.
+                    Image(systemName: "terminal").font(.system(size: 24)).frame(height: 26).foregroundStyle(theme.text3.color)
                     Text("A shell for this project").font(.system(size: 14, weight: .medium))
                     Text("Start an interactive zsh in the project folder. It runs as your Mac user and can change files or use the network beyond this folder. ATOM’s agent approvals and Undo do not cover these commands.")
                         .font(.system(size: 12)).foregroundStyle(theme.text2.color).fixedSize(horizontal: false, vertical: true)

@@ -143,4 +143,6 @@ Maintain one row per capability with: ATOM commit, referenced Sentient feature I
 
 **R0 result (22 October):** fixed on branch `fix/note-search-stale-hits`, not yet committed or CI-checked. `BrainState.refreshSearch()` plus one line in `IslandModel` re-ask the active search after every graph. Two regressions added; 789 island tests pass. Native delete sequence reproduced the bug on the pre-fix bundle and shows "No note matches" on the rebuilt app; all 48 non-FTS tables match the baseline after cleanup. Not exercised natively: rename/edit that stops matching, source refresh/disconnect, rejected delete, delayed response. See [STATUS.md](../STATUS.md).
 
-**Next task is R1 only:** the hosted Terminal visual failure. R0 stays open until Keshab accepts it and the commit passes required CI.
+**R1 result (22 October):** diagnosed, fix prepared, hosted check pending. Run 39759609477 fails only two Terminal scenes (1.877% and 1.378%); the hosted render is deterministic and every text line below the empty-state icon sits 1 device pixel higher than on this Mac (macOS 26 runner, macOS 27 here). The icon's layout box is now fixed in the Terminal and Browser views; local renders still equal the goldens and no scene or tolerance changed. R1 closes only when the `visual` job passes on the pushed revision. See [STATUS.md](../STATUS.md).
+
+**Next step:** push the branch (or open a PR) so hosted CI runs R0 and R1 together. R0 and R1 stay open until the required jobs pass on that revision.
