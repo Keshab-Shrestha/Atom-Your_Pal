@@ -91,6 +91,41 @@ The small comparison is exploratory. Follow with enough controlled cold/warm tri
 - Cross-chat cache: the turn read only 5,354 cached tokens and wrote 5,576. That is although another chat used the identical prefix hash 9 minutes earlier, inside the 1-hour TTL. So only about half of the prefix is shared across chats, and the rest is chat- or session-specific. Which part differs is not visible in ATOM's logs. A request capture would be needed to find it.
 - Optimization candidates, not yet measured: confirm whether ToolSearch actually defers the ~4.4k tokens of ATOM tool schemas, and find the chat-specific part of the prefix. Do not shorten instructions or tools before that attribution.
 
+**R3 benchmark setup, pinning (22 October, two smoke calls, not timed trials):**
+
+- Model: gpt-6-luna chosen by Keshab. Opus 5.5 is ATOM's main chat model, so ATOM must also be set to Codex gpt-6-luna for the same advertised model. ATOM's chat model is per chat.
+- Codex surface: the Codex CLI `codex exec` 0.163.0-alpha.10.2 (the bundled app binary). ATOM's Codex adapter uses the app-server protocol, not `exec`, so the surfaces differ. The Codex desktop app is not installed; the VS Code extension bundles another binary. The plan calls for app-versus-app; this is not that.
+- Hidden context: with the user's config, a `codex exec` turn reported `input_tokens` 21,429 and logged "Exceeded skills context budget" (102 skills omitted). With `--ignore-user-config`, the same turn reported 18,217 input tokens and no error. About 3.2k input tokens came from the user's config.
+- Cache: a fresh ephemeral turn read 11,520 cached input tokens; the uncached part was about 6.7k.
+
+Not yet decided: which surface is the comparison (CLI with clean config, or app-server as ATOM uses), and whether ATOM's Codex adapter also loads the user's skills. Trials are not run. Each side's workload is 3 fresh chats × 2 responses, cold then warm.
+
+**R3 benchmark, exploratory (22 October, 3 fresh chats × 2 turns per side, gpt-6-luna on both sides):**
+
+Set-up, disclosed:
+- Same advertised model, gpt-6-luna. ATOM chat switched per chat to Codex / GPT-6-Luna (chip shows reasoning Low). Codex side: `codex exec` with `--ignore-user-config`, default reasoning effort. Effort is not matched exactly; Codex turns reported 0 reasoning tokens.
+- Surface differs. Codex side is the CLI `exec` from the bundled app binary; ATOM talks to Codex through its app-server adapter with ATOM's instructions and tools. The ChatGPT.app desktop app with its own Codex server is installed here but was not used.
+- Same two prompts on both sides. Turn 1 asks for a one-sentence answer from a short note; turn 2 is a follow-up in the same chat. "Cold" = first turn of a new chat; "warm" = second turn.
+- ATOM timing is send-to-usage-row wall time, with 1–2 s of UI automation overhead on trials 1–2 and none measured for trial 3's first turn. ATOM first-visible-text was not measured and is not reported.
+
+Results (n = 3 per side; medians with ranges):
+
+| Measure | Codex CLI (clean) | ATOM (Codex adapter) |
+| --- | --- | --- |
+| Cold turn, total | 7.0 s (6.1–7.6) | 10.2–11.5 s, n=2 |
+| Warm turn, total | 7.6 s (5.9–8.6) | 5.7 s (3.2–5.9) |
+| Cold turn, first text | 6.0 s (5.2–6.4) | not measured |
+| Cold input tokens | 18,258 (cache read 11,520) | 12,113–12,118 (cache read 0), and 2,258 with cache read 9,856 in trial 2 |
+| Warm input tokens | 36,578–41,807 (cache read 29,568) | 386–391 (cache read 11,904) |
+
+Findings:
+- ATOM's first-turn input is smaller than Codex CLI's (about 12k against 18k). Codex's count includes its own system prompt and tools; ATOM's includes its own. Attribution of each is not measured on the Codex side.
+- Cache behaviour is inconsistent on the ATOM side. Trial 2's first turn read 9,856 cached tokens, while trials 1 and 3 read none, within the same hour and on the same prefix. The cause is not in the logs. Codex's cache counts were stable across all three threads.
+- Warm turns are faster on ATOM (median 5.7 s against 7.6 s for Codex), but ATOM's figure includes its UI overhead and n is 3. Do not read it as a speed win.
+- Monetary cost not computed (no pricing verified); the plan's note on quota and API cost applies.
+
+Still open: ATOM first-text timing, trial 3's cold wall time, the cause of the cache misses, a same-effort rerun, and a Codex app-server comparison to remove the surface difference.
+
 ## R4 — Release candidate gate
 
 - Audit existing install, launch/reopen/login behavior, provider sign-in/out, credential storage, dependency preparation, permission guidance, export/backup/reset and update mechanisms before adding missing controls. Distinguish local signed personal use from distribution to another Mac.
