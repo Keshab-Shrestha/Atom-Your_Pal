@@ -85,7 +85,7 @@ export interface Brain {
    * Creates or updates a note by title (or by `ref`; or by `id`, which also renames it), reads its links and tags, and
    * makes ghosts for new link targets. Throws BrainError for a bad note, an unknown `id`, or a title another note has.
    */
-  save(input: { id?: number; title: string; body: string; kind?: NoteKind; ref?: string }): BrainNote;
+  save(input: { id?: number; title: string; body: string; kind?: NoteKind; ref?: string; preserveWhitespace?: boolean }): BrainNote;
   get(id: number): BrainNote | undefined;
   byTitle(title: string): BrainNote | undefined;
   /** Notes that link to this one, by title. */
@@ -260,13 +260,13 @@ export function openBrain(db: DatabaseSync, now: () => Date): Brain {
     updatedAt: new Date(row.updated_at),
   });
   const transaction = <T>(work: () => T): T => {
-    db.exec("BEGIN");
+    db.exec("SAVEPOINT brain_edit");
     try {
       const out = work();
-      db.exec("COMMIT");
+      db.exec("RELEASE brain_edit");
       return out;
     } catch (error) {
-      db.exec("ROLLBACK");
+      db.exec("ROLLBACK TO brain_edit; RELEASE brain_edit");
       throw error;
     }
   };
@@ -283,9 +283,9 @@ export function openBrain(db: DatabaseSync, now: () => Date): Brain {
     db.exec("DELETE FROM brain_notes WHERE ghost = 1 AND id NOT IN (SELECT dst FROM brain_links)");
   }
 
-  function save(input: { id?: number; title: string; body: string; kind?: NoteKind; ref?: string }): BrainNote {
+  function save(input: { id?: number; title: string; body: string; kind?: NoteKind; ref?: string; preserveWhitespace?: boolean }): BrainNote {
     const title = cleanTitle(input.title);
-    const body = typeof input.body === "string" ? input.body.replace(/\r\n/g, "\n").trim() : "";
+    const body = typeof input.body === "string" ? (input.preserveWhitespace ? input.body : input.body.replace(/\r\n/g, "\n").trim()) : "";
     const kind: NoteKind = input.kind && KINDS.includes(input.kind) ? input.kind : "note";
     return transaction(() => {
       const stamp = now().toISOString();

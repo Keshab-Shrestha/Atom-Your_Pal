@@ -40,10 +40,24 @@ final class IslandModel {
     var dailyBrief = DailyBriefState()
     /// Ask ATOM (upgrades.md B3): the answers to edit requests, by request id. A view that asked takes its answer with `takeEditAnswer`.
     var editAnswers: [String: EditAnswer] = [:]
+    var replyContexts: [String: ReplyContextResult] = [:]
+    var replyAnswers: [String: ReplyDraftResult] = [:]
+    let localBackup = LocalBackupModel()
+    var localBackupReady: Bool { inputRuntimeReady }
+    @ObservationIgnored private var pendingReplyContexts: Set<String> = []
+    @ObservationIgnored private var pendingReplyDrafts: Set<String> = []
     @ObservationIgnored private var briefPending = false
     @ObservationIgnored private var suggestionPending = false
     /// The second brain: the notes, their links and the open note. Empty until the page first asks the runtime.
     var brain = BrainState()
+    var brainSources = BrainSourceSummary()
+    var brainSourcePreview: BrainSourcePreview?
+    var brainSourceError: String?
+    var brainSourcePending: String?
+    var sourceAnalysisView: SourceAnalysisView?
+    var sourceAnalysisPending: String?
+    var sourceAnalysisError: String?
+    var sourceAnalysisReady: Bool { inputRuntimeReady }
     @ObservationIgnored private var brainCommandPending = false
     /// What ATOM can do (ADR-076), from the runtime's `capabilities` event. Nil until it arrives: only the shortcuts show.
     var capabilities: [CapabilityItem]?
@@ -383,6 +397,29 @@ final class IslandModel {
     }
     /// A command was not sent because the runtime is not running: tell the user, and stop any "waiting" that expected its answer.
     func droppedCommandError(for command: IslandCommand) -> RuntimeError? {
+        switch command {
+        case .replyContext(let id, _):
+            pendingReplyContexts.remove(id)
+            replyContexts[id] = ReplyContextResult(id: id, profile: nil, items: [], error: "ATOM is not running.")
+            return nil
+        case .replyDraft(let id, _):
+            pendingReplyDrafts.remove(id)
+            replyAnswers[id] = ReplyDraftResult(id: id, text: nil, error: "ATOM is not running; no draft request was sent.")
+            return nil
+        case .replyCancel: return nil
+        case .localBackup(let request): localBackup.dropped(request); return nil
+        default: break
+        }
+        if case .brainSource = command {
+            brainSourcePending = nil
+            brainSourceError = "ATOM is not running. Reconnect before changing notes sources."
+            return nil
+        }
+        if case .sourceAnalysis = command {
+            sourceAnalysisPending = nil
+            sourceAnalysisError = "ATOM is not running. Reconnect and reload analysis; no request was retried."
+            return nil
+        }
         if case .projectCreate(let request) = command { projectSource.expire(request.request); return nil }
         if case .projectCreateCancel(let id) = command { projectSource.expire(id); return nil }
         guard DroppedCommand.shouldTell(commandType: command.type) else { return nil }
@@ -414,6 +451,13 @@ final class IslandModel {
     /// The runtime stopped or restarted: what the window was waiting for will not be answered (code review, 2026-10-16). Nothing reset
     /// these before, so a Save or a model switch could stay "waiting" for good.
     func runtimeStopped() {
+        localBackup.stopped()
+        for id in pendingReplyContexts { replyContexts[id] = ReplyContextResult(id: id, profile: nil, items: [], error: "ATOM stopped. Reload draft context.") }
+        for id in pendingReplyDrafts { replyAnswers[id] = ReplyDraftResult(id: id, text: nil, error: "ATOM stopped. No draft result was confirmed.") }
+        pendingReplyContexts.removeAll(); pendingReplyDrafts.removeAll()
+        brainSourcePending = nil; brainSourcePreview = nil
+        sourceAnalysisPending = nil; sourceAnalysisView = nil
+        sourceAnalysisError = "ATOM stopped. Reload analysis to inspect its saved progress."
         projectSource.stopped()
         workspaceBrowser.reset(); workspaceTerminal.reset()
         dispatchedInputIDs = []
@@ -593,6 +637,27 @@ final class IslandModel {
         send(.textEditCancel(id: id))
     }
     func takeEditAnswer(_ id: String) -> EditAnswer? { editAnswers.removeValue(forKey: id) }
+    func findReplyContext(id: String, query: String) {
+        pendingReplyContexts.insert(id); replyContexts[id] = nil
+        send(.replyContext(id: id, query: query))
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(10))
+            guard let self, self.pendingReplyContexts.remove(id) != nil else { return }
+            self.replyContexts[id] = ReplyContextResult(id: id, profile: nil, items: [], error: "Draft context did not answer. Reload it before generating.")
+        }
+    }
+    func generateReply(id: String, input: ReplyDraftInput) {
+        pendingReplyDrafts.insert(id); replyAnswers[id] = nil
+        send(.replyDraft(id: id, input: input))
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(90))
+            guard let self, self.pendingReplyDrafts.remove(id) != nil else { return }
+            self.send(.replyCancel(id: id))
+            self.replyAnswers[id] = ReplyDraftResult(id: id, text: nil, error: "Drafting timed out and was stopped. No result was confirmed; it was not sent or retried.")
+        }
+    }
+    func discardReplyContext(_ id: String) { pendingReplyContexts.remove(id); replyContexts[id] = nil }
+    func cancelReply(_ id: String) { pendingReplyDrafts.remove(id); replyAnswers[id] = nil; send(.replyCancel(id: id)) }
 
     /// "Brief me": makes one now.
     func briefMe() {
@@ -617,7 +682,35 @@ final class IslandModel {
     }
 
     /// The second brain's page opened: ask for the graph. From then on the runtime also sends its changes.
-    func openBrain() { send(brain.open()) }
+    func openBrain() { send(brain.open()); requestBrainSource("get") }
+    func requestSourceAnalysis(_ action: String = "get", enabled: Bool? = nil, minute: Int? = nil, dailyLimit: Int? = nil, before: Int? = nil, pinCurrent: Bool = false) {
+        guard sourceAnalysisPending == nil else { return }
+        guard inputRuntimeReady else { sourceAnalysisError = "Wait for ATOM to reconnect before using analysis."; return }
+        var command = SourceAnalysisRequest(action: action, view: sourceAnalysisView, enabled: enabled, minute: minute, dailyLimit: dailyLimit, before: before)
+        if pinCurrent { command.profile = sourceAnalysisView?.profile }
+        sourceAnalysisPending = command.request; sourceAnalysisError = nil
+        send(.sourceAnalysis(command))
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(10))
+            guard let self, self.sourceAnalysisPending == command.request else { return }
+            self.sourceAnalysisPending = nil
+            self.sourceAnalysisError = "Analysis did not answer. Reload saved status before trying an action again; nothing was automatically retried."
+        }
+    }
+    func requestBrainSource(_ action: String, path: String? = nil, token: String? = nil, id: Int? = nil) {
+        guard brainSourcePending == nil else { return }
+        let request = UUID().uuidString.lowercased()
+        brainSourcePending = request
+        brainSourceError = nil
+        if action != "connect" { brainSourcePreview = nil }
+        send(.brainSource(request: request, action: action, path: path, token: token, id: id))
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(30))
+            guard let self, self.brainSourcePending == request else { return }
+            self.brainSourcePending = nil; self.brainSourcePreview = nil
+            self.brainSourceError = "The source operation has not answered. Its local import outcome may be unknown. Reload Sources before trying again."
+        }
+    }
     /// ADR-126: "@" in the chat box lists notes; the graph is asked for once, then kept up to date.
     func loadNotesForMentions() { if !brain.opened { openBrain() } }
     func selectBrainNote(_ id: Int?) {
@@ -899,6 +992,12 @@ final class IslandModel {
             memory = list
         case .textEditResult(let id, let answer):
             editAnswers[id] = answer
+        case .replyContext(let response):
+            if pendingReplyContexts.remove(response.id) != nil { replyContexts[response.id] = response }
+        case .replyResult(let response):
+            if pendingReplyDrafts.remove(response.id) != nil { replyAnswers[response.id] = response }
+        case .localBackup(let response):
+            localBackup.receive(response)
         case .brief(let list):
             briefPending = false
             dailyBrief.apply(list)
@@ -950,6 +1049,17 @@ final class IslandModel {
         case .brainNote(let note):
             brainCommandPending = false
             brain.setNote(note)
+        case .brainSource(let response):
+            guard brainSourcePending == response.request else { return }
+            brainSourcePending = nil
+            brainSources = response.state
+            brainSourcePreview = response.preview
+            brainSourceError = response.error
+            if response.error == nil, let id = brain.selectedId { selectBrainNote(id) }
+        case .sourceAnalysis(let response):
+            guard sourceAnalysisPending == response.request else { return }
+            sourceAnalysisPending = nil
+            sourceAnalysisView = response.view; sourceAnalysisError = response.view.error
         case .brainHits(let query, let hits):
             brain.setHits(query: query, hits)
         case .error(let error) where error.stage == "settings" && briefPending:

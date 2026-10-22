@@ -70,13 +70,13 @@ struct ConversationControls: View {
             }
             Divider()
             Button("Chat access") { access = true; model.inspectSavedChat() }
-            Button("Saved context details") { details = true }
+            Button("Saved context details") { details = true; model.inspectSavedChat() }
             Button(recoveryCount > 0 ? "Recovery (\(recoveryCount))" : "Recovery") {
                 model.recovery.shown = true; model.refreshForegroundRecovery()
             }
         }
         .accessibilityValue(recoveryCount > 0 ? "\(recoveryCount) recovery items" : "")
-        .popover(isPresented: $details) { contextDetails.padding(16).frame(width: 340) }
+        .popover(isPresented: $details) { ScrollView { contextDetails.padding(16) }.frame(width: 360).frame(maxHeight: 580) }
         .popover(isPresented: $access) { ChatAccessContent(model: model) }
         .sheet(isPresented: Binding(get: { model.recovery.shown }, set: { model.recovery.shown = $0 })) {
             ForegroundRecoveryView(model: model)
@@ -106,6 +106,36 @@ struct ConversationControls: View {
             } else { Text("Send a message to save this chat, or refresh its details.") }
             Text("This is a byte estimate for saved conversation replay, not a provider token/context meter. It excludes system prompts, tools, in-flight input and SDK memory.")
             Text("ATOM bounds replay automatically. Manual Compact is unavailable in the current gateway.")
+            if let continuity = model.chatControls.snapshot?.continuity {
+                Divider()
+                Text("Automatic continuity").fontWeight(.medium)
+                Text(continuity.status)
+                Text("Uses the selected Claude/Codex model at low or its supported default effort in a separate tool-free request. This uses additional plan tokens. Current messages and your Chat brief take precedence; summaries never grant access.")
+                if let summary = continuity.summary {
+                    Text("m1–m\(summary.through) · \(summary.provider) / \(summary.model)")
+                        .foregroundStyle(theme.text3.color)
+                    DisclosureGroup("Review derived summary") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(Array(summary.items.enumerated()), id: \.offset) { _, item in
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(item.text + " (" + item.refs.map { "m\($0)" }.joined(separator: ", ") + ")")
+                                        .textSelection(.enabled)
+                                    if let first = item.refs.first {
+                                        Button("Read original m\(first)") {
+                                            details = false
+                                            model.openSavedHistoryMessage(first)
+                                        }
+                                    }
+                                }
+                            }
+                        }.padding(.top, 6)
+                    }
+                }
+                Button(continuity.enabled ? "Pause and clear automatic summary" : "Enable automatic summaries") {
+                    model.setChatContinuity(enabled: !continuity.enabled, version: continuity.version)
+                }.disabled(!model.chatBranchAvailable || model.chats?.currentReadOnlyNotice != nil)
+                Text("Clearing stops future inclusion; copies already sent may remain in the provider’s session. Original messages stay saved.")
+            }
             if let usage = model.planUsage {
                 Text(usage.limited == true ? "Claude plan: limit reported" : "Claude plan: last reported usage")
                     .fontWeight(.medium)

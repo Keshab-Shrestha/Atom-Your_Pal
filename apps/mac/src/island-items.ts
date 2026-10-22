@@ -67,6 +67,7 @@ export interface BriefItem {
   createdAt: string;
   lines: string[];
   source: "model" | "template";
+  preparation?: import("@atom/memory").BriefPreparation;
 }
 
 /** Daily brief settings. `minute` is minutes after local midnight. */
@@ -81,6 +82,8 @@ export interface BriefSettingsItem {
   notify: boolean;
   telegram: boolean;
   spoken: boolean;
+  preparation?: boolean;
+  preparationDailyLimit?: number;
 }
 
 /** One conversation summary (ADR-059). Travels only over the private pipe; never logged. */
@@ -408,6 +411,7 @@ export interface BrainLinkItem {
 
 /** One note with its text, links and backlinks. */
 export interface BrainNoteItem {
+  source?: import("@atom/memory").NoteSource;
   id: number;
   title: string;
   body: string;

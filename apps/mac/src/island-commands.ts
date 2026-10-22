@@ -7,13 +7,19 @@ import { parseChatControl, type ChatControlRequest } from "./chat-controls.ts";
 import { parseForeground, type ForegroundCommand } from "./foreground-recovery.ts";
 import type { RoutineInput, SoulItem } from "./island-items.ts";
 import { BRANCH_COMMAND_PATTERN, BRANCH_SHAPE } from "./branch-prefix.ts";
+import { parseSourceAnalysis, type SourceAnalysisCommand } from "./source-analysis.ts";
+import { parseLocalBackup, type LocalBackupCommand } from "./local-backup.ts";
 
 /** The brief settings a `brief.set` may change. */
-export const BRIEF_FLAGS = ["enabled", "events", "reminders", "weather", "tasks", "needsYou", "notify", "telegram", "spoken"] as const;
-export type BriefChange = Partial<Record<(typeof BRIEF_FLAGS)[number], boolean>> & { minute?: number };
+export const BRIEF_FLAGS = ["enabled", "events", "reminders", "weather", "tasks", "needsYou", "notify", "telegram", "spoken", "preparation"] as const;
+export type BriefChange = Partial<Record<(typeof BRIEF_FLAGS)[number], boolean>> & { minute?: number; preparationDailyLimit?: number };
 
 
 export type IslandCommand =
+  | LocalBackupCommand
+  | SourceAnalysisCommand
+  | import("./reply-drafts.ts").ReplyCommand
+  | import("./brain-source-folder.ts").BrainSourceRequest
   | ProjectSourceRequest
   | { type: "project.create.cancel"; request: string }
   | WorkspaceRequest
@@ -172,6 +178,9 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "approval.answer",
   "memory.list",
   "brain.get",
+  "brain.source",
+  "source.analysis",
+  "local.backup",
   "brain.note",
   "brain.save",
   "brain.delete",
@@ -206,6 +215,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "suggestions.deny",
   "suggestions.set",
   "text.edit",
+  "reply.context", "reply.draft", "reply.cancel",
   "text.edit.cancel",
   "brief.get",
   "brief.run",
@@ -297,6 +307,39 @@ export function parseCommand(line: string): ParsedLine {
   const type = (value as { type?: unknown }).type;
   if (typeof type !== "string") return { error: 'Command has no "type".' };
   if (!COMMANDS.has(type as IslandCommand["type"])) return { error: `Unknown command "${type.slice(0, 40)}".` };
+  if (type === "reply.context" || type === "reply.draft" || type === "reply.cancel") {
+    const v = value as Record<string, any>;
+    if (typeof v.id !== "string" || !/^[\w-]{1,64}$/.test(v.id)) return { error: "Reply requests need an id." };
+    if (type === "reply.cancel") return { command: { type, id: v.id } };
+    if (type === "reply.context") return typeof v.query === "string" ? { command: { type, id: v.id, query: v.query } } : { error: "Reply context needs a search query." };
+    const input = v.input, profile = input?.profile;
+    if (!input || typeof input !== "object" || !profile || typeof profile !== "object"
+      || !["chat", "provider", "model", "effort"].every((key) => typeof profile[key] === "string" && profile[key])
+      || !["conversation", "intent", "background", "examples"].every((key) => typeof input[key] === "string")
+      || !Array.isArray(input.context) || input.context.length > 12
+      || !input.context.every((pick: any) => pick && typeof pick.id === "string" && typeof pick.revision === "string" && /^[a-f0-9]{64}$/.test(pick.revision))) return { error: "Invalid reply draft context." };
+    return { command: { type, id: v.id, input: { profile: { chat: profile.chat, provider: profile.provider, model: profile.model, effort: profile.effort },
+      conversation: input.conversation, intent: input.intent, background: input.background, examples: input.examples,
+      context: input.context.map((pick: any) => ({ id: pick.id, revision: pick.revision })) } } };
+  }
+  if (type === "source.analysis") {
+    try { return { command: parseSourceAnalysis(value as Record<string, unknown>) }; }
+    catch (error) { return { error: error instanceof Error ? error.message : "Invalid source analysis request." }; }
+  }
+  if (type === "local.backup") {
+    try { return { command: parseLocalBackup(value as Record<string, unknown>) }; }
+    catch (error) { return { error: error instanceof Error ? error.message : "Invalid local backup request." }; }
+  }
+  if (type === "brain.source") {
+    const v = value as Record<string, unknown>;
+    if (Object.keys(v).some((key) => !["type", "request", "action", "path", "token", "id"].includes(key))
+      || typeof v.request !== "string" || !/^[\w-]{1,64}$/.test(v.request)
+      || !["get", "preview", "cancel", "connect", "refresh", "disconnect", "restore"].includes(String(v.action))
+      || (v.action === "preview" && (typeof v.path !== "string" || !v.path))
+      || (v.action === "connect" && (typeof v.token !== "string" || !/^[\w-]{1,64}$/.test(v.token)))
+      || (v.action === "restore" && !isId(v.id))) return { error: "Invalid notes-source request." };
+    return { command: v as unknown as import("./brain-source-folder.ts").BrainSourceRequest };
+  }
   if (type === "workspace") {
     const c = value as Record<string, unknown>;
     if (typeof c.request !== "string" || !/^[a-f0-9-]{36}$/i.test(c.request) || typeof c.chat !== "string" || !/^[\w-]{1,100}$/.test(c.chat)
@@ -662,6 +705,7 @@ export function parseCommand(line: string): ParsedLine {
     const { change } = value as { change?: unknown };
     if (!change || typeof change !== "object" || Array.isArray(change)) return { error: 'brief.set needs a "change" object.' };
     const c = change as Record<string, unknown>;
+    if (Object.keys(c).some((key) => ![...BRIEF_FLAGS, "minute", "preparationDailyLimit"].includes(key))) return { error: "Unknown daily brief setting." };
     const out: BriefChange = {};
     for (const key of BRIEF_FLAGS) {
       if (c[key] === undefined) continue;
@@ -671,6 +715,10 @@ export function parseCommand(line: string): ParsedLine {
     if (c.minute !== undefined) {
       if (typeof c.minute !== "number" || !Number.isInteger(c.minute) || c.minute < 0 || c.minute > 1439) return { error: 'brief.set: "minute" is a whole number from 0 to 1439.' };
       out.minute = c.minute;
+    }
+    if (c.preparationDailyLimit !== undefined) {
+      if (!Number.isInteger(c.preparationDailyLimit) || Number(c.preparationDailyLimit) < 1 || Number(c.preparationDailyLimit) > 5) return { error: "Preparation allows one to five attempts per day." };
+      out.preparationDailyLimit = Number(c.preparationDailyLimit);
     }
     return { command: { type, change: out } };
   }

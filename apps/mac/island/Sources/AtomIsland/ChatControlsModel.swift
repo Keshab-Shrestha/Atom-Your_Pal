@@ -62,6 +62,11 @@ extension IslandModel {
         startChatMutation(request)
     }
 
+    func setChatContinuity(enabled: Bool, version: Int) {
+        guard let chat = savedChat, chatBranchAvailable, chats?.currentReadOnlyNotice == nil else { return }
+        startChatMutation(ChatControlRequest(action: .continuity, id: chat.id, version: version, enabled: enabled))
+    }
+
     func forkSavedChat(kind: String = "fork", through: Int? = nil, revision: String? = nil) {
         guard chatBranchAvailable, let chat = savedChat,
               let revision = revision ?? chatControls.snapshot?.revision,
@@ -88,6 +93,13 @@ extension IslandModel {
         guard savedChat != nil else { return }
         chatControls.historyShown = true
         refreshSavedHistory()
+    }
+
+    func openSavedHistoryMessage(_ message: Int) {
+        guard savedChat != nil, message > 0 else { return }
+        chatControls.historyShown = true
+        chatControls.previous = []
+        readSavedHistory(ChatHistoryCursor(message: message), revision: nil)
     }
 
     func refreshSavedHistory() {
@@ -132,7 +144,7 @@ extension IslandModel {
             chatControls.reading = nil
             chatControls.history = response.ok ? response : nil
             if !response.ok { chatControls.notice = response.error }
-        case .flags, .fork, .brief:
+        case .flags, .fork, .brief, .continuity:
             guard let request = chatControls.mutation, request.request == response.request, request.id == response.id else { return }
             if request.action == .brief { chatControls.briefReceipt = response }
             let undoing = chatControls.undoRequest == response.request
@@ -145,6 +157,11 @@ extension IslandModel {
             }
             if request.action == .brief {
                 chatControls.notice = "Brief saved for this chat. It will accompany the next request; file permissions are unchanged."
+            }
+            if request.action == .continuity {
+                chatControls.notice = request.enabled == true
+                    ? "Automatic summaries enabled for later long-chat exchanges."
+                    : "Automatic summaries paused and their derived copy cleared. Original history, your brief and permissions are unchanged."
             }
             if let flags = response.metadata {
                 chatControls.undo = undoing ? nil : ChatControlsState.Undo(id: response.id, pinned: flags.previousPinned,

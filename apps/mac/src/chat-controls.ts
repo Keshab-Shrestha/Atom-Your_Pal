@@ -2,10 +2,11 @@ import { createHash } from "node:crypto";
 import type { Message } from "@atom/contracts";
 import { validChatBrief, type ChatStore } from "@atom/memory";
 import { CHAT_REPLAY_BYTES, chatContext, excerpt } from "./chat-history.ts";
+import type { ContinuityView } from "./chat-continuity.ts";
 
 export interface ChatControlRequest {
   type: "chat.control";
-  action: "inspect" | "page" | "flags" | "fork" | "brief";
+  action: "inspect" | "page" | "flags" | "fork" | "brief" | "continuity";
   id: string;
   request: string;
   revision?: string;
@@ -17,6 +18,7 @@ export interface ChatControlRequest {
   archived?: boolean;
   version?: number;
   text?: string;
+  enabled?: boolean;
 }
 export interface ChatControlResponse {
   type: "chat.control";
@@ -27,6 +29,7 @@ export interface ChatControlResponse {
   error?: string;
   revision?: string;
   brief?: { text: string; version: number };
+  continuity?: ContinuityView;
   info?: { messages: number; archiveBytes: number; replayBytes: number; replayBudget: number; omitted: number; lastUser?: number;
     access?: { mode?: import("@atom/contracts").ChatAccessMode; provider: string; hostTools: boolean; project: boolean; fileGrants: number; computer: boolean; web: boolean } };
   page?: { messages: { seq: number; role: string; offset: number; text: string }[]; nextMessage?: number; nextOffset?: number };
@@ -35,10 +38,10 @@ export interface ChatControlResponse {
 }
 
 export function parseChatControl(value: Record<string, unknown>): { command: ChatControlRequest } | { error: string } {
-  const actions = ["inspect", "page", "flags", "fork", "brief"];
+  const actions = ["inspect", "page", "flags", "fork", "brief", "continuity"];
   const common = ["type", "action", "id", "request"];
   const action = String(value.action);
-  const extra = action === "brief" ? ["text", "version"] : action === "page" ? ["revision", "message", "offset"] : action === "flags" ? ["pinned", "archived", "version"] : action === "fork" ? ["revision", "through", "kind"] : [];
+  const extra = action === "continuity" ? ["enabled", "version"] : action === "brief" ? ["text", "version"] : action === "page" ? ["revision", "message", "offset"] : action === "flags" ? ["pinned", "archived", "version"] : action === "fork" ? ["revision", "through", "kind"] : [];
   const integer = (key: string, min: number) => Number.isSafeInteger(value[key]) && Number(value[key]) >= min && Number(value[key]) <= 2_000_000_000;
   const revision = () => typeof value.revision === "string" && /^[a-f0-9]{64}$/.test(value.revision);
   if (!actions.includes(action) || Object.keys(value).some((key) => ![...common, ...extra].includes(key))
@@ -46,6 +49,7 @@ export function parseChatControl(value: Record<string, unknown>): { command: Cha
       || typeof value.request !== "string" || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value.request)) return { error: "chat.control needs a saved chat, a known action and a request UUID." };
   if (action === "page" && (!integer("message", 1) || !integer("offset", 0) || (value.revision !== undefined && !revision()))) return { error: "Use the history cursor and revision returned by ATOM." };
   if (action === "brief" && (!validChatBrief(value.text) || !integer("version", 0) || value.version === 2_000_000_000)) return { error: "A chat brief needs the current version and text without hidden controls." };
+  if (action === "continuity" && (typeof value.enabled !== "boolean" || !integer("version", 0) || value.version === 2_000_000_000)) return { error: "Automatic summaries need a boolean and the current version." };
   if (action === "flags" && (!integer("version", 0) || (value.pinned === undefined && value.archived === undefined)
       || (value.pinned !== undefined && typeof value.pinned !== "boolean") || (value.archived !== undefined && typeof value.archived !== "boolean"))) return { error: "Chat flags need booleans and the current metadata version." };
   if (action === "fork" && (!revision() || !integer("through", value.kind === "fork" ? 0 : 1) || !["fork", "edit", "retry"].includes(String(value.kind)))) return { error: "Fork needs the current archive revision and a saved message number." };
@@ -62,6 +66,7 @@ function revisionOf(messages: readonly Message[]): string {
 export function runChatControl(store: ChatStore, command: ChatControlRequest, checkProject: (id: string) => { error?: string }): ChatControlResponse {
   const result: ChatControlResponse = { type: "chat.control", action: command.action, id: command.id, request: command.request, ok: false };
   try {
+    if (command.action === "continuity") throw new Error("Automatic summary controls are unavailable in this runtime.");
     if (command.action === "brief") {
       if (!store.setBrief(command.id, command.text!, command.version!)) throw new Error("The brief changed or the chat is gone. Reload its current brief before saving again.");
       return { ...result, ok: true, brief: store.brief(command.id) };

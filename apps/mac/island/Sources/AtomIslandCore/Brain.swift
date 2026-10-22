@@ -119,6 +119,7 @@ public struct BrainLink: Sendable, Equatable, Identifiable {
 
 /// One note with its text, the notes it links to and the notes that link to it.
 public struct BrainNoteData: Sendable, Equatable, Identifiable {
+    public var source: BrainNoteSource?
     public var id: Int
     public var title: String
     public var body: String
@@ -130,7 +131,8 @@ public struct BrainNoteData: Sendable, Equatable, Identifiable {
     public var updatedAt: Date?
 
     public init(id: Int, title: String, body: String = "", kind: BrainKind = .note, ghost: Bool = false, tags: [String] = [],
-                links: [BrainLink] = [], backlinks: [BrainLink] = [], updatedAt: Date? = nil) {
+                links: [BrainLink] = [], backlinks: [BrainLink] = [], updatedAt: Date? = nil, source: BrainNoteSource? = nil) {
+        self.source = source
         self.id = id
         self.title = title
         self.body = body

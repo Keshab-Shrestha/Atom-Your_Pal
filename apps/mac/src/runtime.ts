@@ -1,5 +1,11 @@
 import { FULL_ACCESS_CONFIRMATION } from "./chat-access.ts";
 import { runChatControl } from "./chat-controls.ts";
+import { createReplyDrafts, REPLY_INSTRUCTIONS, type ReplyProfile } from "./reply-drafts.ts";
+import { createChatContinuity, CONTINUITY_INSTRUCTIONS } from "./chat-continuity.ts";
+import { preparationInput, preparedBriefOutput, PREPARATION_INSTRUCTIONS } from "./prepared-brief.ts";
+import { createSourceAnalysis, SOURCE_ANALYSIS_INSTRUCTIONS } from "./source-analysis.ts";
+import { createLocalBackup } from "./local-backup.ts";
+import { localDay } from "./brief-due.ts";
 import { createChatWork, type ChatWorkBridge } from "./chat-work.ts";
 // The parts of the Mac runtime shared by both interfaces (terminal and island):
 // Microphone → Whisper → ATOM Core → LLM Gateway → provider → Kokoro → speaker.
@@ -109,6 +115,8 @@ const POINT_BOX = 20;
 const WEB_SEARCH: Capability = { title: "Search the web", examples: ["What's in the news today?", "Who won the match last night?"] };
 
 export interface Runtime {
+  islandLocalBackup?: IslandOptions["localBackup"];
+  islandSourceAnalysis?: IslandOptions["sourceAnalysis"];
   config: Config;
   log: Logger;
   core: Core;
@@ -144,6 +152,7 @@ export interface Runtime {
   islandSuggestions?: IslandOptions["suggestions"];
   /** Ask ATOM (upgrades.md B3). Undefined when the Claude plan is not in use. */
   islandTextEdit?: IslandOptions["textEdit"];
+  islandReplyDrafts?: IslandOptions["replyDrafts"];
   /** Daily brief (upgrades.md C3). Undefined when memory is off. */
   islandBrief?: IslandOptions["dailyBrief"];
   /** ADR-113: files attached to a typed message. Undefined in tests. */
@@ -281,9 +290,12 @@ export function createRuntime(
     },
   };
   const chatTurns = createChatTurns(); // who is answering in which chat (window or phone); a deleted chat is not saved back
+  let continuity: ReturnType<typeof createChatContinuity> | undefined;
+  let sourceAnalysis: ReturnType<typeof createSourceAnalysis> | undefined;
+  const localBackup = createLocalBackup({ path: join(dirname(options.settingsPath ?? "config/island.json"), "local-backup.json") });
   const saveChat = (sessionId: string, turns: readonly Message[], completion?: { requestId: string; reply: string }) => {
-    if (!memory) return;
-    if (chatTurns.wasDeleted(sessionId)) return; // the chat was deleted while this turn ran: it stays deleted
+    if (!memory) return false;
+    if (chatTurns.wasDeleted(sessionId)) return false; // the chat was deleted while this turn ran: it stays deleted
     try {
       memory.chats.save(sessionId, projects ? projects.fullTurns(sessionId, turns) : turns, completion); // archive and foreground completion commit together
       projects?.saved(sessionId);
@@ -291,9 +303,10 @@ export function createRuntime(
       if (session && memory.chats.setSession(sessionId, session)) unsavedChatSessions.delete(sessionId);
     } catch (error) {
       log.error("chat.save_failed", { message: describe(error) });
-      return;
+      return false;
     }
     for (const listener of chatListeners) listener();
+    return true;
   };
   const islandChats: IslandChats | undefined = memory && {
     lastOpened: () => memory.chats.lastOpened(),
@@ -302,11 +315,17 @@ export function createRuntime(
       .map((c) => ({ id: c.id, title: c.id === TELEGRAM_CHAT ? "Telegram" : c.title, updatedAt: c.updatedAt.toISOString(), messages: c.messages, ...(c.projectId ? { projectId: c.projectId } : {}), ...(c.pinned ? { pinned: true as const } : {}), ...(c.archived ? { archived: true as const } : {}), ...(c.flagsVersion ? { flagsVersion: c.flagsVersion } : {}) })),
     metadataOf: (id) => memory.chats.metadata(id),
     control: (command) => {
+      if (command.action === "continuity") {
+        const ok = Boolean(continuity?.configure(command.id, command.enabled!, command.version!));
+        return { type: "chat.control", action: command.action, id: command.id, request: command.request, ok,
+          ...(ok ? { continuity: continuity!.inspect(command.id) } : { error: "Summary settings changed or the chat is unavailable. Refresh its saved details." }) };
+      }
       const result = runChatControl(memory.chats, command, (id) => {
         const checked = projects?.island.startChat(id);
         return checked && "ok" in checked ? {} : { error: checked && "error" in checked ? checked.error : "Projects are unavailable." };
       });
       if (result.ok && result.info) {
+        result.continuity = continuity?.inspect(command.id);
         const choice = chatChoice(command.id, "text");
         const projectId = projects?.projectOf(command.id);
         const project = projectId ? projects?.island.list().find((p) => p.id === projectId) : undefined;
@@ -320,6 +339,7 @@ export function createRuntime(
     messages: (id) => memory.chats.messages(id),
     remove: (id) => {
       chatTurns.markDeleted(id); // a turn running in it must not save it back
+      continuity?.forget(id);
       episodes?.discard(id); // ADR-108: no note for a deleted chat
       attachments?.remove(id); // ADR-113: and none of its files
       return memory.chats.remove(id);
@@ -760,9 +780,12 @@ export function createRuntime(
             // Phase N2: no worker shortcut: "Sid, …" is a main-agent turn that hands the request to Sid.
             ...(toolShortcuts ? { shortcuts: toolShortcuts } : {}),
             onExchange: (sessionId: string, turns: readonly Message[], completion?: { requestId: string; reply: string }) => {
-              saveChat(sessionId, turns, !composed ? completion : undefined);
+              const saved = saveChat(sessionId, turns, !composed ? completion : undefined);
+              if (saved && !composed && !briefRunning && !sourceAnalysis?.busy()) continuity?.schedule(sessionId);
               episodes?.update(sessionId, turns);
             },
+            onForeground: () => { continuity?.interrupt(); dailyBrief?.interruptPreparation?.(); sourceAnalysis?.interrupt(); },
+            ...(!composed ? { continuity: (chat: string, messages: readonly Message[], omitted: number) => continuity?.context(chat, messages, omitted) } : {}),
             onLeave: (sessionId: string) => void episodes?.flush(sessionId),
             ...(memory ? { archived: (chatId: string) => memory.chats.messages(chatId), chatBrief: (chatId: string) => memory.chats.brief(chatId) } : {}),
             ...(chatSessions ? { chatSessions } : {}),
@@ -813,6 +836,43 @@ export function createRuntime(
     listCodexModels: (program) => listCodexModels(program),
     listPlanModels: (claudePath) => listPlanModels(claudePath), // ADR-097
   });
+  const backgroundProfile = (chat: string): ReplyProfile => {
+    const choice = chatChoice(chat, "text");
+    const levels = choice.provider === "codex" ? settings.reasoning!(choice.provider, choice.model) : undefined;
+    const effort = choice.provider === CLAUDE_PLAN ? "low" : levels ? (levels.levels.includes("low") ? "low" : levels.default ?? "low") : "provider default";
+    return { chat, provider: choice.provider, model: choice.model, effort };
+  };
+  // Shared isolated Gateway path; no inherited main-thread tools, MCP, project or persisted session.
+  const writeIsolated = async (profile: ReplyProfile, task: string, instructions: string, signal: AbortSignal, maxTurns?: number): Promise<string> => {
+    if (![CLAUDE_PLAN, "codex"].includes(profile.provider)) throw new Error("This background operation requires Claude or Codex's checked tool-free path.");
+    const key = keys[profile.provider as keyof typeof keys];
+    if (!key) throw new Error("The selected model is not signed in. Choose a model in the active chat.");
+    if (profile.provider === CLAUDE_PLAN) {
+      const reply = await runEdit({ claudePath: key, model: profile.model, task, instructions, signal, onUsage: reportUsage, ...(maxTurns ? { maxTurns } : {}) });
+      if (reply.tokens) recordChatUsage(reply.tokens, profile.model, { background: true, chatId: profile.chat });
+      return reply.text;
+    }
+    const isolated = createGateway({
+      provider: createCodexSessionAdapter({ program: key, model: profile.model,
+        runner: () => ({ specs: () => [], run: async (call) => ({ callId: call.id, content: "This background operation has no tools.", isError: true }) }),
+        onUsage: (usage, _request, model) => recordChatUsage(usage, model, { background: true, chatId: profile.chat }),
+      }), timeoutMs: config.llm.timeoutMs, maxRetries: 0,
+    });
+    try {
+      const reply = await isolated.complete({ system: instructions, reasoning: profile.effort,
+        messages: [{ role: "user", content: task }], context: { requestId: randomUUID(), sessionId: profile.chat, source: "text", receivedAt: new Date(), background: true } }, signal);
+      return reply.text;
+    } finally { isolated.close?.(); }
+  };
+  if (memory?.chatContinuity) continuity = createChatContinuity({ memory, profile: backgroundProfile,
+    write: (profile, task, signal) => writeIsolated(profile, task, CONTINUITY_INSTRUCTIONS, signal, 4),
+    log: (event, fields) => log.info(event, fields as LogFields) });
+  if (memory?.sourceAnalysis && memory.brainSources) sourceAnalysis = createSourceAnalysis({ memory,
+    profile: () => { const { provider, model, effort } = backgroundProfile(core.sessionId); return { provider, model, effort }; },
+    idle: () => !briefRunning && ![...nativeCores].some((core) => core.busy),
+    beforeWrite: () => continuity?.interrupt(),
+    write: (profile, task, job, signal) => writeIsolated({ ...profile, chat: job }, task, SOURCE_ANALYSIS_INSTRUCTIONS, signal, 4),
+    log: (event, fields) => log.info(event, fields as LogFields) });
   // ADR-083: Laya rates each job's difficulty. Its server starts on the first job, stays warm, and stops in close().
   // ATOM_LAYA=0 turns it off (every job then gets the role's default tier).
   const decisions = createLayaEngine({ log });
@@ -952,6 +1012,7 @@ export function createRuntime(
   const briefStore = memory?.briefs;
   const briefListeners = new Set<() => void>();
   let briefRunning = false;
+  let briefNotice: string | undefined;
   const briefCalendar = calendarHelper ? createCalendarTools({ run: calendarRunner(calendarHelper) }) : [];
   const toolText = async (tools: readonly { spec: { name: string }; run(input: Record<string, unknown>): unknown }[], name: string, input: Record<string, unknown> = {}) => {
     const tool = tools.find((t) => t.spec.name === name);
@@ -962,6 +1023,25 @@ export function createRuntime(
     createBriefRunner({
       briefs: briefStore,
       log: { info: (event, fields) => log.info(event, fields as LogFields), warn: (event, fields) => log.warn(event, fields as LogFields) },
+      onState: (running, notice) => {
+        if (running) sourceAnalysis?.interrupt();
+        if (running && !briefRunning) briefNotice = undefined;
+        briefRunning = running;
+        if (notice) briefNotice = notice;
+        briefListeners.forEach((listener) => listener());
+      },
+      canPrepare: () => !core.busy && [CLAUDE_PLAN, "codex"].includes(chatChoice(core.sessionId, "text").provider),
+      prepare: async (data, at, signal) => {
+        continuity?.interrupt();
+        const profile = backgroundProfile(core.sessionId);
+        const input = preparationInput(data, at);
+        if (!input.sources.length) return { lines: ["No usable source excerpts were available for preparation."], preparation: { status: "empty", cards: [] } };
+        const raw = await writeIsolated(profile, input.task, PREPARATION_INSTRUCTIONS, signal, 4);
+        signal.throwIfAborted();
+        const result = preparedBriefOutput(raw, input.sources, { provider: profile.provider, model: profile.model });
+        log.info("brief.prepared", { sources: input.sources.length, cards: result.preparation.cards.length, inputBytes: Buffer.byteLength(input.task), outputBytes: Buffer.byteLength(raw), provider: profile.provider, model: profile.model });
+        return result;
+      },
       sources: {
         ...(briefCalendar.length
           ? {
@@ -1010,19 +1090,12 @@ export function createRuntime(
     });
   if (dailyBrief && briefStore) {
     briefStore.onChange(() => briefListeners.forEach((listener) => listener()));
-    setInterval(() => void dailyBrief.tick(), SCHEDULER_TICK_MS).unref();
+    setInterval(() => { void dailyBrief.tick(); void sourceAnalysis?.tick(); }, SCHEDULER_TICK_MS).unref();
   }
   /** "Brief me" now (the window's button, or the voice tool): one run at a time. */
   const runBriefNow = async () => {
     if (!dailyBrief) throw new Error("The daily brief needs memory.");
-    briefRunning = true;
-    briefListeners.forEach((listener) => listener());
-    try {
-      return await dailyBrief.run("manual");
-    } finally {
-      briefRunning = false;
-      briefListeners.forEach((listener) => listener());
-    }
+    return dailyBrief.run("manual");
   };
   briefNow = dailyBrief ? runBriefNow : undefined;
   // The helpers as the window lists them, for the search (agents, routines, skills).
@@ -1061,7 +1134,14 @@ export function createRuntime(
           (group) => log.warn("search.group_failed", { group }),
         ),
     },
-    // Text editing follows the active chat's provider; no tools, memory or history, and no provider fallback.
+    // Contextual drafting is isolated from chat history/tools and only receives user-selected memory excerpts.
+    islandReplyDrafts: createReplyDrafts({
+      memory,
+      profile: () => backgroundProfile(core.sessionId),
+      log: { info: (event, fields) => log.info(event, fields as LogFields) },
+      write: (profile, task, signal) => writeIsolated(profile, task, REPLY_INSTRUCTIONS, signal),
+    }),
+    // Existing text editing remains separate, with no added draft context or examples.
     islandTextEdit: createTextEditor({
       log: { info: (event, fields) => log.info(event, fields as LogFields) },
       write: providerTextWriter({
@@ -1090,11 +1170,14 @@ export function createRuntime(
           islandBrief: {
             state: () => ({
               settings: briefStore.settings(),
-              history: briefStore.history().map((b) => ({ id: b.id, day: b.day, createdAt: b.createdAt.toISOString(), lines: b.lines, source: b.source })),
+              history: briefStore.history().map((b) => ({ id: b.id, day: b.day, createdAt: b.createdAt.toISOString(), lines: b.lines, source: b.source, ...(b.preparation ? { preparation: b.preparation } : {}) })),
               running: briefRunning,
+              preparationBudget: briefStore.preparationBudget?.(localDay(new Date())),
+              preparationModel: (() => { const choice = chatChoice(core.sessionId, "text"); return `${choice.provider} / ${choice.model}`; })(),
+              ...(briefNotice ? { notice: briefNotice } : {}),
             }),
             run: () => void runBriefNow().catch((error) => log.warn("brief.failed", { ...errorFields(error) })),
-            update: (change: BriefChange) => void briefStore.update(change),
+            update: (change: BriefChange) => { briefStore.update(change); dailyBrief?.settingsChanged?.(); },
             onChange: (listener: () => void) => (briefListeners.add(listener), () => briefListeners.delete(listener)),
           },
         }
@@ -1167,8 +1250,14 @@ export function createRuntime(
     ...(memory && foregroundReady ? { foreground: { ...memory.foreground, profile: (chat: string, source: InputSource) => chatChoice(chat, source) } } : {}),
     ...(telegram ? { telegram } : {}),
     ...(api ? { api } : {}),
+    ...(sourceAnalysis ? { islandSourceAnalysis: sourceAnalysis } : {}),
+    islandLocalBackup: localBackup,
     flushNotes: () => episodes?.flush() ?? Promise.resolve(),
     close: () => {
+      localBackup.close();
+      sourceAnalysis?.close();
+      dailyBrief?.close?.();
+      continuity?.close();
       for (const router of codexRouters) router.close();
       for (const gateway of codexModels) gateway.close?.();
       for (const gateway of otherModels.values()) gateway.close?.();

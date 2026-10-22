@@ -12,13 +12,15 @@ public struct BriefEntry: Sendable, Equatable, Identifiable {
     public var lines: [String]
     /// "model": written by the model. "template": the plain version, made when the model was not available.
     public var isPlain: Bool
+    public var preparation: PreparedBriefWork?
 
-    public init(id: Int, day: String, createdAt: Date? = nil, lines: [String], isPlain: Bool = false) {
+    public init(id: Int, day: String, createdAt: Date? = nil, lines: [String], isPlain: Bool = false, preparation: PreparedBriefWork? = nil) {
         self.id = id
         self.day = day
         self.createdAt = createdAt
         self.lines = lines
         self.isPlain = isPlain
+        self.preparation = preparation
     }
 }
 
@@ -34,6 +36,8 @@ public struct BriefSettings: Sendable, Equatable {
     public var notify = true
     public var telegram = false
     public var spoken = false
+    public var preparation = false
+    public var preparationDailyLimit = 2
 
     public init() {}
 
@@ -63,9 +67,11 @@ public struct BriefSettingsChange: Sendable, Equatable {
     public var notify: Bool?
     public var telegram: Bool?
     public var spoken: Bool?
+    public var preparation: Bool?
+    public var preparationDailyLimit: Int?
 
     public init(enabled: Bool? = nil, minute: Int? = nil, events: Bool? = nil, reminders: Bool? = nil, weather: Bool? = nil, tasks: Bool? = nil,
-                needsYou: Bool? = nil, notify: Bool? = nil, telegram: Bool? = nil, spoken: Bool? = nil) {
+                needsYou: Bool? = nil, notify: Bool? = nil, telegram: Bool? = nil, spoken: Bool? = nil, preparation: Bool? = nil, preparationDailyLimit: Int? = nil) {
         self.enabled = enabled
         self.minute = minute
         self.events = events
@@ -76,6 +82,8 @@ public struct BriefSettingsChange: Sendable, Equatable {
         self.notify = notify
         self.telegram = telegram
         self.spoken = spoken
+        self.preparation = preparation
+        self.preparationDailyLimit = preparationDailyLimit
     }
 
     /// The JSON object for the command.
@@ -91,6 +99,8 @@ public struct BriefSettingsChange: Sendable, Equatable {
         if let notify { out["notify"] = notify }
         if let telegram { out["telegram"] = telegram }
         if let spoken { out["spoken"] = spoken }
+        if let preparation { out["preparation"] = preparation }
+        if let preparationDailyLimit { out["preparationDailyLimit"] = preparationDailyLimit }
         return out
     }
 }
@@ -100,11 +110,16 @@ public struct BriefList: Sendable, Equatable {
     public var settings: BriefSettings
     public var history: [BriefEntry]
     public var running: Bool
+    public var preparationBudget: BriefPreparationBudget?
+    public var preparationModel: String?
+    public var notice: String?
 
-    public init(settings: BriefSettings = BriefSettings(), history: [BriefEntry] = [], running: Bool = false) {
+    public init(settings: BriefSettings = BriefSettings(), history: [BriefEntry] = [], running: Bool = false,
+                preparationBudget: BriefPreparationBudget? = nil, preparationModel: String? = nil, notice: String? = nil) {
         self.settings = settings
         self.history = history
         self.running = running
+        self.preparationBudget = preparationBudget; self.preparationModel = preparationModel; self.notice = notice
     }
 }
 
@@ -112,6 +127,9 @@ public struct DailyBriefState: Sendable, Equatable {
     public private(set) var settings = BriefSettings()
     public private(set) var history: [BriefEntry] = []
     public private(set) var running = false
+    public private(set) var preparationBudget: BriefPreparationBudget?
+    public private(set) var preparationModel: String?
+    public private(set) var notice: String?
     /// The window asked once: a restarted runtime is asked again.
     public private(set) var asked = false
     /// Why the last change was refused.
@@ -136,6 +154,7 @@ public struct DailyBriefState: Sendable, Equatable {
         settings = list.settings
         history = list.history
         running = list.running
+        preparationBudget = list.preparationBudget; preparationModel = list.preparationModel; notice = list.notice
         error = nil
         let newest = list.history.first
         if started, let newest, newest.id != seenId { fresh = newest }

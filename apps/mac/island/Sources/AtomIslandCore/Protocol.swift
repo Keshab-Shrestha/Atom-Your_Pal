@@ -40,9 +40,14 @@ public enum IslandEvent: Sendable, Equatable {
     case brief(BriefList)
     /// Ask ATOM: the answer to a `text.edit`, by its id.
     case textEditResult(id: String, answer: EditAnswer)
+    case replyContext(ReplyContextResult)
+    case replyResult(ReplyDraftResult)
     /// The second brain: the notes and their links (after `brain.get`, and after each change from then on); one note; search hits.
     case brain(BrainGraphData)
     case brainNote(BrainNoteData)
+    case brainSource(BrainSourceResponse)
+    case sourceAnalysis(SourceAnalysisResponse)
+    case localBackup(LocalBackupResponse)
     case brainHits(query: String, hits: [BrainHit])
     /// Keshab's Claude commands for the "/" picker (ADR-117).
     case commands([SlashCommandInfo])
@@ -108,8 +113,13 @@ public enum IslandEvent: Sendable, Equatable {
         case .suggestions: "suggestions"
         case .brief: "brief"
         case .textEditResult: "text.edit.result"
+        case .replyContext: "reply.context"
+        case .replyResult: "reply.result"
         case .brain: "brain"
         case .brainNote: "brain.note"
+        case .brainSource: "brain.source"
+        case .sourceAnalysis: "source.analysis"
+        case .localBackup: "local.backup"
         case .brainHits: "brain.hits"
         case .commands: "commands"
         case .skillFile: "skill.file"
@@ -236,11 +246,21 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         if let message = f.optionalString("error") { return .textEditResult(id: id, answer: .failed(message)) }
         guard let answer = f.values["answer"] as? String else { throw ProtocolError.missingField(event: type, field: "answer") }
         return .textEditResult(id: id, answer: .answer(answer, changed: f.optionalBool("changed") ?? true))
+    case "reply.context":
+        return .replyContext(try JSONDecoder().decode(ReplyContextResult.self, from: JSONSerialization.data(withJSONObject: f.values)))
+    case "reply.result":
+        return .replyResult(try JSONDecoder().decode(ReplyDraftResult.self, from: JSONSerialization.data(withJSONObject: f.values)))
     case "brain":
         return .brain(Fields.brainGraph(f.values))
     case "brain.note":
         guard let note = Fields.brainNote(f.values["note"]) else { throw ProtocolError.invalidValue(event: type, field: "note") }
         return .brainNote(note)
+    case "brain.source":
+        return .brainSource(try JSONDecoder().decode(BrainSourceResponse.self, from: JSONSerialization.data(withJSONObject: f.values)))
+    case "source.analysis":
+        return .sourceAnalysis(try JSONDecoder().decode(SourceAnalysisResponse.self, from: JSONSerialization.data(withJSONObject: f.values)))
+    case "local.backup":
+        return .localBackup(try JSONDecoder().decode(LocalBackupResponse.self, from: JSONSerialization.data(withJSONObject: f.values)))
     case "commands":
         return .commands(Fields.slashCommands(f.values["commands"]))
     case "skill.file":
@@ -742,7 +762,11 @@ private struct Fields {
         guard let n = value as? [String: Any], let id = wholeNumber(n["id"]), let title = n["title"] as? String else { return nil }
         return BrainNoteData(id: id, title: title, body: n["body"] as? String ?? "", kind: brainKind(n["kind"]), ghost: flag(n["ghost"]),
                              tags: (n["tags"] as? [Any] ?? []).compactMap { $0 as? String }, links: brainLinks(n["links"]),
-                             backlinks: brainLinks(n["backlinks"]), updatedAt: (n["updatedAt"] as? String).flatMap(Self.date))
+                             backlinks: brainLinks(n["backlinks"]), updatedAt: (n["updatedAt"] as? String).flatMap(Self.date),
+                             source: (n["source"] as? [String: Any]).flatMap { value in
+                                 guard let data = try? JSONSerialization.data(withJSONObject: value) else { return nil }
+                                 return try? JSONDecoder().decode(BrainNoteSource.self, from: data)
+                             })
     }
 
     static func brainHits(_ value: Any?) -> [BrainHit] {
@@ -935,14 +959,22 @@ private struct Fields {
             settings.notify = (s["notify"] == nil) ? true : flag(s["notify"])
             settings.telegram = flag(s["telegram"])
             settings.spoken = flag(s["spoken"])
+            settings.preparation = flag(s["preparation"])
+            settings.preparationDailyLimit = wholeNumber(s["preparationDailyLimit"]).flatMap { (1...5).contains($0) ? $0 : nil } ?? 2
         }
         let history: [BriefEntry] = (values["history"] as? [Any] ?? []).compactMap { entry in
             guard let b = entry as? [String: Any], let id = wholeNumber(b["id"]), let day = b["day"] as? String else { return nil }
             let lines = (b["lines"] as? [Any] ?? []).compactMap { $0 as? String }
             guard !lines.isEmpty else { return nil }
-            return BriefEntry(id: id, day: day, createdAt: (b["createdAt"] as? String).flatMap(Self.date), lines: lines, isPlain: (b["source"] as? String) == "template")
+            return BriefEntry(id: id, day: day, createdAt: (b["createdAt"] as? String).flatMap(Self.date), lines: lines, isPlain: (b["source"] as? String) == "template", preparation: PreparedBriefWork.decode(b["preparation"]))
         }
-        return BriefList(settings: settings, history: history, running: flag(values["running"]))
+        var budget: BriefPreparationBudget?
+        if let value = values["preparationBudget"] as? [String: Any], let day = value["day"] as? String,
+           let used = wholeNumber(value["used"]), used >= 0, let limit = wholeNumber(value["limit"]), (1...5).contains(limit) {
+            budget = BriefPreparationBudget(day: day, used: used, limit: limit)
+        }
+        return BriefList(settings: settings, history: history, running: flag(values["running"]), preparationBudget: budget,
+                         preparationModel: values["preparationModel"] as? String, notice: values["notice"] as? String)
     }
 
     /// Remembering by itself: the facts that wait; a malformed one is left out.

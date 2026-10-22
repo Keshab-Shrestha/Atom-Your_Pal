@@ -193,6 +193,8 @@ export interface NativeCoreDeps {
   replayBytes?: number;
   /** User-maintained, chat-scoped background; never a permission source. */
   chatBrief?(chat: string): { text: string; version: number } | undefined;
+  continuity?(chat: string, messages: readonly Message[], omitted: number): { key: string; text: string } | undefined;
+  onForeground?(): void;
   onLeave?(sessionId: string): void;
   chatSessions?: ChatSessions;
   /** Telegram, the API: every message goes as written (no @path, no slash commands). */
@@ -215,6 +217,7 @@ export interface NativeCoreDeps {
 }
 
 interface Live {
+  continuityKey?: string;
   signal?: AbortSignal;
   handle: ChatSessionHandle;
   gate: NativeGate;
@@ -414,6 +417,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     const skill = chatOnly ? undefined : deps.skills?.use(text);
     const asked = skill?.text ?? text;
     const selected = replay(turns, asked);
+    const continuity = await quiet(() => deps.continuity?.(chat, turns, selected.start));
     const extra = [chatOnly ? undefined : (await quiet(() => deps.context?.({ ...input, text }, context)))?.trim(), skill?.block, briefContext(chat), chatOnly ? CHAT_ONLY_NOTICE : permissionContext(chat), access === "ask-changes" ? ASK_CHANGES_NOTICE : access === "full" ? FULL_ACCESS_NOTICE : undefined].filter(Boolean).join("\n\n");
     const project = chatOnly ? undefined : await quiet(() => deps.project?.(chat));
     // Attached files give read access to their own folder only: no sandbox, no worktrees, no Bash (those are for a project).
@@ -462,7 +466,8 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       }
       const opening = opened && !chatOnly ? (await quiet(() => deps.opening?.(chat, text)))?.trim() : undefined;
       const typed = deps.screenReplies && input.source === "text" ? TYPED_NOTE : undefined;
-      const ctx = [opening, chatOnly ? undefined : addressed(text), typed, extra, replayNote].filter(Boolean).join("\n\n");
+      const continuityNote = continuity && (opened || entry.continuityKey !== continuity.key) ? continuity.text : undefined;
+      const ctx = [opening, chatOnly ? undefined : addressed(text), typed, extra, replayNote, continuityNote].filter(Boolean).join("\n\n");
       const message = ctx ? `${body}\n\n${CONTEXT_LABEL}\n${ctx}` : body;
       lastAttempt = entry;
       const stopObserving = deps.onSdkEvent ? entry.handle.onEvent((event) => deps.onSdkEvent!(chat, event)) : undefined;
@@ -473,6 +478,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
           signal,
           ...(onText ? { onText } : {}),
         });
+        if (continuity) entry.continuityKey = continuity.key;
       } finally { stopObserving?.(); }
       return { ...reply, resumed: Boolean(resume) };
     };
@@ -517,13 +523,14 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
     const anchor = window && turns[window.start];
     const start = window && anchor?.role === window.anchor.role && anchor?.content === window.anchor.content ? window.start : 0;
     const selected = replay(archive, asked, start);
+    const continuity = (await quiet(() => deps.continuity?.(chat, turns, selected.start)))?.text;
     if (turns[selected.start]) windows.set(chat, { start: selected.start, anchor: turns[selected.start]! });
     const notice = selected.notice ? `${selected.notice} ${chatOnly ? "Chat only disables archive tools; ask for missing context rather than inventing it." : hasTools ? "Use the own-chat history tools to recover earlier details before guessing." : "This provider has no archive tools; ask the user for the missing detail or suggest switching to Claude or Codex. Do not invent it."}` : undefined;
     const response = await other.complete(
       {
         access,
         system: hasTools ? [CODEX_SYSTEM_PROMPT, project?.note, attached?.note].filter(Boolean).join("\n\n") : chatOnly ? CHAT_ONLY_SYSTEM_PROMPT : PLAIN_SYSTEM_PROMPT,
-        ...(opening || extra || notice ? { systemExtra: [opening, extra, notice].filter(Boolean).join("\n\n") } : {}),
+        ...(opening || extra || notice || continuity ? { systemExtra: [opening, extra, notice, continuity].filter(Boolean).join("\n\n") } : {}),
         messages: [...selected.messages, { role: "user" as const, content: asked }],
         ...(hasTools ? { historyTools: historyTools(chat) } : {}),
         ...(hasTools ? { web: Boolean(deps.web) && (!files || files.web === true) } : {}),
@@ -558,6 +565,7 @@ export function createNativeCore(deps: NativeCoreDeps): NativeCore {
       const text = input.text.trim();
       if (!text) throw new CoreError("Empty request");
       if (busy) throw new CoreError("Still answering the previous request");
+      deps.onForeground?.();
       const chat = sessionId;
       const model = deps.modelFor(chat, input.source);
       const reasoning = deps.reasoningFor?.(chat, input.source);

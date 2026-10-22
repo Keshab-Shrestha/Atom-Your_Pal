@@ -1,4 +1,7 @@
 import { openBrain, type Brain } from "./brain.ts";
+import { openBrainSources, type BrainSources } from "./brain-sources.ts";
+import { openChatContinuity, type ChatContinuityStore } from "./chat-continuity.ts";
+import { openSourceAnalysis, type SourceAnalysisStore } from "./source-analysis.ts";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -80,10 +83,13 @@ export interface MemoryStore {
   clearEpisodes(): number;
   /** ADR-091: Keshab's chat sessions. */
   readonly chats: ChatStore;
+  readonly chatContinuity?: ChatContinuityStore;
   readonly foreground: ForegroundStore;
   readonly filePermissions: FilePermissions;
   /** The second brain: notes that link to each other (brain.ts). */
   readonly brain: Brain;
+  readonly brainSources?: BrainSources;
+  readonly sourceAnalysis?: SourceAnalysisStore;
   /** Remembering by itself (upgrades.md C2): facts the notes noticed, waiting for the user's Accept. */
   readonly suggestions: Suggestions;
   /** Daily brief (upgrades.md C3): the briefs and their settings. */
@@ -225,17 +231,23 @@ export function openMemoryStore(options: MemoryStoreOptions): MemoryStore {
   const filePermissions = openFilePermissions(db);
   const foreground = openForeground(db, now);
   const chats = openChats(db, now, (id) => { filePermissions.forChat(id).revokeAll(); foreground.forgetChat(id); });
+  const chatContinuity = openChatContinuity(db);
   const chatIndex = openChatIndex(db, now);
   const projects = openProjects(db, now);
   const brain = openBrain(db, now);
+  const brainSources = openBrainSources(db, brain, now);
+  const sourceAnalysis = openSourceAnalysis(db, brain, brainSources);
 
   let suggestionStore: Suggestions | undefined;
   const briefs = openBriefs(db, now);
   return {
     chats,
+    chatContinuity,
     foreground,
     filePermissions,
     brain,
+    brainSources,
+    sourceAnalysis,
     briefs,
     get suggestions() {
       return (suggestionStore ??= openSuggestions(db, this, now));

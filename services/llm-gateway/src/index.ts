@@ -1,4 +1,5 @@
 export * from "./gateway.ts";
+export * from "./providers/local-backup.ts";
 export * from "./providers/plan-support.ts";
 export * from "./providers/claude-plan-job.ts";
 export * from "./providers/claude-session.ts";

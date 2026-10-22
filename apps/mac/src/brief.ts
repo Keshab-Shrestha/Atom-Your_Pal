@@ -1,4 +1,4 @@
-import type { Brief, BriefSettings, Briefs } from "@atom/memory";
+import type { Brief, BriefPreparation, BriefSettings, Briefs } from "@atom/memory";
 import { isBriefDue, localDay } from "./brief-due.ts";
 import { dataText, gatherBrief, type BriefData, type BriefPartKey, type BriefSources } from "./brief-gather.ts";
 
@@ -45,6 +45,9 @@ export interface BriefRunnerOptions {
   sources: BriefSources;
   /** The model run: lines from the job text. Rejects when the model is not available. */
   write(task: string, signal: AbortSignal): Promise<string[]>;
+  canPrepare?(): boolean;
+  prepare?(data: BriefData, at: Date, signal: AbortSignal): Promise<{ lines: string[]; preparation: BriefPreparation }>;
+  onState?(running: boolean, notice?: string): void;
   /** A brief was saved: speak it, send it to Telegram, as the settings say. Must not throw into the runner. */
   deliver?(brief: Brief, settings: BriefSettings, reason: "scheduled" | "manual"): void;
   now?: () => Date;
@@ -58,33 +61,69 @@ export interface BriefRunner {
   run(reason: "scheduled" | "manual"): Promise<Brief>;
   /** The clock ticked: make today's brief if it is due. Never throws. */
   tick(): Promise<void>;
+  settingsChanged?(): void;
+  interruptPreparation?(): void;
+  close?(): void;
 }
 
 export function createBriefRunner(options: BriefRunnerOptions): BriefRunner {
   const { briefs, sources, write, deliver, now = () => new Date(), timeZone, timeoutMs = 120_000, log } = options;
   let running: Promise<Brief> | undefined;
+  let active: { controller: AbortController; preparing: boolean } | undefined;
+  let closed = false;
 
   async function make(reason: "scheduled" | "manual"): Promise<Brief> {
     const settings = briefs.settings();
+    const controller = new AbortController();
+    active = { controller, preparing: Boolean(settings.preparation) };
     const at = now();
     // "Since" is the last brief, or the last 24 hours when there is none.
     const since = briefs.latest()?.createdAt ?? new Date(at.getTime() - 86_400_000);
-    const data = await gatherBrief(sources, settings, since.toISOString(), (key: BriefPartKey) => log?.warn("brief.part_failed", { part: key }));
+    let skippedSource = false;
+    const data = await gatherBrief(sources, settings, since.toISOString(), (key: BriefPartKey) => {
+      skippedSource = true;
+      log?.warn("brief.part_failed", { part: key });
+      if (settings.preparation) options.onState?.(true, "Some selected sources could not be read. Preparation uses available excerpts only.");
+    }, controller.signal);
+    controller.signal.throwIfAborted();
     let lines: string[];
+    let preparation: BriefPreparation | undefined;
     let source: Brief["source"] = "model";
     if (!data.parts.length) {
-      lines = templateBrief(data); // nothing to say: no model run for an empty day
+      lines = settings.preparation ? ["No usable source excerpts were available for preparation."] : templateBrief(data);
       source = "template";
+      if (settings.preparation) preparation = { status: skippedSource ? "failed" : "empty", cards: [] };
+    } else if (settings.preparation) {
+      if (!options.prepare || !options.canPrepare?.()) {
+        lines = templateBrief(data); source = "template";
+        preparation = { status: "failed", cards: [] };
+      } else if (!briefs.reservePreparation?.(localDay(at, timeZone))) {
+        lines = templateBrief(data); source = "template";
+        preparation = { status: "budget", cards: [] };
+      } else {
+        try {
+          const result = await options.prepare(data, at, AbortSignal.any([controller.signal, AbortSignal.timeout(Math.min(timeoutMs, 90_000))]));
+          lines = result.lines; preparation = result.preparation;
+        } catch {
+          controller.signal.throwIfAborted();
+          log?.warn("brief.preparation_failed", {});
+          lines = templateBrief(data); source = "template";
+          preparation = { status: "failed", cards: [] };
+        }
+      }
     } else {
       try {
-        lines = await write(briefTask(data, at, timeZone), AbortSignal.timeout(timeoutMs));
+        lines = await write(briefTask(data, at, timeZone), AbortSignal.any([controller.signal, AbortSignal.timeout(timeoutMs)]));
       } catch (error) {
         log?.warn("brief.model_failed", { error: error instanceof Error ? error.name : typeof error });
         lines = templateBrief(data);
         source = "template";
       }
     }
-    const brief = briefs.save({ day: localDay(at, timeZone), lines, source });
+    controller.signal.throwIfAborted();
+    // Paused or changed source categories cannot publish/deliver a result gathered under the older configuration.
+    if (settings.preparation && JSON.stringify(settings) !== JSON.stringify(briefs.settings())) throw new Error("Preparation settings changed; the earlier result was discarded.");
+    const brief = briefs.save({ day: localDay(at, timeZone), lines, source, ...(preparation ? { preparation } : {}) });
     log?.info("brief.made", { reason, parts: data.parts.length, lines: brief.lines.length, source });
     try {
       deliver?.(brief, settings, reason);
@@ -96,11 +135,22 @@ export function createBriefRunner(options: BriefRunnerOptions): BriefRunner {
 
   return {
     run(reason) {
-      running ??= make(reason).finally(() => (running = undefined));
+      if (closed) return Promise.reject(new Error("The brief runner is closed."));
+      if (!running) {
+        options.onState?.(true);
+        running = make(reason).catch((error) => {
+          options.onState?.(true, active?.controller.signal.aborted ? "Preparation stopped. Previously saved briefs and cards are unchanged." : "The brief could not be prepared. Review its settings and try again.");
+          throw error;
+        }).finally(() => { running = undefined; active = undefined; options.onState?.(false); });
+      }
       return running;
     },
+    settingsChanged() { if (active?.preparing) active.controller.abort(); },
+    interruptPreparation() { if (active?.preparing) active.controller.abort(); },
+    close() { closed = true; active?.controller.abort(); },
 
     async tick() {
+      if (closed) return;
       try {
         const settings = briefs.settings();
         const lastDay = briefs.latest()?.day;

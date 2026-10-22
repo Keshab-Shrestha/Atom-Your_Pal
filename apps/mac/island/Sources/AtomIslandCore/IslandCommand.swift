@@ -28,12 +28,18 @@ public enum IslandCommand: Sendable, Equatable {
     /// Ask ATOM (upgrades.md B3): rewrite some text as asked. `id` ties the answer to the request; cancel stops it.
     case textEdit(id: String, request: EditRequest)
     case textEditCancel(id: String)
+    case replyContext(id: String, query: String)
+    case replyDraft(id: String, input: ReplyDraftInput)
+    case replyCancel(id: String)
     case briefGet
     case briefRun
     case briefSet(change: BriefSettingsChange)
     /// The second brain: the graph (and its changes from then on), one note, a save (`id` nil: a new note; else a change or rename),
     /// a delete, a search.
     case brainGet
+    case brainSource(request: String, action: String, path: String?, token: String?, id: Int?)
+    case sourceAnalysis(SourceAnalysisRequest)
+    case localBackup(LocalBackupRequest)
     case brainNote(id: Int)
     case brainSave(id: Int?, title: String, body: String)
     case brainDelete(id: Int)
@@ -202,10 +208,16 @@ public enum IslandCommand: Sendable, Equatable {
         case .suggestionsSet: "suggestions.set"
         case .textEdit: "text.edit"
         case .textEditCancel: "text.edit.cancel"
+        case .replyContext: "reply.context"
+        case .replyDraft: "reply.draft"
+        case .replyCancel: "reply.cancel"
         case .briefGet: "brief.get"
         case .briefRun: "brief.run"
         case .briefSet: "brief.set"
         case .brainGet: "brain.get"
+        case .brainSource: "brain.source"
+        case .sourceAnalysis: "source.analysis"
+        case .localBackup: "local.backup"
         case .brainNote: "brain.note"
         case .brainSave: "brain.save"
         case .brainDelete: "brain.delete"
@@ -364,12 +376,27 @@ public enum IslandCommand: Sendable, Equatable {
             if let selection = request.selection { fields["selection"] = [selection.lowerBound, selection.upperBound] }
         case .textEditCancel(let id):
             fields["id"] = id
+        case .replyContext(let id, let query):
+            fields["id"] = id; fields["query"] = query
+        case .replyDraft(let id, let input):
+            fields["id"] = id; fields["input"] = input.fields
+        case .replyCancel(let id):
+            fields["id"] = id
         default:
             break
         }
         switch self {
         case .brainNote(let id), .brainDelete(let id):
             fields["id"] = id
+        case .sourceAnalysis(let request):
+            for (key, value) in request.fields { fields[key] = value }
+        case .localBackup(let request):
+            for (key, value) in request.fields { fields[key] = value }
+        case .brainSource(let request, let action, let path, let token, let id):
+            fields["request"] = request; fields["action"] = action
+            if let path { fields["path"] = path }
+            if let token { fields["token"] = token }
+            if let id { fields["id"] = id }
         case .brainSave(let id, let title, let body):
             if let id { fields["id"] = id }
             fields["title"] = title

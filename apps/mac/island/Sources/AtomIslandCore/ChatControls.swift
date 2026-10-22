@@ -1,7 +1,7 @@
 import Foundation
 
 public struct ChatControlRequest: Codable, Sendable, Equatable {
-    public enum Action: String, Codable, Sendable { case inspect, page, flags, fork, brief }
+    public enum Action: String, Codable, Sendable { case inspect, page, flags, fork, brief, continuity }
     public var action: Action
     public var id: String
     public var request: String
@@ -14,13 +14,15 @@ public struct ChatControlRequest: Codable, Sendable, Equatable {
     public var archived: Bool?
     public var version: Int?
     public var text: String?
+    public var enabled: Bool?
 
     public init(action: Action, id: String, request: String = UUID().uuidString, revision: String? = nil,
                 message: Int? = nil, offset: Int? = nil, through: Int? = nil, kind: String? = nil,
-                pinned: Bool? = nil, archived: Bool? = nil, version: Int? = nil, text: String? = nil) {
+                pinned: Bool? = nil, archived: Bool? = nil, version: Int? = nil, text: String? = nil, enabled: Bool? = nil) {
         self.action = action; self.id = id; self.request = request; self.revision = revision
         self.message = message; self.offset = offset; self.through = through; self.kind = kind
         self.pinned = pinned; self.archived = archived; self.version = version; self.text = text
+        self.enabled = enabled
     }
 
     public var fields: [String: Any] {
@@ -36,6 +38,23 @@ public struct ChatHistoryCursor: Sendable, Equatable {
 }
 
 public struct ChatControlResponse: Codable, Sendable, Equatable {
+    public struct Continuity: Codable, Sendable, Equatable {
+        public struct Summary: Codable, Sendable, Equatable {
+            public struct Item: Codable, Sendable, Equatable {
+                public let text: String
+                public let refs: [Int]
+            }
+            public let through: Int
+            public let items: [Item]
+            public let provider: String
+            public let model: String
+            public let updatedAt: String
+        }
+        public let enabled: Bool
+        public let version: Int
+        public let status: String
+        public let summary: Summary?
+    }
     public struct Info: Codable, Sendable, Equatable {
         public struct Access: Codable, Sendable, Equatable {
             public let provider: String
@@ -86,6 +105,7 @@ public struct ChatControlResponse: Codable, Sendable, Equatable {
     public let error: String?
     public let revision: String?
     public let brief: ChatBrief?
+    public let continuity: Continuity?
     public let info: Info?
     public let page: Page?
     public let branch: Branch?

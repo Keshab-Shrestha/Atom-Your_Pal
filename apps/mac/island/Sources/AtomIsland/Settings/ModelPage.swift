@@ -7,6 +7,7 @@ struct ModelSection: View {
     /// ADR-097: the "Custom model…" field is open, and what is typed in it.
     @State private var customOpen = false
     @State private var customId = ""
+    @State private var localBackupOpen = false
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -77,7 +78,13 @@ struct ModelSection: View {
             if let list = model.helpers.list { AllowLargeCard(model: model, list: list) }
             if info.provider == "claude-plan" { PlanMetersCard(usage: model.planUsage) }
             // ADR-093: the AI tools on this Mac, found or not, and what ATOM does with them.
-            Card("Found on this Mac", footer: "Claude and Codex can use ATOM's tools and file agents. Codex workers use checked file tools; shell, web, browser and external MCP tools are not available to them yet. Gemini CLI is text-only. Chats keep their conversation when the model changes. Local models are not used.") {
+            Card("Local backup", footer: "Optional text-only conversation with a server you configure. Cloud chats stay primary; no automatic fallback, model installation or shared access grants.") {
+                Row(title: "Use local text backup", detail: "Configure, check and explicitly message your own compatible server") {
+                    PillButton(title: "Open") { localBackupOpen = true }.disabled(!model.localBackupReady)
+                }
+            }
+            .sheet(isPresented: $localBackupOpen) { LocalBackupPane(model: model) }
+            Card("Found on this Mac", footer: "Claude and Codex can use ATOM's tools and file agents. Codex workers use checked file tools; shell, web, browser and external MCP tools are not available to them yet. Gemini CLI is text-only. Chats keep their conversation when the model changes. Local text backup is configured separately and never replaces these providers automatically.") {
                 if info.tools.isEmpty {
                     Row(title: "Looking for AI tools…") { ProgressView().controlSize(.small) }
                 }

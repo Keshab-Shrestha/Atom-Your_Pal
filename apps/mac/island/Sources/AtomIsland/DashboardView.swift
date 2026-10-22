@@ -29,6 +29,7 @@ struct DashboardPane: View {
                 if model.dailyBrief.history.count > 1 {
                     BriefHistory(model: model)
                 }
+                PreparedBriefCards(model: model)
                 if let usage {
                     // One lead number (today's input + output, with how it compares to a usual day), three smaller ones for
                     // the week, and the cache counts smallest. Equal cards say nothing is more important than anything else.

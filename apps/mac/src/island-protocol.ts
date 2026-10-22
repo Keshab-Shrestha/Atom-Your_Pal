@@ -19,6 +19,7 @@ export * from "./island-commands.ts";
 import type { WorkspaceResponse } from "./project-workspace.ts";
 
 export type IslandEvent =
+  | import("./source-analysis.ts").SourceAnalysisResponse
   | ProjectSourceResponse
   | WorkspaceResponse
   | ForegroundReceipt | ForegroundResponse
@@ -60,6 +61,10 @@ export type IslandEvent =
   /** The second brain's graph: the notes (the most linked first, at most 400), their links, and the tags with counts. */
   | { type: "brain"; nodes: BrainNodeItem[]; edges: BrainEdgeItem[]; omitted: number; tags: { tag: string; count: number }[] }
   | { type: "brain.note"; note: BrainNoteItem }
+  | import("./brain-source-folder.ts").BrainSourceResponse
+  | import("./reply-drafts.ts").ReplyContextResult
+  | import("./reply-drafts.ts").ReplyDraftResult
+  | import("./local-backup.ts").LocalBackupResponse
   | { type: "brain.hits"; query: string; hits: BrainHitItem[] }
   /** Keshab's Claude commands for the "/" picker (ADR-117): name, one-line description, argument hint. */
   | { type: "commands"; commands: { name: string; description: string; hint: string }[] }
@@ -70,7 +75,7 @@ export type IslandEvent =
   /** Daily brief: the settings, the newest briefs (newest first, at most 14) and whether one is being made. Sent after `brief.get` and after each change. */
   /** Ask ATOM: the answer to `text.edit`. `answer` replaces the selection (or the whole text); `changed` is false when it is the same. Or `error`, in words for the user. Never logged. */
   | { type: "text.edit.result"; id: string; answer?: string; changed?: boolean; error?: string }
-  | { type: "brief"; settings: BriefSettingsItem; history: BriefItem[]; running: boolean }
+  | { type: "brief"; settings: BriefSettingsItem; history: BriefItem[]; running: boolean; preparationBudget?: import("@atom/memory").PreparationBudget; preparationModel?: string; notice?: string }
   | { type: "memory"; enabled: boolean; count: number; memories: MemoryItem[]; episodes: EpisodeItem[]; chats?: MemoryChatItem[] }
   /** ADR-091: Keshab's chats, newest first, and the one ATOM is in now (voice goes to it). */
   /** ADR-097: `currentProvider` / `currentModel`: the current chat's own model; absent when it uses the default. */

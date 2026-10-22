@@ -19,7 +19,7 @@ private func kindColor(_ kind: BrainKind, _ theme: ThemePalette) -> Color {
 /// The two tabs of the Second brain page: the graph of notes, and what ATOM keeps (facts, conversation notes, kept chats;
 /// it was Settings → Memory until 2026-10-15).
 private enum BrainTab: String, CaseIterable {
-    case graph = "Graph", memory = "Memory"
+    case graph = "Graph", memory = "Memory", sources = "Sources"
 }
 
 struct BrainPane: View {
@@ -43,7 +43,9 @@ struct BrainPane: View {
         VStack(alignment: .leading, spacing: 0) {
             header(state)
             Rectangle().fill(theme.separator.color).frame(height: theme.isFlat ? 1 : 0.5)
-            if tab.wrappedValue == .memory {
+            if tab.wrappedValue == .sources {
+                BrainSourcesPane(model: model, openNote: { id in tab.wrappedValue = .graph; model.selectBrainNote(id) })
+            } else if tab.wrappedValue == .memory {
                 memoryTab
             } else if let graph = state.graph {
                 if graph.noteCount == 0 && graph.nodes.isEmpty {
@@ -129,6 +131,7 @@ struct BrainPane: View {
     }
 
     private func subtitle(_ state: BrainState) -> String {
+        if tab.wrappedValue == .sources { return "Selected notes folders, provenance and refresh." }
         if tab.wrappedValue == .memory { return "What ATOM keeps about you: facts, conversation notes and kept chats." }
         guard let graph = state.graph else { return "Notes that link to each other." }
         let links = graph.edges.count
@@ -555,6 +558,7 @@ private struct NoteEditor: View {
     private let title: State<String>
     private let text: State<String>
     private let confirming = State(initialValue: false)
+    private let restoringSource = State(initialValue: false)
     @Environment(\.theme) private var theme
 
     init(model: IslandModel, note: BrainNoteData?, creating: State<Bool>, submitted: State<Bool>) {
@@ -586,6 +590,18 @@ private struct NoteEditor: View {
                 }
             } else {
                 Text("New note").font(.system(size: 11.5, weight: .medium)).foregroundStyle(theme.text3.color)
+            }
+            if let source = note?.source {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Imported · \(source.state)").font(.system(size: 11, weight: .medium)).foregroundStyle(theme.text2.color)
+                    Text(source.path + "/" + source.relativePath).font(.system(size: 10.5, design: .monospaced)).foregroundStyle(theme.text3.color).textSelection(.enabled)
+                    Text("Checked \(source.checkedAt). Edits here stay in ATOM. Delete excludes this copy from refresh; the original file stays untouched.")
+                        .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                    if source.state == "corrected" || source.state == "conflict" {
+                        PillButton(title: "Use file version…", symbol: "arrow.counterclockwise") { restoringSource.wrappedValue = true }
+                            .disabled(changed || model.brainSourcePending != nil)
+                    }
+                }
             }
             if editable {
                 TextField("Title", text: title.projectedValue)
@@ -636,6 +652,10 @@ private struct NoteEditor: View {
             }
         }
         .tracksEdits(model, "brain-note", changed) // leaving the page with unsaved text asks first
+        .confirmationDialog("Replace this ATOM copy with the current source file and discard its saved local corrections? The source file stays untouched.", isPresented: restoringSource.projectedValue) {
+            Button("Use file version", role: .destructive) { if let id = note?.id { model.requestBrainSource("restore", id: id) } }
+            Button("Cancel", role: .cancel) {}
+        }
         // The runtime changed this note (ATOM edited it, or it was saved): take the new text only where nothing was typed.
         .onChange(of: note?.body) { old, new in if text.wrappedValue == (old ?? "") { text.wrappedValue = new ?? "" } }
         .onChange(of: note?.title) { old, new in if title.wrappedValue == (old ?? "") { title.wrappedValue = new ?? "" } }

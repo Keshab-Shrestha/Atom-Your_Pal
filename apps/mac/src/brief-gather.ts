@@ -50,14 +50,18 @@ export async function gatherBrief(
   settings: Pick<BriefSettings, "events" | "reminders" | "weather" | "tasks" | "needsYou">,
   sinceIso: string,
   onSkip?: (key: BriefPartKey) => void,
+  signal?: AbortSignal,
 ): Promise<BriefData> {
   const parts: BriefPart[] = [];
   const add = async (key: BriefPartKey, title: string, on: boolean, read: (() => Promise<string[]> | string[]) | undefined) => {
+    signal?.throwIfAborted();
     if (!on || !read) return;
     try {
       const lines = (await read()).map((l) => cut(l.replace(/\s+/g, " ").trim())).filter(Boolean).slice(0, PART_LINES);
+      signal?.throwIfAborted();
       if (lines.length) parts.push({ key, title, lines });
     } catch {
+      signal?.throwIfAborted();
       onSkip?.(key);
     }
   };

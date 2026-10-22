@@ -39,6 +39,7 @@ public final class IslandSettings {
     static let workspaceSurfaceKey = "atom.window.workspaceSurface"
     static let sidebarHiddenKey = "atom.window.sidebarHidden"
     static let favoriteModelsKey = "atom.models.favorites"
+    static let replyExamplesKey = "atom.reply.writingExamples"
     /// Set once the ADR-084 move to Lantern has run, so a later choice of Quiet Native sticks.
     static let lanternMoveKey = "atom.look.lanternDefault"
     /// Set once the ADR-086 move to Void has run, so a later choice of Lantern sticks.
@@ -50,6 +51,13 @@ public final class IslandSettings {
     @ObservationIgnored private let defaults: UserDefaults
     /// Mirrors what is stored, so views observe changes.
     private var overrides: [ShortcutAction: Override] = [:]
+    /// Only explicit Save persists examples. Reading them never opts a draft into sharing them.
+    public var replyWritingExamples: String {
+        didSet {
+            if replyWritingExamples.isEmpty { defaults.removeObject(forKey: Self.replyExamplesKey) }
+            else { defaults.set(replyWritingExamples, forKey: Self.replyExamplesKey) }
+        }
+    }
 
     /// Shortcuts whose stored data could not be read at launch; their defaults apply. For the app to log.
     @ObservationIgnored public private(set) var unreadableShortcuts: [ShortcutAction] = []
@@ -213,6 +221,7 @@ public final class IslandSettings {
     /// ADR-093: Pal is always the 2D pixel character, so there is no style, glow, lean or tucking away to choose.
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        replyWritingExamples = defaults.string(forKey: Self.replyExamplesKey) ?? ""
         petEnabled = defaults.object(forKey: Self.petKey) as? Bool ?? true
         palReacts = defaults.object(forKey: Self.palReactsKey) as? Bool ?? true
         tourDone = defaults.bool(forKey: Self.tourDoneKey)

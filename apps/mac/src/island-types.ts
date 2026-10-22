@@ -22,6 +22,8 @@ import type { ApiServer } from "./api-server.ts";
 import { type CoreLike, type VoiceLoopEvents, type VoiceLoopOptions } from "./voice-loop.ts";
 
 export interface IslandOptions {
+  localBackup?: ReturnType<typeof import("./local-backup.ts").createLocalBackup>;
+  sourceAnalysis?: Pick<ReturnType<typeof import("./source-analysis.ts").createSourceAnalysis>, "handle" | "interrupt">;
   /** Commands from the island, one JSON object per line. */
   input: Readable;
   /** Writes one encoded event line to the island. */
@@ -49,6 +51,7 @@ export interface IslandOptions {
   memory?: IslandMemory;
   /** The second brain (Memory → Graph). */
   brain?: IslandBrain;
+  replyDrafts?: import("./reply-drafts.ts").ReplyDrafts;
   /** The "/" picker: Keshab's Claude commands, read from ~/.claude/commands (ADR-117). */
   slashCommands?: { list(): { name: string; description: string; hint: string }[] };
   /** Plugins → Skills: open a skill's SKILL.md and save Keshab's edit. `write` throws with words for the user. */
@@ -108,6 +111,7 @@ export interface IslandOptions {
 
 /** The second brain as the window sees it (services/memory/src/brain.ts). Each method throws, with words for the user, on a bad note. */
 export interface IslandBrain {
+  source?(request: import("./brain-source-folder.ts").BrainSourceRequest): Promise<import("./brain-source-folder.ts").BrainSourceResponse>;
   graph(): { nodes: BrainNodeItem[]; edges: BrainEdgeItem[]; omitted: number; tags: { tag: string; count: number }[] };
   note(id: number): BrainNoteItem | undefined;
   /** Saves a new note, or changes the note with `id` (a new title renames it). Returns the note. */
@@ -154,7 +158,7 @@ export interface IslandTextEdit {
 
 /** Daily brief (upgrades.md C3). */
 export interface IslandDailyBrief {
-  state(): { settings: BriefSettingsItem; history: BriefItem[]; running: boolean };
+  state(): { settings: BriefSettingsItem; history: BriefItem[]; running: boolean; preparationBudget?: import("@atom/memory").PreparationBudget; preparationModel?: string; notice?: string };
   /** Starts a brief now (the answer comes as a `brief` event). */
   run(): void;
   /** Changes the given settings. Throws, with words for the user, for a value that is not allowed. */

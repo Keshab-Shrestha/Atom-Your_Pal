@@ -1,6 +1,7 @@
 import { chatAccessPolicy, CHAT_ONLY_NOTICE, type AccessApproval, type ChatAccessPolicy } from "./chat-access.ts";
 import type { ChatAccessMode } from "@atom/contracts";
 import { randomUUID } from "node:crypto";
+import { importedNoteResult } from "./brain-source-context.ts";
 import { readFile, writeFile, mkdir, readdir, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
@@ -477,11 +478,17 @@ export function createCodexToolRouter(options: CodexToolRouterOptions) {
           if (!specs.some((s) => s.name === call.name)) return result(call, "Unknown ATOM tool.", true);
           if (call.name === "atom_delegate") return delegate(req, entry, call, signal);
           const name = call.name.replace(/^atom_/, "");
-          if (READ_NAMES.includes(name)) return file(entry.gate, { ...call, name }, undefined, signal);
+          if (READ_NAMES.includes(name)) {
+            const answer = await file(entry.gate, { ...call, name }, undefined, signal);
+            if (importedNoteResult(answer.content)) entry.gate.knowledgeRead("");
+            return answer;
+          }
           const verdict = await approvalSignal.run(signal, () => entry.gate.canUseTool(`mcp__atom__${name}`, call.input, { toolUseID: randomUUID() }));
           if (signal?.aborted) return result(call, "Stopped.", true);
           if (verdict.behavior !== "allow") return result(call, verdict.message ?? "Not allowed.", true);
-          return tools.run({ ...call, name }, signal);
+          const answer = await tools.run({ ...call, name }, signal);
+          if (["brain_open", "brain_search"].includes(name) && importedNoteResult(answer.content)) entry.gate.knowledgeRead("");
+          return answer;
         },
       };
       return options.observe?.(req.context.sessionId, runner) ?? runner;

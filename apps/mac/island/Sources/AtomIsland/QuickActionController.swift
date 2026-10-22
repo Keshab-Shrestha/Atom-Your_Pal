@@ -23,6 +23,7 @@ final class QuickActionController: NSObject, NSWindowDelegate {
     private let model: IslandModel
     private let inserter = TextInserter()
     private var panel: NSPanel?
+    private var replySession: ReplyDraftSession?
 
     init(model: IslandModel) {
         self.model = model
@@ -39,13 +40,26 @@ final class QuickActionController: NSObject, NSWindowDelegate {
     }
 
     private func show(_ found: CaptureResult, target: TextInserter.Target) {
-        panel?.close()
+        close()
         let view = QuickActionView(model: model, found: found, targetName: target.name,
                                    replace: { [weak self] text in await self?.replace(text, in: target) ?? "" },
+                                   draft: { [weak self] text in self?.showReply(text) },
                                    close: { [weak self] in self?.close() })
             .themed(model.settings.theme.palette)
+        present(view, width: 440)
+    }
+
+    private func showReply(_ text: QuickText) {
+        close()
+        let session = ReplyDraftSession(model: model, conversation: text.text)
+        replySession = session
+        present(ReplyDraftPane(session: session, source: text, close: { [weak self] in self?.close() })
+            .themed(model.settings.theme.palette), width: 560, height: 660)
+    }
+
+    private func present<Content: View>(_ view: Content, width: CGFloat, height: CGFloat? = nil) {
         let hosting = NSHostingView(rootView: view)
-        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 440, height: 300),
+        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: width, height: height ?? 300),
                             styleMask: [.titled, .closable, .fullSizeContentView, .utilityWindow], backing: .buffered, defer: false)
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
@@ -58,7 +72,7 @@ final class QuickActionController: NSObject, NSWindowDelegate {
         panel.appearance = NSAppearance(named: palette.isDark ? .darkAqua : .aqua)
         panel.backgroundColor = palette.surfaceSolid.nsColor
         panel.contentView = hosting
-        let size = NSSize(width: 440, height: min(560, max(220, hosting.fittingSize.height)))
+        let size = NSSize(width: width, height: height ?? min(560, max(220, hosting.fittingSize.height)))
         panel.setContentSize(size)
         // Near the pointer, kept inside the screen.
         let mouse = NSEvent.mouseLocation
@@ -75,8 +89,15 @@ final class QuickActionController: NSObject, NSWindowDelegate {
     }
 
     private func close() {
+        replySession?.close()
+        replySession = nil
         panel?.close()
         panel = nil
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window === panel else { return }
+        replySession?.close(); replySession = nil; panel = nil
     }
 
     /// Puts the text in place of the selection in the app it came from. Returns a word for the user when it could not.
@@ -95,6 +116,7 @@ struct QuickActionView: View {
     let targetName: String
     /// Puts text in place of the selection; returns a message when it could not.
     let replace: (String) async -> String
+    let draft: (QuickText) -> Void
     let close: () -> Void
 
     private enum Phase {
@@ -112,11 +134,12 @@ struct QuickActionView: View {
     private let note = State(initialValue: "")
     @Environment(\.theme) private var theme
 
-    init(model: IslandModel, found: CaptureResult, targetName: String, replace: @escaping (String) async -> String, close: @escaping () -> Void) {
+    init(model: IslandModel, found: CaptureResult, targetName: String, replace: @escaping (String) async -> String, draft: @escaping (QuickText) -> Void, close: @escaping () -> Void) {
         self.model = model
         self.found = found
         self.targetName = targetName
         self.replace = replace
+        self.draft = draft
         self.close = close
     }
 
@@ -234,7 +257,11 @@ struct QuickActionView: View {
     }
 
     private func choose(_ action: QuickAction, _ quick: QuickText) {
-        if action == .ask { phase.wrappedValue = .asking } else { start(action, quick) }
+        let provider = model.chats?.currentProvider ?? model.modelInfo?.provider
+        if action == .reply && provider == "gemini-cli" { start(action, quick) }
+        else if action == .reply { draft(quick) }
+        else if action == .ask { phase.wrappedValue = .asking }
+        else { start(action, quick) }
     }
 
     private func start(_ action: QuickAction, _ quick: QuickText) {

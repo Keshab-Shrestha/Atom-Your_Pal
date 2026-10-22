@@ -1,5 +1,7 @@
 # Long-chat recovery — 2026-10-18
 
+22 October continuation: [automatic continuity summaries](chat-continuity-summaries.md), ADR-190, extend this recovery mechanism without replacing archives or permission records. The new capability has compiler evidence only; earlier test results below do not certify it.
+
 ATOM keeps the full saved transcript and selects a smaller conversation window for model replay. Claude and Codex can recover earlier messages through read-only tools scoped to that chat. This supersedes the earlier no-retrieval limitation in ADR-135.
 
 ## Replay and persistence
