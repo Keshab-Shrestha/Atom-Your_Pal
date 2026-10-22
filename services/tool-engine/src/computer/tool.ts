@@ -104,6 +104,8 @@ const MIN_WINDOW_HEIGHT = 40;
 export function createComputerTool(options: ComputerToolOptions): Tool {
   const { cua, approve, onAction, onStep, onPoint, maxElements = 150 } = options;
   let target: Target | undefined;
+  /** The app of the last good look. list_apps cost 0.55-0.70 s per look (speed baseline 2026-10-23); its pid is reused while it owns windows. */
+  let lastApp: { name: string; bundle_id?: string; pid: number } | undefined;
 
   const log = (e: ComputerAction) => onAction?.(e);
 
@@ -135,10 +137,13 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
 
   async function look(appName: string, signal?: AbortSignal): Promise<string> {
     target = undefined; // a failed fresh observation must not leave the previous window's elements actionable
-    const app = await findApp(appName, signal);
-    const pid = await pidOf(app, signal);
+    const cached = lastApp && lastApp.name.toLowerCase() === appName.trim().toLowerCase() ? lastApp : undefined;
+    lastApp = undefined;
+    const app = cached ?? (await findApp(appName, signal));
+    const pid = cached?.pid ?? (await pidOf(app, signal));
     if (pid === undefined) throw new Refused(`${app.name} is not running. Use action "open" first.`);
     const all = ((await cua.call("list_windows", { pid }, signal)).data.windows ?? []) as Array<{ window_id: number; title?: string; is_on_screen?: boolean; on_current_space?: boolean | null; bounds?: { height?: number } }>;
+    if (cached && !all.length) return look(appName, signal); // the process is gone or restarted: look it up once more
     // A running app with no document still owns thin menu-bar windows (30 points high, 1 per screen): they are no window to read.
     const wins = all.filter((w) => (w.bounds?.height ?? Number.POSITIVE_INFINITY) > MIN_WINDOW_HEIGHT);
     // Off screen, only a window on another Space is worth reading. Helpers belong to no Space (null) and a hidden panel is off screen on
@@ -150,6 +155,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     if (state.isError) refuse(state.refusal?.code, app.name, `Could not read ${app.name}: ${state.refusal?.message ?? state.text}`);
     const elements = withoutMenuBar((state.data.elements ?? []) as Element[]);
     target = { generation: cua.generation, pid, windowId: win.window_id, app: app.name, bundleId: app.bundle_id, elements: new Map(elements.map((e) => [e.element_index, e])), justTyped: false };
+    lastApp = { name: app.name, ...(app.bundle_id ? { bundle_id: app.bundle_id } : {}), pid };
     const shown = elements.slice(0, maxElements).map((e) => {
       const bits = [`[${e.element_index}] ${e.role ?? "?"}`];
       if (e.label) bits.push(`"${e.label.slice(0, 80)}"`);

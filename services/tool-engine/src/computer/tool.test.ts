@@ -727,6 +727,30 @@ test("status reports cold/warm protocol readiness without desktop reads or appro
   assert.equal((await s.run({ action: "click", element: 2 })).ok, false, "status is not a window observation");
 });
 
+test("a second look at the same app skips list_apps while its process still owns windows", async () => {
+  // Speed baseline 2026-10-23: list_apps cost 0.55-0.70 s on every look and look_after.
+  const s = setup();
+  await sees(s);
+  await sees(s);
+  assert.deepEqual(s.calls.map((c) => c.name), ["list_apps", "list_windows", "get_window_state", "list_windows", "get_window_state"]);
+});
+
+test("a cached app whose process owns no windows anymore is looked up again", async () => {
+  let gone = false;
+  const s = setup({
+    handlers: {
+      list_windows: (a) => ({ text: "wins", isError: false, refusal: undefined, data: { windows: gone && a.pid === 11 ? [] : [{ ...win, pid: gone ? 12 : 11 }] } }),
+      list_apps: () => ({ text: "apps", isError: false, refusal: undefined, data: { apps: [{ name: "TextEdit", bundle_id: "com.apple.TextEdit", pid: gone ? 12 : 11, running: true }] } }),
+    },
+  });
+  await sees(s);
+  gone = true;
+  const r = await sees(s);
+  assert.equal(r.ok, true, r.text);
+  assert.equal(s.calls.filter((c) => c.name === "list_apps").length, 2);
+  assert.equal(s.calls.filter((c) => c.name === "get_window_state").at(-1)!.args.pid, 12);
+});
+
 test("clicking a text area that has no press action points to type instead of failing blindly", async () => {
   // Live baseline 2026-10-23: TextEdit's text view refused AXPress with -25206 every round.
   const s = setup({

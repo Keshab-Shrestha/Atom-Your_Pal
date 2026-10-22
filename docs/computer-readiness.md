@@ -59,3 +59,22 @@ Still open:
 - A window on another Space was not tested live.
 
 Tests: three new tool tests; 102 computer, transport and screen tests pass; typecheck passes.
+
+
+## Speed baseline and first reduction (23 October 2026)
+
+Task: in a new fictional chat on Opus 5.5, "use the Calculator app to compute 12 times 7". Calculator was closed before each run. Times come from `computer.action` and `computer.transport` log lines and from send-to-usage-row wall time.
+
+| Run | Wall time | Tool calls | Cached input | Output |
+| --- | --- | --- | --- | --- |
+| 1 (before) | 51.0 s | 8 (open, look, 6 clicks) | 93,096 | 974 |
+| 2 (after) | 36.5 s | 8 (same) | 34,410 | 869 |
+
+Where the time goes:
+- Each driver click takes 2.2–3.3 s and ends "could not confirm". A direct, model-free check gives the same 2.5 s (3.25 s for the first click). The driver seems to wait for a visible effect before it gives up. Its click schema has no option to skip this, so ATOM cannot remove it. Report it upstream.
+- `list_apps` cost 0.55–0.85 s on every `look` and `look_after`.
+- The model: run 1 waited about 1.6–1.8 s between clicks, while run 2 issued the six clicks back to back. Most of the difference between the runs is this model behavior, not ATOM; with n = 1, do not read it as a speed result.
+
+Reduction: `look` now reuses the app of the last good look (name, bundle ID, pid) while that process still owns windows, and skips `list_apps`. If the process owns no windows, `look` does the full lookup once. Measured live: the repeat `look_after` took 14 ms (`list_windows`) plus 277 ms (window read) without `list_apps`, saving about 0.6–0.8 s per repeat look. Two new tests; 104 computer tests pass.
+
+Correctness finding: both runs failed to report the result ("couldn't read its display"). The display exists in the driver's tree as unnumbered static text (`AXStaticText = "84" (Edit field)`), but `look` lists only numbered elements, so the model never sees it. Next fix: show a capped, secret-filtered list of on-screen static text in `look`.

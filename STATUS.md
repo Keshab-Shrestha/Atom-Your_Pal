@@ -1,5 +1,9 @@
 # ZENO Project Status
 
+## Current capability — Computer control 3/4: speed baseline and first reduction (2026-10-23)
+
+A model-in-the-loop Calculator task took 51.0 s and then 36.5 s. Most of the change is model behavior (n = 1). Driver clicks cost about 2.5 s each and end "unconfirmed", a driver limit with no option to skip. `look` now reuses the last app's pid and skips `list_apps`, saving about 0.6–0.8 s per repeat look; two new tests, 104 pass. Both runs could not read Calculator's display, because `look` drops unnumbered static text. That fix is next. See [computer readiness](docs/computer-readiness.md).
+
 ## Current capability — Computer control 2/4: reliability baseline and two fixes (2026-10-23)
 
 A live, model-free baseline on a fictional TextEdit task found two defects, and both are fixed. `look` no longer reads an off-screen helper window (which made input blame "another Space"). A click on a text field that has no press action now points to `type`. After the fixes, `type` is confirmed 5 of 5. Still open: background menu shortcuts (`cmd+w`) and save-sheet buttons do not work. 102 computer tests pass. See [computer readiness](docs/computer-readiness.md). Next: step 3, speed.
