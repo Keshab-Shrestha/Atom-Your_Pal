@@ -141,4 +141,6 @@ The IDs refer to the pinned inquiry. **Partial** means an equivalent exists but 
 
 Maintain one row per capability with: ATOM commit, referenced Sentient feature IDs, implementation state, native/automated evidence, measured performance where relevant, unresolved defects, user decisions and release disposition. Update this ledger and the results after each bounded task. Avoid a single parity percentage while scopes and accepted differences are unresolved.
 
-**Next task is R0 only:** diagnose and repair stale note-search results, add focused regressions, verify the native delete sequence, document and stop. R1 follows once R0 is accepted. This planning checkpoint changes documentation only and does not mark the bug resolved.
+**R0 result (22 October):** fixed on branch `fix/note-search-stale-hits`, not yet committed or CI-checked. `BrainState.refreshSearch()` plus one line in `IslandModel` re-ask the active search after every graph. Two regressions added; 789 island tests pass. Native delete sequence reproduced the bug on the pre-fix bundle and shows "No note matches" on the rebuilt app; all 48 non-FTS tables match the baseline after cleanup. Not exercised natively: rename/edit that stops matching, source refresh/disconnect, rejected delete, delayed response. See [STATUS.md](../STATUS.md).
+
+**Next task is R1 only:** the hosted Terminal visual failure. R0 stays open until Keshab accepts it and the commit passes required CI.

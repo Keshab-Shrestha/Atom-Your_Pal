@@ -243,6 +243,13 @@ public struct BrainState: Sendable, Equatable {
         return .brainSearch(query: clean)
     }
 
+    /// The graph changed (a save, a delete, a source refresh): ask again for the active words, because the runtime sends hits only
+    /// when asked. The old hits stay until it answers, so a refused change loses nothing; nil when no words are active.
+    public func refreshSearch() -> IslandCommand? {
+        let clean = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        return clean.isEmpty ? nil : .brainSearch(query: clean)
+    }
+
     /// The nodes the filters let through: shown kinds and the chosen tag. Ghosts follow their kind ("note").
     public var visibleIds: Set<Int> {
         guard let graph else { return [] }

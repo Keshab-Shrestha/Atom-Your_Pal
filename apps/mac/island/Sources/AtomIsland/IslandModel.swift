@@ -1043,6 +1043,7 @@ final class IslandModel {
             refreshingModels = false
         case .brain(let graph):
             brain.setGraph(graph)
+            if let command = brain.refreshSearch() { send(command) } // hits are not pushed: a deleted or edited note must leave the results
             // A note delete answers with the graph only (a save answers with the note), so the flag must end here too; left set, it sent
             // the next unrelated Settings error to the brain page and left the model menus disabled (code review, 2026-10-16).
             brainCommandPending = false

@@ -1,5 +1,22 @@
 # ZENO Task Plan
 
+## Current capability — R0 stale note-search results (2026-10-22, fixed on branch, not committed)
+
+Keshab reported that Delete for good left the removed note in the search results. This is task R0 of the [release plan](docs/sentient-parity-release-plan.md).
+
+Cause: the runtime sends a new graph after each save, delete or source change. It sends search hits only when the window asks. The window never asked again, so old hits stayed until the user retyped the query.
+
+Fix: `BrainState.refreshSearch()` returns the search command for the active words. `IslandModel` sends it each time a graph arrives. The old hits stay until the runtime answers, so a rejected change keeps its note. An answer for other words is still dropped.
+
+Evidence:
+- Two new regression tests in `BrainTests.swift`. `pnpm island:test` passes 789 tests.
+- Native run with two fictional notes (IDs 38 and 39) on a private `memory.db` backup. The pre-fix bundle deletes the note (32 notes, 25 links) but still shows "1 match" with the deleted title. The rebuilt signed app shows "No note matches" with no retyping.
+- Cleanup: both fixtures deleted. All 48 non-FTS tables match the pre-test hashes. The original chat, Opus 5.5, Off thinking, Saved permissions and empty composer are restored.
+
+Limits: the native run covers delete only. Rename, body edit, source refresh or disconnect, a rejected delete and a delayed answer rely on the unit tests and on the runtime sending a graph after each change. The `IslandModel` line has no unit test. Hosted CI has not run. The running app is now the rebuilt bundle; the pre-fix bundle is in the private snapshot. Controls were pressed through Accessibility, not typed by hand.
+
+Next task: R1, the hosted Terminal visual failure. Commit of R0 needs Keshab's go-ahead.
+
 ## Current plan — Release readiness and Sentient parity (2026-10-22)
 
 Keshab requested a plan covering the discovered note-search defect, release readiness and full Sentient parity. The [execution plan](docs/sentient-parity-release-plan.md) is the current forward sequence: R0 stale search results → R1 hosted Terminal visual failure → R2 remaining native acceptance → R3 controlled latency/context/cache benchmark → R4 release candidate → P1–P6 broader parity. It maps all 33 inquiry features, distinguishes verified equivalents from incomplete scope, and records decisions for protected sources, external writes, wake helpers, hosted memory and architecture differences.
