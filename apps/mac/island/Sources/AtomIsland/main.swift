@@ -93,10 +93,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var terminating = false
 
     // Launch Services sends a reopen when the user opens the already-running menu-bar app.
-    // Showing its window is idempotent; do not toggle it closed or depend on a synthetic shortcut.
+    // Reveal a hidden window, but keep an already-visible editor or Quick actions panel in place.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         guard !terminating else { return false }
-        island?.setExpanded(true)
+        if !flag { island?.setExpanded(true) }
         return true
     }
 

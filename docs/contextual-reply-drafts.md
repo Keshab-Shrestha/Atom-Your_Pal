@@ -1,6 +1,6 @@
 # Contextual unsent reply drafts
 
-Implemented in source on 22 October 2026, ADR-189, as the next scoped [Sentient adoption capability](sentient-adoption-plan.md). Compiler checks only; tests remain deferred until the end of the adaptation plan.
+Implemented in source on 22 October 2026, ADR-189, as the next scoped [Sentient adoption capability](sentient-adoption-plan.md). The intermediate test deferral ended after the seven initial coding groups. Combined automated and isolated-provider checks pass; the bounded native Claude generation/edit/Copy/Cancel workflow also passes, as recorded in the [results](sentient-adoption-results.md).
 
 ## Flow
 
@@ -32,4 +32,4 @@ Only one contextual draft runs at a time in the host. Cancellation/close/runtime
 
 ## Evidence
 
-TypeScript typecheck and Swift release compilation pass. No tests, live model requests, clipboard/shortcut interaction checks, gallery scenes or real writing-example saves were run. No running app was replaced/restarted, real account/source accessed or existing user draft/grant changed. [Deferred end-of-plan validation](sentient-adoption-validation.md) records the required protocol, lifecycle, privacy, model and UI checks. This is compiled implementation, not acceptance-certified delivery.
+TypeScript checking, the ordinary TypeScript/Swift suites, focused protocol/source/profile/cancellation fixtures, isolated actual Claude/Codex output contracts, release compilation and the new local gallery scenes pass in the combined gate. The signed app is running. The physical shortcut/panel handoff succeeds after correcting a reopen handler that forced the main window forward. In the real Claude/Opus 5.5 panel, reviewed intent/background and opt-in unsaved fictional examples produce an editable reply; Copy matches a separate manual paste, and explicit Cancel preserves the earlier draft and attribution. Close returns to the preserved main chat. No existing chat/note/grant or saved-example preference changes. Native explicit saved-source selection/revisions, example Save/Forget/restart, Codex panel interaction, Close/reopen reset and broader keyboard/IME/accessibility remain to verify. No real writing examples, private conversation/source or saved permission is changed for these fixtures. The [case checklist](sentient-adoption-validation.md) remains broader than the [recorded evidence](sentient-adoption-results.md); this is not full release acceptance.
