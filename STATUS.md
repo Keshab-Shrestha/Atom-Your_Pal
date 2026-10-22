@@ -1,10 +1,16 @@
 # ZENO Project Status
 
+## Current capability — R2 imported-note analysis acceptance (2026-10-22, completed with two findings)
+
+The native analysis workflow passes with a fictional three-note folder. It covers start, reports, Copy, original-note navigation, cache reuse, restart, Resume, edit invalidation, budget pause, Clear and Remove source. After cleanup only the usage counter differs from the baseline, by design. Findings: one chunk failed its output check once and then passed on Resume, and the failure log had no stage or category, so the cause is unknown. The log line now carries the failed stage, with a regression test (1,206 TypeScript tests pass). This run used 7 analysis attempts today. Details are in the [results](docs/sentient-adoption-results.md).
+
 ## Current capability — R2 local backup Copy/Clear/Forget acceptance (2026-10-22, completed)
 
 Native Copy, Clear and Forget pass against an owned loopback fixture, with Cancel checked before each confirmation. Clear and Forget send no request. Forget deletes `config/local-backup.json`. After cleanup the clipboard, `config/island.json` and all 48 non-FTS tables match the baseline. Details, one UX observation and limits are in the [results](docs/sentient-adoption-results.md). Documentation only; no code changed.
 
-## Current capability — R1 hosted Terminal rendering (2026-10-22, fix prepared, hosted check pending)
+## Current capability — R1 hosted Terminal rendering (2026-10-22, confirmed on hosted CI)
+
+Confirmed: PR #1 run 39763844330 passes all three jobs. Hosted diffs fall to 0.006% (Terminal compact, was 1.877%), 0.004% (Terminal dark, was 1.378%) and 0.011% (Browser compact, was 0.928%). This confirms the icon-box diagnosis below. R0 and R1 close when PR #1 merges.
 
 Hosted run 39759609477 (main `010ffe1`, image macos-26-arm64) fails only the `visual` job. TypeScript and Swift pass. Compared with all 44 goldens, exactly two scenes exceed 1%: `39-workspace-terminal-compact` (1.877%) and `39-workspace-terminal-dark` (1.378%). Every other scene is under 1%. `ui-check.sh` stops at the first failure, so this was not visible in the log.
 

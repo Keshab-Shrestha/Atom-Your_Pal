@@ -4,6 +4,32 @@
 
 The automated and isolated-provider portion of the combined gate passes. The first signed native restart/backup acceptance batch below also passes. Remaining native workflows, a same-model performance benchmark and full parity with Sentient's 33 inquiry features are not certified. The initial seven coding groups remain scoped as described in the [plan](sentient-adoption-plan.md).
 
+## Native imported-note analysis batch — completed with two findings
+
+Use a new fictional folder `~/Documents/ATOM fixture cedar-analysis-r2` with three notes: two short notes and one 33 KB logbook (three chunks). The baseline is a private `memory.db` backup with no source and empty analysis tables. Drive the running signed app through Accessibility and the native folder chooser. The job model is `claude-plan / claude-opus-5-5 · low`.
+
+- Preview lists exactly the two first files with 0 skipped. Import adds two notes (34 total). The first job analyzes both in two attempts. Each report states note ID, text offsets, source check time, model and preparation time, and separates the note's content from open questions. The content matches the fixture.
+- Copy analysis puts text on the clipboard that equals the stored report byte for byte (810 bytes). Read original note opens the note in the graph with `Imported · current` provenance and its source path.
+- Clear analysis → Cancel keeps both reports.
+- Add the logbook and Refresh: 3 imported. The next job reuses both earlier reports with no attempt and sends the logbook chunks.
+- Restart: quit and relaunch the app. The job state, attempt count and reports are unchanged, and no analysis request is sent.
+- Resume makes exactly one attempt, for the unfinished chunk only. Finished chunks are not sent again. The job reaches `done`.
+- Edit a source file and Refresh: only that note's report is removed. The next job reuses 4 chunks and makes 1 attempt.
+- Budget: with 7 of 7 attempts used, a new job pauses with reason `budget`, sends nothing and offers Resume.
+- Clear analysis → Clear derived analysis removes all reports, the job and the schedule settings (the daily limit returns to 3). Today's count of 7 stays.
+- Remove source and imported copies → 32 notes and 25 links. The source and analysis tables are empty except the usage counter. Source files are untouched apart from the two fixture edits.
+- Cleanup: the original chat is restored. The clipboard is restored exactly. `config/island.json` is unchanged. 47 of 48 non-FTS tables match the pre-test hashes. The difference is `source_analysis_usage` (one row: 7 attempts today), which the design keeps on purpose.
+
+Findings:
+1. One logbook chunk failed its output check once ("The model returned an empty, oversized or invalid report"). Resume then succeeded on the same chunk. The check rejects output over 6,000 raw or 3,500 cleaned bytes, invalid text, or text that looks like a secret. The cause of this failure is not known.
+2. The log line `source.analysis_failed` carries no failure stage or category. [Source analysis](source-analysis-jobs.md) says logs contain fixed failure categories. So finding 1 cannot be diagnosed from the log. **Fixed the same day:** the line now carries `stage` (`reading`, `model`, `output` or `checkpoint`) and still no error or report text. A regression test covers the `output` and `model` stages. The cause of finding 1 stays unknown until it happens again with the new log.
+
+Observation: when a job finishes, the Pause button is replaced in place by Clear analysis… A click at that moment opens the Clear confirmation, which happened once during this run. The confirmation prevented any loss; Cancel kept everything.
+
+Effect on the user: this run used 7 analysis attempts on the Claude plan today. The daily limit is back to 3, so analysis is exhausted until tomorrow if a source is connected again today. The fixture folder stays in Documents, which syncs to iCloud.
+
+Not covered: scheduled daily runs, foreground-chat interruption, runtime stop during a chunk, repeated Resume packets, concurrency races, and keyboard, IME and VoiceOver use of this panel.
+
 ## Native local backup Copy/Clear/Forget batch — completed
 
 Use an owned fictional loopback fixture on `127.0.0.1:18431` with model `cedar-fixture-r2`. The fixture logs method, path, message roles, model, tool presence and size only. The baseline is a private `memory.db` backup, the clipboard text and the `config/` folder (no `local-backup.json`). Drive the running signed app through Accessibility.
