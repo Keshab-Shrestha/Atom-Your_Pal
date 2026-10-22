@@ -264,6 +264,22 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     }
   }
 
+  /** Read-only TCC status from the driver: never prompts and reads no screen. The grants belong to the process macOS holds responsible. */
+  async function permissionsOf(signal?: AbortSignal): Promise<string> {
+    try {
+      const r = await cua.call("check_permissions", { prompt: false, probe_direct_capture: false }, signal);
+      const d = r.data;
+      if (r.isError || typeof d.accessibility !== "boolean" || typeof d.screen_recording !== "boolean") throw new Error("Invalid permission status.");
+      const state = (on: boolean) => (on ? "granted" : "missing");
+      const who = typeof d.source?.bundle_id === "string" ? ` for ${d.source.bundle_id}` : "";
+      const fix = d.accessibility && d.screen_recording ? "" : " To grant, open System Settings → Privacy & Security, or run `cua-driver permissions grant` in Terminal.";
+      return `Permissions${who} (read-only check, no prompt): Accessibility: ${state(d.accessibility)}; Screen Recording: ${state(d.screen_recording)}.${fix} ATOM did not change any permission.`;
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      return "The driver's permission status could not be read; Accessibility and Screen Recording are unknown, not confirmed.";
+    }
+  }
+
   async function perform(action: string, input: Record<string, unknown>, signal?: AbortSignal): Promise<string> {
     switch (action) {
       case "status": {
@@ -276,7 +292,10 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const startup = status.reused
           ? `Reused the existing helper; no startup for this check (last startup ${status.startupMs} ms).`
           : `Started the helper in ${status.startupMs} ms.`;
-        return `Computer driver ready. ${startup} Protocol check: ${status.probeMs} ms. No apps, windows or screenshots were read and no input was sent. macOS Accessibility and Screen Recording permissions are not tested by this check. This does not grant access; existing computer policy still applies.`;
+        const permissions = status.permissionCheck
+          ? await permissionsOf(signal)
+          : "macOS Accessibility and Screen Recording permissions are not tested by this check (this driver offers no read-only permission check).";
+        return `Computer driver ready. ${startup} Protocol check: ${status.probeMs} ms. No apps, windows or screenshots were read and no input was sent. ${permissions} This does not grant access; existing computer policy still applies.`;
       }
       case "list_apps": {
         const visible = (await apps(signal)).filter((a) => a.running && !appBlock(a.bundle_id, a.name));

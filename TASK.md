@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Current capability — Computer control 1/4: read-only permission status (2026-10-23)
+
+Keshab asked to improve Computer control in four steps: permissions and setup, reliability, speed, visibility. Step 1 is done. The `computer` tool's `status` action now also reports Accessibility and Screen Recording through the driver's read-only `check_permissions` (`prompt: false`). It names the grant holder and gives grant guidance when a permission is missing; ATOM changes no permission. Two new tests; 94 computer and transport tests pass; typecheck passes. A live read-only check reports both permissions granted for `com.trycua.driver`. Not covered: the native app flow with a revoked permission. See [computer readiness](docs/computer-readiness.md). Next: step 2, reliability baseline.
+
 ## Current step — R3 first pass: context and cache from existing usage (2026-10-22)
 
 Existing usage rows show a fixed prefix of about 10.3k tokens. It is identical across chats and restarts. Follow-ups cache correctly, and cache misses come from the 1-hour TTL. The "16,700-token first turn" was a turn that reused a stopped attempt. Found and fixed one bookkeeping defect: after a resume, `dollars_sdk` counted the whole restored session. `session.open` now logs system-prompt and ATOM tool-schema byte sizes to attribute the prefix. Typecheck passes; no local tests ran, as requested. A live turn after restart confirms the fix and logs 3,164 system-prompt bytes and 17,721 ATOM tool-schema bytes: about 5.2k of the ~10.3k-token prefix is ATOM's own. Only about half the prefix is cached across chats. PR #1 and PR #2 are merged; PR #3 carries this work. Details are in the [plan](docs/sentient-parity-release-plan.md) under R3.

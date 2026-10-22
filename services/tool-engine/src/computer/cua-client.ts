@@ -15,6 +15,8 @@ export interface CuaReadiness {
   startupMs: number;
   probeMs: number;
   missingTools: string[];
+  /** The driver offers `check_permissions`, a read-only TCC status (optional: older drivers lack it). */
+  permissionCheck?: boolean;
 }
 
 export interface CuaTransport {
@@ -236,7 +238,7 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
           }
           const missingTools = REQUIRED_TOOLS.filter((name) => !names.has(name));
           ok = missingTools.length === 0;
-          return { ready: ok, reused, startupMs: c.startupMs, probeMs: elapsed(started), missingTools };
+          return { ready: ok, reused, startupMs: c.startupMs, probeMs: elapsed(started), missingTools, permissionCheck: names.has("check_permissions") };
         } finally { onTiming?.({ stage: "probe", durationMs: elapsed(started), ok }); }
       }, signal));
     },

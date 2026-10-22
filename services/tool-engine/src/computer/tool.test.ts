@@ -727,6 +727,36 @@ test("status reports cold/warm protocol readiness without desktop reads or appro
   assert.equal((await s.run({ action: "click", element: 2 })).ok, false, "status is not a window observation");
 });
 
+test("status reports driver permissions read-only, never prompts, and names whose grants they are", async () => {
+  const s = setup({
+    probe: async () => ({ ready: true, reused: true, startupMs: 9, probeMs: 2, missingTools: [], permissionCheck: true }),
+    handlers: {
+      check_permissions: () => ({ text: "", isError: false, refusal: undefined,
+        data: { accessibility: true, screen_recording: false, source: { attribution: "driver-daemon", bundle_id: "com.trycua.driver" } } }),
+    },
+  });
+  const r = await s.run({ action: "status" });
+  assert.equal(r.ok, true, r.text);
+  assert.deepEqual(s.calls, [{ name: "check_permissions", args: { prompt: false, probe_direct_capture: false } }]);
+  assert.match(r.text, /Accessibility: granted/);
+  assert.match(r.text, /Screen Recording: missing/);
+  assert.match(r.text, /com\.trycua\.driver/);
+  assert.match(r.text, /ATOM did not change any permission/);
+  assert.deepEqual(s.asked, []);
+});
+
+test("a failed permission read leaves status ready but says the permissions are unknown", async () => {
+  const s = setup({
+    probe: async () => ({ ready: true, reused: true, startupMs: 9, probeMs: 2, missingTools: [], permissionCheck: true }),
+    handlers: { check_permissions: () => { throw new Error("daemon not running"); } },
+  });
+  const r = await s.run({ action: "status" });
+  assert.equal(r.ok, true, r.text);
+  assert.match(r.text, /Computer driver ready/);
+  assert.match(r.text, /permission status could not be read/);
+  assert.doesNotMatch(r.text, /granted/);
+});
+
 test("missing-method status is actionable and discards the previous snapshot", async () => {
   const s = setup({ probe: async () => ({ ready: false, reused: true, startupMs: 5, probeMs: 1, missingTools: ["click"] }) });
   await sees(s);

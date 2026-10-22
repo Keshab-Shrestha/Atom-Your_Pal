@@ -172,7 +172,7 @@ The IDs refer to the pinned inquiry. **Partial** means an equivalent exists but 
 | 26 | Provider/reasoning choices | Existing per-chat choices; custom capability coverage and independent drafting need audit/extension | P1, P5 |
 | 27 | All-local operation | Current temporary text backup is narrower; all-local agent stages are not delivered | P5 decision; backup-only constraint persists |
 | 28 | Hosted knowledge MCP mirror | Existing local API/MCP is not an encrypted cloud mirror | P6 decision |
-| 29, 30 | Health/repair and dependency readiness | Protocol readiness implemented; native permission probes, lifecycle and transport isolation need acceptance/audit | R2, R4, P5 |
+| 29, 30 | Health/repair and dependency readiness | Protocol readiness implemented; read-only Accessibility/Screen Recording status added to `status` (23 October). Revoked-permission behavior, lifecycle and transport isolation need acceptance/audit | R2, R4, P5 |
 | 31, 32 | Updates/lifecycle, privacy and observability | Existing controls require release-scope audit; each new reader must inherit source/removal/diagnostic rules | R4 and every parity package |
 | 33 | Personal briefing | Not delivered as a grounded cross-source welcome/pattern briefing | P4 |
 

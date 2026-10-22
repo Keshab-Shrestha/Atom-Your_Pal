@@ -10,6 +10,10 @@ It starts or reuses ATOM's standard-mode Cua Driver, completes MCP initializatio
 
 The check never calls app enumeration, window reads, screenshot capture or input methods. It therefore **does not certify Accessibility, Screen Recording, a specific app, locked-screen behavior or action delivery**. It grants no permissions and does not repair/install anything. Existing checked computer policy and per-chat access continue to govern all real actions.
 
+**Permission status (23 October 2026).** When the driver advertises `check_permissions`, `status` also calls it with `prompt: false` and `probe_direct_capture: false`. This read-only call shows no system dialog and reads no screen. The reply states Accessibility and Screen Recording as granted or missing, and names the identity that holds the grants (normally `com.trycua.driver`, reported through the driver daemon). If a grant is missing, the reply points to System Settings → Privacy & Security or `cua-driver permissions grant`; ATOM changes no permission. If the call fails, the reply says the status is unknown, and `status` stays ready. Older drivers without `check_permissions` keep the earlier "not tested" wording. A granted flag still does not certify a specific app, a locked screen or action delivery.
+
+Live check, driver 0.28.2: the probe advertised `check_permissions`, and the read-only call reported Accessibility and Screen Recording granted for `com.trycua.driver` (attribution `driver-daemon`).
+
 `computer.transport` logs initialization, probe and actual call duration/success. Actual calls include only the fixed method name, never arguments, output, typed text or screen content. Timings are local diagnostics, not token accounting or a provider benchmark. The helper remains lazy; a probe can prepare it for the next requested action within its existing two-minute idle lifetime.
 
 ## Recovery
