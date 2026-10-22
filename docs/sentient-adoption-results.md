@@ -4,6 +4,28 @@
 
 The automated and isolated-provider portion of the combined gate passes. The first signed native restart/backup acceptance batch below also passes. Remaining native workflows, a same-model performance benchmark and full parity with Sentient's 33 inquiry features are not certified. The initial seven coding groups remain scoped as described in the [plan](sentient-adoption-plan.md).
 
+## Native long-chat continuity batch — completed with two observations
+
+Use one new fictional chat in the Cedar project: five ~10.8 KB logbook parts (54 KB in total) with unique decisions C1–C5, then one short follow-up. Each part asks for the one-line reply "Noted part N." The baseline is a private `memory.db` backup. Drive the running signed app through Accessibility. Keshab asked for no test-suite runs in this batch.
+
+- The background summary runs once after the chat passes the 48 KB replay limit: `chat.continuity` saved, messages m1–m4, 22 KB in, 869 bytes out, `claude-plan / claude-opus-5-5`. It stops at m4 because of the 28 KB batch budget.
+- The stored summary has five items with correct citations. Decisions C1 (spare lid, porch) and C2 (rain barrel tap, east bed) match the fixture exactly.
+- Chat options → Saved context details shows 10 saved messages, 54.4 KB archived, a 21.9 KB fresh replay with 5 earlier messages omitted, and coverage m1–m4. Review derived summary shows the same five items. Read original m3 opens Saved history at m3, and the page text contains decision C2 exactly.
+- Pause and clear removes the derived copy (`enabled=0`, summary empty) and shows "Paused. The derived copy was cleared; original history and your Chat brief are unchanged." The 10 original messages keep their exact hash. `chat_access` and `chat_reasoning` match the pre-test baseline.
+- Enable returns to "Ready for long chats" with no derived copy. A clean quit and relaunch runs no summary job and keeps the state.
+- The next exchange rebuilds the summary from scratch (m1–m4).
+- Cleanup: the original chat is selected again. The clipboard is unchanged.
+
+Remaining differences from the baseline, all expected: the fictional chat (12 messages), its continuity row, its automatic chat summary note in Second brain with one link, the navigation row, and 7 foreground attempt records.
+
+The first send of part 1 started a turn that was stopped 8 seconds later, when the window was minimized and then closed. That attempt stays as a recovery item with its fictional text, so the chat menu shows "Recovery (2)". Everything after it was resent normally.
+
+Observations:
+1. Coverage gap by design: after five parts, m5 is outside the fresh replay and not yet in the summary. Each exchange advances at most one 28 KB batch, and there is no catch-up loop. The history tools can still read m5.
+2. One summary item says "Parts 3-5 have not arrived yet." That was true for the covered prefix m1–m4, but it reads as a claim about the current chat. The panel already says to check cited originals.
+
+Not covered: Codex or Gemini chats, cancellation by a foreground turn during a summary job, deletion or fork of a summarized chat, grant/revoke with exact-file grants (this chat has none), and keyboard, IME and VoiceOver use of the details popover.
+
 ## Native prepared-work batch — completed with one finding
 
 Keshab chose fictional input only. The brief has no per-calendar or per-list selection, so Events, Reminders, Weather, Finished tasks and What waits are turned off for the test. The only input is two fictional timers, started in one new fictional chat. The baseline is a private `memory.db` backup with no saved brief settings (defaults apply), no briefs and no preparation usage. Drive the running signed app through Accessibility.

@@ -1,5 +1,9 @@
 # ZENO Project Status
 
+## Current capability — R2 long-chat continuity acceptance (2026-10-22, completed with two observations)
+
+The native continuity workflow passes with a fictional 54 KB chat. It covers the background summary, accurate cited items, Saved context details, Read original navigation, Pause and clear, Enable, restart without a startup job, and a rebuilt summary. Original messages and access records are unchanged. Observations: coverage advances one 28 KB batch per exchange, and one item phrases a past state as current. The first send was stopped when the window closed and stays as a recovery item. No test suites ran, as requested. Details are in the [results](docs/sentient-adoption-results.md). Documentation only; no code changed.
+
 ## Current step — PR #1 merged; R2 prepared-work acceptance (2026-10-22, completed with one finding)
 
 PR #1 merged into main as `808f814`. R0 and R1 are closed.
