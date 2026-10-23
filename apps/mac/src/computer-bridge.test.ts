@@ -241,3 +241,12 @@ test("input is background until the island sets the foreground default", () => {
   bridge.setForeground(false);
   assert.equal(bridge.deliveryMode(), "background");
 });
+
+test("read-only readiness does not initialize the agent cursor before the measured probe", async () => {
+  const calls: string[] = [];
+  const bridge = createComputerBridge({ endAfterMs: 10, cursor: { start: async () => { calls.push("start"); }, finish: async () => { calls.push("finish"); } } });
+  bridge.attach(() => {});
+  bridge.step({ action: "status" });
+  await new Promise((r) => setTimeout(r, 30));
+  assert.deepEqual(calls, []);
+});

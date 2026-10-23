@@ -186,7 +186,8 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
     },
     step(step) {
       sendEvent?.({ type: "computer.step", text: stepText(step) });
-      begin();
+      // The status probe measures cold initialization itself; cursor setup must not prewarm the helper first.
+      if (step.action !== "status") begin();
       scheduleEnd();
     },
     answer: (id, approved, rememberFile, reviewToken) => settle(id, approved, rememberFile, reviewToken),
