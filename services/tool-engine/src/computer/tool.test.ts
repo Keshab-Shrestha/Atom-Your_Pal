@@ -969,3 +969,30 @@ test("an invalid mode cannot open a risky-action approval", async () => {
   assert.equal(s.asked.length, 0);
   assert.equal(s.calls.some((c) => c.name === "click"), false);
 });
+
+test("look_after reads the pinned window without another app/window enumeration", async () => {
+  const s = setup();
+  await sees(s);
+  await s.run({ action: "click", element: 2, look_after: true });
+  assert.equal(s.calls.filter((c) => c.name === "list_windows").length, 1);
+  assert.equal(s.calls.filter((c) => c.name === "get_window_state").length, 2);
+});
+
+test("uncertain input returns a fresh observation without replaying the action", async () => {
+  const s = setup({ handlers: { type_text: () => ok("unverified", { effect: "unverifiable" }) } });
+  await sees(s);
+  const result = await s.run({ action: "type", element: 1, text: "Cedar" });
+  assert.equal(result.ok, true);
+  assert.match(result.text, /could not confirm/);
+  assert.match(result.text, /\[1\] AXTextArea/);
+  assert.equal(s.calls.filter((c) => c.name === "type_text").length, 1);
+  assert.equal(s.calls.filter((c) => c.name === "get_window_state").length, 2);
+  assert.equal(s.calls.filter((c) => c.name === "list_windows").length, 1);
+});
+
+test("confirmed input does not add an unrequested post-action read", async () => {
+  const s = setup();
+  await sees(s);
+  await s.run({ action: "click", element: 2 });
+  assert.equal(s.calls.filter((c) => c.name === "get_window_state").length, 1);
+});

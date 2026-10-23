@@ -182,15 +182,22 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     // Older drivers do not report the field (undefined) and keep the earlier fallback.
     const win = wins.find((w) => w.is_on_screen) ?? wins.find((w) => w.on_current_space === false || w.on_current_space === undefined);
     if (!win) throw new Refused(`${app.name} has no window open (no document) that ATOM can see. Open, unhide or create one, or ask the user to, then look again.`);
-    const state = await cua.call("get_window_state", { pid, window_id: win.window_id }, signal);
+    return readWindow(app, pid, win.window_id, win.title, signal);
+  }
+
+  /** Read exactly the observed window; the driver rechecks its ownership and this host checks the returned identity. */
+  async function readWindow(app: { name: string; bundle_id?: string }, pid: number, windowId: number, title?: string, signal?: AbortSignal, generation?: number): Promise<string> {
+    target = undefined;
+    lastApp = undefined;
+    const state = await cua.call("get_window_state", { pid, window_id: windowId }, signal, generation);
     if (state.isError) refuse(state.refusal?.code, app.name, `Could not read ${app.name}: ${state.refusal?.message ?? state.text}`);
     if ((state.data.pid !== undefined && state.data.pid !== pid) ||
-        (state.data.window_id !== undefined && state.data.window_id !== win.window_id) ||
+        (state.data.window_id !== undefined && state.data.window_id !== windowId) ||
         (state.data.app_name !== undefined && state.data.app_name !== app.name)) {
       throw new Refused(`The ${app.name} window owner changed. No elements were retained; look again.`);
     }
     const elements = withoutMenuBar((state.data.elements ?? []) as Element[]);
-    target = { generation: cua.generation, pid, windowId: win.window_id, app: app.name, bundleId: app.bundle_id, elements: new Map(elements.map((e) => [e.element_index, e])), justTyped: false };
+    target = { generation: cua.generation, pid, windowId: windowId, app: app.name, bundleId: app.bundle_id, elements: new Map(elements.map((e) => [e.element_index, e])), justTyped: false };
     lastApp = { name: app.name, ...(app.bundle_id ? { bundle_id: app.bundle_id } : {}), pid, generation: cua.generation };
     const shown = elements.slice(0, maxElements).map((e) => {
       const bits = [`[${e.element_index}] ${e.role ?? "?"}`];
@@ -203,15 +210,15 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     const more = elements.length > maxElements ? `\n(${elements.length - maxElements} more elements not shown)` : "";
     const texts = screenTexts(String(state.data.tree_markdown ?? ""));
     const read = texts.length ? `\nText on screen (read only): ${texts.join("; ")}` : "";
-    return `${app.name} — window "${win.title ?? ""}"\n${shown.join("\n")}${more}${read}`;
+    return `${app.name} — window "${title ?? state.data.window_title ?? ""}"\n${shown.join("\n")}${more}${read}`;
   }
 
   /** The new screen, appended to an action's reply so the model needs no extra step. The "just typed" memory survives it. */
   async function lookAfter(signal?: AbortSignal): Promise<string> {
     const keep = target?.justTyped ?? false;
-    const app = target?.app ?? "";
     try {
-      const seen = await look(app, signal);
+      const previous = need();
+      const seen = await readWindow({ name: previous.app, ...(previous.bundleId ? { bundle_id: previous.bundleId } : {}) }, previous.pid, previous.windowId, undefined, signal, previous.generation);
       if (target) target.justTyped = keep;
       return `\n\n${seen}`;
     } catch (error) {
@@ -310,8 +317,10 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
       // Reject malformed delivery modes before approvals or cursor/step side effects.
       if (["click", "type", "key", "scroll"].includes(action)) modeOf(input);
       onStep?.({ action, ...(appName ? { app: appName } : {}) });
-      let out = await perform(action, input, signal);
-      if (input.look_after === true && INPUT_ACTIONS.has(action) && target) out += await lookAfter(signal);
+      const result = await perform(action, input, signal);
+      let out = typeof result === "string" ? result : result.text;
+      const uncertain = typeof result !== "string" && result.uncertain;
+      if ((input.look_after === true || uncertain) && INPUT_ACTIONS.has(action) && target) out += await lookAfter(signal);
       log({ action, ...(appName ? { app: appName } : {}), ok: true });
       return out;
     } catch (error) {
@@ -337,7 +346,11 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     }
   }
 
-  async function perform(action: string, input: Record<string, unknown>, signal?: AbortSignal): Promise<string> {
+  function inputResult(text: string, result: { data: Record<string, unknown> }, key: string) {
+    return { text: text + verdict(result, key), uncertain: result.data.effect === "unverifiable" || result.data.effect === "suspected_noop" };
+  }
+
+  async function perform(action: string, input: Record<string, unknown>, signal?: AbortSignal): Promise<string | { text: string; uncertain: boolean }> {
     switch (action) {
       case "status": {
         if (!cua.probe) throw new Refused("This computer transport does not support a readiness check.");
@@ -381,7 +394,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         }
         checkResult(r, "Click", t.app);
         t.justTyped = false;
-        return `Clicked [${el.element_index}]${el.label ? ` "${el.label}"` : ""}.${verdict(r, `click:${el.element_index}`)}`;
+        return inputResult(`Clicked [${el.element_index}]${el.label ? ` "${el.label}"` : ""}.`, r, `click:${el.element_index}`);
       }
       case "type": {
         const t = need();
@@ -394,7 +407,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const r = await cua.call("type_text", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, text: input.text, delivery_mode: modeOf(input) }, signal, t.generation);
         checkResult(r, "Typing", t.app);
         t.justTyped = isSearchField(el.label, el.role); // Return may follow without a card only in a search or address field
-        return `Typed ${input.text.length} characters into [${el.element_index}].${verdict(r, `type:${el.element_index}`)}`;
+        return inputResult(`Typed ${input.text.length} characters into [${el.element_index}].`, r, `type:${el.element_index}`);
       }
       case "key": {
         const t = need();
@@ -410,7 +423,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const r = await cua.call(mods.length ? "hotkey" : "press_key", mods.length ? { pid: t.pid, window_id: t.windowId, keys, delivery_mode } : { pid: t.pid, window_id: t.windowId, key, delivery_mode }, signal, t.generation);
         checkResult(r, "Key press", t.app);
         t.justTyped = false;
-        return `Pressed ${keys.join("+")}.${verdict(r, `key:${keys.join("+")}`)}`;
+        return inputResult(`Pressed ${keys.join("+")}.`, r, `key:${keys.join("+")}`);
       }
       case "point": {
         // Shows the user a place on screen. It changes nothing in any app, so it never asks.
@@ -431,7 +444,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const r = await cua.call("scroll", { pid: t.pid, window_id: t.windowId, direction, amount: 5, by: "line", ...(el ? { element_token: el.element_token } : {}), delivery_mode: modeOf(input) }, signal, t.generation);
         checkResult(r, "Scroll", t.app);
         t.justTyped = false;
-        return `Scrolled ${direction}.${verdict(r, `scroll:${direction}:${input.element ?? ""}`)}`;
+        return inputResult(`Scrolled ${direction}.`, r, `scroll:${direction}:${input.element ?? ""}`);
       }
       case "set_value": {
         // Sets a slider, stepper or menu choice directly (AXValue), instead of clicking toward it. Same rules as typing and clicking.
@@ -446,7 +459,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const r = await cua.call("set_value", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, value: input.text }, signal, t.generation);
         checkResult(r, "Setting the value", t.app);
         t.justTyped = isSearchField(el.label, el.role);
-        return `Set [${el.element_index}]${el.label ? ` "${el.label}"` : ""} to ${JSON.stringify(input.text.slice(0, 80))}.${verdict(r, `set_value:${el.element_index}`)}`;
+        return inputResult(`Set [${el.element_index}]${el.label ? ` "${el.label}"` : ""} to ${JSON.stringify(input.text.slice(0, 80))}.`, r, `set_value:${el.element_index}`);
       }
       default:
         throw new Refused(`"${action}" is not an action. Use one of: ${ACTIONS.join(", ")}.`);
@@ -463,7 +476,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         "not at the end. Use `open` to start an app. " +
         "Use `set_value` to set a slider, stepper or choice to a value in one step (text holds the value), instead of clicking toward it. " +
         "Add `look_after: true` to a click, type, key, scroll or set_value to get the new screen in the same reply. " +
-        "Each reply says whether the action was confirmed; if it says it probably did nothing, look before trying again. " +
+        "Unconfirmed input includes a fresh observation of the same window when available; inspect it before taking another step. A changed screen alone does not prove the intended outcome. Never replay uncertain input automatically. " +
         "Use `point` with an element number (and a short label) to show the user where something is: ATOM flies to it. " +
         "Point when the user asks where something is or how to do it, instead of doing it for them. " +
         "ATOM asks the user before sending, buying, deleting or changing anything, and never types passwords. " +

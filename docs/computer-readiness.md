@@ -99,3 +99,7 @@ A cached PID is reused only while the current helper generation and returned win
 Cursor start/finish operations carry a lifecycle revision. A delayed start cannot enable an ended task, and a delayed finish cannot hide a newly started task. Cleanup attempts disable even when the return-to-island screen lookup or movement fails. Error-valued driver replies are failures, not silently counted as success. Input delivery mode validation runs before approvals or step/cursor callbacks; it never prompts the user for an invalid request. No native foreground action was exercised by these regressions.
 
 Read-only status steps update their work label without starting the cursor; the readiness probe retains ownership of cold helper initialization instead of measuring an inadvertently prewarmed session. A focused bridge regression covers this ordering.
+
+## Pinned follow-up reads and uncertain input (23 October 2026)
+
+Post-action observations now read the pinned observed window directly rather than enumerating windows again. Helper generation and returned app/PID/window identity must still match. Unverifiable or suspected-no-op input automatically returns one fresh observation; it does not repeat the input or convert an uncertain verdict into success. Confirmed input adds no unrequested read. Regression tests verify call counts and uncertainty. This saves a window-enumeration call and can avoid another model round trip; no new live speed benchmark or removal of the driver verification wait is claimed.
