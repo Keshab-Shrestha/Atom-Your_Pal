@@ -98,6 +98,10 @@ struct GeneralSection: View {
                              set: { model.setComputer($0) }, label: "Computer control")
                     .disabled(model.computerRestarting)
             }
+            Row(title: "Work in the foreground", detail: "Brings each app to the front while ATOM acts, then gives focus back. Off: ATOM works behind your windows. You can also ask for either in a request.") {
+                ThemedSwitch(isOn: settings.computerForeground, set: { settings.computerForeground = $0; model.send(.computerMode(foreground: $0)) }, label: "Work in the foreground")
+                    .disabled(!model.computerOn)
+            }
         }
         PermissionsCard(model: model)
             .onAppear { model.permissions.startPolling() }

@@ -33,6 +33,10 @@ export interface ComputerBridge {
   playPause(): boolean;
   /** Passed to the computer tool as `onStep`. */
   step(step: { action: string; app?: string }): void;
+  /** The Settings default for computer input (the island's `computer.mode`). Background until the island says otherwise. */
+  setForeground(on: boolean): void;
+  /** Passed to the computer tool as `deliveryMode`. */
+  deliveryMode(): "background" | "foreground";
   /** The island's `approval.answer`. An unknown or finished id does nothing. */
   answer(id: string, approved: boolean, rememberFile?: boolean, reviewToken?: string): void;
   /** Declines everything waiting (the turn ended or was cancelled). */
@@ -96,6 +100,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
   const { timeoutMs = 60_000, endAfterMs = COMPUTER_END_MS, newId = randomUUID } = options;
   // The agent cursor (2026-10-23): on with a task's first step, back to ATOM and hidden when the task ends. It never blocks an action.
   let working = false;
+  let foreground = false;
   const cursorFailed = () => options.onCursorError?.();
   function begin() {
     if (working || !options.cursor) return;
@@ -172,6 +177,12 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
     playPause() {
       sendEvent?.({ type: "media.key", key: "playpause" });
       return Boolean(sendEvent);
+    },
+    setForeground(on) {
+      foreground = on;
+    },
+    deliveryMode() {
+      return foreground ? "foreground" : "background";
     },
     step(step) {
       sendEvent?.({ type: "computer.step", text: stepText(step) });

@@ -30,8 +30,14 @@ export interface ComputerToolOptions {
   onPoint?: (target: { x: number; y: number; w: number; h: number; label: string }) => boolean | void;
   /** Called as an action begins, so the user can see what ATOM is doing. Carries the action and app only. */
   onStep?: (step: { action: string; app?: string }) => void;
+  /** The user's Settings default for input, read at each action. Absent: background. A request's own `mode` wins over it. */
+  deliveryMode?: () => DeliveryMode;
   maxElements?: number;
 }
+
+/** Background acts without fronting the app, so the user keeps working. Foreground briefly fronts the window, acts, then gives focus back. */
+export type DeliveryMode = "background" | "foreground";
+const MODES: readonly string[] = ["background", "foreground"];
 
 interface Element {
   element_index: number;
@@ -123,7 +129,7 @@ function screenTexts(tree: string): string[] {
  * secret fields, and only elements from the latest `look`. The model chooses actions; it never touches Cua directly.
  */
 export function createComputerTool(options: ComputerToolOptions): Tool {
-  const { cua, approve, onAction, onStep, onPoint, maxElements = 150 } = options;
+  const { cua, approve, onAction, onStep, onPoint, deliveryMode, maxElements = 150 } = options;
   let target: Target | undefined;
   /** The app of the last good look. list_apps cost 0.55-0.70 s per look (speed baseline 2026-10-23); its pid is reused while it owns windows. */
   let lastApp: { name: string; bundle_id?: string; pid: number } | undefined;
@@ -244,6 +250,13 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     }
   }
 
+  /** The request's own mode, else the Settings default. */
+  function modeOf(input: Record<string, unknown>): DeliveryMode {
+    if (input.mode === undefined) return deliveryMode?.() ?? "background";
+    if (typeof input.mode !== "string" || !MODES.includes(input.mode)) throw new Refused('mode must be "background" or "foreground".');
+    return input.mode as DeliveryMode;
+  }
+
   let lastRefusal: string | undefined;
   /** Throws the plain explanation for a refusal, and a firmer one the second time in a row. */
   function refuse(code: string | undefined, app: string, fallback: string): never {
@@ -264,7 +277,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
   }
 
   // Cua says whether an input worked: confirmed (it read the result back), unverifiable, or suspected_noop. The model gets
-  // that in plain words, never Cua's own retry ladder (foreground input is not something ATOM offers).
+  // that in plain words, never Cua's own retry ladder: foreground is the user's choice (Settings or the request), never an automatic retry.
   let lastNoop: string | undefined;
   function verdict(r: { data: Record<string, unknown> }, key: string): string {
     const effect = r.data.effect;
@@ -350,7 +363,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         if (deleting) throw new Refused(deleting);
         const why = labelApproval(el.label, el.role);
         if (why) await ask(`Click ${why} in ${t.app}`, "it may send, buy, delete or change something", signal);
-        const r = await cua.call("click", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, delivery_mode: "background" }, signal, t.generation);
+        const r = await cua.call("click", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, delivery_mode: modeOf(input) }, signal, t.generation);
         // A text area or field has no press action (AX error -25206), so the click cannot focus it; `type` focuses it by itself.
         if (r.isError && TEXT_INPUT_ROLES.has(el.role ?? "") && /-25206/.test(r.text)) {
           throw new Refused(`[${el.element_index}] is a text field and cannot be pressed. To write in it, use action "type" with element ${el.element_index}; that focuses it. Nothing was clicked.`);
@@ -367,7 +380,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         if (typeof input.text !== "string" || !input.text) throw new Refused('"text" is required.');
         const lineBreak = typeApproval(input.text);
         if (lineBreak) await ask(`Type text with a line break into ${t.app}`, `it has ${lineBreak}`, signal);
-        const r = await cua.call("type_text", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, text: input.text, delivery_mode: "background" }, signal, t.generation);
+        const r = await cua.call("type_text", { pid: t.pid, window_id: t.windowId, element_token: el.element_token, text: input.text, delivery_mode: modeOf(input) }, signal, t.generation);
         checkResult(r, "Typing", t.app);
         t.justTyped = isSearchField(el.label, el.role); // Return may follow without a card only in a search or address field
         return `Typed ${input.text.length} characters into [${el.element_index}].${verdict(r, `type:${el.element_index}`)}`;
@@ -382,7 +395,8 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         if (why) await ask(`Press ${keys.join("+")} in ${t.app}`, `it uses ${why}`, signal);
         const key = keys[keys.length - 1];
         const mods = keys.slice(0, -1);
-        const r = await cua.call(mods.length ? "hotkey" : "press_key", mods.length ? { pid: t.pid, window_id: t.windowId, keys, delivery_mode: "background" } : { pid: t.pid, window_id: t.windowId, key, delivery_mode: "background" }, signal, t.generation);
+        const delivery_mode = modeOf(input);
+        const r = await cua.call(mods.length ? "hotkey" : "press_key", mods.length ? { pid: t.pid, window_id: t.windowId, keys, delivery_mode } : { pid: t.pid, window_id: t.windowId, key, delivery_mode }, signal, t.generation);
         checkResult(r, "Key press", t.app);
         t.justTyped = false;
         return `Pressed ${keys.join("+")}.${verdict(r, `key:${keys.join("+")}`)}`;
@@ -403,7 +417,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         const direction = String(input.direction ?? "down");
         if (!["up", "down", "left", "right"].includes(direction)) throw new Refused("direction must be up, down, left or right.");
         const el = input.element === undefined ? undefined : pick(t, input.element);
-        const r = await cua.call("scroll", { pid: t.pid, window_id: t.windowId, direction, amount: 5, by: "line", ...(el ? { element_token: el.element_token } : {}), delivery_mode: "background" }, signal, t.generation);
+        const r = await cua.call("scroll", { pid: t.pid, window_id: t.windowId, direction, amount: 5, by: "line", ...(el ? { element_token: el.element_token } : {}), delivery_mode: modeOf(input) }, signal, t.generation);
         checkResult(r, "Scroll", t.app);
         t.justTyped = false;
         return `Scrolled ${direction}.${verdict(r, `scroll:${direction}:${input.element ?? ""}`)}`;
@@ -433,7 +447,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
     spec: {
       name: "computer",
       description:
-        "Controls apps on the user's Mac in the background. Use `status` to check driver readiness/timing and, read-only, the driver's Accessibility and Screen Recording permissions without reading desktop content. After a driver failure, look again; never automatically repeat an uncertain action. First `look` at an app to get its numbered elements, then `click`, " +
+        "Controls apps on the user's Mac, in the background by default. Use `status` to check driver readiness/timing and, read-only, the driver's Accessibility and Screen Recording permissions without reading desktop content. After a driver failure, look again; never automatically repeat an uncertain action. First `look` at an app to get its numbered elements, then `click`, " +
         "`type` or `key` using those numbers; look again after anything that changes the window. There is no need to click a field before typing: `type` with its element focuses it. Typed text goes in at the cursor, " +
         "not at the end. Use `open` to start an app. " +
         "Use `set_value` to set a slider, stepper or choice to a value in one step (text holds the value), instead of clicking toward it. " +
@@ -442,7 +456,8 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
         "Use `point` with an element number (and a short label) to show the user where something is: ATOM flies to it. " +
         "Point when the user asks where something is or how to do it, instead of doing it for them. " +
         "ATOM asks the user before sending, buying, deleting or changing anything, and never types passwords. " +
-        "If the user declines, stop and say so.",
+        "If the user declines, stop and say so. " +
+        'Set `mode: "foreground"` on a click, type, key or scroll only when the user asks for it to happen in the foreground (it briefly brings the window to the front), and `mode: "background"` only when they ask for background; otherwise leave it out. Never switch mode by yourself to retry.',
       inputSchema: {
         type: "object",
         properties: {
@@ -453,6 +468,7 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
           look_after: { type: "boolean", description: "After a click, type, key, scroll or set_value: also return the new screen" },
           keys: { type: "array", description: 'Keys to press, last one is the key, e.g. ["cmd","c"] or ["tab"]' },
           direction: { type: "string", description: "up, down, left or right" },
+          mode: { type: "string", description: "background or foreground, only when the user asked, for this click, type, key or scroll" },
         },
         required: ["action"],
       },

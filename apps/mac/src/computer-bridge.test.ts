@@ -232,3 +232,12 @@ test("the agent cursor starts once per computer task and finishes when the task 
   await new Promise((r) => setTimeout(r, 40));
   assert.deepEqual(events, ["start", "finish", "start", "finish"]);
 });
+
+test("input is background until the island sets the foreground default", () => {
+  const bridge = createComputerBridge();
+  assert.equal(bridge.deliveryMode(), "background");
+  bridge.setForeground(true);
+  assert.equal(bridge.deliveryMode(), "foreground");
+  bridge.setForeground(false);
+  assert.equal(bridge.deliveryMode(), "background");
+});

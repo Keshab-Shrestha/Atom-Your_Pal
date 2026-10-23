@@ -23,6 +23,7 @@ public final class IslandSettings {
     static let localApiKey = "atom.api.on"
     /// The user's choice for computer control. Absent: the runtime decides from .env (ATOM_COMPUTER).
     public static let computerOverrideKey = "atom.computer.override"
+    static let computerForegroundKey = "atom.computer.foreground"
     static let notifyOffKey = "atom.notify.off"
     static let followUpKey = "atom.followUp"
     static let petSpotKey = "atom.petSpot"
@@ -175,6 +176,11 @@ public final class IslandSettings {
         didSet { save(localApi, Self.localApiKey) }
     }
 
+    /// Computer input fronts the target window for each action (foreground) instead of acting behind the user's work. Default off.
+    public var computerForeground: Bool {
+        didSet { save(computerForeground, Self.computerForegroundKey) }
+    }
+
     /// ADR-054: the user's choice for computer control, from the switch in Settings → General. Nil until the user uses the
     /// switch; then the app starts the runtime with ATOM_COMPUTER set to it, which wins over .env.
     public var computerOverride: Bool? {
@@ -234,6 +240,7 @@ public final class IslandSettings {
         telegramPush = defaults.object(forKey: Self.telegramPushKey) as? Bool ?? true
         localApi = defaults.bool(forKey: Self.localApiKey)
         computerOverride = defaults.object(forKey: Self.computerOverrideKey) as? Bool
+        computerForeground = defaults.bool(forKey: Self.computerForegroundKey)
         notifyOff = Set(defaults.stringArray(forKey: Self.notifyOffKey) ?? [])
         followUpEnabled = defaults.object(forKey: Self.followUpKey) as? Bool ?? false
         palSize = Self.choice(defaults, Self.palSizeKey, .medium)

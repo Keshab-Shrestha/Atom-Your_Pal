@@ -73,6 +73,8 @@ public enum IslandCommand: Sendable, Equatable {
     case telegramSet(push: Bool)
     /// ADR-098 item 5: Settings' "Local API" switch. The runtime answers with an `api` event.
     case apiSet(on: Bool)
+    /// Settings' "Work in the foreground" switch: the default for computer input. Sent again after every runtime start.
+    case computerMode(foreground: Bool)
     /// Settings' "Regenerate" next to "Copy token": the runtime makes a new token and answers with an `api` event.
     case apiRegenerate
     /// ADR-093: look for the AI tools on this Mac again.
@@ -237,6 +239,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .speechSet: "speech.set"
         case .telegramSet: "telegram.set"
         case .apiSet: "api.set"
+        case .computerMode: "computer.mode"
         case .apiRegenerate: "api.regenerate"
         case .toolsScan: "tools.scan"
         case .chatsList: "chats.list"
@@ -487,6 +490,8 @@ public enum IslandCommand: Sendable, Equatable {
             fields["push"] = push
         case .apiSet(let on):
             fields["on"] = on
+        case .computerMode(let foreground):
+            fields["foreground"] = foreground
         case .speechSet(let reports, let updates, let chime):
             fields["reports"] = reports
             fields["updates"] = updates

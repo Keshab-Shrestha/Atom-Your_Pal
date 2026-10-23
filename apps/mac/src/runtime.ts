@@ -524,6 +524,7 @@ export function createRuntime(
             onStep: (step) => computer.step(step),
             onPoint: (target) => computer.point(target),
             onAction: (event) => log.info("computer.action", { ...event }),
+            deliveryMode: () => computer.deliveryMode(),
           }),
           // ADR-080: a screenshot through Cua (which holds Screen Recording), on request only. Never stored or logged.
           createLookAtScreenTool({ cua, onShot: (shot) => (lastShot = shot), onStep: (step) => computer.step(step) }),

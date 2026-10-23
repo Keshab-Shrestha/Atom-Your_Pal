@@ -295,6 +295,16 @@ struct ComputerSwitchTests {
         first.computerOverride = nil
         #expect(IslandSettings(defaults: suite).computerOverride == nil)
     }
+
+    @MainActor @Test func foregroundIsOffUntilChosenAndIsSentAsComputerMode() {
+        let suite = UserDefaults(suiteName: "atom-computer-\(UUID().uuidString)")!
+        let first = IslandSettings(defaults: suite)
+        #expect(first.computerForeground == false, "background by default")
+        first.computerForeground = true
+        #expect(IslandSettings(defaults: suite).computerForeground == true)
+        #expect(IslandCommand.computerMode(foreground: true).line == #"{"foreground":true,"type":"computer.mode"}"# + "\n")
+        #expect(!DroppedCommand.shouldTell(commandType: "computer.mode"), "the app resends it after every start")
+    }
 }
 
 @Suite("Local API token (2026-10-15)")

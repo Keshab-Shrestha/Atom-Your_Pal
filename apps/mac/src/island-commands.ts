@@ -161,6 +161,8 @@ export type IslandCommand =
   | { type: "helper.pin"; helper: string; model: string }
   | { type: "helper.codex.pin"; helper: string; model: string }
   | { type: "helpers.settings"; allowLarge?: boolean }
+  /** The Settings default for computer input: foreground fronts the target window for each action. */
+  | { type: "computer.mode"; foreground: boolean }
   | { type: "soul.set"; helper: string; soul: SoulItem }
   | { type: "soul.restore"; helper: string; version: number }
   | { type: "quit" };
@@ -276,6 +278,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "helper.pin",
   "helper.codex.pin",
   "helpers.settings",
+  "computer.mode",
   "soul.set",
   "soul.restore",
   "job.block",
@@ -578,6 +581,11 @@ export function parseCommand(line: string): ParsedLine {
     const { allowLarge } = value as { allowLarge?: unknown };
     if (typeof allowLarge !== "boolean") return { error: 'helpers.settings needs "allowLarge" to be true or false.' };
     return { command: { type, allowLarge } };
+  }
+  if (type === "computer.mode") {
+    const { foreground } = value as { foreground?: unknown };
+    if (typeof foreground !== "boolean") return { error: 'computer.mode needs "foreground" to be true or false.' };
+    return { command: { type, foreground } };
   }
   if (type === "soul.set") {
     // Lengths, names and empty fields are the store's to refuse (stage "settings"), as the protocol says.

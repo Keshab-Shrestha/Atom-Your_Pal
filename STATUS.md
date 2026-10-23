@@ -10,7 +10,9 @@ B. Background or foreground. Today every action uses `delivery_mode: "background
 
 A is done (2026-10-23). The bridge enables the agent cursor at the first step of a task. The motion is a near-straight 400 ms glide (`arc_size` 0, `turn_radius` 0, `spring` 1), because the default motion looked like a spiral. When the task ends, the cursor glides to the top center of the main display, near the island, and then hides. `move_cursor` uses the default window scope, so the real mouse does not move. Live check: the Calculator task (12 times 7 is 84) on the main display showed the cursor and the glide back. Cursor errors log `computer.cursor_failed` and do not stop the task. 26 cursor and bridge tests pass.
 
-Next: B.
+B is built (2026-10-23), not yet checked live. Settings → General → Computer control has a new switch, "Work in the foreground" (default off). The island sends `computer.mode` after every runtime start and on each change, so no restart is needed. The computer tool reads the default at each click, type, key and scroll. A request can override it with `mode` ("background" or "foreground"). The model sets `mode` only when the user asks; it never switches mode by itself to retry. An unknown mode is refused before anything reaches Cua. `set_value` has no delivery mode in the driver and is unchanged. Foreground uses Cua's `delivery_mode: "foreground"`: it briefly fronts the window, acts, and then gives focus back to the app that was in front. Tests: 79 tool tests, bridge and protocol tests, 1220 TypeScript tests, and 792 Swift tests pass; typecheck passes; goldens are within tolerance.
+
+Committed without a live check, at Keshab's request. Next: a live check of the foreground mode on Calculator.
 
 ## Current capability — Computer control 4/4: visible current step (2026-10-23)
 

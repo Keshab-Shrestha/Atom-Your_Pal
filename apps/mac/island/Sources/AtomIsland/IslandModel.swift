@@ -1024,6 +1024,7 @@ final class IslandModel {
             computerTimeout?.cancel()
             send(.telegramSet(push: settings.telegramPush))
             send(.apiSet(on: settings.localApi)) // ADR-098 item 5
+            send(.computerMode(foreground: settings.computerForeground))
             if memory != nil { send(.memoryList) } // a restarted runtime: ask again so updates keep coming
             if suggestions.asked { send(.suggestionsGet) }
             if dailyBrief.asked { send(.briefGet) }

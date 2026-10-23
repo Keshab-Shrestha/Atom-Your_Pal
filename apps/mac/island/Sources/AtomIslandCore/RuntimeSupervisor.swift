@@ -357,7 +357,7 @@ public enum DroppedCommand {
 
     /// Commands the app sends by itself (right after `ready`, and reads): losing one is harmless, because they go out again at the next
     /// `ready`, so the user is not told. Everything else is something the user did (a typed prompt, a save, a switch).
-    private static let automatic: Set<String> = ["telegram.set", "api.set", "speech.set", "tools.scan", "quit"]
+    private static let automatic: Set<String> = ["telegram.set", "api.set", "computer.mode", "speech.set", "tools.scan", "quit"]
 
     public static func shouldTell(commandType type: String) -> Bool {
         !(automatic.contains(type) || type.hasSuffix(".list") || type.hasSuffix(".get"))

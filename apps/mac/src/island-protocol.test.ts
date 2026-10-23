@@ -183,6 +183,8 @@ test("parses the helper commands", () => {
     { type: "helper.pin", helper: "sid", model: "not-offered" }, // refused later by the helpers, with stage "settings"
     { type: "helpers.settings", allowLarge: false },
     { type: "helpers.settings", allowLarge: true },
+    { type: "computer.mode", foreground: true },
+    { type: "computer.mode", foreground: false },
     { type: "soul.set", helper: "sid", soul: { name: "Sid", personality: "Curious.", howItWorks: "", rules: "", lessons: "" } },
     { type: "soul.set", helper: "sid", soul: { name: "", personality: "", howItWorks: "", rules: "", lessons: "" } }, // the store refuses
     { type: "soul.restore", helper: "sid", version: 2 },
@@ -264,6 +266,8 @@ test("helper commands with missing or wrong fields are protocol errors", () => {
     [{ type: "helper.pin", helper: "sid" }, /"model"/],
     [{ type: "helper.pin", helper: "sid", model: null }, /"model"/],
     [{ type: "helpers.settings" }, /"allowLarge"/],
+    [{ type: "computer.mode" }, /"foreground"/],
+    [{ type: "computer.mode", foreground: "yes" }, /"foreground"/],
     [{ type: "helpers.settings", allowLarge: "false" }, /"allowLarge"/],
     [{ type: "helpers.settings", maxRunning: 6 }, /"allowLarge"/], // ADR-110 N4: no "Runs at once"
     [{ type: "helper.budget", helper: "sid", cap: 2 }, /./], // ADR-110 N4: an unknown command now

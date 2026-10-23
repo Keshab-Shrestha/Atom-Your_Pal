@@ -42,7 +42,7 @@ function fakeCua(handlers: Record<string, (args: any) => CuaResult> = {}) {
   return { cua, calls, restart: () => generation++ };
 }
 
-function setup(opts: { probe?: () => Promise<CuaReadiness>; point?: (p: { x: number; y: number; w: number; h: number; label: string }) => void; approve?: (r: ApprovalRequest) => boolean | Promise<boolean>; handlers?: Record<string, (a: any) => CuaResult> } = {}) {
+function setup(opts: { mode?: () => "background" | "foreground"; probe?: () => Promise<CuaReadiness>; point?: (p: { x: number; y: number; w: number; h: number; label: string }) => void; approve?: (r: ApprovalRequest) => boolean | Promise<boolean>; handlers?: Record<string, (a: any) => CuaResult> } = {}) {
   const { cua, calls, restart } = fakeCua(opts.handlers);
   if (opts.probe) cua.probe = opts.probe;
   const asked: ApprovalRequest[] = [];
@@ -55,6 +55,7 @@ function setup(opts: { probe?: () => Promise<CuaReadiness>; point?: (p: { x: num
     },
     onAction: (e) => logs.push(e),
     ...(opts.point ? { onPoint: opts.point } : {}),
+    ...(opts.mode ? { deliveryMode: opts.mode } : {}),
   });
   const run = (input: Record<string, unknown>, signal?: AbortSignal) => Promise.resolve(tool.run(input, signal)).then((text) => ({ ok: true as const, text }), (e: Error) => ({ ok: false as const, text: e.message }));
   return { tool, run, calls, asked, logs, restart };
@@ -905,4 +906,28 @@ test("helper restart invalidates numbered elements, including while approval is 
   assert.match(r.text, /session changed; no input was sent/);
   assert.equal(duringApproval.calls.some((call) => call.name === "click"), false);
   assert.match((await duringApproval.run({ action: "type", element: 1, text: "hello" })).text, /Look at an app first/);
+});
+
+test("input follows the Settings default, and a request's own mode wins over it", async () => {
+  let setting: "background" | "foreground" = "foreground";
+  const s = setup({ mode: () => setting });
+  await sees(s);
+  await s.run({ action: "click", element: 2 });
+  await s.run({ action: "type", element: 1, text: "hi" });
+  await s.run({ action: "key", keys: ["tab"] });
+  await s.run({ action: "key", keys: ["cmd", "b"], mode: "background" });
+  setting = "background";
+  await s.run({ action: "scroll", direction: "down" });
+  await s.run({ action: "scroll", direction: "up", mode: "foreground" });
+  const modes = s.calls.filter((c) => ["click", "type_text", "press_key", "hotkey", "scroll"].includes(c.name)).map((c) => `${c.name}:${c.args.delivery_mode}`);
+  assert.deepEqual(modes, ["click:foreground", "type_text:foreground", "press_key:foreground", "hotkey:background", "scroll:background", "scroll:foreground"]);
+});
+
+test("an unknown mode is refused before anything reaches Cua", async () => {
+  const s = setup();
+  await sees(s);
+  const r = await s.run({ action: "click", element: 2, mode: "sideways" });
+  assert.equal(r.ok, false);
+  assert.match(r.text, /mode must be/);
+  assert.equal(s.calls.some((c) => c.name === "click"), false);
 });

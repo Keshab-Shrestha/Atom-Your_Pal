@@ -944,6 +944,9 @@ export function runIsland(options: IslandOptions): IslandSession {
           helpers.pinCodex(command.helper, command.model);
         });
         return;
+      case "computer.mode":
+        options.computer?.setForeground(command.foreground);
+        return;
       case "helpers.settings":
         changeHelpers(command.type, (helpers) => {
           if (command.allowLarge !== undefined) helpers.setAllowLarge(command.allowLarge);
