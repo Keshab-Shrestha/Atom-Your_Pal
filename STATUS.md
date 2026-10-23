@@ -1,5 +1,9 @@
 # ZENO Project Status
 
+## Current capability — Contextual drafting: reviewed Insert (2026-10-23)
+
+The reply-draft panel now has an explicit "Insert into ‹App›" button. It is enabled only for a finished draft while the source app runs. It inserts at that app's cursor through ATOM's existing inserter: a password field gets the clipboard instead, and nothing is ever sent or Return pressed. A selection guard refuses to overwrite selected text. Two new core tests; Swift tests pass; release build passes; goldens unchanged. Live check with Keshab: the guard refused while the source line was selected, and Insert placed the draft at the cursor with the original line intact and nothing sent. See [contextual reply drafts](docs/contextual-reply-drafts.md).
+
 ## Current step — R3 first pass: context and cache from existing usage (2026-10-22)
 
 Existing usage rows show a fixed prefix of about 10.3k tokens. It is identical across chats and restarts. Follow-ups cache correctly, and cache misses come from the 1-hour TTL. The "16,700-token first turn" was a turn that reused a stopped attempt. Found and fixed one bookkeeping defect: after a resume, `dollars_sdk` counted the whole restored session. `session.open` now logs system-prompt and ATOM tool-schema byte sizes to attribute the prefix. Typecheck passes; no local tests ran, as requested. A live turn after restart confirms the fix and logs 3,164 system-prompt bytes and 17,721 ATOM tool-schema bytes: about 5.2k of the ~10.3k-token prefix is ATOM's own. Only about half the prefix is cached across chats. PR #1 and PR #2 are merged; PR #3 carries this work. Details are in the [plan](docs/sentient-parity-release-plan.md) under R3.

@@ -75,6 +75,10 @@ struct ReplyDraftPane: View {
     let session: ReplyDraftSession
     let source: QuickText
     let close: () -> Void
+    /// Insert into the app the draft came from; absent where there is no captured app (the gallery).
+    var insertTarget: String? = nil
+    var insertRunning: () -> Bool = { false }
+    var insert: ((String) async -> String)? = nil
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
     private func binding(_ path: ReferenceWritableKeyPath<ReplyDraftSession, String>) -> Binding<String> {
@@ -150,6 +154,13 @@ struct ReplyDraftPane: View {
                     NSPasteboard.general.clearContents()
                     session.message = NSPasteboard.general.setString(session.draft, forType: .string) ? "Copied. Paste and send it yourself when ready." : "The clipboard could not be updated. Select and copy the draft manually."
                 }.disabled(!session.hasDraft || session.draft.isEmpty || session.draftID != nil)
+                if let insert, let insertTarget {
+                    let rule = ReplyInsertRule.button(appName: insertTarget, appRunning: insertRunning(), draft: session.draft, ready: session.hasDraft && session.draftID == nil)
+                    PillButton(title: rule.title, symbol: "text.insert") {
+                        let draft = session.draft
+                        Task { @MainActor in session.message = await insert(draft) }
+                    }.disabled(!rule.enabled)
+                }
             }
         }
         .padding(16).frame(width: 560, height: 660)

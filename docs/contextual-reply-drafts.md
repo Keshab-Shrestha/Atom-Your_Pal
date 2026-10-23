@@ -33,3 +33,24 @@ Only one contextual draft runs at a time in the host. Cancellation/close/runtime
 ## Evidence
 
 TypeScript checking, the ordinary TypeScript/Swift suites, focused protocol/source/profile/cancellation fixtures, isolated actual Claude/Codex output contracts, release compilation and the new local gallery scenes pass in the combined gate. The signed app is running. The physical shortcut/panel handoff succeeds after correcting a reopen handler that forced the main window forward. In the real Claude/Opus 5.5 panel, reviewed intent/background and opt-in unsaved fictional examples produce an editable reply; Copy matches a separate manual paste, and explicit Cancel preserves the earlier draft and attribution. Close returns to the preserved main chat. No existing chat/note/grant or saved-example preference changes. Native explicit authored-note selection/exact excerpt/removal and stale-revision refusal now pass using one owned fictional note. Explicit Save persists fictional examples without opting them in. Full restart preserves their exact text in the panel with inclusion Off, while transient inputs, selections and draft reset. With explicit approval, Forget removes the sample preference and the owned fictional note is permanently deleted; all 31 original application tables match the pre-fixture hashes. Cleanup exposed a separate stale note-search row after deletion, cleared by re-entering the query; this UI refresh issue remains open. Imported-source provenance UI, Codex panel interaction and broader keyboard/IME/accessibility remain to verify. No real writing examples, private conversation/source or saved permission is changed for these fixtures. The [case checklist](sentient-adoption-validation.md) remains broader than the [recorded evidence](sentient-adoption-results.md); this is not full release acceptance.
+
+
+## Reviewed Insert (23 October 2026)
+
+Keshab chose a reviewed Insert as the first drafting improvement. This changes the earlier Copy-only contract.
+
+- The panel keeps the app that was in front when the Quick actions shortcut was pressed. A new **Insert into ‹App›** button sits next to Copy draft.
+- The button works only for a finished, non-empty draft that is not being regenerated, and only while that app still runs. If the app has quit, nothing is inserted and the panel says to use Copy draft.
+- Insert uses ATOM's existing text inserter, the same one dictation and Quick actions replace use. It brings the app forward and puts the draft at the focused field's cursor through the Accessibility selected-text value; the clipboard paste is the fallback. A password field (`AXSecureTextField`) gets the clipboard instead, and nothing is inserted.
+- Insert never presses Return, chooses a recipient or sends. The reply says "Inserted into ‹App› at its cursor. Nothing was sent". The panel stays open.
+
+Limit: the destination is the focused field in that app at the moment of Insert, not a stored element binding. If the user moves focus in that app, the draft goes to the new focus. The button names the app, not the field.
+
+Selection guard: Insert writes the field's selected-text value, which replaces a selection. If text is selected in the destination app, Insert refuses ("Text is selected in ‹App›; Insert would replace it. Click where the reply should go, then Insert again. Nothing was inserted.").
+
+Checks: two new core tests (`ReplyInsertRule`); all Swift tests pass; the release app builds; no gallery golden changed.
+
+Live check, 23 October, with Keshab pressing the Quick actions shortcut in a new TextEdit document and fictional text ("Mira: Can you bring the blue kettle to the Cedar studio on Friday?"):
+- With the Mira line still selected, Insert refused with the selection message, and nothing was inserted.
+- With the cursor on an empty line below, Insert placed the draft at the cursor. The Mira line stayed intact, and nothing was sent.
+- Observation, separate from Insert: the draft said "Let me check my Friday plans… I'll confirm soon" rather than a clear yes. Whether this matched the typed intent was not confirmed.

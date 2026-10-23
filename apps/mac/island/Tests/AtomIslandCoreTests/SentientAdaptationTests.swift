@@ -85,4 +85,20 @@ struct SentientAdaptationTests {
         #expect(try entry("template", "failed")?.plainReason == "the model was not available")
         #expect(try entry("template", nil)?.plainReason == "the model was not available")
     }
+
+    @Test func theInsertButtonNamesTheAppAndWaitsForAFinishedDraftWhileTheAppRuns() {
+        #expect(ReplyInsertRule.button(appName: "Notes", appRunning: true, draft: "See you Friday.", ready: true) == ("Insert into Notes", true))
+        #expect(ReplyInsertRule.button(appName: "Notes", appRunning: false, draft: "See you Friday.", ready: true).enabled == false)
+        #expect(ReplyInsertRule.button(appName: "Notes", appRunning: true, draft: "  \n", ready: true).enabled == false)
+        #expect(ReplyInsertRule.button(appName: "Notes", appRunning: true, draft: "See you Friday.", ready: false).enabled == false)
+        #expect(ReplyInsertRule.button(appName: "", appRunning: true, draft: "Hi", ready: true).title == "Insert into the app")
+    }
+
+    @Test func insertRefusesToReplaceASelection() {
+        #expect(ReplyInsertRule.selectionBlock(selected: nil, appName: "TextEdit") == nil)
+        #expect(ReplyInsertRule.selectionBlock(selected: "", appName: "TextEdit") == nil)
+        let block = ReplyInsertRule.selectionBlock(selected: "Mira: Friday?", appName: "TextEdit")
+        #expect(block?.contains("would replace it") == true)
+        #expect(block?.contains("Nothing was inserted") == true)
+    }
 }
