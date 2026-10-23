@@ -84,6 +84,7 @@ export interface BriefSettingsItem {
   spoken: boolean;
   preparation?: boolean;
   preparationDailyLimit?: number;
+  preparationNoteIds?: number[];
 }
 
 /** One conversation summary (ADR-059). Travels only over the private pipe; never logged. */

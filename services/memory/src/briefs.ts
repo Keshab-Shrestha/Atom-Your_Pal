@@ -29,6 +29,8 @@ export interface BriefSettings {
   /** Opt-in read-only prepared cards; shares this brief's selected sources and schedule. */
   preparation?: boolean;
   preparationDailyLimit?: number;
+  /** Explicit note IDs for private preparation only; never ordinary brief delivery. */
+  preparationNoteIds?: number[];
 }
 
 export const DEFAULT_BRIEF_SETTINGS: BriefSettings = {
@@ -44,6 +46,7 @@ export const DEFAULT_BRIEF_SETTINGS: BriefSettings = {
   spoken: false,
   preparation: false,
   preparationDailyLimit: 2,
+  preparationNoteIds: [],
 };
 
 export interface Brief {
@@ -127,17 +130,18 @@ export function openBriefs(db: DatabaseSync, now: () => Date): Briefs {
 
   const settings = (): BriefSettings => {
     const row = read.get() as { value: string } | undefined;
-    if (!row) return { ...DEFAULT_BRIEF_SETTINGS };
+    if (!row) return { ...DEFAULT_BRIEF_SETTINGS, preparationNoteIds: [] };
     try {
       const saved = JSON.parse(row.value) as Partial<BriefSettings>;
       // A value that is not allowed reads as the default: a damaged row never stops the brief.
-      const out = { ...DEFAULT_BRIEF_SETTINGS };
+      const out = { ...DEFAULT_BRIEF_SETTINGS, preparationNoteIds: [] as number[] };
       for (const key of FLAGS) if (typeof saved[key] === "boolean") out[key] = saved[key] as boolean;
       if (Number.isInteger(saved.minute) && saved.minute! >= 0 && saved.minute! < 1440) out.minute = saved.minute!;
       if (Number.isInteger(saved.preparationDailyLimit) && saved.preparationDailyLimit! >= 1 && saved.preparationDailyLimit! <= 5) out.preparationDailyLimit = saved.preparationDailyLimit;
+      if (Array.isArray(saved.preparationNoteIds) && saved.preparationNoteIds.length <= 12 && saved.preparationNoteIds.every((id) => Number.isSafeInteger(id) && id > 0)) out.preparationNoteIds = [...new Set(saved.preparationNoteIds)];
       return out;
     } catch {
-      return { ...DEFAULT_BRIEF_SETTINGS };
+      return { ...DEFAULT_BRIEF_SETTINGS, preparationNoteIds: [] };
     }
   };
 
@@ -159,6 +163,11 @@ export function openBriefs(db: DatabaseSync, now: () => Date): Briefs {
       if (change.preparationDailyLimit !== undefined) {
         if (!Number.isInteger(change.preparationDailyLimit) || change.preparationDailyLimit < 1 || change.preparationDailyLimit > 5) throw new BriefError("Preparation allows one to five model attempts per local day.");
         next.preparationDailyLimit = change.preparationDailyLimit;
+      }
+      if (change.preparationNoteIds !== undefined) {
+        const ids = change.preparationNoteIds;
+        if (!Array.isArray(ids) || ids.length > 12 || ids.some((id) => !Number.isSafeInteger(id) || id <= 0) || new Set(ids).size !== ids.length) throw new BriefError("Choose up to twelve distinct saved notes for preparation.");
+        next.preparationNoteIds = [...ids];
       }
       write.run(JSON.stringify(next));
       changed();

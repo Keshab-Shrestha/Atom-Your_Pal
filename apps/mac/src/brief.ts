@@ -1,4 +1,5 @@
-import type { Brief, BriefPreparation, BriefSettings, Briefs } from "@atom/memory";
+import type { Brief, BriefPreparation, BriefSettings, Briefs, PreparationSource } from "@atom/memory";
+import type { PreparationSelection } from "./preparation-notes.ts";
 import { isBriefDue, localDay } from "./brief-due.ts";
 import { dataText, gatherBrief, type BriefData, type BriefPartKey, type BriefSources } from "./brief-gather.ts";
 
@@ -46,7 +47,10 @@ export interface BriefRunnerOptions {
   /** The model run: lines from the job text. Rejects when the model is not available. */
   write(task: string, signal: AbortSignal): Promise<string[]>;
   canPrepare?(): boolean;
-  prepare?(data: BriefData, at: Date, signal: AbortSignal): Promise<{ lines: string[]; preparation: BriefPreparation }>;
+  preparationSources?(settings: BriefSettings, at: Date): PreparationSelection;
+  /** Uses the same selected preparation provider, with day data only. Never fall back to the legacy provider for private-note work. */
+  writePreparationBrief?(data: BriefData, at: Date, signal: AbortSignal): Promise<string[]>;
+  prepare?(data: BriefData, at: Date, signal: AbortSignal, notes?: readonly PreparationSource[]): Promise<{ lines: string[]; preparation: BriefPreparation }>;
   onState?(running: boolean, notice?: string): void;
   /** A brief was saved: speak it, send it to Telegram, as the settings say. Must not throw into the runner. */
   deliver?(brief: Brief, settings: BriefSettings, reason: "scheduled" | "manual"): void;
@@ -86,28 +90,44 @@ export function createBriefRunner(options: BriefRunnerOptions): BriefRunner {
       if (settings.preparation) options.onState?.(true, "Some selected sources could not be read. Preparation uses available excerpts only.");
     }, controller.signal);
     controller.signal.throwIfAborted();
+    const selection = settings.preparation ? options.preparationSources?.(settings, at) : undefined;
+    const noteSources = selection?.sources ?? [];
+    const fallbackLines = () => noteSources.length && !data.parts.length ? ["No items were available from the selected brief categories."] : templateBrief(data);
+    let ordinary: { lines: string[]; source: "model" | "template" } | undefined;
     let lines: string[];
     let preparation: BriefPreparation | undefined;
     let source: Brief["source"] = "model";
-    if (!data.parts.length) {
-      lines = settings.preparation ? ["No usable source excerpts were available for preparation."] : templateBrief(data);
+    if (!data.parts.length && !noteSources.length) {
+      lines = settings.preparation ? ["No usable source excerpts were available for preparation."] : fallbackLines();
       source = "template";
       if (settings.preparation) preparation = { status: skippedSource ? "failed" : "empty", cards: [] };
     } else if (settings.preparation) {
       if (!options.prepare || !options.canPrepare?.()) {
-        lines = templateBrief(data); source = "template";
+        lines = fallbackLines(); source = "template";
         preparation = { status: "failed", cards: [] };
       } else if (!briefs.reservePreparation?.(localDay(at, timeZone))) {
-        lines = templateBrief(data); source = "template";
+        lines = fallbackLines(); source = "template";
         preparation = { status: "budget", cards: [] };
       } else {
         try {
-          const result = await options.prepare(data, at, AbortSignal.any([controller.signal, AbortSignal.timeout(Math.min(timeoutMs, 90_000))]));
-          lines = result.lines; preparation = result.preparation;
+          const prepareSignal = AbortSignal.any([controller.signal, AbortSignal.timeout(Math.min(timeoutMs, 90_000))]);
+          if (selection && !selection.valid()) throw new Error("Selected preparation notes changed.");
+          if (noteSources.length) {
+            // Knowledge is private to cards. The ordinary brief uses a separate note-free request so its delivery cannot leak notes.
+            ordinary = { lines: data.parts.length ? fallbackLines() : ["No items were available from the selected brief categories."], source: "template" };
+            if (data.parts.length && options.writePreparationBrief) {
+              try { ordinary = { lines: await options.writePreparationBrief(data, at, prepareSignal), source: "model" }; }
+              catch { prepareSignal.throwIfAborted(); log?.warn("brief.model_failed", {}); }
+            }
+          }
+          if (selection && !selection.valid()) throw new Error("Selected preparation notes changed.");
+          const result = await options.prepare(data, at, prepareSignal, noteSources);
+          if (selection && !selection.valid()) throw new Error("Selected preparation notes changed.");
+          lines = ordinary?.lines ?? result.lines; source = ordinary?.source ?? "model"; preparation = result.preparation;
         } catch {
           controller.signal.throwIfAborted();
           log?.warn("brief.preparation_failed", {});
-          lines = templateBrief(data); source = "template";
+          lines = ordinary?.lines ?? fallbackLines(); source = ordinary?.source ?? "template";
           preparation = { status: "failed", cards: [] };
         }
       }
@@ -116,7 +136,7 @@ export function createBriefRunner(options: BriefRunnerOptions): BriefRunner {
         lines = await write(briefTask(data, at, timeZone), AbortSignal.any([controller.signal, AbortSignal.timeout(timeoutMs)]));
       } catch (error) {
         log?.warn("brief.model_failed", { error: error instanceof Error ? error.name : typeof error });
-        lines = templateBrief(data);
+        lines = fallbackLines();
         source = "template";
       }
     }

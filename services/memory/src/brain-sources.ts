@@ -3,7 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { Brain, BrainNote } from "./brain.ts";
 
 export interface SourceFile { path: string; title: string; body: string; hash: string }
-export interface SourceFolder { id: string; path: string; identity: string; checkedAt: string; skipped: number }
+export interface SourceFolder { id: string; path: string; identity: string; checkedAt: string; skipped: number; documents?: boolean }
 export interface NoteSource {
   path: string; relativePath: string; checkedAt: string;
   state: "current" | "corrected" | "conflict" | "missing";
@@ -18,7 +18,7 @@ export interface BrainSources {
   summary(): SourceSummary;
   note(id: number): NoteSource | undefined;
   /** Applies a complete bounded scan atomically. Source files are never written. */
-  apply(folder: { path: string; identity: string }, files: readonly SourceFile[], skipped: number, restore?: number): void;
+  apply(folder: { path: string; identity: string; documents?: boolean }, files: readonly SourceFile[], skipped: number, restore?: number): void;
   /** A local delete is a lasting exclusion while this folder remains connected. */
   exclude(id: number): boolean;
   disconnect(): void;
@@ -40,9 +40,12 @@ export function openBrainSources(db: DatabaseSync, brain: Brain, now: () => Date
     );
     CREATE INDEX IF NOT EXISTS brain_source_note ON brain_source_files(note_id);
   `);
+  // Keep the original folder table shape compatible with older runtimes. New format scope is separate metadata only.
+  db.exec("CREATE TABLE IF NOT EXISTS brain_source_formats (source_id TEXT PRIMARY KEY, documents INTEGER NOT NULL DEFAULT 0 CHECK(documents IN (0, 1)))");
+  db.exec("DELETE FROM brain_source_formats WHERE source_id NOT IN (SELECT id FROM brain_source_folder)");
   const folder = (): SourceFolder | undefined => {
-    const row = db.prepare("SELECT id, path, identity, checked_at AS checkedAt, skipped FROM brain_source_folder WHERE singleton = 1").get();
-    return row as unknown as SourceFolder | undefined;
+    const row = db.prepare("SELECT f.id, f.path, f.identity, f.checked_at AS checkedAt, f.skipped, s.documents FROM brain_source_folder f LEFT JOIN brain_source_formats s ON s.source_id = f.id WHERE f.singleton = 1").get();
+    return row ? { ...row, documents: row.documents === 1 } as unknown as SourceFolder : undefined;
   };
   const items = () => db.prepare("SELECT * FROM brain_source_files ORDER BY path").all() as unknown as Item[];
   const find = (id: number) => db.prepare("SELECT * FROM brain_source_files WHERE note_id = ? AND excluded = 0").get(id) as Item | undefined;
@@ -79,12 +82,13 @@ export function openBrainSources(db: DatabaseSync, brain: Brain, now: () => Date
     },
     apply(input, files, skipped, restore) {
       const previous = folder();
-      if (previous && (previous.path !== input.path || previous.identity !== input.identity)) throw new Error("The connected folder changed. Remove it and preview the intended folder again.");
+      if (previous && (previous.path !== input.path || previous.identity !== input.identity || Boolean(previous.documents) !== Boolean(input.documents))) throw new Error("The connected folder changed. Remove it and preview the intended folder again.");
       if (restore !== undefined && (!find(restore) || !files.some((file) => file.path === find(restore)!.path))) throw new Error("That source file is missing or was skipped. Its local correction was kept.");
       transaction(() => {
         const id = previous?.id ?? randomUUID();
-        db.prepare("INSERT INTO brain_source_folder VALUES (1, ?, ?, ?, ?, ?) ON CONFLICT(singleton) DO UPDATE SET checked_at = excluded.checked_at, skipped = excluded.skipped")
+        db.prepare("INSERT INTO brain_source_folder (singleton, id, path, identity, checked_at, skipped) VALUES (1, ?, ?, ?, ?, ?) ON CONFLICT(singleton) DO UPDATE SET checked_at = excluded.checked_at, skipped = excluded.skipped")
           .run(id, input.path, input.identity, now().toISOString(), skipped);
+        db.prepare("INSERT INTO brain_source_formats VALUES (?, ?) ON CONFLICT(source_id) DO UPDATE SET documents = excluded.documents").run(id, input.documents ? 1 : 0);
         const before = new Map(items().map((item) => [item.path, item]));
         db.prepare("UPDATE brain_source_files SET observed_hash = NULL").run();
         for (const file of files) {
@@ -124,6 +128,7 @@ export function openBrainSources(db: DatabaseSync, brain: Brain, now: () => Date
         for (const item of items()) if (!item.excluded && item.note_id !== null) brain.remove(item.note_id);
         db.prepare("DELETE FROM brain_source_files").run();
         db.prepare("DELETE FROM brain_source_folder").run();
+        db.prepare("DELETE FROM brain_source_formats").run();
       });
     },
   };

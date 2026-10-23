@@ -12,6 +12,7 @@ public struct BrainSourceFolder: Codable, Sendable, Equatable {
     public var identity: String
     public var checkedAt: String
     public var skipped: Int
+    public var documents: Bool?
 }
 public struct BrainSourceSummary: Codable, Sendable, Equatable {
     public var folder: BrainSourceFolder?

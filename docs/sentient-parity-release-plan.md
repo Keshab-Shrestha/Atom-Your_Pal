@@ -198,3 +198,7 @@ Maintain one row per capability with: ATOM commit, referenced Sentient feature I
 **R1 confirmed (22 October):** PR #1 run 39763844330 passes all jobs; the Terminal scenes now differ by 0.006% and 0.004% on the hosted runner. Original diagnosis: Run 39759609477 fails only two Terminal scenes (1.877% and 1.378%); the hosted render is deterministic and every text line below the empty-state icon sits 1 device pixel higher than on this Mac (macOS 26 runner, macOS 27 here). The icon's layout box is now fixed in the Terminal and Browser views; local renders still equal the goldens and no scene or tolerance changed. R1 closes only when the `visual` job passes on the pushed revision. See [STATUS.md](../STATUS.md).
 
 **R0 and R1 closed (22 October):** PR #1 merged into main as `808f814` with all required jobs green.
+
+## 23 October everyday-use increment
+
+The user selected PDF/Word folders and sourced suggestions. [Implemented scope and remaining acceptance](everyday-assistant-polish.md) records denser chat, progressive reply-draft disclosure, pinned computer observations, bounded native PDF/DOCX readers and explicit saved-note preparation. These advance the personal-source/discovery gaps; account sources, automatic discovery/research/execution and a new live latency benchmark remain open. Existing connected folders are not widened silently, and local models remain explicit backup only. This increment does not certify full parity or release readiness.

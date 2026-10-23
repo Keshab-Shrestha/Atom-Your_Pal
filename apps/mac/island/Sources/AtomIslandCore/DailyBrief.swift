@@ -19,7 +19,8 @@ public struct BriefEntry: Sendable, Equatable, Identifiable {
     public var plainReason: String? {
         guard isPlain else { return nil }
         switch preparation?.status {
-        case "empty": return "no usable source excerpts"
+        case "empty": return "no brief items or supported preparation"
+        case "ready": return "ordinary brief kept separate from private preparation"
         case "budget": return "today's preparation budget is used"
         default: return "the model was not available"
         }
@@ -49,6 +50,7 @@ public struct BriefSettings: Sendable, Equatable {
     public var spoken = false
     public var preparation = false
     public var preparationDailyLimit = 2
+    public var preparationNoteIds: [Int] = []
 
     public init() {}
 
@@ -80,9 +82,10 @@ public struct BriefSettingsChange: Sendable, Equatable {
     public var spoken: Bool?
     public var preparation: Bool?
     public var preparationDailyLimit: Int?
+    public var preparationNoteIds: [Int]?
 
     public init(enabled: Bool? = nil, minute: Int? = nil, events: Bool? = nil, reminders: Bool? = nil, weather: Bool? = nil, tasks: Bool? = nil,
-                needsYou: Bool? = nil, notify: Bool? = nil, telegram: Bool? = nil, spoken: Bool? = nil, preparation: Bool? = nil, preparationDailyLimit: Int? = nil) {
+                needsYou: Bool? = nil, notify: Bool? = nil, telegram: Bool? = nil, spoken: Bool? = nil, preparation: Bool? = nil, preparationDailyLimit: Int? = nil, preparationNoteIds: [Int]? = nil) {
         self.enabled = enabled
         self.minute = minute
         self.events = events
@@ -95,6 +98,7 @@ public struct BriefSettingsChange: Sendable, Equatable {
         self.spoken = spoken
         self.preparation = preparation
         self.preparationDailyLimit = preparationDailyLimit
+        self.preparationNoteIds = preparationNoteIds
     }
 
     /// The JSON object for the command.
@@ -112,6 +116,7 @@ public struct BriefSettingsChange: Sendable, Equatable {
         if let spoken { out["spoken"] = spoken }
         if let preparation { out["preparation"] = preparation }
         if let preparationDailyLimit { out["preparationDailyLimit"] = preparationDailyLimit }
+        if let preparationNoteIds { out["preparationNoteIds"] = preparationNoteIds }
         return out
     }
 }

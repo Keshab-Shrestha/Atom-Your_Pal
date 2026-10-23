@@ -34,10 +34,11 @@ public enum IslandCommand: Sendable, Equatable {
     case briefGet
     case briefRun
     case briefSet(change: BriefSettingsChange)
+    case briefNote(id: Int, included: Bool)
     /// The second brain: the graph (and its changes from then on), one note, a save (`id` nil: a new note; else a change or rename),
     /// a delete, a search.
     case brainGet
-    case brainSource(request: String, action: String, path: String?, token: String?, id: Int?)
+    case brainSource(request: String, action: String, path: String?, token: String?, id: Int?, documents: Bool? = nil)
     case sourceAnalysis(SourceAnalysisRequest)
     case localBackup(LocalBackupRequest)
     case brainNote(id: Int)
@@ -216,6 +217,7 @@ public enum IslandCommand: Sendable, Equatable {
         case .briefGet: "brief.get"
         case .briefRun: "brief.run"
         case .briefSet: "brief.set"
+        case .briefNote: "brief.note"
         case .brainGet: "brain.get"
         case .brainSource: "brain.source"
         case .sourceAnalysis: "source.analysis"
@@ -372,6 +374,8 @@ public enum IslandCommand: Sendable, Equatable {
             fields["enabled"] = enabled // a real JSON boolean
         case .briefSet(let change):
             fields["change"] = change.fields
+        case .briefNote(let id, let included):
+            fields["id"] = id; fields["included"] = included
         case .textEdit(let id, let request):
             fields["id"] = id
             fields["text"] = request.text
@@ -395,11 +399,12 @@ public enum IslandCommand: Sendable, Equatable {
             for (key, value) in request.fields { fields[key] = value }
         case .localBackup(let request):
             for (key, value) in request.fields { fields[key] = value }
-        case .brainSource(let request, let action, let path, let token, let id):
+        case .brainSource(let request, let action, let path, let token, let id, let documents):
             fields["request"] = request; fields["action"] = action
             if let path { fields["path"] = path }
             if let token { fields["token"] = token }
             if let id { fields["id"] = id }
+            if let documents { fields["documents"] = documents }
         case .brainSave(let id, let title, let body):
             if let id { fields["id"] = id }
             fields["title"] = title

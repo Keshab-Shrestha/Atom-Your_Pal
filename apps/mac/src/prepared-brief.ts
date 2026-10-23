@@ -10,11 +10,11 @@ export const PREPARATION_INSTRUCTIONS = "You prepare a short daily brief and opt
   + "Distinguish a suggestion from a request and an assistant claim from a verified outcome. Do not invent recipients, dates, commitments, completion, facts or urgency. "
   + "Preserve uncertainty and note that excerpts can be incomplete/stale. Do not include credentials. "
   + "Prefer concrete preparation such as an agenda/checklist or a review note about an existing pending item. Never approve, execute, send, modify a calendar, open a link, or claim to have acted. "
-  + "Keep all output within 12000 UTF-8 bytes. The user edits and copies cards manually; there is no execution step in this job.";
+  + "When notes are supplied, identify useful open questions or concrete preparation supported by them, preserving dates and uncertainty. Do not turn past plans into current obligations. Keep all output within 12000 UTF-8 bytes. The user edits and copies cards manually; there is no execution step in this job.";
 
 /** Same opt-in categories as the ordinary brief; no chat/knowledge search or model-directed source discovery. */
-export function preparationInput(data: BriefData, at: Date): { task: string; sources: PreparationSource[] } {
-  const sources = data.parts.flatMap((part) => part.lines.map((text, index) => ({ id: `${part.key}:${index + 1}`, label: part.title, text, collectedAt: at.toISOString() })))
+export function preparationInput(data: BriefData, at: Date, notes: readonly PreparationSource[] = []): { task: string; sources: PreparationSource[] } {
+  const sources = [...data.parts.flatMap((part) => part.lines.map((text, index) => ({ id: `${part.key}:${index + 1}`, label: part.title, text, collectedAt: at.toISOString() }))), ...notes]
     .filter((source) => validChatBrief(source.text) && !looksSecret(source.text));
   const task = JSON.stringify({ date: at.toISOString(), sources });
   if (Buffer.byteLength(task) > 24_000) throw new Error("The preparation input exceeds its request budget.");

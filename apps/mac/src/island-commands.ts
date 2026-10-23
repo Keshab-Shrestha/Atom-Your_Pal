@@ -12,7 +12,7 @@ import { parseLocalBackup, type LocalBackupCommand } from "./local-backup.ts";
 
 /** The brief settings a `brief.set` may change. */
 export const BRIEF_FLAGS = ["enabled", "events", "reminders", "weather", "tasks", "needsYou", "notify", "telegram", "spoken", "preparation"] as const;
-export type BriefChange = Partial<Record<(typeof BRIEF_FLAGS)[number], boolean>> & { minute?: number; preparationDailyLimit?: number };
+export type BriefChange = Partial<Record<(typeof BRIEF_FLAGS)[number], boolean>> & { minute?: number; preparationDailyLimit?: number; preparationNoteIds?: number[] };
 
 
 export type IslandCommand =
@@ -86,6 +86,7 @@ export type IslandCommand =
   | { type: "brief.get" }
   | { type: "brief.run" }
   | { type: "brief.set"; change: BriefChange }
+  | { type: "brief.note"; id: number; included: boolean }
   | { type: "text.send"; text: string; files?: string[]; notes?: number[]; request?: string; chat?: string }
   | { type: "episode.forget"; id: number }
   | { type: "episode.clear" }
@@ -222,6 +223,7 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "brief.get",
   "brief.run",
   "brief.set",
+  "brief.note",
   "text.send",
   "episode.forget",
   "episode.clear",
@@ -335,9 +337,10 @@ export function parseCommand(line: string): ParsedLine {
   }
   if (type === "brain.source") {
     const v = value as Record<string, unknown>;
-    if (Object.keys(v).some((key) => !["type", "request", "action", "path", "token", "id"].includes(key))
+    if (Object.keys(v).some((key) => !["type", "request", "action", "path", "token", "id", "documents"].includes(key))
       || typeof v.request !== "string" || !/^[\w-]{1,64}$/.test(v.request)
       || !["get", "preview", "cancel", "connect", "refresh", "disconnect", "restore"].includes(String(v.action))
+      || (v.documents !== undefined && (v.action !== "preview" || typeof v.documents !== "boolean"))
       || (v.action === "preview" && (typeof v.path !== "string" || !v.path))
       || (v.action === "connect" && (typeof v.token !== "string" || !/^[\w-]{1,64}$/.test(v.token)))
       || (v.action === "restore" && !isId(v.id))) return { error: "Invalid notes-source request." };
@@ -709,11 +712,16 @@ export function parseCommand(line: string): ParsedLine {
     }
     return { command: { type, id, text, instruction, ...(selection ? { selection: selection as [number, number] } : {}) } };
   }
+  if (type === "brief.note") {
+    const note = value as Record<string, unknown>;
+    if (!Number.isSafeInteger(note.id) || Number(note.id) <= 0 || typeof note.included !== "boolean") return { error: "Select a saved note and whether to include it." };
+    return { command: { type, id: Number(note.id), included: note.included } };
+  }
   if (type === "brief.set") {
     const { change } = value as { change?: unknown };
     if (!change || typeof change !== "object" || Array.isArray(change)) return { error: 'brief.set needs a "change" object.' };
     const c = change as Record<string, unknown>;
-    if (Object.keys(c).some((key) => ![...BRIEF_FLAGS, "minute", "preparationDailyLimit"].includes(key))) return { error: "Unknown daily brief setting." };
+    if (Object.keys(c).some((key) => ![...BRIEF_FLAGS, "minute", "preparationDailyLimit", "preparationNoteIds"].includes(key))) return { error: "Unknown daily brief setting." };
     const out: BriefChange = {};
     for (const key of BRIEF_FLAGS) {
       if (c[key] === undefined) continue;
@@ -727,6 +735,11 @@ export function parseCommand(line: string): ParsedLine {
     if (c.preparationDailyLimit !== undefined) {
       if (!Number.isInteger(c.preparationDailyLimit) || Number(c.preparationDailyLimit) < 1 || Number(c.preparationDailyLimit) > 5) return { error: "Preparation allows one to five attempts per day." };
       out.preparationDailyLimit = Number(c.preparationDailyLimit);
+    }
+    if (c.preparationNoteIds !== undefined) {
+      const ids = c.preparationNoteIds;
+      if (!Array.isArray(ids) || ids.length > 12 || ids.some((id) => !Number.isSafeInteger(id) || id <= 0) || new Set(ids).size !== ids.length) return { error: "Choose up to twelve distinct saved notes." };
+      out.preparationNoteIds = [...ids];
     }
     return { command: { type, change: out } };
   }

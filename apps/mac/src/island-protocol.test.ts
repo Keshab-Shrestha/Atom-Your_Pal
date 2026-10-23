@@ -378,3 +378,19 @@ test("project commands: bad input is refused with words", () => {
     assert.match(parsed.error, expected, JSON.stringify(line));
   }
 });
+
+test("private note preparation commands preserve explicit opt-in and refuse malformed selections", () => {
+  assert.deepEqual(parseCommand('{"type":"brief.note","id":37,"included":true}'), { command: { type: "brief.note", id: 37, included: true } });
+  assert.deepEqual(parseCommand('{"type":"brief.note","id":37,"included":false}'), { command: { type: "brief.note", id: 37, included: false } });
+  for (const value of [{ id: 0, included: true }, { id: 37, included: "yes" }, { id: true, included: true }]) assert.ok("error" in parseCommand(JSON.stringify({ type: "brief.note", ...value })));
+  assert.deepEqual(parseCommand('{"type":"brief.set","change":{"preparationNoteIds":[]}}'), { command: { type: "brief.set", change: { preparationNoteIds: [] } } });
+  for (const ids of [[1, 1], [0], [true], Array.from({ length: 13 }, (_, n) => n + 1)]) assert.ok("error" in parseCommand(JSON.stringify({ type: "brief.set", change: { preparationNoteIds: ids } })));
+});
+
+test("document read scope can be chosen only in a new source preview", () => {
+  const preview = { type: "brain.source", request: "fixture", action: "preview", path: "/fictional/notes", documents: true };
+  assert.deepEqual(parseCommand(JSON.stringify(preview)), { command: preview });
+  for (const command of [{ ...preview, documents: "yes" }, { ...preview, action: "refresh" }, { ...preview, action: "connect", token: "fixture" }]) {
+    assert.ok("error" in parseCommand(JSON.stringify(command)));
+  }
+});

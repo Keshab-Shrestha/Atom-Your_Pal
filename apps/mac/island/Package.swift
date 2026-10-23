@@ -10,6 +10,7 @@ let package = Package(
         .executable(name: "AtomIsland", targets: ["AtomIsland"]),
         // Calendar and Reminders for the runtime (ADR-060); copied into ZENO.app as atom-calendar.
         .executable(name: "AtomCalendar", targets: ["AtomCalendar"]),
+        .executable(name: "AtomDocuments", targets: ["AtomDocuments"]),
     ],
     dependencies: [
         // On-device speech recognition (Parakeet on the Neural Engine), Apache-2.0. Pinned: it is pre-1.0 and
@@ -26,6 +27,7 @@ let package = Package(
             dependencies: ["AtomIslandCore", .product(name: "FluidAudio", package: "FluidAudio"), .product(name: "SwiftTerm", package: "SwiftTerm")]
         ),
         .executableTarget(name: "AtomCalendar"),
+        .executableTarget(name: "AtomDocuments"),
         .testTarget(name: "AtomIslandCoreTests", dependencies: ["AtomIslandCore"]),
     ]
 )

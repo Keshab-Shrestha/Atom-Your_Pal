@@ -696,6 +696,15 @@ export function runIsland(options: IslandOptions): IslandSession {
         options.dailyBrief.run();
         options.log?.info("brief.requested", {});
         return;
+      case "brief.note":
+        try {
+          if (!options.dailyBrief?.selectNote) throw new Error("Note preparation is unavailable in this runtime.");
+          options.dailyBrief.selectNote(command.id, command.included);
+          options.log?.info("brief.note_selection", { included: command.included });
+        } catch (error) { send({ type: "error", stage: "settings", message: describe(error) }); return; }
+        briefWatched = true;
+        sendBrief();
+        return;
       case "brief.set":
         try {
           options.dailyBrief?.update(command.change);

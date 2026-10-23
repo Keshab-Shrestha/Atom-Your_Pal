@@ -603,6 +603,20 @@ private struct NoteEditor: View {
                     }
                 }
             }
+            if let note, !note.ghost, note.kind == .note {
+                let included = model.dailyBrief.settings.preparationNoteIds.contains(note.id)
+                DisclosureGroup(included ? "Included in suggestions" : "Suggestions") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Toggle("Use this note for prepared work", isOn: Binding(get: { included }, set: { model.selectPreparationNote(note.id, included: $0) }))
+                            .disabled(model.dailyBrief.preparationBudget == nil || (!included && (changed || note.source?.state == "missing" || note.source?.state == "conflict")))
+                        Text("When Prepare work for review is on, an excerpt of this saved note and future saved changes may go to the selected model. Missing/conflicting copies are skipped. Suggestions stay on Dashboard; this note never enters the delivered brief. Remove it here or clear selected notes in Daily brief settings.")
+                            .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                        if let error = model.dailyBrief.error { ProblemLine(text: error) }
+                    }.padding(.top, 5)
+                }
+                .font(.system(size: 11.5))
+                .onAppear { if let command = model.dailyBrief.open() { model.send(command) } }
+            }
             if editable {
                 TextField("Title", text: title.projectedValue)
                     .textFieldStyle(.plain)

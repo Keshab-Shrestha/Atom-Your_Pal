@@ -14,6 +14,24 @@ const file = (path = "cedar.md", body = "  # Cedar\n\nLaunch Wednesday. [[Birch]
 const folder = { path: "/fictional/notes", identity: "1:2" };
 const profile = { provider: "codex", model: "fictional-local-test", effort: "low" };
 
+test("document format scope persists separately without changing the legacy folder table", () => {
+  const dir = mkdtempSync(join(tmpdir(), "atom-source-format-scope-")), path = join(dir, "memory.db");
+  let memory = openMemoryStore({ path });
+  try {
+    memory.brainSources!.apply({ ...folder, documents: true }, [file()], 0);
+    memory.close(); memory = openMemoryStore({ path });
+    assert.equal(memory.brainSources!.summary().folder?.documents, true);
+    assert.throws(() => memory.brainSources!.apply(folder, [file()], 0), /changed/);
+    memory.brainSources!.disconnect();
+    const db = new DatabaseSync(path);
+    try {
+      assert.equal(db.prepare("PRAGMA table_info(brain_source_folder)").all().length, 6);
+      db.prepare("INSERT INTO brain_source_folder VALUES (1, ?, ?, ?, ?, 0)").run("legacy", folder.path, folder.identity, new Date().toISOString());
+    } finally { db.close(); }
+    assert.equal(memory.brainSources!.summary().folder?.documents, false);
+  } finally { memory.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("source publication is atomic and preserves authored notes, ghost links and whitespace", () => {
   const m = openMemoryStore({ path: ":memory:" });
   try {

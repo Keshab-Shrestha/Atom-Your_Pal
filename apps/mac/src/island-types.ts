@@ -163,6 +163,7 @@ export interface IslandDailyBrief {
   run(): void;
   /** Changes the given settings. Throws, with words for the user, for a value that is not allowed. */
   update(change: BriefChange): void;
+  selectNote?(id: number, included: boolean): void;
   onChange(listener: () => void): () => void;
 }
 

@@ -80,7 +80,7 @@ struct SentientAdaptationTests {
             return list.history.first
         }
         #expect(try entry("model", nil)?.plainReason == nil)
-        #expect(try entry("template", "empty")?.plainReason == "no usable source excerpts")
+        #expect(try entry("template", "empty")?.plainReason == "no brief items or supported preparation")
         #expect(try entry("template", "budget")?.plainReason == "today's preparation budget is used")
         #expect(try entry("template", "failed")?.plainReason == "the model was not available")
         #expect(try entry("template", nil)?.plainReason == "the model was not available")
@@ -114,6 +114,25 @@ struct SentientAdaptationTests {
         #expect(blocked(length: nil))
         #expect(blocked(length: -1))
         #expect(blocked(length: 3))
+    }
+
+
+    @Test func preparationNoteOptInIsExplicitAndCanBeCleared() throws {
+        let object = try #require(JSONSerialization.jsonObject(with: Data(IslandCommand.briefNote(id: 37, included: true).line.utf8)) as? [String: Any])
+        #expect(object["type"] as? String == "brief.note")
+        #expect(object["id"] as? Int == 37 && object["included"] as? Bool == true)
+        #expect(Set(object.keys) == ["type", "id", "included"])
+        #expect(BriefSettingsChange(preparationNoteIds: []).fields["preparationNoteIds"] as? [Int] == [])
+        #expect(BriefSettingsChange(preparation: false).fields["preparationNoteIds"] == nil)
+        func ids(_ text: String) throws -> [Int] {
+            let line = #"{"type":"brief","settings":{"preparationNoteIds":\#(text)},"history":[],"running":false}"#
+            guard case .brief(let value) = try decodeEvent(line) else { return [-1] }
+            return value.settings.preparationNoteIds
+        }
+        #expect(try ids("[37,42]") == [37,42])
+        for invalid in ["[true]", "[0]", "[37,37]", "null", "[1,2,3,4,5,6,7,8,9,10,11,12,13]"] {
+            #expect(try ids(invalid).isEmpty)
+        }
     }
 
 }

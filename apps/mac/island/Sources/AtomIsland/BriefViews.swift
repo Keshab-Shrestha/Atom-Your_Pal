@@ -98,7 +98,7 @@ struct BriefSettingsCard: View {
 
     var body: some View {
         let s = model.dailyBrief.settings
-        Card("Daily brief", footer: "Once a day, ATOM gathers your day on this Mac and writes a few short lines. The model sees only that list, never your chats or memory. Off until you turn it on. Press Brief me for one now.") {
+        Card("Daily brief", footer: "Once a day, ATOM gathers your day on this Mac and writes a few short lines. The brief uses only selected day categories. Optional prepared work can also use saved notes you explicitly choose. Off until you turn it on. Press Brief me for one now.") {
             Row(title: "Daily brief", detail: "A card at the top of a new chat, and on the Dashboard") {
                 ThemedSwitch(isOn: s.enabled, set: { model.setBrief(BriefSettingsChange(enabled: $0)) }, label: "Daily brief")
             }
@@ -120,12 +120,20 @@ struct BriefSettingsCard: View {
             toggle("What waits for you", "Plans, suggestions and drafts to review", s.needsYou) { BriefSettingsChange(needsYou: $0) }
             if let budget = model.dailyBrief.preparationBudget {
                 RowDivider()
-                toggle("Prepare work for review", "Off by default. Adds up to three sourced draft/checklist cards on Dashboard. Uses only the brief categories selected above; pause here to stop active preparation.", s.preparation) { BriefSettingsChange(preparation: $0) }
+                toggle("Prepare work for review", "Off by default. Adds up to three sourced draft/checklist cards on Dashboard. Uses selected day categories and notes you explicitly choose; pause here to stop active preparation.", s.preparation) { BriefSettingsChange(preparation: $0) }
                 RowDivider()
-                Row(title: "Preparation budget", detail: "\(budget.used) of \(budget.limit) attempts on \(budget.day). Failed/cancelled attempts count. A prepared brief uses one job in place of the ordinary brief model job.") {
+                Row(title: "Preparation budget", detail: "\(budget.used) of \(budget.limit) attempts on \(budget.day). Failed/cancelled attempts count. One attempt may use two model requests when selected notes need private preparation.") {
                     Stepper("\(s.preparationDailyLimit) / day", value: Binding(get: { s.preparationDailyLimit }, set: { model.setBrief(BriefSettingsChange(preparationDailyLimit: $0)) }), in: 1...5)
                         .accessibilityLabel("Maximum preparation attempts per day")
                 }
+                RowDivider()
+                Row(title: "Notes for suggestions", detail: "\(s.preparationNoteIds.count) selected. Choose Suggestions on a reviewed Second brain note. Missing/conflicting copies are skipped; no automatic note search.") {
+                    if !s.preparationNoteIds.isEmpty {
+                        PillButton(title: "Clear selection") { model.setBrief(BriefSettingsChange(preparationNoteIds: [])) }
+                    }
+                }
+                RowDivider()
+                Row(title: "Private preparation", detail: "Note excerpts stay in review cards, never in the spoken or delivered brief. Preparing notes separately can use an additional model request.") { EmptyView() }
                 RowDivider()
                 Row(title: "Preparation model", detail: "\(model.dailyBrief.preparationModel ?? "Selected chat model") at low or supported default effort. Claude/Codex only; no fallback. Cards stay on Dashboard and are never sent to Telegram or spoken.") { EmptyView() }
                 RowDivider()

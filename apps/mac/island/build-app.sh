@@ -31,6 +31,7 @@ echo "Building AtomIsland (release)…"
 # Copy SwiftTerm's optional shader source without requiring the separately installed Metal compiler.
 (cd "$here" && swift build --build-system native -c release --product AtomIsland 2>&1 | grep -v "search path '/Library/Developer/CommandLineTools" || true)
 (cd "$here" && swift build --build-system native -c release --product AtomCalendar 2>&1 | grep -v "search path '/Library/Developer/CommandLineTools" || true)
+(cd "$here" && swift build --build-system native -c release --product AtomDocuments)
 binary="$here/.build/release/AtomIsland"
 [ -x "$binary" ] || { echo "Build failed: $binary not found" >&2; exit 1; }
 # Fail if the binary is older than any source file (the build above failed but left an old one).
@@ -63,6 +64,8 @@ cp "$binary" "$app/Contents/MacOS/ATOM"
 # Calendar and Reminders helper (ADR-060). Inside the app so macOS attributes its permission to ATOM.
 helper="$here/.build/release/AtomCalendar"
 [ -x "$helper" ] && cp "$helper" "$app/Contents/MacOS/atom-calendar" || echo "warning: calendar helper not built" >&2
+# Bounded PDF/Word text extraction; no file paths or network access are passed to the helper.
+cp "$here/.build/release/AtomDocuments" "$app/Contents/MacOS/atom-documents"
 # The app's icon (ADR-091): assets/icon/ATOM.icns (scripts/make-icon.sh makes it).
 icon=""
 if [ -f "$root/assets/icon/ATOM.icns" ]; then

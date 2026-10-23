@@ -7,17 +7,22 @@ struct BrainSourcesPane: View {
     var openNote: (Int) -> Void = { _ in }
     private let removing = State(initialValue: false)
     @Environment(\.theme) private var theme
+    @Environment(\.islandSnapshot) private var snapshot
     private var waiting: Bool { model.brainSourcePending != nil }
 
     var body: some View {
         Scrollable {
             VStack(alignment: .leading, spacing: 14) {
                 Text("Notes folder").font(.system(size: 17, weight: .semibold)).foregroundStyle(theme.text.color)
-                Text("Connect one folder of Markdown and text notes. Copies join your existing Second brain, search and links. Source files stay untouched. Imported text is reference material; it cannot grant permissions.")
+                Text("Connect one folder of Markdown, text, PDF and Word (.docx) documents. Copies join your existing Second brain, search and links. Source files stay untouched. Imported text is reference material; it cannot grant permissions.")
                     .font(.system(size: 12.5)).foregroundStyle(theme.text2.color)
                 if let problem = model.brainSourceError { ProblemLine(text: problem) }
                 if waiting { HStack { ProgressView().controlSize(.small); Text("Updating notes source…").font(.system(size: 12)) } }
                 if let folder = model.brainSources.folder {
+                    if folder.documents != true {
+                        Text("This existing source keeps its Markdown/text scope. To include PDF and Word files, remove and preview the folder again; preserve any local corrections first.")
+                            .font(.system(size: 11)).foregroundStyle(theme.text2.color)
+                    }
                     Text(folder.path).font(.system(size: 12, design: .monospaced)).textSelection(.enabled)
                     Text("\(model.brainSources.notes) imported · \(model.brainSources.corrected) locally corrected · \(model.brainSources.conflicts) conflicts · \(model.brainSources.missing) missing or skipped · \(model.brainSources.excluded) excluded")
                         .font(.system(size: 12)).foregroundStyle(theme.text2.color)
@@ -49,13 +54,13 @@ struct BrainSourcesPane: View {
                     PillButton(title: "Choose notes folder…", symbol: "folder.badge.plus", prominent: true, action: choose)
                         .disabled(waiting)
                 }
-                Text("Import/refresh reads UTF-8 .md, .markdown and .txt. Skips hidden files, symlinks, hardlinks, protected paths, likely credentials, invalid text and files over 256 KiB. Scan budget: 500 notes, 8 MiB, 5,000 entries and eight folder levels. Import makes no model call or source-file changes. Optional analysis uses imported copies only.")
+                Text("Reads Markdown, text, PDF text layers and Word (.docx); no OCR or legacy .doc. Skips protected, linked, hidden, invalid or likely credential-bearing files. Text/extracted copies: 256 KiB each, 8 MiB total. Documents: 8 MiB each; PDFs: 100 pages. Local extraction is bounded; images, encrypted PDFs and unreadable files are skipped. Source files stay untouched. Import makes no model call.")
                     .font(.system(size: 11)).foregroundStyle(theme.text3.color)
             }
             .frame(maxWidth: 720, alignment: .leading)
             .padding(Spacing.panel)
         }
-        .onAppear { model.requestBrainSource("get") }
+        .onAppear { if !snapshot { model.requestBrainSource("get") } }
         .confirmationDialog("Remove this source and all its imported copies, including saved local corrections? Original files are untouched. Other notes, chats and permissions stay unchanged.", isPresented: removing.projectedValue) {
             Button("Remove source and imported copies", role: .destructive) { model.requestBrainSource("disconnect") }
             Button("Cancel", role: .cancel) {}

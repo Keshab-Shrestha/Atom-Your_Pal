@@ -665,6 +665,11 @@ final class IslandModel {
         briefPending = true
         send(command)
     }
+    func selectPreparationNote(_ id: Int, included: Bool) {
+        briefPending = true
+        send(.briefNote(id: id, included: included))
+    }
+
     func setBrief(_ change: BriefSettingsChange) {
         briefPending = true
         send(dailyBrief.set(change))
@@ -703,7 +708,7 @@ final class IslandModel {
         brainSourcePending = request
         brainSourceError = nil
         if action != "connect" { brainSourcePreview = nil }
-        send(.brainSource(request: request, action: action, path: path, token: token, id: id))
+        send(.brainSource(request: request, action: action, path: path, token: token, id: id, documents: action == "preview" ? true : nil))
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(30))
             guard let self, self.brainSourcePending == request else { return }

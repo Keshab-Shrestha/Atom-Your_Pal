@@ -961,6 +961,10 @@ private struct Fields {
             settings.spoken = flag(s["spoken"])
             settings.preparation = flag(s["preparation"])
             settings.preparationDailyLimit = wholeNumber(s["preparationDailyLimit"]).flatMap { (1...5).contains($0) ? $0 : nil } ?? 2
+            if let values = s["preparationNoteIds"] as? [Any], values.count <= 12 {
+                let ids = values.compactMap(wholeNumber)
+                if ids.count == values.count && ids.allSatisfy({ $0 > 0 }) && Set(ids).count == ids.count { settings.preparationNoteIds = ids }
+            }
         }
         let history: [BriefEntry] = (values["history"] as? [Any] ?? []).compactMap { entry in
             guard let b = entry as? [String: Any], let id = wholeNumber(b["id"]), let day = b["day"] as? String else { return nil }
