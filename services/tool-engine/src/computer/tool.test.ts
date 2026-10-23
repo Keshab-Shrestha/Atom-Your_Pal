@@ -34,7 +34,7 @@ function fakeCua(handlers: Record<string, (args: any) => CuaResult> = {}) {
       if (handlers[name]) return handlers[name](args);
       if (name === "list_apps") return ok("apps", { apps: [textEdit, terminal] });
       if (name === "list_windows") return ok("wins", { windows: [win, termWin] });
-      if (name === "get_window_state") return ok("state", { pid: args.pid, window_id: args.window_id, app_name: args.pid === 11 ? "TextEdit" : "Terminal", window_title: "x", snapshot_id: "s1", elements, tree_markdown: "tree" });
+      if (name === "get_window_state") return ok("state", { pid: args.pid, window_id: args.window_id, app_name: args.pid === 22 ? "Terminal" : "TextEdit", window_title: "x", snapshot_id: "s1", elements, tree_markdown: "tree" });
       return ok(`${name} done`, { effect: "confirmed" });
     },
     async close() {},
@@ -905,4 +905,32 @@ test("helper restart invalidates numbered elements, including while approval is 
   assert.match(r.text, /session changed; no input was sent/);
   assert.equal(duringApproval.calls.some((call) => call.name === "click"), false);
   assert.match((await duringApproval.run({ action: "type", element: 1, text: "hello" })).text, /Look at an app first/);
+});
+
+test("a reused pid owned by another app is not read under the cached app's permissions", async () => {
+  let replaced = false;
+  const s = setup({ handlers: {
+    list_apps: () => ok("apps", { apps: replaced ? [{ ...terminal, pid: 11 }] : [textEdit] }),
+    list_windows: () => ok("wins", { windows: replaced ? [{ ...termWin, pid: 11 }] : [win] }),
+  } });
+  await sees(s);
+  replaced = true;
+  const r = await sees(s);
+  assert.equal(r.ok, false);
+  assert.equal(s.calls.filter((c) => c.name === "get_window_state").length, 1, "never read the replacement process");
+  assert.equal((await s.run({ action: "click", element: 2 })).ok, false, "the old target is invalidated");
+});
+
+test("restarting the helper revalidates the cached app identity", async () => {
+  const s = setup();
+  await sees(s);
+  s.restart();
+  await sees(s);
+  assert.equal(s.calls.filter((c) => c.name === "list_apps").length, 2);
+});
+
+test("a window-state owner mismatch cannot publish actionable elements", async () => {
+  const s = setup({ handlers: { get_window_state: () => ok("state", { pid: 22, window_id: 7, app_name: "Terminal", elements }) } });
+  assert.equal((await sees(s)).ok, false);
+  assert.equal((await s.run({ action: "click", element: 2 })).ok, false);
 });

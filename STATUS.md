@@ -1,5 +1,9 @@
 # ZENO Project Status
 
+## PR autofix — Computer app identity (23 October 2026)
+
+Review of PR #4 found that a cached process ID could be reused by another app while retaining the previous app's policy identity. Require matching window ownership before the cached fast path, reset cache reuse across helper generations, reject mismatched window-state owners and propagate window-list errors. Valid same-owner repeated looks retain the faster path. Three new regressions failed before the fix; all 80 focused computer-tool cases pass afterward. No live app, permission, setting or user record changed. Broader check results are recorded in the PR description.
+
 ## Current capability — Computer control 4/4: visible current step (2026-10-23)
 
 While ATOM uses the Mac, the chat's work row now names the current step, for example "Working for 13s · 9 observed calls · Clicking in Calculator". Live captures confirm it. Action and app only, no typed text. One new core test; 791 Swift tests pass; release build passes; goldens unchanged. Computer control steps 1–4 are done. Next: contextual drafting.
