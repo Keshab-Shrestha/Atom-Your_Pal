@@ -34,7 +34,7 @@ function fakeCua(handlers: Record<string, (args: any) => CuaResult> = {}) {
       if (handlers[name]) return handlers[name](args);
       if (name === "list_apps") return ok("apps", { apps: [textEdit, terminal] });
       if (name === "list_windows") return ok("wins", { windows: [win, termWin] });
-      if (name === "get_window_state") return ok("state", { pid: args.pid, window_id: args.window_id, app_name: args.pid === 11 ? "TextEdit" : "Terminal", window_title: "x", snapshot_id: "s1", elements, tree_markdown: "tree" });
+      if (name === "get_window_state") return ok("state", { pid: args.pid, window_id: args.window_id, app_name: args.pid === 22 ? "Terminal" : "TextEdit", window_title: "x", snapshot_id: "s1", elements, tree_markdown: "tree" });
       return ok(`${name} done`, { effect: "confirmed" });
     },
     async close() {},
@@ -958,4 +958,14 @@ test("a window-state owner mismatch cannot publish actionable elements", async (
   const s = setup({ handlers: { get_window_state: () => ok("state", { pid: 22, window_id: 7, app_name: "Terminal", elements }) } });
   assert.equal((await sees(s)).ok, false);
   assert.equal((await s.run({ action: "click", element: 2 })).ok, false);
+});
+
+test("an invalid mode cannot open a risky-action approval", async () => {
+  const s = setup();
+  await sees(s);
+  const r = await s.run({ action: "click", element: 3, mode: "sideways" });
+  assert.equal(r.ok, false);
+  assert.match(r.text, /mode must be/);
+  assert.equal(s.asked.length, 0);
+  assert.equal(s.calls.some((c) => c.name === "click"), false);
 });

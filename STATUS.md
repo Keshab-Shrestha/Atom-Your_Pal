@@ -1,5 +1,9 @@
 # ZENO Project Status
 
+## PR autofix — Cursor lifecycle and input validation (23 October 2026)
+
+PR #6 review found a failed return glide could leave the agent cursor visible, and delayed start/finish calls could enable an ended task or hide a newer task. Cursor lifecycle revisions now discard superseded continuations; cleanup attempts to disable after lookup/move failure, and driver error results are surfaced. Four new cursor regressions failed before the fix and pass afterward. Invalid delivery modes are now rejected before approval/cursor side effects; its new regression failed before correction. Bring in PR #4's app-ownership fix without rewriting branch history. Typecheck and the full TypeScript suite pass (1,228 passed, 10 opt-in skips, zero failures). No live foreground action or user setting changed; the previously deferred native foreground check remains open.
+
 ## PR autofix — Computer app identity (23 October 2026)
 
 Review of PR #4 found that a cached process ID could be reused by another app while retaining the previous app's policy identity. Require matching window ownership before the cached fast path, reset cache reuse across helper generations, reject mismatched window-state owners and propagate window-list errors. Valid same-owner repeated looks retain the faster path. Three new regressions failed before the fix; all 80 focused computer-tool cases pass afterward. No live app, permission, setting or user record changed. Broader check results are recorded in the PR description.

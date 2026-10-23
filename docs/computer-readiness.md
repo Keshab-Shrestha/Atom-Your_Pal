@@ -93,3 +93,7 @@ Not changed: the island's collapsed look and the cut-off window header.
 ## PR review correction — cached app identity (23 October 2026)
 
 A cached PID is reused only while the current helper generation and returned window metadata confirm the same app/owner. Missing or changed ownership falls back to fresh app lookup and existing blocked-app policy. A window-state PID/app/window mismatch is refused before publishing actionable elements. Failed window enumeration is reported instead of interpreted as a normal list. This closes the PID-reuse regression while retaining repeat-look savings for verified owners; older drivers without ownership metadata take the slower fresh-lookup path. The focused tests include a replacement blocked app, helper restart and a mismatched observation.
+
+## PR review correction — cursor lifecycle and malformed input (23 October 2026)
+
+Cursor start/finish operations carry a lifecycle revision. A delayed start cannot enable an ended task, and a delayed finish cannot hide a newly started task. Cleanup attempts disable even when the return-to-island screen lookup or movement fails. Error-valued driver replies are failures, not silently counted as success. Input delivery mode validation runs before approvals or step/cursor callbacks; it never prompts the user for an invalid request. No native foreground action was exercised by these regressions.

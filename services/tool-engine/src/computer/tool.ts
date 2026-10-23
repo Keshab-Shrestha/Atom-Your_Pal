@@ -306,8 +306,10 @@ export function createComputerTool(options: ComputerToolOptions): Tool {
   async function run(input: Record<string, unknown>, signal?: AbortSignal): Promise<string> {
     const action = String(input.action);
     const appName = typeof input.app === "string" ? input.app : target?.app;
-    onStep?.({ action, ...(appName ? { app: appName } : {}) });
     try {
+      // Reject malformed delivery modes before approvals or cursor/step side effects.
+      if (["click", "type", "key", "scroll"].includes(action)) modeOf(input);
+      onStep?.({ action, ...(appName ? { app: appName } : {}) });
       let out = await perform(action, input, signal);
       if (input.look_after === true && INPUT_ACTIONS.has(action) && target) out += await lookAfter(signal);
       log({ action, ...(appName ? { app: appName } : {}), ok: true });
