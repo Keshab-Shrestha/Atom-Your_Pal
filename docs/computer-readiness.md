@@ -89,3 +89,7 @@ Change: `IslandStatus.currentStep` returns that step only while ATOM is using th
 Checks: one new core test; 791 Swift tests pass; the release app builds; no gallery golden changed by more than 1%. A live run, with captures every 2 s, showed "Opening Calculator" and then "Clicking in Calculator" in the row, and the reply was "12 times 7 is 84".
 
 Not changed: the island's collapsed look and the cut-off window header.
+
+## PR review correction — cached app identity (23 October 2026)
+
+A cached PID is reused only while the current helper generation and returned window metadata confirm the same app/owner. Missing or changed ownership falls back to fresh app lookup and existing blocked-app policy. A window-state PID/app/window mismatch is refused before publishing actionable elements. Failed window enumeration is reported instead of interpreted as a normal list. This closes the PID-reuse regression while retaining repeat-look savings for verified owners; older drivers without ownership metadata take the slower fresh-lookup path. The focused tests include a replacement blocked app, helper restart and a mismatched observation.

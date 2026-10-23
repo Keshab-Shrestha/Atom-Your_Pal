@@ -931,3 +931,31 @@ test("an unknown mode is refused before anything reaches Cua", async () => {
   assert.match(r.text, /mode must be/);
   assert.equal(s.calls.some((c) => c.name === "click"), false);
 });
+
+test("a reused pid owned by another app is not read under the cached app's permissions", async () => {
+  let replaced = false;
+  const s = setup({ handlers: {
+    list_apps: () => ok("apps", { apps: replaced ? [{ ...terminal, pid: 11 }] : [textEdit] }),
+    list_windows: () => ok("wins", { windows: replaced ? [{ ...termWin, pid: 11 }] : [win] }),
+  } });
+  await sees(s);
+  replaced = true;
+  const r = await sees(s);
+  assert.equal(r.ok, false);
+  assert.equal(s.calls.filter((c) => c.name === "get_window_state").length, 1, "never read the replacement process");
+  assert.equal((await s.run({ action: "click", element: 2 })).ok, false, "the old target is invalidated");
+});
+
+test("restarting the helper revalidates the cached app identity", async () => {
+  const s = setup();
+  await sees(s);
+  s.restart();
+  await sees(s);
+  assert.equal(s.calls.filter((c) => c.name === "list_apps").length, 2);
+});
+
+test("a window-state owner mismatch cannot publish actionable elements", async () => {
+  const s = setup({ handlers: { get_window_state: () => ok("state", { pid: 22, window_id: 7, app_name: "Terminal", elements }) } });
+  assert.equal((await sees(s)).ok, false);
+  assert.equal((await s.run({ action: "click", element: 2 })).ok, false);
+});
