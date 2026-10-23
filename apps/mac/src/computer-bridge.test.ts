@@ -220,3 +220,15 @@ test("Full access confirmation preserves its entire scope and marks the expanded
   if (ask?.type === "approval.request") { assert.equal(ask.reason, FULL_ACCESS_CONFIRMATION); assert.equal(ask.accessChange, true); bridge.answer(ask.id, false); }
   assert.equal(await pending, false);
 });
+
+test("the agent cursor starts once per computer task and finishes when the task ends", async () => {
+  const events: string[] = [];
+  const bridge = createComputerBridge({ endAfterMs: 10, cursor: { start: async () => { events.push("start"); }, finish: async () => { events.push("finish"); } } });
+  bridge.attach(() => {});
+  bridge.step({ action: "look", app: "Calculator" });
+  bridge.step({ action: "click", app: "Calculator" });
+  await new Promise((r) => setTimeout(r, 40));
+  bridge.step({ action: "look", app: "Calculator" });
+  await new Promise((r) => setTimeout(r, 40));
+  assert.deepEqual(events, ["start", "finish", "start", "finish"]);
+});

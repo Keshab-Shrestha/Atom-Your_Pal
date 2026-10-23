@@ -1,5 +1,17 @@
 # ZENO Task Plan
 
+## Next capability — Computer control: agent cursor and background/foreground mode (decided 2026-10-23)
+
+Keshab asked for two things. Build them one at a time.
+
+A. Agent cursor. During a computer task, show the Cua Driver's agent cursor (`set_agent_cursor_enabled`, session-owned). It moves with ATOM's actions, separate from the user's real cursor, which ATOM never moves. When the task ends, the agent cursor glides back to the ATOM pal or island and then hides (`end_session` runs the cursor cleanup once). Decision: "Fly back to ATOM".
+
+B. Background or foreground. Today every action uses `delivery_mode: "background"`, so the user can keep working. Add a Settings default (background) and a per-request override: the user can ask for foreground in a request. Foreground briefly fronts the target window, so shortcuts and sheets work. Decision: "Both".
+
+A is done (2026-10-23). The bridge enables the agent cursor at the first step of a task. The motion is a near-straight 400 ms glide (`arc_size` 0, `turn_radius` 0, `spring` 1), because the default motion looked like a spiral. When the task ends, the cursor glides to the top center of the main display, near the island, and then hides. `move_cursor` uses the default window scope, so the real mouse does not move. Live check: the Calculator task (12 times 7 is 84) on the main display showed the cursor and the glide back. Cursor errors log `computer.cursor_failed` and do not stop the task. 26 cursor and bridge tests pass.
+
+Next: B.
+
 ## Current capability — Computer control 4/4: visible current step (2026-10-23)
 
 While ATOM uses the Mac, the chat's work row now names the current step, for example "Working for 13s · 9 observed calls · Clicking in Calculator". Live captures confirm it. Action and app only, no typed text. One new core test; 791 Swift tests pass; release build passes; goldens unchanged. Computer control steps 1–4 are done. Next: contextual drafting.

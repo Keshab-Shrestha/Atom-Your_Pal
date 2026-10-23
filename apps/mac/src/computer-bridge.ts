@@ -54,6 +54,9 @@ export interface ApprovalAsk {
 }
 
 export interface ComputerBridgeOptions {
+  /** The agent cursor shown during a computer task (optional: off when computer control is off). */
+  cursor?: { start(): Promise<void>; finish(): Promise<void> };
+  onCursorError?: () => void;
   /** How long a request waits for the user before it counts as "no". */
   timeoutMs?: number;
   /** How long after the last step (with no approval waiting) the island is told that the work is over. */
@@ -91,6 +94,14 @@ export const COMPUTER_END_MS = 6000;
 
 export function createComputerBridge(options: ComputerBridgeOptions = {}): ComputerBridge {
   const { timeoutMs = 60_000, endAfterMs = COMPUTER_END_MS, newId = randomUUID } = options;
+  // The agent cursor (2026-10-23): on with a task's first step, back to ATOM and hidden when the task ends. It never blocks an action.
+  let working = false;
+  const cursorFailed = () => options.onCursorError?.();
+  function begin() {
+    if (working || !options.cursor) return;
+    working = true;
+    options.cursor.start().catch(cursorFailed);
+  }
   let sendEvent: ((event: IslandEvent) => void) | undefined;
   const waiting = new Map<string, (approved: FileApproval) => void>();
   const asks = new Map<string, ApprovalAsk>();
@@ -102,7 +113,9 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
   function scheduleEnd() {
     clearTimeout(endTimer);
     endTimer = setTimeout(() => {
-      if (waiting.size === 0) sendEvent?.({ type: "computer.end" });
+      if (waiting.size !== 0) return;
+      sendEvent?.({ type: "computer.end" });
+      if (working) { working = false; options.cursor?.finish().catch(cursorFailed); }
     }, endAfterMs);
     endTimer.unref?.();
   }
@@ -148,6 +161,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
       if (!sendEvent) return false;
       const whole = (n: number) => Math.round(n);
       sendEvent({ type: "computer.point", x: whole(target.x), y: whole(target.y), w: whole(target.w), h: whole(target.h), label: oneLine(target.label, 48) });
+      begin();
       scheduleEnd();
       return true;
     },
@@ -161,6 +175,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
     },
     step(step) {
       sendEvent?.({ type: "computer.step", text: stepText(step) });
+      begin();
       scheduleEnd();
     },
     answer: (id, approved, rememberFile, reviewToken) => settle(id, approved, rememberFile, reviewToken),

@@ -11,5 +11,6 @@ export { createTimers, spokenDuration, MAX_TIMER_SECONDS, type TimerInfo, type T
 export { calendarRunner, createCalendarTools, type CalendarRunner, type CalendarToolOptions } from "./tools/calendar.ts";
 export { createComputerTool, type ApprovalRequest, type ComputerAction, type ComputerToolOptions } from "./computer/tool.ts";
 export { createCuaTransport, type CuaTransport } from "./computer/cua-client.ts";
+export { createAgentCursor } from "./computer/agent-cursor.ts";
 export { createLookAtScreenTool, type LookAtScreenOptions, type ScreenShot } from "./computer/screen.ts";
 export { parsePointMarker, pointMarkerFilter, toScreenPoint, type ParsedReply, type PointTarget } from "./computer/point-marker.ts";

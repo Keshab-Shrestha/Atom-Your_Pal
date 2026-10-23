@@ -20,6 +20,7 @@ import {
   createCalendarTools,
   createComputerTool,
   createCuaTransport,
+  createAgentCursor,
   createLookAtScreenTool,
   createTimers,
   createAppTools,
@@ -209,7 +210,11 @@ export function createRuntime(
     language: config.stt.language,
     vocabulary: config.stt.vocabulary,
   });
-  const computer = createComputerBridge();
+  let agentCursor: ReturnType<typeof createAgentCursor> | undefined; // set once the Cua transport exists (computer control on)
+  const computer = createComputerBridge({
+    cursor: { start: () => agentCursor?.start() ?? Promise.resolve(), finish: () => agentCursor?.finish() ?? Promise.resolve() },
+    onCursorError: () => log.warn("computer.cursor_failed", {}),
+  });
   const memory = openMemory(options.memoryPath ?? readEnv(process.env, "ATOM_MEMORY_FILE") ?? "data/memory.db", log);
   let foregroundReady = Boolean(memory);
   try { memory?.foreground.recover(); }
@@ -469,6 +474,7 @@ export function createRuntime(
   const computerOn = readEnv(process.env, "ATOM_COMPUTER") === "1";
   let lastShot: ScreenShot | undefined;
   const cua = computerOn ? createCuaTransport({ onTiming: (timing) => log.info("computer.transport", { ...timing }) }) : undefined;
+  agentCursor = cua ? createAgentCursor(cua) : undefined;
   const calendarHelper = findCalendarHelper();
   log.info("calendar.helper", { available: Boolean(calendarHelper) });
   // The tools ATOM can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
