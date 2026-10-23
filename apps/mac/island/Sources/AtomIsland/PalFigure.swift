@@ -33,6 +33,18 @@ enum PalFigure {
     }
 
     static func draw(_ d: PalDefinition, pose: PalPose, time: Double, in context: GraphicsContext, rect: CGRect, glow: Bool) {
+        if d.style == "orbit" {
+            var ctx = context
+            let unit = min(rect.width, rect.height) / 32
+            ctx.translateBy(x: rect.midX, y: rect.midY)
+            ctx.rotate(by: .degrees(-pose.headZ * 0.5))
+            ctx.translateBy(x: -16 * unit, y: -16 * unit)
+            let stance: PalStance.Pose = pose.blink > 0.5 ? .blink : pose.bodyMotion == "shake" ? .sad : sin(time * 2) > 0 ? .idle : .bob
+            OrbitCharacter.draw(body: pose.body, accent: pose.eyes, pose: stance, look: pose.headY / 20,
+                                opening: max(0.15, min(1.3, (pose.left.height + pose.right.height) / 80)),
+                                in: ctx, origin: .zero, unit: unit, shadow: false)
+            return
+        }
         let (scale, centre) = layout(d, in: rect)
         var ctx = context
         // Motion from the expression, and a slow breath always.

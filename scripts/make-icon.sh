@@ -1,5 +1,5 @@
 #!/bin/sh
-# ADR-091: renders ATOM.app's icon (Pal on the Void tile, AppIconArt.swift) and makes assets/icon/ATOM.icns.
+# Renders ATOM's Orbit icon (AppIconArt.swift) and makes assets/icon/ATOM.icns.
 #   scripts/make-icon.sh
 # Run again after changing the icon's drawing or Pal's file; build-app.sh copies the .icns into the app.
 set -eu
@@ -8,8 +8,8 @@ island="$root/apps/mac/island"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-(cd "$island" && swift build --product AtomIsland 2>&1 | grep -E "error" || true)
-ATOM_ISLAND_GALLERY="$work" ATOM_ISLAND_GALLERY_ONLY=icon "$island/.build/debug/AtomIsland"
+(cd "$island" && swift build --build-system native -c release --product AtomIsland)
+ATOM_ISLAND_GALLERY="$work" ATOM_ISLAND_GALLERY_ONLY=icon "$island/.build/release/AtomIsland"
 [ -f "$work/icon-1024.png" ] || { echo "The icon was not rendered." >&2; exit 1; }
 
 set_dir="$work/ATOM.iconset"

@@ -6,6 +6,16 @@ import Testing
 /// ADR-090: the office floor's 2D art: the plan and the ways through it, walking, and (ADR-104) the pal's parts.
 @Suite("Office floor art")
 struct OfficeFloorArtTests {
+    @Test func loungeActorsStayInsideTheStudioWithoutOverlapping() {
+        let points = OfficeMap.loungeSpots.indices.map { OfficeMap.lounge($0).point }
+        for (index, point) in points.enumerated() {
+            #expect(point.x - 13 >= 208 && point.x + 13 <= CGFloat(OfficeMap.width))
+            #expect(point.y - 18 >= 112 && point.y + 11 <= CGFloat(OfficeMap.height))
+            for other in points.dropFirst(index + 1) {
+                #expect(abs(point.x - other.x) >= 26 || abs(point.y - other.y) >= 28, "characters need distinct space")
+            }
+        }
+    }
     func load(_ id: String) throws -> PalDefinition {
         try PalDefinition.decode(Data(contentsOf: PalCharacterTests.file.appendingPathComponent("\(id).json")))
     }

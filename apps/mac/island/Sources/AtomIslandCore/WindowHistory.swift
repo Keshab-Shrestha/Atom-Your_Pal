@@ -15,7 +15,9 @@ public enum BoardView: String, CaseIterable, Sendable {
     public var title: String {
         switch self {
         case .needsYou: "Needs you"
-        default: rawValue.capitalized
+        case .floor: "Studio"
+        case .columns: "Tasks"
+        case .overview: "Activity"
         }
     }
 

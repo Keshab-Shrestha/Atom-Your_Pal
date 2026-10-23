@@ -13,15 +13,28 @@ struct PalCharacterTests {
 
     @Test func readsPalsDefinition() throws {
         let pal = try load("pal")
-        #expect(pal.name == "Strobi copy")
+        #expect(pal.name == "ATOM Orbit" && pal.style == "orbit")
         #expect(pal.body.primary.type == "cube" && pal.body.nodes.count == 6)
         #expect(pal.expressions.count == 28 && pal.animations.count == 23)
-        #expect(PalRGB(hex: pal.colors.body) == PalRGB(r: 245.0 / 255, g: 245.0 / 255, b: 245.0 / 255))
+        #expect(PalRGB(hex: pal.colors.body) == PalRGB(hex: "#E6F3EE"))
         for id in ["sid", "kame", "puff", "quill", "penny", "hana", "tinker"] {
             let worker = try load(id)
+            #expect(worker.style == "orbit")
             #expect(worker.colors.body != pal.colors.body, "\(id) has its own colours")
             #expect(worker.animations.keys.sorted() == pal.animations.keys.sorted(), "\(id) has every animation")
         }
+    }
+
+    @Test func olderCustomCharactersRemainReadableAndRecoloringPreservesStyle() throws {
+        let data = try Data(contentsOf: Self.file.appendingPathComponent("pal.json"))
+        var legacy = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        legacy.removeValue(forKey: "style")
+        let old = try PalDefinition.decode(JSONSerialization.data(withJSONObject: legacy))
+        #expect(old.style == nil)
+        #expect(old.animations.count == 23 && old.expressions.count == 28)
+        let current = try load("pal").recolored(body: "#ffffff", eyes: "#33aa88")
+        #expect(current.style == "orbit" && current.colors.eyes == "#33aa88")
+        #expect(old.recolored(body: "#ffffff", eyes: "#33aa88").style == nil)
     }
 
     @Test func stepsHoldThenEaseIntoTheNext() throws {

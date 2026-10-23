@@ -5,6 +5,8 @@ import Foundation
 
 public struct PalDefinition: Sendable, Equatable, Decodable {
     public var name: String
+    /// Optional drawing family. Older/custom definitions keep their original rendering.
+    public var style: String?
     public var body: Body
     public var colors: Colors
     public var expressions: [String: Expression]

@@ -1,7 +1,8 @@
 {
+  "style": "orbit",
   "schema": "bible-strong/avatar-definition",
   "schemaVersion": 1,
-  "name": "Strobi copy",
+  "name": "ATOM Orbit",
   "body": {
     "primary": { "type": "cube", "width": 245, "height": 245, "depth": 200.023828125, "roundness": 1.3884375 },
     "nodes": [
@@ -13,7 +14,7 @@
       { "surface": { "type": "cone", "width": 115, "height": 93.092578125, "depth": 115, "roundness": 0, "morphRoundness": 0, "tipRoundness": 2, "baseRoundness": 2 }, "position": [90.9, -111, -18], "rotation": [0, 0, 205.801421360892] }
     ]
   },
-  "colors": { "body": "#f5f5f5", "eyes": "#4578c4" },
+  "colors": {"body": "#E6F3EE", "eyes": "#169F91"},
   "expressions": {
     "neutral": { "head": { "x": 0, "y": 0, "z": 0 }, "eyes": { "left": { "width": 29.16713427959447, "height": 41.376971638627055, "x": 0, "y": -7, "angle": -5.663240423871941 }, "right": { "width": 29.16713427959447, "height": 41.376971638627055, "x": 0, "y": -7, "angle": 7.117751905758517 }, "spacing": 68.80545419627424 }, "perspective": 1, "motion": { "eyes": "none", "body": "none" } },
     "upward-side-glance": { "head": { "x": 7.3, "y": 27.8, "z": -16.1 }, "eyes": { "left": { "width": 31.668306154594468, "height": 33.75470601362704, "x": 0, "y": -20.5, "angle": -5.663240423871941 }, "right": { "width": 31.668306154594468, "height": 33.75470601362704, "x": 0, "y": -20.5, "angle": 7.117751905758517 }, "spacing": 88.10545419627424 }, "perspective": 1, "motion": { "eyes": "none", "body": "none" } },

@@ -45,8 +45,11 @@ public enum OfficeMap {
     /// Two seats on the sofa (its middle tile is walked through, not sat on).
     public static let sofa = [Tile(15, 10), Tile(17, 10)]
     /// Where idle pals stand or sit in the lounge, in the order they take them.
-    public static let loungeSpots: [Tile] = [Tile(15, 10), Tile(17, 10), Tile(15, 8), Tile(17, 8), Tile(18, 11), Tile(14, 11),
-                                             Tile(16, 12), Tile(13, 9), Tile(18, 9), Tile(14, 12)]
+    public static let loungeSpots: [Tile] = [Tile(13, 8), Tile(15, 8), Tile(17, 8), Tile(18, 8),
+                                             Tile(13, 10), Tile(15, 10), Tile(17, 10), Tile(18, 10), Tile(14, 12), Tile(17, 12)]
+    private static let loungePoints: [CGPoint] = [CGPoint(x: 222, y: 138), CGPoint(x: 249, y: 138), CGPoint(x: 276, y: 138), CGPoint(x: 303, y: 138),
+                                                 CGPoint(x: 222, y: 167), CGPoint(x: 249, y: 167), CGPoint(x: 276, y: 167), CGPoint(x: 303, y: 167),
+                                                 CGPoint(x: 235, y: 195), CGPoint(x: 285, y: 195)]
 
     /// ADR-094: the "+N at work" sign, standing right of the top row of desks, and the "+N more" sign, standing at the
     /// lounge's wall by its door (above the pals' "!" and bubbles), in map units. Drawn only when someone is left out;
@@ -100,10 +103,8 @@ public enum OfficeMap {
     public static func lounge(_ index: Int) -> Place {
         let spot = loungeSpots[index % loungeSpots.count]
         let nudge = CGFloat(index / loungeSpots.count) * 6
-        if sofa.contains(spot) {
-            return Place(tile: spot, point: CGPoint(x: CGFloat(spot.x * tile + 8) + nudge, y: CGFloat(spot.y * tile)), seated: true)
-        }
-        return standing(spot, nudge: nudge)
+        let point = loungePoints[index % loungeSpots.count]
+        return Place(tile: spot, point: CGPoint(x: point.x + nudge, y: point.y), seated: sofa.contains(spot))
     }
 
     /// Standing on a tile: feet on its lower part.

@@ -14,13 +14,14 @@ struct OfficeFloor: View {
     private let walker = State(initialValue: OfficeWalker())
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(model: IslandModel) { self.model = model }
 
     var body: some View {
         let plan = model.helpers.list.map { OfficePlan(list: $0) } ?? OfficePlan(list: HelpersList(helpers: [], apps: []))
         let looks = Dictionary(uniqueKeysWithValues: plan.seats.compactMap { s in PalLibrary.character(for: s.helperId).map { (s.helperId, $0) } })
-        let scene = OfficeScene(plan: plan, looks: looks, pal: PalLibrary.pal, palBusy: model.status.isBusy, walker: walker.wrappedValue, animate: !snapshot)
+        let scene = OfficeScene(plan: plan, looks: looks, pal: PalLibrary.pal, palBusy: model.status.isBusy, walker: walker.wrappedValue, animate: !snapshot && !reduceMotion)
         GeometryReader { proxy in
             // Vector art: as large as fits, at any scale.
             let scale = max(0.5, proxy.size.width / CGFloat(OfficeMap.width))
@@ -37,33 +38,47 @@ struct OfficeFloor: View {
             }
         }
         .aspectRatio(CGFloat(OfficeMap.width) / CGFloat(OfficeMap.height), contentMode: .fit)
-        .background(Color.black)
+        .background(Color(red: 0.91, green: 0.94, blue: 0.92))
         .clipShape(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous)
             .strokeBorder(theme.isFlat ? theme.border.color : theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.6))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel((plan.seats.map { "\($0.name): \($0.bubble ?? ($0.spot == .desk($0.desk) ? "at the desk" : "in the lounge"))" }
-            + OfficeScene.signs(plan).map(\.text)).joined(separator: ", "))
+        .accessibilityRepresentation {
+            VStack {
+                Button("Open ATOM chat") { model.navigate { model.windowPage = .chat } }
+                Button("Review items needing your attention") { model.boardView = .needsYou }
+                ForEach(plan.seats, id: \.helperId) { seat in
+                    Button("\(seat.name): \(seat.bubble ?? (seat.taskId == nil ? "available" : "open task"))") { open(seat) }
+                }
+                if plan.moreAtWork > 0 || plan.moreIdle > 0 {
+                    Button("Show all agents") { model.showsAllAgents = true }
+                }
+            }
+        }
     }
 
     /// A worker clicked: its task, or its page. Pal: the chat.
     private func tap(_ point: CGPoint, plan: OfficePlan) {
+        if CGRect(x: 159, y: 4, width: 43, height: 22).contains(point) { model.boardView = .needsYou; return }
         let pal = OfficeMap.managerSeat
         if abs(point.x - pal.x) < 12, point.y > pal.y - 20, point.y < pal.y + 8 { model.navigate { model.windowPage = .chat }; return }
         // ADR-094: a "+N" sign: everyone, searchable.
         if OfficeScene.signs(plan).contains(where: { $0.rect.contains(point) }) { model.navigate { model.showsAllAgents = true }; return }
         for seat in plan.seats {
             guard let at = walker.wrappedValue.positions[seat.helperId], abs(point.x - at.x) < 12, point.y > at.y - 20, point.y < at.y + 10 else { continue }
-            model.navigate {
-                if let task = seat.taskId { model.sendHelpers(model.helpers.openThread(task)) } else { model.helpers.selectHelper(seat.helperId) }
-            }
+            open(seat)
             return
+        }
+    }
+
+    private func open(_ seat: OfficePlan.Seat) {
+        model.navigate {
+            if let task = seat.taskId { model.sendHelpers(model.helpers.openThread(task)) } else { model.helpers.selectHelper(seat.helperId) }
         }
     }
 
     /// Redrawn twenty times a second while on screen; once in snapshots.
     @ViewBuilder private func ticking<Content: View>(@ViewBuilder _ content: @escaping (Date) -> Content) -> some View {
-        if snapshot {
+        if snapshot || reduceMotion {
             content(Date(timeIntervalSinceReferenceDate: 0.6))
         } else {
             TimelineView(.periodic(from: .now, by: 1.0 / 20)) { context in content(context.date) }
@@ -148,8 +163,8 @@ struct OfficeScene {
         for a in actors {
             guard let seat = a.seat else { continue }
             if let flag = seat.flag {
-                let bounce = frame % 4 < 2 ? 0.0 : 1.0
-                OfficeDrawing.alert(g, x: a.point.x - 2, y: a.point.y - 32 - bounce, failed: flag == .failed)
+                // Attach the signal to its own character instead of covering the face in the lounge row above it.
+                OfficeDrawing.alert(g, x: a.point.x + 9, y: a.point.y - 18, failed: flag == .failed)
             }
             if a.pose == .cheer || seat.animation == "celebrate" { OfficeDrawing.confetti(g, at: a.point, frame: frame) }
         }
@@ -168,8 +183,9 @@ struct OfficeScene {
         }
         for a in actors {
             guard let text = a.seat?.bubble, !a.walking else { continue }
-            // ADR-094: the four meeting seats are a tile apart, too close for four bubbles; their steps show on a click.
-            if case .desk(let d) = a.seat?.spot, d >= OfficeMap.desks.count { continue }
+            // Keep detailed steps at workstations. Lounge/meeting bubbles obscure neighboring characters;
+            // their signals remain visible and their full status is available when opened.
+            guard case .desk(let d) = a.seat?.spot, d < OfficeMap.desks.count else { continue }
             bubble(&context, text, over: a.point, raise: (a.seat?.desk ?? 0) % 2 == 1 ? 1 : 0, scale: s)
         }
     }
@@ -244,7 +260,8 @@ struct OfficeScene {
     }
 
     private func nameplate(_ context: inout GraphicsContext, _ a: Actor, scale s: CGFloat) {
-        let text = context.resolve(Text(a.name).font(.system(size: 3.6 * s, weight: .semibold, design: .rounded)).foregroundStyle(Color.white))
+        let name = a.name.count > 11 ? String(a.name.prefix(10)) + "…" : a.name
+        let text = context.resolve(Text(name).font(.system(size: 3.6 * s, weight: .semibold, design: .rounded)).foregroundStyle(Color.white))
         let size = text.measure(in: CGSize(width: 200, height: 40))
         // Under the desk for one sitting at it, under the feet otherwise.
         var atDesk = a.id == "pal"

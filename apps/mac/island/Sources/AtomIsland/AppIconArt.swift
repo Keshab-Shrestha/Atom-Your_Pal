@@ -25,16 +25,16 @@ enum AppIconArt {
 
     static var icon: some View {
         let shape = RoundedRectangle(cornerRadius: tile * 0.225, style: .continuous)
-        let light = Color(red: 0.56, green: 0.83, blue: 1.0)
+        let light = Color(red: 0.49, green: 0.92, blue: 0.81)
         return ZStack {
-            shape.fill(Color.black)
-                .shadow(color: .black.opacity(0.35), radius: 18, y: 10)
-            // Pal's light, faint, behind it.
-            shape.fill(RadialGradient(colors: [light.opacity(0.16), .clear], center: UnitPoint(x: 0.5, y: 0.56), startRadius: 0, endRadius: tile * 0.5))
-            shape.strokeBorder(Color(red: 0.16, green: 0.18, blue: 0.19), lineWidth: 6)
+            shape.fill(LinearGradient(colors: [Color(red: 0.07, green: 0.25, blue: 0.25), Color(red: 0.025, green: 0.095, blue: 0.13)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .shadow(color: .black.opacity(0.25), radius: 18, y: 10)
+            shape.fill(RadialGradient(colors: [light.opacity(0.22), .clear], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: tile * 0.8))
+            Ellipse().strokeBorder(light.opacity(0.28), lineWidth: 3)
+                .frame(width: tile * 0.83, height: tile * 0.44).rotationEffect(.degrees(-24))
+            shape.strokeBorder(.white.opacity(0.2), lineWidth: 3)
             if let pal = PalLibrary.pal {
-                PalPortrait(character: pal, animation: "idle", time: 6.0, size: tile * 0.78, glow: false)
-                    .offset(y: tile * 0.02)
+                PalPortrait(character: pal, animation: "idle", time: 0.6, size: tile * 0.94, glow: false)
             }
         }
         .frame(width: tile, height: tile)

@@ -25,6 +25,11 @@ enum PalDrawing {
     /// Draws `pal` in `pose` with its top left at `origin`; one grid unit is `unit` points. `look` moves the eyes
     /// aside (-1 left, 1 right). `shadow` adds a soft contact shadow on the ground.
     static func draw(_ pal: PalDefinition, pose: PalStance.Pose, look: Int, in context: GraphicsContext, origin: CGPoint, unit: CGFloat, shadow: Bool) {
+        if pal.style == "orbit" {
+            OrbitCharacter.draw(body: PalRGB(hex: pal.colors.body) ?? white, accent: PalRGB(hex: pal.colors.eyes) ?? ink,
+                                pose: pose, look: Double(look), in: context, origin: origin, unit: unit, shadow: shadow)
+            return
+        }
         var ctx = context
         ctx.translateBy(x: origin.x, y: origin.y)
         ctx.scaleBy(x: unit, y: unit)

@@ -69,10 +69,15 @@ struct BoardPane: View {
         VStack(alignment: .leading, spacing: 0) {
         // The Board's switch stays above the page: Overview, Floor, Columns (Overview moved here from the sidebar).
         VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Board").font(.system(size: 18, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
-                Text("Every worker's tasks. A task that waits for another starts when that one is done.")
-                    .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(model.boardView == .floor ? "ATOM Studio" : model.boardView.title)
+                        .font(.system(size: 20, weight: .semibold, design: theme.titleDesign)).foregroundStyle(theme.text.color)
+                    Text(model.boardView == .floor ? "A shared space for your agents. Open a character to see its work." : "Tasks, decisions and results from your team.")
+                        .font(.system(size: 12)).foregroundStyle(theme.text2.color)
+                }
+                Spacer(minLength: 10)
+                QuietButton(title: "Agents", symbol: "person.2") { model.showsAllAgents = true }
             }
             let waiting = BoardAttention(list: model.helpers.list, approvalPending: model.approval.pending != nil).total
             HStack(spacing: 6) {
@@ -82,11 +87,11 @@ struct BoardPane: View {
                     boardTabs(waiting: waiting, compact: true)
                 }
                 Spacer(minLength: 0)
-                if model.boardView == .floor || model.boardView == .columns { BoardLabelMenu(model: model) }
+                if model.boardView == .columns { BoardLabelMenu(model: model) }
             }
         }
         .padding(.horizontal, Spacing.panel)
-        .padding(.top, 28)
+        .padding(.top, 18)
         .padding(.bottom, 12)
         if model.boardView == .overview {
             OverviewPane(model: model)
@@ -97,7 +102,7 @@ struct BoardPane: View {
         Scrollable {
             VStack(alignment: .leading, spacing: 18) {
                 // ADR-091: the team lives here now (the sidebar lists chats): each opens its page.
-                TeamChips(model: model)
+                if model.boardView != .floor { TeamChips(model: model) }
                 // ADR-111: the work plans: a goal, its portions and how far each is.
                 if let plans = model.helpers.list?.plans, !plans.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
@@ -114,13 +119,18 @@ struct BoardPane: View {
                 }
                 // ADR-091: the floor keeps its shape and fits the Board's width and the window's height.
                 if model.boardView == .floor {
-                    OfficeFloor(model: model).frame(maxHeight: max(220, viewport.size.height - 48)).frame(maxWidth: .infinity)
+                    studioStatus
+                    OfficeFloor(model: model).frame(maxHeight: max(220, viewport.size.height - 130)).frame(maxWidth: .infinity)
+                    Text("Workstations show active tasks. The lounge holds available agents. Amber or red signals need your review.")
+                        .font(.system(size: 11.5)).foregroundStyle(theme.text3.color)
+                    DisclosureGroup("Agent directory") { TeamChips(model: model).padding(.top, 8) }
+                        .font(.system(size: 12, weight: .medium)).foregroundStyle(theme.text2.color)
                 }
                 if model.helpers.list == nil {
                     LoadingStateView(text: "Loading the Board…", retry: { model.send(.helpersList) })
-                } else if board.isEmpty, label != nil {
+                } else if board.isEmpty, label != nil, model.boardView == .columns {
                     Text("No task on the Board has this label.").font(.system(size: 12.5)).foregroundStyle(theme.text3.color)
-                } else if board.isEmpty {
+                } else if board.isEmpty, model.boardView == .columns {
                     EmptyStateView(title: "No tasks yet",
                                    detail: "Choose a worker and give it a task, or ask ATOM in chat to delegate one. Tasks show here by status, with a count for each.")
                 }
@@ -802,14 +812,31 @@ private struct AllAgentsList: View {
 }
 
 extension BoardPane {
+    private var studioStatus: some View {
+        let attention = BoardAttention(list: model.helpers.list, approvalPending: model.approval.pending != nil)
+        return HStack(spacing: 10) {
+            Label("\(attention.running) working", systemImage: "circle.fill")
+                .foregroundStyle(theme.live.color)
+            Text("·").foregroundStyle(theme.text3.color)
+            Text("\(model.helpers.list?.helpers.count ?? 0) agents").foregroundStyle(theme.text2.color)
+            Spacer(minLength: 0)
+            Button { model.boardView = .needsYou } label: {
+                Label(attention.needsYou ? "\(attention.total) need you" : "Nothing needs you", systemImage: attention.needsYou ? "exclamationmark.circle.fill" : "checkmark.circle")
+                    .foregroundStyle(attention.needsYou ? theme.attention.color : theme.text3.color)
+            }.buttonStyle(.plain)
+                .accessibilityLabel("Review items needing your attention, \(attention.total)")
+        }
+        .font(.system(size: 11.5, weight: .medium))
+        .padding(.horizontal, 3)
+    }
     /// The Board's switch: what waits for Keshab first, with its count (Needs you and Issues moved here from the sidebar on
     /// 2026-10-15, and Issues became part of Needs you: ADR-116).
     fileprivate func boardTabs(waiting: Int, compact: Bool) -> some View {
         HStack(spacing: 6) {
+            ViewChoice(title: "Studio", symbol: "building.2", selected: model.boardView == .floor, compact: compact) { model.boardView = .floor }
             ViewChoice(title: "Needs you", symbol: "tray", selected: model.boardView == .needsYou, badge: waiting, compact: compact) { model.boardView = .needsYou }
-            ViewChoice(title: "Overview", symbol: "gauge.with.dots.needle.33percent", selected: model.boardView == .overview, compact: compact) { model.boardView = .overview }
-            ViewChoice(title: "Floor", symbol: "person.3", selected: model.boardView == .floor, compact: compact) { model.boardView = .floor }
-            ViewChoice(title: "Columns", symbol: "rectangle.split.3x1", selected: model.boardView == .columns, compact: compact) { model.boardView = .columns }
+            ViewChoice(title: "Tasks", symbol: "checklist", selected: model.boardView == .columns, compact: compact) { model.boardView = .columns }
+            ViewChoice(title: "Activity", symbol: "chart.bar", selected: model.boardView == .overview, compact: compact) { model.boardView = .overview }
         }
     }
 }
