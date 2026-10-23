@@ -46,7 +46,7 @@ struct Composer: View {
     }
 
     private var composerShape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: 24, style: .continuous)
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
     }
 
     var body: some View {
@@ -76,7 +76,7 @@ struct Composer: View {
                                  remove: { attached.wrappedValue.remove($0) }, removeNote: { attached.wrappedValue.remove(note: $0) })
                     .id(model.chats?.current ?? "")
             }
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 8) {
                 Group {
                     if let notice = readOnly {
                         // ADR-098: Telegram or the local API writes this chat. Reading, copying and search still work.
@@ -103,7 +103,7 @@ struct Composer: View {
                             .accessibilityLabel("Message to ATOM")
                     }
                 }
-                .frame(minHeight: 60, alignment: .topLeading)
+                .frame(minHeight: 22, alignment: .topLeading)
                 if readOnly == nil {
                     ViewThatFits(in: .horizontal) {
                         HStack(spacing: 12) {
@@ -180,7 +180,7 @@ struct Composer: View {
             if !snapshot { WindowProbe { paste.wrappedValue.window = $0 } }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.vertical, 10)
         .background(composerShape.fill(theme.fill1.color))
         .overlay(composerShape.strokeBorder(theme.separator.color, lineWidth: theme.isFlat ? 1 : 0.5))
         // Dropping files on the composer attaches them.
@@ -682,8 +682,8 @@ struct ConversationTab: View {
             Composer(model: model)
         }
         .padding(.horizontal, Spacing.conversation)
-        .padding(.top, 12)
-        .padding(.bottom, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
     }
 
     /// One column for both states, with the composer after the if/else: in two branches it was a different view each time, so its half-typed draft and
@@ -710,7 +710,7 @@ struct ConversationTab: View {
                             }
                         }
                         .padding(.horizontal, Spacing.conversation)
-                        .padding(.vertical, 20)
+                        .padding(.vertical, 12)
                     }
                     .id(model.chats?.current ?? "")
                     .onChange(of: model.chatFindScrollTick) { _, _ in
@@ -775,7 +775,7 @@ struct TurnView: View {
         let preview = UserMessagePreview.collapsed(turn.transcript)
         let collapsed = preview != nil && !messageExpanded.wrappedValue && findMatch?.user != true
         let copyTitle = preview == nil ? "Copy message" : "Copy full message"
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             if !turn.transcript.isEmpty { // an answer ATOM posted by itself has no question (ADR-109)
                 ChatUserBubbleLayout {
                     VStack(alignment: .trailing, spacing: 4) {
@@ -785,8 +785,8 @@ struct TurnView: View {
                             .accessibilityHint(collapsed ? "Message preview. Open Message actions and choose Show full message to read the rest." : "")
                             .font(.system(size: 14))
                             .foregroundStyle(theme.text.color)
-                            .lineSpacing(5)
-                            .padding(12)
+                            .lineSpacing(3)
+                            .padding(10)
                             .background(RoundedRectangle(cornerRadius: theme.radiusCard, style: .continuous).fill(theme.fill1.color))
                             .textSelection(.enabled)
                             .contextMenu { userActions(collapsed: collapsed) }

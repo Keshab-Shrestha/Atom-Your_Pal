@@ -97,6 +97,13 @@ struct ReplyDraftPane: View {
     private func binding(_ path: ReferenceWritableKeyPath<ReplyDraftSession, String>) -> Binding<String> {
         Binding(get: { session[keyPath: path] }, set: { session[keyPath: path] = $0 })
     }
+    /// Gallery coverage for the expanded section; real panels always start with it closed.
+    var previewDetails = false
+    @State private var detailsExpanded = false
+    private var detailsBinding: Binding<Bool> {
+        Binding(get: { snapshot ? previewDetails : detailsExpanded }, set: { detailsExpanded = $0 })
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -104,55 +111,47 @@ struct ReplyDraftPane: View {
                 Spacer()
                 QuietButton(title: "Close", symbol: "xmark", action: close)
             }
+            HStack(spacing: 8) {
+                Text(session.profile.map { "\($0.model) · \($0.effort) effort" } ?? "Drafting model unavailable")
+                    .font(.system(size: 11.5)).foregroundStyle(theme.text2.color).textSelection(.enabled)
+                Spacer(minLength: 0)
+                QuietButton(title: "Reload model", symbol: "arrow.clockwise") { session.find() }
+                    .disabled(session.contextID != nil || session.draftID != nil || session.inserting)
+            }
             Scrollable {
-                VStack(alignment: .leading, spacing: 12) {
-                    if let profile = session.profile {
-                        Text("\(profile.provider) · \(profile.model) · draft effort: \(profile.effort)")
-                            .font(.system(size: 11.5)).foregroundStyle(theme.text2.color).textSelection(.enabled)
-                        Text("Uses the active chat's model in a separate tool-free request. Chat thinking settings and history stay unchanged.")
-                            .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
-                    } else {
-                        Text("Load the active drafting model before generating.").font(.system(size: 11.5)).foregroundStyle(theme.text2.color)
-                    }
-                    Text(source.source.label + (source.truncated ? " was shortened during capture. Paste the missing conversation below before drafting." : " — review or edit the conversation below."))
-                        .font(.system(size: 11)).foregroundStyle(theme.text3.color)
-                    SoulField(label: "Conversation to reply to", text: binding(\.conversation), lines: 5)
-                    SoulField(label: "What should the reply say? (optional)", text: binding(\.intent), lines: 2)
-                    SoulField(label: "Additional facts or context (optional)", text: binding(\.background), lines: 3)
-                    savedContext
-                    DisclosureGroup("Writing examples (optional)") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            SoulField(label: "Examples of your own writing", text: binding(\.examples), lines: 4)
-                            Toggle("Include these examples in this draft", isOn: Binding(get: { session.useExamples }, set: { session.useExamples = $0 }))
-                                .font(.system(size: 12))
-                            HStack(spacing: 8) {
-                                PillButton(title: "Save examples on this Mac") {
-                                    session.model.settings.replyWritingExamples = session.examples
-                                    session.message = "Examples saved locally. Including them in a draft remains optional each time."
-                                }
-                                PillButton(title: "Forget saved examples") {
-                                    session.model.settings.replyWritingExamples = ""; session.examples = ""; session.useExamples = false
-                                    session.message = "Saved examples removed from this Mac's preferences."
-                                }
-                            }
-                            Text("No message harvesting. Only explicitly included examples go to the selected model. Examples guide style, not personal facts or commitments.")
-                                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
-                        }.padding(.top, 6)
-                    }
+                VStack(alignment: .leading, spacing: 10) {
                     if let message = session.message { ProblemLine(text: message) }
                     if session.hasDraft {
-                        RowDivider(inset: 0)
-                        SoulField(label: "Unsent draft — edit before copying", text: binding(\.draft), lines: 7)
+                        SoulField(label: "Your reply — edit before using", text: binding(\.draft), lines: 5)
                             .disabled(session.draftID != nil || session.inserting)
                         if session.input != session.generatedInput {
-                            Text("Inputs changed since this draft was generated. Generate again to use the updated context.")
+                            Text("Inputs changed. Generate again to use the updated context.")
                                 .font(.system(size: 11)).foregroundStyle(theme.text2.color)
                         }
+                        RowDivider(inset: 0)
                     }
-                    Text("Generate sends the conversation, your instructions, checked context and any opted-in examples to the model shown above. No screenshot, whole chat history, automatic search, paste or send. Closing discards this panel's draft.")
-                        .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                    Text(source.source.label + (source.truncated ? " was shortened. Add missing text before drafting." : " — review the conversation below."))
+                        .font(.system(size: 11)).foregroundStyle(theme.text3.color)
+                    SoulField(label: "Conversation", text: binding(\.conversation), lines: 3)
+                    SoulField(label: "What should the reply say? (optional)", text: binding(\.intent), lines: 2)
+                    DisclosureGroup(isExpanded: detailsBinding) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            SoulField(label: "Additional facts or context (optional)", text: binding(\.background), lines: 3)
+                            savedContext
+                            writingExamples
+                            Text("Uses the shown model in a separate tool-free request. Only this conversation, your instructions, checked context and opted-in examples go to it. No screenshot, whole chat history or automatic search. Chat settings and permissions stay unchanged. Closing discards this panel's draft.")
+                                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+                        }.padding(.top, 8)
+                    } label: {
+                        Text("Context & writing style").font(.system(size: 12, weight: .medium))
+                    }
+                    if !session.included.isEmpty || session.useExamples || !session.background.isEmpty {
+                        Text(includedSummary).font(.system(size: 11)).foregroundStyle(theme.text2.color)
+                    }
                 }.padding(.trailing, 5)
             }
+            Text("Draft stays unsent. Review it, then Copy or Insert when ready.")
+                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
             HStack(spacing: 8) {
                 if session.draftID != nil {
                     ProgressView().controlSize(.small)
@@ -175,18 +174,55 @@ struct ReplyDraftPane: View {
                 }
             }
         }
-        .padding(16).frame(width: 560, height: 660)
+        .padding(16).frame(width: 560, height: 580)
         .onAppear { if !snapshot { session.find() } }
         .onChange(of: session.contextID.flatMap { session.model.replyContexts[$0] }) { _, value in if let value { session.receiveContext(value) } }
         .onChange(of: session.draftID.flatMap { session.model.replyAnswers[$0] }) { _, value in if let value { session.receiveDraft(value) } }
     }
 
+    private var includedSummary: String {
+        var parts: [String] = []
+        if !session.background.isEmpty { parts.append("Additional context included") }
+        if !session.included.isEmpty { parts.append("\(session.included.count) saved item(s) included") }
+        if session.useExamples { parts.append("Writing examples included") }
+        return parts.joined(separator: " · ")
+    }
+
+    private var writingExamples: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SoulField(label: "Examples of your own writing", text: binding(\.examples), lines: 3)
+            Toggle("Include these examples in this draft", isOn: Binding(get: { session.useExamples }, set: { session.useExamples = $0 }))
+                .font(.system(size: 12))
+            HStack(spacing: 8) {
+                PillButton(title: "Save examples on this Mac") {
+                    session.model.settings.replyWritingExamples = session.examples
+                    session.message = "Examples saved locally. Including them in a draft remains optional each time."
+                }
+                PillButton(title: "Forget saved examples") {
+                    session.model.settings.replyWritingExamples = ""; session.examples = ""; session.useExamples = false
+                    session.message = "Saved examples removed from this Mac's preferences."
+                }
+            }
+            Text("Only explicitly included examples go to the model. They guide style, not personal facts or commitments.")
+                .font(.system(size: 10.5)).foregroundStyle(theme.text3.color)
+        }
+    }
+
     private var savedContext: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                TextField("Find saved facts or notes…", text: binding(\.query)).textFieldStyle(.roundedBorder)
-                    .onSubmit { if session.draftID == nil { session.find() } }
-                PillButton(title: session.contextID == nil ? "Find / reload model" : "Finding…") { session.find() }
+                if snapshot {
+                    // ImageRenderer cannot draw native text fields; keep their visible label and layout in fixtures.
+                    Text(session.query.isEmpty ? "Find saved facts or notes…" : session.query)
+                        .font(.system(size: 12)).foregroundStyle(theme.text3.color)
+                        .padding(.horizontal, 7).frame(maxWidth: .infinity, minHeight: 22, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 4).fill(theme.fill1.color))
+                        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(theme.separator.color, lineWidth: 1))
+                } else {
+                    TextField("Find saved facts or notes…", text: binding(\.query)).textFieldStyle(.roundedBorder)
+                        .onSubmit { if session.draftID == nil { session.find() } }
+                }
+                PillButton(title: session.contextID == nil ? "Find" : "Finding…") { session.find() }
                     .disabled(session.contextID != nil || session.draftID != nil)
             }
             Text("Lookup stays local. Check an item to include its displayed excerpt; nothing is selected automatically.")
