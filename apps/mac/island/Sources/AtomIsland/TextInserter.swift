@@ -57,6 +57,65 @@ final class TextInserter {
         return .typed
     }
 
+    /// Reviewed replies require a known empty selection in the captured app. Dictation/Replace retain their existing behavior.
+    /// All waits finish before destination validation; no async work separates the final checks from insertion.
+    func insertReviewed(_ text: String, into target: Target) async -> String {
+        guard canType else { return "Accessibility is unavailable. Nothing was inserted; use Copy draft." }
+        await waitForModifiersUp()
+        guard !Task.isCancelled else { return "Insertion cancelled." }
+        await bringToFront(target)
+        guard !Task.isCancelled else { return "Insertion cancelled." }
+        let modifiers: CGEventFlags = [.maskCommand, .maskAlternate, .maskControl, .maskShift]
+        guard CGEventSource.flagsState(.combinedSessionState).intersection(modifiers).isEmpty else {
+            return "Release the modifier keys before inserting. Nothing was inserted."
+        }
+        let app = target.app
+        guard let app, !app.isTerminated,
+              NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier else {
+            return "ATOM could not focus \(target.name). Nothing was inserted; use Copy draft."
+        }
+        let element = focusedElement(of: app)
+        let role = element.flatMap { string(kAXRoleAttribute, of: $0) }
+        let secure = element.map(isPassword) ?? false
+        let editable = ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"].contains(role ?? "")
+        let range = !secure ? element.flatMap(selectedRange) : nil
+        if let block = ReplyInsertRule.destinationBlock(appName: target.name,
+            appRunning: !app.isTerminated,
+            frontmost: NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier,
+            editable: editable, secure: secure, selectionLength: range?.length) { return block }
+        guard let element, let range else { return "The destination is unavailable. Nothing was inserted; use Copy draft." }
+        var owner: pid_t = 0
+        guard AXUIElementGetPid(element, &owner) == .success, owner == app.processIdentifier else {
+            return "The focused field changed apps. Nothing was inserted; use Copy draft."
+        }
+        var settable = DarwinBoolean(false)
+        if AXUIElementIsAttributeSettable(element, kAXSelectedTextAttribute as CFString, &settable) == .success, settable.boolValue {
+            guard let before = string(kAXValueAttribute, of: element), range.location <= (before as NSString).length else {
+                return "ATOM could not verify the reply field. Nothing was inserted; use Copy draft."
+            }
+            let expected = (before as NSString).replacingCharacters(in: range, with: text)
+            let status = AXUIElementSetAttributeValue(element, kAXSelectedTextAttribute as CFString, text as CFTypeRef)
+            guard status == .success, string(kAXValueAttribute, of: element) == expected else {
+                return "ATOM could not confirm insertion. Inspect the reply field before trying again; nothing was sent."
+            }
+            return "Inserted into \(target.name) at its cursor. Nothing was sent; review it there before sending."
+        }
+        // Apps without a selected-text setter retain paste support, but only after focus and empty-selection validation.
+        paste(text)
+        return "Paste requested in \(target.name). Review the reply field to confirm it arrived. Nothing was sent."
+    }
+
+    private func selectedRange(_ element: AXUIElement) -> NSRange? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &value) == .success,
+              let value, CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
+        let axValue = value as! AXValue
+        guard AXValueGetType(axValue) == .cfRange else { return nil }
+        var range = CFRange()
+        guard AXValueGetValue(axValue, .cfRange, &range), range.location >= 0, range.length >= 0 else { return nil }
+        return NSRange(location: range.location, length: range.length)
+    }
+
     // MARK: - Waiting for the user's hands
 
     /// Waits until ⌘ ⌥ ⌃ ⇧ are physically up, at most `limit` seconds, so a held modifier cannot change the paste.

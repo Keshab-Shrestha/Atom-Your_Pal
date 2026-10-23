@@ -9,9 +9,25 @@ public enum ReplyInsertRule {
         return ("Insert into \(name)", ready && appRunning && hasText)
     }
 
-    /// Insert writes the app's selected-text value, which replaces a selection: a still-selected source message would be overwritten.
-    public static func selectionBlock(selected: String?, appName: String) -> String? {
-        guard let selected, !selected.isEmpty else { return nil }
-        return "Text is selected in \(appName); Insert would replace it. Click where the reply should go, then Insert again. Nothing was inserted."
+    /// An unreadable selection is not proof that the caret is empty.
+    public static func selectionBlock(length: Int?, appName: String) -> String? {
+        guard let length, length >= 0 else {
+            return "ATOM could not verify the selection in \(appName). Nothing was inserted; use Copy draft."
+        }
+        guard length == 0 else {
+            return "Text is selected in \(appName); Insert would replace it. Click where the reply should go, then Insert again. Nothing was inserted."
+        }
+        return nil
+    }
+
+    /// Checked after activation and immediately before insertion, without an asynchronous gap before the write.
+    public static func destinationBlock(appName: String, appRunning: Bool, frontmost: Bool, editable: Bool, secure: Bool, selectionLength: Int?) -> String? {
+        guard appRunning, frontmost else {
+            return "ATOM could not focus \(appName). Nothing was inserted; use Copy draft."
+        }
+        guard !secure, editable else {
+            return "Focus an ordinary editable reply field in \(appName). Nothing was inserted; use Copy draft."
+        }
+        return selectionBlock(length: selectionLength, appName: appName)
     }
 }

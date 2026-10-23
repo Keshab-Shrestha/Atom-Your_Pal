@@ -102,15 +102,9 @@ final class QuickActionController: NSObject, NSWindowDelegate {
         replySession?.close(); replySession = nil; panel = nil
     }
 
-    /// Puts the reviewed draft at the cursor of the app it was drafted from. The panel stays open; nothing is sent. A password field gets the
-    /// clipboard instead (the inserter's rule), and a quit app gets nothing.
+    /// Validate the focused destination after activation; cancellation/Close cannot write after either awaited stage.
     private func insertDraft(_ text: String, in target: TextInserter.Target) async -> String {
-        guard let app = target.app, !app.isTerminated else { return "\(target.name) is no longer running. Nothing was inserted; use Copy draft." }
-        if let block = ReplyInsertRule.selectionBlock(selected: inserter.selectedText(of: app), appName: target.name) { return block }
-        switch await inserter.insert(text, into: target) {
-        case .typed: return "Inserted into \(target.name) at its cursor. Nothing was sent; review it there before sending."
-        case .copied(let reason): return "\(reason). The draft is on the clipboard; nothing was inserted."
-        }
+        await inserter.insertReviewed(text, into: target)
     }
 
     /// Puts the text in place of the selection in the app it came from. Returns a word for the user when it could not.

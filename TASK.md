@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## PR autofix — Reviewed reply insertion (23 October 2026)
+
+PR #5 review found an unreadable selection was treated as empty, and selection was checked before activation waits. A dedicated reviewed insertion path now checks the captured app/focus/owner, editable nonsecure field and an explicitly empty AX selection range after waiting. It refuses unknown destinations, verifies direct writes without a duplicate paste on uncertainty and reports fallback paste as unconfirmed. Insert is single-flight and panel Close cancels pending insertion. Dictation/Replace remain unchanged. The nil-selection regression failed before correction; all 793 Swift tests, final release build, isolated bundle signature and 114 gallery scenes/43 unchanged visual references pass. The initial release attempt ran out of disk; removing only task-owned build artifacts and retrying with the repository’s native build system succeeded. The earlier live TextEdit check predates these corrections; no new live insert or app replacement occurred during autofix.
+
 ## Current capability — Contextual drafting: reviewed Insert (2026-10-23)
 
 The reply-draft panel now has an explicit "Insert into ‹App›" button. It is enabled only for a finished draft while the source app runs. It inserts at that app's cursor through ATOM's existing inserter: a password field gets the clipboard instead, and nothing is ever sent or Return pressed. A selection guard refuses to overwrite selected text. Two new core tests; Swift tests pass; release build passes; goldens unchanged. Live check with Keshab: the guard refused while the source line was selected, and Insert placed the draft at the cursor with the original line intact and nothing sent. See [contextual reply drafts](docs/contextual-reply-drafts.md).

@@ -12,7 +12,7 @@ Writing examples are manually provided, editable and optional for each draft. Ex
 
 Generate sends only the reviewed conversation, intent, optional background, explicitly checked excerpts and opted-in examples. It uses the active chat's model in a separate isolated request; it does not add the full chat history, task tools, permissions, browser state or standing memory. The panel shows provider/model and its separate drafting effort before generation. Claude's tool-free job uses low effort; Codex uses low when supported, otherwise its advertised default. Main-chat thinking settings remain unchanged. Profile changes before admission require reloading/reviewing instead of silently switching providers.
 
-The result remains in an editable unsent draft field. Copy draft is explicit and never types, pastes, presses Return, chooses a recipient or sends. Regeneration preserves the previous draft until a new result succeeds; cancelled/failed regeneration retains the previous input attribution. Input edits during generation are reflected by an older-input notice on the result. Closing discards the panel's ephemeral form/result and cancels its pending work. Direct insertion into an app is not added: it would need a separate fresh, reviewed destination binding.
+The result remains in an editable unsent draft field. Copy draft is explicit and never types, pastes, presses Return, chooses a recipient or sends. Regeneration preserves the previous draft until a new result succeeds; cancelled/failed regeneration retains the previous input attribution. Input edits during generation are reflected by an older-input notice on the result. Closing discards the panel's ephemeral form/result and cancels its pending work. Reviewed insertion was added on 23 October; its destination checks and remaining native acceptance are described below.
 
 ## Provider compatibility
 
@@ -41,12 +41,12 @@ Keshab chose a reviewed Insert as the first drafting improvement. This changes t
 
 - The panel keeps the app that was in front when the Quick actions shortcut was pressed. A new **Insert into ‹App›** button sits next to Copy draft.
 - The button works only for a finished, non-empty draft that is not being regenerated, and only while that app still runs. If the app has quit, nothing is inserted and the panel says to use Copy draft.
-- Insert uses ATOM's existing text inserter, the same one dictation and Quick actions replace use. It brings the app forward and puts the draft at the focused field's cursor through the Accessibility selected-text value; the clipboard paste is the fallback. A password field (`AXSecureTextField`) gets the clipboard instead, and nothing is inserted.
-- Insert never presses Return, chooses a recipient or sends. The reply says "Inserted into ‹App› at its cursor. Nothing was sent". The panel stays open.
+- Insert uses a dedicated reviewed path in the existing text inserter. After modifier-release and activation waits, it checks that the captured app is still running and frontmost, the focused element belongs to it and is an ordinary editable field, and its selection range is readable and empty. Secure fields and unknown selection/focus are refused with explicit Copy guidance, without an automatic clipboard write. Dictation and Quick actions Replace retain their existing behavior.
+- Insert never presses Return, chooses a recipient or sends. An Accessibility write is confirmed against the expected field value; an uncertain write is reported without retrying via paste. Apps without a selected-text setter can receive a paste only after the same destination checks, reported as a paste request rather than confirmed insertion. The panel stays open.
 
 Limit: the destination is the focused field in that app at the moment of Insert, not a stored element binding. If the user moves focus in that app, the draft goes to the new focus. The button names the app, not the field.
 
-Selection guard: Insert writes the field's selected-text value, which replaces a selection. If text is selected in the destination app, Insert refuses ("Text is selected in ‹App›; Insert would replace it. Click where the reply should go, then Insert again. Nothing was inserted.").
+Selection guard: Insert writes the field's selected-text value, which replaces a selection. Unknown selection is refused, and validation occurs after activation rather than before it. If text is selected in the destination app, Insert refuses ("Text is selected in ‹App›; Insert would replace it. Click where the reply should go, then Insert again. Nothing was inserted.").
 
 Checks: two new core tests (`ReplyInsertRule`); all Swift tests pass; the release app builds; no gallery golden changed.
 
@@ -54,3 +54,9 @@ Live check, 23 October, with Keshab pressing the Quick actions shortcut in a new
 - With the Mira line still selected, Insert refused with the selection message, and nothing was inserted.
 - With the cursor on an empty line below, Insert placed the draft at the cursor. The Mira line stayed intact, and nothing was sent.
 - Observation, separate from Insert: the draft said "Let me check my Friday plans… I'll confirm soon" rather than a clear yes. Whether this matched the typed intent was not confirmed.
+
+### PR review corrections (23 October)
+
+Insert is single-flight: repeated clicks cannot create parallel insertion tasks. Generate, Copy and draft editing are disabled during insertion. Closing the panel cancels its pending insertion; cancellation is checked after each wait before the write. The original nil-selection policy regression fails before correction. Expanded core cases cover unknown/negative/nonempty selection, failed focus, a quit app, secure and noneditable destinations; all 793 Swift tests pass. The earlier TextEdit live check predates these review corrections; it is not evidence for the new failure/cancellation paths. No real app insertion, provider request or running-app replacement was performed during autofix.
+
+Autofix verification: final release compilation passes, an isolated ad-hoc gallery bundle passes strict signature verification, and all 114 gallery scenes/43 visual comparisons pass at the unchanged 1% threshold. The running app was neither quit nor replaced. An initial default-build-system attempt ran out of disk; only this task’s failed/completed intermediate builds were removed before a successful native-build-system retry. Existing compiler/build-system warnings remain.

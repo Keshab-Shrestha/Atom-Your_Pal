@@ -95,10 +95,25 @@ struct SentientAdaptationTests {
     }
 
     @Test func insertRefusesToReplaceASelection() {
-        #expect(ReplyInsertRule.selectionBlock(selected: nil, appName: "TextEdit") == nil)
-        #expect(ReplyInsertRule.selectionBlock(selected: "", appName: "TextEdit") == nil)
-        let block = ReplyInsertRule.selectionBlock(selected: "Mira: Friday?", appName: "TextEdit")
+        #expect(ReplyInsertRule.selectionBlock(length: nil, appName: "TextEdit")?.contains("could not verify") == true)
+        #expect(ReplyInsertRule.selectionBlock(length: 0, appName: "TextEdit") == nil)
+        let block = ReplyInsertRule.selectionBlock(length: 13, appName: "TextEdit")
         #expect(block?.contains("would replace it") == true)
         #expect(block?.contains("Nothing was inserted") == true)
     }
+
+    @Test func reviewedInsertRequiresAVerifiedEditableDestination() {
+        func blocked(running: Bool = true, front: Bool = true, editable: Bool = true, secure: Bool = false, length: Int? = 0) -> Bool {
+            ReplyInsertRule.destinationBlock(appName: "TextEdit", appRunning: running, frontmost: front, editable: editable, secure: secure, selectionLength: length) != nil
+        }
+        #expect(blocked() == false)
+        #expect(blocked(running: false))
+        #expect(blocked(front: false))
+        #expect(blocked(editable: false))
+        #expect(blocked(secure: true))
+        #expect(blocked(length: nil))
+        #expect(blocked(length: -1))
+        #expect(blocked(length: 3))
+    }
+
 }
