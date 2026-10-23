@@ -26,3 +26,49 @@ test("an unreadable screen size still hides the agent cursor", async () => {
   await createAgentCursor(cua, async () => {}).finish();
   assert.deepEqual(calls.map((c) => c.name), ["get_screen_size", "set_agent_cursor_enabled"]);
 });
+
+test("a failed return-to-island call still disables the cursor", async () => {
+  const { cua, calls } = fake();
+  const call = cua.call;
+  cua.call = async (name, args) => {
+    if (name === "get_screen_size") throw new Error("driver unavailable");
+    return call(name, args);
+  };
+  await assert.rejects(createAgentCursor(cua, async () => {}).finish(), /driver unavailable/);
+  assert.deepEqual(calls, [{ name: "set_agent_cursor_enabled", args: { enabled: false } }]);
+});
+
+test("an older finish cannot hide the cursor after a new task starts", async () => {
+  const { cua, calls } = fake();
+  let release!: () => void;
+  const cursor = createAgentCursor(cua, () => new Promise<void>((r) => { release = r; }));
+  await cursor.start();
+  const finishing = cursor.finish();
+  await new Promise<void>((r) => setImmediate(r));
+  await cursor.start();
+  release();
+  await finishing;
+  assert.deepEqual(calls.filter((c) => c.name === "set_agent_cursor_enabled").map((c) => c.args.enabled), [true, true]);
+});
+
+test("a slow start cannot enable the cursor after its task ended", async () => {
+  const { cua, calls } = fake();
+  const call = cua.call;
+  let release!: () => void;
+  cua.call = async (name, args) => {
+    if (name === "set_agent_cursor_motion") await new Promise<void>((r) => { release = r; });
+    return call(name, args);
+  };
+  const cursor = createAgentCursor(cua, async () => {});
+  const starting = cursor.start();
+  await cursor.finish();
+  release();
+  await starting;
+  assert.deepEqual(calls.filter((c) => c.name === "set_agent_cursor_enabled").map((c) => c.args.enabled), [false]);
+});
+
+test("driver error results are reported as cursor failures", async () => {
+  const { cua } = fake();
+  cua.call = async () => ({ text: "unsupported", isError: true, refusal: undefined, data: {} });
+  await assert.rejects(createAgentCursor(cua).start(), /cursor/i);
+});

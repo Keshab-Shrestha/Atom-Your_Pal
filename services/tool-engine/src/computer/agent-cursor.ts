@@ -16,18 +16,32 @@ const REST_Y = 14;
  * pointer is never moved (never `scope: "desktop"`), so the user can keep working while ATOM does.
  */
 export function createAgentCursor(cua: Pick<CuaTransport, "call">, wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))) {
+  // Each start/finish supersedes earlier asynchronous work. An old glide must not hide a newer task's cursor.
+  let revision = 0;
+  async function call(name: string, args: Record<string, unknown>) {
+    const result = await cua.call(name, args);
+    if (result.isError) throw new Error("The agent cursor driver operation failed.");
+    return result;
+  }
   return {
     async start() {
-      await cua.call("set_agent_cursor_motion", MOTION);
-      await cua.call("set_agent_cursor_enabled", { enabled: true });
+      const current = ++revision;
+      await call("set_agent_cursor_motion", MOTION);
+      if (current === revision) await call("set_agent_cursor_enabled", { enabled: true });
     },
     async finish() {
-      const width = Number((await cua.call("get_screen_size", {})).data.width);
-      if (Number.isFinite(width) && width > 0) {
-        await cua.call("move_cursor", { x: Math.round(width / 2), y: REST_Y });
-        await wait(GLIDE_MS + 150);
+      const current = ++revision;
+      try {
+        const width = Number((await call("get_screen_size", {})).data.width);
+        if (current !== revision) return;
+        if (Number.isFinite(width) && width > 0) {
+          await call("move_cursor", { x: Math.round(width / 2), y: REST_Y });
+          if (current === revision) await wait(GLIDE_MS + 150);
+        }
+      } finally {
+        // Attempt cleanup even if screen lookup/movement failed, but never switch off a newer task.
+        if (current === revision) await call("set_agent_cursor_enabled", { enabled: false });
       }
-      await cua.call("set_agent_cursor_enabled", { enabled: false });
     },
   };
 }
