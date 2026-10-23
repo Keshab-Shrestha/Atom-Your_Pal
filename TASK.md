@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Live workflow inquiry and path to 8/10 — 23 October 2026
+
+Completed actual daily-chat, developer and Calculator walkthroughs in the running app, using fictional chats and an isolated repository/local bare remote. No app code changed or Swift suite ran. [Detailed evidence and ordered acceptance targets](docs/live-workflow-acceptance-2026-10-23.md). Next bounded fix: keep Stop visible during computer actions. Then reconcile explicit no-commit requests and truthful host-effect reporting, investigate reopening/runtime interruptions, bring developer diff/check/Git handoff beside its source chat, simplify memory disclosure and repeat fixed latency/recovery trials. Do not mark new fixes or the 8/10 target achieved from this inquiry.
+
 ## Orbit identity, Studio Board and title-bar sizing — implemented and checked (23 October 2026)
 
 Keshab selected a new logo, new character style and new floor-style Board, with double-click maximizing/restoring within the desktop. Implemented shared Orbit vector characters, new icon artwork, Studio furniture and Board navigation, native-size ownership and single-owner drag/zoom. Existing worker/task/approval/history behavior and custom legacy avatars are preserved. All 798 Swift tests pass; release compilation and strict bundle-signature verification pass. Reviewed 120 gallery scenes and 50 visual references at the unchanged 1% threshold; one intentional Board reference was updated and four Studio/icon references added. The rebuilt app is running Ready on Studio. Native title-bar zoom maximized to 1920 × 1050, retained that size through Tasks navigation, and restored to 961 × 1050. The reported original physical snap-back was not conclusively reproduced; automated behavior is verified. [Scope and evidence](docs/studio-redesign.md).
