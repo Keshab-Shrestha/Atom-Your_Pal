@@ -85,4 +85,35 @@ struct SentientAdaptationTests {
         #expect(try entry("template", "failed")?.plainReason == "the model was not available")
         #expect(try entry("template", nil)?.plainReason == "the model was not available")
     }
+
+    @Test func theInsertButtonNamesTheAppAndWaitsForAFinishedDraftWhileTheAppRuns() {
+        #expect(ReplyInsertRule.button(appName: "Notes", appRunning: true, draft: "See you Friday.", ready: true) == ("Insert into Notes", true))
+        #expect(ReplyInsertRule.button(appName: "Notes", appRunning: false, draft: "See you Friday.", ready: true).enabled == false)
+        #expect(ReplyInsertRule.button(appName: "Notes", appRunning: true, draft: "  \n", ready: true).enabled == false)
+        #expect(ReplyInsertRule.button(appName: "Notes", appRunning: true, draft: "See you Friday.", ready: false).enabled == false)
+        #expect(ReplyInsertRule.button(appName: "", appRunning: true, draft: "Hi", ready: true).title == "Insert into the app")
+    }
+
+    @Test func insertRefusesToReplaceASelection() {
+        #expect(ReplyInsertRule.selectionBlock(length: nil, appName: "TextEdit")?.contains("could not verify") == true)
+        #expect(ReplyInsertRule.selectionBlock(length: 0, appName: "TextEdit") == nil)
+        let block = ReplyInsertRule.selectionBlock(length: 13, appName: "TextEdit")
+        #expect(block?.contains("would replace it") == true)
+        #expect(block?.contains("Nothing was inserted") == true)
+    }
+
+    @Test func reviewedInsertRequiresAVerifiedEditableDestination() {
+        func blocked(running: Bool = true, front: Bool = true, editable: Bool = true, secure: Bool = false, length: Int? = 0) -> Bool {
+            ReplyInsertRule.destinationBlock(appName: "TextEdit", appRunning: running, frontmost: front, editable: editable, secure: secure, selectionLength: length) != nil
+        }
+        #expect(blocked() == false)
+        #expect(blocked(running: false))
+        #expect(blocked(front: false))
+        #expect(blocked(editable: false))
+        #expect(blocked(secure: true))
+        #expect(blocked(length: nil))
+        #expect(blocked(length: -1))
+        #expect(blocked(length: 3))
+    }
+
 }

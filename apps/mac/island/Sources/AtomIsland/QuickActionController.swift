@@ -43,17 +43,19 @@ final class QuickActionController: NSObject, NSWindowDelegate {
         close()
         let view = QuickActionView(model: model, found: found, targetName: target.name,
                                    replace: { [weak self] text in await self?.replace(text, in: target) ?? "" },
-                                   draft: { [weak self] text in self?.showReply(text) },
+                                   draft: { [weak self] text in self?.showReply(text, target: target) },
                                    close: { [weak self] in self?.close() })
             .themed(model.settings.theme.palette)
         present(view, width: 440)
     }
 
-    private func showReply(_ text: QuickText) {
+    private func showReply(_ text: QuickText, target: TextInserter.Target) {
         close()
         let session = ReplyDraftSession(model: model, conversation: text.text)
         replySession = session
-        present(ReplyDraftPane(session: session, source: text, close: { [weak self] in self?.close() })
+        present(ReplyDraftPane(session: session, source: text, close: { [weak self] in self?.close() },
+                               insertTarget: target.name, insertRunning: { target.app.map { !$0.isTerminated } ?? false },
+                               insert: { [weak self] draft in await self?.insertDraft(draft, in: target) ?? "" })
             .themed(model.settings.theme.palette), width: 560, height: 660)
     }
 
@@ -98,6 +100,11 @@ final class QuickActionController: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? NSWindow, window === panel else { return }
         replySession?.close(); replySession = nil; panel = nil
+    }
+
+    /// Validate the focused destination after activation; cancellation/Close cannot write after either awaited stage.
+    private func insertDraft(_ text: String, in target: TextInserter.Target) async -> String {
+        await inserter.insertReviewed(text, into: target)
     }
 
     /// Puts the text in place of the selection in the app it came from. Returns a word for the user when it could not.

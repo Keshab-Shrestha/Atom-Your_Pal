@@ -19,6 +19,8 @@ final class ReplyDraftSession {
     var draftID: String?
     var draft = ""
     var hasDraft = false
+    var inserting = false
+    private var insertTask: Task<Void, Never>?
     var generatedInput: ReplyDraftInput?
     var runningInput: ReplyDraftInput?
     var message: String?
@@ -47,7 +49,7 @@ final class ReplyDraftSession {
         profile = next; candidates = result.items
     }
     func generate() {
-        guard draftID == nil, let input else { return }
+        guard draftID == nil, !inserting, let input else { return }
         let id = "reply-draft-" + UUID().uuidString.lowercased()
         draftID = id; runningInput = input; message = nil
         model.generateReply(id: id, input: input)
@@ -65,7 +67,18 @@ final class ReplyDraftSession {
         runningInput = nil
         message = "Drafting stopped. Nothing was pasted or sent."
     }
+    func insertDraft(using operation: @escaping (String) async -> String) {
+        guard !inserting, draftID == nil, hasDraft, !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        inserting = true
+        let text = draft
+        insertTask = Task { @MainActor [weak self] in
+            let message = await operation(text)
+            guard !Task.isCancelled, let self else { return }
+            self.message = message; self.inserting = false; self.insertTask = nil
+        }
+    }
     func close() {
+        insertTask?.cancel(); insertTask = nil; inserting = false
         if let id = contextID { model.discardReplyContext(id); contextID = nil }
         if let id = draftID { model.cancelReply(id); draftID = nil }
     }
@@ -75,6 +88,10 @@ struct ReplyDraftPane: View {
     let session: ReplyDraftSession
     let source: QuickText
     let close: () -> Void
+    /// Insert into the app the draft came from; absent where there is no captured app (the gallery).
+    var insertTarget: String? = nil
+    var insertRunning: () -> Bool = { false }
+    var insert: ((String) async -> String)? = nil
     @Environment(\.theme) private var theme
     @Environment(\.islandSnapshot) private var snapshot
     private func binding(_ path: ReferenceWritableKeyPath<ReplyDraftSession, String>) -> Binding<String> {
@@ -126,7 +143,7 @@ struct ReplyDraftPane: View {
                     if session.hasDraft {
                         RowDivider(inset: 0)
                         SoulField(label: "Unsent draft — edit before copying", text: binding(\.draft), lines: 7)
-                            .disabled(session.draftID != nil)
+                            .disabled(session.draftID != nil || session.inserting)
                         if session.input != session.generatedInput {
                             Text("Inputs changed since this draft was generated. Generate again to use the updated context.")
                                 .font(.system(size: 11)).foregroundStyle(theme.text2.color)
@@ -143,13 +160,19 @@ struct ReplyDraftPane: View {
                     QuietButton(title: "Cancel", symbol: "xmark") { session.cancel() }
                 } else {
                     PillButton(title: session.hasDraft ? "Generate again" : "Generate draft", symbol: "sparkles", prominent: true) { session.generate() }
-                        .disabled(session.profile == nil || session.contextID != nil || session.conversation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(session.inserting || session.profile == nil || session.contextID != nil || session.conversation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
                 Spacer(minLength: 0)
                 PillButton(title: "Copy draft", symbol: "doc.on.doc") {
                     NSPasteboard.general.clearContents()
                     session.message = NSPasteboard.general.setString(session.draft, forType: .string) ? "Copied. Paste and send it yourself when ready." : "The clipboard could not be updated. Select and copy the draft manually."
-                }.disabled(!session.hasDraft || session.draft.isEmpty || session.draftID != nil)
+                }.disabled(!session.hasDraft || session.draft.isEmpty || session.draftID != nil || session.inserting)
+                if let insert, let insertTarget {
+                    let rule = ReplyInsertRule.button(appName: insertTarget, appRunning: insertRunning(), draft: session.draft, ready: session.hasDraft && session.draftID == nil && !session.inserting)
+                    PillButton(title: rule.title, symbol: "text.insert") {
+                        session.insertDraft(using: insert)
+                    }.disabled(!rule.enabled)
+                }
             }
         }
         .padding(16).frame(width: 560, height: 660)
