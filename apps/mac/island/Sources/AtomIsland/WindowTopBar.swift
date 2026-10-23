@@ -61,11 +61,12 @@ extension WindowTopBar where Trailing == EmptyView {
 /// An empty area that moves the window when dragged, and zooms it on a double click, as a title bar does.
 struct WindowDragArea: NSViewRepresentable {
     final class DragView: NSView {
-        override var mouseDownCanMoveWindow: Bool { true }
+        // This view owns dragging and double-click zoom. Letting AppKit also move it can handle the gesture twice.
+        override var mouseDownCanMoveWindow: Bool { false }
 
         override func mouseDown(with event: NSEvent) {
             if event.clickCount == 2 { window?.zoom(nil); return }
-            window?.performDrag(with: event)
+            if event.clickCount == 1 { window?.performDrag(with: event) }
         }
     }
 

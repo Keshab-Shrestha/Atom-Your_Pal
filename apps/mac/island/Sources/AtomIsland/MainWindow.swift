@@ -136,7 +136,11 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSMenuItemValidati
         window.titleVisibility = .hidden
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 760, height: 500)
-        window.contentView = NSHostingView(rootView: HelpersView(model: model))
+        let hosting = NSHostingView(rootView: HelpersView(model: model))
+        // AppKit owns the user's window size. Content reflow must not restore a SwiftUI ideal size after zooming.
+        hosting.sizingOptions = []
+        window.contentView = hosting
+        window.collectionBehavior.insert(.fullScreenPrimary)
         window.delegate = self
         mouseMonitor = NSEvent.addLocalMonitorForEvents(matching: .otherMouseDown) { [weak self] event in
             guard event.buttonNumber == 3 else { return event }
