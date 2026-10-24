@@ -18,3 +18,9 @@ export type RuntimeStatus =
   | { state: "restarting"; afterSeconds: number }
   | { state: "configError"; message: string }
   | { state: "failed"; message: string };
+
+/** The runtime's journal of accepted foreground requests (ADR-157): receipts as they happen, and answers to list/read/dismiss. */
+export type RecoveryResponse = Extract<IslandEvent, { type: "foreground.recovery" }>;
+export type Attempt = NonNullable<RecoveryResponse["attempts"]>[number];
+export type RecoveryRecord = NonNullable<RecoveryResponse["record"]>;
+export type Receipt = Extract<IslandEvent, { type: "foreground.receipt" }>;

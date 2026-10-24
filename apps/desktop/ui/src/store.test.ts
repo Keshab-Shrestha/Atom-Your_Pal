@@ -264,3 +264,65 @@ test("a project chat takes no attachments", () => {
   const project = run([ev({ type: "chats", current: "c1", currentProjectId: "p1", chats: [{ id: "c1", title: "P", updatedAt: "2026-10-24T00:00:00Z", messages: 1, projectId: "p1" }] })], live());
   assert.equal(attachWhy(project), "Project chats take no attachments.");
 });
+
+// ---------- recovery ----------
+
+const attempt = (id: string, extra: object = {}) => ({ id, chat: "c1", source: "text", state: "interrupted", createdAt: "2026-10-24T10:00:00Z", updatedAt: "2026-10-24T10:00:01Z", archived: false, dismissed: false, hasReply: false, answerCount: 0, ...extra });
+const listed = (request: string, extra: object = {}) => ev({ type: "foreground.recovery", request, ok: true, attempts: [attempt("a1")], known: [], knownAnswers: [], ...extra });
+
+test("a list answer is taken only for the request that asked, and counts once", () => {
+  const asked = run([{ kind: "recoveryAsk", what: "listing", request: "r1" }], live());
+  assert.equal(reduce(asked, listed("other")), asked);
+  const done = reduce(asked, listed("r1", { known: ["k1"] }));
+  assert.equal(done.recovery.listing, undefined);
+  assert.deepEqual([done.recovery.attempts.length, done.recovery.known, done.recovery.listed], [1, ["k1"], 1]);
+});
+
+test("reading shows one record; a refusal shows its words; starting to read clears the old record", () => {
+  const record = { ...attempt("a1"), text: "Do it", files: [], notes: [], answers: [], reply: "partial", offset: 0 };
+  const s = run([{ kind: "recoveryAsk", what: "reading", request: "r2" }, ev({ type: "foreground.recovery", request: "r2", ok: true, record })], live());
+  assert.equal(s.recovery.record?.text, "Do it");
+  const again = reduce(s, { kind: "recoveryAsk", what: "reading", request: "r3" });
+  assert.equal(again.recovery.record, undefined);
+  const refused = reduce(again, ev({ type: "foreground.recovery", request: "r3", ok: false, error: "That recovery record is no longer available." }));
+  assert.equal(refused.recovery.notice, "That recovery record is no longer available.");
+});
+
+test("a record that is no longer listed leaves the screen", () => {
+  const record = { ...attempt("gone"), text: "x", files: [], notes: [], answers: [], reply: "", offset: 0 };
+  const s = run([{ kind: "recoveryAsk", what: "reading", request: "r1" }, ev({ type: "foreground.recovery", request: "r1", ok: true, record }), { kind: "recoveryAsk", what: "listing", request: "r2" }, listed("r2")], live());
+  assert.equal(s.recovery.record, undefined);
+});
+
+test("dismissing clears the open record; a timeout says nothing was resent", () => {
+  const record = { ...attempt("a1"), text: "x", files: [], notes: [], answers: [], reply: "", offset: 0 };
+  const open = run([{ kind: "recoveryAsk", what: "reading", request: "r1" }, ev({ type: "foreground.recovery", request: "r1", ok: true, record }), { kind: "recoveryAsk", what: "dismissing", request: "r2" }], live());
+  const afterListed = reduce(open, { kind: "recoveryAsk", what: "listing", request: "rl" });
+  const withList = reduce(afterListed, listed("rl", { attempts: [attempt("a1"), attempt("a2")] }));
+  const dismissing = reduce(reduce(withList, { kind: "recoveryAsk", what: "reading", request: "rr" }), ev({ type: "foreground.recovery", request: "rr", ok: true, record }));
+  const dismissed = reduce(reduce(dismissing, { kind: "recoveryAsk", what: "dismissing", request: "rd" }), ev({ type: "foreground.recovery", request: "rd", ok: true }));
+  assert.deepEqual(dismissed.recovery.attempts.map((a) => a.id), ["a2"], "the dismissed record leaves the list at once");
+  assert.equal(reduce(open, ev({ type: "foreground.recovery", request: "r2", ok: true })).recovery.record, undefined);
+  const timedOut = reduce(open, { kind: "recoveryTimeout", request: "r2" });
+  assert.match(timedOut.recovery.notice!, /nothing is resent automatically/);
+  assert.equal(timedOut.recovery.dismissing, undefined);
+  assert.equal(reduce(open, { kind: "recoveryTimeout", request: "old" }), open);
+});
+
+test("each receipt is kept with a count, so one is acted on once", () => {
+  const a = reduce(live(), ev({ type: "foreground.receipt", id: "d1", chat: "c1", state: "running", archived: false }));
+  const b = reduce(a, ev({ type: "foreground.receipt", id: "d1", chat: "c1", state: "completed", archived: true }));
+  assert.deepEqual([a.receipt?.n, b.receipt?.n, b.receipt?.state, b.receipt?.archived], [1, 2, "completed", true]);
+});
+
+test("closing the view drops the open record and notice", () => {
+  const s = run([{ kind: "recoveryOpen", open: true }, { kind: "recoveryNotice", notice: "x" }, { kind: "recoveryOpen", open: false }], live());
+  assert.deepEqual([s.recovery.open, s.recovery.notice, s.recovery.record], [false, undefined, undefined]);
+});
+
+test("reading another part of the open record keeps it on screen; reading a different record clears it first", () => {
+  const record = { ...attempt("a1"), text: "x", files: [], notes: [], answers: [], reply: "part one", offset: 0, nextOffset: 8 };
+  const open = run([{ kind: "recoveryAsk", what: "reading", request: "r1" }, ev({ type: "foreground.recovery", request: "r1", ok: true, record })], live());
+  assert.equal(reduce(open, { kind: "recoveryAsk", what: "reading", request: "r2", keep: true }).recovery.record?.reply, "part one");
+  assert.equal(reduce(open, { kind: "recoveryAsk", what: "reading", request: "r2" }).recovery.record, undefined);
+});

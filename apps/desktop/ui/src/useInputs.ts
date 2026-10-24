@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { Insertion } from "./Composer.tsx";
 import { newUuid } from "./ids.ts";
 import {
-  emptyInput, enqueue, fromSaved, holdAll, markSending, nextToSend, savedKey, snapshot, started, take, toSaved,
+  dropAcknowledged, emptyInput, enqueue, fromSaved, holdAll, pendingIds, markSending, nextToSend, savedKey, snapshot, started, take, toSaved,
   type ChatInput, type Entry, type Inputs,
 } from "./input.ts";
 import { sendBlock, type AppState } from "./store.ts";
@@ -29,6 +29,8 @@ export interface InputApi {
   onSendNow: () => void;
   onEdit: (id: string) => void;
   onRemove: (id: string) => void;
+  /** Ids of every message still waiting, for asking the runtime which it already holds. */
+  pendingIds: () => string[];
 }
 
 export interface UseInputs {
@@ -41,7 +43,7 @@ export function useInputs(options: {
   state: AppState;
   transport: Transport;
   /** Sends one message and resolves true once the runtime has taken the turn (a transcript came back), false on a refusal or no answer. */
-  sendMessage: (text: string, files: File[], confirm: boolean) => Promise<boolean>;
+  sendMessage: (text: string, files: File[], request: string) => Promise<boolean>;
   problem: (message: string) => void;
   offer: (insertion: Omit<Insertion, "seq">) => void;
 }): UseInputs {
@@ -112,6 +114,11 @@ export function useInputs(options: {
     };
   }, [persist]);
 
+  // ---- the runtime's journal knows some of what is held: those copies are no longer needed ----
+  useEffect(() => {
+    if (state.recovery.listed > 0) apply((cur) => dropAcknowledged(cur, state.recovery.known));
+  }, [state.recovery.listed]);
+
   // ---- hold everything that waits: leaving the chat, the runtime going away, an error that ends the turn ----
   const hold = useCallback((c: string) => apply((cur) => holdAll(cur, c)), [apply]);
   const previous = useRef(chat);
@@ -136,7 +143,7 @@ export function useInputs(options: {
       lastSend.current = { turns: stateRef.current.turnsStarted, at: Date.now() };
       setTimeout(() => tick((n) => n + 1), START_PATIENCE_MS + 100); // re-check the patience limit even if nothing else changes
       apply((cur) => markSending(cur, c, entry.id));
-      const ok = await sendMessage(entry.text, entry.files, true);
+      const ok = await sendMessage(entry.text, entry.files, entry.id);
       apply((cur) => (ok ? started(cur, c, entry.id) : holdAll(cur, c)));
     },
     [apply, sendMessage],
@@ -177,6 +184,7 @@ export function useInputs(options: {
       offer({ mode: "restore", text: entry.text, files: entry.files, refusal: "Clear the composer first, then edit this message.", done: (placed) => placed && apply((c) => take(c, chat, id).inputs) });
     },
     onRemove: (id) => apply((cur) => take(cur, chat, id).inputs),
+    pendingIds: () => pendingIds(ref.current),
   };
   return { api, holdCurrent: () => hold(chat) };
 }

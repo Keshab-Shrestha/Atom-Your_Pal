@@ -135,3 +135,23 @@ export function fromSaved(saved: SavedInput | undefined): Inputs {
 
 /** Whether the bytes saved would change. Used to skip a write when nothing words-wise changed (typing a file name, say). */
 export const savedKey = (inputs: Inputs) => JSON.stringify(toSaved(inputs));
+
+/** Ids of every message still waiting here, for asking the runtime which of them it already holds. */
+export function pendingIds(inputs: Inputs): string[] {
+  return Object.values(inputs).flatMap((i) => [...i.queue, ...i.held].map((e) => e.id)).slice(0, 2000);
+}
+
+/**
+ * Held messages the runtime already journals are in its Recovery list; the local copy of one that carries no files is then a duplicate and goes.
+ * One with files stays: its files exist only here (the journal keeps their paths, which this window cannot reopen), or it says they were lost.
+ */
+export function dropAcknowledged(inputs: Inputs, known: readonly string[]): Inputs {
+  if (known.length === 0) return inputs;
+  const ids = new Set(known.map((k) => k.toLowerCase()));
+  let next = inputs;
+  for (const [chat, input] of Object.entries(inputs)) {
+    const kept = input.held.filter((e) => !(ids.has(e.id.toLowerCase()) && e.files.length === 0 && e.lost === 0));
+    if (kept.length !== input.held.length) next = put(next, chat, { ...input, held: kept });
+  }
+  return next;
+}

@@ -54,7 +54,7 @@ Status words: **done**, **partial**, **todo**. A row is done only when it works 
 | Attachments (button, drop, pasted files and images, 5 files of up to 10 MB), chips with image thumbnails, long paste to a text file, hidden-character cleanup | `ChatAttachments`, `ComposerPaste`, `PastedTextFile`, `IslandController+Drop`, `HiddenCharacters` | **done** (step 2f); no Quick Look preview, no "Second brain note" chips, no persistence of pasted files | 2f |
 | Stop (button and Esc), working strip | `WorkStrip`, `IslandController+Shortcuts` | **done** (step 2b) | 2b |
 | Per-chat drafts and files, message queue (Enter queues while busy, Ctrl/Cmd+Enter sends the oldest now), held messages after Stop, an error, leaving the chat or a restart, Edit and Remove, 20 per chat, drafts saved across restarts | `ChatInput`, `ComposerDraft`, `IslandModel` queue | **done** (step 2g-1); files are not kept across a restart | 2g-1 |
-| Recovery of interrupted requests and unconfirmed answers: delivery ids and receipts, the Recovery view, restore to a draft, dismiss | `ForegroundRecovery*` | todo | 2g-2 |
+| Recovery of interrupted requests and unconfirmed answers: delivery ids and receipts, the Recovery view, restore to a draft, dismiss | `ForegroundRecovery*` | **done for requests** (step 2g-2); unconfirmed answers to ATOM's questions wait for 2i | 2g-2, 2i |
 | Model picker (search, provider filter, custom id, default), thinking menu, access menu incl. Full access consent | `ChatModelPicker`, `ChatReasoningMenu`, `ChatAccessMenu`, `ModelPickerCatalog` | **done** (step 2e); favourite models not ported | 2e |
 | Slash picker, find in chat, chat brief | `SlashPicker`, `ChatFindBar`, `ChatBriefEditor` | todo | 2 |
 | Approvals: Allow, Decline, Allow for task/chat, Full-access card | `ApprovalState`, `WorkStrip` | **done** (step 2b) | 2b |
@@ -111,7 +111,7 @@ The runtime is TypeScript, but some tools call macOS programs. The first cross-p
 One capability per step, each ending with tests and a recorded check (CLAUDE.md §3).
 
 1. **Bridge and Chat core.** Done (above).
-2. **Chat parity**, one capability at a time. 2a Markdown replies and stay-at-end scrolling: done. 2b Stop and approvals: done. 2c chat actions: done. Next, in this order: 2d copy, quote, fork;  2g Stop/queue/drafts/recovery; 2h slash picker, find, chat brief; 2i questions and work shown in chat; 2j file-edit review (diff and token).
+2. **Chat parity**, one capability at a time. 2a Markdown replies and stay-at-end scrolling: done. 2b Stop and approvals: done. 2c chat actions: done. Next, in this order: 2d copy, quote, fork;  2g Stop/queue/drafts/recovery (done); 2h slash picker, find, chat brief; 2i questions and work shown in chat; 2j file-edit review (diff and token).
 3. **Native shell.** Tauri window around the bridge, Node runtime as a bundled sidecar, and a CI job that builds it on macOS, Windows and Linux. First step that needs a machine (or CI runner) with the web view libraries; this environment has none.
 4. **Board, Needs you, Dashboard.**
 5. **Projects, Files, Changes, Git.**
@@ -184,6 +184,16 @@ Checked: 12 new tests (limits and lists against the runtime source, paste rules,
 **Held, never sent by themselves.** After Stop, an error that ends the turn, leaving the chat, a runtime that stops or restarts, or a refusal of the send, **everything still waiting is held** in order. Held messages are shown with Edit and Discard and are never sent automatically; a new message does not release them. A chat keeps at most 20 waiting messages (live and held together); a full chat refuses and keeps the new draft in the composer.
 
 Checked: 10 model tests, 4 bridge tests, 2 reducer tests, 25 browser checks against the fake runtime (per-chat drafts and files, queue order, Edit/Remove, Stop holds, no automatic send of held messages, one-at-a-time advance with the right answers, Send now, an error holds, leaving holds, reload restores drafts and held messages, words-only file at mode 0600). Not ported: reordering, the Recovery view and delivery receipts (2g-2). Not checked against the real runtime.
+
+## Step 2g-2: recovery of interrupted requests (24 October 2026)
+
+**Delivery ids.** Every `text.send` now carries a `request` id (a UUID made by the window). Sending the same words and files again reuses the id, so the runtime treats a repeat as the same delivery and does not run it twice; the same id with different words is refused by the runtime. If ATOM does not confirm within 20 seconds the window says so and that sending it again as it is cannot run it twice.
+
+**Receipts and the list.** The runtime's `foreground.receipt` events and `foreground.list` answers (asked on ready, after a receipt and after a dismissal; the window also lists the ids it still holds waiting) feed a Recovery view in the Chat options menu, with a mark and a count when something needs review (stopped, failed or interrupted by a crash or restart). Each entry shows its state, its chat and when. Completed replies that are saved in the chat are acknowledged once (`foreground.ack`) so the runtime can scrub its copy; held copies the host already journals are dropped from the held list only when they have no files and nothing was lost.
+
+**Review, Restore, Dismiss.** Review shows the prompt and, when the runtime kept a reply, a bounded part of it with Next and Copy this part. **Restore** puts the prompt into an **empty** composer and sends nothing (a typed draft is never overwritten; the view says so and keeps the record), then reminds you to review before sending. **Dismiss** asks first, with Keep focused. Nothing is ever resent by itself, after a crash, a restart or at any time. Open source chat goes to the chat the request was made in.
+
+Checked: 7 model tests (`recovery.ts`), reducer tests for receipts, matching by request id, paging and dismissal, held-copy reconciliation tests, and 23 browser checks against the fake runtime (normal turn needs no review, acknowledged and scrubbed, mark and count, Stopped and Failed entries, Restore refused over a draft and accepted in an empty composer, Dismiss confirmation, bounded reply paging, identical id not run twice, different words refused, crash leaves Interrupted and retained, nothing resent). Not ported: recovery of unconfirmed answers to questions (`pendingAnswers` is sent empty until step 2i), and anything about work/task results. Not checked against the real runtime with a real model.
 
 ## Verification in step 1, and what was not verified
 

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MAX_ENTRIES, enqueue, fromSaved, holdAll, markSending, nextToSend, putBack, savedKey, snapshot, started, take, toSaved, type Entry, type Inputs } from "./input.ts";
+import { MAX_ENTRIES, dropAcknowledged, enqueue, pendingIds, fromSaved, holdAll, markSending, nextToSend, putBack, savedKey, snapshot, started, take, toSaved, type Entry, type Inputs } from "./input.ts";
 
 const entry = (id: string, text = id, files: File[] = []): Entry => ({ id, text, files, lost: 0 });
 const file = (name: string) => new File(["x"], name);
@@ -97,4 +97,21 @@ test("choosing a file does not change what would be saved", () => {
   const a = snapshot({}, "a", "words", []);
   const b = snapshot(a, "a", "words", [file("new.txt")]);
   assert.equal(savedKey(a), savedKey(b));
+});
+
+test("pending ids cover every chat's live and held messages", () => {
+  let inputs = add({}, "a", entry("1"), entry("2"));
+  inputs = holdAll(inputs, "a");
+  inputs = add(inputs, "b", entry("3"));
+  assert.deepEqual(pendingIds(inputs).sort(), ["1", "2", "3"]);
+});
+
+test("a held message the runtime already has goes, unless it carries files or says files were lost; waiting ones are never dropped", () => {
+  let inputs = add({}, "a", entry("plain"), entry("withfile", "x", [file("a.txt")]), { ...entry("lost"), lost: 1 });
+  inputs = holdAll(inputs, "a");
+  inputs = add(inputs, "a", entry("live"));
+  const next = dropAcknowledged(inputs, ["PLAIN", "withfile", "lost", "live"]);
+  assert.deepEqual(next.a!.held.map((e) => e.id), ["withfile", "lost"]);
+  assert.deepEqual(next.a!.queue.map((e) => e.id), ["live"]);
+  assert.equal(dropAcknowledged(inputs, []), inputs);
 });

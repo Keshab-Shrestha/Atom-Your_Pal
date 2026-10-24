@@ -1,8 +1,9 @@
 // A stand-in for `apps/mac/src/main.ts --island` that speaks the same JSON lines, for the bridge tests and for `pnpm --filter @atom/desktop demo`.
 // It needs no API keys and keeps two canned chats in memory. Not a model: replies are fixed text. Never ship it as the runtime.
 import { createHash } from "node:crypto";
-import { readFileSync, statSync } from "node:fs";
-import { basename, extname, isAbsolute } from "node:path";
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, extname, isAbsolute, join } from "node:path";
 import { createInterface } from "node:readline";
 
 const out = (event) => process.stdout.write(`${JSON.stringify(event)}\n`);
@@ -37,6 +38,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
     return { provider, model, levels, default: "medium", ...(selected ? { selected } : {}), effective: selected ?? "medium", ...(levels.length === 0 ? { note: "This provider has no thinking levels." } : {}) };
   };
   const validModel = (id) => typeof id === "string" && /^[A-Za-z0-9._:-]{1,100}$/.test(id);
+  const refuse = (message) => { settle("failed"); settingsError(message); };
   const settingsError = (message) => out({ type: "error", stage: "settings", message });
   const withSeq = (id) => history[id].map((m, i) => ({ ...m, seq: i + 1 })); // the saved, 1-based number of each message
   const revisionOf = (id) => createHash("sha256").update(JSON.stringify(history[id])).digest("hex");
@@ -73,14 +75,50 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
   let pending;
   let asks = 0;
   let turnTimer;
-  const finishTurn = (reply, step) => {
+  // ---- the journal of accepted requests (ADR-157). It lives in a file named for the parent (the bridge), so it survives this process being restarted. ----
+  const journalFile = join(tmpdir(), `atom-fake-journal-${process.ppid}.json`);
+  const journal = new Map(existsSync(journalFile) ? JSON.parse(readFileSync(journalFile, "utf8")) : []);
+  for (const r of journal.values()) if (r.state === "prepared" || r.state === "running") r.state = "interrupted"; // a restart interrupts what was in flight
+  const saveJournal = () => writeFileSync(journalFile, JSON.stringify([...journal]));
+  saveJournal();
+  const REPLY_CHUNK = 100; // small, so reading a long reply in parts can be tried
+  let attempt; // the journal record of the turn in flight
+  const receipt = (r) => out({ type: "foreground.receipt", id: r.id, chat: r.chat, state: r.state, archived: r.archived });
+  const settle = (state, reply = "", archived = false) => {
+    if (!attempt) return;
+    Object.assign(attempt, { state, updatedAt: new Date().toISOString(), archived, reply });
+    saveJournal();
+    receipt(attempt);
+    attempt = undefined;
+  };
+  const summary = (r) => { const { text, files, notes, reply, answers, signature, ...rest } = r; return { ...rest, hasReply: reply.length > 0, answerCount: answers.length }; };
+  const foreground = (command) => {
+    const respond = (extra) => out({ type: "foreground.recovery", request: command.request, ...extra });
+    if (command.type === "foreground.list") return respond({ ok: true, attempts: [...journal.values()].filter((r) => !r.dismissed).map(summary), known: (command.pending ?? []).filter((id) => journal.has(id)), knownAnswers: [] });
+    const r = journal.get(command.id);
+    if (command.type === "foreground.read") {
+      if (!r || r.dismissed) return respond({ ok: false, error: "That recovery record is no longer available." });
+      const chunk = r.reply.slice(command.offset, command.offset + REPLY_CHUNK);
+      const { dismissed, signature, ...rest } = r;
+      return respond({ ok: true, record: { ...rest, dismissed, reply: chunk, offset: command.offset, ...(command.offset + chunk.length < r.reply.length ? { nextOffset: command.offset + chunk.length } : {}) } });
+    }
+    if (command.type === "foreground.dismiss") {
+      if (!r || r.state === "prepared" || r.state === "running") return respond({ ok: false, error: "That attempt is still running or is unavailable. Stop it before dismissing." });
+      Object.assign(r, { dismissed: true, text: "", files: [], reply: "", answers: [] }); // the prompt and reply are cleared; the id remains so an old delivery cannot run again
+      saveJournal();
+      return respond({ ok: true });
+    }
+  };
+  const finishTurn = (reply, step, unsaved = false) => {
     if (step) out({ type: "computer.step", text: step });
-    history[current].push({ role: "assistant", text: reply });
+    if (!unsaved) history[current].push({ role: "assistant", text: reply });
     out({ type: "reply", text: reply });
     out({ type: "turn.complete", speechMs: 0, transcriptionMs: 0, modelMs: 20 });
     out({ type: "computer.end" });
     state = "idle";
     out({ type: "state", state: "idle" });
+    // A reply saved with the chat is linked to it (archived); an unsaved one is kept in the journal for review.
+    settle("completed", unsaved ? reply : "", !unsaved);
     sendChats();
   };
   const listed = () =>
@@ -233,6 +271,12 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
       out({ type: "computer.end" });
       state = "idle";
       out({ type: "state", state: "idle" });
+      settle("stopped");
+    } else if (command.type === "foreground.ack") {
+      const r = journal.get(command.id);
+      if (r && r.state === "completed" && r.archived) { Object.assign(r, { dismissed: true, text: "", files: [], reply: "", answers: [] }); saveJournal(); } // only a completion already saved with the chat may be scrubbed
+    } else if (command.type === "foreground.list" || command.type === "foreground.read" || command.type === "foreground.dismiss") {
+      foreground(command);
     } else if (command.type === "text.send") {
       if (metaOf(current).archived) return out({ type: "error", stage: "model", message: "This chat is archived. Unarchive it to continue." });
       // A text.send interrupts a turn in progress, like talking does: what waited for approval is declined (docs/island-protocol.md).
@@ -243,23 +287,38 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
         out({ type: "computer.end" });
         state = "idle";
         out({ type: "state", state: "idle" });
+        settle("stopped");
+      }
+      // An identified request (ADR-157): the host commits it, and answers with a receipt, before any attachment check or model call.
+      if (command.request) {
+        if (command.chat !== current) return settingsError("Recovery storage or the source chat is unavailable. Your input remains held; refresh Recovery before retrying.");
+        const signature = createHash("sha256").update(JSON.stringify([current, command.text, command.files ?? []])).digest("hex"); // a fingerprint, as in the real journal: the words are not kept in it
+        const earlier = journal.get(command.request);
+        if (earlier) {
+          if (earlier.signature !== signature) return settingsError("The request could not be saved or its delivery id conflicts. No new model request was sent. Review Recovery or free storage, then retry explicitly.");
+          return receipt(earlier); // the same delivery again: its receipt, no second run
+        }
+        attempt = { id: command.request, chat: current, text: command.text, files: command.files ?? [], notes: [], source: "text", provider: effectiveOf(current).provider, model: effectiveOf(current).model, state: "prepared", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), archived: false, dismissed: false, reply: "", answers: [], signature };
+        journal.set(command.request, attempt);
+        saveJournal();
+        receipt(attempt);
       }
       // Files (ADR-113): checked first, as the real runtime does; a refusal says why and sends nothing.
       const attached = [];
       if (Array.isArray(command.files) && command.files.length > 0) {
-        if (chats.find((c) => c.id === current)?.projectId) return settingsError("Attachments are not available in project chats.");
+        if (chats.find((c) => c.id === current)?.projectId) return refuse("Attachments are not available in project chats.");
         const TYPES = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf", ".txt", ".md", ".csv", ".json", ".ts", ".py", ".log"]);
         for (const given of command.files) {
           const label = basename(String(given));
-          if (!isAbsolute(given)) return settingsError("A file needs its full path.");
+          if (!isAbsolute(given)) return refuse("A file needs its full path.");
           let info;
-          try { info = statSync(given); } catch { return settingsError(`${label} was not found.`); }
-          if (!info.isFile()) return settingsError(`${label} is not a file.`);
-          if (info.size === 0) return settingsError(`${label} is empty.`);
-          if (info.size > 10 * 1024 * 1024) return settingsError(`${label} is over 10 MB, too big to attach.`);
-          if (/^\.env|^id_rsa|\.pem$|\.key$/i.test(label)) return settingsError(`${label} looks like a secret or a key file, so ATOM will not read it.`);
+          try { info = statSync(given); } catch { return refuse(`${label} was not found.`); }
+          if (!info.isFile()) return refuse(`${label} is not a file.`);
+          if (info.size === 0) return refuse(`${label} is empty.`);
+          if (info.size > 10 * 1024 * 1024) return refuse(`${label} is over 10 MB, too big to attach.`);
+          if (/^\.env|^id_rsa|\.pem$|\.key$/i.test(label)) return refuse(`${label} looks like a secret or a key file, so ATOM will not read it.`);
           const ext = extname(label).toLowerCase();
-          if (ext && !TYPES.has(ext)) return settingsError(`${label}: ATOM reads text, code, PDFs and images (png, jpg, gif, webp).`);
+          if (ext && !TYPES.has(ext)) return refuse(`${label}: ATOM reads text, code, PDFs and images (png, jpg, gif, webp).`);
           attached.push({ name: label, path: given, text: ext === ".txt" ? readFileSync(given, "utf8") : "" });
         }
       }
@@ -268,6 +327,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
       out({ type: "transcript", text: command.text });
       state = "thinking";
       out({ type: "state", state: "thinking" });
+      if (attempt) { attempt.state = "running"; saveJournal(); receipt(attempt); }
       const ask = /ask me(?: (remember|review|access))?/.exec(command.text);
       if (ask) {
         out({ type: "computer.step", text: "Looking at Mail" });
@@ -281,6 +341,14 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
         });
         return; // the turn waits for approval.answer, talk.cancel, or the user's patience
       }
+      if (/crash the runtime/.test(command.text)) {
+        turnTimer = setTimeout(() => process.exit(1), 150); // the process dies mid-turn; the bridge starts it again and the journal marks the request interrupted
+        return;
+      }
+      if (/unsaved reply/.test(command.text)) {
+        turnTimer = setTimeout(() => finishTurn("A long reply that was not saved with the chat. ".repeat(6), undefined, true), 100);
+        return;
+      }
       if (/take a moment/.test(command.text)) {
         turnTimer = setTimeout(() => finishTurn(`Done waiting: ${command.text}`), 700);
         return;
@@ -290,6 +358,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
           out({ type: "error", stage: "model", message: "No internet." });
           state = "idle";
           out({ type: "state", state: "idle" });
+          settle("failed");
         }, 500);
         return;
       }

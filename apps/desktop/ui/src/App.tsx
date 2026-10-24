@@ -8,6 +8,8 @@ import { Rail } from "./Rail.tsx";
 import { Surface } from "./Surface.tsx";
 import { newUuid } from "./ids.ts";
 import { useInputs } from "./useInputs.ts";
+import { useRecovery } from "./useRecovery.ts";
+import { Recovery } from "./Recovery.tsx";
 import { ChatSettings } from "./ChatSettings.tsx";
 import type { ChatAccessMode } from "./protocol.ts";
 import { attachWhy as attachReason, currentChat, effectiveModel, initialState, reduce, sendBlock, settingsWhy } from "./store.ts";
@@ -219,8 +221,10 @@ export function App({ transport }: { transport: Transport }) {
     [chatId, currentAccess, settingsBlock, send],
   );
 
-  // A message with files is handed over in two steps: the bridge stages each file and gives its path, then `text.send` carries the paths. The
-  // runtime checks the files only now and a refusal sends nothing, so the draft and the files stay in the composer until it takes the turn.
+  // Every message is sent with a delivery id and its chat, so the runtime journals it before doing anything and answers with a receipt. A message with
+  // files is handed over in two steps: the bridge stages each file and gives its path, then `text.send` carries the paths. The same File keeps its
+  // staged path, so a retry has the identical fingerprint and the runtime recognises it. The runtime checks files only on receipt and a refusal sends
+  // nothing, so the draft and the files stay in the composer until it takes the turn (a `transcript` event).
   const waiters = useRef<{ transcripts: number; errors: number; done: (ok: boolean) => void }[]>([]);
   useEffect(() => {
     for (const w of [...waiters.current]) {
@@ -228,27 +232,36 @@ export function App({ transport }: { transport: Transport }) {
       else if (state.errors > w.errors) (waiters.current.splice(waiters.current.indexOf(w), 1), w.done(false));
     }
   }, [state.transcripts, state.errors]);
+  const staged = useRef(new WeakMap<File, string>());
   const sendMessage = useCallback(
-    async (text: string, files: File[], confirm = false): Promise<boolean> => {
-      if (files.length === 0 && !confirm) return send({ type: "text.send", text });
+    async (text: string, files: File[], request: string): Promise<boolean> => {
       const paths: string[] = [];
       for (const file of files) {
-        const staged = await transport.upload(file);
-        if (!staged.ok) {
-          dispatch({ kind: "problem", problem: { message: staged.message } });
-          return false;
+        let path = staged.current.get(file);
+        if (!path) {
+          const result = await transport.upload(file);
+          if (!result.ok) {
+            dispatch({ kind: "problem", problem: { message: result.message } });
+            return false;
+          }
+          path = result.path;
+          staged.current.set(file, path);
         }
-        paths.push(staged.path);
+        paths.push(path);
       }
+      const chat = stateRef.current.currentChatId;
       const outcome = new Promise<boolean>((resolve) => {
         const waiter = { transcripts: stateRef.current.transcripts, errors: stateRef.current.errors, done: resolve };
         waiters.current.push(waiter);
         setTimeout(() => {
           const at = waiters.current.indexOf(waiter);
-          if (at >= 0) (waiters.current.splice(at, 1), resolve(false));
+          if (at < 0) return;
+          waiters.current.splice(at, 1);
+          dispatch({ kind: "problem", problem: { message: "ATOM did not confirm the message. It may still arrive: check Recovery and the chat before sending it again. Sending it again as it is will not run it twice." } });
+          resolve(false);
         }, 20_000);
       });
-      if (!(await send({ type: "text.send", text, ...(paths.length > 0 ? { files: paths } : {}) }))) return false;
+      if (!(await send({ type: "text.send", text, ...(paths.length > 0 ? { files: paths } : {}), ...(chat ? { request, chat } : {}) }))) return false;
       return outcome;
     },
     [send, transport],
@@ -263,6 +276,20 @@ export function App({ transport }: { transport: Transport }) {
     sendMessage,
     problem: (message) => dispatch({ kind: "problem", problem: { message } }),
     offer: (insertion) => setInsertion({ ...insertion, seq: ++quoteSeq.current }),
+  });
+  // What the runtime retains of accepted requests, and the Recovery view.
+  const recovery = useRecovery({
+    state,
+    dispatch,
+    send,
+    pendingIds: inputs.api.pendingIds,
+    inputsLoaded: inputs.api.loaded,
+    offer: (insertion) => setInsertion({ ...insertion, seq: ++quoteSeq.current }),
+    toast: (text) => {
+      clearTimeout(toastTimer.current);
+      setToast(text);
+      toastTimer.current = setTimeout(() => setToast(undefined), 3200);
+    },
   });
   // Stop ends the turn, declines what waits, and holds whatever was queued behind it.
   stopRef.current = () => {
@@ -324,9 +351,12 @@ export function App({ transport }: { transport: Transport }) {
         onSend={sendMessage}
         attachWhy={attachReason(state)}
         input={inputs.api}
+        recoveryCount={recovery.count}
+        onOpenRecovery={recovery.open}
         onDismissProblem={() => dispatch({ kind: "dismissProblem" })}
       />
       <Surface />
+      <Recovery state={state.recovery} chats={state.chats} api={recovery} />
       {toast ? <div class="toast" role="status">{toast}</div> : null}
     </div>
   );

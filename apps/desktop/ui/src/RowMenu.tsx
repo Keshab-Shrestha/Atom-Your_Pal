@@ -18,6 +18,7 @@ export function RowMenu({
   items,
   variant = "row",
   children,
+  attention,
   footer,
   up,
   disabledWhy,
@@ -26,6 +27,8 @@ export function RowMenu({
   items: MenuItem[];
   variant?: "row" | "inline";
   children?: ComponentChildren;
+  /** Something here needs a look: a small mark on the button. */
+  attention?: boolean;
   /** Explanatory text under the items. */
   footer?: ComponentChildren;
   /** Open upward (for a button at the bottom of the window). */
@@ -73,6 +76,7 @@ export function RowMenu({
         }}
       >
         {children ?? <Icon name="more" size={16} />}
+        {attention ? <span class="attn" aria-hidden="true" /> : null}
       </button>
       {open ? (
         <ul

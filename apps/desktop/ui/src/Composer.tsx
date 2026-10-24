@@ -4,6 +4,7 @@ import { Icon } from "./icons.tsx";
 import { MAX_QUOTED_DRAFT, quoteAppending, stripHidden } from "./copy.ts";
 import { MAX_FILES, kindOf, pastedTextName, pasteDecision, refuseFile, sizeLabel } from "./attachments.ts";
 import type { ChatInput } from "./input.ts";
+import { newUuid } from "./ids.ts";
 
 /** Text for the composer from somewhere else. `seq` changes with every request, so the same text can be offered twice. */
 export interface Insertion {
@@ -55,7 +56,7 @@ export interface ComposerProps {
   insertion: Insertion | undefined;
   incoming: Incoming | undefined;
   /** Resolves false when ATOM did not take the message: the draft and the files are kept. */
-  onSend: (text: string, files: File[]) => Promise<boolean>;
+  onSend: (text: string, files: File[], request: string) => Promise<boolean>;
 }
 
 interface Staged {
@@ -77,6 +78,7 @@ export function Composer({ chatId, initial, working, queued, onSnapshot, onFlush
   const handled = useRef(insertion?.seq ?? 0);
   const droppedHandled = useRef(incoming?.seq ?? 0);
   const pastes = useRef(0);
+  const attempt = useRef<{ key: string; id: string } | undefined>(undefined);
 
   const grow = () => {
     const el = area.current;
@@ -232,10 +234,16 @@ export function Composer({ chatId, initial, working, queued, onSnapshot, onFlush
       if (now) onSendNow();
       return;
     }
+    // The same words and files sent again after no answer reuse the delivery id, so the runtime recognises the request and does not run it twice.
+    const key = JSON.stringify([text, staged.map((f) => [f.name, f.size, f.lastModified])]);
+    if (attempt.current?.key !== key) attempt.current = { key, id: newUuid() };
     setBusy(true);
-    const taken = await onSend(text, staged);
+    const taken = await onSend(text, staged, attempt.current.id);
     setBusy(false);
-    if (taken) clear();
+    if (taken) {
+      attempt.current = undefined;
+      clear();
+    }
   }
 
   const canSend = (draft.trim() !== "" || files.length > 0) && !blocked && !busy;

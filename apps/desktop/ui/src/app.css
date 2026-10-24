@@ -172,6 +172,26 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 .send:disabled { opacity: 0.4; }
 .composer-note { margin: 0; font-size: 13px; color: var(--warn); }
 
+.row-more, .inline-more { position: relative; }
+.attn { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+.head-right .row-more:has(.attn) { color: var(--text); }
+
+/* ----- recovery ----- */
+.recovery { width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 18px 20px; border: 1px solid var(--line2); border-radius: var(--radius-card); background: var(--card); color: var(--text); overflow-y: auto; }
+.recovery::backdrop { background: rgba(0, 0, 0, 0.55); }
+.recovery-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.recovery-head .confirm-title { margin: 0; }
+.recovery-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.recovery p { margin: 6px 0; }
+.recovery-notice { color: var(--warn); overflow-wrap: anywhere; }
+.recovery-list { list-style: none; margin: 10px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.recovery-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-control); }
+.recovery-title { font-weight: 600; overflow-wrap: anywhere; margin: 0; }
+.recovery-detail { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line2); }
+.recovery-detail h3 { margin: 0; font-size: 16px; }
+.recovery-text { margin: 0; padding: 10px 12px; max-height: 220px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--sunken); font: 13px/1.5 var(--font-mono); }
+.recovery-confirm { padding: 10px 12px; border: 1px solid var(--warn); border-radius: var(--radius-control); }
+
 /* ----- queue and held messages ----- */
 .queue { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--line2); border-radius: var(--radius-card); background: var(--card); max-height: 220px; overflow-y: auto; }
 .q-title { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--text2); }

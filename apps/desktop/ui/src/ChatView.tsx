@@ -23,7 +23,10 @@ export interface ChatViewProps {
   approval: Approval | undefined;
   blocked: string | undefined;
   modelLabel: string | undefined;
-  onSend: (text: string, files: File[]) => Promise<boolean>;
+  onSend: (text: string, files: File[], request: string) => Promise<boolean>;
+  /** Retained requests that need a look (interrupted, failed, or with a reply not saved in the chat). */
+  recoveryCount: number;
+  onOpenRecovery: () => void;
   onDismissProblem: () => void;
   onCopy: (content: ClipContent) => void;
   /** Appends a quote of a reply to the draft. */
@@ -53,7 +56,7 @@ const LOOP_WORDS: Record<LoopState, string> = {
 
 const NO_SEQ = "Reopen this chat to use this on a message that has just arrived.";
 
-export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, onDismissProblem, onCopy, onQuote, insertion, attachWhy, input, controls, branchWhy, onBranch, onStop, onAnswer }: ChatViewProps) {
+export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, recoveryCount, onOpenRecovery, onDismissProblem, onCopy, onQuote, insertion, attachWhy, input, controls, branchWhy, onBranch, onStop, onAnswer }: ChatViewProps) {
   /** Fork, edit and retry need the runtime's saved number for the message. */
   const branchItems = (message: Message): MenuItem[] => {
     const why = branchWhy ?? (message.seq === undefined ? NO_SEQ : undefined);
@@ -128,8 +131,12 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
         </div>
         <div class="head-right">
           <RowMenu
-            label="Chat options"
-            items={[{ label: "Fork chat", onSelect: () => onBranch("fork", "all"), disabledWhy: branchWhy ?? (chat && chat.messages > 0 ? undefined : "This chat is not saved yet. Send a message first.") }]}
+            label={recoveryCount > 0 ? `Chat options (${recoveryCount} to review in Recovery)` : "Chat options"}
+            attention={recoveryCount > 0}
+            items={[
+              { label: recoveryCount > 0 ? `Recovery (${recoveryCount})` : "Recovery", onSelect: onOpenRecovery },
+              { label: "Fork chat", onSelect: () => onBranch("fork", "all"), disabledWhy: branchWhy ?? (chat && chat.messages > 0 ? undefined : "This chat is not saved yet. Send a message first.") },
+            ]}
           />
           {loop !== "idle" && work?.outcome !== "working" && !approval ? (
             <button type="button" class="btn btn-ghost" onClick={onStop} title="Stop (Esc)">Stop</button>
@@ -231,9 +238,9 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
         attachWhy={attachWhy}
         incoming={incoming}
         insertion={insertion}
-        onSend={(text, files) => {
+        onSend={(text, files, request) => {
           pinned.current = true; // your own message always brings you to the end
-          return onSend(text, files);
+          return onSend(text, files, request);
         }}
       />
       ) : null}

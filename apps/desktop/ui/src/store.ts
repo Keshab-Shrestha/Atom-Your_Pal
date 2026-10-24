@@ -1,7 +1,7 @@
 // The window's state, as a pure function of what the runtime says. No DOM, no timers, no network: everything the window shows
 // about a conversation is decided here, so it can be tested without a screen.
 
-import type { ChatAccessMode, ChatItem, ChatReasoning, InfoEvent, IslandEvent, LoopState, RuntimeStatus } from "./protocol.ts";
+import type { Attempt, ChatAccessMode, ChatItem, ChatReasoning, InfoEvent, IslandEvent, LoopState, Receipt, RecoveryRecord, RuntimeStatus } from "./protocol.ts";
 
 export interface Message {
   id: number;
@@ -98,6 +98,21 @@ export interface ChatSettings {
   projectId?: string;
 }
 
+/** The Recovery view: what the runtime retains of accepted requests. At most one request of each kind is in flight, matched by its UUID. */
+export interface RecoveryState {
+  open: boolean;
+  attempts: Attempt[];
+  record?: RecoveryRecord;
+  listing?: string;
+  reading?: string;
+  dismissing?: string;
+  notice?: string;
+  /** Delivery ids the host confirmed holding, from the last list. The local copies of those are no longer needed. */
+  known: string[];
+  /** Counts the lists that arrived, so a change can be acted on once. */
+  listed: number;
+}
+
 /** The link between this page and the bridge. */
 export type Link = "connecting" | "live" | "down" | "unauthorized";
 
@@ -123,6 +138,9 @@ export interface AppState {
   undo?: Undo;
   branch?: BranchOp;
   branchResult?: BranchResult;
+  recovery: RecoveryState;
+  /** The newest receipt for an accepted request. `n` counts them, so each is handled once. */
+  receipt?: Receipt & { n: number };
   /** How many turns the runtime accepted (`transcript`) and how many errors it reported: a send with files waits for one of them to move. */
   transcripts: number;
   errors: number;
@@ -142,6 +160,7 @@ export const initialState: AppState = {
   transcripts: 0,
   errors: 0,
   turnsStarted: 0,
+  recovery: { open: false, attempts: [], known: [], listed: 0 },
   nextId: 1,
 };
 
@@ -160,6 +179,12 @@ export type Action =
   | { kind: "forkSent"; request: string }
   | { kind: "branchTimeout"; request: string }
   | { kind: "branchAck" }
+  | { kind: "recoveryOpen"; open: boolean }
+  /** `keep`: the next part of the record already on screen is being read, so it stays until the part arrives. */
+  | { kind: "recoveryAsk"; what: "listing" | "reading" | "dismissing"; request: string; keep?: boolean }
+  | { kind: "recoveryTimeout"; request: string }
+  | { kind: "recoveryNotice"; notice: string | undefined }
+  | { kind: "recoveryRecord"; record: RecoveryRecord | undefined }
   /** The user pressed Stop (or Esc). */
   | { kind: "stopped" }
   /** The user answered the pending request; it is gone at once so a stale prompt cannot approve a later action. */
@@ -182,7 +207,9 @@ export function reduce(state: AppState, action: Action): AppState {
       // A runtime that is not running has no turn in flight, nothing it asked is still waiting, and a new run will say `ready` again.
       if (runtime.state === "running") return { ...state, runtime };
       const { ready: _ready, approval: _approval, work: _work, mutation: _mutation, branch: _branch, ...rest } = state;
-      return { ...rest, runtime, loop: "idle" };
+      // Nothing asked of the runtime is still being waited for; what it retained stays shown until the next list.
+      const { listing: _l, reading: _r, dismissing: _d, ...recovery } = state.recovery;
+      return { ...rest, recovery, runtime, loop: "idle" };
     }
     case "dismissProblem": {
       const { problem: _gone, ...rest } = state;
@@ -194,6 +221,21 @@ export function reduce(state: AppState, action: Action): AppState {
       return { ...dropUndo(state), mutation: action.mutation };
     case "dismissUndo":
       return dropUndo(state);
+    case "recoveryOpen":
+      return { ...state, recovery: { ...state.recovery, open: action.open, ...(action.open ? {} : { record: undefined, notice: undefined }) } };
+    case "recoveryAsk":
+      return { ...state, recovery: { ...state.recovery, [action.what]: action.request, ...(action.what === "reading" ? { notice: undefined, ...(action.keep ? {} : { record: undefined }) } : {}) } };
+    case "recoveryNotice":
+      return { ...state, recovery: { ...state.recovery, notice: action.notice } };
+    case "recoveryRecord":
+      return { ...state, recovery: { ...state.recovery, record: action.record } };
+    case "recoveryTimeout": {
+      const r = state.recovery;
+      const which = r.listing === action.request ? "listing" : r.reading === action.request ? "reading" : r.dismissing === action.request ? "dismissing" : undefined;
+      if (!which) return state;
+      const { [which]: _gone, ...rest } = r;
+      return { ...state, recovery: { ...rest, notice: "Recovery was not confirmed. Local copies remain held. Refresh and review saved history before retrying; nothing is resent automatically." } };
+    }
     case "branchStart":
       return { ...state, branch: action.op };
     case "forkSent":
@@ -266,6 +308,29 @@ function reduceEvent(state: AppState, event: IslandEvent): AppState {
       return state.approval?.id === event.id ? dropApproval(state) : state;
     case "info":
       return { ...state, info: event };
+    case "foreground.receipt":
+      return { ...state, receipt: { ...event, n: (state.receipt?.n ?? 0) + 1 } };
+    case "foreground.recovery": {
+      const r = state.recovery;
+      if (r.listing === event.request) {
+        const { listing: _l, ...rest } = r;
+        if (!event.ok) return { ...state, recovery: { ...rest, notice: event.error } };
+        const attempts = event.attempts ?? [];
+        const stale = rest.record && !attempts.some((a) => a.id === rest.record!.id);
+        return { ...state, recovery: { ...rest, attempts, known: event.known ?? [], listed: r.listed + 1, ...(stale ? { record: undefined } : {}) } };
+      }
+      if (r.reading === event.request) {
+        const { reading: _r, ...rest } = r;
+        return { ...state, recovery: event.ok && event.record ? { ...rest, record: event.record } : { ...rest, notice: event.error ?? "That recovery record could not be read." } };
+      }
+      if (r.dismissing === event.request) {
+        const { dismissing: _d, ...rest } = r;
+        // A dismissed record leaves the list at once; the next list confirms it.
+        const gone = r.record?.id;
+        return { ...state, recovery: event.ok ? { ...rest, record: undefined, attempts: r.attempts.filter((a) => a.id !== gone) } : { ...rest, notice: event.error } };
+      }
+      return state;
+    }
     case "chats":
       return {
         ...state,
