@@ -132,3 +132,47 @@ test("sending is blocked while a turn runs, so it cannot end a turn that waits f
   assert.match(sendBlock(busy)!, /Press Stop/);
   assert.equal(sendBlock(reduce(busy, ev({ type: "state", state: "idle" }))), undefined);
 });
+
+// ---------- chat flags (pin, archive) and Undo ----------
+
+const flagsAnswer = (request: string, extra: object = {}) =>
+  ev({ type: "chat.control", action: "flags", id: "c1", request, ok: true, metadata: { pinned: true, archived: false, version: 4, previousPinned: false, previousArchived: false }, ...extra });
+
+test("a flags answer for our own request becomes an Undo with the previous flags and the new version", () => {
+  const s = run([{ kind: "mutating", mutation: { request: "r1", done: "Pinned “One”" } }, flagsAnswer("r1")], live());
+  assert.equal(s.mutation, undefined);
+  assert.deepEqual(s.undo, { id: "c1", pinned: false, archived: false, version: 4, said: "Pinned “One”", undoable: true });
+});
+
+test("an answer for another request, or another action, is ignored", () => {
+  const waiting = run([{ kind: "mutating", mutation: { request: "r1", done: "x" } }], live());
+  assert.equal(reduce(waiting, flagsAnswer("other")), waiting);
+  assert.equal(reduce(waiting, ev({ type: "chat.control", action: "inspect", id: "c1", request: "r1", ok: true })), waiting);
+});
+
+test("a refused change shows the runtime's words and leaves no Undo", () => {
+  const s = run([{ kind: "mutating", mutation: { request: "r1", done: "x" } }, ev({ type: "chat.control", action: "flags", id: "c1", request: "r1", ok: false, error: "Finish or stop the active turn before changing this chat." })], live());
+  assert.equal(s.mutation, undefined);
+  assert.equal(s.undo, undefined);
+  assert.equal(s.problem?.message, "Finish or stop the active turn before changing this chat.");
+});
+
+test("a new change drops the old Undo; a timeout reports an unconfirmed change; a stopped runtime forgets the wait", () => {
+  const withUndo = run([{ kind: "mutating", mutation: { request: "r1", done: "x" } }, flagsAnswer("r1")], live());
+  const next = reduce(withUndo, { kind: "mutating", mutation: { request: "r2", done: "y" } });
+  assert.equal(next.undo, undefined);
+  assert.match(reduce(next, { kind: "mutationTimeout", request: "r2" }).problem!.message, /did not confirm/);
+  assert.equal(reduce(next, { kind: "mutationTimeout", request: "r1" }), next, "a timeout for an old request does nothing");
+  assert.equal(reduce(next, { kind: "runtime", status: { state: "restarting", afterSeconds: 1 } }).mutation, undefined);
+});
+
+test("an archived chat cannot be typed into until it is unarchived", () => {
+  const s = run([ev({ type: "chats", current: "c1", chats: [{ id: "c1", title: "Old", updatedAt: "2026-10-01T00:00:00Z", messages: 2, archived: true }] })], live());
+  assert.match(sendBlock(s)!, /archived/);
+});
+
+test("the answer to an Undo only confirms: it cannot be undone again", () => {
+  const s = run([{ kind: "mutating", mutation: { request: "r1", done: "Undone", undoing: true } }, flagsAnswer("r1")], live());
+  assert.equal(s.undo?.undoable, false);
+  assert.equal(s.undo?.said, "Undone");
+});

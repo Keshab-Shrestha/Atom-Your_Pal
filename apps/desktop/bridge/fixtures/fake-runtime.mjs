@@ -12,7 +12,10 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
     { id: "chat-1", title: "Plan a weekend in Kyoto", updatedAt: "2026-10-24T09:12:00Z", messages: 2 },
     { id: "chat-2", title: "Rename the invoice files", updatedAt: "2026-10-23T17:40:00Z", messages: 2 },
     { id: "chat-md", title: "Markdown sample", updatedAt: "2026-10-22T08:00:00Z", messages: 2 },
+    { id: "telegram", title: "Telegram", updatedAt: "2026-10-21T08:00:00Z", messages: 1, readOnly: true },
   ];
+  const meta = {}; // id -> { pinned, archived, version }
+  const metaOf = (id) => (meta[id] ??= { pinned: false, archived: false, version: 0 });
   const history = {
     "chat-1": [
       { role: "user", text: "Which neighbourhood should I stay in?" },
@@ -23,6 +26,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
       { role: "assistant", text: "Done. I renamed 12 files to YYYY-MM-DD order." },
     ],
   };
+  history.telegram = [{ role: "assistant", text: "Written from the phone." }];
   history["chat-md"] = [
     { role: "user", text: "Show me everything you can format." },
     {
@@ -38,6 +42,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
   ];
   let current = "chat-1";
   let state = "idle";
+  let created = 0;
   let pending;
   let asks = 0;
   let turnTimer;
@@ -51,7 +56,10 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
     out({ type: "state", state: "idle" });
     sendChats();
   };
-  const sendChats = () => out({ type: "chats", chats, current });
+  const listed = () =>
+    chats.map((c) => ({ ...c, ...(metaOf(c.id).pinned ? { pinned: true } : {}), ...(metaOf(c.id).archived ? { archived: true } : {}), flagsVersion: metaOf(c.id).version }))
+      .sort((a, b) => Number(b.pinned === true) - Number(a.pinned === true)); // pins sort first, the rest keep their order
+  const sendChats = () => out({ type: "chats", chats: listed(), current });
   out({ type: "ready", protocol: 1, provider: "fake", model: "Fake model", microphone: "none", voice: false });
   out({ type: "state", state: "idle" });
   sendChats();
@@ -65,8 +73,36 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
     }
     if (command.type === "quit") process.exit(0);
     else if (command.type === "chats.list") sendChats();
-    else if (command.type === "chat.new") {
-      const id = `chat-${chats.length + 1}`;
+    else if (command.type === "chat.rename") {
+      const chat = chats.find((c) => c.id === command.id);
+      if (!chat || chat.readOnly) return out({ type: "error", stage: "settings", message: "This chat is written from Telegram. Open it to read it only." });
+      if (typeof command.title !== "string" || command.title.trim() === "" || [...command.title].length > 60 || /[\r\n]/.test(command.title)) return out({ type: "error", stage: "settings", message: "A title is 1 to 60 characters on one line." });
+      chat.title = command.title.trim();
+      sendChats();
+    } else if (command.type === "chat.delete") {
+      const at = chats.findIndex((c) => c.id === command.id);
+      if (at >= 0) chats.splice(at, 1);
+      delete history[command.id];
+      if (command.id === current) {
+        current = chats.find((c) => !c.readOnly)?.id ?? "";
+        out({ type: "conversation.reset" });
+      }
+      sendChats();
+    } else if (command.type === "chat.control" && command.action === "flags") {
+      const answer = (extra) => out({ type: "chat.control", action: "flags", id: command.id, request: command.request, ...extra });
+      const chat = chats.find((c) => c.id === command.id);
+      const m = chat && metaOf(command.id);
+      if (command.archived !== undefined && state !== "idle") return answer({ ok: false, error: "Finish or stop the active turn before changing this chat." });
+      if (command.archived !== undefined && chat?.readOnly) return answer({ ok: false, error: "Chats shared with Telegram, routines or the API cannot be archived here." });
+      if (!m || m.version !== command.version) return answer({ ok: false, error: "Chat metadata changed or the chat is gone. Refresh before changing it again." });
+      const previous = { previousPinned: m.pinned, previousArchived: m.archived };
+      if (command.pinned !== undefined) m.pinned = command.pinned;
+      if (command.archived !== undefined) m.archived = command.archived;
+      m.version += 1;
+      sendChats();
+      answer({ ok: true, metadata: { pinned: m.pinned, archived: m.archived, version: m.version, ...previous } });
+    } else if (command.type === "chat.new") {
+      const id = `chat-new-${++created}`;
       chats.unshift({ id, title: "New chat", updatedAt: new Date().toISOString(), messages: 0 });
       history[id] = [];
       current = id;
@@ -97,6 +133,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
       state = "idle";
       out({ type: "state", state: "idle" });
     } else if (command.type === "text.send") {
+      if (metaOf(current).archived) return out({ type: "error", stage: "model", message: "This chat is archived. Unarchive it to continue." });
       history[current].push({ role: "user", text: command.text });
       out({ type: "transcript", text: command.text });
       state = "thinking";

@@ -43,7 +43,8 @@ Status words: **done**, **partial**, **todo**. A row is done only when it works 
 
 | Feature | Swift source | Status | Port step |
 |---|---|---|---|
-| Chat list: open, new, search, archived fold, pinned first, read-only tag | `SidebarLayout`, `ChatList` parts of `HelpersView` | partial: no rename, delete, pin, archive, drag order, projects filter | 2 |
+| Chat list: open, new, search, archived fold, pinned first, read-only tag | `SidebarLayout`, `ChatList` parts of `HelpersView` | partial: no drag order, no projects filter | 2 |
+| Chat actions: rename, pin, archive (with Undo), delete with confirmation | `ChatControlsModel`, `ProjectsSection` | **done** (step 2c) | 2c |
 | Chat view: messages, send, status pill, errors, stay-at-end scrolling | `ConversationView`, `StateViews`, `ChatScrollView` | partial | 2 |
 | Markdown replies: headings, lists, tasks, quotes, rules, code, tables, bold/italic/strike/code/links | `MarkdownReply`, `MarkdownBlocks` | **done** (step 2a) | 2a |
 | Copy (text and rich HTML), quote, fork, edit, retry | `ChatCopyControl`, `ChatActionsMenu`, `MarkdownHTML` | todo | 2 |
@@ -106,7 +107,7 @@ The runtime is TypeScript, but some tools call macOS programs. The first cross-p
 One capability per step, each ending with tests and a recorded check (CLAUDE.md §3).
 
 1. **Bridge and Chat core.** Done (above).
-2. **Chat parity**, one capability at a time. 2a Markdown replies and stay-at-end scrolling: done. 2b Stop and approvals: done. Next, in this order: 2c chat actions (rename, delete, pin, archive); 2d copy, quote, fork; 2e model, thinking and access menus; 2f attachments and paste; 2g Stop/queue/drafts/recovery; 2h slash picker, find, chat brief; 2i questions and work shown in chat; 2j file-edit review (diff and token).
+2. **Chat parity**, one capability at a time. 2a Markdown replies and stay-at-end scrolling: done. 2b Stop and approvals: done. 2c chat actions: done. Next, in this order: 2d copy, quote, fork; 2e model, thinking and access menus; 2f attachments and paste; 2g Stop/queue/drafts/recovery; 2h slash picker, find, chat brief; 2i questions and work shown in chat; 2j file-edit review (diff and token).
 3. **Native shell.** Tauri window around the bridge, Node runtime as a bundled sidecar, and a CI job that builds it on macOS, Windows and Linux. First step that needs a machine (or CI runner) with the web view libraries; this environment has none.
 4. **Board, Needs you, Dashboard.**
 5. **Projects, Files, Changes, Git.**
@@ -135,6 +136,12 @@ Ports `ApprovalState` and `WorkStripState` into the reducer and draws them above
 - **The bridge replays the last `state` and a still-open question** to a window that connects or reloads mid-turn (the runtime does not repeat them). Without this a reload hid the question and the Stop button while the runtime kept waiting.
 
 Checked: 8 new reducer tests and 1 bridge test, and 20 checks in Chromium against the fake runtime (strip, Stop, Esc, each card, reload mid-question). Not checked: a real approval from the real runtime (it needs a computer task or a file edit through a provider); the 60-second timeout (the runtime owns it).
+
+## Step 2c: chat actions (24 October 2026)
+
+Each chat row has an actions menu (Rename, Pin to top, Archive, Delete…). Pin and archive are `chat.control` `flags` requests: a fresh request UUID, compare-and-set against the chat's `flagsVersion`, one at a time, matched only by that UUID, with a 10-second "not confirmed" timeout. The answer's `previousPinned`/`previousArchived` and new version drive a one-step Undo (an Undo is confirmed, never offered again). Rename takes 1–60 characters on one line, checked before sending (the runtime checks again). Delete asks first, with Cancel focused. Items that cannot be used stay in the menu, disabled, with the reason: shared chats (Telegram, local API) cannot be renamed or archived; Archive waits for an idle runtime; an archived chat shows why it cannot be typed into. The menu is keyboard-operable (arrows, Home/End, Escape returns focus, Tab leaves) and visible without hover on touch screens.
+
+Checked: 6 new reducer and 3 title tests; 21 browser checks against the fake runtime (menu keys, rename valid/empty/cancel, read-only refusals, pin order and Undo, archive and unarchive, archive blocked while a turn runs, delete confirm, cancel and delete of the open chat). Real findings fixed on the way: the open menu was painted under the next row; Undo offered itself again after running. Not checked: the same actions against the real runtime's saved chats.
 
 ## Verification in step 1, and what was not verified
 

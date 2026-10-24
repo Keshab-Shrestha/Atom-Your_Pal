@@ -44,6 +44,27 @@ export function shortStep(text: string, limit = 80): string {
   return sentence.length <= limit ? sentence : `${sentence.slice(0, limit - 1)}…`;
 }
 
+/** A flags change (pin, archive) waiting for the runtime's answer. At most one at a time, as in ChatControlsModel.swift. */
+export interface Mutation {
+  /** The request UUID: the answer carries it, and nothing else is matched. */
+  request: string;
+  /** What to say when it succeeds, e.g. "Archived “Trip”". */
+  done: string;
+  /** This change is itself an Undo: it is confirmed, not offered for undoing again. */
+  undoing?: true;
+}
+
+/** The last flags change, kept so it can be undone: the flags the chat had before, and the version that makes the undo conditional. */
+export interface Undo {
+  id: string;
+  pinned: boolean;
+  archived: boolean;
+  version: number;
+  said: string;
+  /** False after an Undo has run: the notice only confirms. */
+  undoable: boolean;
+}
+
 /** The link between this page and the bridge. */
 export type Link = "connecting" | "live" | "down" | "unauthorized";
 
@@ -62,6 +83,8 @@ export interface AppState {
   problem?: Problem;
   approval?: Approval;
   work?: Work;
+  mutation?: Mutation;
+  undo?: Undo;
   /** Bumps on every reducer step that adds a message, so a view can scroll to the end. */
   nextId: number;
 }
@@ -80,6 +103,11 @@ export type Action =
   | { kind: "runtime"; status: RuntimeStatus }
   | { kind: "link"; link: Link }
   | { kind: "dismissProblem" }
+  /** A flags change was sent. */
+  | { kind: "mutating"; mutation: Mutation }
+  /** No answer came in time: the change may or may not have happened. */
+  | { kind: "mutationTimeout"; request: string }
+  | { kind: "dismissUndo" }
   /** The user pressed Stop (or Esc). */
   | { kind: "stopped" }
   /** The user answered the pending request; it is gone at once so a stale prompt cannot approve a later action. */
@@ -101,7 +129,7 @@ export function reduce(state: AppState, action: Action): AppState {
       const runtime = action.status;
       // A runtime that is not running has no turn in flight, nothing it asked is still waiting, and a new run will say `ready` again.
       if (runtime.state === "running") return { ...state, runtime };
-      const { ready: _ready, approval: _approval, work: _work, ...rest } = state;
+      const { ready: _ready, approval: _approval, work: _work, mutation: _mutation, ...rest } = state;
       return { ...rest, runtime, loop: "idle" };
     }
     case "dismissProblem": {
@@ -110,6 +138,15 @@ export function reduce(state: AppState, action: Action): AppState {
     }
     case "problem":
       return { ...state, problem: action.problem };
+    case "mutating":
+      return { ...dropUndo(state), mutation: action.mutation };
+    case "dismissUndo":
+      return dropUndo(state);
+    case "mutationTimeout": {
+      if (state.mutation?.request !== action.request) return state;
+      const { mutation: _gone, ...rest } = state;
+      return { ...rest, problem: { message: "ATOM did not confirm the chat change. Refresh the chat list before trying again." } };
+    }
     case "stopped": {
       const { approval: _approval, ...rest } = state;
       return { ...rest, ...(state.work?.outcome === "working" ? { work: { ...state.work, outcome: "stopped" as const } } : {}) };
@@ -170,6 +207,14 @@ function reduceEvent(state: AppState, event: IslandEvent): AppState {
       const [message] = withMessages(state, [{ role, text: event.text }]);
       return { ...state, messages: [...state.messages, message!], nextId: state.nextId + 1 };
     }
+    case "chat.control": {
+      // Only the answer to our own flags request counts; a late or foreign one changes nothing.
+      if (event.action !== "flags" || state.mutation?.request !== event.request) return state;
+      const { mutation, ...rest } = state;
+      if (!event.ok || !event.metadata) return { ...rest, problem: { message: event.error ?? "ATOM could not change the chat." } };
+      const { previousPinned, previousArchived, version } = event.metadata;
+      return { ...rest, undo: { id: event.id, pinned: previousPinned, archived: previousArchived, version, said: mutation!.done, undoable: !mutation!.undoing } };
+    }
     case "notice":
       return { ...state, problem: { message: event.message } };
     case "error": {
@@ -181,6 +226,11 @@ function reduceEvent(state: AppState, event: IslandEvent): AppState {
       // The other events belong to screens that are not ported yet (docs/cross-platform-migration.md).
       return state;
   }
+}
+
+function dropUndo(state: AppState): AppState {
+  const { undo: _gone, ...rest } = state;
+  return rest;
 }
 
 function dropApproval(state: AppState): AppState {
@@ -220,6 +270,7 @@ export function sendBlock(state: AppState): string | undefined {
   }
   if (!state.ready) return "ATOM is starting.";
   if (currentChat(state)?.readOnly) return "This chat is written from another surface (Telegram or the local API). Open it to read it only.";
+  if (currentChat(state)?.archived) return "This chat is archived. Unarchive it to continue.";
   // A message sent now would end the turn in flight, and ending a turn counts as "no" for anything waiting for approval.
   if (state.loop !== "idle") return "ATOM is working. Press Stop, or wait for it to finish.";
   return undefined;

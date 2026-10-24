@@ -1,5 +1,9 @@
 # ZENO Project Status
 
+## Cross-platform window — step 2c, 24 October 2026
+
+Chats can be renamed, pinned, archived (Undo) and deleted (confirmed) in the new window. Copy/quote/fork, model/access menus, attachments, queue/recovery, slash picker, find and in-chat questions are still to do. Swift remains the shipping client.
+
 ## Cross-platform window — step 2b, 24 October 2026
 
 The new window shows ATOM's questions (Allow/Decline) and a working strip with Stop (button and Esc), and survives a reload mid-question. File-edit reviews can be declined but not approved yet. The Swift app remains the shipping client.

@@ -31,7 +31,7 @@ const PAIRS: [string, string, number][] = [
   ["panel-fg", "panel", 7], ["panel-muted", "panel", 4.5], ["panel-fg", "panel-input", 4.5], ["panel-muted", "panel-input", 4.5],
   ["eyebrow", "work", 4.5], ["eyebrow", "ws", 4.5],
   ["on-accent", "accent", 4.5], ["bubble-fg", "bubble", 7],
-  ["warn", "card", 4.5],
+  ["warn", "card", 4.5], ["bad", "card", 4.5], ["bad", "panel", 4.5], ["on-bad", "bad", 4.5], ["eyebrow", "panel", 4.5],
   ["rail-icon", "rail", 3], ["rail-fg", "rail", 7],
 ];
 

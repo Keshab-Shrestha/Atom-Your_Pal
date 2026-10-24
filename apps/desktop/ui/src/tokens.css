@@ -49,6 +49,7 @@
   --rail-fg: #f5f7ff;
   --ok: #74d6ae;
   --bad: #f2a190;
+  --on-bad: #1a0d09;
   --warn: #ebc683;
   --ok-soft: rgba(116, 214, 174, 0.16);
   --bad-soft: rgba(242, 161, 144, 0.16);
@@ -88,6 +89,7 @@
     --rail-fg: #f8fafd;
     --ok: #13805a;
     --bad: #b4452f;
+    --on-bad: #ffffff;
     --warn: #8a5a12;
     --ok-soft: #d9f0e6;
     --bad-soft: #fbe3dd;

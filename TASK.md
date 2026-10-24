@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Cross-platform window, step 2c: chat actions — implemented and checked, 24 October 2026
+
+Rename, pin, archive (with a one-step Undo) and delete (with confirmation) for chats in the new window, through a keyboard-operable row menu. Pin/archive use the runtime's versioned `chat.control` flags (one at a time, matched by request UUID, timeout reported); disabled items keep their place and say why (shared chats, running turn, runtime not ready). 7 new tests; 21 browser checks against the fake runtime pass. Found and fixed: the open menu painted under the next row; Undo re-offered itself. Not checked against the real runtime's saved chats. [Details](docs/cross-platform-migration.md). Next: 2d, copy, quote and fork. Swift is unchanged.
+
 ## Cross-platform window, step 2b: Stop and approvals — implemented and checked, 24 October 2026
 
 The new window can now answer ATOM's questions and stop a turn. Ports the Swift approval and work-strip state machines into the tested reducer; draws a working strip with Stop, and a question card (Decline, Allow, Allow for task/chat, Full-access scope) above the composer. Focus never moves to a question; sending is blocked while a turn runs because it would end the turn, which counts as "no"; file-edit reviews can only be declined here (approving needs the diff and token, step 2j). Found and fixed a real gap: a window that reloads mid-turn lost the state and the waiting question, so the bridge now replays the last `state` and an open request. 9 new tests; 20 browser checks against the fake runtime pass. Not checked: a real approval from the real runtime. [Details](docs/cross-platform-migration.md). Next: 2c, chat actions (rename, delete, pin, archive). Swift is unchanged.

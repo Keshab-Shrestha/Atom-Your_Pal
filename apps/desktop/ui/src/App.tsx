@@ -3,7 +3,9 @@ import { ChatList } from "./ChatList.tsx";
 import { ChatView } from "./ChatView.tsx";
 import { Rail } from "./Rail.tsx";
 import { Surface } from "./Surface.tsx";
+import { newUuid } from "./ids.ts";
 import { currentChat, initialState, reduce, sendBlock } from "./store.ts";
+import type { ChatItem } from "./protocol.ts";
 import type { Transport } from "./transport.ts";
 
 export function App({ transport }: { transport: Transport }) {
@@ -75,6 +77,37 @@ export function App({ transport }: { transport: Transport }) {
     return () => clearTimeout(timer);
   }, [outcome]);
 
+  // Pin and archive are compare-and-set against the chat's metadata version; the answer carries the same request id.
+  const changeFlags = useCallback(
+    async (id: string, version: number, change: { pinned?: boolean; archived?: boolean }, done: string, undoing = false) => {
+      const request = newUuid();
+      dispatch({ kind: "mutating", mutation: { request, done, ...(undoing ? { undoing: true as const } : {}) } });
+      const ok = await send({ type: "chat.control", action: "flags", id, request, version, ...change });
+      if (!ok) dispatch({ kind: "mutationTimeout", request });
+    },
+    [send],
+  );
+  const flags = useCallback(
+    (chat: ChatItem, change: { pinned?: boolean; archived?: boolean }) => {
+      const title = `“${chat.title || "Untitled chat"}”`;
+      const said = change.archived !== undefined ? `${change.archived ? "Archived" : "Unarchived"} ${title}` : `${change.pinned ? "Pinned" : "Unpinned"} ${title}`;
+      void changeFlags(chat.id, chat.flagsVersion ?? 0, change, said);
+    },
+    [changeFlags],
+  );
+  const undoFlags = useCallback(() => {
+    const undo = state.undo;
+    if (undo) void changeFlags(undo.id, undo.version, { pinned: undo.pinned, archived: undo.archived }, "Undone", true);
+  }, [state.undo, changeFlags]);
+
+  // No answer in time: the change may or may not have happened, so say so (ChatControlsModel's timeout).
+  const mutationRequest = state.mutation?.request;
+  useEffect(() => {
+    if (!mutationRequest) return;
+    const timer = setTimeout(() => dispatch({ kind: "mutationTimeout", request: mutationRequest }), 10_000);
+    return () => clearTimeout(timer);
+  }, [mutationRequest]);
+
   const blocked = useMemo(() => sendBlock(state), [state]);
   const chat = currentChat(state);
 
@@ -87,6 +120,14 @@ export function App({ transport }: { transport: Transport }) {
         canAct={state.link === "live" && state.runtime.state === "running"}
         onOpen={(id) => void send({ type: "chat.open", id })}
         onNew={() => void send({ type: "chat.new" })}
+        busy={state.loop !== "idle"}
+        changing={state.mutation !== undefined}
+        undo={state.undo}
+        onRename={(id, title) => void send({ type: "chat.rename", id, title })}
+        onFlags={flags}
+        onDelete={(id) => void send({ type: "chat.delete", id })}
+        onUndo={undoFlags}
+        onDismissUndo={() => dispatch({ kind: "dismissUndo" })}
       />
       <ChatView
         chat={chat}

@@ -15,6 +15,7 @@ const PATHS = {
   pin: "M9 3h6l-1 6 3 3H7l3-3zM12 12v9",
   chevron: "M9 6l6 6-6 6",
   close: "M6 6l12 12M18 6L6 18",
+  more: "M5 12h.01M12 12h.01M19 12h.01",
   files: "M3 6h7l2 2h9v11H3z",
   changes: "M8 3v13a3 3 0 0 0 3 3h5M16 14l3 3-3 3M5 6l3-3 3 3",
   git: "M6 3v12M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9c0 6-12 3-12 6",
