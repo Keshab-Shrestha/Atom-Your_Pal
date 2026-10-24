@@ -2,6 +2,7 @@
 // about a conversation is decided here, so it can be tested without a screen.
 
 import type { SkillInfo, SlashCommandInfo } from "./slash.ts";
+import { NOT_CONFIRMED, NOT_LOADED } from "./brief.ts";
 import type { Attempt, ChatAccessMode, ChatItem, ChatReasoning, InfoEvent, IslandEvent, LoopState, Receipt, RecoveryRecord, RuntimeStatus } from "./protocol.ts";
 
 export interface Message {
@@ -117,6 +118,22 @@ export interface RecoveryState {
 /** The link between this page and the bridge. */
 export type Link = "connecting" | "live" | "down" | "unauthorized";
 
+/** The chat brief editor: what was last loaded or saved, and the one request in flight (ADR-091). The draft itself lives in the editor. */
+export interface BriefState {
+  /** The chat the brief belongs to. */
+  chatId: string;
+  /** The brief as the runtime has it. The next save is conditional on its version, so it can never overwrite a newer one. */
+  saved?: { text: string; version: number };
+  /** Counts loads, so the editor replaces its draft once for each. */
+  loads: number;
+  doing?: { what: "loading" | "reloading" | "saving"; request: string; text?: string; version?: number };
+  /** A save was sent and no answer came in time. Asking again with the same request id cannot overwrite a newer brief. */
+  unconfirmed?: { request: string; text: string; version: number };
+  /** What happened, in words. `saved` means the last save was confirmed, so the editor words it against the draft. */
+  note?: string;
+  result?: "saved" | "problem";
+}
+
 export interface AppState {
   link: Link;
   runtime: RuntimeStatus;
@@ -142,6 +159,7 @@ export interface AppState {
   branch?: BranchOp;
   branchResult?: BranchResult;
   recovery: RecoveryState;
+  brief?: BriefState;
   /** The newest receipt for an accepted request. `n` counts them, so each is handled once. */
   receipt?: Receipt & { n: number };
   /** How many turns the runtime accepted (`transcript`) and how many errors it reported: a send with files waits for one of them to move. */
@@ -183,6 +201,11 @@ export type Action =
   | { kind: "forkSent"; request: string }
   | { kind: "branchTimeout"; request: string }
   | { kind: "branchAck" }
+  | { kind: "briefOpen"; chatId: string; request: string }
+  | { kind: "briefReload"; request: string }
+  | { kind: "briefSave"; request: string; text: string; version: number }
+  | { kind: "briefTimeout"; request: string }
+  | { kind: "briefClose" }
   | { kind: "recoveryOpen"; open: boolean }
   /** `keep`: the next part of the record already on screen is being read, so it stays until the part arrives. */
   | { kind: "recoveryAsk"; what: "listing" | "reading" | "dismissing"; request: string; keep?: boolean }
@@ -225,6 +248,31 @@ export function reduce(state: AppState, action: Action): AppState {
       return { ...dropUndo(state), mutation: action.mutation };
     case "dismissUndo":
       return dropUndo(state);
+    case "briefOpen":
+      return { ...state, brief: { chatId: action.chatId, loads: 0, doing: { what: "loading", request: action.request } } };
+    case "briefReload": {
+      const { brief } = state;
+      if (!brief) return state;
+      const { note: _n, result: _r, ...rest } = brief;
+      return { ...state, brief: { ...rest, doing: { what: "reloading", request: action.request } } };
+    }
+    case "briefSave": {
+      const { brief } = state;
+      if (!brief) return state;
+      const { note: _n, result: _r, unconfirmed: _u, ...rest } = brief;
+      return { ...state, brief: { ...rest, doing: { what: "saving", request: action.request, text: action.text, version: action.version } } };
+    }
+    case "briefTimeout": {
+      const { brief } = state;
+      if (!brief?.doing || brief.doing.request !== action.request) return state;
+      const { doing, ...rest } = brief;
+      if (doing.what === "saving") return { ...state, brief: { ...rest, unconfirmed: { request: doing.request, text: doing.text!, version: doing.version! }, note: NOT_CONFIRMED, result: "problem" } };
+      return { ...state, brief: { ...rest, note: NOT_LOADED, result: "problem" } };
+    }
+    case "briefClose": {
+      const { brief: _gone, ...rest } = state;
+      return rest;
+    }
     case "recoveryOpen":
       return { ...state, recovery: { ...state.recovery, open: action.open, ...(action.open ? {} : { record: undefined, notice: undefined }) } };
     case "recoveryAsk":
@@ -380,6 +428,17 @@ function reduceEvent(state: AppState, event: IslandEvent): AppState {
           return { ...rest, branchResult: { kind: branch.kind, draft: event.branch?.draft ?? "", created: event.branch?.created ?? true } };
         }
         return state;
+      }
+      // The brief editor's answers: its own request, for its own chat.
+      const editor = state.brief;
+      if (editor && event.id === editor.chatId && (event.action === "inspect" || event.action === "brief")) {
+        const awaited = editor.doing?.request === event.request ? editor.doing : editor.unconfirmed?.request === event.request ? { what: "saving" as const } : undefined;
+        if (awaited && (awaited.what === "saving") === (event.action === "brief")) {
+          const { doing: _d, unconfirmed: _u, note: _n, result: _r, ...rest } = editor;
+          if (!event.ok || !event.brief) return { ...state, brief: { ...rest, note: event.error ?? (awaited.what === "saving" ? "The brief was not saved. Your draft is unchanged." : "ATOM could not load the saved brief."), result: "problem" as const } };
+          const loaded = { ...rest, saved: event.brief, loads: awaited.what === "saving" ? rest.loads : rest.loads + 1 };
+          return { ...state, brief: awaited.what === "saving" ? { ...loaded, result: "saved" as const } : { ...loaded, ...(editor.doing?.what === "reloading" ? { note: "Loaded the saved brief." } : {}) } };
+        }
       }
       // Only the answer to our own flags request counts; a late or foreign one changes nothing.
       if (event.action !== "flags" || state.mutation?.request !== event.request) return state;

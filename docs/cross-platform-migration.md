@@ -58,7 +58,8 @@ Status words: **done**, **partial**, **todo**. A row is done only when it works 
 | Model picker (search, provider filter, custom id, default), thinking menu, access menu incl. Full access consent | `ChatModelPicker`, `ChatReasoningMenu`, `ChatAccessMenu`, `ModelPickerCatalog` | **done** (step 2e); favourite models not ported | 2e |
 | Slash picker (`/` menu: ATOM's commands, skills, Claude commands) | `SlashPicker`, `SlashMenu` | **done** (step 2h-1); `/model`, `/skills` and `/memory` say where to go until their pages exist | 2h-1 |
 | Find in chat (loaded messages only) | `ChatFindBar`, `ChatFind` | **done** (step 2h-2) | 2h-2 |
-| Chat brief, saved history sheet, automatic summaries | `ChatBriefEditor`, `ChatControlsModel` | todo | 2h-3 |
+| Chat brief (editor, versioned save, check result) | `ChatBriefEditor`, `ChatBrief` | **done** (step 2h-3a) | 2h-3a |
+| Saved history sheet, "What this chat remembers", automatic summaries (the runtime currently answers "unavailable" to the summaries switch) | `SavedChatHistory`, `ChatControlsModel` | todo | 2h-3b |
 | Approvals: Allow, Decline, Allow for task/chat, Full-access card | `ApprovalState`, `WorkStrip` | **done** (step 2b) | 2b |
 | File-edit review approvals (diff and token) | `EditReviewView`, `FileEditReview` | partial: can be declined, cannot be approved here (needs the diff surface) | 2j |
 | Questions from ATOM, work and task results shown in chat | `ChatWorkView`, `ChatTaskResults`, `ComputerDecisionModel` | todo | 2i |
@@ -113,7 +114,7 @@ The runtime is TypeScript, but some tools call macOS programs. The first cross-p
 One capability per step, each ending with tests and a recorded check (CLAUDE.md §3).
 
 1. **Bridge and Chat core.** Done (above).
-2. **Chat parity**, one capability at a time. 2a Markdown replies and stay-at-end scrolling: done. 2b Stop and approvals: done. 2c chat actions: done. Next, in this order: 2d copy, quote, fork;  2g Stop/queue/drafts/recovery (done); 2h slash picker (done, 2h-1), find in chat (done, 2h-2), chat brief; 2i questions and work shown in chat; 2j file-edit review (diff and token).
+2. **Chat parity**, one capability at a time. 2a Markdown replies and stay-at-end scrolling: done. 2b Stop and approvals: done. 2c chat actions: done. Next, in this order: 2d copy, quote, fork;  2g Stop/queue/drafts/recovery (done); 2h slash picker (done, 2h-1), find in chat (done, 2h-2), chat brief (done, 2h-3a), saved history and what a chat remembers (2h-3b); 2i questions and work shown in chat; 2j file-edit review (diff and token).
 3. **Native shell.** Tauri window around the bridge, Node runtime as a bundled sidecar, and a CI job that builds it on macOS, Windows and Linux. First step that needs a machine (or CI runner) with the web view libraries; this environment has none.
 4. **Board, Needs you, Dashboard.**
 5. **Projects, Files, Changes, Git.**
@@ -218,6 +219,16 @@ Checked: 7 model tests (ports of the Swift suite plus the eight-row limit and st
 **While it is open the chat does not follow new text** (as in the Mac app), so a match you are reading does not scroll away; closing Find lets your own next message bring you to the end as before.
 
 Checked: 7 model tests (empty query, case, literal characters, context lengths, emoji, 500 limit and exactly 500, selection wrap), 26 browser checks against the fake runtime (open and focus, count, You/ATOM labels, no match, Escape and focus, many matches and wrapping, in view, no jump on new text, menu, other chat, Escape not stopping a turn, empty chat, light and narrow). Not ported: highlighting the matched words inside the rendered message (only the message is outlined, as in the Mac app); collapsing and expanding long messages (this window does not collapse them yet).
+
+## Step 2h-3a: the chat brief (24 October 2026)
+
+**What it is.** Background the user keeps for one chat: the project, decisions and next step. The runtime sends the saved brief with each request in that chat, including after a restart or a model change. It is data: it grants no file access, is not global memory, and other chats and forks start without it. The text is the user's; ATOM never writes it.
+
+**The editor.** Chat options → Chat brief opens a dialog with the saved brief loaded fresh from the runtime (`chat.control` `inspect`), the same explanation as the Mac app, and **Save for this chat** (Ctrl/Cmd+S). **Replace draft with saved** asks the runtime again and replaces the draft, which shows a brief saved from another window. It is offered only for a saved chat that can be written (not Telegram or the local API, not a chat with no messages), and only while no turn or change is in progress; each case says why in the menu.
+
+**Saving cannot overwrite a newer brief.** A save carries the version it was made from (`chat.control` `brief`); the runtime changes the brief only if that is still the current version, and otherwise answers in words ("The brief changed… Reload its current brief before saving again"), keeping the draft here. The answer carries the new version and is matched by its request id and chat. If no answer comes in 10 seconds the window does not claim success: it says the save is not confirmed and offers **Check save result**, which sends the same request id again. The runtime confirms a repeat of a save that already went through and refuses anything else, so checking cannot overwrite a newer brief. A save confirmed after more typing says the newer words were not saved. Hidden control characters (the runtime's own rule: no controls other than tab and line breaks, no invisible direction marks, no lone surrogates) cannot be saved, with the reason shown. Closing with unsaved words asks once ("Discard them and close" or keep editing), which the Mac app does not.
+
+Checked: 4 model tests, 6 reducer tests (load once per answer, only its own request and chat, failed load, versioned save, unconfirmed save then late or repeated answer, reload and close), 21 browser checks against the fake runtime (opens empty, Ctrl+S, tab and line breaks kept, hidden characters, Replace, closing with unsaved words, a second window saving first and the stale save refused, a save with a dropped answer then Check, other chats have their own brief, Telegram, unsaved and running-turn reasons, light and narrow). Real runtime through the bridge: a missing chat is refused in its own words for `inspect` and `brief`, and hidden characters are refused by the protocol parser. Not checked: a real saved chat's brief reaching a model (needs a provider login; the runtime has its own tests, `chat-brief.test.ts`). Not ported yet: saved history, "What this chat remembers" and the automatic-summary switch (2h-3b).
 
 ## Verification in step 1, and what was not verified
 

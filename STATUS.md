@@ -1,5 +1,9 @@
 # ZENO Project Status
 
+## Cross-platform window — step 2h-3a, 24 October 2026
+
+The chat brief works in the new window. Still to do in chat parity: saved history and "What this chat remembers" (2h-3b); in-chat questions and work results (2i); file-edit review (2j). Swift remains the shipping client.
+
 ## Cross-platform window — step 2h-2, 24 October 2026
 
 Find in chat works in the new window. Still to do in chat parity: chat brief and saved history (2h-3); in-chat questions and work results (2i); file-edit review (2j). Swift remains the shipping client.

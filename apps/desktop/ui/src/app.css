@@ -192,6 +192,16 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 .recovery-text { margin: 0; padding: 10px 12px; max-height: 220px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--sunken); font: 13px/1.5 var(--font-mono); }
 .recovery-confirm { padding: 10px 12px; border: 1px solid var(--warn); border-radius: var(--radius-control); }
 
+/* ----- chat brief ----- */
+.brief { width: min(560px, calc(100vw - 32px)); }
+.brief .field { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
+.brief .field-label { font-weight: 600; }
+.brief-text { width: 100%; min-height: 9rem; resize: vertical; padding: 10px 12px; border: 1px solid var(--line2); border-radius: var(--radius-control); background: var(--panel-input); color: var(--panel-fg); font: inherit; line-height: 1.5; }
+.brief-text[aria-invalid="true"] { border-color: var(--bad); }
+.brief-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 12px; }
+.brief-bad { color: var(--bad); }
+.brief-why { color: var(--warn); }
+
 /* ----- queue and held messages ----- */
 .queue { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--line2); border-radius: var(--radius-card); background: var(--card); max-height: 220px; overflow-y: auto; }
 .q-title { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--text2); }

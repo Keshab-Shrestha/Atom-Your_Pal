@@ -9,6 +9,9 @@ import { Surface } from "./Surface.tsx";
 import { newUuid } from "./ids.ts";
 import { useInputs } from "./useInputs.ts";
 import { useRecovery } from "./useRecovery.ts";
+import { useBrief } from "./useBrief.ts";
+import { Brief } from "./Brief.tsx";
+import { openWhy as briefOpenWhy } from "./brief.ts";
 import { Recovery } from "./Recovery.tsx";
 import { ChatSettings } from "./ChatSettings.tsx";
 import type { ChatAccessMode } from "./protocol.ts";
@@ -313,6 +316,9 @@ export function App({ transport }: { transport: Transport }) {
       toastTimer.current = setTimeout(() => setToast(undefined), 3200);
     },
   });
+  // The chat brief: background kept for this chat.
+  const brief = useBrief({ state, dispatch, send });
+  const briefWhy = briefOpenWhy(currentChat(state), branchWhy);
   // Stop ends the turn, declines what waits, and holds whatever was queued behind it.
   stopRef.current = () => {
     dispatch({ kind: "stopped" });
@@ -377,9 +383,12 @@ export function App({ transport }: { transport: Transport }) {
         input={inputs.api}
         recoveryCount={recovery.count}
         onOpenRecovery={recovery.open}
+        briefWhy={briefWhy}
+        onOpenBrief={() => state.currentChatId && brief.open(state.currentChatId)}
         onDismissProblem={() => dispatch({ kind: "dismissProblem" })}
       />
       <Surface />
+      <Brief brief={state.brief} currentChatId={state.currentChatId} busy={branchWhy} api={brief} />
       <Recovery state={state.recovery} chats={state.chats} api={recovery} />
       {toast ? <div class="toast" role="status">{toast}</div> : null}
     </div>

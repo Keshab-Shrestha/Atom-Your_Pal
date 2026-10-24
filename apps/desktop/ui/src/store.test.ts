@@ -339,3 +339,73 @@ test("the picker's skills come from helpers and its commands from commands; each
   assert.deepEqual(t.slash.skills, [{ name: "pdf", description: "PDFs" }]);
   assert.deepEqual(t.slash.commands, []);
 });
+
+// ---- the chat brief editor ----
+const REQ = "11111111-1111-4111-8111-111111111111";
+const REQ2 = "22222222-2222-4222-8222-222222222222";
+const briefInspected = (request: string, brief: { text: string; version: number }, id = "c1") => ev({ type: "chat.control", action: "inspect", id, request, ok: true, brief, revision: "r".repeat(64), info: { messages: 2 } });
+const briefSaved = (request: string, brief: { text: string; version: number }, id = "c1") => ev({ type: "chat.control", action: "brief", id, request, ok: true, brief });
+const briefOpened = (): AppState => run([{ kind: "briefOpen", chatId: "c1", request: REQ }]);
+
+test("the brief editor loads the saved brief once per answer, and only for its own request and chat", () => {
+  assert.equal(run([briefInspected(REQ, { text: "x", version: 1 })]).brief, undefined, "nothing is open: nothing is kept");
+  const s = run([briefInspected("33333333-3333-4333-8333-333333333333", { text: "x", version: 1 })], briefOpened());
+  assert.equal(s.brief?.saved, undefined, "another request is not ours");
+  const t = run([briefInspected(REQ, { text: "x", version: 1 }, "c2")], briefOpened());
+  assert.equal(t.brief?.saved, undefined, "another chat is not ours");
+  const u = run([briefInspected(REQ, { text: "Plan", version: 3 })], briefOpened());
+  assert.deepEqual(u.brief?.saved, { text: "Plan", version: 3 });
+  assert.equal(u.brief?.loads, 1);
+  assert.equal(u.brief?.doing, undefined);
+  const again = run([briefInspected(REQ, { text: "Other", version: 4 })], u);
+  assert.equal(again.brief?.saved?.version, 3, "an answer nobody waits for changes nothing");
+});
+
+test("a failed load says why and keeps nothing", () => {
+  const s = run([ev({ type: "chat.control", action: "inspect", id: "c1", request: REQ, ok: false, error: "That chat is not saved yet. Send a message first." })], briefOpened());
+  assert.equal(s.brief?.note, "That chat is not saved yet. Send a message first.");
+  assert.equal(s.brief?.result, "problem");
+  assert.equal(s.brief?.saved, undefined);
+  assert.equal(run([{ kind: "briefTimeout", request: REQ }], briefOpened()).brief?.result, "problem", "no answer in time is said, not waited for");
+});
+
+test("a save is confirmed by its own answer, which carries the new version; a refusal keeps the old one", () => {
+  const loaded = run([briefInspected(REQ, { text: "Plan", version: 3 })], briefOpened());
+  const saving = run([{ kind: "briefSave", request: REQ2, text: "Plan 2", version: 3 }], loaded);
+  assert.equal(saving.brief?.doing?.what, "saving");
+  const done = run([briefSaved(REQ2, { text: "Plan 2", version: 4 })], saving);
+  assert.deepEqual(done.brief?.saved, { text: "Plan 2", version: 4 });
+  assert.equal(done.brief?.result, "saved");
+  assert.equal(done.brief?.loads, 1, "a save does not replace the draft");
+  const refused = run([ev({ type: "chat.control", action: "brief", id: "c1", request: REQ2, ok: false, error: "The brief changed or the chat is gone. Reload its current brief before saving again." })], saving);
+  assert.deepEqual(refused.brief?.saved, { text: "Plan", version: 3 });
+  assert.match(refused.brief?.note ?? "", /Reload its current brief/);
+});
+
+test("a save with no answer is unconfirmed; asking again with the same request is answered once, and a late answer still counts", () => {
+  const loaded = run([briefInspected(REQ, { text: "Plan", version: 3 })], briefOpened());
+  const waiting = run([{ kind: "briefSave", request: REQ2, text: "Plan 2", version: 3 }, { kind: "briefTimeout", request: REQ2 }], loaded);
+  assert.deepEqual(waiting.brief?.unconfirmed, { request: REQ2, text: "Plan 2", version: 3 });
+  assert.equal(waiting.brief?.doing, undefined);
+  const late = run([briefSaved(REQ2, { text: "Plan 2", version: 4 })], waiting);
+  assert.equal(late.brief?.unconfirmed, undefined);
+  assert.equal(late.brief?.saved?.version, 4);
+  const retried = run([{ kind: "briefSave", request: REQ2, text: "Plan 2", version: 3 }], waiting);
+  assert.equal(retried.brief?.unconfirmed, undefined);
+  assert.equal(retried.brief?.doing?.request, REQ2);
+});
+
+test("reloading the saved brief says so, and closing forgets everything", () => {
+  const loaded = run([briefInspected(REQ, { text: "Plan", version: 3 })], briefOpened());
+  const reloading = run([{ kind: "briefReload", request: REQ2 }], loaded);
+  assert.equal(reloading.brief?.doing?.what, "reloading");
+  const back = run([briefInspected(REQ2, { text: "Newer", version: 5 })], reloading);
+  assert.equal(back.brief?.note, "Loaded the saved brief.");
+  assert.equal(back.brief?.loads, 2);
+  assert.equal(run([{ kind: "briefClose" }], back).brief, undefined);
+});
+
+test("a fork's inspect answer is not mistaken for the editor's, and the editor's is not taken by the fork", () => {
+  const s = run([{ kind: "briefOpen", chatId: "c1", request: REQ }, briefInspected("44444444-4444-4444-8444-444444444444", { text: "z", version: 9 })]);
+  assert.equal(s.brief?.saved, undefined);
+});

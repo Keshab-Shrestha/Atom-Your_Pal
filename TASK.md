@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Cross-platform window, step 2h-3a: the chat brief — implemented and checked, 24 October 2026
+
+Chat options → Chat brief opens an editor for the background kept with one chat. The saved brief is loaded fresh, saving is conditional on its version (so it cannot overwrite a newer one, and a stale save is refused in words with the draft kept), an unconfirmed save offers "Check save result" under the same request id, hidden control characters cannot be saved, and closing with unsaved words asks once. Unavailable (with the reason) for read-only chats, unsaved chats and while a turn runs. 4 model tests, 6 reducer tests and 21 browser checks against the fake runtime pass; the real runtime's refusals were checked through the bridge. Not checked: a real brief reaching a model. Not ported: saved history, "What this chat remembers" and automatic summaries (the runtime currently reports them unavailable) — 2h-3b. [Details](docs/cross-platform-migration.md). Next: 2h-3b. Swift unchanged.
+
 ## Cross-platform window, step 2h-2: find in chat — implemented and checked, 24 October 2026
 
 Ctrl/Cmd+F or Chat options → Find in chat searches the loaded messages of the current chat (literal, case-insensitive, up to 500 matches), shows "n of m" with a line of context, steps with Enter/Shift+Enter or the arrows, outlines and centres the matching message, and keeps the chat from following new text while open. Escape closes it and also no longer stops a running turn; the same fix applies to the "/" picker from 2h-1. Port of `ChatFind.swift`: 7 model tests and 26 browser checks against the fake runtime. Not ported: word-level highlighting inside the message (the Mac app does not either). [Details](docs/cross-platform-migration.md). Next: 2h-3, the chat brief and saved history. Swift unchanged.

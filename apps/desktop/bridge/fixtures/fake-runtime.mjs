@@ -20,6 +20,9 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
     { id: "chat-proj", title: "Project chat", updatedAt: "2026-10-20T08:00:00Z", messages: 1, projectId: "p1" },
   ];
   const meta = {}; // id -> { pinned, archived, version }
+  const briefs = {}; // id -> { text, version }: the chat brief (ADR-091)
+  const silent = new Set(); // requests whose first answer the fixture drops
+  const briefOf = (id) => (briefs[id] ??= { text: "", version: 0 });
   // Models, thinking and access, as the real runtime offers them (docs/island-protocol.md, ADR-097/180/181).
   const providers = [
     { id: "claude-plan", name: "Claude (my plan)", available: true, models: [{ id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" }, { id: "claude-opus-5-5", name: "Claude Opus 5.5" }, { id: "claude-haiku-5-5", name: "Claude Haiku 5.5" }] },
@@ -195,7 +198,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
     } else if (command.type === "chat.control" && (command.action === "inspect" || command.action === "fork")) {
       const answer = (extra) => out({ type: "chat.control", action: command.action, id: command.id, request: command.request, ...extra });
       if (!history[command.id] || command.id === "telegram-unsaved") return answer({ ok: false, error: "That chat is not saved yet. Send a message first." });
-      if (command.action === "inspect") return answer({ ok: true, revision: revisionOf(command.id), info: { messages: history[command.id].length } });
+      if (command.action === "inspect") return answer({ ok: true, revision: revisionOf(command.id), brief: briefOf(command.id), info: { messages: history[command.id].length } });
       if (state !== "idle") return answer({ ok: false, error: "Finish or stop the active turn before changing this chat." });
       const count = command.kind === "fork" ? command.through : command.through - 1;
       const earlier = forks.get(command.request);
@@ -221,6 +224,16 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
       out({ type: "chat.opened", id, messages: withSeq(id) });
       sendChats();
       answer({ ok: true, branch: { id, kind: command.kind, draft, created: true } });
+    } else if (command.type === "chat.control" && command.action === "brief") {
+      // Compare-and-set on the version, as the real store does; a repeat of a save that already went through is confirmed, never applied twice.
+      const answer = (extra) => out({ type: "chat.control", action: "brief", id: command.id, request: command.request, ...extra });
+      if (!history[command.id]) return answer({ ok: false, error: "The brief changed or the chat is gone. Reload its current brief before saving again." });
+      if (typeof command.text !== "string" || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/u.test(command.text)) return answer({ ok: false, error: "A chat brief needs the current version and text without hidden controls." });
+      if (process.env.FAKE_BRIEF_SILENT && command.text.includes("go silent") && !silent.has(command.request)) { silent.add(command.request); briefs[command.id] = { text: command.text, version: briefOf(command.id).version + 1 }; return; } // saved, but the answer is lost
+      const cur = briefOf(command.id);
+      if (cur.version === command.version) briefs[command.id] = { text: command.text, version: cur.version + 1 };
+      else if (!(cur.version === command.version + 1 && cur.text === command.text)) return answer({ ok: false, error: "The brief changed or the chat is gone. Reload its current brief before saving again." });
+      answer({ ok: true, brief: briefOf(command.id) });
     } else if (command.type === "chat.control" && command.action === "flags") {
       const answer = (extra) => out({ type: "chat.control", action: "flags", id: command.id, request: command.request, ...extra });
       const chat = chats.find((c) => c.id === command.id);
