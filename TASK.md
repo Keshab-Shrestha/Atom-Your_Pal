@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Cross-platform window, step 2h-3b: saved history and what a chat remembers — implemented and checked, 24 October 2026
+
+Chat options → Saved history reads the chat's saved archive in read-only pages (First/Reload, Previous, Next, Latest saved), with long messages continuing across pages, Copy this part, and Edit/Retry/Fork-through-here that copy the chat into a new one at the page's revision; a chat that changed meanwhile is refused in words. "What this chat remembers" shows the saved message count and replay estimate. Automatic summaries are not ported because the runtime reports them unavailable; the dialog says so. 4 model tests, 3 reducer tests and 21 browser checks against the fake runtime pass; the slash, find and brief browser checks still pass. This completes step 2h. Not checked against a real long chat. [Details](docs/cross-platform-migration.md). Next: 2i, questions from ATOM and work results in chat. Swift unchanged.
+
 ## Cross-platform window, step 2h-3a: the chat brief — implemented and checked, 24 October 2026
 
 Chat options → Chat brief opens an editor for the background kept with one chat. The saved brief is loaded fresh, saving is conditional on its version (so it cannot overwrite a newer one, and a stale save is refused in words with the draft kept), an unconfirmed save offers "Check save result" under the same request id, hidden control characters cannot be saved, and closing with unsaved words asks once. Unavailable (with the reason) for read-only chats, unsaved chats and while a turn runs. 4 model tests, 6 reducer tests and 21 browser checks against the fake runtime pass; the real runtime's refusals were checked through the bridge. Not checked: a real brief reaching a model. Not ported: saved history, "What this chat remembers" and automatic summaries (the runtime currently reports them unavailable) — 2h-3b. [Details](docs/cross-platform-migration.md). Next: 2h-3b. Swift unchanged.

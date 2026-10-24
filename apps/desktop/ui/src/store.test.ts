@@ -409,3 +409,48 @@ test("a fork's inspect answer is not mistaken for the editor's, and the editor's
   const s = run([{ kind: "briefOpen", chatId: "c1", request: REQ }, briefInspected("44444444-4444-4444-8444-444444444444", { text: "z", version: 9 })]);
   assert.equal(s.brief?.saved, undefined);
 });
+
+// ---- saved history and what a chat remembers ----
+const H1 = "55555555-5555-4555-8555-555555555555";
+const H2 = "66666666-6666-4666-8666-666666666666";
+const page = (request: string, extra: object = {}, id = "c1") => ev({ type: "chat.control", action: "page", id, request, ok: true, revision: "a".repeat(64), page: { messages: [{ seq: 1, role: "user", offset: 0, text: "hi" }, { seq: 2, role: "assistant", offset: 0, text: "hello" }], nextMessage: 3, nextOffset: 0, ...extra } });
+const askPage = (request: string, cursor = { message: 1, offset: 0 }, previous: { message: number; offset: number }[] = []): Action => ({ kind: "historyAsk", chatId: "c1", request, cursor, previous });
+
+test("a history page replaces the one on screen, with where Next goes and the revision it was read at", () => {
+  const s = run([askPage(H1), page(H1)]);
+  assert.equal(s.history?.page?.parts.length, 2);
+  assert.deepEqual(s.history?.page?.next, { message: 3, offset: 0 });
+  assert.equal(s.history?.page?.revision, "a".repeat(64));
+  assert.equal(s.history?.reading, undefined);
+  assert.deepEqual(s.history?.cursor, { message: 1, offset: 0 });
+  const last = run([askPage(H2, { message: 3, offset: 0 }, [{ message: 1, offset: 0 }]), page(H2, { nextMessage: undefined, messages: [{ seq: 3, role: "user", offset: 0, text: "more" }] })], s);
+  assert.equal(last.history?.page?.next, undefined, "the last page has no Next");
+  assert.deepEqual(last.history?.previous, [{ message: 1, offset: 0 }], "Previous goes back to where it came from");
+});
+
+test("only the awaited page, for its own chat, counts; a refused read keeps the page on screen and says why", () => {
+  const shown = run([askPage(H1), page(H1)]);
+  assert.equal(run([page(H2)], shown).history?.page?.parts.length, 2, "an unasked page changes nothing");
+  assert.equal(run([askPage(H2, { message: 3, offset: 0 }), page(H2, {}, "c2")], shown).history?.reading?.request, H2, "another chat's answer is not ours");
+  const refused = run([askPage(H2, { message: 3, offset: 0 }), ev({ type: "chat.control", action: "page", id: "c1", request: H2, ok: false, error: "Saved history changed. Refresh history before continuing." })], shown);
+  assert.equal(refused.history?.note, "Saved history changed. Refresh history before continuing.");
+  assert.equal(refused.history?.page?.parts.length, 2);
+  assert.equal(refused.history?.reading, undefined);
+  assert.deepEqual(refused.history?.cursor, { message: 1, offset: 0 }, "the trail does not move on a refusal");
+  assert.match(run([askPage(H2), { kind: "historyTimeout", request: H2 }]).history?.note ?? "", /did not arrive/);
+  assert.equal(run([{ kind: "historyClose" }], shown).history, undefined);
+});
+
+test("what a chat remembers is the answer to its own inspect, and a fork's inspect is not taken for it", () => {
+  const info = { messages: 4, archiveBytes: 900, replayBytes: 800, replayBudget: 60000, omitted: 0 };
+  const inspect = (request: string, extra: object = {}) => ev({ type: "chat.control", action: "inspect", id: "c1", request, ok: true, revision: "b".repeat(64), info, ...extra });
+  const s = run([{ kind: "remembersAsk", chatId: "c1", request: H1 }, inspect(H2), inspect(H1)]);
+  assert.equal(s.remembers?.info?.messages, 4);
+  assert.equal(s.remembers?.request, undefined);
+  const bad = run([{ kind: "remembersAsk", chatId: "c1", request: H1 }, ev({ type: "chat.control", action: "inspect", id: "c1", request: H1, ok: false, error: "That chat is not saved yet. Send a message first." })]);
+  assert.equal(bad.remembers?.note, "That chat is not saved yet. Send a message first.");
+  assert.match(run([{ kind: "remembersAsk", chatId: "c1", request: H1 }, { kind: "remembersTimeout", request: H1 }]).remembers?.note ?? "", /did not arrive/);
+  const again = run([{ kind: "remembersAsk", chatId: "c1", request: H2 }], s);
+  assert.equal(again.remembers?.info?.messages, 4, "refreshing keeps what was shown until the new answer arrives");
+  assert.equal(run([{ kind: "remembersClose" }], s).remembers, undefined);
+});

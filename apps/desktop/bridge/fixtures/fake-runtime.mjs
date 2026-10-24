@@ -17,6 +17,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
     { id: "chat-2", title: "Rename the invoice files", updatedAt: "2026-10-23T17:40:00Z", messages: 2 },
     { id: "chat-md", title: "Markdown sample", updatedAt: "2026-10-22T08:00:00Z", messages: 2 },
     { id: "telegram", title: "Telegram", updatedAt: "2026-10-21T08:00:00Z", messages: 1, readOnly: true },
+    { id: "chat-long", title: "Long chat", updatedAt: "2026-10-19T08:00:00Z", messages: 20 },
     { id: "chat-proj", title: "Project chat", updatedAt: "2026-10-20T08:00:00Z", messages: 1, projectId: "p1" },
   ];
   const meta = {}; // id -> { pinned, archived, version }
@@ -58,6 +59,8 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
     ],
   };
   history["chat-proj"] = [{ role: "assistant", text: "I can read this project's folder." }];
+  // Twenty saved messages, one of them long, to exercise paging and a message that continues on the next page.
+  history["chat-long"] = Array.from({ length: 20 }, (_, n) => ({ role: n % 2 ? "assistant" : "user", text: n === 4 ? `Long message ${"abcdefghij ".repeat(300)}END` : `Saved message ${n + 1}` }));
   history.telegram = [{ role: "assistant", text: "Written from the phone." }];
   history["chat-md"] = [
     { role: "user", text: "Show me everything you can format." },
@@ -198,7 +201,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
     } else if (command.type === "chat.control" && (command.action === "inspect" || command.action === "fork")) {
       const answer = (extra) => out({ type: "chat.control", action: command.action, id: command.id, request: command.request, ...extra });
       if (!history[command.id] || command.id === "telegram-unsaved") return answer({ ok: false, error: "That chat is not saved yet. Send a message first." });
-      if (command.action === "inspect") return answer({ ok: true, revision: revisionOf(command.id), brief: briefOf(command.id), info: { messages: history[command.id].length } });
+      if (command.action === "inspect") return answer({ ok: true, revision: revisionOf(command.id), brief: briefOf(command.id), info: { messages: history[command.id].length, archiveBytes: 1234, replayBytes: 5678, replayBudget: 60000, omitted: Math.max(0, history[command.id].length - 12) } });
       if (state !== "idle") return answer({ ok: false, error: "Finish or stop the active turn before changing this chat." });
       const count = command.kind === "fork" ? command.through : command.through - 1;
       const earlier = forks.get(command.request);
@@ -224,6 +227,24 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
       out({ type: "chat.opened", id, messages: withSeq(id) });
       sendChats();
       answer({ ok: true, branch: { id, kind: command.kind, draft, created: true } });
+    } else if (command.type === "chat.control" && command.action === "page") {
+      // Pages of up to eight messages; a message longer than 1,500 characters continues on the next page, as in the real runtime.
+      const answer = (extra) => out({ type: "chat.control", action: "page", id: command.id, request: command.request, ...extra });
+      const source = history[command.id];
+      if (!source) return answer({ ok: false, error: "That chat is not saved yet. Send a message first." });
+      if (command.revision && command.revision !== revisionOf(command.id)) return answer({ ok: false, error: "Saved history changed. Refresh history before continuing." });
+      let message = command.message, offset = command.offset;
+      if (message > source.length + 1) return answer({ ok: false, error: "That history cursor is no longer available." });
+      const rows = [];
+      while (message <= source.length && rows.length < 8) {
+        const m = source[message - 1];
+        const text = m.text.slice(offset, offset + 1500);
+        rows.push({ seq: message, role: m.role, offset, text });
+        offset += text.length;
+        if (offset < m.text.length) break;
+        message++; offset = 0;
+      }
+      answer({ ok: true, revision: revisionOf(command.id), page: { messages: rows, ...(message <= source.length ? { nextMessage: message, nextOffset: offset } : {}) } });
     } else if (command.type === "chat.control" && command.action === "brief") {
       // Compare-and-set on the version, as the real store does; a repeat of a save that already went through is confirmed, never applied twice.
       const answer = (extra) => out({ type: "chat.control", action: "brief", id: command.id, request: command.request, ...extra });

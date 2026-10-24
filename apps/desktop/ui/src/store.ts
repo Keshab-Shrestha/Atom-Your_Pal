@@ -3,7 +3,8 @@
 
 import type { SkillInfo, SlashCommandInfo } from "./slash.ts";
 import { NOT_CONFIRMED, NOT_LOADED } from "./brief.ts";
-import type { Attempt, ChatAccessMode, ChatItem, ChatReasoning, InfoEvent, IslandEvent, LoopState, Receipt, RecoveryRecord, RuntimeStatus } from "./protocol.ts";
+import type { Cursor } from "./saved-chat.ts";
+import type { SavedInfo, SavedPart, Attempt, ChatAccessMode, ChatItem, ChatReasoning, InfoEvent, IslandEvent, LoopState, Receipt, RecoveryRecord, RuntimeStatus } from "./protocol.ts";
 
 export interface Message {
   id: number;
@@ -134,6 +135,26 @@ export interface BriefState {
   result?: "saved" | "problem";
 }
 
+/** Saved history: read-only pages of the saved archive. An answer replaces the page; a failed read keeps the one on screen. */
+export interface HistoryState {
+  chatId: string;
+  /** The page being asked for, and what the cursor trail becomes if it arrives. */
+  reading?: { request: string; cursor: Cursor; previous: Cursor[] };
+  cursor: Cursor;
+  /** Where Previous goes back to. */
+  previous: Cursor[];
+  page?: { parts: SavedPart[]; next?: Cursor; revision?: string };
+  note?: string;
+}
+
+/** "What this chat remembers": the runtime's description of what it replays for this chat. */
+export interface RemembersState {
+  chatId: string;
+  request?: string;
+  info?: SavedInfo;
+  note?: string;
+}
+
 export interface AppState {
   link: Link;
   runtime: RuntimeStatus;
@@ -160,6 +181,8 @@ export interface AppState {
   branchResult?: BranchResult;
   recovery: RecoveryState;
   brief?: BriefState;
+  history?: HistoryState;
+  remembers?: RemembersState;
   /** The newest receipt for an accepted request. `n` counts them, so each is handled once. */
   receipt?: Receipt & { n: number };
   /** How many turns the runtime accepted (`transcript`) and how many errors it reported: a send with files waits for one of them to move. */
@@ -201,6 +224,12 @@ export type Action =
   | { kind: "forkSent"; request: string }
   | { kind: "branchTimeout"; request: string }
   | { kind: "branchAck" }
+  | { kind: "historyAsk"; chatId: string; request: string; cursor: Cursor; previous: Cursor[] }
+  | { kind: "historyTimeout"; request: string }
+  | { kind: "historyClose" }
+  | { kind: "remembersAsk"; chatId: string; request: string }
+  | { kind: "remembersTimeout"; request: string }
+  | { kind: "remembersClose" }
   | { kind: "briefOpen"; chatId: string; request: string }
   | { kind: "briefReload"; request: string }
   | { kind: "briefSave"; request: string; text: string; version: number }
@@ -248,6 +277,32 @@ export function reduce(state: AppState, action: Action): AppState {
       return { ...dropUndo(state), mutation: action.mutation };
     case "dismissUndo":
       return dropUndo(state);
+    case "historyAsk": {
+      const same = state.history?.chatId === action.chatId ? state.history : undefined;
+      return { ...state, history: { chatId: action.chatId, cursor: same?.cursor ?? action.cursor, previous: same?.previous ?? [], ...(same?.page ? { page: same.page } : {}), reading: { request: action.request, cursor: action.cursor, previous: action.previous } } };
+    }
+    case "historyTimeout": {
+      const h = state.history;
+      if (!h?.reading || h.reading.request !== action.request) return state;
+      const { reading: _gone, ...rest } = h;
+      return { ...state, history: { ...rest, note: "The history did not arrive. Reload to try again." } };
+    }
+    case "historyClose": {
+      const { history: _gone, ...rest } = state;
+      return rest;
+    }
+    case "remembersAsk":
+      return { ...state, remembers: { chatId: action.chatId, request: action.request, ...(state.remembers?.chatId === action.chatId && state.remembers.info ? { info: state.remembers.info } : {}) } };
+    case "remembersTimeout": {
+      const r = state.remembers;
+      if (!r || r.request !== action.request) return state;
+      const { request: _gone, ...rest } = r;
+      return { ...state, remembers: { ...rest, note: "The saved details did not arrive. Refresh to try again." } };
+    }
+    case "remembersClose": {
+      const { remembers: _gone, ...rest } = state;
+      return rest;
+    }
     case "briefOpen":
       return { ...state, brief: { chatId: action.chatId, loads: 0, doing: { what: "loading", request: action.request } } };
     case "briefReload": {
@@ -428,6 +483,20 @@ function reduceEvent(state: AppState, event: IslandEvent): AppState {
           return { ...rest, branchResult: { kind: branch.kind, draft: event.branch?.draft ?? "", created: event.branch?.created ?? true } };
         }
         return state;
+      }
+      // The saved history's pages and "What this chat remembers": their own requests, for their own chat.
+      const reading = state.history?.reading;
+      if (state.history && reading && event.action === "page" && event.request === reading.request && event.id === state.history.chatId) {
+        const { reading: _gone, ...rest } = state.history;
+        if (!event.ok || !event.page) return { ...state, history: { ...rest, note: event.error ?? "ATOM could not read the saved history." } };
+        const { messages, nextMessage, nextOffset } = event.page;
+        const { note: _n, ...clean } = rest;
+        return { ...state, history: { ...clean, cursor: reading.cursor, previous: reading.previous, page: { parts: messages, ...(nextMessage !== undefined ? { next: { message: nextMessage, offset: nextOffset ?? 0 } } : {}), ...(event.revision ? { revision: event.revision } : {}) } } };
+      }
+      const asking = state.remembers;
+      if (asking?.request && event.action === "inspect" && event.request === asking.request && event.id === asking.chatId) {
+        const { request: _gone, note: _n, ...rest } = asking;
+        return { ...state, remembers: event.ok && event.info ? { ...rest, info: event.info } : { ...rest, note: event.error ?? "ATOM could not read the saved details." } };
       }
       // The brief editor's answers: its own request, for its own chat.
       const editor = state.brief;

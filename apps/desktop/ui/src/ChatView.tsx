@@ -33,6 +33,10 @@ export interface ChatViewProps {
   /** Why the chat brief cannot be opened now; undefined when it can. */
   briefWhy: string | undefined;
   onOpenBrief: () => void;
+  /** Why saved history and "What this chat remembers" cannot be read now; undefined when they can. */
+  savedWhy: string | undefined;
+  onOpenHistory: () => void;
+  onOpenRemembers: () => void;
   onDismissProblem: () => void;
   onCopy: (content: ClipContent) => void;
   /** Appends a quote of a reply to the draft. */
@@ -65,7 +69,7 @@ const LOOP_WORDS: Record<LoopState, string> = {
 
 const NO_SEQ = "Reopen this chat to use this on a message that has just arrived.";
 
-export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, recoveryCount, onOpenRecovery, briefWhy, onOpenBrief, onDismissProblem, onCopy, onQuote, insertion, attachWhy, slash, onSlash, input, controls, branchWhy, onBranch, onStop, onAnswer }: ChatViewProps) {
+export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, recoveryCount, onOpenRecovery, briefWhy, onOpenBrief, savedWhy, onOpenHistory, onOpenRemembers, onDismissProblem, onCopy, onQuote, insertion, attachWhy, slash, onSlash, input, controls, branchWhy, onBranch, onStop, onAnswer }: ChatViewProps) {
   /** Fork, edit and retry need the runtime's saved number for the message. */
   const branchItems = (message: Message): MenuItem[] => {
     const why = branchWhy ?? (message.seq === undefined ? NO_SEQ : undefined);
@@ -174,7 +178,9 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
             items={[
               { label: recoveryCount > 0 ? `Recovery (${recoveryCount})` : "Recovery", onSelect: onOpenRecovery },
               { label: "Find in chat", onSelect: openFind, disabledWhy: messages.length > 0 ? undefined : "This chat has no messages yet." },
+              { label: "Saved history", onSelect: onOpenHistory, disabledWhy: savedWhy },
               { label: "Chat brief", onSelect: onOpenBrief, disabledWhy: briefWhy },
+              { label: "What this chat remembers", onSelect: onOpenRemembers, disabledWhy: savedWhy },
               { label: "Fork chat", onSelect: () => onBranch("fork", "all"), disabledWhy: branchWhy ?? (chat && chat.messages > 0 ? undefined : "This chat is not saved yet. Send a message first.") },
             ]}
           />

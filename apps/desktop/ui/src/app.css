@@ -297,3 +297,15 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 .find-snippet { margin: 0; color: var(--text2); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .find-snippet mark { background: transparent; color: var(--eyebrow); font-weight: 700; }
 .found { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: var(--radius-card); }
+
+/* ----- saved history, what a chat remembers ----- */
+.history { width: min(720px, calc(100vw - 32px)); }
+.history-nav { margin: 10px 0; }
+.history-parts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.history-part { display: flex; flex-direction: column; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.history-label { margin: 0; font-weight: 600; }
+.history-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.history-actions { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.link-btn:disabled { color: var(--muted); text-decoration: none; cursor: not-allowed; }
+.remembers { width: min(560px, calc(100vw - 32px)); }
+.remembers-meter { width: 100%; height: 10px; margin: 8px 0; accent-color: var(--accent); }

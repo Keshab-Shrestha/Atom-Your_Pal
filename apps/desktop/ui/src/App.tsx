@@ -10,6 +10,10 @@ import { newUuid } from "./ids.ts";
 import { useInputs } from "./useInputs.ts";
 import { useRecovery } from "./useRecovery.ts";
 import { useBrief } from "./useBrief.ts";
+import { useSavedChat } from "./useSavedChat.ts";
+import { SavedHistory } from "./SavedHistory.tsx";
+import { Remembers } from "./Remembers.tsx";
+import { historyWhy } from "./saved-chat.ts";
 import { Brief } from "./Brief.tsx";
 import { openWhy as briefOpenWhy } from "./brief.ts";
 import { Recovery } from "./Recovery.tsx";
@@ -180,6 +184,16 @@ export function App({ transport }: { transport: Transport }) {
     },
     [state.currentChatId, state.branch, send],
   );
+  // From a saved history page: fork at the revision that page was read at, so exactly what was on screen is copied.
+  const startBranchAt = useCallback(
+    (kind: "fork" | "edit" | "retry", through: number, revision: string) => {
+      const chatId = state.currentChatId;
+      if (!chatId || state.branch) return;
+      dispatch({ kind: "historyClose" });
+      dispatch({ kind: "branchStart", op: { stage: "ready", kind, chatId, through, request: newUuid(), revision, count: through } });
+    },
+    [state.currentChatId, state.branch],
+  );
   const branch = state.branch;
   useEffect(() => {
     if (!branch || branch.stage !== "ready" || !branch.revision) return;
@@ -319,6 +333,9 @@ export function App({ transport }: { transport: Transport }) {
   // The chat brief: background kept for this chat.
   const brief = useBrief({ state, dispatch, send });
   const briefWhy = briefOpenWhy(currentChat(state), branchWhy);
+  // Saved history and what the chat remembers: read-only questions about the saved archive.
+  const saved = useSavedChat({ state, dispatch, send });
+  const savedWhy = historyWhy(currentChat(state), state.link === "live" && state.runtime.state === "running" && state.ready !== undefined);
   // Stop ends the turn, declines what waits, and holds whatever was queued behind it.
   stopRef.current = () => {
     dispatch({ kind: "stopped" });
@@ -385,9 +402,21 @@ export function App({ transport }: { transport: Transport }) {
         onOpenRecovery={recovery.open}
         briefWhy={briefWhy}
         onOpenBrief={() => state.currentChatId && brief.open(state.currentChatId)}
+        savedWhy={savedWhy}
+        onOpenHistory={() => state.currentChatId && saved.history.open(state.currentChatId)}
+        onOpenRemembers={() => state.currentChatId && saved.remembers.open(state.currentChatId)}
         onDismissProblem={() => dispatch({ kind: "dismissProblem" })}
       />
       <Surface />
+      <SavedHistory
+        history={state.history}
+        savedCount={currentChat(state)?.messages ?? 0}
+        branchWhy={branchWhy}
+        api={saved.history}
+        onCopy={(content) => void copy(content)}
+        onBranch={startBranchAt}
+      />
+      <Remembers remembers={state.remembers} api={saved.remembers} />
       <Brief brief={state.brief} currentChatId={state.currentChatId} busy={branchWhy} api={brief} />
       <Recovery state={state.recovery} chats={state.chats} api={recovery} />
       {toast ? <div class="toast" role="status">{toast}</div> : null}
