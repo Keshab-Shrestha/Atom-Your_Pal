@@ -1,5 +1,9 @@
 # ZENO Project Status
 
+## Cross-platform window — step 2a, 24 October 2026
+
+The new window renders Markdown replies and keeps the chat at its end. Everything else in chat parity (Stop, approvals, chat actions, copy, model/access menus, attachments, recovery, slash picker, find, questions) is still to do; the Swift app remains the shipping client. 48 desktop tests, root typecheck and the build pass.
+
 ## Cross-platform window — step 1, 24 October 2026
 
 `apps/desktop/` holds a Node bridge and a Preact window (Four-lane design) over the unchanged runtime and protocol. Works: start/supervise/restart/stop the real runtime, stream its events, send commands, list/open/create chats, send typed messages, show state and errors. 30 new tests, root typecheck and a production build pass; the window was checked in Chromium against a fake runtime and against the real runtime's startup. Not working yet: every other screen, voice, shortcuts, tray, overlays, Pal, the native shell, Windows and Linux (untested), macOS-only tools elsewhere. The Swift app is untouched and remains the shipping client. See [docs/cross-platform-migration.md](docs/cross-platform-migration.md).

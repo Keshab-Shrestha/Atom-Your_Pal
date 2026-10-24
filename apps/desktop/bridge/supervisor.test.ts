@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,8 +27,15 @@ function harness(env: NodeJS.ProcessEnv = {}, extra: Partial<Parameters<typeof c
     }
     return new Promise<RuntimeEvent>((resolve) => waiters.push({ match: (e) => e.type === type, resolve: (e) => ((e as { _seen?: boolean })._seen = true, resolve(e)) }));
   };
+  started.push(supervisor);
   return { supervisor, events, statuses, next };
 }
+
+// Whatever a test asserts, no runtime may outlive it: a leaked child keeps the test process alive.
+const started: ReturnType<typeof createSupervisor>[] = [];
+afterEach(async () => {
+  await Promise.all(started.splice(0).map((s) => s.stop()));
+});
 
 const settle = async (check: () => boolean, ms = 3000) => {
   const end = Date.now() + ms;
@@ -46,7 +53,7 @@ test("forwards the runtime's events and writes commands as single lines", async 
   assert.equal(h.supervisor.status().state, "running");
   assert.equal(h.supervisor.send({ type: "chats.list" }), true);
   const chats = (await h.next("chats")) as RuntimeEvent & { chats: unknown[] };
-  assert.equal(chats.chats.length, 2);
+  assert.equal((chats.chats[0] as { id: string }).id, "chat-1");
   // Text with line breaks stays one protocol line: the fake runtime parses it as JSON, or answers with an error event.
   h.supervisor.send({ type: "text.send", text: "line one\nline two" });
   const transcript = (await h.next("transcript")) as RuntimeEvent & { text: string };

@@ -11,6 +11,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
   const chats = [
     { id: "chat-1", title: "Plan a weekend in Kyoto", updatedAt: "2026-10-24T09:12:00Z", messages: 2 },
     { id: "chat-2", title: "Rename the invoice files", updatedAt: "2026-10-23T17:40:00Z", messages: 2 },
+    { id: "chat-md", title: "Markdown sample", updatedAt: "2026-10-22T08:00:00Z", messages: 2 },
   ];
   const history = {
     "chat-1": [
@@ -22,6 +23,19 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
       { role: "assistant", text: "Done. I renamed 12 files to YYYY-MM-DD order." },
     ],
   };
+  history["chat-md"] = [
+    { role: "user", text: "Show me everything you can format." },
+    {
+      role: "assistant",
+      text: [
+        "# Trip plan", "", "Book **two nights** near *Kyoto Station*, see [the guide](https://example.com/kyoto) and `JR Pass` rules.", "",
+        "- [x] Flights", "- [ ] Hotel", "  - Gion for evenings", "  - Station for trains", "", "1. Arrive", "2. Check in", "",
+        "> Trains stop early on Sundays.", "", "| Day | Plan |", "|:--|--:|", "| Mon | Temples |", "| Tue | Nara |", "",
+        "```ts", "const nights = 2;", "```", "", "---", "",
+        "Not links: [x](javascript:alert(1)) and <img src=x onerror=alert(1)>",
+      ].join("\n"),
+    },
+  ];
   let current = "chat-1";
   const sendChats = () => out({ type: "chats", chats, current });
   out({ type: "ready", protocol: 1, provider: "fake", model: "Fake model", microphone: "none", voice: false });

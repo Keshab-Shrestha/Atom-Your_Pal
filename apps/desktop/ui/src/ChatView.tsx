@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { Composer } from "./Composer.tsx";
+import { Markdown } from "./Markdown.tsx";
 import type { ChatItem, LoopState } from "./protocol.ts";
 import type { Message, Problem } from "./store.ts";
 
@@ -23,10 +24,32 @@ const LOOP_WORDS: Record<LoopState, string> = {
 };
 
 export function ChatView({ chat, messages, loop, problem, blocked, modelLabel, onSend, onDismissProblem }: ChatViewProps) {
-  const end = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    end.current?.scrollIntoView({ block: "end" });
+  const log = useRef<HTMLDivElement>(null);
+  const inner = useRef<HTMLDivElement>(null);
+  /** True while the reader is at (or near) the end: new text and late layout changes then keep the end in view. Reading older text lets go. */
+  const pinned = useRef(true);
+  const toEnd = () => {
+    const el = log.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  };
+  // Another chat opened: start at its end.
+  useLayoutEffect(() => {
+    pinned.current = true;
+    toEnd();
+  }, [chat?.id]);
+  useLayoutEffect(() => {
+    if (pinned.current) toEnd();
   }, [messages.length, loop]);
+  // Fonts, tables and code blocks settle after the first paint; keep the end in view when the content grows.
+  useEffect(() => {
+    const content = inner.current;
+    if (!content || typeof ResizeObserver === "undefined") return;
+    const watcher = new ResizeObserver(() => {
+      if (pinned.current) toEnd();
+    });
+    watcher.observe(content);
+    return () => watcher.disconnect();
+  }, []);
 
   return (
     <main class="lane lane-chat" aria-label="Conversation">
@@ -47,7 +70,18 @@ export function ChatView({ chat, messages, loop, problem, blocked, modelLabel, o
         </div>
       ) : null}
 
-      <div class="log" role="log" aria-live="polite" aria-label="Messages">
+      <div
+        class="log"
+        ref={log}
+        role="log"
+        aria-live="polite"
+        aria-label="Messages"
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+        }}
+      >
+        <div class="log-inner" ref={inner}>
         {messages.length === 0 ? (
           <div class="empty">
             <h2 class="display">Start a conversation</h2>
@@ -62,7 +96,7 @@ export function ChatView({ chat, messages, loop, problem, blocked, modelLabel, o
             ) : (
               <article class="msg msg-atom" key={message.id}>
                 <p class="who"><span class="avatar" aria-hidden="true" /> ATOM</p>
-                <p class="body">{message.text}</p>
+                <div class="body"><Markdown text={message.text} /></div>
               </article>
             ),
           )
@@ -72,10 +106,17 @@ export function ChatView({ chat, messages, loop, problem, blocked, modelLabel, o
             <span class="pulse" aria-hidden="true" /> {loop === "thinking" ? "ATOM is thinking…" : "Transcribing…"}
           </p>
         ) : null}
-        <div ref={end} />
+        </div>
       </div>
 
-      <Composer blocked={blocked} modelLabel={modelLabel} onSend={onSend} />
+      <Composer
+        blocked={blocked}
+        modelLabel={modelLabel}
+        onSend={(text) => {
+          pinned.current = true; // your own message always brings you to the end
+          return onSend(text);
+        }}
+      />
     </main>
   );
 }

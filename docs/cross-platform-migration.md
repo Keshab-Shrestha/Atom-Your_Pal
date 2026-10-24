@@ -44,8 +44,9 @@ Status words: **done**, **partial**, **todo**. A row is done only when it works 
 | Feature | Swift source | Status | Port step |
 |---|---|---|---|
 | Chat list: open, new, search, archived fold, pinned first, read-only tag | `SidebarLayout`, `ChatList` parts of `HelpersView` | partial: no rename, delete, pin, archive, drag order, projects filter | 2 |
-| Chat view: messages, send, status pill, errors | `ConversationView`, `StateViews` | partial: plain text only | 2 |
-| Markdown replies, code blocks, copy, quote, fork | `MarkdownReply`, `ChatCopyControl`, `ChatActionsMenu` | todo | 2 |
+| Chat view: messages, send, status pill, errors, stay-at-end scrolling | `ConversationView`, `StateViews`, `ChatScrollView` | partial | 2 |
+| Markdown replies: headings, lists, tasks, quotes, rules, code, tables, bold/italic/strike/code/links | `MarkdownReply`, `MarkdownBlocks` | **done** (step 2a) | 2a |
+| Copy (text and rich HTML), quote, fork, edit, retry | `ChatCopyControl`, `ChatActionsMenu`, `MarkdownHTML` | todo | 2 |
 | Attachments, paste, drop | `ChatAttachments`, `ComposerPaste`, `PastedTextFile`, `IslandController+Drop` | todo | 2 |
 | Stop, queue, held draft, recovery after interruption | `ChatControlsModel`, `ForegroundRecovery*` | todo | 2 |
 | Model, thinking and access menus | `ChatModelPicker`, `ChatReasoningMenu`, `ChatAccessMenu` | todo | 2 |
@@ -102,7 +103,7 @@ The runtime is TypeScript, but some tools call macOS programs. The first cross-p
 One capability per step, each ending with tests and a recorded check (CLAUDE.md §3).
 
 1. **Bridge and Chat core.** Done (above).
-2. **Chat parity.** Rows in A marked step 2.
+2. **Chat parity**, one capability at a time. 2a Markdown replies and stay-at-end scrolling: done. Next, in this order: 2b Stop and approvals in the chat (safety first); 2c chat actions (rename, delete, pin, archive); 2d copy, quote, fork; 2e model, thinking and access menus; 2f attachments and paste; 2g Stop/queue/drafts/recovery; 2h slash picker, find, chat brief; 2i questions and work shown in chat.
 3. **Native shell.** Tauri window around the bridge, Node runtime as a bundled sidecar, and a CI job that builds it on macOS, Windows and Linux. First step that needs a machine (or CI runner) with the web view libraries; this environment has none.
 4. **Board, Needs you, Dashboard.**
 5. **Projects, Files, Changes, Git.**
@@ -115,6 +116,10 @@ One capability per step, each ending with tests and a recorded check (CLAUDE.md 
 12. **Pal and pointing.**
 13. **Windows and Linux tools** from table C.
 14. **Retire Swift.** Only when every row is done and the Mac acceptance checks (the live workflow walkthroughs in `docs/`) pass on the new window. Until then both apps exist.
+
+## Step 2a: Markdown replies (24 October 2026)
+
+`ui/src/markdown.ts` is a line-for-line port of `MarkdownBlocks.swift` (same blocks, nesting limit 16, same list/table/fence rules) plus a bounded inline reader. `Markdown.tsx` builds elements from the result and never HTML strings. Links only for http, https and mailto; `javascript:`, `data:`, `file:` and protocol-relative addresses stay as visible text. Tests include the Swift suite's cases, nesting and linear-time bounds, and hostile text; the real sample chat was checked in Chromium (no injected element, no dialog). Not ported: the clipboard HTML flavour (belongs to the copy step). Inline text longer than 20,000 characters in one block is shown as plain text.
 
 ## Verification in step 1, and what was not verified
 
