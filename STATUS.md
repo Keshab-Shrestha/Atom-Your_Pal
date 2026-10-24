@@ -1,5 +1,9 @@
 # ZENO Project Status
 
+## Cross-platform window — step 2d-2, 24 October 2026
+
+Fork, edit and retry work in the new window. Still to do in chat parity: model/thinking/access menus, attachments and paste, queue/drafts/recovery, slash picker, find, chat brief, in-chat questions and file-edit review. Swift remains the shipping client.
+
 ## Cross-platform window — step 2d-1, 24 October 2026
 
 Copy (reply formats, message, code, table, last reply) and "Reply to this" work in the new window. Fork/edit/retry, model/access menus, attachments, queue/recovery, slash picker, find and in-chat questions are still to do. Swift remains the shipping client.

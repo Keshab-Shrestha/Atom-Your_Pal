@@ -3,9 +3,11 @@ import { Composer } from "./Composer.tsx";
 import { CopyContext, Markdown } from "./Markdown.tsx";
 import { RowMenu } from "./RowMenu.tsx";
 import { replyContent, type ClipContent } from "./copy.ts";
+import type { Insertion } from "./Composer.tsx";
 import { WorkBar } from "./WorkBar.tsx";
 import type { ChatItem, LoopState } from "./protocol.ts";
 import type { Approval, Message, Problem, Work } from "./store.ts";
+import type { MenuItem } from "./RowMenu.tsx";
 
 export interface ChatViewProps {
   chat: ChatItem | undefined;
@@ -22,7 +24,11 @@ export interface ChatViewProps {
   /** Appends a quote of a reply to the draft. */
   onQuote: (text: string) => void;
   /** An unsent text to place in the composer, and a counter that makes the same text insertable twice. */
-  insertion: { seq: number; text: string } | undefined;
+  insertion: Insertion | undefined;
+  /** Why a chat cannot be copied into a new one right now; undefined when it can. */
+  branchWhy: string | undefined;
+  /** Copy the chat into a new one: through a saved message, or the whole chat (through "all"). */
+  onBranch: (kind: "fork" | "edit" | "retry", through: number | "all") => void;
   onStop: () => void;
   onAnswer: (approved: boolean, rememberFile?: boolean) => void;
 }
@@ -35,7 +41,23 @@ const LOOP_WORDS: Record<LoopState, string> = {
   speaking: "Speaking",
 };
 
-export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, onDismissProblem, onCopy, onQuote, insertion, onStop, onAnswer }: ChatViewProps) {
+const NO_SEQ = "Reopen this chat to use this on a message that has just arrived.";
+
+export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, onDismissProblem, onCopy, onQuote, insertion, branchWhy, onBranch, onStop, onAnswer }: ChatViewProps) {
+  /** Fork, edit and retry need the runtime's saved number for the message. */
+  const branchItems = (message: Message): MenuItem[] => {
+    const why = branchWhy ?? (message.seq === undefined ? NO_SEQ : undefined);
+    const through = message.seq ?? 0;
+    return [
+      ...(message.role === "user"
+        ? [
+            { label: "Edit in new chat", onSelect: () => onBranch("edit", through), disabledWhy: why },
+            { label: "Retry in new chat", onSelect: () => onBranch("retry", through), disabledWhy: why },
+          ]
+        : []),
+      { label: "Fork through here", onSelect: () => onBranch("fork", through), disabledWhy: why },
+    ];
+  };
   const log = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   /** True while the reader is at (or near) the end: new text and late layout changes then keep the end in view. Reading older text lets go. */
@@ -71,6 +93,10 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
           <h1 class="display">{chat?.title || "New chat"}</h1>
         </div>
         <div class="head-right">
+          <RowMenu
+            label="Chat options"
+            items={[{ label: "Fork chat", onSelect: () => onBranch("fork", "all"), disabledWhy: branchWhy ?? (chat && chat.messages > 0 ? undefined : "This chat is not saved yet. Send a message first.") }]}
+          />
           {loop !== "idle" && work?.outcome !== "working" && !approval ? (
             <button type="button" class="btn btn-ghost" onClick={onStop} title="Stop (Esc)">Stop</button>
           ) : null}
@@ -108,7 +134,7 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
           messages.map((message) =>
             message.role === "user" ? (
               <div class="msg-row msg-row-user" key={message.id}>
-                <RowMenu label="Message actions" items={[{ label: "Copy message", onSelect: () => onCopy({ text: message.text }) }]} />
+                <RowMenu label="Message actions" items={[{ label: "Copy message", onSelect: () => onCopy({ text: message.text }) }, ...branchItems(message)]} />
                 <div class="msg msg-user">
                   <p>{message.text}</p>
                 </div>
@@ -124,6 +150,7 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
                       { label: "Copy as plain text", onSelect: () => onCopy(replyContent(message.text, "plain")) },
                       { label: "Copy as rich text", onSelect: () => onCopy(replyContent(message.text, "rich")) },
                       { label: "Reply to this", onSelect: () => onQuote(message.text), disabledWhy: blocked && !/Press Stop/.test(blocked) ? "Not available now." : undefined },
+                      ...branchItems(message),
                     ]}
                   />
                 </div>

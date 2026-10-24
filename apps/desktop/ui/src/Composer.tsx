@@ -2,12 +2,20 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { Icon } from "./icons.tsx";
 import { MAX_QUOTED_DRAFT, quoteAppending } from "./copy.ts";
 
+/** Text for the composer from somewhere else. `seq` changes with every request, so the same text can be offered twice. */
+export interface Insertion {
+  seq: number;
+  text: string;
+  /** "quote" is appended after the draft; "restore" is a prompt put back after edit or retry and never replaces a draft. */
+  mode: "quote" | "restore";
+}
+
 export interface ComposerProps {
   /** Why sending is not possible right now, in words for the user; undefined when it is. */
   blocked: string | undefined;
   modelLabel: string | undefined;
   /** A reply to quote into the draft. `seq` changes with every request, so the same reply can be quoted twice. */
-  insertion: { seq: number; text: string } | undefined;
+  insertion: Insertion | undefined;
   /** Resolves false when ATOM did not take the message: the draft is kept. */
   onSend: (text: string) => Promise<boolean>;
 }
@@ -30,6 +38,20 @@ export function Composer({ blocked, modelLabel, insertion, onSend }: ComposerPro
   useEffect(() => {
     if (!insertion || insertion.seq === handled.current) return;
     handled.current = insertion.seq;
+    if (insertion.mode === "restore") {
+      // A changed composer is never overwritten (docs/conversation-controls.md).
+      if (draft.trim() !== "") return setNote("Your draft was kept. The earlier prompt is still in the original chat.");
+      setNote(undefined);
+      setDraft(insertion.text);
+      requestAnimationFrame(() => {
+        const el = area.current;
+        if (!el) return;
+        el.focus();
+        el.setSelectionRange(insertion.text.length, insertion.text.length);
+        grow();
+      });
+      return;
+    }
     const next = quoteAppending(insertion.text, draft);
     if (next === undefined) return;
     if ([...next].length > MAX_QUOTED_DRAFT) return setNote("The quote will not fit. Shorten the draft or copy a smaller excerpt.");

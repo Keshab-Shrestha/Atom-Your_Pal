@@ -176,3 +176,47 @@ test("the answer to an Undo only confirms: it cannot be undone again", () => {
   assert.equal(s.undo?.undoable, false);
   assert.equal(s.undo?.said, "Undone");
 });
+
+// ---------- fork, edit and retry ----------
+
+const op = (extra: object = {}) => ({ stage: "inspecting" as const, kind: "fork" as const, chatId: "c1", through: 2 as number | "all", request: "r1", ...extra });
+const inspected = (request = "r1", extra: object = {}) => ev({ type: "chat.control", action: "inspect", id: "c1", request, ok: true, revision: "a".repeat(64), info: { messages: 6 }, ...extra });
+const forked = (request: string, extra: object = {}) => ev({ type: "chat.control", action: "fork", id: "c1", request, ok: true, branch: { id: "fork-x", kind: "fork", draft: "", created: true }, ...extra });
+
+test("saved numbers from chat.opened are kept; live turns have none", () => {
+  const s = run([ev({ type: "chat.opened", id: "c1", messages: [{ role: "user", text: "a", seq: 1 }, { role: "assistant", text: "b", seq: 2 }] }), ev({ type: "transcript", text: "c" })]);
+  assert.deepEqual(s.messages.map((m) => m.seq), [1, 2, undefined]);
+});
+
+test("an inspect answer moves a fork on with the revision and size; the fork's answer ends it with its draft", () => {
+  const started = run([{ kind: "branchStart", op: op() }], live());
+  const ready = reduce(started, inspected());
+  assert.deepEqual(ready.branch, op({ stage: "ready", revision: "a".repeat(64), count: 6 }));
+  const sent = reduce(ready, { kind: "forkSent", request: "r2" });
+  assert.equal(sent.branch?.stage, "forking");
+  assert.equal(sent.branch?.request, "r2");
+  const done = reduce(sent, forked("r2", { branch: { id: "fork-r2", kind: "edit", draft: "Rename the files", created: true } }));
+  assert.equal(done.branch, undefined);
+  assert.deepEqual(done.branchResult, { kind: "fork", draft: "Rename the files", created: true });
+  assert.equal(reduce(done, { kind: "branchAck" }).branchResult, undefined);
+});
+
+test("answers for another request, the wrong stage or a refusal change nothing or end the fork with the runtime's words", () => {
+  const started = run([{ kind: "branchStart", op: op() }], live());
+  assert.equal(reduce(started, inspected("other")), started);
+  assert.equal(reduce(started, forked("r1")), started, "a fork answer cannot arrive before the inspect");
+  const refused = reduce(started, ev({ type: "chat.control", action: "inspect", id: "c1", request: "r1", ok: false, error: "That chat is not saved yet. Send a message first." }));
+  assert.equal(refused.branch, undefined);
+  assert.equal(refused.problem?.message, "That chat is not saved yet. Send a message first.");
+});
+
+test("a fork that times out says it may still exist; a stopped runtime forgets the fork", () => {
+  const sent = run([{ kind: "branchStart", op: op() }, inspected(), { kind: "forkSent", request: "r2" }], live());
+  assert.match(reduce(sent, { kind: "branchTimeout", request: "r2" }).problem!.message, /may still have been created/);
+  assert.equal(reduce(sent, { kind: "branchTimeout", request: "old" }), sent);
+  assert.equal(reduce(sent, { kind: "runtime", status: { state: "restarting", afterSeconds: 1 } }).branch, undefined);
+});
+
+test("sending waits while a chat is being copied", () => {
+  assert.match(sendBlock(run([{ kind: "branchStart", op: op() }], live()))!, /copying the chat/);
+});

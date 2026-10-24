@@ -49,7 +49,8 @@ Status words: **done**, **partial**, **todo**. A row is done only when it works 
 | Markdown replies: headings, lists, tasks, quotes, rules, code, tables, bold/italic/strike/code/links | `MarkdownReply`, `MarkdownBlocks` | **done** (step 2a) | 2a |
 | Copy: reply (Markdown, plain, rich), message, code, table (Markdown+rich, TSV, CSV), last reply (Ctrl/Cmd+Shift+C) | `ChatCopyControl`, `ChatActionsMenu`, `MarkdownCopy`, `MarkdownHTML` | **done** (step 2d-1) | 2d |
 | Quote a reply into the draft ("Reply to this") | `ComposerQuote`, `IslandModel.quoteReply` | **done** (step 2d-1) | 2d |
-| Fork, edit and retry in a new chat | `ChatControlsModel`, `ChatActionsMenu` | todo | 2d-2 |
+| Fork through a message, fork the chat, edit and retry in a new chat | `ChatControlsModel`, `ChatActionsMenu` | **done** (step 2d-2); "Check result" after a lost answer is not ported | 2d-2 |
+| Saved history sheet, chat brief, automatic summaries | `ChatControlsModel`, `ChatBriefEditor` | todo | 2h |
 | Attachments, paste, drop | `ChatAttachments`, `ComposerPaste`, `PastedTextFile`, `IslandController+Drop` | todo | 2 |
 | Stop (button and Esc), working strip, send blocked while a turn runs | `WorkStrip`, `IslandController+Shortcuts` | **done** (step 2b) | 2b |
 | Queue, held draft, recovery after interruption | `ChatControlsModel`, `ForegroundRecovery*` | todo | 2g |
@@ -150,6 +151,12 @@ Checked: 6 new reducer and 3 title tests; 21 browser checks against the fake run
 `copy.ts` ports `MarkdownCopy`, `MarkdownHTML`, `HiddenCharacters` and `ComposerQuote`; `clipboard.ts` writes one prepared item (plain plus HTML when rich; old contents are never read) and falls back to the older route if the permission is refused. A reply has Copy as Markdown (the source, no HTML), plain text (marks removed, code literal, tabs in tables) or rich text (HTML with a plain fallback; reply text is escaped, so a reply cannot put markup on the clipboard). A message copies exactly as typed. Code blocks have Copy code (the body only). Tables offer Markdown with a rich table, TSV and CSV. Ctrl/Cmd+Shift+C copies the last reply as Markdown, except while a dialog is open. The only feedback is a "Copied" or "Copy failed" toast, announced to screen readers; the copied text is never shown or logged. "Reply to this" appends a quote (first 600 characters or 8 lines, hidden display controls removed) after the draft, which is kept exactly; it refuses with a reason if the combined draft would pass 4,000 characters, never sends, and puts focus in the composer with the caret at the end.
 
 Checked: 10 pure-function tests (including the Swift HTML case) and 15 browser checks that read the real clipboard back. Not checked: pasting into other applications.
+
+## Step 2d-2: fork, edit and retry (24 October 2026)
+
+Fork through a message, fork the whole chat ("Chat options"), and Edit or Retry a user message in a new chat. The flow follows `docs/conversation-controls.md`: `chat.control inspect` returns the archive's revision and size; the fork is then sent with a fresh request UUID, the saved message number and that revision, so a chat that changed in between is refused rather than copied wrongly. The runtime opens the child (`chat.opened`, `chats`, then the answer). Edit and Retry copy the messages *before* the chosen user message and put that prompt in the composer **unsent**; a typed draft is never replaced (the window says it kept it). Saved message numbers come only from `chat.opened`; a message that has just arrived has none, so its fork actions are disabled with the reason until the chat is reopened. Everything waits while a turn runs, a change is pending, or ATOM is not ready, and sending waits while a copy is in flight. The window keeps one composer draft for all chats until step 2g (per-chat drafts); that is why restore refuses to replace text.
+
+Checked: 5 reducer tests and 16 browser checks against the fake runtime (which refuses a stale revision, a busy runtime and a non-user message, and creates one child per request). Not ported: "Check result" (resending the same request after a lost answer; here the timeout says the copy may exist and points to the chat list). Not checked against the real runtime's saved chats.
 
 ## Verification in step 1, and what was not verified
 

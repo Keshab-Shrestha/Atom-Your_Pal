@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "preact/hooks";
 import { writeClipboard } from "./clipboard.ts";
+import type { Insertion } from "./Composer.tsx";
 import { replyContent, type ClipContent } from "./copy.ts";
 import { ChatList } from "./ChatList.tsx";
 import { ChatView } from "./ChatView.tsx";
@@ -121,9 +122,9 @@ export function App({ transport }: { transport: Transport }) {
   }, []);
 
   // "Reply to this": quote a reply into the draft. A chat written by another surface is read-only, so it takes no quote.
-  const [insertion, setInsertion] = useState<{ seq: number; text: string } | undefined>();
+  const [insertion, setInsertion] = useState<Insertion | undefined>();
   const quoteSeq = useRef(0);
-  const quote = useCallback((text: string) => setInsertion({ seq: ++quoteSeq.current, text }), []);
+  const quote = useCallback((text: string) => setInsertion({ seq: ++quoteSeq.current, text, mode: "quote" }), []);
 
   // Copy the last reply as Markdown: Ctrl/Cmd+Shift+C. Not while a dialog is open.
   const lastReply = [...state.messages].reverse().find((m) => m.role === "assistant" && m.text.trim() !== "")?.text;
@@ -137,6 +138,55 @@ export function App({ transport }: { transport: Transport }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [lastReply, copy]);
+
+  // Fork, edit and retry: inspect the saved chat for its revision, then fork under a fresh request id (the runtime creates the child once per id).
+  const startBranch = useCallback(
+    (kind: "fork" | "edit" | "retry", through: number | "all") => {
+      const chatId = state.currentChatId;
+      if (!chatId || state.branch) return;
+      const request = newUuid();
+      dispatch({ kind: "branchStart", op: { stage: "inspecting", kind, chatId, through, request } });
+      void send({ type: "chat.control", action: "inspect", id: chatId, request }).then((ok) => {
+        if (!ok) dispatch({ kind: "branchTimeout", request });
+      });
+    },
+    [state.currentChatId, state.branch, send],
+  );
+  const branch = state.branch;
+  useEffect(() => {
+    if (!branch || branch.stage !== "ready" || !branch.revision) return;
+    const request = newUuid();
+    const through = branch.through === "all" ? (branch.count ?? 0) : branch.through;
+    dispatch({ kind: "forkSent", request });
+    void send({ type: "chat.control", action: "fork", id: branch.chatId, request, revision: branch.revision, through, kind: branch.kind }).then((ok) => {
+      if (!ok) dispatch({ kind: "branchTimeout", request });
+    });
+  }, [branch?.stage, branch?.revision]);
+  const branchRequest = branch?.request;
+  useEffect(() => {
+    if (!branchRequest) return;
+    const timer = setTimeout(() => dispatch({ kind: "branchTimeout", request: branchRequest }), 10_000);
+    return () => clearTimeout(timer);
+  }, [branchRequest]);
+  const result = state.branchResult;
+  useEffect(() => {
+    if (!result) return;
+    dispatch({ kind: "branchAck" });
+    clearTimeout(toastTimer.current);
+    setToast(result.created ? "Forked into a new chat" : "Opened the existing copy");
+    toastTimer.current = setTimeout(() => setToast(undefined), 2400);
+    if (result.draft !== "") setInsertion({ seq: ++quoteSeq.current, text: result.draft, mode: "restore" });
+  }, [result]);
+  // Why copying the chat is not possible now (the runtime refuses it for a running turn).
+  const branchWhy = !state.currentChatId
+    ? "There is no saved chat yet."
+    : state.link !== "live" || state.runtime.state !== "running"
+      ? "ATOM is not ready."
+      : state.loop !== "idle"
+        ? "Finish or stop the active turn first."
+        : state.branch || state.mutation
+          ? "Another change is waiting for ATOM."
+          : undefined;
 
   const blocked = useMemo(() => sendBlock(state), [state]);
   const chat = currentChat(state);
@@ -171,6 +221,8 @@ export function App({ transport }: { transport: Transport }) {
         onCopy={(content) => void copy(content)}
         onQuote={quote}
         insertion={insertion}
+        branchWhy={branchWhy}
+        onBranch={startBranch}
         onStop={stop}
         onAnswer={answer}
         onSend={(text) => send({ type: "text.send", text })}

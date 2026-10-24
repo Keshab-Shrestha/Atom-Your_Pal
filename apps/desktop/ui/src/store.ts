@@ -7,6 +7,8 @@ export interface Message {
   id: number;
   role: "user" | "assistant";
   text: string;
+  /** The runtime's saved number (1-based). Absent for a turn that arrived live: fork, edit and retry need it, so they wait for a reopen. */
+  seq?: number;
 }
 
 export interface Problem {
@@ -65,6 +67,27 @@ export interface Undo {
   undoable: boolean;
 }
 
+/** Copying a chat into a new one: inspect (revision and size), then fork. At most one at a time. */
+export interface BranchOp {
+  stage: "inspecting" | "ready" | "forking";
+  kind: "fork" | "edit" | "retry";
+  chatId: string;
+  /** The saved number of the last message kept, or "all" for the whole chat. */
+  through: number | "all";
+  /** The request whose answer is awaited (inspect first, then the fork). */
+  request: string;
+  revision?: string;
+  /** Messages in the chat when it was inspected. */
+  count?: number;
+}
+
+/** A finished fork: what to tell the user, and the prompt to put back in the composer (never sent). */
+export interface BranchResult {
+  kind: BranchOp["kind"];
+  draft: string;
+  created: boolean;
+}
+
 /** The link between this page and the bridge. */
 export type Link = "connecting" | "live" | "down" | "unauthorized";
 
@@ -85,6 +108,8 @@ export interface AppState {
   work?: Work;
   mutation?: Mutation;
   undo?: Undo;
+  branch?: BranchOp;
+  branchResult?: BranchResult;
   /** Bumps on every reducer step that adds a message, so a view can scroll to the end. */
   nextId: number;
 }
@@ -108,6 +133,11 @@ export type Action =
   /** No answer came in time: the change may or may not have happened. */
   | { kind: "mutationTimeout"; request: string }
   | { kind: "dismissUndo" }
+  | { kind: "branchStart"; op: BranchOp }
+  /** The inspect answered: the fork is sent under this new request id. */
+  | { kind: "forkSent"; request: string }
+  | { kind: "branchTimeout"; request: string }
+  | { kind: "branchAck" }
   /** The user pressed Stop (or Esc). */
   | { kind: "stopped" }
   /** The user answered the pending request; it is gone at once so a stale prompt cannot approve a later action. */
@@ -116,9 +146,9 @@ export type Action =
   | { kind: "workHide" }
   | { kind: "problem"; problem: Problem };
 
-function withMessages(state: AppState, turns: { role: "user" | "assistant"; text: string }[]): Message[] {
+function withMessages(state: AppState, turns: { role: "user" | "assistant"; text: string; seq?: number }[]): Message[] {
   let id = state.nextId;
-  return turns.map((turn) => ({ id: id++, role: turn.role, text: turn.text }));
+  return turns.map((turn) => ({ id: id++, role: turn.role, text: turn.text, ...(turn.seq !== undefined ? { seq: turn.seq } : {}) }));
 }
 
 export function reduce(state: AppState, action: Action): AppState {
@@ -129,7 +159,7 @@ export function reduce(state: AppState, action: Action): AppState {
       const runtime = action.status;
       // A runtime that is not running has no turn in flight, nothing it asked is still waiting, and a new run will say `ready` again.
       if (runtime.state === "running") return { ...state, runtime };
-      const { ready: _ready, approval: _approval, work: _work, mutation: _mutation, ...rest } = state;
+      const { ready: _ready, approval: _approval, work: _work, mutation: _mutation, branch: _branch, ...rest } = state;
       return { ...rest, runtime, loop: "idle" };
     }
     case "dismissProblem": {
@@ -142,6 +172,26 @@ export function reduce(state: AppState, action: Action): AppState {
       return { ...dropUndo(state), mutation: action.mutation };
     case "dismissUndo":
       return dropUndo(state);
+    case "branchStart":
+      return { ...state, branch: action.op };
+    case "forkSent":
+      return state.branch ? { ...state, branch: { ...state.branch, stage: "forking", request: action.request } } : state;
+    case "branchAck": {
+      const { branchResult: _gone, ...rest } = state;
+      return rest;
+    }
+    case "branchTimeout": {
+      if (state.branch?.request !== action.request) return state;
+      const { branch, ...rest } = state;
+      return {
+        ...rest,
+        problem: {
+          message: branch!.stage === "forking"
+            ? "ATOM did not confirm the new chat. It may still have been created: look in the chat list before trying again."
+            : "ATOM did not answer. Try again.",
+        },
+      };
+    }
     case "mutationTimeout": {
       if (state.mutation?.request !== action.request) return state;
       const { mutation: _gone, ...rest } = state;
@@ -208,6 +258,20 @@ function reduceEvent(state: AppState, event: IslandEvent): AppState {
       return { ...state, messages: [...state.messages, message!], nextId: state.nextId + 1 };
     }
     case "chat.control": {
+      const branch = state.branch;
+      // The answers of a fork in progress. Only the one for the awaited request counts.
+      if (branch && event.request === branch.request && (event.action === "inspect" || event.action === "fork")) {
+        const { branch: _gone, ...rest } = state;
+        if (!event.ok) return { ...rest, problem: { message: event.error ?? "ATOM could not copy the chat." } };
+        if (event.action === "inspect" && branch.stage === "inspecting") {
+          if (!event.revision || !event.info) return { ...rest, problem: { message: "ATOM did not describe the chat. Try again." } };
+          return { ...state, branch: { ...branch, stage: "ready", revision: event.revision, count: event.info.messages } };
+        }
+        if (event.action === "fork" && branch.stage === "forking") {
+          return { ...rest, branchResult: { kind: branch.kind, draft: event.branch?.draft ?? "", created: event.branch?.created ?? true } };
+        }
+        return state;
+      }
       // Only the answer to our own flags request counts; a late or foreign one changes nothing.
       if (event.action !== "flags" || state.mutation?.request !== event.request) return state;
       const { mutation, ...rest } = state;
@@ -270,6 +334,7 @@ export function sendBlock(state: AppState): string | undefined {
   }
   if (!state.ready) return "ATOM is starting.";
   if (currentChat(state)?.readOnly) return "This chat is written from another surface (Telegram or the local API). Open it to read it only.";
+  if (state.branch) return "ATOM is copying the chat into a new one.";
   if (currentChat(state)?.archived) return "This chat is archived. Unarchive it to continue.";
   // A message sent now would end the turn in flight, and ending a turn counts as "no" for anything waiting for approval.
   if (state.loop !== "idle") return "ATOM is working. Press Stop, or wait for it to finish.";

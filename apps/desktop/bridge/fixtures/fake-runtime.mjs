@@ -1,5 +1,6 @@
 // A stand-in for `apps/mac/src/main.ts --island` that speaks the same JSON lines, for the bridge tests and for `pnpm --filter @atom/desktop demo`.
 // It needs no API keys and keeps two canned chats in memory. Not a model: replies are fixed text. Never ship it as the runtime.
+import { createHash } from "node:crypto";
 import { createInterface } from "node:readline";
 
 const out = (event) => process.stdout.write(`${JSON.stringify(event)}\n`);
@@ -15,6 +16,9 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
     { id: "telegram", title: "Telegram", updatedAt: "2026-10-21T08:00:00Z", messages: 1, readOnly: true },
   ];
   const meta = {}; // id -> { pinned, archived, version }
+  const withSeq = (id) => history[id].map((m, i) => ({ ...m, seq: i + 1 })); // the saved, 1-based number of each message
+  const revisionOf = (id) => createHash("sha256").update(JSON.stringify(history[id])).digest("hex");
+  const forks = new Map(); // request uuid -> what it created: one child per request, as in the real runtime
   const metaOf = (id) => (meta[id] ??= { pinned: false, archived: false, version: 0 });
   const history = {
     "chat-1": [
@@ -88,6 +92,35 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
         out({ type: "conversation.reset" });
       }
       sendChats();
+    } else if (command.type === "chat.control" && (command.action === "inspect" || command.action === "fork")) {
+      const answer = (extra) => out({ type: "chat.control", action: command.action, id: command.id, request: command.request, ...extra });
+      if (!history[command.id] || command.id === "telegram-unsaved") return answer({ ok: false, error: "That chat is not saved yet. Send a message first." });
+      if (command.action === "inspect") return answer({ ok: true, revision: revisionOf(command.id), info: { messages: history[command.id].length } });
+      if (state !== "idle") return answer({ ok: false, error: "Finish or stop the active turn before changing this chat." });
+      const count = command.kind === "fork" ? command.through : command.through - 1;
+      const earlier = forks.get(command.request);
+      if (earlier) {
+        if (earlier.source !== command.id || earlier.count !== count || earlier.kind !== command.kind) return answer({ ok: false, error: "That request UUID belongs to a different fork." });
+        current = earlier.id;
+        out({ type: "chat.opened", id: earlier.id, messages: withSeq(earlier.id) });
+        sendChats();
+        return answer({ ok: true, branch: { id: earlier.id, kind: command.kind, draft: "", created: false } });
+      }
+      if (command.revision !== revisionOf(command.id)) return answer({ ok: false, error: "Saved history changed. Refresh history before continuing." });
+      const source = history[command.id];
+      let draft = "";
+      if (command.kind !== "fork") {
+        if (source[command.through - 1]?.role !== "user") return answer({ ok: false, error: "Edit and retry need a saved user message." });
+        draft = source[command.through - 1].text;
+      }
+      const id = `fork-${command.request}`;
+      history[id] = source.slice(0, count).map((m) => ({ ...m }));
+      chats.unshift({ id, title: `Fork of ${chats.find((c) => c.id === command.id)?.title ?? "chat"}`, updatedAt: new Date().toISOString(), messages: count });
+      forks.set(command.request, { id, source: command.id, count, kind: command.kind });
+      current = id;
+      out({ type: "chat.opened", id, messages: withSeq(id) });
+      sendChats();
+      answer({ ok: true, branch: { id, kind: command.kind, draft, created: true } });
     } else if (command.type === "chat.control" && command.action === "flags") {
       const answer = (extra) => out({ type: "chat.control", action: "flags", id: command.id, request: command.request, ...extra });
       const chat = chats.find((c) => c.id === command.id);
@@ -111,7 +144,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
     }
     else if (command.type === "chat.open" && history[command.id]) {
       current = command.id;
-      out({ type: "chat.opened", id: command.id, messages: history[command.id] });
+      out({ type: "chat.opened", id: command.id, messages: withSeq(command.id) });
       sendChats();
     } else if (command.type === "approval.answer") {
       if (!pending || pending.id !== command.id) return; // unknown or closed ids are ignored, as in the real runtime

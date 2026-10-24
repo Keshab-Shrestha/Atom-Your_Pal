@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Cross-platform window, step 2d-2: fork, edit and retry — implemented and checked, 24 October 2026
+
+Fork through a message, fork the whole chat, and Edit/Retry a user message in a new chat. Follows the runtime's revision-checked flow (`inspect`, then `fork` under a fresh request id, so a changed chat is refused), restores the original prompt into the composer unsent and never replaces a typed draft. Saved message numbers come only from the runtime, so a message that just arrived waits for a reopen; everything waits while a turn runs. 5 reducer tests and 14 browser checks against the fake runtime pass (stale revision, busy runtime and one-child-per-request enforced there). Not ported: "Check result" after a lost answer. Not checked against the real runtime's saved chats. This completes step 2d. [Details](docs/cross-platform-migration.md). Next: 2e, model, thinking and access menus. Swift unchanged.
+
 ## Cross-platform window, step 2d-1: copy and quote — implemented and checked, 24 October 2026
 
 Replies copy as Markdown, plain text or rich text; messages copy exactly; code blocks and tables have their own Copy (tables as Markdown+rich, TSV, CSV); Ctrl/Cmd+Shift+C copies the last reply; "Reply to this" quotes a bounded excerpt after the draft without sending. Ports of the Swift serializers and quote rules, 10 tests; 15 browser checks read the real clipboard back. Fork, edit and retry (the other half of 2d) follow as 2d-2. [Details](docs/cross-platform-migration.md). Swift unchanged.
