@@ -47,7 +47,9 @@ Status words: **done**, **partial**, **todo**. A row is done only when it works 
 | Chat actions: rename, pin, archive (with Undo), delete with confirmation | `ChatControlsModel`, `ProjectsSection` | **done** (step 2c) | 2c |
 | Chat view: messages, send, status pill, errors, stay-at-end scrolling | `ConversationView`, `StateViews`, `ChatScrollView` | partial | 2 |
 | Markdown replies: headings, lists, tasks, quotes, rules, code, tables, bold/italic/strike/code/links | `MarkdownReply`, `MarkdownBlocks` | **done** (step 2a) | 2a |
-| Copy (text and rich HTML), quote, fork, edit, retry | `ChatCopyControl`, `ChatActionsMenu`, `MarkdownHTML` | todo | 2 |
+| Copy: reply (Markdown, plain, rich), message, code, table (Markdown+rich, TSV, CSV), last reply (Ctrl/Cmd+Shift+C) | `ChatCopyControl`, `ChatActionsMenu`, `MarkdownCopy`, `MarkdownHTML` | **done** (step 2d-1) | 2d |
+| Quote a reply into the draft ("Reply to this") | `ComposerQuote`, `IslandModel.quoteReply` | **done** (step 2d-1) | 2d |
+| Fork, edit and retry in a new chat | `ChatControlsModel`, `ChatActionsMenu` | todo | 2d-2 |
 | Attachments, paste, drop | `ChatAttachments`, `ComposerPaste`, `PastedTextFile`, `IslandController+Drop` | todo | 2 |
 | Stop (button and Esc), working strip, send blocked while a turn runs | `WorkStrip`, `IslandController+Shortcuts` | **done** (step 2b) | 2b |
 | Queue, held draft, recovery after interruption | `ChatControlsModel`, `ForegroundRecovery*` | todo | 2g |
@@ -142,6 +144,12 @@ Checked: 8 new reducer tests and 1 bridge test, and 20 checks in Chromium agains
 Each chat row has an actions menu (Rename, Pin to top, Archive, Delete…). Pin and archive are `chat.control` `flags` requests: a fresh request UUID, compare-and-set against the chat's `flagsVersion`, one at a time, matched only by that UUID, with a 10-second "not confirmed" timeout. The answer's `previousPinned`/`previousArchived` and new version drive a one-step Undo (an Undo is confirmed, never offered again). Rename takes 1–60 characters on one line, checked before sending (the runtime checks again). Delete asks first, with Cancel focused. Items that cannot be used stay in the menu, disabled, with the reason: shared chats (Telegram, local API) cannot be renamed or archived; Archive waits for an idle runtime; an archived chat shows why it cannot be typed into. The menu is keyboard-operable (arrows, Home/End, Escape returns focus, Tab leaves) and visible without hover on touch screens.
 
 Checked: 6 new reducer and 3 title tests; 21 browser checks against the fake runtime (menu keys, rename valid/empty/cancel, read-only refusals, pin order and Undo, archive and unarchive, archive blocked while a turn runs, delete confirm, cancel and delete of the open chat). Real findings fixed on the way: the open menu was painted under the next row; Undo offered itself again after running. Not checked: the same actions against the real runtime's saved chats.
+
+## Step 2d-1: copy and quote (24 October 2026)
+
+`copy.ts` ports `MarkdownCopy`, `MarkdownHTML`, `HiddenCharacters` and `ComposerQuote`; `clipboard.ts` writes one prepared item (plain plus HTML when rich; old contents are never read) and falls back to the older route if the permission is refused. A reply has Copy as Markdown (the source, no HTML), plain text (marks removed, code literal, tabs in tables) or rich text (HTML with a plain fallback; reply text is escaped, so a reply cannot put markup on the clipboard). A message copies exactly as typed. Code blocks have Copy code (the body only). Tables offer Markdown with a rich table, TSV and CSV. Ctrl/Cmd+Shift+C copies the last reply as Markdown, except while a dialog is open. The only feedback is a "Copied" or "Copy failed" toast, announced to screen readers; the copied text is never shown or logged. "Reply to this" appends a quote (first 600 characters or 8 lines, hidden display controls removed) after the draft, which is kept exactly; it refuses with a reason if the combined draft would pass 4,000 characters, never sends, and puts focus in the composer with the caret at the end.
+
+Checked: 10 pure-function tests (including the Swift HTML case) and 15 browser checks that read the real clipboard back. Not checked: pasting into other applications.
 
 ## Verification in step 1, and what was not verified
 

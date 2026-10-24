@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Cross-platform window, step 2d-1: copy and quote — implemented and checked, 24 October 2026
+
+Replies copy as Markdown, plain text or rich text; messages copy exactly; code blocks and tables have their own Copy (tables as Markdown+rich, TSV, CSV); Ctrl/Cmd+Shift+C copies the last reply; "Reply to this" quotes a bounded excerpt after the draft without sending. Ports of the Swift serializers and quote rules, 10 tests; 15 browser checks read the real clipboard back. Fork, edit and retry (the other half of 2d) follow as 2d-2. [Details](docs/cross-platform-migration.md). Swift unchanged.
+
 ## Cross-platform window, step 2c: chat actions — implemented and checked, 24 October 2026
 
 Rename, pin, archive (with a one-step Undo) and delete (with confirmation) for chats in the new window, through a keyboard-operable row menu. Pin/archive use the runtime's versioned `chat.control` flags (one at a time, matched by request UUID, timeout reported); disabled items keep their place and say why (shared chats, running turn, runtime not ready). 7 new tests; 21 browser checks against the fake runtime pass. Found and fixed: the open menu painted under the next row; Undo re-offered itself. Not checked against the real runtime's saved chats. [Details](docs/cross-platform-migration.md). Next: 2d, copy, quote and fork. Swift is unchanged.

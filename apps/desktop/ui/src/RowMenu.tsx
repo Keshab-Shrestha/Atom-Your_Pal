@@ -1,3 +1,4 @@
+import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { Icon } from "./icons.tsx";
 
@@ -10,7 +11,7 @@ export interface MenuItem {
 }
 
 /** A small actions menu: opens on its button, moves with the arrow keys, closes on Escape, Tab or a click elsewhere. */
-export function RowMenu({ label, items }: { label: string; items: MenuItem[] }) {
+export function RowMenu({ label, items, variant = "row", children }: { label: string; items: MenuItem[]; variant?: "row" | "inline"; children?: ComponentChildren }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -32,11 +33,11 @@ export function RowMenu({ label, items }: { label: string; items: MenuItem[] }) 
   };
 
   return (
-    <div class="rowmenu" ref={root}>
+    <div class={variant === "row" ? "rowmenu" : "inlinemenu"} ref={root}>
       <button
         type="button"
         ref={trigger}
-        class="row-more"
+        class={variant === "row" ? "row-more" : "inline-more"}
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -48,7 +49,7 @@ export function RowMenu({ label, items }: { label: string; items: MenuItem[] }) 
           }
         }}
       >
-        <Icon name="more" size={16} />
+        {children ?? <Icon name="more" size={16} />}
       </button>
       {open ? (
         <ul

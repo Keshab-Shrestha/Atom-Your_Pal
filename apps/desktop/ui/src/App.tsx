@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from "preact/hooks";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "preact/hooks";
+import { writeClipboard } from "./clipboard.ts";
+import { replyContent, type ClipContent } from "./copy.ts";
 import { ChatList } from "./ChatList.tsx";
 import { ChatView } from "./ChatView.tsx";
 import { Rail } from "./Rail.tsx";
@@ -108,6 +110,34 @@ export function App({ transport }: { transport: Transport }) {
     return () => clearTimeout(timer);
   }, [mutationRequest]);
 
+  // Copy: one prepared item to the clipboard; the outcome is announced, never the text.
+  const [toast, setToast] = useState<string | undefined>();
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const copy = useCallback(async (content: ClipContent) => {
+    const ok = await writeClipboard(content);
+    clearTimeout(toastTimer.current);
+    setToast(ok ? "Copied" : "Copy failed");
+    toastTimer.current = setTimeout(() => setToast(undefined), 1400);
+  }, []);
+
+  // "Reply to this": quote a reply into the draft. A chat written by another surface is read-only, so it takes no quote.
+  const [insertion, setInsertion] = useState<{ seq: number; text: string } | undefined>();
+  const quoteSeq = useRef(0);
+  const quote = useCallback((text: string) => setInsertion({ seq: ++quoteSeq.current, text }), []);
+
+  // Copy the last reply as Markdown: Ctrl/Cmd+Shift+C. Not while a dialog is open.
+  const lastReply = [...state.messages].reverse().find((m) => m.role === "assistant" && m.text.trim() !== "")?.text;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || !e.shiftKey || e.key.toLowerCase() !== "c" || e.isComposing) return;
+      if (document.querySelector("dialog[open]") || lastReply === undefined) return;
+      e.preventDefault();
+      void copy(replyContent(lastReply));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lastReply, copy]);
+
   const blocked = useMemo(() => sendBlock(state), [state]);
   const chat = currentChat(state);
 
@@ -138,12 +168,16 @@ export function App({ transport }: { transport: Transport }) {
         work={state.work}
         approval={state.approval}
         modelLabel={state.ready?.model}
+        onCopy={(content) => void copy(content)}
+        onQuote={quote}
+        insertion={insertion}
         onStop={stop}
         onAnswer={answer}
         onSend={(text) => send({ type: "text.send", text })}
         onDismissProblem={() => dispatch({ kind: "dismissProblem" })}
       />
       <Surface />
+      {toast ? <div class="toast" role="status">{toast}</div> : null}
     </div>
   );
 }

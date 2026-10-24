@@ -1,7 +1,11 @@
 // Draws parsed Markdown. Everything is built from elements with text children, never from HTML strings, so a reply cannot inject markup.
 
-import { useMemo } from "preact/hooks";
+import { createContext } from "preact";
 import type { ComponentChildren } from "preact";
+import { useContext, useMemo } from "preact/hooks";
+import { Icon } from "./icons.tsx";
+import { RowMenu } from "./RowMenu.tsx";
+import { tableContent, type ClipContent } from "./copy.ts";
 import { parseBlocks, parseInline, type Align, type Block, type Inline } from "./markdown.ts";
 
 function Spans({ nodes }: { nodes: Inline[] }) {
@@ -44,6 +48,9 @@ function Lines({ text }: { text: string }) {
   );
 }
 
+/** Where a copy goes. Absent in a plain render: the controls are then left out. */
+export const CopyContext = createContext<((content: ClipContent) => void) | undefined>(undefined);
+
 const alignStyle = (a: Align | undefined) => (a && a !== "none" ? { textAlign: a } : undefined);
 
 function BlockView({ block }: { block: Block }): ComponentChildren {
@@ -57,11 +64,7 @@ function BlockView({ block }: { block: Block }): ComponentChildren {
     case "quote":
       return <blockquote><Blocks blocks={block.children} /></blockquote>;
     case "code":
-      return (
-        <pre tabIndex={0} aria-label={block.language ? `${block.language} code` : "code"}>
-          <code>{block.text}</code>
-        </pre>
-      );
+      return <CodeBlock text={block.text} language={block.language} />;
     case "list": {
       const items = block.items.map((item, i) => (
         <li key={i} class={item.checked === undefined ? undefined : "task"}>
@@ -74,6 +77,7 @@ function BlockView({ block }: { block: Block }): ComponentChildren {
     }
     case "table":
       return (
+        <TableBlock block={block}>
         <div class="table-scroll" tabIndex={0} role="region" aria-label="Table">
           <table>
             <thead>
@@ -86,8 +90,50 @@ function BlockView({ block }: { block: Block }): ComponentChildren {
             </tbody>
           </table>
         </div>
+        </TableBlock>
       );
   }
+}
+
+function CodeBlock({ text, language }: { text: string; language: string | undefined }) {
+  const copy = useContext(CopyContext);
+  return (
+    <div class="code-wrap">
+      <pre tabIndex={0} aria-label={language ? `${language} code` : "code"}>
+        <code>{text}</code>
+      </pre>
+      {copy ? (
+        <button type="button" class="code-copy" aria-label="Copy code" title="Copy code" onClick={() => copy({ text })}>
+          <Icon name="copy" size={15} />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function TableBlock({ block, children }: { block: Extract<Block, { kind: "table" }>; children: ComponentChildren }) {
+  const copy = useContext(CopyContext);
+  const as = (format: "markdown" | "tsv" | "csv") => () => copy?.(tableContent(block.header, block.rows, block.alignment, format));
+  return (
+    <div class="table-wrap">
+      {copy ? (
+        <div class="table-tools">
+          <RowMenu
+            variant="inline"
+            label="Copy table"
+            items={[
+              { label: "Markdown and rich table", onSelect: as("markdown") },
+              { label: "Tab-separated text (TSV)", onSelect: as("tsv") },
+              { label: "Comma-separated text (CSV)", onSelect: as("csv") },
+            ]}
+          >
+            <Icon name="copy" size={14} /> Copy table
+          </RowMenu>
+        </div>
+      ) : null}
+      {children}
+    </div>
+  );
 }
 
 function Blocks({ blocks }: { blocks: Block[] }) {

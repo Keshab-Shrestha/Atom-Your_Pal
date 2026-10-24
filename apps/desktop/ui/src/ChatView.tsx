@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { Composer } from "./Composer.tsx";
-import { Markdown } from "./Markdown.tsx";
+import { CopyContext, Markdown } from "./Markdown.tsx";
+import { RowMenu } from "./RowMenu.tsx";
+import { replyContent, type ClipContent } from "./copy.ts";
 import { WorkBar } from "./WorkBar.tsx";
 import type { ChatItem, LoopState } from "./protocol.ts";
 import type { Approval, Message, Problem, Work } from "./store.ts";
@@ -16,6 +18,11 @@ export interface ChatViewProps {
   modelLabel: string | undefined;
   onSend: (text: string) => Promise<boolean>;
   onDismissProblem: () => void;
+  onCopy: (content: ClipContent) => void;
+  /** Appends a quote of a reply to the draft. */
+  onQuote: (text: string) => void;
+  /** An unsent text to place in the composer, and a counter that makes the same text insertable twice. */
+  insertion: { seq: number; text: string } | undefined;
   onStop: () => void;
   onAnswer: (approved: boolean, rememberFile?: boolean) => void;
 }
@@ -28,7 +35,7 @@ const LOOP_WORDS: Record<LoopState, string> = {
   speaking: "Speaking",
 };
 
-export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, onDismissProblem, onStop, onAnswer }: ChatViewProps) {
+export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, onDismissProblem, onCopy, onQuote, insertion, onStop, onAnswer }: ChatViewProps) {
   const log = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   /** True while the reader is at (or near) the end: new text and late layout changes then keep the end in view. Reading older text lets go. */
@@ -100,13 +107,27 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
         ) : (
           messages.map((message) =>
             message.role === "user" ? (
-              <div class="msg msg-user" key={message.id}>
-                <p>{message.text}</p>
+              <div class="msg-row msg-row-user" key={message.id}>
+                <RowMenu label="Message actions" items={[{ label: "Copy message", onSelect: () => onCopy({ text: message.text }) }]} />
+                <div class="msg msg-user">
+                  <p>{message.text}</p>
+                </div>
               </div>
             ) : (
               <article class="msg msg-atom" key={message.id}>
-                <p class="who"><span class="avatar" aria-hidden="true" /> ATOM</p>
-                <div class="body"><Markdown text={message.text} /></div>
+                <div class="who-row">
+                  <p class="who"><span class="avatar" aria-hidden="true" /> ATOM</p>
+                  <RowMenu
+                    label="Reply actions"
+                    items={[
+                      { label: "Copy as Markdown", onSelect: () => onCopy(replyContent(message.text)) },
+                      { label: "Copy as plain text", onSelect: () => onCopy(replyContent(message.text, "plain")) },
+                      { label: "Copy as rich text", onSelect: () => onCopy(replyContent(message.text, "rich")) },
+                      { label: "Reply to this", onSelect: () => onQuote(message.text), disabledWhy: blocked && !/Press Stop/.test(blocked) ? "Not available now." : undefined },
+                    ]}
+                  />
+                </div>
+                <div class="body"><CopyContext.Provider value={onCopy}><Markdown text={message.text} /></CopyContext.Provider></div>
               </article>
             ),
           )
@@ -124,6 +145,7 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
       <Composer
         blocked={blocked}
         modelLabel={modelLabel}
+        insertion={insertion}
         onSend={(text) => {
           pinned.current = true; // your own message always brings you to the end
           return onSend(text);
