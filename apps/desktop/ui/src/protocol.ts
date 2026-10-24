@@ -6,6 +6,9 @@ import type { IslandCommand, IslandEvent } from "../../../mac/src/island-protoco
 export type { IslandCommand, IslandEvent };
 export type ChatsEvent = Extract<IslandEvent, { type: "chats" }>;
 export type ChatItem = ChatsEvent["chats"][number];
+export type ChatAccessMode = NonNullable<ChatsEvent["access"]>;
+export type ChatReasoning = NonNullable<ChatsEvent["reasoning"]>;
+export type InfoEvent = Extract<IslandEvent, { type: "info" }>;
 export type LoopState = Extract<IslandEvent, { type: "state" }>["state"];
 
 /** What the bridge says about the runtime process (apps/desktop/bridge/supervisor.ts). */

@@ -4,6 +4,7 @@ import { CopyContext, Markdown } from "./Markdown.tsx";
 import { RowMenu } from "./RowMenu.tsx";
 import { replyContent, type ClipContent } from "./copy.ts";
 import type { Insertion } from "./Composer.tsx";
+import type { ComponentChildren } from "preact";
 import { WorkBar } from "./WorkBar.tsx";
 import type { ChatItem, LoopState } from "./protocol.ts";
 import type { Approval, Message, Problem, Work } from "./store.ts";
@@ -25,6 +26,8 @@ export interface ChatViewProps {
   onQuote: (text: string) => void;
   /** An unsent text to place in the composer, and a counter that makes the same text insertable twice. */
   insertion: Insertion | undefined;
+  /** The composer's model, thinking and access controls. */
+  controls: ComponentChildren;
   /** Why a chat cannot be copied into a new one right now; undefined when it can. */
   branchWhy: string | undefined;
   /** Copy the chat into a new one: through a saved message, or the whole chat (through "all"). */
@@ -43,7 +46,7 @@ const LOOP_WORDS: Record<LoopState, string> = {
 
 const NO_SEQ = "Reopen this chat to use this on a message that has just arrived.";
 
-export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, onDismissProblem, onCopy, onQuote, insertion, branchWhy, onBranch, onStop, onAnswer }: ChatViewProps) {
+export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, onDismissProblem, onCopy, onQuote, insertion, controls, branchWhy, onBranch, onStop, onAnswer }: ChatViewProps) {
   /** Fork, edit and retry need the runtime's saved number for the message. */
   const branchItems = (message: Message): MenuItem[] => {
     const why = branchWhy ?? (message.seq === undefined ? NO_SEQ : undefined);
@@ -172,6 +175,7 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
       <Composer
         blocked={blocked}
         modelLabel={modelLabel}
+        controls={controls}
         insertion={insertion}
         onSend={(text) => {
           pinned.current = true; // your own message always brings you to the end

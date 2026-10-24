@@ -7,7 +7,9 @@ import { ChatView } from "./ChatView.tsx";
 import { Rail } from "./Rail.tsx";
 import { Surface } from "./Surface.tsx";
 import { newUuid } from "./ids.ts";
-import { currentChat, initialState, reduce, sendBlock } from "./store.ts";
+import { ChatSettings } from "./ChatSettings.tsx";
+import type { ChatAccessMode } from "./protocol.ts";
+import { currentChat, effectiveModel, initialState, reduce, sendBlock, settingsWhy } from "./store.ts";
 import type { ChatItem } from "./protocol.ts";
 import type { Transport } from "./transport.ts";
 
@@ -188,6 +190,36 @@ export function App({ transport }: { transport: Transport }) {
           ? "Another change is waiting for ATOM."
           : undefined;
 
+  // Model, thinking and access for this chat. Each is one command; the answer is the next `chats` event (or an error in words).
+  const chatId = state.currentChatId;
+  const settingsBlock = useMemo(() => settingsWhy(state), [state]);
+  const modelBlock = useMemo(() => {
+    if (state.link !== "live" || state.runtime.state !== "running") return "ATOM is not ready.";
+    return currentChat(state)?.readOnly ? "This chat is written from another surface. It can be read here only." : undefined;
+  }, [state]);
+  const chooseModel = useCallback(
+    (choice: { provider: string; model: string } | undefined) => {
+      if (chatId) void send({ type: "chat.model", id: chatId, provider: choice?.provider ?? "", model: choice?.model ?? "" });
+    },
+    [chatId, send],
+  );
+  const reasoning = state.settings.reasoning;
+  const chooseThinking = useCallback(
+    (effort: string) => {
+      if (chatId && reasoning && !settingsBlock && (effort === "" || reasoning.levels.includes(effort))) {
+        void send({ type: "chat.reasoning", id: chatId, provider: reasoning.provider, model: reasoning.model, effort });
+      }
+    },
+    [chatId, reasoning, settingsBlock, send],
+  );
+  const currentAccess = state.settings.access;
+  const chooseAccess = useCallback(
+    (mode: ChatAccessMode) => {
+      if (chatId && currentAccess && !settingsBlock && mode !== currentAccess) void send({ type: "chat.access", id: chatId, mode, expected: currentAccess });
+    },
+    [chatId, currentAccess, settingsBlock, send],
+  );
+
   const blocked = useMemo(() => sendBlock(state), [state]);
   const chat = currentChat(state);
 
@@ -220,6 +252,19 @@ export function App({ transport }: { transport: Transport }) {
         modelLabel={state.ready?.model}
         onCopy={(content) => void copy(content)}
         onQuote={quote}
+        controls={
+          <ChatSettings
+            info={state.info}
+            settings={state.settings}
+            effective={effectiveModel(state)}
+            why={settingsBlock}
+            modelWhy={modelBlock}
+            onModel={chooseModel}
+            onThinking={chooseThinking}
+            onAccess={chooseAccess}
+            onRefreshModels={() => void send({ type: "model.refresh" })}
+          />
+        }
         insertion={insertion}
         branchWhy={branchWhy}
         onBranch={startBranch}

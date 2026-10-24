@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { initialState, reduce, sendBlock, type Action, type AppState } from "./store.ts";
+import { effectiveModel, initialState, reduce, sendBlock, settingsWhy, type Action, type AppState } from "./store.ts";
 
 const ev = (event: object): Action => ({ kind: "event", event: event as never });
 const run = (actions: Action[], from: AppState = initialState) => actions.reduce(reduce, from);
@@ -219,4 +219,30 @@ test("a fork that times out says it may still exist; a stopped runtime forgets t
 
 test("sending waits while a chat is being copied", () => {
   assert.match(sendBlock(run([{ kind: "branchStart", op: op() }], live()))!, /copying the chat/);
+});
+
+// ---------- model, thinking and access ----------
+
+const info = ev({ type: "info", provider: "claude-plan", model: "claude-sonnet-5-5", providers: [{ id: "claude-plan", name: "Claude", available: true, models: [{ id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" }] }] });
+const reasoning = { provider: "claude-plan", model: "claude-opus-5-5", levels: ["low", "high"], default: "low", effective: "low" };
+
+test("the default model comes from info; the chat's own model, thinking and access come from the chats event and replace each other with it", () => {
+  const withDefault = run([info], live());
+  assert.deepEqual(effectiveModel(withDefault), { provider: "claude-plan", model: "claude-sonnet-5-5" });
+  const own = reduce(withDefault, ev({ type: "chats", current: "c1", chats: [], currentProvider: "codex", currentModel: "gpt-5.5", reasoning, access: "chat-only" }));
+  assert.deepEqual(effectiveModel(own), { provider: "codex", model: "gpt-5.5" });
+  assert.equal(own.settings.access, "chat-only");
+  assert.deepEqual(own.settings.reasoning, reasoning);
+  const back = reduce(own, ev({ type: "chats", current: "c1", chats: [] }));
+  assert.deepEqual(effectiveModel(back), { provider: "claude-plan", model: "claude-sonnet-5-5" }, "a chat on the default has no own model");
+  assert.equal(back.settings.access, undefined);
+});
+
+test("thinking and access wait for a ready, idle, writable chat, and say why", () => {
+  const chat = ev({ type: "chats", current: "c1", chats: [{ id: "c1", title: "One", updatedAt: "2026-10-24T00:00:00Z", messages: 1 }] });
+  assert.equal(settingsWhy(run([chat], live())), undefined);
+  assert.match(settingsWhy(initialState)!, /not ready/);
+  assert.match(settingsWhy(run([chat, ev({ type: "state", state: "thinking" })], live()))!, /stop the active turn/);
+  const shared = run([ev({ type: "chats", current: "c2", chats: [{ id: "c2", title: "Telegram", updatedAt: "2026-10-24T00:00:00Z", messages: 1, readOnly: true }] })], live());
+  assert.match(settingsWhy(shared)!, /another surface/);
 });

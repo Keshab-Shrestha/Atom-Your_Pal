@@ -2,7 +2,7 @@
 //   data: {"type":"…",…}        a runtime event, verbatim
 //   event: status / data: {…}   the supervisor's state (running, restarting, configError, failed, stopped)
 // A window that connects late (or reloads) is given the current status, the runtime's last `ready` (sent only once per run), its last
-// `state`, and a still-open `approval.request`, so it knows a turn is running and a question is waiting. The request is the original live
+// `info` (the model in use and the choices), its last `state`, and a still-open `approval.request`, so it knows a turn is running and a question is waiting. The request is the original live
 // one: the runtime still enforces its own timeout and the id check.
 
 import type { ServerResponse } from "node:http";
@@ -24,6 +24,7 @@ export function createHub(options: { keepAliveMs?: number } = {}): Hub {
   const clients = new Set<ServerResponse>();
   let lastReady: RuntimeEvent | undefined;
   let lastState: RuntimeEvent | undefined;
+  let lastInfo: RuntimeEvent | undefined;
   let openApproval: RuntimeEvent | undefined;
   let lastStatus: SupervisorStatus = { state: "stopped" };
 
@@ -47,6 +48,7 @@ export function createHub(options: { keepAliveMs?: number } = {}): Hub {
   return {
     event(event) {
       if (event.type === "ready") lastReady = event;
+      else if (event.type === "info") lastInfo = event;
       else if (event.type === "state") {
         lastState = event;
         if (event.state === "idle") openApproval = undefined; // the turn is over
@@ -61,6 +63,7 @@ export function createHub(options: { keepAliveMs?: number } = {}): Hub {
       // A new run sends its own `ready`; the old one no longer describes anything.
       if (status.state !== "running") {
         lastReady = undefined;
+        lastInfo = undefined;
         lastState = undefined;
         openApproval = undefined;
       }
@@ -78,6 +81,7 @@ export function createHub(options: { keepAliveMs?: number } = {}): Hub {
       res.on("close", () => clients.delete(res));
       write(res, statusFrame(lastStatus));
       if (lastReady) write(res, frame(lastReady));
+      if (lastInfo) write(res, frame(lastInfo));
       if (lastState) write(res, frame(lastState));
       if (openApproval) write(res, frame(openApproval));
     },

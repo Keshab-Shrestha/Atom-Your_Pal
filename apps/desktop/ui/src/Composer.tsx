@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
+import type { ComponentChildren } from "preact";
 import { Icon } from "./icons.tsx";
 import { MAX_QUOTED_DRAFT, quoteAppending } from "./copy.ts";
 
@@ -13,14 +14,17 @@ export interface Insertion {
 export interface ComposerProps {
   /** Why sending is not possible right now, in words for the user; undefined when it is. */
   blocked: string | undefined;
+  /** Shown when the model picker is not available yet. */
   modelLabel: string | undefined;
+  /** The model, thinking and access controls. */
+  controls: ComponentChildren;
   /** A reply to quote into the draft. `seq` changes with every request, so the same reply can be quoted twice. */
   insertion: Insertion | undefined;
   /** Resolves false when ATOM did not take the message: the draft is kept. */
   onSend: (text: string) => Promise<boolean>;
 }
 
-export function Composer({ blocked, modelLabel, insertion, onSend }: ComposerProps) {
+export function Composer({ blocked, modelLabel, controls, insertion, onSend }: ComposerProps) {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | undefined>();
@@ -107,7 +111,7 @@ export function Composer({ blocked, modelLabel, insertion, onSend }: ComposerPro
         }}
       />
       <div class="composer-foot">
-        {modelLabel ? <span class="chip" title="The model this chat uses">{modelLabel}</span> : <span />}
+        {controls ?? (modelLabel ? <span class="chip" title="The model this chat uses">{modelLabel}</span> : <span />)}
         <button type="submit" class="send" aria-label="Send message" disabled={!draft.trim() || Boolean(blocked) || busy}>
           <Icon name="send" size={18} />
         </button>

@@ -1,7 +1,7 @@
 // The window's state, as a pure function of what the runtime says. No DOM, no timers, no network: everything the window shows
 // about a conversation is decided here, so it can be tested without a screen.
 
-import type { ChatItem, IslandEvent, LoopState, RuntimeStatus } from "./protocol.ts";
+import type { ChatAccessMode, ChatItem, ChatReasoning, InfoEvent, IslandEvent, LoopState, RuntimeStatus } from "./protocol.ts";
 
 export interface Message {
   id: number;
@@ -88,6 +88,14 @@ export interface BranchResult {
   created: boolean;
 }
 
+/** What the runtime says about the chat in use: its own model (absent when it uses the default), its thinking choices and its access mode. */
+export interface ChatSettings {
+  provider?: string;
+  model?: string;
+  reasoning?: ChatReasoning;
+  access?: ChatAccessMode;
+}
+
 /** The link between this page and the bridge. */
 export type Link = "connecting" | "live" | "down" | "unauthorized";
 
@@ -98,6 +106,9 @@ export interface AppState {
   ready?: { provider: string; model: string };
   loop: LoopState;
   chats: ChatItem[];
+  /** The providers and models on offer, and the default model. From `info`. */
+  info?: InfoEvent;
+  settings: ChatSettings;
   /** The chat voice and typing go to. */
   currentChatId?: string;
   /** The chat whose messages are shown. Equal to `currentChatId` once its `chat.opened` arrived. */
@@ -119,6 +130,7 @@ export const initialState: AppState = {
   runtime: { state: "stopped" },
   loop: "idle",
   chats: [],
+  settings: {},
   messages: [],
   nextId: 1,
 };
@@ -242,8 +254,20 @@ function reduceEvent(state: AppState, event: IslandEvent): AppState {
     }
     case "approval.closed":
       return state.approval?.id === event.id ? dropApproval(state) : state;
+    case "info":
+      return { ...state, info: event };
     case "chats":
-      return { ...state, chats: event.chats, currentChatId: event.current };
+      return {
+        ...state,
+        chats: event.chats,
+        currentChatId: event.current,
+        settings: {
+          ...(event.currentProvider ? { provider: event.currentProvider } : {}),
+          ...(event.currentModel ? { model: event.currentModel } : {}),
+          ...(event.reasoning ? { reasoning: event.reasoning } : {}),
+          ...(event.access ? { access: event.access } : {}),
+        },
+      };
     case "chat.opened": {
       const messages = withMessages(state, event.messages);
       return { ...state, openChatId: event.id, messages, nextId: state.nextId + messages.length };
@@ -310,6 +334,21 @@ function dropWork(state: AppState): AppState {
 /** The turn is over: a strip that was working says how it ended (once). */
 function endWork(state: AppState, outcome: Exclude<WorkOutcome, "working">): AppState {
   return state.work?.outcome === "working" ? { ...state, work: { ...state.work, outcome } } : state;
+}
+
+/** The provider and model that the next turn in this chat uses. */
+export function effectiveModel(state: AppState): { provider: string; model: string } | undefined {
+  const provider = state.settings.provider ?? state.info?.provider;
+  const model = state.settings.model ?? state.info?.model;
+  return provider && model ? { provider, model } : undefined;
+}
+
+/** Why the thinking and access menus cannot be used now (they change the next turn of an idle, writable chat); undefined when they can. */
+export function settingsWhy(state: AppState): string | undefined {
+  if (state.link !== "live" || state.runtime.state !== "running" || !state.ready) return "ATOM is not ready.";
+  if (currentChat(state)?.readOnly) return "This chat is written from another surface. It can be read here only.";
+  if (state.loop !== "idle") return "Finish or stop the active turn first.";
+  return undefined;
 }
 
 /** The chat to show for the current one: its row in the list. */

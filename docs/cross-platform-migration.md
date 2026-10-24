@@ -54,7 +54,7 @@ Status words: **done**, **partial**, **todo**. A row is done only when it works 
 | Attachments, paste, drop | `ChatAttachments`, `ComposerPaste`, `PastedTextFile`, `IslandController+Drop` | todo | 2 |
 | Stop (button and Esc), working strip, send blocked while a turn runs | `WorkStrip`, `IslandController+Shortcuts` | **done** (step 2b) | 2b |
 | Queue, held draft, recovery after interruption | `ChatControlsModel`, `ForegroundRecovery*` | todo | 2g |
-| Model, thinking and access menus | `ChatModelPicker`, `ChatReasoningMenu`, `ChatAccessMenu` | todo | 2 |
+| Model picker (search, provider filter, custom id, default), thinking menu, access menu incl. Full access consent | `ChatModelPicker`, `ChatReasoningMenu`, `ChatAccessMenu`, `ModelPickerCatalog` | **done** (step 2e); favourite models not ported | 2e |
 | Slash picker, find in chat, chat brief | `SlashPicker`, `ChatFindBar`, `ChatBriefEditor` | todo | 2 |
 | Approvals: Allow, Decline, Allow for task/chat, Full-access card | `ApprovalState`, `WorkStrip` | **done** (step 2b) | 2b |
 | File-edit review approvals (diff and token) | `EditReviewView`, `FileEditReview` | partial: can be declined, cannot be approved here (needs the diff surface) | 2j |
@@ -110,7 +110,7 @@ The runtime is TypeScript, but some tools call macOS programs. The first cross-p
 One capability per step, each ending with tests and a recorded check (CLAUDE.md §3).
 
 1. **Bridge and Chat core.** Done (above).
-2. **Chat parity**, one capability at a time. 2a Markdown replies and stay-at-end scrolling: done. 2b Stop and approvals: done. 2c chat actions: done. Next, in this order: 2d copy, quote, fork; 2e model, thinking and access menus; 2f attachments and paste; 2g Stop/queue/drafts/recovery; 2h slash picker, find, chat brief; 2i questions and work shown in chat; 2j file-edit review (diff and token).
+2. **Chat parity**, one capability at a time. 2a Markdown replies and stay-at-end scrolling: done. 2b Stop and approvals: done. 2c chat actions: done. Next, in this order: 2d copy, quote, fork;  2f attachments and paste; 2g Stop/queue/drafts/recovery; 2h slash picker, find, chat brief; 2i questions and work shown in chat; 2j file-edit review (diff and token).
 3. **Native shell.** Tauri window around the bridge, Node runtime as a bundled sidecar, and a CI job that builds it on macOS, Windows and Linux. First step that needs a machine (or CI runner) with the web view libraries; this environment has none.
 4. **Board, Needs you, Dashboard.**
 5. **Projects, Files, Changes, Git.**
@@ -157,6 +157,12 @@ Checked: 10 pure-function tests (including the Swift HTML case) and 15 browser c
 Fork through a message, fork the whole chat ("Chat options"), and Edit or Retry a user message in a new chat. The flow follows `docs/conversation-controls.md`: `chat.control inspect` returns the archive's revision and size; the fork is then sent with a fresh request UUID, the saved message number and that revision, so a chat that changed in between is refused rather than copied wrongly. The runtime opens the child (`chat.opened`, `chats`, then the answer). Edit and Retry copy the messages *before* the chosen user message and put that prompt in the composer **unsent**; a typed draft is never replaced (the window says it kept it). Saved message numbers come only from `chat.opened`; a message that has just arrived has none, so its fork actions are disabled with the reason until the chat is reopened. Everything waits while a turn runs, a change is pending, or ATOM is not ready, and sending waits while a copy is in flight. The window keeps one composer draft for all chats until step 2g (per-chat drafts); that is why restore refuses to replace text.
 
 Checked: 5 reducer tests and 16 browser checks against the fake runtime (which refuses a stale revision, a busy runtime and a non-user message, and creates one child per request). Not ported: "Check result" (resending the same request after a lost answer; here the timeout says the copy may exist and points to the chat list). Not checked against the real runtime's saved chats.
+
+## Step 2e: model, thinking and access (24 October 2026)
+
+Three controls under the composer, each one command and each answered by the next `chats` event (or an error in words): the **model picker** (`chat.model`: search, provider filter, current model checked, "Use app / project default", custom model id), **thinking** (`chat.reasoning`: Default plus the levels the runtime offers for the effective model; "Thinking unavailable" with a catalog refresh when there are none) and **access** (`chat.access` bound to the expected previous mode: Saved permissions, Chat only, Ask before changes, Full access). Full access is not applied by the window: the runtime asks for the existing consent card, which shows the whole scope, and the mode changes only after Allow. With the Gemini CLI only Saved permissions is offered, with the reason. Thinking and access wait for an idle, writable, ready chat; the model can be changed mid-turn (the next turn uses it) but not on a read-only chat; each control stays visible and says why when it cannot be used. Pure rules (catalog merge, search, custom-id check, titles) are ports of `ModelPickerCatalog`, `isValidModelId` and `ChatReasoning.title`. The bridge now replays the last `info` to a reloaded window.
+
+Checked: 8 new tests (model rules, settings state, `info` replay) and 27 browser checks against the fake runtime (keyboard menus, each mode, Full access accept and decline, picker search/provider/custom/default, Gemini restrictions, busy and read-only states). Not ported: favourite models (a per-user setting in the Swift app). Not checked against the real runtime's providers.
 
 ## Verification in step 1, and what was not verified
 

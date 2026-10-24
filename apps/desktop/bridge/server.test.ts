@@ -106,7 +106,9 @@ test("a window that connects mid-turn also gets the state and the question still
     hub.attach(res);
     return text.join("");
   };
+  fresh.event({ type: "info", provider: "claude-plan", model: "m", providers: [] });
   const mid = await read(fresh);
+  assert.match(mid, /"type":"info"/);
   assert.match(mid, /"state":"thinking"/);
   assert.match(mid, /"id":"a2"/);
   assert.doesNotMatch(mid, /"id":"a1"/);
@@ -118,7 +120,7 @@ test("a window that connects mid-turn also gets the state and the question still
   fresh.event({ type: "approval.request", id: "a4", summary: "x", reason: "r" });
   fresh.status({ state: "restarting", afterSeconds: 1 });
   const afterStop = await read(fresh);
-  assert.doesNotMatch(afterStop, /approval\.request|"state":"thinking"/, "a stopped runtime asks nothing");
+  assert.doesNotMatch(afterStop, /approval\.request|"state":"thinking"|"type":"info"/, "a stopped runtime asks nothing");
   fresh.closeAll();
 });
 

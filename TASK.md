@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Cross-platform window, step 2e: model, thinking and access menus — implemented and checked, 24 October 2026
+
+The composer has a searchable model picker (provider filter, custom id, back to default), a thinking menu and an access menu (Saved permissions, Chat only, Ask before changes, Full access). Each sends one runtime-validated command and shows what the runtime reports next; Full access is applied only after the runtime's own consent card is allowed; the Gemini CLI offers only Saved permissions; controls stay visible and say why when busy or read-only. Rules ported from the Swift catalog code; the bridge replays `info` to a reloaded window. 8 new tests and 27 browser checks against the fake runtime pass. Not ported: favourite models. Not checked against real providers. [Details](docs/cross-platform-migration.md). Next: 2f, attachments and paste. Swift unchanged.
+
 ## Cross-platform window, step 2d-2: fork, edit and retry — implemented and checked, 24 October 2026
 
 Fork through a message, fork the whole chat, and Edit/Retry a user message in a new chat. Follows the runtime's revision-checked flow (`inspect`, then `fork` under a fresh request id, so a changed chat is refused), restores the original prompt into the composer unsent and never replaces a typed draft. Saved message numbers come only from the runtime, so a message that just arrived waits for a reopen; everything waits while a turn runs. 5 reducer tests and 14 browser checks against the fake runtime pass (stale revision, busy runtime and one-child-per-request enforced there). Not ported: "Check result" after a lost answer. Not checked against the real runtime's saved chats. This completes step 2d. [Details](docs/cross-platform-migration.md). Next: 2e, model, thinking and access menus. Swift unchanged.

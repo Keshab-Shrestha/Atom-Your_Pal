@@ -16,6 +16,25 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
     { id: "telegram", title: "Telegram", updatedAt: "2026-10-21T08:00:00Z", messages: 1, readOnly: true },
   ];
   const meta = {}; // id -> { pinned, archived, version }
+  // Models, thinking and access, as the real runtime offers them (docs/island-protocol.md, ADR-097/180/181).
+  const providers = [
+    { id: "claude-plan", name: "Claude (my plan)", available: true, models: [{ id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" }, { id: "claude-opus-5-5", name: "Claude Opus 5.5" }, { id: "claude-haiku-5-5", name: "Claude Haiku 5.5" }] },
+    { id: "codex", name: "Codex", available: true, models: [{ id: "codex-default", name: "Codex default" }, { id: "gpt-5.5", name: "GPT 5.5" }] },
+    { id: "gemini-cli", name: "Gemini CLI", available: true, models: [{ id: "gemini-default", name: "Gemini default" }] },
+  ];
+  const defaults = { provider: "claude-plan", model: "claude-sonnet-5-5" };
+  const own = {}; // chat id -> { provider?, model?, efforts: {"provider/model": level}, access }
+  const ownOf = (id) => (own[id] ??= { efforts: {}, access: "checked" });
+  const sendInfo = () => out({ type: "info", ...defaults, providers });
+  const effectiveOf = (id) => ({ provider: ownOf(id).provider ?? defaults.provider, model: ownOf(id).model ?? defaults.model });
+  const reasoningOf = (id) => {
+    const { provider, model } = effectiveOf(id);
+    const levels = provider === "gemini-cli" ? [] : provider === "codex" ? ["low", "medium", "high"] : ["low", "medium", "high", "xhigh"];
+    const selected = ownOf(id).efforts[`${provider}/${model}`];
+    return { provider, model, levels, default: "medium", ...(selected ? { selected } : {}), effective: selected ?? "medium", ...(levels.length === 0 ? { note: "This provider has no thinking levels." } : {}) };
+  };
+  const validModel = (id) => typeof id === "string" && /^[A-Za-z0-9._:-]{1,100}$/.test(id);
+  const settingsError = (message) => out({ type: "error", stage: "settings", message });
   const withSeq = (id) => history[id].map((m, i) => ({ ...m, seq: i + 1 })); // the saved, 1-based number of each message
   const revisionOf = (id) => createHash("sha256").update(JSON.stringify(history[id])).digest("hex");
   const forks = new Map(); // request uuid -> what it created: one child per request, as in the real runtime
@@ -63,8 +82,16 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
   const listed = () =>
     chats.map((c) => ({ ...c, ...(metaOf(c.id).pinned ? { pinned: true } : {}), ...(metaOf(c.id).archived ? { archived: true } : {}), flagsVersion: metaOf(c.id).version }))
       .sort((a, b) => Number(b.pinned === true) - Number(a.pinned === true)); // pins sort first, the rest keep their order
-  const sendChats = () => out({ type: "chats", chats: listed(), current });
+  const sendChats = () => {
+    const mine = current ? ownOf(current) : undefined;
+    out({
+      type: "chats", chats: listed(), current,
+      ...(mine?.provider ? { currentProvider: mine.provider, currentModel: mine.model } : {}),
+      ...(current ? { reasoning: reasoningOf(current), access: mine.access } : {}),
+    });
+  };
   out({ type: "ready", protocol: 1, provider: "fake", model: "Fake model", microphone: "none", voice: false });
+  sendInfo();
   out({ type: "state", state: "idle" });
   sendChats();
   createInterface({ input: process.stdin, crlfDelay: Infinity }).on("line", (line) => {
@@ -77,7 +104,37 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
     }
     if (command.type === "quit") process.exit(0);
     else if (command.type === "chats.list") sendChats();
-    else if (command.type === "chat.rename") {
+    else if (command.type === "model.refresh") sendInfo();
+    else if (command.type === "chat.model") {
+      const id = command.id === "" ? current : command.id;
+      if (!chats.some((c) => c.id === id) || chats.find((c) => c.id === id).readOnly) return settingsError("This chat is written from another surface. It can be read here only.");
+      if (command.provider === "" && command.model === "") { delete ownOf(id).provider; delete ownOf(id).model; return sendChats(); }
+      const provider = providers.find((p) => p.id === command.provider);
+      if (!provider || !provider.available) return settingsError("That provider is not available.");
+      if (!validModel(command.model)) return settingsError("A model id has 1 to 100 letters, digits, dots, underscores, colons or hyphens.");
+      ownOf(id).provider = command.provider;
+      ownOf(id).model = command.model;
+      if (ownOf(id).access !== "checked" && command.provider === "gemini-cli") ownOf(id).access = "checked";
+      sendChats();
+    } else if (command.type === "chat.reasoning") {
+      if (command.id !== current || state !== "idle") return settingsError("Finish or stop the active turn before changing thinking.");
+      const r = reasoningOf(current);
+      if (command.provider !== r.provider || command.model !== r.model) return settingsError("The chat's model changed. Try again.");
+      if (command.effort !== "" && !r.levels.includes(command.effort)) return settingsError("That thinking level is not offered for this model.");
+      if (command.effort === "") delete ownOf(current).efforts[`${r.provider}/${r.model}`];
+      else ownOf(current).efforts[`${r.provider}/${r.model}`] = command.effort;
+      sendChats();
+    } else if (command.type === "chat.access") {
+      if (command.id !== current || state !== "idle" || chats.find((c) => c.id === current)?.readOnly) return settingsError("Finish or stop the active turn before changing access.");
+      if (ownOf(current).access !== command.expected) return settingsError("The chat's access changed. Try again.");
+      if (effectiveOf(current).provider === "gemini-cli" && command.mode !== "checked") return settingsError("Chat only, Ask before changes and Full access require Claude or Codex.");
+      if (command.mode === "full") {
+        pending = { id: `a${++asks}`, access: "full" };
+        return out({ type: "approval.request", id: pending.id, accessChange: true, summary: "Turn on Full access for this chat", reason: "Full access skips routine file, command and plugin prompts in this chat only.\nProtected actions still ask or refuse." });
+      }
+      ownOf(current).access = command.mode;
+      sendChats();
+    } else if (command.type === "chat.rename") {
       const chat = chats.find((c) => c.id === command.id);
       if (!chat || chat.readOnly) return out({ type: "error", stage: "settings", message: "This chat is written from Telegram. Open it to read it only." });
       if (typeof command.title !== "string" || command.title.trim() === "" || [...command.title].length > 60 || /[\r\n]/.test(command.title)) return out({ type: "error", stage: "settings", message: "A title is 1 to 60 characters on one line." });
@@ -150,6 +207,11 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
       if (!pending || pending.id !== command.id) return; // unknown or closed ids are ignored, as in the real runtime
       const p = pending;
       pending = undefined;
+      if (p.access) { // a host confirmation for Full access: no turn is running
+        out({ type: "approval.closed", id: p.id });
+        if (command.approved === true) { ownOf(current).access = p.access; sendChats(); }
+        return;
+      }
       // A review-bearing request can only be approved with its own token, as in the real runtime.
       const approved = command.approved === true && (!p.review || command.reviewToken === p.review);
       out({ type: "approval.closed", id: p.id });
@@ -158,6 +220,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
         ? `Allowed. Answer received: rememberFile=${command.rememberFile === true}, reviewToken=${command.reviewToken ?? "none"}.`
         : "Declined. I did not do it.", approved ? "Clicking Send" : undefined);
     } else if (command.type === "talk.cancel") {
+      if (state === "idle" && pending?.access) { out({ type: "approval.closed", id: pending.id }); pending = undefined; return; }
       if (state === "idle") return;
       if (pending) out({ type: "approval.closed", id: pending.id });
       pending = undefined;
