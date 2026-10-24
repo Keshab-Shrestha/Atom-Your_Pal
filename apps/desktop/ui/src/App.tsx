@@ -7,6 +7,7 @@ import { ChatView } from "./ChatView.tsx";
 import { Rail } from "./Rail.tsx";
 import { Surface } from "./Surface.tsx";
 import { newUuid } from "./ids.ts";
+import { useInputs } from "./useInputs.ts";
 import { ChatSettings } from "./ChatSettings.tsx";
 import type { ChatAccessMode } from "./protocol.ts";
 import { attachWhy as attachReason, currentChat, effectiveModel, initialState, reduce, sendBlock, settingsWhy } from "./store.ts";
@@ -48,10 +49,8 @@ export function App({ transport }: { transport: Transport }) {
     if (state.openChatId) requestedOpen.current = undefined;
   }, [state.currentChatId, state.openChatId, send]);
 
-  const stop = useCallback(() => {
-    dispatch({ kind: "stopped" });
-    void send({ type: "talk.cancel" });
-  }, [send]);
+  const stopRef = useRef<() => void>(() => {});
+  const stop = useCallback(() => stopRef.current(), []);
 
   const approvalId = state.approval?.id;
   const answer = useCallback(
@@ -230,8 +229,8 @@ export function App({ transport }: { transport: Transport }) {
     }
   }, [state.transcripts, state.errors]);
   const sendMessage = useCallback(
-    async (text: string, files: File[]): Promise<boolean> => {
-      if (files.length === 0) return send({ type: "text.send", text });
+    async (text: string, files: File[], confirm = false): Promise<boolean> => {
+      if (files.length === 0 && !confirm) return send({ type: "text.send", text });
       const paths: string[] = [];
       for (const file of files) {
         const staged = await transport.upload(file);
@@ -249,13 +248,28 @@ export function App({ transport }: { transport: Transport }) {
           if (at >= 0) (waiters.current.splice(at, 1), resolve(false));
         }, 20_000);
       });
-      if (!(await send({ type: "text.send", text, files: paths }))) return false;
+      if (!(await send({ type: "text.send", text, ...(paths.length > 0 ? { files: paths } : {}) }))) return false;
       return outcome;
     },
     [send, transport],
   );
   const stateRef = useRef(state);
   stateRef.current = state;
+
+  // Unsent words per chat, the queue and held messages.
+  const inputs = useInputs({
+    state,
+    transport,
+    sendMessage,
+    problem: (message) => dispatch({ kind: "problem", problem: { message } }),
+    offer: (insertion) => setInsertion({ ...insertion, seq: ++quoteSeq.current }),
+  });
+  // Stop ends the turn, declines what waits, and holds whatever was queued behind it.
+  stopRef.current = () => {
+    dispatch({ kind: "stopped" });
+    inputs.holdCurrent();
+    void send({ type: "talk.cancel" });
+  };
 
   const blocked = useMemo(() => sendBlock(state), [state]);
   const chat = currentChat(state);
@@ -309,6 +323,7 @@ export function App({ transport }: { transport: Transport }) {
         onAnswer={answer}
         onSend={sendMessage}
         attachWhy={attachReason(state)}
+        input={inputs.api}
         onDismissProblem={() => dispatch({ kind: "dismissProblem" })}
       />
       <Surface />

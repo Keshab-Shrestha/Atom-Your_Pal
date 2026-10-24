@@ -52,8 +52,9 @@ Status words: **done**, **partial**, **todo**. A row is done only when it works 
 | Fork through a message, fork the chat, edit and retry in a new chat | `ChatControlsModel`, `ChatActionsMenu` | **done** (step 2d-2); "Check result" after a lost answer is not ported | 2d-2 |
 | Saved history sheet, chat brief, automatic summaries | `ChatControlsModel`, `ChatBriefEditor` | todo | 2h |
 | Attachments (button, drop, pasted files and images, 5 files of up to 10 MB), chips with image thumbnails, long paste to a text file, hidden-character cleanup | `ChatAttachments`, `ComposerPaste`, `PastedTextFile`, `IslandController+Drop`, `HiddenCharacters` | **done** (step 2f); no Quick Look preview, no "Second brain note" chips, no persistence of pasted files | 2f |
-| Stop (button and Esc), working strip, send blocked while a turn runs | `WorkStrip`, `IslandController+Shortcuts` | **done** (step 2b) | 2b |
-| Queue, held draft, recovery after interruption | `ChatControlsModel`, `ForegroundRecovery*` | todo | 2g |
+| Stop (button and Esc), working strip | `WorkStrip`, `IslandController+Shortcuts` | **done** (step 2b) | 2b |
+| Per-chat drafts and files, message queue (Enter queues while busy, Ctrl/Cmd+Enter sends the oldest now), held messages after Stop, an error, leaving the chat or a restart, Edit and Remove, 20 per chat, drafts saved across restarts | `ChatInput`, `ComposerDraft`, `IslandModel` queue | **done** (step 2g-1); files are not kept across a restart | 2g-1 |
+| Recovery of interrupted requests and unconfirmed answers: delivery ids and receipts, the Recovery view, restore to a draft, dismiss | `ForegroundRecovery*` | todo | 2g-2 |
 | Model picker (search, provider filter, custom id, default), thinking menu, access menu incl. Full access consent | `ChatModelPicker`, `ChatReasoningMenu`, `ChatAccessMenu`, `ModelPickerCatalog` | **done** (step 2e); favourite models not ported | 2e |
 | Slash picker, find in chat, chat brief | `SlashPicker`, `ChatFindBar`, `ChatBriefEditor` | todo | 2 |
 | Approvals: Allow, Decline, Allow for task/chat, Full-access card | `ApprovalState`, `WorkStrip` | **done** (step 2b) | 2b |
@@ -173,6 +174,16 @@ Checked: 8 new tests (model rules, settings state, `info` replay) and 27 browser
 **Paste (ADR-149/150).** Pasted text is cleaned of hidden display controls and the count is shown; a paste of only such characters pastes nothing. A cleaned paste of 4,000 characters or more, or one that would take the draft past 4,000, becomes `Pasted text N.txt` and leaves the draft untouched; with all five slots full or in a project chat it is refused with instructions instead of being lost. Hidden characters that get into the draft another way are removed when you press Send, and that send stops so you can look first.
 
 Checked: 12 new tests (limits and lists against the runtime source, paste rules, markers, state, 8 bridge upload tests), 26 browser checks against the fake runtime, and the real-runtime refusals above. Not ported: Quick Look preview, "Second brain note" chips, saving pasted text permanently (the staged copy is removed). Not checked: a real accepted attachment going to a model (it would use a provider login), and the 20-second "no answer" path.
+
+## Step 2g-1: drafts, queue and held messages (24 October 2026)
+
+**Drafts.** Each chat keeps its own words and files; switching chats saves one composer and restores the other. Words are also saved by the bridge in a private file (`data/desktop/chat-input.json`, folder 0700, file 0600, atomic writes, plaintext like the Mac app's ChatInput snapshot; strict shape, 128 KiB per text, 20 messages per chat, 100 chats, 8 MiB). Browser storage cannot do this, because the window's address changes with the port on every run. A file cannot be saved: after a restart a draft's words come back, and a held message says how many files were not kept. An unreadable save is set aside, not overwritten.
+
+**Queue.** While a turn runs, or while messages already wait, Enter adds the message to the end of the queue (the button says Queue and the keys are explained). The oldest goes when the chat is idle with no question or work pending, one at a time: the next waits until the runtime has begun the previous turn (counted from `state` events, so a batched render cannot skip it; at most 10 seconds' patience). **Ctrl/Cmd+Enter** queues the draft and sends the oldest waiting message now, ending the turn in flight (an empty composer sends the oldest as it is). Each row has Edit (moves that one message into an **empty** composer; a composer with words refuses and says why) and Remove.
+
+**Held, never sent by themselves.** After Stop, an error that ends the turn, leaving the chat, a runtime that stops or restarts, or a refusal of the send, **everything still waiting is held** in order. Held messages are shown with Edit and Discard and are never sent automatically; a new message does not release them. A chat keeps at most 20 waiting messages (live and held together); a full chat refuses and keeps the new draft in the composer.
+
+Checked: 10 model tests, 4 bridge tests, 2 reducer tests, 25 browser checks against the fake runtime (per-chat drafts and files, queue order, Edit/Remove, Stop holds, no automatic send of held messages, one-at-a-time advance with the right answers, Send now, an error holds, leaving holds, reload restores drafts and held messages, words-only file at mode 0600). Not ported: reordering, the Recovery view and delivery receipts (2g-2). Not checked against the real runtime.
 
 ## Verification in step 1, and what was not verified
 

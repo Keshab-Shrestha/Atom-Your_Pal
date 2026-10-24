@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Composer } from "./Composer.tsx";
+import { QueueList } from "./QueueList.tsx";
+import type { InputApi } from "./useInputs.ts";
 import { CopyContext, Markdown } from "./Markdown.tsx";
 import { RowMenu } from "./RowMenu.tsx";
 import { replyContent, type ClipContent } from "./copy.ts";
@@ -29,6 +31,8 @@ export interface ChatViewProps {
   /** An unsent text to place in the composer, and a counter that makes the same text insertable twice. */
   insertion: Insertion | undefined;
   attachWhy: string | undefined;
+  /** Unsent words, files and waiting messages of this chat. */
+  input: InputApi;
   /** The composer's model, thinking and access controls. */
   controls: ComponentChildren;
   /** Why a chat cannot be copied into a new one right now; undefined when it can. */
@@ -49,7 +53,7 @@ const LOOP_WORDS: Record<LoopState, string> = {
 
 const NO_SEQ = "Reopen this chat to use this on a message that has just arrived.";
 
-export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, onDismissProblem, onCopy, onQuote, insertion, attachWhy, controls, branchWhy, onBranch, onStop, onAnswer }: ChatViewProps) {
+export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, onDismissProblem, onCopy, onQuote, insertion, attachWhy, input, controls, branchWhy, onBranch, onStop, onAnswer }: ChatViewProps) {
   /** Fork, edit and retry need the runtime's saved number for the message. */
   const branchItems = (message: Message): MenuItem[] => {
     const why = branchWhy ?? (message.seq === undefined ? NO_SEQ : undefined);
@@ -179,7 +183,7 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
                       { label: "Copy as Markdown", onSelect: () => onCopy(replyContent(message.text)) },
                       { label: "Copy as plain text", onSelect: () => onCopy(replyContent(message.text, "plain")) },
                       { label: "Copy as rich text", onSelect: () => onCopy(replyContent(message.text, "rich")) },
-                      { label: "Reply to this", onSelect: () => onQuote(message.text), disabledWhy: blocked && !/Press Stop/.test(blocked) ? "Not available now." : undefined },
+                      { label: "Reply to this", onSelect: () => onQuote(message.text), disabledWhy: blocked ? "Not available now." : undefined },
                       ...branchItems(message),
                     ]}
                   />
@@ -199,7 +203,28 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
 
       <WorkBar work={work} approval={approval} onStop={onStop} onAnswer={onAnswer} />
 
+      <QueueList
+        queue={input.current.queue}
+        held={input.current.held}
+        sending={input.current.sending}
+        working={input.working}
+        blocked={input.blocked}
+        onSendNow={input.onSendNow}
+        onEdit={input.onEdit}
+        onRemove={input.onRemove}
+      />
+
+      {input.loaded ? (
       <Composer
+        key={input.chatId}
+        chatId={input.chatId}
+        initial={input.current}
+        working={input.working}
+        queued={input.current.queue.length}
+        onSnapshot={input.onSnapshot}
+        onFlushRegister={input.onFlushRegister}
+        onQueue={input.onQueue}
+        onSendNow={input.onSendNow}
         blocked={blocked}
         modelLabel={modelLabel}
         controls={controls}
@@ -211,6 +236,7 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
           return onSend(text, files);
         }}
       />
+      ) : null}
     </main>
   );
 }

@@ -126,6 +126,8 @@ export interface AppState {
   /** How many turns the runtime accepted (`transcript`) and how many errors it reported: a send with files waits for one of them to move. */
   transcripts: number;
   errors: number;
+  /** How many times the runtime has begun a turn (a `state` other than idle). A count cannot be missed by a render that skips the short state. */
+  turnsStarted: number;
   /** Bumps on every reducer step that adds a message, so a view can scroll to the end. */
   nextId: number;
 }
@@ -139,6 +141,7 @@ export const initialState: AppState = {
   messages: [],
   transcripts: 0,
   errors: 0,
+  turnsStarted: 0,
   nextId: 1,
 };
 
@@ -240,8 +243,8 @@ function reduceEvent(state: AppState, event: IslandEvent): AppState {
     case "state": {
       if (event.state === "idle") return endWork({ ...dropApproval(state), loop: "idle" }, "done");
       // A new request: the old work is over and out of the way at once.
-      if (event.state === "listening") return { ...dropWork(state), loop: event.state };
-      return { ...state, loop: event.state };
+      if (event.state === "listening") return { ...dropWork(state), loop: event.state, turnsStarted: state.turnsStarted + 1 };
+      return { ...state, loop: event.state, ...(state.loop === "idle" ? { turnsStarted: state.turnsStarted + 1 } : {}) };
     }
     case "computer.step":
       return { ...state, work: { step: shortStep(event.text), outcome: "working" } };
@@ -383,8 +386,6 @@ export function sendBlock(state: AppState): string | undefined {
   if (currentChat(state)?.readOnly) return "This chat is written from another surface (Telegram or the local API). Open it to read it only.";
   if (state.branch) return "ATOM is copying the chat into a new one.";
   if (currentChat(state)?.archived) return "This chat is archived. Unarchive it to continue.";
-  // A message sent now would end the turn in flight, and ending a turn counts as "no" for anything waiting for approval.
-  if (state.loop !== "idle") return "ATOM is working. Press Stop, or wait for it to finish.";
   return undefined;
 }
 

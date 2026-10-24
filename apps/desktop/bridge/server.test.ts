@@ -5,11 +5,13 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, statSync, writeFileSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHub } from "./hub.ts";
+import { createInputStore } from "./input-store.ts";
 import { createBridgeServer, type BridgeServer } from "./server.ts";
 
 const TOKEN = "t".repeat(64);
 let bridge: BridgeServer;
 let uploads = "";
+let inputDir = "";
 let base = "";
 let sent: object[] = [];
 let accept = true;
@@ -22,7 +24,8 @@ before(async () => {
   writeFileSync(join(ui, "assets/app.js"), "console.log(1)");
   writeFileSync(join(ui, "..", "secret.txt"), "outside the window folder");
   uploads = mkdtempSync(join(tmpdir(), "atom-up-test-"));
-  bridge = createBridgeServer({ hub, token: TOKEN, uiDir: ui, uploadDir: uploads, send: (c) => (accept ? (sent.push(c), true) : false), status: () => ({ state: "running", pid: 1 }) });
+  inputDir = join(mkdtempSync(join(tmpdir(), "atom-in-test-")), "desktop");
+  bridge = createBridgeServer({ hub, token: TOKEN, uiDir: ui, uploadDir: uploads, inputStore: createInputStore(inputDir), send: (c) => (accept ? (sent.push(c), true) : false), status: () => ({ state: "running", pid: 1 }) });
   const { port } = await bridge.listen(0);
   base = `http://127.0.0.1:${port}`;
 });
@@ -216,4 +219,54 @@ test("without a staging folder the endpoint is off", async () => {
   const res = await fetch(`http://127.0.0.1:${port}/upload?name=a.txt`, { method: "POST", headers: auth, body: "x" });
   assert.equal(res.status, 404);
   await off.close();
+});
+
+// ---------- saved drafts ----------
+
+const put = (body: unknown, headers: Record<string, string> = {}) => fetch(`${base}/input`, { method: "PUT", headers: { ...auth, "content-type": "application/json", ...headers }, body: typeof body === "string" ? body : JSON.stringify(body) });
+const ID = "0f5d3c2a-1b4e-4f6a-9c7d-8e2b1a3c4d5e";
+const good = { version: 1, chats: { "chat-1": { draft: "hello", held: [{ id: ID, text: "later", lost: 1 }] } } };
+
+test("saved drafts need the token and the same origin", async () => {
+  assert.equal((await fetch(`${base}/input`)).status, 401);
+  assert.equal((await put(good, { origin: "http://evil.example" })).status, 403);
+});
+
+test("drafts are saved and read back, in an owner-only file", async () => {
+  assert.equal((await put(good)).status, 204);
+  const read = (await (await fetch(`${base}/input`, { headers: auth })).json()) as { saved: unknown };
+  assert.deepEqual(read.saved, good);
+  const file = join(inputDir, "chat-input.json");
+  assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), good);
+  if (process.platform !== "win32") assert.equal(statSync(file).mode & 0o777, 0o600);
+});
+
+test("only the exact shape is kept: extra fields, bad ids, long texts, repeats and too many entries are refused", async () => {
+  const chat = (c: object) => ({ version: 1, chats: { a: { draft: "", held: [], ...c } } });
+  const entry = (e: object = {}) => ({ id: ID, text: "t", lost: 0, ...e });
+  for (const [name, body] of [
+    ["unknown top field", { ...good, extra: 1 }],
+    ["wrong version", { ...good, version: 2 }],
+    ["bad chat id", { version: 1, chats: { "../x": { draft: "", held: [] } } }],
+    ["extra chat field", chat({ files: ["/etc/passwd"] })],
+    ["long draft", chat({ draft: "x".repeat(128 * 1024 + 1) })],
+    ["bad entry id", chat({ held: [entry({ id: "nope" })] })],
+    ["repeated entry id", chat({ held: [entry(), entry()] })],
+    ["entry with a path", chat({ held: [{ ...entry(), path: "/x" }] })],
+    ["bad file count", chat({ held: [entry({ lost: 9 })] })],
+    ["21 entries", chat({ held: Array.from({ length: 21 }, (_, i) => entry({ id: `0f5d3c2a-1b4e-4f6a-9c7d-8e2b1a3c4d${String(i).padStart(2, "0")}` })) })],
+  ] as const) {
+    assert.equal((await put(body)).status, 400, name);
+  }
+  assert.equal((await put("not json")).status, 400);
+  assert.deepEqual(((await (await fetch(`${base}/input`, { headers: auth })).json()) as { saved: unknown }).saved, good, "a refused save leaves the saved input as it was");
+});
+
+test("an unreadable saved file is set aside, not overwritten, and the window starts clean", async () => {
+  const fs = await import("node:fs");
+  fs.writeFileSync(join(inputDir, "chat-input.json"), "{ broken");
+  const read = (await (await fetch(`${base}/input`, { headers: auth })).json()) as { saved: { chats: object }; note?: string };
+  assert.deepEqual(read.saved.chats, {});
+  assert.match(read.note!, /set aside/);
+  assert.ok(fs.readdirSync(inputDir).some((n) => n.includes("unreadable")), "the original is kept");
 });

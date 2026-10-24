@@ -4,6 +4,7 @@
 import { parseFrames } from "./sse.ts";
 import type { IslandCommand, IslandEvent, RuntimeStatus } from "./protocol.ts";
 import type { Link } from "./store.ts";
+import type { SavedInput } from "./input.ts";
 
 export type SendResult = { ok: true } | { ok: false; message: string };
 
@@ -21,6 +22,10 @@ export interface Transport {
   send(command: IslandCommand): Promise<SendResult>;
   /** Hands a file to the bridge, which stages it and returns the full path that `text.send` needs. */
   upload(file: File): Promise<UploadResult>;
+  /** The unsent drafts and held messages saved by the bridge. Never rejects: a failure reads as nothing saved, with a note. */
+  loadInput(): Promise<{ saved: SavedInput | undefined; note?: string }>;
+  /** Saves them. `keepalive` lets the request finish while the page is closing. */
+  saveInput(saved: SavedInput, options?: { keepalive?: boolean }): Promise<boolean>;
 }
 
 const RETRY_MS = [1000, 2000, 4000, 5000];
@@ -85,6 +90,24 @@ export function createBridgeTransport(token: string, fetchImpl: typeof fetch = f
         return { ok: false, message: body.error ?? `${file.name} could not be handed to ATOM (${res.status}).` };
       } catch {
         return { ok: false, message: `${file.name} could not be handed to ATOM. It keeps trying to reconnect; try again in a moment.` };
+      }
+    },
+    async loadInput() {
+      try {
+        const res = await fetchImpl("/input", { headers, cache: "no-store" });
+        if (!res.ok) return { saved: undefined, note: "Saved drafts could not be read." };
+        const body = (await res.json()) as { saved?: SavedInput; note?: string };
+        return { saved: body.saved, ...(body.note ? { note: body.note } : {}) };
+      } catch {
+        return { saved: undefined, note: "Saved drafts could not be read." };
+      }
+    },
+    async saveInput(saved, options) {
+      try {
+        const res = await fetchImpl("/input", { method: "PUT", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify(saved), ...(options?.keepalive ? { keepalive: true } : {}) });
+        return res.status === 204;
+      } catch {
+        return false;
       }
     },
     async send(command) {

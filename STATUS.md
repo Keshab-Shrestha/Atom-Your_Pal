@@ -1,5 +1,9 @@
 # ZENO Project Status
 
+## Cross-platform window — step 2g-1, 24 October 2026
+
+Per-chat drafts, the message queue and held messages work in the new window, with drafts saved across restarts. Still to do in chat parity: recovery of interrupted requests (2g-2); slash picker, find, chat brief; in-chat questions; file-edit review. Swift remains the shipping client.
+
 ## Cross-platform window — step 2f, 24 October 2026
 
 Attachments and paste work in the new window. Still to do in chat parity: queue, per-chat drafts and recovery; slash picker, find, chat brief; in-chat questions; file-edit review. Swift remains the shipping client.

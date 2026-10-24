@@ -235,6 +235,15 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
       out({ type: "state", state: "idle" });
     } else if (command.type === "text.send") {
       if (metaOf(current).archived) return out({ type: "error", stage: "model", message: "This chat is archived. Unarchive it to continue." });
+      // A text.send interrupts a turn in progress, like talking does: what waited for approval is declined (docs/island-protocol.md).
+      if (state !== "idle") {
+        clearTimeout(turnTimer);
+        if (pending) out({ type: "approval.closed", id: pending.id });
+        pending = undefined;
+        out({ type: "computer.end" });
+        state = "idle";
+        out({ type: "state", state: "idle" });
+      }
       // Files (ADR-113): checked first, as the real runtime does; a refusal says why and sends nothing.
       const attached = [];
       if (Array.isArray(command.files) && command.files.length > 0) {
@@ -271,6 +280,18 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
           ...(kind === "review" ? { fileReview: { path: "/tmp/notes.txt", before: "a", after: "b", token: "tok-123" } } : {}),
         });
         return; // the turn waits for approval.answer, talk.cancel, or the user's patience
+      }
+      if (/take a moment/.test(command.text)) {
+        turnTimer = setTimeout(() => finishTurn(`Done waiting: ${command.text}`), 700);
+        return;
+      }
+      if (/fail please/.test(command.text)) {
+        turnTimer = setTimeout(() => {
+          out({ type: "error", stage: "model", message: "No internet." });
+          state = "idle";
+          out({ type: "state", state: "idle" });
+        }, 500);
+        return;
       }
       if (/work slowly/.test(command.text)) {
         out({ type: "computer.step", text: "Typing in TextEdit" });

@@ -172,6 +172,20 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 .send:disabled { opacity: 0.4; }
 .composer-note { margin: 0; font-size: 13px; color: var(--warn); }
 
+/* ----- queue and held messages ----- */
+.queue { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--line2); border-radius: var(--radius-card); background: var(--card); max-height: 220px; overflow-y: auto; }
+.q-title { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--text2); }
+.q-held-title { color: var(--warn); }
+.q-held-note { margin: 0; }
+.q-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 132px; overflow-y: auto; }
+.q-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; flex-wrap: wrap; }
+.q-main { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 200px; flex-wrap: wrap; }
+.q-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.q-lost { color: var(--warn); }
+.q-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.q-actions .btn { min-height: 32px; padding: 0 10px; font-size: 13px; }
+.hint { margin: 0; }
+
 /* ----- attachments ----- */
 .lane-chat { position: relative; }
 .dropzone { position: absolute; inset: 8px; z-index: 30; display: grid; place-items: center; border: 2px dashed var(--accent); border-radius: var(--radius-lane); background: color-mix(in srgb, var(--work) 88%, transparent); pointer-events: none; }

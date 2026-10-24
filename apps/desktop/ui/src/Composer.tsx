@@ -3,6 +3,7 @@ import type { ComponentChildren } from "preact";
 import { Icon } from "./icons.tsx";
 import { MAX_QUOTED_DRAFT, quoteAppending, stripHidden } from "./copy.ts";
 import { MAX_FILES, kindOf, pastedTextName, pasteDecision, refuseFile, sizeLabel } from "./attachments.ts";
+import type { ChatInput } from "./input.ts";
 
 /** Text for the composer from somewhere else. `seq` changes with every request, so the same text can be offered twice. */
 export interface Insertion {
@@ -10,6 +11,12 @@ export interface Insertion {
   text: string;
   /** "quote" is appended after the draft; "restore" is a prompt put back after edit or retry and never replaces a draft. */
   mode: "quote" | "restore";
+  /** For "restore": the files that went with the prompt (an entry taken back from the queue). */
+  files?: File[];
+  /** Told whether the text was placed. A composer that is not empty refuses, and the caller then leaves the source where it was. */
+  done?: (placed: boolean) => void;
+  /** Said when a restore is refused. */
+  refusal?: string;
 }
 
 /** Files that arrived by drag and drop. */
@@ -21,6 +28,21 @@ export interface Incoming {
 }
 
 export interface ComposerProps {
+  /** This chat. The composer is shown afresh for each chat, starting from what was kept for it. */
+  chatId: string;
+  initial: Pick<ChatInput, "draft" | "files">;
+  /** A turn is running: Enter queues the message instead of sending it. */
+  working: boolean;
+  /** How many messages already wait to be sent in this chat. A new message goes behind them. */
+  queued: number;
+  /** Words and files to keep for this chat (called when they settle, and when the composer goes away). */
+  onSnapshot: (chatId: string, draft: string, files: File[]) => void;
+  /** Lets the app save the composer's latest state when the page is being closed. */
+  onFlushRegister: (flush: (() => void) | undefined) => void;
+  /** Adds a message to the queue. Refuses, with the reason, when the chat is full. */
+  onQueue: (text: string, files: File[]) => { ok: true } | { ok: false; why: string };
+  /** Sends the oldest waiting message now, ending the turn in flight. */
+  onSendNow: () => void;
   /** Why sending is not possible right now, in words for the user; undefined when it is. */
   blocked: string | undefined;
   /** Why this chat takes no attachments; undefined when it does. */
@@ -43,16 +65,17 @@ interface Staged {
   preview?: string;
 }
 
-export function Composer({ blocked, attachWhy, modelLabel, controls, insertion, incoming, onSend }: ComposerProps) {
-  const [draft, setDraft] = useState("");
-  const [files, setFiles] = useState<Staged[]>([]);
+export function Composer({ chatId, initial, working, queued, onSnapshot, onFlushRegister, onQueue, onSendNow, blocked, attachWhy, modelLabel, controls, insertion, incoming, onSend }: ComposerProps) {
+  const nextId = useRef(1);
+  const [draft, setDraft] = useState(initial.draft);
+  const [files, setFiles] = useState<Staged[]>(() => initial.files.map((file) => ({ id: nextId.current++, file, ...(kindOf(file.name) === "image" ? { preview: URL.createObjectURL(file) } : {}) })));
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | undefined>();
   const area = useRef<HTMLTextAreaElement>(null);
   const picker = useRef<HTMLInputElement>(null);
-  const handled = useRef(0);
-  const droppedHandled = useRef(0);
-  const nextId = useRef(1);
+  // A composer shown again for the same chat must not apply an old quote, drop or restore a second time.
+  const handled = useRef(insertion?.seq ?? 0);
+  const droppedHandled = useRef(incoming?.seq ?? 0);
   const pastes = useRef(0);
 
   const grow = () => {
@@ -69,6 +92,22 @@ export function Composer({ blocked, attachWhy, modelLabel, controls, insertion, 
       el.setSelectionRange(length, length);
       grow();
     });
+
+  // Keep this chat's words and files for when it is shown again. Typing is saved a moment after it settles, and always when the composer goes away.
+  const latest = useRef({ draft, files });
+  latest.current = { draft, files };
+  const flush = () => onSnapshot(chatId, latest.current.draft, latest.current.files.map((f) => f.file));
+  useEffect(() => {
+    const timer = setTimeout(flush, 250);
+    return () => clearTimeout(timer);
+  }, [draft, files]);
+  useEffect(() => {
+    onFlushRegister(flush);
+    return () => {
+      flush();
+      onFlushRegister(undefined);
+    };
+  }, []);
 
   // Object URLs are released when the composer goes away.
   const live = useRef<Staged[]>([]);
@@ -110,11 +149,15 @@ export function Composer({ blocked, attachWhy, modelLabel, controls, insertion, 
     handled.current = insertion.seq;
     if (insertion.mode === "restore") {
       // A changed composer is never overwritten (docs/conversation-controls.md).
-      if (draft.trim() !== "") return setNote("Your draft was kept. The earlier prompt is still in the original chat.");
+      if (draft.trim() !== "" || files.length > 0) {
+        setNote(insertion.refusal ?? "Your draft was kept. The earlier prompt is still in the original chat.");
+        return insertion.done?.(false);
+      }
       setNote(undefined);
       setDraft(insertion.text);
+      if (insertion.files?.length) addFiles(insertion.files);
       focusEnd(insertion.text.length);
-      return;
+      return insertion.done?.(true);
     }
     const next = quoteAppending(insertion.text, draft);
     if (next === undefined) return;
@@ -160,25 +203,39 @@ export function Composer({ blocked, attachWhy, modelLabel, controls, insertion, 
     }
   }
 
-  async function submit() {
+  /** Enter sends, or queues when a turn is running or messages already wait. Ctrl/Cmd+Enter queues and sends the oldest waiting message now. */
+  async function submit(now = false) {
     const text = draft.trim();
-    if ((!text && files.length === 0) || blocked || busy) return;
+    if (blocked || busy) return;
+    if (!text && files.length === 0) {
+      if (now) onSendNow(); // an empty composer: send the oldest waiting message
+      return;
+    }
     // Hidden controls typed or inserted some other way: clean the draft and let the user look before it goes.
     const hidden = stripHidden(draft);
     if (hidden.removed > 0) {
       setDraft(hidden.text);
       return setNote(`Removed ${hidden.removed} hidden character${hidden.removed === 1 ? "" : "s"} from the message. Review it, then send it again.`);
     }
-    setBusy(true);
-    const taken = await onSend(text, files.map((f) => f.file));
-    setBusy(false);
-    if (taken) {
+    const staged = files.map((f) => f.file);
+    const clear = () => {
       files.forEach((f) => f.preview && URL.revokeObjectURL(f.preview));
       setFiles([]);
       setDraft("");
       setNote(undefined);
       requestAnimationFrame(grow);
+    };
+    if (working || queued > 0 || now) {
+      const queuedIt = onQueue(text, staged);
+      if (!queuedIt.ok) return setNote(queuedIt.why);
+      clear();
+      if (now) onSendNow();
+      return;
     }
+    setBusy(true);
+    const taken = await onSend(text, staged);
+    setBusy(false);
+    if (taken) clear();
   }
 
   const canSend = (draft.trim() !== "" || files.length > 0) && !blocked && !busy;
@@ -189,6 +246,7 @@ export function Composer({ blocked, attachWhy, modelLabel, controls, insertion, 
         e.preventDefault();
         void submit();
       }}
+      data-chat={chatId}
     >
       {files.length > 0 ? (
         <ul class="files" aria-label="Attached files">
@@ -221,7 +279,7 @@ export function Composer({ blocked, attachWhy, modelLabel, controls, insertion, 
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
             e.preventDefault();
-            void submit();
+            void submit(e.ctrlKey || e.metaKey);
           }
         }}
       />
@@ -251,10 +309,13 @@ export function Composer({ blocked, attachWhy, modelLabel, controls, insertion, 
           />
           {controls ?? (modelLabel ? <span class="chip" title="The model this chat uses">{modelLabel}</span> : <span />)}
         </div>
-        <button type="submit" class="send" aria-label="Send message" disabled={!canSend}>
-          <Icon name="send" size={18} />
+        <button type="submit" class="send" aria-label={working || queued > 0 ? "Queue message" : "Send message"} title={working || queued > 0 ? "Queue this message (Enter). Ctrl or Cmd+Enter sends the oldest waiting message now and stops the current turn." : "Send (Enter)"} disabled={!canSend}>
+          <Icon name={working || queued > 0 ? "queue" : "send"} size={18} />
         </button>
       </div>
+      {working || queued > 0 ? (
+        <p class="hint small muted">Enter queues this message. Ctrl or Cmd+Enter sends the oldest waiting message now and stops the current turn.</p>
+      ) : null}
       {blocked || note || busy ? (
         <p id="composer-note" class="composer-note" role="status">
           {busy && files.length > 0 ? "Sending your files…" : (note ?? blocked)}

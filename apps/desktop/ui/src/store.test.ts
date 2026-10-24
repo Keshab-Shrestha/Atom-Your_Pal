@@ -127,10 +127,14 @@ test("a file review keeps no text and no token", () => {
   assert.deepEqual(s.approval, { id: "a1", summary: 'Click "Send" in Mail', reason: "You asked me to send it.", review: true });
 });
 
-test("sending is blocked while a turn runs, so it cannot end a turn that waits for approval", () => {
+test("a running turn does not block the composer: the message is queued (2g), and only a send-now ends the turn", () => {
   const busy = run([ev({ type: "state", state: "thinking" })], live());
-  assert.match(sendBlock(busy)!, /Press Stop/);
-  assert.equal(sendBlock(reduce(busy, ev({ type: "state", state: "idle" }))), undefined);
+  assert.equal(sendBlock(busy), undefined);
+});
+
+test("each turn the runtime begins is counted once, however the states are batched", () => {
+  const s = run([ev({ type: "state", state: "thinking" }), ev({ type: "state", state: "speaking" }), ev({ type: "state", state: "idle" }), ev({ type: "state", state: "thinking" }), ev({ type: "state", state: "idle" })], live());
+  assert.equal(s.turnsStarted, 2);
 });
 
 // ---------- chat flags (pin, archive) and Undo ----------

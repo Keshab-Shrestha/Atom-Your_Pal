@@ -9,6 +9,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHub } from "./hub.ts";
 import { createBridgeServer } from "./server.ts";
+import { createInputStore } from "./input-store.ts";
 import { createSupervisor, type RuntimeLaunch } from "./supervisor.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -45,7 +46,7 @@ const supervisor = createSupervisor({
 const uiDir = join(here, "../ui/dist");
 // Staged attachments live in one private folder (mode 0700) that is removed when the bridge stops.
 const uploadDir = mkdtempSync(join(tmpdir(), "atom-uploads-"));
-const bridge = createBridgeServer({ hub, token, uiDir: existsSync(uiDir) ? uiDir : undefined, uploadDir, send: supervisor.send, status: supervisor.status });
+const bridge = createBridgeServer({ hub, token, uiDir: existsSync(uiDir) ? uiDir : undefined, uploadDir, inputStore: createInputStore(join(root, "data", "desktop")), send: supervisor.send, status: supervisor.status });
 const { port } = await bridge.listen(wantedPort);
 supervisor.start();
 

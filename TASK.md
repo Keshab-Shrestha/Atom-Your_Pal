@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Cross-platform window, step 2g-1: drafts, queue and held messages — implemented and checked, 24 October 2026
+
+Each chat keeps its own draft and files; a message sent while a turn runs is queued and goes out in order, one at a time, when the chat is idle; Ctrl/Cmd+Enter sends the oldest now; Stop, a turn-ending error, leaving the chat or a runtime restart hold everything waiting, and held messages are never sent by themselves (Edit or Discard each). Words are saved by the bridge in a private, strictly validated file so drafts and held messages survive a restart; files cannot be, and the window says how many were not kept. Replaces the temporary 2b rule that blocked sending during a turn. 16 new tests and 25 browser checks against the fake runtime pass. Not ported: the Recovery view and delivery receipts (2g-2). [Details](docs/cross-platform-migration.md). Next: 2g-2, recovery of interrupted requests. Swift unchanged.
+
 ## Cross-platform window, step 2f: attachments and paste — implemented and checked, 24 October 2026
 
 Files can be attached by button, drop or paste (screenshots too), shown as chips with image thumbnails, and sent with or without words. Because a web page has no real paths, the bridge stages uploads in a private, size-limited, self-cleaning folder and gives the runtime the path; the runtime's own checks stay in charge, and the draft and files are kept until it accepts the turn. Paste cleans hidden characters, and long text becomes a `.txt` attachment. Found and fixed on the way: staging stripped a leading dot, which would have hidden `.env` from the runtime's secret-name check (now kept, with a test). 12 new tests, 26 browser checks, and real-runtime refusals of `.env`, `id_rsa` and `.exe` through the bridge without a model call. Not ported: Quick Look preview and note chips. [Details](docs/cross-platform-migration.md). Next: 2g, queue, drafts and recovery. Swift unchanged.

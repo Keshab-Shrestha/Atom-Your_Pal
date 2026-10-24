@@ -10,6 +10,7 @@ import { extname, join, normalize, resolve, sep } from "node:path";
 import type { Hub } from "./hub.ts";
 import type { SupervisorStatus } from "./supervisor.ts";
 import { stageUpload } from "./uploads.ts";
+import { MAX_BODY as MAX_INPUT_BODY, validateSaved, type InputStore } from "./input-store.ts";
 
 /** Commands carry typed text and attachments' paths, not files; 16 MiB is far above any real message. */
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
@@ -39,6 +40,8 @@ export interface BridgeServerOptions {
   uiDir?: string;
   /** Where uploads are staged (a private folder this bridge owns). Without it, `/upload` is off. */
   uploadDir?: string;
+  /** Where unsent drafts and held messages are kept. Without it, `/input` is off. */
+  inputStore?: InputStore;
   send: (command: object) => boolean;
   status: () => SupervisorStatus;
 }
@@ -84,12 +87,12 @@ export function createBridgeServer(options: BridgeServerOptions): BridgeServer {
     return origin === `http://${req.headers.host}`;
   };
 
-  async function readBody(req: IncomingMessage): Promise<string | undefined> {
+  async function readBody(req: IncomingMessage, limit = MAX_BODY_BYTES): Promise<string | undefined> {
     const chunks: Buffer[] = [];
     let size = 0;
     for await (const chunk of req) {
       size += (chunk as Buffer).length;
-      if (size > MAX_BODY_BYTES) return undefined;
+      if (size > limit) return undefined;
       chunks.push(chunk as Buffer);
     }
     return Buffer.concat(chunks).toString("utf8");
@@ -136,11 +139,29 @@ export function createBridgeServer(options: BridgeServerOptions): BridgeServer {
         // 127.0.0.1 under another name (DNS rebinding) sends that name as Host.
         if (!allowedHost(req)) return reply(res, 403, "Use http://127.0.0.1 or http://localhost.");
 
-        if (pathname === "/events" || pathname === "/status" || pathname === "/command" || pathname === "/upload") {
+        if (pathname === "/events" || pathname === "/status" || pathname === "/command" || pathname === "/upload" || pathname === "/input") {
           if (!authorized(req)) return reply(res, 401, { error: "A valid token is needed: Authorization: Bearer <token>." }, { "www-authenticate": "Bearer" });
           if (pathname === "/events") {
             if (req.method !== "GET") return reply(res, 405, { error: "GET only." });
             return options.hub.attach(res);
+          }
+          if (pathname === "/input") {
+            if (!options.inputStore) return reply(res, 404, { error: "Saving drafts is off in this build." });
+            if (req.method === "GET") return reply(res, 200, await options.inputStore.load());
+            if (req.method !== "PUT") return reply(res, 405, { error: "GET or PUT only." });
+            if (!sameOrigin(req)) return reply(res, 403, { error: "Cross-origin writes are refused." });
+            const body = await readBody(req, MAX_INPUT_BODY);
+            if (body === undefined) return reply(res, 413, { error: "That is too much to keep." }, { connection: "close" });
+            let parsed: unknown;
+            try {
+              parsed = JSON.parse(body);
+            } catch {
+              return reply(res, 400, { error: "The saved input is not JSON." });
+            }
+            const checked = validateSaved(parsed);
+            if (!checked.ok) return reply(res, 400, { error: checked.why });
+            await options.inputStore.save(checked.saved);
+            return reply(res, 204, "");
           }
           if (pathname === "/upload") {
             if (req.method !== "POST") return reply(res, 405, { error: "POST only." });
