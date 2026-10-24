@@ -1,5 +1,9 @@
 # ZENO Project Status
 
+## Cross-platform window — step 2h-1, 24 October 2026
+
+The `/` picker works in the new window. Still to do in chat parity: find in chat and chat brief (2h-2, 2h-3); in-chat questions and work results (2i); file-edit review (2j). Swift remains the shipping client.
+
 ## Cross-platform window — step 2g-2, 24 October 2026
 
 Interrupted, stopped and failed requests can be reviewed, restored to an empty composer or dismissed in the new window; nothing is resent automatically. Still to do in chat parity: slash picker, find, chat brief (2h); in-chat questions and work results (2i); file-edit review (2j). Swift remains the shipping client.

@@ -1,6 +1,7 @@
 // The window's state, as a pure function of what the runtime says. No DOM, no timers, no network: everything the window shows
 // about a conversation is decided here, so it can be tested without a screen.
 
+import type { SkillInfo, SlashCommandInfo } from "./slash.ts";
 import type { Attempt, ChatAccessMode, ChatItem, ChatReasoning, InfoEvent, IslandEvent, LoopState, Receipt, RecoveryRecord, RuntimeStatus } from "./protocol.ts";
 
 export interface Message {
@@ -125,6 +126,8 @@ export interface AppState {
   chats: ChatItem[];
   /** The providers and models on offer, and the default model. From `info`. */
   info?: InfoEvent;
+  /** The skills and Claude commands the "/" picker offers. From `helpers` and `commands`; empty until the runtime has answered. */
+  slash: { skills: SkillInfo[]; commands: SlashCommandInfo[] };
   settings: ChatSettings;
   /** The chat voice and typing go to. */
   currentChatId?: string;
@@ -155,6 +158,7 @@ export const initialState: AppState = {
   runtime: { state: "stopped" },
   loop: "idle",
   chats: [],
+  slash: { skills: [], commands: [] },
   settings: {},
   messages: [],
   transcripts: 0,
@@ -308,6 +312,11 @@ function reduceEvent(state: AppState, event: IslandEvent): AppState {
       return state.approval?.id === event.id ? dropApproval(state) : state;
     case "info":
       return { ...state, info: event };
+    case "helpers":
+      // The event is large (workers, models, plugins); the picker only needs the skills. A name with white space could not be typed, so it is left out.
+      return event.skills ? { ...state, slash: { ...state.slash, skills: event.skills.filter((s) => /^\S+$/u.test(s.name)).map((s) => ({ name: s.name, description: s.description ?? "" })) } } : state;
+    case "commands":
+      return { ...state, slash: { ...state.slash, commands: event.commands.filter((c) => /^\S+$/u.test(c.name)).map((c) => ({ name: c.name, description: c.description ?? "", hint: c.hint ?? "" })) } };
     case "foreground.receipt":
       return { ...state, receipt: { ...event, n: (state.receipt?.n ?? 0) + 1 } };
     case "foreground.recovery": {

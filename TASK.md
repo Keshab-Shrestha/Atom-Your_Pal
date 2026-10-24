@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Cross-platform window, step 2h-1: the "/" picker — implemented and checked, 24 October 2026
+
+Typing `/` in the message box lists ATOM's commands, the user's skills and Claude commands (up to eight rows, narrowing as you type; Up/Down, Enter or Tab, Escape, click). Skills and commands fill their name for the words to follow and are run by the runtime when sent; `/new` and `/help` run in the window and never reach the model; `/model`, `/skills` and `/memory` say where to go until their pages exist. The window asks the runtime for skills and commands after every `ready`. Port of `SlashMenu.swift` with its tests: 7 model tests, 1 reducer test, 26 browser checks against the fake runtime, and the real runtime answered both requests. Not ported: the `@` menu. [Details](docs/cross-platform-migration.md). Next: 2h-2, find in chat. Swift unchanged.
+
 ## Cross-platform window, step 2g-2: recovery of interrupted requests — implemented and checked, 24 October 2026
 
 Every send now carries a delivery id (reused for an identical resend, so it cannot run twice). A Recovery view under Chat options lists stopped, failed and crash-interrupted requests with a count mark; each can be reviewed (prompt and a bounded, pageable copy of any kept reply), restored into an **empty** composer without sending, or dismissed after a confirmation. Completed, saved replies are acknowledged once so the runtime can scrub them, and held copies the host already journals are not duplicated. Nothing is ever resent automatically. New tests: 7 model, reducer and input tests; 23 browser checks against the fake runtime pass; full suite 1405 pass, 0 fail, typecheck clean. Not ported: recovery of unconfirmed answers to questions (2i). Not checked against the real runtime with a model. [Details](docs/cross-platform-migration.md). Next: 2h, slash picker, find in chat and chat brief. Swift unchanged.

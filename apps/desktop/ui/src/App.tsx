@@ -12,6 +12,8 @@ import { useRecovery } from "./useRecovery.ts";
 import { Recovery } from "./Recovery.tsx";
 import { ChatSettings } from "./ChatSettings.tsx";
 import type { ChatAccessMode } from "./protocol.ts";
+import { unavailable } from "./slash.ts";
+import type { SlashAction } from "./slash.ts";
 import { attachWhy as attachReason, currentChat, effectiveModel, initialState, reduce, sendBlock, settingsWhy } from "./store.ts";
 import type { ChatItem } from "./protocol.ts";
 import type { Transport } from "./transport.ts";
@@ -42,6 +44,12 @@ export function App({ transport }: { transport: Transport }) {
   useEffect(() => {
     if (state.link === "live") void send({ type: "chats.list" });
   }, [state.link, send]);
+  // The "/" picker's skills and commands, asked again whenever the runtime says it is ready (a restarted runtime has forgotten the window).
+  useEffect(() => {
+    if (state.link !== "live" || !state.ready) return;
+    void send({ type: "helpers.list" });
+    void send({ type: "commands.list" });
+  }, [state.link, state.ready, send]);
   useEffect(() => {
     const id = state.currentChatId;
     if (id && id !== state.openChatId && requestedOpen.current !== id) {
@@ -50,6 +58,20 @@ export function App({ transport }: { transport: Transport }) {
     }
     if (state.openChatId) requestedOpen.current = undefined;
   }, [state.currentChatId, state.openChatId, send]);
+
+  /** One of ATOM's own "/" commands. What the window cannot do yet is said in words, never skipped silently. */
+  const runSlash = useCallback(
+    (action: SlashAction): string | undefined => {
+      const why = unavailable(action);
+      if (why) return why;
+      if (action === "newChat") {
+        if (state.link !== "live" || state.runtime.state !== "running") return "ATOM is not ready.";
+        void send({ type: "chat.new" });
+      }
+      return undefined;
+    },
+    [state.link, state.runtime.state, send],
+  );
 
   const stopRef = useRef<() => void>(() => {});
   const stop = useCallback(() => stopRef.current(), []);
@@ -350,6 +372,8 @@ export function App({ transport }: { transport: Transport }) {
         onAnswer={answer}
         onSend={sendMessage}
         attachWhy={attachReason(state)}
+        slash={state.slash}
+        onSlash={runSlash}
         input={inputs.api}
         recoveryCount={recovery.count}
         onOpenRecovery={recovery.open}

@@ -326,3 +326,16 @@ test("reading another part of the open record keeps it on screen; reading a diff
   assert.equal(reduce(open, { kind: "recoveryAsk", what: "reading", request: "r2", keep: true }).recovery.record?.reply, "part one");
   assert.equal(reduce(open, { kind: "recoveryAsk", what: "reading", request: "r2" }).recovery.record, undefined);
 });
+
+test("the picker's skills come from helpers and its commands from commands; each replaces the last, unusable names are left out", () => {
+  const s = run([
+    ev({ type: "helpers", helpers: [], apps: [], skills: [{ name: "pdf", description: "PDFs", source: "yours" }, { name: "two words", description: "x" }] }),
+    ev({ type: "commands", commands: [{ name: "review", description: "Review a file.", hint: "[file]" }, { name: "", description: "no name" }] }),
+  ]);
+  assert.deepEqual(s.slash.skills, [{ name: "pdf", description: "PDFs" }]);
+  assert.deepEqual(s.slash.commands, [{ name: "review", description: "Review a file.", hint: "[file]" }]);
+  // A helpers event without skills (nothing to show) keeps what was known; a new commands list replaces the old.
+  const t = run([ev({ type: "helpers", helpers: [], apps: [] }), ev({ type: "commands", commands: [] })], s);
+  assert.deepEqual(t.slash.skills, [{ name: "pdf", description: "PDFs" }]);
+  assert.deepEqual(t.slash.commands, []);
+});

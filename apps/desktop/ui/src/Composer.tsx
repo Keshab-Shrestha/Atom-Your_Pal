@@ -5,6 +5,7 @@ import { MAX_QUOTED_DRAFT, quoteAppending, stripHidden } from "./copy.ts";
 import { MAX_FILES, kindOf, pastedTextName, pasteDecision, refuseFile, sizeLabel } from "./attachments.ts";
 import type { ChatInput } from "./input.ts";
 import { newUuid } from "./ids.ts";
+import { SOURCE_LABEL, builtInIn, completion, itemsFor, title as slashTitle, type SkillInfo, type SlashAction, type SlashCommandInfo, type SlashItem } from "./slash.ts";
 
 /** Text for the composer from somewhere else. `seq` changes with every request, so the same text can be offered twice. */
 export interface Insertion {
@@ -55,6 +56,10 @@ export interface ComposerProps {
   /** A reply to quote into the draft. `seq` changes with every request, so the same reply can be quoted twice. */
   insertion: Insertion | undefined;
   incoming: Incoming | undefined;
+  /** The skills and Claude commands the "/" picker offers. Absent where the picker is not shown (a chat that can only be read). */
+  slash: { skills: SkillInfo[]; commands: SlashCommandInfo[] } | undefined;
+  /** Runs one of ATOM's own "/" commands. Returns what to tell the user when it cannot be run here. */
+  onSlash: (action: SlashAction) => string | undefined;
   /** Resolves false when ATOM did not take the message: the draft and the files are kept. */
   onSend: (text: string, files: File[], request: string) => Promise<boolean>;
 }
@@ -66,7 +71,7 @@ interface Staged {
   preview?: string;
 }
 
-export function Composer({ chatId, initial, working, queued, onSnapshot, onFlushRegister, onQueue, onSendNow, blocked, attachWhy, modelLabel, controls, insertion, incoming, onSend }: ComposerProps) {
+export function Composer({ chatId, initial, working, queued, onSnapshot, onFlushRegister, onQueue, onSendNow, blocked, attachWhy, modelLabel, controls, insertion, incoming, slash, onSlash, onSend }: ComposerProps) {
   const nextId = useRef(1);
   const [draft, setDraft] = useState(initial.draft);
   const [files, setFiles] = useState<Staged[]>(() => initial.files.map((file) => ({ id: nextId.current++, file, ...(kindOf(file.name) === "image" ? { preview: URL.createObjectURL(file) } : {}) })));
@@ -79,6 +84,10 @@ export function Composer({ chatId, initial, working, queued, onSnapshot, onFlush
   const droppedHandled = useRef(incoming?.seq ?? 0);
   const pastes = useRef(0);
   const attempt = useRef<{ key: string; id: string } | undefined>(undefined);
+  // The "/" picker: open while the draft is one command name being typed. Up and Down move, Enter or Tab picks, Escape clears.
+  const [pick, setPick] = useState(0);
+  const rows: SlashItem[] = slash ? itemsFor(draft, slash.skills, slash.commands) : [];
+  const active = rows.length > 0 ? Math.min(pick, rows.length - 1) : -1;
 
   const grow = () => {
     const el = area.current;
@@ -205,9 +214,30 @@ export function Composer({ chatId, initial, working, queued, onSnapshot, onFlush
     }
   }
 
+  /** One of ATOM's own commands runs now; the model never sees it. "help" shows the whole list. */
+  function runSlash(action: SlashAction) {
+    setDraft(action === "help" ? "/" : "");
+    setPick(0);
+    requestAnimationFrame(grow);
+    setNote(action === "help" ? undefined : onSlash(action));
+  }
+  /** A row picked: ATOM's own command runs; a skill or a command fills its name, ready for the words. */
+  function choose(it: SlashItem) {
+    if (it.action) return runSlash(it.action);
+    const next = completion(it);
+    setDraft(next);
+    setNote(undefined);
+    setPick(0);
+    focusEnd(next.length);
+  }
+
   /** Enter sends, or queues when a turn is running or messages already wait. Ctrl/Cmd+Enter queues and sends the oldest waiting message now. */
   async function submit(now = false) {
     const text = draft.trim();
+    // The picker is open: Enter picks the highlighted row (a full "/new" runs ATOM's command; "/review" gets a space).
+    if (active >= 0) return choose(rows[active]!);
+    const built = builtInIn(draft);
+    if (built) return runSlash(built.action);
     if (blocked || busy) return;
     if (!text && files.length === 0) {
       if (now) onSendNow(); // an empty composer: send the oldest waiting message
@@ -270,6 +300,26 @@ export function Composer({ chatId, initial, working, queued, onSnapshot, onFlush
           ))}
         </ul>
       ) : null}
+      {rows.length > 0 ? (
+        <ul id="slash-list" class="slash-list" role="listbox" aria-label="Commands">
+          {rows.map((it, i) => (
+            <li
+              key={it.id}
+              id={`slash-${i}`}
+              role="option"
+              aria-selected={i === active}
+              class={`slash-row slash-${it.source}${i === active ? " on" : ""}`}
+              onMouseDown={(e) => e.preventDefault()} // keep the caret in the message box
+              onClick={() => choose(it)}
+            >
+              <span class="slash-name">{slashTitle(it)}</span>
+              {it.hint ? <span class="slash-hint">{it.hint}</span> : null}
+              <span class="slash-detail">{it.detail}</span>
+              <span class="slash-source">{SOURCE_LABEL[it.source]}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <label class="sr-only" for="message">Message ATOM</label>
       <textarea
         id="message"
@@ -278,13 +328,34 @@ export function Composer({ chatId, initial, working, queued, onSnapshot, onFlush
         placeholder="How can I help you today?"
         value={draft}
         aria-describedby={blocked || note ? "composer-note" : undefined}
+        role="combobox"
+        aria-expanded={rows.length > 0}
+        aria-controls={rows.length > 0 ? "slash-list" : undefined}
+        aria-activedescendant={active >= 0 ? `slash-${active}` : undefined}
+        aria-autocomplete={rows.length > 0 ? "list" : undefined}
         onInput={(e) => {
+          setPick(0);
           setDraft(e.currentTarget.value);
           setNote(undefined);
           grow();
         }}
         onPaste={onPaste}
         onKeyDown={(e) => {
+          if (rows.length > 0 && !e.isComposing) {
+            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+              e.preventDefault();
+              return setPick((active + (e.key === "ArrowDown" ? 1 : -1) + rows.length) % rows.length);
+            }
+            if (e.key === "Tab" && !e.shiftKey) {
+              e.preventDefault();
+              return choose(rows[active]!);
+            }
+            if (e.key === "Escape") {
+              e.preventDefault();
+              setDraft("");
+              return setPick(0);
+            }
+          }
           if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
             e.preventDefault();
             void submit(e.ctrlKey || e.metaKey);

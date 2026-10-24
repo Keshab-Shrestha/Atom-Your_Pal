@@ -8,6 +8,7 @@ import { replyContent, type ClipContent } from "./copy.ts";
 import type { Incoming, Insertion } from "./Composer.tsx";
 import { splitAttachments } from "./attachments.ts";
 import { Icon } from "./icons.tsx";
+import type { SkillInfo, SlashAction, SlashCommandInfo } from "./slash.ts";
 import type { ComponentChildren } from "preact";
 import { WorkBar } from "./WorkBar.tsx";
 import type { ChatItem, LoopState } from "./protocol.ts";
@@ -34,6 +35,9 @@ export interface ChatViewProps {
   /** An unsent text to place in the composer, and a counter that makes the same text insertable twice. */
   insertion: Insertion | undefined;
   attachWhy: string | undefined;
+  /** The skills and Claude commands for the "/" picker, and how to run ATOM's own commands. */
+  slash: { skills: SkillInfo[]; commands: SlashCommandInfo[] };
+  onSlash: (action: SlashAction) => string | undefined;
   /** Unsent words, files and waiting messages of this chat. */
   input: InputApi;
   /** The composer's model, thinking and access controls. */
@@ -56,7 +60,7 @@ const LOOP_WORDS: Record<LoopState, string> = {
 
 const NO_SEQ = "Reopen this chat to use this on a message that has just arrived.";
 
-export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, recoveryCount, onOpenRecovery, onDismissProblem, onCopy, onQuote, insertion, attachWhy, input, controls, branchWhy, onBranch, onStop, onAnswer }: ChatViewProps) {
+export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, recoveryCount, onOpenRecovery, onDismissProblem, onCopy, onQuote, insertion, attachWhy, slash, onSlash, input, controls, branchWhy, onBranch, onStop, onAnswer }: ChatViewProps) {
   /** Fork, edit and retry need the runtime's saved number for the message. */
   const branchItems = (message: Message): MenuItem[] => {
     const why = branchWhy ?? (message.seq === undefined ? NO_SEQ : undefined);
@@ -236,6 +240,8 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
         modelLabel={modelLabel}
         controls={controls}
         attachWhy={attachWhy}
+        slash={chat?.readOnly ? undefined : slash}
+        onSlash={onSlash}
         incoming={incoming}
         insertion={insertion}
         onSend={(text, files, request) => {

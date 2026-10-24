@@ -234,6 +234,10 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
       m.version += 1;
       sendChats();
       answer({ ok: true, metadata: { pinned: m.pinned, archived: m.archived, version: m.version, ...previous } });
+    } else if (command.type === "helpers.list") {
+      out({ type: "helpers", helpers: [], apps: [], skills: [{ name: "pdf", description: "Read and write PDFs.", source: "yours" }, { name: "review", description: "A skill that reviews.", source: "zeno" }] });
+    } else if (command.type === "commands.list") {
+      out({ type: "commands", commands: [{ name: "build-fix", description: "Fix build errors with minimal changes.", hint: "" }, { name: "review", description: "Review a file.", hint: "[file]" }, { name: "new", description: "A command called new.", hint: "" }, { name: "checkpoint", description: "Create or verify a checkpoint.", hint: "" }] });
     } else if (command.type === "chat.new") {
       const id = `chat-new-${++created}`;
       chats.unshift({ id, title: "New chat", updatedAt: new Date().toISOString(), messages: 0 });

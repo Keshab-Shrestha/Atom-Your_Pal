@@ -262,3 +262,16 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 .surface-title { font-weight: 600; font-size: 15px; }
 
 @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } .turn, .rail-btn { transition: none; } }
+
+/* The "/" picker above the message box (ADR-117): up to eight rows, keyboard and click. */
+.slash-list { list-style: none; margin: 0 0 8px; padding: 4px; border: 1px solid var(--line2); border-radius: var(--radius-card); background: var(--card); display: flex; flex-direction: column; gap: 2px; max-height: 18rem; overflow: auto; }
+.slash-row { display: flex; align-items: baseline; gap: 8px; padding: 6px 10px; border-radius: 8px; cursor: pointer; min-height: 34px; }
+.slash-row.on, .slash-row:hover { background: var(--hover); }
+.slash-row.on { box-shadow: inset 2px 0 0 var(--accent); }
+.slash-name { font-family: var(--font-mono); font-size: 13px; font-weight: 500; white-space: nowrap; }
+.slash-skill .slash-name { color: var(--eyebrow); }
+.slash-command .slash-name { color: var(--text2); }
+.slash-hint { font-family: var(--font-mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+.slash-detail { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text2); }
+.slash-source { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+@media (max-width: 520px) { .slash-source { display: none; } }

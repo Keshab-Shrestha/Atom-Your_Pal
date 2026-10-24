@@ -56,7 +56,8 @@ Status words: **done**, **partial**, **todo**. A row is done only when it works 
 | Per-chat drafts and files, message queue (Enter queues while busy, Ctrl/Cmd+Enter sends the oldest now), held messages after Stop, an error, leaving the chat or a restart, Edit and Remove, 20 per chat, drafts saved across restarts | `ChatInput`, `ComposerDraft`, `IslandModel` queue | **done** (step 2g-1); files are not kept across a restart | 2g-1 |
 | Recovery of interrupted requests and unconfirmed answers: delivery ids and receipts, the Recovery view, restore to a draft, dismiss | `ForegroundRecovery*` | **done for requests** (step 2g-2); unconfirmed answers to ATOM's questions wait for 2i | 2g-2, 2i |
 | Model picker (search, provider filter, custom id, default), thinking menu, access menu incl. Full access consent | `ChatModelPicker`, `ChatReasoningMenu`, `ChatAccessMenu`, `ModelPickerCatalog` | **done** (step 2e); favourite models not ported | 2e |
-| Slash picker, find in chat, chat brief | `SlashPicker`, `ChatFindBar`, `ChatBriefEditor` | todo | 2 |
+| Slash picker (`/` menu: ATOM's commands, skills, Claude commands) | `SlashPicker`, `SlashMenu` | **done** (step 2h-1); `/model`, `/skills` and `/memory` say where to go until their pages exist | 2h-1 |
+| Find in chat, chat brief | `ChatFindBar`, `ChatBriefEditor` | todo | 2h-2, 2h-3 |
 | Approvals: Allow, Decline, Allow for task/chat, Full-access card | `ApprovalState`, `WorkStrip` | **done** (step 2b) | 2b |
 | File-edit review approvals (diff and token) | `EditReviewView`, `FileEditReview` | partial: can be declined, cannot be approved here (needs the diff surface) | 2j |
 | Questions from ATOM, work and task results shown in chat | `ChatWorkView`, `ChatTaskResults`, `ComputerDecisionModel` | todo | 2i |
@@ -111,7 +112,7 @@ The runtime is TypeScript, but some tools call macOS programs. The first cross-p
 One capability per step, each ending with tests and a recorded check (CLAUDE.md §3).
 
 1. **Bridge and Chat core.** Done (above).
-2. **Chat parity**, one capability at a time. 2a Markdown replies and stay-at-end scrolling: done. 2b Stop and approvals: done. 2c chat actions: done. Next, in this order: 2d copy, quote, fork;  2g Stop/queue/drafts/recovery (done); 2h slash picker, find, chat brief; 2i questions and work shown in chat; 2j file-edit review (diff and token).
+2. **Chat parity**, one capability at a time. 2a Markdown replies and stay-at-end scrolling: done. 2b Stop and approvals: done. 2c chat actions: done. Next, in this order: 2d copy, quote, fork;  2g Stop/queue/drafts/recovery (done); 2h slash picker (done, 2h-1), find, chat brief; 2i questions and work shown in chat; 2j file-edit review (diff and token).
 3. **Native shell.** Tauri window around the bridge, Node runtime as a bundled sidecar, and a CI job that builds it on macOS, Windows and Linux. First step that needs a machine (or CI runner) with the web view libraries; this environment has none.
 4. **Board, Needs you, Dashboard.**
 5. **Projects, Files, Changes, Git.**
@@ -194,6 +195,18 @@ Checked: 10 model tests, 4 bridge tests, 2 reducer tests, 25 browser checks agai
 **Review, Restore, Dismiss.** Review shows the prompt and, when the runtime kept a reply, a bounded part of it with Next and Copy this part. **Restore** puts the prompt into an **empty** composer and sends nothing (a typed draft is never overwritten; the view says so and keeps the record), then reminds you to review before sending. **Dismiss** asks first, with Keep focused. Nothing is ever resent by itself, after a crash, a restart or at any time. Open source chat goes to the chat the request was made in.
 
 Checked: 7 model tests (`recovery.ts`), reducer tests for receipts, matching by request id, paging and dismissal, held-copy reconciliation tests, and 23 browser checks against the fake runtime (normal turn needs no review, acknowledged and scrubbed, mark and count, Stopped and Failed entries, Restore refused over a draft and accepted in an empty composer, Dismiss confirmation, bounded reply paging, identical id not run twice, different words refused, crash leaves Interrupted and retained, nothing resent). Not ported: recovery of unconfirmed answers to questions (`pendingAnswers` is sent empty until step 2i), and anything about work/task results. Not checked against the real runtime with a real model.
+
+## Step 2h-1: the "/" picker (24 October 2026)
+
+**What it does.** Typing `/` as the whole first word opens a list of up to eight rows: ATOM's own commands (`/new`, `/model`, `/skills`, `/memory`, `/help`), then the user's skills, then their Claude commands (`~/.claude/commands`). More letters narrow it: names that start with the letters, then names that contain them, then descriptions. A name used by ATOM wins over a skill, a skill over a command; each name appears once. The rules are a port of `SlashMenu.swift`, with its tests. Each row shows its source (ATOM, Skill, Command) and a command's argument hint.
+
+**Keys.** Up and Down move (wrapping), Enter or Tab picks, Escape clears the command, a click picks. Enter with the picker open never sends. Picking a skill or command fills `/name ` and leaves the caret ready for the words; the runtime, not the window, decides what it does when the message is sent. A typed name that matches nothing, or a skill with its words (`/review a.ts`), is an ordinary message. The box is a combobox/listbox for screen readers. The picker is not shown in a chat that can only be read.
+
+**ATOM's own commands run in the window and never reach the model.** `/new` starts a new chat. `/help` shows the list. The other three open pages that are not in this window yet, so each says so in the message box instead of doing nothing: `/model` points to the model button under the box (the model menu is already here, step 2e), `/skills` and `/memory` name the Mac app. They start working when their pages are ported (Plugins and Brain, later steps).
+
+**Where the lists come from.** After every `ready` the window sends `helpers.list` (the skills are one field of a large answer; nothing else is kept) and `commands.list`. A name with white space cannot be typed and is left out. Checked against the real runtime through the bridge: both commands are answered; a real skill came back with its description; the user had no Claude commands.
+
+Checked: 7 model tests (ports of the Swift suite plus the eight-row limit and stricter `/ new` handling), 1 reducer test, 26 browser checks against the fake runtime (order, source labels, keys, wrap, narrowing by name and description, Tab and click, a skill with words is sent, unknown names are sent, `/new` makes a chat and sends nothing, the three page commands say why, `/help`, read-only chat, light and narrow layout). Not ported: the `@` mention menu (separate capability). Not checked: a real skill or command being run by a model.
 
 ## Verification in step 1, and what was not verified
 
