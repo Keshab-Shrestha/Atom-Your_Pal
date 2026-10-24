@@ -309,3 +309,20 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 .link-btn:disabled { color: var(--muted); text-decoration: none; cursor: not-allowed; }
 .remembers { width: min(560px, calc(100vw - 32px)); }
 .remembers-meter { width: 100%; height: 10px; margin: 8px 0; accent-color: var(--accent); }
+
+/* ----- foreground work log (ADR-156) ----- */
+.worklog { align-self: flex-start; max-width: 92%; font-size: 13px; color: var(--text2); }
+.worklog-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 6px; border: 0; border-radius: 8px; background: transparent; color: inherit; text-align: left; font-variant-numeric: tabular-nums; }
+.worklog-toggle:hover { background: var(--hover); }
+.worklog-chev { display: inline-flex; transition: transform var(--t-fast) var(--ease); }
+.worklog-chev.open { transform: rotate(90deg); }
+.worklog-step { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 28ch; }
+.worklog-body { display: flex; flex-direction: column; gap: 6px; padding: 6px 6px 6px 26px; }
+.worklog-body p { margin: 0; }
+.worklog-calls { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.worklog-call { display: flex; align-items: center; gap: 8px; }
+.worklog-tool { overflow-wrap: anywhere; }
+.worklog-ms { margin-left: auto; font-variant-numeric: tabular-nums; }
+.call-error svg { color: var(--bad); } .call-ok svg { color: var(--ok); }
+.worklog-prompt { font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .worklog-chev { transition: none; } }

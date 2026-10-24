@@ -1,6 +1,6 @@
 // A stand-in for `apps/mac/src/main.ts --island` that speaks the same JSON lines, for the bridge tests and for `pnpm --filter @atom/desktop demo`.
 // It needs no API keys and keeps two canned chats in memory. Not a model: replies are fixed text. Never ship it as the runtime.
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, extname, isAbsolute, join } from "node:path";
@@ -90,6 +90,20 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
   const REPLY_CHUNK = 100; // small, so reading a long reply in parts can be tried
   let attempt; // the journal record of the turn in flight
   const receipt = (r) => out({ type: "foreground.receipt", id: r.id, chat: r.chat, state: r.state, archived: r.archived });
+  // The foreground work log (ADR-156): observed tool calls, as the real runtime emits them. No question cards: this window does not opt in yet.
+  let workRun;
+  const emitWork = (state) => {
+    if (!workRun) return;
+    out({ type: "chat.work", chat: workRun.chat, turn: workRun.turn, startedAt: workRun.startedAt, elapsedMs: Date.now() - workRun.at, state, calls: workRun.calls.map((c) => ({ ...c })), omitted: 0, questions: [] });
+  };
+  const beginWork = () => { workRun = { chat: current, turn: randomUUID(), startedAt: new Date().toISOString(), at: Date.now(), calls: [] }; emitWork("working"); };
+  const workCall = (tool, finish) => { const call = { id: randomUUID(), tool, state: "started" }; workRun?.calls.push(call); emitWork("working"); if (finish) { call.state = finish; call.ms = 1200; emitWork("working"); } };
+  const endWork = (state) => {
+    if (!workRun) return;
+    for (const c of workRun.calls) if (c.state === "started") c.state = "unknown";
+    emitWork(state);
+    workRun = undefined;
+  };
   const settle = (state, reply = "", archived = false) => {
     if (!attempt) return;
     Object.assign(attempt, { state, updatedAt: new Date().toISOString(), archived, reply });
@@ -119,6 +133,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
     if (step) out({ type: "computer.step", text: step });
     if (!unsaved) history[current].push({ role: "assistant", text: reply });
     out({ type: "reply", text: reply });
+    endWork("completed");
     out({ type: "turn.complete", speechMs: 0, transcriptionMs: 0, modelMs: 20 });
     out({ type: "computer.end" });
     state = "idle";
@@ -309,6 +324,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
       out({ type: "computer.end" });
       state = "idle";
       out({ type: "state", state: "idle" });
+      endWork("stopped");
       settle("stopped");
     } else if (command.type === "foreground.ack") {
       const r = journal.get(command.id);
@@ -325,6 +341,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
         out({ type: "computer.end" });
         state = "idle";
         out({ type: "state", state: "idle" });
+        endWork("stopped");
         settle("stopped");
       }
       // An identified request (ADR-157): the host commits it, and answers with a receipt, before any attachment check or model call.
@@ -365,6 +382,9 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
       out({ type: "transcript", text: command.text });
       state = "thinking";
       out({ type: "state", state: "thinking" });
+      beginWork();
+      if (/work slowly/.test(command.text)) workCall("Typing in TextEdit");
+      if (/use tools/.test(command.text)) { workCall("Read", "ok"); workCall("Bash", "error"); workCall("Write"); }
       if (attempt) { attempt.state = "running"; saveJournal(); receipt(attempt); }
       const ask = /ask me(?: (remember|review|access))?/.exec(command.text);
       if (ask) {
@@ -396,6 +416,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
           out({ type: "error", stage: "model", message: "No internet." });
           state = "idle";
           out({ type: "state", state: "idle" });
+          endWork("failed");
           settle("failed");
         }, 500);
         return;

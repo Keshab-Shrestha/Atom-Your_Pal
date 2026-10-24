@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { Composer } from "./Composer.tsx";
 import { FindBar } from "./FindBar.tsx";
+import { WorkLog } from "./WorkLog.tsx";
+import type { WorkLog as WorkLogState } from "./work-log.ts";
 import { findInMessages, selectedMatch, stepSelection } from "./find.ts";
 import { QueueList } from "./QueueList.tsx";
 import type { InputApi } from "./useInputs.ts";
@@ -30,6 +32,8 @@ export interface ChatViewProps {
   /** Retained requests that need a look (interrupted, failed, or with a reply not saved in the chat). */
   recoveryCount: number;
   onOpenRecovery: () => void;
+  /** What ATOM did in the turn in view, as the window saw it; shown only for the chat it belongs to. */
+  workLog: WorkLogState | undefined;
   /** Why the chat brief cannot be opened now; undefined when it can. */
   briefWhy: string | undefined;
   onOpenBrief: () => void;
@@ -69,7 +73,7 @@ const LOOP_WORDS: Record<LoopState, string> = {
 
 const NO_SEQ = "Reopen this chat to use this on a message that has just arrived.";
 
-export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, recoveryCount, onOpenRecovery, briefWhy, onOpenBrief, savedWhy, onOpenHistory, onOpenRemembers, onDismissProblem, onCopy, onQuote, insertion, attachWhy, slash, onSlash, input, controls, branchWhy, onBranch, onStop, onAnswer }: ChatViewProps) {
+export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, recoveryCount, onOpenRecovery, workLog, briefWhy, onOpenBrief, savedWhy, onOpenHistory, onOpenRemembers, onDismissProblem, onCopy, onQuote, insertion, attachWhy, slash, onSlash, input, controls, branchWhy, onBranch, onStop, onAnswer }: ChatViewProps) {
   /** Fork, edit and retry need the runtime's saved number for the message. */
   const branchItems = (message: Message): MenuItem[] => {
     const why = branchWhy ?? (message.seq === undefined ? NO_SEQ : undefined);
@@ -84,6 +88,9 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
       { label: "Fork through here", onSelect: () => onBranch("fork", through), disabledWhy: why },
     ];
   };
+  const lastUserId = [...messages].reverse().find((m) => m.role === "user")?.id;
+  const showLog = workLog !== undefined && chat !== undefined && workLog.work.chat === chat.id;
+  const step = work?.outcome === "working" ? work.step : undefined;
   // Files dropped on the chat go to the composer, which checks them. A drop never sends anything.
   const [dragging, setDragging] = useState(false);
   const [incoming, setIncoming] = useState<Incoming | undefined>();
@@ -230,7 +237,7 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
             <p class="muted">Type below. ATOM answers here, and out loud when your voice is on.</p>
           </div>
         ) : (
-          messages.map((message) =>
+          messages.flatMap((message) => [
             message.role === "user" ? (
               <div class={`msg-row msg-row-user${match?.messageId === message.id ? " found" : ""}`} key={message.id} data-msg={message.id}>
                 <RowMenu label="Message actions" items={[{ label: "Copy message", onSelect: () => onCopy({ text: message.text }) }, ...branchItems(message)]} />
@@ -256,7 +263,9 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
                 <div class="body"><CopyContext.Provider value={onCopy}><Markdown text={message.text} /></CopyContext.Provider></div>
               </article>
             ),
-          )
+            // The work log of the turn in view goes right after the message that started it.
+            ...(message.id === lastUserId && showLog ? [<WorkLog key="worklog" log={workLog!} {...(step ? { step } : {})} />] : []),
+          ])
         )}
         {loop === "thinking" || loop === "transcribing" ? (
           <p class="working" role="status">

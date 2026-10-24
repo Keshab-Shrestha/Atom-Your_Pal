@@ -4,6 +4,7 @@
 import type { SkillInfo, SlashCommandInfo } from "./slash.ts";
 import { NOT_CONFIRMED, NOT_LOADED } from "./brief.ts";
 import type { Cursor } from "./saved-chat.ts";
+import { interrupt, validWork, type WorkLog } from "./work-log.ts";
 import type { SavedInfo, SavedPart, Attempt, ChatAccessMode, ChatItem, ChatReasoning, InfoEvent, IslandEvent, LoopState, Receipt, RecoveryRecord, RuntimeStatus } from "./protocol.ts";
 
 export interface Message {
@@ -181,6 +182,8 @@ export interface AppState {
   branchResult?: BranchResult;
   recovery: RecoveryState;
   brief?: BriefState;
+  /** The foreground work log of the turn in view (ADR-156): temporary, never restored from saved history. */
+  workLog?: WorkLog;
   history?: HistoryState;
   remembers?: RemembersState;
   /** The newest receipt for an accepted request. `n` counts them, so each is handled once. */
@@ -257,15 +260,16 @@ function withMessages(state: AppState, turns: { role: "user" | "assistant"; text
 export function reduce(state: AppState, action: Action): AppState {
   switch (action.kind) {
     case "link":
-      return { ...state, link: action.link };
+      // Without the runtime in view, the log stops counting and says it was interrupted.
+      return { ...state, link: action.link, ...(action.link !== "live" && state.workLog ? { workLog: interrupt(state.workLog) } : {}) };
     case "runtime": {
       const runtime = action.status;
       // A runtime that is not running has no turn in flight, nothing it asked is still waiting, and a new run will say `ready` again.
       if (runtime.state === "running") return { ...state, runtime };
-      const { ready: _ready, approval: _approval, work: _work, mutation: _mutation, branch: _branch, ...rest } = state;
+      const { ready: _ready, approval: _approval, work: _work, mutation: _mutation, branch: _branch, workLog, ...rest } = state;
       // Nothing asked of the runtime is still being waited for; what it retained stays shown until the next list.
       const { listing: _l, reading: _r, dismissing: _d, ...recovery } = state.recovery;
-      return { ...rest, recovery, runtime, loop: "idle" };
+      return { ...rest, recovery, runtime, loop: "idle", ...(workLog ? { workLog: interrupt(workLog) } : {}) };
     }
     case "dismissProblem": {
       const { problem: _gone, ...rest } = state;
@@ -458,11 +462,17 @@ function reduceEvent(state: AppState, event: IslandEvent): AppState {
       };
     case "chat.opened": {
       const messages = withMessages(state, event.messages);
-      return { ...state, openChatId: event.id, messages, nextId: state.nextId + messages.length };
+      // The work log belongs to one turn of one chat; another chat shows none.
+      const { workLog, ...rest } = state;
+      return { ...rest, ...(workLog && workLog.work.chat === event.id ? { workLog } : {}), openChatId: event.id, messages, nextId: state.nextId + messages.length };
     }
-    case "conversation.reset":
+    case "chat.work":
+      return validWork(event) ? { ...state, workLog: { work: event, n: (state.workLog?.n ?? 0) + 1 } } : state;
+    case "conversation.reset": {
       // A new chat: nothing to show yet. The `chats` event that follows names it.
-      return { ...dropWork(dropApproval(state)), messages: [], openChatId: undefined };
+      const { workLog: _gone, ...rest } = dropWork(dropApproval(state));
+      return { ...rest, messages: [], openChatId: undefined };
+    }
     case "transcript":
     case "reply": {
       const role = event.type === "transcript" ? "user" : "assistant";

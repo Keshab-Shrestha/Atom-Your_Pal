@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Cross-platform window, step 2i-1: the foreground work log — implemented and checked, 24 October 2026
+
+After the message that started a turn, a collapsed line shows "Working for 12s · 3 observed calls" (then Worked for, Failed after, Stopped after, or Interrupted after if the runtime was lost); expanded, it lists each observed tool call with its outcome in words and the Mac app's caveats. Snapshots are validated against the runtime's limits, belong to one chat, and are never restored. No opt-in is sent, so question cards stay refused by the runtime until 2i-2. Also fixed a real bug found by re-running the older browser suites: an error and the end of a turn arriving in one batch could send a message that had just been held. 5 model tests, 3 reducer tests and 14 browser checks pass; the older suites were brought up to date and pass. Not checked against a real model turn. [Details](docs/cross-platform-migration.md). Next: 2i-2, question cards and unconfirmed answers. Swift unchanged.
+
 ## Cross-platform window, step 2h-3b: saved history and what a chat remembers — implemented and checked, 24 October 2026
 
 Chat options → Saved history reads the chat's saved archive in read-only pages (First/Reload, Previous, Next, Latest saved), with long messages continuing across pages, Copy this part, and Edit/Retry/Fork-through-here that copy the chat into a new one at the page's revision; a chat that changed meanwhile is refused in words. "What this chat remembers" shows the saved message count and replay estimate. Automatic summaries are not ported because the runtime reports them unavailable; the dialog says so. 4 model tests, 3 reducer tests and 21 browser checks against the fake runtime pass; the slash, find and brief browser checks still pass. This completes step 2h. Not checked against a real long chat. [Details](docs/cross-platform-migration.md). Next: 2i, questions from ATOM and work results in chat. Swift unchanged.

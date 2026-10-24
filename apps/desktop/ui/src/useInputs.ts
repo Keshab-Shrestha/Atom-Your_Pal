@@ -154,7 +154,10 @@ export function useInputs(options: {
   const turnBegan = !sentWhen || state.turnsStarted > sentWhen.turns || Date.now() - sentWhen.at > START_PATIENCE_MS;
   const next = loaded ? nextToSend(inputs, chat) : undefined;
   useEffect(() => {
-    if (next && idle && !blocked && turnBegan) void run(chat, next);
+    // Read the queue as it is now, not as it was when this render began: an error and the end of the turn can arrive in one batch, and the
+    // effect above that holds everything which waits has already run. A message it held must never be sent by this one.
+    const fresh = loaded ? nextToSend(ref.current, chat) : undefined;
+    if (next && fresh?.id === next.id && idle && !blocked && turnBegan) void run(chat, fresh);
   }, [next?.id, idle, blocked, turnBegan, chat, loaded]);
 
   const api: InputApi = {

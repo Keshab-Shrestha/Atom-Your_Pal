@@ -454,3 +454,35 @@ test("what a chat remembers is the answer to its own inspect, and a fork's inspe
   assert.equal(again.remembers?.info?.messages, 4, "refreshing keeps what was shown until the new answer arrives");
   assert.equal(run([{ kind: "remembersClose" }], s).remembers, undefined);
 });
+
+// ---- the foreground work log ----
+const WU = (n: number) => `${String(n).padStart(8, "0")}-0000-4000-8000-000000000000`;
+const workEv = (extra: object = {}, chat = "c1") => ev({ type: "chat.work", chat, turn: WU(1), startedAt: "2026-10-24T00:00:00Z", elapsedMs: 500, state: "working", calls: [{ id: WU(2), tool: "Read", state: "started" }], omitted: 0, questions: [], ...extra });
+
+test("each work snapshot replaces the last and is counted; a snapshot beyond the limits is dropped", () => {
+  const a = run([workEv()]);
+  assert.equal(a.workLog?.work.calls[0]?.state, "started");
+  assert.equal(a.workLog?.n, 1);
+  const b = run([workEv({ state: "completed", calls: [{ id: WU(2), tool: "Read", state: "ok", ms: 30 }] })], a);
+  assert.equal(b.workLog?.work.state, "completed");
+  assert.equal(b.workLog?.n, 2);
+  assert.equal(run([workEv({ elapsedMs: -5 })], b).workLog?.n, 2, "an invalid snapshot changes nothing");
+});
+
+test("the work log belongs to one chat: another chat or a new one shows none", () => {
+  const s = run([workEv()]);
+  assert.ok(run([ev({ type: "chat.opened", id: "c1", messages: [] })], s).workLog, "the same chat reopened keeps it");
+  assert.equal(run([ev({ type: "chat.opened", id: "c2", messages: [] })], s).workLog, undefined);
+  assert.equal(run([ev({ type: "conversation.reset" })], s).workLog, undefined);
+});
+
+test("when the window loses the runtime, work in progress is interrupted; finished work is left alone", () => {
+  const s = run([workEv()]);
+  const cut = run([{ kind: "link", link: "down" }], s);
+  assert.equal(cut.workLog?.interrupted, true);
+  assert.equal(cut.workLog?.work.calls[0]?.state, "unknown");
+  const stopped = run([{ kind: "runtime", status: { state: "restarting", afterSeconds: 2 } }], s);
+  assert.equal(stopped.workLog?.interrupted, true);
+  const done = run([workEv({ state: "completed" }), { kind: "link", link: "down" }]);
+  assert.equal(done.workLog?.interrupted, undefined);
+});

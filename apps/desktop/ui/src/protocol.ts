@@ -13,6 +13,7 @@ export type ChatControlEvent = Extract<IslandEvent, { type: "chat.control" }>;
 export type SavedPage = NonNullable<ChatControlEvent["page"]>;
 export type SavedPart = SavedPage["messages"][number];
 export type SavedInfo = NonNullable<ChatControlEvent["info"]>;
+export type ChatWorkEvent = Extract<IslandEvent, { type: "chat.work" }>;
 export type LoopState = Extract<IslandEvent, { type: "state" }>["state"];
 
 /** What the bridge says about the runtime process (apps/desktop/bridge/supervisor.ts). */

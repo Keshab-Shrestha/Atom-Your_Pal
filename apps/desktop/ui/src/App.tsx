@@ -400,6 +400,7 @@ export function App({ transport }: { transport: Transport }) {
         input={inputs.api}
         recoveryCount={recovery.count}
         onOpenRecovery={recovery.open}
+        workLog={state.workLog}
         briefWhy={briefWhy}
         onOpenBrief={() => state.currentChatId && brief.open(state.currentChatId)}
         savedWhy={savedWhy}
