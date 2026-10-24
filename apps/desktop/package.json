@@ -1,0 +1,20 @@
+{
+  "name": "@atom/desktop",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "ui:build": "vite build --config ui/vite.config.ts",
+    "ui:dev": "vite --config ui/vite.config.ts",
+    "ui:typecheck": "tsc -p ui/tsconfig.json",
+    "start": "node --disable-warning=ExperimentalWarning bridge/main.ts",
+    "demo": "node --disable-warning=ExperimentalWarning bridge/main.ts --demo"
+  },
+  "dependencies": {
+    "@fontsource-variable/fraunces": "5.3.0",
+    "@fontsource-variable/inter": "5.3.0",
+    "preact": "10.29.8"
+  },
+  "devDependencies": {
+    "vite": "8.3.5"
+  }
+}

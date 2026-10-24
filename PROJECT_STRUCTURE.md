@@ -91,6 +91,7 @@ Modules may become separate services later only when scale requires it.
 |---|---|---|
 | `apps/mac/` | Mac node: microphone, speaker, local STT and TTS, voice loop entry point (`src/`, TypeScript) | 0 |
 | `apps/mac/island/` | ATOM Island: the native Swift app (panel, hover reveal, Ctrl+Option push-to-talk) that runs the Mac node as its child process | 0.5 |
+| `apps/desktop/` | The cross-platform window that is replacing the Swift app (ADR-201): `bridge/` (Node, supervises the runtime, HTTP/SSE) and `ui/` (Preact, Four-lane design). Same runtime and protocol | 0.5 |
 | `apps/ios/` | iPhone node | 7 |
 | `apps/windows/` | Windows node | 8 |
 | `apps/web/` | Web interface | Later |

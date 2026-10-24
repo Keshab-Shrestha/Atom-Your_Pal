@@ -1,0 +1,97 @@
+/* Design tokens. Midnight Sapphire (dark, the default) and Cloud White & Cobalt (light) from the "Four-lane workspace" design.
+   The window follows the system theme. Names match the design file so the two stay comparable; no hex value is written in a component. */
+
+:root {
+  --font-ui: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Fraunces Variable", Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  --radius-lane: 14px;
+  --radius-card: 12px;
+  --radius-control: 10px;
+  --radius-composer: 20px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --t-fast: 150ms;
+
+  color-scheme: dark;
+  --frame: #070b13;
+  --rail: #090f1a;
+  --panel: #101929;
+  --work: #0b1220;
+  --ws: #0e1626;
+  --card: #151e30;
+  --sunken: #101727;
+  --text: #f5f7ff;
+  --text2: #c8ccd6;
+  --muted: #a0a5b0;
+  --line: rgba(245, 247, 255, 0.08);
+  --line2: rgba(245, 247, 255, 0.14);
+  --line3: rgba(245, 247, 255, 0.26);
+  --hover: rgba(245, 247, 255, 0.06);
+  --accent: #6d8dff;
+  --on-accent: #0b1220;
+  --accent2: #b8c6ff;
+  --eyebrow: #b8c6ff;
+  --bubble: #2f3f6e;
+  --bubble-fg: #f5f7ff;
+  --panel-fg: #f5f7ff;
+  --panel-muted: #999ea9;
+  --panel-line: rgba(245, 247, 255, 0.1);
+  --panel-input: #090e1a;
+  --panel-sel: rgba(109, 141, 255, 0.2);
+  --rail-icon: #92969f;
+  --rail-fg: #f5f7ff;
+  --ok: #74d6ae;
+  --bad: #f2a190;
+  --warn: #ebc683;
+  --ok-soft: rgba(116, 214, 174, 0.16);
+  --bad-soft: rgba(242, 161, 144, 0.16);
+  --warn-soft: rgba(235, 198, 131, 0.16);
+  --info-soft: rgba(109, 141, 255, 0.2);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --frame: #e2e4e9;
+    --rail: #182237;
+    --panel: #ffffff;
+    --work: #f8fafd;
+    --ws: #eef0f4;
+    --card: #ffffff;
+    --sunken: #f8fafd;
+    --text: #182237;
+    --text2: #495263;
+    --muted: #626978;
+    --line: rgba(24, 34, 55, 0.08);
+    --line2: rgba(24, 34, 55, 0.14);
+    --line3: rgba(24, 34, 55, 0.26);
+    --hover: rgba(24, 34, 55, 0.05);
+    --accent: #3658d6;
+    --on-accent: #ffffff;
+    --accent2: #c7daf8;
+    --eyebrow: #3658d6;
+    --bubble: #182237;
+    --bubble-fg: #f8fafd;
+    --panel-fg: #182237;
+    --panel-muted: #676d7b;
+    --panel-line: rgba(24, 34, 55, 0.1);
+    --panel-input: #f8fafd;
+    --panel-sel: rgba(54, 88, 214, 0.12);
+    --rail-icon: #9ea4ae;
+    --rail-fg: #f8fafd;
+    --ok: #13805a;
+    --bad: #b4452f;
+    --warn: #8a5a12;
+    --ok-soft: #d9f0e6;
+    --bad-soft: #fbe3dd;
+    --warn-soft: #fbefd6;
+    --info-soft: rgba(54, 88, 214, 0.12);
+  }
+}

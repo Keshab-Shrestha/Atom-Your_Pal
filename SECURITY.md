@@ -754,3 +754,18 @@ ADR-192: source analysis reads only the connected source's existing imported cur
 
 
 ADR-194 (23 October 2026): new reviewed source previews may include PDF/DOCX; existing scopes stay text-only. Bound raw reads, ZIP sizes/inflation/CRC, XML depth/text, PDF pages, process CPU/output/deadline and post-extraction source identity. The owned helper receives bytes rather than paths; no Office importer, archive writes, external entities/relationships, macros, OCR or model call. This is not a general OS sandbox. Explicit selected saved-note excerpts enter private preparation only; missing/conflicting copies are skipped and source/profile/config versions rechecked. Note-bearing request lines are discarded, and ordinary delivered/spoken lines come from a separate note-free request under the same selected profile, with no legacy-provider fallback. Cards remain inert with existing budgets and manual review. This extends ADR-191's original no-notes scope solely for explicit selections; no general note search, permission transfer, account read or background folder scan. Logs omit content/raw reader or provider errors. [Boundaries and evidence](docs/everyday-assistant-polish.md).
+
+## Cross-platform window bridge (ADR-201, 2026-10-24)
+
+`apps/desktop/bridge` is the equivalent of the Swift app's private pipe: whoever can send it a command has the window's full authority, including answering approvals. It is therefore not the Local API (ADR-098/121), which deliberately cannot approve. What protects it:
+
+- **Loopback only.** It listens on 127.0.0.1, on a free port unless `ATOM_DESKTOP_PORT` is set.
+- **A random token per run** (32 bytes, hex), compared in constant time. It is sent in the `Authorization` header and never in a URL, so it does not reach history or logs. The launcher prints it in the address's `#fragment`, which a browser does not send to a server; the window keeps it for the tab and removes it from the address bar. It is not written to disk. A token in a query string is refused (tested).
+- **Host check** (127.0.0.1, localhost, [::1]) against DNS rebinding, before any other check.
+- **Same-origin writes.** A POST carrying an `Origin` other than the page's own is refused, even with a valid token. No CORS headers are sent.
+- **Strict content policy** on the window's files: `default-src 'self'`, no inline script, no framing. The window shows text with text nodes only, never as HTML.
+- **A window cannot stop the runtime.** `quit` is refused (403); the bridge owns the runtime's lifetime. Commands to a runtime that is down get 503 and are dropped, never queued for a later runtime.
+- **Bounded input.** 16 MiB per command; the runtime still validates every command with its own parser. A window that falls 8 MiB behind is disconnected; it reconnects and asks again.
+- **No rate limiter** on wrong tokens: a 256-bit random token is not guessable, unlike the phone page's. Revisit if the token ever becomes user-chosen or longer-lived than a run.
+
+Residual risk: any local process that can read this user's process list or the terminal where the address was printed can learn the token. That matches the Swift app's boundary (a local process could also read the pipe's file descriptors as the same user). Not covered yet: the native shell's own protections; they are specified when that step is built.

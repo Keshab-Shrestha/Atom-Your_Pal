@@ -718,3 +718,16 @@ ADR-194 (23 October 2026): reviewed personal-source expansion reuses Second brai
 
 
 ADR-195/196 (23 October 2026): the main AppKit window owns user sizing; the title-bar drag view has one owner for dragging/zoom. Orbit is an additive avatar drawing family shared across companion, portraits, icon and floor, with legacy/custom fallback. Studio preserves workstation anchors, seat capacity and pathfinding while spreading lounge anchors into three rows, and retains existing task/approval navigation; canvas accessibility actions open the same routes. Reduced motion uses a stationary scene. No runtime execution, permission or database changes. [Scope and evidence](docs/studio-redesign.md).
+
+## Cross-platform window (ADR-201, 2026-10-24)
+
+The window is being replaced by one that runs on Mac, Windows and Linux. The runtime and the island protocol do not change; only the client does.
+
+```text
+Window (Preact)  ──HTTP/SSE──▶  Bridge (Node)  ──JSON lines──▶  Runtime (apps/mac/src)
+apps/desktop/ui                 apps/desktop/bridge
+        ▲
+        └── Transport interface: a native shell (Tauri 2, proposed) can replace the HTTP part later
+```
+
+Boundaries kept: the window holds no permission, identity or memory logic (it shows what the runtime sends, and the runtime validates each command); the bridge is a transport and supervisor only; the shell, when added, owns window, tray, shortcuts and overlays. The Swift app remains the shipping client until the parity checklist in [docs/cross-platform-migration.md](docs/cross-platform-migration.md) is done.

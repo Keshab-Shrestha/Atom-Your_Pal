@@ -11,5 +11,6 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["apps", "services", "packages", "tests"]
+  "include": ["apps", "services", "packages", "tests"],
+  "exclude": ["apps/desktop/ui"]
 }

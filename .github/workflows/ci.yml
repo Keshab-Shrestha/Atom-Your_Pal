@@ -29,6 +29,26 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
 
+  # ADR-201: the cross-platform window and its bridge must work on all three systems, so they are built and tested on all three.
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: node --test "apps/desktop/**/*.test.ts"
+      - run: pnpm desktop:build
+
   swift:
     runs-on: macos-latest
     timeout-minutes: 30
