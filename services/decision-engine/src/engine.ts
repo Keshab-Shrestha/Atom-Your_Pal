@@ -1,5 +1,5 @@
-// ADR-083: the Decision Engine boundary (CLAUDE.md §10). It decides only which model tier a worker job gets:
-// never what a worker may do, which folders it may touch, or whether an action needs approval.
+// ADR-083/200: the replaceable Decision Engine chooses worker tiers and optional prepared computer plans.
+// Never grants permissions, approves an action, verifies success or generates free-form actions.
 
 export const TIERS = ["small", "medium", "large"] as const;
 export type Tier = (typeof TIERS)[number];
@@ -29,6 +29,10 @@ export interface DecisionEngine {
   chooseTier(task: string, role: string): Promise<TierChoice>;
   /** Gets ready ahead of the first call (starts a server); returns at once and never throws. */
   warm(): void;
+  /** Optional local-only warm-up after the user selects computer decisions. */
+  warmComputer?(): void;
+  /** Optional bounded computer-plan choice. Never executes or approves an action. */
+  chooseComputerPlan?(request: import("./computer.ts").ComputerDecisionState, signal?: AbortSignal): Promise<import("./computer.ts").ComputerDecisionAnswer | undefined>;
   /** Stops whatever the engine runs (a server process). Later calls fall back. */
   close(): Promise<void>;
 }

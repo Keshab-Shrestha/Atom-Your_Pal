@@ -116,7 +116,7 @@ test("project chat: Bash runs sandboxed after the code check; a risky command as
   done();
 });
 
-test("project chat in a git repository: a folders agent works in a worktree on its task branch; its end commits there", async () => {
+test("project task completion retains uncommitted work without changing branch history", async () => {
   const { execFileSync } = await import("node:child_process");
   const { writeFileSync } = await import("node:fs");
   const { gate, work, store, board, done } = setup({ project: true });
@@ -134,7 +134,8 @@ test("project chat in a git repository: a folders agent works in a worktree on i
   assert.equal((await pre(gate, { agent_id: "ag-1", agent_type: "kame", tool_name: "Write", tool_input: { file_path: join(tree, "a.txt"), content: "x" } }, "w1")).decision, "allow");
   writeFileSync(join(tree, "a.txt"), "x");
   await gate.agentEnded(job);
-  assert.match(git("log", "--oneline", `atom/task-${job}`), new RegExp(`ATOM task ${job}`));
+  assert.equal(git("rev-parse", `atom/task-${job}`), git("rev-parse", "HEAD"));
+  assert.equal(execFileSync("git", ["-C", tree, "status", "--porcelain"], { encoding: "utf8" }).trim(), "?? a.txt");
   git("worktree", "remove", "--force", tree);
   done();
 });

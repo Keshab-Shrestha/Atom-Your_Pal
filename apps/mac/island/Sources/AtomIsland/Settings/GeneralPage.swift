@@ -103,6 +103,7 @@ struct GeneralSection: View {
                     .disabled(!model.computerOn)
             }
         }
+        ComputerDecisionSettings(model: model)
         PermissionsCard(model: model)
             .onAppear { model.permissions.startPolling() }
             .onDisappear { model.permissions.stopPolling() }

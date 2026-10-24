@@ -91,7 +91,8 @@ function start(config: Config) {
     if (!lock.ok) {
       const text = `ATOM already runs on this data folder (pid ${lock.pid}).`;
       log.warn("app.refused", { pid: lock.pid });
-      if (island) islandFatal("config", text, EXIT_CONFIG); // exit 78: the island shows it and does not restart
+      // Temporary ownership conflict, not broken credentials/configuration. The supervisor retries with bounded backoff.
+      if (island) islandFatal("runtime", `${text} Wait for that runtime to finish, then retry. No settings need changing.`, 75);
       else {
         console.error(text);
         process.exit(1);

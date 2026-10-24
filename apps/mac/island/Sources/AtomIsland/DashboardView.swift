@@ -378,7 +378,7 @@ private struct GitSection: View {
     }
 }
 
-private struct GitBranchCard: View {
+struct GitBranchCard: View {
     let model: IslandModel
     let branch: GitBranch
     let push: () -> Void
@@ -392,10 +392,17 @@ private struct GitBranchCard: View {
                 Text(branch.repoName).font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text.color)
                 Text(branch.branch).font(theme.idFont(.system(size: 11.5), size: 11)).foregroundStyle(theme.idColor(theme.text2))
                 Spacer(minLength: 8)
-                Text(branch.pushed == .yes ? "Pushed" : branch.pushed == .changed ? "Changed since push" : "Not pushed")
+                Text(branch.uncommitted ? "Uncommitted changes" : branch.pushed == .yes ? "Pushed" : branch.pushed == .changed ? "Changed since push" : "Not pushed")
                     .font(.system(size: 11)).foregroundStyle(theme.text3.color)
             }
             if let title = branch.title { Text("Task \(branch.task): \(title)").font(.system(size: 12.5)).foregroundStyle(theme.text2.color).lineLimit(1) }
+            if let tree = branch.worktree {
+                Text("Working copy: \(tree)").font(.system(size: 11, design: .monospaced)).foregroundStyle(theme.text3.color).textSelection(.enabled)
+            }
+            if branch.uncommitted {
+                Text("Kept uncommitted for your review. Commit explicitly in Terminal before pushing. This review does not apply the task copy to the original project. New untracked file contents are not included in this diff until staged.")
+                    .font(.system(size: 11.5)).foregroundStyle(theme.attention.color)
+            }
             if branch.baseSource != "unavailable" {
                 HStack(spacing: 6) {
                     Text("\(branch.commits.count >= 50 ? "50+" : String(branch.commits.count)) commit\(branch.commits.count == 1 ? "" : "s") · \(branch.files.count >= 200 ? "200+" : String(branch.files.count)) file\(branch.files.count == 1 ? "" : "s")")

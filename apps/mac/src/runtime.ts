@@ -21,7 +21,6 @@ import {
   createCalendarTools,
   createComputerTool,
   createCuaTransport,
-  createAgentCursor,
   createLookAtScreenTool,
   createTimers,
   createAppTools,
@@ -66,7 +65,7 @@ import {
   type TestKind,
   type HelperView,
 } from "@atom/helpers";
-import { createLayaEngine } from "@atom/decision-engine";
+import { createLayaEngine, acceptedComputerPlan } from "@atom/decision-engine";
 import type { InputSource, Message, ZenoInput } from "@atom/contracts";
 import type { IslandBrain, IslandChats, IslandGit, IslandHelpers, IslandMemory, IslandOptions, IslandProjects } from "./island.ts";
 import { islandHelpers } from "./island-helpers.ts";
@@ -211,9 +210,8 @@ export function createRuntime(
     language: config.stt.language,
     vocabulary: config.stt.vocabulary,
   });
-  let agentCursor: ReturnType<typeof createAgentCursor> | undefined; // set once the Cua transport exists (computer control on)
   const computer = createComputerBridge({
-    cursor: { start: () => agentCursor?.start() ?? Promise.resolve(), finish: () => agentCursor?.finish() ?? Promise.resolve() },
+    onDecisionWarm: () => { if (decisions.warmComputer) decisions.warmComputer(); else decisions.warm(); },
     onCursorError: () => log.warn("computer.cursor_failed", {}),
   });
   const memory = openMemory(options.memoryPath ?? readEnv(process.env, "ATOM_MEMORY_FILE") ?? "data/memory.db", log);
@@ -472,10 +470,11 @@ export function createRuntime(
   // ADR-074: off with the front window tool (ATOM_FRONT_WINDOW=0), whose limits it shares.
   const screen = createWindowPointer({ enabled: readEnv(process.env, "ATOM_FRONT_WINDOW") !== "0", log });
   // ADR-080: the screenshot the model was given this turn, so the reply's [POINT:…] marker can be checked against it.
+  // ADR-083/200: shared local worker-tier/optional computer-plan classifier; no automatic downloads.
+  const decisions = createLayaEngine({ log });
   const computerOn = readEnv(process.env, "ATOM_COMPUTER") === "1";
   let lastShot: ScreenShot | undefined;
   const cua = computerOn ? createCuaTransport({ onTiming: (timing) => log.info("computer.transport", { ...timing }) }) : undefined;
-  agentCursor = cua ? createAgentCursor(cua) : undefined;
   const calendarHelper = findCalendarHelper();
   log.info("calendar.helper", { available: Boolean(calendarHelper) });
   // The tools ATOM can use. Built before the model because "Claude (my plan)" runs the tool loop itself and
@@ -522,9 +521,27 @@ export function createRuntime(
               log.info("computer.approval_asked");
               return computer.approve(request, signal);
             },
-            onStep: (step) => computer.step(step),
+            onStep: (step) => { computer.beginAction(); computer.step(step); },
+            decisionProvider: () => computer.decisionOptions().provider,
+            choosePlan: async (request, signal) => {
+              const config = computer.decisionOptions();
+              if (config.provider === "off" || signal?.aborted) return undefined;
+              const started = Date.now();
+              let source: "jev" | "laya" = config.provider;
+              let answer = config.provider === "jev" ? await computer.decide(request, signal) : await decisions.chooseComputerPlan?.(request, signal);
+              if (!answer && config.provider === "jev" && config.backup && !signal?.aborted && computer.decisionOptions().revision === config.revision) {
+                source = "laya"; answer = await decisions.chooseComputerPlan?.(request, signal);
+              }
+              if (signal?.aborted || computer.decisionOptions().revision !== config.revision) return undefined;
+              const index = acceptedComputerPlan(answer, Object.keys(request.criteria).length - 1);
+              const reason = answer ? "uncertain" as const : "unavailable" as const;
+              log.info("computer.decision", { source, ms: Date.now() - started, accepted: index !== undefined, ...(index === undefined ? { reason } : {}) });
+              return index === undefined ? { source, reason } : { index, source };
+            },
+            onProgress: (step) => computer.step(step),
+            onCursorMove: (point) => computer.cursorMove(point),
             onPoint: (target) => computer.point(target),
-            onAction: (event) => log.info("computer.action", { ...event }),
+            onAction: (event) => { computer.actionFinished(); log.info("computer.action", { ...event }); },
             deliveryMode: () => computer.deliveryMode(),
           }),
           // ADR-080: a screenshot through Cua (which holds Screen Recording), on request only. Never stored or logged.
@@ -881,9 +898,6 @@ export function createRuntime(
     beforeWrite: () => continuity?.interrupt(),
     write: (profile, task, job, signal) => writeIsolated({ ...profile, chat: job }, task, SOURCE_ANALYSIS_INSTRUCTIONS, signal, 4),
     log: (event, fields) => log.info(event, fields as LogFields) });
-  // ADR-083: Laya rates each job's difficulty. Its server starts on the first job, stays warm, and stops in close().
-  // ATOM_LAYA=0 turns it off (every job then gets the role's default tier).
-  const decisions = createLayaEngine({ log });
   // ADR-098 item 3: Keshab's messages to running tasks (the ATOM window; Telegram calls the same). ADR-110 N5: a note to a
   // task is a message to the main agent of the chat that runs it.
   const steering = helpers ? nativeSteering(() => nativeCores) : undefined;

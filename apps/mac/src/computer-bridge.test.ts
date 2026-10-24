@@ -12,6 +12,40 @@ function setup(over: { timeoutMs?: number } = {}) {
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+test("the cursor does not return home during a long in-flight computer action", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const events: IslandEvent[] = [];
+  const bridge = createComputerBridge({ endAfterMs: 40 });
+  bridge.attach((event) => events.push(event));
+  bridge.beginAction();
+  bridge.step({ action: "click", app: "Calculator" });
+  t.mock.timers.tick(100);
+  assert.equal(events.some((e) => e.type === "computer.end"), false);
+  bridge.actionFinished();
+  t.mock.timers.tick(40);
+  assert.equal(events.at(-1)?.type, "computer.end");
+});
+
+test("sequence progress remains one active action and exposes only bounded step numbers", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const events: IslandEvent[] = [];
+  const bridge = createComputerBridge({ endAfterMs: 40 });
+  bridge.attach((e) => events.push(e));
+  bridge.beginAction();
+  bridge.step({ action: "click_sequence", app: "Calculator" });
+  for (const current of [1, 2]) {
+    bridge.step({ action: "click", app: "Calculator", current, total: 2 });
+    t.mock.timers.tick(100);
+    assert.equal(events.some((e) => e.type === "computer.end"), false);
+  }
+  const last = events.at(-1);
+  assert.equal(last?.type === "computer.step" && last.text, "Clicking button 2 of 2 in Calculator");
+  assert.equal(stepText({ action: "click", current: 100, total: 100 }), "Clicking");
+  bridge.actionFinished();
+  t.mock.timers.tick(40);
+  assert.equal(events.at(-1)?.type, "computer.end");
+});
+
 // 2026-10-15: the island's strip ended only when its voice loop went idle; an API turn left it up until the user closed it.
 test("a quiet moment after the last step tells the island the work is over; a new step moves the end later", (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
@@ -249,4 +283,22 @@ test("read-only readiness does not initialize the agent cursor before the measur
   bridge.step({ action: "status" });
   await new Promise((r) => setTimeout(r, 30));
   assert.deepEqual(calls, []);
+});
+
+test("Jev decisions are opt-in, request-scoped and cancelled when the provider changes", async () => {
+  const events: IslandEvent[] = [];
+  const bridge = createComputerBridge(); bridge.attach((e) => events.push(e));
+  const request = { state: "fictional", criteria: { plan_0: "A", plan_1: "B", review: "Review" } };
+  assert.equal(await bridge.decide(request), undefined);
+  assert.equal(events.length, 0);
+  bridge.setDecisions("jev", false);
+  const pending = bridge.decide(request);
+  const event = events.at(-1); assert.equal(event?.type, "computer.decision");
+  if (event?.type !== "computer.decision") return;
+  bridge.decisionResult("wrong-id", { choice: "plan_0", confidence: 1, probability: 1 });
+  bridge.setDecisions("off", false);
+  assert.equal(await pending, undefined);
+  assert.equal(events.at(-1)?.type, "computer.decision.cancel");
+  bridge.decisionResult(event.id, { choice: "plan_0", confidence: 1, probability: 1 });
+  assert.equal(bridge.decisionOptions().provider, "off");
 });

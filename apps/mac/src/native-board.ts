@@ -53,7 +53,7 @@ export function boardRecorder(
   helpers: BoardStore,
   chatId: string,
   options: {
-    /** After a sub-agent stops (its report is kept): commit a worktree, free the browser. */
+    /** After a sub-agent stops: retain its working copy and report, free the browser. No implicit commit. */
     onEnd?(job: number): void | Promise<void>;
     log?(event: string, fields: Record<string, unknown>): void;
   } = {},
@@ -119,7 +119,7 @@ export function boardRecorder(
       log("agent.end", { job, state: outcome.stopped ? "stopped" : outcome.interrupted || outcome.failed !== undefined ? "failed" : "done" });
     } else {
       // 2026-10-15: the row was changed first (Keshab pressed Stop) or deleted. The row stays as it is, but the cleanup below
-      // (browser lock, checkpoints, the worktree commit) must still run: it used to be skipped.
+      // (browser lock, checkpoints, retained worktree) must still run: it used to be skipped.
       log("agent.end", { job, state: row?.state ?? "gone", already: true });
     }
     timelines.delete(job);

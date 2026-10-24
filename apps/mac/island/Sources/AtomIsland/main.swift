@@ -96,7 +96,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // Reveal a hidden window, but keep an already-visible editor or Quick actions panel in place.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         guard !terminating else { return false }
-        if !flag { island?.setExpanded(true) }
+        // The companion is itself a visible window, so Launch Services' flag cannot tell whether chat is open.
+        island?.helpersWindow.show()
         return true
     }
 
@@ -104,6 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // A second request (SIGTERM, then Command-Q) must not stop the runtime and reply a second time.
         if terminating { return .terminateLater }
         terminating = true
+        UserDefaults.standard.set(island?.helpersWindow.isVisible == true, forKey: "atom.window.restoreOnLaunch")
         SecretClipboard.clearIfStillSecret() // a copied API token does not outlive the app
         island?.stop()
         guard let supervisor else {

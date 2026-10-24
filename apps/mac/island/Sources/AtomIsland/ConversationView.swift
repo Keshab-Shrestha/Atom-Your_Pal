@@ -124,9 +124,10 @@ struct Composer: View {
                             } else {
                                 AttachButton { attached.wrappedValue.add($0) }
                             }
-                            if answering && empty {
+                            if answering {
                                 StopReplyButton { model.stopReply() }
-                            } else {
+                            }
+                            if !answering || !empty {
                                 ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, queueing: model.queue.running, action: send)
                             }
                         }
@@ -144,8 +145,8 @@ struct Composer: View {
                                     ChatAccessMenu(model: model)
                                     Spacer(minLength: 0)
                                     AttachButton { attached.wrappedValue.add($0) }
-                                    if answering && empty { StopReplyButton { model.stopReply() } }
-                                    else { ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, queueing: model.queue.running, action: send) }
+                                    if answering { StopReplyButton { model.stopReply() } }
+                                    if !answering || !empty { ComposerButton(empty: empty, listening: model.status.kind == .listening, hint: talkHint, queueing: model.queue.running, action: send) }
                                 }
                             }
                         }
@@ -249,10 +250,11 @@ struct Composer: View {
     /// Nothing to send: no words, files or notes.
     private var empty: Bool { draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && attached.wrappedValue.isEmpty }
 
-    /// ATOM is working out or saying an answer.
+    /// Keep cancellation reachable throughout the foreground turn, including input delivery and approval waits.
     private var answering: Bool {
+        if model.queue.running { return true }
         switch model.status.kind {
-        case .transcribing, .thinking, .speaking: return true
+        case .transcribing, .thinking, .speaking, .acting, .asking: return true
         default: return false
         }
     }
@@ -708,6 +710,7 @@ struct ConversationTab: View {
                                          project: model.chats?.currentProject, findMatch: match?.turnID == turn.id ? match : nil,
                                          computerStep: model.conversation.isLatest(turn) ? model.status.currentStep : nil).id(turn.id)
                             }
+                            ChatTaskResults(model: model).id("task-results-" + (model.chats?.current ?? ""))
                         }
                         .padding(.horizontal, Spacing.conversation)
                         .padding(.vertical, 12)

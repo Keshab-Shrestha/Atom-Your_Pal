@@ -5,6 +5,7 @@ import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { branchDiff, cleanRemote, pushBranch, repositoriesOf, zenoBranches } from "./git-branches.ts";
+import { prepareWorkdir } from "./worktree.ts";
 
 // ADR-091: ATOM's task branches like a pull request, and Keshab's push (never forced, only zeno/task-*, only origin).
 
@@ -30,6 +31,26 @@ function setup() {
   sh(repo, "branch", "feature");
   return { root, repo, remote };
 }
+
+test("retained uncommitted task changes remain reviewable without changing branch history", async () => {
+  const { root, repo } = setup();
+  try {
+    const worktrees = join(root, "task-work");
+    const work = await prepareWorkdir(repo, 41, worktrees);
+    const before = sh(repo, "rev-parse", "HEAD");
+    writeFileSync(join(work.dir, "README.md"), "review this change\n");
+    writeFileSync(join(work.dir, "new.md"), "new untracked work\n");
+    const branch = (await zenoBranches(repo, worktrees)).find((b) => b.task === 41)!;
+    assert.equal(branch.uncommitted, true);
+    assert.equal(branch.worktree, work.tree);
+    assert.equal(branch.commits.length, 0);
+    assert.equal(sh(repo, "rev-parse", work.branch!), before);
+    const diff = await branchDiff(repo, work.branch!, 200_000, worktrees);
+    assert.match(diff.text, /\+review this change/);
+    assert.match(diff.text, /untracked file contents are not included/);
+    assert.equal(sh(repo, "status", "--porcelain"), "");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
 
 test("task branches show their commits, files and whether they are pushed; Keshab's push sends one, never forced", async () => {
   const { root, repo } = setup();

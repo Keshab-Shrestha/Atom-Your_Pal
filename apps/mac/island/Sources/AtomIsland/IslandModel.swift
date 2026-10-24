@@ -42,6 +42,7 @@ final class IslandModel {
     var editAnswers: [String: EditAnswer] = [:]
     var replyContexts: [String: ReplyContextResult] = [:]
     var replyAnswers: [String: ReplyDraftResult] = [:]
+    let computerDecisions = ComputerDecisionModel()
     let localBackup = LocalBackupModel()
     var localBackupReady: Bool { inputRuntimeReady }
     @ObservationIgnored private var pendingReplyContexts: Set<String> = []
@@ -451,6 +452,7 @@ final class IslandModel {
     /// The runtime stopped or restarted: what the window was waiting for will not be answered (code review, 2026-10-16). Nothing reset
     /// these before, so a Save or a model switch could stay "waiting" for good.
     func runtimeStopped() {
+        computerDecisions.cancel()
         localBackup.stopped()
         for id in pendingReplyContexts { replyContexts[id] = ReplyContextResult(id: id, profile: nil, items: [], error: "ATOM stopped. Reload draft context.") }
         for id in pendingReplyDrafts { replyAnswers[id] = ReplyDraftResult(id: id, text: nil, error: "ATOM stopped. No draft result was confirmed.") }
@@ -1013,6 +1015,12 @@ final class IslandModel {
             capabilities = items
         case .planUsage(let usage):
             planUsage = (planUsage ?? PlanUsage()).merging(usage)
+        case .computerDecision(let request):
+            computerDecisions.decide(request) { [weak self] choice, confidence, probability in
+                self?.send(.computerDecisionResult(id: request.id, choice: choice, confidence: confidence, probability: probability))
+            }
+        case .computerDecisionCancel(let id): computerDecisions.cancel(id: id)
+        case .computerEnd: computerDecisions.cancel()
         case .ready(let ready):
             projectSource.stopped()
             workspace.clear(); workspaceBrowser.reset(); workspaceTerminal.reset()
@@ -1030,6 +1038,8 @@ final class IslandModel {
             send(.telegramSet(push: settings.telegramPush))
             send(.apiSet(on: settings.localApi)) // ADR-098 item 5
             send(.computerMode(foreground: settings.computerForeground))
+            computerDecisions.onChange = { [weak self] provider, backup in self?.send(.computerDecisions(provider: provider, backup: backup)) }
+            send(.computerDecisions(provider: computerDecisions.provider, backup: computerDecisions.backup))
             if memory != nil { send(.memoryList) } // a restarted runtime: ask again so updates keep coming
             if suggestions.asked { send(.suggestionsGet) }
             if dailyBrief.asked { send(.briefGet) }

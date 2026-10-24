@@ -1,0 +1,5 @@
+variant,request_id,completed_at_utc,model_ms,first_text_ms,computer_actions,failed_actions,clicks,window_observations,click_ms,observation_ms,transport_ms,outside_timed_transport_ms
+historical_individual,EA0742B6-3BFE-41E8-920B-29425FA40CA2,2026-10-23T21:05:51.443Z,53232,28527,9,0,7,8,17248,1707,20734,32498
+repeat_individual,F07EAC4E-3D23-428A-9ECC-AAB5ED334733,2026-10-24T02:51:48.605Z,56008,31748,9,0,7,8,17222,1662,20282,35726
+sequence_A,295E986C-C496-4AB3-A15E-7941A36B66D7,2026-10-24T02:52:48.053Z,44894,44858,4,1,7,8,16459,1675,18805,26089
+sequence_B,F72620B5-05E7-481E-B1DA-62EBD7C47388,2026-10-24T02:54:39.115Z,37462,37405,3,0,7,8,16405,1839,19988,17474

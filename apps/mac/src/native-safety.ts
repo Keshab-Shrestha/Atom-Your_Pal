@@ -13,7 +13,7 @@ import { webFetchProblem } from "./web-guard.ts";
 import { grantedServers, kitTools, nativeMembers } from "./native-agents.ts";
 import type { BoardRecorder } from "./native-board.ts";
 import type { PlanBook } from "./native-plan.ts";
-import { commitWork, git, prepareWorkdir, type Workdir } from "./worktree.ts";
+import { git, prepareWorkdir, type Workdir } from "./worktree.ts";
 
 /**
  * ADR-110: the permission gate of a native chat session. `allowedTools` is empty, so every tool call comes here. The
@@ -110,7 +110,7 @@ export interface NativeGate {
   admitAdvisory(parentAgentId: string, input: Record<string, unknown>, callId: string): { job: number } | { message: string };
   /** Stop host approvals immediately, even before the SDK reports a task id. */
   cancelJob(job: number): void;
-  /** A sub-agent's job ended: its worktree is committed (task branch, never pushed), its browser freed. */
+  /** A sub-agent's job ended: its worktree is retained uncommitted (never pushed), its browser freed. */
   agentEnded(job: number): Promise<void>;
 }
 
@@ -519,15 +519,8 @@ export function nativeGate(scope: NativeScope): NativeGate {
       // What the agent read comes back in its report, so the main thread is tainted from now until the user's next message.
       if (tainted.has(`job:${job}`)) tainted.set("main", tainted.get(`job:${job}`) === "external MCP data" ? "external MCP data" : "an agent read the web");
       tainted.delete(`job:${job}`);
-      if (tree?.tree) {
-        try {
-          const committed = await commitWork(tree.dir, `ATOM task ${job}`, tree.repo ? { tree: tree.tree, repo: tree.repo } : undefined);
-          log("agent.commit", { job, committed });
-        } catch {
-          // 2026-10-16: the worktree's .git was replaced (or git failed): nothing is committed, and the reason is the name of this event.
-          log("agent.commit_refused", { job });
-        }
-      }
+      // Completion is not permission to commit. Keep the isolated working copy for explicit user review/commit.
+      if (tree?.tree) log("agent.worktree_retained", { job, committed: false });
     },
   };
 }

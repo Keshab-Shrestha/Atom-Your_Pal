@@ -134,8 +134,20 @@ test("options: no ANTHROPIC_* or other keys, no settings, strict MCP, permission
   assert.equal(o.mcpServers.atom.alwaysLoad, undefined, "ATOM tools stay deferred behind tool search");
   assert.equal(o.canUseTool, gate.canUseTool);
   assert.equal(o.hooks, gate.hooks);
-  assert.equal(s.prefix, prefixHash("You are ATOM.", ["WebSearch", "WebFetch", "weather"]));
+  assert.equal(s.prefix, prefixHash("You are ATOM.", ["WebSearch", "WebFetch", "weather"], options(sdk).atomTools!.specs()));
   s.close();
+});
+
+test("changed tool definitions change MCP version and diagnostics while retaining the resumed chat", async () => {
+  const { sdk, queries } = fakeSdk();
+  const original = options(sdk);
+  const first = await openChatSession({ ...original, resume: "kept-chat" });
+  const definitions = original.atomTools!.specs().map((spec) => ({ ...spec, description: spec.description + " Updated capabilities." }));
+  const second = await openChatSession({ ...original, resume: "kept-chat", atomTools: { specs: () => definitions, run: original.atomTools!.run } });
+  assert.notEqual(queries[0]!.options.mcpServers.atom.version, queries[1]!.options.mcpServers.atom.version);
+  assert.notEqual(first.prefix, second.prefix);
+  assert.equal(queries[1]!.options.resume, "kept-chat");
+  first.close(); second.close();
 });
 
 test("a session started with an API key stops at once, and the turn fails", async () => {

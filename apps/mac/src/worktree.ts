@@ -1,5 +1,5 @@
 // ADR-082, Task 3.11: a worker never touches the current branch of a git repository. ATOM (not the model) makes a
-// worktree on the task's own branch, `atom/task-<id>`, outside the repository's folder, and commits the work there
+// worktree on the task's own branch, `atom/task-<id>`, outside the repository's folder, and retains uncommitted work there
 // after the run. Workers never push (ADR-091: Keshab can push a branch from the Dashboard, see git-branches.ts).
 
 import { execFile } from "node:child_process";

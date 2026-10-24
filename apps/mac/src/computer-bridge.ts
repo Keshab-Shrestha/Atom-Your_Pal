@@ -1,6 +1,7 @@
 // Connects the computer tool to ATOM Island (ADR-054, Task 0.6.3): what ATOM is doing, and asking the user
 // before a risky action. Lives in the runtime so the rule "no answer means no" holds even if the island is gone.
 
+import type { ComputerDecisionAnswer, ComputerDecisionState } from "@atom/decision-engine";
 import { randomUUID } from "node:crypto";
 import type { IslandEvent } from "./island-protocol.ts";
 
@@ -32,7 +33,14 @@ export interface ComputerBridge {
   /** Task 2.x: the island presses the Mac's play/pause key. False if there is no island. */
   playPause(): boolean;
   /** Passed to the computer tool as `onStep`. */
-  step(step: { action: string; app?: string }): void;
+  step(step: { action: string; app?: string; current?: number; total?: number }): void;
+  decisionOptions(): { provider: "off" | "jev" | "laya"; backup: boolean; revision: number };
+  setDecisions(provider: "off" | "jev" | "laya", backup: boolean): void;
+  decide(request: ComputerDecisionState, signal?: AbortSignal): Promise<ComputerDecisionAnswer | undefined>;
+  decisionResult(id: string, answer?: ComputerDecisionAnswer): void;
+  beginAction(): void;
+  actionFinished(): void;
+  cursorMove(point: { x: number; y: number }): void;
   /** The Settings default for computer input (the island's `computer.mode`). Background until the island says otherwise. */
   setForeground(on: boolean): void;
   /** Passed to the computer tool as `deliveryMode`. */
@@ -61,6 +69,7 @@ export interface ComputerBridgeOptions {
   /** The agent cursor shown during a computer task (optional: off when computer control is off). */
   cursor?: { start(): Promise<void>; finish(): Promise<void> };
   onCursorError?: () => void;
+  onDecisionWarm?: () => void;
   /** How long a request waits for the user before it counts as "no". */
   timeoutMs?: number;
   /** How long after the last step (with no approval waiting) the island is told that the work is over. */
@@ -74,13 +83,16 @@ const oneLine = (text: string, max: number) => {
 };
 
 /** A step in plain words for the bubble. App name and kind of action only: never typed text or screen content. */
-export function stepText(step: { action: string; app?: string }): string {
+export function stepText(step: { action: string; app?: string; current?: number; total?: number }): string {
   const app = step.app ? oneLine(step.app, 40) : undefined;
+  if (step.action === "click" && Number.isSafeInteger(step.current) && Number.isSafeInteger(step.total) && step.current! >= 1 && step.current! <= step.total! && step.total! <= 8)
+    return `Clicking button ${step.current} of ${step.total}${app ? ` in ${app}` : ""}`;
   switch (step.action) {
     case "status": return "Checking computer readiness";
     case "list_apps": return "Checking which apps are open";
     case "look": return app ? `Looking at ${app}` : "Looking at the screen";
     case "open": return app ? `Opening ${app}` : "Opening an app";
+    case "choose_sequence": return "Choosing a prepared computer plan";
     case "click": return app ? `Clicking in ${app}` : "Clicking";
     case "type": return app ? `Typing in ${app}` : "Typing";
     case "key": return app ? `Pressing a key in ${app}` : "Pressing a key";
@@ -101,6 +113,11 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
   // The agent cursor (2026-10-23): on with a task's first step, back to ATOM and hidden when the task ends. It never blocks an action.
   let working = false;
   let foreground = false;
+  let activeActions = 0;
+  let decisionConfig = { provider: "off" as "off" | "jev" | "laya", backup: false, revision: 0 };
+  const decisions = new Map<string, (answer?: ComputerDecisionAnswer) => void>();
+  function cancelDecisions() { for (const settle of [...decisions.values()]) settle(); }
+
   const cursorFailed = () => options.onCursorError?.();
   function begin() {
     if (working || !options.cursor) return;
@@ -118,7 +135,7 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
   function scheduleEnd() {
     clearTimeout(endTimer);
     endTimer = setTimeout(() => {
-      if (waiting.size !== 0) return;
+      if (waiting.size !== 0 || activeActions > 0) return;
       sendEvent?.({ type: "computer.end" });
       if (working) { working = false; options.cursor?.finish().catch(cursorFailed); }
     }, endAfterMs);
@@ -190,9 +207,45 @@ export function createComputerBridge(options: ComputerBridgeOptions = {}): Compu
       if (step.action !== "status") begin();
       scheduleEnd();
     },
+    decisionOptions: () => ({ ...decisionConfig }),
+    setDecisions(provider, backup) {
+      decisionConfig = { provider, backup, revision: decisionConfig.revision + 1 };
+      cancelDecisions();
+      if (provider === "laya" || (provider === "jev" && backup)) options.onDecisionWarm?.();
+    },
+    decisionResult(id, answer) { decisions.get(id)?.(answer); },
+    decide(request, signal) {
+      if (decisionConfig.provider !== "jev" || !sendEvent || signal?.aborted) return Promise.resolve(undefined);
+      cancelDecisions();
+      return new Promise((resolve) => {
+        const id = randomUUID();
+        let timer: ReturnType<typeof setTimeout>;
+        const settle = (answer?: ComputerDecisionAnswer) => {
+          if (!decisions.delete(id)) return;
+          clearTimeout(timer); signal?.removeEventListener("abort", abort);
+          sendEvent?.({ type: "computer.decision.cancel", id });
+          resolve(answer);
+        };
+        const abort = () => settle();
+        decisions.set(id, settle);
+        signal?.addEventListener("abort", abort, { once: true });
+        timer = setTimeout(settle, 1800);
+        sendEvent!({ type: "computer.decision", id, ...request });
+      });
+    },
+    beginAction() { activeActions += 1; clearTimeout(endTimer); },
+    actionFinished() { activeActions = Math.max(0, activeActions - 1); if (!activeActions) scheduleEnd(); },
+    cursorMove(point) {
+      if (Number.isFinite(point.x) && Number.isFinite(point.y) && Math.abs(point.x) <= 100_000 && Math.abs(point.y) <= 100_000)
+        sendEvent?.({ type: "computer.cursor", x: point.x, y: point.y });
+    },
     answer: (id, approved, rememberFile, reviewToken) => settle(id, approved, rememberFile, reviewToken),
     cancelAll() {
+      cancelDecisions();
       for (const id of [...waiting.keys()]) settle(id, false);
+      clearTimeout(endTimer);
+      sendEvent?.({ type: "computer.end" });
+      if (working) { working = false; options.cursor?.finish().catch(cursorFailed); }
     },
     pending: () => [...asks.values()],
     onAsk(listener) {

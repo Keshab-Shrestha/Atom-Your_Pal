@@ -1,8 +1,10 @@
 import { spawn, type ChildProcessByStdio } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
 import { createInterface } from "node:readline";
+import type { ToolImage } from "@atom/contracts";
 
 export interface CuaResult {
+  images?: ToolImage[];
   text: string;
   data: Record<string, any>;
   isError: boolean;
@@ -213,8 +215,12 @@ export function createCuaTransport(options: CuaTransportOptions = {}): CuaTransp
         try {
           const result = await request(c, "tools/call", { name, arguments: callArgs });
           const structured = (result?.structuredContent ?? {}) as Record<string, any>;
+          const images = (result?.content ?? []).filter((item: any) => item.type === "image" && ["image/png", "image/jpeg"].includes(item.mimeType)
+            && typeof item.data === "string" && item.data.length > 0 && item.data.length <= 12 * 1024 * 1024 && /^[A-Za-z0-9+/]+={0,2}$/.test(item.data))
+            .slice(0, 1).map((item: any) => ({ mimeType: item.mimeType, data: item.data }));
           ok = !result?.isError;
           return {
+            ...(images.length ? { images } : {}),
             text: (result?.content ?? []).filter((item: any) => item.type === "text").map((item: any) => item.text).join("\n"),
             data: structured, isError: Boolean(result?.isError), refusal: refusalOf(structured),
           };

@@ -80,6 +80,19 @@ export async function gitWorkspace(root: string, allowed: (path: string) => bool
   return { branch: branch || (head ? `Detached ${head.slice(0, 8)}` : "Unborn branch"), head, ...(upstream ? { upstream: upstream.replace(/^refs\/(heads|remotes)\//, "") } : {}), ...counts, ...gitFiles(raw, ctx.prefix, allowed), filtersDisabled: ctx.filtersDisabled };
 }
 
+/** Task working-copy reads use the same disabled filters/hooks and bounded environment as project Git review. */
+export async function workingCopyDirty(root: string): Promise<boolean> {
+  const ctx = await context(root);
+  return (await command(root, ["status", "--porcelain=v1", "-z", "--untracked-files=normal", "--ignore-submodules=all"], ctx.overrides)).length > 0;
+}
+
+export async function workingCopyDiff(root: string, base: string, stat = false): Promise<string> {
+  if (!/^[a-f0-9]{40,64}$/.test(base)) throw new Error("The task starting commit is invalid.");
+  const ctx = await context(root);
+  const result = (await command(root, ["diff", "--no-ext-diff", "--no-textconv", "--ignore-submodules=all", stat ? "--numstat" : "--no-color", base, "--"], ctx.overrides)).toString("utf8");
+  return stat ? result.trim() : result;
+}
+
 /** Missing tracked files may be compared, but no existing ancestor may be a link. */
 export function gitPathAvailable(root: string, path: string): boolean {
   let candidate = resolve(root, path);

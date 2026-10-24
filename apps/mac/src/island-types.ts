@@ -42,7 +42,7 @@ export interface IslandOptions {
   /** The AI model choice: sent as `info` after `ready`, changed by `model.set`. Without it, `model.set` is refused. */
   settings?: Pick<ModelSettings, "info" | "setModel" | "scanTools" | "refreshModels">;
   /** Computer control (ADR-054): shows what ATOM is doing and asks before risky actions. Absent when it is off. */
-  computer?: Pick<ComputerBridge, "attach" | "answer" | "cancelAll" | "setForeground">;
+  computer?: Pick<ComputerBridge, "attach" | "answer" | "cancelAll" | "setForeground"> & Partial<Pick<ComputerBridge, "setDecisions" | "decisionResult">>;
   /** Window task/retry turns have their own Core, outside the foreground voice/text loop. */
   taskActivity?: { busy(): boolean; onChange(listener: () => void): () => void };
   chatWork?: ChatWorkBridge;

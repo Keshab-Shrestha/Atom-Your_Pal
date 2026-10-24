@@ -163,6 +163,8 @@ export type IslandCommand =
   | { type: "helper.codex.pin"; helper: string; model: string }
   | { type: "helpers.settings"; allowLarge?: boolean }
   /** The Settings default for computer input: foreground fronts the target window for each action. */
+  | { type: "computer.decisions"; provider: "off" | "jev" | "laya"; backup: boolean }
+  | { type: "computer.decision.result"; id: string; answer?: { choice: string; confidence: number; probability: number } }
   | { type: "computer.mode"; foreground: boolean }
   | { type: "soul.set"; helper: string; soul: SoulItem }
   | { type: "soul.restore"; helper: string; version: number }
@@ -281,6 +283,8 @@ const COMMANDS = new Set<IslandCommand["type"]>([
   "helper.codex.pin",
   "helpers.settings",
   "computer.mode",
+  "computer.decisions",
+  "computer.decision.result",
   "soul.set",
   "soul.restore",
   "job.block",
@@ -584,6 +588,17 @@ export function parseCommand(line: string): ParsedLine {
     const { allowLarge } = value as { allowLarge?: unknown };
     if (typeof allowLarge !== "boolean") return { error: 'helpers.settings needs "allowLarge" to be true or false.' };
     return { command: { type, allowLarge } };
+  }
+  if (type === "computer.decisions") {
+    const { provider, backup } = value as any;
+    if (!["off", "jev", "laya"].includes(provider) || typeof backup !== "boolean" || Object.keys(value).some((k) => !["type", "provider", "backup"].includes(k))) return { error: "Invalid computer decision options." };
+    return { command: { type, provider, backup } };
+  }
+  if (type === "computer.decision.result") {
+    const { id, answer } = value as any;
+    if (typeof id !== "string" || !/^[a-f0-9-]{36}$/i.test(id) || Object.keys(value).some((k) => !["type", "id", "answer"].includes(k))) return { error: "Invalid computer decision result." };
+    if (answer !== undefined && (!answer || typeof answer !== "object" || Array.isArray(answer) || Object.keys(answer).some((k) => !["choice", "confidence", "probability"].includes(k)) || typeof answer.choice !== "string" || !/^(plan_[0-3]|review)$/.test(answer.choice) || ![answer.confidence, answer.probability].every((n) => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1))) return { error: "Invalid computer decision answer." };
+    return { command: { type, id, ...(answer !== undefined ? { answer } : {}) } };
   }
   if (type === "computer.mode") {
     const { foreground } = value as { foreground?: unknown };

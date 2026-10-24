@@ -74,7 +74,10 @@ public struct PlainFailure: Sendable, Equatable {
     public static func forStatus(_ status: RuntimeSupervisor.Status) -> PlainFailure? {
         let sentence: String
         switch status {
-        case .failed: sentence = "ATOM stopped after crashing several times."
+        case .failed(let message):
+            sentence = message.contains("already runs on this data folder")
+                ? "Another ATOM runtime still uses this workspace. Let it finish or close that instance, then restart. Your settings do not need changing."
+                : "ATOM stopped repeatedly. Restart it, or open the log for the cause."
         case .configError(let message):
             sentence = match(message).map { "\($0.sentence) Fix it, then restart ATOM." } ?? "ATOM's settings in .env need fixing. The log says which."
         case .stopped: sentence = "ATOM is not running."

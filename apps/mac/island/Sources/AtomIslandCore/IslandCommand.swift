@@ -75,6 +75,8 @@ public enum IslandCommand: Sendable, Equatable {
     /// ADR-098 item 5: Settings' "Local API" switch. The runtime answers with an `api` event.
     case apiSet(on: Bool)
     /// Settings' "Work in the foreground" switch: the default for computer input. Sent again after every runtime start.
+    case computerDecisions(provider: String, backup: Bool)
+    case computerDecisionResult(id: String, choice: String?, confidence: Double?, probability: Double?)
     case computerMode(foreground: Bool)
     /// Settings' "Regenerate" next to "Copy token": the runtime makes a new token and answers with an `api` event.
     case apiRegenerate
@@ -241,6 +243,8 @@ public enum IslandCommand: Sendable, Equatable {
         case .speechSet: "speech.set"
         case .telegramSet: "telegram.set"
         case .apiSet: "api.set"
+        case .computerDecisions: "computer.decisions"
+        case .computerDecisionResult: "computer.decision.result"
         case .computerMode: "computer.mode"
         case .apiRegenerate: "api.regenerate"
         case .toolsScan: "tools.scan"
@@ -495,6 +499,11 @@ public enum IslandCommand: Sendable, Equatable {
             fields["push"] = push
         case .apiSet(let on):
             fields["on"] = on
+        case .computerDecisions(let provider, let backup):
+            fields["provider"] = provider; fields["backup"] = backup
+        case .computerDecisionResult(let id, let choice, let confidence, let probability):
+            fields["id"] = id
+            if let choice, let confidence, let probability { fields["answer"] = ["choice": choice, "confidence": confidence, "probability": probability] }
         case .computerMode(let foreground):
             fields["foreground"] = foreground
         case .speechSet(let reports, let updates, let chime):

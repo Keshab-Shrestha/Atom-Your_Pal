@@ -1,3 +1,4 @@
+import { COMPUTER_CHOICE_INSTRUCTIONS, readComputerChoice } from "./computer.ts";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -8,7 +9,8 @@ import { DEFAULT_TIER, DIFFICULTY_RUNGS, tierFromScore, type DecisionEngine, typ
 
 // ADR-083: Laya (local, MCP server over stdio) rates each job's difficulty in one forward pass. The server starts on
 // the first job and stays warm; a call that takes over 5 s, fails, or finds Laya missing falls back, so a job never
-// waits on Laya. The task text goes to the local server only: it is never logged here.
+// waits indefinitely on Laya. ADR-200 adds a separate 750 ms optional computer-plan choice on the same session.
+// Task text stays local and is never logged here; computer warm-up uses only a fictional readiness request.
 
 export const LAYA_TIMEOUT_MS = 5000;
 
@@ -58,7 +60,7 @@ export function stdioLaya(path: string): LayaConnect {
     // The SDK adds only safe variables (HOME, PATH, USER…) to these. Laya's own output is not ours to show.
     const transport = new StdioClientTransport({
       command: path,
-      env: { LAYA_DEVICE: "mps", LAYA_PRELOAD: "1", LAYA_MODELS: "english" },
+      env: { LAYA_DEVICE: "mps", LAYA_PRELOAD: "1", LAYA_MODELS: "english", HF_HUB_OFFLINE: "1", TRANSFORMERS_OFFLINE: "1" },
       stderr: "ignore",
     });
     const client = new Client({ name: "atom", version: "1.0.0" });
@@ -118,10 +120,12 @@ export function createLayaEngine(options: LayaEngineOptions = {}): DecisionEngin
   /** Crashes and failed starts so far: the first gets one restart, the second turns Laya off. */
   let failures = 0;
   let closed = false;
+  let computerWarm: Promise<void> | undefined;
 
   function lost(which: Promise<LayaClient>, why: string, startedAt: number) {
     if (session !== which) return; // an older session, already replaced
     session = undefined;
+    computerWarm = undefined;
     // 2026-10-16: the count meant "two crashes in a row", but it never went back to zero: a crash days after the first turned Laya off for good.
     if (Date.now() - startedAt >= stableMs) failures = 0;
     failures += 1;
@@ -182,6 +186,34 @@ export function createLayaEngine(options: LayaEngineOptions = {}): DecisionEngin
       } finally {
         clearTimeout(timer);
       }
+    },
+
+    warmComputer() {
+      if (off || closed || computerWarm) return;
+      // A fictional local-only inference absorbs first-use accelerator setup. Never a desktop read or input.
+      computerWarm = ensure().then(async (client) => {
+        await client.predict({ request: "Local computer decision readiness check. No action is requested." },
+          { ready: { type: "choice", instructions: "What kind of request is this?", criteria: { readiness: "A readiness check", other: "A task to perform" } } }, AbortSignal.timeout(5000));
+        log?.info("laya.computer_ready");
+      }).catch(() => { computerWarm = undefined; log?.warn("laya.computer_warm_failed"); });
+    },
+
+    async chooseComputerPlan(request, signal) {
+      if (off || closed || signal?.aborted) return undefined;
+      const controller = new AbortController();
+      const cancel = () => controller.abort();
+      signal?.addEventListener("abort", cancel, { once: true });
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const work = ensure().then((client) => client.predict({ context: request.state }, { plan: { type: "choice", instructions: COMPUTER_CHOICE_INSTRUCTIONS, criteria: request.criteria } }, controller.signal));
+        const timeout = new Promise<undefined>((resolve) => { timer = setTimeout(() => { controller.abort(); resolve(undefined); }, 750); });
+        const aborted = new Promise<undefined>((resolve) => controller.signal.addEventListener("abort", () => resolve(undefined), { once: true }));
+        const result = await Promise.race([work, timeout, aborted]);
+        if (!result || controller.signal.aborted) return undefined;
+        const text = (result as any)?.content?.[0]?.text;
+        return typeof text === "string" ? readComputerChoice(JSON.parse(text), request.criteria) : undefined;
+      } catch { return undefined; }
+      finally { clearTimeout(timer); signal?.removeEventListener("abort", cancel); }
     },
 
     warm() {

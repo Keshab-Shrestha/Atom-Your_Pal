@@ -492,7 +492,7 @@ private struct WaitsForSection: View {
     }
 }
 
-private struct ReportSection: View {
+struct ReportSection: View {
     let report: HelperReport
     @Environment(\.theme) private var theme
 

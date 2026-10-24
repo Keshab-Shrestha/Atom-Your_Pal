@@ -1,5 +1,9 @@
 # Computer readiness and safe driver recovery
 
+**24 October speed follow-up:** short checked button sequences preserve a fresh same-window observation after each click while reducing provider round trips. Controlled Calculator completion improved from 56.008 s to 44.894/37.462 s; actual Stop/draft retention was checked. Driver uncertainty remains explicit; consequential actions cannot be bundled. [Measurements, gate and limitations](computer-speed-2026-10-24.md).
+
+**23 October workflow follow-up:** complete target-window images now reach the model instead of being dropped by the transport. Explicit `windows(app)` and `look(app, window_id)` support choosing a window across displays. Actual background Calculator tasks succeeded on both attached displays, and a visual-only Preview board verified image delivery. Persistent Stop, a native visual second cursor and active-action lifetime tracking are implemented; physical cursor confirmation remains open. Individual driver clicks still report uncertainty, so final-screen observations remain essential. No idle capture or permission expansion. [Detailed live evidence and driver limits](workflow-fixes.md).
+
 Implemented 21 October 2026, ADR-187, as the first capability in the [Sentient adoption plan](sentient-adoption-plan.md).
 
 When Computer control is enabled (`ATOM_COMPUTER=1`) and the chat's access policy permits the tool, ask ATOM to check computer readiness. The existing `computer` tool now offers `action: "status"`. This is an explicit check, not an automatic app-start scan.

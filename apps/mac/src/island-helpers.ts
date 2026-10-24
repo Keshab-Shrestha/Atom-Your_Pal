@@ -64,6 +64,7 @@ export function compactChange(before: string, after: string): { before: string; 
 }
 
 const toJobItem = (job: Job): JobItem => ({
+  ...(job.chatId ? { chatId: job.chatId } : {}),
   id: job.id,
   task: job.task,
   state: job.state,

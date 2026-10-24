@@ -394,3 +394,18 @@ test("document read scope can be chosen only in a new source preview", () => {
     assert.ok("error" in parseCommand(JSON.stringify(command)));
   }
 });
+
+test("computer decision settings/results accept only closed metadata, never credential fields", () => {
+  for (const provider of ["off", "jev", "laya"]) assert.deepEqual(parseCommand(JSON.stringify({ type: "computer.decisions", provider, backup: false })), { command: { type: "computer.decisions", provider, backup: false } });
+  const id = "00000000-0000-4000-8000-000000000001";
+  const answer = { choice: "plan_0", confidence: 1, probability: 1 };
+  assert.deepEqual(parseCommand(JSON.stringify({ type: "computer.decision.result", id, answer })), { command: { type: "computer.decision.result", id, answer } });
+  for (const command of [
+    { type: "computer.decisions", provider: "other", backup: false },
+    { type: "computer.decisions", provider: "jev", backup: false, key: "fixture-never-a-real-key" },
+    { type: "computer.decision.result", id: "guess", answer },
+    { type: "computer.decision.result", id, answer: { ...answer, confidence: "1" } },
+    { type: "computer.decision.result", id, answer: { ...answer, probability: 2 } },
+    { type: "computer.decision.result", id, answer: { ...answer, choice: "run_shell" } },
+  ]) assert.ok("error" in parseCommand(JSON.stringify(command)));
+});

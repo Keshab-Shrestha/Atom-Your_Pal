@@ -23,9 +23,13 @@ No shell is used. Fixed Git argument lists disable hooks, fsmonitor, optional in
 
 One Git read runs at a time. Each subprocess has an eight-second timeout and a 256 KiB stdout/stderr budget. The native request can time out while bounded host reads finish; refresh is explicit and no operation retries automatically. Status returns at most 200 entries / 128 KiB, with an explicit limit notice; very large raw status output refuses before returning a partial list. This is a point-in-time inspection, not an atomic repository snapshot or filesystem watcher.
 
+## Task working copies (23 October 2026)
+
+Native coder completion now leaves changes uncommitted, including when a task explicitly forbids commits. The originating chat can open its task report, actual tracked working-copy diff, path and existing Push control without switching to Dashboard. Dirty copies disable Push; the host also refuses while edits remain or a task is queued/running. Commit explicitly in Terminal after review. The terminal initially uses the original project directory; the copied, shell-quoted `cd` command identifies the isolated task copy and is never executed automatically. New untracked contents are not included in task patch previews until staged. Task working-copy status/diff uses the same bounded, filter-disabled Git environment as project review. Existing historical commits are preserved. [Live task-32 acceptance](workflow-fixes.md).
+
 ## Scope and remaining Git work
 
-This step has no stage, commit, fetch, pull, push, merge, resolve, reset or delete action. It does not change the existing separately confirmed task-branch push. Task-branch discovery beyond helper grants, saved task bases/behind counts, better automatic commit subjects, PR links/status, conflict prediction and confirmed branch cleanup remain separate. The new Git tab discovers the current registered project's working tree directly, without relying on helper-grant branch discovery. Checkpoint Undo remains on Changes; uncheckpointed Git/shell writes are not offered an invented Undo.
+The project Git pane has no stage, commit, fetch, pull, push, merge, resolve, reset or delete action. Task-branch push remains separately confirmed and now also refuses dirty/running tasks. Task-branch discovery beyond helper grants, PR links/status, conflict prediction and confirmed branch cleanup remain separate. The Git tab discovers the current registered project's working tree directly, without relying on helper-grant branch discovery. Checkpoint Undo remains on Changes; uncheckpointed Git/shell writes are not offered an invented Undo.
 
 ## Verification
 

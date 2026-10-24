@@ -4,7 +4,8 @@
 import { realpathSync } from "node:fs";
 import type { HelperStore } from "@atom/helpers";
 import type { IslandGit, IslandHelpers } from "./island.ts";
-import { branchDiff, pushBranch, repositoriesOf, zenoBranches } from "./git-branches.ts";
+import { branchDiff, pushBranch, repositoriesOf, zenoBranches, taskWorkingCopy } from "./git-branches.ts";
+import { workingCopyDirty } from "./git-review.ts";
 import type { createPaperclip, issueTracker } from "./paperclip.ts";
 
 /** The Paperclip connection createRuntime builds when ATOM_PAPERCLIP_URL is set. */
@@ -39,6 +40,12 @@ export function createIslandGit(helpers: HelperStore, options: { worktrees?: str
     },
     push: async (repo, branch) => {
       await allowedRepo(repo);
+      const review = (await zenoBranches(repo, options.worktrees)).find((b) => b.branch === branch);
+      if (review?.baseSource === "unavailable") throw new Error("The task comparison is unavailable. Repair or refresh the review before pushing.");
+      const tree = await taskWorkingCopy(repo, branch, options.worktrees);
+      if (tree && await workingCopyDirty(tree)) throw new Error("This task has uncommitted changes. Review and commit them explicitly in Terminal before pushing.");
+      const task = helpers.get(Number(branch.split("-").at(-1)));
+      if (task && (task.state === "running" || task.state === "queued")) throw new Error("Wait for this task to stop before pushing its branch.");
       await pushBranch(repo, branch);
     },
     diff: async (repo, branch) => {

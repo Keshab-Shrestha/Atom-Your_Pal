@@ -953,6 +953,10 @@ export function runIsland(options: IslandOptions): IslandSession {
           helpers.pinCodex(command.helper, command.model);
         });
         return;
+      case "computer.decisions":
+        options.computer?.setDecisions?.(command.provider, command.backup); return;
+      case "computer.decision.result":
+        options.computer?.decisionResult?.(command.id, command.answer); return;
       case "computer.mode":
         options.computer?.setForeground(command.foreground);
         return;

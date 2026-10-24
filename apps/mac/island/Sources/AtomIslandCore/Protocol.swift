@@ -22,7 +22,10 @@ public enum IslandEvent: Sendable, Equatable {
     case notice(kind: String, message: String)
     case conversationReset
     /// ATOM is about to do something on the Mac, in plain words (ADR-054).
+    case computerDecision(ComputerDecisionRequest)
+    case computerDecisionCancel(String)
     case computerStep(String)
+    case computerCursor(x: Double, y: Double)
     /// ADR-054: no step for a while and no approval waits: the computer work is over (any turn, not only the voice loop's).
     case computerEnd
     /// ATOM shows the user a place on screen: Pal flies there and the bubble says what it is (ADR-054).
@@ -103,7 +106,10 @@ public enum IslandEvent: Sendable, Equatable {
         case .turnComplete: "turn.complete"
         case .notice(let kind, _): "notice:\(kind)"
         case .conversationReset: "conversation.reset"
+        case .computerDecision: "computer.decision"
+        case .computerDecisionCancel: "computer.decision.cancel"
         case .computerStep: "computer.step"
+        case .computerCursor: "computer.cursor"
         case .computerEnd: "computer.end"
         case .computerPoint: "computer.point"
         case .approvalRequest: "approval.request"
@@ -211,8 +217,18 @@ public func decodeEvent(_ line: String) throws -> IslandEvent {
         return .notice(kind: try f.string("kind"), message: try f.string("message"))
     case "conversation.reset":
         return .conversationReset
+    case "computer.decision":
+        let request = try JSONDecoder().decode(ComputerDecisionRequest.self, from: JSONSerialization.data(withJSONObject: f.values))
+        guard request.valid else { throw ProtocolError.invalidValue(event: "computer.decision", field: "request") }
+        return .computerDecision(request)
+    case "computer.decision.cancel":
+        return .computerDecisionCancel(try f.string("id"))
     case "computer.step":
         return .computerStep(try f.string("text"))
+    case "computer.cursor":
+        let x = try f.double("x"), y = try f.double("y")
+        guard x.isFinite, y.isFinite, abs(x) <= 100_000, abs(y) <= 100_000 else { throw ProtocolError.invalidValue(event: "computer.cursor", field: "position") }
+        return .computerCursor(x: x, y: y)
     case "computer.end":
         return .computerEnd
     case "computer.point":
@@ -583,7 +599,7 @@ private struct Fields {
                          rating: j["rating"] as? String, reviews: (j["reviews"] as? NSNumber)?.intValue,
                          autoRetries: (j["autoRetries"] as? NSNumber)?.intValue ?? 0, subAgents: Self.subAgents(j["subAgents"]),
                          labels: (j["labels"] as? [Any] ?? []).compactMap { $0 as? String }, recoveryNeeded: Self.flag(j["recoveryNeeded"]),
-                         retryOf: (j["retryOf"] as? NSNumber)?.intValue, retriedAs: (j["retriedAs"] as? NSNumber)?.intValue, advisory: Self.flag(j["advisory"]))
+                         retryOf: (j["retryOf"] as? NSNumber)?.intValue, retriedAs: (j["retriedAs"] as? NSNumber)?.intValue, advisory: Self.flag(j["advisory"]), chatId: j["chatId"] as? String)
     }
 
     /// ADR-098: search results of one kind; a malformed one is left out. Chat ids are strings, task ids numbers.
@@ -912,7 +928,8 @@ private struct Fields {
                              base: m["base"] as? String ?? "", commits: commits, files: files, remote: m["remote"] as? String,
                              pushed: GitBranch.Pushed(rawValue: m["pushed"] as? String ?? "") ?? .no,
                              baseSHA: m["baseSHA"] as? String, baseSource: m["baseSource"] as? String, baseWarning: m["baseWarning"] as? String,
-                             behind: (m["behind"] as? NSNumber)?.intValue, pushAllowed: m["pushAllowed"] as? Bool ?? true)
+                             behind: (m["behind"] as? NSNumber)?.intValue, pushAllowed: m["pushAllowed"] as? Bool ?? true,
+                             worktree: m["worktree"] as? String, uncommitted: m["uncommitted"] as? Bool ?? false)
         }
     }
 

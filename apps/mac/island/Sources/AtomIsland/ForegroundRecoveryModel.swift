@@ -15,11 +15,14 @@ extension IslandModel {
     var unconfirmedAnswers: [PendingQuestionAnswer] { input.entries.values.flatMap(\.questionAnswers) }
     func refreshForegroundRecovery() {
         let id = UUID().uuidString
+        recovery.notice = nil
         recovery.listing = id; recovery.syncPending = true
         send(.foregroundList(request: id, pending: input.entries.values.flatMap { $0.waiting.map(\.id) }, pendingAnswers: unconfirmedAnswers.map { QuestionAnswerReceipt(id: $0.id, answer: $0.answer) }))
         foregroundTimeout(id)
     }
     func readForeground(_ id: String, offset: Int = 0) {
+        // A new review must not display a previous prompt or a previous restore's success notice.
+        recovery.record = nil; recovery.notice = nil
         let request = UUID().uuidString; recovery.reading = request
         send(.foregroundRead(request: request, id: id, offset: offset)); foregroundTimeout(request)
     }

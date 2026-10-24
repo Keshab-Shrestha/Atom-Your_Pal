@@ -22,6 +22,7 @@ final class IslandController {
     let strip: WorkStripController
     /// The short label beside Pal while it points.
     let pointLabel = PointLabelController()
+    let agentCursor = AgentCursorController()
     /// The ATOM window (ADR-081).
     let helpersWindow: MainWindowController
     /// ADR-091: ATOM's macOS notifications.
@@ -83,6 +84,7 @@ final class IslandController {
     init(settings: IslandSettings, log: @escaping (String, [String: Any]) -> Void, trace: @escaping (String) -> Void = { _ in }) {
         self.trace = trace
         self.log = log
+        agentCursor.log = log
         model = IslandModel(settings: settings, inputURL: ChatInputStore.defaultURL)
         bubble = BubbleController(model: model)
         strip = WorkStripController(model: model)
@@ -130,6 +132,7 @@ final class IslandController {
             guard let self else { return }
             self.bubble.follow(feet)
             self.pointLabel.follow(feet)
+            self.agentCursor.setHome(CGPoint(x: feet.x, y: feet.y + 24))
         }
         pet.onArrive = { [weak self] in self?.arrivedAtPoint() }
         pet.onClick = { [weak self] count in self?.palClicked(count) }
@@ -179,7 +182,7 @@ final class IslandController {
         let env = ProcessInfo.processInfo.environment
         if AtomEnv.read("ATOM_BUBBLE_DEMO", env) != nil { playBubbleDemo() }
         // Development and the UI check (scripts/ui-check.sh): open the window at launch, as a click on the menu bar icon does.
-        if AtomEnv.read("ATOM_OPEN_WINDOW", env) == "1" { helpersWindow.show(page: .chat) }
+        if AtomEnv.read("ATOM_OPEN_WINDOW", env) == "1" || UserDefaults.standard.bool(forKey: "atom.window.restoreOnLaunch") { helpersWindow.show() }
         if AtomEnv.read("ATOM_LOOK_DEMO", env) != nil { playLookDemo() }
         if AtomEnv.read("ATOM_WORK_DEMO", env) != nil { playWorkDemo() }
         if let spots = AtomEnv.read("ATOM_POINT_DEMO", env) { playPointDemo(spots) }
@@ -242,6 +245,7 @@ final class IslandController {
         guard sleep.apply(signal) else { return }
         log(sleep.paused ? "system.pause" : "system.resume", [:])
         pet.setPaused(sleep.paused)
+        agentCursor.setEnabled(runtimeReady && model.computerOn && !sleep.paused)
         dictation.setPaused(sleep.paused)
         // A Talk that went through the runtime keeps the runtime's microphone open: the app-side cancel above does not reach it.
         if sleep.paused, talking, !talkingLocally {
@@ -257,6 +261,7 @@ final class IslandController {
         if ComputerRestart.endsWithout(ready: status) { model.computerRestarting = false } // the switch is not stuck on "Restarting…"
         if case .running = status {} else { // whatever it asked or showed is over
             runtimeReady = false
+            agentCursor.setEnabled(false)
             model.runtimeStopped()
             model.approval.runtimeStopped()
             model.pointing.runtimeStopped()
@@ -297,10 +302,15 @@ final class IslandController {
         }
         if case .ready = event {
             runtimeReady = true
+            agentCursor.setEnabled(model.computerOn && !sleep.paused)
             schedule([(1.5, { [self] in maybeStartTour() })]) // after Pal's launch hello
         }
         if case .contextReady(_, let ok, _) = event { contextReady(ok: ok) } // before the status: it opens the microphone
         model.work.apply(event, now: Self.now)
+        if case .computerStep(let step) = event, step != "Checking computer readiness" { agentCursor.begin() }
+        if case .computerCursor(let x, let y) = event { agentCursor.move(x: x, y: y) }
+        if case .computerEnd = event { agentCursor.end() }
+        if case .state(.idle) = event { agentCursor.end() }
         if case .computerPoint(let target) = event { startPointing(target) }
         if case .settingsOpen = event { // ADR-071: as if the user opened Settings by hand
             model.tab = .settings
@@ -344,6 +354,8 @@ final class IslandController {
 
     /// Puts every window in step with the state. Cheap: each part only acts on a change.
     func refresh() {
+        if !pet.isShown, let anchor = menuIcon.anchor { agentCursor.setHome(CGPoint(x: anchor.midX, y: Self.menuBarBottom(of: anchor.screen) - 12)) }
+        agentCursor.setEnabled(runtimeReady && model.computerOn && !sleep.paused)
         menuIcon.update(model.status.kind, title: model.status.title, flat: !model.settings.theme.palette.usesGlow)
         shortcuts.setBusy(model.status.isBusy || talking || dictating)
         updateStrip()

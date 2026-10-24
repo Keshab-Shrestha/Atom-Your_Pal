@@ -7,6 +7,10 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { BRANCH_PATTERN, BRANCH_REF_FOLDERS } from "./branch-prefix.ts";
 import { readTaskBranchBase } from "./task-branch-base.ts";
+import { join } from "node:path";
+import { lstatSync } from "node:fs";
+import { worktreeIntact } from "./worktree.ts";
+import { workingCopyDirty, workingCopyDiff } from "./git-review.ts";
 
 const run = promisify(execFile);
 const environment = () => ({ ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_"))), GIT_OPTIONAL_LOCKS: "0", GIT_TERMINAL_PROMPT: "0", GIT_ASKPASS: "", SSH_ASKPASS: "", GIT_PAGER: "cat" });
@@ -47,6 +51,23 @@ export interface ZenoBranch {
   remote?: string;
   /** "no": not on the remote; "yes": the remote has exactly it; "changed": it moved on since the last push. */
   pushed: "no" | "yes" | "changed";
+  worktree?: string;
+  uncommitted?: boolean;
+}
+
+/** Only the host-created, still-owned worktree for this exact task branch. Never select a caller-supplied path. */
+export async function taskWorkingCopy(repo: string, branch: string, worktrees?: string): Promise<string | undefined> {
+  const id = BRANCH_PATTERN.exec(branch)?.[1];
+  if (!id || !worktrees) return;
+  const tree = join(worktrees, `task-${id}`);
+  try {
+    if (!readTaskBranchBase(worktrees, repo, branch)) return;
+    const stat = lstatSync(tree);
+    if (!stat.isDirectory() || stat.isSymbolicLink()) return;
+    if (!await worktreeIntact(tree, repo)) return;
+    if (await git(tree, "symbolic-ref", "--quiet", "--short", "HEAD") !== branch) return;
+    return tree;
+  } catch { return; }
 }
 
 /** A remote's address with any credentials taken out (`https://user:token@host/x` → `https://host/x`). */
@@ -89,11 +110,13 @@ export async function zenoBranches(repo: string, worktrees?: string): Promise<Ze
       let baseWarning: string | undefined;
       try { point = await comparison(repo, branch, worktrees); }
       catch { baseWarning = "Starting point unavailable. No comparison is shown; check the saved base or check out the intended base branch for an older task."; }
+      const worktree = await taskWorkingCopy(repo, branch, worktrees);
+      const uncommitted = worktree ? await workingCopyDirty(worktree) : false;
       let log = "", stat = "";
       if (point) {
         try {
           log = await git(repo, "log", `--max-count=${MAX_COMMITS}`, "--format=%h%x09%cI%x09%s", `${point.sha}..${point.head}`);
-          stat = await git(repo, "diff", "--no-ext-diff", "--no-textconv", "--numstat", `${point.sha}..${point.head}`);
+          stat = worktree ? await workingCopyDiff(worktree, point.sha, true) : await git(repo, "diff", "--no-ext-diff", "--no-textconv", "--numstat", `${point.sha}..${point.head}`);
         } catch { baseWarning = "Git could not read this comparison. Refresh to try again."; log = ""; stat = ""; }
       }
       const commits = log ? log.split("\n").map((line) => {
@@ -117,6 +140,7 @@ export async function zenoBranches(repo: string, worktrees?: string): Promise<Ze
         ...(baseWarning ? { baseWarning } : {}),
         commits,
         files,
+        ...(worktree ? { worktree, uncommitted } : {}),
         ...(remote ? { remote: cleanRemote(remote) } : {}),
         pushed: !onRemote ? "no" : onRemote === head ? "yes" : "changed",
       };
@@ -129,7 +153,11 @@ export async function zenoBranches(repo: string, worktrees?: string): Promise<Ze
 export async function branchDiff(repo: string, branch: string, limit = 200_000, worktrees?: string): Promise<{ text: string; truncated: boolean }> {
   if (!BRANCH_PATTERN.test(branch)) throw new Error("Only ATOM's task branches can be shown.");
   const point = await comparison(repo, branch, worktrees);
-  const { stdout } = await run("git", ["-C", repo, "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "diff", "--no-color", "--no-ext-diff", "--no-textconv", `${point.sha}..${point.head}`], { timeout: 30_000, maxBuffer: 20 * 1024 * 1024, env: environment() });
+  const tree = await taskWorkingCopy(repo, branch, worktrees);
+  const patch = tree ? await workingCopyDiff(tree, point.sha) : (await run("git", ["-C", repo, "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "diff", "--no-color", "--no-ext-diff", "--no-textconv", `${point.sha}..${point.head}`], { timeout: 30_000, maxBuffer: 20 * 1024 * 1024, env: environment() })).stdout;
+  if (tree && await taskWorkingCopy(repo, branch, worktrees) !== tree) throw new Error("The task working copy changed during review. Refresh before continuing.");
+  const dirty = tree && await workingCopyDirty(tree);
+  const stdout = patch + (dirty ? "\nWorking-copy comparison. New untracked file contents are not included until explicitly staged.\n" : "");
   return stdout.length > limit ? { text: stdout.slice(0, limit), truncated: true } : { text: stdout, truncated: false };
 }
 

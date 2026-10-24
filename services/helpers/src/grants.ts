@@ -108,12 +108,12 @@ export function folderForTask(task: string, home: string): string {
 
 /**
  * Why a file tool's path is refused, or undefined when it is inside one of the run's folders. A change inside a `.git`
- * folder or file is refused too: git's own data is ATOM's to write (it commits the work), never the worker's.
+ * folder or file is refused too: git's own data is ATOM's to write (commits require explicit user action), never the worker's.
  */
 export function pathProblem(roots: readonly string[], cwd: string, p: string, writing = false): string | undefined {
   const real = realish(isAbsolute(p) ? p : resolve(cwd, p));
   if (!roots.some((root) => isInside(root, real))) return `${p} is outside the folders this task may use.`;
-  if (writing && hasGitPart(real)) return "Git's own files are not changed by hand: ATOM commits the work.";
+  if (writing && hasGitPart(real)) return "Git's own files are not changed by hand: commit explicitly in Terminal.";
   return undefined;
 }
 
@@ -134,7 +134,7 @@ export function floorProblem(home: string, roots: readonly string[], cwd: string
   const inRoot = roots.some((root) => isInside(root, real));
   const volumes = isInside("/Volumes", real);
   if (!inRoot && !volumes && !isInside(homeReal, real)) return `${p} is outside your home folder.`;
-  if (writing && hasGitPart(real)) return "Git's own files are not changed by hand: ATOM commits the work.";
+  if (writing && hasGitPart(real)) return "Git's own files are not changed by hand: commit explicitly in Terminal.";
   if (inRoot) return undefined;
   const base = volumes ? "/Volumes" : homeReal;
   const parts = relative(base, real).split(sep).filter(Boolean);

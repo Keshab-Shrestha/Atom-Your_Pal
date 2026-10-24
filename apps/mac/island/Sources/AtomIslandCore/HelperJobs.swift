@@ -104,6 +104,7 @@ public struct HelperToolCall: Sendable, Equatable {
 }
 
 public struct HelperJob: Sendable, Equatable, Identifiable {
+    public var chatId: String?
     public var id: Int
     public var task: String
     public var state: JobState
@@ -165,7 +166,8 @@ public struct HelperJob: Sendable, Equatable, Identifiable {
                 comments: Int = 0, goal: String? = nil, parentId: Int? = nil, goalId: Int? = nil, goalEnded: Bool = false,
                 resumable: Bool = false, held: String? = nil, interrupted: Bool = false, planFirst: Bool = false, planStatus: String? = nil,
                 planSummary: String? = nil, rating: String? = nil, reviews: Int? = nil, autoRetries: Int = 0,
-                subAgents: [HelperSubAgent] = [], labels: [String] = [], recoveryNeeded: Bool = false, retryOf: Int? = nil, retriedAs: Int? = nil, advisory: Bool = false) {
+                subAgents: [HelperSubAgent] = [], labels: [String] = [], recoveryNeeded: Bool = false, retryOf: Int? = nil, retriedAs: Int? = nil, advisory: Bool = false, chatId: String? = nil) {
+        self.chatId = chatId
         self.id = id
         self.task = task
         self.state = state

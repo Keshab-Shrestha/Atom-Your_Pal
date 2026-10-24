@@ -65,7 +65,7 @@ test("paths outside are refused, risky commands ask, refused ones never ask; the
     });
     assert.equal(await check("Edit", { file_path: join(root, "a.ts") }), undefined);
     assert.match((await check("Read", { file_path: "/etc/passwd" }))!, /outside your home folder/);
-    assert.match((await check("Write", { file_path: join(root, ".git") }))!, /ATOM commits the work/);
+    assert.match((await check("Write", { file_path: join(root, ".git") }))!, /commit explicitly in Terminal/);
     assert.match((await check("Bash", { command: "git push" }))!, /never done/);
     assert.match((await check("Bash", { command: "rm -rf build" }))!, /Deleting is never done/);
     answer = false;
@@ -137,7 +137,7 @@ test("before runs only for file-changing tools whose paths passed; a throw does 
     assert.equal(await check("Grep", { pattern: "x", path: root }), undefined);
     assert.equal(await check("Bash", { command: "ls" }), undefined);
     assert.match((await check("Write", { file_path: "/etc/passwd" }))!, /outside your home folder/);
-    assert.match((await check("Write", { file_path: join(root, ".git", "x") }))!, /ATOM commits the work/);
+    assert.match((await check("Write", { file_path: join(root, ".git", "x") }))!, /commit explicitly in Terminal/);
     assert.deepEqual(seen, [
       ["Write", [join(root, "a.ts")]],
       ["Edit", [join(root, "rel.ts")]],

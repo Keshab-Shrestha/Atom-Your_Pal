@@ -98,6 +98,7 @@ export interface EpisodeItem {
 
 /** One helper job (ADR-081). Task and report text travel only over the private pipe; never logged. */
 export interface JobItem {
+  chatId?: string;
   id: number;
   task: string;
   state: "queued" | "running" | "done" | "failed" | "stopped";
@@ -214,6 +215,8 @@ export interface ThreadEvent {
 
 /** ADR-091: one of ATOM's task branches, with the task's title. */
 export interface GitBranchItem {
+  worktree?: string;
+  uncommitted?: boolean;
   repo: string;
   repoName: string;
   branch: string;

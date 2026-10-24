@@ -57,11 +57,31 @@ function setup(opts: { mode?: () => "background" | "foreground"; probe?: () => P
     ...(opts.point ? { onPoint: opts.point } : {}),
     ...(opts.mode ? { deliveryMode: opts.mode } : {}),
   });
-  const run = (input: Record<string, unknown>, signal?: AbortSignal) => Promise.resolve(tool.run(input, signal)).then((text) => ({ ok: true as const, text }), (e: Error) => ({ ok: false as const, text: e.message }));
+  const run = (input: Record<string, unknown>, signal?: AbortSignal) => Promise.resolve(tool.run(input, signal)).then((result) => ({ ok: true as const, text: typeof result === "string" ? result : result.text }), (e: Error) => ({ ok: false as const, text: e.message }));
   return { tool, run, calls, asked, logs, restart };
 }
 
 const sees = async (s: ReturnType<typeof setup>) => s.run({ action: "look", app: "TextEdit" });
+
+test("a complete window image reaches the model result and is not reused by another action", async () => {
+  const images = [{ mimeType: "image/png" as const, data: "iVBORw0KGgo=" }];
+  const s = setup({ handlers: { get_window_state: (a) => ({ ...ok("state", { pid: a.pid, window_id: a.window_id, app_name: "TextEdit", elements }), images }) } });
+  const result = await s.tool.run({ action: "look", app: "TextEdit" });
+  assert.equal(typeof result, "object");
+  if (typeof result === "object") assert.deepEqual(result.images, images);
+  assert.equal(s.calls.find((c) => c.name === "get_window_state")?.args.include_screenshot, true);
+  assert.equal(typeof await s.tool.run({ action: "list_apps" }), "string");
+});
+
+test("explicit window selection targets a window on a negative-coordinate secondary display", async () => {
+  const s = setup({ handlers: { list_windows: () => ok("windows", { windows: [win, { ...win, window_id: 19, title: "second.txt", bounds: { x: -1600, y: 30, width: 900, height: 700 } }] }) } });
+  await s.run({ action: "look", app: "TextEdit", window_id: 19 });
+  const clicked = await s.run({ action: "click", element: 2 });
+  assert.equal(clicked.ok, true);
+  assert.equal(s.calls.find((c) => c.name === "get_window_state")?.args.window_id, 19);
+  assert.equal(s.calls.find((c) => c.name === "click")?.args.window_id, 19);
+  assert.equal(s.calls.find((c) => c.name === "click")?.args.pid, 11);
+});
 
 test("the tool exposes one `computer` spec with an action enum", () => {
   const { tool } = setup();

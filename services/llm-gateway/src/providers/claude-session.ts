@@ -146,7 +146,7 @@ export interface ChatSessionHandle {
   readonly closed: boolean;
   /** Claude Code's session id, once known. */
   readonly sessionId: string | undefined;
-  /** Short hash of the system prompt and the tool names: the same value means the same cached prefix. */
+  /** Diagnostic hash of the system prompt, tool names and ATOM tool definitions. Not a provider cache guarantee. */
   readonly prefix: string;
   /** Background tasks (sub-agents, commands) that run now. */
   readonly background: number;
@@ -160,9 +160,9 @@ export interface ChatSessionHandle {
   onEvent(listener: (message: Record<string, any>) => void): () => void;
 }
 
-/** A short hash of what the session's prefix is made of. Logged at each open: a changed value explains a cache write. */
-export function prefixHash(systemPrompt: string, toolNames: readonly string[]): string {
-  return createHash("sha256").update(JSON.stringify([systemPrompt, toolNames])).digest("hex").slice(0, 12);
+/** Diagnostics for ATOM's prefix inputs. A change can explain a cache miss; it cannot prove provider cache behavior. */
+export function prefixHash(systemPrompt: string, toolNames: readonly string[], definitions: unknown = []): string {
+  return createHash("sha256").update(JSON.stringify([systemPrompt, toolNames, definitions])).digest("hex").slice(0, 12);
 }
 
 /** The input stream of a session: messages wait in a queue until Claude Code reads them. */
@@ -210,7 +210,7 @@ export function sessionOptions(sdk: SessionSdk, o: ChatSessionOptions, controlle
     // `tools` above, and the gate's hook refuses anything else).
     tools: [...new Set([...o.tools, ...Object.values(o.agents ?? {}).flatMap((a) => (Array.isArray((a as { tools?: unknown }).tools) ? ((a as { tools: string[] }).tools) : [])).filter((t) => !t.startsWith("mcp__")), TOOL_SEARCH])],
     ...(specs.length
-      ? { mcpServers: { [TOOL_SERVER]: sdk.createSdkMcpServer({ name: TOOL_SERVER, version: "1.0.0", tools: sdkToolsFor(sdk, specs, o.atomTools!, toolSignal) }) } }
+      ? { mcpServers: { [TOOL_SERVER]: sdk.createSdkMcpServer({ name: TOOL_SERVER, version: `1.0.0-${prefixHash("", [], specs)}`, tools: sdkToolsFor(sdk, specs, o.atomTools!, toolSignal) }) } }
       : {}),
     // Nothing is allowed without the gate: every call goes through canUseTool and the PreToolUse hook.
     ...(o.sandbox ? { sandbox: o.sandbox } : {}),
@@ -277,7 +277,7 @@ export async function openChatSession(o: ChatSessionOptions): Promise<ChatSessio
   const options = sessionOptions(sdk, o, controller, () => turnSignal ?? controller.signal);
   const specs = o.atomTools?.specs() ?? [];
   const toolNames = [...o.tools, ...specs.map((s) => s.name)];
-  const prefix = prefixHash(o.systemPrompt, toolNames);
+  const prefix = prefixHash(o.systemPrompt, toolNames, specs);
   // Sizes only, never content, to attribute the fixed prefix (R3). Claude Code's own built-in tool schemas are not counted here.
   log("session.open", { sdk: sdkVersion(), prefix, model, resume: Boolean(o.resume), tools: toolNames.length,
     systemBytes: Buffer.byteLength(o.systemPrompt), atomToolBytes: Buffer.byteLength(JSON.stringify(specs)) });

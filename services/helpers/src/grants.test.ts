@@ -50,8 +50,8 @@ test("a file tool's path must be inside the run's folders, symlinks and .. inclu
     assert.match(pathProblem(roots, app, "keys/id_ed25519")!, /outside/, "a symlink out of the folder");
     assert.match(pathProblem(roots, app, `${app}-evil/x`)!, /outside/, "a sibling with the same prefix");
     assert.equal(pathProblem(roots, app, ".git/config"), undefined, "reading git's files is fine");
-    assert.match(pathProblem(roots, app, ".git", true)!, /ATOM commits the work/);
-    assert.match(pathProblem(roots, app, "sub/.git/HEAD", true)!, /ATOM commits the work/);
+    assert.match(pathProblem(roots, app, ".git", true)!, /commit explicitly in Terminal/);
+    assert.match(pathProblem(roots, app, "sub/.git/HEAD", true)!, /commit explicitly in Terminal/);
   } finally {
     rmSync(home, { recursive: true, force: true });
   }

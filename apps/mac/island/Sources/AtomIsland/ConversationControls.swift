@@ -70,7 +70,7 @@ struct ConversationControls: View {
             }
             Divider()
             Button("Chat access") { access = true; model.inspectSavedChat() }
-            Button("Saved context details") { details = true; model.inspectSavedChat() }
+            Button("What this chat remembers") { details = true; model.inspectSavedChat() }
             Button(recoveryCount > 0 ? "Recovery (\(recoveryCount))" : "Recovery") {
                 model.recovery.shown = true; model.refreshForegroundRecovery()
             }
@@ -97,25 +97,30 @@ struct ConversationControls: View {
 
     private var contextDetails: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Saved conversation replay").font(.headline)
+            Text("What this chat remembers").font(.headline)
+            Text("Your messages stay saved. ATOM uses recent messages to continue this conversation, and can summarize older ones in long chats. Memory never grants file or tool access.")
             if let note = model.cacheExpiredNotice { Text(note) }
             if let info = model.chatControls.snapshot?.info {
-                Text("\(info.messages) saved messages · \(bytes(info.archiveBytes)) archived")
-                ProgressView(value: Double(max(0, info.replayBytes)), total: Double(max(1, info.replayBudget)))
-                Text("Fresh replay estimate: \(bytes(info.replayBytes)) of \(bytes(info.replayBudget)). \(info.omitted) earlier messages omitted from that estimate; the archive stays intact.")
+                Text("\(info.messages) messages saved")
+                DisclosureGroup("Replay and context details") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ProgressView(value: Double(max(0, info.replayBytes)), total: Double(max(1, info.replayBudget)))
+                        Text("Fresh replay estimate: \(bytes(info.replayBytes)) of \(bytes(info.replayBudget)). \(info.omitted) earlier messages omitted from that estimate; the archive stays intact.")
+                        Text("This byte estimate excludes system prompts, tools, in-flight input and SDK memory. It is not a provider token meter. ATOM manages replay automatically; manual Compact is unavailable.")
+                    }.padding(.top, 6)
+                }
             } else { Text("Send a message to save this chat, or refresh its details.") }
-            Text("This is a byte estimate for saved conversation replay, not a provider token/context meter. It excludes system prompts, tools, in-flight input and SDK memory.")
-            Text("ATOM bounds replay automatically. Manual Compact is unavailable in the current gateway.")
             if let continuity = model.chatControls.snapshot?.continuity {
                 Divider()
-                Text("Automatic continuity").fontWeight(.medium)
+                Text("Older-message summaries").fontWeight(.medium)
                 Text(continuity.status)
-                Text("Uses the selected Claude/Codex model at low or its supported default effort in a separate tool-free request. This uses additional plan tokens. Current messages and your Chat brief take precedence; summaries never grant access.")
+                DisclosureGroup("How summaries work") {
+                    Text("Uses the selected Claude/Codex model at low or its supported default effort in a separate tool-free request. This uses additional plan tokens. Current messages and your Chat brief take precedence; summaries never grant access. Clearing stops future inclusion, but copies already sent may remain in the provider session. Original messages stay saved.").padding(.top, 6)
+                }
                 if let summary = continuity.summary {
-                    Text("m1–m\(summary.through) · \(summary.provider) / \(summary.model)")
-                        .foregroundStyle(theme.text3.color)
                     DisclosureGroup("Review derived summary") {
                         VStack(alignment: .leading, spacing: 8) {
+                            Text("m1–m\(summary.through) · \(summary.provider) / \(summary.model)").foregroundStyle(theme.text3.color)
                             ForEach(Array(summary.items.enumerated()), id: \.offset) { _, item in
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(item.text + " (" + item.refs.map { "m\($0)" }.joined(separator: ", ") + ")")
@@ -134,9 +139,9 @@ struct ConversationControls: View {
                 Button(continuity.enabled ? "Pause and clear automatic summary" : "Enable automatic summaries") {
                     model.setChatContinuity(enabled: !continuity.enabled, version: continuity.version)
                 }.disabled(!model.chatBranchAvailable || model.chats?.currentReadOnlyNotice != nil)
-                Text("Clearing stops future inclusion; copies already sent may remain in the provider’s session. Original messages stay saved.")
             }
             if let usage = model.planUsage {
+                DisclosureGroup("Provider limits and retry") {
                 Text(usage.limited == true ? "Claude plan: limit reported" : "Claude plan: last reported usage")
                     .fontWeight(.medium)
                 if let reset = usage.resetAt {
@@ -149,6 +154,7 @@ struct ConversationControls: View {
                     }.disabled(!model.chatBranchAvailable)
                 }
                 Text("A retry creates an unsent draft in a new chat. Nothing is scheduled or sent when a reset time passes.")
+                }
             }
             Button("Refresh saved details", action: model.inspectSavedChat)
         }
