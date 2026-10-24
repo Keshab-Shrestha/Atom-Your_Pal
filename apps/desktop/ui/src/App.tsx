@@ -9,7 +9,7 @@ import { Surface } from "./Surface.tsx";
 import { newUuid } from "./ids.ts";
 import { ChatSettings } from "./ChatSettings.tsx";
 import type { ChatAccessMode } from "./protocol.ts";
-import { currentChat, effectiveModel, initialState, reduce, sendBlock, settingsWhy } from "./store.ts";
+import { attachWhy as attachReason, currentChat, effectiveModel, initialState, reduce, sendBlock, settingsWhy } from "./store.ts";
 import type { ChatItem } from "./protocol.ts";
 import type { Transport } from "./transport.ts";
 
@@ -220,6 +220,43 @@ export function App({ transport }: { transport: Transport }) {
     [chatId, currentAccess, settingsBlock, send],
   );
 
+  // A message with files is handed over in two steps: the bridge stages each file and gives its path, then `text.send` carries the paths. The
+  // runtime checks the files only now and a refusal sends nothing, so the draft and the files stay in the composer until it takes the turn.
+  const waiters = useRef<{ transcripts: number; errors: number; done: (ok: boolean) => void }[]>([]);
+  useEffect(() => {
+    for (const w of [...waiters.current]) {
+      if (state.transcripts > w.transcripts) (waiters.current.splice(waiters.current.indexOf(w), 1), w.done(true));
+      else if (state.errors > w.errors) (waiters.current.splice(waiters.current.indexOf(w), 1), w.done(false));
+    }
+  }, [state.transcripts, state.errors]);
+  const sendMessage = useCallback(
+    async (text: string, files: File[]): Promise<boolean> => {
+      if (files.length === 0) return send({ type: "text.send", text });
+      const paths: string[] = [];
+      for (const file of files) {
+        const staged = await transport.upload(file);
+        if (!staged.ok) {
+          dispatch({ kind: "problem", problem: { message: staged.message } });
+          return false;
+        }
+        paths.push(staged.path);
+      }
+      const outcome = new Promise<boolean>((resolve) => {
+        const waiter = { transcripts: stateRef.current.transcripts, errors: stateRef.current.errors, done: resolve };
+        waiters.current.push(waiter);
+        setTimeout(() => {
+          const at = waiters.current.indexOf(waiter);
+          if (at >= 0) (waiters.current.splice(at, 1), resolve(false));
+        }, 20_000);
+      });
+      if (!(await send({ type: "text.send", text, files: paths }))) return false;
+      return outcome;
+    },
+    [send, transport],
+  );
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
   const blocked = useMemo(() => sendBlock(state), [state]);
   const chat = currentChat(state);
 
@@ -270,7 +307,8 @@ export function App({ transport }: { transport: Transport }) {
         onBranch={startBranch}
         onStop={stop}
         onAnswer={answer}
-        onSend={(text) => send({ type: "text.send", text })}
+        onSend={sendMessage}
+        attachWhy={attachReason(state)}
         onDismissProblem={() => dispatch({ kind: "dismissProblem" })}
       />
       <Surface />

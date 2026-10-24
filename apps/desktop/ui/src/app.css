@@ -172,8 +172,26 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 .send:disabled { opacity: 0.4; }
 .composer-note { margin: 0; font-size: 13px; color: var(--warn); }
 
+/* ----- attachments ----- */
+.lane-chat { position: relative; }
+.dropzone { position: absolute; inset: 8px; z-index: 30; display: grid; place-items: center; border: 2px dashed var(--accent); border-radius: var(--radius-lane); background: color-mix(in srgb, var(--work) 88%, transparent); pointer-events: none; }
+.dropzone p { margin: 0; font: 500 22px/1.2 var(--font-display); }
+.files { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; overflow-x: auto; }
+.file-chip { flex: none; display: flex; align-items: center; gap: 8px; max-width: 280px; padding: 4px 6px 4px 4px; border: 1px solid var(--line2); border-radius: var(--radius-control); background: var(--sunken); }
+.file-chip img { width: 32px; height: 32px; object-fit: cover; border-radius: 6px; }
+.file-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 6px; background: var(--info-soft); color: var(--accent); }
+.file-chip .muted { white-space: nowrap; }
+.file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-remove { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); }
+.file-remove:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+.foot-left { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.attach-btn { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--line2); border-radius: var(--radius-control); background: transparent; color: var(--text2); }
+.attach-btn:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+.attach-btn[aria-disabled="true"] { opacity: 0.6; cursor: not-allowed; }
+.sent-file { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; margin: 2px 2px 2px 0; border-radius: 999px; background: rgba(255, 255, 255, 0.14); font-size: 13px; }
+
 /* ----- composer controls: model, thinking, access ----- */
-.controls { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.controls { display: contents; } /* its buttons wrap together with the paperclip in .foot-left */
 .controls .inlinemenu { position: relative; }
 .controls .inline-more, .picker-wrap .inline-more { opacity: 1; }
 .controls .inline-more[aria-disabled="true"] { opacity: 0.6; cursor: not-allowed; }

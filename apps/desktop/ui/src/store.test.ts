@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { effectiveModel, initialState, reduce, sendBlock, settingsWhy, type Action, type AppState } from "./store.ts";
+import { attachWhy, effectiveModel, initialState, reduce, sendBlock, settingsWhy, type Action, type AppState } from "./store.ts";
 
 const ev = (event: object): Action => ({ kind: "event", event: event as never });
 const run = (actions: Action[], from: AppState = initialState) => actions.reduce(reduce, from);
@@ -245,4 +245,18 @@ test("thinking and access wait for a ready, idle, writable chat, and say why", (
   assert.match(settingsWhy(run([chat, ev({ type: "state", state: "thinking" })], live()))!, /stop the active turn/);
   const shared = run([ev({ type: "chats", current: "c2", chats: [{ id: "c2", title: "Telegram", updatedAt: "2026-10-24T00:00:00Z", messages: 1, readOnly: true }] })], live());
   assert.match(settingsWhy(shared)!, /another surface/);
+});
+
+// ---------- attachments ----------
+
+test("accepted turns and errors are counted, so a send with files can tell which one came back", () => {
+  const s = run([ev({ type: "transcript", text: "hi" }), ev({ type: "error", stage: "settings", message: "x.txt looks like a secret or a key file, so ATOM will not read it." }), ev({ type: "error", stage: "model", message: "No internet." })], live());
+  assert.equal(s.transcripts, 1);
+  assert.equal(s.errors, 2);
+});
+
+test("a project chat takes no attachments", () => {
+  assert.equal(attachWhy(live()), undefined);
+  const project = run([ev({ type: "chats", current: "c1", currentProjectId: "p1", chats: [{ id: "c1", title: "P", updatedAt: "2026-10-24T00:00:00Z", messages: 1, projectId: "p1" }] })], live());
+  assert.equal(attachWhy(project), "Project chats take no attachments.");
 });

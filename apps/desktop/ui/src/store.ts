@@ -94,6 +94,8 @@ export interface ChatSettings {
   model?: string;
   reasoning?: ChatReasoning;
   access?: ChatAccessMode;
+  /** The project this chat belongs to. A project chat takes no attachments. */
+  projectId?: string;
 }
 
 /** The link between this page and the bridge. */
@@ -121,6 +123,9 @@ export interface AppState {
   undo?: Undo;
   branch?: BranchOp;
   branchResult?: BranchResult;
+  /** How many turns the runtime accepted (`transcript`) and how many errors it reported: a send with files waits for one of them to move. */
+  transcripts: number;
+  errors: number;
   /** Bumps on every reducer step that adds a message, so a view can scroll to the end. */
   nextId: number;
 }
@@ -132,6 +137,8 @@ export const initialState: AppState = {
   chats: [],
   settings: {},
   messages: [],
+  transcripts: 0,
+  errors: 0,
   nextId: 1,
 };
 
@@ -266,6 +273,7 @@ function reduceEvent(state: AppState, event: IslandEvent): AppState {
           ...(event.currentModel ? { model: event.currentModel } : {}),
           ...(event.reasoning ? { reasoning: event.reasoning } : {}),
           ...(event.access ? { access: event.access } : {}),
+          ...(event.currentProjectId ? { projectId: event.currentProjectId } : {}),
         },
       };
     case "chat.opened": {
@@ -279,7 +287,7 @@ function reduceEvent(state: AppState, event: IslandEvent): AppState {
     case "reply": {
       const role = event.type === "transcript" ? "user" : "assistant";
       const [message] = withMessages(state, [{ role, text: event.text }]);
-      return { ...state, messages: [...state.messages, message!], nextId: state.nextId + 1 };
+      return { ...state, messages: [...state.messages, message!], nextId: state.nextId + 1, ...(event.type === "transcript" ? { transcripts: state.transcripts + 1 } : {}) };
     }
     case "chat.control": {
       const branch = state.branch;
@@ -306,7 +314,7 @@ function reduceEvent(state: AppState, event: IslandEvent): AppState {
     case "notice":
       return { ...state, problem: { message: event.message } };
     case "error": {
-      const next = { ...state, problem: { stage: event.stage, message: event.message }, loop: event.stage === "model" ? ("idle" as const) : state.loop };
+      const next = { ...state, errors: state.errors + 1, problem: { stage: event.stage, message: event.message }, loop: event.stage === "model" ? ("idle" as const) : state.loop };
       // Errors about another command (settings, protocol) say nothing about the turn (ProtocolModels.swift `endsTurn`).
       return event.stage === "settings" || event.stage === "protocol" ? next : endWork(dropApproval(next), "failed");
     }
@@ -378,4 +386,9 @@ export function sendBlock(state: AppState): string | undefined {
   // A message sent now would end the turn in flight, and ending a turn counts as "no" for anything waiting for approval.
   if (state.loop !== "idle") return "ATOM is working. Press Stop, or wait for it to finish.";
   return undefined;
+}
+
+/** Why this chat takes no attachments; undefined when it does. A project chat reads its folder instead (docs/island-protocol.md). */
+export function attachWhy(state: AppState): string | undefined {
+  return state.settings.projectId ? "Project chats take no attachments." : undefined;
 }

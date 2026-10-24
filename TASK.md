@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Cross-platform window, step 2f: attachments and paste — implemented and checked, 24 October 2026
+
+Files can be attached by button, drop or paste (screenshots too), shown as chips with image thumbnails, and sent with or without words. Because a web page has no real paths, the bridge stages uploads in a private, size-limited, self-cleaning folder and gives the runtime the path; the runtime's own checks stay in charge, and the draft and files are kept until it accepts the turn. Paste cleans hidden characters, and long text becomes a `.txt` attachment. Found and fixed on the way: staging stripped a leading dot, which would have hidden `.env` from the runtime's secret-name check (now kept, with a test). 12 new tests, 26 browser checks, and real-runtime refusals of `.env`, `id_rsa` and `.exe` through the bridge without a model call. Not ported: Quick Look preview and note chips. [Details](docs/cross-platform-migration.md). Next: 2g, queue, drafts and recovery. Swift unchanged.
+
 ## Cross-platform window, step 2e: model, thinking and access menus — implemented and checked, 24 October 2026
 
 The composer has a searchable model picker (provider filter, custom id, back to default), a thinking menu and an access menu (Saved permissions, Chat only, Ask before changes, Full access). Each sends one runtime-validated command and shows what the runtime reports next; Full access is applied only after the runtime's own consent card is allowed; the Gemini CLI offers only Saved permissions; controls stay visible and say why when busy or read-only. Rules ported from the Swift catalog code; the bridge replays `info` to a reloaded window. 8 new tests and 27 browser checks against the fake runtime pass. Not ported: favourite models. Not checked against real providers. [Details](docs/cross-platform-migration.md). Next: 2f, attachments and paste. Swift unchanged.

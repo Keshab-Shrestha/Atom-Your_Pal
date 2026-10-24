@@ -3,7 +3,8 @@
 // address's #fragment, which a browser never sends to a server and the page removes from the address bar.
 
 import { randomBytes } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHub } from "./hub.ts";
@@ -42,7 +43,9 @@ const supervisor = createSupervisor({
 });
 
 const uiDir = join(here, "../ui/dist");
-const bridge = createBridgeServer({ hub, token, uiDir: existsSync(uiDir) ? uiDir : undefined, send: supervisor.send, status: supervisor.status });
+// Staged attachments live in one private folder (mode 0700) that is removed when the bridge stops.
+const uploadDir = mkdtempSync(join(tmpdir(), "atom-uploads-"));
+const bridge = createBridgeServer({ hub, token, uiDir: existsSync(uiDir) ? uiDir : undefined, uploadDir, send: supervisor.send, status: supervisor.status });
 const { port } = await bridge.listen(wantedPort);
 supervisor.start();
 
@@ -56,6 +59,7 @@ async function shutdown() {
   stopping = true;
   await supervisor.stop();
   await bridge.close();
+  rmSync(uploadDir, { recursive: true, force: true });
   process.exit(0);
 }
 process.on("SIGINT", () => void shutdown());

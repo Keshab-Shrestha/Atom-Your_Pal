@@ -1,9 +1,11 @@
-import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Composer } from "./Composer.tsx";
 import { CopyContext, Markdown } from "./Markdown.tsx";
 import { RowMenu } from "./RowMenu.tsx";
 import { replyContent, type ClipContent } from "./copy.ts";
-import type { Insertion } from "./Composer.tsx";
+import type { Incoming, Insertion } from "./Composer.tsx";
+import { splitAttachments } from "./attachments.ts";
+import { Icon } from "./icons.tsx";
 import type { ComponentChildren } from "preact";
 import { WorkBar } from "./WorkBar.tsx";
 import type { ChatItem, LoopState } from "./protocol.ts";
@@ -19,13 +21,14 @@ export interface ChatViewProps {
   approval: Approval | undefined;
   blocked: string | undefined;
   modelLabel: string | undefined;
-  onSend: (text: string) => Promise<boolean>;
+  onSend: (text: string, files: File[]) => Promise<boolean>;
   onDismissProblem: () => void;
   onCopy: (content: ClipContent) => void;
   /** Appends a quote of a reply to the draft. */
   onQuote: (text: string) => void;
   /** An unsent text to place in the composer, and a counter that makes the same text insertable twice. */
   insertion: Insertion | undefined;
+  attachWhy: string | undefined;
   /** The composer's model, thinking and access controls. */
   controls: ComponentChildren;
   /** Why a chat cannot be copied into a new one right now; undefined when it can. */
@@ -46,7 +49,7 @@ const LOOP_WORDS: Record<LoopState, string> = {
 
 const NO_SEQ = "Reopen this chat to use this on a message that has just arrived.";
 
-export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, onDismissProblem, onCopy, onQuote, insertion, controls, branchWhy, onBranch, onStop, onAnswer }: ChatViewProps) {
+export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, onDismissProblem, onCopy, onQuote, insertion, attachWhy, controls, branchWhy, onBranch, onStop, onAnswer }: ChatViewProps) {
   /** Fork, edit and retry need the runtime's saved number for the message. */
   const branchItems = (message: Message): MenuItem[] => {
     const why = branchWhy ?? (message.seq === undefined ? NO_SEQ : undefined);
@@ -61,6 +64,10 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
       { label: "Fork through here", onSelect: () => onBranch("fork", through), disabledWhy: why },
     ];
   };
+  // Files dropped on the chat go to the composer, which checks them. A drop never sends anything.
+  const [dragging, setDragging] = useState(false);
+  const [incoming, setIncoming] = useState<Incoming | undefined>();
+  const dropSeq = useRef(0);
   const log = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   /** True while the reader is at (or near) the end: new text and late layout changes then keep the end in view. Reading older text lets go. */
@@ -89,7 +96,27 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
   }, []);
 
   return (
-    <main class="lane lane-chat" aria-label="Conversation">
+    <main
+      class="lane lane-chat"
+      aria-label="Conversation"
+      onDragEnter={(e) => e.dataTransfer?.types.includes("Files") && (e.preventDefault(), setDragging(true))}
+      onDragOver={(e) => e.dataTransfer?.types.includes("Files") && e.preventDefault()}
+      onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setDragging(false)}
+      onDrop={(e) => {
+        if (!e.dataTransfer?.types.includes("Files")) return;
+        e.preventDefault();
+        setDragging(false);
+        const items = [...e.dataTransfer.items];
+        const folders = items.filter((i) => i.kind === "file" && i.webkitGetAsEntry?.()?.isDirectory).length;
+        const dropped = [...e.dataTransfer.files].filter((_, i) => !(items[i]?.webkitGetAsEntry?.()?.isDirectory));
+        setIncoming({ seq: ++dropSeq.current, files: dropped, folders });
+      }}
+    >
+      {dragging ? (
+        <div class="dropzone" aria-hidden="true">
+          <p>{attachWhy ?? "Drop files to attach them"}</p>
+        </div>
+      ) : null}
       <header class="chat-head">
         <div>
           <p class="eyebrow">Chat</p>
@@ -139,7 +166,7 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
               <div class="msg-row msg-row-user" key={message.id}>
                 <RowMenu label="Message actions" items={[{ label: "Copy message", onSelect: () => onCopy({ text: message.text }) }, ...branchItems(message)]} />
                 <div class="msg msg-user">
-                  <p>{message.text}</p>
+                  <UserText text={message.text} />
                 </div>
               </div>
             ) : (
@@ -176,12 +203,31 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
         blocked={blocked}
         modelLabel={modelLabel}
         controls={controls}
+        attachWhy={attachWhy}
+        incoming={incoming}
         insertion={insertion}
-        onSend={(text) => {
+        onSend={(text, files) => {
           pinned.current = true; // your own message always brings you to the end
-          return onSend(text);
+          return onSend(text, files);
         }}
       />
     </main>
+  );
+}
+
+/** A sent message: its words, with each attached file shown by name (never by its local path). */
+function UserText({ text }: { text: string }) {
+  const pieces = splitAttachments(text);
+  if (!pieces.some((p) => "attached" in p)) return <p>{text}</p>;
+  return (
+    <p>
+      {pieces.map((piece, i) =>
+        "attached" in piece ? (
+          <span key={i} class="sent-file" title="Attached file"><Icon name="file" size={14} /> {piece.attached}</span>
+        ) : (
+          <span key={i}>{piece.text.replace(/^\n+|\n+$/g, "") === "" ? "" : piece.text}</span>
+        ),
+      )}
+    </p>
   );
 }

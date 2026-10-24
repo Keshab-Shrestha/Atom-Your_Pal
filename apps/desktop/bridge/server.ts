@@ -9,6 +9,7 @@ import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import type { Hub } from "./hub.ts";
 import type { SupervisorStatus } from "./supervisor.ts";
+import { stageUpload } from "./uploads.ts";
 
 /** Commands carry typed text and attachments' paths, not files; 16 MiB is far above any real message. */
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
@@ -25,7 +26,7 @@ const CONTENT_TYPES: Record<string, string> = {
 };
 
 const SECURITY_HEADERS = {
-  "content-security-policy": "default-src 'self'; img-src 'self' data:; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  "content-security-policy": "default-src 'self'; img-src 'self' data: blob:; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
   "x-content-type-options": "nosniff",
   "referrer-policy": "no-referrer",
   "cross-origin-resource-policy": "same-origin",
@@ -36,6 +37,8 @@ export interface BridgeServerOptions {
   token: string;
   /** The built window (ui/dist). When absent or missing, only the API answers. */
   uiDir?: string;
+  /** Where uploads are staged (a private folder this bridge owns). Without it, `/upload` is off. */
+  uploadDir?: string;
   send: (command: object) => boolean;
   status: () => SupervisorStatus;
 }
@@ -117,6 +120,10 @@ export function createBridgeServer(options: BridgeServerOptions): BridgeServer {
   }
 
   const server = createServer((req, res) => {
+    // A request refused before its body was read must not leave that body on a keep-alive socket, where it would be taken for the next request.
+    res.once("finish", () => {
+      if (!req.complete) req.resume();
+    });
     void (async () => {
       try {
         // An address the URL parser rejects must not throw before any check.
@@ -129,11 +136,19 @@ export function createBridgeServer(options: BridgeServerOptions): BridgeServer {
         // 127.0.0.1 under another name (DNS rebinding) sends that name as Host.
         if (!allowedHost(req)) return reply(res, 403, "Use http://127.0.0.1 or http://localhost.");
 
-        if (pathname === "/events" || pathname === "/status" || pathname === "/command") {
+        if (pathname === "/events" || pathname === "/status" || pathname === "/command" || pathname === "/upload") {
           if (!authorized(req)) return reply(res, 401, { error: "A valid token is needed: Authorization: Bearer <token>." }, { "www-authenticate": "Bearer" });
           if (pathname === "/events") {
             if (req.method !== "GET") return reply(res, 405, { error: "GET only." });
             return options.hub.attach(res);
+          }
+          if (pathname === "/upload") {
+            if (req.method !== "POST") return reply(res, 405, { error: "POST only." });
+            if (!sameOrigin(req)) return reply(res, 403, { error: "Cross-origin writes are refused." });
+            if (!options.uploadDir) return reply(res, 404, { error: "Attachments are off in this build." });
+            const name = new URL(req.url ?? "/", "http://127.0.0.1").searchParams.get("name") ?? "";
+            const staged = await stageUpload(options.uploadDir, req, name);
+            return staged.ok ? reply(res, 201, { path: staged.path, size: staged.size }) : reply(res, staged.status, { error: staged.error }, { connection: "close" }); // a refused body may still be arriving
           }
           if (pathname === "/status") {
             if (req.method !== "GET") return reply(res, 405, { error: "GET only." });
@@ -142,7 +157,7 @@ export function createBridgeServer(options: BridgeServerOptions): BridgeServer {
           if (req.method !== "POST") return reply(res, 405, { error: "POST only." });
           if (!sameOrigin(req)) return reply(res, 403, { error: "Cross-origin writes are refused." });
           const body = await readBody(req);
-          if (body === undefined) return reply(res, 413, { error: "That command is too large." });
+          if (body === undefined) return reply(res, 413, { error: "That command is too large." }, { connection: "close" });
           let command: unknown;
           try {
             command = JSON.parse(body);

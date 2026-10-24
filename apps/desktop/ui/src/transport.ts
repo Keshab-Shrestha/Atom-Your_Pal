@@ -13,10 +13,14 @@ export interface TransportHandlers {
   onLink(link: Link): void;
 }
 
+export type UploadResult = { ok: true; path: string } | { ok: false; message: string };
+
 export interface Transport {
   start(handlers: TransportHandlers): void;
   stop(): void;
   send(command: IslandCommand): Promise<SendResult>;
+  /** Hands a file to the bridge, which stages it and returns the full path that `text.send` needs. */
+  upload(file: File): Promise<UploadResult>;
 }
 
 const RETRY_MS = [1000, 2000, 4000, 5000];
@@ -72,6 +76,16 @@ export function createBridgeTransport(token: string, fetchImpl: typeof fetch = f
     stop() {
       stopped = true;
       abort?.abort();
+    },
+    async upload(file) {
+      try {
+        const res = await fetchImpl(`/upload?name=${encodeURIComponent(file.name)}`, { method: "POST", headers, body: file });
+        const body = (await res.json().catch(() => ({}))) as { path?: string; error?: string };
+        if (res.status === 201 && typeof body.path === "string") return { ok: true, path: body.path };
+        return { ok: false, message: body.error ?? `${file.name} could not be handed to ATOM (${res.status}).` };
+      } catch {
+        return { ok: false, message: `${file.name} could not be handed to ATOM. It keeps trying to reconnect; try again in a moment.` };
+      }
     },
     async send(command) {
       try {

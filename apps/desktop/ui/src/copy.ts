@@ -164,7 +164,7 @@ export function stripHidden(text: string): { text: string; removed: number } {
 }
 
 const segmenter = typeof Intl !== "undefined" && "Segmenter" in Intl ? new Intl.Segmenter(undefined, { granularity: "grapheme" }) : undefined;
-function graphemes(text: string): string[] {
+export function graphemes(text: string): string[] {
   return segmenter ? [...segmenter.segment(text)].map((s) => s.segment) : [...text];
 }
 

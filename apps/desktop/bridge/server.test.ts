@@ -1,7 +1,7 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { request } from "node:http";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, statSync, writeFileSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHub } from "./hub.ts";
@@ -9,6 +9,7 @@ import { createBridgeServer, type BridgeServer } from "./server.ts";
 
 const TOKEN = "t".repeat(64);
 let bridge: BridgeServer;
+let uploads = "";
 let base = "";
 let sent: object[] = [];
 let accept = true;
@@ -20,7 +21,8 @@ before(async () => {
   writeFileSync(join(ui, "index.html"), "<!doctype html><title>ATOM</title>");
   writeFileSync(join(ui, "assets/app.js"), "console.log(1)");
   writeFileSync(join(ui, "..", "secret.txt"), "outside the window folder");
-  bridge = createBridgeServer({ hub, token: TOKEN, uiDir: ui, send: (c) => (accept ? (sent.push(c), true) : false), status: () => ({ state: "running", pid: 1 }) });
+  uploads = mkdtempSync(join(tmpdir(), "atom-up-test-"));
+  bridge = createBridgeServer({ hub, token: TOKEN, uiDir: ui, uploadDir: uploads, send: (c) => (accept ? (sent.push(c), true) : false), status: () => ({ state: "running", pid: 1 }) });
   const { port } = await bridge.listen(0);
   base = `http://127.0.0.1:${port}`;
 });
@@ -144,4 +146,74 @@ test("a window that connects gets the status, the last ready, then live events",
   hub.event({ type: "reply", text: "hello" });
   await until('"text":"hello"');
   await reader.cancel();
+});
+
+// ---------- uploads ----------
+
+const upload = (name: string, body: BodyInit, headers: Record<string, string> = {}) =>
+  fetch(`${base}/upload?name=${encodeURIComponent(name)}`, { method: "POST", headers: { ...auth, ...headers }, body });
+
+test("an upload needs the token and the same origin", async () => {
+  assert.equal((await fetch(`${base}/upload?name=a.txt`, { method: "POST", body: "x" })).status, 401);
+  assert.equal((await upload("a.txt", "x", { origin: "http://evil.example" })).status, 403);
+  assert.equal((await fetch(`${base}/upload?name=a.txt`, { headers: auth })).status, 405);
+});
+
+test("a staged file keeps its name, lands in its own folder inside the private root, and holds the bytes", async () => {
+  const res = await upload("Notes 2026.txt", "hello world", { origin: base });
+  assert.equal(res.status, 201);
+  const { path, size } = (await res.json()) as { path: string; size: number };
+  assert.equal(size, 11);
+  assert.ok(path.startsWith(uploads), "inside the staging root");
+  assert.equal(path.split(/[\\/]/).at(-1), "Notes 2026.txt");
+  assert.equal(readFileSync(path, "utf8"), "hello world");
+  if (process.platform !== "win32") assert.equal(statSync(path).mode & 0o777, 0o600);
+});
+
+test("a name cannot climb out of its folder or carry control characters, and an empty name becomes 'file'", async () => {
+  for (const [given, kept] of [["../../etc/passwd", "passwd"], ["..\\..\\boot.ini", "boot.ini"], ["a\u0000b\n.txt", "ab.txt"], ["", "file"], [".env", ".env"], ["id_rsa", "id_rsa"], ["..", "file"], ["...", "file"], ["CON.txt", "_CON.txt"], ["x".repeat(300) + ".md", ""]] as const) {
+    const res = await upload(given, "x");
+    assert.equal(res.status, 201, given);
+    const { path } = (await res.json()) as { path: string };
+    assert.ok(path.startsWith(uploads), `${given} stays inside`);
+    const name = path.split(/[\\/]/).at(-1)!;
+    if (kept) assert.equal(name, kept, given);
+    else assert.ok(name.endsWith(".md") && [...name].length <= 120, "a long name is cut but keeps its extension");
+  }
+});
+
+test("a file over 10 MB is refused, before and during the stream, and leaves nothing behind", async () => {
+  const before = existsSync(uploads) ? (await import("node:fs")).readdirSync(uploads).length : 0;
+  const big = Buffer.alloc(10 * 1024 * 1024 + 1, 1);
+  const declared = await upload("big.txt", big);
+  assert.equal(declared.status, 413);
+  const chunked = await fetch(`${base}/upload?name=big.txt`, { method: "POST", headers: auth, body: new ReadableStream({ start(c) { c.enqueue(big.subarray(0, 6_000_000)); c.enqueue(big.subarray(6_000_000)); c.close(); } }), duplex: "half" } as RequestInit);
+  assert.equal(chunked.status, 413);
+  const after = (await import("node:fs")).readdirSync(uploads).length;
+  assert.equal(after, before, "no folder is left for a refused upload");
+});
+
+test("an empty file is refused and leaves nothing behind", async () => {
+  const before = (await import("node:fs")).readdirSync(uploads).length;
+  const res = await upload("empty.txt", "");
+  assert.equal(res.status, 400);
+  assert.equal((await import("node:fs")).readdirSync(uploads).length, before);
+});
+
+test("old uploads are swept when the next one arrives", async () => {
+  const fs = await import("node:fs");
+  const old = await (await upload("old.txt", "old")).json() as { path: string };
+  const dir = join(old.path, "..");
+  const longAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  utimesSync(dir, longAgo, longAgo);
+  await upload("new.txt", "new");
+  assert.equal(fs.existsSync(dir), false);
+});
+
+test("without a staging folder the endpoint is off", async () => {
+  const off = createBridgeServer({ hub: createHub({ keepAliveMs: 60_000 }), token: TOKEN, send: () => true, status: () => ({ state: "running", pid: 1 }) });
+  const { port } = await off.listen(0);
+  const res = await fetch(`http://127.0.0.1:${port}/upload?name=a.txt`, { method: "POST", headers: auth, body: "x" });
+  assert.equal(res.status, 404);
+  await off.close();
 });

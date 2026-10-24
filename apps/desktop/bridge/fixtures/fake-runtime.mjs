@@ -1,6 +1,8 @@
 // A stand-in for `apps/mac/src/main.ts --island` that speaks the same JSON lines, for the bridge tests and for `pnpm --filter @atom/desktop demo`.
 // It needs no API keys and keeps two canned chats in memory. Not a model: replies are fixed text. Never ship it as the runtime.
 import { createHash } from "node:crypto";
+import { readFileSync, statSync } from "node:fs";
+import { basename, extname, isAbsolute } from "node:path";
 import { createInterface } from "node:readline";
 
 const out = (event) => process.stdout.write(`${JSON.stringify(event)}\n`);
@@ -14,6 +16,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
     { id: "chat-2", title: "Rename the invoice files", updatedAt: "2026-10-23T17:40:00Z", messages: 2 },
     { id: "chat-md", title: "Markdown sample", updatedAt: "2026-10-22T08:00:00Z", messages: 2 },
     { id: "telegram", title: "Telegram", updatedAt: "2026-10-21T08:00:00Z", messages: 1, readOnly: true },
+    { id: "chat-proj", title: "Project chat", updatedAt: "2026-10-20T08:00:00Z", messages: 1, projectId: "p1" },
   ];
   const meta = {}; // id -> { pinned, archived, version }
   // Models, thinking and access, as the real runtime offers them (docs/island-protocol.md, ADR-097/180/181).
@@ -49,6 +52,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
       { role: "assistant", text: "Done. I renamed 12 files to YYYY-MM-DD order." },
     ],
   };
+  history["chat-proj"] = [{ role: "assistant", text: "I can read this project's folder." }];
   history.telegram = [{ role: "assistant", text: "Written from the phone." }];
   history["chat-md"] = [
     { role: "user", text: "Show me everything you can format." },
@@ -88,6 +92,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
       type: "chats", chats: listed(), current,
       ...(mine?.provider ? { currentProvider: mine.provider, currentModel: mine.model } : {}),
       ...(current ? { reasoning: reasoningOf(current), access: mine.access } : {}),
+      ...(chats.find((c) => c.id === current)?.projectId ? { currentProjectId: chats.find((c) => c.id === current).projectId } : {}),
     });
   };
   out({ type: "ready", protocol: 1, provider: "fake", model: "Fake model", microphone: "none", voice: false });
@@ -230,6 +235,26 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
       out({ type: "state", state: "idle" });
     } else if (command.type === "text.send") {
       if (metaOf(current).archived) return out({ type: "error", stage: "model", message: "This chat is archived. Unarchive it to continue." });
+      // Files (ADR-113): checked first, as the real runtime does; a refusal says why and sends nothing.
+      const attached = [];
+      if (Array.isArray(command.files) && command.files.length > 0) {
+        if (chats.find((c) => c.id === current)?.projectId) return settingsError("Attachments are not available in project chats.");
+        const TYPES = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf", ".txt", ".md", ".csv", ".json", ".ts", ".py", ".log"]);
+        for (const given of command.files) {
+          const label = basename(String(given));
+          if (!isAbsolute(given)) return settingsError("A file needs its full path.");
+          let info;
+          try { info = statSync(given); } catch { return settingsError(`${label} was not found.`); }
+          if (!info.isFile()) return settingsError(`${label} is not a file.`);
+          if (info.size === 0) return settingsError(`${label} is empty.`);
+          if (info.size > 10 * 1024 * 1024) return settingsError(`${label} is over 10 MB, too big to attach.`);
+          if (/^\.env|^id_rsa|\.pem$|\.key$/i.test(label)) return settingsError(`${label} looks like a secret or a key file, so ATOM will not read it.`);
+          const ext = extname(label).toLowerCase();
+          if (ext && !TYPES.has(ext)) return settingsError(`${label}: ATOM reads text, code, PDFs and images (png, jpg, gif, webp).`);
+          attached.push({ name: label, path: given, text: ext === ".txt" ? readFileSync(given, "utf8") : "" });
+        }
+      }
+      if (attached.length > 0) command.text = [command.text, ...attached.map((a) => `[Attached: ${a.name} — ${a.path}]`)].filter(Boolean).join("\n");
       history[current].push({ role: "user", text: command.text });
       out({ type: "transcript", text: command.text });
       state = "thinking";
@@ -252,7 +277,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
         turnTimer = setTimeout(() => finishTurn("Finished slowly.", "Typing in TextEdit"), 600_000);
         return;
       }
-      turnTimer = setTimeout(() => finishTurn(`You said: ${command.text}`), 30);
+      turnTimer = setTimeout(() => finishTurn(attached.length > 0 ? `Received ${attached.length} file${attached.length === 1 ? "" : "s"}: ${attached.map((a) => `${a.name} (${a.text.length > 0 ? a.text.length + " characters" : "binary"})`).join(", ")}.` : `You said: ${command.text}`), 30);
     }
   });
 }
