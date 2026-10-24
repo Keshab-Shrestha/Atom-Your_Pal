@@ -352,6 +352,7 @@ export function Composer({ chatId, initial, working, queued, onSnapshot, onFlush
             }
             if (e.key === "Escape") {
               e.preventDefault();
+              e.stopPropagation(); // Escape also stops a running turn; with the picker open it only clears the command
               setDraft("");
               return setPick(0);
             }

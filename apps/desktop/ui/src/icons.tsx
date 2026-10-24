@@ -23,6 +23,7 @@ const PATHS = {
   clip: "M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L10 17.4a1.7 1.7 0 0 1-2.4-2.4l7.4-7.4",
   file: "M6 3h8l4 4v14H6zM14 3v4h4",
   down: "M6 9l6 6 6-6",
+  up: "M6 15l6-6 6 6",
   lock: "M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3",
   unlock: "M6 11h12v9H6zM8 11V8a4 4 0 0 1 7.5-2",
   files: "M3 6h7l2 2h9v11H3z",

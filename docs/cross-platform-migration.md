@@ -57,7 +57,8 @@ Status words: **done**, **partial**, **todo**. A row is done only when it works 
 | Recovery of interrupted requests and unconfirmed answers: delivery ids and receipts, the Recovery view, restore to a draft, dismiss | `ForegroundRecovery*` | **done for requests** (step 2g-2); unconfirmed answers to ATOM's questions wait for 2i | 2g-2, 2i |
 | Model picker (search, provider filter, custom id, default), thinking menu, access menu incl. Full access consent | `ChatModelPicker`, `ChatReasoningMenu`, `ChatAccessMenu`, `ModelPickerCatalog` | **done** (step 2e); favourite models not ported | 2e |
 | Slash picker (`/` menu: ATOM's commands, skills, Claude commands) | `SlashPicker`, `SlashMenu` | **done** (step 2h-1); `/model`, `/skills` and `/memory` say where to go until their pages exist | 2h-1 |
-| Find in chat, chat brief | `ChatFindBar`, `ChatBriefEditor` | todo | 2h-2, 2h-3 |
+| Find in chat (loaded messages only) | `ChatFindBar`, `ChatFind` | **done** (step 2h-2) | 2h-2 |
+| Chat brief, saved history sheet, automatic summaries | `ChatBriefEditor`, `ChatControlsModel` | todo | 2h-3 |
 | Approvals: Allow, Decline, Allow for task/chat, Full-access card | `ApprovalState`, `WorkStrip` | **done** (step 2b) | 2b |
 | File-edit review approvals (diff and token) | `EditReviewView`, `FileEditReview` | partial: can be declined, cannot be approved here (needs the diff surface) | 2j |
 | Questions from ATOM, work and task results shown in chat | `ChatWorkView`, `ChatTaskResults`, `ComputerDecisionModel` | todo | 2i |
@@ -112,7 +113,7 @@ The runtime is TypeScript, but some tools call macOS programs. The first cross-p
 One capability per step, each ending with tests and a recorded check (CLAUDE.md §3).
 
 1. **Bridge and Chat core.** Done (above).
-2. **Chat parity**, one capability at a time. 2a Markdown replies and stay-at-end scrolling: done. 2b Stop and approvals: done. 2c chat actions: done. Next, in this order: 2d copy, quote, fork;  2g Stop/queue/drafts/recovery (done); 2h slash picker (done, 2h-1), find, chat brief; 2i questions and work shown in chat; 2j file-edit review (diff and token).
+2. **Chat parity**, one capability at a time. 2a Markdown replies and stay-at-end scrolling: done. 2b Stop and approvals: done. 2c chat actions: done. Next, in this order: 2d copy, quote, fork;  2g Stop/queue/drafts/recovery (done); 2h slash picker (done, 2h-1), find in chat (done, 2h-2), chat brief; 2i questions and work shown in chat; 2j file-edit review (diff and token).
 3. **Native shell.** Tauri window around the bridge, Node runtime as a bundled sidecar, and a CI job that builds it on macOS, Windows and Linux. First step that needs a machine (or CI runner) with the web view libraries; this environment has none.
 4. **Board, Needs you, Dashboard.**
 5. **Projects, Files, Changes, Git.**
@@ -207,6 +208,16 @@ Checked: 7 model tests (`recovery.ts`), reducer tests for receipts, matching by 
 **Where the lists come from.** After every `ready` the window sends `helpers.list` (the skills are one field of a large answer; nothing else is kept) and `commands.list`. A name with white space cannot be typed and is left out. Checked against the real runtime through the bridge: both commands are answered; a real skill came back with its description; the user had no Claude commands.
 
 Checked: 7 model tests (ports of the Swift suite plus the eight-row limit and stricter `/ new` handling), 1 reducer test, 26 browser checks against the fake runtime (order, source labels, keys, wrap, narrowing by name and description, Tab and click, a skill with words is sent, unknown names are sent, `/new` makes a chat and sends nothing, the three page commands say why, `/help`, read-only chat, light and narrow layout). Not ported: the `@` mention menu (separate capability). Not checked: a real skill or command being run by a model.
+
+## Step 2h-2: find in chat (24 October 2026)
+
+**What it does.** Ctrl/Cmd+F (or Chat options → Find in chat) opens a bar above the messages with a box, the count ("3 of 12", "500+" at the limit), Previous and Next, and Close. It searches the **loaded messages of this chat only**, not archived history or other chats (the box says so). The search is literal (no patterns) and ignores case; it reads each message's source text, as the Mac app does, so a match inside Markdown syntax counts. At most 500 matches. The selected match is shown as a line of context (40 characters before, 60 after, never cutting an emoji in half) and its message is outlined and scrolled to the middle. Port of `ChatFind.swift`.
+
+**Keys.** Enter next, Shift+Enter previous (both wrap), Escape closes from the box or any button in the bar and returns to the message box; a reopened bar is empty. Ctrl/Cmd+F is taken from the browser only in the chat and not while a dialog is open. **Escape in Find, and in the "/" picker, no longer also stops a running turn** (found while testing: the window-level Escape-to-stop saw both; the picker had the same fault since 2h-1). Switching chats closes Find.
+
+**While it is open the chat does not follow new text** (as in the Mac app), so a match you are reading does not scroll away; closing Find lets your own next message bring you to the end as before.
+
+Checked: 7 model tests (empty query, case, literal characters, context lengths, emoji, 500 limit and exactly 500, selection wrap), 26 browser checks against the fake runtime (open and focus, count, You/ATOM labels, no match, Escape and focus, many matches and wrapping, in view, no jump on new text, menu, other chat, Escape not stopping a turn, empty chat, light and narrow). Not ported: highlighting the matched words inside the rendered message (only the message is outlined, as in the Mac app); collapsing and expanding long messages (this window does not collapse them yet).
 
 ## Verification in step 1, and what was not verified
 

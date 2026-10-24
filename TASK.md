@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Cross-platform window, step 2h-2: find in chat — implemented and checked, 24 October 2026
+
+Ctrl/Cmd+F or Chat options → Find in chat searches the loaded messages of the current chat (literal, case-insensitive, up to 500 matches), shows "n of m" with a line of context, steps with Enter/Shift+Enter or the arrows, outlines and centres the matching message, and keeps the chat from following new text while open. Escape closes it and also no longer stops a running turn; the same fix applies to the "/" picker from 2h-1. Port of `ChatFind.swift`: 7 model tests and 26 browser checks against the fake runtime. Not ported: word-level highlighting inside the message (the Mac app does not either). [Details](docs/cross-platform-migration.md). Next: 2h-3, the chat brief and saved history. Swift unchanged.
+
 ## Cross-platform window, step 2h-1: the "/" picker — implemented and checked, 24 October 2026
 
 Typing `/` in the message box lists ATOM's commands, the user's skills and Claude commands (up to eight rows, narrowing as you type; Up/Down, Enter or Tab, Escape, click). Skills and commands fill their name for the words to follow and are run by the runtime when sent; `/new` and `/help` run in the window and never reach the model; `/model`, `/skills` and `/memory` say where to go until their pages exist. The window asks the runtime for skills and commands after every `ready`. Port of `SlashMenu.swift` with its tests: 7 model tests, 1 reducer test, 26 browser checks against the fake runtime, and the real runtime answered both requests. Not ported: the `@` menu. [Details](docs/cross-platform-migration.md). Next: 2h-2, find in chat. Swift unchanged.

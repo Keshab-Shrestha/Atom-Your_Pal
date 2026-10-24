@@ -1,5 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { Composer } from "./Composer.tsx";
+import { FindBar } from "./FindBar.tsx";
+import { findInMessages, selectedMatch, stepSelection } from "./find.ts";
 import { QueueList } from "./QueueList.tsx";
 import type { InputApi } from "./useInputs.ts";
 import { CopyContext, Markdown } from "./Markdown.tsx";
@@ -83,6 +85,35 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
   const inner = useRef<HTMLDivElement>(null);
   /** True while the reader is at (or near) the end: new text and late layout changes then keep the end in view. Reading older text lets go. */
   const pinned = useRef(true);
+  // Find in chat (ADR-152): the loaded messages only. While it is open the view stays where the match is instead of following new text.
+  const [find, setFind] = useState({ open: false, query: "", selection: 0, tick: 0 });
+  const findOpen = useRef(false);
+  findOpen.current = find.open;
+  const results = useMemo(() => (find.open ? findInMessages(messages, find.query) : { matches: [], more: false }), [messages, find.open, find.query]);
+  const match = find.open ? selectedMatch(results, find.selection) : undefined;
+  const openFind = () => setFind((f) => ({ ...f, open: true, tick: f.tick + 1 }));
+  const closeFind = (refocus = true) => {
+    setFind((f) => ({ ...f, open: false, query: "", selection: 0 }));
+    if (refocus) document.getElementById("message")?.focus();
+  };
+  // Another chat: Find closes with an empty box.
+  useEffect(() => closeFind(false), [chat?.id]);
+  // Ctrl/Cmd+F is Find in this chat, not the browser's (as in the Mac app). Not while a dialog is open.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "f" && !e.isComposing && !document.querySelector("dialog[open]")) {
+        e.preventDefault();
+        openFind();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  // The selected match comes into view, in the middle of the log.
+  useEffect(() => {
+    if (!match) return;
+    log.current?.querySelector(`[data-msg="${match.messageId}"]`)?.scrollIntoView({ block: "center" });
+  }, [match?.messageId, match?.offset, find.query, find.tick]);
   const toEnd = () => {
     const el = log.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -93,14 +124,14 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
     toEnd();
   }, [chat?.id]);
   useLayoutEffect(() => {
-    if (pinned.current) toEnd();
+    if (pinned.current && !findOpen.current) toEnd();
   }, [messages.length, loop]);
   // Fonts, tables and code blocks settle after the first paint; keep the end in view when the content grows.
   useEffect(() => {
     const content = inner.current;
     if (!content || typeof ResizeObserver === "undefined") return;
     const watcher = new ResizeObserver(() => {
-      if (pinned.current) toEnd();
+      if (pinned.current && !findOpen.current) toEnd();
     });
     watcher.observe(content);
     return () => watcher.disconnect();
@@ -139,6 +170,7 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
             attention={recoveryCount > 0}
             items={[
               { label: recoveryCount > 0 ? `Recovery (${recoveryCount})` : "Recovery", onSelect: onOpenRecovery },
+              { label: "Find in chat", onSelect: openFind, disabledWhy: messages.length > 0 ? undefined : "This chat has no messages yet." },
               { label: "Fork chat", onSelect: () => onBranch("fork", "all"), disabledWhy: branchWhy ?? (chat && chat.messages > 0 ? undefined : "This chat is not saved yet. Send a message first.") },
             ]}
           />
@@ -150,6 +182,18 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
           </span>
         </div>
       </header>
+
+      {find.open ? (
+        <FindBar
+          query={find.query}
+          results={results}
+          selection={find.selection}
+          focusTick={find.tick}
+          onQuery={(query) => setFind((f) => ({ ...f, query, selection: 0 }))}
+          onStep={(direction) => setFind((f) => ({ ...f, selection: stepSelection(f.selection, results.matches.length, direction) }))}
+          onClose={() => closeFind()}
+        />
+      ) : null}
 
       {problem ? (
         <div class="banner banner-bad" role="alert">
@@ -178,14 +222,14 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
         ) : (
           messages.map((message) =>
             message.role === "user" ? (
-              <div class="msg-row msg-row-user" key={message.id}>
+              <div class={`msg-row msg-row-user${match?.messageId === message.id ? " found" : ""}`} key={message.id} data-msg={message.id}>
                 <RowMenu label="Message actions" items={[{ label: "Copy message", onSelect: () => onCopy({ text: message.text }) }, ...branchItems(message)]} />
                 <div class="msg msg-user">
                   <UserText text={message.text} />
                 </div>
               </div>
             ) : (
-              <article class="msg msg-atom" key={message.id}>
+              <article class={`msg msg-atom${match?.messageId === message.id ? " found" : ""}`} key={message.id} data-msg={message.id}>
                 <div class="who-row">
                   <p class="who"><span class="avatar" aria-hidden="true" /> ATOM</p>
                   <RowMenu
