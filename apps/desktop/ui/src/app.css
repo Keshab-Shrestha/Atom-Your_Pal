@@ -93,6 +93,20 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
+/* ----- work strip and approvals ----- */
+.head-right { display: flex; align-items: center; gap: 10px; }
+.workbar { display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 16px; border: 1px solid var(--line2); border-radius: 999px; background: var(--card); }
+.workbar .work-line { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workbar-done .work-line { color: var(--ok); } .workbar-stopped .work-line { color: var(--muted); } .workbar-failed .work-line { color: var(--bad); }
+.workbar-done, .workbar-stopped, .workbar-failed { padding-right: 16px; }
+.workbar-ask { display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 14px 16px; border-radius: var(--radius-card); border-color: var(--warn); }
+.workbar-ask p { margin: 0; }
+.ask-title { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--warn); }
+.ask-summary { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.ask-reason { color: var(--text2); overflow-wrap: anywhere; }
+.ask-reason-full { white-space: pre-wrap; max-height: 40vh; overflow-y: auto; }
+.ask-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
 /* ----- composer ----- */
 .composer { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border: 1px solid var(--line2); border-radius: var(--radius-composer); background: var(--card); }
 .composer:focus-within { border-color: var(--line3); }

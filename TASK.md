@@ -1,5 +1,9 @@
 # ZENO Task Plan
 
+## Cross-platform window, step 2b: Stop and approvals — implemented and checked, 24 October 2026
+
+The new window can now answer ATOM's questions and stop a turn. Ports the Swift approval and work-strip state machines into the tested reducer; draws a working strip with Stop, and a question card (Decline, Allow, Allow for task/chat, Full-access scope) above the composer. Focus never moves to a question; sending is blocked while a turn runs because it would end the turn, which counts as "no"; file-edit reviews can only be declined here (approving needs the diff and token, step 2j). Found and fixed a real gap: a window that reloads mid-turn lost the state and the waiting question, so the bridge now replays the last `state` and an open request. 9 new tests; 20 browser checks against the fake runtime pass. Not checked: a real approval from the real runtime. [Details](docs/cross-platform-migration.md). Next: 2c, chat actions (rename, delete, pin, archive). Swift is unchanged.
+
 ## Cross-platform window, step 2a: Markdown replies — implemented and checked, 24 October 2026
 
 First slice of chat parity. Replies now render as Markdown in the new window: a line-for-line TypeScript port of the Swift block parser (headings, nested lists, task items, quotes, rules, fenced code, aligned tables) plus bold, italic, strike, code and safe links, drawn as elements (never HTML strings). The chat also stays at the end while new text arrives, lets go when you scroll up, and returns on your own send. 18 markdown tests (the Swift suite's cases plus nesting, linear-time and hostile-text bounds) and the real sample chat in Chromium pass; a leaking-process flaw in my supervisor tests was fixed. Not done: copy/quote/fork, and the rest of step 2. [Plan](docs/cross-platform-migration.md). Next: 2b, Stop and approvals inside the chat. The Swift app is unchanged.

@@ -1,18 +1,23 @@
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { Composer } from "./Composer.tsx";
 import { Markdown } from "./Markdown.tsx";
+import { WorkBar } from "./WorkBar.tsx";
 import type { ChatItem, LoopState } from "./protocol.ts";
-import type { Message, Problem } from "./store.ts";
+import type { Approval, Message, Problem, Work } from "./store.ts";
 
 export interface ChatViewProps {
   chat: ChatItem | undefined;
   messages: Message[];
   loop: LoopState;
   problem: Problem | undefined;
+  work: Work | undefined;
+  approval: Approval | undefined;
   blocked: string | undefined;
   modelLabel: string | undefined;
   onSend: (text: string) => Promise<boolean>;
   onDismissProblem: () => void;
+  onStop: () => void;
+  onAnswer: (approved: boolean, rememberFile?: boolean) => void;
 }
 
 const LOOP_WORDS: Record<LoopState, string> = {
@@ -23,7 +28,7 @@ const LOOP_WORDS: Record<LoopState, string> = {
   speaking: "Speaking",
 };
 
-export function ChatView({ chat, messages, loop, problem, blocked, modelLabel, onSend, onDismissProblem }: ChatViewProps) {
+export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, onDismissProblem, onStop, onAnswer }: ChatViewProps) {
   const log = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   /** True while the reader is at (or near) the end: new text and late layout changes then keep the end in view. Reading older text lets go. */
@@ -58,9 +63,14 @@ export function ChatView({ chat, messages, loop, problem, blocked, modelLabel, o
           <p class="eyebrow">Chat</p>
           <h1 class="display">{chat?.title || "New chat"}</h1>
         </div>
-        <span class={`pill pill-${loop}`} role="status">
-          <span class="dot" aria-hidden="true" /> {LOOP_WORDS[loop]}
-        </span>
+        <div class="head-right">
+          {loop !== "idle" && work?.outcome !== "working" && !approval ? (
+            <button type="button" class="btn btn-ghost" onClick={onStop} title="Stop (Esc)">Stop</button>
+          ) : null}
+          <span class={`pill pill-${loop}`} role="status">
+            <span class="dot" aria-hidden="true" /> {LOOP_WORDS[loop]}
+          </span>
+        </div>
       </header>
 
       {problem ? (
@@ -108,6 +118,8 @@ export function ChatView({ chat, messages, loop, problem, blocked, modelLabel, o
         ) : null}
         </div>
       </div>
+
+      <WorkBar work={work} approval={approval} onStop={onStop} onAnswer={onAnswer} />
 
       <Composer
         blocked={blocked}

@@ -1,5 +1,9 @@
 # ZENO Project Status
 
+## Cross-platform window — step 2b, 24 October 2026
+
+The new window shows ATOM's questions (Allow/Decline) and a working strip with Stop (button and Esc), and survives a reload mid-question. File-edit reviews can be declined but not approved yet. The Swift app remains the shipping client.
+
 ## Cross-platform window — step 2a, 24 October 2026
 
 The new window renders Markdown replies and keeps the chat at its end. Everything else in chat parity (Stop, approvals, chat actions, copy, model/access menus, attachments, recovery, slash picker, find, questions) is still to do; the Swift app remains the shipping client. 48 desktop tests, root typecheck and the build pass.

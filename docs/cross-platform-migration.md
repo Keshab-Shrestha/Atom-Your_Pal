@@ -48,10 +48,13 @@ Status words: **done**, **partial**, **todo**. A row is done only when it works 
 | Markdown replies: headings, lists, tasks, quotes, rules, code, tables, bold/italic/strike/code/links | `MarkdownReply`, `MarkdownBlocks` | **done** (step 2a) | 2a |
 | Copy (text and rich HTML), quote, fork, edit, retry | `ChatCopyControl`, `ChatActionsMenu`, `MarkdownHTML` | todo | 2 |
 | Attachments, paste, drop | `ChatAttachments`, `ComposerPaste`, `PastedTextFile`, `IslandController+Drop` | todo | 2 |
-| Stop, queue, held draft, recovery after interruption | `ChatControlsModel`, `ForegroundRecovery*` | todo | 2 |
+| Stop (button and Esc), working strip, send blocked while a turn runs | `WorkStrip`, `IslandController+Shortcuts` | **done** (step 2b) | 2b |
+| Queue, held draft, recovery after interruption | `ChatControlsModel`, `ForegroundRecovery*` | todo | 2g |
 | Model, thinking and access menus | `ChatModelPicker`, `ChatReasoningMenu`, `ChatAccessMenu` | todo | 2 |
 | Slash picker, find in chat, chat brief | `SlashPicker`, `ChatFindBar`, `ChatBriefEditor` | todo | 2 |
-| Questions and approvals inside a chat; work shown in chat | `ChatWorkView`, `ChatTaskResults`, `ComputerDecisionModel` | todo | 2 |
+| Approvals: Allow, Decline, Allow for task/chat, Full-access card | `ApprovalState`, `WorkStrip` | **done** (step 2b) | 2b |
+| File-edit review approvals (diff and token) | `EditReviewView`, `FileEditReview` | partial: can be declined, cannot be approved here (needs the diff surface) | 2j |
+| Questions from ATOM, work and task results shown in chat | `ChatWorkView`, `ChatTaskResults`, `ComputerDecisionModel` | todo | 2i |
 | Projects: add, rename, filter, sources, settings | `ProjectsSection`, `ProjectSettingsSheet`, `ProjectSourceSheet`, `ProjectFilterPicker` | todo | 5 |
 | Files surface | `ProjectWorkspaceView`, `ProjectFileNavigation` | todo | 5 |
 | Changes surface (compare, undo) | `EditReviewView`, `FileEditReview` | todo | 5 |
@@ -103,7 +106,7 @@ The runtime is TypeScript, but some tools call macOS programs. The first cross-p
 One capability per step, each ending with tests and a recorded check (CLAUDE.md §3).
 
 1. **Bridge and Chat core.** Done (above).
-2. **Chat parity**, one capability at a time. 2a Markdown replies and stay-at-end scrolling: done. Next, in this order: 2b Stop and approvals in the chat (safety first); 2c chat actions (rename, delete, pin, archive); 2d copy, quote, fork; 2e model, thinking and access menus; 2f attachments and paste; 2g Stop/queue/drafts/recovery; 2h slash picker, find, chat brief; 2i questions and work shown in chat.
+2. **Chat parity**, one capability at a time. 2a Markdown replies and stay-at-end scrolling: done. 2b Stop and approvals: done. Next, in this order: 2c chat actions (rename, delete, pin, archive); 2d copy, quote, fork; 2e model, thinking and access menus; 2f attachments and paste; 2g Stop/queue/drafts/recovery; 2h slash picker, find, chat brief; 2i questions and work shown in chat; 2j file-edit review (diff and token).
 3. **Native shell.** Tauri window around the bridge, Node runtime as a bundled sidecar, and a CI job that builds it on macOS, Windows and Linux. First step that needs a machine (or CI runner) with the web view libraries; this environment has none.
 4. **Board, Needs you, Dashboard.**
 5. **Projects, Files, Changes, Git.**
@@ -120,6 +123,18 @@ One capability per step, each ending with tests and a recorded check (CLAUDE.md 
 ## Step 2a: Markdown replies (24 October 2026)
 
 `ui/src/markdown.ts` is a line-for-line port of `MarkdownBlocks.swift` (same blocks, nesting limit 16, same list/table/fence rules) plus a bounded inline reader. `Markdown.tsx` builds elements from the result and never HTML strings. Links only for http, https and mailto; `javascript:`, `data:`, `file:` and protocol-relative addresses stay as visible text. Tests include the Swift suite's cases, nesting and linear-time bounds, and hostile text; the real sample chat was checked in Chromium (no injected element, no dialog). Not ported: the clipboard HTML flavour (belongs to the copy step). Inline text longer than 20,000 characters in one block is shown as plain text.
+
+## Step 2b: Stop and approvals (24 October 2026)
+
+Ports `ApprovalState` and `WorkStripState` into the reducer and draws them above the composer. Stop (button, or Esc while a turn runs) sends `talk.cancel` and clears any waiting question at once. A question shows its summary and reason with Decline and Allow; `rememberFile` requests offer "Allow for this task" and "Allow for this chat" (only the latter sends `rememberFile: true`); the Full-access request shows its whole scope and an "Enable Full access" button. Safety choices:
+
+- **Focus never moves** to a question, so a key typed a moment earlier cannot answer it. It is announced to screen readers instead.
+- **Sending is blocked while a turn runs.** A message sent then would end the turn, and ending a turn counts as "no" for anything waiting. Queueing is step 2g.
+- **File-edit reviews can only be declined here.** Approving one needs the review token and the diff surface (step 2j); the window keeps neither the text nor the token. This is the same fail-safe as Telegram and the local API.
+- A question is dropped when it closes, when the turn ends, when the chat resets, when the runtime stops, when the user answers or presses Stop, so a stale prompt cannot approve a later action.
+- **The bridge replays the last `state` and a still-open question** to a window that connects or reloads mid-turn (the runtime does not repeat them). Without this a reload hid the question and the Stop button while the runtime kept waiting.
+
+Checked: 8 new reducer tests and 1 bridge test, and 20 checks in Chromium against the fake runtime (strip, Stop, Esc, each card, reload mid-question). Not checked: a real approval from the real runtime (it needs a computer task or a file edit through a provider); the 60-second timeout (the runtime owns it).
 
 ## Verification in step 1, and what was not verified
 

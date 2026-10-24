@@ -93,6 +93,35 @@ test("an oversized command is refused", async () => {
   assert.equal(res.status, 413);
 });
 
+test("a window that connects mid-turn also gets the state and the question still waiting, and not one that closed", async () => {
+  const fresh = createHub({ keepAliveMs: 60_000 });
+  fresh.status({ state: "running", pid: 1 });
+  fresh.event({ type: "state", state: "thinking" });
+  fresh.event({ type: "approval.request", id: "a1", summary: "Click Send", reason: "r" });
+  fresh.event({ type: "approval.request", id: "a2", summary: "Click Delete", reason: "r" });
+  fresh.event({ type: "approval.closed", id: "a1" }); // another id: a2 is still waiting
+  const read = async (hub: ReturnType<typeof createHub>) => {
+    const text: string[] = [];
+    const res = { writableLength: 0, writeHead() {}, on() {}, end() {}, write: (t: string) => text.push(t) } as never;
+    hub.attach(res);
+    return text.join("");
+  };
+  const mid = await read(fresh);
+  assert.match(mid, /"state":"thinking"/);
+  assert.match(mid, /"id":"a2"/);
+  assert.doesNotMatch(mid, /"id":"a1"/);
+  fresh.event({ type: "approval.closed", id: "a2" });
+  assert.doesNotMatch(await read(fresh), /approval\.request/);
+  fresh.event({ type: "approval.request", id: "a3", summary: "x", reason: "r" });
+  fresh.event({ type: "state", state: "idle" });
+  assert.doesNotMatch(await read(fresh), /approval\.request/, "an ended turn leaves no question behind");
+  fresh.event({ type: "approval.request", id: "a4", summary: "x", reason: "r" });
+  fresh.status({ state: "restarting", afterSeconds: 1 });
+  const afterStop = await read(fresh);
+  assert.doesNotMatch(afterStop, /approval\.request|"state":"thinking"/, "a stopped runtime asks nothing");
+  fresh.closeAll();
+});
+
 test("a window that connects gets the status, the last ready, then live events", async () => {
   hub.status({ state: "running", pid: 1 });
   hub.event({ type: "ready", protocol: 1 });

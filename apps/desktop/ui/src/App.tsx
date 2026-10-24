@@ -41,6 +41,40 @@ export function App({ transport }: { transport: Transport }) {
     if (state.openChatId) requestedOpen.current = undefined;
   }, [state.currentChatId, state.openChatId, send]);
 
+  const stop = useCallback(() => {
+    dispatch({ kind: "stopped" });
+    void send({ type: "talk.cancel" });
+  }, [send]);
+
+  const approvalId = state.approval?.id;
+  const answer = useCallback(
+    (approved: boolean, rememberFile?: boolean) => {
+      if (!approvalId) return;
+      dispatch({ kind: "answered" });
+      void send({ type: "approval.answer", id: approvalId, approved, ...(approved && rememberFile ? { rememberFile: true } : {}) });
+    },
+    [approvalId, send],
+  );
+
+  // Esc stops a turn in flight, as in the Mac app.
+  const turnRunning = state.loop !== "idle" || state.work?.outcome === "working";
+  useEffect(() => {
+    if (!turnRunning) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.isComposing) stop();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [turnRunning, stop]);
+
+  // The strip stays a moment after the turn ends so the outcome can be read.
+  const outcome = state.work?.outcome;
+  useEffect(() => {
+    if (!outcome || outcome === "working") return;
+    const timer = setTimeout(() => dispatch({ kind: "workHide" }), 2500);
+    return () => clearTimeout(timer);
+  }, [outcome]);
+
   const blocked = useMemo(() => sendBlock(state), [state]);
   const chat = currentChat(state);
 
@@ -60,7 +94,11 @@ export function App({ transport }: { transport: Transport }) {
         loop={state.loop}
         problem={state.link === "unauthorized" ? { message: "This window has no access. Open ATOM from the address it printed, including the part after #." } : state.problem}
         blocked={blocked}
+        work={state.work}
+        approval={state.approval}
         modelLabel={state.ready?.model}
+        onStop={stop}
+        onAnswer={answer}
         onSend={(text) => send({ type: "text.send", text })}
         onDismissProblem={() => dispatch({ kind: "dismissProblem" })}
       />

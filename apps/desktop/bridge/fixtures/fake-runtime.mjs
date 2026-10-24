@@ -37,6 +37,20 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
     },
   ];
   let current = "chat-1";
+  let state = "idle";
+  let pending;
+  let asks = 0;
+  let turnTimer;
+  const finishTurn = (reply, step) => {
+    if (step) out({ type: "computer.step", text: step });
+    history[current].push({ role: "assistant", text: reply });
+    out({ type: "reply", text: reply });
+    out({ type: "turn.complete", speechMs: 0, transcriptionMs: 0, modelMs: 20 });
+    out({ type: "computer.end" });
+    state = "idle";
+    out({ type: "state", state: "idle" });
+    sendChats();
+  };
   const sendChats = () => out({ type: "chats", chats, current });
   out({ type: "ready", protocol: 1, provider: "fake", model: "Fake model", microphone: "none", voice: false });
   out({ type: "state", state: "idle" });
@@ -63,18 +77,49 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
       current = command.id;
       out({ type: "chat.opened", id: command.id, messages: history[command.id] });
       sendChats();
+    } else if (command.type === "approval.answer") {
+      if (!pending || pending.id !== command.id) return; // unknown or closed ids are ignored, as in the real runtime
+      const p = pending;
+      pending = undefined;
+      // A review-bearing request can only be approved with its own token, as in the real runtime.
+      const approved = command.approved === true && (!p.review || command.reviewToken === p.review);
+      out({ type: "approval.closed", id: p.id });
+      clearTimeout(turnTimer);
+      finishTurn(approved
+        ? `Allowed. Answer received: rememberFile=${command.rememberFile === true}, reviewToken=${command.reviewToken ?? "none"}.`
+        : "Declined. I did not do it.", approved ? "Clicking Send" : undefined);
+    } else if (command.type === "talk.cancel") {
+      if (state === "idle") return;
+      if (pending) out({ type: "approval.closed", id: pending.id });
+      pending = undefined;
+      clearTimeout(turnTimer);
+      out({ type: "computer.end" });
+      state = "idle";
+      out({ type: "state", state: "idle" });
     } else if (command.type === "text.send") {
       history[current].push({ role: "user", text: command.text });
       out({ type: "transcript", text: command.text });
+      state = "thinking";
       out({ type: "state", state: "thinking" });
-      setTimeout(() => {
-        const reply = `You said: ${command.text}`;
-        history[current].push({ role: "assistant", text: reply });
-        out({ type: "reply", text: reply });
-        out({ type: "turn.complete", speechMs: 0, transcriptionMs: 0, modelMs: 20 });
-        out({ type: "state", state: "idle" });
-        sendChats();
-      }, 30);
+      const ask = /ask me(?: (remember|review|access))?/.exec(command.text);
+      if (ask) {
+        out({ type: "computer.step", text: "Looking at Mail" });
+        const kind = ask[1];
+        pending = { id: `a${++asks}`, review: kind === "review" ? "tok-123" : undefined };
+        out({
+          type: "approval.request", id: pending.id, summary: 'Click "Send" in Mail', reason: "You asked me to send the email.",
+          ...(kind === "remember" ? { rememberFile: true } : {}),
+          ...(kind === "access" ? { accessChange: true, reason: "Full access skips routine prompts in this chat.\nProtected actions still ask." } : {}),
+          ...(kind === "review" ? { fileReview: { path: "/tmp/notes.txt", before: "a", after: "b", token: "tok-123" } } : {}),
+        });
+        return; // the turn waits for approval.answer, talk.cancel, or the user's patience
+      }
+      if (/work slowly/.test(command.text)) {
+        out({ type: "computer.step", text: "Typing in TextEdit" });
+        turnTimer = setTimeout(() => finishTurn("Finished slowly.", "Typing in TextEdit"), 600_000);
+        return;
+      }
+      turnTimer = setTimeout(() => finishTurn(`You said: ${command.text}`), 30);
     }
   });
 }
