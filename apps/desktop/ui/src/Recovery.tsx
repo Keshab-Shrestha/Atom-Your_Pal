@@ -10,6 +10,12 @@ import type { RecoveryApi } from "./useRecovery.ts";
 export function Recovery({ state, chats, api }: { state: RecoveryState; chats: ChatItem[]; api: RecoveryApi }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [confirming, setConfirming] = useState(false);
+  // The local copy of an answer being dismissed, asked about first. Keep is where focus starts.
+  const [dismissing, setDismissing] = useState<string | undefined>();
+  const keepAnswer = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (dismissing) keepAnswer.current?.focus();
+  }, [dismissing]);
   useEffect(() => {
     const el = dialog.current;
     if (!el) return;
@@ -45,6 +51,32 @@ export function Recovery({ state, chats, api }: { state: RecoveryState; chats: C
       {state.notice ? <p class="recovery-notice" role="status">{state.notice}</p> : null}
       {busy ? <p class="small muted" role="status">Checking saved records…</p> : null}
 
+      {api.answers.length > 0 ? (
+        <ul class="recovery-list" aria-label="Answers not confirmed">
+          {api.answers.map((a) => (
+            <li key={a.id} class="recovery-answer">
+              <p class="recovery-title">Answer not confirmed · {title(a.chat)}</p>
+              <p class="small muted">You answered one of ATOM's questions, but ATOM never confirmed that it received the answer. It may have; check the chat before relying on it.</p>
+              <p class="small"><strong>Question:</strong> {a.question}</p>
+              <p class="small recovery-answer-text"><strong>Your answer:</strong> {a.answer}</p>
+              {dismissing === a.id ? (
+                <div class="recovery-confirm" role="group" aria-label="Dismiss the local answer copy?">
+                  <p class="small">Dismiss the local answer copy? Copy it first if you need it. This does not cancel or reverse any answer ATOM already received.</p>
+                  <div class="recovery-actions">
+                    <button type="button" class="btn" ref={keepAnswer} onClick={() => setDismissing(undefined)}>Keep</button>
+                    <button type="button" class="btn btn-danger" onClick={() => (setDismissing(undefined), api.dismissAnswer(a.id))}>Dismiss</button>
+                  </div>
+                </div>
+              ) : (
+                <div class="recovery-actions">
+                  <button type="button" class="btn btn-ghost" onClick={() => void writeClipboard({ text: `${a.question}\n${a.answer}` })}><Icon name="copy" size={14} /> Copy question and answer</button>
+                  <button type="button" class="btn btn-ghost" onClick={() => setDismissing(a.id)}>Dismiss local copy…</button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <ul class="recovery-list" aria-label="Retained requests">
         {state.attempts.map((a) => (
           <li key={a.id} class="recovery-row">
@@ -60,7 +92,7 @@ export function Recovery({ state, chats, api }: { state: RecoveryState; chats: C
             <button type="button" class="btn btn-ghost" disabled={state.reading !== undefined} onClick={() => api.read(a.id)}>Review</button>
           </li>
         ))}
-        {state.attempts.length === 0 && !busy ? (
+        {state.attempts.length === 0 && api.answers.length === 0 && !busy ? (
           <li class="muted">No retained requests. Held messages stay in their own chat.</li>
         ) : null}
       </ul>

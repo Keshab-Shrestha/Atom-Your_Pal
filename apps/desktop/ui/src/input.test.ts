@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MAX_ENTRIES, dropAcknowledged, enqueue, pendingIds, fromSaved, holdAll, markSending, nextToSend, putBack, savedKey, snapshot, started, take, toSaved, type Entry, type Inputs } from "./input.ts";
+import { MAX_ENTRIES, MAX_ANSWER_UNITS, acceptedAnswers, addAnswer, answerWhy, dropAcknowledged, pendingAnswers, removeAnswers, enqueue, pendingIds, fromSaved, holdAll, markSending, nextToSend, putBack, savedKey, snapshot, started, take, toSaved, type Entry, type Inputs } from "./input.ts";
 
 const entry = (id: string, text = id, files: File[] = []): Entry => ({ id, text, files, lost: 0 });
 const file = (name: string) => new File(["x"], name);
@@ -79,7 +79,7 @@ test("saving keeps the words and drops the files, counting them; a queued messag
   let inputs = snapshot({}, "a", "typed so far", [file("kept-in-memory.txt")]);
   inputs = add(inputs, "a", entry("1", "first", [file("a.txt"), file("b.png")]), entry("2", "second"));
   const saved = toSaved(inputs);
-  assert.deepEqual(saved, { version: 1, chats: { a: { draft: "typed so far", held: [{ id: "1", text: "first", lost: 2 }, { id: "2", text: "second", lost: 0 }] } } });
+  assert.deepEqual(saved, { version: 2, chats: { a: { draft: "typed so far", held: [{ id: "1", text: "first", lost: 2 }, { id: "2", text: "second", lost: 0 }], answers: [] } } });
   assert.ok(!JSON.stringify(saved).includes("kept-in-memory"), "no file names or contents are saved");
   const back = fromSaved(saved);
   assert.equal(back.a!.draft, "typed so far");
@@ -88,9 +88,9 @@ test("saving keeps the words and drops the files, counting them; a queued messag
 });
 
 test("chats with nothing to keep are not saved, and what cannot be read comes back empty", () => {
-  assert.deepEqual(toSaved(snapshot({}, "a", "", [file("x.txt")])), { version: 1, chats: {} });
+  assert.deepEqual(toSaved(snapshot({}, "a", "", [file("x.txt")])), { version: 2, chats: {} });
   assert.deepEqual(fromSaved(undefined), {});
-  assert.deepEqual(fromSaved({ version: 2 } as never), {});
+  assert.deepEqual(fromSaved({ version: 1 } as never), {});
 });
 
 test("choosing a file does not change what would be saved", () => {
@@ -114,4 +114,62 @@ test("a held message the runtime already has goes, unless it carries files or sa
   assert.deepEqual(next.a!.held.map((e) => e.id), ["withfile", "lost"]);
   assert.deepEqual(next.a!.queue.map((e) => e.id), ["live"]);
   assert.equal(dropAcknowledged(inputs, []), inputs);
+});
+
+// ---- answers to question cards ----
+const A1 = "11111111-1111-4111-8111-111111111111";
+const A2 = "22222222-2222-4222-8222-222222222222";
+const T1 = "33333333-3333-4333-8333-333333333333";
+const ans = (id: string, answer = "Tuesday") => ({ id, turn: T1, question: "Which day?", answer });
+
+test("an answer is written down per chat, replaces an earlier one for the same card, and is limited to 20", () => {
+  const first = addAnswer({}, "a", ans(A1));
+  assert.ok(first.ok);
+  const again = addAnswer(first.inputs, "a", ans(A1.toUpperCase(), "Wednesday"));
+  assert.ok(again.ok);
+  assert.deepEqual(again.inputs.a!.answers.map((x) => x.answer), ["Wednesday"], "one per card, the newest words");
+  let full: Inputs = {};
+  for (let i = 0; i < MAX_ENTRIES; i++) { const r = addAnswer(full, "a", ans(`${String(i).padStart(8, "0")}-1111-4111-8111-111111111111`)); assert.ok(r.ok); full = r.inputs; }
+  const over = addAnswer(full, "a", ans(A2));
+  assert.ok(!over.ok);
+  assert.match(over.ok ? "" : over.why, /Recovery/);
+  assert.equal(over.inputs, full, "a refused answer changes nothing");
+  assert.ok(addAnswer(full, "b", ans(A2)).ok, "another chat has its own room");
+});
+
+test("a chat with only an unconfirmed answer is kept, and it is saved and restored with the words", () => {
+  const r = addAnswer({}, "a", ans(A1));
+  assert.ok(r.ok);
+  assert.deepEqual(Object.keys(r.inputs), ["a"]);
+  const saved = toSaved(r.inputs);
+  assert.deepEqual(saved.chats.a!.answers, [ans(A1)]);
+  assert.deepEqual(fromSaved(saved).a!.answers, [ans(A1)]);
+  assert.deepEqual(pendingAnswers(r.inputs), [{ ...ans(A1), chat: "a" }]);
+});
+
+test("a confirmed or dismissed answer leaves, and the chat goes with it when nothing else is kept", () => {
+  const two = addAnswer(addAnswer({}, "a", ans(A1)).inputs, "b", ans(A2)).inputs;
+  const some = removeAnswers(two, [A1.toUpperCase()]);
+  assert.deepEqual(Object.keys(some), ["b"]);
+  assert.equal(removeAnswers(some, ["99999999-9999-4999-8999-999999999999"]), some, "an unknown id changes nothing");
+  assert.deepEqual(removeAnswers(some, [A2]), {});
+  const withDraft = removeAnswers(addAnswer(snapshot({}, "a", "typing", []), "a", ans(A1)).inputs, [A1]);
+  assert.equal(withDraft.a!.draft, "typing", "words typed meanwhile stay");
+});
+
+test("a work snapshot confirms only an answered card whose words are exactly the ones waiting", () => {
+  const inputs = addAnswer({}, "a", ans(A1, "Tuesday")).inputs;
+  assert.deepEqual(acceptedAnswers(inputs, [{ id: A1, state: "answered", answer: "Tuesday" }]), [A1]);
+  assert.deepEqual(acceptedAnswers(inputs, [{ id: A1, state: "answered", answer: "Monday" }]), [], "other words are not this answer");
+  assert.deepEqual(acceptedAnswers(inputs, [{ id: A1, state: "expired" }]), [], "an expired card did not take it");
+  assert.deepEqual(acceptedAnswers(inputs, [{ id: A1, state: "skipped" }]), []);
+  assert.deepEqual(acceptedAnswers(inputs, [{ id: A1, state: "pending" }]), []);
+  assert.deepEqual(acceptedAnswers(inputs, [{ id: A2, state: "answered", answer: "Tuesday" }]), [], "another card");
+});
+
+test("an answer must have words and fit the runtime's limit", () => {
+  assert.match(answerWhy("   ")!, /Skip/);
+  assert.equal(answerWhy(" Tuesday "), undefined);
+  assert.equal(answerWhy("x".repeat(MAX_ANSWER_UNITS)), undefined);
+  assert.match(answerWhy("x".repeat(MAX_ANSWER_UNITS + 1))!, /2000/);
 });

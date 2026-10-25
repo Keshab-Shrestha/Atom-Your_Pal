@@ -1,5 +1,9 @@
 # ZENO Project Status
 
+## Cross-platform window — step 2i-2, 25 October 2026
+
+ATOM's question cards can be answered or skipped in the new window, and answers nobody confirmed wait in Recovery. Still to do in chat parity: file-edit review (2j). Swift remains the shipping client.
+
 ## Cross-platform window — step 2i-1, 24 October 2026
 
 The foreground work log works in the new window, and a bug that could send a held message after an error was fixed. Still to do in chat parity: question cards and unconfirmed answers (2i-2); file-edit review (2j). Swift remains the shipping client.

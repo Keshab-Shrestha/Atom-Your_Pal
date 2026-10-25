@@ -190,6 +190,9 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 .recovery-detail { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line2); }
 .recovery-detail h3 { margin: 0; font-size: 16px; }
 .recovery-text { margin: 0; padding: 10px 12px; max-height: 220px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--sunken); font: 13px/1.5 var(--font-mono); }
+.recovery-answer { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--warn); border-radius: var(--radius-control); }
+.recovery-answer p { margin: 0; }
+.recovery-answer-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .recovery-confirm { padding: 10px 12px; border: 1px solid var(--warn); border-radius: var(--radius-control); }
 
 /* ----- chat brief ----- */
@@ -326,3 +329,13 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 .call-error svg { color: var(--bad); } .call-ok svg { color: var(--ok); }
 .worklog-prompt { font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .worklog-chev { transition: none; } }
+
+/* ----- question card (ADR-156) ----- */
+.question { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border: 1px solid var(--warn); border-radius: var(--radius-card); background: var(--card); }
+.question p { margin: 0; }
+.question-prompt { white-space: pre-wrap; overflow-wrap: anywhere; }
+.question-error { color: var(--bad); }
+.question-choices { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.question .field { display: flex; flex-direction: column; gap: 4px; }
+.question .field-label { font-weight: 600; font-size: 13px; }
+.question textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line2); border-radius: var(--radius-control); background: var(--panel-input); color: var(--panel-fg); font: inherit; resize: vertical; }

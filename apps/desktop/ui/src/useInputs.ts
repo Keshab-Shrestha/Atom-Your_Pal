@@ -6,8 +6,8 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { Insertion } from "./Composer.tsx";
 import { newUuid } from "./ids.ts";
 import {
-  dropAcknowledged, emptyInput, enqueue, fromSaved, holdAll, pendingIds, markSending, nextToSend, savedKey, snapshot, started, take, toSaved,
-  type ChatInput, type Entry, type Inputs,
+  acceptedAnswers, addAnswer, dropAcknowledged, emptyInput, pendingAnswers, removeAnswers, enqueue, fromSaved, holdAll, pendingIds, markSending, nextToSend, savedKey, snapshot, started, take, toSaved,
+  type ChatInput, type Entry, type Inputs, type PendingAnswer,
 } from "./input.ts";
 import { sendBlock, type AppState } from "./store.ts";
 import type { Transport } from "./transport.ts";
@@ -31,6 +31,15 @@ export interface InputApi {
   onRemove: (id: string) => void;
   /** Ids of every message still waiting, for asking the runtime which it already holds. */
   pendingIds: () => string[];
+  /** Answers to question cards that the runtime has not confirmed. */
+  pendingAnswers: () => (PendingAnswer & { chat: string })[];
+  /**
+   * Writes an answer down in the bridge's private file, and only then says ok: an answer is never sent before it is kept, so a lost
+   * connection or a crash cannot leave the user wondering what they said.
+   */
+  saveAnswer: (chat: string, answer: PendingAnswer) => Promise<{ ok: true } | { ok: false; why: string }>;
+  /** The runtime confirmed these cards, or the user dismissed the local copy. */
+  dropAnswers: (ids: readonly string[]) => void;
 }
 
 export interface UseInputs {
@@ -119,6 +128,16 @@ export function useInputs(options: {
     if (state.recovery.listed > 0) apply((cur) => dropAcknowledged(cur, state.recovery.known));
   }, [state.recovery.listed]);
 
+  // ---- answers to question cards: kept until the runtime says it has them ----
+  const workLog = state.workLog;
+  useEffect(() => {
+    // A snapshot that shows the card answered with exactly these words is the confirmation.
+    if (workLog) apply((cur) => removeAnswers(cur, acceptedAnswers(cur, workLog.work.questions)));
+  }, [workLog?.n]);
+  useEffect(() => {
+    if (state.recovery.listed > 0) apply((cur) => removeAnswers(cur, state.recovery.knownAnswers));
+  }, [state.recovery.listed]);
+
   // ---- hold everything that waits: leaving the chat, the runtime going away, an error that ends the turn ----
   const hold = useCallback((c: string) => apply((cur) => holdAll(cur, c)), [apply]);
   const previous = useRef(chat);
@@ -188,6 +207,19 @@ export function useInputs(options: {
     },
     onRemove: (id) => apply((cur) => take(cur, chat, id).inputs),
     pendingIds: () => pendingIds(ref.current),
+    pendingAnswers: () => pendingAnswers(ref.current),
+    saveAnswer: async (c, answer) => {
+      const added = addAnswer(ref.current, c, answer);
+      if (!added.ok) return { ok: false, why: added.why };
+      apply(() => added.inputs);
+      const ok = await transport.saveInput(toSaved(ref.current));
+      if (!ok) {
+        apply((cur) => removeAnswers(cur, [answer.id])); // not kept, so not sent, and not shown as waiting
+        return { ok: false, why: "The answer could not be saved locally and was not sent. Free storage and try again." };
+      }
+      return { ok: true };
+    },
+    dropAnswers: (ids) => apply((cur) => removeAnswers(cur, ids)),
   };
   return { api, holdCurrent: () => hold(chat) };
 }

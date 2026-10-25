@@ -225,7 +225,9 @@ test("without a staging folder the endpoint is off", async () => {
 
 const put = (body: unknown, headers: Record<string, string> = {}) => fetch(`${base}/input`, { method: "PUT", headers: { ...auth, "content-type": "application/json", ...headers }, body: typeof body === "string" ? body : JSON.stringify(body) });
 const ID = "0f5d3c2a-1b4e-4f6a-9c7d-8e2b1a3c4d5e";
-const good = { version: 1, chats: { "chat-1": { draft: "hello", held: [{ id: ID, text: "later", lost: 1 }] } } };
+const ID2 = "1a6e4d3b-2c5f-4a7b-8d8e-9f3c2b4d5e6f";
+const answer = (e: object = {}) => ({ id: ID2, turn: ID, question: "Which day?", answer: "Tuesday", ...e });
+const good = { version: 2, chats: { "chat-1": { draft: "hello", held: [{ id: ID, text: "later", lost: 1 }], answers: [answer()] } } };
 
 test("saved drafts need the token and the same origin", async () => {
   assert.equal((await fetch(`${base}/input`)).status, 401);
@@ -242,12 +244,22 @@ test("drafts are saved and read back, in an owner-only file", async () => {
 });
 
 test("only the exact shape is kept: extra fields, bad ids, long texts, repeats and too many entries are refused", async () => {
-  const chat = (c: object) => ({ version: 1, chats: { a: { draft: "", held: [], ...c } } });
+  const chat = (c: object) => ({ version: 2, chats: { a: { draft: "", held: [], answers: [], ...c } } });
   const entry = (e: object = {}) => ({ id: ID, text: "t", lost: 0, ...e });
   for (const [name, body] of [
     ["unknown top field", { ...good, extra: 1 }],
-    ["wrong version", { ...good, version: 2 }],
-    ["bad chat id", { version: 1, chats: { "../x": { draft: "", held: [] } } }],
+    ["wrong version", { ...good, version: 3 }],
+    ["no answers field in version 2", { version: 2, chats: { a: { draft: "", held: [] } } }],
+    ["answers field in version 1", { version: 1, chats: { a: { draft: "", held: [], answers: [] } } }],
+    ["bad chat id", { version: 2, chats: { "../x": { draft: "", held: [], answers: [] } } }],
+    ["answer with an extra field", chat({ answers: [{ ...answer(), chat: "x" }] })],
+    ["answer with a bad id", chat({ answers: [answer({ id: "nope" })] })],
+    ["answer with a bad turn", chat({ answers: [answer({ turn: "nope" })] })],
+    ["repeated answer id", chat({ answers: [answer(), answer({ id: ID2.toUpperCase() })] })],
+    ["empty answer", chat({ answers: [answer({ answer: "  " })] })],
+    ["answer over 2,000 characters", chat({ answers: [answer({ answer: "x".repeat(2001) })] })],
+    ["question over 600 characters", chat({ answers: [answer({ question: "x".repeat(601) })] })],
+    ["21 answers", chat({ answers: Array.from({ length: 21 }, (_, i) => answer({ id: `1a6e4d3b-2c5f-4a7b-8d8e-9f3c2b4d5e${String(i).padStart(2, "0")}` })) })],
     ["extra chat field", chat({ files: ["/etc/passwd"] })],
     ["long draft", chat({ draft: "x".repeat(128 * 1024 + 1) })],
     ["bad entry id", chat({ held: [entry({ id: "nope" })] })],
@@ -260,6 +272,16 @@ test("only the exact shape is kept: extra fields, bad ids, long texts, repeats a
   }
   assert.equal((await put("not json")).status, 400);
   assert.deepEqual(((await (await fetch(`${base}/input`, { headers: auth })).json()) as { saved: unknown }).saved, good, "a refused save leaves the saved input as it was");
+});
+
+test("a version 1 file is read as version 2 with no answers, and a save writes version 2", async () => {
+  const fs = await import("node:fs");
+  fs.writeFileSync(join(inputDir, "chat-input.json"), JSON.stringify({ version: 1, chats: { a: { draft: "old", held: [] } } }));
+  const read = (await (await fetch(`${base}/input`, { headers: auth })).json()) as { saved: unknown; note?: string };
+  assert.deepEqual(read.saved, { version: 2, chats: { a: { draft: "old", held: [], answers: [] } } });
+  assert.equal(read.note, undefined);
+  assert.equal((await put(good)).status, 204);
+  assert.equal(JSON.parse(readFileSync(join(inputDir, "chat-input.json"), "utf8")).version, 2);
 });
 
 test("an unreadable saved file is set aside, not overwritten, and the window starts clean", async () => {

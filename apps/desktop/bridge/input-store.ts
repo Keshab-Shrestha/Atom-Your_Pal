@@ -10,22 +10,35 @@ export const MAX_BODY = 8 * 1024 * 1024;
 const MAX_TEXT = 128 * 1024;
 const MAX_CHATS = 100;
 const MAX_ENTRIES = 20;
+const MAX_QUESTION = 600; // UTF-16 units, as the runtime's question cards
+const MAX_ANSWER = 2000;
 const CHAT_ID = /^[\w-]{1,100}$/;
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 
+/** An answer the user gave to one of ATOM's questions, kept until the runtime confirms it took it (ADR-156/157). */
+export interface SavedAnswer {
+  id: string;
+  turn: string;
+  question: string;
+  answer: string;
+}
 export interface SavedInput {
-  version: 1;
-  chats: Record<string, { draft: string; held: { id: string; text: string; lost: number }[] }>;
+  version: 2;
+  chats: Record<string, { draft: string; held: { id: string; text: string; lost: number }[]; answers: SavedAnswer[] }>;
 }
 
 const bytes = (s: string) => Buffer.byteLength(s, "utf8");
 
-/** Strict: the exact shape or nothing. Unknown fields, long texts, bad ids and too many entries are all refusals, never truncations. */
+/**
+ * Strict: the exact shape or nothing. Unknown fields, long texts, bad ids and too many entries are all refusals, never truncations.
+ * Version 1 (drafts and held messages only) is still read and becomes version 2 with no answers.
+ */
 export function validateSaved(value: unknown): { ok: true; saved: SavedInput } | { ok: false; why: string } {
   const bad = (why: string) => ({ ok: false as const, why });
   if (typeof value !== "object" || value === null || Array.isArray(value)) return bad("The saved input is not an object.");
   const v = value as Record<string, unknown>;
-  if (Object.keys(v).sort().join() !== "chats,version" || v.version !== 1) return bad("The saved input has an unknown shape or version.");
+  if (Object.keys(v).sort().join() !== "chats,version" || (v.version !== 1 && v.version !== 2)) return bad("The saved input has an unknown shape or version.");
+  const withAnswers = v.version === 2;
   if (typeof v.chats !== "object" || v.chats === null || Array.isArray(v.chats)) return bad("The saved chats are not an object.");
   const entries = Object.entries(v.chats as Record<string, unknown>);
   if (entries.length > MAX_CHATS) return bad(`At most ${MAX_CHATS} chats keep input.`);
@@ -34,7 +47,7 @@ export function validateSaved(value: unknown): { ok: true; saved: SavedInput } |
     if (!CHAT_ID.test(id)) return bad("A chat id is malformed.");
     if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return bad("A chat's input is not an object.");
     const c = raw as Record<string, unknown>;
-    if (Object.keys(c).sort().join() !== "draft,held") return bad("A chat's input has unknown fields.");
+    if (Object.keys(c).sort().join() !== (withAnswers ? "answers,draft,held" : "draft,held")) return bad("A chat's input has unknown fields.");
     if (typeof c.draft !== "string" || bytes(c.draft) > MAX_TEXT) return bad("A draft is too long to keep.");
     if (!Array.isArray(c.held) || c.held.length > MAX_ENTRIES) return bad(`At most ${MAX_ENTRIES} messages wait per chat.`);
     const held: SavedInput["chats"][string]["held"] = [];
@@ -48,9 +61,23 @@ export function validateSaved(value: unknown): { ok: true; saved: SavedInput } |
       seen.add(e.id);
       held.push({ id: e.id, text: e.text, lost: e.lost as number });
     }
-    chats[id] = { draft: c.draft, held };
+    const answers: SavedAnswer[] = [];
+    if (withAnswers) {
+      if (!Array.isArray(c.answers) || c.answers.length > MAX_ENTRIES) return bad(`At most ${MAX_ENTRIES} unconfirmed answers wait per chat.`);
+      const ids = new Set<string>();
+      for (const a of c.answers as unknown[]) {
+        const e = a as Record<string, unknown>;
+        if (typeof a !== "object" || a === null || Array.isArray(a) || Object.keys(e).sort().join() !== "answer,id,question,turn") return bad("An unconfirmed answer has unknown fields.");
+        if (typeof e.id !== "string" || !UUID.test(e.id) || ids.has(e.id.toLowerCase()) || typeof e.turn !== "string" || !UUID.test(e.turn)) return bad("An unconfirmed answer has a bad or repeated id.");
+        if (typeof e.question !== "string" || e.question.length > MAX_QUESTION) return bad("A saved question is too long to keep.");
+        if (typeof e.answer !== "string" || e.answer.trim() === "" || e.answer.length > MAX_ANSWER) return bad("A saved answer is empty or too long to keep.");
+        ids.add(e.id.toLowerCase());
+        answers.push({ id: e.id, turn: e.turn, question: e.question, answer: e.answer });
+      }
+    }
+    chats[id] = { draft: c.draft, held, answers };
   }
-  return { ok: true, saved: { version: 1, chats } };
+  return { ok: true, saved: { version: 2, chats } };
 }
 
 export interface InputStore {
@@ -60,7 +87,7 @@ export interface InputStore {
 
 export function createInputStore(dir: string): InputStore {
   const file = join(dir, "chat-input.json");
-  const empty = (): SavedInput => ({ version: 1, chats: {} });
+  const empty = (): SavedInput => ({ version: 2, chats: {} });
   return {
     async load() {
       let text: string;

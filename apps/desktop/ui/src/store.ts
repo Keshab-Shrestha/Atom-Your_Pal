@@ -113,6 +113,8 @@ export interface RecoveryState {
   notice?: string;
   /** Delivery ids the host confirmed holding, from the last list. The local copies of those are no longer needed. */
   known: string[];
+  /** Question-card ids whose answers the host confirmed holding, from the last list. The local copies of those are no longer needed. */
+  knownAnswers: string[];
   /** Counts the lists that arrived, so a change can be acted on once. */
   listed: number;
 }
@@ -208,7 +210,7 @@ export const initialState: AppState = {
   transcripts: 0,
   errors: 0,
   turnsStarted: 0,
-  recovery: { open: false, attempts: [], known: [], listed: 0 },
+  recovery: { open: false, attempts: [], known: [], knownAnswers: [], listed: 0 },
   nextId: 1,
 };
 
@@ -433,7 +435,7 @@ function reduceEvent(state: AppState, event: IslandEvent): AppState {
         if (!event.ok) return { ...state, recovery: { ...rest, notice: event.error } };
         const attempts = event.attempts ?? [];
         const stale = rest.record && !attempts.some((a) => a.id === rest.record!.id);
-        return { ...state, recovery: { ...rest, attempts, known: event.known ?? [], listed: r.listed + 1, ...(stale ? { record: undefined } : {}) } };
+        return { ...state, recovery: { ...rest, attempts, known: event.known ?? [], knownAnswers: event.knownAnswers ?? [], listed: r.listed + 1, ...(stale ? { record: undefined } : {}) } };
       }
       if (r.reading === event.request) {
         const { reading: _r, ...rest } = r;

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/ho
 import { Composer } from "./Composer.tsx";
 import { FindBar } from "./FindBar.tsx";
 import { WorkLog } from "./WorkLog.tsx";
+import { QuestionCard, type AnswerOutcome, type Question } from "./QuestionCard.tsx";
 import type { WorkLog as WorkLogState } from "./work-log.ts";
 import { findInMessages, selectedMatch, stepSelection } from "./find.ts";
 import { QueueList } from "./QueueList.tsx";
@@ -34,6 +35,9 @@ export interface ChatViewProps {
   onOpenRecovery: () => void;
   /** What ATOM did in the turn in view, as the window saw it; shown only for the chat it belongs to. */
   workLog: WorkLogState | undefined;
+  /** The question ATOM waits on in this chat, if any, and how to answer it (undefined text skips it). */
+  question: Question | undefined;
+  onQuestion: (text: string | undefined) => Promise<AnswerOutcome>;
   /** Why the chat brief cannot be opened now; undefined when it can. */
   briefWhy: string | undefined;
   onOpenBrief: () => void;
@@ -73,7 +77,7 @@ const LOOP_WORDS: Record<LoopState, string> = {
 
 const NO_SEQ = "Reopen this chat to use this on a message that has just arrived.";
 
-export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, recoveryCount, onOpenRecovery, workLog, briefWhy, onOpenBrief, savedWhy, onOpenHistory, onOpenRemembers, onDismissProblem, onCopy, onQuote, insertion, attachWhy, slash, onSlash, input, controls, branchWhy, onBranch, onStop, onAnswer }: ChatViewProps) {
+export function ChatView({ chat, messages, loop, problem, work, approval, blocked, modelLabel, onSend, recoveryCount, onOpenRecovery, workLog, question, onQuestion, briefWhy, onOpenBrief, savedWhy, onOpenHistory, onOpenRemembers, onDismissProblem, onCopy, onQuote, insertion, attachWhy, slash, onSlash, input, controls, branchWhy, onBranch, onStop, onAnswer }: ChatViewProps) {
   /** Fork, edit and retry need the runtime's saved number for the message. */
   const branchItems = (message: Message): MenuItem[] => {
     const why = branchWhy ?? (message.seq === undefined ? NO_SEQ : undefined);
@@ -276,6 +280,7 @@ export function ChatView({ chat, messages, loop, problem, work, approval, blocke
       </div>
 
       <WorkBar work={work} approval={approval} onStop={onStop} onAnswer={onAnswer} />
+      {question && showLog ? <QuestionCard key={question.id} question={question} onAnswer={onQuestion} /> : null}
 
       <QueueList
         queue={input.current.queue}

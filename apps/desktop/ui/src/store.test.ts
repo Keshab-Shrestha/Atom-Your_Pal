@@ -486,3 +486,13 @@ test("when the window loses the runtime, work in progress is interrupted; finish
   const done = run([workEv({ state: "completed" }), { kind: "link", link: "down" }]);
   assert.equal(done.workLog?.interrupted, undefined);
 });
+
+test("a recovery list keeps the ids of the answers the runtime says it holds", () => {
+  const request = "77777777-7777-4777-8777-777777777777";
+  const asked = run([{ kind: "recoveryAsk", what: "listing", request }]);
+  const s = run([ev({ type: "foreground.recovery", request, ok: true, attempts: [], known: [], knownAnswers: ["11111111-1111-4111-8111-111111111111"] })], asked);
+  assert.deepEqual(s.recovery.knownAnswers, ["11111111-1111-4111-8111-111111111111"]);
+  assert.equal(s.recovery.listed, 1);
+  const none = run([{ kind: "recoveryAsk", what: "listing", request }, ev({ type: "foreground.recovery", request, ok: true, attempts: [], known: [] })], s);
+  assert.deepEqual(none.recovery.knownAnswers, [], "a list without them says none are held");
+});

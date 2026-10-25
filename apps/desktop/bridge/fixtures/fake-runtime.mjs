@@ -90,19 +90,45 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
   const REPLY_CHUNK = 100; // small, so reading a long reply in parts can be tried
   let attempt; // the journal record of the turn in flight
   const receipt = (r) => out({ type: "foreground.receipt", id: r.id, chat: r.chat, state: r.state, archived: r.archived });
-  // The foreground work log (ADR-156): observed tool calls, as the real runtime emits them. No question cards: this window does not opt in yet.
+  // The foreground work log and question cards (ADR-156). A card is created only for a client that sent chat.work.watch; otherwise ATOM asks in its reply.
+  let watching = false;
+  const answered = new Map(); // card id -> sha256 of the answer the runtime took, for foreground.list knownAnswers
+  const QUESTION_MS = Number(process.env.FAKE_QUESTION_MS ?? 90_000);
   let workRun;
   const emitWork = (state) => {
     if (!workRun) return;
-    out({ type: "chat.work", chat: workRun.chat, turn: workRun.turn, startedAt: workRun.startedAt, elapsedMs: Date.now() - workRun.at, state, calls: workRun.calls.map((c) => ({ ...c })), omitted: 0, questions: [] });
+    out({ type: "chat.work", chat: workRun.chat, turn: workRun.turn, startedAt: workRun.startedAt, elapsedMs: Date.now() - workRun.at, state, calls: workRun.calls.map((c) => ({ ...c })), omitted: 0, questions: workRun.questions.map((q) => ({ ...q })) });
   };
-  const beginWork = () => { workRun = { chat: current, turn: randomUUID(), startedAt: new Date().toISOString(), at: Date.now(), calls: [] }; emitWork("working"); };
+  const beginWork = () => { workRun = { chat: current, turn: randomUUID(), startedAt: new Date().toISOString(), at: Date.now(), calls: [], questions: [] }; emitWork("working"); };
   const workCall = (tool, finish) => { const call = { id: randomUUID(), tool, state: "started" }; workRun?.calls.push(call); emitWork("working"); if (finish) { call.state = finish; call.ms = 1200; emitWork("working"); } };
   const endWork = (state) => {
     if (!workRun) return;
     for (const c of workRun.calls) if (c.state === "started") c.state = "unknown";
+    clearTimeout(workRun.questionTimer);
+    for (const q of workRun.questions) if (q.state === "pending") q.state = "skipped";
     emitWork(state);
     workRun = undefined;
+  };
+  // One card at a time. It settles on an answer, a skip, the turn ending, or the timer (90 seconds in the real runtime).
+  const askCard = (prompt, choices) => {
+    const card = { id: randomUUID(), prompt, choices, state: "pending" };
+    workRun.questions.push(card);
+    workRun.questionTimer = setTimeout(() => settleCard(card, undefined, true), QUESTION_MS);
+    emitWork("working");
+  };
+  const settleCard = (card, text, expired = false) => {
+    if (card.state !== "pending" || !workRun) return;
+    clearTimeout(workRun.questionTimer);
+    card.state = text !== undefined ? "answered" : expired ? "expired" : "skipped";
+    if (text !== undefined) {
+      card.answer = text;
+      answered.set(card.id, createHash("sha256").update(text).digest("hex"));
+      // "hide snapshot": the runtime takes the answer, but the window never sees it confirmed in a snapshot (the Recovery list is the only proof)
+      if (text.includes("hide snapshot")) card.state = "skipped";
+    }
+    emitWork("working");
+    clearTimeout(turnTimer);
+    turnTimer = setTimeout(() => finishTurn(text !== undefined ? `You answered: ${text}` : "No answer, so I will ask you again later."), 30);
   };
   const settle = (state, reply = "", archived = false) => {
     if (!attempt) return;
@@ -114,7 +140,7 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
   const summary = (r) => { const { text, files, notes, reply, answers, signature, ...rest } = r; return { ...rest, hasReply: reply.length > 0, answerCount: answers.length }; };
   const foreground = (command) => {
     const respond = (extra) => out({ type: "foreground.recovery", request: command.request, ...extra });
-    if (command.type === "foreground.list") return respond({ ok: true, attempts: [...journal.values()].filter((r) => !r.dismissed).map(summary), known: (command.pending ?? []).filter((id) => journal.has(id)), knownAnswers: [] });
+    if (command.type === "foreground.list") return respond({ ok: true, attempts: [...journal.values()].filter((r) => !r.dismissed).map(summary), known: (command.pending ?? []).filter((id) => journal.has(id)), knownAnswers: (command.pendingAnswers ?? []).filter((a) => answered.get(a.id) === a.digest).map((a) => a.id) });
     const r = journal.get(command.id);
     if (command.type === "foreground.read") {
       if (!r || r.dismissed) return respond({ ok: false, error: "That recovery record is no longer available." });
@@ -283,6 +309,15 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
       m.version += 1;
       sendChats();
       answer({ ok: true, metadata: { pinned: m.pinned, archived: m.archived, version: m.version, ...previous } });
+    } else if (command.type === "chat.work.watch") {
+      watching = true;
+    } else if (command.type === "chat.question.answer") {
+      // Only the pending card of the turn in flight counts; anything else is ignored, as in the real runtime.
+      const card = workRun?.chat === command.chat && workRun?.turn === command.turn ? workRun.questions.find((q) => q.id === command.id && q.state === "pending") : undefined;
+      if (!card) return;
+      if (command.text !== undefined && !command.text.trim()) return;
+      if (command.text?.includes("lose it")) return; // the answer is lost on the way: the card stays pending until it expires
+      settleCard(card, command.text?.trim());
     } else if (command.type === "helpers.list") {
       out({ type: "helpers", helpers: [], apps: [], skills: [{ name: "pdf", description: "Read and write PDFs.", source: "yours" }, { name: "review", description: "A skill that reviews.", source: "zeno" }] });
     } else if (command.type === "commands.list") {
@@ -398,6 +433,11 @@ if (process.env.FAKE_RUNTIME_EXIT && Number.isInteger(exitCode)) {
           ...(kind === "review" ? { fileReview: { path: "/tmp/notes.txt", before: "a", after: "b", token: "tok-123" } } : {}),
         });
         return; // the turn waits for approval.answer, talk.cancel, or the user's patience
+      }
+      if (/ask a question/.test(command.text)) {
+        if (!watching) { turnTimer = setTimeout(() => finishTurn("I could not show you a card, so I am asking here: which day works for you?"), 30); return; }
+        askCard("Which day works for you?", /no choices/.test(command.text) ? [] : ["Monday", "Tuesday"]);
+        return; // the turn waits for chat.question.answer, talk.cancel, or the card's own timer
       }
       if (/crash the runtime/.test(command.text)) {
         turnTimer = setTimeout(() => process.exit(1), 150); // the process dies mid-turn; the bridge starts it again and the journal marks the request interrupted

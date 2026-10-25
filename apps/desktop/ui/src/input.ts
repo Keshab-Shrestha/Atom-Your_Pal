@@ -15,6 +15,19 @@ export interface Entry {
   lost: number;
 }
 
+/** An answer given to one of ATOM's question cards, kept until the runtime confirms it took it (ADR-156/157). It is written down BEFORE it is sent. */
+export interface PendingAnswer {
+  /** The card's id. */
+  id: string;
+  turn: string;
+  /** The question, as asked, so the answer can be understood later. */
+  question: string;
+  /** The words sent, trimmed: exactly what the runtime will report back as the answer. */
+  answer: string;
+}
+
+export const MAX_ANSWER_UNITS = 2000;
+
 export interface ChatInput {
   draft: string;
   /** Files chosen for the draft. */
@@ -23,16 +36,18 @@ export interface ChatInput {
   queue: Entry[];
   /** Waiting for the user's review. Never sent automatically. */
   held: Entry[];
+  /** Answers to question cards that the runtime has not confirmed. */
+  answers: PendingAnswer[];
   /** The id of the queued entry whose turn has been asked for but has not started yet. Only one at a time. */
   sending?: string;
 }
 
 export type Inputs = Record<string, ChatInput>;
 
-export const emptyInput = (): ChatInput => ({ draft: "", files: [], queue: [], held: [] });
-const get = (inputs: Inputs, chat: string) => inputs[chat] ?? emptyInput();
+export const emptyInput = (): ChatInput => ({ draft: "", files: [], queue: [], held: [], answers: [] });
+const get = (inputs: Inputs, chat: string): ChatInput => ({ ...emptyInput(), ...inputs[chat] });
 const put = (inputs: Inputs, chat: string, next: ChatInput): Inputs => {
-  const keep = next.draft !== "" || next.files.length > 0 || next.queue.length > 0 || next.held.length > 0;
+  const keep = next.draft !== "" || next.files.length > 0 || next.queue.length > 0 || next.held.length > 0 || next.answers.length > 0;
   if (!keep) {
     const { [chat]: _gone, ...rest } = inputs;
     return rest;
@@ -101,14 +116,58 @@ export function putBack(inputs: Inputs, chat: string, entry: Entry): Inputs {
   return put(inputs, chat, { ...cur, queue: [entry, ...cur.queue.filter((e) => e.id !== entry.id)] });
 }
 
+// ---------- answers to question cards ----------
+
+export type AnswerResult = { inputs: Inputs; ok: true } | { inputs: Inputs; ok: false; why: string };
+
+/** Writes an answer down. The same card answered again replaces the earlier words. At most 20 per chat; more must be reviewed in Recovery first. */
+export function addAnswer(inputs: Inputs, chat: string, answer: PendingAnswer): AnswerResult {
+  const cur = get(inputs, chat);
+  const others = cur.answers.filter((a) => a.id.toLowerCase() !== answer.id.toLowerCase());
+  if (others.length >= MAX_ENTRIES) return { inputs, ok: false, why: "Review saved question answers in Recovery before sending more." };
+  return { inputs: put(inputs, chat, { ...cur, answers: [...others, answer] }), ok: true };
+}
+
+/** The runtime has these cards' answers (a work snapshot or a recovery list said so), or the user dismissed the local copy. */
+export function removeAnswers(inputs: Inputs, ids: readonly string[]): Inputs {
+  if (ids.length === 0) return inputs;
+  const gone = new Set(ids.map((i) => i.toLowerCase()));
+  let next = inputs;
+  for (const [chat, input] of Object.entries(inputs)) {
+    const kept = (input.answers ?? []).filter((a) => !gone.has(a.id.toLowerCase()));
+    if (kept.length !== (input.answers ?? []).length) next = put(next, chat, { ...get(next, chat), answers: kept });
+  }
+  return next;
+}
+
+/** Every unconfirmed answer, with the chat it belongs to. */
+export function pendingAnswers(inputs: Inputs): (PendingAnswer & { chat: string })[] {
+  return Object.entries(inputs).flatMap(([chat, i]) => (i.answers ?? []).map((a) => ({ ...a, chat }))).slice(0, 2000);
+}
+
+/** The cards of a work snapshot that the runtime says it answered with exactly the words that are waiting here. */
+export function acceptedAnswers(inputs: Inputs, questions: readonly { id: string; state: string; answer?: string }[]): string[] {
+  const waiting = pendingAnswers(inputs);
+  return questions.filter((q) => q.state === "answered" && waiting.some((a) => a.id.toLowerCase() === q.id.toLowerCase() && a.answer === q.answer)).map((q) => q.id);
+}
+
+/** The answer text as it will be sent: trimmed, not empty, within the runtime's limit. A reason when it cannot be sent. */
+export function answerWhy(text: string): string | undefined {
+  const t = text.trim();
+  if (t === "") return "Write an answer, or press Skip.";
+  if (t.length > MAX_ANSWER_UNITS) return `An answer can have at most ${MAX_ANSWER_UNITS} characters.`;
+  return undefined;
+}
+
 // ---------- saving ----------
 
 export interface SavedChat {
   draft: string;
   held: { id: string; text: string; lost: number }[];
+  answers: PendingAnswer[];
 }
 export interface SavedInput {
-  version: 1;
+  version: 2;
   chats: Record<string, SavedChat>;
 }
 
@@ -117,18 +176,19 @@ export function toSaved(inputs: Inputs): SavedInput {
   const chats: Record<string, SavedChat> = {};
   for (const [chat, input] of Object.entries(inputs).slice(0, MAX_CHATS)) {
     const held = [...input.held, ...input.queue].slice(0, MAX_ENTRIES).map((e) => ({ id: e.id, text: e.text, lost: e.lost + e.files.length }));
-    if (input.draft === "" && held.length === 0) continue;
-    chats[chat] = { draft: textBytes(input.draft) <= MAX_TEXT_BYTES ? input.draft : "", held };
+    const answers = (input.answers ?? []).slice(0, MAX_ENTRIES);
+    if (input.draft === "" && held.length === 0 && answers.length === 0) continue;
+    chats[chat] = { draft: textBytes(input.draft) <= MAX_TEXT_BYTES ? input.draft : "", held, answers };
   }
-  return { version: 1, chats };
+  return { version: 2, chats };
 }
 
 /** What was saved, as held messages and drafts. The count of files the draft had is not known after a restart, so it is not claimed. */
 export function fromSaved(saved: SavedInput | undefined): Inputs {
   const out: Inputs = {};
-  if (!saved || saved.version !== 1) return out;
+  if (!saved || saved.version !== 2) return out;
   for (const [chat, s] of Object.entries(saved.chats)) {
-    out[chat] = { draft: s.draft, files: [], queue: [], held: s.held.map((h) => ({ id: h.id, text: h.text, files: [], lost: h.lost })) };
+    out[chat] = { draft: s.draft, files: [], queue: [], held: s.held.map((h) => ({ id: h.id, text: h.text, files: [], lost: h.lost })), answers: s.answers ?? [] };
   }
   return out;
 }

@@ -9,12 +9,17 @@ import { newUuid } from "./ids.ts";
 import type { Attempt, IslandCommand, RecoveryRecord } from "./protocol.ts";
 import { draftText, needsReview, restoreWhy, restoredNote } from "./recovery.ts";
 import { settingsWhy, type Action, type AppState } from "./store.ts";
+import { sha256Hex } from "./digest.ts";
+import type { PendingAnswer } from "./input.ts";
 
 const PATIENCE_MS = 10_000;
 
 export interface RecoveryApi {
-  /** Retained requests that need a look. */
+  /** Retained requests that need a look, and answers to ATOM's questions that nobody confirmed. */
   count: number;
+  /** Answers to question cards that the runtime has not confirmed, kept here until it does or the user dismisses them. */
+  answers: (PendingAnswer & { chat: string })[];
+  dismissAnswer: (id: string) => void;
   open: () => void;
   close: () => void;
   refresh: () => void;
@@ -33,23 +38,35 @@ export function useRecovery(options: {
   dispatch: Dispatch<Action>;
   send: (command: IslandCommand) => Promise<boolean>;
   pendingIds: () => string[];
+  pendingAnswers: () => (PendingAnswer & { chat: string })[];
+  dismissAnswer: (id: string) => void;
   /** Saved drafts have been read, so the held messages that the first list asks about are known. */
   inputsLoaded: boolean;
   offer: (insertion: Omit<Insertion, "seq">) => void;
   toast: (text: string) => void;
 }): RecoveryApi {
-  const { state, dispatch, send, pendingIds, inputsLoaded, offer, toast } = options;
+  const { state, dispatch, send, pendingIds, pendingAnswers, dismissAnswer, inputsLoaded, offer, toast } = options;
 
   const ask = useCallback(
-    (what: "listing" | "reading" | "dismissing", command: (request: string) => IslandCommand, keep = false) => {
+    (what: "listing" | "reading" | "dismissing", command: (request: string) => IslandCommand | Promise<IslandCommand>, keep = false) => {
       const request = newUuid();
       dispatch({ kind: "recoveryAsk", what, request, ...(keep ? { keep } : {}) });
-      void send(command(request)).then((ok) => ok || dispatch({ kind: "recoveryTimeout", request }));
+      void Promise.resolve(command(request)).then(send).then((ok) => ok || dispatch({ kind: "recoveryTimeout", request }));
       setTimeout(() => dispatch({ kind: "recoveryTimeout", request }), PATIENCE_MS);
     },
     [send, dispatch],
   );
-  const refresh = useCallback(() => ask("listing", (request) => ({ type: "foreground.list", request, pending: pendingIds(), pendingAnswers: [] })), [ask, pendingIds]);
+  // The list also asks which answers to question cards the runtime already holds, by the digest of their words.
+  const refresh = useCallback(
+    () =>
+      ask("listing", async (request) => ({
+        type: "foreground.list",
+        request,
+        pending: pendingIds(),
+        pendingAnswers: await Promise.all(pendingAnswers().map(async (a) => ({ id: a.id, digest: await sha256Hex(a.answer) }))),
+      })),
+    [ask, pendingIds, pendingAnswers],
+  );
 
   // Look once the runtime is ready, and after every receipt (a request began, finished, failed, was stopped), a moment later so a burst is one look.
   const ready = state.link === "live" && state.runtime.state === "running" && state.ready !== undefined;
@@ -82,7 +99,9 @@ export function useRecovery(options: {
   const composerWhy = settingsWhy(state);
   const chatsById = new Map(state.chats.map((c) => [c.id, c]));
   return {
-    count: state.recovery.attempts.filter((a: Attempt) => needsReview(a)).length,
+    count: state.recovery.attempts.filter((a: Attempt) => needsReview(a)).length + pendingAnswers().length,
+    answers: pendingAnswers(),
+    dismissAnswer,
     open: () => {
       dispatch({ kind: "recoveryOpen", open: true });
       refresh();

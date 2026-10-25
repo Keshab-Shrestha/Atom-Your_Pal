@@ -10,6 +10,8 @@ import { newUuid } from "./ids.ts";
 import { useInputs } from "./useInputs.ts";
 import { useRecovery } from "./useRecovery.ts";
 import { useBrief } from "./useBrief.ts";
+import type { AnswerOutcome } from "./QuestionCard.tsx";
+import { answerWhy } from "./input.ts";
 import { useSavedChat } from "./useSavedChat.ts";
 import { SavedHistory } from "./SavedHistory.tsx";
 import { Remembers } from "./Remembers.tsx";
@@ -56,6 +58,9 @@ export function App({ transport }: { transport: Transport }) {
     if (state.link !== "live" || !state.ready) return;
     void send({ type: "helpers.list" });
     void send({ type: "commands.list" });
+    // This window can show ATOM's question cards and answer them, so it says so (ADR-156). Without this the runtime refuses every card at once
+    // and ATOM asks in its reply; with it, a card may wait for the user, so the window must always be able to show it.
+    void send({ type: "chat.work.watch" });
   }, [state.link, state.ready, send]);
   useEffect(() => {
     const id = state.currentChatId;
@@ -322,6 +327,8 @@ export function App({ transport }: { transport: Transport }) {
     dispatch,
     send,
     pendingIds: inputs.api.pendingIds,
+    pendingAnswers: inputs.api.pendingAnswers,
+    dismissAnswer: (id) => inputs.api.dropAnswers([id]),
     inputsLoaded: inputs.api.loaded,
     offer: (insertion) => setInsertion({ ...insertion, seq: ++quoteSeq.current }),
     toast: (text) => {
@@ -336,6 +343,27 @@ export function App({ transport }: { transport: Transport }) {
   // Saved history and what the chat remembers: read-only questions about the saved archive.
   const saved = useSavedChat({ state, dispatch, send });
   const savedWhy = historyWhy(currentChat(state), state.link === "live" && state.runtime.state === "running" && state.ready !== undefined);
+  // The question ATOM waits on, and the answer. The words are written down BEFORE they are sent (ADR-157), so a lost connection or a crash
+  // leaves them in Recovery as "Answer not confirmed" instead of leaving the user unsure. Skip writes nothing: there is nothing to keep.
+  const log = state.workLog;
+  const pendingQuestion = log && !log.interrupted && log.work.state === "working" && log.work.chat === state.currentChatId ? log.work.questions.find((q) => q.state === "pending") : undefined;
+  const answerQuestion = useCallback(
+    async (text: string | undefined): Promise<AnswerOutcome> => {
+      const now = stateRef.current;
+      const work = now.workLog;
+      const question = work?.work.questions.find((q) => q.state === "pending");
+      if (!work || work.interrupted || work.work.state !== "working" || !question || work.work.chat !== now.currentChatId) return { ok: false, why: "That question is no longer waiting." };
+      const command = { type: "chat.question.answer" as const, chat: work.work.chat, turn: work.work.turn, id: question.id };
+      if (text === undefined) return { ok: await send(command) };
+      const answer = text.trim();
+      const refused = answerWhy(answer);
+      if (refused) return { ok: false, why: refused };
+      const saved = await inputs.api.saveAnswer(work.work.chat, { id: question.id, turn: work.work.turn, question: question.prompt, answer });
+      if (!saved.ok) return { ok: false, why: saved.why };
+      return { ok: await send({ ...command, text: answer }) };
+    },
+    [send, inputs.api],
+  );
   // Stop ends the turn, declines what waits, and holds whatever was queued behind it.
   stopRef.current = () => {
     dispatch({ kind: "stopped" });
@@ -401,6 +429,8 @@ export function App({ transport }: { transport: Transport }) {
         recoveryCount={recovery.count}
         onOpenRecovery={recovery.open}
         workLog={state.workLog}
+        question={pendingQuestion}
+        onQuestion={answerQuestion}
         briefWhy={briefWhy}
         onOpenBrief={() => state.currentChatId && brief.open(state.currentChatId)}
         savedWhy={savedWhy}
